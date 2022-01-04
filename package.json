@@ -1,0 +1,22 @@
+{
+  "name": "bagato",
+  "version": "1.0.0",
+  "description": "invoice accounting",
+  "main": ".eslintrc.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ikeniborn/bagato.git"
+  },
+  "author": "ikeniborn",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ikeniborn/bagato/issues"
+  },
+  "homepage": "https://github.com/ikeniborn/bagato#readme",
+  "dependencies": {
+    "@types/google-apps-script": "^1.0.39"
+  }
+}

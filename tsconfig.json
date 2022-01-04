@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "isolatedModules": true,
+    // "noLib": true,
+    "lib": ["esnext"],
+    "noResolve": true,
+    "target": "ES2019",
+    "module": "None",
+    "noImplicitUseStrict": true,
+    "experimentalDecorators": true,
+    "types": ["google-apps-script"]
+  }
+}
