@@ -45,7 +45,10 @@ function findTime(start) {
 function addErrorItem(error) {
   try {
     const globalVariable = getGlobalVariable()
-    const errorOpen = openGoogleSheet(globalVariable.sourceSheetID, globalVariable.sourceSheetNameError)
+    const errorOpen = openGoogleSheet(
+      globalVariable.sourceSheetID,
+      globalVariable.sourceSheetNameError
+    )
     errorOpen.appendRow([formatterDate().timestamp, '', '', error])
   } catch (e) {
     console.error(arguments.callee.name + ': ' + e)
@@ -60,8 +63,16 @@ function formatterDate(date) {
     }
     const formatter = {}
     formatter.date = Utilities.formatDate(new Date(date), 'GMT+3', 'dd.MM.yyyy')
-    formatter.time = Utilities.formatDate(new Date(date), 'GMT+3', 'dd.MM.yyyy HH:mm')
-    formatter.timestamp = Utilities.formatDate(new Date(date), 'GMT+3', 'dd.MM.yyyy HH:mm:ss')
+    formatter.time = Utilities.formatDate(
+      new Date(date),
+      'GMT+3',
+      'dd.MM.yyyy HH:mm'
+    )
+    formatter.timestamp = Utilities.formatDate(
+      new Date(date),
+      'GMT+3',
+      'dd.MM.yyyy HH:mm:ss'
+    )
     return formatter
   } catch (e) {
     addErrorItem(arguments.callee.name + ': ' + e)
@@ -81,16 +92,24 @@ function addLog(postData) {
   try {
     if (isValidateAction(postData) && isUser(postData)) {
       const globalVariable = getGlobalVariable()
-      const sourceOpen = openGoogleSheet(globalVariable.sourceSheetID, globalVariable.sourceSheetNameLog)
+      const sourceOpen = openGoogleSheet(
+        globalVariable.sourceSheetID,
+        globalVariable.sourceSheetNameLog
+      )
       const startDate = getPreviousDate(180)
-      const sourceArray = getGoogleSheetValues(sourceOpen).reduce(function (row, array, index) {
+      const sourceArray = getGoogleSheetValues(sourceOpen).reduce(function (
+        row,
+        array,
+        index
+      ) {
         if (index != 0) {
           if (array[0] >= startDate) {
             row.push(array)
           }
         }
         return row
-      }, [])
+      },
+      [])
       const isNewAction = sourceArray.reduce(function (row, array) {
         if (isMatch(postData.action.id, array[2])) {
           row = false
@@ -98,7 +117,11 @@ function addLog(postData) {
         return row
       }, true)
       if (isNewAction) {
-        sourceOpen.appendRow([formatterDate().timestamp, postData.action.type, postData.action.id])
+        sourceOpen.appendRow([
+          formatterDate().timestamp,
+          postData.action.type,
+          postData.action.id,
+        ])
       }
       return isNewAction
     } else {
@@ -154,7 +177,13 @@ function isValidString(d) {
 function isMatch(where, what) {
   try {
     if (isValidString(where) && isValidString(what)) {
-      if (where.toLowerCase().replace(/\s+/g, '').trim().match(what.toLowerCase().replace(/\s+/g, '').trim())) {
+      if (
+        where
+          .toLowerCase()
+          .replace(/\s+/g, '')
+          .trim()
+          .match(what.toLowerCase().replace(/\s+/g, '').trim())
+      ) {
         return true
       } else {
         return false
@@ -284,25 +313,58 @@ function getPostObject(postData) {
     object.actionType = postData.action.type
     object.webHookActionId = postData.action.id
     //* открытие листов
-    object.financialCenterSheetOpen = openGoogleSheet(object.sourceSheetID, object.financialCenterSheetName)
-    object.accountingItemSheetOpen = openGoogleSheet(object.sourceSheetID, object.accountingItemSheetName)
-    object.costСenterSheetOpen = openGoogleSheet(object.sourceSheetID, object.costСenterSheetName)
-    object.parametrSheetOpen = openGoogleSheet(object.sourceSheetID, object.parametrSheetName)
-    object.goalsSheetOpen = openGoogleSheet(object.sourceSheetID, object.goalsSheetName)
-    object.trelloOpen = openGoogleSheet(object.sourceSheetID, object.sourceSheetNameTrello)
-    object.errorOpen = openGoogleSheet(object.sourceSheetID, object.sourceSheetNameError)
-    object.logOpen = openGoogleSheet(object.sourceSheetID, object.sourceSheetNameLog)
-    object.targetOpen = openGoogleSheet(object.targetSheetID, object.targetSheetNameTarget)
+    object.financialCenterSheetOpen = openGoogleSheet(
+      object.sourceSheetID,
+      object.financialCenterSheetName
+    )
+    object.accountingItemSheetOpen = openGoogleSheet(
+      object.sourceSheetID,
+      object.accountingItemSheetName
+    )
+    object.costСenterSheetOpen = openGoogleSheet(
+      object.sourceSheetID,
+      object.costСenterSheetName
+    )
+    object.parametrSheetOpen = openGoogleSheet(
+      object.sourceSheetID,
+      object.parametrSheetName
+    )
+    object.goalsSheetOpen = openGoogleSheet(
+      object.sourceSheetID,
+      object.goalsSheetName
+    )
+    object.trelloOpen = openGoogleSheet(
+      object.sourceSheetID,
+      object.sourceSheetNameTrello
+    )
+    object.errorOpen = openGoogleSheet(
+      object.sourceSheetID,
+      object.sourceSheetNameError
+    )
+    object.logOpen = openGoogleSheet(
+      object.sourceSheetID,
+      object.sourceSheetNameLog
+    )
+    object.targetOpen = openGoogleSheet(
+      object.targetSheetID,
+      object.targetSheetNameTarget
+    )
     //* данные с листов
-    object.financialСenterArray = getGoogleSheetValues(object.financialCenterSheetOpen)
-    object.accountingItemArray = getGoogleSheetValues(object.accountingItemSheetOpen)
+    object.financialСenterArray = getGoogleSheetValues(
+      object.financialCenterSheetOpen
+    )
+    object.accountingItemArray = getGoogleSheetValues(
+      object.accountingItemSheetOpen
+    )
     object.costСenterArray = getGoogleSheetValues(object.costСenterSheetOpen)
     object.parametrArray = getGoogleSheetValues(object.parametrSheetOpen)
     object.goalsArray = getGoogleSheetValues(object.goalsSheetOpen)
     object.trelloArray = getGoogleSheetValues(object.trelloOpen)
     object.errorArray = getGoogleSheetValues(object.errorOpen)
     object.targetArray = getGoogleSheetValues(object.targetOpen)
-    if (['updateComment', 'deleteComment'].indexOf(postData.action.type) !== -1) {
+    if (
+      ['updateComment', 'deleteComment'].indexOf(postData.action.type) !== -1
+    ) {
       object.actionId = postData.action.data.action.id
     } else {
       object.actionId = postData.action.id
@@ -312,7 +374,9 @@ function getPostObject(postData) {
     object.memberUsername = postData.action.memberCreator.username
     object.boardId = postData.action.data.board.id
     object.boardName = postData.action.data.board.name
-    if ([object.boardIdFact, object.boardIdFact0].indexOf(object.boardId) !== -1) {
+    if (
+      [object.boardIdFact, object.boardIdFact0].indexOf(object.boardId) !== -1
+    ) {
       object.isFact = true
       if ([object.boardIdFact].indexOf(object.boardId) !== -1) {
         object.isCurrFact = true
@@ -323,7 +387,13 @@ function getPostObject(postData) {
       object.isCurrBudget = false
       object.isTarget = false
       object.type = 'Факт'
-    } else if ([object.boardIdBudget, object.boardIdBudget2, object.boardIdBudget3].indexOf(object.boardId) !== -1) {
+    } else if (
+      [
+        object.boardIdBudget,
+        object.boardIdBudget2,
+        object.boardIdBudget3,
+      ].indexOf(object.boardId) !== -1
+    ) {
       object.isFact = false
       object.isCurrFact = false
       object.isBudget = true
@@ -342,14 +412,22 @@ function getPostObject(postData) {
       object.isTarget = true
       object.type = 'Факт'
     }
-    if (['deleteComment', 'updateComment', 'commentCard', 'updateCard'].indexOf(postData.action.type) !== -1) {
+    if (
+      ['deleteComment', 'updateComment', 'commentCard', 'updateCard'].indexOf(
+        postData.action.type
+      ) !== -1
+    ) {
       object.cardId = postData.action.data.card.id
       object.cardName = postData.action.data.card.name
       object.cardDescription = ''
       object.cardComment = ''
       object.cardLabelColor = getCardLabel(object).item.color
     }
-    if (['commentCard', 'createList', 'updateCard', 'updateList'].indexOf(postData.action.type) !== -1) {
+    if (
+      ['commentCard', 'createList', 'updateCard', 'updateList'].indexOf(
+        postData.action.type
+      ) !== -1
+    ) {
       object.listId = postData.action.data.list.id
       object.listName = postData.action.data.list.name
       if (['updateList'].indexOf(postData.action.type) !== -1) {
@@ -358,7 +436,9 @@ function getPostObject(postData) {
       if (['updateCard'].indexOf(postData.action.type) !== -1) {
         object.cardClosed = postData.action.data.card.closed
       }
-    } else if (['updateComment', 'deleteComment'].indexOf(postData.action.type) !== -1) {
+    } else if (
+      ['updateComment', 'deleteComment'].indexOf(postData.action.type) !== -1
+    ) {
       object.list = getCardList(object)
       object.listId = object.list.id
       object.listName = object.list.name
@@ -373,13 +453,19 @@ function getPostObject(postData) {
     } else {
       object.privateBudget = false
     }
-    if (['deleteComment', 'updateComment', 'commentCard', 'updateCard'].indexOf(postData.action.type) !== -1) {
+    if (
+      ['deleteComment', 'updateComment', 'commentCard', 'updateCard'].indexOf(
+        postData.action.type
+      ) !== -1
+    ) {
       object.accountingItem = getAccountingItem(object)
       object.cashFlow = object.accountingItem.item.cashFlow
       object.bill = object.accountingItem.item.bill
       object.account = object.accountingItem.item.account
       object.nomenclature = postData.action.data.card.name
-      if (['updateComment', 'commentCard'].indexOf(postData.action.type) !== -1) {
+      if (
+        ['updateComment', 'commentCard'].indexOf(postData.action.type) !== -1
+      ) {
         if (['updateComment'].indexOf(postData.action.type) !== -1) {
           object.text = postData.action.data.action.text
         } else {
@@ -404,13 +490,33 @@ function getPostObject(postData) {
       const currDate = new Date()
       object.period = new Date(currDate.getFullYear(), currDate.getMonth(), 1)
       object.ymd = getYMD(object.period)
-      object.factPeriod2 = new Date(object.period.getFullYear(), object.period.getMonth() - 2, 1)
-      object.factPeriod1 = new Date(object.period.getFullYear(), object.period.getMonth() - 1, 1)
+      object.factPeriod2 = new Date(
+        object.period.getFullYear(),
+        object.period.getMonth() - 2,
+        1
+      )
+      object.factPeriod1 = new Date(
+        object.period.getFullYear(),
+        object.period.getMonth() - 1,
+        1
+      )
       object.factPeriod = object.period
       object.budgetPeriodCurrent = object.period
-      object.budgetPeriod = new Date(object.period.getFullYear(), object.period.getMonth() + 1, 1)
-      object.budgetPeriod2 = new Date(object.period.getFullYear(), object.period.getMonth() + 2, 1)
-      object.budgetPeriod3 = new Date(object.period.getFullYear(), object.period.getMonth() + 3, 1)
+      object.budgetPeriod = new Date(
+        object.period.getFullYear(),
+        object.period.getMonth() + 1,
+        1
+      )
+      object.budgetPeriod2 = new Date(
+        object.period.getFullYear(),
+        object.period.getMonth() + 2,
+        1
+      )
+      object.budgetPeriod3 = new Date(
+        object.period.getFullYear(),
+        object.period.getMonth() + 3,
+        1
+      )
     } else {
       object.date = getPeriod(object)
       object.period = object.date.period
@@ -423,10 +529,16 @@ function getPostObject(postData) {
       object.budgetPeriod2 = object.date.budgetPeriod2
       object.budgetPeriod3 = object.date.budgetPeriod3
     }
-    if (['deleteComment', 'updateComment', 'commentCard'].indexOf(postData.action.type) !== -1) {
+    if (
+      ['deleteComment', 'updateComment', 'commentCard'].indexOf(
+        postData.action.type
+      ) !== -1
+    ) {
       object.dataTrello = getAllDataTrello(object)
     }
-    if (['deleteComment', 'updateComment'].indexOf(postData.action.type) !== -1) {
+    if (
+      ['deleteComment', 'updateComment'].indexOf(postData.action.type) !== -1
+    ) {
       object.isOldData = isOldData(object)
     } else {
       object.isOldData = false
@@ -456,13 +568,28 @@ function addFinancialCenter(postObject) {
     if (postObject.cfo == undefined) {
       var newId = cfoArray.length + 1
       ss.appendRow([newId, postObject.listName, formatterDate().timestamp])
-      postObject.financialСenterArray = getGoogleSheetValues(postObject.financialCenterSheetOpen)
+      postObject.financialСenterArray = getGoogleSheetValues(
+        postObject.financialCenterSheetOpen
+      )
       var newIdParametr = parametrArray.length + 1
-      ssParametr.appendRow([newIdParametr, 'Факт', postObject.listName, postObject.factPeriod, formatterDate().timestamp])
-      ssParametr.appendRow([newIdParametr + 1, 'Бюджет', postObject.listName, postObject.budgetPeriod, formatterDate().timestamp])
+      ssParametr.appendRow([
+        newIdParametr,
+        'Факт',
+        postObject.listName,
+        postObject.factPeriod,
+        formatterDate().timestamp,
+      ])
+      ssParametr.appendRow([
+        newIdParametr + 1,
+        'Бюджет',
+        postObject.listName,
+        postObject.budgetPeriod,
+        formatterDate().timestamp,
+      ])
     }
     //* обновление листа
-    postObject.listName = postObject.listName + ' ' + formatterDate(postObject.period).date
+    postObject.listName =
+      postObject.listName + ' ' + formatterDate(postObject.period).date
     updateList(postObject)
   } catch (e) {
     addErrorItem(arguments.callee.name + ': ' + e)
@@ -479,7 +606,10 @@ function addTarget(postObject) {
     const array = getTarget(postObject).array
     const goal = getTarget(postObject).item.goal
     const cfo = getFinancialСenter(postObject).item.cfo
-    const objGoal = postObject.listName.toLowerCase().replace(cfo.toLowerCase(), '').trim()
+    const objGoal = postObject.listName
+      .toLowerCase()
+      .replace(cfo.toLowerCase(), '')
+      .trim()
     const newGoal = objGoal[0].toUpperCase() + objGoal.slice(1)
     const goalArray = array.map(function (array) {
       return array.name
@@ -493,7 +623,15 @@ function addTarget(postObject) {
     const newIdMvz = arrayMvz.length + 1
     if (goal == undefined) {
       const newId = goalArray.length + 1
-      ss.appendRow([newId, postObject.listName, newGoal, cfo, formatterDate().timestamp, postObject.listId, 'actual'])
+      ss.appendRow([
+        newId,
+        postObject.listName,
+        newGoal,
+        cfo,
+        formatterDate().timestamp,
+        postObject.listId,
+        'actual',
+      ])
       ssMvz.appendRow([newIdMvz, objGoal, tagMvz])
       postObject.goalsArray = getGoogleSheetValues(postObject.goalsSheetOpen)
     }
@@ -507,19 +645,28 @@ function closedBudgetPeriod(postObject) {
     const postObjectBudget = copyObject(postObject)
     postObjectBudget.boardId = postObjectBudget.boardIdBudget
     postObjectBudget.listId = getList(postObjectBudget).id
-    postObjectBudget.listName = postObjectBudget.cfo + ' ' + formatterDate(postObjectBudget.budgetPeriod).date
+    postObjectBudget.listName =
+      postObjectBudget.cfo +
+      ' ' +
+      formatterDate(postObjectBudget.budgetPeriod).date
     archiveAllCards(postObjectBudget)
     updateList(postObjectBudget)
     const postObjectBudget2 = copyObject(postObjectBudget)
     postObjectBudget2.boardId = postObjectBudget2.boardIdBudget2
     postObjectBudget2.listId = getList(postObjectBudget2).id
-    postObjectBudget2.listName = postObjectBudget2.cfo + ' ' + formatterDate(postObjectBudget2.budgetPeriod2).date
+    postObjectBudget2.listName =
+      postObjectBudget2.cfo +
+      ' ' +
+      formatterDate(postObjectBudget2.budgetPeriod2).date
     moveAllCards(postObjectBudget2, postObjectBudget)
     updateList(postObjectBudget2)
     const postObjectBudget3 = copyObject(postObjectBudget2)
     postObjectBudget3.boardId = postObjectBudget3.boardIdBudget3
     postObjectBudget3.listId = getList(postObjectBudget3).id
-    postObjectBudget3.listName = postObjectBudget3.cfo + ' ' + formatterDate(postObjectBudget3.budgetPeriod3).date
+    postObjectBudget3.listName =
+      postObjectBudget3.cfo +
+      ' ' +
+      formatterDate(postObjectBudget3.budgetPeriod3).date
     moveAllCards(postObjectBudget3, postObjectBudget2)
     createCardsForList(postObjectBudget3)
     updateList(postObjectBudget3)
@@ -533,7 +680,10 @@ function closedFactPeriod(postObject) {
     const postObjectFact0 = copyObject(postObject)
     postObjectFact0.boardId = postObjectFact0.boardIdFact0
     postObjectFact0.listId = getList(postObjectFact0).id
-    postObjectFact0.listName = postObjectFact0.cfo + ' ' + formatterDate(postObjectFact0.factPeriod1).date
+    postObjectFact0.listName =
+      postObjectFact0.cfo +
+      ' ' +
+      formatterDate(postObjectFact0.factPeriod1).date
     if (postObjectFact0.listId == undefined) {
       postObjectFact0.listId = addList(postObjectFact0).id
     } else {
@@ -544,7 +694,8 @@ function closedFactPeriod(postObject) {
     //* Перенос карточек на доску факт-1
     moveAllCards(postObject, postObjectFact0)
     //* обновление текущего листа факта
-    postObject.listName = postObject.cfo + ' ' + formatterDate(postObject.factPeriod).date
+    postObject.listName =
+      postObject.cfo + ' ' + formatterDate(postObject.factPeriod).date
     updateList(postObject)
     //* создание карточек на листе факт
     createCardsForList(postObject)
@@ -580,7 +731,13 @@ function createCardsForList(postObject) {
         }
         return row
       }, {})
-      addCard(postObject, accounts.nomenclature, postObject.listId, accounts.id, label.id).id
+      addCard(
+        postObject,
+        accounts.nomenclature,
+        postObject.listId,
+        accounts.id,
+        label.id
+      ).id
     })
   } catch (e) {
     addErrorItem(arguments.callee.name + ': ' + e)
@@ -627,6 +784,7 @@ function deleteRowByActionId(postObject) {
       sourceData.splice(row - 1, 1)
     })
     postObject.dataTrello = getAllDataTrello(postObject)
+    updateAccountData()
     return sum
   } catch (e) {
     addErrorItem(arguments.callee.name + ': ' + e)
@@ -659,7 +817,10 @@ function getAccountingItem(postObject) {
       return row
     }, [])
     object.item = object.array.reduce(function (row, array) {
-      if (isMatch(postObject.cardName, array.nomenclature) && isMatch(postObject.cardLabelColor, array.color)) {
+      if (
+        isMatch(postObject.cardName, array.nomenclature) &&
+        isMatch(postObject.cardLabelColor, array.color)
+      ) {
         row = array
       }
       return row
@@ -721,28 +882,93 @@ function getComment(postObject) {
     const comment = {}
     const sum = getSum(postObject)
     if (isMatch(postObject.actionType, 'commentCard')) {
-      comment.text = '**Внесенная сумма**: ' + postObject.sum + ' р.' + postObject.lineBreak
-      comment.message = '<b><u>' + postObject.cfo + '</u> внесено</b>: ' + postObject.sum + ' р.' + postObject.telegramLineBreak
+      comment.text =
+        '**Внесенная сумма**: ' + postObject.sum + ' р.' + postObject.lineBreak
+      comment.message =
+        '<b><u>' +
+        postObject.cfo +
+        '</u> внесено</b>: ' +
+        postObject.sum +
+        ' р.' +
+        postObject.telegramLineBreak
     } else if (isMatch(postObject.actionType, 'updateComment')) {
-      comment.text = '**Новая сумма**: ' + postObject.sum + ' р.' + postObject.lineBreak
-      comment.message = '<b><u>' + postObject.cfo + '</u> изменено</b>: ' + postObject.sum + ' р.' + postObject.telegramLineBreak
-      comment.message += '<i>Новое</i> - ' + postObject.sum + ' р.' + postObject.telegramLineBreak
-      comment.message += '<i>Старое</i> - ' + postObject.oldSum + ' р.' + postObject.telegramLineBreak
+      comment.text =
+        '**Новая сумма**: ' + postObject.sum + ' р.' + postObject.lineBreak
+      comment.message =
+        '<b><u>' +
+        postObject.cfo +
+        '</u> изменено</b>: ' +
+        postObject.sum +
+        ' р.' +
+        postObject.telegramLineBreak
+      comment.message +=
+        '<i>Новое</i> - ' +
+        postObject.sum +
+        ' р.' +
+        postObject.telegramLineBreak
+      comment.message +=
+        '<i>Старое</i> - ' +
+        postObject.oldSum +
+        ' р.' +
+        postObject.telegramLineBreak
     } else if (isMatch(postObject.actionType, 'deleteComment')) {
-      comment.text = '**Удаленная сумма**: ' + postObject.sum + ' р.' + postObject.lineBreak
-      comment.message = '<b><u>' + postObject.cfo + '</u> удалено</b>: ' + postObject.sum + ' р.' + postObject.telegramLineBreak
+      comment.text =
+        '**Удаленная сумма**: ' + postObject.sum + ' р.' + postObject.lineBreak
+      comment.message =
+        '<b><u>' +
+        postObject.cfo +
+        '</u> удалено</b>: ' +
+        postObject.sum +
+        ' р.' +
+        postObject.telegramLineBreak
     }
     if (postObject.isFact) {
       //* комментарий по факту
-      comment.text += '**Остаток средств** ' + '*' + postObject.cfo + '*: ' + sum.totalSum.totalRest + ' р.' + postObject.lineBreak
+      comment.text +=
+        '**Остаток средств** ' +
+        '*' +
+        postObject.cfo +
+        '*: ' +
+        sum.totalSum.totalRest +
+        ' р.' +
+        postObject.lineBreak
       comment.text += '**Остаток бюджета**:' + postObject.lineBreak
-      comment.text += '*Статья* - ' + postObject.account + ': ' + sum.totalSum.accountBudgetRest + ' р.' + postObject.lineBreak
-      comment.text += '*Номенклатура* - ' + postObject.nomenclature + ': ' + sum.totalSum.nomenclatureBudgetRest + ' р.' + postObject.lineBreak
-      comment.message += '<i>МВЗ</i> - ' + postObject.mvz + postObject.telegramLineBreak
-      comment.message += '<b>Ост. ДС</b>: ' + sum.totalSum.totalRest + ' р.' + postObject.telegramLineBreak
+      comment.text +=
+        '*Статья* - ' +
+        postObject.account +
+        ': ' +
+        sum.totalSum.accountBudgetRest +
+        ' р.' +
+        postObject.lineBreak
+      comment.text +=
+        '*Номенклатура* - ' +
+        postObject.nomenclature +
+        ': ' +
+        sum.totalSum.nomenclatureBudgetRest +
+        ' р.' +
+        postObject.lineBreak
+      comment.message +=
+        '<i>МВЗ</i> - ' + postObject.mvz + postObject.telegramLineBreak
+      comment.message +=
+        '<b>Ост. ДС</b>: ' +
+        sum.totalSum.totalRest +
+        ' р.' +
+        postObject.telegramLineBreak
       comment.message += '<b>Ост. бюджета</b>:' + postObject.telegramLineBreak
-      comment.message += '<i>' + postObject.account + '</i>: ' + sum.totalSum.nomenclatureBudgetRest + ' р.' + postObject.telegramLineBreak
-      comment.message += '<i>' + postObject.nomenclature + '</i>: ' + sum.totalSum.accountBudgetRest + ' р.' + postObject.telegramLineBreak
+      comment.message +=
+        '<i>' +
+        postObject.account +
+        '</i>: ' +
+        sum.totalSum.nomenclatureBudgetRest +
+        ' р.' +
+        postObject.telegramLineBreak
+      comment.message +=
+        '<i>' +
+        postObject.nomenclature +
+        '</i>: ' +
+        sum.totalSum.accountBudgetRest +
+        ' р.' +
+        postObject.telegramLineBreak
       if (isValidString(postObject.comment)) {
         comment.text += '**Комментарий**: ' + postObject.comment
         comment.message += '<b>Комментарий</b>: ' + postObject.comment
@@ -750,27 +976,79 @@ function getComment(postObject) {
     } else if (postObject.isBudget) {
       //* комментарий по бюджету
       comment.text += '**Бюджет**:' + postObject.lineBreak
-      comment.text += '*Номенклатура* - ' + postObject.nomenclature + ': ' + sum.budgetSum.nomenclatureSum + ' р.' + postObject.lineBreak
-      comment.text += '*Статья* - ' + postObject.account + ': ' + sum.budgetSum.accountSum + ' р.' + postObject.lineBreak
-      comment.text += '*Счет* - ' + postObject.bill + ': ' + sum.budgetSum.billSum + ' р.' + postObject.lineBreak
-      comment.message += '<i>МВЗ</i> - ' + postObject.mvz + postObject.telegramLineBreak
+      comment.text +=
+        '*Номенклатура* - ' +
+        postObject.nomenclature +
+        ': ' +
+        sum.budgetSum.nomenclatureSum +
+        ' р.' +
+        postObject.lineBreak
+      comment.text +=
+        '*Статья* - ' +
+        postObject.account +
+        ': ' +
+        sum.budgetSum.accountSum +
+        ' р.' +
+        postObject.lineBreak
+      comment.text +=
+        '*Счет* - ' +
+        postObject.bill +
+        ': ' +
+        sum.budgetSum.billSum +
+        ' р.' +
+        postObject.lineBreak
+      comment.message +=
+        '<i>МВЗ</i> - ' + postObject.mvz + postObject.telegramLineBreak
       comment.message += '<b>Бюджет</b>:' + postObject.telegramLineBreak
-      comment.message += '<i>Номенклатура</i> - ' + postObject.nomenclature + ': ' + sum.budgetSum.nomenclatureSum + ' р.' + postObject.telegramLineBreak
-      comment.message += '<i>Статья</i> - ' + postObject.account + ': ' + sum.budgetSum.accountSum + ' р.' + postObject.telegramLineBreak
+      comment.message +=
+        '<i>Номенклатура</i> - ' +
+        postObject.nomenclature +
+        ': ' +
+        sum.budgetSum.nomenclatureSum +
+        ' р.' +
+        postObject.telegramLineBreak
+      comment.message +=
+        '<i>Статья</i> - ' +
+        postObject.account +
+        ': ' +
+        sum.budgetSum.accountSum +
+        ' р.' +
+        postObject.telegramLineBreak
       if (isValidString(postObject.comment)) {
         comment.text += '**Комментарий**: ' + postObject.comment
         comment.message += '<b>Комментарий</b>: ' + postObject.comment
       }
     } else if (postObject.isTarget) {
       //* комментарий по цели
-      comment.text += '*Счет* - ' + postObject.nomenclature + postObject.lineBreak
-      comment.text += '*Старая сумма*: ' + postObject.targetSumOld + ' р.' + postObject.lineBreak
-      comment.text += '*Новая сумма*: ' + postObject.targetSumNew + ' р.' + postObject.lineBreak
+      comment.text +=
+        '*Счет* - ' + postObject.nomenclature + postObject.lineBreak
+      comment.text +=
+        '*Старая сумма*: ' +
+        postObject.targetSumOld +
+        ' р.' +
+        postObject.lineBreak
+      comment.text +=
+        '*Новая сумма*: ' +
+        postObject.targetSumNew +
+        ' р.' +
+        postObject.lineBreak
       comment.text += '*Изменения*: ' + postObject.actionSum + ' р.'
-      comment.message += '<i>МВЗ</i> - ' + postObject.mvz + postObject.telegramLineBreak
-      comment.message += '<i>Счет</i> - ' + postObject.nomenclature + postObject.telegramLineBreak
-      comment.message += '<i>Старая сумма</i>: ' + postObject.targetSumOld + ' р.' + postObject.telegramLineBreak
-      comment.message += '<i>Новая сумма</i>: ' + postObject.targetSumNew + ' р.' + postObject.telegramLineBreak
+      comment.message +=
+        '<i>МВЗ</i> - ' + postObject.mvz + postObject.telegramLineBreak
+      comment.message +=
+        '<i>Счет</i> - ' +
+        postObject.nomenclature +
+        postObject.telegramLineBreak
+      comment.message +=
+        '<i>Старая сумма</i>: ' +
+        postObject.targetSumOld +
+        ' р.' +
+        postObject.telegramLineBreak
+      comment.message +=
+        '<i>Новая сумма</i>: ' +
+        postObject.targetSumNew +
+        ' р.' +
+        postObject.telegramLineBreak
       comment.message += '<i>Изменения</i>: ' + postObject.actionSum + ' р.'
     }
     return comment
@@ -793,16 +1071,19 @@ function getCostСenter(postObject) {
       }
       return row
     }, [])
-    object.item = object.array.reduce(function (row, array) {
-      if (isMatch(postObject.comment, array.tag)) {
-        row = array
+    object.item = object.array.reduce(
+      function (row, array) {
+        if (isMatch(postObject.comment, array.tag)) {
+          row = array
+        }
+        return row
+      },
+      {
+        id: 0,
+        mvz: postObject.cfo,
+        tag: postObject.cfo,
       }
-      return row
-    }, {
-      id: 0,
-      mvz: postObject.cfo,
-      tag: postObject.cfo
-    })
+    )
     return object
   } catch (e) {
     addErrorItem(arguments.callee.name + ': ' + e)
@@ -813,65 +1094,153 @@ function getDescription(postObject) {
   try {
     const description = {}
     const sum = getSum(postObject)
-    description.text = '*Дата обновления*: ' + formatterDate(postObject.actionDate).time + postObject.lineBreak
+    description.text =
+      '*Дата обновления*: ' +
+      formatterDate(postObject.actionDate).time +
+      postObject.lineBreak
     if (postObject.isFact || postObject.isBudget) {
       if (postObject.isFact) {
         //* описание для фактических карточек
         description.text += '**По номенклатуре**: ' + postObject.lineBreak
-        description.text += '*Остаток*: ' + sum.totalSum.nomenclatureBudgetRest + ' р.' + postObject.lineBreak
+        description.text +=
+          '*Остаток*: ' +
+          sum.totalSum.nomenclatureBudgetRest +
+          ' р.' +
+          postObject.lineBreak
         if (sum.totalSum.nomenclatureBudgetExecution != 0) {
-          description.text += '*Исполнение*: ' + sum.totalSum.nomenclatureBudgetExecution + encodeData('%', '%') + postObject.lineBreak
+          description.text +=
+            '*Исполнение*: ' +
+            sum.totalSum.nomenclatureBudgetExecution +
+            encodeData('%', '%') +
+            postObject.lineBreak
         }
         description.text += '**По статье**: ' + postObject.lineBreak
-        description.text += '*Остаток*: ' + sum.totalSum.accountBudgetRest + ' р.' + postObject.lineBreak
+        description.text +=
+          '*Остаток*: ' +
+          sum.totalSum.accountBudgetRest +
+          ' р.' +
+          postObject.lineBreak
         if (sum.totalSum.accountBudgetExecution != 0) {
-          description.text += '*Исполнение*: ' + sum.totalSum.accountBudgetExecution + encodeData('%', '%') + postObject.lineBreak
+          description.text +=
+            '*Исполнение*: ' +
+            sum.totalSum.accountBudgetExecution +
+            encodeData('%', '%') +
+            postObject.lineBreak
         }
       } else if (postObject.isBudget) {
         if (!isMatch(postObject.nomenclature, 'Баланс')) {
           //* описание для бюджетных карточек
-          description.text += '**Итого бюджет на** *' + formatterDate(postObject.period).date + '*:' + postObject.lineBreak
-          description.text += '*По операции*: ' + sum.budgetSum.cashFlowSum + ' р.' + postObject.lineBreak
-          description.text += '*По счету*: ' + sum.budgetSum.billSum + ' р.' + postObject.lineBreak
-          description.text += '*По статье*: ' + sum.budgetSum.accountSum + ' р.' + postObject.lineBreak
-          description.text += '*По номенклатуре*: ' + sum.budgetSum.nomenclatureSum + ' р.' + postObject.lineBreak
+          description.text +=
+            '**Итого бюджет на** *' +
+            formatterDate(postObject.period).date +
+            '*:' +
+            postObject.lineBreak
+          description.text +=
+            '*По операции*: ' +
+            sum.budgetSum.cashFlowSum +
+            ' р.' +
+            postObject.lineBreak
+          description.text +=
+            '*По счету*: ' +
+            sum.budgetSum.billSum +
+            ' р.' +
+            postObject.lineBreak
+          description.text +=
+            '*По статье*: ' +
+            sum.budgetSum.accountSum +
+            ' р.' +
+            postObject.lineBreak
+          description.text +=
+            '*По номенклатуре*: ' +
+            sum.budgetSum.nomenclatureSum +
+            ' р.' +
+            postObject.lineBreak
           if (postObject.isCurrBudget) {
             //* информация в рестроспективе за последние два месяца
-            description.text += '**Факт прошлых периодов:**' + postObject.lineBreak
+            description.text +=
+              '**Факт прошлых периодов:**' + postObject.lineBreak
             const previousFact = getPreviousFact(postObject)
-            description.text += formatterDate(postObject.factPeriod).date + ': ' + previousFact.Prev0.factSum.nomenclatureSum + ' р.' + postObject.lineBreak
-            description.text += formatterDate(postObject.factPeriod1).date + ': ' + previousFact.Prev1.factSum.nomenclatureSum + ' р.' + postObject.lineBreak
+            description.text +=
+              formatterDate(postObject.factPeriod).date +
+              ': ' +
+              previousFact.Prev0.factSum.nomenclatureSum +
+              ' р.' +
+              postObject.lineBreak
+            description.text +=
+              formatterDate(postObject.factPeriod1).date +
+              ': ' +
+              previousFact.Prev1.factSum.nomenclatureSum +
+              ' р.' +
+              postObject.lineBreak
           }
         } else if (isMatch(postObject.nomenclature, 'Баланс')) {
           //* описание карточки баланса
-          description.text += '**Итоговый бюджет** *' + formatterDate(postObject.period).date + '* **по статьям**' + ':' + postObject.lineBreak
+          description.text +=
+            '**Итоговый бюджет** *' +
+            formatterDate(postObject.period).date +
+            '* **по статьям**' +
+            ':' +
+            postObject.lineBreak
           if (sum.budgetSum.groupAccount.length !== 0) {
             const groupBudgetRows = sum.budgetSum.groupAccount
             groupBudgetRows.forEach(function (row) {
-              description.text += row.bill + ' - ' + row.account + ': ' + row.sum + ' р. ' + postObject.lineBreak
+              description.text +=
+                row.bill +
+                ' - ' +
+                row.account +
+                ': ' +
+                row.sum +
+                ' р. ' +
+                postObject.lineBreak
             })
           }
-          description.text += '**Остатки**: ' + sum.factSum.restSum + ' р.' + postObject.lineBreak
-          description.text += '**Операционный бюджет**: ' + sum.budgetSum.costSum + ' р.' + postObject.lineBreak
-          description.text += '**Бюджет отчислений**: ' + sum.budgetSum.accumulationBillExpenseSum + ' р.' + postObject.lineBreak
+          description.text +=
+            '**Остатки**: ' + sum.factSum.restSum + ' р.' + postObject.lineBreak
+          description.text +=
+            '**Операционный бюджет**: ' +
+            sum.budgetSum.costSum +
+            ' р.' +
+            postObject.lineBreak
+          description.text +=
+            '**Бюджет отчислений**: ' +
+            sum.budgetSum.accumulationBillExpenseSum +
+            ' р.' +
+            postObject.lineBreak
           //* информация по переводам
           if (postObject.privateBudget) {
             description.text += '**Перечисления**: ' + postObject.lineBreak
-            description.text += '*Первый перевод на счет Семьи*: ' + sum.totalSum.firstTransferToFamilyAccount + postObject.lineBreak
-            description.text += '*Перечислить в накопления*: ' + sum.budgetSum.accumulationNomenclatureExpenseSum + postObject.lineBreak
-            description.text += '*Снять с накоплений*: ' + sum.budgetSum.accumulationNomenclatureIncomeSum
+            description.text +=
+              '*Первый перевод на счет Семьи*: ' +
+              sum.totalSum.firstTransferToFamilyAccount +
+              postObject.lineBreak
+            description.text +=
+              '*Перечислить в накопления*: ' +
+              sum.budgetSum.accumulationNomenclatureExpenseSum +
+              postObject.lineBreak
+            description.text +=
+              '*Снять с накоплений*: ' +
+              sum.budgetSum.accumulationNomenclatureIncomeSum
           }
         }
       }
       //* данные по бюджетным заявкам
-      if (sum.budgetSum.nomenclatureRows.length != 0 && !isMatch(postObject.nomenclature, 'Баланс')) {
+      if (
+        sum.budgetSum.nomenclatureRows.length != 0 &&
+        !isMatch(postObject.nomenclature, 'Баланс')
+      ) {
         const budgetRow = sum.budgetSum.nomenclatureRows
         description.text += '**Бюджетные заявки**:' + postObject.lineBreak
         let i = 1
         budgetRow.forEach(function (row) {
           let comma
-          budgetRow.length > i ? comma = postObject.lineBreak : comma = ''
-          description.text += formatterDate(row.actionDate).time + ': ' + row.sum + ' р. ' + row.comment + comma
+          budgetRow.length > i ? (comma = postObject.lineBreak) : (comma = '')
+          description.text +=
+            formatterDate(row.actionDate).time +
+            ': ' +
+            row.sum +
+            ' р. ' +
+            row.comment +
+            comma
           i += 1
         })
       }
@@ -879,14 +1248,30 @@ function getDescription(postObject) {
     } else if (postObject.isTarget) {
       if (isMatch(postObject.nomenclature, 'Баланс')) {
         const targetItem = getAllTarget(postObject).item
-        description.text += 'Перечислено в т.м.: ' + targetItem.currentListedSum + ' р. ' + postObject.lineBreak
-        description.text += 'Цели: ' + targetItem.targetSum + ' р. ' + postObject.lineBreak
-        description.text += 'Депозит: ' + targetItem.depositSum + ' р. ' + postObject.lineBreak
-        description.text += 'Биржа: ' + targetItem.exchangeSum + ' р. ' + postObject.lineBreak
-        description.text += 'ИИС: ' + targetItem.iisSum + ' р. ' + postObject.lineBreak
-        description.text += 'Освоено: ' + targetItem.disbursedFunds + ' р. ' + postObject.lineBreak
-        description.text += 'В наличии: ' + targetItem.inStock + ' р. ' + postObject.lineBreak
-        description.text += 'Выполнено: ' + (targetItem.completePersent * 100).toFixed(2) + encodeData('%', '%')
+        description.text +=
+          'Перечислено в т.м.: ' +
+          targetItem.currentListedSum +
+          ' р. ' +
+          postObject.lineBreak
+        description.text +=
+          'Цели: ' + targetItem.targetSum + ' р. ' + postObject.lineBreak
+        description.text +=
+          'Депозит: ' + targetItem.depositSum + ' р. ' + postObject.lineBreak
+        description.text +=
+          'Биржа: ' + targetItem.exchangeSum + ' р. ' + postObject.lineBreak
+        description.text +=
+          'ИИС: ' + targetItem.iisSum + ' р. ' + postObject.lineBreak
+        description.text +=
+          'Освоено: ' +
+          targetItem.disbursedFunds +
+          ' р. ' +
+          postObject.lineBreak
+        description.text +=
+          'В наличии: ' + targetItem.inStock + ' р. ' + postObject.lineBreak
+        description.text +=
+          'Выполнено: ' +
+          (targetItem.completePersent * 100).toFixed(2) +
+          encodeData('%', '%')
       }
     }
     return description
@@ -937,7 +1322,10 @@ function getParametr(postObject) {
       return row
     }, [])
     object.item = object.array.reduce(function (row, array) {
-      if (isMatch(postObject.cfo, array.cfo) && isMatch(postObject.type, array.type)) {
+      if (
+        isMatch(postObject.cfo, array.cfo) &&
+        isMatch(postObject.type, array.type)
+      ) {
         row = array
       }
       return row
@@ -956,10 +1344,26 @@ function getPeriod(postObject) {
       postObjectCopy.type = 'Бюджет'
       date.factPeriod = getParametr(postObject).item.value
       date.budgetPeriod = getParametr(postObjectCopy).item.value
-      date.factPeriod1 = new Date(date.factPeriod.getFullYear(), date.factPeriod.getMonth() - 1, 1)
-      date.factPeriod2 = new Date(date.factPeriod.getFullYear(), date.factPeriod.getMonth() - 2, 1)
-      date.budgetPeriod2 = new Date(date.budgetPeriod.getFullYear(), date.budgetPeriod.getMonth() + 1, 1)
-      date.budgetPeriod3 = new Date(date.budgetPeriod.getFullYear(), date.budgetPeriod.getMonth() + 2, 1)
+      date.factPeriod1 = new Date(
+        date.factPeriod.getFullYear(),
+        date.factPeriod.getMonth() - 1,
+        1
+      )
+      date.factPeriod2 = new Date(
+        date.factPeriod.getFullYear(),
+        date.factPeriod.getMonth() - 2,
+        1
+      )
+      date.budgetPeriod2 = new Date(
+        date.budgetPeriod.getFullYear(),
+        date.budgetPeriod.getMonth() + 1,
+        1
+      )
+      date.budgetPeriod3 = new Date(
+        date.budgetPeriod.getFullYear(),
+        date.budgetPeriod.getMonth() + 2,
+        1
+      )
       if (getYMD(date.factPeriod).ymd === getYMD(date.budgetPeriod).ymd) {
         date.budgetPeriodCurrent = date.budgetPeriod
       } else {
@@ -970,10 +1374,26 @@ function getPeriod(postObject) {
       postObjectCopy.type = 'Факт'
       date.factPeriod = getParametr(postObjectCopy).item.value
       date.budgetPeriod = getParametr(postObject).item.value
-      date.factPeriod1 = new Date(date.factPeriod.getFullYear(), date.factPeriod.getMonth() - 1, 1)
-      date.factPeriod2 = new Date(date.factPeriod.getFullYear(), date.factPeriod.getMonth() - 2, 1)
-      date.budgetPeriod2 = new Date(date.budgetPeriod.getFullYear(), date.budgetPeriod.getMonth() + 1, 1)
-      date.budgetPeriod3 = new Date(date.budgetPeriod.getFullYear(), date.budgetPeriod.getMonth() + 2, 1)
+      date.factPeriod1 = new Date(
+        date.factPeriod.getFullYear(),
+        date.factPeriod.getMonth() - 1,
+        1
+      )
+      date.factPeriod2 = new Date(
+        date.factPeriod.getFullYear(),
+        date.factPeriod.getMonth() - 2,
+        1
+      )
+      date.budgetPeriod2 = new Date(
+        date.budgetPeriod.getFullYear(),
+        date.budgetPeriod.getMonth() + 1,
+        1
+      )
+      date.budgetPeriod3 = new Date(
+        date.budgetPeriod.getFullYear(),
+        date.budgetPeriod.getMonth() + 2,
+        1
+      )
       if (isMatch(postObject.boardId, postObject.boardIdBudget)) {
         date.budgetPeriodCurrent = date.budgetPeriod
       } else if (isMatch(postObject.boardId, postObject.boardIdBudget2)) {
@@ -1006,12 +1426,17 @@ function getSum(postObject) {
   try {
     const sum = {}
     const totalSum = {}
-    const budgetSum = getTotalSum(postObject, postObject.dataTrello.current.budget)
+    const budgetSum = getTotalSum(
+      postObject,
+      postObject.dataTrello.current.budget
+    )
     const factSum = getTotalSum(postObject, postObject.dataTrello.current.fact)
-    totalSum.totalRest = factSum.restSum + factSum.incomeSum - factSum.expenseSum
+    totalSum.totalRest =
+      factSum.restSum + factSum.incomeSum - factSum.expenseSum
     totalSum.billBudgetRest = budgetSum.billSum - factSum.billSum
     totalSum.accountBudgetRest = budgetSum.accountSum - factSum.accountSum
-    totalSum.nomenclatureBudgetRest = budgetSum.nomenclatureSum - factSum.nomenclatureSum
+    totalSum.nomenclatureBudgetRest =
+      budgetSum.nomenclatureSum - factSum.nomenclatureSum
     let transferCoef
     if (isMatch(postObject.cfo, 'Илья')) {
       transferCoef = (70 / 100).toFixed(2)
@@ -1020,18 +1445,32 @@ function getSum(postObject) {
     } else {
       transferCoef = 1
     }
-    totalSum.firstTransferToFamilyAccount = ((factSum.restSum + budgetSum.salarySum + budgetSum.accumulationNomenclatureIncomeSum) - (budgetSum.expenseSum - budgetSum.transferToFamilyAccountSum) * transferCoef).toFixed(0)
+    totalSum.firstTransferToFamilyAccount = (
+      factSum.restSum +
+      budgetSum.salarySum +
+      budgetSum.accumulationNomenclatureIncomeSum -
+      (budgetSum.expenseSum - budgetSum.transferToFamilyAccountSum) *
+        transferCoef
+    ).toFixed(0)
     if (factSum.nomenclatureSum != 0 && budgetSum.nomenclatureSum != 0) {
-      totalSum.nomenclatureBudgetExecution = ((factSum.nomenclatureSum / budgetSum.nomenclatureSum) * 100).toFixed(2)
+      totalSum.nomenclatureBudgetExecution = (
+        (factSum.nomenclatureSum / budgetSum.nomenclatureSum) *
+        100
+      ).toFixed(2)
     } else {
       totalSum.nomenclatureBudgetExecution = 0
     }
     if (factSum.accountSum != 0 && budgetSum.accountSum != 0) {
-      totalSum.accountBudgetExecution = ((factSum.accountSum / budgetSum.accountSum) * 100).toFixed(2)
+      totalSum.accountBudgetExecution = (
+        (factSum.accountSum / budgetSum.accountSum) *
+        100
+      ).toFixed(2)
     } else {
       totalSum.accountBudgetExecution = 0
     }
-    budgetSum.nomenclatureRows.length != 0 ? totalSum.haveBudget = true : totalSum.haveBudget = false
+    budgetSum.nomenclatureRows.length != 0
+      ? (totalSum.haveBudget = true)
+      : (totalSum.haveBudget = false)
     sum.budgetSum = budgetSum
     sum.factSum = factSum
     sum.totalSum = totalSum
@@ -1174,13 +1613,14 @@ function getTotalSum(postObject, array) {
       return {
         bill: item.bill,
         account: item.account,
-        sum: item.sum
+        sum: item.sum,
       }
     })
     total.groupAccount.sort(function (a, b) {
       const nameA = a.bill.toLowerCase()
       const nameB = b.bill.toLowerCase()
-      if (nameA < nameB) { // сортируем строки по возрастанию
+      if (nameA < nameB) {
+        // сортируем строки по возрастанию
         return -1
       } else if (nameA > nameB) {
         return 1
@@ -1204,16 +1644,22 @@ function getTotalSum(postObject, array) {
       const item = groupBill[k]
       return {
         bill: item.bill,
-        sum: item.sum
+        sum: item.sum,
       }
     })
     //* данные из учета
     total.nomenclatureRows = array.filter(function (array) {
-      return isMatch(array.cfo, postObject.cfo) && isMatch(array.bill, postObject.bill) && isMatch(array.account, postObject.account) && isMatch(array.nomenclature, postObject.nomenclature) && isMatch(array.cashFlow, postObject.cashFlow)
+      return (
+        isMatch(array.cfo, postObject.cfo) &&
+        isMatch(array.bill, postObject.bill) &&
+        isMatch(array.account, postObject.account) &&
+        isMatch(array.nomenclature, postObject.nomenclature) &&
+        isMatch(array.cashFlow, postObject.cashFlow)
+      )
     })
     return total
   } catch (e) {
-    addErrorItem(arguments.callee.name + ': ' + e)
+    // addErrorItem(arguments.callee.name + ': ' + e)
   }
 }
 
@@ -1237,7 +1683,11 @@ function parseComment(postObject) {
     const parseData = {}
     const text = postObject.text
     parseData.sum = +text.match(/^\d+/)
-    parseData.comment = text.split(parseData.sum).join('').replace(/^[.,\,, ,\-,\/,\\]/, ' ').trim()
+    parseData.comment = text
+      .split(parseData.sum)
+      .join('')
+      .replace(/^[.,\,, ,\-,\/,\\]/, ' ')
+      .trim()
     return parseData
   } catch (e) {
     addErrorItem(arguments.callee.name + ': ' + e)
@@ -1252,7 +1702,8 @@ function updateBalanceCard(postObject) {
     //* обновление карточки баланса
     const postObjectBalance = copyObject(postObject)
     postObjectBalance.nomenclature = 'Баланс'
-    const balanceCard = getCards(postObjectBalance, postObjectBalance.listId).item
+    const balanceCard = getCards(postObjectBalance, postObjectBalance.listId)
+      .item
     postObjectBalance.cardId = balanceCard.id
     addCardComment(postObjectBalance)
     if (postObjectBalance.isBudget || postObjectBalance.isTarget) {
@@ -1309,7 +1760,11 @@ function updateParametr(postObject) {
     if (postObject.isCurrFact) {
       postObjectCopy.type = 'Факт'
       indexRow = getParametr(postObjectCopy).item.indexRow
-      value = new Date(postObjectCopy.factPeriod.getFullYear(), postObjectCopy.factPeriod.getMonth() + 1, 1)
+      value = new Date(
+        postObjectCopy.factPeriod.getFullYear(),
+        postObjectCopy.factPeriod.getMonth() + 1,
+        1
+      )
       ss.getRange(indexRow, 4).setValue(formatterDate(value).date)
       ss.getRange(indexRow, 5).setValue(formatterDate().timestamp)
     } else if (postObject.isCurrBudget) {
@@ -1317,11 +1772,17 @@ function updateParametr(postObject) {
       postObjectCopy.isBudget = true
       postObjectCopy.type = 'Бюджет'
       indexRow = getParametr(postObjectCopy).item.indexRow
-      value = new Date(postObjectCopy.budgetPeriod.getFullYear(), postObjectCopy.budgetPeriod.getMonth() + 1, 1)
+      value = new Date(
+        postObjectCopy.budgetPeriod.getFullYear(),
+        postObjectCopy.budgetPeriod.getMonth() + 1,
+        1
+      )
       ss.getRange(indexRow, 4).setValue(formatterDate(value).date)
       ss.getRange(indexRow, 5).setValue(formatterDate().timestamp)
     }
-    postObject.parametrArray = getGoogleSheetValues(postObject.parametrSheetOpen)
+    postObject.parametrArray = getGoogleSheetValues(
+      postObject.parametrSheetOpen
+    )
     postObject.date = getPeriod(postObject)
     postObject.period = postObject.date.period
     postObject.ymd = postObject.date.ymd
@@ -1367,6 +1828,7 @@ function updateRowByActionId(postObject) {
       }
     })
     postObject.dataTrello = getAllDataTrello(postObject)
+    updateAccountData()
   } catch (e) {
     addErrorItem(arguments.callee.name + ': ' + e)
   }
@@ -1394,22 +1856,80 @@ function updateTrelloData(postObject) {
     //* вставка значений в буфер
     const ss = postObject.trelloOpen
     const trelloArray = postObject.trelloArray
-    let pushBufferRow = [postObject.actionDate, postObject.period, postObject.cfo, postObject.mvz, postObject.cashFlow, postObject.bill, postObject.account, postObject.nomenclature, postObject.sum, postObject.comment, postObject.actionId, postObject.type]
+    let pushBufferRow = [
+      postObject.actionDate,
+      postObject.period,
+      postObject.cfo,
+      postObject.mvz,
+      postObject.cashFlow,
+      postObject.bill,
+      postObject.account,
+      postObject.nomenclature,
+      postObject.sum,
+      postObject.comment,
+      postObject.actionId,
+      postObject.type,
+    ]
     ss.appendRow(pushBufferRow)
     trelloArray.push(pushBufferRow)
     //* Проверка перевода на счет семьи
     if (isMatch(postObject.account, 'Перевод на счет Семья')) {
       insertdate = new Date(postObject.actionDate.getTime() + 1000)
       if (isMatch(postObject.cfo, 'Илья')) {
-        pushBufferRow = [insertdate, postObject.period, 'Семья', 'Семья', 'Пополнение', 'Переводы', 'Приход со счета Илья', 'Приход со счета Илья', postObject.sum, postObject.comment, postObject.actionId, postObject.type]
+        pushBufferRow = [
+          insertdate,
+          postObject.period,
+          'Семья',
+          'Семья',
+          'Пополнение',
+          'Переводы',
+          'Приход со счета Илья',
+          'Приход со счета Илья',
+          postObject.sum,
+          postObject.comment,
+          postObject.actionId,
+          postObject.type,
+        ]
         ss.appendRow(pushBufferRow)
         trelloArray.push(pushBufferRow)
       } else if (isMatch(postObject.cfo, 'Оксана')) {
-        pushBufferRow = [insertdate, postObject.period, 'Семья', 'Семья', 'Пополнение', 'Переводы', 'Приход со счета Оксана', 'Приход со счета Оксана', postObject.sum, postObject.comment, postObject.actionId, postObject.type]
+        pushBufferRow = [
+          insertdate,
+          postObject.period,
+          'Семья',
+          'Семья',
+          'Пополнение',
+          'Переводы',
+          'Приход со счета Оксана',
+          'Приход со счета Оксана',
+          postObject.sum,
+          postObject.comment,
+          postObject.actionId,
+          postObject.type,
+        ]
         ss.appendRow(pushBufferRow)
         trelloArray.push(pushBufferRow)
       }
     }
+    //* добавление данных в отчет
+    const reportRow = [
+      postObject.actionDate,
+      postObject.period,
+      postObject.cfo,
+      postObject.mvz,
+      postObject.cashFlow,
+      postObject.bill,
+      postObject.account,
+      postObject.nomenclature,
+      postObject.sum,
+      postObject.comment,
+      postObject.actionId,
+      postObject.type,
+    ]
+    const wsReport = SpreadsheetApp.openById(
+      '1KDKD7VKQbgiRNhGanH0j7WUO__rLrky1xWVeBK90xbE'
+    ).getSheetByName('Учет')
+    wsReport.appendRow(reportRow)
     //* получение данных учета после обновления
     postObject.dataTrello = getAllDataTrello(postObject)
   } catch (e) {
@@ -1458,7 +1978,9 @@ function updateTargetList(postObject) {
     } else if (isMatch(postObject.cashFlow, 'Пополнение')) {
       targetSumNew = targetSumOld - actionSum
     }
-    ssTargetOpen.getRange(targetItem.indexRow, targetColumn).setValue(+targetSumNew)
+    ssTargetOpen
+      .getRange(targetItem.indexRow, targetColumn)
+      .setValue(+targetSumNew)
     postObject.targetArray = getGoogleSheetValues(postObject.targetOpen)
     postObject.targetSumOld = targetSumOld
     postObject.targetSumNew = targetSumNew
@@ -1467,7 +1989,6 @@ function updateTargetList(postObject) {
     addErrorItem(arguments.callee.name + ': ' + e)
   }
 }
-
 
 function getAllDataTrello(postObject) {
   /*
@@ -1500,10 +2021,16 @@ function getAllDataTrello(postObject) {
     }, [])
     object.current = {}
     object.current.fact = object.all.filter(function (row) {
-      return row.ymd == getYMD(postObject.factPeriod).ymd && isMatch(row.type, 'Факт')
+      return (
+        row.ymd == getYMD(postObject.factPeriod).ymd &&
+        isMatch(row.type, 'Факт')
+      )
     })
     object.current.budget = object.all.filter(function (row) {
-      return row.ymd == getYMD(postObject.budgetPeriodCurrent).ymd && isMatch(row.type, 'Бюджет')
+      return (
+        row.ymd == getYMD(postObject.budgetPeriodCurrent).ymd &&
+        isMatch(row.type, 'Бюджет')
+      )
     })
     return object
   } catch (e) {
@@ -1546,7 +2073,14 @@ function isUser(postData) {
 
 function isValidateAction(postData) {
   try {
-    const actionType = ['commentCard', 'updateComment', 'deleteComment', 'createList', 'updateList', 'updateCard']
+    const actionType = [
+      'commentCard',
+      'updateComment',
+      'deleteComment',
+      'createList',
+      'updateList',
+      'updateCard',
+    ]
     return actionType.reduce(function (row, array) {
       if (isMatch(postData.action.type, array)) {
         if (isMatch(postData.action.type, 'updateCard')) {
@@ -1585,7 +2119,10 @@ function doPost(e) {
         updateCardDesc(postObject)
         //* обновление карточки баланса
         updateBalanceCard(postObject)
-      } else if (isMatch(postObject.actionType, 'updateComment') && postObject.isOldData) {
+      } else if (
+        isMatch(postObject.actionType, 'updateComment') &&
+        postObject.isOldData
+      ) {
         //* обновление данных при изменении комментария
         updateRowByActionId(postObject)
         if (postObject.isTarget) {
@@ -1600,7 +2137,10 @@ function doPost(e) {
         updateCardDesc(postObject)
         //* обновление карточки баланса
         updateBalanceCard(postObject)
-      } else if (isMatch(postObject.actionType, 'deleteComment') && postObject.isOldData) {
+      } else if (
+        isMatch(postObject.actionType, 'deleteComment') &&
+        postObject.isOldData
+      ) {
         //* удаление строки при удалении комментария
         postObject.sum = deleteRowByActionId(postObject)
         if (postObject.isTarget) {

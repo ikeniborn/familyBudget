@@ -22,7 +22,7 @@ function getGlobalVariable() {
     variable.boardIdTarget = '5e3cec63b47787407b262e0b'
     // списко книг
     variable.sourceSheetID = '12zOV6GkjmT2eUAQalQCTDP1OXOBCfLOhcBQaXQ4gbUQ'
-    variable.targetSheetID = '1mBsaVLbKLoIXN2WY9Oi-XBPbViwbCt29gozLkOL5sLc'
+    variable.targetSheetID = '1KDKD7VKQbgiRNhGanH0j7WUO__rLrky1xWVeBK90xbE'
     // список листов
     variable.accountingItemSheetName = 't_d_accounting_item'
     variable.costСenterSheetName = 't_d_cost_center'
