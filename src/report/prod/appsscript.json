@@ -1,15 +1,33 @@
 {
   "timeZone": "Europe/Moscow",
-  "exceptionLogging": "STACKDRIVER",
-  "runtimeVersion": "V8",
   "dependencies": {
     "libraries": [
       {
-        "userSymbol": "FamilyBudgetData",
+        "userSymbol": "FamilyBudget",
+        "libraryId": "1ajqyYTCvPnXj4dF5xL00ccPJ3OD_L8Khja-_VDvRflT5GvkI1vIgrw8l",
         "version": "0",
-        "libraryId": "1Ke3fX5TbnqBAKH_5E3dJnXFwaeBBnrvWTm_uXnGTmSDD2BLPF0yKOCrc",
         "developmentMode": true
       }
     ]
-  }
+  },
+  "exceptionLogging": "STACKDRIVER",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/script.scriptapp",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/script.container.ui",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/script.processes",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/gmail.compose",
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://mail.google.com/",
+    "https://www.googleapis.com/auth/gmail.addons.current.action.compose",
+    "https://www.googleapis.com/auth/script.projects",
+    "https://www.googleapis.com/auth/script.projects.readonly",
+    "https://www.googleapis.com/auth/drive"
+  ],
+  "runtimeVersion": "V8"
 }

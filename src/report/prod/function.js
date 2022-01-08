@@ -1,5 +1,5 @@
 function updateAccountData() {
-  FamilyBudgetData.updateAccountData()
+  FamilyBudget.updateAccountData()
 }
 
 function onOpen() {
