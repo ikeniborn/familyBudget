@@ -1,0 +1,13 @@
+{
+  "timeZone": "Europe/Moscow",
+  "dependencies": {
+    "libraries": [{
+      "userSymbol": "coinGeckoLib",
+      "libraryId": "1G9iTpYPKXBL1vfX0QWD3nyuZ0MRS2cPz_I47eqAIIvzddOAYoZyN9Sl0",
+      "version": "0",
+      "developmentMode": true
+    }]
+  },
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8"
+}
