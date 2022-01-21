@@ -1,15 +1,21 @@
 {
   "timeZone": "America/New_York",
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
   "dependencies": {
     "libraries": [
       {
-        "userSymbol": "ServiceAPI",
+        "userSymbol": "trelloLib",
         "version": "0",
         "libraryId": "1WB1qqxc-1rVbq9y7pv4EsTw4qq0CQVNcNMgUYMgNtz5TEJ7EpxvQCB82",
         "developmentMode": true
+      },
+      {
+        "userSymbol": "telegramLib",
+        "version": "0",
+        "libraryId": "1lK6mPc3uE_VbTqmegtbcnLpcLcuOhaM9PfkxJuPpxpkJBHBhLMeluntD",
+        "developmentMode": true
       }
     ]
-  },
-  "exceptionLogging": "STACKDRIVER",
-  "runtimeVersion": "V8"
+  }
 }

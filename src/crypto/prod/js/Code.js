@@ -1,5 +1,3 @@
-coinGeckoLib.newInstance()
-
 var ss = SpreadsheetApp.openById('1B6NX8DFLuVJu1yoWPVUsLMODApuTac7-S2anWQ63smg')
 
 function updatePrice() {
