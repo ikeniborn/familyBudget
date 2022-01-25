@@ -1,12 +1,20 @@
 {
   "timeZone": "Europe/Moscow",
   "dependencies": {
-    "libraries": [{
-      "userSymbol": "coinGeckoLib",
-      "libraryId": "1G9iTpYPKXBL1vfX0QWD3nyuZ0MRS2cPz_I47eqAIIvzddOAYoZyN9Sl0",
-      "version": "0",
-      "developmentMode": true
-    }]
+    "libraries": [
+      {
+        "userSymbol": "coinGeckoLib",
+        "libraryId": "1G9iTpYPKXBL1vfX0QWD3nyuZ0MRS2cPz_I47eqAIIvzddOAYoZyN9Sl0",
+        "version": "0",
+        "developmentMode": true
+      },
+      {
+        "userSymbol": "exchangeratesapiLib",
+        "version": "0",
+        "libraryId": "1FmS7zJ7q7eNXBsX8TKbqsBoFsVgf8lSD_7RjE2Qb5Frp92DjvD7vovFS",
+        "developmentMode": true
+      }
+    ]
   },
   "exceptionLogging": "STACKDRIVER",
   "runtimeVersion": "V8"
