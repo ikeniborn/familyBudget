@@ -1,0 +1,39 @@
+{
+  "timeZone": "Europe/Moscow",
+  "dependencies": {
+    "libraries": [
+      {
+        "userSymbol": "coinGeckoLib",
+        "libraryId": "1G9iTpYPKXBL1vfX0QWD3nyuZ0MRS2cPz_I47eqAIIvzddOAYoZyN9Sl0",
+        "version": "0",
+        "developmentMode": true
+      },
+      {
+        "userSymbol": "exchangeratesapiLib",
+        "version": "0",
+        "libraryId": "1FmS7zJ7q7eNXBsX8TKbqsBoFsVgf8lSD_7RjE2Qb5Frp92DjvD7vovFS",
+        "developmentMode": true
+      },
+      {
+        "userSymbol": "cryptorankLib",
+        "version": "0",
+        "libraryId": "1UUzMa0JH1lbEOz8f64H9PUpUpJN8eGTHxDcK9o7d4SBOLsm6BjEJKjJT",
+        "developmentMode": true
+      },
+      {
+        "userSymbol": "cryptocompareLib",
+        "version": "0",
+        "libraryId": "1H8haeDKxFDJZkZckuxuCz5CMP97IWAB1DXO2AIr2DnKctOBxPxAmKLI4",
+        "developmentMode": true
+      },
+      {
+        "userSymbol": "coinMarketCapLib",
+        "version": "0",
+        "libraryId": "1G8anr53TVU8lk6z81Ylja7jEDc5TLlNMMepXhcfVBmx6c1qLa0rzuIjO",
+        "developmentMode": true
+      }
+    ]
+  },
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8"
+}
