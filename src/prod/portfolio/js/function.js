@@ -9,233 +9,233 @@ cryptocompareLib.instance(
 
 coinMarketCapLib.instance('133c18b7-555c-4e57-ad7b-4d2bf6160c20')
 
-function updateCoinMarketCap() {
-  const coins = ss
-    .getSheetByName('Coins')
-    .getDataRange()
-    .getValues()
-    .filter((f) => f[5])
-    .map((m) => (m = m[5]))
-    .join(',')
-  const prices = Object.values(
-    coinMarketCapLib.cryptocurrencyQuotesLatest(coins)
-  ).map((coin) => {
-    return {
-      id: coin.id,
-      name: coin.name,
-      symbol: coin.symbol,
-      slug: coin.slug,
-      date_added: coin.date_added,
-      max_supply: coin.max_supply,
-      circulating_supply: coin.circulating_supply,
-      total_supply: coin.total_supply,
-      is_active: coin.is_active,
-      cmc_rank: coin.cmc_rank,
-      is_fiat: coin.is_fiat,
-      price: coin.quote.USD.price,
-      volume_24h: coin.quote.USD.volume_24h,
-      volume_change_24h: coin.quote.USD.volume_change_24h,
-      percent_change_1h: coin.quote.USD.percent_change_1h,
-      percent_change_24h: coin.quote.USD.percent_change_24h,
-      percent_change_7d: coin.quote.USD.percent_change_7d,
-      percent_change_30d: coin.quote.USD.percent_change_30d,
-      market_cap: coin.quote.USD.market_cap,
-      market_cap_dominance: coin.quote.USD.market_cap_dominance,
-      fully_diluted_market_cap: coin.quote.USD.fully_diluted_market_cap,
-    }
-  })
-  const data = []
-  data.push(Object.keys(prices[0]))
-  prices.forEach((coin) => {
-    data.push(Object.values(coin))
-  })
-  const ws = ss.getSheetByName('CoinMarketCap')
-  ws.clear()
-  ws.getRange(1, 1, data.length, data[0].length).setValues(data)
-}
-
-function updateCryptocompareCoinList() {
-  const coins = Object.entries(cryptocompareLib.infoCoinList()).map((coin) => {
-    return {
-      fsym: coin[0],
-      Id: coin[1].Id,
-      Name: coin[1].Name,
-      Symbol: coin[1].Symbol,
-      SmartContractAddress: coin[1].SmartContractAddress,
-      CoinName: coin[1].CoinName,
-      FullName: coin[1].FullName,
-      ProofType: coin[1].ProofType,
-      IsTrading: coin[1].IsTrading,
-      TotalCoinsMined: coin[1].TotalCoinsMined,
-      CirculatingSupply: coin[1].CirculatingSupply,
-      PlatformType: coin[1].PlatformType,
-      FCA: coin[1].Taxonomy.FCA,
-      FINMA: coin[1].Taxonomy.FINMA,
-      Industry: coin[1].Taxonomy.Industry,
-      CollateralizedAsset: coin[1].Taxonomy.CollateralizedAsset,
-      CollateralizedAssetType: coin[1].Taxonomy.CollateralizedAssetType,
-      CollateralType: coin[1].Taxonomy.CollateralType,
-      IsTrading: coin[1].IsTrading,
-      AssetLaunchDate: coin[1].AssetLaunchDate,
-      AssetWhitepaperUrl: coin[1].AssetWhitepaperUrl,
-      AssetWebsiteUrl: coin[1].AssetWebsiteUrl,
-    }
-  })
-  const data = []
-  data.push(Object.keys(coins[0]))
-  coins.forEach((coin) => {
-    data.push(Object.values(coin))
-  })
-  const ws = ss.getSheetByName('CoinList')
-  ws.clear()
-  ws.getRange(1, 1, data.length, data[0].length).setValues(data)
-}
-
-function updateCryptocompare() {
-  try {
-    const coins = ss
-      .getSheetByName('Coins')
-      .getDataRange()
-      .getValues()
-      .filter((f) => f[1])
-      .map((m) => (m = m[1]))
-      .join(',')
-    const prices = Object.entries(cryptocompareLib.priceMulti(coins)).map(
-      (coin) => {
-        return {
-          symbol: coin[0],
-          current_price: coin[1].USD,
+function updatePrice() {
+  const ws = ss.getSheetByName('Price')
+  const values = ws.getDataRange().getValues()
+  const header = values.shift()
+  const data = values.slice(0)
+  const listId = Object.fromEntries(
+    header.map((list, index) => {
+      const listData = data
+        .map((row) => {
+          if (['symbol', 'cryptocompareId'].indexOf(list) !== -1) {
+            row = row[index].toUpperCase()
+          } else {
+            row = row[index]
+          }
+          return row
+        })
+        .filter((f) => f)
+        .join(',')
+      list = [list, listData]
+      return list
+    })
+  )
+  const cryptorank = getCryptorankData(listId.symbol)
+  const coinMarketCap = getCoinMarketCapData(listId.coinmarketcapId)
+  const coinGecko = getCoinGeckoData(listId.coingeckoId)
+  const cryptocompare = getCryptocompareData(listId.cryptocompareId)
+  const priceList = data.reduce(
+    (coins, row) => {
+      const coin = {}
+      header.forEach((head, indexHeader) => {
+        if (['source'].indexOf(head) !== -1) {
+          coin[head] = ''
+        } else {
+          coin[head] = row[indexHeader]
         }
-      }
-    )
-    const data = []
-    data.push(Object.keys(prices[0]))
-    prices.forEach((coin) => {
-      data.push(Object.values(coin))
-    })
-    const ws = ss.getSheetByName('Price')
-    ws.clear()
-    ws.getRange(1, 1, data.length, data[0].length).setValues(data)
-  } catch (error) {
-    console.log('updateCryptocompare: ', error)
-  }
+      })
+      const coinData =
+        coinGecko[coin.coingeckoId] ||
+        coinMarketCap[coin.coinmarketcapId] ||
+        cryptorank[coin.symbol.toUpperCase()] ||
+        cryptocompare[coin.cryptocompareId.toUpperCase()] ||
+        coin
+      const fullData = Object.entries(coin).map((column, index) => {
+        if (index > 4) {
+          if (coinData[column[0]]) {
+            column[1] = coinData[column[0]]
+          }
+        }
+        return column[1]
+      })
+      coins.push(fullData)
+      return coins
+    },
+    [header]
+  )
+  ws.clear()
+  ws.getRange(1, 1, priceList.length, priceList[0].length).setValues(priceList)
 }
 
-function updateCoinGecko() {
-  try {
-    const coins = ss
-      .getSheetByName('Coins')
-      .getDataRange()
-      .getValues()
-      .filter((f) => f[2])
-      .map((m) => (m = m[2]))
-      .join(',')
-    const prices = coinGeckoLib.coinsMarkets('usd', coins).map((coin) => {
-      return {
-        id: coin.id,
-        symbol: coin.symbol,
-        name: coin.name,
-        current_price: coin.current_price,
-        market_cap: coin.market_cap,
-        market_cap_rank: coin.market_cap_rank,
-        total_volume: coin.total_volume,
-        high_24h: coin.high_24h,
-        low_24h: coin.low_24h,
-        price_change_24h: coin.price_change_24h,
-        price_change_percentage_24h: coin.price_change_percentage_24h,
-        market_cap_change_24h: coin.market_cap_change_24h,
-        market_cap_change_percentage_24h: coin.market_cap_change_percentage_24h,
-        circulating_supply: coin.circulating_supply,
-        total_supply: coin.total_supply,
-        max_supply: coin.max_supply,
-        ath: coin.ath,
-        ath_change_percentage: coin.ath_change_percentage,
-        ath_date: coin.ath_date,
-        atl: coin.atl,
-        atl_change_percentage: coin.atl_change_percentage,
-        atl_date: coin.atl_date,
-      }
-    })
-    const data = []
-    data.push(Object.keys(prices[0]))
-    prices.forEach((coin) => {
-      data.push(Object.values(coin))
-    })
-    const ws = ss.getSheetByName('CoinGecko')
-    ws.clear()
-    ws.getRange(1, 1, data.length, data[0].length).setValues(data)
-  } catch (error) {
-    console.log('updateCoinGecko: ', error)
-  }
-}
-
-function updateCryptorank() {
-  try {
-    const coins = ss
-      .getSheetByName('Coins')
-      .getDataRange()
-      .getValues()
-      .filter((f) => f[3])
-      .map((m) => (m = m[3]))
-      .join(',')
-    const prices = cryptorankLib.currenciesLatest(coins).map((coin) => {
-      return {
+function getCoinMarketCapData(listId) {
+  return Object.values(
+    coinMarketCapLib.cryptocurrencyQuotesLatest(listId)
+  ).reduce((data, coin) => {
+    if (!data[coin.slug]) {
+      data[coin.slug] = {}
+    }
+    if (coin.is_active === 1) {
+      data[coin.slug] = {
         id: coin.id,
         slug: coin.slug,
         symbol: coin.symbol,
         name: coin.name,
+        dateAdded: coin.date_added,
+        rank: coin.cmc_rank,
+        maxSupply: coin.max_supply,
+        circulatingSupply: coin.circulating_supply,
+        totalSupply: coin.total_supply,
+        price: coin.quote.USD.price,
+        high24h: '',
+        low24h: '',
+        volume24h: coin.quote.USD.volume_24h,
+        volumeChange24h: coin.quote.USD.volume_change_24h,
+        marketCap: coin.quote.USD.market_cap,
+        percentChange1h: coin.quote.USD.percent_change_1h,
+        percentChange24h: coin.quote.USD.percent_change_24h,
+        percentChange7d: coin.quote.USD.percent_change_7d,
+        percentChange30d: coin.quote.USD.percent_change_30d,
+        percentChange3m: '',
+        percentChange6m: '',
+        marketCapDominance: coin.quote.USD.market_cap_dominance,
+        fullyDilutedMarketCap: coin.quote.USD.fully_diluted_market_cap,
+        source: 'CoinMarketCap',
+        dateUpdate: new Date(),
+      }
+    }
+    return data
+  }, {})
+}
+
+function getCryptorankData(listId) {
+  try {
+    return cryptorankLib.currenciesLatest(listId).reduce((data, coin) => {
+      if (!data[coin.symbol]) {
+        data[coin.symbol] = {}
+      }
+      data[coin.symbol] = {
+        id: coin.id,
+        slug: coin.slug,
+        symbol: coin.symbol,
+        name: coin.name,
+        dateAdded: '',
+        rank: coin.rank,
         type: coin.type,
         category: coin.category,
-        rank: coin.rank,
+        maxSupply: coin.maxSupply,
+        circulatingSupply: coin.circulatingSupply,
+        totalSupply: coin.totalSupply,
         price: coin.values.USD.price,
-        volume24h: coin.values.USD.volume24h,
         high24h: coin.values.USD.high24h,
         low24h: coin.values.USD.low24h,
+        volume24h: coin.values.USD.volume24h,
+        volumeChange24h: '',
         marketCap: coin.values.USD.marketCap,
+        percentChange1h: '',
         percentChange24h: coin.values.USD.percentChange24h,
         percentChange7d: coin.values.USD.percentChange7d,
         percentChange30d: coin.values.USD.percentChange30d,
         percentChange3m: coin.values.USD.percentChange3m,
         percentChange6m: coin.values.USD.percentChange6m,
         volume24hBase: coin.volume24hBase,
-        circulatingSupply: coin.circulatingSupply,
-        totalSupply: coin.totalSupply,
-        maxSupply: coin.maxSupply,
-        totalSupply: coin.totalSupply,
-        lastUpdated: coin.lastUpdated,
+        marketCapDominance: '',
+        fullyDilutedMarketCap: '',
+        source: 'Cryptorank',
+        dateUpdate: new Date(),
       }
-    })
-    const data = []
-    data.push(Object.keys(prices[0]))
-    prices.forEach((coin) => {
-      data.push(Object.values(coin))
-    })
-    const ws = ss.getSheetByName('Cryptorank')
-    ws.clear()
-    ws.getRange(1, 1, data.length, data[0].length).setValues(data)
+      return data
+    }, {})
   } catch (error) {
-    console.log('updateCryptorank: ', error)
+    console.log('getCryptorankData: ', error)
   }
 }
 
-function updateFiat() {
+function getCoinGeckoData(listId) {
   try {
-    const currencys = ss
-      .getSheetByName('Coins')
-      .getDataRange()
-      .getValues()
-      .filter((f) => f[4])
-      .map((m) => (m = m[4]))
-      .join(',')
-    const prices = exchangeratesapiLib.getLatest('usd', currencys)
-    const data = [['Name', 'Rates']]
-    Object.entries(prices).forEach((currency) => {
-      data.push(currency)
-    })
-    const ws = ss.getSheetByName('Fiat')
-    ws.clear()
-    ws.getRange(1, 1, data.length, data[0].length).setValues(data)
+    return coinGeckoLib.coinsMarkets(listId).reduce((data, coin) => {
+      if (!data[coin.id]) {
+        data[coin.id] = {}
+      }
+      data[coin.id] = {
+        id: coin.id,
+        slug: '',
+        symbol: coin.symbol,
+        name: coin.name,
+        dateAdded: '',
+        rank: coin.rank,
+        type: coin.type,
+        category: '',
+        maxSupply: coin.max_supply,
+        circulatingSupply: coin.circulating_supply,
+        totalSupply: coin.total_supply,
+        price: coin.current_price,
+        high24h: coin.high_24h,
+        low24h: coin.low_24h,
+        volume24h: '',
+        volumeChange24h: '',
+        marketCap: coin.market_cap,
+        percentChange1h: '',
+        percentChange24h: '',
+        percentChange7d: '',
+        percentChange30d: '',
+        percentChange3m: '',
+        percentChange6m: '',
+        volume24hBase: '',
+        marketCapDominance: '',
+        fullyDilutedMarketCap: '',
+        source: 'CoinGecko',
+        dateUpdate: new Date(),
+      }
+      return data
+    }, {})
   } catch (error) {
-    console.log('updateFiat: ', error)
+    console.log('getCoinGeckoData: ', error)
+  }
+}
+
+function getCryptocompareData(listId) {
+  try {
+    return Object.entries(cryptocompareLib.priceMulti(listId)).reduce(
+      (data, coin) => {
+        if (!data[coin[0]]) {
+          data[coin[0]] = {}
+        }
+        data[coin[0]] = {
+          id: '',
+          slug: '',
+          symbol: coin[0],
+          name: '',
+          dateAdded: '',
+          rank: '',
+          type: '',
+          category: '',
+          maxSupply: '',
+          circulatingSupply: '',
+          totalSupply: '',
+          price: coin[1].USD,
+          high24h: '',
+          low24h: '',
+          volume24h: '',
+          volumeChange24h: '',
+          marketCap: '',
+          percentChange1h: '',
+          percentChange24h: '',
+          percentChange7d: '',
+          percentChange30d: '',
+          percentChange3m: '',
+          percentChange6m: '',
+          volume24hBase: '',
+          marketCapDominance: '',
+          fullyDilutedMarketCap: '',
+          source: 'Cryptocompare',
+          dateUpdate: new Date(),
+        }
+        return data
+      },
+      {}
+    )
+  } catch (error) {
+    console.log('getCryptocompareData: ', error)
   }
 }

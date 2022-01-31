@@ -4,9 +4,7 @@ function createInvoiceMenu() {
   menu.addSubMenu(
     SpreadsheetApp.getUi()
       .createMenu('Price')
-      .addItem('Update CoinGecko', 'updateCoinGecko')
-      .addItem('Update Cryptorank', 'updateCryptorank')
-      .addItem('Update fiat', 'updateFiat')
+      .addItem('Update', 'updatePrice')
   )
   menu.addToUi()
 }
