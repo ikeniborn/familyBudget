@@ -21,19 +21,19 @@
         "developmentMode": true
       },
       {
-        "userSymbol": "exchangeratesapiLib",
+        "userSymbol": "exchangeRatesApiLib",
         "version": "0",
         "libraryId": "1FmS7zJ7q7eNXBsX8TKbqsBoFsVgf8lSD_7RjE2Qb5Frp92DjvD7vovFS",
         "developmentMode": true
       },
       {
-        "userSymbol": "cryptorankLib",
+        "userSymbol": "cryptoRankLib",
         "version": "0",
         "libraryId": "1UUzMa0JH1lbEOz8f64H9PUpUpJN8eGTHxDcK9o7d4SBOLsm6BjEJKjJT",
         "developmentMode": true
       },
       {
-        "userSymbol": "cryptocompareLib",
+        "userSymbol": "cryptoCompareLib",
         "version": "0",
         "libraryId": "1H8haeDKxFDJZkZckuxuCz5CMP97IWAB1DXO2AIr2DnKctOBxPxAmKLI4",
         "developmentMode": true

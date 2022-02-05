@@ -1,3 +1,7 @@
-function updatePrice() {
-  familyBudgetLib.updatePrice()
+function updateCoinPrice() {
+  familyBudgetLib.updateCoinPrice()
+}
+
+function updateCoinList() {
+  familyBudgetLib.updateCoinList()
 }

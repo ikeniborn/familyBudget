@@ -3,8 +3,9 @@ function createInvoiceMenu() {
   const menu = ui.createMenu('Library')
   menu.addSubMenu(
     SpreadsheetApp.getUi()
-      .createMenu('Price')
-      .addItem('Update', 'updatePrice')
+      .createMenu('Update')
+      .addItem('Update price', 'updateCoinPrice')
+      .addItem('Update coin list', 'updateCoinList')
   )
   menu.addToUi()
 }
