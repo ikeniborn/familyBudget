@@ -5,3 +5,7 @@ function updateCoinPrice() {
 function updateCoinList() {
   familyBudgetLib.updateCoinList()
 }
+
+function updateDataSet() {
+  familyBudgetLib.updateDataSet()
+}
