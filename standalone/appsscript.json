@@ -3,12 +3,6 @@
   "dependencies": {
     "libraries": [
       {
-        "userSymbol": "TelegramAPI",
-        "libraryId": "1ycJXhLl00t6btj9Q8Nje0CqrWiZGXzhgC_HsUQSbAcsdnSkibwVAdsW0",
-        "version": "0",
-        "developmentMode": true
-      },
-      {
         "userSymbol": "TrelloAPI",
         "libraryId": "1WB1qqxc-1rVbq9y7pv4EsTw4qq0CQVNcNMgUYMgNtz5TEJ7EpxvQCB82",
         "version": "0",

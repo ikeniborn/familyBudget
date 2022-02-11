@@ -6,6 +6,7 @@ function createInvoiceMenu() {
       .createMenu('Update')
       .addItem('Update price', 'updateCoinPrice')
       .addItem('Update coin list', 'updateCoinList')
+      .addItem('Update data set', 'updateDataSet')
   )
   menu.addToUi()
 }
