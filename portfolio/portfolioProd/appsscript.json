@@ -1,0 +1,15 @@
+{
+  "timeZone": "Europe/Moscow",
+  "dependencies": {
+    "libraries": [
+      {
+        "userSymbol": "portfolioLib",
+        "libraryId": "1wMVtZ4j0rNITU7AO7Iw_ShreekQ3bSdKpk-pixV4M1EGRdhNSUCcXmUO",
+        "version": "8",
+        "developmentMode": false
+      }
+    ]
+  },
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8"
+}
