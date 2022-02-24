@@ -1,4 +1,4 @@
-import { Hash } from '../../../src/utils'
+import { Hash } from '../utils'
 
 class Budget {
   constructor() {

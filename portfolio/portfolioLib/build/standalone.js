@@ -96,6 +96,8 @@ class Fetch {
    * @param {object} params parametrs { path: {}, query: {}, data: {} }
    */
   constructor(url, params = { path: {}, query: {}, data: {} }) {
+    this.fetchStatus = false;
+    this.result;
     this.getParametr(params);
     this.createUrl(url);
   }
@@ -141,22 +143,56 @@ class Fetch {
    */
   fetch() {
     try {
-      const response = UrlFetchApp.fetch(this.url, this.data);
-      const text = response.getContentText();
-      const responseCode = response.getResponseCode();
-      if (responseCode !== 200) {
-        console.log('URL: ', this.url);
-        console.log('Response code: ', responseCode);
-        console.log('Content Text: ', response.getContentText());
-      } else {
-        return JSON.parse(text)
-      }
+      const fetchPromise = () => {
+        return new Promise((resolve, reject) => {
+          const response = UrlFetchApp.fetch(this.url, this.data);
+          this.code = response.getResponseCode();
+          if (code === 200) {
+            this.result = JSON.parse(response.getContentText());
+            this.fetchStatus = true;
+            resolve();
+          }
+          reject();
+        })
+      };
+      const timeOutPromise = (ms) => {
+        return new Promise((resolve) => {
+          console.log('URL: ' + this.url);
+          console.log('Response code: ' + this.code);
+          console.log('Start timeout: ' + ms / 1000 + ' sec');
+          Utilities.sleep(ms);
+          resolve();
+        })
+      };
+      let ms = 2000;
+      let iteration = 0;
+      do {
+        fetchPromise().catch(timeOutPromise(ms));
+        ms += 250;
+        iteration += 1;
+      } while (!this.fetchStatus || iteration <= 5)
+
+      return this.result
+
+      // const response = UrlFetchApp.fetch(this.url, this.data)
+      // const text = response.getContentText()
+      // const responseCode = response.getResponseCode()
+      // if (responseCode !== 200) {
+      //   console.log('URL: ', this.url)
+      //   console.log('Response code: ', responseCode)
+      //   console.log('Content Text: ', response.getContentText())
+      // } else {
+      //   return JSON.parse(text)
+      // } return
     } catch (error) {
       console.error(error);
     }
   }
 }
 
+/**
+ * CryptoRank instance
+ */
 class Instance$3 {
   /**
    * Create new inctance API CryptoRank
@@ -174,7 +210,9 @@ class Instance$3 {
     });
   }
 }
-
+/**
+ * CryptoRank price
+ */
 class Price$3 {
   /**
    * @param {object} instance instance API CryptoRank
@@ -194,7 +232,9 @@ class Price$3 {
     )
   }
 }
-
+/**
+ * CryptoRank coin list
+ */
 class CoinsList$2 {
   /**
    * @param {object} instance instance API CryptoRank
@@ -216,6 +256,9 @@ class CoinsList$2 {
   }
 }
 
+/**
+ * CryptoCompare instance
+ */
 class Instance$2 {
   /**
    * Create new inctance API CryptoCompare
@@ -233,6 +276,9 @@ class Instance$2 {
     });
   }
 }
+/**
+ * CryptoCompare price
+ */
 class Price$2 {
   /**
    * @param {object} instance instance API CryptoCompare
@@ -288,9 +334,12 @@ class Price$2 {
     })
   }
 }
+/**
+ * CryptoCompare coin list
+ */
 class CoinsList$1 {
   /**
-   * @param {object} instance instance API CoinMarketCap
+   * @param {object} instance instance API CryptoCompare
    */
   constructor(instance) {
     this.methods = instance.methods;
@@ -300,6 +349,9 @@ class CoinsList$1 {
   }
 }
 
+/**
+ * CoinMarketCap instance
+ */
 class Instance$1 {
   /**
    * Create new inctance API CoinMarketCap
@@ -308,7 +360,7 @@ class Instance$1 {
    */
   constructor(apiKey) {
     this.methods = new Methods({
-      domain: 'https://pro-api.coinmarketcap.com/v1',
+      domain: 'https://pro-api.coinmarketcap.com',
       data: {
         muteHttpExceptions: true,
         contentType: 'accept: application/json',
@@ -317,6 +369,9 @@ class Instance$1 {
     });
   }
 }
+/**
+ * CoinMarketCap Price
+ */
 class Price$1 {
   /**
    * @param {object} instance instance API CoinMarketCap
@@ -329,11 +384,11 @@ class Price$1 {
    *
    * @param {*} id
    * @param {*} convert
-   * @returns
+   * @returns {array}
    */
   getLastPrice(id = '1', convert = 'USD') {
     return this.methods.get({
-      endPoint: '/cryptocurrency/quotes/latest',
+      endPoint: '/v2/cryptocurrency/quotes/latest',
       query: {
         id,
         convert,
@@ -341,7 +396,9 @@ class Price$1 {
     })?.data
   }
 }
-
+/**
+ * CoinMarketCap coin list
+ */
 class CoinsList {
   /**
    * @param {object} instance instance API CoinMarketCap
@@ -352,15 +409,18 @@ class CoinsList {
   /**
    * Get coins list
    *
-   * @returns
+   * @returns {array}
    */
   getCoinsList() {
     return this.methods.get({
-      endPoint: '/cryptocurrency/map',
+      endPoint: '/v1/cryptocurrency/map',
     })?.data
   }
 }
 
+/**
+ * CoinGecko instance
+ */
 class Instance {
   /**
    * Create new inctance API CoinGecko
@@ -375,7 +435,9 @@ class Instance {
     });
   }
 }
-
+/**
+ * CoinGecko price
+ */
 class Price {
   /**
    * @param {object} instance instance API CoinGecko
@@ -830,47 +892,6 @@ String.prototype.isEmpty = function () {
   return false
 };
 
-// const exchangeRatesApiInstance = new exchangeRatesApi.Instance(
-//   '3276674210a7471ea773005f04b4a669'
-// )
-const cryptoRankInstance = new Instance$3(
-  'f512dfeb3966b63ac221826ab8501a53d96662a203ad786860d5cc268b85'
-);
-const cryptoCompareInstance = new Instance$2(
-  '48597114e40192c1699cd11f30fc9b1b7d4db9e25ae08ac85736631ffad5a125'
-);
-const coinMarketCapInstance = new Instance$1(
-  '133c18b7-555c-4e57-ad7b-4d2bf6160c20'
-);
-const coinGeckoInstance = new Instance();
-
-new GasEnvironment([
-  {
-    spreadSheetName: 'portfolio',
-    sheetId: '1B6NX8DFLuVJu1yoWPVUsLMODApuTac7-S2anWQ63smg',
-    scriptId: '1bDf1rR6-IIHpxh5nCuSErYmfokkWRuLbDJyqIA8qZtBgNY7OJttcaGey',
-    area: 'prod',
-  },
-  {
-    spreadSheetName: 'portfolio',
-    sheetId: '1HdeIaXO5WjYOvyv02CgQi3IDpb95YYDt5zYAPLF2IJA',
-    scriptId: '1HVxNmr_vVQNl6DS1g1aBscXDTJSmGdHRkxBAzAmqaasvs7y7hnTZvh7y',
-    area: 'dev',
-  },
-  {
-    spreadSheetName: 'coingecko',
-    sheetId: '1wTTuxXt8n9q7C4NDXqQpI3wpKu1_5bGVmP9Xz0XGSyU',
-    scriptId: '1bDf1rR6-IIHpxh5nCuSErYmfokkWRuLbDJyqIA8qZtBgNY7OJttcaGey',
-    area: 'prod',
-  },
-  {
-    spreadSheetName: 'coingecko',
-    sheetId: '1wTTuxXt8n9q7C4NDXqQpI3wpKu1_5bGVmP9Xz0XGSyU',
-    scriptId: '1HVxNmr_vVQNl6DS1g1aBscXDTJSmGdHRkxBAzAmqaasvs7y7hnTZvh7y',
-    area: 'dev',
-  },
-]);
-
 class Header {
   constructor() {
     /**
@@ -898,7 +919,8 @@ class Header {
       date: { alias: 'Date' },
       time: { alias: 'Time' },
       operation: { alias: 'Operation' },
-      account: { alias: 'Account' },
+      accountSender: { alias: 'Account sender' },
+      accountRecipient: { alias: 'Account recipient' },
       platform: { alias: 'Platform' },
       service: { alias: 'Service' },
       sender: { alias: 'Sender' },
@@ -915,7 +937,7 @@ class Header {
     this.price = updateProps({
       name: { alias: 'Name', permanent: true },
       symbol: { alias: 'Symbol', permanent: true },
-      source: { alias: 'Source', permanent: true },
+      customPrice: { alias: 'Custom price', permanent: true },
       price: { alias: 'Price' },
       high24h: { alias: 'High 24h' },
       low24h: { alias: 'Low 24h' },
@@ -924,17 +946,27 @@ class Header {
       percentChange30d: { alias: 'Change 30d, %' },
       percentChange3m: { alias: 'Change 3m, %' },
       percentChange6m: { alias: 'Change 6m, %' },
+      volume24h: { alias: 'Volume 24h' },
       rank: { alias: 'Rank' },
       type: { alias: 'Type' },
       category: { alias: 'Category' },
       circulatingSupply: { alias: 'Circulating supply' },
+      totalSupply: { alias: 'Total supply' },
       maxSupply: { alias: 'Max supply' },
-      volume24h: { alias: 'Volume 24h' },
       marketCap: { alias: 'Market cap' },
+      marketCapChange24h: { alias: 'Market cap change 24h' },
+      marketCapChangePercentage24h: { alias: 'Market cap change 24h, %' },
       fullyDilutedMarketCap: { alias: 'Fully diluted market cap' },
+      ath: { alias: 'All total high (ATH) price' },
+      athChangePercentage: { alias: 'ATH change, %' },
+      athDate: { alias: 'ATH date' },
+      atl: { alias: 'All total low (ATL) price' },
+      atlChangePercentage: { alias: 'ATL change, %' },
+      atlDate: { alias: 'ATL date' },
       lastUpdated: { alias: 'Last updated' },
+      source: { alias: 'Source' },
     });
-    this.dataset = updateProps({
+    this.transaction = updateProps({
       date: { alias: 'Date' },
       account: { alias: 'Account' },
       platform: { alias: 'Platform' },
@@ -948,11 +980,17 @@ class Header {
       currentCost: { alias: 'Current cost' },
       comment: { alias: 'Comment' },
     });
+    this.balance = updateProps({
+      date: { alias: 'Date' },
+      account: { alias: 'Account' },
+      contractor: { alias: 'Contractor' },
+      coin: { alias: 'Coin' },
+      quantity: { alias: 'Quantity' },
+    });
     this.historicalPrice = updateProps({
       rowKey: { alias: 'Row key' },
+      rownNkey: { alias: 'Row nkey' },
       dateKey: { alias: 'Date key' },
-      symbolKey: { alias: 'Symbol key' },
-      pairKey: { alias: 'Pair key' },
       date: { alias: 'Date' },
       symbol: { alias: 'Symbol' },
       pair: { alias: 'Pair' },
@@ -960,6 +998,7 @@ class Header {
     });
     this.coinList = updateProps({
       rowKey: { alias: 'Row key' },
+      rowNkey: { alias: 'Row nkey' },
       source: { alias: 'Source' },
       name: { alias: 'Name' },
       symbol: { alias: 'Symbol' },
@@ -976,14 +1015,86 @@ class Header {
   }
 }
 
+// const exchangeRatesApiInstance = new exchangeRatesApi.Instance(
+//   '3276674210a7471ea773005f04b4a669'
+// )
+const cryptoRankInstance = new Instance$3(
+  'f512dfeb3966b63ac221826ab8501a53d96662a203ad786860d5cc268b85'
+);
+const cryptoCompareInstance = new Instance$2(
+  '48597114e40192c1699cd11f30fc9b1b7d4db9e25ae08ac85736631ffad5a125'
+);
+const coinMarketCapInstance = new Instance$1(
+  '133c18b7-555c-4e57-ad7b-4d2bf6160c20'
+);
+const coinGeckoInstance = new Instance();
+
+new GasEnvironment([
+  {
+    spreadSheetName: 'portfolio',
+    sheetId: '1B6NX8DFLuVJu1yoWPVUsLMODApuTac7-S2anWQ63smg',
+    scriptId: '1bDf1rR6-IIHpxh5nCuSErYmfokkWRuLbDJyqIA8qZtBgNY7OJttcaGey',
+    area: 'prod',
+  },
+  {
+    spreadSheetName: 'fundamentalAnalysis',
+    sheetId: '1c9Mvwd8KrhUKIs7sPPrSxfKzOdz1Zen6QbOezvVMCao',
+    scriptId: '12V0O6ymxbRKl1WP9HiwHwLqEvieD0J45DmRtv-JRKX0darmv97FIaFAP',
+    area: 'prod',
+  },
+  {
+    spreadSheetName: 'portfolio',
+    sheetId: '1HdeIaXO5WjYOvyv02CgQi3IDpb95YYDt5zYAPLF2IJA',
+    scriptId: '1HVxNmr_vVQNl6DS1g1aBscXDTJSmGdHRkxBAzAmqaasvs7y7hnTZvh7y',
+    area: 'dev',
+  },
+  {
+    spreadSheetName: 'coingecko',
+    sheetId: '1wTTuxXt8n9q7C4NDXqQpI3wpKu1_5bGVmP9Xz0XGSyU',
+    scriptId: '1bDf1rR6-IIHpxh5nCuSErYmfokkWRuLbDJyqIA8qZtBgNY7OJttcaGey',
+    area: 'prod',
+  },
+  {
+    spreadSheetName: 'coingecko',
+    sheetId: '1wTTuxXt8n9q7C4NDXqQpI3wpKu1_5bGVmP9Xz0XGSyU',
+    scriptId: '1HVxNmr_vVQNl6DS1g1aBscXDTJSmGdHRkxBAzAmqaasvs7y7hnTZvh7y',
+    area: 'dev',
+  },
+  {
+    spreadSheetName: 'fundamentalAnalysis',
+    sheetId: '1TMpFQVHHk1-FMlq1AbNjqXZ-kamiM5XqVvppcnll62o',
+    scriptId: '1aKtMlxaAVvpbzGINbr-oTJvOl1NtklpFr_dmLFVcZIHocTIfNcCeHwWk',
+    area: 'dev',
+  },
+]);
+
 class Portfolio {
   constructor() {
     this.head = new Header();
+    this.coinsData = {};
   }
 
+  addCoinsData(coinKey, data) {
+    if (!this.coinsData[coinKey]) {
+      this.coinsData[coinKey] = data;
+    } else {
+      Object.entries(data).forEach((column) => {
+        const head = column[0];
+        const value = column[1];
+        if (!this.coinsData[coinKey][head]) {
+          this.coinsData[coinKey][head] = value;
+        }
+      });
+    }
+  }
   updateCoinPrice() {
     const portfolioPrice = new GasWorkSheet('portfolio', 'price');
     const portfolioCoinList = new GasWorkSheet('portfolio', 'coinlist');
+    const portfolioSource = new GasWorkSheet('portfolio', 'source');
+    const fundamentalAnalysis = new GasWorkSheet(
+      'fundamentalanalysis',
+      'price'
+    );
     const coinList = portfolioCoinList.dataValues.reduce((list, row) => {
       const rowKey = row[this.head.coinList.rowKey.idx];
       const id = row[this.head.coinList.id.idx];
@@ -999,57 +1110,61 @@ class Portfolio {
           .map(
             (m) =>
               (m = {
+                name: m[this.head.price.name.idx],
                 symbol: m[this.head.price.symbol.idx],
-                source: m[this.head.price.source.idx],
+                customPrice: m[this.head.price.customPrice.idx],
               })
           )
           .reduce((list, values) => {
-            if (!list[values.source] && values.source) {
-              list[values.source] = [];
-            }
-            if (values.source) {
-              let rowKey = new Hash$1(values.source + values.symbol).md5;
-              list[values.source].push(coinList[rowKey]);
-            }
+            portfolioSource.dataValues.forEach((source) => {
+              if (!list[source]) {
+                list[source] = [];
+              }
+              const rowKey = new Hash$1(
+                source + values.name + values.symbol
+              ).md5;
+              const coinId = coinList[rowKey];
+              if (coinId && !values.customPrice) {
+                list[source].push(coinList[rowKey]);
+              }
+            });
             return list
           }, {})
       ).map((m) => (m = [m[0], m[1].join(',')]))
     );
-    const coinsData = {};
+
     if (listId.cryptorank) {
       new Price$3(cryptoRankInstance)
         .getLastPrice(listId.cryptorank)
         .forEach((coin) => {
           const coinKey = coin.symbol.toUpperCase();
-          if (!coinsData[coinKey]) {
-            coinsData[coinKey] = {};
-          }
-          coinsData[coinKey] = {
+          this.addCoinsData(coinKey, {
             id: coin.id,
             slug: coin.slug,
             symbol: coin.symbol,
             name: coin.name,
-            rank: coin.rank,
-            type: coin.type,
-            category: coin.category,
-            maxSupply: coin.maxSupply,
-            circulatingSupply: coin.circulatingSupply,
-            totalSupply: coin.totalSupply,
             price: coin.values.USD.price,
             high24h: coin.values.USD.high24h,
             low24h: coin.values.USD.low24h,
-            volume24h: coin.values.USD.volume24h,
-            marketCap: coin.values.USD.marketCap,
             percentChange24h: coin.values.USD.percentChange24h,
             percentChange7d: coin.values.USD.percentChange7d,
             percentChange30d: coin.values.USD.percentChange30d,
             percentChange3m: coin.values.USD.percentChange3m,
             percentChange6m: coin.values.USD.percentChange6m,
-            volume24: coin.volume24hBase,
-            marketCapDominance: '',
-            fullyDilutedMarketCap: '',
-            lastUpdated: coin.lastUpdated,
-          };
+            volume24h: coin.values.USD.volume24h,
+            rank: coin.rank,
+            type: coin.type,
+            category: coin.category,
+            circulatingSupply: coin.circulatingSupply,
+            totalSupply: coin.totalSupply,
+            maxSupply: coin.maxSupply,
+            marketCap: coin.values.USD.marketCap,
+            lastUpdated: new FormatDate(coin.lastUpdated).getFormatDate(
+              'yyyy-MM-dd HH:mm'
+            ),
+            source: 'CryptoRank',
+            isNew: true,
+          });
         });
     }
     if (listId.coingecko) {
@@ -1057,33 +1172,43 @@ class Portfolio {
         .getMarketsPrice(listId.coingecko)
         .forEach((coin) => {
           const coinKey = coin.symbol.toUpperCase();
-          if (!coinsData[coinKey]) {
-            coinsData[coinKey] = {};
-          }
-          coinsData[coinKey] = {
+          this.addCoinsData(coinKey, {
             id: coin.id,
             slug: coin.id,
             symbol: coin.symbol,
             name: coin.name,
-            rank: coin.market_cap_rank,
-            type: coin.type,
-            category: '',
-            maxSupply: coin.max_supply,
-            circulatingSupply: coin.circulating_supply,
-            totalSupply: coin.total_supply,
             price: coin.current_price,
             high24h: coin.high_24h,
             low24h: coin.low_24h,
-            volume24h: '',
-            volumeChange24h: '',
-            marketCap: coin.market_cap,
             percentChange24h: coin.price_change_percentage_24h_in_currency,
             percentChange7d: coin.price_change_percentage_7d_in_currency,
             percentChange30d: coin.price_change_percentage_30d_in_currency,
+            volume24h: coin.total_volume,
+            rank: coin.market_cap_rank,
+            type: coin.type,
+            marketCap: coin.market_cap,
+            marketCapChange24h: coin.market_cap_change_24h,
+            marketCapChangePercentage24h: coin.market_cap_change_percentage_24h,
+            maxSupply: coin.max_supply,
+            circulatingSupply: coin.circulating_supply,
+            totalSupply: coin.total_supply,
             fullyDilutedMarketCap: coin.fully_diluted_valuation,
-            dateUpdate: coin.last_updated,
+            ath: coin.ath,
+            athChangePercentage: coin.ath_change_percentage,
+            athDate: new FormatDate(coin.ath_date).getFormatDate(
+              'yyyy-MM-dd HH:mm'
+            ),
+            atl: coin.atl,
+            atlChangePercentage: coin.atl_change_percentage,
+            atlDate: new FormatDate(coin.atl_date).getFormatDate(
+              'yyyy-MM-dd HH:mm'
+            ),
+            lastUpdated: new FormatDate(coin.last_updated).getFormatDate(
+              'yyyy-MM-dd HH:mm'
+            ),
             source: 'CoinGecko',
-          };
+            isNew: true,
+          });
         });
     }
     if (listId.coinmarketcap) {
@@ -1093,35 +1218,31 @@ class Portfolio {
         )
       ).forEach((coin) => {
         const coinKey = coin.symbol.toUpperCase();
-        if (!coinsData[coinKey]) {
-          coinsData[coinKey] = {};
-        }
-        if (coin.is_active === 1) {
-          coinsData[coinKey] = {
-            id: coin.id,
-            slug: coin.slug,
-            symbol: coin.symbol,
-            name: coin.name,
-            dateAdded: coin.date_added,
-            rank: coin.cmc_rank,
-            maxSupply: coin.max_supply,
-            circulatingSupply: coin.circulating_supply,
-            totalSupply: coin.total_supply,
-            price: coin.quote.USD.price,
-            high24h: '',
-            low24h: '',
-            volume24h: coin.quote.USD.volume_24h,
-            volumeChange24h: coin.quote.USD.volume_change_24h,
-            marketCap: coin.quote.USD.market_cap,
-            percentChange24h: coin.quote.USD.percent_change_24h,
-            percentChange7d: coin.quote.USD.percent_change_7d,
-            percentChange30d: coin.quote.USD.percent_change_30d,
-            marketCapDominance: coin.quote.USD.market_cap_dominance,
-            fullyDilutedMarketCap: coin.quote.USD.fully_diluted_market_cap,
-            lastUpdated: coin.last_updated,
-            source: 'CoinMarketCap',
-          };
-        }
+        this.addCoinsData(coinKey, {
+          id: coin.id,
+          slug: coin.slug,
+          symbol: coin.symbol,
+          name: coin.name,
+          dateAdded: coin.date_added,
+          rank: coin.cmc_rank,
+          maxSupply: coin.max_supply,
+          circulatingSupply: coin.circulating_supply,
+          totalSupply: coin.total_supply,
+          price: coin.quote.USD.price,
+          volume24h: coin.quote.USD.volume_24h,
+          volumeChange24h: coin.quote.USD.volume_change_24h,
+          marketCap: coin.quote.USD.market_cap,
+          percentChange24h: coin.quote.USD.percent_change_24h,
+          percentChange7d: coin.quote.USD.percent_change_7d,
+          percentChange30d: coin.quote.USD.percent_change_30d,
+          marketCapDominance: coin.quote.USD.market_cap_dominance,
+          fullyDilutedMarketCap: coin.quote.USD.fully_diluted_market_cap,
+          lastUpdated: new FormatDate(coin.last_updated).getFormatDate(
+            'yyyy-MM-dd HH:mm'
+          ),
+          source: 'CoinMarketCap',
+          isNew: true,
+        });
       });
     }
     if (listId.cryptocompare) {
@@ -1131,38 +1252,13 @@ class Portfolio {
         )
       ).forEach((coin) => {
         const coinKey = coin[0].toUpperCase();
-        if (!coinsData[coinKey]) {
-          coinsData[coinKey] = {};
-        }
-        coinsData[coinKey] = {
-          id: '',
-          slug: '',
+        this.addCoinsData(coinKey, {
           symbol: coin[0],
-          name: '',
-          dateAdded: '',
-          rank: '',
-          type: '',
-          category: '',
-          maxSupply: '',
-          circulatingSupply: '',
-          totalSupply: '',
           price: coin[1].USD,
-          high24h: '',
-          low24h: '',
-          volume24h: '',
-          volumeChange24h: '',
-          marketCap: '',
-          percentChange24h: '',
-          percentChange7d: '',
-          percentChange30d: '',
-          percentChange3m: '',
-          percentChange6m: '',
-          volume24hBase: '',
-          marketCapDominance: '',
-          fullyDilutedMarketCap: '',
           source: 'Cryptocompare',
-          lastUpdated: new Date(),
-        };
+          lastUpdated: new FormatDate().getFormatDate('yyyy-MM-dd HH:mm'),
+          isNew: true,
+        });
       });
     }
 
@@ -1174,8 +1270,8 @@ class Portfolio {
           if (head.permanent) {
             coin[head.name] = row[head.idx];
           } else {
-            if (coinsData[coinSymbol]) {
-              coin[head.name] = coinsData[coinSymbol][head.name];
+            if (this.coinsData[coinSymbol]) {
+              coin[head.name] = this.coinsData[coinSymbol][head.name];
             } else {
               coin[head.name] = row[head.idx];
             }
@@ -1187,7 +1283,16 @@ class Portfolio {
       [this.head.getHeaderAlias(this.head.price)]
     );
     this.updateHistoricalPrice(priceArray);
-    portfolioPrice.deleteFilter().insertValues(priceArray).deleteEmptyRows();
+    portfolioPrice
+      .deleteFilter()
+      .insertValues(priceArray)
+      .deleteEmptyRows()
+      .deleteEmptyColumns();
+    fundamentalAnalysis
+      .deleteFilter()
+      .insertValues(priceArray)
+      .deleteEmptyRows()
+      .deleteEmptyColumns();
   }
 
   updateHistoricalPrice(array = []) {
@@ -1199,6 +1304,7 @@ class Portfolio {
     const yyyymmdd = newDate.yyyymmdd;
     const dateKey = new Hash$1(yyyymmdd).md5;
     const formatDate = newDate.getFormatDate('yyyy-MM-dd');
+    const pair = 'USD';
     const historicalPrice = portfolioHistoricalPrice.dataValues.filter(
       (row) => {
         return row[this.head.historicalPrice.dateKey.idx] !== dateKey
@@ -1208,27 +1314,66 @@ class Portfolio {
     historicalPrice.splice(
       0,
       0,
-      Object.values(this.head.historicalPrice).map((m) => m.alias)
+      this.head.getHeaderAlias(this.head.historicalPrice)
     );
 
     array.slice(1).forEach((row) => {
       const symbol = row[this.head.price.symbol.idx].toUpperCase();
-      const pair = 'USD';
       const price = row[this.head.price.price.idx];
-      const rowKey = new Hash$1(yyyymmdd + symbol + pair).md5;
-      const symbolKey = new Hash$1(symbol).md5;
-      const pairKey = new Hash$1(pair).md5;
+      const key = new Hash$1(yyyymmdd + symbol + pair);
+      const rowKey = key.md5;
+      const rowNkey = key.string;
       historicalPrice.push([
         rowKey,
+        rowNkey,
         dateKey,
-        symbolKey,
-        pairKey,
         formatDate,
         symbol,
         pair,
         price,
       ]);
     });
+    portfolioHistoricalPrice
+      .deleteFilter()
+      .insertValues(historicalPrice)
+      .deleteEmptyRows();
+  }
+
+  updateHistoricalPriceKey() {
+    const portfolioHistoricalPrice = new GasWorkSheet(
+      'portfolio',
+      'historicalprice'
+    );
+    const newDate = new FormatDate(new Date());
+    const yyyymmdd = newDate.yyyymmdd;
+    const dateKey = new Hash$1(yyyymmdd).md5;
+    const formatDate = newDate.getFormatDate('yyyy-MM-dd');
+    const pair = 'USD';
+    const historicalPrice = portfolioHistoricalPrice.dataValues.reduce(
+      (newArray, oldArray) => {
+        const date = new FormatDate(
+          oldArray[this.head.historicalPrice.date.idx]
+        );
+        const dateKey = new Hash$1(date.yyyymmdd).md5;
+        const symbol = oldArray[
+          this.head.historicalPrice.symbol.idx
+        ].toUpperCase();
+        const pair = oldArray[this.head.historicalPrice.pair.idx].toUpperCase();
+        const price = oldArray[this.head.historicalPrice.price.idx];
+        const key = new Hash$1(date.yyyymmdd + symbol + pair);
+        newArray.push([
+          key.md5,
+          key.string,
+          dateKey,
+          date.getFormatDate('yyyy-MM-dd'),
+          symbol,
+          pair,
+          price,
+        ]);
+        return newArray
+      },
+      [this.head.getHeaderAlias(this.head.historicalPrice)]
+    );
     portfolioHistoricalPrice
       .deleteFilter()
       .insertValues(historicalPrice)
@@ -1249,21 +1394,36 @@ class Portfolio {
     //     coinList.push([rowHash, 'coingecko', coin.name, coin.symbol, coin.id])
     //   })
     coinGeckoCoinList.dataValues.forEach((coin) => {
-      let rowHash = new Hash$1('coingecko' + coin[1]).md5;
-      coinList.push([rowHash, 'coingecko', coin[2], coin[1], coin[0]]);
+      const key = new Hash$1('coingecko' + coin[2] + coin[1]);
+      coinList.push([
+        key.md5,
+        key.string,
+        'coingecko',
+        coin[2],
+        coin[1],
+        coin[0],
+      ]);
     });
     new CoinsList$2(cryptoRankInstance)
       .getCoinsList(15000)
       .forEach((coin) => {
-        let rowHash = new Hash$1('cryptorank' + coin.symbol).md5;
-        coinList.push([rowHash, 'cryptorank', coin.name, coin.symbol, coin.id]);
+        const key = new Hash$1('cryptorank' + coin.name + coin.symbol);
+        coinList.push([
+          key.md5,
+          key.string,
+          'cryptorank',
+          coin.name,
+          coin.symbol,
+          coin.id,
+        ]);
       });
     new CoinsList(coinMarketCapInstance)
       .getCoinsList()
       .forEach((coin) => {
-        let rowHash = new Hash$1('coinmarketcap' + coin.symbol).md5;
+        const key = new Hash$1('coinmarketcap' + coin.name + coin.symbol);
         coinList.push([
-          rowHash,
+          key.md5,
+          key.string,
           'coinmarketcap',
           coin.name,
           coin.symbol,
@@ -1274,9 +1434,10 @@ class Portfolio {
     Object.entries(
       new CoinsList$1(cryptoCompareInstance).getCoinsList()
     ).forEach((coin) => {
-      let rowHash = new Hash$1('cryptocompare' + coin[0]).md5;
+      const key = new Hash$1('cryptocompare' + coin[1].CoinName + coin[0]);
       coinList.push([
-        rowHash,
+        key.md5,
+        key.string,
         'cryptocompare',
         coin[1].CoinName,
         coin[1].Symbol,
@@ -1289,16 +1450,26 @@ class Portfolio {
       ['Euro', 'EUR'],
     ];
     currency.forEach((coin) => {
-      let rowHash = new Hash$1('cryptocompare' + coin[1]).md5;
-      coinList.push([rowHash, 'cryptocompare', coin[0], coin[1], coin[1]]);
+      const key = new Hash$1('cryptocompare' + coin[0] + coin[1]);
+      coinList.push([
+        key.md5,
+        key.string,
+        'cryptocompare',
+        coin[0],
+        coin[1],
+        coin[1],
+      ]);
     });
     portfolioCoinList.deleteFilter().insertValues(coinList).deleteEmptyRows();
   }
 
-  updateDataSet() {
+  updateTransaction() {
     const portfolioAccount = new GasWorkSheet('portfolio', 'account');
     const portfolioPrice = new GasWorkSheet('portfolio', 'price');
-    const portfolioDataset = new GasWorkSheet('portfolio', 'dataset');
+    const portfolioTransaction = new GasWorkSheet(
+      'portfolio',
+      'transaction'
+    );
     const portfolioHistoricalPrice = new GasWorkSheet(
       'portfolio',
       'historicalprice'
@@ -1327,7 +1498,8 @@ class Portfolio {
           date: row[this.head.account.date.idx],
           time: row[this.head.account.time.idx],
           operation: row[this.head.account.operation.idx],
-          account: row[this.head.account.account.idx],
+          accountSender: row[this.head.account.accountSender.idx],
+          accountRecipient: row[this.head.account.accountRecipient.idx],
           platform: row[this.head.account.platform.idx],
           service: row[this.head.account.service.idx],
           sender: row[this.head.account.sender.idx],
@@ -1347,7 +1519,7 @@ class Portfolio {
             array.push(
               Object.values({
                 date: rowData.date,
-                account: rowData.account,
+                account: rowData.accountSender,
                 platform: rowData.platform,
                 service: rowData.service,
                 contractor: rowData.sender,
@@ -1371,7 +1543,7 @@ class Portfolio {
             array.push(
               Object.values({
                 date: rowData.date,
-                account: rowData.account,
+                account: rowData.accountRecipient,
                 platform: rowData.platform,
                 service: rowData.service,
                 contractor: rowData.recipient,
@@ -1396,7 +1568,7 @@ class Portfolio {
             array.push(
               Object.values({
                 date: rowData.date,
-                account: rowData.account,
+                account: rowData.accountSender,
                 platform: rowData.platform,
                 service: rowData.service,
                 contractor: rowData.sender,
@@ -1420,7 +1592,7 @@ class Portfolio {
             array.push(
               Object.values({
                 date: rowData.date,
-                account: rowData.account,
+                account: rowData.accountRecipient,
                 platform: rowData.platform,
                 service: rowData.service,
                 contractor: rowData.recipient,
@@ -1446,7 +1618,7 @@ class Portfolio {
             array.push(
               Object.values({
                 date: rowData.date,
-                account: rowData.account,
+                account: rowData.accountSender,
                 platform: rowData.platform,
                 service: rowData.service,
                 contractor: rowData.sender,
@@ -1472,7 +1644,7 @@ class Portfolio {
             array.push(
               Object.values({
                 date: rowData.date,
-                account: rowData.account,
+                account: rowData.accountRecipient,
                 platform: rowData.platform,
                 service: rowData.service,
                 contractor: rowData.recipient,
@@ -1494,10 +1666,64 @@ class Portfolio {
         }
         return array
       },
-      [this.head.getHeaderAlias(this.head.dataset)]
+      [this.head.getHeaderAlias(this.head.transaction)]
     );
-    // console.log(ds)
-    portfolioDataset.deleteFilter().insertValues(dataSet).deleteEmptyRows();
+    this.uptdateBalance(dataSet);
+    portfolioTransaction.deleteFilter().insertValues(dataSet).deleteEmptyRows();
+  }
+
+  uptdateBalance(transaction = []) {
+    const portfolioBalance = new GasWorkSheet('portfolio', 'balance');
+    const balanceAgg = transaction.slice(1).reduce((target, source, index) => {
+      const row = {
+        date: new FormatDate(
+          source[this.head.transaction.date.idx]
+        ).getFormatDate('yyyy-MM-dd'),
+        account: source[this.head.transaction.account.idx].toUpperCase(),
+        contractor: source[this.head.transaction.contractor.idx].toUpperCase(),
+        coin: source[this.head.transaction.coin.idx],
+        quantity: source[this.head.transaction.quantity.idx],
+      };
+      if (!target[row.date]) {
+        target[row.date] = {};
+      }
+      if (!target[row.date][row.account]) {
+        target[row.date][row.account] = {};
+      }
+      if (!target[row.date][row.account][row.contractor]) {
+        target[row.date][row.account][row.contractor] = {};
+      }
+      if (!target[row.date][row.account][row.contractor][row.coin]) {
+        target[row.date][row.account][row.contractor][row.coin] = 0;
+      }
+
+      target[row.date][row.account][row.contractor][row.coin] += row.quantity;
+
+      return target
+    }, {});
+    const dataSet = [this.head.getHeaderAlias(this.head.balance)];
+    Object.entries(balanceAgg).forEach((level0) => {
+      const date = level0[0];
+      Object.entries(level0[1]).forEach((level1) => {
+        const account = level1[0];
+        Object.entries(level1[1]).forEach((level2) => {
+          const contractor = level2[0];
+          Object.entries(level2[1]).forEach((level3) => {
+            const symbol = level3[0];
+            const quantity = level3[1];
+            if (quantity) {
+              dataSet.push([date, account, contractor, symbol, quantity]);
+            }
+          });
+        });
+      });
+    });
+
+    portfolioBalance
+      .deleteFilter()
+      .insertValues(dataSet)
+      .deleteEmptyRows()
+      .deleteEmptyColumns();
   }
 }
 
@@ -1509,6 +1735,10 @@ function updateCoinList() {
   new Portfolio().updateCoinList();
 }
 
-function updateDataSet() {
-  new Portfolio().updateDataSet();
+function updateTransaction() {
+  new Portfolio().updateTransaction();
+}
+
+function updateHistoricalPriceKey() {
+  new Portfolio().updateHistoricalPriceKey();
 }

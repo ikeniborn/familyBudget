@@ -6,14 +6,18 @@ function updateCoinList() {
   portfolioLib.updateCoinList();
 }
 
-function updateDataSet() {
-  portfolioLib.updateDataSet();
+function updateTransaction() {
+  portfolioLib.updateTransaction();
+}
+
+function updateHistoricalPriceKey() {
+  portfolioLib.updateHistoricalPriceKey();
 }
 
 function updateDaily() {
   portfolioLib.updateCoinPrice();
   SpreadsheetApp.flush();
-  portfolioLib.updateDataSet();
+  portfolioLib.updateTransaction();
 }
 
 function createInvoiceMenu() {
@@ -24,8 +28,8 @@ function createInvoiceMenu() {
       .createMenu('Update')
       .addItem('Update daily', 'updateDaily')
       .addItem('Update price', 'updateCoinPrice')
+      .addItem('Update transaction', 'updateTransaction')
       .addItem('Update coin list', 'updateCoinList')
-      .addItem('Update data set', 'updateDataSet')
   );
   menu.addToUi();
 }

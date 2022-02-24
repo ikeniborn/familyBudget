@@ -1,6 +1,8 @@
 import { Methods } from './fetch'
 export { Instance, Price, CoinsList }
-
+/**
+ * CryptoCompare instance
+ */
 class Instance {
   /**
    * Create new inctance API CryptoCompare
@@ -18,6 +20,9 @@ class Instance {
     })
   }
 }
+/**
+ * CryptoCompare price
+ */
 class Price {
   /**
    * @param {object} instance instance API CryptoCompare
@@ -73,9 +78,12 @@ class Price {
     })
   }
 }
+/**
+ * CryptoCompare coin list
+ */
 class CoinsList {
   /**
-   * @param {object} instance instance API CoinMarketCap
+   * @param {object} instance instance API CryptoCompare
    */
   constructor(instance) {
     this.methods = instance.methods

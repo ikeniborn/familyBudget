@@ -1,6 +1,9 @@
 import { Methods } from './fetch'
 export { Instance, Price, CoinsList }
 
+/**
+ * ExchangeRatesApi instance
+ */
 class Instance {
   /**
    * Create new inctance API ExchangeRatesApi
@@ -18,6 +21,9 @@ class Instance {
     })
   }
 }
+/**
+ * ExchangeRatesApi coin list
+ */
 class CoinsList {
   /**
    * @param {object} instance instance API ExchangeRatesApi
@@ -34,6 +40,9 @@ class CoinsList {
   }
 }
 
+/**
+ * ExchangeRatesApi price
+ */
 class Price {
   /**
    * @param {object} instance instance API ExchangeRatesApi

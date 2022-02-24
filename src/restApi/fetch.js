@@ -98,6 +98,8 @@ class Fetch {
    * @param {object} params parametrs { path: {}, query: {}, data: {} }
    */
   constructor(url, params = { path: {}, query: {}, data: {} }) {
+    this.fetchStatus = false
+    this.result
     this.getParametr(params)
     this.createUrl(url)
   }
@@ -143,16 +145,47 @@ class Fetch {
    */
   fetch() {
     try {
-      const response = UrlFetchApp.fetch(this.url, this.data)
-      const text = response.getContentText()
-      const responseCode = response.getResponseCode()
-      if (responseCode !== 200) {
-        console.log('URL: ', this.url)
-        console.log('Response code: ', responseCode)
-        console.log('Content Text: ', response.getContentText())
-      } else {
-        return JSON.parse(text)
+      const fetchPromise = () => {
+        return new Promise((resolve, reject) => {
+          const response = UrlFetchApp.fetch(this.url, this.data)
+          this.code = response.getResponseCode()
+          if (code === 200) {
+            this.result = JSON.parse(response.getContentText())
+            this.fetchStatus = true
+            resolve()
+          }
+          reject()
+        })
       }
+      const timeOutPromise = (ms) => {
+        return new Promise((resolve) => {
+          console.log('URL: ' + this.url)
+          console.log('Response code: ' + this.code)
+          console.log('Start timeout: ' + ms / 1000 + ' sec')
+          Utilities.sleep(ms)
+          resolve()
+        })
+      }
+      let ms = 2000
+      let iteration = 0
+      do {
+        fetchPromise().catch(timeOutPromise(ms))
+        ms += 250
+        iteration += 1
+      } while (!this.fetchStatus || iteration <= 5)
+
+      return this.result
+
+      // const response = UrlFetchApp.fetch(this.url, this.data)
+      // const text = response.getContentText()
+      // const responseCode = response.getResponseCode()
+      // if (responseCode !== 200) {
+      //   console.log('URL: ', this.url)
+      //   console.log('Response code: ', responseCode)
+      //   console.log('Content Text: ', response.getContentText())
+      // } else {
+      //   return JSON.parse(text)
+      // } return
     } catch (error) {
       console.error(error)
     }

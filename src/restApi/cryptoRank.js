@@ -1,6 +1,9 @@
 import { Methods } from './fetch'
 export { Instance, Price, CoinsList }
 
+/**
+ * CryptoRank instance
+ */
 class Instance {
   /**
    * Create new inctance API CryptoRank
@@ -18,7 +21,9 @@ class Instance {
     })
   }
 }
-
+/**
+ * CryptoRank price
+ */
 class Price {
   /**
    * @param {object} instance instance API CryptoRank
@@ -38,7 +43,9 @@ class Price {
     )
   }
 }
-
+/**
+ * CryptoRank coin list
+ */
 class CoinsList {
   /**
    * @param {object} instance instance API CryptoRank

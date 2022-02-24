@@ -1,6 +1,9 @@
 import { Methods } from './fetch'
 export { Instance, Price, CoinsList }
 
+/**
+ * CoinMarketCap instance
+ */
 class Instance {
   /**
    * Create new inctance API CoinMarketCap
@@ -9,7 +12,7 @@ class Instance {
    */
   constructor(apiKey) {
     this.methods = new Methods({
-      domain: 'https://pro-api.coinmarketcap.com/v1',
+      domain: 'https://pro-api.coinmarketcap.com',
       data: {
         muteHttpExceptions: true,
         contentType: 'accept: application/json',
@@ -18,6 +21,9 @@ class Instance {
     })
   }
 }
+/**
+ * CoinMarketCap Price
+ */
 class Price {
   /**
    * @param {object} instance instance API CoinMarketCap
@@ -30,11 +36,11 @@ class Price {
    *
    * @param {*} id
    * @param {*} convert
-   * @returns
+   * @returns {array}
    */
   getLastPrice(id = '1', convert = 'USD') {
     return this.methods.get({
-      endPoint: '/cryptocurrency/quotes/latest',
+      endPoint: '/v2/cryptocurrency/quotes/latest',
       query: {
         id,
         convert,
@@ -42,7 +48,9 @@ class Price {
     })?.data
   }
 }
-
+/**
+ * CoinMarketCap coin list
+ */
 class CoinsList {
   /**
    * @param {object} instance instance API CoinMarketCap
@@ -53,11 +61,11 @@ class CoinsList {
   /**
    * Get coins list
    *
-   * @returns
+   * @returns {array}
    */
   getCoinsList() {
     return this.methods.get({
-      endPoint: '/cryptocurrency/map',
+      endPoint: '/v1/cryptocurrency/map',
     })?.data
   }
 }

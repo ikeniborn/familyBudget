@@ -1,6 +1,9 @@
 import { Methods } from './fetch'
 export { Instance, Price, CoinsList }
 
+/**
+ * CoinGecko instance
+ */
 class Instance {
   /**
    * Create new inctance API CoinGecko
@@ -15,7 +18,9 @@ class Instance {
     })
   }
 }
-
+/**
+ * CoinGecko price
+ */
 class Price {
   /**
    * @param {object} instance instance API CoinGecko
@@ -79,7 +84,9 @@ class Price {
     )
   }
 }
-
+/**
+ * CoinGecko coin list
+ */
 class CoinsList {
   /**
    * @param {object} instance instance API CoinGecko
