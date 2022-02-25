@@ -1561,6 +1561,28 @@ class Portfolio {
                 comment: rowData.comment,
               })
             );
+          } else if (['Claim'].indexOf(rowData.operation) !== -1) {
+            array.push(
+              Object.values({
+                date: rowData.date,
+                account: rowData.accountRecipient,
+                platform: rowData.platform,
+                service: rowData.service,
+                contractor: rowData.recipient,
+                coin: rowData.coin,
+                pair: '',
+                price: '',
+                quantity: rowData.coinQty,
+                historicalCost:
+                  historicalCoinPriceList[
+                    new Hash$1(yyyymmdd + rowData.coin + 'USD').md5
+                  ] * rowData.coinQty,
+                currentCost:
+                  coinPriceList[new Hash$1(rowData.coin).md5] *
+                  rowData.coinQty,
+                comment: rowData.comment,
+              })
+            );
           } else if (rowData.operation === 'Buy') {
             const coinQty = rowData.coinQty
               ? rowData.coinQty
