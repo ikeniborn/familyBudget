@@ -19,7 +19,7 @@ class Methods {
   }
 
   addVariableParams(variableParams) {
-    this.url = this.domain + variableParams?.endPoint
+    this.url = this.domain + (variableParams?.endPoint || '')
     delete variableParams?.endPoint
     Object.entries(variableParams).forEach((param) => {
       if (!this.params[param[0]]) {
@@ -99,7 +99,9 @@ class Fetch {
    */
   constructor(url, params = { path: {}, query: {}, data: {} }) {
     this.fetchStatus = false
-    this.result
+    this.result = ''
+    this.ms = 2000
+    this.iteration = 0
     this.getParametr(params)
     this.createUrl(url)
   }
@@ -149,30 +151,32 @@ class Fetch {
         return new Promise((resolve, reject) => {
           const response = UrlFetchApp.fetch(this.url, this.data)
           this.code = response.getResponseCode()
-          if (code === 200) {
+          if (this.code === 200) {
             this.result = JSON.parse(response.getContentText())
             this.fetchStatus = true
             resolve()
+          } else {
+            reject()
           }
-          reject()
         })
       }
-      const timeOutPromise = (ms) => {
+      const timeOutPromise = () => {
         return new Promise((resolve) => {
           console.log('URL: ' + this.url)
           console.log('Response code: ' + this.code)
-          console.log('Start timeout: ' + ms / 1000 + ' sec')
-          Utilities.sleep(ms)
+          console.log('Start timeout: ' + this.ms / 1000 + ' sec')
+          Utilities.sleep(this.ms)
+          this.ms += 250
+          this.iteration += 1
+          if (this.iteration > 5) {
+            this.fetchStatus = true
+          }
           resolve()
         })
       }
-      let ms = 2000
-      let iteration = 0
       do {
-        fetchPromise().catch(timeOutPromise(ms))
-        ms += 250
-        iteration += 1
-      } while (!this.fetchStatus || iteration <= 5)
+        fetchPromise().catch(() => timeOutPromise())
+      } while (!this.fetchStatus)
 
       return this.result
 
