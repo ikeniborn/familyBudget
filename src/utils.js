@@ -3,6 +3,7 @@ export { FormatNumber, Hash, FormatDate }
 class Hash {
   constructor(string) {
     this.string = typeof string === 'string' ? string : string + ''
+    this.stringUpperCase = this.string.toUpperCase()
   }
 
   get md5() {
@@ -44,6 +45,12 @@ class FormatDate {
    */
   get str() {
     return JSON.stringify(this.date)
+  }
+  /**
+   * Значение даты в формате строки
+   */
+  get md5() {
+    return new Hash(this.yyyymmdd).md5
   }
   /**
    * Год в числовой формате YYYY

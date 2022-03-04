@@ -44,7 +44,6 @@ class Header {
     this.price = updateProps({
       name: { alias: 'Name', permanent: true },
       symbol: { alias: 'Symbol', permanent: true },
-      synonym: { alias: 'Synonym', permanent: true },
       price: { alias: 'Price' },
       high24h: { alias: 'High 24h' },
       low24h: { alias: 'Low 24h' },
@@ -93,10 +92,12 @@ class Header {
       contractor: { alias: 'Contractor' },
       coin: { alias: 'Coin' },
       quantity: { alias: 'Quantity' },
+      historicalCost: { alias: 'Historical cost, $' },
+      currentCost: { alias: 'Current cost, $' },
     })
     this.historicalPrice = updateProps({
       rowKey: { alias: 'Row key' },
-      rownNkey: { alias: 'Row nkey' },
+      rowNkey: { alias: 'Row nkey' },
       dateKey: { alias: 'Date key' },
       date: { alias: 'Date' },
       symbol: { alias: 'Symbol' },

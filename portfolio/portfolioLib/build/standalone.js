@@ -661,11 +661,14 @@ class GasWorkSheet extends GasSpreadSheet {
     return this
   }
 
-  insertValues(values, firstRow = 1, firstColumn = 1) {
-    this.workSheet
-      .clear()
-      .getRange(firstRow, firstColumn, values.length, values[0].length)
-      .setValues(values);
+  insertValues(values = [], header = [], firstRow = 1, firstColumn = 1) {
+    values.splice(0, 0, header);
+    if (values.length) {
+      this.workSheet
+        .clear()
+        .getRange(firstRow, firstColumn, values.length, values[0].length)
+        .setValues(values);
+    }
     return this
   }
 
@@ -705,6 +708,7 @@ class GasWorkSheet extends GasSpreadSheet {
 class Hash$1 {
   constructor(string) {
     this.string = typeof string === 'string' ? string : string + '';
+    this.stringUpperCase = this.string.toUpperCase();
   }
 
   get md5() {
@@ -746,6 +750,12 @@ class FormatDate {
    */
   get str() {
     return JSON.stringify(this.date)
+  }
+  /**
+   * Значение даты в формате строки
+   */
+  get md5() {
+    return new Hash$1(this.yyyymmdd).md5
   }
   /**
    * Год в числовой формате YYYY
@@ -941,7 +951,6 @@ class Header {
     this.price = updateProps({
       name: { alias: 'Name', permanent: true },
       symbol: { alias: 'Symbol', permanent: true },
-      synonym: { alias: 'Synonym', permanent: true },
       price: { alias: 'Price' },
       high24h: { alias: 'High 24h' },
       low24h: { alias: 'Low 24h' },
@@ -990,10 +999,12 @@ class Header {
       contractor: { alias: 'Contractor' },
       coin: { alias: 'Coin' },
       quantity: { alias: 'Quantity' },
+      historicalCost: { alias: 'Historical cost, $' },
+      currentCost: { alias: 'Current cost, $' },
     });
     this.historicalPrice = updateProps({
       rowKey: { alias: 'Row key' },
-      rownNkey: { alias: 'Row nkey' },
+      rowNkey: { alias: 'Row nkey' },
       dateKey: { alias: 'Date key' },
       date: { alias: 'Date' },
       symbol: { alias: 'Symbol' },
@@ -1124,7 +1135,6 @@ class Portfolio {
               (m = {
                 name: m[this.head.price.name.idx],
                 symbol: m[this.head.price.symbol.idx],
-                synonym: m[this.head.price.synonym.idx],
               })
           )
           .reduce((list, values) => {
@@ -1132,8 +1142,9 @@ class Portfolio {
               if (!list[source]) {
                 list[source] = [];
               }
-              const vSymbol = values.synonym ? values.synonym : values.symbol;
-              const rowKey = new Hash$1(source + values.name + vSymbol).md5;
+              const rowKey = new Hash$1(
+                source + values.name + values.symbol
+              ).md5;
               const coinId = coinList[rowKey];
               if (coinId) {
                 list[source].push(coinList[rowKey]);
@@ -1273,88 +1284,33 @@ class Portfolio {
       });
     }
 
-    const priceArray = portfolioPrice.dataValues.reduce(
-      (coins, row) => {
-        let coinSymbol;
-        const coin = {};
-        if (row[this.head.price.synonym.idx]) {
-          coinSymbol = row[this.head.price.synonym.idx].toUpperCase();
+    const priceArray = portfolioPrice.dataValues.reduce((coins, row) => {
+      const coin = {};
+      const coinSymbol = row[this.head.price.symbol.idx].toUpperCase();
+      Object.values(this.head.price).forEach((head) => {
+        if (head.permanent) {
+          coin[head.name] = row[head.idx];
         } else {
-          coinSymbol = row[this.head.price.symbol.idx].toUpperCase();
-        }
-        Object.values(this.head.price).forEach((head) => {
-          if (head.permanent) {
-            coin[head.name] = row[head.idx];
+          if (this.coinsData[coinSymbol]) {
+            coin[head.name] = this.coinsData[coinSymbol][head.name];
           } else {
-            if (this.coinsData[coinSymbol]) {
-              coin[head.name] = this.coinsData[coinSymbol][head.name];
-            } else {
-              coin[head.name] = row[head.idx];
-            }
+            coin[head.name] = row[head.idx];
           }
-        });
-        coins.push(Object.values(coin));
-        return coins
-      },
-      [this.head.getHeaderAlias(this.head.price)]
-    );
-    this.updateHistoricalPrice(priceArray);
+        }
+      });
+      coins.push(Object.values(coin));
+      return coins
+    }, []);
     portfolioPrice
       .deleteFilter()
-      .insertValues(priceArray)
+      .insertValues(priceArray, this.head.getHeaderAlias(this.head.price))
       .deleteEmptyRows()
       .deleteEmptyColumns();
     fundamentalAnalysis
       .deleteFilter()
-      .insertValues(priceArray)
+      .insertValues(priceArray, this.head.getHeaderAlias(this.head.price))
       .deleteEmptyRows()
       .deleteEmptyColumns();
-  }
-
-  updateHistoricalPrice(array = []) {
-    const portfolioHistoricalPrice = new GasWorkSheet(
-      'portfolio',
-      'historicalprice'
-    );
-    const newDate = new FormatDate(new Date());
-    const yyyymmdd = newDate.yyyymmdd;
-    const dateKey = new Hash$1(yyyymmdd).md5;
-    const formatDate = newDate.getFormatDate('yyyy-MM-dd');
-    const pair = 'USD';
-    const historicalPrice = portfolioHistoricalPrice.dataValues.filter(
-      (row) => {
-        return row[this.head.historicalPrice.dateKey.idx] !== dateKey
-      }
-    );
-
-    historicalPrice.splice(
-      0,
-      0,
-      this.head.getHeaderAlias(this.head.historicalPrice)
-    );
-
-    array.slice(1).forEach((row) => {
-      const price = row[this.head.price.price.idx];
-      if (price) {
-        const symbol = row[this.head.price.symbol.idx].toUpperCase();
-        const key = new Hash$1(yyyymmdd + symbol + pair);
-        const rowKey = key.md5;
-        const rowNkey = key.string;
-        historicalPrice.push([
-          rowKey,
-          rowNkey,
-          dateKey,
-          formatDate,
-          symbol,
-          pair,
-          price,
-        ]);
-      }
-    });
-    portfolioHistoricalPrice
-      .deleteFilter()
-      .insertValues(historicalPrice)
-      .deleteEmptyRows();
   }
 
   updateHistoricalPriceKey() {
@@ -1483,7 +1439,6 @@ class Portfolio {
 
   updateTransaction() {
     const portfolioAccount = new GasWorkSheet('portfolio', 'account');
-    const portfolioPrice = new GasWorkSheet('portfolio', 'price');
     const portfolioTransaction = new GasWorkSheet(
       'portfolio',
       'transaction'
@@ -1492,207 +1447,328 @@ class Portfolio {
       'portfolio',
       'historicalprice'
     );
-    const coinPriceList = portfolioPrice.dataValues.reduce((list, row) => {
-      const rowKey = new Hash$1(row[this.head.price.symbol.idx]).md5;
-      if (!list[rowKey]) {
-        list[rowKey] = row[this.head.price.price.idx];
+    const portfolioPrice = new GasWorkSheet('portfolio', 'price');
+    const currentFormatDate = new FormatDate();
+    const transaction = [];
+    const currentCoinPrice = portfolioPrice.dataValues.reduce((list, row) => {
+      const key = new Hash$1(
+        currentFormatDate.yyyymmdd + row[this.head.price.symbol.idx] + 'USD'
+      );
+      if (row[this.head.price.price.idx]) {
+        list[key.md5] = {
+          rowKey: key.md5,
+          rowNkey: key.stringUpperCase,
+          dateKey: currentFormatDate.md5,
+          date: currentFormatDate.getFormatDate('yyyy-MM-dd'),
+          symbol: row[this.head.price.symbol.idx].toUpperCase(),
+          pair: 'USD',
+          price: row[this.head.price.price.idx],
+        };
       }
       return list
     }, {});
-    const historicalCoinPriceList = portfolioHistoricalPrice.dataValues.reduce(
+
+    const historicalCoinPrice = portfolioHistoricalPrice.dataValues.reduce(
       (list, row) => {
         const rowKey = row[this.head.historicalPrice.rowKey.idx];
         if (!list[rowKey]) {
-          list[rowKey] = row[this.head.historicalPrice.price.idx];
+          list[rowKey] = {
+            rowKey: row[this.head.historicalPrice.rowKey.idx],
+            rowNkey: row[this.head.historicalPrice.rowNkey.idx],
+            dateKey: row[this.head.historicalPrice.dateKey.idx],
+            date: row[this.head.historicalPrice.date.idx],
+            symbol: row[this.head.historicalPrice.symbol.idx],
+            pair: row[this.head.historicalPrice.pair.idx],
+            price: row[this.head.historicalPrice.price.idx],
+          };
         }
         return list
       },
-      {}
+      currentCoinPrice
     );
 
-    const dataSet = portfolioAccount.dataValues.reduce(
-      (array, row) => {
-        const rowData = {
-          date: row[this.head.account.date.idx],
-          time: row[this.head.account.time.idx],
-          operation: row[this.head.account.operation.idx],
-          accountSender: row[this.head.account.accountSender.idx],
-          accountRecipient: row[this.head.account.accountRecipient.idx],
-          platform: row[this.head.account.platform.idx],
-          service: row[this.head.account.service.idx],
-          sender: row[this.head.account.sender.idx],
-          recipient: row[this.head.account.recipient.idx],
-          coin: row[this.head.account.coin.idx].toUpperCase(),
-          coinQty: row[this.head.account.coinQty.idx],
-          currency: row[this.head.account.currency.idx].toUpperCase(),
-          currencyQty: row[this.head.account.currencyQty.idx],
-          currencyPerCoin: row[this.head.account.currencyPerCoin.idx],
-          feeCurrency: row[this.head.account.feeCurrency.idx].toUpperCase(),
-          feeQty: row[this.head.account.feeQty.idx],
-          comment: row[this.head.account.comment.idx],
-        };
-        const transaction = [];
-        const yyyymmdd = new FormatDate(rowData.date).yyyymmdd;
-        if (rowData.date) {
-          if (['Transfer'].indexOf(rowData.operation) !== -1) {
-            transaction.push({
-              contractor: rowData.sender,
-              coin: rowData.coin,
-              pair: '',
-              currencyPerCoin: '',
-              quantity: rowData.coinQty * -1,
-              priceUsd:
-                historicalCoinPriceList[
-                  new Hash$1(yyyymmdd + rowData.coin + 'USD').md5
-                ],
-              historicalCoin: rowData.coin,
-              historicalQty: rowData.coinQty * -1,
-            });
-            transaction.push({
-              contractor: rowData.recipient,
-              coin: rowData.coin,
-              pair: '',
-              currencyPerCoin: '',
-              quantity: rowData.coinQty,
-              priceUsd:
-                historicalCoinPriceList[
-                  new Hash$1(yyyymmdd + rowData.coin + 'USD').md5
-                ],
-              historicalCoin: rowData.coin,
-              historicalQty: rowData.coinQty,
-            });
-          } else if (['Claim'].indexOf(rowData.operation) !== -1) {
-            transaction.push({
-              contractor: rowData.recipient,
-              coin: rowData.coin,
-              pair: '',
-              currencyPerCoin: '',
-              quantity: rowData.coinQty,
-              priceUsd:
-                historicalCoinPriceList[
-                  new Hash$1(yyyymmdd + rowData.coin + 'USD').md5
-                ],
-              historicalCoin: rowData.coin,
-              historicalQty: rowData.coinQty,
-            });
-          } else if (['Add', 'Buy'].indexOf(rowData.operation) !== -1) {
-            let coinQty = rowData.coinQty;
-            let currencyQty = rowData.currencyQty;
-            if (coinQty) {
-              if (rowData.service === 'Liquidity pool') {
-                coinQty /= 2;
-              }
-              if (!rowData.currencyQty) {
-                currencyQty = coinQty * rowData.currencyPerCoin;
-              }
-            } else {
-              coinQty = currencyQty / rowData.currencyPerCoin;
+    portfolioAccount.dataValues.forEach((row) => {
+      const transactionRow = [];
+      const rowData = {
+        date: row[this.head.account.date.idx],
+        time: row[this.head.account.time.idx],
+        operation: row[this.head.account.operation.idx],
+        accountSender: row[this.head.account.accountSender.idx],
+        accountRecipient: row[this.head.account.accountRecipient.idx],
+        platform: row[this.head.account.platform.idx],
+        service: row[this.head.account.service.idx],
+        sender: row[this.head.account.sender.idx],
+        recipient: row[this.head.account.recipient.idx],
+        coin: row[this.head.account.coin.idx].toUpperCase(),
+        coinQty: row[this.head.account.coinQty.idx],
+        currency: row[this.head.account.currency.idx].toUpperCase(),
+        currencyQty: row[this.head.account.currencyQty.idx],
+        currencyPerCoin: row[this.head.account.currencyPerCoin.idx],
+        feeCurrency: row[this.head.account.feeCurrency.idx].toUpperCase(),
+        feeQty: row[this.head.account.feeQty.idx],
+        comment: row[this.head.account.comment.idx],
+      };
+      const historicalFormatDate = new FormatDate(rowData.date);
+      const accountRecipient = rowData.accountRecipient
+        ? rowData.accountRecipient
+        : rowData.accountSender;
+      const recipient = rowData.recipient ? rowData.recipient : rowData.sender;
+      if (rowData.date) {
+        if (['Transfer'].indexOf(rowData.operation) !== -1) {
+          const currentCoinKey = new Hash$1(
+            currentFormatDate.yyyymmdd + rowData.coin + 'USD'
+          );
+          const historicalCoinkey = new Hash$1(
+            historicalFormatDate.yyyymmdd + rowData.coin + 'USD'
+          );
+          const outPrice =
+            historicalCoinPrice[historicalCoinkey.md5]?.price ||
+            historicalCoinPrice[currentCoinKey.md5]?.price;
+          transactionRow.push({
+            account: rowData.accountSender,
+            contractor: rowData.sender,
+            coin: rowData.coin,
+            pair: rowData.coin,
+            currencyPerCoin: 1,
+            quantity: rowData.coinQty * -1,
+            price: outPrice,
+            cost: outPrice * rowData.coinQty * -1,
+          });
+
+          transactionRow.push({
+            account: accountRecipient,
+            contractor: recipient,
+            coin: rowData.coin,
+            pair: rowData.coin,
+            currencyPerCoin: 1,
+            quantity: rowData.coinQty,
+            price: outPrice,
+            cost: outPrice * rowData.coinQty,
+          });
+        } else if (['Claim'].indexOf(rowData.operation) !== -1) {
+          const currentCoinKey = new Hash$1(
+            currentFormatDate.yyyymmdd + rowData.coin + 'USD'
+          );
+          const historicalCoinkey = new Hash$1(
+            historicalFormatDate.yyyymmdd + rowData.coin + 'USD'
+          );
+          const outPrice =
+            historicalCoinPrice[historicalCoinkey.md5]?.price ||
+            historicalCoinPrice[currentCoinKey.md5]?.price;
+          transactionRow.push({
+            account: accountRecipient,
+            contractor: recipient,
+            coin: rowData.coin,
+            pair: rowData.coin,
+            currencyPerCoin: 1,
+            quantity: rowData.coinQty,
+            price: outPrice,
+            cost: outPrice * rowData.coinQty,
+          });
+        } else if (['Add', 'Buy'].indexOf(rowData.operation) !== -1) {
+          let coinQty = rowData.coinQty;
+          let currencyQty = rowData.currencyQty;
+          if (coinQty) {
+            if (rowData.service === 'Liquidity pool') {
+              coinQty /= 2;
             }
-            transaction.push({
-              contractor: rowData.sender,
-              coin: rowData.currency,
-              pair: rowData.coin,
-              currencyPerCoin: coinQty / currencyQty,
-              quantity: currencyQty * -1,
-              priceUsd:
-                historicalCoinPriceList[
-                  new Hash$1(yyyymmdd + rowData.currency + 'USD').md5
-                ],
-              historicalCoin: rowData.currency,
-              historicalQty: currencyQty * -1,
-            });
-            transaction.push({
-              contractor: rowData.recipient,
-              coin: rowData.coin,
-              pair: rowData.currency,
-              currencyPerCoin: rowData.currencyPerCoin
-                ? rowData.currencyPerCoin
-                : currencyQty / coinQty,
-              quantity: coinQty,
-              priceUsd:
-                (historicalCoinPriceList[
-                  new Hash$1(yyyymmdd + rowData.currency + 'USD').md5
-                ] *
-                  currencyQty) /
-                coinQty,
-              historicalCoin: rowData.currency,
-              historicalQty: currencyQty,
-            });
-          } else if (['Remove', 'Sell'].indexOf(rowData.operation) !== -1) {
-            let coinQty = rowData.coinQty;
-            let currencyQty = rowData.currencyQty;
-            if (currencyQty) {
-              if (rowData.service === 'Liquidity pool') {
-                currencyQty /= 2;
-              }
-            } else {
+            if (!rowData.currencyQty) {
               currencyQty = coinQty * rowData.currencyPerCoin;
             }
-            transaction.push({
-              contractor: rowData.sender,
-              coin: rowData.coin,
-              pair: rowData.currency,
-              currencyPerCoin: rowData.currencyPerCoin
-                ? rowData.currencyPerCoin
-                : currencyQty / coinQty,
-              quantity: coinQty * -1,
-              priceUsd:
-                historicalCoinPriceList[
-                  new Hash$1(yyyymmdd + rowData.coin + 'USD').md5
-                ],
-              historicalCoin: rowData.coin,
-              historicalQty: coinQty * -1,
-            });
-            transaction.push({
-              contractor: rowData.recipient,
-              coin: rowData.currency,
-              pair: rowData.coin,
-              currencyPerCoin: coinQty / currencyQty,
-              quantity: currencyQty,
-              priceUsd:
-                (historicalCoinPriceList[
-                  new Hash$1(yyyymmdd + rowData.coin + 'USD').md5
-                ] *
-                  currencyQty) /
-                coinQty,
-              historicalCoin: rowData.coin,
-              historicalQty: coinQty,
-            });
+          } else {
+            coinQty = currencyQty / rowData.currencyPerCoin;
           }
-        }
-        transaction.forEach((tx) => {
-          array.push(
-            Object.values({
-              date: rowData.date,
-              account: rowData.accountSender,
-              platform: rowData.platform,
-              service: rowData.service,
-              contractor: tx.contractor,
-              coin: tx.coin,
-              pair: tx.pair,
-              currencyPerCoin: tx.currencyPerCoin,
-              priceUsd: tx.priceUsd,
-              quantity: tx.quantity,
-              cost: tx.priceUsd * tx.historicalQty,
-              comment: rowData.comment,
-            })
+          const currentCoinKey = new Hash$1(
+            currentFormatDate.yyyymmdd + rowData.currency + 'USD'
           );
-        });
-        return array
-      },
-      [this.head.getHeaderAlias(this.head.transaction)]
-    );
-    this.uptdateBalance(dataSet);
+          const historicalCoinkey = new Hash$1(
+            historicalFormatDate.yyyymmdd + rowData.currency + 'USD'
+          );
+          const outPrice =
+            historicalCoinPrice[historicalCoinkey.md5]?.price ||
+            historicalCoinPrice[currentCoinKey.md5]?.price;
+          transactionRow.push({
+            account: rowData.accountSender,
+            contractor: rowData.sender,
+            coin: rowData.currency,
+            pair: rowData.coin,
+            currencyPerCoin: coinQty / currencyQty,
+            quantity: currencyQty * -1,
+            price: outPrice,
+            cost: outPrice * currencyQty * -1,
+          });
+          transactionRow.push({
+            account: accountRecipient,
+            contractor: recipient,
+            coin: rowData.coin,
+            pair: rowData.currency,
+            currencyPerCoin: rowData.currencyPerCoin
+              ? rowData.currencyPerCoin
+              : currencyQty / coinQty,
+            quantity: coinQty,
+            price: (outPrice * currencyQty) / coinQty,
+            cost: ((outPrice * currencyQty) / coinQty) * coinQty,
+          });
+        } else if (['Remove', 'Sell'].indexOf(rowData.operation) !== -1) {
+          let coinQty = rowData.coinQty;
+          let currencyQty = rowData.currencyQty;
+          if (currencyQty) {
+            if (rowData.service === 'Liquidity pool') {
+              currencyQty /= 2;
+            }
+          } else {
+            currencyQty = coinQty * rowData.currencyPerCoin;
+          }
+          const currentCoinKey = new Hash$1(
+            currentFormatDate.yyyymmdd + rowData.coin + 'USD'
+          );
+          const historicalCoinkey = new Hash$1(
+            historicalFormatDate.yyyymmdd + rowData.coin + 'USD'
+          );
+          const outPrice =
+            historicalCoinPrice[historicalCoinkey.md5]?.price ||
+            historicalCoinPrice[currentCoinKey.md5]?.price;
+          transactionRow.push({
+            account: rowData.accountSender,
+            contractor: rowData.sender,
+            coin: rowData.coin,
+            pair: rowData.currency,
+            currencyPerCoin: rowData.currencyPerCoin
+              ? rowData.currencyPerCoin
+              : currencyQty / coinQty,
+            quantity: coinQty * -1,
+            price: outPrice,
+            cost: outPrice * coinQty * -1,
+          });
+          transactionRow.push({
+            account: accountRecipient,
+            contractor: recipient,
+            coin: rowData.currency,
+            pair: rowData.coin,
+            currencyPerCoin: coinQty / currencyQty,
+            quantity: currencyQty,
+            price: (outPrice * coinQty) / currencyQty,
+            cost: ((outPrice * coinQty) / currencyQty) * currencyQty,
+          });
+        }
+      }
+
+      transactionRow.forEach((tx) => {
+        const coinKey = new Hash$1(
+          historicalFormatDate.yyyymmdd + tx.coin + 'USD'
+        );
+        historicalCoinPrice[coinKey.md5] = {
+          rowKey: coinKey.md5,
+          rowNkey: coinKey.stringUpperCase,
+          dateKey: historicalFormatDate.md5,
+          date: historicalFormatDate.getFormatDate('yyyy-MM-dd'),
+          symbol: tx.coin,
+          pair: 'USD',
+          price: tx.price,
+        };
+        transaction.push(
+          Object.values({
+            date: rowData.date,
+            account: tx.account,
+            platform: rowData.platform,
+            service: rowData.service,
+            contractor: tx.contractor,
+            coin: tx.coin,
+            pair: tx.pair,
+            currencyPerCoin: tx.currencyPerCoin,
+            price: tx.price,
+            quantity: tx.quantity,
+            cost: tx.cost,
+            comment: rowData.comment,
+          })
+        );
+      });
+    });
+
+    const historicalCoinPriceArray = Object.values(historicalCoinPrice)
+      .map((m) => (m = Object.values(m)))
+      .sort((a, b) => {
+        return (
+          new Date(a[this.head.historicalPrice.date.idx]).valueOf() -
+          new Date(b[this.head.historicalPrice.date.idx]).valueOf()
+        )
+      });
+
+    const lastCoinPrice = historicalCoinPriceArray.reduce((target, source) => {
+      const row = {
+        date: new FormatDate(
+          source[this.head.historicalPrice.date.idx]
+        ).getFormatDate('yyyy-MM-dd'),
+        coinKey: new Hash$1(source[this.head.historicalPrice.symbol.idx])
+          .md5,
+        price: source[this.head.historicalPrice.price.idx],
+      };
+      if (!target[row.coinKey]) {
+        target[row.coinKey] = { date: row.date, price: row.price };
+      }
+      if (
+        new Date(target[row.coinKey].date).valueOf() <
+          new Date(row.date).valueOf() &&
+        row.price
+      ) {
+        target[row.coinKey] = { date: row.date, price: row.price };
+      }
+      return target
+    }, {});
+    this.updateCustomPrice(lastCoinPrice);
+    this.updateBalance(transaction, lastCoinPrice, historicalCoinPrice);
+    portfolioHistoricalPrice
+      .deleteFilter()
+      .insertValues(
+        historicalCoinPriceArray,
+        this.head.getHeaderAlias(this.head.historicalPrice)
+      )
+      .deleteEmptyRows()
+      .deleteEmptyColumns();
+
     portfolioTransaction
       .deleteFilter()
-      .insertValues(dataSet)
+      .insertValues(
+        transaction,
+        this.head.getHeaderAlias(this.head.transaction)
+      )
       .deleteEmptyRows()
       .deleteEmptyColumns();
   }
 
-  uptdateBalance(transaction = []) {
+  updateCustomPrice(lastHistoricalPrice = { date: '', price: 0 }) {
+    const portfolioPrice = new GasWorkSheet('portfolio', 'price');
+    const updatedCustomPrice = portfolioPrice.dataValues.map((row) => {
+      const lastCoinData =
+        lastHistoricalPrice[new Hash$1(row[this.head.price.symbol.idx]).md5];
+      if (
+        (!row[this.head.price.price.idx] ||
+          new Date(row[this.head.price.lastUpdated.idx]).valueOf() <
+            new Date(lastCoinData.date).valueOf()) &&
+        !row[this.head.price.source.idx]
+      ) {
+        row[this.head.price.price.idx] = lastCoinData.price;
+        row[this.head.price.lastUpdated.idx] = lastCoinData.date;
+      }
+      return row
+    });
+    portfolioPrice
+      .deleteFilter()
+      .insertValues(
+        updatedCustomPrice,
+        this.head.getHeaderAlias(this.head.price)
+      )
+      .deleteEmptyRows()
+      .deleteEmptyColumns();
+  }
+
+  updateBalance(
+    transaction = [],
+    lastCoinPrice = {},
+    historicalCoinPrice = {}
+  ) {
     const portfolioBalance = new GasWorkSheet('portfolio', 'balance');
-    const balanceAgg = transaction.slice(1).reduce((target, source, index) => {
+    const balanceAgg = transaction.reduce((target, source) => {
       const row = {
         date: new FormatDate(
           source[this.head.transaction.date.idx]
@@ -1719,19 +1795,36 @@ class Portfolio {
 
       return target
     }, {});
-    const dataSet = [this.head.getHeaderAlias(this.head.balance)];
+    const balance = [];
     Object.entries(balanceAgg).forEach((level0) => {
       const date = level0[0];
+      const yyyymmdd = new FormatDate(date).yyyymmdd;
       Object.entries(level0[1]).forEach((level1) => {
         const account = level1[0];
         Object.entries(level1[1]).forEach((level2) => {
           const contractor = level2[0];
           Object.entries(level2[1]).forEach((level3) => {
-            const symbol = level3[0];
+            const symbol = level3[0].toUpperCase();
+            const currentPrice =
+              lastCoinPrice[new Hash$1(symbol).md5]?.price;
+            const historicalPrice =
+              historicalCoinPrice[new Hash$1(yyyymmdd + symbol + 'usd').md5]
+                ?.price;
             const quantity = level3[1];
-            if (quantity) {
-              dataSet.push([date, account, contractor, symbol, quantity]);
-            }
+            const currentCost = quantity * currentPrice;
+            const historicalCost = quantity * historicalPrice;
+
+            // if (quantity) {
+            balance.push([
+              date,
+              account,
+              contractor,
+              symbol,
+              quantity,
+              historicalCost,
+              currentCost,
+            ]);
+            // }
           });
         });
       });
@@ -1739,7 +1832,7 @@ class Portfolio {
 
     portfolioBalance
       .deleteFilter()
-      .insertValues(dataSet)
+      .insertValues(balance, this.head.getHeaderAlias(this.head.balance))
       .deleteEmptyRows()
       .deleteEmptyColumns();
   }

@@ -155,11 +155,14 @@ class GasWorkSheet extends GasSpreadSheet {
     return this
   }
 
-  insertValues(values, firstRow = 1, firstColumn = 1) {
-    this.workSheet
-      .clear()
-      .getRange(firstRow, firstColumn, values.length, values[0].length)
-      .setValues(values)
+  insertValues(values = [], header = [], firstRow = 1, firstColumn = 1) {
+    values.splice(0, 0, header)
+    if (values.length) {
+      this.workSheet
+        .clear()
+        .getRange(firstRow, firstColumn, values.length, values[0].length)
+        .setValues(values)
+    }
     return this
   }
 
