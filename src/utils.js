@@ -104,6 +104,10 @@ class FormatDate {
     return this.date.getISOWeek()
   }
 
+  get unix() {
+    return new Date(this.date).valueOf() / 1000
+  }
+
   /**
    * Преобразование даты в числовом виде в дату
    * @param {number} YYYYMMDD дата в числовом формате
@@ -114,6 +118,11 @@ class FormatDate {
     const month = YYYYMMDD.substr(4, 2) * 1 - 1
     const day = YYYYMMDD.substr(6, 2) * 1
     this.date = new Date(year, month, day)
+    return this
+  }
+
+  addTime(h = 0, m = 0) {
+    this.date = new Date(this.year, this.month - 1, this.monthDay, h, m)
     return this
   }
   /**
@@ -181,7 +190,7 @@ class FormatDate {
 }
 
 class FormatNumber {
-  constructor(number) {
+  constructor(number = 0) {
     this.number = typeof string === 'number' ? number : number * 1
   }
 
@@ -196,6 +205,27 @@ class FormatNumber {
     const month = numberString.substr(4, 2) * 1 - 1
     const day = numberString.substr(6, 2) * 1
     return new Date(year, month, day)
+  }
+
+  getHourAndMinuteFromNumber() {
+    let t = this.number.toString()
+    let h
+    let m
+    if (t.toString().length === 4) {
+      h = t.toString().slice(0, 2) * 1
+      m = t.toString().slice(2, 4) * 1
+    } else if (t.toString().length === 3) {
+      h = t.toString().slice(0, 1) * 1
+      m = t.toString().slice(1, 3) * 1
+    }
+    if (t.toString().length === 2) {
+      h = 0
+      m = t * 1
+    }
+    return {
+      h,
+      m,
+    }
   }
 }
 

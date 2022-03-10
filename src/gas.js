@@ -1,6 +1,6 @@
-export { GasEnvironment, GasSpreadSheet, GasWorkSheet }
+export { Environment, SpreadSheet, WorkSheet, SpreadsheetsTrigger }
 
-class GasEnvironment {
+class Environment {
   constructor(
     environment = [
       {
@@ -11,11 +11,11 @@ class GasEnvironment {
       },
     ]
   ) {
-    if (GasEnvironment.exists) {
-      return GasEnvironment.instance
+    if (Environment.exists) {
+      return Environment.instance
     }
-    GasEnvironment.instance = this
-    GasEnvironment.exists = true
+    Environment.instance = this
+    Environment.exists = true
     this.getEnvironment(environment)
   }
 
@@ -50,30 +50,29 @@ class GasEnvironment {
   }
 }
 
-class GasSpreadSheet {
+class SpreadSheet {
   constructor(spreadSheetName = '', excludeSheetName = []) {
-    const instance = new GasEnvironment()[spreadSheetName]
+    const instance = new Environment()[spreadSheetName]
     this.spreadSheet = instance.spreadSheet
     this.excludeSheetName = excludeSheetName.map((m) => (m = m.toLowerCase()))
   }
 }
 
-class GasWorkSheet extends GasSpreadSheet {
+class WorkSheet {
   constructor(
-    spreadSheetName = '',
+    spreadSheet = {},
     sheetName = '',
     headerRowNum = 1,
     getRowNum = false,
     getRowHash = false
   ) {
-    super(spreadSheetName)
     this.sheetName = sheetName.toLowerCase()
-    this.workSheet = this.spreadSheet
+    this.workSheet = spreadSheet.spreadSheet
       .getSheets()
       .filter(
         (f) =>
           f.getName().toLowerCase() === this.sheetName &&
-          this.excludeSheetName.indexOf(this.sheetName) === -1
+          spreadSheet.excludeSheetName.indexOf(this.sheetName) === -1
       )[0]
     this.getRange(headerRowNum).getValues(getRowNum, getRowHash)
   }
@@ -124,9 +123,9 @@ class GasWorkSheet extends GasSpreadSheet {
     if (getRowNum && !getRowHash) {
       this.headerValues = ['rowNum', ...this.headerValues]
     } else if (!getRowNum && getRowHash) {
-      this.headerValues = ['hashKey', ...this.headerValuesw]
+      this.headerValues = ['rowHash', ...this.headerValuesw]
     } else if (getRowNum && getRowHash) {
-      this.headerValues = ['rowNum', 'hashKey', ...this.headerValues]
+      this.headerValues = ['rowNum', 'rowHash', ...this.headerValues]
     }
     this.dataObject = []
     this.dataValues = []
@@ -158,12 +157,18 @@ class GasWorkSheet extends GasSpreadSheet {
   insertValues(values = [], header = [], firstRow = 1, firstColumn = 1) {
     values.splice(0, 0, header)
     if (values.length) {
+      this.deleteFilter()
       this.workSheet
         .clear()
         .getRange(firstRow, firstColumn, values.length, values[0].length)
         .setValues(values)
+      this.deleteEmptyRows().deleteEmptyColumns()
     }
     return this
+  }
+
+  insertValue(value, row, column) {
+    this.workSheet.getRange(row, column).setValue(value)
   }
 
   deleteFilter() {
@@ -510,5 +515,102 @@ class SpreadSheetMetadata extends Metadata {
     term = JSON.stringify(term)
     sheetKey = 'TERMKEY_' + sheetKey
     super.addMetadata(sheetKey, term)
+  }
+}
+
+class Trigger {
+  /**
+   * Информация по триггерам
+   */
+  constructor() {
+    this.sApp = ScriptApp
+  }
+
+  getEventName(eventType) {
+    if (eventType == this.sApp.EventType.CLOCK) {
+      return 'CLOCK'
+    } else if (eventType == this.sApp.EventType.ON_EDIT) {
+      return 'ON_EDIT'
+    } else if (eventType == this.sApp.EventType.ON_OPEN) {
+      return 'ON_OPEN'
+    } else {
+      return void 0
+    }
+    return this
+  }
+  getTriggerSourceName(triggerSource) {
+    if (triggerSource == this.sApp.TriggerSource.CLOCK) {
+      return 'CLOCK'
+    } else if (triggerSource == this.sApp.TriggerSource.SPREADSHEETS) {
+      return 'SPREADSHEETS'
+    } else {
+      return void 0
+    }
+    return this
+  }
+
+  get list() {
+    const triggers = this.sApp.getProjectTriggers()
+    return triggers.reduce((list, trigger) => {
+      list[trigger.getUniqueId()] = {
+        triggerId: trigger.getUniqueId(),
+        sourceId: trigger.getTriggerSourceId(),
+        handlerFunction: trigger.getHandlerFunction(),
+        eventType: this.getEventName(trigger.getEventType()),
+        triggerSource: this.getTriggerSourceName(trigger.getTriggerSource()),
+      }
+      return list
+    }, {})
+    return this
+  }
+}
+
+class SpreadsheetsTrigger extends Trigger {
+  /**
+   * Создание триггера для таблиц Google
+   * @param {object} ss объект книги
+   */
+  constructor(ss) {
+    super()
+    this.ss = ss
+    this.instance = this
+  }
+
+  /**
+   * Создание триггера при открытии
+   * @param {string} functionName Название функции
+   */
+  createForSpreadsheetOnOpen(functionName) {
+    this.sApp.newTrigger(functionName).forSpreadsheet(this.ss).onOpen().create()
+    return this
+  }
+  /**
+   * Создание триггера при редактировании электронной таблицы
+   * @param {string} functionName Название функции
+   */
+  createForSpreadsheetOnEdit(functionName) {
+    this.sApp.newTrigger(functionName).forSpreadsheet(this.ss).onEdit().create()
+    return this
+  }
+  /**
+   * Установка триггера по времени
+   * @param {number} hour время запуска в сутках
+   * @param {number} day интервал в днях
+   * @param {string} functionName Название функции
+   */
+  createForSpreadsheetAtHourEveryDays(hour, day, functionName) {
+    this.sApp
+      .newTrigger(functionName)
+      .timeBased()
+      .atHour(hour)
+      .everyDays(day)
+      .create()
+    return this
+  }
+  deleteAllTrigger() {
+    const triggers = this.sApp.getProjectTriggers()
+    triggers.forEach((trigger) => this.sApp.deleteTrigger(trigger))
+    console.log('Deleted triggers: ', triggers.length)
+    return this
   }
 }

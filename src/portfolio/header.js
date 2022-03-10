@@ -22,7 +22,7 @@ class Header {
         return newcolumn
       }, {})
     }
-    this.account = updateProps({
+    this.registry = updateProps({
       date: { alias: 'Date' },
       time: { alias: 'Time' },
       operation: { alias: 'Operation' },
@@ -37,6 +37,7 @@ class Header {
       currency: { alias: 'Currency' },
       currencyQty: { alias: 'Currency, qty' },
       currencyPerCoin: { alias: 'Currency per coin' },
+      usdPerCurrency: { alias: 'USD per currency' },
       feeCurrency: { alias: 'Fee currency' },
       feeQty: { alias: 'Fee, qty' },
       comment: { alias: 'Comment' },
@@ -44,6 +45,7 @@ class Header {
     this.price = updateProps({
       name: { alias: 'Name', permanent: true },
       symbol: { alias: 'Symbol', permanent: true },
+      risk: { alias: 'Risk', permanent: true },
       price: { alias: 'Price' },
       high24h: { alias: 'High 24h' },
       low24h: { alias: 'Low 24h' },
@@ -78,6 +80,7 @@ class Header {
       platform: { alias: 'Platform' },
       service: { alias: 'Service' },
       contractor: { alias: 'Contractor' },
+      type: { alias: 'Type' },
       coin: { alias: 'Coin' },
       pair: { alias: 'Pair' },
       currencyPerCoin: { alias: 'Currency per coin' },
@@ -90,9 +93,17 @@ class Header {
       date: { alias: 'Date' },
       account: { alias: 'Account' },
       contractor: { alias: 'Contractor' },
+      type: { alias: 'Type' },
       coin: { alias: 'Coin' },
       quantity: { alias: 'Quantity' },
       historicalCost: { alias: 'Historical cost, $' },
+      currentCost: { alias: 'Current cost, $' },
+    })
+    this.allocation = updateProps({
+      account: { alias: 'Account' },
+      type: { alias: 'Type' },
+      coin: { alias: 'Coin' },
+      quantity: { alias: 'Quantity' },
       currentCost: { alias: 'Current cost, $' },
     })
     this.historicalPrice = updateProps({
@@ -104,13 +115,18 @@ class Header {
       pair: { alias: 'Pair' },
       price: { alias: 'Price' },
     })
-    this.coinList = updateProps({
+    this.coinsList = updateProps({
       rowKey: { alias: 'Row key' },
       rowNkey: { alias: 'Row nkey' },
       source: { alias: 'Source' },
       name: { alias: 'Name' },
       symbol: { alias: 'Symbol' },
       id: { alias: 'Id' },
+    })
+    this.contractor = updateProps({
+      name: { alias: 'Name' },
+      type: { alias: 'Type' },
+      category: { alias: 'Category' },
     })
   }
   /**

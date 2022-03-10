@@ -1,4 +1,5 @@
 import { Methods } from './fetch'
+import * as utils from '../utils'
 export { Instance, Price, CoinsList }
 /**
  * CryptoCompare instance
@@ -35,7 +36,7 @@ class Price {
     return this.methods.get({
       endPoint: '/price',
       query: {
-        fsym: fsym,
+        fsym: fsym.toUpperCase(),
         tsyms: tsyms,
         relaxedValidation: true,
       },
@@ -46,8 +47,8 @@ class Price {
     return this.methods.get({
       endPoint: '/pricemulti',
       query: {
-        fsyms: fsyms,
-        tsyms: tsyms,
+        fsyms: fsyms.toUpperCase(),
+        tsyms: tsyms.toUpperCase(),
         relaxedValidation: true,
       },
     })
@@ -57,23 +58,21 @@ class Price {
     return this.methods.get({
       endPoint: '/pricemultifull',
       query: {
-        fsyms: fsyms,
-        tsyms: tsyms,
+        fsyms: fsyms.toUpperCase(),
+        tsyms: tsyms.toUpperCase(),
         relaxedValidation: true,
       },
     })
   }
 
-  getHistoryPrice(fsym = '', ts = '', tsyms = 'USD') {
-    !ts
-      ? (ts = new Date().valueOf() / 1000)
-      : (ts = new Date(ts).valueOf() / 1000)
+  getHistoryPrice(fsym = 'BTC', ts = new Date(), tsyms = 'USD') {
+    const dateUnix = new utils.FormatDate(ts).unix
     return this.methods.get({
       endPoint: '/pricehistorical',
       query: {
-        fsym: fsym,
-        tsyms: tsyms,
-        ts: ts,
+        fsym: fsym.toUpperCase(),
+        tsyms: tsyms.toUpperCase(),
+        ts: dateUnix,
       },
     })
   }

@@ -150,20 +150,20 @@ class Fetch {
       const fetchPromise = () => {
         return new Promise((resolve, reject) => {
           const response = UrlFetchApp.fetch(this.url, this.data)
-          this.code = response.getResponseCode()
-          if (this.code === 200) {
+          const code = response.getResponseCode()
+          if (code === 200) {
             this.result = JSON.parse(response.getContentText())
             this.fetchStatus = true
             resolve()
           } else {
-            reject()
+            reject(code)
           }
         })
       }
-      const timeOutPromise = () => {
+      const timeOutPromise = (code) => {
         return new Promise((resolve) => {
           console.log('URL: ' + this.url)
-          console.log('Response code: ' + this.code)
+          console.log('Response code: ' + code)
           console.log('Start timeout: ' + this.ms / 1000 + ' sec')
           Utilities.sleep(this.ms)
           this.ms += 250
@@ -175,7 +175,7 @@ class Fetch {
         })
       }
       do {
-        fetchPromise().catch(() => timeOutPromise())
+        fetchPromise().catch((code) => timeOutPromise(code))
       } while (!this.fetchStatus)
 
       return this.result

@@ -1,23 +1,23 @@
-function updateCoinPrice() {
-  portfolioLib.updateCoinPrice()
+function updateCoinsPrice() {
+  portfolioLib.updateCoinsPrice()
 }
 
-function updateCoinList() {
-  portfolioLib.updateCoinList()
+function updateCoinsList() {
+  portfolioLib.updateCoinLsist()
 }
 
-function updateTransaction() {
-  portfolioLib.updateTransaction()
-}
-
-function updateHistoricalPriceKey() {
-  portfolioLib.updateHistoricalPriceKey()
+function updateTransactions() {
+  portfolioLib.updateTransactions()
 }
 
 function updateDaily() {
-  portfolioLib.updateCoinPrice()
+  portfolioLib.updateCoinsPrice()
   SpreadsheetApp.flush()
-  portfolioLib.updateTransaction()
+  portfolioLib.updateTransactions()
+}
+
+function updateUsdPerCurrency(editRange) {
+  portfolioLib.updateUsdPerCurrency(editRange)
 }
 
 function createInvoiceMenu() {
