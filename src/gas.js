@@ -1,4 +1,12 @@
-export { Environment, SpreadSheet, WorkSheet, SpreadsheetsTrigger }
+import { Hash } from './utils'
+
+export {
+  Environment,
+  SpreadSheet,
+  WorkSheet,
+  SpreadsheetsTrigger,
+  WorkSheetMetadata,
+}
 
 class Environment {
   constructor(
@@ -20,8 +28,9 @@ class Environment {
   }
 
   getEnvironment(environment) {
+    const scriptId = ScriptApp.getScriptId()
     const currentArea = environment.reduce((area, row) => {
-      if (row.scriptId === ScriptApp.getScriptId()) {
+      if (row.scriptId === scriptId) {
         area = row.area
       }
       return area
@@ -35,13 +44,6 @@ class Environment {
             this[spreadSheetName] = {}
           }
           this[spreadSheetName].spreadSheet = spreadSheet
-          // if (!row.excludeSheetName) {
-          //   this[ssName].excludeSheetName = []
-          // } else {
-          //   this[ssName].excludeSheetName = row.excludeSheetName.map((m) =>
-          //     m.toLowerCase()
-          //   )
-          // }
         }
       })
     } else {
@@ -52,29 +54,46 @@ class Environment {
 
 class SpreadSheet {
   constructor(spreadSheetName = '', excludeSheetName = []) {
+    spreadSheetName = spreadSheetName.toString().toLowerCase()
+    if (SpreadSheet.spreadSheetName === spreadSheetName) {
+      return SpreadSheet.instance
+    }
+    SpreadSheet.instance = this
     const instance = new Environment()[spreadSheetName]
+    this.spreadSheetName = spreadSheetName
     this.spreadSheet = instance.spreadSheet
-    this.excludeSheetName = excludeSheetName.map((m) => (m = m.toLowerCase()))
+    this.excludeSheetName = excludeSheetName.map((m) => new Hash(m).md5)
+    this.workSheets = this.spreadSheet
+      .getSheets()
+      .reduce((workSheets, workSheet) => {
+        const key = new Hash(workSheet.getName()).md5
+        if (!workSheets[key] && this.excludeSheetName.indexOf(key) === -1) {
+          workSheets[key] = workSheet
+        }
+        return workSheets
+      }, {})
   }
 }
 
-class WorkSheet {
-  constructor(
-    spreadSheet = {},
-    sheetName = '',
-    headerRowNum = 1,
-    getRowNum = false,
-    getRowHash = false
-  ) {
-    this.sheetName = sheetName.toLowerCase()
-    this.workSheet = spreadSheet.spreadSheet
-      .getSheets()
-      .filter(
-        (f) =>
-          f.getName().toLowerCase() === this.sheetName &&
-          spreadSheet.excludeSheetName.indexOf(this.sheetName) === -1
-      )[0]
-    this.getRange(headerRowNum).getValues(getRowNum, getRowHash)
+class WorkSheet extends SpreadSheet {
+  /**
+   *
+   * @param {*} spreadSheetName
+   * @param {*} sheetName
+   * @param {*} headerRowNum
+   * @returns
+   */
+  constructor(spreadSheetName = '', sheetName = '', headerRowNum = 1) {
+    super(spreadSheetName)
+    if (WorkSheet.key === new Hash(sheetName).md5) {
+      return WorkSheet.instance
+    }
+    WorkSheet.instance = this
+    this.key = new Hash(sheetName).md5
+    this.sheetName = sheetName
+    this.workSheet = this.workSheets[this.key]
+    this.metadata = new WorkSheetMetadata(this.workSheet)
+    this.getRange(headerRowNum)
   }
 
   /**
@@ -102,56 +121,82 @@ class WorkSheet {
    */
   getRange(headerRowNum) {
     const dataRange = this.workSheet.getDataRange()
-    this.countRow = dataRange.getNumRows() - headerRowNum
+    this.headerRowNum = headerRowNum
+    this.countRow = dataRange.getNumRows() - this.headerRowNum
     this.countColumn = dataRange.getNumColumns()
     //* формирование заголовка
     this.headerRange = dataRange.offset(
-      headerRowNum - 1,
+      this.headerRowNum - 1,
       0,
       1,
       this.countColumn
     )
     this.dataRange =
       this.countRow > 0
-        ? dataRange.offset(headerRowNum, 0, this.countRow, this.countColumn)
+        ? dataRange.offset(
+            this.headerRowNum,
+            0,
+            this.countRow,
+            this.countColumn
+          )
         : this.headerRange
     return this
   }
 
-  getValues(getRowNum, getRowHash) {
-    this.headerValues = this.headerRange.getValues()[0]
-    if (getRowNum && !getRowHash) {
-      this.headerValues = ['rowNum', ...this.headerValues]
-    } else if (!getRowNum && getRowHash) {
-      this.headerValues = ['rowHash', ...this.headerValuesw]
-    } else if (getRowNum && getRowHash) {
-      this.headerValues = ['rowNum', 'rowHash', ...this.headerValues]
-    }
-    this.dataObject = []
-    this.dataValues = []
-    this.dataRange.getValues().forEach((row, index) => {
-      let rowValues
-      if (getRowNum && !getRowHash) {
-        const rowNum = index + this.headerRowNum + 1
-        rowValues = [rowNum, ...row]
-      } else if (!getRowNum && getRowHash) {
-        rowValues = [new Hash(row.join('#')).md5, ...row]
-      } else if (getRowNum && getRowHash) {
-        const rowNum = index + this.headerRowNum + 1
-        rowValues = [rowNum, new Hash(row.join('#')).md5, ...row]
-      } else {
-        rowValues = row
-      }
-      const rowObject = rowValues.reduce((keyValue, value, index) => {
-        if (!keyValue[this.headerValues[index]]) {
-          keyValue[this.headerValues[index]] = value
+  getFact(head) {
+    const firstRowNum = this.headerRowNum + 1
+    const headKey = Object.keys(head)
+    return this.dataRange
+      .getValues()
+      .reduce((valuesWithKey, rowValues, index) => {
+        const rowNum = firstRowNum + index
+        const rowHash = new Hash(rowValues.join('#')).md5
+        if (!valuesWithKey[rowNum]) {
+          valuesWithKey[rowNum] = {
+            rowNum,
+            rowHash,
+            rowValues: rowValues.reduce((object, value, index) => {
+              if (!object[headKey[index]]) {
+                object[headKey[index]] = value
+              }
+              return object
+            }, {}),
+          }
         }
-        return keyValue
+        return valuesWithKey
       }, {})
-      this.dataValues.push(rowValues)
-      this.dataObject.push(rowObject)
-    })
-    return this
+  }
+
+  getDimension(head) {
+    const primeryKeyIndex = Object.values(head)
+      .filter((value) => value.pk)
+      .map((value) => value.idx)
+    const headKey = Object.keys(head)
+    return this.dataRange.getValues().reduce((valuesWithKey, values) => {
+      const key = new Hash(
+        primeryKeyIndex
+          .map((keyIndex) => {
+            const value = values[keyIndex]
+            if (value instanceof Date) {
+              return new Date(value).valueOf()
+            } else {
+              return value
+            }
+          })
+          .join('#')
+      )
+      if (!valuesWithKey[key.md5]) {
+        valuesWithKey[key.md5] = values.reduce((object, value, index) => {
+          if (!object[headKey[index]]) {
+            object[headKey[index]] = value
+          }
+          return object
+        }, {})
+        valuesWithKey[key.md5].nkey = key.stringLowerCase
+        // valuesWithKey[key.md5].key = key.md5
+      }
+      return valuesWithKey
+    }, {})
   }
 
   insertValues(values = [], header = [], firstRow = 1, firstColumn = 1) {
@@ -162,7 +207,7 @@ class WorkSheet {
         .clear()
         .getRange(firstRow, firstColumn, values.length, values[0].length)
         .setValues(values)
-      this.deleteEmptyRows().deleteEmptyColumns()
+      // this.deleteEmptyRows().deleteEmptyColumns()
     }
     return this
   }
@@ -408,7 +453,7 @@ class Metadata {
   }
 }
 
-class SheetMetadata extends Metadata {
+class WorkSheetMetadata extends Metadata {
   /**
    * Работа с метаданными листа
    * @param {object} sheet объект листа
@@ -421,9 +466,9 @@ class SheetMetadata extends Metadata {
    * Добавление ключа строки в метаданные
    * @param {number} rowNum номер строки листа
    */
-  addRowKey(rowNum) {
+  addRowKey(rowNum, rowHash) {
     const key = 'ROWKEY_' + rowNum
-    const value = new Hash(this.sheetName + '#' + rowNum).md5
+    const value = rowHash
     super.addMetadata(key, value)
     return value
   }

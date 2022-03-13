@@ -1,20 +1,22 @@
 export { FormatNumber, Hash, FormatDate }
 
 class Hash {
+  /**
+   *
+   * @param {string} string
+   */
   constructor(string) {
-    this.string = typeof string === 'string' ? string : string + ''
-    this.stringUpperCase = this.string.toUpperCase()
+    typeof string === 'string'
+      ? (this.stringLowerCase = string.toLowerCase())
+      : (this.stringLowerCase = (string + '').toString().toLowerCase())
+    this.stringUpperCase = this.stringLowerCase.toUpperCase()
   }
 
   get md5() {
     let hexstr = ''
     const digest = Utilities.computeDigest(
       Utilities.DigestAlgorithm.MD5,
-      this.string
-        .toLowerCase()
-        .toString()
-        .replace(/[$+\s+]/g, '_')
-        .trim()
+      this.stringLowerCase.replace(/[$+\s+]/g, '_').trim()
     )
     for (let i = 0; i < digest.length; i++) {
       var val = (digest[i] + 256) % 256

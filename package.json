@@ -4,11 +4,8 @@
   "description": "",
   "main": ".eslintrc.js",
   "scripts": {
-    "portfolioLibOpen": "clasp open -P /home/ikeni/Documents/Git/familyBudget/portfolio/portfolioLib/.clasp.json",
-    "portfolioLibPush": "rollup --config && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/portfolio/portfolioLib/.clasp.json",
-    "portfolioLibDeploy": "rollup --config && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/portfolio/portfolioLib/.clasp.json &&  clasp deploy -P /home/ikeni/Documents/Git/familyBudget/portfolio/portfolioLib/.clasp.json -i AKfycbxgcT7Ct1ObnzsYfEnP1NQAHtxKBCay6tf36XisW02apj_PC8Y2PGhFyHy1CCYkd3vZ",
-    "portfolioPush": "rollup --config && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/portfolio/portfolioLib/.clasp.json && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/portfolio/portfolioDev/.clasp.json && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/portfolio/portfolioProd/.clasp.json",
-    "portfolioDeploy": "rollup --config && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/portfolio/portfolioLib/.clasp.json &&  clasp deploy -P /home/ikeni/Documents/Git/familyBudget/portfolio/portfolioLib/.clasp.json -i AKfycbxgcT7Ct1ObnzsYfEnP1NQAHtxKBCay6tf36XisW02apj_PC8Y2PGhFyHy1CCYkd3vZ && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/portfolio/portfolioDev/.clasp.json && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/portfolio/portfolioProd/.clasp.json"
+    "portfolioDev": "rollup --config && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/portfolio/portfolioDev/.clasp.json",
+    "portfolioProd": "rollup --config && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/portfolio/portfolioProd/.clasp.json"
   },
   "repository": {
     "type": "git",

@@ -12,17 +12,17 @@ const preventThreeShakingPlugin = () => {
 }
 
 export default [
+  // {
+  //   input: '/home/ikeni/Documents/Git/familyBudget/src/portfolio/standalone.js',
+  //   output: {
+  //     dir:
+  //       '/home/ikeni/Documents/Git/familyBudget/portfolio/portfolioLib/build',
+  //     format: 'es',
+  //   },
+  //   plugins: [preventThreeShakingPlugin()],
+  // },
   {
-    input: '/home/ikeni/Documents/Git/familyBudget/src/portfolio/standalone.js',
-    output: {
-      dir:
-        '/home/ikeni/Documents/Git/familyBudget/portfolio/portfolioLib/build',
-      format: 'es',
-    },
-    plugins: [preventThreeShakingPlugin()],
-  },
-  {
-    input: '/home/ikeni/Documents/Git/familyBudget/src/portfolio/bound.js',
+    input: '/home/ikeni/Documents/Git/familyBudget/src/portfolio/script.js',
     output: [
       {
         dir:
