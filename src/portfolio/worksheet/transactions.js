@@ -257,10 +257,14 @@ class Transactions {
 
   updateTransactions(arrayOfObject = []) {
     const transactions = this.getTransactions(arrayOfObject)
-    console.log(transactions)
-    // transactions.forEach((row) => {
-    //   console.log('updateTransactions: ', row)
-    // })
+    // console.log(transactions)
+    transactions.forEach((row) => {
+      const oldRow = Object.values(this.values).filter(
+        (oldRow) => oldRow.actionKey === row.actionKey
+      )[0]
+      console.log(oldRow)
+      delete this.values[oldRow.rowKey]
+    })
   }
 
   truncateInsertTrasactions() {}
