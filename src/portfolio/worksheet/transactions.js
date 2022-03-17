@@ -3,6 +3,7 @@ import { Hash, FormatDate } from '../../utils'
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Registry } from './registry'
 import { Contractors } from './contractors'
+import { Header } from '../../header'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
 const cryptoCompareInstance = new cryptoCompare.Instance(
   '48597114e40192c1699cd11f30fc9b1b7d4db9e25ae08ac85736631ffad5a125'
@@ -11,79 +12,19 @@ export { Transactions }
 
 class Transactions {
   constructor() {
-    this.head = new Portfolio().head
+    this.head = new Portfolio().head.transactions
+    this.header = new Header()
     this.spreadSheetName = new Portfolio().spreadSheetName
     this.workSheet = new WorkSheet(this.spreadSheetName, 'transactions')
+    this.values = this.workSheet.getFact(this.head)
   }
 
-  updateTransactions() {
-    // const currentFormatDate = new FormatDate()
-    const transaction = []
+  getTransactions(arrayOfObject = []) {
+    const currentFormatDate = new FormatDate()
+    const transactions = []
     const contractors = new Contractors().values
-    // const currentCoinPrice = this.workSheet.portfolio.price.dataValues.reduce(
-    //   (list, row) => {
-    //     const key = new Hash(
-    //       currentFormatDate.yyyymmdd + row[this.head.price.symbol.idx] + 'USD'
-    //     )
-    //     if (row[this.head.price.price.idx]) {
-    //       list[key.md5] = {
-    //         rowKey: key.md5,
-    //         rowNkey: key.stringUpperCase,
-    //         dateKey: currentFormatDate.md5,
-    //         date: currentFormatDate.getFormatDate('yyyy-MM-dd'),
-    //         symbol: row[this.head.price.symbol.idx].toUpperCase(),
-    //         pair: 'USD',
-    //         price: row[this.head.price.price.idx],
-    //       }
-    //     }
-    //     return list
-    //   },
-    //   {}
-    // )
-
-    // const historicalCoinPrice = this.workSheet.portfolio.historicalPrice.dataValues.reduce(
-    //   (list, row) => {
-    //     const rowKey = row[this.head.historicalPrice.rowKey.idx]
-    //     if (!list[rowKey]) {
-    //       list[rowKey] = {
-    //         rowKey: row[this.head.historicalPrice.rowKey.idx],
-    //         rowNkey: row[this.head.historicalPrice.rowNkey.idx],
-    //         dateKey: row[this.head.historicalPrice.dateKey.idx],
-    //         date: row[this.head.historicalPrice.date.idx],
-    //         symbol: row[this.head.historicalPrice.symbol.idx],
-    //         pair: row[this.head.historicalPrice.pair.idx],
-    //         price: row[this.head.historicalPrice.price.idx],
-    //       }
-    //     }
-    //     return list
-    //   },
-    //   currentCoinPrice
-    // )
-    const registry = new Registry()
-    // console.log(registry.values)
-    Object.values(registry.values).forEach((values) => {
+    arrayOfObject.forEach((rowValues) => {
       const transactionRow = []
-      const rowValues = values.rowValues
-      // const rowValues = {
-      //   date: row[this.head.registry.date.idx],
-      //   time: row[this.head.registry.time.idx],
-      //   operation: row[this.head.registry.operation.idx],
-      //   accountSender: row[this.head.registry.accountSender.idx],
-      //   accountRecipient: row[this.head.registry.accountRecipient.idx],
-      //   platform: row[this.head.registry.platform.idx],
-      //   service: row[this.head.registry.service.idx],
-      //   sender: row[this.head.registry.sender.idx],
-      //   recipient: row[this.head.registry.recipient.idx],
-      //   coin: row[this.head.registry.coin.idx].toUpperCase(),
-      //   coinQty: row[this.head.registry.coinQty.idx],
-      //   currency: row[this.head.registry.currency.idx].toUpperCase(),
-      //   currencyQty: row[this.head.registry.currencyQty.idx],
-      //   currencyPerCoin: row[this.head.registry.currencyPerCoin.idx],
-      //   feeCurrency: row[this.head.registry.feeCurrency.idx].toUpperCase(),
-      //   feeQty: row[this.head.registry.feeQty.idx],
-      //   comment: row[this.head.registry.comment.idx],
-      // }
-      // const historicalFormatDate = new FormatDate(rowValues.date)
       const accountRecipient = rowValues.accountRecipient
         ? rowValues.accountRecipient
         : rowValues.accountSender
@@ -115,7 +56,7 @@ class Transactions {
           if (['Transfer', 'Write-off'].indexOf(rowValues.operation) !== -1) {
             transactionRow.push({
               account: rowValues.accountSender,
-              contractors: rowValues.sender,
+              contractor: rowValues.sender,
               type: senderType,
               coin: rowValues.coin,
               pair: rowValues.coin,
@@ -128,7 +69,7 @@ class Transactions {
           if (['Transfer', 'Refill'].indexOf(rowValues.operation) !== -1) {
             transactionRow.push({
               account: accountRecipient,
-              contractors: recipient,
+              contractor: recipient,
               type: recipientType,
               coin: rowValues.coin,
               pair: rowValues.coin,
@@ -166,7 +107,7 @@ class Transactions {
           // historicalCoinPrice[currentCoinKey.md5]?.price
           transactionRow.push({
             account: rowValues.accountSender,
-            contractors: rowValues.sender,
+            contractor: rowValues.sender,
             type: senderType,
             coin: rowValues.currency,
             pair: rowValues.coin,
@@ -178,7 +119,7 @@ class Transactions {
           const inPrice = (outPrice * currencyQty) / coinQty
           transactionRow.push({
             account: accountRecipient,
-            contractors: recipient,
+            contractor: recipient,
             type: recipientType,
             coin: rowValues.coin,
             pair: rowValues.currency,
@@ -217,7 +158,7 @@ class Transactions {
           // historicalCoinPrice[currentCoinKey.md5]?.price
           transactionRow.push({
             account: rowValues.accountSender,
-            contractors: rowValues.sender,
+            contractor: rowValues.sender,
             type: senderType,
             coin: rowValues.coin,
             pair: rowValues.currency,
@@ -231,7 +172,7 @@ class Transactions {
           const inPrice = (outPrice * coinQty) / currencyQty
           transactionRow.push({
             account: accountRecipient,
-            contractors: recipient,
+            contractor: recipient,
             type: recipientType,
             coin: rowValues.currency,
             pair: rowValues.coin,
@@ -242,29 +183,36 @@ class Transactions {
           })
         }
       }
-
+      // const oldRow = Object.values(this.values).filter(
+      //   (row) => row.actionKey === rowValues.rowKey
+      // )
+      // console.log(oldRow)
       transactionRow.forEach((tx) => {
-        transaction.push(
-          Object.values({
-            rowNum: values.rowNum,
-            rowHash: values.rowHash,
-            date: rowValues.date,
-            account: tx.account,
-            platform: rowValues.platform,
-            service: rowValues.service,
-            contractors: tx.contractors,
-            type: tx.type,
-            coin: tx.coin,
-            pair: tx.pair,
-            currencyPerCoin: tx.currencyPerCoin,
-            price: tx.price,
-            quantity: tx.quantity,
-            cost: tx.cost,
-            comment: rowValues.comment,
-          })
-        )
+        transactions.push({
+          date: rowValues.date,
+          account: tx.account,
+          platform: rowValues.platform,
+          service: rowValues.service,
+          contractor: tx.contractor,
+          type: tx.type,
+          coin: tx.coin,
+          pair: tx.pair,
+          currencyPerCoin: tx.currencyPerCoin,
+          price: tx.price,
+          quantity: tx.quantity,
+          cost: tx.cost,
+          comment: rowValues.comment,
+          actionKey: rowValues.rowKey,
+        })
       })
     })
+
+    // const arrayOfObject = transaction.map((row, index) => {
+    //   const rowNum = index + 1
+    //   const rowKey = new Hash(rowNum + 'transactions').md5
+    //   row.rowKey = rowKey
+    //   return row
+    // })
 
     // const historicalCoinPriceArray = Object.values(historicalCoinPrice)
     //   .map((m) => (m = Object.values(m)))
@@ -302,11 +250,20 @@ class Transactions {
     // historicalCoinPriceArray,
     // this.head.getHeaderAlias(this.head.historicalPrice)
     // )
-    this.workSheet.insertValues(
-      transaction,
-      this.head.getHeaderAlias(this.head.transactions)
-    )
+
+    // this.workSheet.insertValues(arrayOfObject, this.head)
+    return transactions
   }
+
+  updateTransactions(arrayOfObject = []) {
+    const transactions = this.getTransactions(arrayOfObject)
+    console.log(transactions)
+    // transactions.forEach((row) => {
+    //   console.log('updateTransactions: ', row)
+    // })
+  }
+
+  truncateInsertTrasactions() {}
 
   getPrevHistoricalPrice(historicalPrices, date, coin) {
     const prevHistoricalPrice = Object.entries(historicalPrices)

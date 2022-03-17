@@ -1,26 +1,35 @@
 export { Registry }
-import { WorkSheet } from '../../gas'
+import { WorkSheetRange, WorkSheet } from '../../gas'
+import { Hash } from '../../utils'
 import { Portfolio } from '../spreadsheet/portfolio'
 
 class Registry {
   constructor() {
-    this.head = new Portfolio().head
+    this.head = new Portfolio().head.registry
     this.spreadSheetName = new Portfolio().spreadSheetName
     this.workSheet = new WorkSheet(this.spreadSheetName, 'registry', 1)
-    this.values = this.workSheet.getFact(this.head.registry)
+    this.values = this.workSheet.getFact(this.head)
   }
 
-  getRow(editRange) {
-    this.eMap = new Map(Object.entries(editRange))
-    const rowNum = this.eMap.get('range').rowStart
-    const rowValues = this.values[rowNum]
-    const oldRowHash = this.workSheet.metadata.getRowKey(rowNum)
-    const isNewRow = oldRowHash !== rowValues.rowHash ? true : false
-    if (isNewRow) {
-      this.workSheet.metadata.addRowKey(rowNum, rowValues.rowHash)
-    }
-    return rowValues
+  getChangeArrayOfObject(range) {
+    this.workSheetRange = new WorkSheetRange(
+      this.spreadSheetName,
+      'registry',
+      1,
+      range
+    )
+    return this.workSheetRange.rowNumArray.map((rowNum) => {
+      const rowKey = new Hash(rowNum + this.workSheetRange.sheetName).md5
+      const factRow = this.values[rowKey]
+      factRow.rowKey = rowKey
+      return factRow
+    })
   }
+
+  getArrayOfObject() {
+    return Object.values(new Registry().values)
+  }
+
   // updateUsdPerCurrency(editRange) {
   //   this.eMap = new Map(Object.entries(editRange))
   //   if (this.eMap.has('range')) {

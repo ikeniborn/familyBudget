@@ -210,6 +210,48 @@ String.prototype.isEmpty = function () {
   return false
 };
 
+class Header {
+  /**
+   * Get head alias
+   * @param {object} head Header object
+   * @returns {array}
+   */
+  getHeaderAlias(head) {
+    return Object.values(head).map((m) => m.alias)
+  }
+  /**
+   *
+   * @param {*} head
+   * @returns
+   */
+  getPrimaryKeyIndex(head) {
+    return Object.values(head)
+      .filter((value) => value.pk)
+      .map((value) => value.idx)
+  }
+
+  getPrimaryKey(primeryKeyIndex, rowValues = []) {
+    return new Hash(
+      primeryKeyIndex
+        .map((keyIndex) => {
+          const value = rowValues[keyIndex];
+          if (value instanceof Date) {
+            return new Date(value).valueOf()
+          } else {
+            return value
+          }
+        })
+        .join('#')
+    ).md5
+  }
+
+  getNotNullIndex(head) {
+    return Object.values(head)
+      .filter((value) => value.notNull)
+      .map((value) => value.idx)
+  }
+}
+
 class Environment {
   constructor(
     environment = [
@@ -291,9 +333,9 @@ class WorkSheet extends SpreadSheet {
       return WorkSheet.instance
     }
     WorkSheet.instance = this;
-    this.key = new Hash(sheetName).md5;
+    this.workSheetKey = new Hash(sheetName).md5;
     this.sheetName = sheetName;
-    this.workSheet = this.workSheets[this.key];
+    this.workSheet = this.workSheets[this.workSheetKey];
     this.metadata = new WorkSheetMetadata(this.workSheet);
     this.getRange(headerRowNum);
   }
@@ -352,66 +394,100 @@ class WorkSheet extends SpreadSheet {
       .getValues()
       .reduce((valuesWithKey, rowValues, index) => {
         const rowNum = firstRowNum + index;
-        const rowHash = new Hash(rowValues.join('#')).md5;
-        if (!valuesWithKey[rowNum]) {
-          valuesWithKey[rowNum] = {
-            rowNum,
-            rowHash,
-            rowValues: rowValues.reduce((object, value, index) => {
-              if (!object[headKey[index]]) {
-                object[headKey[index]] = value;
-              }
-              return object
-            }, {}),
-          };
+        let rowKey;
+        if (head?.rowKey) {
+          rowKey = rowValues[head.rowKey.idx];
+        } else {
+          rowKey = new Hash(rowNum + this.sheetName).md5;
+        }
+        if (!valuesWithKey[rowKey]) {
+          valuesWithKey[rowKey] = rowValues.reduce((object, value, index) => {
+            if (!head?.rowKey) {
+              object['rowKey'] = rowKey;
+            }
+            object['rowNum'] = rowNum;
+            if (!object[headKey[index]]) {
+              object[headKey[index]] = value;
+            }
+            return object
+          }, {});
         }
         return valuesWithKey
       }, {})
   }
 
+  updateDimension(head, values = {}) {
+    const primaryKeyIndex = new Header().getPrimaryKeyIndex(head);
+    const newValues = Object.values(values).map((row) => {
+      const rowArray = Object.values(row);
+      const key = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
+      return (row = rowArray.map((value, index) => {
+        if (!index) {
+          value = key;
+        } else {
+          value = value;
+        }
+        return value
+      }))
+    });
+    return newValues
+  }
+
   getDimension(head) {
-    const primeryKeyIndex = Object.values(head)
-      .filter((value) => value.pk)
-      .map((value) => value.idx);
+    const primeryKeyIndex = new Header().getPrimaryKeyIndex(head);
     const headKey = Object.keys(head);
     return this.dataRange.getValues().reduce((valuesWithKey, values) => {
-      const key = new Hash(
-        primeryKeyIndex
-          .map((keyIndex) => {
-            const value = values[keyIndex];
-            if (value instanceof Date) {
-              return new Date(value).valueOf()
-            } else {
-              return value
-            }
-          })
-          .join('#')
-      );
-      if (!valuesWithKey[key.md5]) {
-        valuesWithKey[key.md5] = values.reduce((object, value, index) => {
+      const key = new Header().getPrimaryKey(primeryKeyIndex, values);
+      if (!valuesWithKey[key]) {
+        valuesWithKey[key] = values.reduce((object, value, index) => {
           if (!object[headKey[index]]) {
             object[headKey[index]] = value;
           }
           return object
         }, {});
-        valuesWithKey[key.md5].nkey = key.stringLowerCase;
+        // valuesWithKey[key.md5].nkey = key.stringLowerCase
         // valuesWithKey[key.md5].key = key.md5
       }
       return valuesWithKey
     }, {})
   }
 
-  insertValues(values = [], header = [], firstRow = 1, firstColumn = 1) {
-    values.splice(0, 0, header);
+  insertArrayOfArray(
+    arrayOfObject = [],
+    head = {},
+    firstRow = 1,
+    firstColumn = 1
+  ) {
+    const headOrder = Object.keys(head);
+    const array = arrayOfObject.reduce(
+      (values, rowObject) => {
+        const rowArray = headOrder.map((value) => rowObject[value]);
+        values.push(rowArray);
+        return values
+      },
+      [new Header().getHeaderAlias(head)]
+    );
     if (values.length) {
       this.deleteFilter();
       this.workSheet
         .clear()
-        .getRange(firstRow, firstColumn, values.length, values[0].length)
-        .setValues(values);
-      // this.deleteEmptyRows().deleteEmptyColumns()
+        .getRange(firstRow, firstColumn, array.length, array[0].length)
+        .setValues(array);
+      this.deleteEmptyRows().deleteEmptyColumns();
     }
     return this
+  }
+
+  insertArray(object = {}, head = {}, rowNum) {
+    const headOrder = Object.keys(head);
+    const array = [object].reduce((values, rowObject) => {
+      const rowArray = headOrder.map((value) => rowObject[value]);
+      values.push(rowArray);
+      return values
+    }, []);
+    this.workSheet
+      .getRange(rowNum, 1, array.length, array[0].length)
+      .setValues(array);
   }
 
   insertValue(value, row, column) {
@@ -439,7 +515,7 @@ class WorkSheet extends SpreadSheet {
   }
 
   /**
-   *  Удаление пустых колоно
+   *  Удаление пустых колонок
    */
   deleteEmptyColumns() {
     const countEmptyRow = this.maxColumn - this.lastColumn;
@@ -448,6 +524,27 @@ class WorkSheet extends SpreadSheet {
       this.workSheet.deleteColumns(firstEmptyRow, countEmptyRow);
     }
     return this
+  }
+}
+
+class WorkSheetRange extends WorkSheet {
+  constructor(spreadSheetName, sheetName, headerRowNum, range) {
+    super(spreadSheetName, sheetName, headerRowNum);
+    this.range = range;
+    this.countRow = this.range.rowEnd - this.range.rowStart + 1;
+    this.countColumn = this.range.columnEnd - this.range.columnStart + 1;
+    this.rangeOffset = range.offset(
+      0,
+      1 - this.range.columnStart,
+      this.countRow,
+      this.maxColumn
+    );
+    this.rowNumArray = [...Array(this.countRow).keys()].map(
+      (m) => (m = m + this.range.rowStart)
+    );
+    this.columnNumArray = [...Array(this.countColumn).keys()].map(
+      (m) => (m = m + this.range.columnStart)
+    );
   }
 }
 class Metadata {
@@ -531,9 +628,8 @@ class WorkSheetMetadata extends Metadata {
    * Добавление ключа строки в метаданные
    * @param {number} rowNum номер строки листа
    */
-  addRowKey(rowNum, rowHash) {
+  addRowKey(rowNum, value) {
     const key = 'ROWKEY_' + rowNum;
-    const value = rowHash;
     super.addMetadata(key, value);
     return value
   }
@@ -596,127 +692,6 @@ class WorkSheetMetadata extends Metadata {
   }
 }
 
-class Header {
-  constructor() {
-    this.registry = {
-      date: { alias: 'Date', idx: 0 },
-      time: { alias: 'Time', idx: 1 },
-      operation: { alias: 'Operation', idx: 2 },
-      accountSender: { alias: 'Account sender', idx: 3 },
-      accountRecipient: { alias: 'Account recipient', idx: 4 },
-      platform: { alias: 'Platform', idx: 5 },
-      service: { alias: 'Service', idx: 6 },
-      sender: { alias: 'Sender', idx: 7 },
-      recipient: { alias: 'Recipient', idx: 8 },
-      coin: { alias: 'Coin', idx: 9 },
-      coinQty: { alias: 'Coin, qty', idx: 10 },
-      currency: { alias: 'Currency', idx: 11 },
-      currencyQty: { alias: 'Currency, qty', idx: 12 },
-      currencyPerCoin: { alias: 'Currency per coin', idx: 13 },
-      feeCurrency: { alias: 'Fee currency', idx: 14 },
-      feeQty: { alias: 'Fee, qty', idx: 15 },
-      comment: { alias: 'Comment', idx: 16 },
-    };
-    this.prices = {
-      name: { alias: 'Name', permanent: true, pk: true, idx: 0 },
-      symbol: { alias: 'Symbol', permanent: true, pk: true, idx: 2 },
-      risk: { alias: 'Risk', permanent: true, idx: 3 },
-      price: { alias: 'Price', idx: 4 },
-      high24h: { alias: 'High 24h', idx: 5 },
-      low24h: { alias: 'Low 24h', idx: 6 },
-      percentChange24h: { alias: 'Change 24h, %', idx: 7 },
-      percentChange7d: { alias: 'Change 7d, %', idx: 8 },
-      percentChange30d: { alias: 'Change 30d, %', idx: 9 },
-      percentChange3m: { alias: 'Change 3m, %', idx: 10 },
-      percentChange6m: { alias: 'Change 6m, %', idx: 11 },
-      volume24h: { alias: 'Volume 24h', idx: 12 },
-      rank: { alias: 'Rank', idx: 13 },
-      type: { alias: 'Type', idx: 14 },
-      category: { alias: 'Category', idx: 15 },
-      circulatingSupply: { alias: 'Circulating supply', idx: 16 },
-      totalSupply: { alias: 'Total supply', idx: 17 },
-      maxSupply: { alias: 'Max supply', idx: 18 },
-      marketCap: { alias: 'Market cap', idx: 19 },
-      marketCapChange24h: { alias: 'Market cap change 24h', idx: 20 },
-      marketCapChangePercentage24h: {
-        alias: 'Market cap change 24h, %',
-        idx: 21,
-      },
-      fullyDilutedMarketCap: { alias: 'Fully diluted market cap', idx: 22 },
-      ath: { alias: 'All total high (ATH) price', idx: 23 },
-      athChangePercentage: { alias: 'ATH change, %', idx: 24 },
-      athDate: { alias: 'ATH date', idx: 25 },
-      atl: { alias: 'All total low (ATL) price', idx: 26 },
-      atlChangePercentage: { alias: 'ATL change, %', idx: 27 },
-      atlDate: { alias: 'ATL date', idx: 28 },
-      lastUpdated: { alias: 'Last updated', idx: 29 },
-      source: { alias: 'Source', idx: 30 },
-    };
-    this.transactions = {
-      rowNum: { alias: 'Row num', idx: 0 },
-      rowHash: { alias: 'Row hash', idx: 1 },
-      date: { alias: 'Date', idx: 2 },
-      account: { alias: 'Account', idx: 3 },
-      platform: { alias: 'Platform', idx: 4 },
-      service: { alias: 'Service', idx: 5 },
-      contractor: { alias: 'Contractor', idx: 6 },
-      type: { alias: 'Type', idx: 7 },
-      coin: { alias: 'Coin', idx: 8 },
-      pair: { alias: 'Pair', idx: 9 },
-      currencyPerCoin: { alias: 'Currency per coin', idx: 10 },
-      quantity: { alias: 'Quantity', idx: 11 },
-      price: { alias: 'Price, $', idx: 12 },
-      cost: { alias: 'Cost, $', idx: 13 },
-      comment: { alias: 'Comment', idx: 14 },
-    };
-    this.balance = {
-      date: { alias: 'Date', idx: 0 },
-      account: { alias: 'Account', idx: 1 },
-      contractor: { alias: 'Contractor', idx: 2 },
-      type: { alias: 'Type', idx: 3 },
-      coin: { alias: 'Coin', idx: 4 },
-      quantity: { alias: 'Quantity', idx: 5 },
-      historicalCost: { alias: 'Historical cost, $', idx: 6 },
-      currentCost: { alias: 'Current cost, $', idx: 7 },
-    };
-    this.allocation = {
-      account: { alias: 'Account', idx: 0 },
-      type: { alias: 'Type', idx: 1 },
-      coin: { alias: 'Coin', idx: 2 },
-      quantity: { alias: 'Quantity', idx: 3 },
-      currentCost: { alias: 'Current cost, $', idx: 4 },
-    };
-    this.historicalPrices = {
-      date: { alias: 'Date', pk: true, idx: 0, type: 'date' },
-      symbol: { alias: 'Symbol', pk: true, idx: 1 },
-      pair: { alias: 'Pair', pk: true, idx: 2 },
-      price: { alias: 'Price', idx: 3 },
-    };
-    this.coins = {
-      source: { alias: 'Source', pk: true, idx: 2 },
-      name: { alias: 'Name', pk: true, idx: 3 },
-      symbol: { alias: 'Symbol', pk: true, idx: 4 },
-      id: { alias: 'Id', idx: 5 },
-    };
-    this.sources = {
-      name: { alias: 'Name', pk: true, idx: 0 },
-    };
-    this.contractors = {
-      name: { alias: 'Name', pk: true, idx: 0 },
-      type: { alias: 'Type', idx: 1 },
-      category: { alias: 'Category', idx: 2 },
-    };
-  }
-  /**
-   * Get head alias
-   * @param {object} head Header object
-   * @returns {array}
-   */
-  getHeaderAlias(head) {
-    return Object.values(head).map((m) => m.alias)
-  }
-}
-
 new Environment([
   {
     spreadSheetName: 'portfolio',
@@ -751,30 +726,175 @@ class Portfolio {
     }
     Portfolio.instance = this;
     Portfolio.exists = true;
-    this.head = new Header();
+    this.header = new Header();
+    this.head = {
+      registry: {
+        date: { alias: 'Date', idx: 0, notNull: true },
+        time: { alias: 'Time', idx: 1, notNull: true },
+        operation: { alias: 'Operation', idx: 2, notNull: true },
+        accountSender: { alias: 'Account sender', idx: 3, notNull: true },
+        accountRecipient: { alias: 'Account recipient', idx: 4 },
+        platform: { alias: 'Platform', idx: 5, notNull: true },
+        service: { alias: 'Service', idx: 6, notNull: true },
+        sender: { alias: 'Sender', idx: 7, notNull: true },
+        recipient: { alias: 'Recipient', idx: 8 },
+        coin: { alias: 'Coin', idx: 9, notNull: true },
+        coinQty: { alias: 'Coin, qty', idx: 10 },
+        currency: { alias: 'Currency', idx: 11, notNull: true },
+        currencyQty: { alias: 'Currency, qty', idx: 12 },
+        currencyPerCoin: { alias: 'Currency per coin', idx: 13 },
+        feeCurrency: { alias: 'Fee currency', idx: 14 },
+        feeQty: { alias: 'Fee, qty', idx: 15 },
+        comment: { alias: 'Comment', idx: 16 },
+      },
+      prices: {
+        rowKey: { alias: 'Row key', idx: 0, permanent: true },
+        source: {
+          alias: 'Source',
+          permanent: true,
+          pk: true,
+          idx: 1,
+          notNull: true,
+        },
+        name: {
+          alias: 'Name',
+          permanent: true,
+          pk: true,
+          idx: 2,
+          notNull: true,
+        },
+        symbol: {
+          alias: 'Symbol',
+          permanent: true,
+          pk: true,
+          idx: 3,
+          notNull: true,
+        },
+        risk: { alias: 'Risk', permanent: true, idx: 4, notNull: true },
+        price: { alias: 'Price', idx: 5 },
+        high24h: { alias: 'High 24h', idx: 6 },
+        low24h: { alias: 'Low 24h', idx: 7 },
+        percentChange24h: { alias: 'Change 24h, %', idx: 8 },
+        percentChange7d: { alias: 'Change 7d, %', idx: 9 },
+        percentChange30d: { alias: 'Change 30d, %', idx: 10 },
+        percentChange3m: { alias: 'Change 3m, %', idx: 11 },
+        percentChange6m: { alias: 'Change 6m, %', idx: 12 },
+        volume24h: { alias: 'Volume 24h', idx: 13 },
+        rank: { alias: 'Rank', idx: 14 },
+        type: { alias: 'Type', idx: 15 },
+        category: { alias: 'Category', idx: 16 },
+        circulatingSupply: { alias: 'Circulating supply', idx: 17 },
+        totalSupply: { alias: 'Total supply', idx: 18 },
+        maxSupply: { alias: 'Max supply', idx: 19 },
+        marketCap: { alias: 'Market cap', idx: 20 },
+        marketCapChange24h: { alias: 'Market cap change 24h', idx: 21 },
+        marketCapChangePercentage24h: {
+          alias: 'Market cap change 24h, %',
+          idx: 22,
+        },
+        fullyDilutedMarketCap: { alias: 'Fully diluted market cap', idx: 23 },
+        ath: { alias: 'All total high (ATH) price', idx: 24 },
+        athChangePercentage: { alias: 'ATH change, %', idx: 25 },
+        athDate: { alias: 'ATH date', idx: 256 },
+        atl: { alias: 'All total low (ATL) price', idx: 27 },
+        atlChangePercentage: { alias: 'ATL change, %', idx: 28 },
+        atlDate: { alias: 'ATL date', idx: 29 },
+        lastUpdated: { alias: 'Last updated', idx: 30 },
+      },
+      transactions: {
+        rowKey: { alias: 'Row key', idx: 0 },
+        date: { alias: 'Date', idx: 1 },
+        account: { alias: 'Account', idx: 2 },
+        platform: { alias: 'Platform', idx: 3 },
+        service: { alias: 'Service', idx: 4 },
+        contractor: { alias: 'Contractor', idx: 5 },
+        type: { alias: 'Type', idx: 6 },
+        coin: { alias: 'Coin', idx: 7 },
+        pair: { alias: 'Pair', idx: 8 },
+        currencyPerCoin: { alias: 'Currency per coin', idx: 9 },
+        quantity: { alias: 'Quantity', idx: 10 },
+        price: { alias: 'Price, $', idx: 11 },
+        cost: { alias: 'Cost, $', idx: 12 },
+        comment: { alias: 'Comment', idx: 13 },
+        actionKey: { alias: 'Action key', idx: 14 },
+      },
+      balance: {
+        date: { alias: 'Date', idx: 0 },
+        account: { alias: 'Account', idx: 1 },
+        contractor: { alias: 'Contractor', idx: 2 },
+        type: { alias: 'Type', idx: 3 },
+        coin: { alias: 'Coin', idx: 4 },
+        quantity: { alias: 'Quantity', idx: 5 },
+        historicalCost: { alias: 'Historical cost, $', idx: 6 },
+        currentCost: { alias: 'Current cost, $', idx: 7 },
+      },
+      allocation: {
+        account: { alias: 'Account', idx: 0 },
+        type: { alias: 'Type', idx: 1 },
+        coin: { alias: 'Coin', idx: 2 },
+        quantity: { alias: 'Quantity', idx: 3 },
+        currentCost: { alias: 'Current cost, $', idx: 4 },
+      },
+      historicalPrices: {
+        rowKey: { alias: 'Row key', idx: 0 },
+        date: { alias: 'Date', pk: true, idx: 1, type: 'date' },
+        symbol: { alias: 'Symbol', pk: true, idx: 2 },
+        pair: { alias: 'Pair', pk: true, idx: 3 },
+        price: { alias: 'Price', idx: 4 },
+      },
+      coins: {
+        rowKey: { alias: 'Row key', idx: 0 },
+        source: { alias: 'Source', pk: true, idx: 1 },
+        name: { alias: 'Name', pk: true, idx: 2 },
+        symbol: { alias: 'Symbol', pk: true, idx: 3 },
+        id: { alias: 'Id', idx: 4 },
+      },
+      sources: {
+        rowKey: { alias: 'Row key', idx: 0 },
+        name: { alias: 'Name', pk: true, idx: 1 },
+      },
+      services: {
+        rowKey: { alias: 'Row key', idx: 0 },
+        name: { alias: 'Name', pk: true, idx: 1 },
+      },
+      contractors: {
+        rowKey: { alias: 'Row key', idx: 0 },
+        name: { alias: 'Name', pk: true, idx: 1 },
+        type: { alias: 'Type', idx: 2 },
+        category: { alias: 'Category', idx: 3 },
+      },
+    };
     this.spreadSheetName = 'portfolio';
   }
 }
 
 class Registry {
   constructor() {
-    this.head = new Portfolio().head;
+    this.head = new Portfolio().head.registry;
     this.spreadSheetName = new Portfolio().spreadSheetName;
     this.workSheet = new WorkSheet(this.spreadSheetName, 'registry', 1);
-    this.values = this.workSheet.getFact(this.head.registry);
+    this.values = this.workSheet.getFact(this.head);
   }
 
-  getRow(editRange) {
-    this.eMap = new Map(Object.entries(editRange));
-    const rowNum = this.eMap.get('range').rowStart;
-    const rowValues = this.values[rowNum];
-    const oldRowHash = this.workSheet.metadata.getRowKey(rowNum);
-    const isNewRow = oldRowHash !== rowValues.rowHash ? true : false;
-    if (isNewRow) {
-      this.workSheet.metadata.addRowKey(rowNum, rowValues.rowHash);
-    }
-    return rowValues
+  getChangeArrayOfObject(range) {
+    this.workSheetRange = new WorkSheetRange(
+      this.spreadSheetName,
+      'registry',
+      1,
+      range
+    );
+    return this.workSheetRange.rowNumArray.map((rowNum) => {
+      const rowKey = new Hash(rowNum + this.workSheetRange.sheetName).md5;
+      const factRow = this.values[rowKey];
+      factRow.rowKey = rowKey;
+      return factRow
+    })
   }
+
+  getArrayOfObject() {
+    return Object.values(new Registry().values)
+  }
+
   // updateUsdPerCurrency(editRange) {
   //   this.eMap = new Map(Object.entries(editRange))
   //   if (this.eMap.has('range')) {
@@ -808,10 +928,18 @@ class Registry {
 
 class Contractors {
   constructor() {
-    this.head = new Portfolio().head;
+    this.head = new Portfolio().head.contractors;
     this.spreadSheetName = new Portfolio().spreadSheetName;
     this.workSheet = new WorkSheet(this.spreadSheetName, 'contractors');
-    this.values = this.workSheet.getDimension(this.head.contractors);
+    this.values = this.workSheet.getDimension(this.head);
+  }
+
+  updateDimension() {
+    const values = this.workSheet.updateDimension(this.head, this.values);
+    this.workSheet.insertValues(
+      values,
+      new Portfolio().header.getHeaderAlias(this.head)
+    );
   }
 }
 
@@ -1038,79 +1166,19 @@ new Instance(
 
 class Transactions {
   constructor() {
-    this.head = new Portfolio().head;
+    this.head = new Portfolio().head.transactions;
+    this.header = new Header();
     this.spreadSheetName = new Portfolio().spreadSheetName;
     this.workSheet = new WorkSheet(this.spreadSheetName, 'transactions');
+    this.values = this.workSheet.getFact(this.head);
   }
 
-  updateTransactions() {
-    // const currentFormatDate = new FormatDate()
-    const transaction = [];
+  getTransactions(arrayOfObject = []) {
+    new FormatDate();
+    const transactions = [];
     const contractors = new Contractors().values;
-    // const currentCoinPrice = this.workSheet.portfolio.price.dataValues.reduce(
-    //   (list, row) => {
-    //     const key = new Hash(
-    //       currentFormatDate.yyyymmdd + row[this.head.price.symbol.idx] + 'USD'
-    //     )
-    //     if (row[this.head.price.price.idx]) {
-    //       list[key.md5] = {
-    //         rowKey: key.md5,
-    //         rowNkey: key.stringUpperCase,
-    //         dateKey: currentFormatDate.md5,
-    //         date: currentFormatDate.getFormatDate('yyyy-MM-dd'),
-    //         symbol: row[this.head.price.symbol.idx].toUpperCase(),
-    //         pair: 'USD',
-    //         price: row[this.head.price.price.idx],
-    //       }
-    //     }
-    //     return list
-    //   },
-    //   {}
-    // )
-
-    // const historicalCoinPrice = this.workSheet.portfolio.historicalPrice.dataValues.reduce(
-    //   (list, row) => {
-    //     const rowKey = row[this.head.historicalPrice.rowKey.idx]
-    //     if (!list[rowKey]) {
-    //       list[rowKey] = {
-    //         rowKey: row[this.head.historicalPrice.rowKey.idx],
-    //         rowNkey: row[this.head.historicalPrice.rowNkey.idx],
-    //         dateKey: row[this.head.historicalPrice.dateKey.idx],
-    //         date: row[this.head.historicalPrice.date.idx],
-    //         symbol: row[this.head.historicalPrice.symbol.idx],
-    //         pair: row[this.head.historicalPrice.pair.idx],
-    //         price: row[this.head.historicalPrice.price.idx],
-    //       }
-    //     }
-    //     return list
-    //   },
-    //   currentCoinPrice
-    // )
-    const registry = new Registry();
-    // console.log(registry.values)
-    Object.values(registry.values).forEach((values) => {
+    arrayOfObject.forEach((rowValues) => {
       const transactionRow = [];
-      const rowValues = values.rowValues;
-      // const rowValues = {
-      //   date: row[this.head.registry.date.idx],
-      //   time: row[this.head.registry.time.idx],
-      //   operation: row[this.head.registry.operation.idx],
-      //   accountSender: row[this.head.registry.accountSender.idx],
-      //   accountRecipient: row[this.head.registry.accountRecipient.idx],
-      //   platform: row[this.head.registry.platform.idx],
-      //   service: row[this.head.registry.service.idx],
-      //   sender: row[this.head.registry.sender.idx],
-      //   recipient: row[this.head.registry.recipient.idx],
-      //   coin: row[this.head.registry.coin.idx].toUpperCase(),
-      //   coinQty: row[this.head.registry.coinQty.idx],
-      //   currency: row[this.head.registry.currency.idx].toUpperCase(),
-      //   currencyQty: row[this.head.registry.currencyQty.idx],
-      //   currencyPerCoin: row[this.head.registry.currencyPerCoin.idx],
-      //   feeCurrency: row[this.head.registry.feeCurrency.idx].toUpperCase(),
-      //   feeQty: row[this.head.registry.feeQty.idx],
-      //   comment: row[this.head.registry.comment.idx],
-      // }
-      // const historicalFormatDate = new FormatDate(rowValues.date)
       const accountRecipient = rowValues.accountRecipient
         ? rowValues.accountRecipient
         : rowValues.accountSender;
@@ -1142,7 +1210,7 @@ class Transactions {
           if (['Transfer', 'Write-off'].indexOf(rowValues.operation) !== -1) {
             transactionRow.push({
               account: rowValues.accountSender,
-              contractors: rowValues.sender,
+              contractor: rowValues.sender,
               type: senderType,
               coin: rowValues.coin,
               pair: rowValues.coin,
@@ -1155,7 +1223,7 @@ class Transactions {
           if (['Transfer', 'Refill'].indexOf(rowValues.operation) !== -1) {
             transactionRow.push({
               account: accountRecipient,
-              contractors: recipient,
+              contractor: recipient,
               type: recipientType,
               coin: rowValues.coin,
               pair: rowValues.coin,
@@ -1193,7 +1261,7 @@ class Transactions {
           // historicalCoinPrice[currentCoinKey.md5]?.price
           transactionRow.push({
             account: rowValues.accountSender,
-            contractors: rowValues.sender,
+            contractor: rowValues.sender,
             type: senderType,
             coin: rowValues.currency,
             pair: rowValues.coin,
@@ -1205,7 +1273,7 @@ class Transactions {
           const inPrice = (outPrice * currencyQty) / coinQty;
           transactionRow.push({
             account: accountRecipient,
-            contractors: recipient,
+            contractor: recipient,
             type: recipientType,
             coin: rowValues.coin,
             pair: rowValues.currency,
@@ -1244,7 +1312,7 @@ class Transactions {
           // historicalCoinPrice[currentCoinKey.md5]?.price
           transactionRow.push({
             account: rowValues.accountSender,
-            contractors: rowValues.sender,
+            contractor: rowValues.sender,
             type: senderType,
             coin: rowValues.coin,
             pair: rowValues.currency,
@@ -1258,7 +1326,7 @@ class Transactions {
           const inPrice = (outPrice * coinQty) / currencyQty;
           transactionRow.push({
             account: accountRecipient,
-            contractors: recipient,
+            contractor: recipient,
             type: recipientType,
             coin: rowValues.currency,
             pair: rowValues.coin,
@@ -1269,29 +1337,36 @@ class Transactions {
           });
         }
       }
-
+      // const oldRow = Object.values(this.values).filter(
+      //   (row) => row.actionKey === rowValues.rowKey
+      // )
+      // console.log(oldRow)
       transactionRow.forEach((tx) => {
-        transaction.push(
-          Object.values({
-            rowNum: values.rowNum,
-            rowHash: values.rowHash,
-            date: rowValues.date,
-            account: tx.account,
-            platform: rowValues.platform,
-            service: rowValues.service,
-            contractors: tx.contractors,
-            type: tx.type,
-            coin: tx.coin,
-            pair: tx.pair,
-            currencyPerCoin: tx.currencyPerCoin,
-            price: tx.price,
-            quantity: tx.quantity,
-            cost: tx.cost,
-            comment: rowValues.comment,
-          })
-        );
+        transactions.push({
+          date: rowValues.date,
+          account: tx.account,
+          platform: rowValues.platform,
+          service: rowValues.service,
+          contractor: tx.contractor,
+          type: tx.type,
+          coin: tx.coin,
+          pair: tx.pair,
+          currencyPerCoin: tx.currencyPerCoin,
+          price: tx.price,
+          quantity: tx.quantity,
+          cost: tx.cost,
+          comment: rowValues.comment,
+          actionKey: rowValues.rowKey,
+        });
       });
     });
+
+    // const arrayOfObject = transaction.map((row, index) => {
+    //   const rowNum = index + 1
+    //   const rowKey = new Hash(rowNum + 'transactions').md5
+    //   row.rowKey = rowKey
+    //   return row
+    // })
 
     // const historicalCoinPriceArray = Object.values(historicalCoinPrice)
     //   .map((m) => (m = Object.values(m)))
@@ -1329,11 +1404,20 @@ class Transactions {
     // historicalCoinPriceArray,
     // this.head.getHeaderAlias(this.head.historicalPrice)
     // )
-    this.workSheet.insertValues(
-      transaction,
-      this.head.getHeaderAlias(this.head.transactions)
-    );
+
+    // this.workSheet.insertValues(arrayOfObject, this.head)
+    return transactions
   }
+
+  updateTransactions(arrayOfObject = []) {
+    const transactions = this.getTransactions(arrayOfObject);
+    console.log(transactions);
+    // transactions.forEach((row) => {
+    //   console.log('updateTransactions: ', row)
+    // })
+  }
+
+  truncateInsertTrasactions() {}
 
   getPrevHistoricalPrice(historicalPrices, date, coin) {
     const prevHistoricalPrice = Object.entries(historicalPrices)
@@ -1509,23 +1593,29 @@ class Transactions {
 // }
 
 function updateTransactions() {
-  new Transactions().updateTransactions();
+  const arrayOfObject = new Registry().getArrayOfObject();
+  new Transactions().updateTransactions(arrayOfObject);
+  // new Contractors().updateDimension()
 }
 
-function updateUsdPerCurrency(editRange) {
-  console.log(new Registry().getFact());
+function updateOnEdit(editRange) {
+  const changeArrayOfObject = new Registry().getChangeArrayOfObject(
+    editRange.range
+  );
+
+  new Transactions().updateTransactions(changeArrayOfObject);
 }
 
-// function createInvoiceMenu() {
-//   const ui = SpreadsheetApp.getUi()
-//   const menu = ui.createMenu('Library')
-//   menu.addSubMenu(
-//     SpreadsheetApp.getUi()
-//       .createMenu('Update')
-//       .addItem('Update daily', 'updateDaily')
-//       .addItem('Update price', 'updateCoinsPrice')
-//       .addItem('Update transaction', 'updateTransactions')
-//       .addItem('Update coin list', 'updateCoinsList')
-//   )
-//   menu.addToUi()
-// }
+function createInvoiceMenu() {
+  const ui = SpreadsheetApp.getUi();
+  const menu = ui.createMenu('Library');
+  menu.addSubMenu(
+    SpreadsheetApp.getUi()
+      .createMenu('Update')
+      // .addItem('Update daily', 'updateDaily')
+      // .addItem('Update price', 'updateCoinsPrice')
+      .addItem('Update transaction', 'updateTransactions')
+    // .addItem('Update coin list', 'updateCoinsList')
+  );
+  menu.addToUi();
+}

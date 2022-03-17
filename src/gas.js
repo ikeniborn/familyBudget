@@ -1,4 +1,5 @@
 import { Hash } from './utils'
+import { Header } from './header'
 
 export {
   Environment,
@@ -6,6 +7,7 @@ export {
   WorkSheet,
   SpreadsheetsTrigger,
   WorkSheetMetadata,
+  WorkSheetRange,
 }
 
 class Environment {
@@ -89,9 +91,9 @@ class WorkSheet extends SpreadSheet {
       return WorkSheet.instance
     }
     WorkSheet.instance = this
-    this.key = new Hash(sheetName).md5
+    this.workSheetKey = new Hash(sheetName).md5
     this.sheetName = sheetName
-    this.workSheet = this.workSheets[this.key]
+    this.workSheet = this.workSheets[this.workSheetKey]
     this.metadata = new WorkSheetMetadata(this.workSheet)
     this.getRange(headerRowNum)
   }
@@ -150,66 +152,100 @@ class WorkSheet extends SpreadSheet {
       .getValues()
       .reduce((valuesWithKey, rowValues, index) => {
         const rowNum = firstRowNum + index
-        const rowHash = new Hash(rowValues.join('#')).md5
-        if (!valuesWithKey[rowNum]) {
-          valuesWithKey[rowNum] = {
-            rowNum,
-            rowHash,
-            rowValues: rowValues.reduce((object, value, index) => {
-              if (!object[headKey[index]]) {
-                object[headKey[index]] = value
-              }
-              return object
-            }, {}),
-          }
+        let rowKey
+        if (head?.rowKey) {
+          rowKey = rowValues[head.rowKey.idx]
+        } else {
+          rowKey = new Hash(rowNum + this.sheetName).md5
+        }
+        if (!valuesWithKey[rowKey]) {
+          valuesWithKey[rowKey] = rowValues.reduce((object, value, index) => {
+            if (!head?.rowKey) {
+              object['rowKey'] = rowKey
+            }
+            object['rowNum'] = rowNum
+            if (!object[headKey[index]]) {
+              object[headKey[index]] = value
+            }
+            return object
+          }, {})
         }
         return valuesWithKey
       }, {})
   }
 
+  updateDimension(head, values = {}) {
+    const primaryKeyIndex = new Header().getPrimaryKeyIndex(head)
+    const newValues = Object.values(values).map((row) => {
+      const rowArray = Object.values(row)
+      const key = new Header().getPrimaryKey(primaryKeyIndex, rowArray)
+      return (row = rowArray.map((value, index) => {
+        if (!index) {
+          value = key
+        } else {
+          value = value
+        }
+        return value
+      }))
+    })
+    return newValues
+  }
+
   getDimension(head) {
-    const primeryKeyIndex = Object.values(head)
-      .filter((value) => value.pk)
-      .map((value) => value.idx)
+    const primeryKeyIndex = new Header().getPrimaryKeyIndex(head)
     const headKey = Object.keys(head)
     return this.dataRange.getValues().reduce((valuesWithKey, values) => {
-      const key = new Hash(
-        primeryKeyIndex
-          .map((keyIndex) => {
-            const value = values[keyIndex]
-            if (value instanceof Date) {
-              return new Date(value).valueOf()
-            } else {
-              return value
-            }
-          })
-          .join('#')
-      )
-      if (!valuesWithKey[key.md5]) {
-        valuesWithKey[key.md5] = values.reduce((object, value, index) => {
+      const key = new Header().getPrimaryKey(primeryKeyIndex, values)
+      if (!valuesWithKey[key]) {
+        valuesWithKey[key] = values.reduce((object, value, index) => {
           if (!object[headKey[index]]) {
             object[headKey[index]] = value
           }
           return object
         }, {})
-        valuesWithKey[key.md5].nkey = key.stringLowerCase
+        // valuesWithKey[key.md5].nkey = key.stringLowerCase
         // valuesWithKey[key.md5].key = key.md5
       }
       return valuesWithKey
     }, {})
   }
 
-  insertValues(values = [], header = [], firstRow = 1, firstColumn = 1) {
-    values.splice(0, 0, header)
+  insertArrayOfArray(
+    arrayOfObject = [],
+    head = {},
+    firstRow = 1,
+    firstColumn = 1
+  ) {
+    const headOrder = Object.keys(head)
+    const array = arrayOfObject.reduce(
+      (values, rowObject) => {
+        const rowArray = headOrder.map((value) => rowObject[value])
+        values.push(rowArray)
+        return values
+      },
+      [new Header().getHeaderAlias(head)]
+    )
     if (values.length) {
       this.deleteFilter()
       this.workSheet
         .clear()
-        .getRange(firstRow, firstColumn, values.length, values[0].length)
-        .setValues(values)
-      // this.deleteEmptyRows().deleteEmptyColumns()
+        .getRange(firstRow, firstColumn, array.length, array[0].length)
+        .setValues(array)
+      this.deleteEmptyRows().deleteEmptyColumns()
     }
     return this
+  }
+
+  insertArray(object = {}, head = {}, rowNum) {
+    const headOrder = Object.keys(head)
+    const array = [object].reduce((values, rowObject) => {
+      const rowArray = headOrder.map((value) => rowObject[value])
+      values.push(rowArray)
+      return values
+    }, [])
+    this.workSheet
+      .getRange(rowNum, 1, array.length, array[0].length)
+      .setValues(array)
   }
 
   insertValue(value, row, column) {
@@ -237,7 +273,7 @@ class WorkSheet extends SpreadSheet {
   }
 
   /**
-   *  Удаление пустых колоно
+   *  Удаление пустых колонок
    */
   deleteEmptyColumns() {
     const countEmptyRow = this.maxColumn - this.lastColumn
@@ -246,6 +282,27 @@ class WorkSheet extends SpreadSheet {
       this.workSheet.deleteColumns(firstEmptyRow, countEmptyRow)
     }
     return this
+  }
+}
+
+class WorkSheetRange extends WorkSheet {
+  constructor(spreadSheetName, sheetName, headerRowNum, range) {
+    super(spreadSheetName, sheetName, headerRowNum)
+    this.range = range
+    this.countRow = this.range.rowEnd - this.range.rowStart + 1
+    this.countColumn = this.range.columnEnd - this.range.columnStart + 1
+    this.rangeOffset = range.offset(
+      0,
+      1 - this.range.columnStart,
+      this.countRow,
+      this.maxColumn
+    )
+    this.rowNumArray = [...Array(this.countRow).keys()].map(
+      (m) => (m = m + this.range.rowStart)
+    )
+    this.columnNumArray = [...Array(this.countColumn).keys()].map(
+      (m) => (m = m + this.range.columnStart)
+    )
   }
 }
 
@@ -466,9 +523,8 @@ class WorkSheetMetadata extends Metadata {
    * Добавление ключа строки в метаданные
    * @param {number} rowNum номер строки листа
    */
-  addRowKey(rowNum, rowHash) {
+  addRowKey(rowNum, value) {
     const key = 'ROWKEY_' + rowNum
-    const value = rowHash
     super.addMetadata(key, value)
     return value
   }
