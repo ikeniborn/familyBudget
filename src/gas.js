@@ -210,12 +210,7 @@ class WorkSheet extends SpreadSheet {
     }, {})
   }
 
-  insertArrayOfArray(
-    arrayOfObject = [],
-    head = {},
-    firstRow = 1,
-    firstColumn = 1
-  ) {
+  insertRows(arrayOfObject = [], head = {}, firstRow = 1, firstColumn = 1) {
     const headOrder = Object.keys(head)
     const array = arrayOfObject.reduce(
       (values, rowObject) => {
@@ -225,7 +220,8 @@ class WorkSheet extends SpreadSheet {
       },
       [new Header().getHeaderAlias(head)]
     )
-    if (values.length) {
+    console.log(array)
+    if (array.length) {
       this.deleteFilter()
       this.workSheet
         .clear()
@@ -236,7 +232,7 @@ class WorkSheet extends SpreadSheet {
     return this
   }
 
-  insertArray(object = {}, head = {}, rowNum) {
+  updateRow(object = {}, head = {}, rowNum) {
     const headOrder = Object.keys(head)
     const array = [object].reduce((values, rowObject) => {
       const rowArray = headOrder.map((value) => rowObject[value])
@@ -246,6 +242,17 @@ class WorkSheet extends SpreadSheet {
     this.workSheet
       .getRange(rowNum, 1, array.length, array[0].length)
       .setValues(array)
+  }
+
+  insertRow(object = {}, head = {}) {
+    const headOrder = Object.keys(head)
+    const array = [object].reduce((values, rowObject) => {
+      const rowArray = headOrder.map((value) => rowObject[value])
+      values.push(rowArray)
+      return values
+    }, [])[0]
+    // console.log(array)
+    this.workSheet.appendRow(array)
   }
 
   insertValue(value, row, column) {

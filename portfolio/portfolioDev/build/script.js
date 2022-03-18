@@ -452,12 +452,7 @@ class WorkSheet extends SpreadSheet {
     }, {})
   }
 
-  insertArrayOfArray(
-    arrayOfObject = [],
-    head = {},
-    firstRow = 1,
-    firstColumn = 1
-  ) {
+  insertRows(arrayOfObject = [], head = {}, firstRow = 1, firstColumn = 1) {
     const headOrder = Object.keys(head);
     const array = arrayOfObject.reduce(
       (values, rowObject) => {
@@ -467,7 +462,8 @@ class WorkSheet extends SpreadSheet {
       },
       [new Header().getHeaderAlias(head)]
     );
-    if (values.length) {
+    console.log(array);
+    if (array.length) {
       this.deleteFilter();
       this.workSheet
         .clear()
@@ -478,7 +474,7 @@ class WorkSheet extends SpreadSheet {
     return this
   }
 
-  insertArray(object = {}, head = {}, rowNum) {
+  updateRow(object = {}, head = {}, rowNum) {
     const headOrder = Object.keys(head);
     const array = [object].reduce((values, rowObject) => {
       const rowArray = headOrder.map((value) => rowObject[value]);
@@ -488,6 +484,17 @@ class WorkSheet extends SpreadSheet {
     this.workSheet
       .getRange(rowNum, 1, array.length, array[0].length)
       .setValues(array);
+  }
+
+  insertRow(object = {}, head = {}) {
+    const headOrder = Object.keys(head);
+    const array = [object].reduce((values, rowObject) => {
+      const rowArray = headOrder.map((value) => rowObject[value]);
+      values.push(rowArray);
+      return values
+    }, [])[0];
+    // console.log(array)
+    this.workSheet.appendRow(array);
   }
 
   insertValue(value, row, column) {
@@ -699,12 +706,12 @@ new Environment([
     scriptId: '1bDf1rR6-IIHpxh5nCuSErYmfokkWRuLbDJyqIA8qZtBgNY7OJttcaGey',
     area: 'prod',
   },
-  {
-    spreadSheetName: 'coingecko',
-    sheetId: '1wTTuxXt8n9q7C4NDXqQpI3wpKu1_5bGVmP9Xz0XGSyU',
-    scriptId: '1bDf1rR6-IIHpxh5nCuSErYmfokkWRuLbDJyqIA8qZtBgNY7OJttcaGey',
-    area: 'prod',
-  },
+  // {
+  //   spreadSheetName: 'coingecko',
+  //   sheetId: '1wTTuxXt8n9q7C4NDXqQpI3wpKu1_5bGVmP9Xz0XGSyU',
+  //   scriptId: '1bDf1rR6-IIHpxh5nCuSErYmfokkWRuLbDJyqIA8qZtBgNY7OJttcaGey',
+  //   area: 'prod',
+  // },
   {
     spreadSheetName: 'portfolio',
     sheetId: '1iGoWj5YHB_iQi7o09-vJF6XJeveFI54lLOlx193Y0f8',
@@ -876,7 +883,11 @@ class Registry {
     this.values = this.workSheet.getFact(this.head);
   }
 
-  getChangeArrayOfObject(range) {
+  /**
+   *
+   * @returns {array} Return array of object
+   */
+  getRegistryOnEdit(range) {
     this.workSheetRange = new WorkSheetRange(
       this.spreadSheetName,
       'registry',
@@ -891,7 +902,11 @@ class Registry {
     })
   }
 
-  getArrayOfObject() {
+  /**
+   *
+   * @returns {array} Return array of object
+   */
+  getRegistry() {
     return Object.values(new Registry().values)
   }
 
@@ -1174,8 +1189,8 @@ class Transactions {
   }
 
   getTransactions(arrayOfObject = []) {
+    this.transactions = [];
     new FormatDate();
-    const transactions = [];
     const contractors = new Contractors().values;
     arrayOfObject.forEach((rowValues) => {
       const transactionRow = [];
@@ -1342,7 +1357,7 @@ class Transactions {
       // )
       // console.log(oldRow)
       transactionRow.forEach((tx) => {
-        transactions.push({
+        this.transactions.push({
           date: rowValues.date,
           account: tx.account,
           platform: rowValues.platform,
@@ -1406,22 +1421,40 @@ class Transactions {
     // )
 
     // this.workSheet.insertValues(arrayOfObject, this.head)
-    return transactions
+    return this
   }
 
-  updateTransactions(arrayOfObject = []) {
-    const transactions = this.getTransactions(arrayOfObject);
+  updateInsertTransactions() {
     // console.log(transactions)
-    transactions.forEach((row) => {
+    this.transactions.forEach((row) => {
       const oldRow = Object.values(this.values).filter(
         (oldRow) => oldRow.actionKey === row.actionKey
       )[0];
-      console.log(oldRow);
-      delete this.values[oldRow.rowKey];
+      let rowNum;
+      if (oldRow) {
+        row.rowKey = oldRow.rowKey;
+        rowNum = oldRow.rowNum;
+        delete this.values[oldRow.rowKey];
+        this.workSheet.updateRow(row, this.head, oldRow.rowNum);
+      } else {
+        rowNum = this.workSheet.lastRow + 1;
+        console.log(rowNum);
+        row.rowKey = new Hash(rowNum + this.workSheet.sheetName).md5;
+        this.workSheet.insertRow(row, this.head);
+      }
     });
   }
 
-  truncateInsertTrasactions() {}
+  truncateInsertTrasactions() {
+    let rowNum;
+    const rows = this.transactions.map((row, index) => {
+      rowNum = index + 1;
+      row.rowKey = new Hash(rowNum + this.workSheet.sheetName).md5;
+      return row
+    });
+    // console.log(rows)
+    this.workSheet.insertRows(rows, this.head);
+  }
 
   getPrevHistoricalPrice(historicalPrices, date, coin) {
     const prevHistoricalPrice = Object.entries(historicalPrices)
@@ -1588,26 +1621,15 @@ class Transactions {
   }
 }
 
-// function updateCoinsPrice() {
-//   new Coins().updateCoinsPrice()
-// }
-
-// function updateCoinsList() {
-//   new Coins().updateCoinsList()
-// }
-
 function updateTransactions() {
-  const arrayOfObject = new Registry().getArrayOfObject();
-  new Transactions().updateTransactions(arrayOfObject);
-  // new Contractors().updateDimension()
+  const arrayOfObject = new Registry().getRegistry();
+  new Transactions().getTransactions(arrayOfObject).truncateInsertTrasactions();
 }
 
-function updateOnEdit(editRange) {
-  const changeArrayOfObject = new Registry().getChangeArrayOfObject(
-    editRange.range
-  );
+function updateTransactionsOnEdit(editRange) {
+  const registryOnEdit = new Registry().getRegistryOnEdit(editRange.range);
 
-  new Transactions().updateTransactions(changeArrayOfObject);
+  new Transactions().getTransactions(registryOnEdit).updateInsertTransactions();
 }
 
 function createInvoiceMenu() {

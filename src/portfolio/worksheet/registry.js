@@ -11,7 +11,11 @@ class Registry {
     this.values = this.workSheet.getFact(this.head)
   }
 
-  getChangeArrayOfObject(range) {
+  /**
+   *
+   * @returns {array} Return array of object
+   */
+  getRegistryOnEdit(range) {
     this.workSheetRange = new WorkSheetRange(
       this.spreadSheetName,
       'registry',
@@ -26,7 +30,11 @@ class Registry {
     })
   }
 
-  getArrayOfObject() {
+  /**
+   *
+   * @returns {array} Return array of object
+   */
+  getRegistry() {
     return Object.values(new Registry().values)
   }
 

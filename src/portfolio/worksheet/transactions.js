@@ -1,7 +1,6 @@
 import { WorkSheet } from '../../gas'
 import { Hash, FormatDate } from '../../utils'
 import { Portfolio } from '../spreadsheet/portfolio'
-import { Registry } from './registry'
 import { Contractors } from './contractors'
 import { Header } from '../../header'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
@@ -20,8 +19,8 @@ class Transactions {
   }
 
   getTransactions(arrayOfObject = []) {
+    this.transactions = []
     const currentFormatDate = new FormatDate()
-    const transactions = []
     const contractors = new Contractors().values
     arrayOfObject.forEach((rowValues) => {
       const transactionRow = []
@@ -188,7 +187,7 @@ class Transactions {
       // )
       // console.log(oldRow)
       transactionRow.forEach((tx) => {
-        transactions.push({
+        this.transactions.push({
           date: rowValues.date,
           account: tx.account,
           platform: rowValues.platform,
@@ -252,22 +251,40 @@ class Transactions {
     // )
 
     // this.workSheet.insertValues(arrayOfObject, this.head)
-    return transactions
+    return this
   }
 
-  updateTransactions(arrayOfObject = []) {
-    const transactions = this.getTransactions(arrayOfObject)
+  updateInsertTransactions() {
     // console.log(transactions)
-    transactions.forEach((row) => {
+    this.transactions.forEach((row) => {
       const oldRow = Object.values(this.values).filter(
         (oldRow) => oldRow.actionKey === row.actionKey
       )[0]
-      console.log(oldRow)
-      delete this.values[oldRow.rowKey]
+      let rowNum
+      if (oldRow) {
+        row.rowKey = oldRow.rowKey
+        rowNum = oldRow.rowNum
+        delete this.values[oldRow.rowKey]
+        this.workSheet.updateRow(row, this.head, oldRow.rowNum)
+      } else {
+        rowNum = this.workSheet.lastRow + 1
+        console.log(rowNum)
+        row.rowKey = new Hash(rowNum + this.workSheet.sheetName).md5
+        this.workSheet.insertRow(row, this.head)
+      }
     })
   }
 
-  truncateInsertTrasactions() {}
+  truncateInsertTrasactions() {
+    let rowNum
+    const rows = this.transactions.map((row, index) => {
+      rowNum = index + 1
+      row.rowKey = new Hash(rowNum + this.workSheet.sheetName).md5
+      return row
+    })
+    // console.log(rows)
+    this.workSheet.insertRows(rows, this.head)
+  }
 
   getPrevHistoricalPrice(historicalPrices, date, coin) {
     const prevHistoricalPrice = Object.entries(historicalPrices)
