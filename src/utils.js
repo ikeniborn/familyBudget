@@ -45,7 +45,7 @@ class FormatDate {
   /**
    * Значение даты в формате строки
    */
-  get str() {
+  get string() {
     return JSON.stringify(this.date)
   }
   /**
@@ -108,6 +108,10 @@ class FormatDate {
 
   get unix() {
     return new Date(this.date).valueOf() / 1000
+  }
+
+  get value() {
+    return new Date(this.date).valueOf()
   }
 
   /**

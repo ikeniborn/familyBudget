@@ -1,5 +1,5 @@
 import { Methods } from './fetch'
-export { Instance, Price, CoinsList }
+export { Price, CoinsList }
 
 /**
  * CoinGecko instance
@@ -9,6 +9,11 @@ class Instance {
    * Create new inctance API CoinGecko
    */
   constructor() {
+    if (Instance.exists) {
+      return Instance.instance
+    }
+    Instance.instance = this
+    Instance.exists = true
     this.methods = new Methods({
       domain: 'https://api.coingecko.com/api/v3',
       data: {
@@ -22,11 +27,8 @@ class Instance {
  * CoinGecko price
  */
 class Price {
-  /**
-   * @param {object} instance instance API CoinGecko
-   */
-  constructor(instance) {
-    this.methods = instance.methods
+  constructor() {
+    this.methods = new Instance().methods
   }
 
   /**
@@ -88,11 +90,8 @@ class Price {
  * CoinGecko coin list
  */
 class CoinsList {
-  /**
-   * @param {object} instance instance API CoinGecko
-   */
-  constructor(instance) {
-    this.methods = instance.methods
+  constructor() {
+    this.methods = new Instance().methods
   }
   /**
    *

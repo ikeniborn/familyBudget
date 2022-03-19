@@ -5,9 +5,6 @@ import { Contractors } from './contractors'
 import { Header } from '../../header'
 import { Registry } from './registry'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
-const cryptoCompareInstance = new cryptoCompare.Instance(
-  '48597114e40192c1699cd11f30fc9b1b7d4db9e25ae08ac85736631ffad5a125'
-)
 export { Transactions }
 
 class Transactions {
@@ -292,24 +289,6 @@ class Transactions {
     new Transactions()
       .getTransactions(registryOnEdit)
       .updateInsertTransactions()
-  }
-
-  getPrevHistoricalPrice(historicalPrices, date, coin) {
-    const prevHistoricalPrice = Object.entries(historicalPrices)
-      .filter(([rowKey, row]) => {
-        return new Hash(row.symbol).md5 === new Hash(coin).md5
-      })
-      .reduce((lastPrice, [rowKey, row]) => {
-        if (
-          new FormatDate(row.date).yyyymmdd <= new FormatDate(date).yyyymmdd &&
-          row.price
-        ) {
-          lastPrice = row.price
-        }
-        return lastPrice
-      }, 0)
-    console.log(date, coin, prevHistoricalPrice)
-    return prevHistoricalPrice ? prevHistoricalPrice : void 0
   }
 
   updateCustomPrice(lastHistoricalPrice = { date: '', price: 0 }) {

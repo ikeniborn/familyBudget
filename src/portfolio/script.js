@@ -15,6 +15,14 @@ function updateTransactions() {
   new Transactions().getTransactions(arrayOfObject).truncateInsertTrasactions()
 }
 
+function updateCoins() {
+  new Coins().updateCoins()
+}
+
+function getPreviousPrice() {
+  new HistoricalPrices().getPreviousPrice(new Date(), 'mana')
+}
+
 function updateOnEdit(editRange) {
   const range = editRange.range
   const workSheet = range.getSheet()

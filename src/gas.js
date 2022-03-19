@@ -175,19 +175,20 @@ class WorkSheet extends SpreadSheet {
   }
 
   getDimension(head) {
-    const primeryKeyIndex = new Header().getPrimaryKeyIndex(head)
+    // const primeryKeyIndex = new Header().getPrimaryKeyIndex(head)
     const headKey = Object.keys(head)
-    return this.dataRange.getValues().reduce((valuesWithKey, values) => {
-      const key = new Header().getPrimaryKey(primeryKeyIndex, values)
-      if (!valuesWithKey[key]) {
-        valuesWithKey[key] = values.reduce((object, value, index) => {
+    return this.dataRange.getValues().reduce((arrayOfObject, rowValues) => {
+      const rowKey = rowValues[head.rowKey.idx]
+      // const key = new Header().getPrimaryKey(primeryKeyIndex, values)
+      if (!arrayOfObject[rowKey]) {
+        arrayOfObject[rowKey] = rowValues.reduce((object, value, index) => {
           if (!object[headKey[index]]) {
             object[headKey[index]] = value
           }
           return object
         }, {})
       }
-      return valuesWithKey
+      return arrayOfObject
     }, {})
   }
 
@@ -201,7 +202,6 @@ class WorkSheet extends SpreadSheet {
       },
       [new Header().getHeaderAlias(head)]
     )
-    console.log(array)
     if (array.length) {
       this.deleteFilter()
       this.workSheet

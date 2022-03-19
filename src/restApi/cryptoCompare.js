@@ -1,6 +1,6 @@
 import { Methods } from './fetch'
 import * as utils from '../utils'
-export { Instance, Price, CoinsList }
+export { Price, CoinsList }
 /**
  * CryptoCompare instance
  */
@@ -8,12 +8,19 @@ class Instance {
   /**
    * Create new inctance API CryptoCompare
    *
-   * @param {string} apiKey
    */
-  constructor(apiKey) {
+  constructor() {
+    if (Instance.exists) {
+      return Instance.instance
+    }
+    Instance.instance = this
+    Instance.exists = true
     this.methods = new Methods({
       domain: 'https://min-api.cryptocompare.com/data',
-      query: { api_key: apiKey },
+      query: {
+        api_key:
+          '48597114e40192c1699cd11f30fc9b1b7d4db9e25ae08ac85736631ffad5a125',
+      },
       data: {
         muteHttpExceptions: true,
         contentType: 'application/json',
@@ -25,11 +32,8 @@ class Instance {
  * CryptoCompare price
  */
 class Price {
-  /**
-   * @param {object} instance instance API CryptoCompare
-   */
-  constructor(instance) {
-    this.methods = instance.methods
+  constructor() {
+    this.methods = new Instance().methods
   }
 
   getSinglePrice(fsym = '', tsyms = 'USD') {
@@ -81,11 +85,8 @@ class Price {
  * CryptoCompare coin list
  */
 class CoinsList {
-  /**
-   * @param {object} instance instance API CryptoCompare
-   */
-  constructor(instance) {
-    this.methods = instance.methods
+  constructor() {
+    this.methods = new Instance().methods
   }
   getCoinsList() {
     return this.methods.get({ endPoint: '/all/coinlist' })?.Data

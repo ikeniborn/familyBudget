@@ -8,10 +8,15 @@ class Instance {
   /**
    * Create new inctance API BSCScan
    */
-  constructor(apikey) {
+  constructor() {
+    if (Instance.exists) {
+      return Instance.instance
+    }
+    Instance.instance = this
+    Instance.exists = true
     this.methods = new Methods({
       domain: 'https://api.bscscan.com/api',
-      query: { apikey },
+      query: { '' },
       data: {
         muteHttpExceptions: true,
         header: 'accept: application/json',
@@ -20,10 +25,9 @@ class Instance {
   }
 }
 
-class Account extends Instance {
-  constructor(apikey) {
-    super(apikey)
-    // this.methods = new Instance().methods
+class Account  {
+  constructor() {
+    this.methods = new Instance().methods
   }
   getBalance(address) {
     return this.methods.get({

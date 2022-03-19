@@ -4,6 +4,7 @@
   "description": "",
   "main": ".eslintrc.js",
   "scripts": {
+    "portfolioBuild": "rollup --config",
     "portfolioDev": "rollup --config && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/portfolio/portfolioDev/.clasp.json",
     "portfolioProd": "rollup --config && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/portfolio/portfolioProd/.clasp.json"
   },

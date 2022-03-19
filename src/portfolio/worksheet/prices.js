@@ -1,6 +1,8 @@
 import { WorkSheet, WorkSheetRange } from '../../gas'
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Header } from '../../header'
+import { Coins } from './coins'
+import { Hash } from '../../utils'
 export { Prices }
 
 class Prices {
@@ -10,6 +12,7 @@ class Prices {
     this.sheetName = 'Prices'
     this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName)
     // this.values = this.workSheet.getDimension(this.head)
+    this.coins = new Coins().values
   }
 
   getOnEdit(range) {
@@ -24,7 +27,7 @@ class Prices {
     this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
       (rowArray, indexRow) => {
         const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray)
-        return rowArray.reduce((object, value, index) => {
+        const object = rowArray.reduce((object, value, index) => {
           if (!object[headKey[index]]) {
             headKey[index] === 'rowKey'
               ? (object[headKey[index]] = rowKey)
@@ -33,6 +36,10 @@ class Prices {
           object.rowNum = range.rowStart + indexRow
           return object
         }, {})
+        const coinsKey = new Hash(object.source + object.name + object.symbol)
+          .md5
+        object.id = this.coins[coinsKey]?.id || void 0
+        return object
       }
     )
     return this

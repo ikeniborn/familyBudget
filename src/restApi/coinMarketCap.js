@@ -1,22 +1,23 @@
 import { Methods } from './fetch'
-export { Instance, Price, CoinsList }
-
+export { Price, CoinsList }
 /**
  * CoinMarketCap instance
  */
 class Instance {
-  /**
-   * Create new inctance API CoinMarketCap
-   *s
-   * @param {string} apiKey
-   */
-  constructor(apiKey) {
+  constructor() {
+    if (Instance.exists) {
+      return Instance.instance
+    }
+    Instance.instance = this
+    Instance.exists = true
     this.methods = new Methods({
       domain: 'https://pro-api.coinmarketcap.com',
       data: {
         muteHttpExceptions: true,
         contentType: 'accept: application/json',
-        headers: { 'X-CMC_PRO_API_KEY': apiKey },
+        headers: {
+          'X-CMC_PRO_API_KEY': '133c18b7-555c-4e57-ad7b-4d2bf6160c20',
+        },
       },
     })
   }
@@ -25,11 +26,8 @@ class Instance {
  * CoinMarketCap Price
  */
 class Price {
-  /**
-   * @param {object} instance instance API CoinMarketCap
-   */
-  constructor(instance) {
-    this.methods = instance.methods
+  constructor() {
+    this.methods = new Instance().methods
   }
   /**
    * Get last price
@@ -52,11 +50,8 @@ class Price {
  * CoinMarketCap coin list
  */
 class CoinsList {
-  /**
-   * @param {object} instance instance API CoinMarketCap
-   */
-  constructor(instance) {
-    this.methods = instance.methods
+  constructor() {
+    this.methods = new Instance().methods
   }
   /**
    * Get coins list

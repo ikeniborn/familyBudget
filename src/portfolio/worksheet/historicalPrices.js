@@ -1,6 +1,7 @@
 import { WorkSheet, WorkSheetRange } from '../../gas'
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Header } from '../../header'
+import { Hash, FormatDate } from '../../utils'
 export { HistoricalPrices }
 
 class HistoricalPrices {
@@ -43,25 +44,23 @@ class HistoricalPrices {
       this.workSheet.updateRow(object, this.head, object.rowNum)
     })
   }
+
   updateOnEdit(range) {
     this.getOnEdit(range).updateInsert()
   }
 
-  getPreviousPrice(historicalPrices, date, coin, pair = 'usd') {
-    const prevHistoricalPrice = Object.entries(this.values)
-      .filter(([rowKey, row]) => {
-        return new Hash(row.coin).md5 === new Hash(coin).md5
-      })
-      .reduce((lastPrice, [rowKey, row]) => {
-        if (
-          new FormatDate(row.date).yyyymmdd <= new FormatDate(date).yyyymmdd &&
-          row.price
-        ) {
-          lastPrice = row.price
-        }
-        return lastPrice
-      }, 0)
-    console.log(date, coin, prevHistoricalPrice)
-    return prevHistoricalPrice ? prevHistoricalPrice : void 0
+  getPreviousPrice(date, coin, pair = 'usd') {
+    const histirocalPricesCoin = Object.values(this.values).filter(
+      (row) =>
+        new Hash(row.coin).md5 === new Hash(coin).md5 &&
+        new FormatDate(row.date).unix <= new FormatDate(date).unix
+    )
+    const lastDate = Math.max(
+      ...histirocalPricesCoin.map((row) => new Date(row.date).valueOf())
+    )
+    const lastHistoricalPriceKey = new Hash(
+      new Date(lastDate).valueOf() + coin + pair
+    ).md5
+    return this.values[lastHistoricalPriceKey].price
   }
 }

@@ -32,7 +32,7 @@ class Header {
             return value
           }
         })
-        .join('#')
+        .join('')
     ).md5
   }
 

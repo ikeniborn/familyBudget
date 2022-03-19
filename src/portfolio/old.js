@@ -7,17 +7,6 @@
 // import { Header } from './module/header'
 // import { Registry } from './module/registry'
 
-// const cryptoRankInstance = new cryptoRank.Instance(
-//   'f512dfeb3966b63ac221826ab8501a53d96662a203ad786860d5cc268b85'
-// )
-// const cryptoCompareInstance = new cryptoCompare.Instance(
-//   '48597114e40192c1699cd11f30fc9b1b7d4db9e25ae08ac85736631ffad5a125'
-// )
-// const coinMarketCapInstance = new coinMarketCap.Instance(
-//   '133c18b7-555c-4e57-ad7b-4d2bf6160c20'
-// )
-// const coinGeckoInstance = new coinGecko.Instance()
-
 // new gas.Environment([
 //   {
 //     spreadSheetName: 'portfolio',
