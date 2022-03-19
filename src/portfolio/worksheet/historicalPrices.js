@@ -1,15 +1,15 @@
 import { WorkSheet, WorkSheetRange } from '../../gas'
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Header } from '../../header'
-export { Coins }
+export { HistoricalPrices }
 
-class Coins {
+class HistoricalPrices {
   constructor() {
-    this.head = new Portfolio().head.coins
+    this.head = new Portfolio().head.historicalPrices
     this.spreadSheetName = new Portfolio().spreadSheetName
-    this.sheetName = 'Coins'
+    this.sheetName = 'HistoricalPrices'
     this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName)
-    // this.values = this.workSheet.getDimension(this.head)
+    this.values = this.workSheet.getDimension(this.head)
   }
 
   getOnEdit(range) {
@@ -45,5 +45,23 @@ class Coins {
   }
   updateOnEdit(range) {
     this.getOnEdit(range).updateInsert()
+  }
+
+  getPreviousPrice(historicalPrices, date, coin, pair = 'usd') {
+    const prevHistoricalPrice = Object.entries(this.values)
+      .filter(([rowKey, row]) => {
+        return new Hash(row.coin).md5 === new Hash(coin).md5
+      })
+      .reduce((lastPrice, [rowKey, row]) => {
+        if (
+          new FormatDate(row.date).yyyymmdd <= new FormatDate(date).yyyymmdd &&
+          row.price
+        ) {
+          lastPrice = row.price
+        }
+        return lastPrice
+      }, 0)
+    console.log(date, coin, prevHistoricalPrice)
+    return prevHistoricalPrice ? prevHistoricalPrice : void 0
   }
 }

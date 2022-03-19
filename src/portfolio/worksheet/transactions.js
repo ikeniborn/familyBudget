@@ -3,6 +3,7 @@ import { Hash, FormatDate } from '../../utils'
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Contractors } from './contractors'
 import { Header } from '../../header'
+import { Registry } from './registry'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
 const cryptoCompareInstance = new cryptoCompare.Instance(
   '48597114e40192c1699cd11f30fc9b1b7d4db9e25ae08ac85736631ffad5a125'
@@ -284,6 +285,13 @@ class Transactions {
     })
     // console.log(rows)
     this.workSheet.insertRows(rows, this.head)
+  }
+
+  updateTransactionsOnEdit(range) {
+    const registryOnEdit = new Registry().getRegistryOnEdit(range)
+    new Transactions()
+      .getTransactions(registryOnEdit)
+      .updateInsertTransactions()
   }
 
   getPrevHistoricalPrice(historicalPrices, date, coin) {

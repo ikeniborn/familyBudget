@@ -174,23 +174,6 @@ class WorkSheet extends SpreadSheet {
       }, {})
   }
 
-  updateDimension(head, values = {}) {
-    const primaryKeyIndex = new Header().getPrimaryKeyIndex(head)
-    const newValues = Object.values(values).map((row) => {
-      const rowArray = Object.values(row)
-      const key = new Header().getPrimaryKey(primaryKeyIndex, rowArray)
-      return (row = rowArray.map((value, index) => {
-        if (!index) {
-          value = key
-        } else {
-          value = value
-        }
-        return value
-      }))
-    })
-    return newValues
-  }
-
   getDimension(head) {
     const primeryKeyIndex = new Header().getPrimaryKeyIndex(head)
     const headKey = Object.keys(head)
@@ -203,8 +186,6 @@ class WorkSheet extends SpreadSheet {
           }
           return object
         }, {})
-        // valuesWithKey[key.md5].nkey = key.stringLowerCase
-        // valuesWithKey[key.md5].key = key.md5
       }
       return valuesWithKey
     }, {})
@@ -304,6 +285,7 @@ class WorkSheetRange extends WorkSheet {
       this.countRow,
       this.maxColumn
     )
+    this.rangeOffsetValues = this.rangeOffset.getValues()
     this.rowNumArray = [...Array(this.countRow).keys()].map(
       (m) => (m = m + this.range.rowStart)
     )

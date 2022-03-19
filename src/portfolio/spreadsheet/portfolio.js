@@ -148,8 +148,8 @@ class Portfolio {
       historicalPrices: {
         rowKey: { alias: 'Row key', idx: 0 },
         date: { alias: 'Date', pk: true, idx: 1, type: 'date' },
-        symbol: { alias: 'Symbol', pk: true, idx: 2 },
-        pair: { alias: 'Pair', pk: true, idx: 3 },
+        coin: { alias: 'Coin', pk: true, idx: 2 },
+        currency: { alias: 'Currency', pk: true, idx: 3 },
         price: { alias: 'Price', idx: 4 },
       },
       coins: {
@@ -164,6 +164,10 @@ class Portfolio {
         name: { alias: 'Name', pk: true, idx: 1 },
       },
       services: {
+        rowKey: { alias: 'Row key', idx: 0 },
+        name: { alias: 'Name', pk: true, idx: 1 },
+      },
+      operations: {
         rowKey: { alias: 'Row key', idx: 0 },
         name: { alias: 'Name', pk: true, idx: 1 },
       },

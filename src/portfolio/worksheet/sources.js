@@ -1,13 +1,13 @@
 import { WorkSheet, WorkSheetRange } from '../../gas'
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Header } from '../../header'
-export { Coins }
+export { Sources }
 
-class Coins {
+class Sources {
   constructor() {
-    this.head = new Portfolio().head.coins
+    this.head = new Portfolio().head.sources
     this.spreadSheetName = new Portfolio().spreadSheetName
-    this.sheetName = 'Coins'
+    this.sheetName = 'Sources'
     this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName)
     // this.values = this.workSheet.getDimension(this.head)
   }

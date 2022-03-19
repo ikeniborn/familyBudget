@@ -416,23 +416,6 @@ class WorkSheet extends SpreadSheet {
       }, {})
   }
 
-  updateDimension(head, values = {}) {
-    const primaryKeyIndex = new Header().getPrimaryKeyIndex(head);
-    const newValues = Object.values(values).map((row) => {
-      const rowArray = Object.values(row);
-      const key = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
-      return (row = rowArray.map((value, index) => {
-        if (!index) {
-          value = key;
-        } else {
-          value = value;
-        }
-        return value
-      }))
-    });
-    return newValues
-  }
-
   getDimension(head) {
     const primeryKeyIndex = new Header().getPrimaryKeyIndex(head);
     const headKey = Object.keys(head);
@@ -445,8 +428,6 @@ class WorkSheet extends SpreadSheet {
           }
           return object
         }, {});
-        // valuesWithKey[key.md5].nkey = key.stringLowerCase
-        // valuesWithKey[key.md5].key = key.md5
       }
       return valuesWithKey
     }, {})
@@ -546,6 +527,7 @@ class WorkSheetRange extends WorkSheet {
       this.countRow,
       this.maxColumn
     );
+    this.rangeOffsetValues = this.rangeOffset.getValues();
     this.rowNumArray = [...Array(this.countRow).keys()].map(
       (m) => (m = m + this.range.rowStart)
     );
@@ -864,6 +846,10 @@ class Portfolio {
         rowKey: { alias: 'Row key', idx: 0 },
         name: { alias: 'Name', pk: true, idx: 1 },
       },
+      operations: {
+        rowKey: { alias: 'Row key', idx: 0 },
+        name: { alias: 'Name', pk: true, idx: 1 },
+      },
       contractors: {
         rowKey: { alias: 'Row key', idx: 0 },
         name: { alias: 'Name', pk: true, idx: 1 },
@@ -945,16 +931,44 @@ class Contractors {
   constructor() {
     this.head = new Portfolio().head.contractors;
     this.spreadSheetName = new Portfolio().spreadSheetName;
-    this.workSheet = new WorkSheet(this.spreadSheetName, 'contractors');
+    this.sheetName = 'Contractors';
+    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
     this.values = this.workSheet.getDimension(this.head);
   }
 
-  updateDimension() {
-    const values = this.workSheet.updateDimension(this.head, this.values);
-    this.workSheet.insertValues(
-      values,
-      new Portfolio().header.getHeaderAlias(this.head)
+  getOnEdit(range) {
+    this.workSheetRange = new WorkSheetRange(
+      this.spreadSheetName,
+      this.sheetName,
+      1,
+      range
     );
+    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
+    const headKey = Object.keys(this.head);
+    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
+      (rowArray, indexRow) => {
+        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
+        return rowArray.reduce((object, value, index) => {
+          if (!object[headKey[index]]) {
+            headKey[index] === 'rowKey'
+              ? (object[headKey[index]] = rowKey)
+              : (object[headKey[index]] = value);
+          }
+          object.rowNum = range.rowStart + indexRow;
+          return object
+        }, {})
+      }
+    );
+    return this
+  }
+
+  updateInsert() {
+    this.arrayOfObject.forEach((object) => {
+      this.workSheet.updateRow(object, this.head, object.rowNum);
+    });
+  }
+  updateOnEdit(range) {
+    this.getOnEdit(range).updateInsert();
   }
 }
 
@@ -1456,6 +1470,13 @@ class Transactions {
     this.workSheet.insertRows(rows, this.head);
   }
 
+  updateTransactionsOnEdit(range) {
+    const registryOnEdit = new Registry().getRegistryOnEdit(range);
+    new Transactions()
+      .getTransactions(registryOnEdit)
+      .updateInsertTransactions();
+  }
+
   getPrevHistoricalPrice(historicalPrices, date, coin) {
     const prevHistoricalPrice = Object.entries(historicalPrices)
       .filter(([rowKey, row]) => {
@@ -1621,15 +1642,350 @@ class Transactions {
   }
 }
 
+class HistoricalPrices {
+  constructor() {
+    this.head = new Portfolio().head.historicalPrices;
+    this.spreadSheetName = new Portfolio().spreadSheetName;
+    this.sheetName = 'HistoricalPrices';
+    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
+    this.values = this.workSheet.getDimension(this.head);
+  }
+
+  getOnEdit(range) {
+    this.workSheetRange = new WorkSheetRange(
+      this.spreadSheetName,
+      this.sheetName,
+      1,
+      range
+    );
+    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
+    const headKey = Object.keys(this.head);
+    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
+      (rowArray, indexRow) => {
+        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
+        return rowArray.reduce((object, value, index) => {
+          if (!object[headKey[index]]) {
+            headKey[index] === 'rowKey'
+              ? (object[headKey[index]] = rowKey)
+              : (object[headKey[index]] = value);
+          }
+          object.rowNum = range.rowStart + indexRow;
+          return object
+        }, {})
+      }
+    );
+    return this
+  }
+
+  updateInsert() {
+    this.arrayOfObject.forEach((object) => {
+      this.workSheet.updateRow(object, this.head, object.rowNum);
+    });
+  }
+  updateOnEdit(range) {
+    this.getOnEdit(range).updateInsert();
+  }
+}
+
+class Operations {
+  constructor() {
+    this.head = new Portfolio().head.operations;
+    this.spreadSheetName = new Portfolio().spreadSheetName;
+    this.sheetName = 'Operations';
+    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
+    this.values = this.workSheet.getDimension(this.head);
+  }
+
+  getOnEdit(range) {
+    this.workSheetRange = new WorkSheetRange(
+      this.spreadSheetName,
+      this.sheetName,
+      1,
+      range
+    );
+    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
+    const headKey = Object.keys(this.head);
+    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
+      (rowArray, indexRow) => {
+        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
+        return rowArray.reduce((object, value, index) => {
+          if (!object[headKey[index]]) {
+            headKey[index] === 'rowKey'
+              ? (object[headKey[index]] = rowKey)
+              : (object[headKey[index]] = value);
+          }
+          object.rowNum = range.rowStart + indexRow;
+          return object
+        }, {})
+      }
+    );
+    return this
+  }
+
+  updateInsert() {
+    this.arrayOfObject.forEach((object) => {
+      this.workSheet.updateRow(object, this.head, object.rowNum);
+    });
+  }
+  updateOnEdit(range) {
+    this.getOnEdit(range).updateInsert();
+  }
+}
+
+class Services {
+  constructor() {
+    this.head = new Portfolio().head.operations;
+    this.spreadSheetName = new Portfolio().spreadSheetName;
+    this.sheetName = 'Services';
+    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
+    this.values = this.workSheet.getDimension(this.head);
+  }
+
+  getOnEdit(range) {
+    this.workSheetRange = new WorkSheetRange(
+      this.spreadSheetName,
+      this.sheetName,
+      1,
+      range
+    );
+    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
+    const headKey = Object.keys(this.head);
+    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
+      (rowArray, indexRow) => {
+        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
+        return rowArray.reduce((object, value, index) => {
+          if (!object[headKey[index]]) {
+            headKey[index] === 'rowKey'
+              ? (object[headKey[index]] = rowKey)
+              : (object[headKey[index]] = value);
+          }
+          object.rowNum = range.rowStart + indexRow;
+          return object
+        }, {})
+      }
+    );
+    return this
+  }
+
+  updateInsert() {
+    this.arrayOfObject.forEach((object) => {
+      this.workSheet.updateRow(object, this.head, object.rowNum);
+    });
+  }
+  updateOnEdit(range) {
+    this.getOnEdit(range).updateInsert();
+  }
+}
+
+class Accounts {
+  constructor() {
+    this.head = new Portfolio().head.operations;
+    this.spreadSheetName = new Portfolio().spreadSheetName;
+    this.sheetName = 'Accounts';
+    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
+    // this.values = this.workSheet.getDimension(this.head)
+  }
+
+  getOnEdit(range) {
+    this.workSheetRange = new WorkSheetRange(
+      this.spreadSheetName,
+      this.sheetName,
+      1,
+      range
+    );
+    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
+    const headKey = Object.keys(this.head);
+    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
+      (rowArray, indexRow) => {
+        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
+        return rowArray.reduce((object, value, index) => {
+          if (!object[headKey[index]]) {
+            headKey[index] === 'rowKey'
+              ? (object[headKey[index]] = rowKey)
+              : (object[headKey[index]] = value);
+          }
+          object.rowNum = range.rowStart + indexRow;
+          return object
+        }, {})
+      }
+    );
+    return this
+  }
+
+  updateInsert() {
+    this.arrayOfObject.forEach((object) => {
+      this.workSheet.updateRow(object, this.head, object.rowNum);
+    });
+  }
+  updateOnEdit(range) {
+    this.getOnEdit(range).updateInsert();
+  }
+}
+
+class Sources {
+  constructor() {
+    this.head = new Portfolio().head.sources;
+    this.spreadSheetName = new Portfolio().spreadSheetName;
+    this.sheetName = 'Sources';
+    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
+    this.values = this.workSheet.getDimension(this.head);
+  }
+
+  getOnEdit(range) {
+    this.workSheetRange = new WorkSheetRange(
+      this.spreadSheetName,
+      this.sheetName,
+      1,
+      range
+    );
+    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
+    const headKey = Object.keys(this.head);
+    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
+      (rowArray, indexRow) => {
+        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
+        return rowArray.reduce((object, value, index) => {
+          if (!object[headKey[index]]) {
+            headKey[index] === 'rowKey'
+              ? (object[headKey[index]] = rowKey)
+              : (object[headKey[index]] = value);
+          }
+          object.rowNum = range.rowStart + indexRow;
+          return object
+        }, {})
+      }
+    );
+    return this
+  }
+
+  updateInsert() {
+    this.arrayOfObject.forEach((object) => {
+      this.workSheet.updateRow(object, this.head, object.rowNum);
+    });
+  }
+  updateOnEdit(range) {
+    this.getOnEdit(range).updateInsert();
+  }
+}
+
+class Prices {
+  constructor() {
+    this.head = new Portfolio().head.prices;
+    this.spreadSheetName = new Portfolio().spreadSheetName;
+    this.sheetName = 'Prices';
+    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
+    // this.values = this.workSheet.getDimension(this.head)
+  }
+
+  getOnEdit(range) {
+    this.workSheetRange = new WorkSheetRange(
+      this.spreadSheetName,
+      this.sheetName,
+      1,
+      range
+    );
+    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
+    const headKey = Object.keys(this.head);
+    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
+      (rowArray, indexRow) => {
+        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
+        return rowArray.reduce((object, value, index) => {
+          if (!object[headKey[index]]) {
+            headKey[index] === 'rowKey'
+              ? (object[headKey[index]] = rowKey)
+              : (object[headKey[index]] = value);
+          }
+          object.rowNum = range.rowStart + indexRow;
+          return object
+        }, {})
+      }
+    );
+    return this
+  }
+
+  updateInsert() {
+    this.arrayOfObject.forEach((object) => {
+      this.workSheet.updateRow(object, this.head, object.rowNum);
+    });
+  }
+  updateOnEdit(range) {
+    this.getOnEdit(range).updateInsert();
+  }
+}
+
+class Coins {
+  constructor() {
+    this.head = new Portfolio().head.coins;
+    this.spreadSheetName = new Portfolio().spreadSheetName;
+    this.sheetName = 'Coins';
+    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
+    this.values = this.workSheet.getDimension(this.head);
+  }
+
+  getOnEdit(range) {
+    this.workSheetRange = new WorkSheetRange(
+      this.spreadSheetName,
+      this.sheetName,
+      1,
+      range
+    );
+    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
+    const headKey = Object.keys(this.head);
+    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
+      (rowArray, indexRow) => {
+        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
+        return rowArray.reduce((object, value, index) => {
+          if (!object[headKey[index]]) {
+            headKey[index] === 'rowKey'
+              ? (object[headKey[index]] = rowKey)
+              : (object[headKey[index]] = value);
+          }
+          object.rowNum = range.rowStart + indexRow;
+          return object
+        }, {})
+      }
+    );
+    return this
+  }
+
+  updateInsert() {
+    this.arrayOfObject.forEach((object) => {
+      this.workSheet.updateRow(object, this.head, object.rowNum);
+    });
+  }
+  updateOnEdit(range) {
+    this.getOnEdit(range).updateInsert();
+  }
+}
+
 function updateTransactions() {
   const arrayOfObject = new Registry().getRegistry();
   new Transactions().getTransactions(arrayOfObject).truncateInsertTrasactions();
 }
 
-function updateTransactionsOnEdit(editRange) {
-  const registryOnEdit = new Registry().getRegistryOnEdit(editRange.range);
-
-  new Transactions().getTransactions(registryOnEdit).updateInsertTransactions();
+function updateOnEdit(editRange) {
+  const range = editRange.range;
+  const workSheet = range.getSheet();
+  const sheetName = workSheet.getSheetName();
+  const sheetKey = new Hash(sheetName).md5;
+  if (sheetKey === new Hash('Registry').md5) {
+    new Transactions().updateTransactionsOnEdit(range);
+  } else if (sheetKey === new Hash('Contractors').md5) {
+    new Contractors().updateOnEdit(range);
+  } else if (sheetKey === new Hash('HistoricalPrices').md5) {
+    new HistoricalPrices().updateOnEdit(range);
+  } else if (sheetKey === new Hash('Operations').md5) {
+    new Operations().updateOnEdit(range);
+  } else if (sheetKey === new Hash('Services').md5) {
+    new Services().updateOnEdit(range);
+  } else if (sheetKey === new Hash('Accounts').md5) {
+    new Accounts().updateOnEdit(range);
+  } else if (sheetKey === new Hash('Sources').md5) {
+    new Sources().updateOnEdit(range);
+  } else if (sheetKey === new Hash('Prices').md5) {
+    new Prices().updateOnEdit(range);
+  } else if (sheetKey === new Hash('Coins').md5) {
+    new Coins().updateOnEdit(range);
+  }
 }
 
 function createInvoiceMenu() {
