@@ -193,6 +193,46 @@ class FormatDate {
   }
 }
 
+class FormatNumber {
+  constructor(number = 0) {
+    this.number = typeof string === 'number' ? number : number * 1;
+  }
+
+  /**
+   * Преобразование даты в числовом формате YYYYMMDD в тип дата
+   *
+   * @returns {date} Дата
+   */
+  getDate() {
+    const numberString = this.number.toString();
+    const year = numberString.substr(0, 4) * 1;
+    const month = numberString.substr(4, 2) * 1 - 1;
+    const day = numberString.substr(6, 2) * 1;
+    return new Date(year, month, day)
+  }
+
+  getHourAndMinuteFromNumber() {
+    let t = this.number.toString();
+    let h;
+    let m;
+    if (t.toString().length === 4) {
+      h = t.toString().slice(0, 2) * 1;
+      m = t.toString().slice(2, 4) * 1;
+    } else if (t.toString().length === 3) {
+      h = t.toString().slice(0, 1) * 1;
+      m = t.toString().slice(1, 3) * 1;
+    }
+    if (t.toString().length === 2) {
+      h = 0;
+      m = t * 1;
+    }
+    return {
+      h,
+      m,
+    }
+  }
+}
+
 Object.prototype.isEmpty = function () {
   if (Object.keys(this).length === 0) {
     return true
@@ -466,9 +506,11 @@ class WorkSheet extends SpreadSheet {
       values.push(rowArray);
       return values
     }, []);
+    // if (rowNum !== this.headerRowNum) {
     this.workSheet
       .getRange(rowNum, 1, array.length, array[0].length)
       .setValues(array);
+    // }
   }
 
   insertRow(object = {}, head = {}) {
@@ -478,7 +520,6 @@ class WorkSheet extends SpreadSheet {
       values.push(rowArray);
       return values
     }, [])[0];
-    // console.log(array)
     this.workSheet.appendRow(array);
   }
 
@@ -715,43 +756,36 @@ class Portfolio {
         operation: { alias: 'Operation', idx: 2, notNull: true },
         accountSender: { alias: 'Account sender', idx: 3, notNull: true },
         accountRecipient: { alias: 'Account recipient', idx: 4 },
-        platform: { alias: 'Platform', idx: 5, notNull: true },
-        service: { alias: 'Service', idx: 6, notNull: true },
-        sender: { alias: 'Sender', idx: 7, notNull: true },
-        recipient: { alias: 'Recipient', idx: 8 },
-        coin: { alias: 'Coin', idx: 9, notNull: true },
-        coinQty: { alias: 'Coin, qty', idx: 10 },
-        currency: { alias: 'Currency', idx: 11, notNull: true },
-        currencyQty: { alias: 'Currency, qty', idx: 12 },
-        currencyPerCoin: { alias: 'Currency per coin', idx: 13 },
-        feeCurrency: { alias: 'Fee currency', idx: 14 },
-        feeQty: { alias: 'Fee, qty', idx: 15 },
-        comment: { alias: 'Comment', idx: 16 },
+        project: { alias: 'Project', idx: 5 },
+        platform: { alias: 'Platform', idx: 6, notNull: true },
+        service: { alias: 'Service', idx: 7, notNull: true },
+        sender: { alias: 'Sender', idx: 8, notNull: true },
+        recipient: { alias: 'Recipient', idx: 9 },
+        coin: { alias: 'Coin', idx: 10, notNull: true },
+        coinQty: { alias: 'Coin, qty', idx: 11 },
+        currency: { alias: 'Currency', idx: 12, notNull: true },
+        currencyQty: { alias: 'Currency, qty', idx: 13 },
+        currencyPerCoin: { alias: 'Currency per coin', idx: 14 },
+        feeCurrency: { alias: 'Fee currency', idx: 15 },
+        feeQty: { alias: 'Fee, qty', idx: 16 },
+        comment: { alias: 'Comment', idx: 17 },
       },
       prices: {
-        rowKey: { alias: 'Row key', idx: 0, permanent: true },
+        rowKey: { alias: 'Row key', idx: 0 },
         source: {
           alias: 'Source',
-          permanent: true,
-          pk: true,
           idx: 1,
-          notNull: true,
         },
         name: {
           alias: 'Name',
-          permanent: true,
-          pk: true,
           idx: 2,
-          notNull: true,
         },
         symbol: {
           alias: 'Symbol',
-          permanent: true,
           pk: true,
           idx: 3,
-          notNull: true,
         },
-        risk: { alias: 'Risk', permanent: true, idx: 4, notNull: true },
+        risk: { alias: 'Risk', idx: 4 },
         id: { alias: 'Id', idx: 5 },
         price: { alias: 'Price', idx: 6 },
         // high24h: { alias: 'High 24h', idx: 6 },
@@ -926,7 +960,7 @@ class Contractors {
     this.spreadSheetName = new Portfolio().spreadSheetName;
     this.sheetName = 'Contractors';
     this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
-    // this.values = this.workSheet.getDimension(this.head)
+    this.values = this.workSheet.getDimension(this.head);
   }
 
   getOnEdit(range) {
@@ -1162,12 +1196,11 @@ class Fetch {
 }
 
 /**
- * CryptoCompare instance
+ * CryptoRank instance
  */
 class Instance$3 {
   /**
-   * Create new inctance API CryptoCompare
-   *
+   * Create new inctance API CryptoRank
    */
   constructor() {
     if (Instance$3.exists) {
@@ -1175,6 +1208,72 @@ class Instance$3 {
     }
     Instance$3.instance = this;
     Instance$3.exists = true;
+    this.methods = new Methods({
+      domain: 'https://api.cryptorank.io/v1',
+      query: {
+        api_key: 'f512dfeb3966b63ac221826ab8501a53d96662a203ad786860d5cc268b85',
+      },
+      data: {
+        muteHttpExceptions: true,
+        contentType: 'application/json',
+      },
+    });
+  }
+}
+/**
+ * CryptoRank price
+ */
+class Price$3 {
+  constructor() {
+    this.methods = new Instance$3().methods;
+  }
+  getLastPrice(ids = '1', convert = 'USD') {
+    return (
+      this.methods.get({
+        endPoint: '/currencies',
+        query: {
+          convert: convert,
+          ids: ids,
+        },
+      })?.data || []
+    )
+  }
+}
+/**
+ * CryptoRank coin list
+ */
+class CoinsList$3 {
+  constructor() {
+    this.methods = new Instance$3().methods;
+  }
+  getCoinsList(limit = 100) {
+    return (
+      this.methods.get({
+        endPoint: '/currencies',
+        query: {
+          convert: 'USD',
+          state: 'active',
+          limit: limit,
+        },
+      })?.data || []
+    )
+  }
+}
+
+/**
+ * CryptoCompare instance
+ */
+class Instance$2 {
+  /**
+   * Create new inctance API CryptoCompare
+   *
+   */
+  constructor() {
+    if (Instance$2.exists) {
+      return Instance$2.instance
+    }
+    Instance$2.instance = this;
+    Instance$2.exists = true;
     this.methods = new Methods({
       domain: 'https://min-api.cryptocompare.com/data',
       query: {
@@ -1189,14 +1288,474 @@ class Instance$3 {
   }
 }
 /**
+ * CryptoCompare price
+ */
+class Price$2 {
+  constructor() {
+    this.methods = new Instance$2().methods;
+  }
+
+  getSinglePrice(fsym = '', tsyms = 'USD') {
+    return this.methods.get({
+      endPoint: '/price',
+      query: {
+        fsym: fsym.toUpperCase(),
+        tsyms: tsyms,
+        relaxedValidation: true,
+      },
+    })
+  }
+
+  getMultiPrice(fsyms = '', tsyms = 'USD') {
+    return this.methods.get({
+      endPoint: '/pricemulti',
+      query: {
+        fsyms: fsyms.toUpperCase(),
+        tsyms: tsyms.toUpperCase(),
+        relaxedValidation: true,
+      },
+    })
+  }
+
+  getMultiFullPrice(fsyms = '', tsyms = 'USD') {
+    return this.methods.get({
+      endPoint: '/pricemultifull',
+      query: {
+        fsyms: fsyms.toUpperCase(),
+        tsyms: tsyms.toUpperCase(),
+        relaxedValidation: true,
+      },
+    })
+  }
+
+  getHistoryPrice(fsym = 'BTC', ts = new Date(), tsyms = 'USD') {
+    const dateUnix = new FormatDate(ts).unix;
+    const upperTsyms = tsyms.toUpperCase();
+    const upperFsym = fsym.toUpperCase();
+    const result = this.methods.get({
+      endPoint: '/pricehistorical',
+      query: {
+        fsym: upperFsym,
+        tsyms: upperTsyms,
+        ts: dateUnix,
+      },
+    });
+    return !result[upperFsym][upperTsyms] ? 0 : result[upperFsym][upperTsyms]
+  }
+}
+/**
  * CryptoCompare coin list
  */
-class CoinsList$3 {
+class CoinsList$2 {
   constructor() {
-    this.methods = new Instance$3().methods;
+    this.methods = new Instance$2().methods;
   }
   getCoinsList() {
     return this.methods.get({ endPoint: '/all/coinlist' })?.Data
+  }
+}
+
+/**
+ * CoinMarketCap instance
+ */
+class Instance$1 {
+  constructor() {
+    if (Instance$1.exists) {
+      return Instance$1.instance
+    }
+    Instance$1.instance = this;
+    Instance$1.exists = true;
+    this.methods = new Methods({
+      domain: 'https://pro-api.coinmarketcap.com',
+      data: {
+        muteHttpExceptions: true,
+        contentType: 'accept: application/json',
+        headers: {
+          'X-CMC_PRO_API_KEY': '133c18b7-555c-4e57-ad7b-4d2bf6160c20',
+        },
+      },
+    });
+  }
+}
+/**
+ * CoinMarketCap Price
+ */
+class Price$1 {
+  constructor() {
+    this.methods = new Instance$1().methods;
+  }
+  /**
+   * Get last price
+   *
+   * @param {*} id
+   * @param {*} convert
+   * @returns {array}
+   */
+  getLastPrice(id = '1', convert = 'USD') {
+    return this.methods.get({
+      endPoint: '/v2/cryptocurrency/quotes/latest',
+      query: {
+        id,
+        convert,
+      },
+    })?.data
+  }
+}
+/**
+ * CoinMarketCap coin list
+ */
+class CoinsList$1 {
+  constructor() {
+    this.methods = new Instance$1().methods;
+  }
+  /**
+   * Get coins list
+   *
+   * @returns {array}
+   */
+  getCoinsList() {
+    return this.methods.get({
+      endPoint: '/v1/cryptocurrency/map',
+    })?.data
+  }
+}
+
+/**
+ * CoinGecko instance
+ */
+class Instance {
+  /**
+   * Create new inctance API CoinGecko
+   */
+  constructor() {
+    if (Instance.exists) {
+      return Instance.instance
+    }
+    Instance.instance = this;
+    Instance.exists = true;
+    this.methods = new Methods({
+      domain: 'https://api.coingecko.com/api/v3',
+      data: {
+        muteHttpExceptions: true,
+        header: 'accept: application/json',
+      },
+    });
+  }
+}
+/**
+ * CoinGecko price
+ */
+class Price {
+  constructor() {
+    this.methods = new Instance().methods;
+  }
+
+  /**
+   *
+   * @param {*} ids
+   * @param {*} vs_currencies
+   * @param {*} include_market_cap
+   * @param {*} include_24hr_vol
+   * @param {*} include_24hr_change
+   * @param {*} include_last_updated_at
+   * @returns
+   */
+  getSimplePrice(
+    ids,
+    vs_currencies,
+    include_market_cap = false,
+    include_24hr_vol = false,
+    include_24hr_change = false,
+    include_last_updated_at = false
+  ) {
+    return this.methods.get({
+      endPoint: '/simple/price',
+      query: {
+        ids,
+        vs_currencies,
+        include_market_cap,
+        include_24hr_vol,
+        include_24hr_change,
+        include_last_updated_at,
+      },
+    })
+  }
+
+  /**
+   *
+   * @param {*} ids
+   * @param {*} vs_currency
+   * @param {*} price_change_percentage
+   * @returns
+   */
+  getMarketsPrice(
+    ids,
+    vs_currency = 'usd',
+    price_change_percentage = '24h,7d,30d'
+  ) {
+    return (
+      this.methods.get({
+        endPoint: '/coins/markets',
+        query: {
+          vs_currency,
+          ids,
+          price_change_percentage,
+        },
+      }) || []
+    )
+  }
+}
+/**
+ * CoinGecko coin list
+ */
+class CoinsList {
+  constructor() {
+    this.methods = new Instance().methods;
+  }
+  /**
+   *
+   * @param {*} include_platform
+   * @returns
+   */
+  getCoinsList(include_platform = false) {
+    return (
+      this.methods.get({
+        endPoint: '/coins/list',
+        query: {
+          include_platform,
+        },
+      }) || []
+    )
+  }
+}
+
+class Coins {
+  constructor() {
+    this.head = new Portfolio().head.coins;
+    this.spreadSheetName = new Portfolio().spreadSheetName;
+    this.sheetName = 'Coins';
+    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
+    this.values = this.workSheet.getDimension(this.head);
+  }
+
+  updateCoins() {
+    const coins = [];
+    new CoinsList().getCoinsList().forEach((coin) => {
+      const rowKey = new Hash('coingecko' + coin.name + coin.symbol).md5;
+      coins.push({
+        rowKey: rowKey,
+        source: 'coingecko',
+        name: coin.name,
+        symbol: coin.symbol,
+        id: coin.id,
+      });
+    });
+    // SpreadsheetApp.openById('1wTTuxXt8n9q7C4NDXqQpI3wpKu1_5bGVmP9Xz0XGSyU')
+    //   .getSheetByName('CoinGecko Token API List')
+    //   .getDataRange()
+    //   .getValues()
+    //   .slice(1)
+    //   .forEach((coin) => {
+    //     const key = new Hash('coingecko' + coin[2] + coin[1])
+    //     coins.push({
+    //       rowKey: key.md5,
+    //       source: 'coingecko',
+    //       name: coin[2],
+    //       symbol: coin[1],
+    //       id: coin[0],
+    //     })
+    //   })
+    new CoinsList$3().getCoinsList(15000).forEach((coin) => {
+      const key = new Hash('cryptorank' + coin.name + coin.symbol);
+      coins.push({
+        rowKey: key.md5,
+        source: 'cryptorank',
+        name: coin.name,
+        symbol: coin.symbol,
+        id: coin.id,
+      });
+    });
+    new CoinsList$1().getCoinsList().forEach((coin) => {
+      const key = new Hash('coinmarketcap' + coin.name + coin.symbol);
+      coins.push({
+        rowKey: key.md5,
+        source: 'coinmarketcap',
+        name: coin.name,
+        symbol: coin.symbol,
+        id: coin.id,
+      });
+    });
+
+    Object.entries(new CoinsList$2().getCoinsList()).forEach(
+      (coin) => {
+        const key = new Hash('cryptocompare' + coin[1].CoinName + coin[0]);
+        coins.push({
+          rowKey: key.md5,
+          source: 'cryptocompare',
+          name: coin[1].CoinName,
+          symbol: coin[1].Symbol,
+          id: coin[0],
+        });
+      }
+    );
+    const currency = [
+      ['USA dollar', 'USD'],
+      ['Russian rubble', 'RUB'],
+      ['Euro', 'EUR'],
+    ];
+    currency.forEach((coin) => {
+      const key = new Hash('cryptocompare' + coin[0] + coin[1]);
+      coins.push({
+        rowKey: key.md5,
+        source: 'cryptocompare',
+        name: coin[0],
+        symbol: coin[1],
+        id: coin[1],
+      });
+    });
+    this.workSheet.insertRows(coins, this.head);
+  }
+
+  getOnEdit(range) {
+    this.workSheetRange = new WorkSheetRange(
+      this.spreadSheetName,
+      this.sheetName,
+      1,
+      range
+    );
+    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
+    const headKey = Object.keys(this.head);
+    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
+      (rowArray, indexRow) => {
+        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
+        return rowArray.reduce((object, value, index) => {
+          if (!object[headKey[index]]) {
+            headKey[index] === 'rowKey'
+              ? (object[headKey[index]] = rowKey)
+              : (object[headKey[index]] = value);
+          }
+          object.rowNum = range.rowStart + indexRow;
+          return object
+        }, {})
+      }
+    );
+    return this
+  }
+
+  updateInsert() {
+    this.arrayOfObject.forEach((object) => {
+      this.workSheet.updateRow(object, this.head, object.rowNum);
+    });
+  }
+  updateOnEdit(range) {
+    this.getOnEdit(range).updateInsert();
+  }
+}
+
+class Prices {
+  constructor() {
+    this.head = new Portfolio().head.prices;
+    this.spreadSheetName = new Portfolio().spreadSheetName;
+    this.sheetName = 'Prices';
+    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
+    this.values = this.workSheet.getDimension(this.head);
+    this.coins = new Coins().values;
+  }
+
+  getOnEdit(range) {
+    this.workSheetRange = new WorkSheetRange(
+      this.spreadSheetName,
+      this.sheetName,
+      1,
+      range
+    );
+    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
+    const headKey = Object.keys(this.head);
+    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
+      (rowArray, indexRow) => {
+        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
+        const object = rowArray.reduce((object, value, index) => {
+          if (!object[headKey[index]]) {
+            headKey[index] === 'rowKey'
+              ? (object[headKey[index]] = rowKey)
+              : (object[headKey[index]] = value);
+          }
+          object.rowNum = range.rowStart + indexRow;
+          return object
+        }, {});
+        const coin = Object.values(this.coins).filter((row) => {
+          return (
+            new RegExp(object.name.toString().toLowerCase(), 'g').test(
+              row.name.toString().toLowerCase()
+            ) &&
+            new Hash(object.source).md5 === new Hash(row.source).md5 &&
+            new Hash(object.symbol).md5 === new Hash(row.symbol).md5
+          )
+        })[0];
+        object.id = coin?.id || void 0;
+        return object
+      }
+    );
+    return this
+  }
+
+  updateInsert() {
+    this.arrayOfObject.forEach((object) => {
+      this.workSheet.updateRow(object, this.head, object.rowNum);
+    });
+  }
+
+  updateOnEdit(range) {
+    this.getOnEdit(range).updateInsert();
+  }
+
+  getPrice(date, time, symbol) {
+    const coinRow = this.values[new Hash(symbol).md5];
+    const source = coinRow.source;
+    const id = coinRow.id;
+    const risk = coinRow.risk;
+    if (new FormatDate(date).yyyymmdd === new FormatDate().yyyymmdd) {
+      if (new Hash(source).md5 === new Hash('cryptorank').md5) {
+        return new Price$3().getLastPrice(id).reduce((price, data) => {
+          price = data.values.USD.price;
+          return price
+        }, 0)
+      } else if (new Hash(source).md5 === new Hash('cryptocompare').md5) {
+        return Object.values(
+          new Price$2().getMultiPrice(id)
+        ).reduce((price, data) => {
+          price = data.USD;
+          return price
+        }, 0)
+      } else if (new Hash(source).md5 === new Hash('coingecko').md5) {
+        return new Price()
+          .getMarketsPrice(id)
+          .reduce((price, data) => {
+            price = data.current_price;
+            return price
+          }, 0)
+      } else if (new Hash(source).md5 === new Hash('coinmarketcap').md5) {
+        return Object.values(new Price$1().getLastPrice(id)).reduce(
+          (price, data) => {
+            price = data.quote.USD.price;
+            return price
+          },
+          0
+        )
+      }
+    } else {
+      const hhmm = new FormatNumber(time).getHourAndMinuteFromNumber();
+      const dateTime = new FormatDate(date).addTime(hhmm.h, hhmm.m).date;
+      if (
+        new Hash(source).md5 === new Hash('cryptocompare').md5 &&
+        ['Stablecoin', 'fiat']
+          .map((value) => new Hash(value).md5)
+          .indexOf(new Hash(risk).md5) !== -1
+      ) {
+        return new Price$2().getHistoryPrice(id, dateTime, 'usd')
+      }
+      return void 0
+    }
   }
 }
 
@@ -1211,7 +1770,6 @@ class Transactions {
 
   getTransactions(arrayOfObject = []) {
     this.transactions = [];
-    new FormatDate();
     const contractors = new Contractors().values;
     arrayOfObject.forEach((rowValues) => {
       const transactionRow = [];
@@ -1224,159 +1782,126 @@ class Transactions {
       const senderType =
         contractors[new Hash(rowValues.sender).md5]?.type || 'none';
       const recipientType = contractors[new Hash(recipient).md5]?.type || 'none';
-      if (rowValues.date) {
-        if (
-          ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !==
-          -1
-        ) {
-          // const currentCoinKey = new Hash(
-          //   currentFormatDate.yyyymmdd + rowValues.coin + 'USD'
-          // )
-          // const historicalCoinkey = new Hash(
-          //   historicalFormatDate.yyyymmdd + rowValues.coin + 'USD'
-          // )
-          const outPrice = 1;
-          // historicalCoinPrice[historicalCoinkey.md5]?.price ||
-          // this.getPrevHistoricalPrice(
-          //   historicalCoinPrice,
-          //   rowValues.date,
-          //   rowValues.coin
-          // ) ||
-          // historicalCoinPrice[currentCoinKey.md5]?.price
-          if (['Transfer', 'Write-off'].indexOf(rowValues.operation) !== -1) {
-            transactionRow.push({
-              account: rowValues.accountSender,
-              contractor: rowValues.sender,
-              type: senderType,
-              coin: rowValues.coin,
-              pair: rowValues.coin,
-              currencyPerCoin: 1,
-              quantity: rowValues.coinQty * -1,
-              price: outPrice,
-              cost: outPrice * rowValues.coinQty * -1,
-            });
-          }
-          if (['Transfer', 'Refill'].indexOf(rowValues.operation) !== -1) {
-            transactionRow.push({
-              account: accountRecipient,
-              contractor: recipient,
-              type: recipientType,
-              coin: rowValues.coin,
-              pair: rowValues.coin,
-              currencyPerCoin: 1,
-              quantity: rowValues.coinQty,
-              price: outPrice,
-              cost: outPrice * rowValues.coinQty,
-            });
-          }
-        } else if (['Buy'].indexOf(rowValues.operation) !== -1) {
-          let coinQty = rowValues.coinQty;
-          let currencyQty = rowValues.currencyQty;
-          if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
-            currencyQty = coinQty * rowValues.currencyPerCoin;
-          }
-          if (!coinQty && rowValues.currencyPerCoin && currencyQty) {
-            coinQty = currencyQty / rowValues.currencyPerCoin;
-          }
-          if (rowValues.service === 'Liquidity pool') {
-            coinQty /= 2;
-          }
-          // const currentCoinKey = new Hash(
-          //   currentFormatDate.yyyymmdd + rowValues.currency + 'USD'
-          // )
-          // const historicalCoinkey = new Hash(
-          //   historicalFormatDate.yyyymmdd + rowValues.currency + 'USD'
-          // )
-          const outPrice = 1;
-          // historicalCoinPrice[historicalCoinkey.md5]?.price ||
-          // this.getPrevHistoricalPrice(
-          //   historicalCoinPrice,
-          //   rowValues.date,
-          //   rowValues.currency
-          // ) ||
-          // historicalCoinPrice[currentCoinKey.md5]?.price
-          transactionRow.push({
-            account: rowValues.accountSender,
-            contractor: rowValues.sender,
-            type: senderType,
-            coin: rowValues.currency,
-            pair: rowValues.coin,
-            currencyPerCoin: coinQty / currencyQty,
-            quantity: currencyQty * -1,
-            price: outPrice,
-            cost: outPrice * currencyQty * -1,
-          });
-          const inPrice = (outPrice * currencyQty) / coinQty;
-          transactionRow.push({
-            account: accountRecipient,
-            contractor: recipient,
-            type: recipientType,
-            coin: rowValues.coin,
-            pair: rowValues.currency,
-            currencyPerCoin: rowValues.currencyPerCoin
-              ? rowValues.currencyPerCoin
-              : currencyQty / coinQty,
-            quantity: coinQty,
-            price: inPrice,
-            cost: inPrice * coinQty,
-          });
-        } else if (['Sell'].indexOf(rowValues.operation) !== -1) {
-          let coinQty = rowValues.coinQty;
-          let currencyQty = rowValues.currencyQty;
-          if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
-            currencyQty = coinQty * rowValues.currencyPerCoin;
-          }
-          if (!coinQty && rowValues.currencyPerCoin && currencyQty) {
-            coinQty = currencyQty / rowValues.currencyPerCoin;
-          }
-          if (rowValues.service === 'Liquidity pool') {
-            coinQty /= 2;
-          }
-          // const currentCoinKey = new Hash(
-          //   currentFormatDate.yyyymmdd + rowValues.coin + 'USD'
-          // )
-          // const historicalCoinkey = new Hash(
-          //   historicalFormatDate.yyyymmdd + rowValues.coin + 'USD'
-          // )
-          const outPrice = 1;
-          // historicalCoinPrice[historicalCoinkey.md5]?.price ||
-          // this.getPrevHistoricalPrice(
-          //   historicalCoinPrice,
-          //   rowValues.date,
-          //   rowValues.coin
-          // ) ||
-          // historicalCoinPrice[currentCoinKey.md5]?.price
+      if (
+        ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !== -1
+      ) {
+        const price = new Prices().getPrice(
+          rowValues.date,
+          rowValues.time,
+          rowValues.coin
+        );
+        if (['Transfer', 'Write-off'].indexOf(rowValues.operation) !== -1) {
           transactionRow.push({
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             type: senderType,
             coin: rowValues.coin,
-            pair: rowValues.currency,
-            currencyPerCoin: rowValues.currencyPerCoin
-              ? rowValues.currencyPerCoin
-              : currencyQty / coinQty,
-            quantity: coinQty * -1,
-            price: outPrice,
-            cost: outPrice * coinQty * -1,
-          });
-          const inPrice = (outPrice * coinQty) / currencyQty;
-          transactionRow.push({
-            account: accountRecipient,
-            contractor: recipient,
-            type: recipientType,
-            coin: rowValues.currency,
             pair: rowValues.coin,
-            currencyPerCoin: coinQty / currencyQty,
-            quantity: currencyQty,
-            price: inPrice,
-            cost: inPrice * currencyQty,
+            currencyPerCoin: 1,
+            quantity: rowValues.coinQty * -1,
+            price: price,
+            cost: price * rowValues.coinQty * -1,
           });
         }
+        if (['Transfer', 'Refill'].indexOf(rowValues.operation) !== -1) {
+          transactionRow.push({
+            account: accountRecipient,
+            contractor: recipient,
+            type: recipientType,
+            coin: rowValues.coin,
+            pair: rowValues.coin,
+            currencyPerCoin: 1,
+            quantity: rowValues.coinQty,
+            price: price,
+            cost: price * rowValues.coinQty,
+          });
+        }
+      } else if (['Buy'].indexOf(rowValues.operation) !== -1) {
+        let coinQty = rowValues.coinQty;
+        let currencyQty = rowValues.currencyQty;
+        if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
+          currencyQty = coinQty * rowValues.currencyPerCoin;
+        }
+        if (!coinQty && rowValues.currencyPerCoin && currencyQty) {
+          coinQty = currencyQty / rowValues.currencyPerCoin;
+        }
+        if (rowValues.service === 'Liquidity pool') {
+          coinQty /= 2;
+        }
+        const price = new Prices().getPrice(
+          rowValues.date,
+          rowValues.time,
+          rowValues.currency
+        );
+        transactionRow.push({
+          account: rowValues.accountSender,
+          contractor: rowValues.sender,
+          type: senderType,
+          coin: rowValues.currency,
+          pair: rowValues.coin,
+          currencyPerCoin: coinQty / currencyQty,
+          quantity: currencyQty * -1,
+          price: price,
+          cost: price * currencyQty * -1,
+        });
+        const inPrice = (price * currencyQty) / coinQty;
+        transactionRow.push({
+          account: accountRecipient,
+          contractor: recipient,
+          type: recipientType,
+          coin: rowValues.coin,
+          pair: rowValues.currency,
+          currencyPerCoin: rowValues.currencyPerCoin
+            ? rowValues.currencyPerCoin
+            : currencyQty / coinQty,
+          quantity: coinQty,
+          price: inPrice,
+          cost: inPrice * coinQty,
+        });
+      } else if (['Sell'].indexOf(rowValues.operation) !== -1) {
+        let coinQty = rowValues.coinQty;
+        let currencyQty = rowValues.currencyQty;
+        if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
+          currencyQty = coinQty * rowValues.currencyPerCoin;
+        }
+        if (!coinQty && rowValues.currencyPerCoin && currencyQty) {
+          coinQty = currencyQty / rowValues.currencyPerCoin;
+        }
+        if (rowValues.service === 'Liquidity pool') {
+          coinQty /= 2;
+        }
+        const price = new Prices().getPrice(
+          rowValues.date,
+          rowValues.time,
+          rowValues.currency
+        );
+        transactionRow.push({
+          account: rowValues.accountSender,
+          contractor: rowValues.sender,
+          type: senderType,
+          coin: rowValues.coin,
+          pair: rowValues.currency,
+          currencyPerCoin: rowValues.currencyPerCoin
+            ? rowValues.currencyPerCoin
+            : currencyQty / coinQty,
+          quantity: coinQty * -1,
+          price: price,
+          cost: price * coinQty * -1,
+        });
+        const inPrice = (price * coinQty) / currencyQty;
+        transactionRow.push({
+          account: accountRecipient,
+          contractor: recipient,
+          type: recipientType,
+          coin: rowValues.currency,
+          pair: rowValues.coin,
+          currencyPerCoin: coinQty / currencyQty,
+          quantity: currencyQty,
+          price: inPrice,
+          cost: inPrice * currencyQty,
+        });
       }
-      // const oldRow = Object.values(this.values).filter(
-      //   (row) => row.actionKey === rowValues.rowKey
-      // )
-      // console.log(oldRow)
+
       transactionRow.forEach((tx) => {
         this.transactions.push({
           date: rowValues.date,
@@ -1698,7 +2223,7 @@ class Operations {
     this.spreadSheetName = new Portfolio().spreadSheetName;
     this.sheetName = 'Operations';
     this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
-    // this.values = this.workSheet.getDimension(this.head)
+    this.values = this.workSheet.getDimension(this.head);
   }
 
   getOnEdit(range) {
@@ -1743,7 +2268,7 @@ class Services {
     this.spreadSheetName = new Portfolio().spreadSheetName;
     this.sheetName = 'Services';
     this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
-    // this.values = this.workSheet.getDimension(this.head)
+    this.values = this.workSheet.getDimension(this.head);
   }
 
   getOnEdit(range) {
@@ -1788,7 +2313,10 @@ class Accounts {
     this.spreadSheetName = new Portfolio().spreadSheetName;
     this.sheetName = 'Accounts';
     this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
-    // this.values = this.workSheet.getDimension(this.head)
+  }
+
+  get values() {
+    return this.workSheet.getDimension(this.head)
   }
 
   getOnEdit(range) {
@@ -1833,265 +2361,9 @@ class Sources {
     this.spreadSheetName = new Portfolio().spreadSheetName;
     this.sheetName = 'Sources';
     this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
-    // this.values = this.workSheet.getDimension(this.head)
-  }
-
-  getOnEdit(range) {
-    this.workSheetRange = new WorkSheetRange(
-      this.spreadSheetName,
-      this.sheetName,
-      1,
-      range
-    );
-    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
-    const headKey = Object.keys(this.head);
-    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
-      (rowArray, indexRow) => {
-        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
-        return rowArray.reduce((object, value, index) => {
-          if (!object[headKey[index]]) {
-            headKey[index] === 'rowKey'
-              ? (object[headKey[index]] = rowKey)
-              : (object[headKey[index]] = value);
-          }
-          object.rowNum = range.rowStart + indexRow;
-          return object
-        }, {})
-      }
-    );
-    return this
-  }
-
-  updateInsert() {
-    this.arrayOfObject.forEach((object) => {
-      this.workSheet.updateRow(object, this.head, object.rowNum);
-    });
-  }
-  updateOnEdit(range) {
-    this.getOnEdit(range).updateInsert();
-  }
-}
-
-/**
- * CryptoRank instance
- */
-class Instance$2 {
-  /**
-   * Create new inctance API CryptoRank
-   */
-  constructor() {
-    if (Instance$2.exists) {
-      return Instance$2.instance
-    }
-    Instance$2.instance = this;
-    Instance$2.exists = true;
-    this.methods = new Methods({
-      domain: 'https://api.cryptorank.io/v1',
-      query: {
-        api_key: 'f512dfeb3966b63ac221826ab8501a53d96662a203ad786860d5cc268b85',
-      },
-      data: {
-        muteHttpExceptions: true,
-        contentType: 'application/json',
-      },
-    });
-  }
-}
-/**
- * CryptoRank coin list
- */
-class CoinsList$2 {
-  constructor() {
-    this.methods = new Instance$2().methods;
-  }
-  getCoinsList(limit = 100) {
-    return (
-      this.methods.get({
-        endPoint: '/currencies',
-        query: {
-          convert: 'USD',
-          state: 'active',
-          limit: limit,
-        },
-      })?.data || []
-    )
-  }
-}
-
-/**
- * CoinMarketCap instance
- */
-class Instance$1 {
-  constructor() {
-    if (Instance$1.exists) {
-      return Instance$1.instance
-    }
-    Instance$1.instance = this;
-    Instance$1.exists = true;
-    this.methods = new Methods({
-      domain: 'https://pro-api.coinmarketcap.com',
-      data: {
-        muteHttpExceptions: true,
-        contentType: 'accept: application/json',
-        headers: {
-          'X-CMC_PRO_API_KEY': '133c18b7-555c-4e57-ad7b-4d2bf6160c20',
-        },
-      },
-    });
-  }
-}
-/**
- * CoinMarketCap coin list
- */
-class CoinsList$1 {
-  constructor() {
-    this.methods = new Instance$1().methods;
-  }
-  /**
-   * Get coins list
-   *
-   * @returns {array}
-   */
-  getCoinsList() {
-    return this.methods.get({
-      endPoint: '/v1/cryptocurrency/map',
-    })?.data
-  }
-}
-
-/**
- * CoinGecko instance
- */
-class Instance {
-  /**
-   * Create new inctance API CoinGecko
-   */
-  constructor() {
-    if (Instance.exists) {
-      return Instance.instance
-    }
-    Instance.instance = this;
-    Instance.exists = true;
-    this.methods = new Methods({
-      domain: 'https://api.coingecko.com/api/v3',
-      data: {
-        muteHttpExceptions: true,
-        header: 'accept: application/json',
-      },
-    });
-  }
-}
-/**
- * CoinGecko coin list
- */
-class CoinsList {
-  constructor() {
-    this.methods = new Instance().methods;
-  }
-  /**
-   *
-   * @param {*} include_platform
-   * @returns
-   */
-  getCoinsList(include_platform = false) {
-    return (
-      this.methods.get({
-        endPoint: '/coins/list',
-        query: {
-          include_platform,
-        },
-      }) || []
-    )
-  }
-}
-
-class Coins {
-  constructor() {
-    this.head = new Portfolio().head.coins;
-    this.spreadSheetName = new Portfolio().spreadSheetName;
-    this.sheetName = 'Coins';
-    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
     this.values = this.workSheet.getDimension(this.head);
   }
 
-  updateCoins() {
-    const coins = [];
-    new CoinsList().getCoinsList().forEach((coin) => {
-      const rowKey = new Hash('coingecko' + coin.name + coin.symbol);
-      coins.push({
-        rowKey: rowKey,
-        source: 'coingecko',
-        name: coin.name,
-        symbol: coin.symbol,
-        id: coin.id,
-      });
-    });
-    // SpreadsheetApp.openById('1wTTuxXt8n9q7C4NDXqQpI3wpKu1_5bGVmP9Xz0XGSyU')
-    //   .getSheetByName('CoinGecko Token API List')
-    //   .getDataRange()
-    //   .getValues()
-    //   .slice(1)
-    //   .forEach((coin) => {
-    //     const key = new Hash('coingecko' + coin[2] + coin[1])
-    //     coins.push({
-    //       rowKey: key.md5,
-    //       source: 'coingecko',
-    //       name: coin[2],
-    //       symbol: coin[1],
-    //       id: coin[0],
-    //     })
-    //   })
-    new CoinsList$2().getCoinsList(15000).forEach((coin) => {
-      const key = new Hash('cryptorank' + coin.name + coin.symbol);
-      coins.push({
-        rowKey: key.md5,
-        source: 'cryptorank',
-        name: coin.name,
-        symbol: coin.symbol,
-        id: coin.id,
-      });
-    });
-    new CoinsList$1().getCoinsList().forEach((coin) => {
-      const key = new Hash('coinmarketcap' + coin.name + coin.symbol);
-      coins.push({
-        rowKey: key.md5,
-        source: 'coinmarketcap',
-        name: coin.name,
-        symbol: coin.symbol,
-        id: coin.id,
-      });
-    });
-
-    Object.entries(new CoinsList$3().getCoinsList()).forEach(
-      (coin) => {
-        const key = new Hash('cryptocompare' + coin[1].CoinName + coin[0]);
-        coins.push({
-          rowKey: key.md5,
-          source: 'cryptocompare',
-          name: coin[1].CoinName,
-          symbol: coin[1].Symbol,
-          id: coin[0],
-        });
-      }
-    );
-    const currency = [
-      ['USA dollar', 'USD'],
-      ['Russian rubble', 'RUB'],
-      ['Euro', 'EUR'],
-    ];
-    currency.forEach((coin) => {
-      const key = new Hash('cryptocompare' + coin[0] + coin[1]);
-      coins.push({
-        rowKey: key.md5,
-        source: 'cryptocompare',
-        name: coin[0],
-        symbol: coin[1],
-        id: coin[1],
-      });
-    });
-    this.workSheet.insertRows(coins, this.head);
-  }
-
   getOnEdit(range) {
     this.workSheetRange = new WorkSheetRange(
       this.spreadSheetName,
@@ -2113,56 +2385,6 @@ class Coins {
           object.rowNum = range.rowStart + indexRow;
           return object
         }, {})
-      }
-    );
-    return this
-  }
-
-  updateInsert() {
-    this.arrayOfObject.forEach((object) => {
-      this.workSheet.updateRow(object, this.head, object.rowNum);
-    });
-  }
-  updateOnEdit(range) {
-    this.getOnEdit(range).updateInsert();
-  }
-}
-
-class Prices {
-  constructor() {
-    this.head = new Portfolio().head.prices;
-    this.spreadSheetName = new Portfolio().spreadSheetName;
-    this.sheetName = 'Prices';
-    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
-    // this.values = this.workSheet.getDimension(this.head)
-    this.coins = new Coins().values;
-  }
-
-  getOnEdit(range) {
-    this.workSheetRange = new WorkSheetRange(
-      this.spreadSheetName,
-      this.sheetName,
-      1,
-      range
-    );
-    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
-    const headKey = Object.keys(this.head);
-    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
-      (rowArray, indexRow) => {
-        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
-        const object = rowArray.reduce((object, value, index) => {
-          if (!object[headKey[index]]) {
-            headKey[index] === 'rowKey'
-              ? (object[headKey[index]] = rowKey)
-              : (object[headKey[index]] = value);
-          }
-          object.rowNum = range.rowStart + indexRow;
-          return object
-        }, {});
-        const coinsKey = new Hash(object.source + object.name + object.symbol)
-          .md5;
-        object.id = this.coins[coinsKey]?.id || void 0;
-        return object
       }
     );
     return this

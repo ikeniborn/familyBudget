@@ -9,7 +9,7 @@ class Contractors {
     this.spreadSheetName = new Portfolio().spreadSheetName
     this.sheetName = 'Contractors'
     this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName)
-    // this.values = this.workSheet.getDimension(this.head)
+    this.values = this.workSheet.getDimension(this.head)
   }
 
   getOnEdit(range) {

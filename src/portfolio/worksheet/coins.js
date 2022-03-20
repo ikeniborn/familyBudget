@@ -20,7 +20,7 @@ class Coins {
   updateCoins() {
     const coins = []
     new coinGecko.CoinsList().getCoinsList().forEach((coin) => {
-      const rowKey = new Hash('coingecko' + coin.name + coin.symbol)
+      const rowKey = new Hash('coingecko' + coin.name + coin.symbol).md5
       coins.push({
         rowKey: rowKey,
         source: 'coingecko',

@@ -1,5 +1,5 @@
 import { Methods } from './fetch'
-import * as utils from '../utils'
+import { FormatDate } from '../utils'
 export { Price, CoinsList }
 /**
  * CryptoCompare instance
@@ -70,15 +70,18 @@ class Price {
   }
 
   getHistoryPrice(fsym = 'BTC', ts = new Date(), tsyms = 'USD') {
-    const dateUnix = new utils.FormatDate(ts).unix
-    return this.methods.get({
+    const dateUnix = new FormatDate(ts).unix
+    const upperTsyms = tsyms.toUpperCase()
+    const upperFsym = fsym.toUpperCase()
+    const result = this.methods.get({
       endPoint: '/pricehistorical',
       query: {
-        fsym: fsym.toUpperCase(),
-        tsyms: tsyms.toUpperCase(),
+        fsym: upperFsym,
+        tsyms: upperTsyms,
         ts: dateUnix,
       },
     })
+    return !result[upperFsym][upperTsyms] ? 0 : result[upperFsym][upperTsyms]
   }
 }
 /**

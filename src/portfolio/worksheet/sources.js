@@ -9,7 +9,7 @@ class Sources {
     this.spreadSheetName = new Portfolio().spreadSheetName
     this.sheetName = 'Sources'
     this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName)
-    // this.values = this.workSheet.getDimension(this.head)
+    this.values = this.workSheet.getDimension(this.head)
   }
 
   getOnEdit(range) {

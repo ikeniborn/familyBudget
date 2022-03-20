@@ -220,9 +220,11 @@ class WorkSheet extends SpreadSheet {
       values.push(rowArray)
       return values
     }, [])
+    // if (rowNum !== this.headerRowNum) {
     this.workSheet
       .getRange(rowNum, 1, array.length, array[0].length)
       .setValues(array)
+    // }
   }
 
   insertRow(object = {}, head = {}) {
@@ -232,7 +234,6 @@ class WorkSheet extends SpreadSheet {
       values.push(rowArray)
       return values
     }, [])[0]
-    // console.log(array)
     this.workSheet.appendRow(array)
   }
 

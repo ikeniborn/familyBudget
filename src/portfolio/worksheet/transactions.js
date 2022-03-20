@@ -4,7 +4,7 @@ import { Portfolio } from '../spreadsheet/portfolio'
 import { Contractors } from './contractors'
 import { Header } from '../../header'
 import { Registry } from './registry'
-import * as cryptoCompare from '../../restApi/cryptoCompare'
+import { Prices } from './prices'
 export { Transactions }
 
 class Transactions {
@@ -18,7 +18,6 @@ class Transactions {
 
   getTransactions(arrayOfObject = []) {
     this.transactions = []
-    const currentFormatDate = new FormatDate()
     const contractors = new Contractors().values
     arrayOfObject.forEach((rowValues) => {
       const transactionRow = []
@@ -31,159 +30,126 @@ class Transactions {
       const senderType =
         contractors[new Hash(rowValues.sender).md5]?.type || 'none'
       const recipientType = contractors[new Hash(recipient).md5]?.type || 'none'
-      if (rowValues.date) {
-        if (
-          ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !==
-          -1
-        ) {
-          // const currentCoinKey = new Hash(
-          //   currentFormatDate.yyyymmdd + rowValues.coin + 'USD'
-          // )
-          // const historicalCoinkey = new Hash(
-          //   historicalFormatDate.yyyymmdd + rowValues.coin + 'USD'
-          // )
-          const outPrice = 1
-          // historicalCoinPrice[historicalCoinkey.md5]?.price ||
-          // this.getPrevHistoricalPrice(
-          //   historicalCoinPrice,
-          //   rowValues.date,
-          //   rowValues.coin
-          // ) ||
-          // historicalCoinPrice[currentCoinKey.md5]?.price
-          if (['Transfer', 'Write-off'].indexOf(rowValues.operation) !== -1) {
-            transactionRow.push({
-              account: rowValues.accountSender,
-              contractor: rowValues.sender,
-              type: senderType,
-              coin: rowValues.coin,
-              pair: rowValues.coin,
-              currencyPerCoin: 1,
-              quantity: rowValues.coinQty * -1,
-              price: outPrice,
-              cost: outPrice * rowValues.coinQty * -1,
-            })
-          }
-          if (['Transfer', 'Refill'].indexOf(rowValues.operation) !== -1) {
-            transactionRow.push({
-              account: accountRecipient,
-              contractor: recipient,
-              type: recipientType,
-              coin: rowValues.coin,
-              pair: rowValues.coin,
-              currencyPerCoin: 1,
-              quantity: rowValues.coinQty,
-              price: outPrice,
-              cost: outPrice * rowValues.coinQty,
-            })
-          }
-        } else if (['Buy'].indexOf(rowValues.operation) !== -1) {
-          let coinQty = rowValues.coinQty
-          let currencyQty = rowValues.currencyQty
-          if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
-            currencyQty = coinQty * rowValues.currencyPerCoin
-          }
-          if (!coinQty && rowValues.currencyPerCoin && currencyQty) {
-            coinQty = currencyQty / rowValues.currencyPerCoin
-          }
-          if (rowValues.service === 'Liquidity pool') {
-            coinQty /= 2
-          }
-          // const currentCoinKey = new Hash(
-          //   currentFormatDate.yyyymmdd + rowValues.currency + 'USD'
-          // )
-          // const historicalCoinkey = new Hash(
-          //   historicalFormatDate.yyyymmdd + rowValues.currency + 'USD'
-          // )
-          const outPrice = 1
-          // historicalCoinPrice[historicalCoinkey.md5]?.price ||
-          // this.getPrevHistoricalPrice(
-          //   historicalCoinPrice,
-          //   rowValues.date,
-          //   rowValues.currency
-          // ) ||
-          // historicalCoinPrice[currentCoinKey.md5]?.price
-          transactionRow.push({
-            account: rowValues.accountSender,
-            contractor: rowValues.sender,
-            type: senderType,
-            coin: rowValues.currency,
-            pair: rowValues.coin,
-            currencyPerCoin: coinQty / currencyQty,
-            quantity: currencyQty * -1,
-            price: outPrice,
-            cost: outPrice * currencyQty * -1,
-          })
-          const inPrice = (outPrice * currencyQty) / coinQty
-          transactionRow.push({
-            account: accountRecipient,
-            contractor: recipient,
-            type: recipientType,
-            coin: rowValues.coin,
-            pair: rowValues.currency,
-            currencyPerCoin: rowValues.currencyPerCoin
-              ? rowValues.currencyPerCoin
-              : currencyQty / coinQty,
-            quantity: coinQty,
-            price: inPrice,
-            cost: inPrice * coinQty,
-          })
-        } else if (['Sell'].indexOf(rowValues.operation) !== -1) {
-          let coinQty = rowValues.coinQty
-          let currencyQty = rowValues.currencyQty
-          if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
-            currencyQty = coinQty * rowValues.currencyPerCoin
-          }
-          if (!coinQty && rowValues.currencyPerCoin && currencyQty) {
-            coinQty = currencyQty / rowValues.currencyPerCoin
-          }
-          if (rowValues.service === 'Liquidity pool') {
-            coinQty /= 2
-          }
-          // const currentCoinKey = new Hash(
-          //   currentFormatDate.yyyymmdd + rowValues.coin + 'USD'
-          // )
-          // const historicalCoinkey = new Hash(
-          //   historicalFormatDate.yyyymmdd + rowValues.coin + 'USD'
-          // )
-          const outPrice = 1
-          // historicalCoinPrice[historicalCoinkey.md5]?.price ||
-          // this.getPrevHistoricalPrice(
-          //   historicalCoinPrice,
-          //   rowValues.date,
-          //   rowValues.coin
-          // ) ||
-          // historicalCoinPrice[currentCoinKey.md5]?.price
+      if (
+        ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !== -1
+      ) {
+        const price = new Prices().getPrice(
+          rowValues.date,
+          rowValues.time,
+          rowValues.coin
+        )
+        if (['Transfer', 'Write-off'].indexOf(rowValues.operation) !== -1) {
           transactionRow.push({
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             type: senderType,
             coin: rowValues.coin,
-            pair: rowValues.currency,
-            currencyPerCoin: rowValues.currencyPerCoin
-              ? rowValues.currencyPerCoin
-              : currencyQty / coinQty,
-            quantity: coinQty * -1,
-            price: outPrice,
-            cost: outPrice * coinQty * -1,
-          })
-          const inPrice = (outPrice * coinQty) / currencyQty
-          transactionRow.push({
-            account: accountRecipient,
-            contractor: recipient,
-            type: recipientType,
-            coin: rowValues.currency,
             pair: rowValues.coin,
-            currencyPerCoin: coinQty / currencyQty,
-            quantity: currencyQty,
-            price: inPrice,
-            cost: inPrice * currencyQty,
+            currencyPerCoin: 1,
+            quantity: rowValues.coinQty * -1,
+            price: price,
+            cost: price * rowValues.coinQty * -1,
           })
         }
+        if (['Transfer', 'Refill'].indexOf(rowValues.operation) !== -1) {
+          transactionRow.push({
+            account: accountRecipient,
+            contractor: recipient,
+            type: recipientType,
+            coin: rowValues.coin,
+            pair: rowValues.coin,
+            currencyPerCoin: 1,
+            quantity: rowValues.coinQty,
+            price: price,
+            cost: price * rowValues.coinQty,
+          })
+        }
+      } else if (['Buy'].indexOf(rowValues.operation) !== -1) {
+        let coinQty = rowValues.coinQty
+        let currencyQty = rowValues.currencyQty
+        if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
+          currencyQty = coinQty * rowValues.currencyPerCoin
+        }
+        if (!coinQty && rowValues.currencyPerCoin && currencyQty) {
+          coinQty = currencyQty / rowValues.currencyPerCoin
+        }
+        if (rowValues.service === 'Liquidity pool') {
+          coinQty /= 2
+        }
+        const price = new Prices().getPrice(
+          rowValues.date,
+          rowValues.time,
+          rowValues.currency
+        )
+        transactionRow.push({
+          account: rowValues.accountSender,
+          contractor: rowValues.sender,
+          type: senderType,
+          coin: rowValues.currency,
+          pair: rowValues.coin,
+          currencyPerCoin: coinQty / currencyQty,
+          quantity: currencyQty * -1,
+          price: price,
+          cost: price * currencyQty * -1,
+        })
+        const inPrice = (price * currencyQty) / coinQty
+        transactionRow.push({
+          account: accountRecipient,
+          contractor: recipient,
+          type: recipientType,
+          coin: rowValues.coin,
+          pair: rowValues.currency,
+          currencyPerCoin: rowValues.currencyPerCoin
+            ? rowValues.currencyPerCoin
+            : currencyQty / coinQty,
+          quantity: coinQty,
+          price: inPrice,
+          cost: inPrice * coinQty,
+        })
+      } else if (['Sell'].indexOf(rowValues.operation) !== -1) {
+        let coinQty = rowValues.coinQty
+        let currencyQty = rowValues.currencyQty
+        if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
+          currencyQty = coinQty * rowValues.currencyPerCoin
+        }
+        if (!coinQty && rowValues.currencyPerCoin && currencyQty) {
+          coinQty = currencyQty / rowValues.currencyPerCoin
+        }
+        if (rowValues.service === 'Liquidity pool') {
+          coinQty /= 2
+        }
+        const price = new Prices().getPrice(
+          rowValues.date,
+          rowValues.time,
+          rowValues.currency
+        )
+        transactionRow.push({
+          account: rowValues.accountSender,
+          contractor: rowValues.sender,
+          type: senderType,
+          coin: rowValues.coin,
+          pair: rowValues.currency,
+          currencyPerCoin: rowValues.currencyPerCoin
+            ? rowValues.currencyPerCoin
+            : currencyQty / coinQty,
+          quantity: coinQty * -1,
+          price: price,
+          cost: price * coinQty * -1,
+        })
+        const inPrice = (price * coinQty) / currencyQty
+        transactionRow.push({
+          account: accountRecipient,
+          contractor: recipient,
+          type: recipientType,
+          coin: rowValues.currency,
+          pair: rowValues.coin,
+          currencyPerCoin: coinQty / currencyQty,
+          quantity: currencyQty,
+          price: inPrice,
+          cost: inPrice * currencyQty,
+        })
       }
-      // const oldRow = Object.values(this.values).filter(
-      //   (row) => row.actionKey === rowValues.rowKey
-      // )
-      // console.log(oldRow)
+
       transactionRow.forEach((tx) => {
         this.transactions.push({
           date: rowValues.date,
