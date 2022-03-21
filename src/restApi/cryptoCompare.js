@@ -81,7 +81,11 @@ class Price {
         ts: dateUnix,
       },
     })
-    return !result[upperFsym][upperTsyms] ? 0 : result[upperFsym][upperTsyms]
+    if (!result.Response) {
+      return result[upperFsym][upperTsyms]
+    } else {
+      return void 0
+    }
   }
 }
 /**

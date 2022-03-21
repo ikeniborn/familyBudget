@@ -8,6 +8,7 @@ import { Accounts } from './worksheet/accounts'
 import { Sources } from './worksheet/sources'
 import { Prices } from './worksheet/prices'
 import { Coins } from './worksheet/coins'
+import { Project } from './worksheet/project'
 import { Hash } from '../utils'
 
 function updateTransactions() {
@@ -46,6 +47,8 @@ function updateOnEdit(editRange) {
     new Prices().updateOnEdit(range)
   } else if (sheetKey === new Hash('Coins').md5) {
     new Coins().updateOnEdit(range)
+  } else if (sheetKey === new Hash('Project').md5) {
+    new Project().updateOnEdit(range)
   }
 }
 

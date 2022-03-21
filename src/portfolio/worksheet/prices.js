@@ -66,7 +66,7 @@ class Prices {
     this.getOnEdit(range).updateInsert()
   }
 
-  getPrice(date, time, symbol) {
+  getPrice(date, symbol, convert = 'usd') {
     const coinRow = this.values[new Hash(symbol).md5]
     const source = coinRow.source
     const id = coinRow.id
@@ -101,15 +101,13 @@ class Prices {
         )
       }
     } else {
-      const hhmm = new FormatNumber(time).getHourAndMinuteFromNumber()
-      const dateTime = new FormatDate(date).addTime(hhmm.h, hhmm.m).date
       if (
-        new Hash(source).md5 === new Hash('cryptocompare').md5 &&
-        ['Stablecoin', 'fiat']
-          .map((value) => new Hash(value).md5)
-          .indexOf(new Hash(risk).md5) !== -1
+        new Hash(source).md5 === new Hash('cryptocompare').md5 //&&
+        // ['Stablecoin', 'fiat']
+        //   .map((value) => new Hash(value).md5)
+        //   .indexOf(new Hash(risk).md5) !== -1
       ) {
-        return new cryptoCompare.Price().getHistoryPrice(id, dateTime, 'usd')
+        return new cryptoCompare.Price().getHistoryPrice(id, date, convert)
       }
       return void 0
     }

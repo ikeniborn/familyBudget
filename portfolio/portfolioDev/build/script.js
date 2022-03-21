@@ -819,20 +819,21 @@ class Portfolio {
       },
       transactions: {
         rowKey: { alias: 'Row key', idx: 0 },
-        date: { alias: 'Date', idx: 1 },
+        dateTime: { alias: 'Date and time', idx: 1 },
         account: { alias: 'Account', idx: 2 },
         platform: { alias: 'Platform', idx: 3 },
         service: { alias: 'Service', idx: 4 },
-        contractor: { alias: 'Contractor', idx: 5 },
-        type: { alias: 'Type', idx: 6 },
-        coin: { alias: 'Coin', idx: 7 },
-        pair: { alias: 'Pair', idx: 8 },
-        currencyPerCoin: { alias: 'Currency per coin', idx: 9 },
-        quantity: { alias: 'Quantity', idx: 10 },
-        price: { alias: 'Price, $', idx: 11 },
-        cost: { alias: 'Cost, $', idx: 12 },
-        comment: { alias: 'Comment', idx: 13 },
-        actionKey: { alias: 'Action key', idx: 14 },
+        project: { alias: 'Project', idx: 5 },
+        contractor: { alias: 'Contractor', idx: 6 },
+        type: { alias: 'Type', idx: 7 },
+        coin: { alias: 'Coin', idx: 8 },
+        // pair: { alias: 'Pair', idx: 9 },
+        // currencyPerCoin: { alias: 'Currency per coin', idx: 10 },
+        quantity: { alias: 'Quantity', idx: 9 },
+        // price: { alias: 'Price, $', idx: 11 },
+        // cost: { alias: 'Cost, $', idx: 12 },
+        comment: { alias: 'Comment', idx: 10 },
+        actionKey: { alias: 'Action key', idx: 11 },
       },
       balance: {
         date: { alias: 'Date', idx: 0 },
@@ -874,6 +875,10 @@ class Portfolio {
         name: { alias: 'Name', pk: true, idx: 1 },
       },
       operations: {
+        rowKey: { alias: 'Row key', idx: 0 },
+        name: { alias: 'Name', pk: true, idx: 1 },
+      },
+      project: {
         rowKey: { alias: 'Row key', idx: 0 },
         name: { alias: 'Name', pk: true, idx: 1 },
       },
@@ -1340,7 +1345,11 @@ class Price$2 {
         ts: dateUnix,
       },
     });
-    return !result[upperFsym][upperTsyms] ? 0 : result[upperFsym][upperTsyms]
+    if (!result.Response) {
+      return result[upperFsym][upperTsyms]
+    } else {
+      return void 0
+    }
   }
 }
 /**
@@ -1709,11 +1718,11 @@ class Prices {
     this.getOnEdit(range).updateInsert();
   }
 
-  getPrice(date, time, symbol) {
+  getPrice(date, symbol, convert = 'usd') {
     const coinRow = this.values[new Hash(symbol).md5];
     const source = coinRow.source;
     const id = coinRow.id;
-    const risk = coinRow.risk;
+    coinRow.risk;
     if (new FormatDate(date).yyyymmdd === new FormatDate().yyyymmdd) {
       if (new Hash(source).md5 === new Hash('cryptorank').md5) {
         return new Price$3().getLastPrice(id).reduce((price, data) => {
@@ -1744,15 +1753,13 @@ class Prices {
         )
       }
     } else {
-      const hhmm = new FormatNumber(time).getHourAndMinuteFromNumber();
-      const dateTime = new FormatDate(date).addTime(hhmm.h, hhmm.m).date;
       if (
-        new Hash(source).md5 === new Hash('cryptocompare').md5 &&
-        ['Stablecoin', 'fiat']
-          .map((value) => new Hash(value).md5)
-          .indexOf(new Hash(risk).md5) !== -1
+        new Hash(source).md5 === new Hash('cryptocompare').md5 //&&
+        // ['Stablecoin', 'fiat']
+        //   .map((value) => new Hash(value).md5)
+        //   .indexOf(new Hash(risk).md5) !== -1
       ) {
-        return new Price$2().getHistoryPrice(id, dateTime, 'usd')
+        return new Price$2().getHistoryPrice(id, date, convert)
       }
       return void 0
     }
@@ -1773,6 +1780,9 @@ class Transactions {
     const contractors = new Contractors().values;
     arrayOfObject.forEach((rowValues) => {
       const transactionRow = [];
+      const hhmm = new FormatNumber(rowValues.time).getHourAndMinuteFromNumber();
+      const dateTime = new FormatDate(rowValues.date).addTime(hhmm.h, hhmm.m)
+        .date;
       const accountRecipient = rowValues.accountRecipient
         ? rowValues.accountRecipient
         : rowValues.accountSender;
@@ -1782,25 +1792,18 @@ class Transactions {
       const senderType =
         contractors[new Hash(rowValues.sender).md5]?.type || 'none';
       const recipientType = contractors[new Hash(recipient).md5]?.type || 'none';
+      let coinQty, currencyQty, currencyPerCoin;
       if (
         ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !== -1
       ) {
-        const price = new Prices().getPrice(
-          rowValues.date,
-          rowValues.time,
-          rowValues.coin
-        );
         if (['Transfer', 'Write-off'].indexOf(rowValues.operation) !== -1) {
           transactionRow.push({
+            dateTime: dateTime,
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             type: senderType,
             coin: rowValues.coin,
-            pair: rowValues.coin,
-            currencyPerCoin: 1,
             quantity: rowValues.coinQty * -1,
-            price: price,
-            cost: price * rowValues.coinQty * -1,
           });
         }
         if (['Transfer', 'Refill'].indexOf(rowValues.operation) !== -1) {
@@ -1809,16 +1812,12 @@ class Transactions {
             contractor: recipient,
             type: recipientType,
             coin: rowValues.coin,
-            pair: rowValues.coin,
-            currencyPerCoin: 1,
             quantity: rowValues.coinQty,
-            price: price,
-            cost: price * rowValues.coinQty,
           });
         }
       } else if (['Buy'].indexOf(rowValues.operation) !== -1) {
-        let coinQty = rowValues.coinQty;
-        let currencyQty = rowValues.currencyQty;
+        coinQty = rowValues.coinQty;
+        currencyQty = rowValues.currencyQty;
         if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
           currencyQty = coinQty * rowValues.currencyPerCoin;
         }
@@ -1828,35 +1827,24 @@ class Transactions {
         if (rowValues.service === 'Liquidity pool') {
           coinQty /= 2;
         }
-        const price = new Prices().getPrice(
-          rowValues.date,
-          rowValues.time,
-          rowValues.currency
-        );
-        transactionRow.push({
-          account: rowValues.accountSender,
-          contractor: rowValues.sender,
-          type: senderType,
-          coin: rowValues.currency,
-          pair: rowValues.coin,
-          currencyPerCoin: coinQty / currencyQty,
-          quantity: currencyQty * -1,
-          price: price,
-          cost: price * currencyQty * -1,
-        });
-        const inPrice = (price * currencyQty) / coinQty;
+(currencyPerCoin = rowValues.currencyPerCoin
+          ? rowValues.currencyPerCoin
+          : currencyQty / coinQty),
+          transactionRow.push({
+            account: rowValues.accountSender,
+            contractor: rowValues.sender,
+            type: senderType,
+            coin: rowValues.currency,
+            quantity: currencyQty * -1,
+          });
+        // const inPrice = (price * currencyQty) / coinQty
         transactionRow.push({
           account: accountRecipient,
           contractor: recipient,
           type: recipientType,
           coin: rowValues.coin,
           pair: rowValues.currency,
-          currencyPerCoin: rowValues.currencyPerCoin
-            ? rowValues.currencyPerCoin
-            : currencyQty / coinQty,
           quantity: coinQty,
-          price: inPrice,
-          cost: inPrice * coinQty,
         });
       } else if (['Sell'].indexOf(rowValues.operation) !== -1) {
         let coinQty = rowValues.coinQty;
@@ -1870,52 +1858,46 @@ class Transactions {
         if (rowValues.service === 'Liquidity pool') {
           coinQty /= 2;
         }
-        const price = new Prices().getPrice(
-          rowValues.date,
-          rowValues.time,
-          rowValues.currency
-        );
-        transactionRow.push({
-          account: rowValues.accountSender,
-          contractor: rowValues.sender,
-          type: senderType,
-          coin: rowValues.coin,
-          pair: rowValues.currency,
-          currencyPerCoin: rowValues.currencyPerCoin
-            ? rowValues.currencyPerCoin
-            : currencyQty / coinQty,
-          quantity: coinQty * -1,
-          price: price,
-          cost: price * coinQty * -1,
-        });
-        const inPrice = (price * coinQty) / currencyQty;
+(currencyPerCoin = coinQty / currencyQty),
+          transactionRow.push({
+            account: rowValues.accountSender,
+            contractor: rowValues.sender,
+            type: senderType,
+            coin: rowValues.coin,
+            pair: rowValues.currency,
+            quantity: coinQty * -1,
+          });
         transactionRow.push({
           account: accountRecipient,
           contractor: recipient,
           type: recipientType,
           coin: rowValues.currency,
           pair: rowValues.coin,
-          currencyPerCoin: coinQty / currencyQty,
           quantity: currencyQty,
-          price: inPrice,
-          cost: inPrice * currencyQty,
         });
       }
-
+      if (rowValues.currency) {
+        const price = new Prices().getPrice(dateTime, rowValues.currency);
+        console.log('dateTime: ', dateTime);
+        console.log('currency: ', rowValues.currency);
+        console.log('currencyPerCoin: ', currencyPerCoin);
+        console.log('price: ', price * currencyPerCoin);
+      }
       transactionRow.forEach((tx) => {
         this.transactions.push({
-          date: rowValues.date,
+          dateTime: dateTime,
           account: tx.account,
           platform: rowValues.platform,
           service: rowValues.service,
+          project: rowValues.project,
           contractor: tx.contractor,
           type: tx.type,
           coin: tx.coin,
-          pair: tx.pair,
-          currencyPerCoin: tx.currencyPerCoin,
-          price: tx.price,
+          // pair: tx.pair,
+          // currencyPerCoin: tx.currencyPerCoin,
+          // price: tx.price,
           quantity: tx.quantity,
-          cost: tx.cost,
+          // cost: tx.cost,
           comment: rowValues.comment,
           actionKey: rowValues.rowKey,
         });
@@ -2313,10 +2295,7 @@ class Accounts {
     this.spreadSheetName = new Portfolio().spreadSheetName;
     this.sheetName = 'Accounts';
     this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
-  }
-
-  get values() {
-    return this.workSheet.getDimension(this.head)
+    this.values = this.workSheet.getDimension(this.head);
   }
 
   getOnEdit(range) {
@@ -2400,6 +2379,51 @@ class Sources {
   }
 }
 
+class Project {
+  constructor() {
+    this.head = new Portfolio().head.operations;
+    this.spreadSheetName = new Portfolio().spreadSheetName;
+    this.sheetName = 'Project';
+    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
+    this.values = this.workSheet.getDimension(this.head);
+  }
+
+  getOnEdit(range) {
+    this.workSheetRange = new WorkSheetRange(
+      this.spreadSheetName,
+      this.sheetName,
+      1,
+      range
+    );
+    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
+    const headKey = Object.keys(this.head);
+    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
+      (rowArray, indexRow) => {
+        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
+        return rowArray.reduce((object, value, index) => {
+          if (!object[headKey[index]]) {
+            headKey[index] === 'rowKey'
+              ? (object[headKey[index]] = rowKey)
+              : (object[headKey[index]] = value);
+          }
+          object.rowNum = range.rowStart + indexRow;
+          return object
+        }, {})
+      }
+    );
+    return this
+  }
+
+  updateInsert() {
+    this.arrayOfObject.forEach((object) => {
+      this.workSheet.updateRow(object, this.head, object.rowNum);
+    });
+  }
+  updateOnEdit(range) {
+    this.getOnEdit(range).updateInsert();
+  }
+}
+
 function updateTransactions() {
   const arrayOfObject = new Registry().getRegistry();
   new Transactions().getTransactions(arrayOfObject).truncateInsertTrasactions();
@@ -2436,6 +2460,8 @@ function updateOnEdit(editRange) {
     new Prices().updateOnEdit(range);
   } else if (sheetKey === new Hash('Coins').md5) {
     new Coins().updateOnEdit(range);
+  } else if (sheetKey === new Hash('Project').md5) {
+    new Project().updateOnEdit(range);
   }
 }
 
