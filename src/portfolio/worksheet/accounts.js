@@ -19,22 +19,7 @@ class Accounts {
       1,
       range
     )
-    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head)
-    const headKey = Object.keys(this.head)
-    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
-      (rowArray, indexRow) => {
-        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray)
-        return rowArray.reduce((object, value, index) => {
-          if (!object[headKey[index]]) {
-            headKey[index] === 'rowKey'
-              ? (object[headKey[index]] = rowKey)
-              : (object[headKey[index]] = value)
-          }
-          object.rowNum = range.rowStart + indexRow
-          return object
-        }, {})
-      }
-    )
+    this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head)
     return this
   }
 

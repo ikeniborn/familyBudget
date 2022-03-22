@@ -10,22 +10,13 @@ class Header {
   getHeaderAlias(head) {
     return Object.values(head).map((m) => m.alias)
   }
-  /**
-   *
-   * @param {*} head
-   * @returns
-   */
-  getPrimaryKeyIndex(head) {
-    return Object.values(head)
-      .filter((value) => value.pk)
-      .map((value) => value.idx)
-  }
 
-  getPrimaryKey(primeryKeyIndex, rowValues = []) {
+  getPrimaryKey(head = {}, rowValues = {}) {
     return new Hash(
-      primeryKeyIndex
-        .map((keyIndex) => {
-          const value = rowValues[keyIndex]
+      Object.keys(head)
+        .filter((column) => head[column].pk)
+        .map((column) => {
+          const value = rowValues[column]
           if (value instanceof Date) {
             return new Date(value).valueOf()
           } else {
@@ -36,9 +27,9 @@ class Header {
     ).md5
   }
 
-  getNotNullIndex(head) {
-    return Object.values(head)
-      .filter((value) => value.notNull)
-      .map((value) => value.idx)
+  isNotNull(head, rowValues = {}) {
+    return Object.keys(head)
+      .filter((column) => head[column].notNull)
+      .every((column) => (rowValues[column] ? true : false))
   }
 }

@@ -1,6 +1,7 @@
 export { Registry }
 import { WorkSheetRange, WorkSheet } from '../../gas'
 import { Hash } from '../../utils'
+import { Header } from '../../header'
 import { Portfolio } from '../spreadsheet/portfolio'
 
 class Registry {
@@ -26,7 +27,8 @@ class Registry {
       const rowKey = new Hash(rowNum + this.workSheetRange.sheetName).md5
       const factRow = this.values[rowKey]
       factRow.rowKey = rowKey
-      return factRow
+      const isNotNull = new Header().isNotNull(this.head, factRow)
+      return isNotNull ? factRow : []
     })
   }
 

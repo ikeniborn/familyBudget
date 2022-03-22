@@ -14,28 +14,12 @@ class HistoricalPrices {
   }
 
   getOnEdit(range) {
-    this.workSheetRange = new WorkSheetRange(
+    this.arrayOfObject = this.workSheetRange = new WorkSheetRange(
       this.spreadSheetName,
       this.sheetName,
       1,
       range
-    )
-    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head)
-    const headKey = Object.keys(this.head)
-    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
-      (rowArray, indexRow) => {
-        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray)
-        return rowArray.reduce((object, value, index) => {
-          if (!object[headKey[index]]) {
-            headKey[index] === 'rowKey'
-              ? (object[headKey[index]] = rowKey)
-              : (object[headKey[index]] = value)
-          }
-          object.rowNum = range.rowStart + indexRow
-          return object
-        }, {})
-      }
-    )
+    ).getArrayOfObject(this.head)
     return this
   }
 
@@ -62,5 +46,26 @@ class HistoricalPrices {
       new Date(lastDate).valueOf() + coin + pair
     ).md5
     return this.values[lastHistoricalPriceKey].price
+  }
+
+  updateHistoricalPrice(dateTime, symbol, price) {
+    const rowKey = new Hash(new Date(dateTime).valueOf + symbol).md5
+    if (!this.values[rowKey]) {
+      this.values[rowKey] = {
+        rowKey,
+        dateTime,
+        symbol,
+        price,
+      }
+      this.workSheet.insertRow(this.values[rowKey], this.head)
+    } else {
+      this.values[rowKey].price = price
+      console.log(this.values[rowKey])
+      this.workSheet.updateRow(
+        this.values[rowKey],
+        this.head,
+        this.values[rowKey].rowNum
+      )
+    }
   }
 }

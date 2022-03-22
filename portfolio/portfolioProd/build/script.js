@@ -263,22 +263,13 @@ class Header {
   getHeaderAlias(head) {
     return Object.values(head).map((m) => m.alias)
   }
-  /**
-   *
-   * @param {*} head
-   * @returns
-   */
-  getPrimaryKeyIndex(head) {
-    return Object.values(head)
-      .filter((value) => value.pk)
-      .map((value) => value.idx)
-  }
 
-  getPrimaryKey(primeryKeyIndex, rowValues = []) {
+  getPrimaryKey(head = {}, rowValues = {}) {
     return new Hash(
-      primeryKeyIndex
-        .map((keyIndex) => {
-          const value = rowValues[keyIndex];
+      Object.keys(head)
+        .filter((column) => head[column].pk)
+        .map((column) => {
+          const value = rowValues[column];
           if (value instanceof Date) {
             return new Date(value).valueOf()
           } else {
@@ -289,10 +280,10 @@ class Header {
     ).md5
   }
 
-  getNotNullIndex(head) {
-    return Object.values(head)
-      .filter((value) => value.notNull)
-      .map((value) => value.idx)
+  isNotNull(head, rowValues = {}) {
+    return Object.keys(head)
+      .filter((column) => head[column].notNull)
+      .every((column) => (rowValues[column] ? true : false))
   }
 }
 
@@ -461,21 +452,24 @@ class WorkSheet extends SpreadSheet {
   }
 
   getDimension(head) {
-    // const primeryKeyIndex = new Header().getPrimaryKeyIndex(head)
+    const firstRowNum = this.headerRowNum + 1;
     const headKey = Object.keys(head);
-    return this.dataRange.getValues().reduce((arrayOfObject, rowValues) => {
-      const rowKey = rowValues[head.rowKey.idx];
-      // const key = new Header().getPrimaryKey(primeryKeyIndex, values)
-      if (!arrayOfObject[rowKey]) {
-        arrayOfObject[rowKey] = rowValues.reduce((object, value, index) => {
-          if (!object[headKey[index]]) {
-            object[headKey[index]] = value;
-          }
-          return object
-        }, {});
-      }
-      return arrayOfObject
-    }, {})
+    return this.dataRange
+      .getValues()
+      .reduce((arrayOfObject, rowValues, rowIndex) => {
+        const rowNum = firstRowNum + rowIndex;
+        const rowKey = rowValues[head.rowKey.idx];
+        if (!arrayOfObject[rowKey]) {
+          arrayOfObject[rowKey] = rowValues.reduce((object, value, index) => {
+            if (!object[headKey[index]]) {
+              object[headKey[index]] = value;
+            }
+            object['rowNum'] = rowNum;
+            return object
+          }, {});
+        }
+        return arrayOfObject
+      }, {})
   }
 
   insertRows(arrayOfObject = [], head = {}, firstRow = 1, firstColumn = 1) {
@@ -499,18 +493,13 @@ class WorkSheet extends SpreadSheet {
     return this
   }
 
-  updateRow(object = {}, head = {}, rowNum) {
-    const headOrder = Object.keys(head);
-    const array = [object].reduce((values, rowObject) => {
-      const rowArray = headOrder.map((value) => rowObject[value]);
-      values.push(rowArray);
-      return values
-    }, []);
-    // if (rowNum !== this.headerRowNum) {
-    this.workSheet
-      .getRange(rowNum, 1, array.length, array[0].length)
-      .setValues(array);
-    // }
+  updateRow(object = {}, head = {}) {
+    if (object.rowNum !== this.headerRowNum) {
+      const array = [Object.keys(head).map((column) => object[column])];
+      this.workSheet
+        .getRange(object.rowNum, 1, array.length, array[0].length)
+        .setValues(array);
+    }
   }
 
   insertRow(object = {}, head = {}) {
@@ -579,6 +568,23 @@ class WorkSheetRange extends WorkSheet {
     this.columnNumArray = [...Array(this.countColumn).keys()].map(
       (m) => (m = m + this.range.columnStart)
     );
+  }
+
+  getArrayOfObject(head = {}) {
+    const headKey = Object.keys(head);
+    return this.rangeOffsetValues.map((rowArray, indexRow) => {
+      const object = rowArray.reduce((object, value, index) => {
+        if (!object[headKey[index]]) {
+          object[headKey[index]] = value;
+        }
+        return object
+      }, {});
+      if (!object?.rowKey) {
+        object.rowKey = new Header().getPrimaryKey(this.head, object);
+      }
+      object.rowNum = this.range.rowStart + indexRow;
+      return object
+    })
   }
 }
 class Metadata {
@@ -751,24 +757,24 @@ class Portfolio {
     this.header = new Header();
     this.head = {
       registry: {
-        date: { alias: 'Date', idx: 0, notNull: true },
-        time: { alias: 'Time', idx: 1, notNull: true },
-        operation: { alias: 'Operation', idx: 2, notNull: true },
-        accountSender: { alias: 'Account sender', idx: 3, notNull: true },
-        accountRecipient: { alias: 'Account recipient', idx: 4 },
-        project: { alias: 'Project', idx: 5 },
-        platform: { alias: 'Platform', idx: 6, notNull: true },
-        service: { alias: 'Service', idx: 7, notNull: true },
-        sender: { alias: 'Sender', idx: 8, notNull: true },
-        recipient: { alias: 'Recipient', idx: 9 },
-        coin: { alias: 'Coin', idx: 10, notNull: true },
-        coinQty: { alias: 'Coin, qty', idx: 11 },
-        currency: { alias: 'Currency', idx: 12, notNull: true },
-        currencyQty: { alias: 'Currency, qty', idx: 13 },
-        currencyPerCoin: { alias: 'Currency per coin', idx: 14 },
-        feeCurrency: { alias: 'Fee currency', idx: 15 },
-        feeQty: { alias: 'Fee, qty', idx: 16 },
-        comment: { alias: 'Comment', idx: 17 },
+        operation: { alias: 'Operation', idx: 0, notNull: true },
+        accountSender: { alias: 'Account sender', idx: 1, notNull: true },
+        accountRecipient: { alias: 'Account recipient', idx: 2 },
+        project: { alias: 'Project', idx: 3 },
+        platform: { alias: 'Platform', idx: 4, notNull: true },
+        service: { alias: 'Service', idx: 5, notNull: true },
+        sender: { alias: 'Sender', idx: 6, notNull: true },
+        recipient: { alias: 'Recipient', idx: 7 },
+        coin: { alias: 'Coin', idx: 8, notNull: true },
+        coinQty: { alias: 'Coin, qty', idx: 9 },
+        currency: { alias: 'Currency', idx: 10, notNull: true },
+        currencyQty: { alias: 'Currency, qty', idx: 11 },
+        currencyPerCoin: { alias: 'Currency per coin', idx: 12 },
+        feeCurrency: { alias: 'Fee currency', idx: 13 },
+        feeQty: { alias: 'Fee, qty', idx: 14 },
+        comment: { alias: 'Comment', idx: 15 },
+        date: { alias: 'Date', idx: 16, notNull: true },
+        time: { alias: 'Time', idx: 17, notNull: true },
       },
       prices: {
         rowKey: { alias: 'Row key', idx: 0 },
@@ -854,10 +860,9 @@ class Portfolio {
       },
       historicalPrices: {
         rowKey: { alias: 'Row key', idx: 0 },
-        date: { alias: 'Date', pk: true, idx: 1, type: 'date' },
-        coin: { alias: 'Coin', pk: true, idx: 2 },
-        currency: { alias: 'Currency', pk: true, idx: 3 },
-        price: { alias: 'Price', idx: 4 },
+        dateTime: { alias: 'Date and time', pk: true, idx: 1, type: 'date' },
+        symbol: { alias: 'Coin', pk: true, idx: 2 },
+        price: { alias: 'Price, $', idx: 3 },
       },
       coins: {
         rowKey: { alias: 'Row key', idx: 0 },
@@ -916,7 +921,8 @@ class Registry {
       const rowKey = new Hash(rowNum + this.workSheetRange.sheetName).md5;
       const factRow = this.values[rowKey];
       factRow.rowKey = rowKey;
-      return factRow
+      const isNotNull = new Header().isNotNull(this.head, factRow);
+      return isNotNull ? factRow : []
     })
   }
 
@@ -975,22 +981,7 @@ class Contractors {
       1,
       range
     );
-    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
-    const headKey = Object.keys(this.head);
-    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
-      (rowArray, indexRow) => {
-        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
-        return rowArray.reduce((object, value, index) => {
-          if (!object[headKey[index]]) {
-            headKey[index] === 'rowKey'
-              ? (object[headKey[index]] = rowKey)
-              : (object[headKey[index]] = value);
-          }
-          object.rowNum = range.rowStart + indexRow;
-          return object
-        }, {})
-      }
-    );
+    this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head);
     return this
   }
 
@@ -1632,22 +1623,7 @@ class Coins {
       1,
       range
     );
-    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
-    const headKey = Object.keys(this.head);
-    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
-      (rowArray, indexRow) => {
-        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
-        return rowArray.reduce((object, value, index) => {
-          if (!object[headKey[index]]) {
-            headKey[index] === 'rowKey'
-              ? (object[headKey[index]] = rowKey)
-              : (object[headKey[index]] = value);
-          }
-          object.rowNum = range.rowStart + indexRow;
-          return object
-        }, {})
-      }
-    );
+    this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head);
     return this
   }
 
@@ -1678,33 +1654,20 @@ class Prices {
       1,
       range
     );
-    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
-    const headKey = Object.keys(this.head);
-    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
-      (rowArray, indexRow) => {
-        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
-        const object = rowArray.reduce((object, value, index) => {
-          if (!object[headKey[index]]) {
-            headKey[index] === 'rowKey'
-              ? (object[headKey[index]] = rowKey)
-              : (object[headKey[index]] = value);
-          }
-          object.rowNum = range.rowStart + indexRow;
-          return object
-        }, {});
-        const coin = Object.values(this.coins).filter((row) => {
-          return (
-            new RegExp(object.name.toString().toLowerCase(), 'g').test(
-              row.name.toString().toLowerCase()
-            ) &&
-            new Hash(object.source).md5 === new Hash(row.source).md5 &&
-            new Hash(object.symbol).md5 === new Hash(row.symbol).md5
-          )
-        })[0];
-        object.id = coin?.id || void 0;
-        return object
-      }
-    );
+    this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head);
+    this.arrayOfObject.map((object) => {
+      const coin = Object.values(this.coins).filter((row) => {
+        return (
+          new RegExp(object.name.toString().toLowerCase(), 'g').test(
+            row.name.toString().toLowerCase()
+          ) &&
+          new Hash(object.source).md5 === new Hash(row.source).md5 &&
+          new Hash(object.symbol).md5 === new Hash(row.symbol).md5
+        )
+      })[0];
+      object.id = coin?.id || void 0;
+      return rowObject
+    });
     return this
   }
 
@@ -1722,46 +1685,111 @@ class Prices {
     const coinRow = this.values[new Hash(symbol).md5];
     const source = coinRow.source;
     const id = coinRow.id;
-    coinRow.risk;
-    if (new FormatDate(date).yyyymmdd === new FormatDate().yyyymmdd) {
-      if (new Hash(source).md5 === new Hash('cryptorank').md5) {
-        return new Price$3().getLastPrice(id).reduce((price, data) => {
-          price = data.values.USD.price;
-          return price
-        }, 0)
-      } else if (new Hash(source).md5 === new Hash('cryptocompare').md5) {
-        return Object.values(
-          new Price$2().getMultiPrice(id)
-        ).reduce((price, data) => {
-          price = data.USD;
-          return price
-        }, 0)
-      } else if (new Hash(source).md5 === new Hash('coingecko').md5) {
-        return new Price()
-          .getMarketsPrice(id)
-          .reduce((price, data) => {
-            price = data.current_price;
+    const risk = coinRow.risk;
+    if (new Hash('Stablecoin').md5 !== new Hash(risk).md5) {
+      if (new FormatDate(date).yyyymmdd === new FormatDate().yyyymmdd) {
+        if (new Hash(source).md5 === new Hash('cryptorank').md5) {
+          return new Price$3()
+            .getLastPrice(id)
+            .reduce((price, data) => {
+              price = data.values.USD.price;
+              return price
+            }, 0)
+        } else if (new Hash(source).md5 === new Hash('cryptocompare').md5) {
+          return Object.values(
+            new Price$2().getMultiPrice(id)
+          ).reduce((price, data) => {
+            price = data.USD;
             return price
           }, 0)
-      } else if (new Hash(source).md5 === new Hash('coinmarketcap').md5) {
-        return Object.values(new Price$1().getLastPrice(id)).reduce(
-          (price, data) => {
+        } else if (new Hash(source).md5 === new Hash('coingecko').md5) {
+          return new Price()
+            .getMarketsPrice(id)
+            .reduce((price, data) => {
+              price = data.current_price;
+              return price
+            }, 0)
+        } else if (new Hash(source).md5 === new Hash('coinmarketcap').md5) {
+          return Object.values(
+            new Price$1().getLastPrice(id)
+          ).reduce((price, data) => {
             price = data.quote.USD.price;
             return price
-          },
-          0
-        )
+          }, 0)
+        }
+      } else {
+        if (new Hash(source).md5 === new Hash('cryptocompare').md5) {
+          return new Price$2().getHistoryPrice(id, date, convert)
+        }
       }
     } else {
-      if (
-        new Hash(source).md5 === new Hash('cryptocompare').md5 //&&
-        // ['Stablecoin', 'fiat']
-        //   .map((value) => new Hash(value).md5)
-        //   .indexOf(new Hash(risk).md5) !== -1
-      ) {
-        return new Price$2().getHistoryPrice(id, date, convert)
-      }
-      return void 0
+      return 1
+    }
+  }
+}
+
+class HistoricalPrices {
+  constructor() {
+    this.head = new Portfolio().head.historicalPrices;
+    this.spreadSheetName = new Portfolio().spreadSheetName;
+    this.sheetName = 'HistoricalPrices';
+    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
+    this.values = this.workSheet.getDimension(this.head);
+  }
+
+  getOnEdit(range) {
+    this.arrayOfObject = this.workSheetRange = new WorkSheetRange(
+      this.spreadSheetName,
+      this.sheetName,
+      1,
+      range
+    ).getArrayOfObject(this.head);
+    return this
+  }
+
+  updateInsert() {
+    this.arrayOfObject.forEach((object) => {
+      this.workSheet.updateRow(object, this.head, object.rowNum);
+    });
+  }
+
+  updateOnEdit(range) {
+    this.getOnEdit(range).updateInsert();
+  }
+
+  getPreviousPrice(date, coin, pair = 'usd') {
+    const histirocalPricesCoin = Object.values(this.values).filter(
+      (row) =>
+        new Hash(row.coin).md5 === new Hash(coin).md5 &&
+        new FormatDate(row.date).unix <= new FormatDate(date).unix
+    );
+    const lastDate = Math.max(
+      ...histirocalPricesCoin.map((row) => new Date(row.date).valueOf())
+    );
+    const lastHistoricalPriceKey = new Hash(
+      new Date(lastDate).valueOf() + coin + pair
+    ).md5;
+    return this.values[lastHistoricalPriceKey].price
+  }
+
+  updateHistoricalPrice(dateTime, symbol, price) {
+    const rowKey = new Hash(new Date(dateTime).valueOf + symbol).md5;
+    if (!this.values[rowKey]) {
+      this.values[rowKey] = {
+        rowKey,
+        dateTime,
+        symbol,
+        price,
+      };
+      this.workSheet.insertRow(this.values[rowKey], this.head);
+    } else {
+      this.values[rowKey].price = price;
+      console.log(this.values[rowKey]);
+      this.workSheet.updateRow(
+        this.values[rowKey],
+        this.head,
+        this.values[rowKey].rowNum
+      );
     }
   }
 }
@@ -1792,7 +1820,7 @@ class Transactions {
       const senderType =
         contractors[new Hash(rowValues.sender).md5]?.type || 'none';
       const recipientType = contractors[new Hash(recipient).md5]?.type || 'none';
-      let coinQty, currencyQty, currencyPerCoin;
+      let coinQty, currencyQty, currencyPerCoin, historyCoin;
       if (
         ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !== -1
       ) {
@@ -1818,6 +1846,7 @@ class Transactions {
       } else if (['Buy'].indexOf(rowValues.operation) !== -1) {
         coinQty = rowValues.coinQty;
         currencyQty = rowValues.currencyQty;
+        historyCoin = rowValues.coin;
         if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
           currencyQty = coinQty * rowValues.currencyPerCoin;
         }
@@ -1837,18 +1866,17 @@ class Transactions {
             coin: rowValues.currency,
             quantity: currencyQty * -1,
           });
-        // const inPrice = (price * currencyQty) / coinQty
         transactionRow.push({
           account: accountRecipient,
           contractor: recipient,
           type: recipientType,
           coin: rowValues.coin,
-          pair: rowValues.currency,
           quantity: coinQty,
         });
       } else if (['Sell'].indexOf(rowValues.operation) !== -1) {
         let coinQty = rowValues.coinQty;
         let currencyQty = rowValues.currencyQty;
+        historyCoin = rowValues.coin;
         if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
           currencyQty = coinQty * rowValues.currencyPerCoin;
         }
@@ -1876,12 +1904,13 @@ class Transactions {
           quantity: currencyQty,
         });
       }
-      if (rowValues.currency) {
+      if (rowValues.currency && historyCoin) {
         const price = new Prices().getPrice(dateTime, rowValues.currency);
-        console.log('dateTime: ', dateTime);
-        console.log('currency: ', rowValues.currency);
-        console.log('currencyPerCoin: ', currencyPerCoin);
-        console.log('price: ', price * currencyPerCoin);
+        new HistoricalPrices().updateHistoricalPrice(
+          dateTime,
+          historyCoin,
+          price * currencyPerCoin
+        );
       }
       transactionRow.forEach((tx) => {
         this.transactions.push({
@@ -1893,11 +1922,7 @@ class Transactions {
           contractor: tx.contractor,
           type: tx.type,
           coin: tx.coin,
-          // pair: tx.pair,
-          // currencyPerCoin: tx.currencyPerCoin,
-          // price: tx.price,
           quantity: tx.quantity,
-          // cost: tx.cost,
           comment: rowValues.comment,
           actionKey: rowValues.rowKey,
         });
@@ -1986,9 +2011,11 @@ class Transactions {
 
   updateTransactionsOnEdit(range) {
     const registryOnEdit = new Registry().getRegistryOnEdit(range);
-    new Transactions()
-      .getTransactions(registryOnEdit)
-      .updateInsertTransactions();
+    if (registryOnEdit.length) {
+      new Transactions()
+        .getTransactions(registryOnEdit)
+        .updateInsertTransactions();
+    }
   }
 
   updateCustomPrice(lastHistoricalPrice = { date: '', price: 0 }) {
@@ -2138,67 +2165,6 @@ class Transactions {
   }
 }
 
-class HistoricalPrices {
-  constructor() {
-    this.head = new Portfolio().head.historicalPrices;
-    this.spreadSheetName = new Portfolio().spreadSheetName;
-    this.sheetName = 'HistoricalPrices';
-    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
-    this.values = this.workSheet.getDimension(this.head);
-  }
-
-  getOnEdit(range) {
-    this.workSheetRange = new WorkSheetRange(
-      this.spreadSheetName,
-      this.sheetName,
-      1,
-      range
-    );
-    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
-    const headKey = Object.keys(this.head);
-    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
-      (rowArray, indexRow) => {
-        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
-        return rowArray.reduce((object, value, index) => {
-          if (!object[headKey[index]]) {
-            headKey[index] === 'rowKey'
-              ? (object[headKey[index]] = rowKey)
-              : (object[headKey[index]] = value);
-          }
-          object.rowNum = range.rowStart + indexRow;
-          return object
-        }, {})
-      }
-    );
-    return this
-  }
-
-  updateInsert() {
-    this.arrayOfObject.forEach((object) => {
-      this.workSheet.updateRow(object, this.head, object.rowNum);
-    });
-  }
-
-  updateOnEdit(range) {
-    this.getOnEdit(range).updateInsert();
-  }
-
-  getPreviousPrice(date, coin, pair = 'usd') {
-    const histirocalPricesCoin = Object.values(this.values).filter(
-      (row) =>
-        new Hash(row.coin).md5 === new Hash(coin).md5 &&
-        new FormatDate(row.date).unix <= new FormatDate(date).unix
-    );
-    const lastDate = Math.max(
-      ...histirocalPricesCoin.map((row) => new Date(row.date).valueOf())
-    );
-    const lastHistoricalPriceKey = new Hash(
-      new Date(lastDate).valueOf() + coin + pair
-    ).md5;
-    return this.values[lastHistoricalPriceKey].price
-  }
-}
-
 class Operations {
   constructor() {
     this.head = new Portfolio().head.operations;
@@ -2215,22 +2181,7 @@ class Operations {
       1,
       range
     );
-    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
-    const headKey = Object.keys(this.head);
-    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
-      (rowArray, indexRow) => {
-        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
-        return rowArray.reduce((object, value, index) => {
-          if (!object[headKey[index]]) {
-            headKey[index] === 'rowKey'
-              ? (object[headKey[index]] = rowKey)
-              : (object[headKey[index]] = value);
-          }
-          object.rowNum = range.rowStart + indexRow;
-          return object
-        }, {})
-      }
-    );
+    this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head);
     return this
   }
 
@@ -2260,22 +2211,8 @@ class Services {
       1,
       range
     );
-    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
-    const headKey = Object.keys(this.head);
-    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
-      (rowArray, indexRow) => {
-        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
-        return rowArray.reduce((object, value, index) => {
-          if (!object[headKey[index]]) {
-            headKey[index] === 'rowKey'
-              ? (object[headKey[index]] = rowKey)
-              : (object[headKey[index]] = value);
-          }
-          object.rowNum = range.rowStart + indexRow;
-          return object
-        }, {})
-      }
-    );
+    Object.keys(this.head);
+    this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head);
     return this
   }
 
@@ -2305,22 +2242,7 @@ class Accounts {
       1,
       range
     );
-    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
-    const headKey = Object.keys(this.head);
-    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
-      (rowArray, indexRow) => {
-        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
-        return rowArray.reduce((object, value, index) => {
-          if (!object[headKey[index]]) {
-            headKey[index] === 'rowKey'
-              ? (object[headKey[index]] = rowKey)
-              : (object[headKey[index]] = value);
-          }
-          object.rowNum = range.rowStart + indexRow;
-          return object
-        }, {})
-      }
-    );
+    this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head);
     return this
   }
 
@@ -2350,22 +2272,7 @@ class Sources {
       1,
       range
     );
-    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
-    const headKey = Object.keys(this.head);
-    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
-      (rowArray, indexRow) => {
-        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
-        return rowArray.reduce((object, value, index) => {
-          if (!object[headKey[index]]) {
-            headKey[index] === 'rowKey'
-              ? (object[headKey[index]] = rowKey)
-              : (object[headKey[index]] = value);
-          }
-          object.rowNum = range.rowStart + indexRow;
-          return object
-        }, {})
-      }
-    );
+    this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head);
     return this
   }
 
@@ -2395,22 +2302,7 @@ class Project {
       1,
       range
     );
-    const primaryKeyIndex = new Header().getPrimaryKeyIndex(this.head);
-    const headKey = Object.keys(this.head);
-    this.arrayOfObject = this.workSheetRange.rangeOffsetValues.map(
-      (rowArray, indexRow) => {
-        const rowKey = new Header().getPrimaryKey(primaryKeyIndex, rowArray);
-        return rowArray.reduce((object, value, index) => {
-          if (!object[headKey[index]]) {
-            headKey[index] === 'rowKey'
-              ? (object[headKey[index]] = rowKey)
-              : (object[headKey[index]] = value);
-          }
-          object.rowNum = range.rowStart + indexRow;
-          return object
-        }, {})
-      }
-    );
+    this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head);
     return this
   }
 
@@ -2438,6 +2330,10 @@ function getPreviousPrice() {
 }
 
 function updateOnEdit(editRange) {
+  try {
+  } catch (error) {}
+  SpreadsheetApp.getActive().toast('Start updating...', 'Update process');
+  const updateDate = new FormatDate();
   const range = editRange.range;
   const workSheet = range.getSheet();
   const sheetName = workSheet.getSheetName();
@@ -2463,6 +2359,11 @@ function updateOnEdit(editRange) {
   } else if (sheetKey === new Hash('Project').md5) {
     new Project().updateOnEdit(range);
   }
+  SpreadsheetApp.getActive().toast(
+    'Update time: ' + updateDate.getTimeDiff(),
+    'Update process',
+    2
+  );
 }
 
 function createInvoiceMenu() {

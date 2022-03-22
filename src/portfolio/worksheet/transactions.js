@@ -5,6 +5,7 @@ import { Contractors } from './contractors'
 import { Header } from '../../header'
 import { Registry } from './registry'
 import { Prices } from './prices'
+import { HistoricalPrices } from './historicalPrices'
 export { Transactions }
 
 class Transactions {
@@ -33,7 +34,7 @@ class Transactions {
       const senderType =
         contractors[new Hash(rowValues.sender).md5]?.type || 'none'
       const recipientType = contractors[new Hash(recipient).md5]?.type || 'none'
-      let coinQty, currencyQty, currencyPerCoin
+      let coinQty, currencyQty, currencyPerCoin, historyCoin
       if (
         ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !== -1
       ) {
@@ -59,6 +60,7 @@ class Transactions {
       } else if (['Buy'].indexOf(rowValues.operation) !== -1) {
         coinQty = rowValues.coinQty
         currencyQty = rowValues.currencyQty
+        historyCoin = rowValues.coin
         if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
           currencyQty = coinQty * rowValues.currencyPerCoin
         }
@@ -78,18 +80,17 @@ class Transactions {
             coin: rowValues.currency,
             quantity: currencyQty * -1,
           })
-        // const inPrice = (price * currencyQty) / coinQty
         transactionRow.push({
           account: accountRecipient,
           contractor: recipient,
           type: recipientType,
           coin: rowValues.coin,
-          pair: rowValues.currency,
           quantity: coinQty,
         })
       } else if (['Sell'].indexOf(rowValues.operation) !== -1) {
         let coinQty = rowValues.coinQty
         let currencyQty = rowValues.currencyQty
+        historyCoin = rowValues.coin
         if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
           currencyQty = coinQty * rowValues.currencyPerCoin
         }
@@ -117,12 +118,13 @@ class Transactions {
           quantity: currencyQty,
         })
       }
-      if (rowValues.currency) {
+      if (rowValues.currency && historyCoin) {
         const price = new Prices().getPrice(dateTime, rowValues.currency)
-        console.log('dateTime: ', dateTime)
-        console.log('currency: ', rowValues.currency)
-        console.log('currencyPerCoin: ', currencyPerCoin)
-        console.log('price: ', price * currencyPerCoin)
+        new HistoricalPrices().updateHistoricalPrice(
+          dateTime,
+          historyCoin,
+          price * currencyPerCoin
+        )
       }
       transactionRow.forEach((tx) => {
         this.transactions.push({
@@ -134,11 +136,7 @@ class Transactions {
           contractor: tx.contractor,
           type: tx.type,
           coin: tx.coin,
-          // pair: tx.pair,
-          // currencyPerCoin: tx.currencyPerCoin,
-          // price: tx.price,
           quantity: tx.quantity,
-          // cost: tx.cost,
           comment: rowValues.comment,
           actionKey: rowValues.rowKey,
         })
@@ -227,9 +225,11 @@ class Transactions {
 
   updateTransactionsOnEdit(range) {
     const registryOnEdit = new Registry().getRegistryOnEdit(range)
-    new Transactions()
-      .getTransactions(registryOnEdit)
-      .updateInsertTransactions()
+    if (registryOnEdit.length) {
+      new Transactions()
+        .getTransactions(registryOnEdit)
+        .updateInsertTransactions()
+    }
   }
 
   updateCustomPrice(lastHistoricalPrice = { date: '', price: 0 }) {

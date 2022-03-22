@@ -9,7 +9,7 @@ import { Sources } from './worksheet/sources'
 import { Prices } from './worksheet/prices'
 import { Coins } from './worksheet/coins'
 import { Project } from './worksheet/project'
-import { Hash } from '../utils'
+import { Hash, FormatDate } from '../utils'
 
 function updateTransactions() {
   const arrayOfObject = new Registry().getRegistry()
@@ -25,6 +25,10 @@ function getPreviousPrice() {
 }
 
 function updateOnEdit(editRange) {
+  try {
+  } catch (error) {}
+  SpreadsheetApp.getActive().toast('Start updating...', 'Update process')
+  const updateDate = new FormatDate()
   const range = editRange.range
   const workSheet = range.getSheet()
   const sheetName = workSheet.getSheetName()
@@ -50,6 +54,11 @@ function updateOnEdit(editRange) {
   } else if (sheetKey === new Hash('Project').md5) {
     new Project().updateOnEdit(range)
   }
+  SpreadsheetApp.getActive().toast(
+    'Update time: ' + updateDate.getTimeDiff(),
+    'Update process',
+    2
+  )
 }
 
 function createInvoiceMenu() {

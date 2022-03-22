@@ -175,21 +175,24 @@ class WorkSheet extends SpreadSheet {
   }
 
   getDimension(head) {
-    // const primeryKeyIndex = new Header().getPrimaryKeyIndex(head)
+    const firstRowNum = this.headerRowNum + 1
     const headKey = Object.keys(head)
-    return this.dataRange.getValues().reduce((arrayOfObject, rowValues) => {
-      const rowKey = rowValues[head.rowKey.idx]
-      // const key = new Header().getPrimaryKey(primeryKeyIndex, values)
-      if (!arrayOfObject[rowKey]) {
-        arrayOfObject[rowKey] = rowValues.reduce((object, value, index) => {
-          if (!object[headKey[index]]) {
-            object[headKey[index]] = value
-          }
-          return object
-        }, {})
-      }
-      return arrayOfObject
-    }, {})
+    return this.dataRange
+      .getValues()
+      .reduce((arrayOfObject, rowValues, rowIndex) => {
+        const rowNum = firstRowNum + rowIndex
+        const rowKey = rowValues[head.rowKey.idx]
+        if (!arrayOfObject[rowKey]) {
+          arrayOfObject[rowKey] = rowValues.reduce((object, value, index) => {
+            if (!object[headKey[index]]) {
+              object[headKey[index]] = value
+            }
+            object['rowNum'] = rowNum
+            return object
+          }, {})
+        }
+        return arrayOfObject
+      }, {})
   }
 
   insertRows(arrayOfObject = [], head = {}, firstRow = 1, firstColumn = 1) {
@@ -213,18 +216,13 @@ class WorkSheet extends SpreadSheet {
     return this
   }
 
-  updateRow(object = {}, head = {}, rowNum) {
-    const headOrder = Object.keys(head)
-    const array = [object].reduce((values, rowObject) => {
-      const rowArray = headOrder.map((value) => rowObject[value])
-      values.push(rowArray)
-      return values
-    }, [])
-    // if (rowNum !== this.headerRowNum) {
-    this.workSheet
-      .getRange(rowNum, 1, array.length, array[0].length)
-      .setValues(array)
-    // }
+  updateRow(object = {}, head = {}) {
+    if (object.rowNum !== this.headerRowNum) {
+      const array = [Object.keys(head).map((column) => object[column])]
+      this.workSheet
+        .getRange(object.rowNum, 1, array.length, array[0].length)
+        .setValues(array)
+    }
   }
 
   insertRow(object = {}, head = {}) {
@@ -293,6 +291,23 @@ class WorkSheetRange extends WorkSheet {
     this.columnNumArray = [...Array(this.countColumn).keys()].map(
       (m) => (m = m + this.range.columnStart)
     )
+  }
+
+  getArrayOfObject(head = {}) {
+    const headKey = Object.keys(head)
+    return this.rangeOffsetValues.map((rowArray, indexRow) => {
+      const object = rowArray.reduce((object, value, index) => {
+        if (!object[headKey[index]]) {
+          object[headKey[index]] = value
+        }
+        return object
+      }, {})
+      if (!object?.rowKey) {
+        object.rowKey = new Header().getPrimaryKey(this.head, object)
+      }
+      object.rowNum = this.range.rowStart + indexRow
+      return object
+    })
   }
 }
 
