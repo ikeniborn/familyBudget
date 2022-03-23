@@ -836,8 +836,8 @@ class Portfolio {
         // pair: { alias: 'Pair', idx: 9 },
         // currencyPerCoin: { alias: 'Currency per coin', idx: 10 },
         quantity: { alias: 'Quantity', idx: 9 },
-        // price: { alias: 'Price, $', idx: 11 },
-        // cost: { alias: 'Cost, $', idx: 12 },
+        price: { alias: 'Price, $', idx: 10 },
+        // cost: { alias: 'Cost, $', idx: 11 },
         comment: { alias: 'Comment', idx: 10 },
         actionKey: { alias: 'Action key', idx: 11 },
       },
@@ -860,7 +860,7 @@ class Portfolio {
       },
       historicalPrices: {
         rowKey: { alias: 'Row key', idx: 0 },
-        dateTime: { alias: 'Date and time', pk: true, idx: 1, type: 'date' },
+        account: { alias: 'Account', pk: true, idx: 1 },
         symbol: { alias: 'Coin', pk: true, idx: 2 },
         price: { alias: 'Price, $', idx: 3 },
       },
@@ -1728,72 +1728,6 @@ class Prices {
   }
 }
 
-class HistoricalPrices {
-  constructor() {
-    this.head = new Portfolio().head.historicalPrices;
-    this.spreadSheetName = new Portfolio().spreadSheetName;
-    this.sheetName = 'HistoricalPrices';
-    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
-    this.values = this.workSheet.getDimension(this.head);
-  }
-
-  getOnEdit(range) {
-    this.arrayOfObject = this.workSheetRange = new WorkSheetRange(
-      this.spreadSheetName,
-      this.sheetName,
-      1,
-      range
-    ).getArrayOfObject(this.head);
-    return this
-  }
-
-  updateInsert() {
-    this.arrayOfObject.forEach((object) => {
-      this.workSheet.updateRow(object, this.head, object.rowNum);
-    });
-  }
-
-  updateOnEdit(range) {
-    this.getOnEdit(range).updateInsert();
-  }
-
-  getPreviousPrice(date, coin, pair = 'usd') {
-    const histirocalPricesCoin = Object.values(this.values).filter(
-      (row) =>
-        new Hash(row.coin).md5 === new Hash(coin).md5 &&
-        new FormatDate(row.date).unix <= new FormatDate(date).unix
-    );
-    const lastDate = Math.max(
-      ...histirocalPricesCoin.map((row) => new Date(row.date).valueOf())
-    );
-    const lastHistoricalPriceKey = new Hash(
-      new Date(lastDate).valueOf() + coin + pair
-    ).md5;
-    return this.values[lastHistoricalPriceKey].price
-  }
-
-  updateHistoricalPrice(dateTime, symbol, price) {
-    const rowKey = new Hash(new Date(dateTime).valueOf + symbol).md5;
-    if (!this.values[rowKey]) {
-      this.values[rowKey] = {
-        rowKey,
-        dateTime,
-        symbol,
-        price,
-      };
-      this.workSheet.insertRow(this.values[rowKey], this.head);
-    } else {
-      this.values[rowKey].price = price;
-      console.log(this.values[rowKey]);
-      this.workSheet.updateRow(
-        this.values[rowKey],
-        this.head,
-        this.values[rowKey].rowNum
-      );
-    }
-  }
-}
-
 class Transactions {
   constructor() {
     this.head = new Portfolio().head.transactions;
@@ -1820,7 +1754,7 @@ class Transactions {
       const senderType =
         contractors[new Hash(rowValues.sender).md5]?.type || 'none';
       const recipientType = contractors[new Hash(recipient).md5]?.type || 'none';
-      let coinQty, currencyQty, currencyPerCoin, historyCoin;
+      let coinQty, currencyQty, currencyPerCoin, coin, coinPrice;
       if (
         ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !== -1
       ) {
@@ -1846,7 +1780,7 @@ class Transactions {
       } else if (['Buy'].indexOf(rowValues.operation) !== -1) {
         coinQty = rowValues.coinQty;
         currencyQty = rowValues.currencyQty;
-        historyCoin = rowValues.coin;
+        coin = rowValues.coin;
         if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
           currencyQty = coinQty * rowValues.currencyPerCoin;
         }
@@ -1876,7 +1810,7 @@ class Transactions {
       } else if (['Sell'].indexOf(rowValues.operation) !== -1) {
         let coinQty = rowValues.coinQty;
         let currencyQty = rowValues.currencyQty;
-        historyCoin = rowValues.coin;
+        coin = rowValues.coin;
         if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
           currencyQty = coinQty * rowValues.currencyPerCoin;
         }
@@ -1886,7 +1820,7 @@ class Transactions {
         if (rowValues.service === 'Liquidity pool') {
           coinQty /= 2;
         }
-(currencyPerCoin = coinQty / currencyQty),
+(currencyPerCoin = currencyQty / coinQty),
           transactionRow.push({
             account: rowValues.accountSender,
             contractor: rowValues.sender,
@@ -1904,13 +1838,10 @@ class Transactions {
           quantity: currencyQty,
         });
       }
-      if (rowValues.currency && historyCoin) {
-        const price = new Prices().getPrice(dateTime, rowValues.currency);
-        new HistoricalPrices().updateHistoricalPrice(
-          dateTime,
-          historyCoin,
-          price * currencyPerCoin
-        );
+      if (rowValues.currency && coin) {
+        coinPrice =
+          new Prices().getPrice(dateTime, rowValues.currency) * currencyPerCoin;
+        // new HistoricalPrices().updateHistoricalPrice(dateTime, coin, coinPrice)
       }
       transactionRow.forEach((tx) => {
         this.transactions.push({
@@ -1923,6 +1854,7 @@ class Transactions {
           type: tx.type,
           coin: tx.coin,
           quantity: tx.quantity,
+          price: tx.quantity > 0 && coinPrice ? coinPrice : void 0,
           comment: rowValues.comment,
           actionKey: rowValues.rowKey,
         });
@@ -1987,7 +1919,6 @@ class Transactions {
       if (oldRow) {
         row.rowKey = oldRow.rowKey;
         row.rowNum = oldRow.rowNum;
-        console.log('updateInsertTransactions: ', row);
         delete this.values[oldRow.rowKey];
         this.workSheet.updateRow(row, this.head);
       } else {
@@ -2165,6 +2096,116 @@ class Transactions {
   }
 }
 
+class HistoricalPrices {
+  constructor() {
+    this.head = new Portfolio().head.historicalPrices;
+    this.spreadSheetName = new Portfolio().spreadSheetName;
+    this.sheetName = 'HistoricalPrices';
+    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
+    this.values = this.workSheet.getDimension(this.head);
+  }
+
+  getOnEdit(range) {
+    this.arrayOfObject = this.workSheetRange = new WorkSheetRange(
+      this.spreadSheetName,
+      this.sheetName,
+      1,
+      range
+    ).getArrayOfObject(this.head);
+    return this
+  }
+
+  updateInsert() {
+    this.arrayOfObject.forEach((object) => {
+      this.workSheet.updateRow(object, this.head, object.rowNum);
+    });
+  }
+
+  updateOnEdit(range) {
+    this.getOnEdit(range).updateInsert();
+  }
+
+  getPreviousPrice(date, coin, pair = 'usd') {
+    const histirocalPricesCoin = Object.values(this.values).filter(
+      (row) =>
+        new Hash(row.coin).md5 === new Hash(coin).md5 &&
+        new FormatDate(row.date).unix <= new FormatDate(date).unix
+    );
+    const lastDate = Math.max(
+      ...histirocalPricesCoin.map((row) => new Date(row.date).valueOf())
+    );
+    const lastHistoricalPriceKey = new Hash(
+      new Date(lastDate).valueOf() + coin + pair
+    ).md5;
+    return this.values[lastHistoricalPriceKey].price
+  }
+
+  // updateHistoricalPrice(dateTime, symbol, price) {
+  //   const rowKey = new Hash(new Date(dateTime).valueOf() + symbol).md5
+  //   if (!this.values[rowKey]) {
+  //     this.values[rowKey] = {
+  //       rowKey,
+  //       dateTime,
+  //       symbol,
+  //       price,
+  //     }
+  //     this.workSheet.insertRow(this.values[rowKey], this.head)
+  //   } else {
+  //     this.values[rowKey].price = price
+  //     this.workSheet.updateRow(
+  //       this.values[rowKey],
+  //       this.head,
+  //       this.values[rowKey].rowNum
+  //     )
+  //   }
+  // }
+  updateHistoricalPrices() {
+    const transactions = Object.values(new Transactions().values).filter(
+      (row) => row.price
+    );
+    const aggHistoricalPrices = transactions.reduce((agg, row) => {
+      if (!agg[row.account]) {
+        agg[row.account] = {};
+      }
+      if (!agg[row.account][row.coin]) {
+        agg[row.account][row.coin] = {};
+        agg[row.account][row.coin]['quantity'] = 0;
+        agg[row.account][row.coin]['cost'] = 0;
+      }
+      agg[row.account][row.coin]['quantity'] += row.quantity;
+      agg[row.account][row.coin]['cost'] += row.quantity * row.price;
+      return agg
+    }, {});
+    // const avgHistoricalPrices = Object.fromEntries(
+    //   Object.entries(aggHistoricalPrices).map(([account, symbolValue]) => {
+    //     const updateSymbolValue = Object.fromEntries(
+    //       Object.entries(symbolValue).map(([symbol, values]) => {
+    //         values.price = values.cost / values.quantity
+    //         return [symbol, values]
+    //       })
+    //     )
+    //     return [account, updateSymbolValue]
+    //   })
+    // )
+    const avgHistoricalPricesArrayOfObject = [];
+    Object.entries(aggHistoricalPrices).forEach(([account, symbolValue]) => {
+      Object.entries(symbolValue).forEach(([symbol, values]) => {
+        values.price = values.cost / values.quantity;
+        avgHistoricalPricesArrayOfObject.push({
+          rowKey: new Hash(account + symbol).md5,
+          account,
+          symbol,
+          // quantity: values.quantity,
+          // cost: values.cost,
+          price: values.cost / values.quantity,
+        });
+      });
+    });
+    this.workSheet.insertRows(avgHistoricalPricesArrayOfObject, this.head);
+    // console.log(avgHistoricalPricesArrayOfObject)
+  }
+}
+
 class Operations {
   constructor() {
     this.head = new Portfolio().head.operations;
@@ -2319,6 +2360,10 @@ class Project {
 function updateTransactions() {
   const arrayOfObject = new Registry().getRegistry();
   new Transactions().getTransactions(arrayOfObject).truncateInsertTrasactions();
+}
+
+function updateHistoricalPrices() {
+  new HistoricalPrices().updateHistoricalPrices();
 }
 
 function updateCoins() {

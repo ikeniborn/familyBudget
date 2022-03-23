@@ -16,6 +16,10 @@ function updateTransactions() {
   new Transactions().getTransactions(arrayOfObject).truncateInsertTrasactions()
 }
 
+function updateHistoricalPrices() {
+  new HistoricalPrices().updateHistoricalPrices()
+}
+
 function updateCoins() {
   new Coins().updateCoins()
 }

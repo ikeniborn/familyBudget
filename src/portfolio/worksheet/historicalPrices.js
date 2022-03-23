@@ -2,6 +2,7 @@ import { WorkSheet, WorkSheetRange } from '../../gas'
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Header } from '../../header'
 import { Hash, FormatDate } from '../../utils'
+import { Transactions } from './transactions'
 export { HistoricalPrices }
 
 class HistoricalPrices {
@@ -48,24 +49,68 @@ class HistoricalPrices {
     return this.values[lastHistoricalPriceKey].price
   }
 
-  updateHistoricalPrice(dateTime, symbol, price) {
-    const rowKey = new Hash(new Date(dateTime).valueOf + symbol).md5
-    if (!this.values[rowKey]) {
-      this.values[rowKey] = {
-        rowKey,
-        dateTime,
-        symbol,
-        price,
+  // updateHistoricalPrice(dateTime, symbol, price) {
+  //   const rowKey = new Hash(new Date(dateTime).valueOf() + symbol).md5
+  //   if (!this.values[rowKey]) {
+  //     this.values[rowKey] = {
+  //       rowKey,
+  //       dateTime,
+  //       symbol,
+  //       price,
+  //     }
+  //     this.workSheet.insertRow(this.values[rowKey], this.head)
+  //   } else {
+  //     this.values[rowKey].price = price
+  //     this.workSheet.updateRow(
+  //       this.values[rowKey],
+  //       this.head,
+  //       this.values[rowKey].rowNum
+  //     )
+  //   }
+  // }
+  updateHistoricalPrices() {
+    const transactions = Object.values(new Transactions().values).filter(
+      (row) => row.price
+    )
+    const aggHistoricalPrices = transactions.reduce((agg, row) => {
+      if (!agg[row.account]) {
+        agg[row.account] = {}
       }
-      this.workSheet.insertRow(this.values[rowKey], this.head)
-    } else {
-      this.values[rowKey].price = price
-      console.log(this.values[rowKey])
-      this.workSheet.updateRow(
-        this.values[rowKey],
-        this.head,
-        this.values[rowKey].rowNum
-      )
-    }
+      if (!agg[row.account][row.coin]) {
+        agg[row.account][row.coin] = {}
+        agg[row.account][row.coin]['quantity'] = 0
+        agg[row.account][row.coin]['cost'] = 0
+      }
+      agg[row.account][row.coin]['quantity'] += row.quantity
+      agg[row.account][row.coin]['cost'] += row.quantity * row.price
+      return agg
+    }, {})
+    // const avgHistoricalPrices = Object.fromEntries(
+    //   Object.entries(aggHistoricalPrices).map(([account, symbolValue]) => {
+    //     const updateSymbolValue = Object.fromEntries(
+    //       Object.entries(symbolValue).map(([symbol, values]) => {
+    //         values.price = values.cost / values.quantity
+    //         return [symbol, values]
+    //       })
+    //     )
+    //     return [account, updateSymbolValue]
+    //   })
+    // )
+    const avgHistoricalPricesArrayOfObject = []
+    Object.entries(aggHistoricalPrices).forEach(([account, symbolValue]) => {
+      Object.entries(symbolValue).forEach(([symbol, values]) => {
+        values.price = values.cost / values.quantity
+        avgHistoricalPricesArrayOfObject.push({
+          rowKey: new Hash(account + symbol).md5,
+          account,
+          symbol,
+          // quantity: values.quantity,
+          // cost: values.cost,
+          price: values.cost / values.quantity,
+        })
+      })
+    })
+    this.workSheet.insertRows(avgHistoricalPricesArrayOfObject, this.head)
+    // console.log(avgHistoricalPricesArrayOfObject)
   }
 }

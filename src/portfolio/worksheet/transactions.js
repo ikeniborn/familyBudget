@@ -5,7 +5,7 @@ import { Contractors } from './contractors'
 import { Header } from '../../header'
 import { Registry } from './registry'
 import { Prices } from './prices'
-import { HistoricalPrices } from './historicalPrices'
+// import { HistoricalPrices } from './historicalPrices'
 export { Transactions }
 
 class Transactions {
@@ -34,7 +34,7 @@ class Transactions {
       const senderType =
         contractors[new Hash(rowValues.sender).md5]?.type || 'none'
       const recipientType = contractors[new Hash(recipient).md5]?.type || 'none'
-      let coinQty, currencyQty, currencyPerCoin, historyCoin
+      let coinQty, currencyQty, currencyPerCoin, coin, coinPrice
       if (
         ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !== -1
       ) {
@@ -60,7 +60,7 @@ class Transactions {
       } else if (['Buy'].indexOf(rowValues.operation) !== -1) {
         coinQty = rowValues.coinQty
         currencyQty = rowValues.currencyQty
-        historyCoin = rowValues.coin
+        coin = rowValues.coin
         if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
           currencyQty = coinQty * rowValues.currencyPerCoin
         }
@@ -88,9 +88,9 @@ class Transactions {
           quantity: coinQty,
         })
       } else if (['Sell'].indexOf(rowValues.operation) !== -1) {
-        let coinQty = rowValues.coinQty
-        let currencyQty = rowValues.currencyQty
-        historyCoin = rowValues.coin
+        coinQty = rowValues.coinQty
+        currencyQty = rowValues.currencyQty
+        coin = rowValues.coin
         if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
           currencyQty = coinQty * rowValues.currencyPerCoin
         }
@@ -100,7 +100,7 @@ class Transactions {
         if (rowValues.service === 'Liquidity pool') {
           coinQty /= 2
         }
-        ;(currencyPerCoin = coinQty / currencyQty),
+        ;(currencyPerCoin = currencyQty / coinQty),
           transactionRow.push({
             account: rowValues.accountSender,
             contractor: rowValues.sender,
@@ -118,13 +118,10 @@ class Transactions {
           quantity: currencyQty,
         })
       }
-      if (rowValues.currency && historyCoin) {
-        const price = new Prices().getPrice(dateTime, rowValues.currency)
-        new HistoricalPrices().updateHistoricalPrice(
-          dateTime,
-          historyCoin,
-          price * currencyPerCoin
-        )
+      if (rowValues.currency && coin) {
+        coinPrice =
+          new Prices().getPrice(dateTime, rowValues.currency) * currencyPerCoin
+        // new HistoricalPrices().updateHistoricalPrice(dateTime, coin, coinPrice)
       }
       transactionRow.forEach((tx) => {
         this.transactions.push({
@@ -137,6 +134,7 @@ class Transactions {
           type: tx.type,
           coin: tx.coin,
           quantity: tx.quantity,
+          price: tx.quantity > 0 && coinPrice ? coinPrice : void 0,
           comment: rowValues.comment,
           actionKey: rowValues.rowKey,
         })
@@ -201,7 +199,6 @@ class Transactions {
       if (oldRow) {
         row.rowKey = oldRow.rowKey
         row.rowNum = oldRow.rowNum
-        console.log('updateInsertTransactions: ', row)
         delete this.values[oldRow.rowKey]
         this.workSheet.updateRow(row, this.head)
       } else {
