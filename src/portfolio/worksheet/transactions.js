@@ -200,12 +200,12 @@ class Transactions {
       let rowNum
       if (oldRow) {
         row.rowKey = oldRow.rowKey
-        rowNum = oldRow.rowNum
+        row.rowNum = oldRow.rowNum
+        console.log('updateInsertTransactions: ', row)
         delete this.values[oldRow.rowKey]
-        this.workSheet.updateRow(row, this.head, oldRow.rowNum)
+        this.workSheet.updateRow(row, this.head)
       } else {
         rowNum = this.workSheet.lastRow + 1
-        console.log(rowNum)
         row.rowKey = new Hash(rowNum + this.workSheet.sheetName).md5
         this.workSheet.insertRow(row, this.head)
       }
