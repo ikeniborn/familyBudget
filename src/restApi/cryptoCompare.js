@@ -48,24 +48,34 @@ class Price {
   }
 
   getMultiPrice(fsyms = '', tsyms = 'USD') {
-    return this.methods.get({
-      endPoint: '/pricemulti',
-      query: {
-        fsyms: fsyms.toUpperCase(),
-        tsyms: tsyms.toUpperCase(),
-        relaxedValidation: true,
-      },
+    const upperTsyms = tsyms.toUpperCase()
+    return Object.entries(
+      this.methods.get({
+        endPoint: '/pricemulti',
+        query: {
+          fsyms: fsyms.toUpperCase(),
+          tsyms: tsyms.toUpperCase(),
+          relaxedValidation: true,
+        },
+      })
+    ).map(([symbol, tsymsValue]) => {
+      return { symbol: symbol, price: tsymsValue[upperTsyms] }
     })
   }
 
   getMultiFullPrice(fsyms = '', tsyms = 'USD') {
-    return this.methods.get({
-      endPoint: '/pricemultifull',
-      query: {
-        fsyms: fsyms.toUpperCase(),
-        tsyms: tsyms.toUpperCase(),
-        relaxedValidation: true,
-      },
+    const upperTsyms = tsyms.toUpperCase()
+    return Object.entries(
+      this.methods.get({
+        endPoint: '/pricemultifull',
+        query: {
+          fsyms: fsyms.toUpperCase(),
+          tsyms: tsyms.toUpperCase(),
+          relaxedValidation: true,
+        },
+      })
+    ).map(([symbol, tsymsValue]) => {
+      return [symbol, tsymsValue[upperTsyms]]
     })
   }
 

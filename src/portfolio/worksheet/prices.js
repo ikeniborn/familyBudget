@@ -1,8 +1,8 @@
 import { WorkSheet, WorkSheetRange } from '../../gas'
 import { Portfolio } from '../spreadsheet/portfolio'
-import { Header } from '../../header'
 import { Coins } from './coins'
-import { Hash, FormatDate, FormatNumber } from '../../utils'
+import { Header } from '../../header'
+import { Hash, FormatDate } from '../../utils'
 import * as cryptoRank from '../../restApi/cryptoRank'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
 import * as coinMarketCap from '../../restApi/coinMarketCap'
@@ -16,10 +16,10 @@ class Prices {
     this.sheetName = 'Prices'
     this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName)
     this.values = this.workSheet.getDimension(this.head)
-    this.coins = new Coins().values
   }
 
   getOnEdit(range) {
+    const coins = new Coins().values
     this.workSheetRange = new WorkSheetRange(
       this.spreadSheetName,
       this.sheetName,
@@ -27,8 +27,9 @@ class Prices {
       range
     )
     this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head)
+    console.log(this.arrayOfObject)
     this.arrayOfObject.map((object) => {
-      const coin = Object.values(this.coins).filter((row) => {
+      const coin = Object.values(coins).filter((row) => {
         return (
           new RegExp(object.name.toString().toLowerCase(), 'g').test(
             row.name.toString().toLowerCase()
@@ -38,14 +39,17 @@ class Prices {
         )
       })[0]
       object.id = coin?.id || void 0
-      return rowObject
+      object.isNotNull = new Header().isNotNull(this.head, object)
+      return object
     })
     return this
   }
 
   updateInsert() {
     this.arrayOfObject.forEach((object) => {
-      this.workSheet.updateRow(object, this.head, object.rowNum)
+      // if (object.isNotNull) {
+      this.workSheet.updateRow(object, this.head)
+      // }
     })
   }
 
@@ -97,5 +101,78 @@ class Prices {
     } else {
       return 1
     }
+  }
+
+  getLastPrices() {
+    const listId = Object.fromEntries(
+      Object.entries(
+        Object.values(this.values).reduce((list, object) => {
+          if (!list[object.source]) {
+            list[object.source] = []
+          }
+          if (object.id) {
+            list[object.source].push(object.id)
+          }
+          return list
+        }, {})
+      ).map(([source, idArray]) => [source, idArray.join(',')])
+    )
+    const updatePrice = (symbol, price, rank = '') => {
+      const coin = this.values[new Hash(symbol).md5]
+      if (price) {
+        coin.price = price
+      }
+      if (
+        ['stablecoin', 'fiat']
+          .map((value) => new Hash(value).md5)
+          .indexOf(new Hash(coin.risk).md5) === -1
+      ) {
+        if (!rank) {
+          coin.risk = 'High'
+        } else if (rank < 100) {
+          coin.risk = 'Low'
+        } else if (rank < 1000) {
+          coin.risk = 'Middle'
+        } else if (rank > 1000) {
+          coin.risk = 'High'
+        }
+      }
+    }
+    const getCurrentPrice = () => {
+      return new Promise((resolve) => {
+        if (listId.cryptorank) {
+          new cryptoRank.Price()
+            .getLastPrice(listId.cryptorank)
+            .forEach((coin) => {
+              updatePrice(coin.symbol, coin.values.USD.price, coin.rank)
+            })
+        }
+        if (listId.coingecko) {
+          new coinGecko.Price()
+            .getMarketsPrice(listId.coingecko)
+            .forEach((coin) => {
+              updatePrice(coin.symbol, coin.current_price, coin.market_cap_rank)
+            })
+        }
+        if (listId.coinmarketcap) {
+          Object.values(
+            new coinMarketCap.Price().getLastPrice(listId.coinmarketcap)
+          ).forEach((coin) => {
+            updatePrice(coin.symbol, coin.quote.USD.price, coin.cmc_rank)
+          })
+        }
+        if (listId.cryptocompare) {
+          new cryptoCompare.Price()
+            .getMultiPrice(listId.cryptocompare)
+            .forEach((coin) => {
+              updatePrice(coin.symbol, coin.price, 100)
+            })
+        }
+        resolve()
+      })
+    }
+    getCurrentPrice().then(() => {
+      this.workSheet.insertRows(Object.values(this.values), this.head)
+    })
   }
 }

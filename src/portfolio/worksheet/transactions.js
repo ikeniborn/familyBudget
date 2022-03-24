@@ -5,7 +5,7 @@ import { Contractors } from './contractors'
 import { Header } from '../../header'
 import { Registry } from './registry'
 import { Prices } from './prices'
-// import { HistoricalPrices } from './historicalPrices'
+import { HistoricalPrices } from './historicalPrices'
 export { Transactions }
 
 class Transactions {
@@ -19,8 +19,10 @@ class Transactions {
 
   getTransactions(arrayOfObject = []) {
     this.transactions = []
+    const prices = new Prices()
+    const historicalPrices = new HistoricalPrices().values
     const contractors = new Contractors().values
-    arrayOfObject.forEach((rowValues) => {
+    arrayOfObject.forEach((rowValues, indexTx) => {
       const transactionRow = []
       const hhmm = new FormatNumber(rowValues.time).getHourAndMinuteFromNumber()
       const dateTime = new FormatDate(rowValues.date).addTime(hhmm.h, hhmm.m)
@@ -34,7 +36,7 @@ class Transactions {
       const senderType =
         contractors[new Hash(rowValues.sender).md5]?.type || 'none'
       const recipientType = contractors[new Hash(recipient).md5]?.type || 'none'
-      let coinQty, currencyQty, currencyPerCoin, coin, coinPrice
+      let coinQty, currencyQty, currencyPerCoin, coinSymbol, coinPrice
       if (
         ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !== -1
       ) {
@@ -60,7 +62,7 @@ class Transactions {
       } else if (['Buy'].indexOf(rowValues.operation) !== -1) {
         coinQty = rowValues.coinQty
         currencyQty = rowValues.currencyQty
-        coin = rowValues.coin
+        coinSymbol = rowValues.coin
         if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
           currencyQty = coinQty * rowValues.currencyPerCoin
         }
@@ -70,16 +72,18 @@ class Transactions {
         if (rowValues.service === 'Liquidity pool') {
           coinQty /= 2
         }
-        ;(currencyPerCoin = rowValues.currencyPerCoin
-          ? rowValues.currencyPerCoin
-          : currencyQty / coinQty),
-          transactionRow.push({
-            account: rowValues.accountSender,
-            contractor: rowValues.sender,
-            type: senderType,
-            coin: rowValues.currency,
-            quantity: currencyQty * -1,
-          })
+        if (rowValues.currencyPerCoin) {
+          currencyPerCoin = rowValues.currencyPerCoin
+        } else {
+          currencyPerCoin = currencyQty / coinQty
+        }
+        transactionRow.push({
+          account: rowValues.accountSender,
+          contractor: rowValues.sender,
+          type: senderType,
+          coin: rowValues.currency,
+          quantity: currencyQty * -1,
+        })
         transactionRow.push({
           account: accountRecipient,
           contractor: recipient,
@@ -90,7 +94,7 @@ class Transactions {
       } else if (['Sell'].indexOf(rowValues.operation) !== -1) {
         coinQty = rowValues.coinQty
         currencyQty = rowValues.currencyQty
-        coin = rowValues.coin
+        coinSymbol = rowValues.coin
         if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
           currencyQty = coinQty * rowValues.currencyPerCoin
         }
@@ -100,28 +104,29 @@ class Transactions {
         if (rowValues.service === 'Liquidity pool') {
           coinQty /= 2
         }
-        ;(currencyPerCoin = currencyQty / coinQty),
-          transactionRow.push({
-            account: rowValues.accountSender,
-            contractor: rowValues.sender,
-            type: senderType,
-            coin: rowValues.coin,
-            pair: rowValues.currency,
-            quantity: coinQty * -1,
-          })
+        if (!rowValues.currencyPerCoin) {
+          currencyPerCoin = currencyQty / coinQty
+        } else {
+          currencyPerCoin = rowValues.currencyPerCoin
+        }
+        transactionRow.push({
+          account: rowValues.accountSender,
+          contractor: rowValues.sender,
+          type: senderType,
+          coin: rowValues.coin,
+          quantity: coinQty * -1,
+        })
         transactionRow.push({
           account: accountRecipient,
           contractor: recipient,
           type: recipientType,
           coin: rowValues.currency,
-          pair: rowValues.coin,
           quantity: currencyQty,
         })
       }
-      if (rowValues.currency && coin) {
+      if (rowValues.currency && coinSymbol) {
         coinPrice =
-          new Prices().getPrice(dateTime, rowValues.currency) * currencyPerCoin
-        // new HistoricalPrices().updateHistoricalPrice(dateTime, coin, coinPrice)
+          prices.getPrice(dateTime, rowValues.currency) * currencyPerCoin
       }
       transactionRow.forEach((tx) => {
         this.transactions.push({
@@ -134,63 +139,21 @@ class Transactions {
           type: tx.type,
           coin: tx.coin,
           quantity: tx.quantity,
-          price: tx.quantity > 0 && coinPrice ? coinPrice : void 0,
+          price:
+            tx.coin === coinSymbol
+              ? coinPrice
+                ? coinPrice
+                : historicalPrices[new Hash(tx.account + coinSymbol)]?.price
+              : void 0,
           comment: rowValues.comment,
           actionKey: rowValues.rowKey,
         })
       })
     })
-
-    // const arrayOfObject = transaction.map((row, index) => {
-    //   const rowNum = index + 1
-    //   const rowKey = new Hash(rowNum + 'transactions').md5
-    //   row.rowKey = rowKey
-    //   return row
-    // })
-
-    // const historicalCoinPriceArray = Object.values(historicalCoinPrice)
-    //   .map((m) => (m = Object.values(m)))
-    //   .sort((a, b) => {
-    //     return (
-    //       new Date(a[this.head.historicalPrice.date.idx]).valueOf() -
-    //       new Date(b[this.head.historicalPrice.date.idx]).valueOf()
-    //     )
-    //   })
-
-    // const lastCoinPrice = historicalCoinPriceArray.reduce((target, source) => {
-    //   const row = {
-    //     date: new FormatDate(
-    //       source[this.head.historicalPrice.date.idx]
-    //     ).getFormatDate('yyyy-MM-dd'),
-    //     coinKey: new Hash(source[this.head.historicalPrice.symbol.idx])
-    //       .md5,
-    //     price: source[this.head.historicalPrice.price.idx],
-    //   }
-    //   if (!target[row.coinKey]) {
-    //     target[row.coinKey] = { date: row.date, price: row.price }
-    //   }
-    //   if (
-    //     new Date(target[row.coinKey].date).valueOf() <
-    //       new Date(row.date).valueOf() &&
-    //     row.price
-    //   ) {
-    //     target[row.coinKey] = { date: row.date, price: row.price }
-    //   }
-    //   return target
-    // }, {})
-    // this.updateCustomPrice(lastCoinPrice)
-    // this.updateBalance(transaction, lastCoinPrice, historicalCoinPrice)
-    // this.workSheet.portfolio.historicalPrice.insertValues(
-    // historicalCoinPriceArray,
-    // this.head.getHeaderAlias(this.head.historicalPrice)
-    // )
-
-    // this.workSheet.insertValues(arrayOfObject, this.head)
     return this
   }
 
   updateInsertTransactions() {
-    // console.log(transactions)
     this.transactions.forEach((row) => {
       const oldRow = Object.values(this.values).filter(
         (oldRow) => oldRow.actionKey === row.actionKey
@@ -216,7 +179,6 @@ class Transactions {
       row.rowKey = new Hash(rowNum + this.workSheet.sheetName).md5
       return row
     })
-    // console.log(rows)
     this.workSheet.insertRows(rows, this.head)
   }
 
@@ -227,151 +189,5 @@ class Transactions {
         .getTransactions(registryOnEdit)
         .updateInsertTransactions()
     }
-  }
-
-  updateCustomPrice(lastHistoricalPrice = { date: '', price: 0 }) {
-    const updatedCustomPrice = this.workSheet.portfolio.price.dataValues.map(
-      (row) => {
-        const lastCoinData =
-          lastHistoricalPrice[new Hash(row[this.head.price.symbol.idx]).md5]
-        if (
-          (!row[this.head.price.price.idx] ||
-            new Date(row[this.head.price.lastUpdated.idx]).valueOf() <
-              new Date(lastCoinData.date).valueOf()) &&
-          !row[this.head.price.source.idx]
-        ) {
-          row[this.head.price.price.idx] = lastCoinData?.price || 0
-          row[this.head.price.lastUpdated.idx] =
-            lastCoinData?.date || new Date()
-        }
-        return row
-      }
-    )
-    this.workSheet.portfolio.price.insertValues(
-      updatedCustomPrice,
-      this.head.getHeaderAlias(this.head.price)
-    )
-  }
-
-  updateBalance(
-    transaction = [],
-    lastCoinPrice = {},
-    historicalCoinPrice = {}
-  ) {
-    const aggregationValues = transaction.reduce((target, source) => {
-      const row = {
-        date: new FormatDate(
-          source[this.head.transaction.date.idx]
-        ).getFormatDate('yyyy-MM-dd'),
-        account: source[this.head.transaction.account.idx].toUpperCase(),
-        contractors: source[
-          this.head.transaction.contractors.idx
-        ].toUpperCase(),
-        type: source[this.head.transaction.type.idx].toUpperCase(),
-        coin: source[this.head.transaction.coin.idx],
-        quantity: source[this.head.transaction.quantity.idx],
-      }
-
-      if (!target['balance']) {
-        target['balance'] = {}
-      }
-      if (!target['balance'][row.date]) {
-        target['balance'][row.date] = {}
-      }
-      if (!target['balance'][row.date][row.account]) {
-        target['balance'][row.date][row.account] = {}
-      }
-      if (!target['balance'][row.date][row.account][row.contractors]) {
-        target['balance'][row.date][row.account][row.contractors] = {}
-      }
-      if (
-        !target['balance'][row.date][row.account][row.contractors][row.type]
-      ) {
-        target['balance'][row.date][row.account][row.contractors][row.type] = {}
-      }
-      if (
-        !target['balance'][row.date][row.account][row.contractors][row.type][
-          row.coin
-        ]
-      ) {
-        target['balance'][row.date][row.account][row.contractors][row.type][
-          row.coin
-        ] = 0
-      }
-      target['balance'][row.date][row.account][row.contractors][row.type][
-        row.coin
-      ] += row.quantity
-
-      if (!target['allocation']) {
-        target['allocation'] = {}
-      }
-      if (!target['allocation'][row.account]) {
-        target['allocation'][row.account] = {}
-      }
-      if (!target['allocation'][row.account][row.type]) {
-        target['allocation'][row.account][row.type] = {}
-      }
-      if (!target['allocation'][row.account][row.type][row.coin]) {
-        target['allocation'][row.account][row.type][row.coin] = 0
-      }
-      target['allocation'][row.account][row.type][row.coin] += row.quantity
-
-      return target
-    }, {})
-
-    const balance = []
-    Object.entries(aggregationValues.balance).forEach(([date, level0]) => {
-      const yyyymmdd = new FormatDate(date).yyyymmdd
-      Object.entries(level0).forEach(([account, level1]) => {
-        Object.entries(level1).forEach(([contractors, level2]) => {
-          Object.entries(level2).forEach(([type, level3]) => {
-            Object.entries(level3).forEach(([coin, quantity]) => {
-              const currentPrice = lastCoinPrice[new Hash(coin).md5]?.price
-              const historicalPrice =
-                historicalCoinPrice[new Hash(yyyymmdd + coin + 'usd').md5]
-                  ?.price
-              const currentCost = quantity * currentPrice
-              const historicalCost = quantity * historicalPrice
-              balance.push([
-                date,
-                account,
-                contractors,
-                type,
-                coin.toUpperCase(),
-                quantity,
-                historicalCost,
-                currentCost,
-              ])
-            })
-          })
-        })
-      })
-    })
-
-    const allocation = []
-    Object.entries(aggregationValues.allocation).forEach(([account, type]) => {
-      Object.entries(type).forEach(([type, coin]) => {
-        Object.entries(coin).forEach(([coin, quantity]) => {
-          const currentPrice = lastCoinPrice[new Hash(coin).md5]?.price
-          const currentCost = quantity * currentPrice
-          allocation.push([
-            account,
-            type,
-            coin.toUpperCase(),
-            quantity,
-            currentCost,
-          ])
-        })
-      })
-    })
-
-    this.workSheet.portfolio.balance.insertValues(
-      balance,
-      this.head.getHeaderAlias(this.head.balance)
-    )
-    this.workSheet.portfolio.allocation.insertValues(
-      allocation,
-      this.head.getHeaderAlias(this.head.allocation)
-    )
   }
 }

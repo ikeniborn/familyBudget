@@ -9,11 +9,16 @@ import { Sources } from './worksheet/sources'
 import { Prices } from './worksheet/prices'
 import { Coins } from './worksheet/coins'
 import { Project } from './worksheet/project'
+import { Balance } from './worksheet/balance'
 import { Hash, FormatDate } from '../utils'
 
 function updateTransactions() {
   const arrayOfObject = new Registry().getRegistry()
   new Transactions().getTransactions(arrayOfObject).truncateInsertTrasactions()
+}
+
+function getLastPrices() {
+  new Prices().getLastPrices()
 }
 
 function updateHistoricalPrices() {
@@ -24,8 +29,8 @@ function updateCoins() {
   new Coins().updateCoins()
 }
 
-function getPreviousPrice() {
-  new HistoricalPrices().getPreviousPrice(new Date(), 'mana')
+function updateBalance() {
+  new Balance().updateBalance()
 }
 
 function updateOnEdit(editRange) {

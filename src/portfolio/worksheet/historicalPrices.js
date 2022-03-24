@@ -81,8 +81,9 @@ class HistoricalPrices {
         agg[row.account][row.coin]['quantity'] = 0
         agg[row.account][row.coin]['cost'] = 0
       }
-      agg[row.account][row.coin]['quantity'] += row.quantity
-      agg[row.account][row.coin]['cost'] += row.quantity * row.price
+      const quantity = row.quantity < 0 ? Math.abs(row.quantity) : row.quantity
+      agg[row.account][row.coin]['quantity'] += quantity
+      agg[row.account][row.coin]['cost'] += quantity * row.price
       return agg
     }, {})
     // const avgHistoricalPrices = Object.fromEntries(
@@ -111,6 +112,6 @@ class HistoricalPrices {
       })
     })
     this.workSheet.insertRows(avgHistoricalPricesArrayOfObject, this.head)
-    // console.log(avgHistoricalPricesArrayOfObject)
+    console.log(avgHistoricalPricesArrayOfObject)
   }
 }

@@ -211,7 +211,7 @@ class WorkSheet extends SpreadSheet {
         .clear()
         .getRange(firstRow, firstColumn, array.length, array[0].length)
         .setValues(array)
-      this.deleteEmptyRows().deleteEmptyColumns()
+      // this.deleteEmptyRows().deleteEmptyColumns()
     }
     return this
   }
@@ -302,9 +302,7 @@ class WorkSheetRange extends WorkSheet {
         }
         return object
       }, {})
-      if (!object?.rowKey) {
-        object.rowKey = new Header().getPrimaryKey(this.head, object)
-      }
+      object.rowKey = new Header().getPrimaryKey(head, object)
       object.rowNum = this.range.rowStart + indexRow
       return object
     })
