@@ -7,6 +7,7 @@ import * as cryptoRank from '../../restApi/cryptoRank'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
 import * as coinMarketCap from '../../restApi/coinMarketCap'
 import * as coinGecko from '../../restApi/coinGecko'
+import { HistoricalPrices } from './historicalPrices'
 export { Prices }
 
 class Prices {
@@ -27,8 +28,7 @@ class Prices {
       range
     )
     this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head)
-    console.log(this.arrayOfObject)
-    this.arrayOfObject.map((object) => {
+    this.arrayOfObject = this.arrayOfObject.map((object) => {
       const coin = Object.values(coins).filter((row) => {
         return (
           new RegExp(object.name.toString().toLowerCase(), 'g').test(
@@ -61,7 +61,7 @@ class Prices {
     this.getOnEdit(range).updateInsert()
   }
 
-  getPrice(date, symbol, convert = 'usd') {
+  getHistoricalPrice(account, date, symbol, convert = 'usd') {
     const coinRow = this.values[new Hash(symbol).md5]
     const source = coinRow.source
     const id = coinRow.id
@@ -98,8 +98,21 @@ class Prices {
           }, 0)
         }
       } else {
+        let historicalPrice
         if (new Hash(source).md5 === new Hash('cryptocompare').md5) {
-          return new cryptoCompare.Price().getHistoryPrice(id, date, convert)
+          historicalPrice = new cryptoCompare.Price().getHistoryPrice(
+            id,
+            date,
+            convert
+          )
+        }
+        if (historicalPrice) {
+          return historicalPrice
+        } else {
+          const histirocalPrices = new HistoricalPrices().values
+          return (
+            histirocalPrices[new Hash(account + symbol).md5]?.price || void 0
+          )
         }
       }
     } else {
@@ -116,6 +129,8 @@ class Prices {
           }
           if (object.id) {
             list[object.source].push(object.id)
+          } else {
+            list[object.source].push(object.symbol)
           }
           return list
         }, {})
@@ -170,6 +185,20 @@ class Prices {
             .getMultiPrice(listId.cryptocompare)
             .forEach((coin) => {
               updatePrice(coin.symbol, coin.price, 100)
+            })
+        }
+        if (listId.custom) {
+          const histirocalPrices = new HistoricalPrices().values
+          Object.values(this.values)
+            .filter((row) => {
+              return new Hash(row.source).md5 === new Hash('custom').md5
+            })
+            .forEach((object) => {
+              const histirocalPricesKey = new Hash('ikeniborn' + object.symbol)
+                .md5
+              const histirocalPrice =
+                histirocalPrices[histirocalPricesKey]?.price || void 0
+              this.values[object.rowKey].price = histirocalPrice
             })
         }
         resolve()

@@ -66,18 +66,25 @@ class Balance {
           Object.entries(level2).forEach(([coin, quantity]) => {
             if (quantity) {
               const currentCost = quantity * prices[new Hash(coin).md5]?.price
-              const historicalCost =
+              const historicalCostBuy =
+                quantity *
+                  historicalPrices[new Hash(account + coin).md5]?.priceBuy || 0
+              const historicalCostAvg =
                 quantity *
                   historicalPrices[new Hash(account + coin).md5]?.price || 0
+              const risk = prices[new Hash(coin).md5]?.risk
               balance.push({
-                account,
-                contractor,
-                contractorType: contractors[new Hash(contractor).md5].type,
-                project,
+                account: account.toUpperCase(),
+                contractor: contractor.toUpperCase(),
+                contractorType: contractors[
+                  new Hash(contractor).md5
+                ].type.toUpperCase(),
+                project: project.toUpperCase(),
                 coin: coin.toUpperCase(),
-                risk: prices[new Hash(coin).md5]?.risk,
+                risk: risk.toUpperCase(),
                 quantity,
-                historicalCost,
+                historicalCostBuy,
+                historicalCostAvg,
                 currentCost,
               })
             }

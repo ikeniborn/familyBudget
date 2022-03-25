@@ -41,10 +41,6 @@ function updateOnEdit(editRange) {
     const sheetKey = new Hash(sheetName).md5
     if (sheetKey === new Hash('Registry').md5) {
       new Transactions().updateTransactionsOnEdit(range)
-      SpreadsheetApp.flush()
-      new HistoricalPrices().updateHistoricalPrices()
-      SpreadsheetApp.flush()
-      new Balance().updateBalance()
     } else if (sheetKey === new Hash('Contractors').md5) {
       new Contractors().updateOnEdit(range)
     } else if (sheetKey === new Hash('HistoricalPrices').md5) {
@@ -79,10 +75,10 @@ function createInvoiceMenu() {
   menu.addSubMenu(
     SpreadsheetApp.getUi()
       .createMenu('Update')
-      .addItem('Update prices', 'updatePrices')
-      .addItem('Update historical prices', 'updateHistoricalPrices')
       .addItem('Update transactions', 'updateTransactions')
+      .addItem('Update historical prices', 'updateHistoricalPrices')
       .addItem('Update balance', 'updateBalance')
+      .addItem('Update prices', 'updatePrices')
       .addItem('Update coins', 'updateCoins')
   )
   menu.addToUi()

@@ -4,7 +4,6 @@ import { Portfolio } from '../spreadsheet/portfolio'
 import { Header } from '../../header'
 import { Registry } from './registry'
 import { Prices } from './prices'
-import { HistoricalPrices } from './historicalPrices'
 export { Transactions }
 
 class Transactions {
@@ -19,8 +18,9 @@ class Transactions {
   getTransactions(arrayOfObject = []) {
     this.transactions = []
     const prices = new Prices()
-    const historicalPrices = new HistoricalPrices().values
     arrayOfObject.forEach((rowValues, indexTx) => {
+      const startDate = new FormatDate()
+      let coinQty, currencyQty, currencyPerCoin, coinSymbol, coinPrice, project
       const transactionRow = []
       const hhmm = new FormatNumber(rowValues.time).getHourAndMinuteFromNumber()
       const dateTime = new FormatDate(rowValues.date).addTime(hhmm.h, hhmm.m)
@@ -32,7 +32,7 @@ class Transactions {
         ? rowValues.recipient
         : rowValues.sender
 
-      let coinQty, currencyQty, currencyPerCoin, coinSymbol, coinPrice
+      project = rowValues.project ? rowValues.project : 'No project'
       if (
         ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !== -1
       ) {
@@ -41,6 +41,7 @@ class Transactions {
             dateTime: dateTime,
             account: rowValues.accountSender,
             contractor: rowValues.sender,
+            project: 'No project',
             coin: rowValues.coin,
             quantity: rowValues.coinQty * -1,
           })
@@ -49,6 +50,7 @@ class Transactions {
           transactionRow.push({
             account: accountRecipient,
             contractor: recipient,
+            project: 'No project',
             coin: rowValues.coin,
             quantity: rowValues.coinQty,
           })
@@ -74,12 +76,14 @@ class Transactions {
         transactionRow.push({
           account: rowValues.accountSender,
           contractor: rowValues.sender,
+          project: 'No project',
           coin: rowValues.currency,
           quantity: currencyQty * -1,
         })
         transactionRow.push({
           account: accountRecipient,
           contractor: recipient,
+          project: project,
           coin: rowValues.coin,
           quantity: coinQty,
         })
@@ -104,40 +108,42 @@ class Transactions {
         transactionRow.push({
           account: rowValues.accountSender,
           contractor: rowValues.sender,
+          project: project,
           coin: rowValues.coin,
           quantity: coinQty * -1,
         })
         transactionRow.push({
           account: accountRecipient,
           contractor: recipient,
+          project: 'No project',
           coin: rowValues.currency,
           quantity: currencyQty,
         })
       }
       if (rowValues.currency && coinSymbol) {
         coinPrice =
-          prices.getPrice(dateTime, rowValues.currency) * currencyPerCoin
+          prices.getHistoricalPrice(
+            rowValues.accountSender,
+            dateTime,
+            rowValues.currency
+          ) * currencyPerCoin || void 0
       }
       transactionRow.forEach((tx) => {
         this.transactions.push({
           dateTime: dateTime,
-          account: tx.account,
-          platform: rowValues.platform,
-          service: rowValues.service,
-          project: rowValues.project,
-          contractor: tx.contractor,
-          coin: tx.coin,
+          account: tx.account.toLowerCase(),
+          platform: rowValues.platform.toLowerCase(),
+          service: rowValues.service.toLowerCase(),
+          project: tx.project.toLowerCase(),
+          contractor: tx.contractor.toLowerCase(),
+          coin: tx.coin.toLowerCase(),
           quantity: tx.quantity,
-          price:
-            tx.coin === coinSymbol
-              ? coinPrice
-                ? coinPrice
-                : historicalPrices[new Hash(tx.account + coinSymbol)]?.price
-              : void 0,
-          comment: rowValues.comment,
+          price: tx.coin === coinSymbol ? coinPrice : void 0,
+          comment: rowValues.comment.toLowerCase(),
           actionKey: rowValues.rowKey,
         })
       })
+      console.log('Time for ' + indexTx + ': ' + startDate.getTimeDiff())
     })
     return this
   }
