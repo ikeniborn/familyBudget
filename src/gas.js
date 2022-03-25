@@ -206,12 +206,29 @@ class WorkSheet extends SpreadSheet {
       [new Header().getHeaderAlias(head)]
     )
     if (array.length) {
-      this.deleteFilter()
-      this.workSheet
-        .clear()
-        .getRange(firstRow, firstColumn, array.length, array[0].length)
-        .setValues(array)
+      const insertRowsPromise = async () => {
+        return new Promise((resolve) => {
+          this.deleteFilter()
+          resolve()
+        }).then(async () => {
+          return new Promise((resolve) => {
+            this.workSheet
+              .clear()
+              .getRange(firstRow, firstColumn, array.length, array[0].length)
+              .setValues(array)
+            resolve()
+          }).then(() => {
+            this.deleteEmptyRows().deleteEmptyColumns()
+          })
+        })
+      }
+      // this.deleteFilter()
+      // this.workSheet
+      //   .clear()
+      //   .getRange(firstRow, firstColumn, array.length, array[0].length)
+      //   .setValues(array)
       // this.deleteEmptyRows().deleteEmptyColumns()
+      insertRowsPromise()
     }
     return this
   }
@@ -219,6 +236,23 @@ class WorkSheet extends SpreadSheet {
   updateRow(object = {}, head = {}) {
     if (object.rowNum !== this.headerRowNum) {
       const array = [Object.keys(head).map((column) => object[column])]
+      // const updateRowPromise = async (object) => {
+      //   return new Promise((resolve) => {
+      //     this.deleteFilter()
+      //     resolve(object)
+      //   }).then(async (object) => {
+      //     return new Promise((resolve) => {
+      //       this.workSheet
+      //         .clear()
+      //         .getRange(object.rowNum, 1, array.length, array[0].length)
+      //         .setValues(array)
+      //       resolve()
+      //     }).then(() => {
+      //       this.deleteEmptyRows().deleteEmptyColumns()
+      //     })
+      //   })
+      // }
+      // updateRowPromise()
       this.workSheet
         .getRange(object.rowNum, 1, array.length, array[0].length)
         .setValues(array)

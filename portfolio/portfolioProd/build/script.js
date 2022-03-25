@@ -280,6 +280,12 @@ class Header {
     ).md5
   }
 
+  isChangePrimaryKey(head, rowValues = {}) {
+    return Object.keys(head)
+      .filter((column) => head[column].pk)
+      .some((column) => (rowValues[column] ? true : false))
+  }
+
   isNotNull(head, rowValues = {}) {
     return Object.keys(head)
       .filter((column) => head[column].notNull)
@@ -483,12 +489,29 @@ class WorkSheet extends SpreadSheet {
       [new Header().getHeaderAlias(head)]
     );
     if (array.length) {
-      this.deleteFilter();
-      this.workSheet
-        .clear()
-        .getRange(firstRow, firstColumn, array.length, array[0].length)
-        .setValues(array);
+      const insertRowsPromise = async () => {
+        return new Promise((resolve) => {
+          this.deleteFilter();
+          resolve();
+        }).then(async () => {
+          return new Promise((resolve) => {
+            this.workSheet
+              .clear()
+              .getRange(firstRow, firstColumn, array.length, array[0].length)
+              .setValues(array);
+            resolve();
+          }).then(() => {
+            this.deleteEmptyRows().deleteEmptyColumns();
+          })
+        })
+      };
+      // this.deleteFilter()
+      // this.workSheet
+      //   .clear()
+      //   .getRange(firstRow, firstColumn, array.length, array[0].length)
+      //   .setValues(array)
       // this.deleteEmptyRows().deleteEmptyColumns()
+      insertRowsPromise();
     }
     return this
   }
@@ -496,6 +519,23 @@ class WorkSheet extends SpreadSheet {
   updateRow(object = {}, head = {}) {
     if (object.rowNum !== this.headerRowNum) {
       const array = [Object.keys(head).map((column) => object[column])];
+      // const updateRowPromise = async (object) => {
+      //   return new Promise((resolve) => {
+      //     this.deleteFilter()
+      //     resolve(object)
+      //   }).then(async (object) => {
+      //     return new Promise((resolve) => {
+      //       this.workSheet
+      //         .clear()
+      //         .getRange(object.rowNum, 1, array.length, array[0].length)
+      //         .setValues(array)
+      //       resolve()
+      //     }).then(() => {
+      //       this.deleteEmptyRows().deleteEmptyColumns()
+      //     })
+      //   })
+      // }
+      // updateRowPromise()
       this.workSheet
         .getRange(object.rowNum, 1, array.length, array[0].length)
         .setValues(array);
@@ -949,7 +989,7 @@ class Contractors {
 
   updateInsert() {
     this.arrayOfObject.forEach((object) => {
-      this.workSheet.updateRow(object, this.head, object.rowNum);
+      this.workSheet.updateRow(object, this.head);
     });
   }
   updateOnEdit(range) {
@@ -1640,6 +1680,10 @@ class Prices {
       })[0];
       object.id = coin?.id || void 0;
       object.isNotNull = new Header().isNotNull(this.head, object);
+      object.isChangePrimaryKey = new Header().isChangePrimaryKey(
+        this.head,
+        object
+      );
       return object
     });
     return this
@@ -1647,9 +1691,9 @@ class Prices {
 
   updateInsert() {
     this.arrayOfObject.forEach((object) => {
-      // if (object.isNotNull) {
-      this.workSheet.updateRow(object, this.head);
-      // }
+      if (object.isNotNull || object.isChangePrimaryKey) {
+        this.workSheet.updateRow(object, this.head);
+      }
     });
   }
 
@@ -1703,7 +1747,7 @@ class Prices {
     }
   }
 
-  getLastPrices() {
+  updatePrices() {
     const listId = Object.fromEntries(
       Object.entries(
         Object.values(this.values).reduce((list, object) => {
@@ -1806,40 +1850,21 @@ class HistoricalPrices {
     this.getOnEdit(range).updateInsert();
   }
 
-  getPreviousPrice(date, coin, pair = 'usd') {
-    const histirocalPricesCoin = Object.values(this.values).filter(
-      (row) =>
-        new Hash(row.coin).md5 === new Hash(coin).md5 &&
-        new FormatDate(row.date).unix <= new FormatDate(date).unix
-    );
-    const lastDate = Math.max(
-      ...histirocalPricesCoin.map((row) => new Date(row.date).valueOf())
-    );
-    const lastHistoricalPriceKey = new Hash(
-      new Date(lastDate).valueOf() + coin + pair
-    ).md5;
-    return this.values[lastHistoricalPriceKey].price
-  }
-
-  // updateHistoricalPrice(dateTime, symbol, price) {
-  //   const rowKey = new Hash(new Date(dateTime).valueOf() + symbol).md5
-  //   if (!this.values[rowKey]) {
-  //     this.values[rowKey] = {
-  //       rowKey,
-  //       dateTime,
-  //       symbol,
-  //       price,
-  //     }
-  //     this.workSheet.insertRow(this.values[rowKey], this.head)
-  //   } else {
-  //     this.values[rowKey].price = price
-  //     this.workSheet.updateRow(
-  //       this.values[rowKey],
-  //       this.head,
-  //       this.values[rowKey].rowNum
-  //     )
-  //   }
+  // getPreviousPrice(date, coin, pair = 'usd') {
+  //   const histirocalPricesCoin = Object.values(this.values).filter(
+  //     (row) =>
+  //       new Hash(row.coin).md5 === new Hash(coin).md5 &&
+  //       new FormatDate(row.date).unix <= new FormatDate(date).unix
+  //   )
+  //   const lastDate = Math.max(
+  //     ...histirocalPricesCoin.map((row) => new Date(row.date).valueOf())
+  //   )
+  //   const lastHistoricalPriceKey = new Hash(
+  //     new Date(lastDate).valueOf() + coin + pair
+  //   ).md5
+  //   return this.values[lastHistoricalPriceKey].price
   // }
+
   updateHistoricalPrices() {
     const transactions = Object.values(new Transactions().values).filter(
       (row) => row.price
@@ -1858,17 +1883,6 @@ class HistoricalPrices {
       agg[row.account][row.coin]['cost'] += quantity * row.price;
       return agg
     }, {});
-    // const avgHistoricalPrices = Object.fromEntries(
-    //   Object.entries(aggHistoricalPrices).map(([account, symbolValue]) => {
-    //     const updateSymbolValue = Object.fromEntries(
-    //       Object.entries(symbolValue).map(([symbol, values]) => {
-    //         values.price = values.cost / values.quantity
-    //         return [symbol, values]
-    //       })
-    //     )
-    //     return [account, updateSymbolValue]
-    //   })
-    // )
     const avgHistoricalPricesArrayOfObject = [];
     Object.entries(aggHistoricalPrices).forEach(([account, symbolValue]) => {
       Object.entries(symbolValue).forEach(([symbol, values]) => {
@@ -1877,14 +1891,11 @@ class HistoricalPrices {
           rowKey: new Hash(account + symbol).md5,
           account,
           symbol,
-          // quantity: values.quantity,
-          // cost: values.cost,
           price: values.cost / values.quantity,
         });
       });
     });
     this.workSheet.insertRows(avgHistoricalPricesArrayOfObject, this.head);
-    console.log(avgHistoricalPricesArrayOfObject);
   }
 }
 
@@ -1902,6 +1913,7 @@ class Transactions {
     const prices = new Prices();
     const historicalPrices = new HistoricalPrices().values;
     const contractors = new Contractors().values;
+    console.log(contractors);
     arrayOfObject.forEach((rowValues, indexTx) => {
       const transactionRow = [];
       const hhmm = new FormatNumber(rowValues.time).getHourAndMinuteFromNumber();
@@ -2307,8 +2319,8 @@ function updateTransactions() {
   new Transactions().getTransactions(arrayOfObject).truncateInsertTrasactions();
 }
 
-function getLastPrices() {
-  new Prices().getLastPrices();
+function updatePrices() {
+  new Prices().updatePrices();
 }
 
 function updateHistoricalPrices() {
@@ -2325,39 +2337,42 @@ function updateBalance() {
 
 function updateOnEdit(editRange) {
   try {
-  } catch (error) {}
-  SpreadsheetApp.getActive().toast('Start updating...', 'Update process');
-  const updateDate = new FormatDate();
-  const range = editRange.range;
-  const workSheet = range.getSheet();
-  const sheetName = workSheet.getSheetName();
-  const sheetKey = new Hash(sheetName).md5;
-  if (sheetKey === new Hash('Registry').md5) {
-    new Transactions().updateTransactionsOnEdit(range);
-  } else if (sheetKey === new Hash('Contractors').md5) {
-    new Contractors().updateOnEdit(range);
-  } else if (sheetKey === new Hash('HistoricalPrices').md5) {
-    new HistoricalPrices().updateOnEdit(range);
-  } else if (sheetKey === new Hash('Operations').md5) {
-    new Operations().updateOnEdit(range);
-  } else if (sheetKey === new Hash('Services').md5) {
-    new Services().updateOnEdit(range);
-  } else if (sheetKey === new Hash('Accounts').md5) {
-    new Accounts().updateOnEdit(range);
-  } else if (sheetKey === new Hash('Sources').md5) {
-    new Sources().updateOnEdit(range);
-  } else if (sheetKey === new Hash('Prices').md5) {
-    new Prices().updateOnEdit(range);
-  } else if (sheetKey === new Hash('Coins').md5) {
-    new Coins().updateOnEdit(range);
-  } else if (sheetKey === new Hash('Project').md5) {
-    new Project().updateOnEdit(range);
+    const range = editRange.range;
+    const workSheet = range.getSheet();
+    const sheetName = workSheet.getSheetName();
+    const sheetKey = new Hash(sheetName).md5;
+    if (sheetKey === new Hash('Registry').md5) {
+      new Transactions().updateTransactionsOnEdit(range);
+      SpreadsheetApp.flush();
+      new HistoricalPrices().updateHistoricalPrices();
+      SpreadsheetApp.flush();
+      new Balance().updateBalance();
+    } else if (sheetKey === new Hash('Contractors').md5) {
+      new Contractors().updateOnEdit(range);
+    } else if (sheetKey === new Hash('HistoricalPrices').md5) {
+      new HistoricalPrices().updateOnEdit(range);
+    } else if (sheetKey === new Hash('Operations').md5) {
+      new Operations().updateOnEdit(range);
+    } else if (sheetKey === new Hash('Services').md5) {
+      new Services().updateOnEdit(range);
+    } else if (sheetKey === new Hash('Accounts').md5) {
+      new Accounts().updateOnEdit(range);
+    } else if (sheetKey === new Hash('Sources').md5) {
+      new Sources().updateOnEdit(range);
+    } else if (sheetKey === new Hash('Prices').md5) {
+      new Prices().updateOnEdit(range);
+    } else if (sheetKey === new Hash('Coins').md5) {
+      new Coins().updateOnEdit(range);
+    } else if (sheetKey === new Hash('Project').md5) {
+      new Project().updateOnEdit(range);
+    }
+  } catch (error) {
+    SpreadsheetApp.getActive().toast(
+      'Update error: ' + error,
+      'Update process',
+      2
+    );
   }
-  SpreadsheetApp.getActive().toast(
-    'Update time: ' + updateDate.getTimeDiff(),
-    'Update process',
-    2
-  );
 }
 
 function createInvoiceMenu() {
@@ -2366,10 +2381,11 @@ function createInvoiceMenu() {
   menu.addSubMenu(
     SpreadsheetApp.getUi()
       .createMenu('Update')
-      // .addItem('Update daily', 'updateDaily')
-      // .addItem('Update price', 'updateCoinsPrice')
-      .addItem('Update transaction', 'updateTransactions')
-    // .addItem('Update coin list', 'updateCoinsList')
+      .addItem('Update prices', 'updatePrices')
+      .addItem('Update historical prices', 'updateHistoricalPrices')
+      .addItem('Update transactions', 'updateTransactions')
+      .addItem('Update balance', 'updateBalance')
+      .addItem('Update coins', 'updateCoins')
   );
   menu.addToUi();
 }

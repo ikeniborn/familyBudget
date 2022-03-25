@@ -40,6 +40,10 @@ class Prices {
       })[0]
       object.id = coin?.id || void 0
       object.isNotNull = new Header().isNotNull(this.head, object)
+      object.isChangePrimaryKey = new Header().isChangePrimaryKey(
+        this.head,
+        object
+      )
       return object
     })
     return this
@@ -47,9 +51,9 @@ class Prices {
 
   updateInsert() {
     this.arrayOfObject.forEach((object) => {
-      // if (object.isNotNull) {
-      this.workSheet.updateRow(object, this.head)
-      // }
+      if (object.isNotNull || object.isChangePrimaryKey) {
+        this.workSheet.updateRow(object, this.head)
+      }
     })
   }
 
@@ -103,7 +107,7 @@ class Prices {
     }
   }
 
-  getLastPrices() {
+  updatePrices() {
     const listId = Object.fromEntries(
       Object.entries(
         Object.values(this.values).reduce((list, object) => {

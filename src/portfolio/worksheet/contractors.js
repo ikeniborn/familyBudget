@@ -25,7 +25,7 @@ class Contractors {
 
   updateInsert() {
     this.arrayOfObject.forEach((object) => {
-      this.workSheet.updateRow(object, this.head, object.rowNum)
+      this.workSheet.updateRow(object, this.head)
     })
   }
   updateOnEdit(range) {

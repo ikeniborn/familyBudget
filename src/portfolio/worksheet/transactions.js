@@ -22,6 +22,7 @@ class Transactions {
     const prices = new Prices()
     const historicalPrices = new HistoricalPrices().values
     const contractors = new Contractors().values
+    console.log(contractors)
     arrayOfObject.forEach((rowValues, indexTx) => {
       const transactionRow = []
       const hhmm = new FormatNumber(rowValues.time).getHourAndMinuteFromNumber()

@@ -27,6 +27,12 @@ class Header {
     ).md5
   }
 
+  isChangePrimaryKey(head, rowValues = {}) {
+    return Object.keys(head)
+      .filter((column) => head[column].pk)
+      .some((column) => (rowValues[column] ? true : false))
+  }
+
   isNotNull(head, rowValues = {}) {
     return Object.keys(head)
       .filter((column) => head[column].notNull)
