@@ -1,7 +1,6 @@
 import { WorkSheet } from '../../gas'
 import { Hash, FormatDate, FormatNumber } from '../../utils'
 import { Portfolio } from '../spreadsheet/portfolio'
-import { Contractors } from './contractors'
 import { Header } from '../../header'
 import { Registry } from './registry'
 import { Prices } from './prices'
@@ -21,8 +20,6 @@ class Transactions {
     this.transactions = []
     const prices = new Prices()
     const historicalPrices = new HistoricalPrices().values
-    const contractors = new Contractors().values
-    console.log(contractors)
     arrayOfObject.forEach((rowValues, indexTx) => {
       const transactionRow = []
       const hhmm = new FormatNumber(rowValues.time).getHourAndMinuteFromNumber()
@@ -34,9 +31,7 @@ class Transactions {
       const recipient = rowValues.recipient
         ? rowValues.recipient
         : rowValues.sender
-      const senderType =
-        contractors[new Hash(rowValues.sender).md5]?.type || 'none'
-      const recipientType = contractors[new Hash(recipient).md5]?.type || 'none'
+
       let coinQty, currencyQty, currencyPerCoin, coinSymbol, coinPrice
       if (
         ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !== -1
@@ -46,7 +41,6 @@ class Transactions {
             dateTime: dateTime,
             account: rowValues.accountSender,
             contractor: rowValues.sender,
-            type: senderType,
             coin: rowValues.coin,
             quantity: rowValues.coinQty * -1,
           })
@@ -55,7 +49,6 @@ class Transactions {
           transactionRow.push({
             account: accountRecipient,
             contractor: recipient,
-            type: recipientType,
             coin: rowValues.coin,
             quantity: rowValues.coinQty,
           })
@@ -81,14 +74,12 @@ class Transactions {
         transactionRow.push({
           account: rowValues.accountSender,
           contractor: rowValues.sender,
-          type: senderType,
           coin: rowValues.currency,
           quantity: currencyQty * -1,
         })
         transactionRow.push({
           account: accountRecipient,
           contractor: recipient,
-          type: recipientType,
           coin: rowValues.coin,
           quantity: coinQty,
         })
@@ -113,14 +104,12 @@ class Transactions {
         transactionRow.push({
           account: rowValues.accountSender,
           contractor: rowValues.sender,
-          type: senderType,
           coin: rowValues.coin,
           quantity: coinQty * -1,
         })
         transactionRow.push({
           account: accountRecipient,
           contractor: recipient,
-          type: recipientType,
           coin: rowValues.currency,
           quantity: currencyQty,
         })
@@ -137,7 +126,6 @@ class Transactions {
           service: rowValues.service,
           project: rowValues.project,
           contractor: tx.contractor,
-          type: tx.type,
           coin: tx.coin,
           quantity: tx.quantity,
           price:

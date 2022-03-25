@@ -844,21 +844,22 @@ class Portfolio {
         service: { alias: 'Service', idx: 4 },
         project: { alias: 'Project', idx: 5 },
         contractor: { alias: 'Contractor', idx: 6 },
-        type: { alias: 'Type', idx: 7 },
-        coin: { alias: 'Coin', idx: 8 },
-        quantity: { alias: 'Quantity', idx: 9 },
-        price: { alias: 'Price, $', idx: 10 },
+        coin: { alias: 'Coin', idx: 7 },
+        quantity: { alias: 'Quantity', idx: 8 },
+        price: { alias: 'Price, $', idx: 9 },
         comment: { alias: 'Comment', idx: 10 },
         actionKey: { alias: 'Action key', idx: 11 },
       },
       balance: {
         account: { alias: 'Account', idx: 0 },
         contractor: { alias: 'Contractor', idx: 1 },
-        type: { alias: 'Type', idx: 2 },
-        coin: { alias: 'Coin', idx: 3 },
-        quantity: { alias: 'Quantity', idx: 4 },
-        historicalCost: { alias: 'Historical cost, $', idx: 5 },
-        currentCost: { alias: 'Current cost, $', idx: 6 },
+        contractorType: { alias: 'Contractor type', idx: 2 },
+        project: { alias: 'Project', idx: 3 },
+        coin: { alias: 'Coin', idx: 4 },
+        risk: { alias: 'Risk', idx: 5 },
+        quantity: { alias: 'Quantity', idx: 6 },
+        historicalCost: { alias: 'Historical cost, $', idx: 7 },
+        currentCost: { alias: 'Current cost, $', idx: 8 },
       },
       historicalPrices: {
         rowKey: { alias: 'Row key', idx: 0 },
@@ -934,66 +935,6 @@ class Registry {
    */
   getRegistry() {
     return Object.values(new Registry().values)
-  }
-
-  // updateUsdPerCurrency(editRange) {
-  //   this.eMap = new Map(Object.entries(editRange))
-  //   if (this.eMap.has('range')) {
-  //     if (
-  //       this.eMap.get('range').columnStart === this.head.registry.currency.num
-  //     ) {
-  //       const rowNum = this.eMap.get('range').rowStart
-  //       const rowIndex = rowNum - 2
-  //       const rowValues = this.workSheet.dataValues.filter(
-  //         (row, index) => index === rowIndex
-  //       )[0]
-  //       const currency = rowValues[this.head.registry.currency.idx]
-  //       const time = new utils.FormatNumber(
-  //         rowValues[this.head.registry.time.idx]
-  //       ).getHourAndMinuteFromNumber()
-  //       const dateTime = new utils.FormatDate(
-  //         rowValues[this.head.registry.date.idx]
-  //       ).addTime(time.h, time.m).date
-  //       const price = new cryptoCompare.Price(
-  //         cryptoCompareInstance
-  //       ).getHistoryPrice(currency, dateTime)[currency.toUpperCase()].USD
-  //       this.workSheet.portfolio.registry.insertValue(
-  //         price,
-  //         rowNum,
-  //         this.head.registry.usdPerCurrency.num
-  //       )
-  //     }
-  //   }
-  // }
-}
-
-class Contractors {
-  constructor() {
-    this.head = new Portfolio().head.contractors;
-    this.spreadSheetName = new Portfolio().spreadSheetName;
-    this.sheetName = 'Contractors';
-    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
-    this.values = this.workSheet.getDimension(this.head);
-  }
-
-  getOnEdit(range) {
-    this.workSheetRange = new WorkSheetRange(
-      this.spreadSheetName,
-      this.sheetName,
-      1,
-      range
-    );
-    this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head);
-    return this
-  }
-
-  updateInsert() {
-    this.arrayOfObject.forEach((object) => {
-      this.workSheet.updateRow(object, this.head);
-    });
-  }
-  updateOnEdit(range) {
-    this.getOnEdit(range).updateInsert();
   }
 }
 
@@ -1912,8 +1853,6 @@ class Transactions {
     this.transactions = [];
     const prices = new Prices();
     const historicalPrices = new HistoricalPrices().values;
-    const contractors = new Contractors().values;
-    console.log(contractors);
     arrayOfObject.forEach((rowValues, indexTx) => {
       const transactionRow = [];
       const hhmm = new FormatNumber(rowValues.time).getHourAndMinuteFromNumber();
@@ -1925,9 +1864,7 @@ class Transactions {
       const recipient = rowValues.recipient
         ? rowValues.recipient
         : rowValues.sender;
-      const senderType =
-        contractors[new Hash(rowValues.sender).md5]?.type || 'none';
-      const recipientType = contractors[new Hash(recipient).md5]?.type || 'none';
+
       let coinQty, currencyQty, currencyPerCoin, coinSymbol, coinPrice;
       if (
         ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !== -1
@@ -1937,7 +1874,6 @@ class Transactions {
             dateTime: dateTime,
             account: rowValues.accountSender,
             contractor: rowValues.sender,
-            type: senderType,
             coin: rowValues.coin,
             quantity: rowValues.coinQty * -1,
           });
@@ -1946,7 +1882,6 @@ class Transactions {
           transactionRow.push({
             account: accountRecipient,
             contractor: recipient,
-            type: recipientType,
             coin: rowValues.coin,
             quantity: rowValues.coinQty,
           });
@@ -1972,14 +1907,12 @@ class Transactions {
         transactionRow.push({
           account: rowValues.accountSender,
           contractor: rowValues.sender,
-          type: senderType,
           coin: rowValues.currency,
           quantity: currencyQty * -1,
         });
         transactionRow.push({
           account: accountRecipient,
           contractor: recipient,
-          type: recipientType,
           coin: rowValues.coin,
           quantity: coinQty,
         });
@@ -2004,14 +1937,12 @@ class Transactions {
         transactionRow.push({
           account: rowValues.accountSender,
           contractor: rowValues.sender,
-          type: senderType,
           coin: rowValues.coin,
           quantity: coinQty * -1,
         });
         transactionRow.push({
           account: accountRecipient,
           contractor: recipient,
-          type: recipientType,
           coin: rowValues.currency,
           quantity: currencyQty,
         });
@@ -2028,7 +1959,6 @@ class Transactions {
           service: rowValues.service,
           project: rowValues.project,
           contractor: tx.contractor,
-          type: tx.type,
           coin: tx.coin,
           quantity: tx.quantity,
           price:
@@ -2081,6 +2011,36 @@ class Transactions {
         .getTransactions(registryOnEdit)
         .updateInsertTransactions();
     }
+  }
+}
+
+class Contractors {
+  constructor() {
+    this.head = new Portfolio().head.contractors;
+    this.spreadSheetName = new Portfolio().spreadSheetName;
+    this.sheetName = 'Contractors';
+    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
+    this.values = this.workSheet.getDimension(this.head);
+  }
+
+  getOnEdit(range) {
+    this.workSheetRange = new WorkSheetRange(
+      this.spreadSheetName,
+      this.sheetName,
+      1,
+      range
+    );
+    this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head);
+    return this
+  }
+
+  updateInsert() {
+    this.arrayOfObject.forEach((object) => {
+      this.workSheet.updateRow(object, this.head);
+    });
+  }
+  updateOnEdit(range) {
+    this.getOnEdit(range).updateInsert();
   }
 }
 
@@ -2267,6 +2227,7 @@ class Balance {
   updateBalance() {
     const historicalPrices = new HistoricalPrices().values;
     const prices = new Prices().values;
+    const contractors = new Contractors().values;
     const aggBalance = Object.values(new Transactions().values).reduce(
       (object, tx) => {
         if (!object[tx.account]) {
@@ -2275,13 +2236,13 @@ class Balance {
         if (!object[tx.account][tx.contractor]) {
           object[tx.account][tx.contractor] = {};
         }
-        if (!object[tx.account][tx.contractor][tx.type]) {
-          object[tx.account][tx.contractor][tx.type] = {};
+        if (!object[tx.account][tx.contractor][tx.project]) {
+          object[tx.account][tx.contractor][tx.project] = {};
         }
-        if (!object[tx.account][tx.contractor][tx.type][tx.coin]) {
-          object[tx.account][tx.contractor][tx.type][tx.coin] = 0;
+        if (!object[tx.account][tx.contractor][tx.project][tx.coin]) {
+          object[tx.account][tx.contractor][tx.project][tx.coin] = 0;
         }
-        object[tx.account][tx.contractor][tx.type][tx.coin] += tx.quantity;
+        object[tx.account][tx.contractor][tx.project][tx.coin] += tx.quantity;
         return object
       },
       {}
@@ -2289,7 +2250,7 @@ class Balance {
     const balance = [];
     Object.entries(aggBalance).forEach(([account, level0]) => {
       Object.entries(level0).forEach(([contractor, level1]) => {
-        Object.entries(level1).forEach(([type, level2]) => {
+        Object.entries(level1).forEach(([project, level2]) => {
           Object.entries(level2).forEach(([coin, quantity]) => {
             if (quantity) {
               const currentCost = quantity * prices[new Hash(coin).md5]?.price;
@@ -2299,8 +2260,10 @@ class Balance {
               balance.push({
                 account,
                 contractor,
-                type,
+                contractorType: contractors[new Hash(contractor).md5].type,
+                project,
                 coin: coin.toUpperCase(),
+                risk: prices[new Hash(coin).md5]?.risk,
                 quantity,
                 historicalCost,
                 currentCost,

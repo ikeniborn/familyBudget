@@ -2,6 +2,7 @@ import { WorkSheet, WorkSheetRange } from '../../gas'
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Transactions } from './transactions'
 import { HistoricalPrices } from './historicalPrices'
+import { Contractors } from './contractors'
 import { Prices } from './prices'
 import { Hash } from '../../utils'
 export { Balance }
@@ -38,6 +39,7 @@ class Balance {
   updateBalance() {
     const historicalPrices = new HistoricalPrices().values
     const prices = new Prices().values
+    const contractors = new Contractors().values
     const aggBalance = Object.values(new Transactions().values).reduce(
       (object, tx) => {
         if (!object[tx.account]) {
@@ -46,13 +48,13 @@ class Balance {
         if (!object[tx.account][tx.contractor]) {
           object[tx.account][tx.contractor] = {}
         }
-        if (!object[tx.account][tx.contractor][tx.type]) {
-          object[tx.account][tx.contractor][tx.type] = {}
+        if (!object[tx.account][tx.contractor][tx.project]) {
+          object[tx.account][tx.contractor][tx.project] = {}
         }
-        if (!object[tx.account][tx.contractor][tx.type][tx.coin]) {
-          object[tx.account][tx.contractor][tx.type][tx.coin] = 0
+        if (!object[tx.account][tx.contractor][tx.project][tx.coin]) {
+          object[tx.account][tx.contractor][tx.project][tx.coin] = 0
         }
-        object[tx.account][tx.contractor][tx.type][tx.coin] += tx.quantity
+        object[tx.account][tx.contractor][tx.project][tx.coin] += tx.quantity
         return object
       },
       {}
@@ -60,7 +62,7 @@ class Balance {
     const balance = []
     Object.entries(aggBalance).forEach(([account, level0]) => {
       Object.entries(level0).forEach(([contractor, level1]) => {
-        Object.entries(level1).forEach(([type, level2]) => {
+        Object.entries(level1).forEach(([project, level2]) => {
           Object.entries(level2).forEach(([coin, quantity]) => {
             if (quantity) {
               const currentCost = quantity * prices[new Hash(coin).md5]?.price
@@ -70,8 +72,10 @@ class Balance {
               balance.push({
                 account,
                 contractor,
-                type,
+                contractorType: contractors[new Hash(contractor).md5].type,
+                project,
                 coin: coin.toUpperCase(),
+                risk: prices[new Hash(coin).md5]?.risk,
                 quantity,
                 historicalCost,
                 currentCost,
