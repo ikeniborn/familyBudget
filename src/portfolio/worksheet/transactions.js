@@ -141,6 +141,7 @@ class Transactions {
           price: tx.coin === coinSymbol ? coinPrice : void 0,
           comment: rowValues.comment.toLowerCase(),
           actionKey: rowValues.rowKey,
+          actionRowNum: rowValues.rowNum,
         })
       })
       console.log('Time for ' + indexTx + ': ' + startDate.getTimeDiff())

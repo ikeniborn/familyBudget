@@ -111,7 +111,7 @@ class Prices {
         } else {
           const histirocalPrices = new HistoricalPrices().values
           return (
-            histirocalPrices[new Hash(account + symbol).md5]?.price || void 0
+            histirocalPrices[new Hash(account + symbol).md5]?.priceBuy || void 0
           )
         }
       }
@@ -197,7 +197,7 @@ class Prices {
               const histirocalPricesKey = new Hash('ikeniborn' + object.symbol)
                 .md5
               const histirocalPrice =
-                histirocalPrices[histirocalPricesKey]?.price || void 0
+                histirocalPrices[histirocalPricesKey]?.priceAvg || void 0
               this.values[object.rowKey].price = histirocalPrice
             })
         }

@@ -70,6 +70,7 @@ class Portfolio {
       },
       transactions: {
         rowKey: { alias: 'Row key', idx: 0 },
+
         dateTime: { alias: 'Date and time', idx: 1 },
         account: { alias: 'Account', idx: 2 },
         platform: { alias: 'Platform', idx: 3 },
@@ -78,9 +79,10 @@ class Portfolio {
         contractor: { alias: 'Contractor', idx: 6 },
         coin: { alias: 'Coin', idx: 7 },
         quantity: { alias: 'Quantity', idx: 8 },
-        price: { alias: 'Price, $', idx: 9 },
+        price: { alias: 'Price', idx: 9 },
         comment: { alias: 'Comment', idx: 10 },
         actionKey: { alias: 'Action key', idx: 11 },
+        actionRowNum: { alias: 'Action row num', idx: 12 },
       },
       balance: {
         account: { alias: 'Account', idx: 0 },
@@ -97,10 +99,11 @@ class Portfolio {
       historicalPrices: {
         rowKey: { alias: 'Row key', idx: 0 },
         account: { alias: 'Account', pk: true, idx: 1 },
-        symbol: { alias: 'Coin', pk: true, idx: 2 },
-        price: { alias: 'Price, $', idx: 3 },
-        priceBuy: { alias: 'Price buy', idx: 4 },
-        priceSell: { alias: 'Price sell', idx: 5 },
+        project: { alias: 'Project', pk: true, idx: 2 },
+        symbol: { alias: 'Symbol', pk: true, idx: 3 },
+        priceAvg: { alias: 'Price avg', idx: 4 },
+        priceBuy: { alias: 'Price buy', idx: 5 },
+        priceSell: { alias: 'Price sell', idx: 6 },
       },
       coins: {
         rowKey: { alias: 'Row key', idx: 0 },

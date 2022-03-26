@@ -69,7 +69,7 @@ function updateOnEdit(editRange) {
   }
 }
 
-function createInvoiceMenu() {
+function createMenu() {
   const ui = SpreadsheetApp.getUi()
   const menu = ui.createMenu('Library')
   menu.addSubMenu(

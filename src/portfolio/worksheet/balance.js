@@ -71,7 +71,7 @@ class Balance {
                   historicalPrices[new Hash(account + coin).md5]?.priceBuy || 0
               const historicalCostAvg =
                 quantity *
-                  historicalPrices[new Hash(account + coin).md5]?.price || 0
+                  historicalPrices[new Hash(account + coin).md5]?.priceAvg || 0
               const risk = prices[new Hash(coin).md5]?.risk
               balance.push({
                 account: account.toUpperCase(),

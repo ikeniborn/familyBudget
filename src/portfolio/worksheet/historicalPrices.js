@@ -41,40 +41,48 @@ class HistoricalPrices {
       if (!agg[row.account]) {
         agg[row.account] = {}
       }
-      if (!agg[row.account][row.coin]) {
-        agg[row.account][row.coin] = {}
-        agg[row.account][row.coin]['quantity'] = 0
-        agg[row.account][row.coin]['cost'] = 0
-        agg[row.account][row.coin]['quantityBuy'] = 0
-        agg[row.account][row.coin]['costBuy'] = 0
-        agg[row.account][row.coin]['quantitySell'] = 0
-        agg[row.account][row.coin]['costSell'] = 0
+      if (!agg[row.account][row.project]) {
+        agg[row.account][row.project] = {}
+      }
+      if (!agg[row.account][row.project][row.coin]) {
+        agg[row.account][row.project][row.coin] = {}
+        agg[row.account][row.project][row.coin]['quantity'] = 0
+        agg[row.account][row.project][row.coin]['cost'] = 0
+        agg[row.account][row.project][row.coin]['quantityBuy'] = 0
+        agg[row.account][row.project][row.coin]['costBuy'] = 0
+        agg[row.account][row.project][row.coin]['quantitySell'] = 0
+        agg[row.account][row.project][row.coin]['costSell'] = 0
       }
       const quantity = row.quantity < 0 ? Math.abs(row.quantity) : row.quantity
       const quantityBuy = row.quantity > 0 ? row.quantity : 0
       const quantitySell = row.quantity < 0 ? Math.abs(row.quantity) : 0
-      agg[row.account][row.coin]['quantity'] += quantity
-      agg[row.account][row.coin]['cost'] += quantity * row.price
-      agg[row.account][row.coin]['quantityBuy'] += quantityBuy
-      agg[row.account][row.coin]['costBuy'] += quantityBuy * row.price
-      agg[row.account][row.coin]['quantitySell'] += quantitySell
-      agg[row.account][row.coin]['costSell'] += quantitySell * row.price
+      agg[row.account][row.project][row.coin]['quantity'] += quantity
+      agg[row.account][row.project][row.coin]['cost'] += quantity * row.price
+      agg[row.account][row.project][row.coin]['quantityBuy'] += quantityBuy
+      agg[row.account][row.project][row.coin]['costBuy'] +=
+        quantityBuy * row.price
+      agg[row.account][row.project][row.coin]['quantitySell'] += quantitySell
+      agg[row.account][row.project][row.coin]['costSell'] +=
+        quantitySell * row.price
       return agg
     }, {})
     const avgHistoricalPricesArrayOfObject = []
-    Object.entries(aggHistoricalPrices).forEach(([account, symbolValue]) => {
-      Object.entries(symbolValue).forEach(([symbol, values]) => {
-        const avgPrice = values.cost / values.quantity || void 0
-        if (avgPrice) {
-          avgHistoricalPricesArrayOfObject.push({
-            rowKey: new Hash(account + symbol).md5,
-            account,
-            symbol,
-            price: values.cost / values.quantity || void 0,
-            priceBuy: values.costBuy / values.quantityBuy || void 0,
-            priceSell: values.costSell / values.quantitySell || void 0,
-          })
-        }
+    Object.entries(aggHistoricalPrices).forEach(([account, level0]) => {
+      Object.entries(level0).forEach(([project, level1]) => {
+        Object.entries(level1).forEach(([symbol, object]) => {
+          const avgPrice = object.cost / object.quantity || void 0
+          if (avgPrice) {
+            avgHistoricalPricesArrayOfObject.push({
+              rowKey: new Hash(account + symbol).md5,
+              account,
+              project,
+              symbol,
+              priceAvg: object.cost / object.quantity || void 0,
+              priceBuy: object.costBuy / object.quantityBuy || void 0,
+              priceSell: object.costSell / object.quantitySell || void 0,
+            })
+          }
+        })
       })
     })
     this.workSheet.insertRows(avgHistoricalPricesArrayOfObject, this.head)
