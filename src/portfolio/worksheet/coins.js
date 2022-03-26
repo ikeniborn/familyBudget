@@ -1,6 +1,4 @@
-import { WorkSheet, WorkSheetRange } from '../../gas'
 import { Portfolio } from '../spreadsheet/portfolio'
-import { Header } from '../../header'
 import { Hash } from '../../utils'
 import * as cryptoRank from '../../restApi/cryptoRank'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
@@ -9,12 +7,14 @@ import * as coinGecko from '../../restApi/coinGecko'
 export { Coins }
 
 class Coins {
-  constructor() {
-    this.head = new Portfolio().head.coins
-    this.spreadSheetName = new Portfolio().spreadSheetName
-    this.sheetName = 'Coins'
-    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName)
-    this.values = this.workSheet.getDimension(this.head)
+  constructor(range) {
+    this.workSheet = new Portfolio()
+      .getWorkSheet('Coins', range, 1)
+      .getDimension()
+  }
+
+  savePrimaryKeyChanges() {
+    this.workSheet.savePrimaryKeyChanges()
   }
 
   updateCoins() {

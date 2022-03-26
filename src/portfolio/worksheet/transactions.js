@@ -1,38 +1,42 @@
-import { WorkSheet } from '../../gas'
 import { Hash, FormatDate, FormatNumber } from '../../utils'
 import { Portfolio } from '../spreadsheet/portfolio'
-import { Header } from '../../header'
 import { Registry } from './registry'
 import { Prices } from './prices'
 export { Transactions }
 
 class Transactions {
-  constructor() {
-    this.head = new Portfolio().head.transactions
-    this.header = new Header()
-    this.spreadSheetName = new Portfolio().spreadSheetName
-    this.workSheet = new WorkSheet(this.spreadSheetName, 'transactions')
-    this.values = this.workSheet.getFact(this.head)
+  constructor(range) {
+    this.workSheet = new Portfolio().getWorkSheet('Transactions', range, 1)
+    this.values = this.workSheet.getFact()
   }
 
   getTransactions(arrayOfObject = []) {
     this.transactions = []
     const prices = new Prices()
     arrayOfObject.forEach((rowValues, indexTx) => {
-      const startDate = new FormatDate()
-      let coinQty, currencyQty, currencyPerCoin, coinSymbol, coinPrice, project
+      // const startDate = new FormatDate()
+      let coinQty,
+        currencyQty,
+        currencyPerCoin,
+        coinSymbol,
+        coinPrice,
+        project,
+        accountRecipient,
+        recipient,
+        currencySymbol
       const transactionRow = []
       const hhmm = new FormatNumber(rowValues.time).getHourAndMinuteFromNumber()
       const dateTime = new FormatDate(rowValues.date).addTime(hhmm.h, hhmm.m)
         .date
-      const accountRecipient = rowValues.accountRecipient
+      accountRecipient = rowValues.accountRecipient
         ? rowValues.accountRecipient
         : rowValues.accountSender
-      const recipient = rowValues.recipient
-        ? rowValues.recipient
-        : rowValues.sender
-
+      recipient = rowValues.recipient ? rowValues.recipient : rowValues.sender
       project = rowValues.project ? rowValues.project : 'No project'
+      coinQty = rowValues.coinQty
+      currencyQty = rowValues.currencyQty
+      coinSymbol = rowValues.coin
+      currencySymbol = rowValues.currency
       if (
         ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !== -1
       ) {
@@ -42,8 +46,8 @@ class Transactions {
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             project: 'No project',
-            coin: rowValues.coin,
-            quantity: rowValues.coinQty * -1,
+            coin: coinSymbol,
+            quantity: coinQty * -1,
           })
         }
         if (['Transfer', 'Refill'].indexOf(rowValues.operation) !== -1) {
@@ -51,14 +55,11 @@ class Transactions {
             account: accountRecipient,
             contractor: recipient,
             project: 'No project',
-            coin: rowValues.coin,
-            quantity: rowValues.coinQty,
+            coin: coinSymbol,
+            quantity: coinQty,
           })
         }
       } else if (['Buy'].indexOf(rowValues.operation) !== -1) {
-        coinQty = rowValues.coinQty
-        currencyQty = rowValues.currencyQty
-        coinSymbol = rowValues.coin
         if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
           currencyQty = coinQty * rowValues.currencyPerCoin
         }
@@ -77,20 +78,17 @@ class Transactions {
           account: rowValues.accountSender,
           contractor: rowValues.sender,
           project: 'No project',
-          coin: rowValues.currency,
+          coin: currencySymbol,
           quantity: currencyQty * -1,
         })
         transactionRow.push({
           account: accountRecipient,
           contractor: recipient,
           project: project,
-          coin: rowValues.coin,
+          coin: coinSymbol,
           quantity: coinQty,
         })
       } else if (['Sell'].indexOf(rowValues.operation) !== -1) {
-        coinQty = rowValues.coinQty
-        currencyQty = rowValues.currencyQty
-        coinSymbol = rowValues.coin
         if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
           currencyQty = coinQty * rowValues.currencyPerCoin
         }
@@ -109,23 +107,24 @@ class Transactions {
           account: rowValues.accountSender,
           contractor: rowValues.sender,
           project: project,
-          coin: rowValues.coin,
+          coin: coinSymbol,
           quantity: coinQty * -1,
         })
         transactionRow.push({
           account: accountRecipient,
           contractor: recipient,
           project: 'No project',
-          coin: rowValues.currency,
+          coin: currencySymbol,
           quantity: currencyQty,
         })
       }
-      if (rowValues.currency && coinSymbol) {
+      if (currencySymbol && coinSymbol) {
         coinPrice =
           prices.getHistoricalPrice(
             rowValues.accountSender,
+            project,
             dateTime,
-            rowValues.currency
+            currencySymbol
           ) * currencyPerCoin || void 0
       }
       transactionRow.forEach((tx) => {
@@ -144,7 +143,7 @@ class Transactions {
           actionRowNum: rowValues.rowNum,
         })
       })
-      console.log('Time for ' + indexTx + ': ' + startDate.getTimeDiff())
+      // console.log('Time for ' + indexTx + ': ' + startDate.getTimeDiff())
     })
     return this
   }
@@ -170,7 +169,7 @@ class Transactions {
 
   truncateInsertTrasactions() {
     let rowNum
-    const rows = this.transactions.map((row, index) => {
+    const arrayofObject = this.getTransactions().map((row, index) => {
       rowNum = index + 1
       row.rowKey = new Hash(rowNum + this.workSheet.sheetName).md5
       return row

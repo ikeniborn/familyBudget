@@ -1,4 +1,3 @@
-import { WorkSheet, WorkSheetRange } from '../../gas'
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Coins } from './coins'
 import { Header } from '../../header'
@@ -11,12 +10,14 @@ import { HistoricalPrices } from './historicalPrices'
 export { Prices }
 
 class Prices {
-  constructor() {
-    this.head = new Portfolio().head.prices
-    this.spreadSheetName = new Portfolio().spreadSheetName
-    this.sheetName = 'Prices'
-    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName)
-    this.values = this.workSheet.getDimension(this.head)
+  constructor(range) {
+    this.workSheet = new Portfolio()
+      .getWorkSheet('Prices', range, 1)
+      .getDimension()
+  }
+
+  savePrimaryKeyChanges() {
+    this.workSheet.savePrimaryKeyChanges()
   }
 
   getOnEdit(range) {
@@ -49,19 +50,7 @@ class Prices {
     return this
   }
 
-  updateInsert() {
-    this.arrayOfObject.forEach((object) => {
-      if (object.isNotNull || object.isChangePrimaryKey) {
-        this.workSheet.updateRow(object, this.head)
-      }
-    })
-  }
-
-  updateOnEdit(range) {
-    this.getOnEdit(range).updateInsert()
-  }
-
-  getHistoricalPrice(account, date, symbol, convert = 'usd') {
+  getHistoricalPrice(account, project, date, symbol, convert = 'usd') {
     const coinRow = this.values[new Hash(symbol).md5]
     const source = coinRow.source
     const id = coinRow.id
@@ -111,7 +100,8 @@ class Prices {
         } else {
           const histirocalPrices = new HistoricalPrices().values
           return (
-            histirocalPrices[new Hash(account + symbol).md5]?.priceBuy || void 0
+            histirocalPrices[new Hash(account + project + symbol).md5]
+              ?.priceBuy || void 0
           )
         }
       }
@@ -194,8 +184,9 @@ class Prices {
               return new Hash(row.source).md5 === new Hash('custom').md5
             })
             .forEach((object) => {
-              const histirocalPricesKey = new Hash('ikeniborn' + object.symbol)
-                .md5
+              const histirocalPricesKey = new Hash(
+                'ikeniborn' + 'no project' + object.symbol
+              ).md5
               const histirocalPrice =
                 histirocalPrices[histirocalPricesKey]?.priceAvg || void 0
               this.values[object.rowKey].price = histirocalPrice

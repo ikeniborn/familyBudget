@@ -24,7 +24,7 @@ class Hash {
   }
 }
 
-class FormatDate {
+class FormatDate$1 {
   /**
    * Форматирование и преобразование даты
    * @param {date} date значение даты. По умолчанию - текущее значение
@@ -193,7 +193,7 @@ class FormatDate {
   }
 }
 
-class FormatNumber {
+class FormatNumber$1 {
   constructor(number = 0) {
     this.number = typeof string === 'number' ? number : number * 1;
   }
@@ -365,10 +365,11 @@ class WorkSheet extends SpreadSheet {
    *
    * @param {*} spreadSheetName
    * @param {*} sheetName
+   *     @param {*} head
    * @param {*} headerRowNum
    * @returns
    */
-  constructor(spreadSheetName = '', sheetName = '', headerRowNum = 1) {
+  constructor(spreadSheetName = '', sheetName = '', head = {}, headRowNum = 1) {
     super(spreadSheetName);
     if (WorkSheet.key === new Hash(sheetName).md5) {
       return WorkSheet.instance
@@ -376,9 +377,23 @@ class WorkSheet extends SpreadSheet {
     WorkSheet.instance = this;
     this.workSheetKey = new Hash(sheetName).md5;
     this.sheetName = sheetName;
+    this.head = head;
+    this.headKey = Object.keys(head);
+    this.headRowNum = headRowNum;
+    this.firstRowNum = headRowNum + 1;
     this.workSheet = this.workSheets[this.workSheetKey];
+    this.range = this.workSheet.getDataRange();
+    this.countRow = this.range.getNumRows() - this.headRowNum;
+    this.countColumn = this.range.getNumColumns();
+    this.dataRange =
+      this.countRow > 0
+        ? this.workSheet
+            .getDataRange()
+            .offset(this.headRowNum, 0, this.countRow, this.countColumn)
+        : this.workSheet
+            .getDataRange()
+            .offset(this.headRowNum - 1, 0, 1, this.countColumn);
     this.metadata = new WorkSheetMetadata(this.workSheet);
-    this.getRange(headerRowNum);
   }
 
   /**
@@ -400,96 +415,108 @@ class WorkSheet extends SpreadSheet {
     return this.workSheet.getMaxColumns()
   }
 
-  /**
-   *
-   * @returns range, countRow, countColumn
-   */
-  getRange(headerRowNum) {
-    const dataRange = this.workSheet.getDataRange();
-    this.headerRowNum = headerRowNum;
-    this.countRow = dataRange.getNumRows() - this.headerRowNum;
-    this.countColumn = dataRange.getNumColumns();
-    //* формирование заголовка
-    this.headerRange = dataRange.offset(
-      this.headerRowNum - 1,
-      0,
-      1,
-      this.countColumn
-    );
-    this.dataRange =
-      this.countRow > 0
-        ? dataRange.offset(
-            this.headerRowNum,
-            0,
-            this.countRow,
-            this.countColumn
-          )
-        : this.headerRange;
+  // /**
+  //  *
+  //  * @returns range, countRow, countColumn
+  //  */
+  // getRange() {
+  //   const dataRange = this.workSheet.getDataRange()
+  //   this.headerRowNum = headerRowNum
+  //   this.countRow = dataRange.getNumRows() - this.firstRowNum
+  //   this.countColumn = dataRange.getNumColumns()
+  //   // this.headerRange = dataRange.offset(
+  //   //   this.headerRowNum - 1,
+  //   //   0,
+  //   //   1,
+  //   //   this.countColumn
+  //   // )
+  //   this.dataRange =
+  //     this.countRow > 0
+  //       ? dataRange.offset(
+  //           this.headerRowNum,
+  //           0,
+  //           this.countRow,
+  //           this.countColumn
+  //         )
+  //       : this.headerRange
+  //   return this
+  // }
+
+  getFact() {
+    this.object = this.dataRange
+      .getValues()
+      .reduce((objectRow, arrayRow, indexRow) => {
+        const rowNum = this.firstRowNum + indexRow;
+        const rowKey = arrayRow[this.head.rowKey.idx];
+        if (!objectRow[rowKey]) {
+          objectRow[rowKey] = arrayRow.reduce((object, value, index) => {
+            object['rowNum'] = rowNum;
+            if (!object[this.headKey[index]]) {
+              object[this.headKey[index]] = value;
+            }
+            return object
+          }, {});
+        }
+        return objectRow
+      }, {});
+    this.array = Object.values(this.object);
     return this
   }
 
-  getFact(head) {
-    const firstRowNum = this.headerRowNum + 1;
-    const headKey = Object.keys(head);
-    return this.dataRange
+  getDimension() {
+    this.object = this.dataRange
       .getValues()
-      .reduce((valuesWithKey, rowValues, index) => {
-        const rowNum = firstRowNum + index;
-        let rowKey;
-        if (head?.rowKey) {
-          rowKey = rowValues[head.rowKey.idx];
-        } else {
-          rowKey = new Hash(rowNum + this.sheetName).md5;
-        }
-        if (!valuesWithKey[rowKey]) {
-          valuesWithKey[rowKey] = rowValues.reduce((object, value, index) => {
-            if (!head?.rowKey) {
-              object['rowKey'] = rowKey;
-            }
-            object['rowNum'] = rowNum;
-            if (!object[headKey[index]]) {
-              object[headKey[index]] = value;
-            }
-            return object
-          }, {});
-        }
-        return valuesWithKey
-      }, {})
-  }
-
-  getDimension(head) {
-    const firstRowNum = this.headerRowNum + 1;
-    const headKey = Object.keys(head);
-    return this.dataRange
-      .getValues()
-      .reduce((arrayOfObject, rowValues, rowIndex) => {
-        const rowNum = firstRowNum + rowIndex;
-        const rowKey = rowValues[head.rowKey.idx];
-        if (!arrayOfObject[rowKey]) {
-          arrayOfObject[rowKey] = rowValues.reduce((object, value, index) => {
-            if (!object[headKey[index]]) {
-              object[headKey[index]] = value;
+      .reduce((objectRow, arrayRow, indexRow) => {
+        const rowNum = this.firstRowNum + indexRow;
+        const rowKey = arrayRow[this.head.rowKey.idx];
+        if (!objectRow[rowKey]) {
+          objectRow[rowKey] = arrayRow.reduce((object, value, index) => {
+            if (!object[this.headKey[index]]) {
+              object[this.headKey[index]] = value;
             }
             object['rowNum'] = rowNum;
             return object
           }, {});
         }
-        return arrayOfObject
-      }, {})
+        return objectRow
+      }, {});
+    this.array = Object.values(this.object);
+    return this
   }
 
-  insertRows(arrayOfObject = [], head = {}, firstRow = 1, firstColumn = 1) {
-    const headOrder = Object.keys(head);
+  getTransactions() {
+    this.object = this.dataRange
+      .getValues()
+      .reduce((objectRow, arrayRow, indexRow) => {
+        const rowNum = this.firstRowNum + indexRow;
+        const rowKey = new Hash(rowNum + this.sheetName).md5;
+        if (!objectRow[rowKey]) {
+          objectRow[rowKey] = arrayRow.reduce((object, value, column) => {
+            object['rowKey'] = rowKey;
+            object['rowNum'] = rowNum;
+            if (!object[this.headKey[column]]) {
+              object[this.headKey[column]] = value;
+            }
+            return object
+          }, {});
+        }
+        return objectRow
+      }, {});
+    this.array = Object.values(this.object);
+    return this
+  }
+
+  truncateInsertRows(arrayOfObject = [], firstRow = 1, firstColumn = 1) {
     const array = arrayOfObject.reduce(
       (values, rowObject) => {
-        const rowArray = headOrder.map((value) => rowObject[value]);
+        const rowArray = this.headKey.map((value) => rowObject[value]);
         values.push(rowArray);
         return values
       },
-      [new Header().getHeaderAlias(head)]
+      [new Header().getHeaderAlias(this.head)]
     );
     if (array.length) {
-      const insertRowsPromise = async () => {
+      const truncateInsertRowsPromise = async () => {
         return new Promise((resolve) => {
           this.deleteFilter();
           resolve();
@@ -505,51 +532,60 @@ class WorkSheet extends SpreadSheet {
           })
         })
       };
-      // this.deleteFilter()
-      // this.workSheet
-      //   .clear()
-      //   .getRange(firstRow, firstColumn, array.length, array[0].length)
-      //   .setValues(array)
-      // this.deleteEmptyRows().deleteEmptyColumns()
-      insertRowsPromise();
+      truncateInsertRowsPromise();
     }
     return this
   }
 
-  updateRow(object = {}, head = {}) {
+  updateRow(object = {}) {
     if (object.rowNum !== this.headerRowNum) {
-      const array = [Object.keys(head).map((column) => object[column])];
-      // const updateRowPromise = async (object) => {
-      //   return new Promise((resolve) => {
-      //     this.deleteFilter()
-      //     resolve(object)
-      //   }).then(async (object) => {
-      //     return new Promise((resolve) => {
-      //       this.workSheet
-      //         .clear()
-      //         .getRange(object.rowNum, 1, array.length, array[0].length)
-      //         .setValues(array)
-      //       resolve()
-      //     }).then(() => {
-      //       this.deleteEmptyRows().deleteEmptyColumns()
-      //     })
-      //   })
-      // }
-      // updateRowPromise()
-      this.workSheet
-        .getRange(object.rowNum, 1, array.length, array[0].length)
-        .setValues(array);
+      const array = [this.headKey.map((column) => object[column])];
+      const updateRowPromise = async () => {
+        return new Promise((resolve) => {
+          this.deleteFilter();
+          resolve();
+        }).then(async () => {
+          return new Promise((resolve) => {
+            this.workSheet
+              .getRange(object.rowNum, 1, array.length, array[0].length)
+              .setValues(array);
+            resolve();
+          }).then(() => {
+            this.deleteEmptyRows().deleteEmptyColumns();
+          })
+        })
+      };
+      updateRowPromise();
     }
   }
 
-  insertRow(object = {}, head = {}) {
-    const headOrder = Object.keys(head);
+  insertRow(object = {}) {
     const array = [object].reduce((values, rowObject) => {
-      const rowArray = headOrder.map((value) => rowObject[value]);
+      const rowArray = this.headKey.map((value) => rowObject[value]);
       values.push(rowArray);
       return values
     }, [])[0];
     this.workSheet.appendRow(array);
+  }
+
+  savePrimaryKeyChanges() {
+    const changes = this.array.filter((row) => {
+      return row.isChangePrimaryKey
+    });
+    if (changes.length) {
+      const ui = SpreadsheetApp.getUi(); // Same variations.
+      const result = ui.alert(
+        'Data changed',
+        'You want save to database?',
+        ui.ButtonSet.YES_NO
+      );
+
+      if (result == ui.Button.YES) {
+        changes.forEach((object) => {
+          this.updateRow(object);
+        });
+      }
+    }
   }
 
   insertValue(value, row, column) {
@@ -589,19 +625,19 @@ class WorkSheet extends SpreadSheet {
   }
 }
 
-class WorkSheetRange extends WorkSheet {
-  constructor(spreadSheetName, sheetName, headerRowNum, range) {
-    super(spreadSheetName, sheetName, headerRowNum);
+class WorkSheetRange$1 extends WorkSheet {
+  constructor(spreadSheetName, sheetName, head, range) {
+    super(spreadSheetName, sheetName, head);
     this.range = range;
     this.countRow = this.range.rowEnd - this.range.rowStart + 1;
     this.countColumn = this.range.columnEnd - this.range.columnStart + 1;
-    this.rangeOffset = range.offset(
+    this.firstRowNum = this.range.rowStart;
+    this.dataRange = range.offset(
       0,
       1 - this.range.columnStart,
       this.countRow,
       this.maxColumn
     );
-    this.rangeOffsetValues = this.rangeOffset.getValues();
     this.rowNumArray = [...Array(this.countRow).keys()].map(
       (m) => (m = m + this.range.rowStart)
     );
@@ -610,19 +646,80 @@ class WorkSheetRange extends WorkSheet {
     );
   }
 
-  getArrayOfObject(head = {}) {
-    const headKey = Object.keys(head);
-    return this.rangeOffsetValues.map((rowArray, indexRow) => {
-      const object = rowArray.reduce((object, value, index) => {
-        if (!object[headKey[index]]) {
-          object[headKey[index]] = value;
+  getFact() {
+    this.object = this.dataRange
+      .getValues()
+      .reduce((objectRow, arrayRow, indexRow) => {
+        const rowNum = this.firstRowNum + indexRow;
+        const rowKey = arrayRow[this.head.rowKey.idx];
+        if (!objectRow[rowKey]) {
+          objectRow[rowKey] = arrayRow.reduce((object, value, index) => {
+            object['rowNum'] = rowNum;
+            if (!object[this.headKey[index]]) {
+              object[this.headKey[index]] = value;
+            }
+            return object
+          }, {});
         }
-        return object
+        return objectRow
       }, {});
-      object.rowKey = new Header().getPrimaryKey(head, object);
-      object.rowNum = this.range.rowStart + indexRow;
-      return object
-    })
+    this.array = Object.values(this.object);
+    return this
+  }
+
+  getDimension() {
+    this.object = this.dataRange
+      .getValues()
+      .reduce((objectRow, arrayRow, indexRow) => {
+        const rowNum = this.firstRowNum + indexRow;
+        const object = arrayRow.reduce((object, value, index) => {
+          if (!object[this.headKey[index]]) {
+            object[this.headKey[index]] = value;
+          }
+          object['rowNum'] = rowNum;
+          return object
+        }, {});
+        const newRowKey = new Header().getPrimaryKey(this.head, object);
+        if (!object.rowKey || object.rowKey !== newRowKey) {
+          object.rowKey = newRowKey;
+          object.isChangePrimaryKey = true;
+        }
+        if (!objectRow[object.rowKey]) {
+          objectRow[object.rowKey] = object;
+        }
+        return objectRow
+      }, {});
+    this.array = Object.values(this.object);
+    return this
+  }
+
+  getTransactions() {
+    this.object = this.dataRange
+      .getValues()
+      .reduce((objectRow, arrayRow, indexRow) => {
+        const rowNum = this.firstRowNum + indexRow;
+        const rowKey = new Hash(rowNum + this.sheetName).md5;
+        const object = arrayRow.reduce((object, value, column) => {
+          if (!object[this.headKey[column]]) {
+            object[this.headKey[column]] = value;
+            object['rowKey'] = rowKey;
+            object['rowNum'] = rowNum;
+          }
+          return object
+        }, {});
+        if (!objectRow[rowKey]) {
+          objectRow[rowKey] = object;
+          objectRow[rowKey]['rowKey'] = rowKey;
+          objectRow[rowKey]['rowNum'] = rowNum;
+          objectRow[rowKey]['isNotNull'] = new Header().isNotNull(
+            this.head,
+            object
+          );
+        }
+        return objectRow
+      }, {});
+    this.array = Object.values(this.object);
+    return this
   }
 }
 class Metadata {
@@ -846,9 +943,10 @@ class Portfolio {
         contractor: { alias: 'Contractor', idx: 6 },
         coin: { alias: 'Coin', idx: 7 },
         quantity: { alias: 'Quantity', idx: 8 },
-        price: { alias: 'Price, $', idx: 9 },
+        price: { alias: 'Price', idx: 9 },
         comment: { alias: 'Comment', idx: 10 },
         actionKey: { alias: 'Action key', idx: 11 },
+        actionRowNum: { alias: 'Action row num', idx: 12 },
       },
       balance: {
         account: { alias: 'Account', idx: 0 },
@@ -865,10 +963,11 @@ class Portfolio {
       historicalPrices: {
         rowKey: { alias: 'Row key', idx: 0 },
         account: { alias: 'Account', pk: true, idx: 1 },
-        symbol: { alias: 'Coin', pk: true, idx: 2 },
-        price: { alias: 'Price, $', idx: 3 },
-        priceBuy: { alias: 'Price buy', idx: 4 },
-        priceSell: { alias: 'Price sell', idx: 5 },
+        project: { alias: 'Project', pk: true, idx: 2 },
+        symbol: { alias: 'Symbol', pk: true, idx: 3 },
+        priceAvg: { alias: 'Price avg', idx: 4 },
+        priceBuy: { alias: 'Price buy', idx: 5 },
+        priceSell: { alias: 'Price sell', idx: 6 },
       },
       coins: {
         rowKey: { alias: 'Row key', idx: 0 },
@@ -893,6 +992,10 @@ class Portfolio {
         rowKey: { alias: 'Row key', idx: 0 },
         name: { alias: 'Name', pk: true, idx: 1 },
       },
+      accounts: {
+        rowKey: { alias: 'Row key', idx: 0 },
+        name: { alias: 'Name', pk: true, idx: 1 },
+      },
       contractors: {
         rowKey: { alias: 'Row key', idx: 0 },
         name: { alias: 'Name', pk: true, idx: 1 },
@@ -902,42 +1005,22 @@ class Portfolio {
     };
     this.spreadSheetName = 'portfolio';
   }
-}
 
-class Registry {
-  constructor() {
-    this.head = new Portfolio().head.registry;
-    this.spreadSheetName = new Portfolio().spreadSheetName;
-    this.workSheet = new WorkSheet(this.spreadSheetName, 'registry', 1);
-    this.values = this.workSheet.getFact(this.head);
-  }
-
-  /**
-   *
-   * @returns {array} Return array of object
-   */
-  getRegistryOnEdit(range) {
-    this.workSheetRange = new WorkSheetRange(
-      this.spreadSheetName,
-      'registry',
-      1,
-      range
-    );
-    return this.workSheetRange.rowNumArray.map((rowNum) => {
-      const rowKey = new Hash(rowNum + this.workSheetRange.sheetName).md5;
-      const factRow = this.values[rowKey];
-      factRow.rowKey = rowKey;
-      const isNotNull = new Header().isNotNull(this.head, factRow);
-      return isNotNull ? factRow : []
-    })
-  }
-
-  /**
-   *
-   * @returns {array} Return array of object
-   */
-  getRegistry() {
-    return Object.values(new Registry().values)
+  getWorkSheet(sheetName = '', range, headRowNum) {
+    const headKey = sheetName.toLowerCase();
+    return !range
+      ? new WorkSheet(
+          this.spreadSheetName,
+          sheetName,
+          this.head[headKey],
+          headRowNum
+        )
+      : new WorkSheetRange$1(
+          this.spreadSheetName,
+          sheetName,
+          this.head[headKey],
+          range
+        )
   }
 }
 
@@ -1281,7 +1364,7 @@ class Price$2 {
   }
 
   getHistoryPrice(fsym = 'BTC', ts = new Date(), tsyms = 'USD') {
-    const dateUnix = new FormatDate(ts).unix;
+    const dateUnix = new FormatDate$1(ts).unix;
     const upperTsyms = tsyms.toUpperCase();
     const upperFsym = fsym.toUpperCase();
     const result = this.methods.get({
@@ -1486,12 +1569,14 @@ class CoinsList {
 }
 
 class Coins {
-  constructor() {
-    this.head = new Portfolio().head.coins;
-    this.spreadSheetName = new Portfolio().spreadSheetName;
-    this.sheetName = 'Coins';
-    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
-    this.values = this.workSheet.getDimension(this.head);
+  constructor(range) {
+    this.workSheet = new Portfolio()
+      .getWorkSheet('Coins', range, 1)
+      .getDimension();
+  }
+
+  savePrimaryKeyChanges() {
+    this.workSheet.savePrimaryKeyChanges();
   }
 
   updateCoins() {
@@ -1593,77 +1678,249 @@ class Coins {
   }
 }
 
-class HistoricalPrices {
-  constructor() {
-    this.head = new Portfolio().head.historicalPrices;
-    this.spreadSheetName = new Portfolio().spreadSheetName;
-    this.sheetName = 'HistoricalPrices';
-    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
-    this.values = this.workSheet.getDimension(this.head);
+class Transactions {
+  constructor(range) {
+    this.workSheet = new Portfolio().getWorkSheet('Transactions', range, 1);
+    this.values = this.workSheet.getFact();
   }
 
-  getOnEdit(range) {
-    this.arrayOfObject = this.workSheetRange = new WorkSheetRange(
-      this.spreadSheetName,
-      this.sheetName,
-      1,
-      range
-    ).getArrayOfObject(this.head);
+  getTransactions(arrayOfObject = []) {
+    this.transactions = [];
+    const prices = new Prices();
+    arrayOfObject.forEach((rowValues, indexTx) => {
+      // const startDate = new FormatDate()
+      let coinQty,
+        currencyQty,
+        currencyPerCoin,
+        coinSymbol,
+        coinPrice,
+        project,
+        accountRecipient,
+        recipient,
+        currencySymbol;
+      const transactionRow = [];
+      const hhmm = new FormatNumber$1(rowValues.time).getHourAndMinuteFromNumber();
+      const dateTime = new FormatDate$1(rowValues.date).addTime(hhmm.h, hhmm.m)
+        .date;
+      accountRecipient = rowValues.accountRecipient
+        ? rowValues.accountRecipient
+        : rowValues.accountSender;
+      recipient = rowValues.recipient ? rowValues.recipient : rowValues.sender;
+      project = rowValues.project ? rowValues.project : 'No project';
+      coinQty = rowValues.coinQty;
+      currencyQty = rowValues.currencyQty;
+      coinSymbol = rowValues.coin;
+      currencySymbol = rowValues.currency;
+      if (
+        ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !== -1
+      ) {
+        if (['Transfer', 'Write-off'].indexOf(rowValues.operation) !== -1) {
+          transactionRow.push({
+            dateTime: dateTime,
+            account: rowValues.accountSender,
+            contractor: rowValues.sender,
+            project: 'No project',
+            coin: coinSymbol,
+            quantity: coinQty * -1,
+          });
+        }
+        if (['Transfer', 'Refill'].indexOf(rowValues.operation) !== -1) {
+          transactionRow.push({
+            account: accountRecipient,
+            contractor: recipient,
+            project: 'No project',
+            coin: coinSymbol,
+            quantity: coinQty,
+          });
+        }
+      } else if (['Buy'].indexOf(rowValues.operation) !== -1) {
+        if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
+          currencyQty = coinQty * rowValues.currencyPerCoin;
+        }
+        if (!coinQty && rowValues.currencyPerCoin && currencyQty) {
+          coinQty = currencyQty / rowValues.currencyPerCoin;
+        }
+        if (rowValues.service === 'Liquidity pool') {
+          coinQty /= 2;
+        }
+        if (rowValues.currencyPerCoin) {
+          currencyPerCoin = rowValues.currencyPerCoin;
+        } else {
+          currencyPerCoin = currencyQty / coinQty;
+        }
+        transactionRow.push({
+          account: rowValues.accountSender,
+          contractor: rowValues.sender,
+          project: 'No project',
+          coin: currencySymbol,
+          quantity: currencyQty * -1,
+        });
+        transactionRow.push({
+          account: accountRecipient,
+          contractor: recipient,
+          project: project,
+          coin: coinSymbol,
+          quantity: coinQty,
+        });
+      } else if (['Sell'].indexOf(rowValues.operation) !== -1) {
+        if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
+          currencyQty = coinQty * rowValues.currencyPerCoin;
+        }
+        if (!coinQty && rowValues.currencyPerCoin && currencyQty) {
+          coinQty = currencyQty / rowValues.currencyPerCoin;
+        }
+        if (rowValues.service === 'Liquidity pool') {
+          coinQty /= 2;
+        }
+        if (!rowValues.currencyPerCoin) {
+          currencyPerCoin = currencyQty / coinQty;
+        } else {
+          currencyPerCoin = rowValues.currencyPerCoin;
+        }
+        transactionRow.push({
+          account: rowValues.accountSender,
+          contractor: rowValues.sender,
+          project: project,
+          coin: coinSymbol,
+          quantity: coinQty * -1,
+        });
+        transactionRow.push({
+          account: accountRecipient,
+          contractor: recipient,
+          project: 'No project',
+          coin: currencySymbol,
+          quantity: currencyQty,
+        });
+      }
+      if (currencySymbol && coinSymbol) {
+        coinPrice =
+          prices.getHistoricalPrice(
+            rowValues.accountSender,
+            project,
+            dateTime,
+            currencySymbol
+          ) * currencyPerCoin || void 0;
+      }
+      transactionRow.forEach((tx) => {
+        this.transactions.push({
+          dateTime: dateTime,
+          account: tx.account.toLowerCase(),
+          platform: rowValues.platform.toLowerCase(),
+          service: rowValues.service.toLowerCase(),
+          project: tx.project.toLowerCase(),
+          contractor: tx.contractor.toLowerCase(),
+          coin: tx.coin.toLowerCase(),
+          quantity: tx.quantity,
+          price: tx.coin === coinSymbol ? coinPrice : void 0,
+          comment: rowValues.comment.toLowerCase(),
+          actionKey: rowValues.rowKey,
+          actionRowNum: rowValues.rowNum,
+        });
+      });
+      // console.log('Time for ' + indexTx + ': ' + startDate.getTimeDiff())
+    });
     return this
   }
 
-  updateInsert() {
-    this.arrayOfObject.forEach((object) => {
-      this.workSheet.updateRow(object, this.head, object.rowNum);
+  updateInsertTransactions() {
+    this.transactions.forEach((row) => {
+      const oldRow = Object.values(this.values).filter(
+        (oldRow) => oldRow.actionKey === row.actionKey
+      )[0];
+      let rowNum;
+      if (oldRow) {
+        row.rowKey = oldRow.rowKey;
+        row.rowNum = oldRow.rowNum;
+        delete this.values[oldRow.rowKey];
+        this.workSheet.updateRow(row, this.head);
+      } else {
+        rowNum = this.workSheet.lastRow + 1;
+        row.rowKey = new Hash(rowNum + this.workSheet.sheetName).md5;
+        this.workSheet.insertRow(row, this.head);
+      }
     });
   }
 
-  updateOnEdit(range) {
-    this.getOnEdit(range).updateInsert();
+  truncateInsertTrasactions() {
+    let rowNum;
+    this.getTransactions().map((row, index) => {
+      rowNum = index + 1;
+      row.rowKey = new Hash(rowNum + this.workSheet.sheetName).md5;
+      return row
+    });
+    this.workSheet.insertRows(rows, this.head);
+  }
+
+  updateTransactionsOnEdit(range) {
+    const registryOnEdit = new Registry().getRegistryOnEdit(range);
+    if (registryOnEdit.length) {
+      new Transactions()
+        .getTransactions(registryOnEdit)
+        .updateInsertTransactions();
+    }
+  }
+}
+
+class HistoricalPrices {
+  constructor(range) {
+    this.workSheet = new Portfolio()
+      .getWorkSheet('HistoricalPrices', range, 1)
+      .getDimension();
+  }
+
+  savePrimaryKeyChanges() {
+    this.workSheet.savePrimaryKeyChanges();
   }
 
   updateHistoricalPrices() {
     const transactions = Object.values(new Transactions().values).filter(
-      (row) => row.price
+      (tx) => tx.price
     );
-    const aggHistoricalPrices = transactions.reduce((agg, row) => {
-      if (!agg[row.account]) {
-        agg[row.account] = {};
+    const aggHistoricalPrices = transactions.reduce((agg, tx) => {
+      if (!agg[tx.account]) {
+        agg[tx.account] = {};
       }
-      if (!agg[row.account][row.coin]) {
-        agg[row.account][row.coin] = {};
-        agg[row.account][row.coin]['quantity'] = 0;
-        agg[row.account][row.coin]['cost'] = 0;
-        agg[row.account][row.coin]['quantityBuy'] = 0;
-        agg[row.account][row.coin]['costBuy'] = 0;
-        agg[row.account][row.coin]['quantitySell'] = 0;
-        agg[row.account][row.coin]['costSell'] = 0;
+      if (!agg[tx.account][tx.project]) {
+        agg[tx.account][tx.project] = {};
       }
-      const quantity = row.quantity < 0 ? Math.abs(row.quantity) : row.quantity;
-      const quantityBuy = row.quantity > 0 ? row.quantity : 0;
-      const quantitySell = row.quantity < 0 ? Math.abs(row.quantity) : 0;
-      agg[row.account][row.coin]['quantity'] += quantity;
-      agg[row.account][row.coin]['cost'] += quantity * row.price;
-      agg[row.account][row.coin]['quantityBuy'] += quantityBuy;
-      agg[row.account][row.coin]['costBuy'] += quantityBuy * row.price;
-      agg[row.account][row.coin]['quantitySell'] += quantitySell;
-      agg[row.account][row.coin]['costSell'] += quantitySell * row.price;
+      if (!agg[tx.account][tx.project][tx.coin]) {
+        agg[tx.account][tx.project][tx.coin] = {};
+        agg[tx.account][tx.project][tx.coin]['quantity'] = 0;
+        agg[tx.account][tx.project][tx.coin]['cost'] = 0;
+        agg[tx.account][tx.project][tx.coin]['quantityBuy'] = 0;
+        agg[tx.account][tx.project][tx.coin]['costBuy'] = 0;
+        agg[tx.account][tx.project][tx.coin]['quantitySell'] = 0;
+        agg[tx.account][tx.project][tx.coin]['costSell'] = 0;
+      }
+      const quantity = tx.quantity < 0 ? Math.abs(tx.quantity) : tx.quantity;
+      const quantityBuy = tx.quantity > 0 ? tx.quantity : 0;
+      const quantitySell = tx.quantity < 0 ? Math.abs(tx.quantity) : 0;
+      agg[tx.account][tx.project][tx.coin]['quantity'] += quantity;
+      agg[tx.account][tx.project][tx.coin]['cost'] += quantity * tx.price;
+      agg[tx.account][tx.project][tx.coin]['quantityBuy'] += quantityBuy;
+      agg[tx.account][tx.project][tx.coin]['costBuy'] += quantityBuy * tx.price;
+      agg[tx.account][tx.project][tx.coin]['quantitySell'] += quantitySell;
+      agg[tx.account][tx.project][tx.coin]['costSell'] +=
+        quantitySell * tx.price;
       return agg
     }, {});
     const avgHistoricalPricesArrayOfObject = [];
-    Object.entries(aggHistoricalPrices).forEach(([account, symbolValue]) => {
-      Object.entries(symbolValue).forEach(([symbol, values]) => {
-        const avgPrice = values.cost / values.quantity || void 0;
-        if (avgPrice) {
-          avgHistoricalPricesArrayOfObject.push({
-            rowKey: new Hash(account + symbol).md5,
-            account,
-            symbol,
-            price: values.cost / values.quantity || void 0,
-            priceBuy: values.costBuy / values.quantityBuy || void 0,
-            priceSell: values.costSell / values.quantitySell || void 0,
-          });
-        }
+    Object.entries(aggHistoricalPrices).forEach(([account, level0]) => {
+      Object.entries(level0).forEach(([project, level1]) => {
+        Object.entries(level1).forEach(([symbol, object]) => {
+          const avgPrice = object.cost / object.quantity || void 0;
+          if (avgPrice) {
+            avgHistoricalPricesArrayOfObject.push({
+              rowKey: new Hash(account + project + symbol).md5,
+              account,
+              project,
+              symbol,
+              priceAvg: object.cost / object.quantity || void 0,
+              priceBuy: object.costBuy / object.quantityBuy || void 0,
+              priceSell: object.costSell / object.quantitySell || void 0,
+            });
+          }
+        });
       });
     });
     this.workSheet.insertRows(avgHistoricalPricesArrayOfObject, this.head);
@@ -1671,12 +1928,14 @@ class HistoricalPrices {
 }
 
 class Prices {
-  constructor() {
-    this.head = new Portfolio().head.prices;
-    this.spreadSheetName = new Portfolio().spreadSheetName;
-    this.sheetName = 'Prices';
-    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
-    this.values = this.workSheet.getDimension(this.head);
+  constructor(range) {
+    this.workSheet = new Portfolio()
+      .getWorkSheet('Prices', range, 1)
+      .getDimension();
+  }
+
+  savePrimaryKeyChanges() {
+    this.workSheet.savePrimaryKeyChanges();
   }
 
   getOnEdit(range) {
@@ -1709,25 +1968,13 @@ class Prices {
     return this
   }
 
-  updateInsert() {
-    this.arrayOfObject.forEach((object) => {
-      if (object.isNotNull || object.isChangePrimaryKey) {
-        this.workSheet.updateRow(object, this.head);
-      }
-    });
-  }
-
-  updateOnEdit(range) {
-    this.getOnEdit(range).updateInsert();
-  }
-
-  getHistoricalPrice(account, date, symbol, convert = 'usd') {
+  getHistoricalPrice(account, project, date, symbol, convert = 'usd') {
     const coinRow = this.values[new Hash(symbol).md5];
     const source = coinRow.source;
     const id = coinRow.id;
     const risk = coinRow.risk;
     if (new Hash('Stablecoin').md5 !== new Hash(risk).md5) {
-      if (new FormatDate(date).yyyymmdd === new FormatDate().yyyymmdd) {
+      if (new FormatDate$1(date).yyyymmdd === new FormatDate$1().yyyymmdd) {
         if (new Hash(source).md5 === new Hash('cryptorank').md5) {
           return new Price$3()
             .getLastPrice(id)
@@ -1771,7 +2018,8 @@ class Prices {
         } else {
           const histirocalPrices = new HistoricalPrices().values;
           return (
-            histirocalPrices[new Hash(account + symbol).md5]?.price || void 0
+            histirocalPrices[new Hash(account + project + symbol).md5]
+              ?.priceBuy || void 0
           )
         }
       }
@@ -1854,10 +2102,11 @@ class Prices {
               return new Hash(row.source).md5 === new Hash('custom').md5
             })
             .forEach((object) => {
-              const histirocalPricesKey = new Hash('ikeniborn' + object.symbol)
-                .md5;
+              const histirocalPricesKey = new Hash(
+                'ikeniborn' + 'no project' + object.symbol
+              ).md5;
               const histirocalPrice =
-                histirocalPrices[histirocalPricesKey]?.price || void 0;
+                histirocalPrices[histirocalPricesKey]?.priceAvg || void 0;
               this.values[object.rowKey].price = histirocalPrice;
             });
         }
@@ -1870,33 +2119,39 @@ class Prices {
   }
 }
 
-class Transactions {
-  constructor() {
-    this.head = new Portfolio().head.transactions;
-    this.header = new Header();
-    this.spreadSheetName = new Portfolio().spreadSheetName;
-    this.workSheet = new WorkSheet(this.spreadSheetName, 'transactions');
-    this.values = this.workSheet.getFact(this.head);
+class Registry {
+  constructor(range) {
+    this.workSheet = new Portfolio().getWorkSheet('Registry', range, 1);
+    this.values = this.workSheet.getTransactions();
+    this.transactions = [];
   }
 
-  getTransactions(arrayOfObject = []) {
-    this.transactions = [];
+  getTransactions() {
     const prices = new Prices();
-    arrayOfObject.forEach((rowValues, indexTx) => {
-      const startDate = new FormatDate();
-      let coinQty, currencyQty, currencyPerCoin, coinSymbol, coinPrice, project;
+    this.values.array.forEach((rowValues, indexTx) => {
+      // const startDate = new FormatDate()
+      let coinQty,
+        currencyQty,
+        currencyPerCoin,
+        coinSymbol,
+        coinPrice,
+        project,
+        accountRecipient,
+        recipient,
+        currencySymbol;
       const transactionRow = [];
       const hhmm = new FormatNumber(rowValues.time).getHourAndMinuteFromNumber();
       const dateTime = new FormatDate(rowValues.date).addTime(hhmm.h, hhmm.m)
         .date;
-      const accountRecipient = rowValues.accountRecipient
+      accountRecipient = rowValues.accountRecipient
         ? rowValues.accountRecipient
         : rowValues.accountSender;
-      const recipient = rowValues.recipient
-        ? rowValues.recipient
-        : rowValues.sender;
-
+      recipient = rowValues.recipient ? rowValues.recipient : rowValues.sender;
       project = rowValues.project ? rowValues.project : 'No project';
+      coinQty = rowValues.coinQty;
+      currencyQty = rowValues.currencyQty;
+      coinSymbol = rowValues.coin;
+      currencySymbol = rowValues.currency;
       if (
         ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !== -1
       ) {
@@ -1906,8 +2161,8 @@ class Transactions {
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             project: 'No project',
-            coin: rowValues.coin,
-            quantity: rowValues.coinQty * -1,
+            coin: coinSymbol,
+            quantity: coinQty * -1,
           });
         }
         if (['Transfer', 'Refill'].indexOf(rowValues.operation) !== -1) {
@@ -1915,14 +2170,11 @@ class Transactions {
             account: accountRecipient,
             contractor: recipient,
             project: 'No project',
-            coin: rowValues.coin,
-            quantity: rowValues.coinQty,
+            coin: coinSymbol,
+            quantity: coinQty,
           });
         }
       } else if (['Buy'].indexOf(rowValues.operation) !== -1) {
-        coinQty = rowValues.coinQty;
-        currencyQty = rowValues.currencyQty;
-        coinSymbol = rowValues.coin;
         if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
           currencyQty = coinQty * rowValues.currencyPerCoin;
         }
@@ -1941,20 +2193,17 @@ class Transactions {
           account: rowValues.accountSender,
           contractor: rowValues.sender,
           project: 'No project',
-          coin: rowValues.currency,
+          coin: currencySymbol,
           quantity: currencyQty * -1,
         });
         transactionRow.push({
           account: accountRecipient,
           contractor: recipient,
           project: project,
-          coin: rowValues.coin,
+          coin: coinSymbol,
           quantity: coinQty,
         });
       } else if (['Sell'].indexOf(rowValues.operation) !== -1) {
-        coinQty = rowValues.coinQty;
-        currencyQty = rowValues.currencyQty;
-        coinSymbol = rowValues.coin;
         if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
           currencyQty = coinQty * rowValues.currencyPerCoin;
         }
@@ -1973,23 +2222,24 @@ class Transactions {
           account: rowValues.accountSender,
           contractor: rowValues.sender,
           project: project,
-          coin: rowValues.coin,
+          coin: coinSymbol,
           quantity: coinQty * -1,
         });
         transactionRow.push({
           account: accountRecipient,
           contractor: recipient,
           project: 'No project',
-          coin: rowValues.currency,
+          coin: currencySymbol,
           quantity: currencyQty,
         });
       }
-      if (rowValues.currency && coinSymbol) {
+      if (currencySymbol && coinSymbol) {
         coinPrice =
           prices.getHistoricalPrice(
             rowValues.accountSender,
+            project,
             dateTime,
-            rowValues.currency
+            currencySymbol
           ) * currencyPerCoin || void 0;
       }
       transactionRow.forEach((tx) => {
@@ -2005,260 +2255,89 @@ class Transactions {
           price: tx.coin === coinSymbol ? coinPrice : void 0,
           comment: rowValues.comment.toLowerCase(),
           actionKey: rowValues.rowKey,
+          actionRowNum: rowValues.rowNum,
         });
       });
-      console.log('Time for ' + indexTx + ': ' + startDate.getTimeDiff());
+      // console.log('Time for ' + indexTx + ': ' + startDate.getTimeDiff())
     });
     return this
-  }
-
-  updateInsertTransactions() {
-    this.transactions.forEach((row) => {
-      const oldRow = Object.values(this.values).filter(
-        (oldRow) => oldRow.actionKey === row.actionKey
-      )[0];
-      let rowNum;
-      if (oldRow) {
-        row.rowKey = oldRow.rowKey;
-        row.rowNum = oldRow.rowNum;
-        delete this.values[oldRow.rowKey];
-        this.workSheet.updateRow(row, this.head);
-      } else {
-        rowNum = this.workSheet.lastRow + 1;
-        row.rowKey = new Hash(rowNum + this.workSheet.sheetName).md5;
-        this.workSheet.insertRow(row, this.head);
-      }
-    });
-  }
-
-  truncateInsertTrasactions() {
-    let rowNum;
-    const rows = this.transactions.map((row, index) => {
-      rowNum = index + 1;
-      row.rowKey = new Hash(rowNum + this.workSheet.sheetName).md5;
-      return row
-    });
-    this.workSheet.insertRows(rows, this.head);
-  }
-
-  updateTransactionsOnEdit(range) {
-    const registryOnEdit = new Registry().getRegistryOnEdit(range);
-    if (registryOnEdit.length) {
-      new Transactions()
-        .getTransactions(registryOnEdit)
-        .updateInsertTransactions();
-    }
   }
 }
 
 class Contractors {
-  constructor() {
-    this.head = new Portfolio().head.contractors;
-    this.spreadSheetName = new Portfolio().spreadSheetName;
-    this.sheetName = 'Contractors';
-    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
-    this.values = this.workSheet.getDimension(this.head);
+  constructor(range) {
+    this.workSheet = new Portfolio()
+      .getWorkSheet('Contractors', range, 1)
+      .getDimension();
   }
-
-  getOnEdit(range) {
-    this.workSheetRange = new WorkSheetRange(
-      this.spreadSheetName,
-      this.sheetName,
-      1,
-      range
-    );
-    this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head);
-    return this
-  }
-
-  updateInsert() {
-    this.arrayOfObject.forEach((object) => {
-      this.workSheet.updateRow(object, this.head);
-    });
-  }
-  updateOnEdit(range) {
-    this.getOnEdit(range).updateInsert();
+  savePrimaryKeyChanges() {
+    this.workSheet.savePrimaryKeyChanges();
   }
 }
 
 class Operations {
-  constructor() {
-    this.head = new Portfolio().head.operations;
-    this.spreadSheetName = new Portfolio().spreadSheetName;
-    this.sheetName = 'Operations';
-    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
-    this.values = this.workSheet.getDimension(this.head);
+  constructor(range) {
+    this.workSheet = new Portfolio()
+      .getWorkSheet('Operations', range, 1)
+      .getDimension();
   }
-
-  getOnEdit(range) {
-    this.workSheetRange = new WorkSheetRange(
-      this.spreadSheetName,
-      this.sheetName,
-      1,
-      range
-    );
-    this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head);
-    return this
-  }
-
-  updateInsert() {
-    this.arrayOfObject.forEach((object) => {
-      this.workSheet.updateRow(object, this.head, object.rowNum);
-    });
-  }
-  updateOnEdit(range) {
-    this.getOnEdit(range).updateInsert();
+  savePrimaryKeyChanges() {
+    this.workSheet.savePrimaryKeyChanges();
   }
 }
 
 class Services {
-  constructor() {
-    this.head = new Portfolio().head.operations;
-    this.spreadSheetName = new Portfolio().spreadSheetName;
-    this.sheetName = 'Services';
-    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
-    this.values = this.workSheet.getDimension(this.head);
+  constructor(range) {
+    this.workSheet = new Portfolio()
+      .getWorkSheet('Services', range, 1)
+      .getDimension();
+    this.savePrimaryKeyChanges = this.workSheet.savePrimaryKeyChanges();
   }
 
-  getOnEdit(range) {
-    this.workSheetRange = new WorkSheetRange(
-      this.spreadSheetName,
-      this.sheetName,
-      1,
-      range
-    );
-    Object.keys(this.head);
-    this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head);
-    return this
-  }
-
-  updateInsert() {
-    this.arrayOfObject.forEach((object) => {
-      this.workSheet.updateRow(object, this.head, object.rowNum);
-    });
-  }
-  updateOnEdit(range) {
-    this.getOnEdit(range).updateInsert();
+  savePrimaryKeyChanges() {
+    this.workSheet.savePrimaryKeyChanges();
   }
 }
 
 class Accounts {
-  constructor() {
-    this.head = new Portfolio().head.operations;
-    this.spreadSheetName = new Portfolio().spreadSheetName;
-    this.sheetName = 'Accounts';
-    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
-    this.values = this.workSheet.getDimension(this.head);
+  constructor(range) {
+    this.workSheet = new Portfolio()
+      .getWorkSheet('Accounts', range, 1)
+      .getDimension();
   }
-
-  getOnEdit(range) {
-    this.workSheetRange = new WorkSheetRange(
-      this.spreadSheetName,
-      this.sheetName,
-      1,
-      range
-    );
-    this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head);
-    return this
-  }
-
-  updateInsert() {
-    this.arrayOfObject.forEach((object) => {
-      this.workSheet.updateRow(object, this.head, object.rowNum);
-    });
-  }
-  updateOnEdit(range) {
-    this.getOnEdit(range).updateInsert();
+  savePrimaryKeyChanges() {
+    this.workSheet.savePrimaryKeyChanges();
   }
 }
 
 class Sources {
-  constructor() {
-    this.head = new Portfolio().head.sources;
-    this.spreadSheetName = new Portfolio().spreadSheetName;
-    this.sheetName = 'Sources';
-    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
-    this.values = this.workSheet.getDimension(this.head);
+  constructor(range) {
+    this.workSheet = new Portfolio()
+      .getWorkSheet('Sources', range, 1)
+      .getDimension();
+    this.savePrimaryKeyChanges = this.workSheet.savePrimaryKeyChanges();
   }
-
-  getOnEdit(range) {
-    this.workSheetRange = new WorkSheetRange(
-      this.spreadSheetName,
-      this.sheetName,
-      1,
-      range
-    );
-    this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head);
-    return this
-  }
-
-  updateInsert() {
-    this.arrayOfObject.forEach((object) => {
-      this.workSheet.updateRow(object, this.head, object.rowNum);
-    });
-  }
-  updateOnEdit(range) {
-    this.getOnEdit(range).updateInsert();
+  savePrimaryKeyChanges() {
+    this.workSheet.savePrimaryKeyChanges();
   }
 }
 
 class Project {
-  constructor() {
-    this.head = new Portfolio().head.operations;
-    this.spreadSheetName = new Portfolio().spreadSheetName;
-    this.sheetName = 'Project';
-    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
-    this.values = this.workSheet.getDimension(this.head);
+  constructor(range) {
+    this.workSheet = new Portfolio()
+      .getWorkSheet('Project', range, 1)
+      .getDimension();
+    this.savePrimaryKeyChanges = this.workSheet.savePrimaryKeyChanges();
   }
 
-  getOnEdit(range) {
-    this.workSheetRange = new WorkSheetRange(
-      this.spreadSheetName,
-      this.sheetName,
-      1,
-      range
-    );
-    this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head);
-    return this
-  }
-
-  updateInsert() {
-    this.arrayOfObject.forEach((object) => {
-      this.workSheet.updateRow(object, this.head, object.rowNum);
-    });
-  }
-  updateOnEdit(range) {
-    this.getOnEdit(range).updateInsert();
+  savePrimaryKeyChanges() {
+    this.workSheet.savePrimaryKeyChanges();
   }
 }
 
 class Balance {
-  constructor() {
-    this.head = new Portfolio().head.balance;
-    this.spreadSheetName = new Portfolio().spreadSheetName;
-    this.sheetName = 'Balance';
-    this.workSheet = new WorkSheet(this.spreadSheetName, this.sheetName);
-    // this.values = this.workSheet.getFact(this.head)
-  }
-
-  getOnEdit(range) {
-    this.workSheetRange = new WorkSheetRange(
-      this.spreadSheetName,
-      this.sheetName,
-      1,
-      range
-    );
-    this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head);
-    return this
-  }
-
-  updateInsert() {
-    this.arrayOfObject.forEach((object) => {
-      this.workSheet.updateRow(object, this.head, object.rowNum);
-    });
-  }
-  updateOnEdit(range) {
-    this.getOnEdit(range).updateInsert();
+  constructor(range) {
+    this.workSheet = new Portfolio().getWorkSheet('Balance', range, 1);
   }
 
   updateBalance() {
@@ -2293,10 +2372,12 @@ class Balance {
               const currentCost = quantity * prices[new Hash(coin).md5]?.price;
               const historicalCostBuy =
                 quantity *
-                  historicalPrices[new Hash(account + coin).md5]?.priceBuy || 0;
+                  historicalPrices[new Hash(account + project + coin).md5]
+                    ?.priceBuy || 0;
               const historicalCostAvg =
                 quantity *
-                  historicalPrices[new Hash(account + coin).md5]?.price || 0;
+                  historicalPrices[new Hash(account + project + coin).md5]
+                    ?.priceAvg || 0;
               const risk = prices[new Hash(coin).md5]?.risk;
               balance.push({
                 account: account.toUpperCase(),
@@ -2321,6 +2402,13 @@ class Balance {
   }
 }
 
+function test() {
+  console.log(new Registry().values.array);
+}
+function test2(editRange) {
+  console.log(new Registry(editRange.range).getTransactions().transactions);
+}
+
 function updateTransactions() {
   const arrayOfObject = new Registry().getRegistry();
   new Transactions().getTransactions(arrayOfObject).truncateInsertTrasactions();
@@ -2343,42 +2431,34 @@ function updateBalance() {
 }
 
 function updateOnEdit(editRange) {
-  try {
-    const range = editRange.range;
-    const workSheet = range.getSheet();
-    const sheetName = workSheet.getSheetName();
-    const sheetKey = new Hash(sheetName).md5;
-    if (sheetKey === new Hash('Registry').md5) {
-      new Transactions().updateTransactionsOnEdit(range);
-    } else if (sheetKey === new Hash('Contractors').md5) {
-      new Contractors().updateOnEdit(range);
-    } else if (sheetKey === new Hash('HistoricalPrices').md5) {
-      new HistoricalPrices().updateOnEdit(range);
-    } else if (sheetKey === new Hash('Operations').md5) {
-      new Operations().updateOnEdit(range);
-    } else if (sheetKey === new Hash('Services').md5) {
-      new Services().updateOnEdit(range);
-    } else if (sheetKey === new Hash('Accounts').md5) {
-      new Accounts().updateOnEdit(range);
-    } else if (sheetKey === new Hash('Sources').md5) {
-      new Sources().updateOnEdit(range);
-    } else if (sheetKey === new Hash('Prices').md5) {
-      new Prices().updateOnEdit(range);
-    } else if (sheetKey === new Hash('Coins').md5) {
-      new Coins().updateOnEdit(range);
-    } else if (sheetKey === new Hash('Project').md5) {
-      new Project().updateOnEdit(range);
-    }
-  } catch (error) {
-    SpreadsheetApp.getActive().toast(
-      'Update error: ' + error,
-      'Update process',
-      2
-    );
+  const range = editRange.range;
+  const workSheet = range.getSheet();
+  const sheetName = workSheet.getSheetName();
+  const sheetKey = new Hash(sheetName).md5;
+  if (sheetKey === new Hash('Registry').md5) {
+    // new Transactions(range).updateTransactionsOnEdit(range)
+  } else if (sheetKey === new Hash('Contractors').md5) {
+    new Contractors(range).savePrimaryKeyChanges();
+  } else if (sheetKey === new Hash('HistoricalPrices').md5) {
+    new HistoricalPrices(range);
+  } else if (sheetKey === new Hash('Operations').md5) {
+    new Operations(range).savePrimaryKeyChanges();
+  } else if (sheetKey === new Hash('Services').md5) {
+    new Services(range).savePrimaryKeyChanges();
+  } else if (sheetKey === new Hash('Accounts').md5) {
+    new Accounts(range).savePrimaryKeyChanges();
+  } else if (sheetKey === new Hash('Sources').md5) {
+    new Sources(range).savePrimaryKeyChanges();
+  } else if (sheetKey === new Hash('Prices').md5) {
+    new Prices(range).saveChanges();
+  } else if (sheetKey === new Hash('Coins').md5) {
+    new Coins(range).saveChanges();
+  } else if (sheetKey === new Hash('Project').md5) {
+    new Project(range).savePrimaryKeyChanges();
   }
 }
 
-function createInvoiceMenu() {
+function createMenu() {
   const ui = SpreadsheetApp.getUi();
   const menu = ui.createMenu('Library');
   menu.addSubMenu(

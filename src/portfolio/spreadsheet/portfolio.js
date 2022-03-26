@@ -1,5 +1,6 @@
 import { Environment } from '../../gas'
 import { Header } from '../../header'
+import { WorkSheet, WorkSheetRange } from '../../gas'
 export { Portfolio }
 
 new Environment([
@@ -70,7 +71,6 @@ class Portfolio {
       },
       transactions: {
         rowKey: { alias: 'Row key', idx: 0 },
-
         dateTime: { alias: 'Date and time', idx: 1 },
         account: { alias: 'Account', idx: 2 },
         platform: { alias: 'Platform', idx: 3 },
@@ -128,6 +128,10 @@ class Portfolio {
         rowKey: { alias: 'Row key', idx: 0 },
         name: { alias: 'Name', pk: true, idx: 1 },
       },
+      accounts: {
+        rowKey: { alias: 'Row key', idx: 0 },
+        name: { alias: 'Name', pk: true, idx: 1 },
+      },
       contractors: {
         rowKey: { alias: 'Row key', idx: 0 },
         name: { alias: 'Name', pk: true, idx: 1 },
@@ -136,5 +140,22 @@ class Portfolio {
       },
     }
     this.spreadSheetName = 'portfolio'
+  }
+
+  getWorkSheet(sheetName = '', range, headRowNum) {
+    const headKey = sheetName.toLowerCase()
+    return !range
+      ? new WorkSheet(
+          this.spreadSheetName,
+          sheetName,
+          this.head[headKey],
+          headRowNum
+        )
+      : new WorkSheetRange(
+          this.spreadSheetName,
+          sheetName,
+          this.head[headKey],
+          range
+        )
   }
 }

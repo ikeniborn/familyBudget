@@ -82,10 +82,11 @@ class WorkSheet extends SpreadSheet {
    *
    * @param {*} spreadSheetName
    * @param {*} sheetName
+   *     @param {*} head
    * @param {*} headerRowNum
    * @returns
    */
-  constructor(spreadSheetName = '', sheetName = '', headerRowNum = 1) {
+  constructor(spreadSheetName = '', sheetName = '', head = {}, headRowNum = 1) {
     super(spreadSheetName)
     if (WorkSheet.key === new Hash(sheetName).md5) {
       return WorkSheet.instance
@@ -93,9 +94,23 @@ class WorkSheet extends SpreadSheet {
     WorkSheet.instance = this
     this.workSheetKey = new Hash(sheetName).md5
     this.sheetName = sheetName
+    this.head = head
+    this.headKey = Object.keys(head)
+    this.headRowNum = headRowNum
+    this.firstRowNum = headRowNum + 1
     this.workSheet = this.workSheets[this.workSheetKey]
+    this.range = this.workSheet.getDataRange()
+    this.countRow = this.range.getNumRows() - this.headRowNum
+    this.countColumn = this.range.getNumColumns()
+    this.dataRange =
+      this.countRow > 0
+        ? this.workSheet
+            .getDataRange()
+            .offset(this.headRowNum, 0, this.countRow, this.countColumn)
+        : this.workSheet
+            .getDataRange()
+            .offset(this.headRowNum - 1, 0, 1, this.countColumn)
     this.metadata = new WorkSheetMetadata(this.workSheet)
-    this.getRange(headerRowNum)
   }
 
   /**
@@ -117,96 +132,108 @@ class WorkSheet extends SpreadSheet {
     return this.workSheet.getMaxColumns()
   }
 
-  /**
-   *
-   * @returns range, countRow, countColumn
-   */
-  getRange(headerRowNum) {
-    const dataRange = this.workSheet.getDataRange()
-    this.headerRowNum = headerRowNum
-    this.countRow = dataRange.getNumRows() - this.headerRowNum
-    this.countColumn = dataRange.getNumColumns()
-    //* формирование заголовка
-    this.headerRange = dataRange.offset(
-      this.headerRowNum - 1,
-      0,
-      1,
-      this.countColumn
-    )
-    this.dataRange =
-      this.countRow > 0
-        ? dataRange.offset(
-            this.headerRowNum,
-            0,
-            this.countRow,
-            this.countColumn
-          )
-        : this.headerRange
+  // /**
+  //  *
+  //  * @returns range, countRow, countColumn
+  //  */
+  // getRange() {
+  //   const dataRange = this.workSheet.getDataRange()
+  //   this.headerRowNum = headerRowNum
+  //   this.countRow = dataRange.getNumRows() - this.firstRowNum
+  //   this.countColumn = dataRange.getNumColumns()
+  //   // this.headerRange = dataRange.offset(
+  //   //   this.headerRowNum - 1,
+  //   //   0,
+  //   //   1,
+  //   //   this.countColumn
+  //   // )
+  //   this.dataRange =
+  //     this.countRow > 0
+  //       ? dataRange.offset(
+  //           this.headerRowNum,
+  //           0,
+  //           this.countRow,
+  //           this.countColumn
+  //         )
+  //       : this.headerRange
+  //   return this
+  // }
+
+  getFact() {
+    this.object = this.dataRange
+      .getValues()
+      .reduce((objectRow, arrayRow, indexRow) => {
+        const rowNum = this.firstRowNum + indexRow
+        const rowKey = arrayRow[this.head.rowKey.idx]
+        if (!objectRow[rowKey]) {
+          objectRow[rowKey] = arrayRow.reduce((object, value, index) => {
+            object['rowNum'] = rowNum
+            if (!object[this.headKey[index]]) {
+              object[this.headKey[index]] = value
+            }
+            return object
+          }, {})
+        }
+        return objectRow
+      }, {})
+    this.array = Object.values(this.object)
     return this
   }
 
-  getFact(head) {
-    const firstRowNum = this.headerRowNum + 1
-    const headKey = Object.keys(head)
-    return this.dataRange
+  getDimension() {
+    this.object = this.dataRange
       .getValues()
-      .reduce((valuesWithKey, rowValues, index) => {
-        const rowNum = firstRowNum + index
-        let rowKey
-        if (head?.rowKey) {
-          rowKey = rowValues[head.rowKey.idx]
-        } else {
-          rowKey = new Hash(rowNum + this.sheetName).md5
-        }
-        if (!valuesWithKey[rowKey]) {
-          valuesWithKey[rowKey] = rowValues.reduce((object, value, index) => {
-            if (!head?.rowKey) {
-              object['rowKey'] = rowKey
-            }
-            object['rowNum'] = rowNum
-            if (!object[headKey[index]]) {
-              object[headKey[index]] = value
-            }
-            return object
-          }, {})
-        }
-        return valuesWithKey
-      }, {})
-  }
-
-  getDimension(head) {
-    const firstRowNum = this.headerRowNum + 1
-    const headKey = Object.keys(head)
-    return this.dataRange
-      .getValues()
-      .reduce((arrayOfObject, rowValues, rowIndex) => {
-        const rowNum = firstRowNum + rowIndex
-        const rowKey = rowValues[head.rowKey.idx]
-        if (!arrayOfObject[rowKey]) {
-          arrayOfObject[rowKey] = rowValues.reduce((object, value, index) => {
-            if (!object[headKey[index]]) {
-              object[headKey[index]] = value
+      .reduce((objectRow, arrayRow, indexRow) => {
+        const rowNum = this.firstRowNum + indexRow
+        const rowKey = arrayRow[this.head.rowKey.idx]
+        if (!objectRow[rowKey]) {
+          objectRow[rowKey] = arrayRow.reduce((object, value, index) => {
+            if (!object[this.headKey[index]]) {
+              object[this.headKey[index]] = value
             }
             object['rowNum'] = rowNum
             return object
           }, {})
         }
-        return arrayOfObject
+        return objectRow
       }, {})
+    this.array = Object.values(this.object)
+    return this
   }
 
-  insertRows(arrayOfObject = [], head = {}, firstRow = 1, firstColumn = 1) {
-    const headOrder = Object.keys(head)
+  getTransactions() {
+    this.object = this.dataRange
+      .getValues()
+      .reduce((objectRow, arrayRow, indexRow) => {
+        const rowNum = this.firstRowNum + indexRow
+        const rowKey = new Hash(rowNum + this.sheetName).md5
+        if (!objectRow[rowKey]) {
+          objectRow[rowKey] = arrayRow.reduce((object, value, column) => {
+            object['rowKey'] = rowKey
+            object['rowNum'] = rowNum
+            if (!object[this.headKey[column]]) {
+              object[this.headKey[column]] = value
+            }
+            return object
+          }, {})
+        }
+        return objectRow
+      }, {})
+    this.array = Object.values(this.object)
+    return this
+  }
+
+  truncateInsertRows(arrayOfObject = [], firstRow = 1, firstColumn = 1) {
     const array = arrayOfObject.reduce(
       (values, rowObject) => {
-        const rowArray = headOrder.map((value) => rowObject[value])
+        const rowArray = this.headKey.map((value) => rowObject[value])
         values.push(rowArray)
         return values
       },
-      [new Header().getHeaderAlias(head)]
+      [new Header().getHeaderAlias(this.head)]
     )
     if (array.length) {
-      const insertRowsPromise = async () => {
+      const truncateInsertRowsPromise = async () => {
         return new Promise((resolve) => {
           this.deleteFilter()
           resolve()
@@ -222,51 +249,60 @@ class WorkSheet extends SpreadSheet {
           })
         })
       }
-      // this.deleteFilter()
-      // this.workSheet
-      //   .clear()
-      //   .getRange(firstRow, firstColumn, array.length, array[0].length)
-      //   .setValues(array)
-      // this.deleteEmptyRows().deleteEmptyColumns()
-      insertRowsPromise()
+      truncateInsertRowsPromise()
     }
     return this
   }
 
-  updateRow(object = {}, head = {}) {
+  updateRow(object = {}) {
     if (object.rowNum !== this.headerRowNum) {
-      const array = [Object.keys(head).map((column) => object[column])]
-      // const updateRowPromise = async (object) => {
-      //   return new Promise((resolve) => {
-      //     this.deleteFilter()
-      //     resolve(object)
-      //   }).then(async (object) => {
-      //     return new Promise((resolve) => {
-      //       this.workSheet
-      //         .clear()
-      //         .getRange(object.rowNum, 1, array.length, array[0].length)
-      //         .setValues(array)
-      //       resolve()
-      //     }).then(() => {
-      //       this.deleteEmptyRows().deleteEmptyColumns()
-      //     })
-      //   })
-      // }
-      // updateRowPromise()
-      this.workSheet
-        .getRange(object.rowNum, 1, array.length, array[0].length)
-        .setValues(array)
+      const array = [this.headKey.map((column) => object[column])]
+      const updateRowPromise = async () => {
+        return new Promise((resolve) => {
+          this.deleteFilter()
+          resolve()
+        }).then(async () => {
+          return new Promise((resolve) => {
+            this.workSheet
+              .getRange(object.rowNum, 1, array.length, array[0].length)
+              .setValues(array)
+            resolve()
+          }).then(() => {
+            this.deleteEmptyRows().deleteEmptyColumns()
+          })
+        })
+      }
+      updateRowPromise()
     }
   }
 
-  insertRow(object = {}, head = {}) {
-    const headOrder = Object.keys(head)
+  insertRow(object = {}) {
     const array = [object].reduce((values, rowObject) => {
-      const rowArray = headOrder.map((value) => rowObject[value])
+      const rowArray = this.headKey.map((value) => rowObject[value])
       values.push(rowArray)
       return values
     }, [])[0]
     this.workSheet.appendRow(array)
+  }
+
+  savePrimaryKeyChanges() {
+    const changes = this.array.filter((row) => {
+      return row.isChangePrimaryKey
+    })
+    if (changes.length) {
+      const ui = SpreadsheetApp.getUi() // Same variations.
+      const result = ui.alert(
+        'Data changed',
+        'You want save to database?',
+        ui.ButtonSet.YES_NO
+      )
+
+      if (result == ui.Button.YES) {
+        changes.forEach((object) => {
+          this.updateRow(object)
+        })
+      }
+    }
   }
 
   insertValue(value, row, column) {
@@ -307,18 +343,18 @@ class WorkSheet extends SpreadSheet {
 }
 
 class WorkSheetRange extends WorkSheet {
-  constructor(spreadSheetName, sheetName, headerRowNum, range) {
-    super(spreadSheetName, sheetName, headerRowNum)
+  constructor(spreadSheetName, sheetName, head, range) {
+    super(spreadSheetName, sheetName, head)
     this.range = range
     this.countRow = this.range.rowEnd - this.range.rowStart + 1
     this.countColumn = this.range.columnEnd - this.range.columnStart + 1
-    this.rangeOffset = range.offset(
+    this.firstRowNum = this.range.rowStart
+    this.dataRange = range.offset(
       0,
       1 - this.range.columnStart,
       this.countRow,
       this.maxColumn
     )
-    this.rangeOffsetValues = this.rangeOffset.getValues()
     this.rowNumArray = [...Array(this.countRow).keys()].map(
       (m) => (m = m + this.range.rowStart)
     )
@@ -327,19 +363,80 @@ class WorkSheetRange extends WorkSheet {
     )
   }
 
-  getArrayOfObject(head = {}) {
-    const headKey = Object.keys(head)
-    return this.rangeOffsetValues.map((rowArray, indexRow) => {
-      const object = rowArray.reduce((object, value, index) => {
-        if (!object[headKey[index]]) {
-          object[headKey[index]] = value
+  getFact() {
+    this.object = this.dataRange
+      .getValues()
+      .reduce((objectRow, arrayRow, indexRow) => {
+        const rowNum = this.firstRowNum + indexRow
+        const rowKey = arrayRow[this.head.rowKey.idx]
+        if (!objectRow[rowKey]) {
+          objectRow[rowKey] = arrayRow.reduce((object, value, index) => {
+            object['rowNum'] = rowNum
+            if (!object[this.headKey[index]]) {
+              object[this.headKey[index]] = value
+            }
+            return object
+          }, {})
         }
-        return object
+        return objectRow
       }, {})
-      object.rowKey = new Header().getPrimaryKey(head, object)
-      object.rowNum = this.range.rowStart + indexRow
-      return object
-    })
+    this.array = Object.values(this.object)
+    return this
+  }
+
+  getDimension() {
+    this.object = this.dataRange
+      .getValues()
+      .reduce((objectRow, arrayRow, indexRow) => {
+        const rowNum = this.firstRowNum + indexRow
+        const object = arrayRow.reduce((object, value, index) => {
+          if (!object[this.headKey[index]]) {
+            object[this.headKey[index]] = value
+          }
+          object['rowNum'] = rowNum
+          return object
+        }, {})
+        const newRowKey = new Header().getPrimaryKey(this.head, object)
+        if (!object.rowKey || object.rowKey !== newRowKey) {
+          object.rowKey = newRowKey
+          object.isChangePrimaryKey = true
+        }
+        if (!objectRow[object.rowKey]) {
+          objectRow[object.rowKey] = object
+        }
+        return objectRow
+      }, {})
+    this.array = Object.values(this.object)
+    return this
+  }
+
+  getTransactions() {
+    this.object = this.dataRange
+      .getValues()
+      .reduce((objectRow, arrayRow, indexRow) => {
+        const rowNum = this.firstRowNum + indexRow
+        const rowKey = new Hash(rowNum + this.sheetName).md5
+        const object = arrayRow.reduce((object, value, column) => {
+          if (!object[this.headKey[column]]) {
+            object[this.headKey[column]] = value
+            object['rowKey'] = rowKey
+            object['rowNum'] = rowNum
+          }
+          return object
+        }, {})
+        if (!objectRow[rowKey]) {
+          objectRow[rowKey] = object
+          objectRow[rowKey]['rowKey'] = rowKey
+          objectRow[rowKey]['rowNum'] = rowNum
+          objectRow[rowKey]['isNotNull'] = new Header().isNotNull(
+            this.head,
+            object
+          )
+        }
+        return objectRow
+      }, {})
+    this.array = Object.values(this.object)
+    return this
   }
 }
 
@@ -434,33 +531,6 @@ class GasScript {
   }
   flush() {
     SpreadsheetApp.flush()
-  }
-}
-
-class ModalDialog {
-  constructor(htmlTempate, width, height) {
-    this.html = htmlTempate
-    this.width = width
-    this.height = height
-  }
-
-  showModalDialog(title) {
-    const output = HtmlService.createTemplateFromFile(this.html)
-      .evaluate()
-      .setWidth(this.width)
-      .setHeight(this.height)
-    SpreadsheetApp.getUi().showModalDialog(output, title)
-  }
-
-  closeModalDialog(title, timer = 200) {
-    var output = HtmlService.createHtmlOutput(
-      '<script>var myVar = setInterval(myTimer ,' +
-        timer +
-        ');function myTimer() { google.script.host.close();}</script>'
-    )
-      .setWidth(this.width)
-      .setHeight(this.height)
-    SpreadsheetApp.getUi().showModalDialog(output, title)
   }
 }
 

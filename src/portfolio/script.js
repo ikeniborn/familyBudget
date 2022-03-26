@@ -12,6 +12,13 @@ import { Project } from './worksheet/project'
 import { Balance } from './worksheet/balance'
 import { Hash } from '../utils'
 
+function test() {
+  console.log(new Registry().values.array)
+}
+function test2(editRange) {
+  console.log(new Registry(editRange.range).getTransactions().transactions)
+}
+
 function updateTransactions() {
   const arrayOfObject = new Registry().getRegistry()
   new Transactions().getTransactions(arrayOfObject).truncateInsertTrasactions()
@@ -34,38 +41,30 @@ function updateBalance() {
 }
 
 function updateOnEdit(editRange) {
-  try {
-    const range = editRange.range
-    const workSheet = range.getSheet()
-    const sheetName = workSheet.getSheetName()
-    const sheetKey = new Hash(sheetName).md5
-    if (sheetKey === new Hash('Registry').md5) {
-      new Transactions().updateTransactionsOnEdit(range)
-    } else if (sheetKey === new Hash('Contractors').md5) {
-      new Contractors().updateOnEdit(range)
-    } else if (sheetKey === new Hash('HistoricalPrices').md5) {
-      new HistoricalPrices().updateOnEdit(range)
-    } else if (sheetKey === new Hash('Operations').md5) {
-      new Operations().updateOnEdit(range)
-    } else if (sheetKey === new Hash('Services').md5) {
-      new Services().updateOnEdit(range)
-    } else if (sheetKey === new Hash('Accounts').md5) {
-      new Accounts().updateOnEdit(range)
-    } else if (sheetKey === new Hash('Sources').md5) {
-      new Sources().updateOnEdit(range)
-    } else if (sheetKey === new Hash('Prices').md5) {
-      new Prices().updateOnEdit(range)
-    } else if (sheetKey === new Hash('Coins').md5) {
-      new Coins().updateOnEdit(range)
-    } else if (sheetKey === new Hash('Project').md5) {
-      new Project().updateOnEdit(range)
-    }
-  } catch (error) {
-    SpreadsheetApp.getActive().toast(
-      'Update error: ' + error,
-      'Update process',
-      2
-    )
+  const range = editRange.range
+  const workSheet = range.getSheet()
+  const sheetName = workSheet.getSheetName()
+  const sheetKey = new Hash(sheetName).md5
+  if (sheetKey === new Hash('Registry').md5) {
+    // new Transactions(range).updateTransactionsOnEdit(range)
+  } else if (sheetKey === new Hash('Contractors').md5) {
+    new Contractors(range).savePrimaryKeyChanges()
+  } else if (sheetKey === new Hash('HistoricalPrices').md5) {
+    new HistoricalPrices(range)
+  } else if (sheetKey === new Hash('Operations').md5) {
+    new Operations(range).savePrimaryKeyChanges()
+  } else if (sheetKey === new Hash('Services').md5) {
+    new Services(range).savePrimaryKeyChanges()
+  } else if (sheetKey === new Hash('Accounts').md5) {
+    new Accounts(range).savePrimaryKeyChanges()
+  } else if (sheetKey === new Hash('Sources').md5) {
+    new Sources(range).savePrimaryKeyChanges()
+  } else if (sheetKey === new Hash('Prices').md5) {
+    new Prices(range).saveChanges()
+  } else if (sheetKey === new Hash('Coins').md5) {
+    new Coins(range).saveChanges()
+  } else if (sheetKey === new Hash('Project').md5) {
+    new Project(range).savePrimaryKeyChanges()
   }
 }
 
