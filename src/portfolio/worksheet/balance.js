@@ -1,40 +1,38 @@
 import { Portfolio } from '../spreadsheet/portfolio'
-import { Transactions } from './transactions'
-import { HistoricalPrices } from './historicalPrices'
-import { Contractors } from './contractors'
-import { Prices } from './prices'
 import { Hash } from '../../utils'
 export { Balance }
 
 class Balance {
-  constructor(range) {
-    this.workSheet = new Portfolio().getWorkSheet('Balance', range, 1)
+  constructor(workSheet = '') {
+    this.workSheet = workSheet
+      ? workSheet
+      : new Portfolio().getWorkSheet('Balance')
   }
 
   updateBalance() {
-    const historicalPrices = new HistoricalPrices().values
-    const prices = new Prices().values
-    const contractors = new Contractors().values
-    const aggBalance = Object.values(new Transactions().values).reduce(
-      (object, tx) => {
-        if (!object[tx.account]) {
-          object[tx.account] = {}
-        }
-        if (!object[tx.account][tx.contractor]) {
-          object[tx.account][tx.contractor] = {}
-        }
-        if (!object[tx.account][tx.contractor][tx.project]) {
-          object[tx.account][tx.contractor][tx.project] = {}
-        }
-        if (!object[tx.account][tx.contractor][tx.project][tx.coin]) {
-          object[tx.account][tx.contractor][tx.project][tx.coin] = 0
-        }
-        object[tx.account][tx.contractor][tx.project][tx.coin] += tx.quantity
-        return object
-      },
-      {}
-    )
-    const balance = []
+    const newArrayOfObject = []
+    const historicalPrices = new Portfolio().getWorkSheet('historicalPrices')
+      .object
+    const prices = new Portfolio().getWorkSheet('prices').object
+    const contractors = new Portfolio().getWorkSheet('contractors').object
+    const transactions = new Portfolio().getWorkSheet('transactions')
+      .arrayOfObject
+    const aggBalance = transactions.reduce((object, tx) => {
+      if (!object[tx.account]) {
+        object[tx.account] = {}
+      }
+      if (!object[tx.account][tx.contractor]) {
+        object[tx.account][tx.contractor] = {}
+      }
+      if (!object[tx.account][tx.contractor][tx.project]) {
+        object[tx.account][tx.contractor][tx.project] = {}
+      }
+      if (!object[tx.account][tx.contractor][tx.project][tx.coin]) {
+        object[tx.account][tx.contractor][tx.project][tx.coin] = 0
+      }
+      object[tx.account][tx.contractor][tx.project][tx.coin] += tx.quantity
+      return object
+    }, {})
     Object.entries(aggBalance).forEach(([account, level0]) => {
       Object.entries(level0).forEach(([contractor, level1]) => {
         Object.entries(level1).forEach(([project, level2]) => {
@@ -50,7 +48,7 @@ class Balance {
                   historicalPrices[new Hash(account + project + coin).md5]
                     ?.priceAvg || 0
               const risk = prices[new Hash(coin).md5]?.risk
-              balance.push({
+              newArrayOfObject.push({
                 account: account.toUpperCase(),
                 contractor: contractor.toUpperCase(),
                 contractorType: contractors[
@@ -69,6 +67,6 @@ class Balance {
         })
       })
     })
-    this.workSheet.insertRows(balance, this.head)
+    this.workSheet.truncateInsertRows(newArrayOfObject)
   }
 }

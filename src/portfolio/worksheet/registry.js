@@ -1,17 +1,17 @@
 import { Portfolio } from '../spreadsheet/portfolio'
-import { Prices } from './prices'
 export { Registry }
 
 class Registry {
-  constructor(range) {
-    this.workSheet = new Portfolio().getWorkSheet('Registry', range, 1)
-    this.values = this.workSheet.getTransactions()
-    this.transactions = []
+  constructor(workSheet = '') {
+    this.workSheet = workSheet
+      ? workSheet
+      : new Portfolio().getWorkSheet('Registry')
   }
 
   getTransactions() {
-    const prices = new Prices()
-    this.values.array.forEach((rowValues, indexTx) => {
+    this.transactions = []
+    const prices = new Portfolio().getWorkSheet('prices').object
+    this.workSheet.arrayOfObject.forEach((rowValues, indexTx) => {
       // const startDate = new FormatDate()
       let coinQty,
         currencyQty,

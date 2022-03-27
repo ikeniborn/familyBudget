@@ -179,17 +179,6 @@ class Fetch {
       } while (!this.fetchStatus)
 
       return this.result
-
-      // const response = UrlFetchApp.fetch(this.url, this.data)
-      // const text = response.getContentText()
-      // const responseCode = response.getResponseCode()
-      // if (responseCode !== 200) {
-      //   console.log('URL: ', this.url)
-      //   console.log('Response code: ', responseCode)
-      //   console.log('Content Text: ', response.getContentText())
-      // } else {
-      //   return JSON.parse(text)
-      // } return
     } catch (error) {
       console.error(error)
     }

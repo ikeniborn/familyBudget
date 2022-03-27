@@ -44,6 +44,14 @@ class Price {
       })?.data || []
     )
   }
+
+  getRank(id) {
+    const data = this.methods.get({
+      endPoint: '/currencies/{id}',
+      path: { id },
+    })?.data?.rank
+    return data
+  }
 }
 /**
  * CryptoRank coin list

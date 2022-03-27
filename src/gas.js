@@ -86,7 +86,7 @@ class WorkSheet extends SpreadSheet {
    * @param {*} headerRowNum
    * @returns
    */
-  constructor(spreadSheetName = '', sheetName = '', head = {}, headRowNum = 1) {
+  constructor(spreadSheetName = '', sheetName = '', head = {}) {
     super(spreadSheetName)
     if (WorkSheet.key === new Hash(sheetName).md5) {
       return WorkSheet.instance
@@ -94,10 +94,11 @@ class WorkSheet extends SpreadSheet {
     WorkSheet.instance = this
     this.workSheetKey = new Hash(sheetName).md5
     this.sheetName = sheetName
-    this.head = head
-    this.headKey = Object.keys(head)
-    this.headRowNum = headRowNum
-    this.firstRowNum = headRowNum + 1
+    this.headType = head.type
+    this.head = head.columns
+    this.headKey = Object.keys(this.head)
+    this.headRowNum = head.rowNum
+    this.firstRowNum = this.headRowNum + 1
     this.workSheet = this.workSheets[this.workSheetKey]
     this.range = this.workSheet.getDataRange()
     this.countRow = this.range.getNumRows() - this.headRowNum
@@ -110,7 +111,8 @@ class WorkSheet extends SpreadSheet {
         : this.workSheet
             .getDataRange()
             .offset(this.headRowNum - 1, 0, 1, this.countColumn)
-    this.metadata = new WorkSheetMetadata(this.workSheet)
+    // this.metadata = new WorkSheetMetadata(this.workSheet)
+    this.getDataset()
   }
 
   /**
@@ -176,7 +178,7 @@ class WorkSheet extends SpreadSheet {
         }
         return objectRow
       }, {})
-    this.array = Object.values(this.object)
+    this.arrayOfObject = Object.values(this.object)
     return this
   }
 
@@ -197,7 +199,7 @@ class WorkSheet extends SpreadSheet {
         }
         return objectRow
       }, {})
-    this.array = Object.values(this.object)
+    this.arrayOfObject = Object.values(this.object)
     return this
   }
 
@@ -219,7 +221,7 @@ class WorkSheet extends SpreadSheet {
         }
         return objectRow
       }, {})
-    this.array = Object.values(this.object)
+    this.arrayOfObject = Object.values(this.object)
     return this
   }
 
@@ -285,26 +287,6 @@ class WorkSheet extends SpreadSheet {
     this.workSheet.appendRow(array)
   }
 
-  savePrimaryKeyChanges() {
-    const changes = this.array.filter((row) => {
-      return row.isChangePrimaryKey
-    })
-    if (changes.length) {
-      const ui = SpreadsheetApp.getUi() // Same variations.
-      const result = ui.alert(
-        'Data changed',
-        'You want save to database?',
-        ui.ButtonSet.YES_NO
-      )
-
-      if (result == ui.Button.YES) {
-        changes.forEach((object) => {
-          this.updateRow(object)
-        })
-      }
-    }
-  }
-
   insertValue(value, row, column) {
     this.workSheet.getRange(row, column).setValue(value)
   }
@@ -340,6 +322,17 @@ class WorkSheet extends SpreadSheet {
     }
     return this
   }
+
+  getDataset() {
+    if (this.headType === 'dimension') {
+      this.getDimension()
+    } else if (this.headType === 'fact') {
+      this.getFact()
+    } else if (this.headType === 'transaction') {
+      this.getTransactions()
+    }
+    return this
+  }
 }
 
 class WorkSheetRange extends WorkSheet {
@@ -349,6 +342,8 @@ class WorkSheetRange extends WorkSheet {
     this.countRow = this.range.rowEnd - this.range.rowStart + 1
     this.countColumn = this.range.columnEnd - this.range.columnStart + 1
     this.firstRowNum = this.range.rowStart
+    this.isChangePrimaryKey = false
+    this.isNotNull = false
     this.dataRange = range.offset(
       0,
       1 - this.range.columnStart,
@@ -361,6 +356,7 @@ class WorkSheetRange extends WorkSheet {
     this.columnNumArray = [...Array(this.countColumn).keys()].map(
       (m) => (m = m + this.range.columnStart)
     )
+    this.getDataset()
   }
 
   getFact() {
@@ -380,7 +376,7 @@ class WorkSheetRange extends WorkSheet {
         }
         return objectRow
       }, {})
-    this.array = Object.values(this.object)
+    this.arrayOfObject = Object.values(this.object)
     return this
   }
 
@@ -399,14 +395,15 @@ class WorkSheetRange extends WorkSheet {
         const newRowKey = new Header().getPrimaryKey(this.head, object)
         if (!object.rowKey || object.rowKey !== newRowKey) {
           object.rowKey = newRowKey
-          object.isChangePrimaryKey = true
+          this.isChangePrimaryKey = true
         }
         if (!objectRow[object.rowKey]) {
           objectRow[object.rowKey] = object
         }
+        this.isNotNull = new Header().isNotNull(this.head, object)
         return objectRow
       }, {})
-    this.array = Object.values(this.object)
+    this.arrayOfObject = Object.values(this.object)
     return this
   }
 
@@ -428,15 +425,29 @@ class WorkSheetRange extends WorkSheet {
           objectRow[rowKey] = object
           objectRow[rowKey]['rowKey'] = rowKey
           objectRow[rowKey]['rowNum'] = rowNum
-          objectRow[rowKey]['isNotNull'] = new Header().isNotNull(
-            this.head,
-            object
-          )
+          this.isNotNull = new Header().isNotNull(this.head, object)
         }
         return objectRow
       }, {})
-    this.array = Object.values(this.object)
+    this.arrayOfObject = Object.values(this.object)
     return this
+  }
+
+  savePrimaryKeyChanges() {
+    if (this.firstRowNum !== this.headRowNum) {
+      const ui = SpreadsheetApp.getUi() // Same variations.
+      const result = ui.alert(
+        'Primary key changed!',
+        'Save?',
+        ui.ButtonSet.YES_NO
+      )
+
+      if (result == ui.Button.YES) {
+        this.arrayOfObject.forEach((object) => {
+          this.updateRow(object)
+        })
+      }
+    }
   }
 }
 

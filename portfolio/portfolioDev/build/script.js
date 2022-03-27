@@ -24,7 +24,7 @@ class Hash {
   }
 }
 
-class FormatDate$1 {
+class FormatDate {
   /**
    * Форматирование и преобразование даты
    * @param {date} date значение даты. По умолчанию - текущее значение
@@ -193,46 +193,6 @@ class FormatDate$1 {
   }
 }
 
-class FormatNumber$1 {
-  constructor(number = 0) {
-    this.number = typeof string === 'number' ? number : number * 1;
-  }
-
-  /**
-   * Преобразование даты в числовом формате YYYYMMDD в тип дата
-   *
-   * @returns {date} Дата
-   */
-  getDate() {
-    const numberString = this.number.toString();
-    const year = numberString.substr(0, 4) * 1;
-    const month = numberString.substr(4, 2) * 1 - 1;
-    const day = numberString.substr(6, 2) * 1;
-    return new Date(year, month, day)
-  }
-
-  getHourAndMinuteFromNumber() {
-    let t = this.number.toString();
-    let h;
-    let m;
-    if (t.toString().length === 4) {
-      h = t.toString().slice(0, 2) * 1;
-      m = t.toString().slice(2, 4) * 1;
-    } else if (t.toString().length === 3) {
-      h = t.toString().slice(0, 1) * 1;
-      m = t.toString().slice(1, 3) * 1;
-    }
-    if (t.toString().length === 2) {
-      h = 0;
-      m = t * 1;
-    }
-    return {
-      h,
-      m,
-    }
-  }
-}
-
 Object.prototype.isEmpty = function () {
   if (Object.keys(this).length === 0) {
     return true
@@ -262,6 +222,19 @@ class Header {
    */
   getHeaderAlias(head) {
     return Object.values(head).map((m) => m.alias)
+  }
+
+  getHead(workSheetHeads, sheetName) {
+    const head = Object.entries(workSheetHeads).reduce(
+      (object, [key, value]) => {
+        if (!object[new Hash(key).md5]) {
+          object[new Hash(key).md5] = value;
+        }
+        return object
+      },
+      {}
+    );
+    return head[new Hash(sheetName).md5]
   }
 
   getPrimaryKey(head = {}, rowValues = {}) {
@@ -369,7 +342,7 @@ class WorkSheet extends SpreadSheet {
    * @param {*} headerRowNum
    * @returns
    */
-  constructor(spreadSheetName = '', sheetName = '', head = {}, headRowNum = 1) {
+  constructor(spreadSheetName = '', sheetName = '', head = {}) {
     super(spreadSheetName);
     if (WorkSheet.key === new Hash(sheetName).md5) {
       return WorkSheet.instance
@@ -377,10 +350,11 @@ class WorkSheet extends SpreadSheet {
     WorkSheet.instance = this;
     this.workSheetKey = new Hash(sheetName).md5;
     this.sheetName = sheetName;
-    this.head = head;
-    this.headKey = Object.keys(head);
-    this.headRowNum = headRowNum;
-    this.firstRowNum = headRowNum + 1;
+    this.headType = head.type;
+    this.head = head.columns;
+    this.headKey = Object.keys(this.head);
+    this.headRowNum = head.rowNum;
+    this.firstRowNum = this.headRowNum + 1;
     this.workSheet = this.workSheets[this.workSheetKey];
     this.range = this.workSheet.getDataRange();
     this.countRow = this.range.getNumRows() - this.headRowNum;
@@ -393,7 +367,8 @@ class WorkSheet extends SpreadSheet {
         : this.workSheet
             .getDataRange()
             .offset(this.headRowNum - 1, 0, 1, this.countColumn);
-    this.metadata = new WorkSheetMetadata(this.workSheet);
+    // this.metadata = new WorkSheetMetadata(this.workSheet)
+    this.getDataset();
   }
 
   /**
@@ -459,7 +434,7 @@ class WorkSheet extends SpreadSheet {
         }
         return objectRow
       }, {});
-    this.array = Object.values(this.object);
+    this.arrayOfObject = Object.values(this.object);
     return this
   }
 
@@ -480,7 +455,7 @@ class WorkSheet extends SpreadSheet {
         }
         return objectRow
       }, {});
-    this.array = Object.values(this.object);
+    this.arrayOfObject = Object.values(this.object);
     return this
   }
 
@@ -502,7 +477,7 @@ class WorkSheet extends SpreadSheet {
         }
         return objectRow
       }, {});
-    this.array = Object.values(this.object);
+    this.arrayOfObject = Object.values(this.object);
     return this
   }
 
@@ -515,6 +490,7 @@ class WorkSheet extends SpreadSheet {
       },
       [new Header().getHeaderAlias(this.head)]
     );
+    console.log('truncateInsertRows', array);
     if (array.length) {
       const truncateInsertRowsPromise = async () => {
         return new Promise((resolve) => {
@@ -568,26 +544,6 @@ class WorkSheet extends SpreadSheet {
     this.workSheet.appendRow(array);
   }
 
-  savePrimaryKeyChanges() {
-    const changes = this.array.filter((row) => {
-      return row.isChangePrimaryKey
-    });
-    if (changes.length) {
-      const ui = SpreadsheetApp.getUi(); // Same variations.
-      const result = ui.alert(
-        'Data changed',
-        'You want save to database?',
-        ui.ButtonSet.YES_NO
-      );
-
-      if (result == ui.Button.YES) {
-        changes.forEach((object) => {
-          this.updateRow(object);
-        });
-      }
-    }
-  }
-
   insertValue(value, row, column) {
     this.workSheet.getRange(row, column).setValue(value);
   }
@@ -623,15 +579,28 @@ class WorkSheet extends SpreadSheet {
     }
     return this
   }
+
+  getDataset() {
+    if (this.headType === 'dimension') {
+      this.getDimension();
+    } else if (this.headType === 'fact') {
+      this.getFact();
+    } else if (this.headType === 'transaction') {
+      this.getTransactions();
+    }
+    return this
+  }
 }
 
-class WorkSheetRange$1 extends WorkSheet {
+class WorkSheetRange extends WorkSheet {
   constructor(spreadSheetName, sheetName, head, range) {
     super(spreadSheetName, sheetName, head);
     this.range = range;
     this.countRow = this.range.rowEnd - this.range.rowStart + 1;
     this.countColumn = this.range.columnEnd - this.range.columnStart + 1;
     this.firstRowNum = this.range.rowStart;
+    this.isChangePrimaryKey = false;
+    this.isNotNull = false;
     this.dataRange = range.offset(
       0,
       1 - this.range.columnStart,
@@ -644,6 +613,7 @@ class WorkSheetRange$1 extends WorkSheet {
     this.columnNumArray = [...Array(this.countColumn).keys()].map(
       (m) => (m = m + this.range.columnStart)
     );
+    this.getDataset();
   }
 
   getFact() {
@@ -663,7 +633,7 @@ class WorkSheetRange$1 extends WorkSheet {
         }
         return objectRow
       }, {});
-    this.array = Object.values(this.object);
+    this.arrayOfObject = Object.values(this.object);
     return this
   }
 
@@ -682,14 +652,15 @@ class WorkSheetRange$1 extends WorkSheet {
         const newRowKey = new Header().getPrimaryKey(this.head, object);
         if (!object.rowKey || object.rowKey !== newRowKey) {
           object.rowKey = newRowKey;
-          object.isChangePrimaryKey = true;
+          this.isChangePrimaryKey = true;
         }
         if (!objectRow[object.rowKey]) {
           objectRow[object.rowKey] = object;
         }
+        this.isNotNull = new Header().isNotNull(this.head, object);
         return objectRow
       }, {});
-    this.array = Object.values(this.object);
+    this.arrayOfObject = Object.values(this.object);
     return this
   }
 
@@ -711,158 +682,28 @@ class WorkSheetRange$1 extends WorkSheet {
           objectRow[rowKey] = object;
           objectRow[rowKey]['rowKey'] = rowKey;
           objectRow[rowKey]['rowNum'] = rowNum;
-          objectRow[rowKey]['isNotNull'] = new Header().isNotNull(
-            this.head,
-            object
-          );
+          this.isNotNull = new Header().isNotNull(this.head, object);
         }
         return objectRow
       }, {});
-    this.array = Object.values(this.object);
+    this.arrayOfObject = Object.values(this.object);
     return this
   }
-}
-class Metadata {
-  /**
-   * Методы работы с метаданными листа книги
-   * @param {object} target объект метаданных: принимает книгу, лист, диапазон
-   */
-  constructor(target) {
-    this.target = target;
-    this.metadata = target.getDeveloperMetadata().reduce((keys, metadata) => {
-      keys[metadata.getKey()] = {
-        remove: () => metadata.remove(),
-        getKey: () => metadata.getKey(),
-        getValue: () => metadata.getValue(),
-        setValue: (value) => metadata.setValue(value),
-        value: metadata.getValue(),
-      };
-      return keys
-    }, {});
-    this.metaMap = new Map(Object.entries(this.metadata));
-  }
-  /**
-   * Добавление значения в метаданные листа
-   * @param {string} key ключ метаданых
-   * @param {string} value значение ключа
-   */
-  addMetadata(key, value) {
-    const newValue = value;
-    if (this.metaMap.has(key)) {
-      const oldValue = this.metadata[key].getValue();
-      if (new Hash(newValue).md5 !== new Hash(oldValue).md5) {
-        this.metadata[key].setValue(newValue);
-        this.metadata[key].value = newValue;
+
+  savePrimaryKeyChanges() {
+    if (this.firstRowNum !== this.headRowNum) {
+      const ui = SpreadsheetApp.getUi(); // Same variations.
+      const result = ui.alert(
+        'Primary key changed!',
+        'Save?',
+        ui.ButtonSet.YES_NO
+      );
+
+      if (result == ui.Button.YES) {
+        this.arrayOfObject.forEach((object) => {
+          this.updateRow(object);
+        });
       }
-    } else {
-      this.metadata = this.target
-        .addDeveloperMetadata(key, newValue)
-        .getDeveloperMetadata()
-        .reduce((keys, metadata) => {
-          keys[metadata.getKey()] = {
-            remove: () => metadata.remove(),
-            getKey: () => metadata.getKey(),
-            getValue: () => metadata.getValue(),
-            setValue: (value) => metadata.setValue(value),
-          };
-          return keys
-        }, {});
-      this.metaMap = new Map(Object.entries(this.metadata));
-    }
-  }
-
-  getMetadata(key) {
-    if (this.metaMap.has(key)) {
-      return this.metadata[key].getValue()
-    }
-  }
-
-  deleteMetadata(key) {
-    key = key.toString();
-    if (this.metaMap.has(key)) {
-      this.metadata[key].remove();
-    }
-  }
-  deleteAllMetadata() {
-    Object.keys(this.metadata).forEach((key) => {
-      this.metadata[key].remove();
-    });
-  }
-}
-
-class WorkSheetMetadata extends Metadata {
-  /**
-   * Работа с метаданными листа
-   * @param {object} sheet объект листа
-   */
-  constructor(sheet) {
-    super(sheet);
-    this.sheetName = sheet.getName().toUpperCase();
-  }
-  /**
-   * Добавление ключа строки в метаданные
-   * @param {number} rowNum номер строки листа
-   */
-  addRowKey(rowNum, value) {
-    const key = 'ROWKEY_' + rowNum;
-    super.addMetadata(key, value);
-    return value
-  }
-  /**
-   * Получение ключа строки с листа
-   * @param {number} rowNum номер строки листа
-   * @returns строка в формате Hash
-   */
-  getRowKey(rowNum) {
-    const key = 'ROWKEY_' + rowNum;
-    return super.getMetadata(key)
-  }
-  /**
-   * Добавление ключа листа в метаданные
-   * @param {string} sheetKey ключ листа в формате Hash
-   */
-  addSheetKey() {
-    const value = new Hash(this.sheetName).md5;
-    super.addMetadata('SHEETKEY', value);
-    return value
-  }
-  /**
-   * Получение ключа листа из метаданных
-   * @returns ключ листа в формате Hash
-   */
-  getSheetKey() {
-    return super.getMetadata('SHEETKEY')
-  }
-  /**
-   * Изменение счетчика изменений
-   * @param {boolean} clear признак обнуления счетчика
-   */
-  updateCountChange(clear = false) {
-    const oldValue = new ETL(super.getMetadata('COUNTCHANGE')).toNumber() || 0;
-    let newValue;
-    if (clear) {
-      newValue = 0;
-    } else {
-      newValue = oldValue + 1;
-    }
-    super.addMetadata('COUNTCHANGE', newValue);
-    return newValue
-  }
-  /**
-   * Показ текущего количества изменений листа
-   * @returns число изменений
-   */
-  getCountChange() {
-    return new ETL(super.getMetadata('COUNTCHANGE')).toNumber() || 0
-  }
-
-  getSheetName() {
-    const oldValue = super.getMetadata('SHEETNAME');
-    if (oldValue) {
-      return oldValue
-    } else {
-      super.addMetadata('SHEETNAME', this.sheetName);
-      return this.sheetName
     }
   }
 }
@@ -889,138 +730,251 @@ class Portfolio {
     }
     Portfolio.instance = this;
     Portfolio.exists = true;
-    this.header = new Header();
-    this.head = {
+    this.workSheetHeads = {
       registry: {
-        operation: { alias: 'Operation', idx: 0, notNull: true },
-        accountSender: { alias: 'Account sender', idx: 1, notNull: true },
-        accountRecipient: { alias: 'Account recipient', idx: 2 },
-        project: { alias: 'Project', idx: 3 },
-        platform: { alias: 'Platform', idx: 4, notNull: true },
-        service: { alias: 'Service', idx: 5, notNull: true },
-        sender: { alias: 'Sender', idx: 6, notNull: true },
-        recipient: { alias: 'Recipient', idx: 7 },
-        coin: { alias: 'Coin', idx: 8, notNull: true },
-        coinQty: { alias: 'Coin, qty', idx: 9 },
-        currency: { alias: 'Currency', idx: 10 },
-        currencyQty: { alias: 'Currency, qty', idx: 11 },
-        currencyPerCoin: { alias: 'Currency per coin', idx: 12 },
-        feeCurrency: { alias: 'Fee currency', idx: 13 },
-        feeQty: { alias: 'Fee, qty', idx: 14 },
-        comment: { alias: 'Comment', idx: 15 },
-        date: { alias: 'Date', idx: 16, notNull: true },
-        time: { alias: 'Time', idx: 17, notNull: true },
+        type: 'transaction',
+        rowNum: 1,
+        columns: {
+          operation: { alias: 'Operation', idx: 0, notNull: true },
+          accountSender: { alias: 'Account sender', idx: 1, notNull: true },
+          accountRecipient: { alias: 'Account recipient', idx: 2 },
+          project: { alias: 'Project', idx: 3 },
+          platform: { alias: 'Platform', idx: 4, notNull: true },
+          service: { alias: 'Service', idx: 5, notNull: true },
+          sender: { alias: 'Sender', idx: 6, notNull: true },
+          recipient: { alias: 'Recipient', idx: 7 },
+          coin: { alias: 'Coin', idx: 8, notNull: true },
+          coinQty: { alias: 'Coin, qty', idx: 9 },
+          currency: { alias: 'Currency', idx: 10 },
+          currencyQty: { alias: 'Currency, qty', idx: 11 },
+          currencyPerCoin: { alias: 'Currency per coin', idx: 12 },
+          feeCurrency: { alias: 'Fee currency', idx: 13 },
+          feeQty: { alias: 'Fee, qty', idx: 14 },
+          comment: { alias: 'Comment', idx: 15 },
+          date: { alias: 'Date', idx: 16, notNull: true },
+          time: { alias: 'Time', idx: 17, notNull: true },
+        },
       },
       prices: {
-        rowKey: { alias: 'Row key', idx: 0 },
-        source: {
-          alias: 'Source',
-          idx: 1,
-          notNull: true,
+        type: 'dimension',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          source: {
+            alias: 'Source',
+            idx: 1,
+            notNull: true,
+          },
+          name: {
+            alias: 'Name',
+            idx: 2,
+            notNull: true,
+          },
+          symbol: {
+            alias: 'Symbol',
+            pk: true,
+            idx: 3,
+            notNull: true,
+          },
+          risk: { alias: 'Risk', idx: 4 },
+          priceId: { alias: 'Price ID', idx: 5 },
+          rankId: { alias: 'Rank ID', idx: 6 },
+          price: { alias: 'Price', idx: 7 },
         },
-        name: {
-          alias: 'Name',
-          idx: 2,
-          notNull: true,
-        },
-        symbol: {
-          alias: 'Symbol',
-          pk: true,
-          idx: 3,
-          notNull: true,
-        },
-        risk: { alias: 'Risk', idx: 4 },
-        id: { alias: 'Id', idx: 5 },
-        price: { alias: 'Price', idx: 6 },
       },
       transactions: {
-        rowKey: { alias: 'Row key', idx: 0 },
-        dateTime: { alias: 'Date and time', idx: 1 },
-        account: { alias: 'Account', idx: 2 },
-        platform: { alias: 'Platform', idx: 3 },
-        service: { alias: 'Service', idx: 4 },
-        project: { alias: 'Project', idx: 5 },
-        contractor: { alias: 'Contractor', idx: 6 },
-        coin: { alias: 'Coin', idx: 7 },
-        quantity: { alias: 'Quantity', idx: 8 },
-        price: { alias: 'Price', idx: 9 },
-        comment: { alias: 'Comment', idx: 10 },
-        actionKey: { alias: 'Action key', idx: 11 },
-        actionRowNum: { alias: 'Action row num', idx: 12 },
+        type: 'fact',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          dateTime: { alias: 'Date and time', idx: 1 },
+          account: { alias: 'Account', idx: 2 },
+          platform: { alias: 'Platform', idx: 3 },
+          service: { alias: 'Service', idx: 4 },
+          project: { alias: 'Project', idx: 5 },
+          contractor: { alias: 'Contractor', idx: 6 },
+          coin: { alias: 'Coin', idx: 7 },
+          quantity: { alias: 'Quantity', idx: 8 },
+          price: { alias: 'Price', idx: 9 },
+          comment: { alias: 'Comment', idx: 10 },
+          actionKey: { alias: 'Action key', idx: 11 },
+          actionRowNum: { alias: 'Action row num', idx: 12 },
+        },
       },
       balance: {
-        account: { alias: 'Account', idx: 0 },
-        contractor: { alias: 'Contractor', idx: 1 },
-        contractorType: { alias: 'Contractor type', idx: 2 },
-        project: { alias: 'Project', idx: 3 },
-        coin: { alias: 'Coin', idx: 4 },
-        risk: { alias: 'Risk', idx: 5 },
-        quantity: { alias: 'Quantity', idx: 6 },
-        historicalCostBuy: { alias: 'Historical buy cost', idx: 7 },
-        historicalCostAvg: { alias: 'Historical average cost', idx: 8 },
-        currentCost: { alias: 'Current cost', idx: 9 },
+        type: 'transaction',
+        rowNum: 1,
+        columns: {
+          account: { alias: 'Account', idx: 0 },
+          contractor: { alias: 'Contractor', idx: 1 },
+          contractorType: { alias: 'Contractor type', idx: 2 },
+          project: { alias: 'Project', idx: 3 },
+          coin: { alias: 'Coin', idx: 4 },
+          risk: { alias: 'Risk', idx: 5 },
+          quantity: { alias: 'Quantity', idx: 6 },
+          historicalCostBuy: { alias: 'Historical buy cost', idx: 7 },
+          historicalCostAvg: { alias: 'Historical average cost', idx: 8 },
+          currentCost: { alias: 'Current cost', idx: 9 },
+        },
       },
       historicalPrices: {
-        rowKey: { alias: 'Row key', idx: 0 },
-        account: { alias: 'Account', pk: true, idx: 1 },
-        project: { alias: 'Project', pk: true, idx: 2 },
-        symbol: { alias: 'Symbol', pk: true, idx: 3 },
-        priceAvg: { alias: 'Price avg', idx: 4 },
-        priceBuy: { alias: 'Price buy', idx: 5 },
-        priceSell: { alias: 'Price sell', idx: 6 },
+        type: 'dimension',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          account: { alias: 'Account', pk: true, idx: 1 },
+          project: { alias: 'Project', pk: true, idx: 2 },
+          symbol: { alias: 'Symbol', pk: true, idx: 3 },
+          priceAvg: { alias: 'Price avg', idx: 4 },
+          priceBuy: { alias: 'Price buy', idx: 5 },
+          priceSell: { alias: 'Price sell', idx: 6 },
+        },
       },
       coins: {
-        rowKey: { alias: 'Row key', idx: 0 },
-        source: { alias: 'Source', pk: true, idx: 1 },
-        name: { alias: 'Name', pk: true, idx: 2 },
-        symbol: { alias: 'Symbol', pk: true, idx: 3 },
-        id: { alias: 'Id', idx: 4 },
+        type: 'dimension',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          source: { alias: 'Source', pk: true, idx: 1 },
+          name: { alias: 'Name', pk: true, idx: 2 },
+          symbol: { alias: 'Symbol', pk: true, idx: 3 },
+          id: { alias: 'Id', idx: 4 },
+        },
       },
       sources: {
-        rowKey: { alias: 'Row key', idx: 0 },
-        name: { alias: 'Name', pk: true, idx: 1 },
+        type: 'dimension',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          name: { alias: 'Name', pk: true, idx: 1 },
+        },
       },
       services: {
-        rowKey: { alias: 'Row key', idx: 0 },
-        name: { alias: 'Name', pk: true, idx: 1 },
+        type: 'dimension',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          name: { alias: 'Name', pk: true, idx: 1 },
+        },
       },
       operations: {
-        rowKey: { alias: 'Row key', idx: 0 },
-        name: { alias: 'Name', pk: true, idx: 1 },
+        type: 'dimension',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          name: { alias: 'Name', pk: true, idx: 1 },
+        },
       },
       project: {
-        rowKey: { alias: 'Row key', idx: 0 },
-        name: { alias: 'Name', pk: true, idx: 1 },
+        type: 'dimension',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          name: { alias: 'Name', pk: true, idx: 1 },
+        },
       },
       accounts: {
-        rowKey: { alias: 'Row key', idx: 0 },
-        name: { alias: 'Name', pk: true, idx: 1 },
+        type: 'dimension',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          name: { alias: 'Name', pk: true, idx: 1 },
+        },
       },
       contractors: {
-        rowKey: { alias: 'Row key', idx: 0 },
-        name: { alias: 'Name', pk: true, idx: 1 },
-        type: { alias: 'Type', idx: 2 },
-        category: { alias: 'Category', idx: 3 },
+        type: 'dimension',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          name: { alias: 'Name', pk: true, idx: 1 },
+          type: { alias: 'Type', idx: 2 },
+          category: { alias: 'Category', idx: 3 },
+        },
       },
     };
     this.spreadSheetName = 'portfolio';
   }
 
-  getWorkSheet(sheetName = '', range, headRowNum) {
-    const headKey = sheetName.toLowerCase();
-    return !range
-      ? new WorkSheet(
-          this.spreadSheetName,
-          sheetName,
-          this.head[headKey],
-          headRowNum
-        )
-      : new WorkSheetRange$1(
-          this.spreadSheetName,
-          sheetName,
-          this.head[headKey],
-          range
-        )
+  getWorkSheet(sheetName) {
+    return new WorkSheet(
+      this.spreadSheetName,
+      sheetName,
+      new Header().getHead(this.workSheetHeads, sheetName)
+    )
+  }
+
+  updateOnEdit(range) {
+    const sheetName = range.getSheet().getSheetName();
+    return new WorkSheetRange(
+      this.spreadSheetName,
+      sheetName,
+      new Header().getHead(this.workSheetHeads, sheetName),
+      range
+    )
+  }
+}
+
+class HistoricalPrices$1 {
+  constructor(workSheet = '') {
+    this.workSheet = workSheet
+      ? workSheet
+      : new Portfolio().getWorkSheet('HistoricalPrices');
+  }
+
+  updateHistoricalPrices() {
+    const aggHistoricalPrices = new Portfolio()
+      .getWorkSheet('transactions')
+      .getDataset()
+      .arrayOfObject.filter((tx) => tx.price)
+      .reduce((agg, tx) => {
+        if (!agg[tx.account]) {
+          agg[tx.account] = {};
+        }
+        if (!agg[tx.account][tx.project]) {
+          agg[tx.account][tx.project] = {};
+        }
+        if (!agg[tx.account][tx.project][tx.coin]) {
+          agg[tx.account][tx.project][tx.coin] = {};
+          agg[tx.account][tx.project][tx.coin]['quantity'] = 0;
+          agg[tx.account][tx.project][tx.coin]['cost'] = 0;
+          agg[tx.account][tx.project][tx.coin]['quantityBuy'] = 0;
+          agg[tx.account][tx.project][tx.coin]['costBuy'] = 0;
+          agg[tx.account][tx.project][tx.coin]['quantitySell'] = 0;
+          agg[tx.account][tx.project][tx.coin]['costSell'] = 0;
+        }
+        const quantity = tx.quantity < 0 ? Math.abs(tx.quantity) : tx.quantity;
+        const quantityBuy = tx.quantity > 0 ? tx.quantity : 0;
+        const quantitySell = tx.quantity < 0 ? Math.abs(tx.quantity) : 0;
+        agg[tx.account][tx.project][tx.coin]['quantity'] += quantity;
+        agg[tx.account][tx.project][tx.coin]['cost'] += quantity * tx.price;
+        agg[tx.account][tx.project][tx.coin]['quantityBuy'] += quantityBuy;
+        agg[tx.account][tx.project][tx.coin]['costBuy'] +=
+          quantityBuy * tx.price;
+        agg[tx.account][tx.project][tx.coin]['quantitySell'] += quantitySell;
+        agg[tx.account][tx.project][tx.coin]['costSell'] +=
+          quantitySell * tx.price;
+        return agg
+      }, {});
+    const avgHistoricalPricesArrayOfObject = [];
+    Object.entries(aggHistoricalPrices).forEach(([account, level0]) => {
+      Object.entries(level0).forEach(([project, level1]) => {
+        Object.entries(level1).forEach(([symbol, object]) => {
+          const avgPrice = object.cost / object.quantity || void 0;
+          if (avgPrice) {
+            avgHistoricalPricesArrayOfObject.push({
+              rowKey: new Hash(account + project + symbol).md5,
+              account,
+              project,
+              symbol,
+              priceAvg: object.cost / object.quantity || void 0,
+              priceBuy: object.costBuy / object.quantityBuy || void 0,
+              priceSell: object.costSell / object.quantitySell || void 0,
+            });
+          }
+        });
+      });
+    });
+    this.workSheet.truncateInsertRows(avgHistoricalPricesArrayOfObject);
   }
 }
 
@@ -1203,17 +1157,6 @@ class Fetch {
       } while (!this.fetchStatus)
 
       return this.result
-
-      // const response = UrlFetchApp.fetch(this.url, this.data)
-      // const text = response.getContentText()
-      // const responseCode = response.getResponseCode()
-      // if (responseCode !== 200) {
-      //   console.log('URL: ', this.url)
-      //   console.log('Response code: ', responseCode)
-      //   console.log('Content Text: ', response.getContentText())
-      // } else {
-      //   return JSON.parse(text)
-      // } return
     } catch (error) {
       console.error(error);
     }
@@ -1262,6 +1205,14 @@ class Price$3 {
         },
       })?.data || []
     )
+  }
+
+  getRank(id) {
+    const data = this.methods.get({
+      endPoint: '/currencies/{id}',
+      path: { id },
+    })?.data?.rank;
+    return data
   }
 }
 /**
@@ -1364,7 +1315,7 @@ class Price$2 {
   }
 
   getHistoryPrice(fsym = 'BTC', ts = new Date(), tsyms = 'USD') {
-    const dateUnix = new FormatDate$1(ts).unix;
+    const dateUnix = new FormatDate(ts).unix;
     const upperTsyms = tsyms.toUpperCase();
     const upperFsym = fsym.toUpperCase();
     const result = this.methods.get({
@@ -1568,387 +1519,17 @@ class CoinsList {
   }
 }
 
-class Coins {
-  constructor(range) {
-    this.workSheet = new Portfolio()
-      .getWorkSheet('Coins', range, 1)
-      .getDimension();
-  }
-
-  savePrimaryKeyChanges() {
-    this.workSheet.savePrimaryKeyChanges();
-  }
-
-  updateCoins() {
-    const coins = [];
-    new CoinsList().getCoinsList().forEach((coin) => {
-      const rowKey = new Hash('coingecko' + coin.name + coin.symbol).md5;
-      coins.push({
-        rowKey: rowKey,
-        source: 'coingecko',
-        name: coin.name,
-        symbol: coin.symbol,
-        id: coin.id,
-      });
-    });
-    // SpreadsheetApp.openById('1wTTuxXt8n9q7C4NDXqQpI3wpKu1_5bGVmP9Xz0XGSyU')
-    //   .getSheetByName('CoinGecko Token API List')
-    //   .getDataRange()
-    //   .getValues()
-    //   .slice(1)
-    //   .forEach((coin) => {
-    //     const key = new Hash('coingecko' + coin[2] + coin[1])
-    //     coins.push({
-    //       rowKey: key.md5,
-    //       source: 'coingecko',
-    //       name: coin[2],
-    //       symbol: coin[1],
-    //       id: coin[0],
-    //     })
-    //   })
-    new CoinsList$3().getCoinsList(15000).forEach((coin) => {
-      const key = new Hash('cryptorank' + coin.name + coin.symbol);
-      coins.push({
-        rowKey: key.md5,
-        source: 'cryptorank',
-        name: coin.name,
-        symbol: coin.symbol,
-        id: coin.id,
-      });
-    });
-    new CoinsList$1().getCoinsList().forEach((coin) => {
-      const key = new Hash('coinmarketcap' + coin.name + coin.symbol);
-      coins.push({
-        rowKey: key.md5,
-        source: 'coinmarketcap',
-        name: coin.name,
-        symbol: coin.symbol,
-        id: coin.id,
-      });
-    });
-
-    Object.entries(new CoinsList$2().getCoinsList()).forEach(
-      (coin) => {
-        const key = new Hash('cryptocompare' + coin[1].CoinName + coin[0]);
-        coins.push({
-          rowKey: key.md5,
-          source: 'cryptocompare',
-          name: coin[1].CoinName,
-          symbol: coin[1].Symbol,
-          id: coin[0],
-        });
-      }
-    );
-    const currency = [
-      ['USA dollar', 'USD'],
-      ['Russian rubble', 'RUB'],
-      ['Euro', 'EUR'],
-    ];
-    currency.forEach((coin) => {
-      const key = new Hash('cryptocompare' + coin[0] + coin[1]);
-      coins.push({
-        rowKey: key.md5,
-        source: 'cryptocompare',
-        name: coin[0],
-        symbol: coin[1],
-        id: coin[1],
-      });
-    });
-    this.workSheet.insertRows(coins, this.head);
-  }
-
-  getOnEdit(range) {
-    this.workSheetRange = new WorkSheetRange(
-      this.spreadSheetName,
-      this.sheetName,
-      1,
-      range
-    );
-    this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head);
-    return this
-  }
-
-  updateInsert() {
-    this.arrayOfObject.forEach((object) => {
-      this.workSheet.updateRow(object, this.head, object.rowNum);
-    });
-  }
-  updateOnEdit(range) {
-    this.getOnEdit(range).updateInsert();
-  }
-}
-
-class Transactions {
-  constructor(range) {
-    this.workSheet = new Portfolio().getWorkSheet('Transactions', range, 1);
-    this.values = this.workSheet.getFact();
-  }
-
-  getTransactions(arrayOfObject = []) {
-    this.transactions = [];
-    const prices = new Prices();
-    arrayOfObject.forEach((rowValues, indexTx) => {
-      // const startDate = new FormatDate()
-      let coinQty,
-        currencyQty,
-        currencyPerCoin,
-        coinSymbol,
-        coinPrice,
-        project,
-        accountRecipient,
-        recipient,
-        currencySymbol;
-      const transactionRow = [];
-      const hhmm = new FormatNumber$1(rowValues.time).getHourAndMinuteFromNumber();
-      const dateTime = new FormatDate$1(rowValues.date).addTime(hhmm.h, hhmm.m)
-        .date;
-      accountRecipient = rowValues.accountRecipient
-        ? rowValues.accountRecipient
-        : rowValues.accountSender;
-      recipient = rowValues.recipient ? rowValues.recipient : rowValues.sender;
-      project = rowValues.project ? rowValues.project : 'No project';
-      coinQty = rowValues.coinQty;
-      currencyQty = rowValues.currencyQty;
-      coinSymbol = rowValues.coin;
-      currencySymbol = rowValues.currency;
-      if (
-        ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !== -1
-      ) {
-        if (['Transfer', 'Write-off'].indexOf(rowValues.operation) !== -1) {
-          transactionRow.push({
-            dateTime: dateTime,
-            account: rowValues.accountSender,
-            contractor: rowValues.sender,
-            project: 'No project',
-            coin: coinSymbol,
-            quantity: coinQty * -1,
-          });
-        }
-        if (['Transfer', 'Refill'].indexOf(rowValues.operation) !== -1) {
-          transactionRow.push({
-            account: accountRecipient,
-            contractor: recipient,
-            project: 'No project',
-            coin: coinSymbol,
-            quantity: coinQty,
-          });
-        }
-      } else if (['Buy'].indexOf(rowValues.operation) !== -1) {
-        if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
-          currencyQty = coinQty * rowValues.currencyPerCoin;
-        }
-        if (!coinQty && rowValues.currencyPerCoin && currencyQty) {
-          coinQty = currencyQty / rowValues.currencyPerCoin;
-        }
-        if (rowValues.service === 'Liquidity pool') {
-          coinQty /= 2;
-        }
-        if (rowValues.currencyPerCoin) {
-          currencyPerCoin = rowValues.currencyPerCoin;
-        } else {
-          currencyPerCoin = currencyQty / coinQty;
-        }
-        transactionRow.push({
-          account: rowValues.accountSender,
-          contractor: rowValues.sender,
-          project: 'No project',
-          coin: currencySymbol,
-          quantity: currencyQty * -1,
-        });
-        transactionRow.push({
-          account: accountRecipient,
-          contractor: recipient,
-          project: project,
-          coin: coinSymbol,
-          quantity: coinQty,
-        });
-      } else if (['Sell'].indexOf(rowValues.operation) !== -1) {
-        if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
-          currencyQty = coinQty * rowValues.currencyPerCoin;
-        }
-        if (!coinQty && rowValues.currencyPerCoin && currencyQty) {
-          coinQty = currencyQty / rowValues.currencyPerCoin;
-        }
-        if (rowValues.service === 'Liquidity pool') {
-          coinQty /= 2;
-        }
-        if (!rowValues.currencyPerCoin) {
-          currencyPerCoin = currencyQty / coinQty;
-        } else {
-          currencyPerCoin = rowValues.currencyPerCoin;
-        }
-        transactionRow.push({
-          account: rowValues.accountSender,
-          contractor: rowValues.sender,
-          project: project,
-          coin: coinSymbol,
-          quantity: coinQty * -1,
-        });
-        transactionRow.push({
-          account: accountRecipient,
-          contractor: recipient,
-          project: 'No project',
-          coin: currencySymbol,
-          quantity: currencyQty,
-        });
-      }
-      if (currencySymbol && coinSymbol) {
-        coinPrice =
-          prices.getHistoricalPrice(
-            rowValues.accountSender,
-            project,
-            dateTime,
-            currencySymbol
-          ) * currencyPerCoin || void 0;
-      }
-      transactionRow.forEach((tx) => {
-        this.transactions.push({
-          dateTime: dateTime,
-          account: tx.account.toLowerCase(),
-          platform: rowValues.platform.toLowerCase(),
-          service: rowValues.service.toLowerCase(),
-          project: tx.project.toLowerCase(),
-          contractor: tx.contractor.toLowerCase(),
-          coin: tx.coin.toLowerCase(),
-          quantity: tx.quantity,
-          price: tx.coin === coinSymbol ? coinPrice : void 0,
-          comment: rowValues.comment.toLowerCase(),
-          actionKey: rowValues.rowKey,
-          actionRowNum: rowValues.rowNum,
-        });
-      });
-      // console.log('Time for ' + indexTx + ': ' + startDate.getTimeDiff())
-    });
-    return this
-  }
-
-  updateInsertTransactions() {
-    this.transactions.forEach((row) => {
-      const oldRow = Object.values(this.values).filter(
-        (oldRow) => oldRow.actionKey === row.actionKey
-      )[0];
-      let rowNum;
-      if (oldRow) {
-        row.rowKey = oldRow.rowKey;
-        row.rowNum = oldRow.rowNum;
-        delete this.values[oldRow.rowKey];
-        this.workSheet.updateRow(row, this.head);
-      } else {
-        rowNum = this.workSheet.lastRow + 1;
-        row.rowKey = new Hash(rowNum + this.workSheet.sheetName).md5;
-        this.workSheet.insertRow(row, this.head);
-      }
-    });
-  }
-
-  truncateInsertTrasactions() {
-    let rowNum;
-    this.getTransactions().map((row, index) => {
-      rowNum = index + 1;
-      row.rowKey = new Hash(rowNum + this.workSheet.sheetName).md5;
-      return row
-    });
-    this.workSheet.insertRows(rows, this.head);
-  }
-
-  updateTransactionsOnEdit(range) {
-    const registryOnEdit = new Registry().getRegistryOnEdit(range);
-    if (registryOnEdit.length) {
-      new Transactions()
-        .getTransactions(registryOnEdit)
-        .updateInsertTransactions();
-    }
-  }
-}
-
-class HistoricalPrices {
-  constructor(range) {
-    this.workSheet = new Portfolio()
-      .getWorkSheet('HistoricalPrices', range, 1)
-      .getDimension();
-  }
-
-  savePrimaryKeyChanges() {
-    this.workSheet.savePrimaryKeyChanges();
-  }
-
-  updateHistoricalPrices() {
-    const transactions = Object.values(new Transactions().values).filter(
-      (tx) => tx.price
-    );
-    const aggHistoricalPrices = transactions.reduce((agg, tx) => {
-      if (!agg[tx.account]) {
-        agg[tx.account] = {};
-      }
-      if (!agg[tx.account][tx.project]) {
-        agg[tx.account][tx.project] = {};
-      }
-      if (!agg[tx.account][tx.project][tx.coin]) {
-        agg[tx.account][tx.project][tx.coin] = {};
-        agg[tx.account][tx.project][tx.coin]['quantity'] = 0;
-        agg[tx.account][tx.project][tx.coin]['cost'] = 0;
-        agg[tx.account][tx.project][tx.coin]['quantityBuy'] = 0;
-        agg[tx.account][tx.project][tx.coin]['costBuy'] = 0;
-        agg[tx.account][tx.project][tx.coin]['quantitySell'] = 0;
-        agg[tx.account][tx.project][tx.coin]['costSell'] = 0;
-      }
-      const quantity = tx.quantity < 0 ? Math.abs(tx.quantity) : tx.quantity;
-      const quantityBuy = tx.quantity > 0 ? tx.quantity : 0;
-      const quantitySell = tx.quantity < 0 ? Math.abs(tx.quantity) : 0;
-      agg[tx.account][tx.project][tx.coin]['quantity'] += quantity;
-      agg[tx.account][tx.project][tx.coin]['cost'] += quantity * tx.price;
-      agg[tx.account][tx.project][tx.coin]['quantityBuy'] += quantityBuy;
-      agg[tx.account][tx.project][tx.coin]['costBuy'] += quantityBuy * tx.price;
-      agg[tx.account][tx.project][tx.coin]['quantitySell'] += quantitySell;
-      agg[tx.account][tx.project][tx.coin]['costSell'] +=
-        quantitySell * tx.price;
-      return agg
-    }, {});
-    const avgHistoricalPricesArrayOfObject = [];
-    Object.entries(aggHistoricalPrices).forEach(([account, level0]) => {
-      Object.entries(level0).forEach(([project, level1]) => {
-        Object.entries(level1).forEach(([symbol, object]) => {
-          const avgPrice = object.cost / object.quantity || void 0;
-          if (avgPrice) {
-            avgHistoricalPricesArrayOfObject.push({
-              rowKey: new Hash(account + project + symbol).md5,
-              account,
-              project,
-              symbol,
-              priceAvg: object.cost / object.quantity || void 0,
-              priceBuy: object.costBuy / object.quantityBuy || void 0,
-              priceSell: object.costSell / object.quantitySell || void 0,
-            });
-          }
-        });
-      });
-    });
-    this.workSheet.insertRows(avgHistoricalPricesArrayOfObject, this.head);
-  }
-}
-
 class Prices {
-  constructor(range) {
-    this.workSheet = new Portfolio()
-      .getWorkSheet('Prices', range, 1)
-      .getDimension();
+  constructor(workSheet = '') {
+    this.workSheet = workSheet
+      ? workSheet
+      : new Portfolio().getWorkSheet('Prices');
   }
 
-  savePrimaryKeyChanges() {
-    this.workSheet.savePrimaryKeyChanges();
-  }
-
-  getOnEdit(range) {
-    const coins = new Coins().values;
-    this.workSheetRange = new WorkSheetRange(
-      this.spreadSheetName,
-      this.sheetName,
-      1,
-      range
-    );
-    this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head);
-    this.arrayOfObject = this.arrayOfObject.map((object) => {
-      const coin = Object.values(coins).filter((row) => {
+  updateId() {
+    const coinsArray = new Portfolio().getWorkSheet('coins').arrayOfObject;
+    this.workSheet.arrayOfObject.map((object) => {
+      const coinPrice = coinsArray.filter((row) => {
         return (
           new RegExp(object.name.toString().toLowerCase(), 'g').test(
             row.name.toString().toLowerCase()
@@ -1957,24 +1538,33 @@ class Prices {
           new Hash(object.symbol).md5 === new Hash(row.symbol).md5
         )
       })[0];
-      object.id = coin?.id || void 0;
-      object.isNotNull = new Header().isNotNull(this.head, object);
-      object.isChangePrimaryKey = new Header().isChangePrimaryKey(
-        this.head,
-        object
-      );
+      const coinRank = coinsArray.filter((row) => {
+        return (
+          new RegExp(object.name.toString().toLowerCase(), 'g').test(
+            row.name.toString().toLowerCase()
+          ) &&
+          new Hash('cryptorank').md5 === new Hash(row.source).md5 &&
+          new Hash(object.symbol).md5 === new Hash(row.symbol).md5
+        )
+      })[0];
+      object.priceId = coinPrice?.id || void 0;
+      object.rankId = coinRank?.id || void 0;
       return object
     });
-    return this
+
+    this.workSheet.arrayOfObject.forEach((object) => {
+      console.log(object);
+      this.workSheet.updateRow(object);
+    });
   }
 
   getHistoricalPrice(account, project, date, symbol, convert = 'usd') {
-    const coinRow = this.values[new Hash(symbol).md5];
-    const source = coinRow.source;
-    const id = coinRow.id;
-    const risk = coinRow.risk;
+    const coin = this.workSheet.object[new Hash(symbol).md5];
+    const source = coin.source;
+    const id = coin.id;
+    const risk = coin.risk;
     if (new Hash('Stablecoin').md5 !== new Hash(risk).md5) {
-      if (new FormatDate$1(date).yyyymmdd === new FormatDate$1().yyyymmdd) {
+      if (new FormatDate(date).yyyymmdd === new FormatDate().yyyymmdd) {
         if (new Hash(source).md5 === new Hash('cryptorank').md5) {
           return new Price$3()
             .getLastPrice(id)
@@ -2031,12 +1621,12 @@ class Prices {
   updatePrices() {
     const listId = Object.fromEntries(
       Object.entries(
-        Object.values(this.values).reduce((list, object) => {
+        this.workSheet.arrayOfObject.reduce((list, object) => {
           if (!list[object.source]) {
             list[object.source] = [];
           }
-          if (object.id) {
-            list[object.source].push(object.id);
+          if (object.priceId) {
+            list[object.source].push(object.priceId);
           } else {
             list[object.source].push(object.symbol);
           }
@@ -2044,326 +1634,191 @@ class Prices {
         }, {})
       ).map(([source, idArray]) => [source, idArray.join(',')])
     );
-    const updatePrice = (symbol, price, rank = '') => {
-      const coin = this.values[new Hash(symbol).md5];
-      if (price) {
-        coin.price = price;
-      }
+    const updateRisk = (symbol, rank = '') => {
+      const coin = this.workSheet.object[new Hash(symbol).md5];
       if (
         ['stablecoin', 'fiat']
           .map((value) => new Hash(value).md5)
           .indexOf(new Hash(coin.risk).md5) === -1
       ) {
-        if (!rank) {
-          coin.risk = 'High';
-        } else if (rank < 100) {
-          coin.risk = 'Low';
-        } else if (rank < 1000) {
-          coin.risk = 'Middle';
-        } else if (rank > 1000) {
-          coin.risk = 'High';
+        let rank_ = rank;
+        if (!rank_ && coin.rankId) {
+          rank_ = new Price$3().getRank(coin.rankId) || 5000;
+        } else {
+          rank_ = 5000;
+        }
+        if (rank_ < 10) {
+          coin.risk = 'Top 10 (Very low)';
+        } else if (rank_ < 50) {
+          coin.risk = 'Top 50 (Low)';
+        } else if (rank_ < 100) {
+          coin.risk = 'Top 100 (Middle)';
+        } else if (rank_ < 1000) {
+          coin.risk = 'Top 1000 (High)';
+        } else if (rank_ > 1000) {
+          coin.risk = 'Top 5000 (Very High)';
         }
       }
     };
-    const getCurrentPrice = () => {
-      return new Promise((resolve) => {
-        if (listId.cryptorank) {
-          new Price$3()
-            .getLastPrice(listId.cryptorank)
-            .forEach((coin) => {
-              updatePrice(coin.symbol, coin.values.USD.price, coin.rank);
-            });
-        }
-        if (listId.coingecko) {
-          new Price()
-            .getMarketsPrice(listId.coingecko)
-            .forEach((coin) => {
-              updatePrice(coin.symbol, coin.current_price, coin.market_cap_rank);
-            });
-        }
-        if (listId.coinmarketcap) {
-          Object.values(
-            new Price$1().getLastPrice(listId.coinmarketcap)
-          ).forEach((coin) => {
-            updatePrice(coin.symbol, coin.quote.USD.price, coin.cmc_rank);
-          });
-        }
-        if (listId.cryptocompare) {
-          new Price$2()
-            .getMultiPrice(listId.cryptocompare)
-            .forEach((coin) => {
-              updatePrice(coin.symbol, coin.price, 100);
-            });
-        }
-        if (listId.custom) {
-          const histirocalPrices = new HistoricalPrices().values;
-          Object.values(this.values)
-            .filter((row) => {
-              return new Hash(row.source).md5 === new Hash('custom').md5
-            })
-            .forEach((object) => {
-              const histirocalPricesKey = new Hash(
-                'ikeniborn' + 'no project' + object.symbol
-              ).md5;
-              const histirocalPrice =
-                histirocalPrices[histirocalPricesKey]?.priceAvg || void 0;
-              this.values[object.rowKey].price = histirocalPrice;
-            });
-        }
-        resolve();
-      })
+
+    const updatePrice = (symbol, price) => {
+      if (price) {
+        this.workSheet.object[new Hash(symbol).md5].price = price;
+      }
     };
-    getCurrentPrice().then(() => {
-      this.workSheet.insertRows(Object.values(this.values), this.head);
-    });
-  }
-}
-
-class Registry {
-  constructor(range) {
-    this.workSheet = new Portfolio().getWorkSheet('Registry', range, 1);
-    this.values = this.workSheet.getTransactions();
-    this.transactions = [];
-  }
-
-  getTransactions() {
-    const prices = new Prices();
-    this.values.array.forEach((rowValues, indexTx) => {
-      // const startDate = new FormatDate()
-      let coinQty,
-        currencyQty,
-        currencyPerCoin,
-        coinSymbol,
-        coinPrice,
-        project,
-        accountRecipient,
-        recipient,
-        currencySymbol;
-      const transactionRow = [];
-      const hhmm = new FormatNumber(rowValues.time).getHourAndMinuteFromNumber();
-      const dateTime = new FormatDate(rowValues.date).addTime(hhmm.h, hhmm.m)
-        .date;
-      accountRecipient = rowValues.accountRecipient
-        ? rowValues.accountRecipient
-        : rowValues.accountSender;
-      recipient = rowValues.recipient ? rowValues.recipient : rowValues.sender;
-      project = rowValues.project ? rowValues.project : 'No project';
-      coinQty = rowValues.coinQty;
-      currencyQty = rowValues.currencyQty;
-      coinSymbol = rowValues.coin;
-      currencySymbol = rowValues.currency;
-      if (
-        ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !== -1
-      ) {
-        if (['Transfer', 'Write-off'].indexOf(rowValues.operation) !== -1) {
-          transactionRow.push({
-            dateTime: dateTime,
-            account: rowValues.accountSender,
-            contractor: rowValues.sender,
-            project: 'No project',
-            coin: coinSymbol,
-            quantity: coinQty * -1,
-          });
-        }
-        if (['Transfer', 'Refill'].indexOf(rowValues.operation) !== -1) {
-          transactionRow.push({
-            account: accountRecipient,
-            contractor: recipient,
-            project: 'No project',
-            coin: coinSymbol,
-            quantity: coinQty,
-          });
-        }
-      } else if (['Buy'].indexOf(rowValues.operation) !== -1) {
-        if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
-          currencyQty = coinQty * rowValues.currencyPerCoin;
-        }
-        if (!coinQty && rowValues.currencyPerCoin && currencyQty) {
-          coinQty = currencyQty / rowValues.currencyPerCoin;
-        }
-        if (rowValues.service === 'Liquidity pool') {
-          coinQty /= 2;
-        }
-        if (rowValues.currencyPerCoin) {
-          currencyPerCoin = rowValues.currencyPerCoin;
-        } else {
-          currencyPerCoin = currencyQty / coinQty;
-        }
-        transactionRow.push({
-          account: rowValues.accountSender,
-          contractor: rowValues.sender,
-          project: 'No project',
-          coin: currencySymbol,
-          quantity: currencyQty * -1,
-        });
-        transactionRow.push({
-          account: accountRecipient,
-          contractor: recipient,
-          project: project,
-          coin: coinSymbol,
-          quantity: coinQty,
-        });
-      } else if (['Sell'].indexOf(rowValues.operation) !== -1) {
-        if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
-          currencyQty = coinQty * rowValues.currencyPerCoin;
-        }
-        if (!coinQty && rowValues.currencyPerCoin && currencyQty) {
-          coinQty = currencyQty / rowValues.currencyPerCoin;
-        }
-        if (rowValues.service === 'Liquidity pool') {
-          coinQty /= 2;
-        }
-        if (!rowValues.currencyPerCoin) {
-          currencyPerCoin = currencyQty / coinQty;
-        } else {
-          currencyPerCoin = rowValues.currencyPerCoin;
-        }
-        transactionRow.push({
-          account: rowValues.accountSender,
-          contractor: rowValues.sender,
-          project: project,
-          coin: coinSymbol,
-          quantity: coinQty * -1,
-        });
-        transactionRow.push({
-          account: accountRecipient,
-          contractor: recipient,
-          project: 'No project',
-          coin: currencySymbol,
-          quantity: currencyQty,
-        });
-      }
-      if (currencySymbol && coinSymbol) {
-        coinPrice =
-          prices.getHistoricalPrice(
-            rowValues.accountSender,
-            project,
-            dateTime,
-            currencySymbol
-          ) * currencyPerCoin || void 0;
-      }
-      transactionRow.forEach((tx) => {
-        this.transactions.push({
-          dateTime: dateTime,
-          account: tx.account.toLowerCase(),
-          platform: rowValues.platform.toLowerCase(),
-          service: rowValues.service.toLowerCase(),
-          project: tx.project.toLowerCase(),
-          contractor: tx.contractor.toLowerCase(),
-          coin: tx.coin.toLowerCase(),
-          quantity: tx.quantity,
-          price: tx.coin === coinSymbol ? coinPrice : void 0,
-          comment: rowValues.comment.toLowerCase(),
-          actionKey: rowValues.rowKey,
-          actionRowNum: rowValues.rowNum,
-        });
+    if (listId.cryptorank) {
+      new Price$3().getLastPrice(listId.cryptorank).forEach((coin) => {
+        updatePrice(coin.symbol, coin.values.USD.price);
+        updateRisk(coin.symbol, coin.rank);
       });
-      // console.log('Time for ' + indexTx + ': ' + startDate.getTimeDiff())
+    }
+    if (listId.coingecko) {
+      new Price()
+        .getMarketsPrice(listId.coingecko)
+        .forEach((coin) => {
+          updatePrice(coin.symbol, coin.current_price);
+          updateRisk(coin.symbol, coin.market_cap_rank);
+        });
+    }
+    if (listId.coinmarketcap) {
+      Object.values(
+        new Price$1().getLastPrice(listId.coinmarketcap)
+      ).forEach((coin) => {
+        updatePrice(coin.symbol, coin.quote.USD.price);
+        updateRisk(coin.symbol, coin.cmc_rank);
+      });
+    }
+    if (listId.cryptocompare) {
+      new Price$2()
+        .getMultiPrice(listId.cryptocompare)
+        .forEach((coin) => {
+          updatePrice(coin.symbol, coin.price);
+          updateRisk(coin.symbol);
+        });
+    }
+    if (listId.custom) {
+      const histirocalPrices = new Portfolio().getWorkSheet('historicalPrices')
+        .object;
+      this.workSheet.arrayOfObject
+        .filter((row) => {
+          return new Hash(row.source).md5 === new Hash('custom').md5
+        })
+        .forEach((object) => {
+          const histirocalPricesKey = new Hash(
+            'ikeniborn' + 'no project' + object.symbol
+          ).md5;
+          const histirocalPrice =
+            histirocalPrices[histirocalPricesKey]?.priceAvg || void 0;
+          this.workSheet.object[object.rowKey].price = histirocalPrice;
+        });
+    }
+
+    this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject);
+  }
+}
+
+class Coins {
+  constructor(workSheet = '') {
+    this.workSheet = workSheet
+      ? workSheet
+      : new Portfolio().getWorkSheet('Coins');
+  }
+
+  updateCoins() {
+    const coins = [];
+    new CoinsList().getCoinsList().forEach((coin) => {
+      const rowKey = new Hash('coingecko' + coin.name + coin.symbol).md5;
+      coins.push({
+        rowKey: rowKey,
+        source: 'coingecko',
+        name: coin.name,
+        symbol: coin.symbol,
+        id: coin.id,
+      });
     });
-    return this
-  }
-}
+    new CoinsList$3().getCoinsList(15000).forEach((coin) => {
+      const key = new Hash('cryptorank' + coin.name + coin.symbol);
+      coins.push({
+        rowKey: key.md5,
+        source: 'cryptorank',
+        name: coin.name,
+        symbol: coin.symbol,
+        id: coin.id,
+      });
+    });
+    new CoinsList$1().getCoinsList().forEach((coin) => {
+      const key = new Hash('coinmarketcap' + coin.name + coin.symbol);
+      coins.push({
+        rowKey: key.md5,
+        source: 'coinmarketcap',
+        name: coin.name,
+        symbol: coin.symbol,
+        id: coin.id,
+      });
+    });
 
-class Contractors {
-  constructor(range) {
-    this.workSheet = new Portfolio()
-      .getWorkSheet('Contractors', range, 1)
-      .getDimension();
-  }
-  savePrimaryKeyChanges() {
-    this.workSheet.savePrimaryKeyChanges();
-  }
-}
-
-class Operations {
-  constructor(range) {
-    this.workSheet = new Portfolio()
-      .getWorkSheet('Operations', range, 1)
-      .getDimension();
-  }
-  savePrimaryKeyChanges() {
-    this.workSheet.savePrimaryKeyChanges();
-  }
-}
-
-class Services {
-  constructor(range) {
-    this.workSheet = new Portfolio()
-      .getWorkSheet('Services', range, 1)
-      .getDimension();
-    this.savePrimaryKeyChanges = this.workSheet.savePrimaryKeyChanges();
-  }
-
-  savePrimaryKeyChanges() {
-    this.workSheet.savePrimaryKeyChanges();
-  }
-}
-
-class Accounts {
-  constructor(range) {
-    this.workSheet = new Portfolio()
-      .getWorkSheet('Accounts', range, 1)
-      .getDimension();
-  }
-  savePrimaryKeyChanges() {
-    this.workSheet.savePrimaryKeyChanges();
-  }
-}
-
-class Sources {
-  constructor(range) {
-    this.workSheet = new Portfolio()
-      .getWorkSheet('Sources', range, 1)
-      .getDimension();
-    this.savePrimaryKeyChanges = this.workSheet.savePrimaryKeyChanges();
-  }
-  savePrimaryKeyChanges() {
-    this.workSheet.savePrimaryKeyChanges();
-  }
-}
-
-class Project {
-  constructor(range) {
-    this.workSheet = new Portfolio()
-      .getWorkSheet('Project', range, 1)
-      .getDimension();
-    this.savePrimaryKeyChanges = this.workSheet.savePrimaryKeyChanges();
-  }
-
-  savePrimaryKeyChanges() {
-    this.workSheet.savePrimaryKeyChanges();
+    Object.entries(new CoinsList$2().getCoinsList()).forEach(
+      (coin) => {
+        const key = new Hash('cryptocompare' + coin[1].CoinName + coin[0]);
+        coins.push({
+          rowKey: key.md5,
+          source: 'cryptocompare',
+          name: coin[1].CoinName,
+          symbol: coin[1].Symbol,
+          id: coin[0],
+        });
+      }
+    );
+    const currency = [
+      ['USA dollar', 'USD'],
+      ['Russian rubble', 'RUB'],
+      ['Euro', 'EUR'],
+    ];
+    currency.forEach((coin) => {
+      const key = new Hash('cryptocompare' + coin[0] + coin[1]);
+      coins.push({
+        rowKey: key.md5,
+        source: 'cryptocompare',
+        name: coin[0],
+        symbol: coin[1],
+        id: coin[1],
+      });
+    });
+    this.workSheet.truncateInsertRows(coins);
   }
 }
 
 class Balance {
-  constructor(range) {
-    this.workSheet = new Portfolio().getWorkSheet('Balance', range, 1);
+  constructor(workSheet = '') {
+    this.workSheet = workSheet
+      ? workSheet
+      : new Portfolio().getWorkSheet('Balance');
   }
 
   updateBalance() {
-    const historicalPrices = new HistoricalPrices().values;
-    const prices = new Prices().values;
-    const contractors = new Contractors().values;
-    const aggBalance = Object.values(new Transactions().values).reduce(
-      (object, tx) => {
-        if (!object[tx.account]) {
-          object[tx.account] = {};
-        }
-        if (!object[tx.account][tx.contractor]) {
-          object[tx.account][tx.contractor] = {};
-        }
-        if (!object[tx.account][tx.contractor][tx.project]) {
-          object[tx.account][tx.contractor][tx.project] = {};
-        }
-        if (!object[tx.account][tx.contractor][tx.project][tx.coin]) {
-          object[tx.account][tx.contractor][tx.project][tx.coin] = 0;
-        }
-        object[tx.account][tx.contractor][tx.project][tx.coin] += tx.quantity;
-        return object
-      },
-      {}
-    );
-    const balance = [];
+    const newArrayOfObject = [];
+    const historicalPrices = new Portfolio().getWorkSheet('historicalPrices')
+      .object;
+    const prices = new Portfolio().getWorkSheet('prices').object;
+    const contractors = new Portfolio().getWorkSheet('contractors').object;
+    const transactions = new Portfolio().getWorkSheet('transactions')
+      .arrayOfObject;
+    const aggBalance = transactions.reduce((object, tx) => {
+      if (!object[tx.account]) {
+        object[tx.account] = {};
+      }
+      if (!object[tx.account][tx.contractor]) {
+        object[tx.account][tx.contractor] = {};
+      }
+      if (!object[tx.account][tx.contractor][tx.project]) {
+        object[tx.account][tx.contractor][tx.project] = {};
+      }
+      if (!object[tx.account][tx.contractor][tx.project][tx.coin]) {
+        object[tx.account][tx.contractor][tx.project][tx.coin] = 0;
+      }
+      object[tx.account][tx.contractor][tx.project][tx.coin] += tx.quantity;
+      return object
+    }, {});
     Object.entries(aggBalance).forEach(([account, level0]) => {
       Object.entries(level0).forEach(([contractor, level1]) => {
         Object.entries(level1).forEach(([project, level2]) => {
@@ -2379,7 +1834,7 @@ class Balance {
                   historicalPrices[new Hash(account + project + coin).md5]
                     ?.priceAvg || 0;
               const risk = prices[new Hash(coin).md5]?.risk;
-              balance.push({
+              newArrayOfObject.push({
                 account: account.toUpperCase(),
                 contractor: contractor.toUpperCase(),
                 contractorType: contractors[
@@ -2398,20 +1853,14 @@ class Balance {
         });
       });
     });
-    this.workSheet.insertRows(balance, this.head);
+    this.workSheet.truncateInsertRows(newArrayOfObject);
   }
 }
 
-function test() {
-  console.log(new Registry().values.array);
-}
-function test2(editRange) {
-  console.log(new Registry(editRange.range).getTransactions().transactions);
-}
+// import { Registry } from './worksheet/registry'
 
 function updateTransactions() {
-  const arrayOfObject = new Registry().getRegistry();
-  new Transactions().getTransactions(arrayOfObject).truncateInsertTrasactions();
+  console.log(new Portfolio().getDataset('contractors').object);
 }
 
 function updatePrices() {
@@ -2419,7 +1868,7 @@ function updatePrices() {
 }
 
 function updateHistoricalPrices() {
-  new HistoricalPrices().updateHistoricalPrices();
+  new HistoricalPrices$1().updateHistoricalPrices();
 }
 
 function updateCoins() {
@@ -2431,30 +1880,14 @@ function updateBalance() {
 }
 
 function updateOnEdit(editRange) {
-  const range = editRange.range;
-  const workSheet = range.getSheet();
-  const sheetName = workSheet.getSheetName();
-  const sheetKey = new Hash(sheetName).md5;
-  if (sheetKey === new Hash('Registry').md5) {
-    // new Transactions(range).updateTransactionsOnEdit(range)
-  } else if (sheetKey === new Hash('Contractors').md5) {
-    new Contractors(range).savePrimaryKeyChanges();
-  } else if (sheetKey === new Hash('HistoricalPrices').md5) {
-    new HistoricalPrices(range);
-  } else if (sheetKey === new Hash('Operations').md5) {
-    new Operations(range).savePrimaryKeyChanges();
-  } else if (sheetKey === new Hash('Services').md5) {
-    new Services(range).savePrimaryKeyChanges();
-  } else if (sheetKey === new Hash('Accounts').md5) {
-    new Accounts(range).savePrimaryKeyChanges();
-  } else if (sheetKey === new Hash('Sources').md5) {
-    new Sources(range).savePrimaryKeyChanges();
-  } else if (sheetKey === new Hash('Prices').md5) {
-    new Prices(range).saveChanges();
-  } else if (sheetKey === new Hash('Coins').md5) {
-    new Coins(range).saveChanges();
-  } else if (sheetKey === new Hash('Project').md5) {
-    new Project(range).savePrimaryKeyChanges();
+  const workSheet = new Portfolio().updateOnEdit(editRange.range);
+  if (workSheet.isChangePrimaryKey) {
+    workSheet.savePrimaryKeyChanges();
+  }
+  if (workSheet.isNotNull) {
+    if (new Hash(workSheet.sheetName).md5 === new Hash('prices').md5) {
+      new Prices(workSheet).updateId();
+    }
   }
 }
 

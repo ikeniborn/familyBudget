@@ -11,6 +11,19 @@ class Header {
     return Object.values(head).map((m) => m.alias)
   }
 
+  getHead(workSheetHeads, sheetName) {
+    const head = Object.entries(workSheetHeads).reduce(
+      (object, [key, value]) => {
+        if (!object[new Hash(key).md5]) {
+          object[new Hash(key).md5] = value
+        }
+        return object
+      },
+      {}
+    )
+    return head[new Hash(sheetName).md5]
+  }
+
   getPrimaryKey(head = {}, rowValues = {}) {
     return new Hash(
       Object.keys(head)

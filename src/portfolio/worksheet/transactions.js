@@ -1,13 +1,12 @@
 import { Hash, FormatDate, FormatNumber } from '../../utils'
 import { Portfolio } from '../spreadsheet/portfolio'
-import { Registry } from './registry'
-import { Prices } from './prices'
 export { Transactions }
 
 class Transactions {
-  constructor(range) {
-    this.workSheet = new Portfolio().getWorkSheet('Transactions', range, 1)
-    this.values = this.workSheet.getFact()
+  constructor(workSheet = '') {
+    this.workSheet = workSheet
+      ? workSheet
+      : new Portfolio().getWorkSheet('Registry')
   }
 
   getTransactions(arrayOfObject = []) {

@@ -7,14 +7,10 @@ import * as coinGecko from '../../restApi/coinGecko'
 export { Coins }
 
 class Coins {
-  constructor(range) {
-    this.workSheet = new Portfolio()
-      .getWorkSheet('Coins', range, 1)
-      .getDimension()
-  }
-
-  savePrimaryKeyChanges() {
-    this.workSheet.savePrimaryKeyChanges()
+  constructor(workSheet = '') {
+    this.workSheet = workSheet
+      ? workSheet
+      : new Portfolio().getWorkSheet('Coins')
   }
 
   updateCoins() {
@@ -29,21 +25,6 @@ class Coins {
         id: coin.id,
       })
     })
-    // SpreadsheetApp.openById('1wTTuxXt8n9q7C4NDXqQpI3wpKu1_5bGVmP9Xz0XGSyU')
-    //   .getSheetByName('CoinGecko Token API List')
-    //   .getDataRange()
-    //   .getValues()
-    //   .slice(1)
-    //   .forEach((coin) => {
-    //     const key = new Hash('coingecko' + coin[2] + coin[1])
-    //     coins.push({
-    //       rowKey: key.md5,
-    //       source: 'coingecko',
-    //       name: coin[2],
-    //       symbol: coin[1],
-    //       id: coin[0],
-    //     })
-    //   })
     new cryptoRank.CoinsList().getCoinsList(15000).forEach((coin) => {
       const key = new Hash('cryptorank' + coin.name + coin.symbol)
       coins.push({
@@ -92,26 +73,6 @@ class Coins {
         id: coin[1],
       })
     })
-    this.workSheet.insertRows(coins, this.head)
-  }
-
-  getOnEdit(range) {
-    this.workSheetRange = new WorkSheetRange(
-      this.spreadSheetName,
-      this.sheetName,
-      1,
-      range
-    )
-    this.arrayOfObject = this.workSheetRange.getArrayOfObject(this.head)
-    return this
-  }
-
-  updateInsert() {
-    this.arrayOfObject.forEach((object) => {
-      this.workSheet.updateRow(object, this.head, object.rowNum)
-    })
-  }
-  updateOnEdit(range) {
-    this.getOnEdit(range).updateInsert()
+    this.workSheet.truncateInsertRows(coins)
   }
 }
