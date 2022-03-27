@@ -1,4 +1,7 @@
+import { Hash } from '../../utils'
 import { Portfolio } from '../spreadsheet/portfolio'
+import { FormatDate, FormatNumber } from '../../utils'
+import { Prices } from './prices'
 export { Registry }
 
 class Registry {
@@ -8,11 +11,10 @@ class Registry {
       : new Portfolio().getWorkSheet('Registry')
   }
 
-  getTransactions() {
-    this.transactions = []
-    const prices = new Portfolio().getWorkSheet('prices').object
-    this.workSheet.arrayOfObject.forEach((rowValues, indexTx) => {
-      // const startDate = new FormatDate()
+  updateTransactions() {
+    const arrayOfObject = []
+    const prices = new Prices()
+    this.workSheet.arrayOfObject.forEach((rowValues) => {
       let coinQty,
         currencyQty,
         currencyPerCoin,
@@ -35,12 +37,13 @@ class Registry {
       currencyQty = rowValues.currencyQty
       coinSymbol = rowValues.coin
       currencySymbol = rowValues.currency
+
       if (
         ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !== -1
       ) {
         if (['Transfer', 'Write-off'].indexOf(rowValues.operation) !== -1) {
           transactionRow.push({
-            dateTime: dateTime,
+            rowKey: new Hash(rowValues.rowKey + '#1').md5,
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             project: 'No project',
@@ -50,6 +53,7 @@ class Registry {
         }
         if (['Transfer', 'Refill'].indexOf(rowValues.operation) !== -1) {
           transactionRow.push({
+            rowKey: new Hash(rowValues.rowKey + '#2').md5,
             account: accountRecipient,
             contractor: recipient,
             project: 'No project',
@@ -73,6 +77,7 @@ class Registry {
           currencyPerCoin = currencyQty / coinQty
         }
         transactionRow.push({
+          rowKey: new Hash(rowValues.rowKey + '#1').md5,
           account: rowValues.accountSender,
           contractor: rowValues.sender,
           project: 'No project',
@@ -80,6 +85,7 @@ class Registry {
           quantity: currencyQty * -1,
         })
         transactionRow.push({
+          rowKey: new Hash(rowValues.rowKey + '#2').md5,
           account: accountRecipient,
           contractor: recipient,
           project: project,
@@ -102,6 +108,7 @@ class Registry {
           currencyPerCoin = rowValues.currencyPerCoin
         }
         transactionRow.push({
+          rowKey: new Hash(rowValues.rowKey + '#1').md5,
           account: rowValues.accountSender,
           contractor: rowValues.sender,
           project: project,
@@ -109,6 +116,7 @@ class Registry {
           quantity: coinQty * -1,
         })
         transactionRow.push({
+          rowKey: new Hash(rowValues.rowKey + '#2').md5,
           account: accountRecipient,
           contractor: recipient,
           project: 'No project',
@@ -126,7 +134,8 @@ class Registry {
           ) * currencyPerCoin || void 0
       }
       transactionRow.forEach((tx) => {
-        this.transactions.push({
+        arrayOfObject.push({
+          rowKey: tx.rowKey,
           dateTime: dateTime,
           account: tx.account.toLowerCase(),
           platform: rowValues.platform.toLowerCase(),
@@ -137,12 +146,23 @@ class Registry {
           quantity: tx.quantity,
           price: tx.coin === coinSymbol ? coinPrice : void 0,
           comment: rowValues.comment.toLowerCase(),
-          actionKey: rowValues.rowKey,
-          actionRowNum: rowValues.rowNum,
+          registryRowNum: rowValues.rowNum,
         })
       })
-      // console.log('Time for ' + indexTx + ': ' + startDate.getTimeDiff())
     })
-    return this
+    const transactions = new Portfolio().getWorkSheet('transactions')
+    if (this.workSheet.isRange) {
+      arrayOfObject.forEach((tx) => {
+        const oldRow = transactions.object[tx.rowKey]
+        if (oldRow.rowKey) {
+          tx.rowNum = oldRow.rowNum
+          transactions.updateRow(tx)
+        } else {
+          transactions.insertRow(tx)
+        }
+      })
+    } else {
+      transactions.truncateInsertRows(arrayOfObject)
+    }
   }
 }

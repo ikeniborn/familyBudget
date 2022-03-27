@@ -47,8 +47,11 @@ class Header {
   }
 
   isNotNull(head, rowValues = {}) {
-    return Object.keys(head)
-      .filter((column) => head[column].notNull)
-      .every((column) => (rowValues[column] ? true : false))
+    const data = Object.keys(head).filter((column) => head[column].notNull)
+    if (data.length) {
+      return data.every((column) => rowValues[column])
+    } else {
+      return false
+    }
   }
 }

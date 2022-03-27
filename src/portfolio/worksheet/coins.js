@@ -8,6 +8,11 @@ export { Coins }
 
 class Coins {
   constructor(workSheet = '') {
+    if (Coins.exists) {
+      return Coins.instance
+    }
+    Coins.instance = this
+    Coins.exists = true
     this.workSheet = workSheet
       ? workSheet
       : new Portfolio().getWorkSheet('Coins')

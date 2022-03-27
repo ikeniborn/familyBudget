@@ -4,6 +4,11 @@ export { HistoricalPrices }
 
 class HistoricalPrices {
   constructor(workSheet = '') {
+    if (HistoricalPrices.exists) {
+      return HistoricalPrices.instance
+    }
+    HistoricalPrices.instance = this
+    HistoricalPrices.exists = true
     this.workSheet = workSheet
       ? workSheet
       : new Portfolio().getWorkSheet('HistoricalPrices')

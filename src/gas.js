@@ -103,6 +103,7 @@ class WorkSheet extends SpreadSheet {
     this.range = this.workSheet.getDataRange()
     this.countRow = this.range.getNumRows() - this.headRowNum
     this.countColumn = this.range.getNumColumns()
+    this.isRange = false
     this.dataRange =
       this.countRow > 0
         ? this.workSheet
@@ -344,6 +345,7 @@ class WorkSheetRange extends WorkSheet {
     this.firstRowNum = this.range.rowStart
     this.isChangePrimaryKey = false
     this.isNotNull = false
+    this.isRange = true
     this.dataRange = range.offset(
       0,
       1 - this.range.columnStart,
@@ -393,7 +395,7 @@ class WorkSheetRange extends WorkSheet {
           return object
         }, {})
         const newRowKey = new Header().getPrimaryKey(this.head, object)
-        if (!object.rowKey || object.rowKey !== newRowKey) {
+        if (object.rowKey !== newRowKey) {
           object.rowKey = newRowKey
           this.isChangePrimaryKey = true
         }

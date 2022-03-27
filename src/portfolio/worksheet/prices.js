@@ -8,6 +8,11 @@ export { Prices }
 
 class Prices {
   constructor(workSheet = '') {
+    if (Prices.exists) {
+      return Prices.instance
+    }
+    Prices.instance = this
+    Prices.exists = true
     this.workSheet = workSheet
       ? workSheet
       : new Portfolio().getWorkSheet('Prices')
@@ -25,22 +30,11 @@ class Prices {
           new Hash(object.symbol).md5 === new Hash(row.symbol).md5
         )
       })[0]
-      const coinRank = coinsArray.filter((row) => {
-        return (
-          new RegExp(object.name.toString().toLowerCase(), 'g').test(
-            row.name.toString().toLowerCase()
-          ) &&
-          new Hash('cryptorank').md5 === new Hash(row.source).md5 &&
-          new Hash(object.symbol).md5 === new Hash(row.symbol).md5
-        )
-      })[0]
       object.priceId = coinPrice?.id || void 0
-      object.rankId = coinRank?.id || void 0
       return object
     })
 
     this.workSheet.arrayOfObject.forEach((object) => {
-      console.log(object)
       this.workSheet.updateRow(object)
     })
   }
@@ -93,7 +87,9 @@ class Prices {
         if (historicalPrice) {
           return historicalPrice
         } else {
-          const histirocalPrices = new HistoricalPrices().values
+          const histirocalPrices = new Portfolio().getWorkSheet(
+            'historicalPrices'
+          ).object
           return (
             histirocalPrices[new Hash(account + project + symbol).md5]
               ?.priceBuy || void 0
@@ -112,14 +108,17 @@ class Prices {
           if (!list[object.source]) {
             list[object.source] = []
           }
-          if (object.priceId) {
+          if (object.priceId && object.source !== 'custom') {
             list[object.source].push(object.priceId)
           } else {
             list[object.source].push(object.symbol)
           }
           return list
         }, {})
-      ).map(([source, idArray]) => [source, idArray.join(',')])
+      ).map(([source, idArray]) => [
+        source,
+        source !== 'custom' ? idArray.join(',') : idArray,
+      ])
     )
     const updateRisk = (symbol, rank = '') => {
       const coin = this.workSheet.object[new Hash(symbol).md5]
@@ -129,8 +128,10 @@ class Prices {
           .indexOf(new Hash(coin.risk).md5) === -1
       ) {
         let rank_ = rank
-        if (!rank_ && coin.rankId) {
-          rank_ = new cryptoRank.Price().getRank(coin.rankId) || 5000
+        if (!rank_) {
+          rank_ = 100
+        } else if (coin.source === 'custom') {
+          rank_ = 5000
         } else {
           rank_ = 5000
         }
@@ -153,12 +154,14 @@ class Prices {
         this.workSheet.object[new Hash(symbol).md5].price = price
       }
     }
-    if (listId.cryptorank) {
-      new cryptoRank.Price().getLastPrice(listId.cryptorank).forEach((coin) => {
-        updatePrice(coin.symbol, coin.values.USD.price)
-        updateRisk(coin.symbol, coin.rank)
-      })
-    }
+
+    // if (listId.cryptorank) {
+    //   new cryptoRank.Price().getLastPrice(listId.cryptorank).forEach((coin) => {
+    //     updatePrice(coin.symbol, coin.values.USD.price)
+    //     updateRisk(coin.symbol, coin.rank)
+    //   })
+    // }
+
     if (listId.coingecko) {
       new coinGecko.Price()
         .getMarketsPrice(listId.coingecko)
@@ -167,14 +170,16 @@ class Prices {
           updateRisk(coin.symbol, coin.market_cap_rank)
         })
     }
-    if (listId.coinmarketcap) {
-      Object.values(
-        new coinMarketCap.Price().getLastPrice(listId.coinmarketcap)
-      ).forEach((coin) => {
-        updatePrice(coin.symbol, coin.quote.USD.price)
-        updateRisk(coin.symbol, coin.cmc_rank)
-      })
-    }
+
+    // if (listId.coinmarketcap) {
+    //   Object.values(
+    //     new coinMarketCap.Price().getLastPrice(listId.coinmarketcap)
+    //   ).forEach((coin) => {
+    //     updatePrice(coin.symbol, coin.quote.USD.price)
+    //     updateRisk(coin.symbol, coin.cmc_rank)
+    //   })
+    // }
+
     if (listId.cryptocompare) {
       new cryptoCompare.Price()
         .getMultiPrice(listId.cryptocompare)
@@ -183,23 +188,20 @@ class Prices {
           updateRisk(coin.symbol)
         })
     }
-    if (listId.custom) {
+
+    if (listId.custom.length) {
       const histirocalPrices = new Portfolio().getWorkSheet('historicalPrices')
         .object
-      this.workSheet.arrayOfObject
-        .filter((row) => {
-          return new Hash(row.source).md5 === new Hash('custom').md5
-        })
-        .forEach((object) => {
-          const histirocalPricesKey = new Hash(
-            'ikeniborn' + 'no project' + object.symbol
-          ).md5
-          const histirocalPrice =
-            histirocalPrices[histirocalPricesKey]?.priceAvg || void 0
-          this.workSheet.object[object.rowKey].price = histirocalPrice
-        })
+      listId.custom.forEach((symbol) => {
+        const histirocalPricesKey = new Hash(
+          'ikeniborn' + 'no project' + symbol
+        ).md5
+        const histirocalPrice =
+          histirocalPrices[histirocalPricesKey]?.priceAvg || void 0
+        updatePrice(symbol, histirocalPrice)
+        updateRisk(symbol)
+      })
     }
-
     this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject)
   }
 }
