@@ -73,7 +73,6 @@ class Portfolio {
           },
           risk: { alias: 'Risk', idx: 4 },
           priceId: { alias: 'Price ID', idx: 5 },
-          rankId: { alias: 'Rank ID', idx: 6 },
           price: { alias: 'Price', idx: 7 },
         },
       },
@@ -92,8 +91,7 @@ class Portfolio {
           quantity: { alias: 'Quantity', idx: 8 },
           price: { alias: 'Price', idx: 9 },
           comment: { alias: 'Comment', idx: 10 },
-          actionKey: { alias: 'Action key', idx: 11 },
-          actionRowNum: { alias: 'Action row num', idx: 12 },
+          registryRowNum: { alias: 'Registry row num', idx: 11 },
         },
       },
       balance: {
@@ -157,7 +155,7 @@ class Portfolio {
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
-          name: { alias: 'Name', pk: true, idx: 1 },
+          name: { alias: 'Name', pk: true, idx: 1, notNull: true },
         },
       },
       project: {
