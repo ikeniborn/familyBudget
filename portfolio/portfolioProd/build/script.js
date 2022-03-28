@@ -821,8 +821,8 @@ class Portfolio {
             notNull: true,
           },
           risk: { alias: 'Risk', idx: 4 },
-          priceId: { alias: 'Price ID', idx: 5 },
-          price: { alias: 'Price', idx: 7 },
+          id: { alias: 'Id', idx: 5 },
+          price: { alias: 'Price', idx: 6 },
         },
       },
       transactions: {
@@ -841,6 +841,7 @@ class Portfolio {
           price: { alias: 'Price', idx: 9 },
           comment: { alias: 'Comment', idx: 10 },
           registryRowNum: { alias: 'Registry row num', idx: 11 },
+          updateDate: { alias: 'Update', idx: 12 },
         },
       },
       balance: {
@@ -1262,34 +1263,40 @@ class Price$2 {
 
   getMultiPrice(fsyms = '', tsyms = 'USD') {
     const upperTsyms = tsyms.toUpperCase();
-    return Object.entries(
-      this.methods.get({
-        endPoint: '/pricemulti',
-        query: {
-          fsyms: fsyms.toUpperCase(),
-          tsyms: tsyms.toUpperCase(),
-          relaxedValidation: true,
-        },
+    const result = this.methods.get({
+      endPoint: '/pricemulti',
+      query: {
+        fsyms: fsyms.toUpperCase(),
+        tsyms: tsyms.toUpperCase(),
+        relaxedValidation: true,
+      },
+    });
+    if (!result.Response) {
+      return Object.entries(result).map(([symbol, tsymsValue]) => {
+        return { symbol: symbol, price: tsymsValue[upperTsyms] }
       })
-    ).map(([symbol, tsymsValue]) => {
-      return { symbol: symbol, price: tsymsValue[upperTsyms] }
-    })
+    } else {
+      return void 0
+    }
   }
 
   getMultiFullPrice(fsyms = '', tsyms = 'USD') {
     const upperTsyms = tsyms.toUpperCase();
-    return Object.entries(
-      this.methods.get({
-        endPoint: '/pricemultifull',
-        query: {
-          fsyms: fsyms.toUpperCase(),
-          tsyms: tsyms.toUpperCase(),
-          relaxedValidation: true,
-        },
+    const result = this.methods.get({
+      endPoint: '/pricemultifull',
+      query: {
+        fsyms: fsyms.toUpperCase(),
+        tsyms: tsyms.toUpperCase(),
+        relaxedValidation: true,
+      },
+    });
+    if (!result.Response) {
+      return Object.entries(result).map(([symbol, tsymsValue]) => {
+        return [symbol, tsymsValue[upperTsyms]]
       })
-    ).map(([symbol, tsymsValue]) => {
-      return [symbol, tsymsValue[upperTsyms]]
-    })
+    } else {
+      return void 0
+    }
   }
 
   getHistoryPrice(fsym = 'BTC', ts = new Date(), tsyms = 'USD') {
@@ -1521,7 +1528,7 @@ class Prices {
           new Hash(object.symbol).md5 === new Hash(row.symbol).md5
         )
       })[0];
-      object.priceId = coinPrice?.id || void 0;
+      object.id = coinPrice?.id || void 0;
       return object
     });
 
@@ -1599,8 +1606,8 @@ class Prices {
           if (!list[object.source]) {
             list[object.source] = [];
           }
-          if (object.priceId && object.source !== 'custom') {
-            list[object.source].push(object.priceId);
+          if (object.id && object.source !== 'custom') {
+            list[object.source].push(object.id);
           } else {
             list[object.source].push(object.symbol);
           }
@@ -1611,7 +1618,7 @@ class Prices {
         source !== 'custom' ? idArray.join(',') : idArray,
       ])
     );
-    const updateRisk = (symbol, rank = '') => {
+    const updateRisk = (symbol, rank = 100) => {
       const coin = this.workSheet.object[new Hash(symbol).md5];
       if (
         ['stablecoin', 'fiat']
@@ -1619,11 +1626,7 @@ class Prices {
           .indexOf(new Hash(coin.risk).md5) === -1
       ) {
         let rank_ = rank;
-        if (!rank_) {
-          rank_ = 100;
-        } else if (coin.source === 'custom') {
-          rank_ = 5000;
-        } else {
+        if (coin.source === 'custom') {
           rank_ = 5000;
         }
         if (rank_ < 10) {
@@ -1654,12 +1657,13 @@ class Prices {
     // }
 
     if (listId.coingecko) {
-      new Price()
-        .getMarketsPrice(listId.coingecko)
-        .forEach((coin) => {
+      const priceArray = new Price().getMarketsPrice(listId.coingecko);
+      if (priceArray.length) {
+        priceArray.forEach((coin) => {
           updatePrice(coin.symbol, coin.current_price);
           updateRisk(coin.symbol, coin.market_cap_rank);
         });
+      }
     }
 
     // if (listId.coinmarketcap) {
@@ -1672,12 +1676,15 @@ class Prices {
     // }
 
     if (listId.cryptocompare) {
-      new Price$2()
-        .getMultiPrice(listId.cryptocompare)
-        .forEach((coin) => {
+      const priceArray = new Price$2().getMultiPrice(
+        listId.cryptocompare
+      );
+      if (priceArray.length) {
+        priceArray.forEach((coin) => {
           updatePrice(coin.symbol, coin.price);
           updateRisk(coin.symbol);
         });
+      }
     }
 
     if (listId.custom.length) {
@@ -1706,6 +1713,7 @@ class Registry {
 
   updateTransactions() {
     const arrayOfObject = [];
+    const updateDate = new Date();
     const prices = new Prices();
     this.workSheet.arrayOfObject.forEach((rowValues) => {
       let coinQty,
@@ -1840,6 +1848,7 @@ class Registry {
           price: tx.coin === coinSymbol ? coinPrice : void 0,
           comment: rowValues.comment.toLowerCase(),
           registryRowNum: rowValues.rowNum,
+          updateDate: updateDate,
         });
       });
     });

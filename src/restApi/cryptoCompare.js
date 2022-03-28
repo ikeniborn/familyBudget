@@ -49,34 +49,40 @@ class Price {
 
   getMultiPrice(fsyms = '', tsyms = 'USD') {
     const upperTsyms = tsyms.toUpperCase()
-    return Object.entries(
-      this.methods.get({
-        endPoint: '/pricemulti',
-        query: {
-          fsyms: fsyms.toUpperCase(),
-          tsyms: tsyms.toUpperCase(),
-          relaxedValidation: true,
-        },
-      })
-    ).map(([symbol, tsymsValue]) => {
-      return { symbol: symbol, price: tsymsValue[upperTsyms] }
+    const result = this.methods.get({
+      endPoint: '/pricemulti',
+      query: {
+        fsyms: fsyms.toUpperCase(),
+        tsyms: tsyms.toUpperCase(),
+        relaxedValidation: true,
+      },
     })
+    if (!result.Response) {
+      return Object.entries(result).map(([symbol, tsymsValue]) => {
+        return { symbol: symbol, price: tsymsValue[upperTsyms] }
+      })
+    } else {
+      return void 0
+    }
   }
 
   getMultiFullPrice(fsyms = '', tsyms = 'USD') {
     const upperTsyms = tsyms.toUpperCase()
-    return Object.entries(
-      this.methods.get({
-        endPoint: '/pricemultifull',
-        query: {
-          fsyms: fsyms.toUpperCase(),
-          tsyms: tsyms.toUpperCase(),
-          relaxedValidation: true,
-        },
-      })
-    ).map(([symbol, tsymsValue]) => {
-      return [symbol, tsymsValue[upperTsyms]]
+    const result = this.methods.get({
+      endPoint: '/pricemultifull',
+      query: {
+        fsyms: fsyms.toUpperCase(),
+        tsyms: tsyms.toUpperCase(),
+        relaxedValidation: true,
+      },
     })
+    if (!result.Response) {
+      return Object.entries(result).map(([symbol, tsymsValue]) => {
+        return [symbol, tsymsValue[upperTsyms]]
+      })
+    } else {
+      return void 0
+    }
   }
 
   getHistoryPrice(fsym = 'BTC', ts = new Date(), tsyms = 'USD') {

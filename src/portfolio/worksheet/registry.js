@@ -13,6 +13,7 @@ class Registry {
 
   updateTransactions() {
     const arrayOfObject = []
+    const updateDate = new Date()
     const prices = new Prices()
     this.workSheet.arrayOfObject.forEach((rowValues) => {
       let coinQty,
@@ -147,6 +148,7 @@ class Registry {
           price: tx.coin === coinSymbol ? coinPrice : void 0,
           comment: rowValues.comment.toLowerCase(),
           registryRowNum: rowValues.rowNum,
+          updateDate: updateDate,
         })
       })
     })

@@ -30,7 +30,7 @@ class Prices {
           new Hash(object.symbol).md5 === new Hash(row.symbol).md5
         )
       })[0]
-      object.priceId = coinPrice?.id || void 0
+      object.id = coinPrice?.id || void 0
       return object
     })
 
@@ -108,8 +108,8 @@ class Prices {
           if (!list[object.source]) {
             list[object.source] = []
           }
-          if (object.priceId && object.source !== 'custom') {
-            list[object.source].push(object.priceId)
+          if (object.id && object.source !== 'custom') {
+            list[object.source].push(object.id)
           } else {
             list[object.source].push(object.symbol)
           }
@@ -120,7 +120,7 @@ class Prices {
         source !== 'custom' ? idArray.join(',') : idArray,
       ])
     )
-    const updateRisk = (symbol, rank = '') => {
+    const updateRisk = (symbol, rank = 100) => {
       const coin = this.workSheet.object[new Hash(symbol).md5]
       if (
         ['stablecoin', 'fiat']
@@ -128,11 +128,7 @@ class Prices {
           .indexOf(new Hash(coin.risk).md5) === -1
       ) {
         let rank_ = rank
-        if (!rank_) {
-          rank_ = 100
-        } else if (coin.source === 'custom') {
-          rank_ = 5000
-        } else {
+        if (coin.source === 'custom') {
           rank_ = 5000
         }
         if (rank_ < 10) {
@@ -163,12 +159,13 @@ class Prices {
     // }
 
     if (listId.coingecko) {
-      new coinGecko.Price()
-        .getMarketsPrice(listId.coingecko)
-        .forEach((coin) => {
+      const priceArray = new coinGecko.Price().getMarketsPrice(listId.coingecko)
+      if (priceArray.length) {
+        priceArray.forEach((coin) => {
           updatePrice(coin.symbol, coin.current_price)
           updateRisk(coin.symbol, coin.market_cap_rank)
         })
+      }
     }
 
     // if (listId.coinmarketcap) {
@@ -181,12 +178,15 @@ class Prices {
     // }
 
     if (listId.cryptocompare) {
-      new cryptoCompare.Price()
-        .getMultiPrice(listId.cryptocompare)
-        .forEach((coin) => {
+      const priceArray = new cryptoCompare.Price().getMultiPrice(
+        listId.cryptocompare
+      )
+      if (priceArray.length) {
+        priceArray.forEach((coin) => {
           updatePrice(coin.symbol, coin.price)
           updateRisk(coin.symbol)
         })
+      }
     }
 
     if (listId.custom.length) {

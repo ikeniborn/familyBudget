@@ -72,8 +72,8 @@ class Portfolio {
             notNull: true,
           },
           risk: { alias: 'Risk', idx: 4 },
-          priceId: { alias: 'Price ID', idx: 5 },
-          price: { alias: 'Price', idx: 7 },
+          id: { alias: 'Id', idx: 5 },
+          price: { alias: 'Price', idx: 6 },
         },
       },
       transactions: {
@@ -92,6 +92,7 @@ class Portfolio {
           price: { alias: 'Price', idx: 9 },
           comment: { alias: 'Comment', idx: 10 },
           registryRowNum: { alias: 'Registry row num', idx: 11 },
+          updateDate: { alias: 'Update', idx: 12 },
         },
       },
       balance: {
