@@ -148,6 +148,7 @@ class Prices {
     const updatePrice = (symbol, price) => {
       if (price) {
         this.workSheet.object[new Hash(symbol).md5].price = price
+        this.workSheet.object[new Hash(symbol).md5].update = new Date()
       }
     }
 

@@ -50,8 +50,7 @@ class Header {
     const data = Object.keys(head).filter((column) => head[column].notNull)
     if (data.length) {
       return data.every((column) => rowValues[column])
-    } else {
-      return false
     }
+    return false
   }
 }

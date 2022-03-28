@@ -74,6 +74,7 @@ class Portfolio {
           risk: { alias: 'Risk', idx: 4 },
           id: { alias: 'Id', idx: 5 },
           price: { alias: 'Price', idx: 6 },
+          update: { alias: 'Update', idx: 7 },
         },
       },
       transactions: {
@@ -156,7 +157,7 @@ class Portfolio {
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
-          name: { alias: 'Name', pk: true, idx: 1, notNull: true },
+          name: { alias: 'Name', pk: true, idx: 1 },
         },
       },
       project: {
@@ -190,19 +191,29 @@ class Portfolio {
   }
 
   getWorkSheet(sheetName) {
+    let headSheetName = sheetName
+    if (sheetName.match('Registry')) {
+      headSheetName = 'Registry'
+    }
+    console.log(sheetName, headSheetName)
     return new WorkSheet(
       this.spreadSheetName,
       sheetName,
-      new Header().getHead(this.workSheetHeads, sheetName)
+      new Header().getHead(this.workSheetHeads, headSheetName)
     )
   }
 
   updateOnEdit(range) {
-    const sheetName = range.getSheet().getSheetName()
+    let sheetName, headSheetName
+    sheetName = range.getSheet().getSheetName()
+    headSheetName = sheetName
+    if (sheetName.match('Registry')) {
+      headSheetName = 'Registry'
+    }
     return new WorkSheetRange(
       this.spreadSheetName,
       sheetName,
-      new Header().getHead(this.workSheetHeads, sheetName),
+      new Header().getHead(this.workSheetHeads, headSheetName),
       range
     )
   }

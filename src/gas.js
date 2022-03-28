@@ -82,7 +82,7 @@ class WorkSheet extends SpreadSheet {
    *
    * @param {*} spreadSheetName
    * @param {*} sheetName
-   *     @param {*} head
+   * @param {*} head
    * @param {*} headerRowNum
    * @returns
    */
@@ -116,9 +116,6 @@ class WorkSheet extends SpreadSheet {
     this.getDataset()
   }
 
-  /**
-   * Последняя строка на листе
-   */
   get lastRow() {
     return this.workSheet.getLastRow()
   }
@@ -134,33 +131,6 @@ class WorkSheet extends SpreadSheet {
   get maxColumn() {
     return this.workSheet.getMaxColumns()
   }
-
-  // /**
-  //  *
-  //  * @returns range, countRow, countColumn
-  //  */
-  // getRange() {
-  //   const dataRange = this.workSheet.getDataRange()
-  //   this.headerRowNum = headerRowNum
-  //   this.countRow = dataRange.getNumRows() - this.firstRowNum
-  //   this.countColumn = dataRange.getNumColumns()
-  //   // this.headerRange = dataRange.offset(
-  //   //   this.headerRowNum - 1,
-  //   //   0,
-  //   //   1,
-  //   //   this.countColumn
-  //   // )
-  //   this.dataRange =
-  //     this.countRow > 0
-  //       ? dataRange.offset(
-  //           this.headerRowNum,
-  //           0,
-  //           this.countRow,
-  //           this.countColumn
-  //         )
-  //       : this.headerRange
-  //   return this
-  // }
 
   getFact() {
     this.object = this.dataRange
@@ -280,12 +250,13 @@ class WorkSheet extends SpreadSheet {
   }
 
   insertRow(object = {}) {
-    const array = [object].reduce((values, rowObject) => {
-      const rowArray = this.headKey.map((value) => rowObject[value])
-      values.push(rowArray)
-      return values
-    }, [])[0]
-    this.workSheet.appendRow(array)
+    new Promise((resolve) => {
+      const array = this.headKey.map((column) => object[column])
+      this.workSheet.appendRow(array)
+      resolve()
+    }).then(() => {
+      this.deleteEmptyRows().deleteEmptyColumns()
+    })
   }
 
   insertValue(value, row, column) {
@@ -395,13 +366,16 @@ class WorkSheetRange extends WorkSheet {
           return object
         }, {})
         const newRowKey = new Header().getPrimaryKey(this.head, object)
+        object.isChangePrimaryKey = false
         if (object.rowKey !== newRowKey) {
           object.rowKey = newRowKey
+          // object.isChangePrimaryKey = true
           this.isChangePrimaryKey = true
         }
         if (!objectRow[object.rowKey]) {
           objectRow[object.rowKey] = object
         }
+        // object.isNotNull = new Header().isNotNull(this.head, object)
         this.isNotNull = new Header().isNotNull(this.head, object)
         return objectRow
       }, {})

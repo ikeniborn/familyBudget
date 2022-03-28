@@ -303,9 +303,8 @@ class Header {
     const data = Object.keys(head).filter((column) => head[column].notNull);
     if (data.length) {
       return data.every((column) => rowValues[column])
-    } else {
-      return false
     }
+    return false
   }
 }
 
@@ -381,7 +380,7 @@ class WorkSheet extends SpreadSheet {
    *
    * @param {*} spreadSheetName
    * @param {*} sheetName
-   *     @param {*} head
+   * @param {*} head
    * @param {*} headerRowNum
    * @returns
    */
@@ -415,9 +414,6 @@ class WorkSheet extends SpreadSheet {
     this.getDataset();
   }
 
-  /**
-   * Последняя строка на листе
-   */
   get lastRow() {
     return this.workSheet.getLastRow()
   }
@@ -433,33 +429,6 @@ class WorkSheet extends SpreadSheet {
   get maxColumn() {
     return this.workSheet.getMaxColumns()
   }
-
-  // /**
-  //  *
-  //  * @returns range, countRow, countColumn
-  //  */
-  // getRange() {
-  //   const dataRange = this.workSheet.getDataRange()
-  //   this.headerRowNum = headerRowNum
-  //   this.countRow = dataRange.getNumRows() - this.firstRowNum
-  //   this.countColumn = dataRange.getNumColumns()
-  //   // this.headerRange = dataRange.offset(
-  //   //   this.headerRowNum - 1,
-  //   //   0,
-  //   //   1,
-  //   //   this.countColumn
-  //   // )
-  //   this.dataRange =
-  //     this.countRow > 0
-  //       ? dataRange.offset(
-  //           this.headerRowNum,
-  //           0,
-  //           this.countRow,
-  //           this.countColumn
-  //         )
-  //       : this.headerRange
-  //   return this
-  // }
 
   getFact() {
     this.object = this.dataRange
@@ -579,12 +548,13 @@ class WorkSheet extends SpreadSheet {
   }
 
   insertRow(object = {}) {
-    const array = [object].reduce((values, rowObject) => {
-      const rowArray = this.headKey.map((value) => rowObject[value]);
-      values.push(rowArray);
-      return values
-    }, [])[0];
-    this.workSheet.appendRow(array);
+    new Promise((resolve) => {
+      const array = this.headKey.map((column) => object[column]);
+      this.workSheet.appendRow(array);
+      resolve();
+    }).then(() => {
+      this.deleteEmptyRows().deleteEmptyColumns();
+    });
   }
 
   insertValue(value, row, column) {
@@ -694,13 +664,16 @@ class WorkSheetRange extends WorkSheet {
           return object
         }, {});
         const newRowKey = new Header().getPrimaryKey(this.head, object);
+        object.isChangePrimaryKey = false;
         if (object.rowKey !== newRowKey) {
           object.rowKey = newRowKey;
+          // object.isChangePrimaryKey = true
           this.isChangePrimaryKey = true;
         }
         if (!objectRow[object.rowKey]) {
           objectRow[object.rowKey] = object;
         }
+        // object.isNotNull = new Header().isNotNull(this.head, object)
         this.isNotNull = new Header().isNotNull(this.head, object);
         return objectRow
       }, {});
@@ -823,6 +796,7 @@ class Portfolio {
           risk: { alias: 'Risk', idx: 4 },
           id: { alias: 'Id', idx: 5 },
           price: { alias: 'Price', idx: 6 },
+          update: { alias: 'Update', idx: 7 },
         },
       },
       transactions: {
@@ -905,7 +879,7 @@ class Portfolio {
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
-          name: { alias: 'Name', pk: true, idx: 1, notNull: true },
+          name: { alias: 'Name', pk: true, idx: 1 },
         },
       },
       project: {
@@ -939,19 +913,29 @@ class Portfolio {
   }
 
   getWorkSheet(sheetName) {
+    let headSheetName = sheetName;
+    if (sheetName.match('Registry')) {
+      headSheetName = 'Registry';
+    }
+    console.log(sheetName, headSheetName);
     return new WorkSheet(
       this.spreadSheetName,
       sheetName,
-      new Header().getHead(this.workSheetHeads, sheetName)
+      new Header().getHead(this.workSheetHeads, headSheetName)
     )
   }
 
   updateOnEdit(range) {
-    const sheetName = range.getSheet().getSheetName();
+    let sheetName, headSheetName;
+    sheetName = range.getSheet().getSheetName();
+    headSheetName = sheetName;
+    if (sheetName.match('Registry')) {
+      headSheetName = 'Registry';
+    }
     return new WorkSheetRange(
       this.spreadSheetName,
       sheetName,
-      new Header().getHead(this.workSheetHeads, sheetName),
+      new Header().getHead(this.workSheetHeads, headSheetName),
       range
     )
   }
@@ -1646,6 +1630,7 @@ class Prices {
     const updatePrice = (symbol, price) => {
       if (price) {
         this.workSheet.object[new Hash(symbol).md5].price = price;
+        this.workSheet.object[new Hash(symbol).md5].update = new Date();
       }
     };
 
@@ -1708,7 +1693,7 @@ class Registry {
   constructor(workSheet = '') {
     this.workSheet = workSheet
       ? workSheet
-      : new Portfolio().getWorkSheet('Registry');
+      : new Portfolio().getWorkSheet(SpreadsheetApp.getActiveSheet().getName());
   }
 
   updateTransactions() {
@@ -1856,7 +1841,7 @@ class Registry {
     if (this.workSheet.isRange) {
       arrayOfObject.forEach((tx) => {
         const oldRow = transactions.object[tx.rowKey];
-        if (oldRow.rowKey) {
+        if (oldRow?.rowKey) {
           tx.rowNum = oldRow.rowNum;
           transactions.updateRow(tx);
         } else {
@@ -2114,9 +2099,7 @@ function updateOnEdit(editRange) {
     if (result == ui.Button.YES) {
       if (new Hash(workSheet.sheetName).md5 === new Hash('prices').md5) {
         new Prices(workSheet).updateId();
-      } else if (
-        new Hash(workSheet.sheetName).md5 === new Hash('registry').md5
-      ) {
+      } else if (workSheet.sheetName.match(new RegExp('[Registry]+', 'g'))) {
         new Registry(workSheet).updateTransactions();
       }
     }

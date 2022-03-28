@@ -8,7 +8,7 @@ class Registry {
   constructor(workSheet = '') {
     this.workSheet = workSheet
       ? workSheet
-      : new Portfolio().getWorkSheet('Registry')
+      : new Portfolio().getWorkSheet(SpreadsheetApp.getActiveSheet().getName())
   }
 
   updateTransactions() {
@@ -156,7 +156,7 @@ class Registry {
     if (this.workSheet.isRange) {
       arrayOfObject.forEach((tx) => {
         const oldRow = transactions.object[tx.rowKey]
-        if (oldRow.rowKey) {
+        if (oldRow?.rowKey) {
           tx.rowNum = oldRow.rowNum
           transactions.updateRow(tx)
         } else {
