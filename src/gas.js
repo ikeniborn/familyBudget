@@ -415,18 +415,9 @@ class WorkSheetRange extends WorkSheet {
 
   savePrimaryKeyChanges() {
     if (this.firstRowNum !== this.headRowNum) {
-      const ui = SpreadsheetApp.getUi() // Same variations.
-      const result = ui.alert(
-        'Primary key changed!',
-        'Save?',
-        ui.ButtonSet.YES_NO
-      )
-
-      if (result == ui.Button.YES) {
-        this.arrayOfObject.forEach((object) => {
-          this.updateRow(object)
-        })
-      }
+      this.arrayOfObject.forEach((object) => {
+        this.updateRow(object)
+      })
     }
   }
 }

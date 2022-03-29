@@ -30,7 +30,7 @@ class Prices {
           new Hash(object.symbol).md5 === new Hash(row.symbol).md5
         )
       })[0]
-      object.id = coinPrice?.id || void 0
+      object.id = coinPrice?.id || '#N/A'
       return object
     })
 
@@ -44,7 +44,7 @@ class Prices {
     const source = coin.source
     const id = coin.id
     const risk = coin.risk
-    if (new Hash('Stablecoin').md5 !== new Hash(risk).md5) {
+    if (new Hash('Stablecoin/Fiat').md5 !== new Hash(risk).md5) {
       if (new FormatDate(date).yyyymmdd === new FormatDate().yyyymmdd) {
         if (new Hash(source).md5 === new Hash('cryptorank').md5) {
           return new cryptoRank.Price()

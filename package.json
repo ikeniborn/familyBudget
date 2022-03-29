@@ -6,7 +6,7 @@
   "scripts": {
     "portfolioBuild": "rollup --config",
     "portfolioDev": "rollup --config && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/portfolio/portfolioDev/.clasp.json",
-    "portfolioProd": "rollup --config && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/portfolio/portfolioProd/.clasp.json"
+    "portfolioProd": "rollup --config && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/portfolio/portfolioProd/.clasp.json && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/portfolio/portfolioDev/.clasp.json"
   },
   "repository": {
     "type": "git",

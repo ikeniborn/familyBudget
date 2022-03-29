@@ -11,7 +11,17 @@ function updateTransactions() {
 }
 
 function updatePrices() {
-  new Prices().updatePrices()
+  new Promise((resolve) => {
+    new Prices().updatePrices()
+    resolve()
+  }).then(() => {
+    new Promise((resolve) => {
+      new HistoricalPrices().updateHistoricalPrices()
+      resolve()
+    }).then(() => {
+      new Balance().updateBalance()
+    })
+  })
 }
 
 function updateCoins() {
@@ -33,13 +43,13 @@ function updateOnEdit(editRange) {
     if (workSheet.isChangePrimaryKey) {
       workSheet.savePrimaryKeyChanges()
     } else if (workSheet.isNotNull) {
-      const startDate = new FormatDate(startDate)
-      const ui = SpreadsheetApp.getUi() // Same variations.
-      const result = ui.alert('Data update', 'Save?', ui.ButtonSet.YES_NO)
-      if (result == ui.Button.YES) {
-        if (new Hash(workSheet.sheetName).md5 === new Hash('prices').md5) {
-          new Prices(workSheet).updateId()
-        } else if (workSheet.sheetName.match(new RegExp('[Registry]+', 'g'))) {
+      const startDate = new FormatDate()
+      if (new Hash(workSheet.sheetName).md5 === new Hash('prices').md5) {
+        new Prices(workSheet).updateId()
+      } else if (workSheet.sheetName.match(new RegExp('[Registry]+', 'g'))) {
+        const ui = SpreadsheetApp.getUi() // Same variations.
+        const result = ui.alert('Data update', 'Save?', ui.ButtonSet.YES_NO)
+        if (result == ui.Button.YES) {
           new Registry(workSheet).updateTransactions()
         }
       }

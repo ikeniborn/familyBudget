@@ -24,45 +24,52 @@ class Balance {
       if (!object[tx.account][tx.contractor]) {
         object[tx.account][tx.contractor] = {}
       }
-      if (!object[tx.account][tx.contractor][tx.project]) {
-        object[tx.account][tx.contractor][tx.project] = {}
+      if (!object[tx.account][tx.contractor][tx.service]) {
+        object[tx.account][tx.contractor][tx.service] = {}
       }
-      if (!object[tx.account][tx.contractor][tx.project][tx.coin]) {
-        object[tx.account][tx.contractor][tx.project][tx.coin] = 0
+      if (!object[tx.account][tx.contractor][tx.service][tx.project]) {
+        object[tx.account][tx.contractor][tx.service][tx.project] = {}
       }
-      object[tx.account][tx.contractor][tx.project][tx.coin] += tx.quantity
+      if (!object[tx.account][tx.contractor][tx.service][tx.project][tx.coin]) {
+        object[tx.account][tx.contractor][tx.service][tx.project][tx.coin] = 0
+      }
+      object[tx.account][tx.contractor][tx.service][tx.project][tx.coin] +=
+        tx.quantity
       return object
     }, {})
     Object.entries(aggBalance).forEach(([account, level0]) => {
       Object.entries(level0).forEach(([contractor, level1]) => {
-        Object.entries(level1).forEach(([project, level2]) => {
-          Object.entries(level2).forEach(([coin, quantity]) => {
-            if (quantity) {
-              const currentCost = quantity * prices[new Hash(coin).md5]?.price
-              const historicalCostBuy =
-                quantity *
-                  historicalPrices[new Hash(account + project + coin).md5]
-                    ?.priceBuy || 0
-              const historicalCostAvg =
-                quantity *
-                  historicalPrices[new Hash(account + project + coin).md5]
-                    ?.priceAvg || 0
-              const risk = prices[new Hash(coin).md5]?.risk
-              newArrayOfObject.push({
-                account: account.toUpperCase(),
-                contractor: contractor.toUpperCase(),
-                contractorType: contractors[
-                  new Hash(contractor).md5
-                ].type.toUpperCase(),
-                project: project.toUpperCase(),
-                coin: coin.toUpperCase(),
-                risk: risk.toUpperCase(),
-                quantity,
-                historicalCostBuy,
-                historicalCostAvg,
-                currentCost,
-              })
-            }
+        Object.entries(level1).forEach(([service, level2]) => {
+          Object.entries(level2).forEach(([project, level3]) => {
+            Object.entries(level3).forEach(([coin, quantity]) => {
+              if (quantity) {
+                const currentCost = quantity * prices[new Hash(coin).md5]?.price
+                const historicalCostBuy =
+                  quantity *
+                    historicalPrices[new Hash(account + project + coin).md5]
+                      ?.priceBuy || 0
+                const historicalCostAvg =
+                  quantity *
+                    historicalPrices[new Hash(account + project + coin).md5]
+                      ?.priceAvg || 0
+                const risk = prices[new Hash(coin).md5]?.risk
+                newArrayOfObject.push({
+                  account: account.toUpperCase(),
+                  contractor: contractor.toUpperCase(),
+                  contractorType: contractors[
+                    new Hash(contractor).md5
+                  ].type.toUpperCase(),
+                  service: service.toUpperCase(),
+                  project: project.toUpperCase(),
+                  coin: coin.toUpperCase(),
+                  risk: risk.toUpperCase(),
+                  quantity,
+                  historicalCostBuy,
+                  historicalCostAvg,
+                  currentCost,
+                })
+              }
+            })
           })
         })
       })

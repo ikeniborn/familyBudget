@@ -713,18 +713,9 @@ class WorkSheetRange extends WorkSheet {
 
   savePrimaryKeyChanges() {
     if (this.firstRowNum !== this.headRowNum) {
-      const ui = SpreadsheetApp.getUi(); // Same variations.
-      const result = ui.alert(
-        'Primary key changed!',
-        'Save?',
-        ui.ButtonSet.YES_NO
-      );
-
-      if (result == ui.Button.YES) {
-        this.arrayOfObject.forEach((object) => {
-          this.updateRow(object);
-        });
-      }
+      this.arrayOfObject.forEach((object) => {
+        this.updateRow(object);
+      });
     }
   }
 }
@@ -842,13 +833,14 @@ class Portfolio {
           account: { alias: 'Account', idx: 0 },
           contractor: { alias: 'Contractor', idx: 1 },
           contractorType: { alias: 'Contractor type', idx: 2 },
-          project: { alias: 'Project', idx: 3 },
-          coin: { alias: 'Coin', idx: 4 },
-          risk: { alias: 'Risk', idx: 5 },
-          quantity: { alias: 'Quantity', idx: 6 },
-          historicalCostBuy: { alias: 'Historical buy cost', idx: 7 },
-          historicalCostAvg: { alias: 'Historical average cost', idx: 8 },
-          currentCost: { alias: 'Current cost', idx: 9 },
+          service: { alias: 'Service', idx: 3 },
+          project: { alias: 'Project', idx: 4 },
+          coin: { alias: 'Coin', idx: 5 },
+          risk: { alias: 'Risk', idx: 6 },
+          quantity: { alias: 'Quantity', idx: 7 },
+          historicalCostBuy: { alias: 'Historical buy cost', idx: 8 },
+          historicalCostAvg: { alias: 'Historical average cost', idx: 9 },
+          currentCost: { alias: 'Current cost', idx: 10 },
         },
       },
       historicalPrices: {
@@ -1563,7 +1555,7 @@ class Prices {
           new Hash(object.symbol).md5 === new Hash(row.symbol).md5
         )
       })[0];
-      object.id = coinPrice?.id || void 0;
+      object.id = coinPrice?.id || '#N/A';
       return object
     });
 
@@ -1577,7 +1569,7 @@ class Prices {
     const source = coin.source;
     const id = coin.id;
     const risk = coin.risk;
-    if (new Hash('Stablecoin').md5 !== new Hash(risk).md5) {
+    if (new Hash('Stablecoin/Fiat').md5 !== new Hash(risk).md5) {
       if (new FormatDate(date).yyyymmdd === new FormatDate().yyyymmdd) {
         if (new Hash(source).md5 === new Hash('cryptorank').md5) {
           return new Price$3()
@@ -2075,45 +2067,52 @@ class Balance {
       if (!object[tx.account][tx.contractor]) {
         object[tx.account][tx.contractor] = {};
       }
-      if (!object[tx.account][tx.contractor][tx.project]) {
-        object[tx.account][tx.contractor][tx.project] = {};
+      if (!object[tx.account][tx.contractor][tx.service]) {
+        object[tx.account][tx.contractor][tx.service] = {};
       }
-      if (!object[tx.account][tx.contractor][tx.project][tx.coin]) {
-        object[tx.account][tx.contractor][tx.project][tx.coin] = 0;
+      if (!object[tx.account][tx.contractor][tx.service][tx.project]) {
+        object[tx.account][tx.contractor][tx.service][tx.project] = {};
       }
-      object[tx.account][tx.contractor][tx.project][tx.coin] += tx.quantity;
+      if (!object[tx.account][tx.contractor][tx.service][tx.project][tx.coin]) {
+        object[tx.account][tx.contractor][tx.service][tx.project][tx.coin] = 0;
+      }
+      object[tx.account][tx.contractor][tx.service][tx.project][tx.coin] +=
+        tx.quantity;
       return object
     }, {});
     Object.entries(aggBalance).forEach(([account, level0]) => {
       Object.entries(level0).forEach(([contractor, level1]) => {
-        Object.entries(level1).forEach(([project, level2]) => {
-          Object.entries(level2).forEach(([coin, quantity]) => {
-            if (quantity) {
-              const currentCost = quantity * prices[new Hash(coin).md5]?.price;
-              const historicalCostBuy =
-                quantity *
-                  historicalPrices[new Hash(account + project + coin).md5]
-                    ?.priceBuy || 0;
-              const historicalCostAvg =
-                quantity *
-                  historicalPrices[new Hash(account + project + coin).md5]
-                    ?.priceAvg || 0;
-              const risk = prices[new Hash(coin).md5]?.risk;
-              newArrayOfObject.push({
-                account: account.toUpperCase(),
-                contractor: contractor.toUpperCase(),
-                contractorType: contractors[
-                  new Hash(contractor).md5
-                ].type.toUpperCase(),
-                project: project.toUpperCase(),
-                coin: coin.toUpperCase(),
-                risk: risk.toUpperCase(),
-                quantity,
-                historicalCostBuy,
-                historicalCostAvg,
-                currentCost,
-              });
-            }
+        Object.entries(level1).forEach(([service, level2]) => {
+          Object.entries(level2).forEach(([project, level3]) => {
+            Object.entries(level3).forEach(([coin, quantity]) => {
+              if (quantity) {
+                const currentCost = quantity * prices[new Hash(coin).md5]?.price;
+                const historicalCostBuy =
+                  quantity *
+                    historicalPrices[new Hash(account + project + coin).md5]
+                      ?.priceBuy || 0;
+                const historicalCostAvg =
+                  quantity *
+                    historicalPrices[new Hash(account + project + coin).md5]
+                      ?.priceAvg || 0;
+                const risk = prices[new Hash(coin).md5]?.risk;
+                newArrayOfObject.push({
+                  account: account.toUpperCase(),
+                  contractor: contractor.toUpperCase(),
+                  contractorType: contractors[
+                    new Hash(contractor).md5
+                  ].type.toUpperCase(),
+                  service: service.toUpperCase(),
+                  project: project.toUpperCase(),
+                  coin: coin.toUpperCase(),
+                  risk: risk.toUpperCase(),
+                  quantity,
+                  historicalCostBuy,
+                  historicalCostAvg,
+                  currentCost,
+                });
+              }
+            });
           });
         });
       });
@@ -2127,7 +2126,17 @@ function updateTransactions() {
 }
 
 function updatePrices() {
-  new Prices().updatePrices();
+  new Promise((resolve) => {
+    new Prices().updatePrices();
+    resolve();
+  }).then(() => {
+    new Promise((resolve) => {
+      new HistoricalPrices().updateHistoricalPrices();
+      resolve();
+    }).then(() => {
+      new Balance().updateBalance();
+    });
+  });
 }
 
 function updateCoins() {
@@ -2149,13 +2158,13 @@ function updateOnEdit(editRange) {
     if (workSheet.isChangePrimaryKey) {
       workSheet.savePrimaryKeyChanges();
     } else if (workSheet.isNotNull) {
-      const startDate = new FormatDate(startDate);
-      const ui = SpreadsheetApp.getUi(); // Same variations.
-      const result = ui.alert('Data update', 'Save?', ui.ButtonSet.YES_NO);
-      if (result == ui.Button.YES) {
-        if (new Hash(workSheet.sheetName).md5 === new Hash('prices').md5) {
-          new Prices(workSheet).updateId();
-        } else if (workSheet.sheetName.match(new RegExp('[Registry]+', 'g'))) {
+      const startDate = new FormatDate();
+      if (new Hash(workSheet.sheetName).md5 === new Hash('prices').md5) {
+        new Prices(workSheet).updateId();
+      } else if (workSheet.sheetName.match(new RegExp('[Registry]+', 'g'))) {
+        const ui = SpreadsheetApp.getUi(); // Same variations.
+        const result = ui.alert('Data update', 'Save?', ui.ButtonSet.YES_NO);
+        if (result == ui.Button.YES) {
           new Registry(workSheet).updateTransactions();
         }
       }
