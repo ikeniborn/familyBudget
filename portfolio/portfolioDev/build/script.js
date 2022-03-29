@@ -24,7 +24,7 @@ class Hash {
   }
 }
 
-class FormatDate$1 {
+class FormatDate {
   /**
    * Форматирование и преобразование даты
    * @param {date} date значение даты. По умолчанию - текущее значение
@@ -1308,7 +1308,7 @@ class Price$2 {
   }
 
   getHistoryPrice(fsym = 'BTC', ts = new Date(), tsyms = 'USD') {
-    const dateUnix = new FormatDate$1(ts).unix;
+    const dateUnix = new FormatDate(ts).unix;
     const upperTsyms = tsyms.toUpperCase();
     const upperFsym = fsym.toUpperCase();
     const result = this.methods.get({
@@ -1578,7 +1578,7 @@ class Prices {
     const id = coin.id;
     const risk = coin.risk;
     if (new Hash('Stablecoin').md5 !== new Hash(risk).md5) {
-      if (new FormatDate$1(date).yyyymmdd === new FormatDate$1().yyyymmdd) {
+      if (new FormatDate(date).yyyymmdd === new FormatDate().yyyymmdd) {
         if (new Hash(source).md5 === new Hash('cryptorank').md5) {
           return new Price$3()
             .getLastPrice(id)
@@ -1766,7 +1766,7 @@ class Registry {
         currencySymbol;
       const transactionRow = [];
       const hhmm = new FormatNumber(rowValues.time).getHourAndMinuteFromNumber();
-      const dateTime = new FormatDate$1(rowValues.date).addTime(hhmm.h, hhmm.m)
+      const dateTime = new FormatDate(rowValues.date).addTime(hhmm.h, hhmm.m)
         .date;
       accountRecipient = rowValues.accountRecipient
         ? rowValues.accountRecipient

@@ -3,7 +3,7 @@ import { HistoricalPrices } from './worksheet/historicalPrices'
 import { Prices } from './worksheet/prices'
 import { Coins } from './worksheet/coins'
 import { Balance } from './worksheet/balance'
-import { Hash } from '../utils'
+import { Hash, FormatDate } from '../utils'
 import { Portfolio } from './spreadsheet/portfolio'
 
 function updateTransactions() {
