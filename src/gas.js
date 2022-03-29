@@ -205,12 +205,15 @@ class WorkSheet extends SpreadSheet {
       },
       [new Header().getHeaderAlias(this.head)]
     )
+    console.log(this.headKey)
+    console.log(this.sheetName)
+    console.log(array)
     if (array.length) {
-      const truncateInsertRowsPromise = async () => {
+      const truncateInsertRowsPromise = () => {
         return new Promise((resolve) => {
           this.deleteFilter()
           resolve()
-        }).then(async () => {
+        }).then(() => {
           return new Promise((resolve) => {
             this.workSheet
               .clear()
@@ -222,6 +225,7 @@ class WorkSheet extends SpreadSheet {
           })
         })
       }
+
       truncateInsertRowsPromise()
     }
     return this

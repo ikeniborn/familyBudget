@@ -120,27 +120,26 @@ class Prices {
         source !== 'custom' ? idArray.join(',') : idArray,
       ])
     )
-    const updateRisk = (symbol, rank = 100) => {
+    const top100 = new cryptoCompare.TopList().topListBy24h(100, 1)
+    const updateRisk = (symbol, rank = 1000) => {
       const coin = this.workSheet.object[new Hash(symbol).md5]
-      if (
-        ['stablecoin', 'fiat']
-          .map((value) => new Hash(value).md5)
-          .indexOf(new Hash(coin.risk).md5) === -1
-      ) {
+      if (['Stablecoin', 'Fiat'].indexOf(coin.coinType) !== -1) {
+        coin.risk = 'Stablecoin/Fiat'
+      } else if (['LP token'].indexOf(coin.coinType) !== -1) {
+        coin.risk = 'Very High'
+      } else {
         let rank_ = rank
         if (coin.source === 'custom') {
-          rank_ = 5000
+          rank_ = 1000
         }
-        if (rank_ < 10) {
-          coin.risk = 'Top 10 (Very low)'
-        } else if (rank_ < 50) {
-          coin.risk = 'Top 50 (Low)'
-        } else if (rank_ < 100) {
-          coin.risk = 'Top 100 (Middle)'
-        } else if (rank_ < 1000) {
-          coin.risk = 'Top 1000 (High)'
-        } else if (rank_ > 1000) {
-          coin.risk = 'Top 5000 (Very High)'
+        if (rank_ <= 10) {
+          coin.risk = 'Very low'
+        } else if (rank_ <= 50) {
+          coin.risk = 'Low'
+        } else if (rank_ <= 100) {
+          coin.risk = 'Middle'
+        } else if (rank_ > 100) {
+          coin.risk = 'High'
         }
       }
     }
@@ -159,15 +158,15 @@ class Prices {
     //   })
     // }
 
-    if (listId.coingecko) {
-      const priceArray = new coinGecko.Price().getMarketsPrice(listId.coingecko)
-      if (priceArray.length) {
-        priceArray.forEach((coin) => {
-          updatePrice(coin.symbol, coin.current_price)
-          updateRisk(coin.symbol, coin.market_cap_rank)
-        })
-      }
-    }
+    // if (listId.coingecko) {
+    //   const priceArray = new coinGecko.Price().getMarketsPrice(listId.coingecko)
+    //   if (priceArray.length) {
+    //     priceArray.forEach((coin) => {
+    //       updatePrice(coin.symbol, coin.current_price)
+    //       updateRisk(coin.symbol, coin.market_cap_rank)
+    //     })
+    //   }
+    // }
 
     // if (listId.coinmarketcap) {
     //   Object.values(
@@ -185,7 +184,10 @@ class Prices {
       if (priceArray.length) {
         priceArray.forEach((coin) => {
           updatePrice(coin.symbol, coin.price)
-          updateRisk(coin.symbol)
+          const key = new Hash(coin.symbol).md5
+          const rank = top100[key]?.rank || 1000
+          console.log(coin.symbol, rank)
+          updateRisk(coin.symbol, rank)
         })
       }
     }
@@ -203,6 +205,7 @@ class Prices {
         updateRisk(symbol)
       })
     }
+    // console.log(this.workSheet.arrayOfObject.length)
     this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject)
   }
 }

@@ -71,10 +71,23 @@ class Portfolio {
             idx: 3,
             notNull: true,
           },
-          risk: { alias: 'Risk', idx: 4 },
-          id: { alias: 'Id', idx: 5 },
-          price: { alias: 'Price', idx: 6 },
-          update: { alias: 'Update', idx: 7 },
+          pairOne: {
+            alias: 'Pair one',
+            idx: 4,
+          },
+          pairTwo: {
+            alias: 'Pair two',
+            idx: 5,
+          },
+          coinType: {
+            alias: 'Coin type',
+            idx: 6,
+            notNull: true,
+          },
+          risk: { alias: 'Risk', idx: 7 },
+          id: { alias: 'Id', idx: 8 },
+          price: { alias: 'Price', idx: 9 },
+          update: { alias: 'Update', idx: 10 },
         },
       },
       transactions: {
@@ -144,6 +157,14 @@ class Portfolio {
           name: { alias: 'Name', pk: true, idx: 1 },
         },
       },
+      coinType: {
+        type: 'dimension',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          name: { alias: 'Name', pk: true, idx: 1 },
+        },
+      },
       services: {
         type: 'dimension',
         rowNum: 1,
@@ -195,7 +216,6 @@ class Portfolio {
     if (sheetName.match('Registry')) {
       headSheetName = 'Registry'
     }
-    console.log(sheetName, headSheetName)
     return new WorkSheet(
       this.spreadSheetName,
       sheetName,

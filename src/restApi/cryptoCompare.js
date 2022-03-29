@@ -1,6 +1,6 @@
 import { Methods } from './fetch'
-import { FormatDate } from '../utils'
-export { Price, CoinsList }
+import { FormatDate, Hash } from '../utils'
+export { Price, CoinsList, TopList }
 /**
  * CryptoCompare instance
  */
@@ -113,5 +113,32 @@ class CoinsList {
   }
   getCoinsList() {
     return this.methods.get({ endPoint: '/all/coinlist' })?.Data
+  }
+}
+
+class TopList {
+  constructor() {
+    this.methods = new Instance().methods
+  }
+  topListBy24h(limit = 100, page = 1, tsym = 'usd') {
+    const upperTsym = tsym.toUpperCase()
+    const arrayOfObject =
+      this.methods.get({
+        endPoint: '/top/totalvolfull',
+        query: {
+          tsym: upperTsym,
+          limit,
+          page,
+        },
+      })?.Data || []
+    const startPosition = limit * page - (limit - 1)
+    return arrayOfObject.reduce((list, object, index) => {
+      const key = new Hash(object.CoinInfo.Internal).md5
+      if (!list[key]) {
+        list[key] = {}
+      }
+      list[key]['rank'] = startPosition + index
+      return list
+    }, {})
   }
 }

@@ -24,7 +24,7 @@ class Hash {
   }
 }
 
-class FormatDate {
+class FormatDate$1 {
   /**
    * Форматирование и преобразование даты
    * @param {date} date значение даты. По умолчанию - текущее значение
@@ -503,12 +503,15 @@ class WorkSheet extends SpreadSheet {
       },
       [new Header().getHeaderAlias(this.head)]
     );
+    console.log(this.headKey);
+    console.log(this.sheetName);
+    console.log(array);
     if (array.length) {
-      const truncateInsertRowsPromise = async () => {
+      const truncateInsertRowsPromise = () => {
         return new Promise((resolve) => {
           this.deleteFilter();
           resolve();
-        }).then(async () => {
+        }).then(() => {
           return new Promise((resolve) => {
             this.workSheet
               .clear()
@@ -520,6 +523,7 @@ class WorkSheet extends SpreadSheet {
           })
         })
       };
+
       truncateInsertRowsPromise();
     }
     return this
@@ -793,10 +797,23 @@ class Portfolio {
             idx: 3,
             notNull: true,
           },
-          risk: { alias: 'Risk', idx: 4 },
-          id: { alias: 'Id', idx: 5 },
-          price: { alias: 'Price', idx: 6 },
-          update: { alias: 'Update', idx: 7 },
+          pairOne: {
+            alias: 'Pair one',
+            idx: 4,
+          },
+          pairTwo: {
+            alias: 'Pair two',
+            idx: 5,
+          },
+          coinType: {
+            alias: 'Coin type',
+            idx: 6,
+            notNull: true,
+          },
+          risk: { alias: 'Risk', idx: 7 },
+          id: { alias: 'Id', idx: 8 },
+          price: { alias: 'Price', idx: 9 },
+          update: { alias: 'Update', idx: 10 },
         },
       },
       transactions: {
@@ -866,6 +883,14 @@ class Portfolio {
           name: { alias: 'Name', pk: true, idx: 1 },
         },
       },
+      coinType: {
+        type: 'dimension',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          name: { alias: 'Name', pk: true, idx: 1 },
+        },
+      },
       services: {
         type: 'dimension',
         rowNum: 1,
@@ -917,7 +942,6 @@ class Portfolio {
     if (sheetName.match('Registry')) {
       headSheetName = 'Registry';
     }
-    console.log(sheetName, headSheetName);
     return new WorkSheet(
       this.spreadSheetName,
       sheetName,
@@ -1284,7 +1308,7 @@ class Price$2 {
   }
 
   getHistoryPrice(fsym = 'BTC', ts = new Date(), tsyms = 'USD') {
-    const dateUnix = new FormatDate(ts).unix;
+    const dateUnix = new FormatDate$1(ts).unix;
     const upperTsyms = tsyms.toUpperCase();
     const upperFsym = fsym.toUpperCase();
     const result = this.methods.get({
@@ -1311,6 +1335,33 @@ class CoinsList$2 {
   }
   getCoinsList() {
     return this.methods.get({ endPoint: '/all/coinlist' })?.Data
+  }
+}
+
+class TopList {
+  constructor() {
+    this.methods = new Instance$2().methods;
+  }
+  topListBy24h(limit = 100, page = 1, tsym = 'usd') {
+    const upperTsym = tsym.toUpperCase();
+    const arrayOfObject =
+      this.methods.get({
+        endPoint: '/top/totalvolfull',
+        query: {
+          tsym: upperTsym,
+          limit,
+          page,
+        },
+      })?.Data || [];
+    const startPosition = limit * page - (limit - 1);
+    return arrayOfObject.reduce((list, object, index) => {
+      const key = new Hash(object.CoinInfo.Internal).md5;
+      if (!list[key]) {
+        list[key] = {};
+      }
+      list[key]['rank'] = startPosition + index;
+      return list
+    }, {})
   }
 }
 
@@ -1527,7 +1578,7 @@ class Prices {
     const id = coin.id;
     const risk = coin.risk;
     if (new Hash('Stablecoin').md5 !== new Hash(risk).md5) {
-      if (new FormatDate(date).yyyymmdd === new FormatDate().yyyymmdd) {
+      if (new FormatDate$1(date).yyyymmdd === new FormatDate$1().yyyymmdd) {
         if (new Hash(source).md5 === new Hash('cryptorank').md5) {
           return new Price$3()
             .getLastPrice(id)
@@ -1602,27 +1653,26 @@ class Prices {
         source !== 'custom' ? idArray.join(',') : idArray,
       ])
     );
-    const updateRisk = (symbol, rank = 100) => {
+    const top100 = new TopList().topListBy24h(100, 1);
+    const updateRisk = (symbol, rank = 1000) => {
       const coin = this.workSheet.object[new Hash(symbol).md5];
-      if (
-        ['stablecoin', 'fiat']
-          .map((value) => new Hash(value).md5)
-          .indexOf(new Hash(coin.risk).md5) === -1
-      ) {
+      if (['Stablecoin', 'Fiat'].indexOf(coin.coinType) !== -1) {
+        coin.risk = 'Stablecoin/Fiat';
+      } else if (['LP token'].indexOf(coin.coinType) !== -1) {
+        coin.risk = 'Very High';
+      } else {
         let rank_ = rank;
         if (coin.source === 'custom') {
-          rank_ = 5000;
+          rank_ = 1000;
         }
-        if (rank_ < 10) {
-          coin.risk = 'Top 10 (Very low)';
-        } else if (rank_ < 50) {
-          coin.risk = 'Top 50 (Low)';
-        } else if (rank_ < 100) {
-          coin.risk = 'Top 100 (Middle)';
-        } else if (rank_ < 1000) {
-          coin.risk = 'Top 1000 (High)';
-        } else if (rank_ > 1000) {
-          coin.risk = 'Top 5000 (Very High)';
+        if (rank_ <= 10) {
+          coin.risk = 'Very low';
+        } else if (rank_ <= 50) {
+          coin.risk = 'Low';
+        } else if (rank_ <= 100) {
+          coin.risk = 'Middle';
+        } else if (rank_ > 100) {
+          coin.risk = 'High';
         }
       }
     };
@@ -1641,15 +1691,15 @@ class Prices {
     //   })
     // }
 
-    if (listId.coingecko) {
-      const priceArray = new Price().getMarketsPrice(listId.coingecko);
-      if (priceArray.length) {
-        priceArray.forEach((coin) => {
-          updatePrice(coin.symbol, coin.current_price);
-          updateRisk(coin.symbol, coin.market_cap_rank);
-        });
-      }
-    }
+    // if (listId.coingecko) {
+    //   const priceArray = new coinGecko.Price().getMarketsPrice(listId.coingecko)
+    //   if (priceArray.length) {
+    //     priceArray.forEach((coin) => {
+    //       updatePrice(coin.symbol, coin.current_price)
+    //       updateRisk(coin.symbol, coin.market_cap_rank)
+    //     })
+    //   }
+    // }
 
     // if (listId.coinmarketcap) {
     //   Object.values(
@@ -1667,7 +1717,10 @@ class Prices {
       if (priceArray.length) {
         priceArray.forEach((coin) => {
           updatePrice(coin.symbol, coin.price);
-          updateRisk(coin.symbol);
+          const key = new Hash(coin.symbol).md5;
+          const rank = top100[key]?.rank || 1000;
+          console.log(coin.symbol, rank);
+          updateRisk(coin.symbol, rank);
         });
       }
     }
@@ -1685,6 +1738,7 @@ class Prices {
         updateRisk(symbol);
       });
     }
+    // console.log(this.workSheet.arrayOfObject.length)
     this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject);
   }
 }
@@ -1712,7 +1766,7 @@ class Registry {
         currencySymbol;
       const transactionRow = [];
       const hhmm = new FormatNumber(rowValues.time).getHourAndMinuteFromNumber();
-      const dateTime = new FormatDate(rowValues.date).addTime(hhmm.h, hhmm.m)
+      const dateTime = new FormatDate$1(rowValues.date).addTime(hhmm.h, hhmm.m)
         .date;
       accountRecipient = rowValues.accountRecipient
         ? rowValues.accountRecipient
@@ -2090,19 +2144,29 @@ function updateBalance() {
 }
 
 function updateOnEdit(editRange) {
-  const workSheet = new Portfolio().updateOnEdit(editRange.range);
-  if (workSheet.isChangePrimaryKey) {
-    workSheet.savePrimaryKeyChanges();
-  } else if (workSheet.isNotNull) {
-    const ui = SpreadsheetApp.getUi(); // Same variations.
-    const result = ui.alert('Data update', 'Save?', ui.ButtonSet.YES_NO);
-    if (result == ui.Button.YES) {
-      if (new Hash(workSheet.sheetName).md5 === new Hash('prices').md5) {
-        new Prices(workSheet).updateId();
-      } else if (workSheet.sheetName.match(new RegExp('[Registry]+', 'g'))) {
-        new Registry(workSheet).updateTransactions();
+  try {
+    const workSheet = new Portfolio().updateOnEdit(editRange.range);
+    if (workSheet.isChangePrimaryKey) {
+      workSheet.savePrimaryKeyChanges();
+    } else if (workSheet.isNotNull) {
+      const startDate = new FormatDate(startDate);
+      const ui = SpreadsheetApp.getUi(); // Same variations.
+      const result = ui.alert('Data update', 'Save?', ui.ButtonSet.YES_NO);
+      if (result == ui.Button.YES) {
+        if (new Hash(workSheet.sheetName).md5 === new Hash('prices').md5) {
+          new Prices(workSheet).updateId();
+        } else if (workSheet.sheetName.match(new RegExp('[Registry]+', 'g'))) {
+          new Registry(workSheet).updateTransactions();
+        }
       }
+      SpreadsheetApp.getActive().toast(
+        'Save time: ' + startDate.getTimeDiff(),
+        'Save process: ',
+        3
+      );
     }
+  } catch (error) {
+    SpreadsheetApp.getActive().toast('Error: ' + error, 'Save process: ', 3);
   }
 }
 
@@ -2112,7 +2176,6 @@ function createMenu() {
   menu.addSubMenu(
     SpreadsheetApp.getUi()
       .createMenu('Update')
-      .addItem('Update transactions', 'updateTransactions')
       .addItem('Update balance', 'updateBalance')
       .addItem('Update prices', 'updatePrices')
       .addItem('Update coins', 'updateCoins')
