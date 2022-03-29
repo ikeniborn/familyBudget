@@ -59,6 +59,7 @@ class HistoricalPrices {
               account,
               project,
               symbol,
+              quantity: object.quantity,
               priceAvg: object.cost / object.quantity || void 0,
               priceBuy: object.costBuy / object.quantityBuy || void 0,
               priceSell: object.costSell / object.quantitySell || void 0,

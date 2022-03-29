@@ -300,11 +300,11 @@ class WorkSheet extends SpreadSheet {
   }
 
   getDataset() {
-    if (this.headType === 'dimension') {
+    if (this.headType === 'dim') {
       this.getDimension()
-    } else if (this.headType === 'fact') {
+    } else if (this.headType === 'fct') {
       this.getFact()
-    } else if (this.headType === 'transaction') {
+    } else if (this.headType === 'tx') {
       this.getTransactions()
     }
     return this

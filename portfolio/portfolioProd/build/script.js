@@ -598,11 +598,11 @@ class WorkSheet extends SpreadSheet {
   }
 
   getDataset() {
-    if (this.headType === 'dimension') {
+    if (this.headType === 'dim') {
       this.getDimension();
-    } else if (this.headType === 'fact') {
+    } else if (this.headType === 'fct') {
       this.getFact();
-    } else if (this.headType === 'transaction') {
+    } else if (this.headType === 'tx') {
       this.getTransactions();
     }
     return this
@@ -744,7 +744,7 @@ class Portfolio {
     Portfolio.exists = true;
     this.workSheetHeads = {
       registry: {
-        type: 'transaction',
+        type: 'tx',
         rowNum: 1,
         columns: {
           operation: { alias: 'Operation', idx: 0, notNull: true },
@@ -768,7 +768,7 @@ class Portfolio {
         },
       },
       prices: {
-        type: 'dimension',
+        type: 'dim',
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
@@ -808,7 +808,7 @@ class Portfolio {
         },
       },
       transactions: {
-        type: 'fact',
+        type: 'fct',
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
@@ -827,7 +827,7 @@ class Portfolio {
         },
       },
       balance: {
-        type: 'transaction',
+        type: 'tx',
         rowNum: 1,
         columns: {
           account: { alias: 'Account', idx: 0 },
@@ -836,28 +836,30 @@ class Portfolio {
           service: { alias: 'Service', idx: 3 },
           project: { alias: 'Project', idx: 4 },
           coin: { alias: 'Coin', idx: 5 },
-          risk: { alias: 'Risk', idx: 6 },
-          quantity: { alias: 'Quantity', idx: 7 },
-          historicalCostBuy: { alias: 'Historical buy cost', idx: 8 },
-          historicalCostAvg: { alias: 'Historical average cost', idx: 9 },
-          currentCost: { alias: 'Current cost', idx: 10 },
+          coinType: { alias: 'Coin Type', idx: 6 },
+          risk: { alias: 'Risk', idx: 7 },
+          quantity: { alias: 'Quantity', idx: 8 },
+          historicalCostBuy: { alias: 'Historical buy cost', idx: 9 },
+          historicalCostAvg: { alias: 'Historical average cost', idx: 10 },
+          currentCost: { alias: 'Current cost', idx: 11 },
         },
       },
       historicalPrices: {
-        type: 'dimension',
+        type: 'dim',
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           account: { alias: 'Account', pk: true, idx: 1 },
           project: { alias: 'Project', pk: true, idx: 2 },
           symbol: { alias: 'Symbol', pk: true, idx: 3 },
-          priceAvg: { alias: 'Price avg', idx: 4 },
-          priceBuy: { alias: 'Price buy', idx: 5 },
-          priceSell: { alias: 'Price sell', idx: 6 },
+          quantity: { alias: 'Quantity', idx: 4 },
+          priceAvg: { alias: 'Price avg', idx: 5 },
+          priceBuy: { alias: 'Price buy', idx: 6 },
+          priceSell: { alias: 'Price sell', idx: 7 },
         },
       },
       coins: {
-        type: 'dimension',
+        type: 'dim',
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
@@ -868,7 +870,7 @@ class Portfolio {
         },
       },
       sources: {
-        type: 'dimension',
+        type: 'dim',
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
@@ -876,7 +878,7 @@ class Portfolio {
         },
       },
       coinType: {
-        type: 'dimension',
+        type: 'dim',
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
@@ -884,7 +886,7 @@ class Portfolio {
         },
       },
       services: {
-        type: 'dimension',
+        type: 'dim',
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
@@ -892,7 +894,7 @@ class Portfolio {
         },
       },
       operations: {
-        type: 'dimension',
+        type: 'dim',
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
@@ -900,7 +902,7 @@ class Portfolio {
         },
       },
       project: {
-        type: 'dimension',
+        type: 'dim',
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
@@ -908,7 +910,7 @@ class Portfolio {
         },
       },
       accounts: {
-        type: 'dimension',
+        type: 'dim',
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
@@ -916,7 +918,7 @@ class Portfolio {
         },
       },
       contractors: {
-        type: 'dimension',
+        type: 'dim',
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
@@ -1672,8 +1674,10 @@ class Prices {
     const updatePrice = (symbol, price) => {
       if (price) {
         this.workSheet.object[new Hash(symbol).md5].price = price;
-        this.workSheet.object[new Hash(symbol).md5].update = new Date();
+      } else {
+        this.workSheet.object[new Hash(symbol).md5].price = void 0;
       }
+      this.workSheet.object[new Hash(symbol).md5].update = new Date();
     };
 
     // if (listId.cryptorank) {
@@ -1730,7 +1734,6 @@ class Prices {
         updateRisk(symbol);
       });
     }
-    // console.log(this.workSheet.arrayOfObject.length)
     this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject);
   }
 }
@@ -1957,6 +1960,7 @@ class HistoricalPrices {
               account,
               project,
               symbol,
+              quantity: object.quantity,
               priceAvg: object.cost / object.quantity || void 0,
               priceBuy: object.costBuy / object.quantityBuy || void 0,
               priceSell: object.costSell / object.quantitySell || void 0,
@@ -2085,14 +2089,17 @@ class Balance {
         Object.entries(level1).forEach(([service, level2]) => {
           Object.entries(level2).forEach(([project, level3]) => {
             Object.entries(level3).forEach(([coin, quantity]) => {
-              if (quantity) {
-                const currentCost = quantity * prices[new Hash(coin).md5]?.price;
+              const quantityRound = Math.round(quantity * 1000) / 1000;
+              if (quantityRound) {
+                const currentCost =
+                  quantityRound * prices[new Hash(coin).md5]?.price;
+                const coinType = prices[new Hash(coin).md5]?.coinType;
                 const historicalCostBuy =
-                  quantity *
+                  quantityRound *
                     historicalPrices[new Hash(account + project + coin).md5]
                       ?.priceBuy || 0;
                 const historicalCostAvg =
-                  quantity *
+                  quantityRound *
                     historicalPrices[new Hash(account + project + coin).md5]
                       ?.priceAvg || 0;
                 const risk = prices[new Hash(coin).md5]?.risk;
@@ -2105,8 +2112,9 @@ class Balance {
                   service: service.toUpperCase(),
                   project: project.toUpperCase(),
                   coin: coin.toUpperCase(),
+                  coinType: coinType.toUpperCase(),
                   risk: risk.toUpperCase(),
-                  quantity,
+                  quantity: quantityRound,
                   historicalCostBuy,
                   historicalCostAvg,
                   currentCost,

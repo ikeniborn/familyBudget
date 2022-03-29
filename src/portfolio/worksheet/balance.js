@@ -42,14 +42,17 @@ class Balance {
         Object.entries(level1).forEach(([service, level2]) => {
           Object.entries(level2).forEach(([project, level3]) => {
             Object.entries(level3).forEach(([coin, quantity]) => {
-              if (quantity) {
-                const currentCost = quantity * prices[new Hash(coin).md5]?.price
+              const quantityRound = Math.round(quantity * 1000) / 1000
+              if (quantityRound) {
+                const currentCost =
+                  quantityRound * prices[new Hash(coin).md5]?.price
+                const coinType = prices[new Hash(coin).md5]?.coinType
                 const historicalCostBuy =
-                  quantity *
+                  quantityRound *
                     historicalPrices[new Hash(account + project + coin).md5]
                       ?.priceBuy || 0
                 const historicalCostAvg =
-                  quantity *
+                  quantityRound *
                     historicalPrices[new Hash(account + project + coin).md5]
                       ?.priceAvg || 0
                 const risk = prices[new Hash(coin).md5]?.risk
@@ -62,8 +65,9 @@ class Balance {
                   service: service.toUpperCase(),
                   project: project.toUpperCase(),
                   coin: coin.toUpperCase(),
+                  coinType: coinType.toUpperCase(),
                   risk: risk.toUpperCase(),
-                  quantity,
+                  quantity: quantityRound,
                   historicalCostBuy,
                   historicalCostAvg,
                   currentCost,

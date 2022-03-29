@@ -147,8 +147,10 @@ class Prices {
     const updatePrice = (symbol, price) => {
       if (price) {
         this.workSheet.object[new Hash(symbol).md5].price = price
-        this.workSheet.object[new Hash(symbol).md5].update = new Date()
+      } else {
+        this.workSheet.object[new Hash(symbol).md5].price = void 0
       }
+      this.workSheet.object[new Hash(symbol).md5].update = new Date()
     }
 
     // if (listId.cryptorank) {
@@ -205,7 +207,6 @@ class Prices {
         updateRisk(symbol)
       })
     }
-    // console.log(this.workSheet.arrayOfObject.length)
     this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject)
   }
 }
