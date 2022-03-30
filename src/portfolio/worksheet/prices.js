@@ -101,111 +101,125 @@ class Prices {
     }
   }
 
+  updateRisk(symbol, marketCapRank = 0) {
+    const price = this.workSheet.object[new Hash(symbol).md5]
+    const coinType = this.coinType[new Hash(price.coinType).md5]
+    if (coinType.name !== 'MarketCap') {
+      price.risk =
+        coinType.strategy +
+        ' (' +
+        this.strategy[new Hash(coinType.strategy).md5]?.distribution * 100 +
+        '%)'
+    } else {
+      if (marketCapRank <= 100) {
+        price.risk =
+          'Top 100 (' +
+          this.strategy[new Hash('Top 100').md5]?.distribution * 100 +
+          '%)'
+      } else if (marketCapRank > 100 && marketCapRank <= 1000) {
+        price.risk =
+          'Top 1000 (' +
+          this.strategy[new Hash('Top 1000').md5]?.distribution * 100 +
+          '%)'
+      } else if (marketCapRank > 1000 || !marketCapRank) {
+        price.risk =
+          'Other (' +
+          this.strategy[new Hash('Other').md5]?.distribution * 100 +
+          '%)'
+      }
+    }
+  }
+
+  updatePrice(symbol, price) {
+    if (price) {
+      this.workSheet.object[new Hash(symbol).md5].price = price
+    } else {
+      this.workSheet.object[new Hash(symbol).md5].price = void 0
+    }
+    this.workSheet.object[new Hash(symbol).md5].update = new Date()
+  }
+
   updatePrices() {
-    const listId = Object.fromEntries(
-      Object.entries(
-        this.workSheet.arrayOfObject.reduce((list, object) => {
-          if (!list[object.source]) {
-            list[object.source] = []
-          }
-          if (object.id && object.source !== 'custom') {
-            list[object.source].push(object.id)
-          } else {
-            list[object.source].push(object.symbol)
-          }
-          return list
-        }, {})
-      ).map(([source, idArray]) => [
-        source,
-        source !== 'custom' ? idArray.join(',') : idArray,
-      ])
-    )
-    const top100 = new cryptoCompare.TopList().topListBy24h(100, 1)
-    const updateRisk = (symbol, rank = 1000) => {
-      const coin = this.workSheet.object[new Hash(symbol).md5]
-      if (['Stablecoin', 'Fiat'].indexOf(coin.coinType) !== -1) {
-        coin.risk = 'Stablecoin/Fiat'
-      } else if (['LP token'].indexOf(coin.coinType) !== -1) {
-        coin.risk = 'Very High'
-      } else {
-        let rank_ = rank
-        if (coin.source === 'custom') {
-          rank_ = 1000
-        }
-        if (rank_ <= 10) {
-          coin.risk = 'Very low'
-        } else if (rank_ <= 50) {
-          coin.risk = 'Low'
-        } else if (rank_ <= 100) {
-          coin.risk = 'Middle'
-        } else if (rank_ > 100) {
-          coin.risk = 'High'
-        }
-      }
-    }
-
-    const updatePrice = (symbol, price) => {
-      if (price) {
-        this.workSheet.object[new Hash(symbol).md5].price = price
-      } else {
-        this.workSheet.object[new Hash(symbol).md5].price = void 0
-      }
-      this.workSheet.object[new Hash(symbol).md5].update = new Date()
-    }
-
-    // if (listId.cryptorank) {
-    //   new cryptoRank.Price().getLastPrice(listId.cryptorank).forEach((coin) => {
-    //     updatePrice(coin.symbol, coin.values.USD.price)
-    //     updateRisk(coin.symbol, coin.rank)
-    //   })
-    // }
-
-    if (listId.coingecko) {
-      const priceArray = new coinGecko.Price().getMarketsPrice(listId.coingecko)
-      if (priceArray.length) {
-        priceArray.forEach((coin) => {
-          updatePrice(coin.symbol, coin.current_price)
-          updateRisk(coin.symbol, coin.market_cap_rank)
-        })
-      }
-    }
-
-    // if (listId.coinmarketcap) {
-    //   Object.values(
-    //     new coinMarketCap.Price().getLastPrice(listId.coinmarketcap)
-    //   ).forEach((coin) => {
-    //     updatePrice(coin.symbol, coin.quote.USD.price)
-    //     updateRisk(coin.symbol, coin.cmc_rank)
-    //   })
-    // }
-
-    if (listId.cryptocompare) {
-      const priceArray = new cryptoCompare.Price().getMultiPrice(
-        listId.cryptocompare
+    new Promise((resolve) => {
+      this.coinType = new Portfolio().getWorkSheet('CoinType').object
+      this.strategy = new Portfolio().getWorkSheet('strategy').object
+      const listId = Object.fromEntries(
+        Object.entries(
+          this.workSheet.arrayOfObject.reduce((list, object) => {
+            if (!list[object.source]) {
+              list[object.source] = []
+            }
+            if (object.id && object.source !== 'custom') {
+              list[object.source].push(object.id)
+            } else {
+              list[object.source].push(object.symbol)
+            }
+            return list
+          }, {})
+        ).map(([source, idArray]) => [
+          source,
+          source !== 'custom' ? idArray.join(',') : idArray,
+        ])
       )
-      if (priceArray.length) {
-        priceArray.forEach((coin) => {
-          updatePrice(coin.symbol, coin.price)
-          const key = new Hash(coin.symbol).md5
-          const rank = top100[key]?.rank || 1000
-          updateRisk(coin.symbol, rank)
+
+      // if (listId.cryptorank) {
+      //   new cryptoRank.Price().getLastPrice(listId.cryptorank).forEach((coin) => {
+      //     updatePrice(coin.symbol, coin.values.USD.price)
+      //     updateRisk(coin.symbol, coin.rank)
+      //   })
+      // }
+
+      if (listId.coingecko) {
+        const priceArray = new coinGecko.Price().getMarketsPrice(
+          listId.coingecko
+        )
+        if (priceArray.length) {
+          priceArray.forEach((coin) => {
+            this.updatePrice(coin.symbol, coin.current_price)
+            this.updateRisk(coin.symbol, coin.market_cap_rank)
+          })
+        }
+      }
+
+      // if (listId.coinmarketcap) {
+      //   Object.values(
+      //     new coinMarketCap.Price().getLastPrice(listId.coinmarketcap)
+      //   ).forEach((coin) => {
+      //     updatePrice(coin.symbol, coin.quote.USD.price)
+      //     updateRisk(coin.symbol, coin.cmc_rank)
+      //   })
+      // }
+
+      if (listId.cryptocompare) {
+        const priceArray = new cryptoCompare.Price().getMultiPrice(
+          listId.cryptocompare
+        )
+        if (priceArray.length) {
+          const topMarketCap = new cryptoCompare.TopList().topMarketCap(1000)
+          priceArray.forEach((coin) => {
+            this.updatePrice(coin.symbol, coin.price)
+            const key = new Hash(coin.symbol).md5
+            const rank = topMaerketap[key]?.rank || 1000
+            this.updateRisk(coin.symbol, rank)
+          })
+        }
+      }
+
+      if (listId.custom.length) {
+        const histirocalPrices = new Portfolio().getWorkSheet(
+          'historicalPrices'
+        ).object
+        listId.custom.forEach((symbol) => {
+          const histirocalPricesKey = new Hash(
+            'ikeniborn' + 'no project' + symbol
+          ).md5
+          const histirocalPrice =
+            histirocalPrices[histirocalPricesKey]?.priceAvg || void 0
+          this.updatePrice(symbol, histirocalPrice)
+          this.updateRisk(symbol)
         })
       }
-    }
-
-    if (listId.custom.length) {
-      const histirocalPrices = new Portfolio().getWorkSheet('historicalPrices')
-        .object
-      listId.custom.forEach((symbol) => {
-        const histirocalPricesKey = new Hash(
-          'ikeniborn' + 'no project' + symbol
-        ).md5
-        const histirocalPrice =
-          histirocalPrices[histirocalPricesKey]?.priceAvg || void 0
-        updatePrice(symbol, histirocalPrice)
-        updateRisk(symbol)
-      })
-    }
-    this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject)
+      resolve()
+    }).then(this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject))
   }
 }

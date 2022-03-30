@@ -166,6 +166,17 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           name: { alias: 'Name', pk: true, idx: 1 },
+          strategy: { alias: 'Strategy', idx: 2 },
+        },
+      },
+      strategy: {
+        type: 'dim',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          name: { alias: 'Name', pk: true, idx: 1 },
+          distribution: { alias: 'Distribution', idx: 2 },
+          sum: { alias: 'Sum', idx: 3 },
         },
       },
       services: {

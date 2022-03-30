@@ -206,24 +206,12 @@ class WorkSheet extends SpreadSheet {
       [new Header().getHeaderAlias(this.head)]
     )
     if (array.length) {
-      const truncateInsertRowsPromise = () => {
-        return new Promise((resolve) => {
-          this.deleteFilter()
-          resolve()
-        }).then(() => {
-          return new Promise((resolve) => {
-            this.workSheet
-              .clear()
-              .getRange(firstRow, firstColumn, array.length, array[0].length)
-              .setValues(array)
-            resolve()
-          }).then(() => {
-            this.deleteEmptyRows().deleteEmptyColumns()
-          })
-        })
-      }
-
-      truncateInsertRowsPromise()
+      this.deleteFilter()
+      this.workSheet
+        .clear()
+        .getRange(firstRow, firstColumn, array.length, array[0].length)
+        .setValues(array)
+      this.deleteEmptyRows().deleteEmptyColumns()
     }
     return this
   }
