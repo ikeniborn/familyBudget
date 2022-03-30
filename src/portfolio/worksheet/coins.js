@@ -30,26 +30,26 @@ class Coins {
         id: coin.id,
       })
     })
-    new cryptoRank.CoinsList().getCoinsList(15000).forEach((coin) => {
-      const key = new Hash('cryptorank' + coin.name + coin.symbol)
-      coins.push({
-        rowKey: key.md5,
-        source: 'cryptorank',
-        name: coin.name,
-        symbol: coin.symbol,
-        id: coin.id,
-      })
-    })
-    new coinMarketCap.CoinsList().getCoinsList().forEach((coin) => {
-      const key = new Hash('coinmarketcap' + coin.name + coin.symbol)
-      coins.push({
-        rowKey: key.md5,
-        source: 'coinmarketcap',
-        name: coin.name,
-        symbol: coin.symbol,
-        id: coin.id,
-      })
-    })
+    // new cryptoRank.CoinsList().getCoinsList(15000).forEach((coin) => {
+    //   const key = new Hash('cryptorank' + coin.name + coin.symbol)
+    //   coins.push({
+    //     rowKey: key.md5,
+    //     source: 'cryptorank',
+    //     name: coin.name,
+    //     symbol: coin.symbol,
+    //     id: coin.id,
+    //   })
+    // })
+    // new coinMarketCap.CoinsList().getCoinsList().forEach((coin) => {
+    //   const key = new Hash('coinmarketcap' + coin.name + coin.symbol)
+    //   coins.push({
+    //     rowKey: key.md5,
+    //     source: 'coinmarketcap',
+    //     name: coin.name,
+    //     symbol: coin.symbol,
+    //     id: coin.id,
+    //   })
+    // })
 
     Object.entries(new cryptoCompare.CoinsList().getCoinsList()).forEach(
       (coin) => {

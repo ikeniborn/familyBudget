@@ -160,15 +160,15 @@ class Prices {
     //   })
     // }
 
-    // if (listId.coingecko) {
-    //   const priceArray = new coinGecko.Price().getMarketsPrice(listId.coingecko)
-    //   if (priceArray.length) {
-    //     priceArray.forEach((coin) => {
-    //       updatePrice(coin.symbol, coin.current_price)
-    //       updateRisk(coin.symbol, coin.market_cap_rank)
-    //     })
-    //   }
-    // }
+    if (listId.coingecko) {
+      const priceArray = new coinGecko.Price().getMarketsPrice(listId.coingecko)
+      if (priceArray.length) {
+        priceArray.forEach((coin) => {
+          updatePrice(coin.symbol, coin.current_price)
+          updateRisk(coin.symbol, coin.market_cap_rank)
+        })
+      }
+    }
 
     // if (listId.coinmarketcap) {
     //   Object.values(
@@ -188,7 +188,6 @@ class Prices {
           updatePrice(coin.symbol, coin.price)
           const key = new Hash(coin.symbol).md5
           const rank = top100[key]?.rank || 1000
-          console.log(coin.symbol, rank)
           updateRisk(coin.symbol, rank)
         })
       }

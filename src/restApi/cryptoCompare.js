@@ -48,22 +48,30 @@ class Price {
   }
 
   getMultiPrice(fsyms = '', tsyms = 'USD') {
+    const priceArray = []
     const upperTsyms = tsyms.toUpperCase()
-    const result = this.methods.get({
-      endPoint: '/pricemulti',
-      query: {
-        fsyms: fsyms.toUpperCase(),
-        tsyms: tsyms.toUpperCase(),
-        relaxedValidation: true,
-      },
-    })
-    if (!result.Response) {
-      return Object.entries(result).map(([symbol, tsymsValue]) => {
-        return { symbol: symbol, price: tsymsValue[upperTsyms] }
+    const fsymsArray = fsyms.split(',')
+    const fsymsArrayOfArray = new Array(Math.ceil(fsymsArray.length / 25))
+      .fill()
+      .map((_) => fsymsArray.splice(0, 25))
+    fsymsArrayOfArray.forEach((fsymsPart) => {
+      const result = this.methods.get({
+        endPoint: '/pricemulti',
+        query: {
+          fsyms: fsymsPart.join(',').toUpperCase(),
+          tsyms: tsyms.toUpperCase(),
+          relaxedValidation: true,
+        },
       })
-    } else {
-      return void 0
-    }
+      if (!result.Response) {
+        return Object.entries(result).forEach(([symbol, tsymsValue]) => {
+          priceArray.push({ symbol: symbol, price: tsymsValue[upperTsyms] })
+        })
+      } else {
+        console.error(result.Message)
+      }
+    })
+    return priceArray
   }
 
   getMultiFullPrice(fsyms = '', tsyms = 'USD') {

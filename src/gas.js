@@ -205,9 +205,6 @@ class WorkSheet extends SpreadSheet {
       },
       [new Header().getHeaderAlias(this.head)]
     )
-    console.log(this.headKey)
-    console.log(this.sheetName)
-    console.log(array)
     if (array.length) {
       const truncateInsertRowsPromise = () => {
         return new Promise((resolve) => {

@@ -12,15 +12,6 @@ const preventThreeShakingPlugin = () => {
 }
 
 export default [
-  // {
-  //   input: '/home/ikeni/Documents/Git/familyBudget/src/portfolio/standalone.js',
-  //   output: {
-  //     dir:
-  //       '/home/ikeni/Documents/Git/familyBudget/portfolio/portfolioLib/build',
-  //     format: 'es',
-  //   },
-  //   plugins: [preventThreeShakingPlugin()],
-  // },
   {
     input: '/home/ikeni/Documents/Git/familyBudget/src/portfolio/script.js',
     output: [
@@ -32,6 +23,20 @@ export default [
       {
         dir:
           '/home/ikeni/Documents/Git/familyBudget/portfolio/portfolioProd/build',
+        format: 'es',
+      },
+    ],
+    plugins: [preventThreeShakingPlugin()],
+  },
+  {
+    input: '/home/ikeni/Documents/Git/familyBudget/src/budget/script.js',
+    output: [
+      {
+        dir: '/home/ikeni/Documents/Git/familyBudget/budget/budgetDev/build',
+        format: 'es',
+      },
+      {
+        dir: '/home/ikeni/Documents/Git/familyBudget/budget/budgetProd/build',
         format: 'es',
       },
     ],

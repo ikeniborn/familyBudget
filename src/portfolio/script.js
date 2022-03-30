@@ -39,6 +39,7 @@ function updateBalance() {
 
 function updateOnEdit(editRange) {
   try {
+    SpreadsheetApp.getActive().toast('Check update.', 'Save process: ', 1)
     const workSheet = new Portfolio().updateOnEdit(editRange.range)
     if (workSheet.isChangePrimaryKey) {
       workSheet.savePrimaryKeyChanges()

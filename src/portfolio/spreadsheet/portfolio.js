@@ -219,11 +219,8 @@ class Portfolio {
     if (sheetName.match('Registry')) {
       headSheetName = 'Registry'
     }
-    return new WorkSheet(
-      this.spreadSheetName,
-      sheetName,
-      new Header().getHead(this.workSheetHeads, headSheetName)
-    )
+    const head = new Header().getHead(this.workSheetHeads, headSheetName)
+    return new WorkSheet(this.spreadSheetName, sheetName, head)
   }
 
   updateOnEdit(range) {
@@ -233,11 +230,13 @@ class Portfolio {
     if (sheetName.match('Registry')) {
       headSheetName = 'Registry'
     }
-    return new WorkSheetRange(
+    const head = new Header().getHead(this.workSheetHeads, headSheetName)
+    const workSheet = new WorkSheetRange(
       this.spreadSheetName,
       sheetName,
-      new Header().getHead(this.workSheetHeads, headSheetName),
+      head,
       range
     )
+    return workSheet
   }
 }
