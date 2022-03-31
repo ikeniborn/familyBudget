@@ -1140,72 +1140,19 @@ class Fetch {
 }
 
 /**
- * CryptoRank instance
- */
-class Instance$3 {
-  /**
-   * Create new inctance API CryptoRank
-   */
-  constructor() {
-    if (Instance$3.exists) {
-      return Instance$3.instance
-    }
-    Instance$3.instance = this;
-    Instance$3.exists = true;
-    this.methods = new Methods({
-      domain: 'https://api.cryptorank.io/v1',
-      query: {
-        api_key: 'f512dfeb3966b63ac221826ab8501a53d96662a203ad786860d5cc268b85',
-      },
-      data: {
-        muteHttpExceptions: true,
-        contentType: 'application/json',
-      },
-    });
-  }
-}
-/**
- * CryptoRank price
- */
-class Price$3 {
-  constructor() {
-    this.methods = new Instance$3().methods;
-  }
-  getLastPrice(ids = '1', convert = 'USD') {
-    return (
-      this.methods.get({
-        endPoint: '/currencies',
-        query: {
-          convert: convert,
-          ids: ids,
-        },
-      })?.data || []
-    )
-  }
-
-  getRank(id) {
-    const data = this.methods.get({
-      endPoint: '/currencies/{id}',
-      path: { id },
-    })?.data?.rank;
-    return data
-  }
-}
-
-/**
  * CryptoCompare instance
  */
-class Instance$2 {
+class Instance$1 {
   /**
    * Create new inctance API CryptoCompare
    *
    */
   constructor() {
-    if (Instance$2.exists) {
-      return Instance$2.instance
+    if (Instance$1.exists) {
+      return Instance$1.instance
     }
-    Instance$2.instance = this;
-    Instance$2.exists = true;
+    Instance$1.instance = this;
+    Instance$1.exists = true;
     this.methods = new Methods({
       domain: 'https://min-api.cryptocompare.com/data',
       query: {
@@ -1222,84 +1169,100 @@ class Instance$2 {
 /**
  * CryptoCompare price
  */
-class Price$2 {
+class Price$1 {
   constructor() {
-    this.methods = new Instance$2().methods;
+    this.methods = new Instance$1().methods;
   }
 
   getSinglePrice(fsym = '', tsyms = 'USD') {
-    return this.methods.get({
-      endPoint: '/price',
-      query: {
-        fsym: fsym.toUpperCase(),
-        tsyms: tsyms,
-        relaxedValidation: true,
-      },
-    })
+    try {
+      return this.methods.get({
+        endPoint: '/price',
+        query: {
+          fsym: fsym.toUpperCase(),
+          tsyms: tsyms,
+          relaxedValidation: true,
+        },
+      })
+    } catch (error) {
+      console.error('Price.getSinglePrice', error);
+    }
   }
 
   getMultiPrice(fsyms = '', tsyms = 'USD') {
-    const priceArray = [];
-    const upperTsyms = tsyms.toUpperCase();
-    const fsymsArray = fsyms.split(',');
-    const fsymsArrayOfArray = new Array(Math.ceil(fsymsArray.length / 25))
-      .fill()
-      .map((_) => fsymsArray.splice(0, 25));
-    fsymsArrayOfArray.forEach((fsymsPart) => {
+    try {
+      const priceArray = [];
+      const upperTsyms = tsyms.toUpperCase();
+      const fsymsArray = fsyms.split(',');
+      const fsymsArrayOfArray = new Array(Math.ceil(fsymsArray.length / 25))
+        .fill()
+        .map((_) => fsymsArray.splice(0, 25));
+      fsymsArrayOfArray.forEach((fsymsPart) => {
+        const result = this.methods.get({
+          endPoint: '/pricemulti',
+          query: {
+            fsyms: fsymsPart.join(',').toUpperCase(),
+            tsyms: tsyms.toUpperCase(),
+            relaxedValidation: true,
+          },
+        });
+        if (!result.Response) {
+          return Object.entries(result).forEach(([symbol, tsymsValue]) => {
+            priceArray.push({ symbol: symbol, price: tsymsValue[upperTsyms] });
+          })
+        } else {
+          console.error(result.Message);
+        }
+      });
+      return priceArray
+    } catch (error) {
+      console.error('Price.getMultiPrice', error);
+    }
+  }
+
+  getMultiFullPrice(fsyms = '', tsyms = 'USD') {
+    try {
+      const upperTsyms = tsyms.toUpperCase();
       const result = this.methods.get({
-        endPoint: '/pricemulti',
+        endPoint: '/pricemultifull',
         query: {
-          fsyms: fsymsPart.join(',').toUpperCase(),
+          fsyms: fsyms.toUpperCase(),
           tsyms: tsyms.toUpperCase(),
           relaxedValidation: true,
         },
       });
       if (!result.Response) {
-        return Object.entries(result).forEach(([symbol, tsymsValue]) => {
-          priceArray.push({ symbol: symbol, price: tsymsValue[upperTsyms] });
+        return Object.entries(result).map(([symbol, tsymsValue]) => {
+          return [symbol, tsymsValue[upperTsyms]]
         })
       } else {
-        console.error(result.Message);
+        return void 0
       }
-    });
-    return priceArray
-  }
-
-  getMultiFullPrice(fsyms = '', tsyms = 'USD') {
-    const upperTsyms = tsyms.toUpperCase();
-    const result = this.methods.get({
-      endPoint: '/pricemultifull',
-      query: {
-        fsyms: fsyms.toUpperCase(),
-        tsyms: tsyms.toUpperCase(),
-        relaxedValidation: true,
-      },
-    });
-    if (!result.Response) {
-      return Object.entries(result).map(([symbol, tsymsValue]) => {
-        return [symbol, tsymsValue[upperTsyms]]
-      })
-    } else {
-      return void 0
+    } catch (error) {
+      console.error('Price.getMultiFullPrice', error);
     }
   }
 
   getHistoryPrice(fsym = 'BTC', ts = new Date(), tsyms = 'USD') {
-    const dateUnix = new FormatDate(ts).unix;
-    const upperTsyms = tsyms.toUpperCase();
-    const upperFsym = fsym.toUpperCase();
-    const result = this.methods.get({
-      endPoint: '/pricehistorical',
-      query: {
-        fsym: upperFsym,
-        tsyms: upperTsyms,
-        ts: dateUnix,
-      },
-    });
-    if (!result.Response) {
-      return result[upperFsym][upperTsyms]
-    } else {
-      return void 0
+    try {
+      const dateUnix = new FormatDate(ts).unix;
+      const upperTsyms = tsyms.toUpperCase();
+      const upperFsym = fsym.toUpperCase();
+      const result = this.methods.get({
+        endPoint: '/pricehistorical',
+        query: {
+          fsym: upperFsym,
+          tsyms: upperTsyms,
+          ts: dateUnix,
+        },
+      });
+      if (!result.Response) {
+        return result[upperFsym][upperTsyms]
+      } else {
+        return void 0
+      }
+    } catch (error) {
+      console.error('Price.getHistoryPrice', error);
     }
   }
 }
@@ -1308,7 +1271,7 @@ class Price$2 {
  */
 class CoinsList$1 {
   constructor() {
-    this.methods = new Instance$2().methods;
+    this.methods = new Instance$1().methods;
   }
   getCoinsList() {
     return this.methods.get({ endPoint: '/all/coinlist' })?.Data
@@ -1317,7 +1280,7 @@ class CoinsList$1 {
 
 class TopList {
   constructor() {
-    this.methods = new Instance$2().methods;
+    this.methods = new Instance$1().methods;
   }
   topMarketCap(top = 100, tsym = 'usd') {
     try {
@@ -1354,53 +1317,6 @@ class TopList {
     } catch (error) {
       console.error('TopList.topListBy24h', error);
     }
-  }
-}
-
-/**
- * CoinMarketCap instance
- */
-class Instance$1 {
-  constructor() {
-    if (Instance$1.exists) {
-      return Instance$1.instance
-    }
-    Instance$1.instance = this;
-    Instance$1.exists = true;
-    this.methods = new Methods({
-      domain: 'https://pro-api.coinmarketcap.com',
-      data: {
-        muteHttpExceptions: true,
-        contentType: 'accept: application/json',
-        headers: {
-          'X-CMC_PRO_API_KEY': '133c18b7-555c-4e57-ad7b-4d2bf6160c20',
-        },
-      },
-    });
-  }
-}
-/**
- * CoinMarketCap Price
- */
-class Price$1 {
-  constructor() {
-    this.methods = new Instance$1().methods;
-  }
-  /**
-   * Get last price
-   *
-   * @param {*} id
-   * @param {*} convert
-   * @returns {array}
-   */
-  getLastPrice(id = '1', convert = 'USD') {
-    return this.methods.get({
-      endPoint: '/v2/cryptocurrency/quotes/latest',
-      query: {
-        id,
-        convert,
-      },
-    })?.data
   }
 }
 
@@ -1526,208 +1442,212 @@ class Prices {
   }
 
   updateId() {
-    const coinsArray = new Portfolio().getWorkSheet('coins').arrayOfObject;
-    this.workSheet.arrayOfObject.map((object) => {
-      const coinPrice = coinsArray.filter((row) => {
-        return (
-          new RegExp(object.name.toString().toLowerCase(), 'g').test(
-            row.name.toString().toLowerCase()
-          ) &&
-          new Hash(object.source).md5 === new Hash(row.source).md5 &&
-          new Hash(object.symbol).md5 === new Hash(row.symbol).md5
-        )
-      })[0];
-      object.id = coinPrice?.id || '#N/A';
-      return object
-    });
+    try {
+      const coinsArray = new Portfolio().getWorkSheet('coins').arrayOfObject;
+      this.workSheet.arrayOfObject.map((object) => {
+        const coinPrice = coinsArray.filter((row) => {
+          return (
+            new RegExp(object.name.toString().toLowerCase(), 'g').test(
+              row.name.toString().toLowerCase()
+            ) &&
+            new Hash(object.source).md5 === new Hash(row.source).md5 &&
+            new Hash(object.symbol).md5 === new Hash(row.symbol).md5
+          )
+        })[0];
+        object.id = coinPrice?.id || '#N/A';
+        return object
+      });
 
-    this.workSheet.arrayOfObject.forEach((object) => {
-      this.workSheet.updateRow(object);
-    });
+      this.workSheet.arrayOfObject.forEach((object) => {
+        this.workSheet.updateRow(object);
+      });
+    } catch (error) {
+      console.error('Prices.updateId', error);
+    }
   }
 
   getHistoricalPrice(account, project, date, symbol, convert = 'usd') {
-    const coin = this.workSheet.object[new Hash(symbol).md5];
-    const source = coin.source;
-    const id = coin.id;
-    const risk = coin.risk;
-    if (new Hash('Stablecoin/Fiat').md5 !== new Hash(risk).md5) {
-      if (new FormatDate(date).yyyymmdd === new FormatDate().yyyymmdd) {
-        if (new Hash(source).md5 === new Hash('cryptorank').md5) {
-          return new Price$3()
-            .getLastPrice(id)
-            .reduce((price, data) => {
-              price = data.values.USD.price;
-              return price
-            }, 0)
-        } else if (new Hash(source).md5 === new Hash('cryptocompare').md5) {
-          return Object.values(
-            new Price$2().getMultiPrice(id)
-          ).reduce((price, data) => {
-            price = data.USD;
-            return price
-          }, 0)
-        } else if (new Hash(source).md5 === new Hash('coingecko').md5) {
+    try {
+      const coin = this.workSheet.object[new Hash(symbol).md5];
+      const sourceKey = new Hash(coin.source).md5;
+      const id = coin.id;
+      const coinTypeKey = new Hash(coin.coinType).md5;
+      if (
+        ['stablecoin', 'fiat']
+          .map((m) => (m = new Hash(m).md5))
+          .indexOf(coinTypeKey) === -1
+      ) {
+        if (
+          new FormatDate(date).yyyymmdd === new FormatDate().yyyymmdd &&
+          sourceKey === new Hash('coingecko').md5
+        ) {
           return new Price()
             .getMarketsPrice(id)
             .reduce((price, data) => {
               price = data.current_price;
               return price
             }, 0)
-        } else if (new Hash(source).md5 === new Hash('coinmarketcap').md5) {
-          return Object.values(
-            new Price$1().getLastPrice(id)
-          ).reduce((price, data) => {
-            price = data.quote.USD.price;
-            return price
-          }, 0)
+        } else {
+          let historicalPrice;
+          if (new Hash(source).md5 === new Hash('cryptocompare').md5) {
+            historicalPrice = new Price$1().getHistoryPrice(
+              id,
+              date,
+              convert
+            );
+          }
+          if (historicalPrice) {
+            return historicalPrice
+          } else {
+            const histirocalPrices = new Portfolio().getWorkSheet(
+              'historicalPrices'
+            ).object;
+            return (
+              histirocalPrices[new Hash(account + project + symbol).md5]
+                ?.priceBuy || void 0
+            )
+          }
         }
       } else {
-        let historicalPrice;
-        if (new Hash(source).md5 === new Hash('cryptocompare').md5) {
-          historicalPrice = new Price$2().getHistoryPrice(
-            id,
-            date,
-            convert
-          );
-        }
-        if (historicalPrice) {
-          return historicalPrice
-        } else {
-          const histirocalPrices = new Portfolio().getWorkSheet(
-            'historicalPrices'
-          ).object;
-          return (
-            histirocalPrices[new Hash(account + project + symbol).md5]
-              ?.priceBuy || void 0
-          )
-        }
+        return 1
       }
-    } else {
-      return 1
+    } catch (error) {
+      console.error('Prices.getHistoricalPrice', error);
     }
   }
 
   updateRisk(symbol, marketCapRank = 0) {
-    const price = this.workSheet.object[new Hash(symbol).md5];
-    const coinType = this.coinType[new Hash(price.coinType).md5];
-    if (coinType.name !== 'MarketCap') {
-      price.risk =
-        coinType.strategy +
-        ' (' +
-        this.strategy[new Hash(coinType.strategy).md5]?.distribution * 100 +
-        '%)';
-    } else {
-      if (marketCapRank <= 100) {
+    try {
+      const price = this.workSheet.object[new Hash(symbol).md5];
+      const coinType = this.coinType[new Hash(price.coinType).md5];
+      if (coinType.name !== 'MarketCap') {
         price.risk =
-          'Top 100 (' +
-          this.strategy[new Hash('Top 100').md5]?.distribution * 100 +
+          coinType.strategy +
+          ' (' +
+          this.strategy[new Hash(coinType.strategy).md5]?.distribution * 100 +
           '%)';
-      } else if (marketCapRank > 100 && marketCapRank <= 1000) {
-        price.risk =
-          'Top 1000 (' +
-          this.strategy[new Hash('Top 1000').md5]?.distribution * 100 +
-          '%)';
-      } else if (marketCapRank > 1000 || !marketCapRank) {
-        price.risk =
-          'Other (' +
-          this.strategy[new Hash('Other').md5]?.distribution * 100 +
-          '%)';
+      } else {
+        if (marketCapRank <= 100) {
+          price.risk =
+            'Top 100 (' +
+            this.strategy[new Hash('Top 100').md5]?.distribution * 100 +
+            '%)';
+        } else if (marketCapRank > 100 && marketCapRank <= 1000) {
+          price.risk =
+            'Top 1000 (' +
+            this.strategy[new Hash('Top 1000').md5]?.distribution * 100 +
+            '%)';
+        } else if (marketCapRank > 1000 || !marketCapRank) {
+          price.risk =
+            'Other (' +
+            this.strategy[new Hash('Other').md5]?.distribution * 100 +
+            '%)';
+        }
       }
+    } catch (error) {
+      console.error('Prices.updateRisk', error);
     }
   }
 
   updatePrice(symbol, price) {
-    if (price) {
-      this.workSheet.object[new Hash(symbol).md5].price = price;
-    } else {
-      this.workSheet.object[new Hash(symbol).md5].price = void 0;
+    try {
+      if (price) {
+        this.workSheet.object[new Hash(symbol).md5].price = price;
+      } else {
+        this.workSheet.object[new Hash(symbol).md5].price = void 0;
+      }
+      this.workSheet.object[new Hash(symbol).md5].update = new Date();
+    } catch (error) {
+      console.error('Prices.updatePrice', error);
     }
-    this.workSheet.object[new Hash(symbol).md5].update = new Date();
   }
 
   updatePrices() {
-    new Promise((resolve) => {
-      this.coinType = new Portfolio().getWorkSheet('CoinType').object;
-      this.strategy = new Portfolio().getWorkSheet('strategy').object;
-      const listId = Object.fromEntries(
-        Object.entries(
-          this.workSheet.arrayOfObject.reduce((list, object) => {
-            if (!list[object.source]) {
-              list[object.source] = [];
-            }
-            if (object.id && object.source !== 'custom') {
-              list[object.source].push(object.id);
-            } else {
-              list[object.source].push(object.symbol);
-            }
-            return list
-          }, {})
-        ).map(([source, idArray]) => [
-          source,
-          source !== 'custom' ? idArray.join(',') : idArray,
-        ])
-      );
-
-      // if (listId.cryptorank) {
-      //   new cryptoRank.Price().getLastPrice(listId.cryptorank).forEach((coin) => {
-      //     updatePrice(coin.symbol, coin.values.USD.price)
-      //     updateRisk(coin.symbol, coin.rank)
-      //   })
-      // }
-
-      if (listId.coingecko) {
-        const priceArray = new Price().getMarketsPrice(
-          listId.coingecko
+    try {
+      new Promise((resolve) => {
+        this.coinType = new Portfolio().getWorkSheet('CoinType').object;
+        this.strategy = new Portfolio().getWorkSheet('strategy').object;
+        const listId = Object.fromEntries(
+          Object.entries(
+            this.workSheet.arrayOfObject.reduce((list, object) => {
+              if (!list[object.source]) {
+                list[object.source] = [];
+              }
+              if (object.id && object.source !== 'custom') {
+                list[object.source].push(object.id);
+              } else {
+                list[object.source].push(object.symbol);
+              }
+              return list
+            }, {})
+          ).map(([source, idArray]) => [
+            source,
+            source !== 'custom' ? idArray.join(',') : idArray,
+          ])
         );
-        if (priceArray.length) {
-          priceArray.forEach((coin) => {
-            this.updatePrice(coin.symbol, coin.current_price);
-            this.updateRisk(coin.symbol, coin.market_cap_rank);
+
+        // if (listId.cryptorank) {
+        //   new cryptoRank.Price().getLastPrice(listId.cryptorank).forEach((coin) => {
+        //     updatePrice(coin.symbol, coin.values.USD.price)
+        //     updateRisk(coin.symbol, coin.rank)
+        //   })
+        // }
+
+        if (listId.coingecko) {
+          const priceArray = new Price().getMarketsPrice(
+            listId.coingecko
+          );
+          if (priceArray.length) {
+            priceArray.forEach((coin) => {
+              this.updatePrice(coin.symbol, coin.current_price);
+              this.updateRisk(coin.symbol, coin.market_cap_rank);
+            });
+          }
+        }
+
+        // if (listId.coinmarketcap) {
+        //   Object.values(
+        //     new coinMarketCap.Price().getLastPrice(listId.coinmarketcap)
+        //   ).forEach((coin) => {
+        //     updatePrice(coin.symbol, coin.quote.USD.price)
+        //     updateRisk(coin.symbol, coin.cmc_rank)
+        //   })
+        // }
+
+        if (listId.cryptocompare) {
+          const priceArray = new Price$1().getMultiPrice(
+            listId.cryptocompare
+          );
+          if (priceArray.length) {
+            const topMarketCap = new TopList().topMarketCap(1000);
+            priceArray.forEach((coin) => {
+              this.updatePrice(coin.symbol, coin.price);
+              const key = new Hash(coin.symbol).md5;
+              const rank = topMarketCap[key]?.rank || 1000;
+              this.updateRisk(coin.symbol, rank);
+            });
+          }
+        }
+
+        if (listId.custom.length) {
+          const histirocalPrices = new Portfolio().getWorkSheet(
+            'historicalPrices'
+          ).object;
+          listId.custom.forEach((symbol) => {
+            const histirocalPricesKey = new Hash(
+              'ikeniborn' + 'no project' + symbol
+            ).md5;
+            const histirocalPrice =
+              histirocalPrices[histirocalPricesKey]?.priceAvg || void 0;
+            this.updatePrice(symbol, histirocalPrice);
+            this.updateRisk(symbol);
           });
         }
-      }
-
-      // if (listId.coinmarketcap) {
-      //   Object.values(
-      //     new coinMarketCap.Price().getLastPrice(listId.coinmarketcap)
-      //   ).forEach((coin) => {
-      //     updatePrice(coin.symbol, coin.quote.USD.price)
-      //     updateRisk(coin.symbol, coin.cmc_rank)
-      //   })
-      // }
-
-      if (listId.cryptocompare) {
-        const priceArray = new Price$2().getMultiPrice(
-          listId.cryptocompare
-        );
-        if (priceArray.length) {
-          new TopList().topMarketCap(1000);
-          priceArray.forEach((coin) => {
-            this.updatePrice(coin.symbol, coin.price);
-            const key = new Hash(coin.symbol).md5;
-            const rank = topMaerketap[key]?.rank || 1000;
-            this.updateRisk(coin.symbol, rank);
-          });
-        }
-      }
-
-      if (listId.custom.length) {
-        const histirocalPrices = new Portfolio().getWorkSheet(
-          'historicalPrices'
-        ).object;
-        listId.custom.forEach((symbol) => {
-          const histirocalPricesKey = new Hash(
-            'ikeniborn' + 'no project' + symbol
-          ).md5;
-          const histirocalPrice =
-            histirocalPrices[histirocalPricesKey]?.priceAvg || void 0;
-          this.updatePrice(symbol, histirocalPrice);
-          this.updateRisk(symbol);
-        });
-      }
-      resolve();
-    }).then(this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject));
+        resolve();
+      }).then(this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject));
+    } catch (error) {
+      console.error('Prices.updatePrices', error);
+    }
   }
 }
 
@@ -1739,159 +1659,166 @@ class Registry {
   }
 
   updateTransactions() {
-    const arrayOfObject = [];
-    const updateDate = new Date();
-    const prices = new Prices();
-    this.workSheet.arrayOfObject.forEach((rowValues) => {
-      let coinQty,
-        currencyQty,
-        currencyPerCoin,
-        coinSymbol,
-        coinPrice,
-        project,
-        accountRecipient,
-        recipient,
-        currencySymbol;
-      const transactionRow = [];
-      const hhmm = new FormatNumber(rowValues.time).getHourAndMinuteFromNumber();
-      const dateTime = new FormatDate(rowValues.date).addTime(hhmm.h, hhmm.m)
-        .date;
-      accountRecipient = rowValues.accountRecipient
-        ? rowValues.accountRecipient
-        : rowValues.accountSender;
-      recipient = rowValues.recipient ? rowValues.recipient : rowValues.sender;
-      project = rowValues.project ? rowValues.project : 'No project';
-      coinQty = rowValues.coinQty;
-      currencyQty = rowValues.currencyQty;
-      coinSymbol = rowValues.coin;
-      currencySymbol = rowValues.currency;
-
-      if (
-        ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !== -1
-      ) {
-        if (['Transfer', 'Write-off'].indexOf(rowValues.operation) !== -1) {
+    try {
+      const arrayOfObject = [];
+      const updateDate = new Date();
+      const prices = new Prices();
+      this.workSheet.arrayOfObject.forEach((rowValues) => {
+        let coinQty,
+          currencyQty,
+          currencyPerCoin,
+          coinSymbol,
+          coinPrice,
+          project,
+          accountRecipient,
+          recipient,
+          currencySymbol,
+          cyrrencyPrice;
+        const transactionRow = [];
+        const hhmm = new FormatNumber(
+          rowValues.time
+        ).getHourAndMinuteFromNumber();
+        const dateTime = new FormatDate(rowValues.date).addTime(hhmm.h, hhmm.m)
+          .date;
+        accountRecipient = rowValues.accountRecipient
+          ? rowValues.accountRecipient
+          : rowValues.accountSender;
+        recipient = rowValues.recipient ? rowValues.recipient : rowValues.sender;
+        project = rowValues.project ? rowValues.project : 'No project';
+        coinQty = rowValues.coinQty;
+        currencyQty = rowValues.currencyQty;
+        coinSymbol = rowValues.coin;
+        currencySymbol = rowValues.currency;
+        if (
+          ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !==
+          -1
+        ) {
+          if (['Transfer', 'Write-off'].indexOf(rowValues.operation) !== -1) {
+            transactionRow.push({
+              rowKey: new Hash(rowValues.rowKey + '#1').md5,
+              account: rowValues.accountSender,
+              contractor: rowValues.sender,
+              project: 'No project',
+              coin: coinSymbol,
+              quantity: coinQty * -1,
+            });
+          }
+          if (['Transfer', 'Refill'].indexOf(rowValues.operation) !== -1) {
+            transactionRow.push({
+              rowKey: new Hash(rowValues.rowKey + '#2').md5,
+              account: accountRecipient,
+              contractor: recipient,
+              project: 'No project',
+              coin: coinSymbol,
+              quantity: coinQty,
+            });
+          }
+        } else if (['Buy'].indexOf(rowValues.operation) !== -1) {
+          if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
+            currencyQty = coinQty * rowValues.currencyPerCoin;
+          }
+          if (!coinQty && rowValues.currencyPerCoin && currencyQty) {
+            coinQty = currencyQty / rowValues.currencyPerCoin;
+          }
+          if (rowValues.service === 'Liquidity pool') {
+            coinQty /= 2;
+          }
+          if (rowValues.currencyPerCoin) {
+            currencyPerCoin = rowValues.currencyPerCoin;
+          } else {
+            currencyPerCoin = currencyQty / coinQty;
+          }
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#1').md5,
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             project: 'No project',
+            coin: currencySymbol,
+            quantity: currencyQty * -1,
+          });
+          transactionRow.push({
+            rowKey: new Hash(rowValues.rowKey + '#2').md5,
+            account: accountRecipient,
+            contractor: recipient,
+            project: project,
+            coin: coinSymbol,
+            quantity: coinQty,
+          });
+        } else if (['Sell'].indexOf(rowValues.operation) !== -1) {
+          if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
+            currencyQty = coinQty * rowValues.currencyPerCoin;
+          }
+          if (!coinQty && rowValues.currencyPerCoin && currencyQty) {
+            coinQty = currencyQty / rowValues.currencyPerCoin;
+          }
+          if (rowValues.service === 'Liquidity pool') {
+            coinQty /= 2;
+          }
+          if (!rowValues.currencyPerCoin) {
+            currencyPerCoin = currencyQty / coinQty;
+          } else {
+            currencyPerCoin = rowValues.currencyPerCoin;
+          }
+          transactionRow.push({
+            rowKey: new Hash(rowValues.rowKey + '#1').md5,
+            account: rowValues.accountSender,
+            contractor: rowValues.sender,
+            project: project,
             coin: coinSymbol,
             quantity: coinQty * -1,
           });
-        }
-        if (['Transfer', 'Refill'].indexOf(rowValues.operation) !== -1) {
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#2').md5,
             account: accountRecipient,
             contractor: recipient,
             project: 'No project',
-            coin: coinSymbol,
-            quantity: coinQty,
+            coin: currencySymbol,
+            quantity: currencyQty,
           });
         }
-      } else if (['Buy'].indexOf(rowValues.operation) !== -1) {
-        if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
-          currencyQty = coinQty * rowValues.currencyPerCoin;
-        }
-        if (!coinQty && rowValues.currencyPerCoin && currencyQty) {
-          coinQty = currencyQty / rowValues.currencyPerCoin;
-        }
-        if (rowValues.service === 'Liquidity pool') {
-          coinQty /= 2;
-        }
-        if (rowValues.currencyPerCoin) {
-          currencyPerCoin = rowValues.currencyPerCoin;
-        } else {
-          currencyPerCoin = currencyQty / coinQty;
-        }
-        transactionRow.push({
-          rowKey: new Hash(rowValues.rowKey + '#1').md5,
-          account: rowValues.accountSender,
-          contractor: rowValues.sender,
-          project: 'No project',
-          coin: currencySymbol,
-          quantity: currencyQty * -1,
-        });
-        transactionRow.push({
-          rowKey: new Hash(rowValues.rowKey + '#2').md5,
-          account: accountRecipient,
-          contractor: recipient,
-          project: project,
-          coin: coinSymbol,
-          quantity: coinQty,
-        });
-      } else if (['Sell'].indexOf(rowValues.operation) !== -1) {
-        if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
-          currencyQty = coinQty * rowValues.currencyPerCoin;
-        }
-        if (!coinQty && rowValues.currencyPerCoin && currencyQty) {
-          coinQty = currencyQty / rowValues.currencyPerCoin;
-        }
-        if (rowValues.service === 'Liquidity pool') {
-          coinQty /= 2;
-        }
-        if (!rowValues.currencyPerCoin) {
-          currencyPerCoin = currencyQty / coinQty;
-        } else {
-          currencyPerCoin = rowValues.currencyPerCoin;
-        }
-        transactionRow.push({
-          rowKey: new Hash(rowValues.rowKey + '#1').md5,
-          account: rowValues.accountSender,
-          contractor: rowValues.sender,
-          project: project,
-          coin: coinSymbol,
-          quantity: coinQty * -1,
-        });
-        transactionRow.push({
-          rowKey: new Hash(rowValues.rowKey + '#2').md5,
-          account: accountRecipient,
-          contractor: recipient,
-          project: 'No project',
-          coin: currencySymbol,
-          quantity: currencyQty,
-        });
-      }
-      if (currencySymbol && coinSymbol) {
-        coinPrice =
-          prices.getHistoricalPrice(
+        if (currencySymbol && coinSymbol) {
+          cyrrencyPrice = prices.getHistoricalPrice(
             rowValues.accountSender,
             project,
             dateTime,
             currencySymbol
-          ) * currencyPerCoin || void 0;
-      }
-      transactionRow.forEach((tx) => {
-        arrayOfObject.push({
-          rowKey: tx.rowKey,
-          dateTime: dateTime,
-          account: tx.account.toLowerCase(),
-          platform: rowValues.platform.toLowerCase(),
-          service: rowValues.service.toLowerCase(),
-          project: tx.project.toLowerCase(),
-          contractor: tx.contractor.toLowerCase(),
-          coin: tx.coin.toLowerCase(),
-          quantity: tx.quantity,
-          price: tx.coin === coinSymbol ? coinPrice : void 0,
-          comment: rowValues.comment.toLowerCase(),
-          registryRowNum: rowValues.rowNum,
-          updateDate: updateDate,
+          );
+          coinPrice = cyrrencyPrice * currencyPerCoin || void 0;
+        }
+        transactionRow.forEach((tx) => {
+          arrayOfObject.push({
+            rowKey: tx.rowKey,
+            dateTime: dateTime,
+            account: tx.account.toLowerCase(),
+            platform: rowValues.platform.toLowerCase(),
+            service: rowValues.service.toLowerCase(),
+            project: tx.project.toLowerCase(),
+            contractor: tx.contractor.toLowerCase(),
+            coin: tx.coin.toLowerCase(),
+            quantity: tx.quantity,
+            price: tx.coin === coinSymbol ? coinPrice : void 0,
+            comment: rowValues.comment.toLowerCase(),
+            registryRowNum: rowValues.rowNum,
+            updateDate: updateDate,
+          });
         });
       });
-    });
-    const transactions = new Portfolio().getWorkSheet('transactions');
-    if (this.workSheet.isRange) {
-      arrayOfObject.forEach((tx) => {
-        const oldRow = transactions.object[tx.rowKey];
-        if (oldRow?.rowKey) {
-          tx.rowNum = oldRow.rowNum;
-          transactions.updateRow(tx);
-        } else {
-          transactions.insertRow(tx);
-        }
-      });
-    } else {
-      transactions.truncateInsertRows(arrayOfObject);
+      const transactions = new Portfolio().getWorkSheet('transactions');
+      if (this.workSheet.isRange) {
+        arrayOfObject.forEach((tx) => {
+          const oldRow = transactions.object[tx.rowKey];
+          if (oldRow?.rowKey) {
+            tx.rowNum = oldRow.rowNum;
+            transactions.updateRow(tx);
+          } else {
+            transactions.insertRow(tx);
+          }
+        });
+      } else {
+        transactions.truncateInsertRows(arrayOfObject);
+      }
+    } catch (error) {
+      console.error('Registry.updateTransactions', error);
     }
   }
 }

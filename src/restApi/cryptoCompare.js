@@ -37,78 +37,94 @@ class Price {
   }
 
   getSinglePrice(fsym = '', tsyms = 'USD') {
-    return this.methods.get({
-      endPoint: '/price',
-      query: {
-        fsym: fsym.toUpperCase(),
-        tsyms: tsyms,
-        relaxedValidation: true,
-      },
-    })
+    try {
+      return this.methods.get({
+        endPoint: '/price',
+        query: {
+          fsym: fsym.toUpperCase(),
+          tsyms: tsyms,
+          relaxedValidation: true,
+        },
+      })
+    } catch (error) {
+      console.error('Price.getSinglePrice', error)
+    }
   }
 
   getMultiPrice(fsyms = '', tsyms = 'USD') {
-    const priceArray = []
-    const upperTsyms = tsyms.toUpperCase()
-    const fsymsArray = fsyms.split(',')
-    const fsymsArrayOfArray = new Array(Math.ceil(fsymsArray.length / 25))
-      .fill()
-      .map((_) => fsymsArray.splice(0, 25))
-    fsymsArrayOfArray.forEach((fsymsPart) => {
+    try {
+      const priceArray = []
+      const upperTsyms = tsyms.toUpperCase()
+      const fsymsArray = fsyms.split(',')
+      const fsymsArrayOfArray = new Array(Math.ceil(fsymsArray.length / 25))
+        .fill()
+        .map((_) => fsymsArray.splice(0, 25))
+      fsymsArrayOfArray.forEach((fsymsPart) => {
+        const result = this.methods.get({
+          endPoint: '/pricemulti',
+          query: {
+            fsyms: fsymsPart.join(',').toUpperCase(),
+            tsyms: tsyms.toUpperCase(),
+            relaxedValidation: true,
+          },
+        })
+        if (!result.Response) {
+          return Object.entries(result).forEach(([symbol, tsymsValue]) => {
+            priceArray.push({ symbol: symbol, price: tsymsValue[upperTsyms] })
+          })
+        } else {
+          console.error(result.Message)
+        }
+      })
+      return priceArray
+    } catch (error) {
+      console.error('Price.getMultiPrice', error)
+    }
+  }
+
+  getMultiFullPrice(fsyms = '', tsyms = 'USD') {
+    try {
+      const upperTsyms = tsyms.toUpperCase()
       const result = this.methods.get({
-        endPoint: '/pricemulti',
+        endPoint: '/pricemultifull',
         query: {
-          fsyms: fsymsPart.join(',').toUpperCase(),
+          fsyms: fsyms.toUpperCase(),
           tsyms: tsyms.toUpperCase(),
           relaxedValidation: true,
         },
       })
       if (!result.Response) {
-        return Object.entries(result).forEach(([symbol, tsymsValue]) => {
-          priceArray.push({ symbol: symbol, price: tsymsValue[upperTsyms] })
+        return Object.entries(result).map(([symbol, tsymsValue]) => {
+          return [symbol, tsymsValue[upperTsyms]]
         })
       } else {
-        console.error(result.Message)
+        return void 0
       }
-    })
-    return priceArray
-  }
-
-  getMultiFullPrice(fsyms = '', tsyms = 'USD') {
-    const upperTsyms = tsyms.toUpperCase()
-    const result = this.methods.get({
-      endPoint: '/pricemultifull',
-      query: {
-        fsyms: fsyms.toUpperCase(),
-        tsyms: tsyms.toUpperCase(),
-        relaxedValidation: true,
-      },
-    })
-    if (!result.Response) {
-      return Object.entries(result).map(([symbol, tsymsValue]) => {
-        return [symbol, tsymsValue[upperTsyms]]
-      })
-    } else {
-      return void 0
+    } catch (error) {
+      console.error('Price.getMultiFullPrice', error)
     }
   }
 
   getHistoryPrice(fsym = 'BTC', ts = new Date(), tsyms = 'USD') {
-    const dateUnix = new FormatDate(ts).unix
-    const upperTsyms = tsyms.toUpperCase()
-    const upperFsym = fsym.toUpperCase()
-    const result = this.methods.get({
-      endPoint: '/pricehistorical',
-      query: {
-        fsym: upperFsym,
-        tsyms: upperTsyms,
-        ts: dateUnix,
-      },
-    })
-    if (!result.Response) {
-      return result[upperFsym][upperTsyms]
-    } else {
-      return void 0
+    try {
+      const dateUnix = new FormatDate(ts).unix
+      const upperTsyms = tsyms.toUpperCase()
+      const upperFsym = fsym.toUpperCase()
+      const result = this.methods.get({
+        endPoint: '/pricehistorical',
+        query: {
+          fsym: upperFsym,
+          tsyms: upperTsyms,
+          ts: dateUnix,
+        },
+      })
+      if (!result.Response) {
+        return result[upperFsym][upperTsyms]
+      } else {
+        return void 0
+      }
+    } catch (error) {
+      console.error('Price.getHistoryPrice', error)
     }
   }
 }
