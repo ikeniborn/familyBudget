@@ -219,33 +219,18 @@ class WorkSheet extends SpreadSheet {
   updateRow(object = {}) {
     if (object.rowNum !== this.headerRowNum) {
       const array = [this.headKey.map((column) => object[column])]
-      const updateRowPromise = async () => {
-        return new Promise((resolve) => {
-          this.deleteFilter()
-          resolve()
-        }).then(async () => {
-          return new Promise((resolve) => {
-            this.workSheet
-              .getRange(object.rowNum, 1, array.length, array[0].length)
-              .setValues(array)
-            resolve()
-          }).then(() => {
-            this.deleteEmptyRows().deleteEmptyColumns()
-          })
-        })
-      }
-      updateRowPromise()
+      this.deleteFilter()
+      this.workSheet
+        .getRange(object.rowNum, 1, array.length, array[0].length)
+        .setValues(array)
+      this.deleteEmptyRows().deleteEmptyColumns()
     }
   }
 
   insertRow(object = {}) {
-    new Promise((resolve) => {
-      const array = this.headKey.map((column) => object[column])
-      this.workSheet.appendRow(array)
-      resolve()
-    }).then(() => {
-      this.deleteEmptyRows().deleteEmptyColumns()
-    })
+    const array = this.headKey.map((column) => object[column])
+    this.workSheet.appendRow(array)
+    this.deleteEmptyRows().deleteEmptyColumns()
   }
 
   insertValue(value, row, column) {

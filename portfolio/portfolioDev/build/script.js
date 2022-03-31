@@ -517,33 +517,18 @@ class WorkSheet extends SpreadSheet {
   updateRow(object = {}) {
     if (object.rowNum !== this.headerRowNum) {
       const array = [this.headKey.map((column) => object[column])];
-      const updateRowPromise = async () => {
-        return new Promise((resolve) => {
-          this.deleteFilter();
-          resolve();
-        }).then(async () => {
-          return new Promise((resolve) => {
-            this.workSheet
-              .getRange(object.rowNum, 1, array.length, array[0].length)
-              .setValues(array);
-            resolve();
-          }).then(() => {
-            this.deleteEmptyRows().deleteEmptyColumns();
-          })
-        })
-      };
-      updateRowPromise();
+      this.deleteFilter();
+      this.workSheet
+        .getRange(object.rowNum, 1, array.length, array[0].length)
+        .setValues(array);
+      this.deleteEmptyRows().deleteEmptyColumns();
     }
   }
 
   insertRow(object = {}) {
-    new Promise((resolve) => {
-      const array = this.headKey.map((column) => object[column]);
-      this.workSheet.appendRow(array);
-      resolve();
-    }).then(() => {
-      this.deleteEmptyRows().deleteEmptyColumns();
-    });
+    const array = this.headKey.map((column) => object[column]);
+    this.workSheet.appendRow(array);
+    this.deleteEmptyRows().deleteEmptyColumns();
   }
 
   insertValue(value, row, column) {
@@ -1473,7 +1458,7 @@ class Prices {
       const id = coin.id;
       const coinTypeKey = new Hash(coin.coinType).md5;
       if (
-        ['stablecoin', 'fiat']
+        ['stablecoin']
           .map((m) => (m = new Hash(m).md5))
           .indexOf(coinTypeKey) === -1
       ) {
@@ -1489,7 +1474,7 @@ class Prices {
             }, 0)
         } else {
           let historicalPrice;
-          if (new Hash(source).md5 === new Hash('cryptocompare').md5) {
+          if (sourceKey === new Hash('cryptocompare').md5) {
             historicalPrice = new Price$1().getHistoryPrice(
               id,
               date,
@@ -1696,6 +1681,7 @@ class Registry {
           if (['Transfer', 'Write-off'].indexOf(rowValues.operation) !== -1) {
             transactionRow.push({
               rowKey: new Hash(rowValues.rowKey + '#1').md5,
+              isPrice: false,
               account: rowValues.accountSender,
               contractor: rowValues.sender,
               project: 'No project',
@@ -1706,6 +1692,7 @@ class Registry {
           if (['Transfer', 'Refill'].indexOf(rowValues.operation) !== -1) {
             transactionRow.push({
               rowKey: new Hash(rowValues.rowKey + '#2').md5,
+              isPrice: false,
               account: accountRecipient,
               contractor: recipient,
               project: 'No project',
@@ -1730,6 +1717,7 @@ class Registry {
           }
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#1').md5,
+            isPrice: false,
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             project: 'No project',
@@ -1738,6 +1726,7 @@ class Registry {
           });
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#2').md5,
+            isPrice: true,
             account: accountRecipient,
             contractor: recipient,
             project: project,
@@ -1761,6 +1750,7 @@ class Registry {
           }
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#1').md5,
+            isPrice: true,
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             project: project,
@@ -1769,6 +1759,7 @@ class Registry {
           });
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#2').md5,
+            isPrice: false,
             account: accountRecipient,
             contractor: recipient,
             project: 'No project',
@@ -1796,7 +1787,7 @@ class Registry {
             contractor: tx.contractor.toLowerCase(),
             coin: tx.coin.toLowerCase(),
             quantity: tx.quantity,
-            price: tx.coin === coinSymbol ? coinPrice : void 0,
+            price: tx.coin === coinSymbol && tx.isPrice ? coinPrice : void 0,
             comment: rowValues.comment.toLowerCase(),
             registryRowNum: rowValues.rowNum,
             updateDate: updateDate,

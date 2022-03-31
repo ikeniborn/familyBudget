@@ -49,6 +49,7 @@ class Registry {
           if (['Transfer', 'Write-off'].indexOf(rowValues.operation) !== -1) {
             transactionRow.push({
               rowKey: new Hash(rowValues.rowKey + '#1').md5,
+              isPrice: false,
               account: rowValues.accountSender,
               contractor: rowValues.sender,
               project: 'No project',
@@ -59,6 +60,7 @@ class Registry {
           if (['Transfer', 'Refill'].indexOf(rowValues.operation) !== -1) {
             transactionRow.push({
               rowKey: new Hash(rowValues.rowKey + '#2').md5,
+              isPrice: false,
               account: accountRecipient,
               contractor: recipient,
               project: 'No project',
@@ -83,6 +85,7 @@ class Registry {
           }
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#1').md5,
+            isPrice: false,
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             project: 'No project',
@@ -91,6 +94,7 @@ class Registry {
           })
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#2').md5,
+            isPrice: true,
             account: accountRecipient,
             contractor: recipient,
             project: project,
@@ -114,6 +118,7 @@ class Registry {
           }
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#1').md5,
+            isPrice: true,
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             project: project,
@@ -122,6 +127,7 @@ class Registry {
           })
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#2').md5,
+            isPrice: false,
             account: accountRecipient,
             contractor: recipient,
             project: 'No project',
@@ -149,7 +155,7 @@ class Registry {
             contractor: tx.contractor.toLowerCase(),
             coin: tx.coin.toLowerCase(),
             quantity: tx.quantity,
-            price: tx.coin === coinSymbol ? coinPrice : void 0,
+            price: tx.coin === coinSymbol && tx.isPrice ? coinPrice : void 0,
             comment: rowValues.comment.toLowerCase(),
             registryRowNum: rowValues.rowNum,
             updateDate: updateDate,

@@ -50,7 +50,7 @@ class Prices {
       const id = coin.id
       const coinTypeKey = new Hash(coin.coinType).md5
       if (
-        ['stablecoin', 'fiat']
+        ['stablecoin']
           .map((m) => (m = new Hash(m).md5))
           .indexOf(coinTypeKey) === -1
       ) {
@@ -66,7 +66,7 @@ class Prices {
             }, 0)
         } else {
           let historicalPrice
-          if (new Hash(source).md5 === new Hash('cryptocompare').md5) {
+          if (sourceKey === new Hash('cryptocompare').md5) {
             historicalPrice = new cryptoCompare.Price().getHistoryPrice(
               id,
               date,
