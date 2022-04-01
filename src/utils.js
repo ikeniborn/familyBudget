@@ -1,4 +1,4 @@
-export { FormatNumber, Hash, FormatDate }
+export { FormatNumber, Hash, FormatDate, FormatObject }
 
 class Hash {
   /**
@@ -242,11 +242,16 @@ Object.prototype.isEmpty = function () {
   return false
 }
 
-Object.prototype.copy = function () {
-  if (!Object.keys(this).length) {
-    return JSON.parse(JSON.stringify(this))
+class FormatObject {
+  constructor(object = {}) {
+    this.object = object
   }
-  return this
+  getCopy() {
+    // if (!Object.keys(this.object).length) {
+    return JSON.parse(JSON.stringify(this.object))
+    // }
+    return this
+  }
 }
 
 String.prototype.isEmpty = function () {

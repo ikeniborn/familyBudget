@@ -1,9 +1,11 @@
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash, FormatDate } from '../../utils'
-import * as cryptoRank from '../../restApi/cryptoRank'
+import { HistoricalPricesAvg } from './historicalPricesAvg'
+// import * as cryptoRank from '../../restApi/cryptoRank'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
-import * as coinMarketCap from '../../restApi/coinMarketCap'
+// import * as coinMarketCap from '../../restApi/coinMarketCap'
 import * as coinGecko from '../../restApi/coinGecko'
+import { Log } from './log'
 export { Prices }
 
 class Prices {
@@ -16,6 +18,7 @@ class Prices {
     this.workSheet = workSheet
       ? workSheet
       : new Portfolio().getWorkSheet('Prices')
+    this.histirocalPrices = new HistoricalPricesAvg().workSheet.object
   }
 
   updateId() {
@@ -39,57 +42,7 @@ class Prices {
         this.workSheet.updateRow(object)
       })
     } catch (error) {
-      console.error('Prices.updateId', error)
-    }
-  }
-
-  getHistoricalPrice(account, project, date, symbol, convert = 'usd') {
-    try {
-      const coin = this.workSheet.object[new Hash(symbol).md5]
-      const sourceKey = new Hash(coin.source).md5
-      const id = coin.id
-      const coinTypeKey = new Hash(coin.coinType).md5
-      if (
-        ['stablecoin']
-          .map((m) => (m = new Hash(m).md5))
-          .indexOf(coinTypeKey) === -1
-      ) {
-        if (
-          new FormatDate(date).yyyymmdd === new FormatDate().yyyymmdd &&
-          sourceKey === new Hash('coingecko').md5
-        ) {
-          return new coinGecko.Price()
-            .getMarketsPrice(id)
-            .reduce((price, data) => {
-              price = data.current_price
-              return price
-            }, 0)
-        } else {
-          let historicalPrice
-          if (sourceKey === new Hash('cryptocompare').md5) {
-            historicalPrice = new cryptoCompare.Price().getHistoryPrice(
-              id,
-              date,
-              convert
-            )
-          }
-          if (historicalPrice) {
-            return historicalPrice
-          } else {
-            const histirocalPrices = new Portfolio().getWorkSheet(
-              'historicalPrices'
-            ).object
-            return (
-              histirocalPrices[new Hash(account + project + symbol).md5]
-                ?.priceBuy || void 0
-            )
-          }
-        }
-      } else {
-        return 1
-      }
-    } catch (error) {
-      console.error('Prices.getHistoricalPrice', error)
+      new Log().addError('Prices.updateId', error)
     }
   }
 
@@ -122,7 +75,7 @@ class Prices {
         }
       }
     } catch (error) {
-      console.error('Prices.updateRisk', error)
+      new Log().addError('Prices.updateRisk', error)
     }
   }
 
@@ -135,7 +88,7 @@ class Prices {
       }
       this.workSheet.object[new Hash(symbol).md5].update = new Date()
     } catch (error) {
-      console.error('Prices.updatePrice', error)
+      new Log().addError('Prices.updatePrice', error)
     }
   }
 
@@ -207,15 +160,12 @@ class Prices {
         }
 
         if (listId.custom.length) {
-          const histirocalPrices = new Portfolio().getWorkSheet(
-            'historicalPrices'
-          ).object
           listId.custom.forEach((symbol) => {
             const histirocalPricesKey = new Hash(
               'ikeniborn' + 'no project' + symbol
             ).md5
             const histirocalPrice =
-              histirocalPrices[histirocalPricesKey]?.priceAvg || void 0
+              this.histirocalPrices[histirocalPricesKey]?.priceAvg || void 0
             this.updatePrice(symbol, histirocalPrice)
             this.updateRisk(symbol)
           })
@@ -223,7 +173,7 @@ class Prices {
         resolve()
       }).then(this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject))
     } catch (error) {
-      console.error('Prices.updatePrices', error)
+      new Log().addError('Prices.updatePrices', error)
     }
   }
 }

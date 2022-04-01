@@ -1,5 +1,8 @@
 import { Portfolio } from '../spreadsheet/portfolio'
-import { Hash } from '../../utils'
+import { Hash, FormatDate } from '../../utils'
+import { Log } from './log'
+import { Prices } from './prices'
+import * as cryptoCompare from '../../restApi/cryptoCompare'
 export { HistoricalPrices }
 
 class HistoricalPrices {
@@ -13,60 +16,135 @@ class HistoricalPrices {
       ? workSheet
       : new Portfolio().getWorkSheet('HistoricalPrices')
   }
-
-  updateHistoricalPrices() {
-    const aggHistoricalPrices = new Portfolio()
-      .getWorkSheet('transactions')
-      .arrayOfObject.filter((tx) => tx.price && !tx.isDelete)
-      .reduce((agg, tx) => {
-        if (!agg[tx.account]) {
-          agg[tx.account] = {}
-        }
-        if (!agg[tx.account][tx.project]) {
-          agg[tx.account][tx.project] = {}
-        }
-        if (!agg[tx.account][tx.project][tx.coin]) {
-          agg[tx.account][tx.project][tx.coin] = {}
-          agg[tx.account][tx.project][tx.coin]['quantity'] = 0
-          agg[tx.account][tx.project][tx.coin]['cost'] = 0
-          agg[tx.account][tx.project][tx.coin]['quantityBuy'] = 0
-          agg[tx.account][tx.project][tx.coin]['costBuy'] = 0
-          agg[tx.account][tx.project][tx.coin]['quantitySell'] = 0
-          agg[tx.account][tx.project][tx.coin]['costSell'] = 0
-        }
-        const quantity = tx.quantity < 0 ? Math.abs(tx.quantity) : tx.quantity
-        const quantityBuy = tx.quantity > 0 ? tx.quantity : 0
-        const quantitySell = tx.quantity < 0 ? Math.abs(tx.quantity) : 0
-        agg[tx.account][tx.project][tx.coin]['quantity'] += quantity
-        agg[tx.account][tx.project][tx.coin]['cost'] += quantity * tx.price
-        agg[tx.account][tx.project][tx.coin]['quantityBuy'] += quantityBuy
-        agg[tx.account][tx.project][tx.coin]['costBuy'] +=
-          quantityBuy * tx.price
-        agg[tx.account][tx.project][tx.coin]['quantitySell'] += quantitySell
-        agg[tx.account][tx.project][tx.coin]['costSell'] +=
-          quantitySell * tx.price
-        return agg
-      }, {})
-    const avgHistoricalPricesArrayOfObject = []
-    Object.entries(aggHistoricalPrices).forEach(([account, level0]) => {
-      Object.entries(level0).forEach(([project, level1]) => {
-        Object.entries(level1).forEach(([symbol, object]) => {
-          const avgPrice = object.cost / object.quantity || void 0
-          if (avgPrice) {
-            avgHistoricalPricesArrayOfObject.push({
-              rowKey: new Hash(account + project + symbol).md5,
-              account,
-              project,
-              symbol,
-              quantity: object.quantity,
-              priceAvg: object.cost / object.quantity || void 0,
-              priceBuy: object.costBuy / object.quantityBuy || void 0,
-              priceSell: object.costSell / object.quantitySell || void 0,
-            })
+  /**
+   * Обновление или добавление новой исторической записи цены токена
+   * @param {*} arrayOfObject
+   * @param {*} isRange
+   */
+  updateHistoricalPrices(arrayOfObject = [], isRange = false) {
+    try {
+      if (isRange) {
+        arrayOfObject.forEach((tx) => {
+          const rowKey = new Hash(
+            new FormatDate(tx.dateTime).value +
+              tx.operation +
+              tx.account +
+              tx.project +
+              tx.symbol
+          ).md5
+          const oldRow = this.workSheet.object[rowKey]
+          const positiveQuantity =
+            tx.operation === 'sell' ? tx.quantity * -1 : tx.quantity
+          if (oldRow?.rowKey) {
+            tx.quantity = positiveQuantity
+            tx.rowNum = oldRow.rowNum
+            tx.rowKey = rowKey
+            this.workSheet.updateRow(tx)
+          } else {
+            tx.quantity = positiveQuantity
+            tx.rowKey = rowKey
+            this.workSheet.insertRow(tx)
           }
         })
-      })
-    })
-    this.workSheet.truncateInsertRows(avgHistoricalPricesArrayOfObject)
+      } else {
+        this.workSheet.truncateInsertRows(arrayOfObject)
+      }
+    } catch (error) {
+      new Log().addError('HistoricalPrices.updateHistoricalPrices', error)
+    }
+  }
+  /**
+   * Получение средневзвешенной цены покупки токена
+   * @param {string} account
+   * @param {*} project
+   * @param {*} dateTime
+   * @param {*} symbol
+   * @param {*} convert
+   * @returns
+   */
+  getHistoricalPriceBuy(account, project, dateTime, symbol, convert = 'usd') {
+    try {
+      const prices = new Prices().workSheet.object
+      const coin = prices[new Hash(symbol).md5]
+      const sourceKey = new Hash(coin.source).md5
+      const id = coin.id
+      const coinTypeKey = new Hash(coin.coinType).md5
+      if (
+        ['stablecoin']
+          .map((m) => (m = new Hash(m).md5))
+          .indexOf(coinTypeKey) === -1
+      ) {
+        if (
+          new FormatDate(dateTime).yyyymmdd === new FormatDate().yyyymmdd &&
+          sourceKey === new Hash('coingecko').md5
+        ) {
+          return new coinGecko.Price()
+            .getMarketsPrice(id)
+            .reduce((price, data) => {
+              price = data.current_price
+              return price
+            }, 0)
+        } else {
+          let historicalPrice
+          //* Получение исторической цены из CryptoCompare
+          if (sourceKey === new Hash('cryptocompare').md5) {
+            historicalPrice = new cryptoCompare.Price().getHistoryPrice(
+              id,
+              dateTime,
+              convert
+            )
+          }
+          if (historicalPrice) {
+            return historicalPrice
+          } else {
+            // Расчет средневзвешенной стоимости покупки токена на основании истории покупок
+            const historicalPriceAgg = this.workSheet.arrayOfObject
+              .filter((row) => {
+                return (
+                  new FormatDate(row.dateTime).unix <=
+                    new FormatDate(dateTime).unix &&
+                  new Hash(account).md5 === new Hash(row.account).md5 &&
+                  new Hash(project).md5 === new Hash(row.project).md5 &&
+                  new Hash(symbol).md5 === new Hash(row.symbol).md5 &&
+                  new Hash('buy').md5 === new Hash(row.operation).md5
+                )
+              })
+              .reduce((agg, tx) => {
+                if (!agg[tx.account]) {
+                  agg[tx.account] = {}
+                }
+                if (!agg[tx.account][tx.project]) {
+                  agg[tx.account][tx.project] = {}
+                }
+                if (!agg[tx.account][tx.project][tx.symbol]) {
+                  agg[tx.account][tx.project][tx.symbol] = {
+                    quantity: 0,
+                    cost: 0,
+                  }
+                }
+                agg[tx.account][tx.project][tx.symbol].quantity += tx.quantity
+                agg[tx.account][tx.project][tx.symbol].cost +=
+                  tx.quantity * tx.price
+                return agg
+              }, {})
+            let price
+            // Расчет средней цены покупки токена
+            Object.entries(historicalPriceAgg).forEach(([account, level0]) => {
+              Object.entries(level0).forEach(([project, level1]) => {
+                Object.entries(level1).forEach(([symbol, object]) => {
+                  price = object.cost / object.quantity || void 0
+                })
+              })
+            })
+            return price
+          }
+        }
+      } else {
+        // Для стабильных токенов возвращать единицу
+        return 1
+      }
+    } catch (error) {
+      new Log().addError('HistoricalPrices.getHistoricalPriceBuy', error)
+    }
   }
 }

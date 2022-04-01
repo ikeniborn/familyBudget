@@ -1,5 +1,6 @@
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash } from '../../utils'
+import { Log } from './log'
 export { Balance }
 
 class Balance {

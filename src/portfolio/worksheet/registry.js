@@ -1,7 +1,8 @@
-import { Hash } from '../../utils'
 import { Portfolio } from '../spreadsheet/portfolio'
-import { FormatDate, FormatNumber } from '../../utils'
-import { Prices } from './prices'
+import { Hash, FormatDate, FormatNumber, FormatObject } from '../../utils'
+import { HistoricalPrices } from './historicalPrices'
+import { Transactions } from './transactions'
+import { Log } from './log'
 export { Registry }
 
 class Registry {
@@ -13,21 +14,22 @@ class Registry {
 
   updateTransactions() {
     try {
-      const transactionArrayOfObject = []
+      const transactionsArrayOfObject = []
+      const historicalPricesArrayOfObject = []
       const updateDate = new Date()
-      const prices = new Prices()
+      const historicalPrices = new HistoricalPrices()
       this.workSheet.arrayOfObject.forEach((rowValues) => {
         let coinQty,
           currencyQty,
           currencyPerCoin,
           coinSymbol,
-          coinPrice,
+          symbolPrice,
           project,
           accountRecipient,
           recipient,
           currencySymbol,
           cyrrencyPrice,
-          mainCoin
+          mainSymbol
         const transactionRow = []
         const hhmm = new FormatNumber(
           rowValues.time
@@ -57,8 +59,8 @@ class Registry {
               account: rowValues.accountSender,
               contractor: rowValues.sender,
               project: 'No project',
-              mainCoin: void 0,
-              coin: coinSymbol,
+              mainSymbol: void 0,
+              symbol: coinSymbol,
               quantity: coinQty * -1,
             })
           }
@@ -70,8 +72,8 @@ class Registry {
               account: accountRecipient,
               contractor: recipient,
               project: 'No project',
-              mainCoin: void 0,
-              coin: coinSymbol,
+              mainSymbol: void 0,
+              symbol: coinSymbol,
               quantity: coinQty,
             })
           }
@@ -88,7 +90,7 @@ class Registry {
             ) !== -1
           ) {
             coinQty /= 2
-            mainCoin = coinSymbol
+            mainSymbol = coinSymbol
           }
           if (rowValues.currencyPerCoin) {
             currencyPerCoin = rowValues.currencyPerCoin
@@ -102,8 +104,8 @@ class Registry {
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             project: 'No project',
-            mainCoin: mainCoin,
-            coin: currencySymbol,
+            mainSymbol: mainSymbol,
+            symbol: currencySymbol,
             quantity: currencyQty * -1,
           })
           transactionRow.push({
@@ -113,8 +115,8 @@ class Registry {
             account: accountRecipient,
             contractor: recipient,
             project: project,
-            mainCoin: mainCoin,
-            coin: coinSymbol,
+            mainSymbol: mainSymbol,
+            symbol: coinSymbol,
             quantity: coinQty,
           })
         } else if (['Sell'].indexOf(rowValues.operation) !== -1) {
@@ -130,7 +132,7 @@ class Registry {
             ) !== -1
           ) {
             coinQty /= 2
-            mainCoin = coinSymbol
+            mainSymbol = coinSymbol
           }
           if (!rowValues.currencyPerCoin) {
             currencyPerCoin = currencyQty / coinQty
@@ -144,8 +146,8 @@ class Registry {
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             project: project,
-            mainCoin: mainCoin,
-            coin: coinSymbol,
+            mainSymbol: mainSymbol,
+            symbol: coinSymbol,
             quantity: coinQty * -1,
           })
           transactionRow.push({
@@ -155,23 +157,24 @@ class Registry {
             account: accountRecipient,
             contractor: recipient,
             project: 'No project',
-            mainCoin: mainCoin,
-            coin: currencySymbol,
+            mainSymbol: mainSymbol,
+            symbol: currencySymbol,
             quantity: currencyQty,
           })
         }
+        //* Расчет текущей или исторической цены покупаемого токена
         if (['Buy', 'Sell', 'Refill'].indexOf(rowValues.operation) !== -1) {
-          cyrrencyPrice = prices.getHistoricalPrice(
+          cyrrencyPrice = historicalPrices.getHistoricalPriceBuy(
             rowValues.accountSender,
             project,
             dateTime,
             currencySymbol
           )
-          coinPrice = cyrrencyPrice * currencyPerCoin || void 0
+          symbolPrice = cyrrencyPrice * currencyPerCoin || void 0
         }
-
+        //* Формирование строки транзакции
         transactionRow.forEach((tx) => {
-          transactionArrayOfObject.push({
+          const object = {
             rowKey: tx.rowKey,
             dateTime: dateTime,
             direction: tx.direction.toLowerCase(),
@@ -181,38 +184,35 @@ class Registry {
             service: rowValues.service.toLowerCase(),
             project: tx.project.toLowerCase(),
             contractor: tx.contractor.toLowerCase(),
-            mainCoin: tx.mainCoin ? tx.mainCoin.toLowerCase() : void 0,
-            coin: tx.coin.toLowerCase(),
+            mainSymbol: tx.mainSymbol ? tx.mainSymbol.toLowerCase() : void 0,
+            symbol: tx.symbol.toLowerCase(),
             quantity: tx.quantity,
-            price: tx.isPrice ? coinPrice : void 0,
+            price: tx.isPrice ? symbolPrice : void 0,
             comment: rowValues.comment.toLowerCase(),
             registryRowNum: rowValues.rowNum,
             updateDate: updateDate,
             isDelete: rowValues.isDelete,
-          })
-        })
-      })
-      const transactions = new Portfolio().getWorkSheet('transactions')
-      if (this.workSheet.isRange) {
-        const deleteArray = []
-        transactionArrayOfObject.forEach((tx) => {
-          const oldRow = transactions.object[tx.rowKey]
-          if (oldRow?.rowKey) {
-            tx.rowNum = oldRow.rowNum
-            if (tx.delete) {
-              deleteArray.push(tx)
-            } else {
-              transactions.updateRow(tx)
-            }
-          } else {
-            transactions.insertRow(tx)
+            isPrice: tx.isPrice,
+          }
+          transactionsArrayOfObject.push(new FormatObject(object).getCopy())
+          if (tx.isPrice) {
+            historicalPricesArrayOfObject.push(
+              new FormatObject(object).getCopy()
+            )
           }
         })
-      } else {
-        transactions.truncateInsertRows(transactionArrayOfObject)
-      }
+      })
+
+      new HistoricalPrices().updateHistoricalPrices(
+        historicalPricesArrayOfObject,
+        this.workSheet.isRange
+      )
+      new Transactions().updateTransactions(
+        transactionsArrayOfObject,
+        this.workSheet.isRange
+      )
     } catch (error) {
-      console.error('Registry.updateTransactions', error)
+      new Log().addError('Registry.updateTransactions', error)
     }
   }
 }

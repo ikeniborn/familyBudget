@@ -1,5 +1,6 @@
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash } from '../../utils'
+import { Log } from './log'
 import * as cryptoRank from '../../restApi/cryptoRank'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
 import * as coinMarketCap from '../../restApi/coinMarketCap'

@@ -199,7 +199,14 @@ class WorkSheet extends SpreadSheet {
   truncateInsertRows(arrayOfObject = [], firstRow = 1, firstColumn = 1) {
     const array = arrayOfObject.reduce(
       (values, rowObject) => {
-        const rowArray = this.headKey.map((value) => rowObject[value])
+        const rowArray = this.headKey.map((column) => {
+          const value = rowObject[column]
+          if (this.head[column]?.type === 'date') {
+            return new Date(value)
+          } else {
+            return value
+          }
+        })
         values.push(rowArray)
         return values
       },
@@ -218,7 +225,16 @@ class WorkSheet extends SpreadSheet {
 
   updateRow(object = {}) {
     if (object.rowNum !== this.headerRowNum) {
-      const array = [this.headKey.map((column) => object[column])]
+      const array = [
+        this.headKey.map((column) => {
+          const value = object[column]
+          if (this.head[column]?.type === 'date') {
+            return new Date(value)
+          } else {
+            return value
+          }
+        }),
+      ]
       this.deleteFilter()
       this.workSheet
         .getRange(object.rowNum, 1, array.length, array[0].length)
@@ -228,7 +244,14 @@ class WorkSheet extends SpreadSheet {
   }
 
   insertRow(object = {}) {
-    const array = this.headKey.map((column) => object[column])
+    const array = this.headKey.map((column) => {
+      const value = object[column]
+      if (this.head[column]?.type === 'date') {
+        return new Date(value)
+      } else {
+        return value
+      }
+    })
     this.workSheet.appendRow(array)
     this.deleteEmptyRows().deleteEmptyColumns()
   }
