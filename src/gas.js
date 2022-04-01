@@ -237,6 +237,14 @@ class WorkSheet extends SpreadSheet {
     this.workSheet.getRange(row, column).setValue(value)
   }
 
+  deleteRow(object = {}) {
+    //? Удалять несколько строк
+    //? Как удалять строки разбросанные по таблице
+    if (object.rowNum !== this.headerRowNum) {
+      this.workSheet.deleteRows(object.rowNum, 1)
+    }
+  }
+
   deleteFilter() {
     this.customFilter = this.workSheet.getFilter()
     if (this.customFilter) {
@@ -304,6 +312,10 @@ class WorkSheetRange extends WorkSheet {
       (m) => (m = m + this.range.columnStart)
     )
     this.getDataset()
+  }
+
+  get isDeleteRow() {
+    return this.countColumn === this.maxColumn
   }
 
   getFact() {

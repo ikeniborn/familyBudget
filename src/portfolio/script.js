@@ -5,9 +5,14 @@ import { Coins } from './worksheet/coins'
 import { Balance } from './worksheet/balance'
 import { Hash, FormatDate } from '../utils'
 import { Portfolio } from './spreadsheet/portfolio'
+import { LPToken } from './worksheet/lpToken.js'
 
 function updateTransactions() {
   new Registry().updateTransactions()
+}
+
+function updateLPToken() {
+  new LPToken().updateLPToken()
 }
 
 function updatePrices() {
@@ -39,26 +44,30 @@ function updateBalance() {
 
 function updateOnEdit(editRange) {
   try {
-    SpreadsheetApp.getActive().toast('Check update.', 'Save process: ', 1)
     const workSheet = new Portfolio().updateOnEdit(editRange.range)
     if (workSheet.isChangePrimaryKey) {
       workSheet.savePrimaryKeyChanges()
     } else if (workSheet.isNotNull) {
-      const startDate = new FormatDate()
       if (new Hash(workSheet.sheetName).md5 === new Hash('prices').md5) {
         new Prices(workSheet).updateId()
       } else if (workSheet.sheetName.match(new RegExp('[Registry]+', 'g'))) {
-        const ui = SpreadsheetApp.getUi() // Same variations.
-        const result = ui.alert('Data update', 'Save?', ui.ButtonSet.YES_NO)
-        if (result == ui.Button.YES) {
-          new Registry(workSheet).updateTransactions()
-        }
+        SpreadsheetApp.getActive().toast(
+          'Start update tx...',
+          'Transaction: ',
+          1
+        )
+        const startDate = new FormatDate()
+        // const ui = SpreadsheetApp.getUi() // Same variations.
+        // const result = ui.alert('Data update', 'Save?', ui.ButtonSet.YES_NO)
+        // if (result == ui.Button.YES) {
+        new Registry(workSheet).updateTransactions()
+        SpreadsheetApp.getActive().toast(
+          'Tx updated!',
+          'Save process: ' + startDate.getTimeDiff(),
+          3
+        )
+        // }
       }
-      SpreadsheetApp.getActive().toast(
-        'Save time: ' + startDate.getTimeDiff(),
-        'Save process: ',
-        3
-      )
     }
   } catch (error) {
     SpreadsheetApp.getActive().toast('Error: ' + error, 'Save process: ', 3)

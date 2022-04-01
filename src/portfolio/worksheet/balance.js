@@ -15,28 +15,31 @@ class Balance {
       .object
     const prices = new Portfolio().getWorkSheet('prices').object
     const contractors = new Portfolio().getWorkSheet('contractors').object
-    const transactions = new Portfolio().getWorkSheet('transactions')
-      .arrayOfObject
-    const aggBalance = transactions.reduce((object, tx) => {
-      if (!object[tx.account]) {
-        object[tx.account] = {}
-      }
-      if (!object[tx.account][tx.contractor]) {
-        object[tx.account][tx.contractor] = {}
-      }
-      if (!object[tx.account][tx.contractor][tx.service]) {
-        object[tx.account][tx.contractor][tx.service] = {}
-      }
-      if (!object[tx.account][tx.contractor][tx.service][tx.project]) {
-        object[tx.account][tx.contractor][tx.service][tx.project] = {}
-      }
-      if (!object[tx.account][tx.contractor][tx.service][tx.project][tx.coin]) {
-        object[tx.account][tx.contractor][tx.service][tx.project][tx.coin] = 0
-      }
-      object[tx.account][tx.contractor][tx.service][tx.project][tx.coin] +=
-        tx.quantity
-      return object
-    }, {})
+    const aggBalance = new Portfolio()
+      .getWorkSheet('transactions')
+      .arrayOfObject.filter((row) => !row.isDelete)
+      .reduce((object, tx) => {
+        if (!object[tx.account]) {
+          object[tx.account] = {}
+        }
+        if (!object[tx.account][tx.contractor]) {
+          object[tx.account][tx.contractor] = {}
+        }
+        if (!object[tx.account][tx.contractor][tx.service]) {
+          object[tx.account][tx.contractor][tx.service] = {}
+        }
+        if (!object[tx.account][tx.contractor][tx.service][tx.project]) {
+          object[tx.account][tx.contractor][tx.service][tx.project] = {}
+        }
+        if (
+          !object[tx.account][tx.contractor][tx.service][tx.project][tx.coin]
+        ) {
+          object[tx.account][tx.contractor][tx.service][tx.project][tx.coin] = 0
+        }
+        object[tx.account][tx.contractor][tx.service][tx.project][tx.coin] +=
+          tx.quantity
+        return object
+      }, {})
     Object.entries(aggBalance).forEach(([account, level0]) => {
       Object.entries(level0).forEach(([contractor, level1]) => {
         Object.entries(level1).forEach(([service, level2]) => {

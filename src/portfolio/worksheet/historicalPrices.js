@@ -17,7 +17,7 @@ class HistoricalPrices {
   updateHistoricalPrices() {
     const aggHistoricalPrices = new Portfolio()
       .getWorkSheet('transactions')
-      .arrayOfObject.filter((tx) => tx.price)
+      .arrayOfObject.filter((tx) => tx.price && !tx.isDelete)
       .reduce((agg, tx) => {
         if (!agg[tx.account]) {
           agg[tx.account] = {}
