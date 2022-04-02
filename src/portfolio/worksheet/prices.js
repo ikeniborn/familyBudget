@@ -18,7 +18,7 @@ class Prices {
     this.workSheet = workSheet
       ? workSheet
       : new Portfolio().getWorkSheet('Prices')
-    this.histirocalPrices = new HistoricalPricesAvg().workSheet.object
+    this.HistoricalPricesAvg = new HistoricalPricesAvg().workSheet.object
   }
 
   updateId() {
@@ -35,6 +35,7 @@ class Prices {
           )
         })[0]
         object.id = coinPrice?.id || '#N/A'
+        object.dateTime = new Date()
         return object
       })
 
@@ -161,11 +162,12 @@ class Prices {
 
         if (listId.custom.length) {
           listId.custom.forEach((symbol) => {
-            const histirocalPricesKey = new Hash(
+            const HistoricalPricesAvgKey = new Hash(
               'ikeniborn' + 'no project' + symbol
             ).md5
             const histirocalPrice =
-              this.histirocalPrices[histirocalPricesKey]?.priceAvg || void 0
+              this.HistoricalPricesAvg[HistoricalPricesAvgKey]?.priceAvg ||
+              void 0
             this.updatePrice(symbol, histirocalPrice)
             this.updateRisk(symbol)
           })

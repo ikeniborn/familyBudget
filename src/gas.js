@@ -200,7 +200,10 @@ class WorkSheet extends SpreadSheet {
     const array = arrayOfObject.reduce(
       (values, rowObject) => {
         const rowArray = this.headKey.map((column) => {
-          const value = rowObject[column]
+          let value = rowObject[column]
+          if (this.head[column]?.default && !value) {
+            value = this.head[column].default
+          }
           if (this.head[column]?.type === 'date') {
             return new Date(value)
           } else {
@@ -224,36 +227,50 @@ class WorkSheet extends SpreadSheet {
   }
 
   updateRow(object = {}) {
-    if (object.rowNum !== this.headerRowNum) {
-      const array = [
-        this.headKey.map((column) => {
-          const value = object[column]
-          if (this.head[column]?.type === 'date') {
-            return new Date(value)
-          } else {
-            return value
-          }
-        }),
-      ]
-      this.deleteFilter()
-      this.workSheet
-        .getRange(object.rowNum, 1, array.length, array[0].length)
-        .setValues(array)
-      this.deleteEmptyRows().deleteEmptyColumns()
+    try {
+      if (object.rowNum !== this.headerRowNum) {
+        const array = [
+          this.headKey.map((column) => {
+            let value = object[column]
+            if (this.head[column]?.default && !value) {
+              value = this.head[column].default
+            }
+            if (this.head[column]?.type === 'date') {
+              return new Date(value)
+            } else {
+              return value
+            }
+          }),
+        ]
+        this.deleteFilter()
+        this.workSheet
+          .getRange(object.rowNum, 1, array.length, array[0].length)
+          .setValues(array)
+        this.deleteEmptyRows().deleteEmptyColumns()
+      }
+    } catch (error) {
+      console.error('WorkSheet.updateRow', error.stack)
     }
   }
 
   insertRow(object = {}) {
-    const array = this.headKey.map((column) => {
-      const value = object[column]
-      if (this.head[column]?.type === 'date') {
-        return new Date(value)
-      } else {
-        return value
-      }
-    })
-    this.workSheet.appendRow(array)
-    this.deleteEmptyRows().deleteEmptyColumns()
+    try {
+      const array = this.headKey.map((column) => {
+        let value = object[column]
+        if (this.head[column]?.default && !value) {
+          value = this.head[column].default
+        }
+        if (this.head[column]?.type === 'date') {
+          return new Date(value)
+        } else {
+          return value
+        }
+      })
+      this.workSheet.appendRow(array)
+      this.deleteEmptyRows().deleteEmptyColumns()
+    } catch (error) {
+      console.error('WorkSheet.insertRow', error.stack)
+    }
   }
 
   insertValue(value, row, column) {
@@ -280,24 +297,32 @@ class WorkSheet extends SpreadSheet {
    *  Удаление пустых строк
    */
   deleteEmptyRows() {
-    const countEmptyRow = this.maxRow - this.lastRow
-    const firstEmptyRow = this.lastRow + 1
-    if (countEmptyRow) {
-      this.workSheet.deleteRows(firstEmptyRow, countEmptyRow)
+    try {
+      const countEmptyRow = this.maxRow - this.lastRow
+      const firstEmptyRow = this.lastRow + 10
+      if (countEmptyRow > 10) {
+        this.workSheet.deleteRows(firstEmptyRow, countEmptyRow - 10)
+      }
+      return this
+    } catch (error) {
+      console.error('WorkSheet.deleteEmptyRows', error.stack)
     }
-    return this
   }
 
   /**
    *  Удаление пустых колонок
    */
   deleteEmptyColumns() {
-    const countEmptyRow = this.maxColumn - this.lastColumn
-    const firstEmptyRow = this.lastColumn + 1
-    if (countEmptyRow) {
-      this.workSheet.deleteColumns(firstEmptyRow, countEmptyRow)
+    try {
+      const countEmptyRow = this.maxColumn - this.lastColumn
+      const firstEmptyRow = this.lastColumn + 1
+      if (countEmptyRow) {
+        this.workSheet.deleteColumns(firstEmptyRow, countEmptyRow)
+      }
+      return this
+    } catch (error) {
+      console.error('WorkSheet.deleteEmptyColumns', error.stack)
     }
-    return this
   }
 
   getDataset() {
@@ -378,13 +403,12 @@ class WorkSheetRange extends WorkSheet {
         object.isChangePrimaryKey = false
         if (object.rowKey !== newRowKey) {
           object.rowKey = newRowKey
-          // object.isChangePrimaryKey = true
           this.isChangePrimaryKey = true
         }
         if (!objectRow[object.rowKey]) {
           objectRow[object.rowKey] = object
         }
-        // object.isNotNull = new Header().isNotNull(this.head, object)
+
         this.isNotNull = new Header().isNotNull(this.head, object)
         return objectRow
       }, {})
@@ -393,29 +417,37 @@ class WorkSheetRange extends WorkSheet {
   }
 
   getTransactions() {
-    this.object = this.dataRange
-      .getValues()
-      .reduce((objectRow, arrayRow, indexRow) => {
-        const rowNum = this.firstRowNum + indexRow
-        const rowKey = new Hash(rowNum + this.sheetName).md5
-        const object = arrayRow.reduce((object, value, column) => {
-          if (!object[this.headKey[column]]) {
-            object[this.headKey[column]] = value
-            object['rowKey'] = rowKey
-            object['rowNum'] = rowNum
+    try {
+      this.object = this.dataRange
+        .getValues()
+        .reduce((objectRow, arrayRow, indexRow) => {
+          const rowNum = this.firstRowNum + indexRow
+          const rowKey = new Hash(rowNum + this.sheetName).md5
+          console.info(
+            'WorkSheetRange.getTransactions.rowKey',
+            new Hash(rowNum + this.sheetName).stringLowerCase
+          )
+          const object = arrayRow.reduce((object, value, column) => {
+            if (!object[this.headKey[column]]) {
+              object[this.headKey[column]] = value
+              object['rowKey'] = rowKey
+              object['rowNum'] = rowNum
+            }
+            return object
+          }, {})
+          if (!objectRow[rowKey]) {
+            objectRow[rowKey] = object
+            objectRow[rowKey]['rowKey'] = rowKey
+            objectRow[rowKey]['rowNum'] = rowNum
+            this.isNotNull = new Header().isNotNull(this.head, object)
           }
-          return object
+          return objectRow
         }, {})
-        if (!objectRow[rowKey]) {
-          objectRow[rowKey] = object
-          objectRow[rowKey]['rowKey'] = rowKey
-          objectRow[rowKey]['rowNum'] = rowNum
-          this.isNotNull = new Header().isNotNull(this.head, object)
-        }
-        return objectRow
-      }, {})
-    this.arrayOfObject = Object.values(this.object)
-    return this
+      this.arrayOfObject = Object.values(this.object)
+      return this
+    } catch (error) {
+      console.error('WorkSheetRange.getTransactions', error.stack)
+    }
   }
 
   savePrimaryKeyChanges() {
@@ -805,7 +837,6 @@ class SpreadsheetsTrigger extends Trigger {
   deleteAllTrigger() {
     const triggers = this.sApp.getProjectTriggers()
     triggers.forEach((trigger) => this.sApp.deleteTrigger(trigger))
-    console.log('Deleted triggers: ', triggers.length)
     return this
   }
 }

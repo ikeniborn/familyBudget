@@ -80,7 +80,12 @@ class Portfolio {
           risk: { alias: 'Risk', idx: 5 },
           id: { alias: 'Id', idx: 6 },
           price: { alias: 'Price', idx: 7 },
-          update: { alias: 'Update', idx: 8, type: 'date' },
+          update: {
+            alias: 'Update',
+            idx: 8,
+            type: 'date',
+            default: new Date(),
+          },
         },
       },
       transactions: {
@@ -102,7 +107,12 @@ class Portfolio {
           comment: { alias: 'Comment', idx: 12 },
           isDelete: { alias: 'Delete', idx: 13 },
           registryRowNum: { alias: 'Registry row num', idx: 14 },
-          updateDate: { alias: 'Update', idx: 15, type: 'date' },
+          updateDate: {
+            alias: 'Update',
+            idx: 15,
+            type: 'date',
+            default: new Date(),
+          },
         },
       },
       balance: {
@@ -128,9 +138,9 @@ class Portfolio {
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
-          account: { alias: 'Account', pk: true, idx: 1 },
-          project: { alias: 'Project', pk: true, idx: 2 },
-          symbol: { alias: 'Symbol', pk: true, idx: 3 },
+          account: { alias: 'Account', pk: true, idx: 1, notNull: true },
+          project: { alias: 'Project', pk: true, idx: 2, notNull: true },
+          symbol: { alias: 'Symbol', pk: true, idx: 3, notNull: true },
           quantity: { alias: 'Quantity', idx: 4 },
           priceAvg: { alias: 'Price avg', idx: 5 },
           priceBuy: { alias: 'Price buy', idx: 6 },
@@ -142,11 +152,17 @@ class Portfolio {
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
-          dateTime: { alias: 'Date and time', pk: true, idx: 1, type: 'date' },
-          operation: { alias: 'Operation', pk: true, idx: 2 },
-          account: { alias: 'Account', pk: true, idx: 3 },
-          project: { alias: 'Project', pk: true, idx: 4 },
-          symbol: { alias: 'Symbol', pk: true, idx: 5 },
+          dateTime: {
+            alias: 'Date and time',
+            pk: true,
+            idx: 1,
+            type: 'date',
+            notNull: true,
+          },
+          direction: { alias: 'Direction', pk: true, idx: 2, notNull: true },
+          account: { alias: 'Account', pk: true, idx: 3, notNull: true },
+          project: { alias: 'Project', pk: true, idx: 4, notNull: true },
+          symbol: { alias: 'Symbol', pk: true, idx: 5, notNull: true },
           quantity: { alias: 'Quantity', idx: 6 },
           price: { alias: 'Price', idx: 7 },
         },
@@ -156,9 +172,9 @@ class Portfolio {
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
-          source: { alias: 'Source', pk: true, idx: 1 },
-          name: { alias: 'Name', pk: true, idx: 2 },
-          symbol: { alias: 'Symbol', pk: true, idx: 3 },
+          source: { alias: 'Source', pk: true, idx: 1, notNull: true },
+          name: { alias: 'Name', pk: true, idx: 2, notNull: true },
+          symbol: { alias: 'Symbol', pk: true, idx: 3, notNull: true },
           id: { alias: 'Id', idx: 4 },
         },
       },
@@ -166,7 +182,7 @@ class Portfolio {
         type: 'dim',
         rowNum: 1,
         columns: {
-          rowKey: { alias: 'Row key', idx: 0 },
+          rowKey: { alias: 'Row key', idx: 0, notNull: true },
           name: { alias: 'Name', pk: true, idx: 1 },
         },
       },
@@ -174,7 +190,7 @@ class Portfolio {
         type: 'dim',
         rowNum: 1,
         columns: {
-          rowKey: { alias: 'Row key', idx: 0 },
+          rowKey: { alias: 'Row key', idx: 0, notNull: true },
           name: { alias: 'Name', pk: true, idx: 1 },
           strategy: { alias: 'Strategy', idx: 2 },
         },
@@ -184,7 +200,7 @@ class Portfolio {
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
-          name: { alias: 'Name', pk: true, idx: 1 },
+          name: { alias: 'Name', pk: true, idx: 1, notNull: true },
           distribution: { alias: 'Distribution', idx: 2 },
           sum: { alias: 'Sum', idx: 3 },
         },
@@ -194,7 +210,7 @@ class Portfolio {
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
-          name: { alias: 'Name', pk: true, idx: 1 },
+          name: { alias: 'Name', pk: true, idx: 1, notNull: true },
         },
       },
       operations: {
@@ -202,7 +218,7 @@ class Portfolio {
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
-          name: { alias: 'Name', pk: true, idx: 1 },
+          name: { alias: 'Name', pk: true, idx: 1, notNull: true },
         },
       },
       project: {
@@ -210,7 +226,7 @@ class Portfolio {
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
-          name: { alias: 'Name', pk: true, idx: 1 },
+          name: { alias: 'Name', pk: true, idx: 1, notNull: true },
         },
       },
       accounts: {
@@ -218,7 +234,7 @@ class Portfolio {
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
-          name: { alias: 'Name', pk: true, idx: 1 },
+          name: { alias: 'Name', pk: true, idx: 1, notNull: true },
         },
       },
       contractors: {
@@ -226,7 +242,7 @@ class Portfolio {
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
-          name: { alias: 'Name', pk: true, idx: 1 },
+          name: { alias: 'Name', pk: true, idx: 1, notNull: true },
           type: { alias: 'Type', idx: 2 },
           category: { alias: 'Category', idx: 3 },
         },
@@ -238,12 +254,18 @@ class Portfolio {
           rowKey: { alias: 'Row key', idx: 0 },
           account: { alias: 'Account', idx: 1 },
           project: { alias: 'Project', idx: 2 },
-          mainSymbol: { alias: 'Main symbol', pk: true, idx: 3 },
-          mainSymbolQty: { alias: 'Main symbol qty', pk: true, idx: 4 },
+          mainSymbol: { alias: 'Main symbol', pk: true, idx: 3, notNull: true },
+          mainSymbolQty: {
+            alias: 'Main symbol qty',
+            pk: true,
+            idx: 4,
+            notNull: true,
+          },
           mainSymbolHistoricalCost: {
             alias: 'Main symbol historical cost',
             pk: true,
             idx: 5,
+            notNull: true,
           },
           pairOneSymbol: { alias: 'Pair one symbol', idx: 6 },
           pairOneQty: { alias: 'Pair one qty', idx: 7 },

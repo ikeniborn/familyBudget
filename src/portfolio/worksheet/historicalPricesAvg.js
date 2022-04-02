@@ -17,34 +17,33 @@ class HistoricalPricesAvg {
 
   updateHistoricalPricesAvg() {
     const aggHistoricalPrices = new Portfolio()
-      .getWorkSheet('transactions')
-      .arrayOfObject.filter((tx) => tx.price && !tx.isDelete)
-      .reduce((agg, tx) => {
+      .getWorkSheet('HistoricalPrices')
+      .arrayOfObject.reduce((agg, tx) => {
         if (!agg[tx.account]) {
           agg[tx.account] = {}
         }
         if (!agg[tx.account][tx.project]) {
           agg[tx.account][tx.project] = {}
         }
-        if (!agg[tx.account][tx.project][tx.coin]) {
-          agg[tx.account][tx.project][tx.coin] = {}
-          agg[tx.account][tx.project][tx.coin]['quantity'] = 0
-          agg[tx.account][tx.project][tx.coin]['cost'] = 0
-          agg[tx.account][tx.project][tx.coin]['quantityBuy'] = 0
-          agg[tx.account][tx.project][tx.coin]['costBuy'] = 0
-          agg[tx.account][tx.project][tx.coin]['quantitySell'] = 0
-          agg[tx.account][tx.project][tx.coin]['costSell'] = 0
+        if (!agg[tx.account][tx.project][tx.symbol]) {
+          agg[tx.account][tx.project][tx.symbol] = {}
+          agg[tx.account][tx.project][tx.symbol]['quantity'] = 0
+          agg[tx.account][tx.project][tx.symbol]['cost'] = 0
+          agg[tx.account][tx.project][tx.symbol]['quantityBuy'] = 0
+          agg[tx.account][tx.project][tx.symbol]['costBuy'] = 0
+          agg[tx.account][tx.project][tx.symbol]['quantitySell'] = 0
+          agg[tx.account][tx.project][tx.symbol]['costSell'] = 0
         }
-        const quantity = tx.quantity < 0 ? Math.abs(tx.quantity) : tx.quantity
-        const quantityBuy = tx.quantity > 0 ? tx.quantity : 0
-        const quantitySell = tx.quantity < 0 ? Math.abs(tx.quantity) : 0
-        agg[tx.account][tx.project][tx.coin]['quantity'] += quantity
-        agg[tx.account][tx.project][tx.coin]['cost'] += quantity * tx.price
-        agg[tx.account][tx.project][tx.coin]['quantityBuy'] += quantityBuy
-        agg[tx.account][tx.project][tx.coin]['costBuy'] +=
+        const quantity = tx.quantity
+        const quantityBuy = tx.direction === 'in' ? tx.quantity : 0
+        const quantitySell = tx.direction === 'out' ? tx.quantity : 0
+        agg[tx.account][tx.project][tx.symbol]['quantity'] += quantity
+        agg[tx.account][tx.project][tx.symbol]['cost'] += quantity * tx.price
+        agg[tx.account][tx.project][tx.symbol]['quantityBuy'] += quantityBuy
+        agg[tx.account][tx.project][tx.symbol]['costBuy'] +=
           quantityBuy * tx.price
-        agg[tx.account][tx.project][tx.coin]['quantitySell'] += quantitySell
-        agg[tx.account][tx.project][tx.coin]['costSell'] +=
+        agg[tx.account][tx.project][tx.symbol]['quantitySell'] += quantitySell
+        agg[tx.account][tx.project][tx.symbol]['costSell'] +=
           quantitySell * tx.price
         return agg
       }, {})

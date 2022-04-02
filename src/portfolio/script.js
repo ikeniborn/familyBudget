@@ -1,5 +1,5 @@
 import { Registry } from './worksheet/registry'
-import { HistoricalPrices } from './worksheet/historicalPrices'
+import { HistoricalPricesAvg } from './worksheet/historicalPricesAvg'
 import { Prices } from './worksheet/prices'
 import { Coins } from './worksheet/coins'
 import { Balance } from './worksheet/balance'
@@ -22,7 +22,7 @@ function updatePrices() {
     resolve()
   }).then(() => {
     new Promise((resolve) => {
-      new HistoricalPrices().updateHistoricalPrices()
+      new HistoricalPricesAvg().updateHistoricalPricesAvg()
       resolve()
     }).then(() => {
       new Balance().updateBalance()
@@ -36,19 +36,24 @@ function updateCoins() {
 
 function updateBalance() {
   new Promise((resolve) => {
-    new HistoricalPrices().updateHistoricalPrices()
+    new HistoricalPricesAvg().updateHistoricalPricesAvg()
     resolve()
   }).then(() => {
     new Balance().updateBalance()
   })
 }
 
+function updateHistoricalPricesAvg() {
+  new HistoricalPricesAvg().updateHistoricalPricesAvg()
+}
+
 function updateOnEdit(editRange) {
   try {
     const workSheet = new Portfolio().updateOnEdit(editRange.range)
-    if (workSheet.isChangePrimaryKey) {
-      workSheet.savePrimaryKeyChanges()
-    } else if (workSheet.isNotNull) {
+    if (workSheet.isNotNull) {
+      if (workSheet.isChangePrimaryKey) {
+        workSheet.savePrimaryKeyChanges()
+      }
       const startDate = new FormatDate()
       if (new Hash(workSheet.sheetName).md5 === new Hash('prices').md5) {
         SpreadsheetApp.getActive().toast(
@@ -68,25 +73,15 @@ function updateOnEdit(editRange) {
           'Transaction: ',
           1
         )
-
-        // const ui = SpreadsheetApp.getUi() // Same variations.
-        // const result = ui.alert('Data update', 'Save?', ui.ButtonSet.YES_NO)
-        // if (result == ui.Button.YES) {
         new Registry(workSheet).updateTransactions()
         SpreadsheetApp.getActive().toast(
           'Tx updated!',
           'Save process: ' + startDate.getTimeDiff(),
           3
         )
-        // }
       }
     }
   } catch (error) {
-    SpreadsheetApp.getActive().toast(
-      'Error: ' + error.stack,
-      'Save process: ',
-      5
-    )
     new Log().addError('updateOnEdit', error)
   }
 }
@@ -97,6 +92,7 @@ function createMenu() {
   menu.addSubMenu(
     SpreadsheetApp.getUi()
       .createMenu('Update')
+      .addItem('Update transactions', 'updateTransactions')
       .addItem('Update balance', 'updateBalance')
       .addItem('Update prices', 'updatePrices')
       .addItem('Update coins', 'updateCoins')

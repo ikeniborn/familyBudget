@@ -29,7 +29,8 @@ class Registry {
           recipient,
           currencySymbol,
           cyrrencyPrice,
-          mainSymbol
+          mainSymbol,
+          isLiquidityPool
         const transactionRow = []
         const hhmm = new FormatNumber(
           rowValues.time
@@ -45,6 +46,7 @@ class Registry {
         currencyQty = rowValues.currencyQty
         coinSymbol = rowValues.coin
         currencySymbol = rowValues.currency
+        isLiquidityPool = false
         if (
           ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !==
           -1
@@ -55,6 +57,7 @@ class Registry {
             transactionRow.push({
               rowKey: new Hash(rowValues.rowKey + '#1').md5,
               isPrice: false,
+              isLiquidityPool,
               direction: 'out',
               account: rowValues.accountSender,
               contractor: rowValues.sender,
@@ -67,7 +70,9 @@ class Registry {
           if (['Transfer', 'Refill'].indexOf(rowValues.operation) !== -1) {
             transactionRow.push({
               rowKey: new Hash(rowValues.rowKey + '#2').md5,
-              isPrice: true,
+              isPrice:
+                ['Refill'].indexOf(rowValues.operation) !== -1 ? true : false,
+              isLiquidityPool,
               direction: 'in',
               account: accountRecipient,
               contractor: recipient,
@@ -91,6 +96,7 @@ class Registry {
           ) {
             coinQty /= 2
             mainSymbol = coinSymbol
+            isLiquidityPool = true
           }
           if (rowValues.currencyPerCoin) {
             currencyPerCoin = rowValues.currencyPerCoin
@@ -101,6 +107,7 @@ class Registry {
             rowKey: new Hash(rowValues.rowKey + '#1').md5,
             isPrice: false,
             direction: 'out',
+            isLiquidityPool,
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             project: 'No project',
@@ -112,6 +119,7 @@ class Registry {
             rowKey: new Hash(rowValues.rowKey + '#2').md5,
             isPrice: true,
             direction: 'in',
+            isLiquidityPool,
             account: accountRecipient,
             contractor: recipient,
             project: project,
@@ -133,6 +141,7 @@ class Registry {
           ) {
             coinQty /= 2
             mainSymbol = coinSymbol
+            isLiquidityPool = true
           }
           if (!rowValues.currencyPerCoin) {
             currencyPerCoin = currencyQty / coinQty
@@ -142,6 +151,7 @@ class Registry {
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#1').md5,
             isPrice: true,
+            isLiquidityPool,
             direction: 'out',
             account: rowValues.accountSender,
             contractor: rowValues.sender,
@@ -153,6 +163,7 @@ class Registry {
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#2').md5,
             isPrice: false,
+            isLiquidityPool,
             direction: 'in',
             account: accountRecipient,
             contractor: recipient,
@@ -193,9 +204,10 @@ class Registry {
             updateDate: updateDate,
             isDelete: rowValues.isDelete,
             isPrice: tx.isPrice,
+            isLp: tx.isLiquidityPool,
           }
           transactionsArrayOfObject.push(new FormatObject(object).getCopy())
-          if (tx.isPrice) {
+          if (tx.isPrice && !tx.isLiquidityPool) {
             historicalPricesArrayOfObject.push(
               new FormatObject(object).getCopy()
             )
@@ -203,14 +215,16 @@ class Registry {
         })
       })
 
-      new HistoricalPrices().updateHistoricalPrices(
-        historicalPricesArrayOfObject,
-        this.workSheet.isRange
-      )
-      new Transactions().updateTransactions(
-        transactionsArrayOfObject,
-        this.workSheet.isRange
-      )
+      if (transactionsArrayOfObject.length) {
+        new HistoricalPrices().updateHistoricalPrices(
+          historicalPricesArrayOfObject,
+          this.workSheet.isRange
+        )
+        new Transactions().updateTransactions(
+          transactionsArrayOfObject,
+          this.workSheet.isRange
+        )
+      }
     } catch (error) {
       new Log().addError('Registry.updateTransactions', error)
     }
