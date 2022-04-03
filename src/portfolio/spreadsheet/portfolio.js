@@ -127,8 +127,8 @@ class Portfolio {
           service: { alias: 'Service', idx: 3 },
           project: { alias: 'Project', idx: 4 },
           symbol: { alias: 'Symbol', idx: 5 },
-          symbolType: { alias: 'Coin Type', idx: 6 },
-          risk: { alias: 'Risk', idx: 7 },
+          symbolType: { alias: 'Symbol Type', idx: 6 },
+          risk: { alias: 'Risk category', idx: 7 },
           quantity: { alias: 'Quantity', idx: 8 },
           historicalCostBuy: { alias: 'Historical buy cost', idx: 9 },
           historicalCostAvg: { alias: 'Historical average cost', idx: 10 },
@@ -150,7 +150,7 @@ class Portfolio {
         },
       },
       historicalPrices: {
-        type: 'dim',
+        type: 'fct',
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
@@ -168,6 +168,7 @@ class Portfolio {
           symbol: { alias: 'Symbol', pk: true, idx: 6, notNull: true },
           quantity: { alias: 'Quantity', idx: 7 },
           price: { alias: 'Price', idx: 8 },
+          isDelete: { alias: 'Is delete', idx: 8 },
         },
       },
       coins: {

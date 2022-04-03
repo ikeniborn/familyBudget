@@ -25,27 +25,18 @@ class HistoricalPrices {
     try {
       if (isRange) {
         arrayOfObject.forEach((tx) => {
-          const rowKey = new Hash(
-            new FormatDate(tx.dateTime).value +
-              tx.operation +
-              tx.direction +
-              tx.account +
-              tx.project +
-              tx.symbol
-          ).md5
-          const oldRow = this.workSheet.object[rowKey]
+          const oldRow = this.workSheet.object[tx.rowKey]
           const positiveQuantity =
-            new Hash(tx.direction).md5 === new Hash('out').md5
+            new Hash(tx.direction).md5 === new Hash('out').md5 &&
+            new Hash(tx.operation).md5 === new Hash('sell').md5
               ? tx.quantity * -1
               : tx.quantity
           if (oldRow?.rowKey) {
             tx.quantity = positiveQuantity
             tx.rowNum = oldRow.rowNum
-            tx.rowKey = rowKey
             this.workSheet.updateRow(tx)
           } else {
             tx.quantity = positiveQuantity
-            tx.rowKey = rowKey
             this.workSheet.insertRow(tx)
           }
         })

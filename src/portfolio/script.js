@@ -8,17 +8,14 @@ import { Hash, FormatDate } from '../utils'
 import { Portfolio } from './spreadsheet/portfolio'
 import { LPToken } from './worksheet/lpToken.js'
 import { Log } from './worksheet/log'
-
-function updateTransactions() {
-  new Registry().updateTransactions()
-}
-
-function updateHistoricalPrices() {
-  new HistoricalPrices().fullUpdateHistoricalPrices()
-}
+import { GasProcess } from '../restApi/gasScriptApi'
 
 function updateLPToken() {
   new LPToken().updateLPToken()
+}
+
+function updateTransactions() {
+  new Registry().updateTransactions()
 }
 
 function updatePrices() {
@@ -30,7 +27,7 @@ function updatePrices() {
       new HistoricalPricesAvg().updateHistoricalPricesAvg()
       resolve()
     }).then(() => {
-      new Balance().updateBalance()
+      new Balance().truncateInsertBalance()
     })
   })
 }
@@ -39,21 +36,29 @@ function updateCoins() {
   new Coins().updateCoins()
 }
 
+function updateHistoricalPricesAvg() {
+  new HistoricalPricesAvg().updateHistoricalPricesAvg()
+}
+
 function updateBalance() {
   new Promise((resolve) => {
     new HistoricalPricesAvg().updateHistoricalPricesAvg()
     resolve()
   }).then(() => {
-    new Balance().updateBalance()
+    new Balance().truncateInsertBalance()
   })
 }
 
-function updateHistoricalPricesAvg() {
-  new HistoricalPricesAvg().updateHistoricalPricesAvg()
-}
-
 function updateOnEdit(editRange) {
+  const startProcess = new FormatDate()
   try {
+    new Log().addMessage(
+      'updateOnEdit',
+      'Start update ' + editRange.range.getSheet().getName(),
+      startProcess.value +
+        ': count row - ' +
+        (editRange.range.rowEnd - editRange.range.rowStart + 1)
+    )
     const workSheet = new Portfolio().updateOnEdit(editRange.range)
     if (workSheet.isNotNull) {
       if (workSheet.isChangePrimaryKey) {
@@ -88,6 +93,12 @@ function updateOnEdit(editRange) {
     }
   } catch (error) {
     new Log().addError('updateOnEdit', error)
+  } finally {
+    new Log().addMessage(
+      'updateOnEdit',
+      'End update ' + startProcess.value,
+      'Time spent: ' + startProcess.getTimeDiff()
+    )
   }
 }
 
@@ -97,11 +108,11 @@ function createMenu() {
   menu.addSubMenu(
     SpreadsheetApp.getUi()
       .createMenu('Update')
-      .addItem('Update transactions', 'updateTransactions')
-      .addItem('Update average histirical prices', 'updateHistoricalPricesAvg')
       .addItem('Update balance', 'updateBalance')
       .addItem('Update prices', 'updatePrices')
+      .addItem('Update average historical price', 'updateHistoricalPricesAvg')
       .addItem('Update coins', 'updateCoins')
+      .addItem('Update transactions (only admin)', 'updateTransactions')
   )
   menu.addToUi()
 }

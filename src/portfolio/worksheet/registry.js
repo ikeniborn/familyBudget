@@ -206,7 +206,7 @@ class Registry {
             updateDate: updateDate,
             isDelete: rowValues.isDelete,
             isPrice: tx.isPrice,
-            isLp: tx.isLiquidityPool,
+            isLiquidityPool: tx.isLiquidityPool,
           }
           transactionsArrayOfObject.push(new FormatObject(object).getCopy())
           if (tx.isPrice && !tx.isLiquidityPool) {

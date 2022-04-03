@@ -724,10 +724,6 @@ class WorkSheetRange extends WorkSheet {
         .reduce((objectRow, arrayRow, indexRow) => {
           const rowNum = this.firstRowNum + indexRow;
           const rowKey = new Hash(rowNum + this.sheetName).md5;
-          console.info(
-            'WorkSheetRange.getTransactions.rowKey',
-            new Hash(rowNum + this.sheetName).stringLowerCase
-          );
           const object = arrayRow.reduce((object, value, column) => {
             if (!object[this.headKey[column]]) {
               object[this.headKey[column]] = value;
@@ -884,8 +880,8 @@ class Portfolio {
           service: { alias: 'Service', idx: 3 },
           project: { alias: 'Project', idx: 4 },
           symbol: { alias: 'Symbol', idx: 5 },
-          symbolType: { alias: 'Coin Type', idx: 6 },
-          risk: { alias: 'Risk', idx: 7 },
+          symbolType: { alias: 'Symbol Type', idx: 6 },
+          risk: { alias: 'Risk category', idx: 7 },
           quantity: { alias: 'Quantity', idx: 8 },
           historicalCostBuy: { alias: 'Historical buy cost', idx: 9 },
           historicalCostAvg: { alias: 'Historical average cost', idx: 10 },
@@ -907,7 +903,7 @@ class Portfolio {
         },
       },
       historicalPrices: {
-        type: 'dim',
+        type: 'fct',
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
@@ -925,6 +921,7 @@ class Portfolio {
           symbol: { alias: 'Symbol', pk: true, idx: 6, notNull: true },
           quantity: { alias: 'Quantity', idx: 7 },
           price: { alias: 'Price', idx: 8 },
+          isDelete: { alias: 'Is delete', idx: 8 },
         },
       },
       coins: {
@@ -1134,62 +1131,67 @@ class HistoricalPricesAvg {
   }
 
   updateHistoricalPricesAvg() {
-    const aggHistoricalPrices = new Portfolio()
-      .getWorkSheet('HistoricalPrices')
-      .arrayOfObject.reduce((agg, tx) => {
-        if (!agg[tx.account]) {
-          agg[tx.account] = {};
-        }
-        if (!agg[tx.account][tx.project]) {
-          agg[tx.account][tx.project] = {};
-        }
-        if (!agg[tx.account][tx.project][tx.symbol]) {
-          agg[tx.account][tx.project][tx.symbol] = {
-            quantity: 0,
-            cost: 0,
-            quantityBuy: 0,
-            costBuy: 0,
-            quantitySell: 0,
-            costSell: 0,
-          };
-        }
-        const quantity = tx.quantity;
-        const quantityBuy =
-          tx.direction === 'in' && tx.operation === 'buy' ? tx.quantity : 0;
-        const quantitySell =
-          tx.direction === 'out' && tx.operation === 'sell' ? tx.quantity : 0;
-        agg[tx.account][tx.project][tx.symbol].quantity += quantity;
-        agg[tx.account][tx.project][tx.symbol].cost += quantity * tx.price;
-        agg[tx.account][tx.project][tx.symbol].quantityBuy += quantityBuy;
-        agg[tx.account][tx.project][tx.symbol].costBuy +=
-          tx.operation === 'buy' ? quantity * tx.price : 0;
-        agg[tx.account][tx.project][tx.symbol].quantitySell += quantitySell;
-        agg[tx.account][tx.project][tx.symbol].costSell +=
-          tx.operation === 'sell' ? quantitySell * tx.price : 0;
-
-        return agg
-      }, {});
-    const avgHistoricalPricesArrayOfObject = [];
-    Object.entries(aggHistoricalPrices).forEach(([account, level0]) => {
-      Object.entries(level0).forEach(([project, level1]) => {
-        Object.entries(level1).forEach(([symbol, object]) => {
-          const avgPrice = object.cost / object.quantity || void 0;
-          if (avgPrice) {
-            avgHistoricalPricesArrayOfObject.push({
-              rowKey: new Hash(account + project + symbol).md5,
-              account,
-              project,
-              symbol,
-              quantity: object.quantity,
-              priceAvg: object.cost / object.quantity || void 0,
-              priceBuy: object.costBuy / object.quantityBuy || void 0,
-              priceSell: object.costSell / object.quantitySell || void 0,
-            });
+    try {
+      const aggHistoricalPrices = new Portfolio()
+        .getWorkSheet('HistoricalPrices')
+        .arrayOfObject.filter((row) => !row.isDelete)
+        .reduce((agg, tx) => {
+          if (!agg[tx.account]) {
+            agg[tx.account] = {};
           }
+          if (!agg[tx.account][tx.project]) {
+            agg[tx.account][tx.project] = {};
+          }
+          if (!agg[tx.account][tx.project][tx.symbol]) {
+            agg[tx.account][tx.project][tx.symbol] = {
+              quantity: 0,
+              cost: 0,
+              quantityBuy: 0,
+              costBuy: 0,
+              quantitySell: 0,
+              costSell: 0,
+            };
+          }
+          const quantity = tx.quantity;
+          const quantityBuy =
+            tx.direction === 'in' && tx.operation === 'buy' ? tx.quantity : 0;
+          const quantitySell =
+            tx.direction === 'out' && tx.operation === 'sell' ? tx.quantity : 0;
+          agg[tx.account][tx.project][tx.symbol].quantity += quantity;
+          agg[tx.account][tx.project][tx.symbol].cost += quantity * tx.price;
+          agg[tx.account][tx.project][tx.symbol].quantityBuy += quantityBuy;
+          agg[tx.account][tx.project][tx.symbol].costBuy +=
+            tx.operation === 'buy' ? quantity * tx.price : 0;
+          agg[tx.account][tx.project][tx.symbol].quantitySell += quantitySell;
+          agg[tx.account][tx.project][tx.symbol].costSell +=
+            tx.operation === 'sell' ? quantitySell * tx.price : 0;
+
+          return agg
+        }, {});
+      const avgHistoricalPricesArrayOfObject = [];
+      Object.entries(aggHistoricalPrices).forEach(([account, level0]) => {
+        Object.entries(level0).forEach(([project, level1]) => {
+          Object.entries(level1).forEach(([symbol, object]) => {
+            const avgPrice = object.cost / object.quantity || void 0;
+            if (avgPrice) {
+              avgHistoricalPricesArrayOfObject.push({
+                rowKey: new Hash(account + project + symbol).md5,
+                account,
+                project,
+                symbol,
+                quantity: object.quantity,
+                priceAvg: object.cost / object.quantity || void 0,
+                priceBuy: object.costBuy / object.quantityBuy || void 0,
+                priceSell: object.costSell / object.quantitySell || void 0,
+              });
+            }
+          });
         });
       });
-    });
-    this.workSheet.truncateInsertRows(avgHistoricalPricesArrayOfObject);
+      this.workSheet.truncateInsertRows(avgHistoricalPricesArrayOfObject);
+    } catch (error) {
+      new Log().addError('HistoricalPricesAvg.updateHistoricalPricesAvg', error);
+    }
   }
 }
 
@@ -1860,27 +1862,18 @@ class HistoricalPrices {
     try {
       if (isRange) {
         arrayOfObject.forEach((tx) => {
-          const rowKey = new Hash(
-            new FormatDate(tx.dateTime).value +
-              tx.operation +
-              tx.direction +
-              tx.account +
-              tx.project +
-              tx.symbol
-          ).md5;
-          const oldRow = this.workSheet.object[rowKey];
+          const oldRow = this.workSheet.object[tx.rowKey];
           const positiveQuantity =
-            new Hash(tx.direction).md5 === new Hash('out').md5
+            new Hash(tx.direction).md5 === new Hash('out').md5 &&
+            new Hash(tx.operation).md5 === new Hash('sell').md5
               ? tx.quantity * -1
               : tx.quantity;
           if (oldRow?.rowKey) {
             tx.quantity = positiveQuantity;
             tx.rowNum = oldRow.rowNum;
-            tx.rowKey = rowKey;
             this.workSheet.updateRow(tx);
           } else {
             tx.quantity = positiveQuantity;
-            tx.rowKey = rowKey;
             this.workSheet.insertRow(tx);
           }
         });
@@ -2227,7 +2220,7 @@ class Registry {
             updateDate: updateDate,
             isDelete: rowValues.isDelete,
             isPrice: tx.isPrice,
-            isLp: tx.isLiquidityPool,
+            isLiquidityPool: tx.isLiquidityPool,
           };
           transactionsArrayOfObject.push(new FormatObject(object).getCopy());
           if (tx.isPrice && !tx.isLiquidityPool) {
@@ -2337,86 +2330,105 @@ class Balance {
       : new Portfolio().getWorkSheet('Balance');
   }
 
-  updateBalance() {
-    const newArrayOfObject = [];
-    const historicalPricesAvg = new Portfolio().getWorkSheet(
-      'historicalPricesAvg'
-    ).object;
-    const prices = new Portfolio().getWorkSheet('prices').object;
-    const contractors = new Portfolio().getWorkSheet('contractors').object;
+  truncateInsertBalance() {
+    try {
+      const newArrayOfObject = [];
+      const historicalPricesAvg = new Portfolio().getWorkSheet(
+        'historicalPricesAvg'
+      ).object;
+      const prices = new Portfolio().getWorkSheet('prices').object;
+      const contractors = new Portfolio().getWorkSheet('contractors').object;
 
-    const aggBalance = new Portfolio()
-      .getWorkSheet('transactions')
-      .arrayOfObject.filter((row) => !row.isDelete)
-      .reduce((object, tx) => {
-        if (!object[tx.account]) {
-          object[tx.account] = {};
-        }
-        if (!object[tx.account][tx.contractor]) {
-          object[tx.account][tx.contractor] = {};
-        }
-        if (!object[tx.account][tx.contractor][tx.service]) {
-          object[tx.account][tx.contractor][tx.service] = {};
-        }
-        if (!object[tx.account][tx.contractor][tx.service][tx.project]) {
-          object[tx.account][tx.contractor][tx.service][tx.project] = {};
-        }
-        if (
-          !object[tx.account][tx.contractor][tx.service][tx.project][tx.symbol]
-        ) {
+      const aggBalance = new Portfolio()
+        .getWorkSheet('transactions')
+        .arrayOfObject.filter((row) => !row.isDelete)
+        .reduce((object, tx) => {
+          if (!object[tx.account]) {
+            object[tx.account] = {};
+          }
+          if (!object[tx.account][tx.contractor]) {
+            object[tx.account][tx.contractor] = {};
+          }
+          if (!object[tx.account][tx.contractor][tx.service]) {
+            object[tx.account][tx.contractor][tx.service] = {};
+          }
+          if (!object[tx.account][tx.contractor][tx.service][tx.project]) {
+            object[tx.account][tx.contractor][tx.service][tx.project] = {};
+          }
+          if (
+            !object[tx.account][tx.contractor][tx.service][tx.project][
+              tx.symbol
+            ]
+          ) {
+            object[tx.account][tx.contractor][tx.service][tx.project][
+              tx.symbol
+            ] = 0;
+          }
           object[tx.account][tx.contractor][tx.service][tx.project][
             tx.symbol
-          ] = 0;
-        }
-        object[tx.account][tx.contractor][tx.service][tx.project][tx.symbol] +=
-          tx.quantity;
-        return object
-      }, {});
-    new Log().addMessage('aggBalance', 'aggBalance', aggBalance);
-    Object.entries(aggBalance).forEach(([account, level0]) => {
-      Object.entries(level0).forEach(([contractor, level1]) => {
-        Object.entries(level1).forEach(([service, level2]) => {
-          Object.entries(level2).forEach(([project, level3]) => {
-            Object.entries(level3).forEach(([symbol, quantity]) => {
-              const quantityRound = Math.round(quantity * 1000) / 1000;
-              if (quantityRound) {
-                const currentCost =
-                  quantityRound * prices[new Hash(symbol).md5]?.price;
-                const symbolType = prices[new Hash(symbol).md5]?.symbolType;
-                const historicalCostBuy =
-                  quantityRound *
-                    historicalPricesAvg[
-                      new Hash(account + project + symbol).md5
-                    ]?.priceBuy || 0;
-                const historicalCostAvg =
-                  quantityRound *
-                    historicalPricesAvg[
-                      new Hash(account + project + symbol).md5
-                    ]?.priceAvg || 0;
-                const risk = prices[new Hash(symbol).md5]?.risk;
-                newArrayOfObject.push({
-                  account: account.toUpperCase(),
-                  contractor: contractor.toUpperCase(),
-                  contractorType: contractors[
-                    new Hash(contractor).md5
-                  ].type.toUpperCase(),
-                  service: service.toUpperCase(),
-                  project: project.toUpperCase(),
-                  symbol: symbol.toUpperCase(),
-                  symbolType: symbolType.toUpperCase(),
-                  risk: risk.toUpperCase(),
-                  quantity: quantityRound,
-                  historicalCostBuy,
-                  historicalCostAvg,
-                  currentCost,
-                });
-              }
+          ] += tx.quantity;
+          return object
+        }, {});
+      Object.entries(aggBalance).forEach(([account, level0]) => {
+        Object.entries(level0).forEach(([contractor, level1]) => {
+          Object.entries(level1).forEach(([service, level2]) => {
+            Object.entries(level2).forEach(([project, level3]) => {
+              Object.entries(level3).forEach(([symbol, quantity]) => {
+                let newService;
+                const quantityRound = Math.round(quantity * 1000) / 1000;
+                if (quantityRound) {
+                  const currentCost =
+                    quantityRound * prices[new Hash(symbol).md5]?.price;
+                  const symbolType =
+                    prices[new Hash(symbol).md5]?.symbolType || '';
+                  const historicalCostBuy =
+                    quantityRound *
+                      historicalPricesAvg[
+                        new Hash(account + project + symbol).md5
+                      ]?.priceBuy || 0;
+                  const historicalCostAvg =
+                    quantityRound *
+                      historicalPricesAvg[
+                        new Hash(account + project + symbol).md5
+                      ]?.priceAvg || 0;
+                  const risk = prices[new Hash(symbol).md5]?.risk || void 0;
+
+                  if (
+                    [('Liquidity pool (1)', 'Liquidity pool (2)')].indexOf(
+                      service
+                    ) !== -1
+                  ) {
+                    newService = 'Liquidity pool';
+                  } else {
+                    newService = service;
+                  }
+
+                  newArrayOfObject.push({
+                    account: account.toUpperCase(),
+                    contractor: contractor.toUpperCase(),
+                    contractorType: contractors[
+                      new Hash(contractor).md5
+                    ].type.toUpperCase(),
+                    service: newService.toUpperCase(),
+                    project: project.toUpperCase(),
+                    symbol: symbol.toUpperCase(),
+                    symbolType: symbolType.toUpperCase(),
+                    risk: risk.toUpperCase(),
+                    quantity: quantityRound,
+                    historicalCostBuy,
+                    historicalCostAvg,
+                    currentCost,
+                  });
+                }
+              });
             });
           });
         });
       });
-    });
-    this.workSheet.truncateInsertRows(newArrayOfObject);
+      this.workSheet.truncateInsertRows(newArrayOfObject);
+    } catch (error) {
+      new Log().addError('Balance.truncateInsertBalance', error);
+    }
   }
 }
 
@@ -2504,16 +2516,44 @@ class LPToken {
   }
 }
 
-function updateTransactions() {
-  new Registry().updateTransactions();
-}
+// class GasScript {
+//   constructor(parametr) {
+//     this.parametr = parametr + ': '
+//     this.startDate = new Date()
+//   }
+//   getLastProjectVersion() {
+//     const url =
+//       'https://script.googleapis.com/v1/projects/' +
+//       ScriptApp.getScriptId() +
+//       '/versions'
 
-function updateHistoricalPrices() {
-  new HistoricalPrices().fullUpdateHistoricalPrices();
-}
+//     const res = UrlFetchApp.fetch(url, {
+//       headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+//     })
+//     return Math.max(JSON.parse(res).versions.map((m) => (m = m.versionNumber)))
+//   }
+
+//   getListScriptProcesses() {
+//     const url =
+//       'https://script.googleapis.com/v1/processes:listScriptProcesses?scriptId=' +
+//       ScriptApp.getScriptId() +
+//       '&scriptProcessFilter.statuses=RUNNING'
+//     const res = UrlFetchApp.fetch(url, {
+//       headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+//       accept: 'application/json',
+//       muteHttpExceptions: false,
+//     })
+//     const processes = JSON.parse(res)?.processes || void 0
+//     return processes
+//   }
+// }
 
 function updateLPToken() {
   new LPToken().updateLPToken();
+}
+
+function updateTransactions() {
+  new Registry().updateTransactions();
 }
 
 function updatePrices() {
@@ -2525,7 +2565,7 @@ function updatePrices() {
       new HistoricalPricesAvg().updateHistoricalPricesAvg();
       resolve();
     }).then(() => {
-      new Balance().updateBalance();
+      new Balance().truncateInsertBalance();
     });
   });
 }
@@ -2534,21 +2574,29 @@ function updateCoins() {
   new Coins().updateCoins();
 }
 
+function updateHistoricalPricesAvg() {
+  new HistoricalPricesAvg().updateHistoricalPricesAvg();
+}
+
 function updateBalance() {
   new Promise((resolve) => {
     new HistoricalPricesAvg().updateHistoricalPricesAvg();
     resolve();
   }).then(() => {
-    new Balance().updateBalance();
+    new Balance().truncateInsertBalance();
   });
 }
 
-function updateHistoricalPricesAvg() {
-  new HistoricalPricesAvg().updateHistoricalPricesAvg();
-}
-
 function updateOnEdit(editRange) {
+  const startProcess = new FormatDate();
   try {
+    new Log().addMessage(
+      'updateOnEdit',
+      'Start update ' + editRange.range.getSheet().getName(),
+      startProcess.value +
+        ': count row - ' +
+        (editRange.range.rowEnd - editRange.range.rowStart + 1)
+    );
     const workSheet = new Portfolio().updateOnEdit(editRange.range);
     if (workSheet.isNotNull) {
       if (workSheet.isChangePrimaryKey) {
@@ -2583,6 +2631,12 @@ function updateOnEdit(editRange) {
     }
   } catch (error) {
     new Log().addError('updateOnEdit', error);
+  } finally {
+    new Log().addMessage(
+      'updateOnEdit',
+      'End update ' + startProcess.value,
+      'Time spent: ' + startProcess.getTimeDiff()
+    );
   }
 }
 
@@ -2592,11 +2646,11 @@ function createMenu() {
   menu.addSubMenu(
     SpreadsheetApp.getUi()
       .createMenu('Update')
-      .addItem('Update transactions', 'updateTransactions')
-      .addItem('Update average histirical prices', 'updateHistoricalPricesAvg')
       .addItem('Update balance', 'updateBalance')
       .addItem('Update prices', 'updatePrices')
+      .addItem('Update average historical price', 'updateHistoricalPricesAvg')
       .addItem('Update coins', 'updateCoins')
+      .addItem('Update transactions (only admin)', 'updateTransactions')
   );
   menu.addToUi();
 }

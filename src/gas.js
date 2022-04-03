@@ -423,10 +423,6 @@ class WorkSheetRange extends WorkSheet {
         .reduce((objectRow, arrayRow, indexRow) => {
           const rowNum = this.firstRowNum + indexRow
           const rowKey = new Hash(rowNum + this.sheetName).md5
-          console.info(
-            'WorkSheetRange.getTransactions.rowKey',
-            new Hash(rowNum + this.sheetName).stringLowerCase
-          )
           const object = arrayRow.reduce((object, value, column) => {
             if (!object[this.headKey[column]]) {
               object[this.headKey[column]] = value
@@ -520,36 +516,6 @@ class GoogleCache {
    */
   removeAllCache(keys) {
     this.cache.removeAll(keys)
-  }
-}
-
-class GasScript {
-  constructor(parametr) {
-    this.parametr = parametr + ': '
-    this.startDate = new Date()
-  }
-  getLastProjectVersion() {
-    const url =
-      'https://script.googleapis.com/v1/projects/' + scriptId + '/versions'
-
-    const res = UrlFetchApp.fetch(url, {
-      headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
-    })
-    return Math.max(JSON.parse(res).versions.map((m) => (m = m.versionNumber)))
-  }
-  error(value) {
-    console.error(this.parametr, value)
-  }
-  info(value) {
-    console.info(this.parametr, value)
-  }
-  timeExecution() {
-    const time = new FormatDate(this.startDate).getTimeDiff()
-    console.info(this.parametr, time)
-    return time
-  }
-  flush() {
-    SpreadsheetApp.flush()
   }
 }
 
