@@ -12,10 +12,12 @@ class Balance {
 
   updateBalance() {
     const newArrayOfObject = []
-    const historicalPrices = new Portfolio().getWorkSheet('historicalPrices')
-      .object
+    const historicalPricesAvg = new Portfolio().getWorkSheet(
+      'historicalPricesAvg'
+    ).object
     const prices = new Portfolio().getWorkSheet('prices').object
     const contractors = new Portfolio().getWorkSheet('contractors').object
+
     const aggBalance = new Portfolio()
       .getWorkSheet('transactions')
       .arrayOfObject.filter((row) => !row.isDelete)
@@ -33,33 +35,38 @@ class Balance {
           object[tx.account][tx.contractor][tx.service][tx.project] = {}
         }
         if (
-          !object[tx.account][tx.contractor][tx.service][tx.project][tx.coin]
+          !object[tx.account][tx.contractor][tx.service][tx.project][tx.symbol]
         ) {
-          object[tx.account][tx.contractor][tx.service][tx.project][tx.coin] = 0
+          object[tx.account][tx.contractor][tx.service][tx.project][
+            tx.symbol
+          ] = 0
         }
-        object[tx.account][tx.contractor][tx.service][tx.project][tx.coin] +=
+        object[tx.account][tx.contractor][tx.service][tx.project][tx.symbol] +=
           tx.quantity
         return object
       }, {})
+    new Log().addMessage('aggBalance', 'aggBalance', aggBalance)
     Object.entries(aggBalance).forEach(([account, level0]) => {
       Object.entries(level0).forEach(([contractor, level1]) => {
         Object.entries(level1).forEach(([service, level2]) => {
           Object.entries(level2).forEach(([project, level3]) => {
-            Object.entries(level3).forEach(([coin, quantity]) => {
+            Object.entries(level3).forEach(([symbol, quantity]) => {
               const quantityRound = Math.round(quantity * 1000) / 1000
               if (quantityRound) {
                 const currentCost =
-                  quantityRound * prices[new Hash(coin).md5]?.price
-                const coinType = prices[new Hash(coin).md5]?.coinType
+                  quantityRound * prices[new Hash(symbol).md5]?.price
+                const symbolType = prices[new Hash(symbol).md5]?.symbolType
                 const historicalCostBuy =
                   quantityRound *
-                    historicalPrices[new Hash(account + project + coin).md5]
-                      ?.priceBuy || 0
+                    historicalPricesAvg[
+                      new Hash(account + project + symbol).md5
+                    ]?.priceBuy || 0
                 const historicalCostAvg =
                   quantityRound *
-                    historicalPrices[new Hash(account + project + coin).md5]
-                      ?.priceAvg || 0
-                const risk = prices[new Hash(coin).md5]?.risk
+                    historicalPricesAvg[
+                      new Hash(account + project + symbol).md5
+                    ]?.priceAvg || 0
+                const risk = prices[new Hash(symbol).md5]?.risk
                 newArrayOfObject.push({
                   account: account.toUpperCase(),
                   contractor: contractor.toUpperCase(),
@@ -68,8 +75,8 @@ class Balance {
                   ].type.toUpperCase(),
                   service: service.toUpperCase(),
                   project: project.toUpperCase(),
-                  coin: coin.toUpperCase(),
-                  coinType: coinType.toUpperCase(),
+                  symbol: symbol.toUpperCase(),
+                  symbolType: symbolType.toUpperCase(),
                   risk: risk.toUpperCase(),
                   quantity: quantityRound,
                   historicalCostBuy,

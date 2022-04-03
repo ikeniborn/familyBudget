@@ -27,6 +27,7 @@ class HistoricalPrices {
         arrayOfObject.forEach((tx) => {
           const rowKey = new Hash(
             new FormatDate(tx.dateTime).value +
+              tx.operation +
               tx.direction +
               tx.account +
               tx.project +
@@ -55,6 +56,7 @@ class HistoricalPrices {
       new Log().addError('HistoricalPrices.updateHistoricalPrices', error)
     }
   }
+
   /**
    * Получение средневзвешенной цены покупки токена
    * @param {string} account
@@ -71,11 +73,11 @@ class HistoricalPrices {
       const coin = prices[new Hash(symbol).md5]
       const sourceKey = new Hash(coin.source).md5
       const id = coin.id
-      const coinTypeKey = new Hash(coin.coinType).md5
+      const symbolTypeKey = new Hash(coin.symbolType).md5
       if (
         ['stablecoin']
           .map((m) => (m = new Hash(m).md5))
-          .indexOf(coinTypeKey) === -1
+          .indexOf(symbolTypeKey) === -1
       ) {
         // Расчет средневзвешенной стоимости покупки токена на основании истории покупок
         const historicalPriceAgg = this.workSheet.arrayOfObject

@@ -187,6 +187,8 @@ class Registry {
         transactionRow.forEach((tx) => {
           const object = {
             rowKey: tx.rowKey,
+            sourceKey: new Hash(this.workSheet.sheetName).md5,
+            sourceName: new Hash(this.workSheet.sheetName).stringLowerCase,
             dateTime: dateTime,
             direction: tx.direction.toLowerCase(),
             operation: rowValues.operation.toLowerCase(),

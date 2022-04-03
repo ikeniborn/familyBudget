@@ -1,5 +1,6 @@
 import { Registry } from './worksheet/registry'
 import { HistoricalPricesAvg } from './worksheet/historicalPricesAvg'
+import { HistoricalPrices } from './worksheet/historicalPrices'
 import { Prices } from './worksheet/prices'
 import { Coins } from './worksheet/coins'
 import { Balance } from './worksheet/balance'
@@ -10,6 +11,10 @@ import { Log } from './worksheet/log'
 
 function updateTransactions() {
   new Registry().updateTransactions()
+}
+
+function updateHistoricalPrices() {
+  new HistoricalPrices().fullUpdateHistoricalPrices()
 }
 
 function updateLPToken() {
@@ -93,6 +98,7 @@ function createMenu() {
     SpreadsheetApp.getUi()
       .createMenu('Update')
       .addItem('Update transactions', 'updateTransactions')
+      .addItem('Update average histirical prices', 'updateHistoricalPricesAvg')
       .addItem('Update balance', 'updateBalance')
       .addItem('Update prices', 'updatePrices')
       .addItem('Update coins', 'updateCoins')

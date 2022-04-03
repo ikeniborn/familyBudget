@@ -26,25 +26,29 @@ class HistoricalPricesAvg {
           agg[tx.account][tx.project] = {}
         }
         if (!agg[tx.account][tx.project][tx.symbol]) {
-          agg[tx.account][tx.project][tx.symbol] = {}
-          agg[tx.account][tx.project][tx.symbol]['quantity'] = 0
-          agg[tx.account][tx.project][tx.symbol]['cost'] = 0
-          agg[tx.account][tx.project][tx.symbol]['quantityBuy'] = 0
-          agg[tx.account][tx.project][tx.symbol]['costBuy'] = 0
-          agg[tx.account][tx.project][tx.symbol]['quantitySell'] = 0
-          agg[tx.account][tx.project][tx.symbol]['costSell'] = 0
+          agg[tx.account][tx.project][tx.symbol] = {
+            quantity: 0,
+            cost: 0,
+            quantityBuy: 0,
+            costBuy: 0,
+            quantitySell: 0,
+            costSell: 0,
+          }
         }
         const quantity = tx.quantity
-        const quantityBuy = tx.direction === 'in' ? tx.quantity : 0
-        const quantitySell = tx.direction === 'out' ? tx.quantity : 0
-        agg[tx.account][tx.project][tx.symbol]['quantity'] += quantity
-        agg[tx.account][tx.project][tx.symbol]['cost'] += quantity * tx.price
-        agg[tx.account][tx.project][tx.symbol]['quantityBuy'] += quantityBuy
-        agg[tx.account][tx.project][tx.symbol]['costBuy'] +=
-          quantityBuy * tx.price
-        agg[tx.account][tx.project][tx.symbol]['quantitySell'] += quantitySell
-        agg[tx.account][tx.project][tx.symbol]['costSell'] +=
-          quantitySell * tx.price
+        const quantityBuy =
+          tx.direction === 'in' && tx.operation === 'buy' ? tx.quantity : 0
+        const quantitySell =
+          tx.direction === 'out' && tx.operation === 'sell' ? tx.quantity : 0
+        agg[tx.account][tx.project][tx.symbol].quantity += quantity
+        agg[tx.account][tx.project][tx.symbol].cost += quantity * tx.price
+        agg[tx.account][tx.project][tx.symbol].quantityBuy += quantityBuy
+        agg[tx.account][tx.project][tx.symbol].costBuy +=
+          tx.operation === 'buy' ? quantity * tx.price : 0
+        agg[tx.account][tx.project][tx.symbol].quantitySell += quantitySell
+        agg[tx.account][tx.project][tx.symbol].costSell +=
+          tx.operation === 'sell' ? quantitySell * tx.price : 0
+
         return agg
       }, {})
     const avgHistoricalPricesArrayOfObject = []
