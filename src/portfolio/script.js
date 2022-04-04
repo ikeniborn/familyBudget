@@ -18,20 +18,6 @@ function updateTransactions() {
   new Registry().updateTransactions()
 }
 
-function updatePrices() {
-  new Promise((resolve) => {
-    new Prices().updatePrices()
-    resolve()
-  }).then(() => {
-    new Promise((resolve) => {
-      new HistoricalPricesAvg().updateHistoricalPricesAvg()
-      resolve()
-    }).then(() => {
-      new Balance().truncateInsertBalance()
-    })
-  })
-}
-
 function updateCoins() {
   new Coins().updateCoins()
 }
@@ -40,55 +26,64 @@ function updateHistoricalPricesAvg() {
   new HistoricalPricesAvg().updateHistoricalPricesAvg()
 }
 
+function updatePrices() {
+  const startProcess = new FormatDate()
+  try {
+    new Promise((resolve) => {
+      new Prices().updatePrices()
+      resolve()
+    }).then(() => {
+      new Promise((resolve) => {
+        new HistoricalPricesAvg().updateHistoricalPricesAvg()
+        resolve()
+      }).then(() => {
+        new Balance().truncateInsertBalance()
+      })
+    })
+  } catch (error) {
+  } finally {
+    new Log().addMessage(
+      'updatePrices',
+      'ID:' + startProcess.value,
+      'Time spent: ' + startProcess.getTimeDiff()
+    )
+  }
+}
+
 function updateBalance() {
-  new Promise((resolve) => {
-    new HistoricalPricesAvg().updateHistoricalPricesAvg()
-    resolve()
-  }).then(() => {
-    new Balance().truncateInsertBalance()
-  })
+  const startProcess = new FormatDate()
+  try {
+    new Promise((resolve) => {
+      new HistoricalPricesAvg().updateHistoricalPricesAvg()
+      resolve()
+    }).then(() => {
+      new Balance().truncateInsertBalance()
+    })
+  } catch (error) {
+  } finally {
+    new Log().addMessage(
+      'updateBalance',
+      'ID:' + startProcess.value,
+      'Time spent: ' + startProcess.getTimeDiff()
+    )
+  }
 }
 
 function updateOnEdit(editRange) {
   const startProcess = new FormatDate()
+  let countRowInRange, shetNameInRange
   try {
-    new Log().addMessage(
-      'updateOnEdit',
-      'Start update ' + editRange.range.getSheet().getName(),
-      startProcess.value +
-        ': count row - ' +
-        (editRange.range.rowEnd - editRange.range.rowStart + 1)
-    )
+    shetNameInRange = editRange.range.getSheet().getName()
+    countRowInRange = editRange.range.rowEnd - editRange.range.rowStart + 1
     const workSheet = new Portfolio().updateOnEdit(editRange.range)
     if (workSheet.isNotNull) {
       if (workSheet.isChangePrimaryKey) {
         workSheet.savePrimaryKeyChanges()
       }
-      const startDate = new FormatDate()
       if (new Hash(workSheet.sheetName).md5 === new Hash('prices').md5) {
-        SpreadsheetApp.getActive().toast(
-          'Start update prices id...',
-          'Prices: ',
-          1
-        )
         new Prices(workSheet).updateId()
-        SpreadsheetApp.getActive().toast(
-          'Prices id updated!',
-          'Save process: ' + startDate.getTimeDiff(),
-          3
-        )
       } else if (workSheet.sheetName.match(new RegExp('[Registry]+', 'g'))) {
-        SpreadsheetApp.getActive().toast(
-          'Start update tx...',
-          'Transaction: ',
-          1
-        )
         new Registry(workSheet).updateTransactions()
-        SpreadsheetApp.getActive().toast(
-          'Tx updated!',
-          'Save process: ' + startDate.getTimeDiff(),
-          3
-        )
       }
     }
   } catch (error) {
@@ -96,8 +91,13 @@ function updateOnEdit(editRange) {
   } finally {
     new Log().addMessage(
       'updateOnEdit',
-      'End update ' + startProcess.value,
-      'Time spent: ' + startProcess.getTimeDiff()
+      'ID:' + startProcess.value,
+      'Sheet name: ' +
+        shetNameInRange +
+        ', Count row: ' +
+        countRowInRange +
+        ', Time spent: ' +
+        startProcess.getTimeDiff()
     )
   }
 }
@@ -108,8 +108,8 @@ function createMenu() {
   menu.addSubMenu(
     SpreadsheetApp.getUi()
       .createMenu('Update')
-      .addItem('Update balance', 'updateBalance')
-      .addItem('Update prices', 'updatePrices')
+      .addItem('Update average historical price and balance', 'updateBalance')
+      .addItem('Update current prices and balance', 'updatePrices')
       .addItem('Update average historical price', 'updateHistoricalPricesAvg')
       .addItem('Update coins', 'updateCoins')
       .addItem('Update transactions (only admin)', 'updateTransactions')

@@ -15,6 +15,7 @@ class HistoricalPrices {
     this.workSheet = workSheet
       ? workSheet
       : new Portfolio().getWorkSheet('HistoricalPrices')
+    this.duplicatesRow = []
   }
   /**
    * Обновление или добавление новой исторической записи цены токена
@@ -25,18 +26,30 @@ class HistoricalPrices {
     try {
       if (isRange) {
         arrayOfObject.forEach((tx) => {
-          const oldRow = this.workSheet.object[tx.rowKey]
+          const rowArray = this.workSheet.arrayOfObject.filter(
+            (row) => row.rowKey === tx.rowKey
+          )
           const positiveQuantity =
             new Hash(tx.direction).md5 === new Hash('out').md5 &&
             new Hash(tx.operation).md5 === new Hash('sell').md5
               ? tx.quantity * -1
               : tx.quantity
-          if (oldRow?.rowKey) {
-            tx.quantity = positiveQuantity
+          if (rowArray.length === 1) {
+            const oldRow = this.workSheet.object[tx.rowKey]
             tx.rowNum = oldRow.rowNum
-            this.workSheet.updateRow(tx)
-          } else {
             tx.quantity = positiveQuantity
+            this.workSheet.updateRow(tx)
+          } else if (rowArray.length > 1) {
+            rowArray.forEach((row, indexRow) => {
+              if (!indexRow) {
+                tx.rowNum = row.rowNum
+                tx.quantity = positiveQuantity
+                this.workSheet.updateRow(tx)
+              } else {
+                this.duplicatesRow.push(row)
+              }
+            })
+          } else {
             this.workSheet.insertRow(tx)
           }
         })
@@ -45,6 +58,8 @@ class HistoricalPrices {
       }
     } catch (error) {
       new Log().addError('HistoricalPrices.updateHistoricalPrices', error)
+    } finally {
+      this.workSheet.deleteRows(this.duplicatesRow)
     }
   }
 

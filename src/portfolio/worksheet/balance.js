@@ -60,7 +60,8 @@ class Balance {
                   const currentCost =
                     quantityRound * prices[new Hash(symbol).md5]?.price
                   const symbolType =
-                    prices[new Hash(symbol).md5]?.symbolType || ''
+                    prices[new Hash(symbol).md5]?.symbolType.toUpperCase() ||
+                    void 0
                   const historicalCostBuy =
                     quantityRound *
                       historicalPricesAvg[
@@ -71,29 +72,31 @@ class Balance {
                       historicalPricesAvg[
                         new Hash(account + project + symbol).md5
                       ]?.priceAvg || 0
-                  const risk = prices[new Hash(symbol).md5]?.risk || void 0
+                  const risk =
+                    prices[new Hash(symbol).md5]?.risk.toUpperCase() || void 0
 
                   if (
                     [('Liquidity pool (1)', 'Liquidity pool (2)')].indexOf(
                       service
                     ) !== -1
                   ) {
-                    newService = 'Liquidity pool'
+                    newService = 'Liquidity pool'.toUpperCase()
                   } else {
-                    newService = service
+                    newService = service.toUpperCase()
                   }
+                  const contractorType =
+                    contractors[new Hash(contractor).md5]?.type.toUpperCase() ||
+                    void 0
 
                   newArrayOfObject.push({
                     account: account.toUpperCase(),
                     contractor: contractor.toUpperCase(),
-                    contractorType: contractors[
-                      new Hash(contractor).md5
-                    ].type.toUpperCase(),
-                    service: newService.toUpperCase(),
+                    contractorType: contractorType,
+                    service: newService,
                     project: project.toUpperCase(),
                     symbol: symbol.toUpperCase(),
-                    symbolType: symbolType.toUpperCase(),
-                    risk: risk.toUpperCase(),
+                    symbolType: symbolType,
+                    risk: risk,
                     quantity: quantityRound,
                     historicalCostBuy,
                     historicalCostAvg,

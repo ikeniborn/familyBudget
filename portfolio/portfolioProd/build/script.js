@@ -414,6 +414,8 @@ class WorkSheet extends SpreadSheet {
             .getDataRange()
             .offset(this.headRowNum - 1, 0, 1, this.countColumn);
     // this.metadata = new WorkSheetMetadata(this.workSheet)
+    this.arrayOfObject = [];
+    this.object = {};
     this.getDataset();
   }
 
@@ -434,23 +436,21 @@ class WorkSheet extends SpreadSheet {
   }
 
   getFact() {
-    this.object = this.dataRange
-      .getValues()
-      .reduce((objectRow, arrayRow, indexRow) => {
-        const rowNum = this.firstRowNum + indexRow;
-        const rowKey = arrayRow[this.head.rowKey.idx];
-        if (!objectRow[rowKey]) {
-          objectRow[rowKey] = arrayRow.reduce((object, value, index) => {
-            object['rowNum'] = rowNum;
-            if (!object[this.headKey[index]]) {
-              object[this.headKey[index]] = value;
-            }
-            return object
-          }, {});
+    this.dataRange.getValues().forEach((arrayRow, indexRow) => {
+      const rowNum = this.firstRowNum + indexRow;
+      const rowKey = arrayRow[this.head.rowKey.idx];
+      const instanceRow = arrayRow.reduce((object, value, index) => {
+        object['rowNum'] = rowNum;
+        if (!object[this.headKey[index]]) {
+          object[this.headKey[index]] = value;
         }
-        return objectRow
+        return object
       }, {});
-    this.arrayOfObject = Object.values(this.object);
+      if (!this.object[rowKey]) {
+        this.object[rowKey] = instanceRow;
+      }
+      this.arrayOfObject.push(instanceRow);
+    });
     return this
   }
 
@@ -469,6 +469,7 @@ class WorkSheet extends SpreadSheet {
             return object
           }, {});
         }
+
         return objectRow
       }, {});
     this.arrayOfObject = Object.values(this.object);
@@ -476,24 +477,22 @@ class WorkSheet extends SpreadSheet {
   }
 
   getTransactions() {
-    this.object = this.dataRange
-      .getValues()
-      .reduce((objectRow, arrayRow, indexRow) => {
-        const rowNum = this.firstRowNum + indexRow;
-        const rowKey = new Hash(rowNum + this.sheetName).md5;
-        if (!objectRow[rowKey]) {
-          objectRow[rowKey] = arrayRow.reduce((object, value, column) => {
-            object['rowKey'] = rowKey;
-            object['rowNum'] = rowNum;
-            if (!object[this.headKey[column]]) {
-              object[this.headKey[column]] = value;
-            }
-            return object
-          }, {});
+    this.dataRange.getValues().forEach((arrayRow, indexRow) => {
+      const rowNum = this.firstRowNum + indexRow;
+      const rowKey = new Hash(rowNum + this.sheetName).md5;
+      const instanceRow = arrayRow.reduce((object, value, column) => {
+        object['rowKey'] = rowKey;
+        object['rowNum'] = rowNum;
+        if (!object[this.headKey[column]]) {
+          object[this.headKey[column]] = value;
         }
-        return objectRow
+        return object
       }, {});
-    this.arrayOfObject = Object.values(this.object);
+      if (!this.object[rowKey]) {
+        this.object[rowKey] = instanceRow;
+      }
+      this.arrayOfObject.push(instanceRow);
+    });
     return this
   }
 
@@ -577,12 +576,27 @@ class WorkSheet extends SpreadSheet {
   insertValue(value, row, column) {
     this.workSheet.getRange(row, column).setValue(value);
   }
+  /**
+   *
+   * @param {number} rowNum
+   */
+  deleteRow(rowNum, countRow = 1) {
+    this.workSheet.deleteRows(rowNum, countRow);
+  }
 
-  deleteRow(object = {}) {
-    //? Удалять несколько строк
-    //? Как удалять строки разбросанные по таблице
-    if (object.rowNum !== this.headerRowNum) {
-      this.workSheet.deleteRows(object.rowNum, 1);
+  /**
+   *
+   * @param {array} arrayOfObject
+   */
+  deleteRows(arrayOfObject = []) {
+    if (arrayOfObject.length) {
+      const sortArrayOfObject = arrayOfObject.sort((a, b) => {
+        return b.rowNum - a.rowNum
+      });
+      sortArrayOfObject.forEach((row) => {
+        console.log('deleteRows', row.rowNum);
+        this.deleteRow(row.rowNum);
+      });
     }
   }
 
@@ -660,6 +674,8 @@ class WorkSheetRange extends WorkSheet {
     this.columnNumArray = [...Array(this.countColumn).keys()].map(
       (m) => (m = m + this.range.columnStart)
     );
+    this.arrayOfObject = [];
+    this.object = {};
     this.getDataset();
   }
 
@@ -668,23 +684,21 @@ class WorkSheetRange extends WorkSheet {
   }
 
   getFact() {
-    this.object = this.dataRange
-      .getValues()
-      .reduce((objectRow, arrayRow, indexRow) => {
-        const rowNum = this.firstRowNum + indexRow;
-        const rowKey = arrayRow[this.head.rowKey.idx];
-        if (!objectRow[rowKey]) {
-          objectRow[rowKey] = arrayRow.reduce((object, value, index) => {
-            object['rowNum'] = rowNum;
-            if (!object[this.headKey[index]]) {
-              object[this.headKey[index]] = value;
-            }
-            return object
-          }, {});
+    this.dataRange.getValues().forEach((arrayRow, indexRow) => {
+      const rowNum = this.firstRowNum + indexRow;
+      const rowKey = arrayRow[this.head.rowKey.idx];
+      const instanceRow = arrayRow.reduce((object, value, index) => {
+        object['rowNum'] = rowNum;
+        if (!object[this.headKey[index]]) {
+          object[this.headKey[index]] = value;
         }
-        return objectRow
+        return object
       }, {});
-    this.arrayOfObject = Object.values(this.object);
+      if (!this.object[rowKey]) {
+        this.object[rowKey] = instanceRow;
+      }
+      this.arrayOfObject.push(instanceRow);
+    });
     return this
   }
 
@@ -709,7 +723,6 @@ class WorkSheetRange extends WorkSheet {
         if (!objectRow[object.rowKey]) {
           objectRow[object.rowKey] = object;
         }
-
         this.isNotNull = new Header().isNotNull(this.head, object);
         return objectRow
       }, {});
@@ -719,28 +732,23 @@ class WorkSheetRange extends WorkSheet {
 
   getTransactions() {
     try {
-      this.object = this.dataRange
-        .getValues()
-        .reduce((objectRow, arrayRow, indexRow) => {
-          const rowNum = this.firstRowNum + indexRow;
-          const rowKey = new Hash(rowNum + this.sheetName).md5;
-          const object = arrayRow.reduce((object, value, column) => {
-            if (!object[this.headKey[column]]) {
-              object[this.headKey[column]] = value;
-              object['rowKey'] = rowKey;
-              object['rowNum'] = rowNum;
-            }
-            return object
-          }, {});
-          if (!objectRow[rowKey]) {
-            objectRow[rowKey] = object;
-            objectRow[rowKey]['rowKey'] = rowKey;
-            objectRow[rowKey]['rowNum'] = rowNum;
-            this.isNotNull = new Header().isNotNull(this.head, object);
+      this.dataRange.getValues().forEach((arrayRow, indexRow) => {
+        const rowNum = this.firstRowNum + indexRow;
+        const rowKey = new Hash(rowNum + this.sheetName).md5;
+        const instanceRow = arrayRow.reduce((object, value, column) => {
+          if (!object[this.headKey[column]]) {
+            object[this.headKey[column]] = value;
+            object['rowKey'] = rowKey;
+            object['rowNum'] = rowNum;
           }
-          return objectRow
+          return object
         }, {});
-      this.arrayOfObject = Object.values(this.object);
+        if (!this.object[rowKey]) {
+          this.object[rowKey] = instanceRow;
+          this.isNotNull = new Header().isNotNull(this.head, instanceRow);
+        }
+        this.arrayOfObject.push(instanceRow);
+      });
       return this
     } catch (error) {
       console.error('WorkSheetRange.getTransactions', error.stack);
@@ -1852,6 +1860,7 @@ class HistoricalPrices {
     this.workSheet = workSheet
       ? workSheet
       : new Portfolio().getWorkSheet('HistoricalPrices');
+    this.duplicatesRow = [];
   }
   /**
    * Обновление или добавление новой исторической записи цены токена
@@ -1862,18 +1871,30 @@ class HistoricalPrices {
     try {
       if (isRange) {
         arrayOfObject.forEach((tx) => {
-          const oldRow = this.workSheet.object[tx.rowKey];
+          const rowArray = this.workSheet.arrayOfObject.filter(
+            (row) => row.rowKey === tx.rowKey
+          );
           const positiveQuantity =
             new Hash(tx.direction).md5 === new Hash('out').md5 &&
             new Hash(tx.operation).md5 === new Hash('sell').md5
               ? tx.quantity * -1
               : tx.quantity;
-          if (oldRow?.rowKey) {
-            tx.quantity = positiveQuantity;
+          if (rowArray.length === 1) {
+            const oldRow = this.workSheet.object[tx.rowKey];
             tx.rowNum = oldRow.rowNum;
-            this.workSheet.updateRow(tx);
-          } else {
             tx.quantity = positiveQuantity;
+            this.workSheet.updateRow(tx);
+          } else if (rowArray.length > 1) {
+            rowArray.forEach((row, indexRow) => {
+              if (!indexRow) {
+                tx.rowNum = row.rowNum;
+                tx.quantity = positiveQuantity;
+                this.workSheet.updateRow(tx);
+              } else {
+                this.duplicatesRow.push(row);
+              }
+            });
+          } else {
             this.workSheet.insertRow(tx);
           }
         });
@@ -1882,6 +1903,8 @@ class HistoricalPrices {
       }
     } catch (error) {
       new Log().addError('HistoricalPrices.updateHistoricalPrices', error);
+    } finally {
+      this.workSheet.deleteRows(this.duplicatesRow);
     }
   }
 
@@ -1991,6 +2014,7 @@ class Transactions {
     this.workSheet = workSheet
       ? workSheet
       : new Portfolio().getWorkSheet('Transactions');
+    this.duplicatesRow = [];
   }
 
   /**
@@ -2002,10 +2026,22 @@ class Transactions {
     try {
       if (isRange) {
         arrayOfObject.forEach((tx) => {
-          const oldRow = this.workSheet.object[tx.rowKey];
-          if (oldRow?.rowKey) {
+          const rowArray = this.workSheet.arrayOfObject.filter(
+            (row) => row.rowKey === tx.rowKey
+          );
+          if (rowArray.length === 1) {
+            const oldRow = this.workSheet.object[tx.rowKey];
             tx.rowNum = oldRow.rowNum;
             this.workSheet.updateRow(tx);
+          } else if (rowArray.length > 1) {
+            rowArray.forEach((row, indexRow) => {
+              if (!indexRow) {
+                tx.rowNum = row.rowNum;
+                this.workSheet.updateRow(tx);
+              } else {
+                this.duplicatesRow.push(row);
+              }
+            });
           } else {
             this.workSheet.insertRow(tx);
           }
@@ -2015,6 +2051,8 @@ class Transactions {
       }
     } catch (error) {
       new Log().addError('Transactions.updateTransactions', error);
+    } finally {
+      this.workSheet.deleteRows(this.duplicatesRow);
     }
   }
 }
@@ -2380,7 +2418,8 @@ class Balance {
                   const currentCost =
                     quantityRound * prices[new Hash(symbol).md5]?.price;
                   const symbolType =
-                    prices[new Hash(symbol).md5]?.symbolType || '';
+                    prices[new Hash(symbol).md5]?.symbolType.toUpperCase() ||
+                    void 0;
                   const historicalCostBuy =
                     quantityRound *
                       historicalPricesAvg[
@@ -2391,29 +2430,31 @@ class Balance {
                       historicalPricesAvg[
                         new Hash(account + project + symbol).md5
                       ]?.priceAvg || 0;
-                  const risk = prices[new Hash(symbol).md5]?.risk || void 0;
+                  const risk =
+                    prices[new Hash(symbol).md5]?.risk.toUpperCase() || void 0;
 
                   if (
                     [('Liquidity pool (1)', 'Liquidity pool (2)')].indexOf(
                       service
                     ) !== -1
                   ) {
-                    newService = 'Liquidity pool';
+                    newService = 'Liquidity pool'.toUpperCase();
                   } else {
-                    newService = service;
+                    newService = service.toUpperCase();
                   }
+                  const contractorType =
+                    contractors[new Hash(contractor).md5]?.type.toUpperCase() ||
+                    void 0;
 
                   newArrayOfObject.push({
                     account: account.toUpperCase(),
                     contractor: contractor.toUpperCase(),
-                    contractorType: contractors[
-                      new Hash(contractor).md5
-                    ].type.toUpperCase(),
-                    service: newService.toUpperCase(),
+                    contractorType: contractorType,
+                    service: newService,
                     project: project.toUpperCase(),
                     symbol: symbol.toUpperCase(),
-                    symbolType: symbolType.toUpperCase(),
-                    risk: risk.toUpperCase(),
+                    symbolType: symbolType,
+                    risk: risk,
                     quantity: quantityRound,
                     historicalCostBuy,
                     historicalCostAvg,
@@ -2556,20 +2597,6 @@ function updateTransactions() {
   new Registry().updateTransactions();
 }
 
-function updatePrices() {
-  new Promise((resolve) => {
-    new Prices().updatePrices();
-    resolve();
-  }).then(() => {
-    new Promise((resolve) => {
-      new HistoricalPricesAvg().updateHistoricalPricesAvg();
-      resolve();
-    }).then(() => {
-      new Balance().truncateInsertBalance();
-    });
-  });
-}
-
 function updateCoins() {
   new Coins().updateCoins();
 }
@@ -2578,55 +2605,64 @@ function updateHistoricalPricesAvg() {
   new HistoricalPricesAvg().updateHistoricalPricesAvg();
 }
 
+function updatePrices() {
+  const startProcess = new FormatDate();
+  try {
+    new Promise((resolve) => {
+      new Prices().updatePrices();
+      resolve();
+    }).then(() => {
+      new Promise((resolve) => {
+        new HistoricalPricesAvg().updateHistoricalPricesAvg();
+        resolve();
+      }).then(() => {
+        new Balance().truncateInsertBalance();
+      });
+    });
+  } catch (error) {
+  } finally {
+    new Log().addMessage(
+      'updatePrices',
+      'ID:' + startProcess.value,
+      'Time spent: ' + startProcess.getTimeDiff()
+    );
+  }
+}
+
 function updateBalance() {
-  new Promise((resolve) => {
-    new HistoricalPricesAvg().updateHistoricalPricesAvg();
-    resolve();
-  }).then(() => {
-    new Balance().truncateInsertBalance();
-  });
+  const startProcess = new FormatDate();
+  try {
+    new Promise((resolve) => {
+      new HistoricalPricesAvg().updateHistoricalPricesAvg();
+      resolve();
+    }).then(() => {
+      new Balance().truncateInsertBalance();
+    });
+  } catch (error) {
+  } finally {
+    new Log().addMessage(
+      'updateBalance',
+      'ID:' + startProcess.value,
+      'Time spent: ' + startProcess.getTimeDiff()
+    );
+  }
 }
 
 function updateOnEdit(editRange) {
   const startProcess = new FormatDate();
+  let countRowInRange, shetNameInRange;
   try {
-    new Log().addMessage(
-      'updateOnEdit',
-      'Start update ' + editRange.range.getSheet().getName(),
-      startProcess.value +
-        ': count row - ' +
-        (editRange.range.rowEnd - editRange.range.rowStart + 1)
-    );
+    shetNameInRange = editRange.range.getSheet().getName();
+    countRowInRange = editRange.range.rowEnd - editRange.range.rowStart + 1;
     const workSheet = new Portfolio().updateOnEdit(editRange.range);
     if (workSheet.isNotNull) {
       if (workSheet.isChangePrimaryKey) {
         workSheet.savePrimaryKeyChanges();
       }
-      const startDate = new FormatDate();
       if (new Hash(workSheet.sheetName).md5 === new Hash('prices').md5) {
-        SpreadsheetApp.getActive().toast(
-          'Start update prices id...',
-          'Prices: ',
-          1
-        );
         new Prices(workSheet).updateId();
-        SpreadsheetApp.getActive().toast(
-          'Prices id updated!',
-          'Save process: ' + startDate.getTimeDiff(),
-          3
-        );
       } else if (workSheet.sheetName.match(new RegExp('[Registry]+', 'g'))) {
-        SpreadsheetApp.getActive().toast(
-          'Start update tx...',
-          'Transaction: ',
-          1
-        );
         new Registry(workSheet).updateTransactions();
-        SpreadsheetApp.getActive().toast(
-          'Tx updated!',
-          'Save process: ' + startDate.getTimeDiff(),
-          3
-        );
       }
     }
   } catch (error) {
@@ -2634,8 +2670,13 @@ function updateOnEdit(editRange) {
   } finally {
     new Log().addMessage(
       'updateOnEdit',
-      'End update ' + startProcess.value,
-      'Time spent: ' + startProcess.getTimeDiff()
+      'ID:' + startProcess.value,
+      'Sheet name: ' +
+        shetNameInRange +
+        ', Count row: ' +
+        countRowInRange +
+        ', Time spent: ' +
+        startProcess.getTimeDiff()
     );
   }
 }
@@ -2646,8 +2687,8 @@ function createMenu() {
   menu.addSubMenu(
     SpreadsheetApp.getUi()
       .createMenu('Update')
-      .addItem('Update balance', 'updateBalance')
-      .addItem('Update prices', 'updatePrices')
+      .addItem('Update average historical price and balance', 'updateBalance')
+      .addItem('Update current prices and balance', 'updatePrices')
       .addItem('Update average historical price', 'updateHistoricalPricesAvg')
       .addItem('Update coins', 'updateCoins')
       .addItem('Update transactions (only admin)', 'updateTransactions')

@@ -113,6 +113,8 @@ class WorkSheet extends SpreadSheet {
             .getDataRange()
             .offset(this.headRowNum - 1, 0, 1, this.countColumn)
     // this.metadata = new WorkSheetMetadata(this.workSheet)
+    this.arrayOfObject = []
+    this.object = {}
     this.getDataset()
   }
 
@@ -133,23 +135,21 @@ class WorkSheet extends SpreadSheet {
   }
 
   getFact() {
-    this.object = this.dataRange
-      .getValues()
-      .reduce((objectRow, arrayRow, indexRow) => {
-        const rowNum = this.firstRowNum + indexRow
-        const rowKey = arrayRow[this.head.rowKey.idx]
-        if (!objectRow[rowKey]) {
-          objectRow[rowKey] = arrayRow.reduce((object, value, index) => {
-            object['rowNum'] = rowNum
-            if (!object[this.headKey[index]]) {
-              object[this.headKey[index]] = value
-            }
-            return object
-          }, {})
+    this.dataRange.getValues().forEach((arrayRow, indexRow) => {
+      const rowNum = this.firstRowNum + indexRow
+      const rowKey = arrayRow[this.head.rowKey.idx]
+      const instanceRow = arrayRow.reduce((object, value, index) => {
+        object['rowNum'] = rowNum
+        if (!object[this.headKey[index]]) {
+          object[this.headKey[index]] = value
         }
-        return objectRow
+        return object
       }, {})
-    this.arrayOfObject = Object.values(this.object)
+      if (!this.object[rowKey]) {
+        this.object[rowKey] = instanceRow
+      }
+      this.arrayOfObject.push(instanceRow)
+    })
     return this
   }
 
@@ -168,6 +168,7 @@ class WorkSheet extends SpreadSheet {
             return object
           }, {})
         }
+
         return objectRow
       }, {})
     this.arrayOfObject = Object.values(this.object)
@@ -175,24 +176,22 @@ class WorkSheet extends SpreadSheet {
   }
 
   getTransactions() {
-    this.object = this.dataRange
-      .getValues()
-      .reduce((objectRow, arrayRow, indexRow) => {
-        const rowNum = this.firstRowNum + indexRow
-        const rowKey = new Hash(rowNum + this.sheetName).md5
-        if (!objectRow[rowKey]) {
-          objectRow[rowKey] = arrayRow.reduce((object, value, column) => {
-            object['rowKey'] = rowKey
-            object['rowNum'] = rowNum
-            if (!object[this.headKey[column]]) {
-              object[this.headKey[column]] = value
-            }
-            return object
-          }, {})
+    this.dataRange.getValues().forEach((arrayRow, indexRow) => {
+      const rowNum = this.firstRowNum + indexRow
+      const rowKey = new Hash(rowNum + this.sheetName).md5
+      const instanceRow = arrayRow.reduce((object, value, column) => {
+        object['rowKey'] = rowKey
+        object['rowNum'] = rowNum
+        if (!object[this.headKey[column]]) {
+          object[this.headKey[column]] = value
         }
-        return objectRow
+        return object
       }, {})
-    this.arrayOfObject = Object.values(this.object)
+      if (!this.object[rowKey]) {
+        this.object[rowKey] = instanceRow
+      }
+      this.arrayOfObject.push(instanceRow)
+    })
     return this
   }
 
@@ -276,12 +275,27 @@ class WorkSheet extends SpreadSheet {
   insertValue(value, row, column) {
     this.workSheet.getRange(row, column).setValue(value)
   }
+  /**
+   *
+   * @param {number} rowNum
+   */
+  deleteRow(rowNum, countRow = 1) {
+    this.workSheet.deleteRows(rowNum, countRow)
+  }
 
-  deleteRow(object = {}) {
-    //? Удалять несколько строк
-    //? Как удалять строки разбросанные по таблице
-    if (object.rowNum !== this.headerRowNum) {
-      this.workSheet.deleteRows(object.rowNum, 1)
+  /**
+   *
+   * @param {array} arrayOfObject
+   */
+  deleteRows(arrayOfObject = []) {
+    if (arrayOfObject.length) {
+      const sortArrayOfObject = arrayOfObject.sort((a, b) => {
+        return b.rowNum - a.rowNum
+      })
+      sortArrayOfObject.forEach((row) => {
+        console.log('deleteRows', row.rowNum)
+        this.deleteRow(row.rowNum)
+      })
     }
   }
 
@@ -359,6 +373,8 @@ class WorkSheetRange extends WorkSheet {
     this.columnNumArray = [...Array(this.countColumn).keys()].map(
       (m) => (m = m + this.range.columnStart)
     )
+    this.arrayOfObject = []
+    this.object = {}
     this.getDataset()
   }
 
@@ -367,23 +383,21 @@ class WorkSheetRange extends WorkSheet {
   }
 
   getFact() {
-    this.object = this.dataRange
-      .getValues()
-      .reduce((objectRow, arrayRow, indexRow) => {
-        const rowNum = this.firstRowNum + indexRow
-        const rowKey = arrayRow[this.head.rowKey.idx]
-        if (!objectRow[rowKey]) {
-          objectRow[rowKey] = arrayRow.reduce((object, value, index) => {
-            object['rowNum'] = rowNum
-            if (!object[this.headKey[index]]) {
-              object[this.headKey[index]] = value
-            }
-            return object
-          }, {})
+    this.dataRange.getValues().forEach((arrayRow, indexRow) => {
+      const rowNum = this.firstRowNum + indexRow
+      const rowKey = arrayRow[this.head.rowKey.idx]
+      const instanceRow = arrayRow.reduce((object, value, index) => {
+        object['rowNum'] = rowNum
+        if (!object[this.headKey[index]]) {
+          object[this.headKey[index]] = value
         }
-        return objectRow
+        return object
       }, {})
-    this.arrayOfObject = Object.values(this.object)
+      if (!this.object[rowKey]) {
+        this.object[rowKey] = instanceRow
+      }
+      this.arrayOfObject.push(instanceRow)
+    })
     return this
   }
 
@@ -408,7 +422,6 @@ class WorkSheetRange extends WorkSheet {
         if (!objectRow[object.rowKey]) {
           objectRow[object.rowKey] = object
         }
-
         this.isNotNull = new Header().isNotNull(this.head, object)
         return objectRow
       }, {})
@@ -418,28 +431,23 @@ class WorkSheetRange extends WorkSheet {
 
   getTransactions() {
     try {
-      this.object = this.dataRange
-        .getValues()
-        .reduce((objectRow, arrayRow, indexRow) => {
-          const rowNum = this.firstRowNum + indexRow
-          const rowKey = new Hash(rowNum + this.sheetName).md5
-          const object = arrayRow.reduce((object, value, column) => {
-            if (!object[this.headKey[column]]) {
-              object[this.headKey[column]] = value
-              object['rowKey'] = rowKey
-              object['rowNum'] = rowNum
-            }
-            return object
-          }, {})
-          if (!objectRow[rowKey]) {
-            objectRow[rowKey] = object
-            objectRow[rowKey]['rowKey'] = rowKey
-            objectRow[rowKey]['rowNum'] = rowNum
-            this.isNotNull = new Header().isNotNull(this.head, object)
+      this.dataRange.getValues().forEach((arrayRow, indexRow) => {
+        const rowNum = this.firstRowNum + indexRow
+        const rowKey = new Hash(rowNum + this.sheetName).md5
+        const instanceRow = arrayRow.reduce((object, value, column) => {
+          if (!object[this.headKey[column]]) {
+            object[this.headKey[column]] = value
+            object['rowKey'] = rowKey
+            object['rowNum'] = rowNum
           }
-          return objectRow
+          return object
         }, {})
-      this.arrayOfObject = Object.values(this.object)
+        if (!this.object[rowKey]) {
+          this.object[rowKey] = instanceRow
+          this.isNotNull = new Header().isNotNull(this.head, instanceRow)
+        }
+        this.arrayOfObject.push(instanceRow)
+      })
       return this
     } catch (error) {
       console.error('WorkSheetRange.getTransactions', error.stack)
