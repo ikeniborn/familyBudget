@@ -50,12 +50,13 @@ class Prices {
   updateRisk(symbol, marketCapRank = 0) {
     try {
       const price = this.workSheet.object[new Hash(symbol).md5]
-      const symbolType = this.symbolType[new Hash(price.symbolType).md5]
-      if (symbolType.name !== 'MarketCap') {
+      const symbolType = this.symbolType[new Hash(price?.symbolType).md5]
+      if (symbolType?.name !== 'MarketCap') {
         price.risk =
-          symbolType.strategy +
+          symbolType?.strategy +
           ' (' +
-          this.strategy[new Hash(symbolType.strategy).md5]?.distribution * 100 +
+          this.strategy[new Hash(symbolType?.strategy).md5]?.distribution *
+            100 +
           '%)'
       } else {
         if (marketCapRank <= 100) {

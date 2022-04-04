@@ -894,6 +894,12 @@ class Portfolio {
           historicalCostBuy: { alias: 'Historical buy cost', idx: 9 },
           historicalCostAvg: { alias: 'Historical average cost', idx: 10 },
           currentCost: { alias: 'Current cost', idx: 11 },
+          updateDate: {
+            alias: 'Update',
+            idx: 12,
+            type: 'date',
+            default: new Date(),
+          },
         },
       },
       historicalPricesAvg: {
@@ -1720,12 +1726,13 @@ class Prices {
   updateRisk(symbol, marketCapRank = 0) {
     try {
       const price = this.workSheet.object[new Hash(symbol).md5];
-      const symbolType = this.symbolType[new Hash(price.symbolType).md5];
-      if (symbolType.name !== 'MarketCap') {
+      const symbolType = this.symbolType[new Hash(price?.symbolType).md5];
+      if (symbolType?.name !== 'MarketCap') {
         price.risk =
-          symbolType.strategy +
+          symbolType?.strategy +
           ' (' +
-          this.strategy[new Hash(symbolType.strategy).md5]?.distribution * 100 +
+          this.strategy[new Hash(symbolType?.strategy).md5]?.distribution *
+            100 +
           '%)';
       } else {
         if (marketCapRank <= 100) {

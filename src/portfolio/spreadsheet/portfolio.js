@@ -133,6 +133,12 @@ class Portfolio {
           historicalCostBuy: { alias: 'Historical buy cost', idx: 9 },
           historicalCostAvg: { alias: 'Historical average cost', idx: 10 },
           currentCost: { alias: 'Current cost', idx: 11 },
+          updateDate: {
+            alias: 'Update',
+            idx: 12,
+            type: 'date',
+            default: new Date(),
+          },
         },
       },
       historicalPricesAvg: {
