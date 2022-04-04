@@ -50,6 +50,7 @@ class HistoricalPrices {
               }
             })
           } else {
+            tx.quantity = positiveQuantity
             this.workSheet.insertRow(tx)
           }
         })

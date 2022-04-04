@@ -23,24 +23,35 @@ class Prices {
 
   updateId() {
     try {
-      const coinsArray = new Portfolio().getWorkSheet('coins').arrayOfObject
+      // const coins = new Portfolio().getWorkSheet('coins').arrayOfObject
+      const coins = new Portfolio().getWorkSheet('coins').object
       this.workSheet.arrayOfObject.map((object) => {
-        const coinPrice = coinsArray.filter((row) => {
-          return (
-            new RegExp(object.name.toString().toLowerCase(), 'g').test(
-              row.name.toString().toLowerCase()
-            ) &&
-            new Hash(object.source).md5 === new Hash(row.source).md5 &&
-            new Hash(object.symbol).md5 === new Hash(row.symbol).md5
+        const coinsKey = new Hash(object.source + object.name + object.symbol)
+          .md5
+        // const coin = coins.filter((row) => {
+        //   return (
+        //     new RegExp(object.name.toString().toLowerCase(), 'g').test(
+        //       row.name.toString().toLowerCase()
+        //     ) &&
+        //     new Hash(object.source).md5 === new Hash(row.source).md5 &&
+        //     new Hash(object.symbol).md5 === new Hash(row.symbol).md5
+        //   )
+        // })[0]
+        object.id = coins[coinsKey]?.id || '#N/A'
+        if (
+          new Hash(object.source).md5 === new Hash('cryptoCompare'.md5) &&
+          !object.price
+        ) {
+          object.price = new cryptoCompare.Price().getSinglePrice(
+            coins[coinsKey]?.id
           )
-        })[0]
-        object.id = coinPrice?.id || '#N/A'
-        object.dateTime = new Date()
+        }
         return object
       })
 
       this.workSheet.arrayOfObject.forEach((object) => {
-        this.workSheet.updateRow(object)
+        new Log().addMessage('Prices.updateId', 'object', object)
+        // this.workSheet.updateRow(object)
       })
     } catch (error) {
       new Log().addError('Prices.updateId', error)

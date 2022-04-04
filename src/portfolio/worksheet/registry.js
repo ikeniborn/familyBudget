@@ -227,6 +227,7 @@ class Registry {
           this.workSheet.isRange
         )
       }
+      this.workSheet.deleteEmptyRows()
     } catch (error) {
       new Log().addError('Registry.updateTransactions', error)
     }

@@ -128,9 +128,9 @@ class Portfolio {
           project: { alias: 'Project', idx: 4 },
           symbol: { alias: 'Symbol', idx: 5 },
           symbolType: { alias: 'Symbol Type', idx: 6 },
-          risk: { alias: 'Risk category', idx: 7 },
-          quantity: { alias: 'Quantity', idx: 8 },
-          historicalCostBuy: { alias: 'Historical buy cost', idx: 9 },
+          tokenStatus: { alias: 'Token status', idx: 7 },
+          risk: { alias: 'Risk category', idx: 8 },
+          quantity: { alias: 'Quantity', idx: 9 },
           historicalCostAvg: { alias: 'Historical average cost', idx: 10 },
           currentCost: { alias: 'Current cost', idx: 11 },
           updateDate: {
@@ -150,9 +150,13 @@ class Portfolio {
           project: { alias: 'Project', pk: true, idx: 2, notNull: true },
           symbol: { alias: 'Symbol', pk: true, idx: 3, notNull: true },
           quantity: { alias: 'Quantity', idx: 4 },
-          priceAvg: { alias: 'Price avg', idx: 5 },
-          priceBuy: { alias: 'Price buy', idx: 6 },
-          priceSell: { alias: 'Price sell', idx: 7 },
+          quantityBuy: { alias: 'Quantity buy', idx: 5 },
+          quantitySell: { alias: 'Quantity sell', idx: 6 },
+          quantityRest: { alias: 'Quantity rest', idx: 7 },
+          priceAvg: { alias: 'Price avg', idx: 8 },
+          priceBuy: { alias: 'Price buy', idx: 9 },
+          priceSell: { alias: 'Price sell', idx: 10 },
+          priceCurr: { alias: 'Price curr', idx: 11 },
         },
       },
       historicalPrices: {
@@ -174,7 +178,8 @@ class Portfolio {
           symbol: { alias: 'Symbol', pk: true, idx: 6, notNull: true },
           quantity: { alias: 'Quantity', idx: 7 },
           price: { alias: 'Price', idx: 8 },
-          isDelete: { alias: 'Is delete', idx: 8 },
+          isDelete: { alias: 'Is delete', idx: 9 },
+          registryRowNum: { alias: 'Registry row num', idx: 10 },
         },
       },
       coins: {
@@ -221,6 +226,7 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
+          tokenStatus: { alias: 'Token status', idx: 2, notNull: true },
         },
       },
       operations: {

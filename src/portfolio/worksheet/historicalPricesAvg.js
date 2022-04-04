@@ -54,20 +54,26 @@ class HistoricalPricesAvg {
           return agg
         }, {})
       const avgHistoricalPricesArrayOfObject = []
+      const prices = new Portfolio().getWorkSheet('prices').object
       Object.entries(aggHistoricalPrices).forEach(([account, level0]) => {
         Object.entries(level0).forEach(([project, level1]) => {
           Object.entries(level1).forEach(([symbol, object]) => {
-            const avgPrice = object.cost / object.quantity || void 0
+            const avgPrice = object.cost / object.quantity || 0
             if (avgPrice) {
+              const pricesKey = new Hash(symbol).md5
               avgHistoricalPricesArrayOfObject.push({
                 rowKey: new Hash(account + project + symbol).md5,
-                account,
-                project,
-                symbol,
-                quantity: object.quantity,
-                priceAvg: object.cost / object.quantity || void 0,
-                priceBuy: object.costBuy / object.quantityBuy || void 0,
-                priceSell: object.costSell / object.quantitySell || void 0,
+                account: account.toUpperCase(),
+                project: project.toUpperCase(),
+                symbol: symbol.toUpperCase(),
+                quantity: object.quantity || 0,
+                quantityBuy: object.quantityBuy || 0,
+                quantitySell: object.quantitySell || 0,
+                quantityRest: object.quantityBuy - object.quantitySell || 0,
+                priceAvg: object.cost / object.quantity || 0,
+                priceBuy: object.costBuy / object.quantityBuy || 0,
+                priceSell: object.costSell / object.quantitySell || 0,
+                priceCurr: prices[pricesKey]?.price || 0,
               })
             }
           })

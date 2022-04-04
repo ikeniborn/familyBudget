@@ -889,9 +889,9 @@ class Portfolio {
           project: { alias: 'Project', idx: 4 },
           symbol: { alias: 'Symbol', idx: 5 },
           symbolType: { alias: 'Symbol Type', idx: 6 },
-          risk: { alias: 'Risk category', idx: 7 },
-          quantity: { alias: 'Quantity', idx: 8 },
-          historicalCostBuy: { alias: 'Historical buy cost', idx: 9 },
+          tokenStatus: { alias: 'Token status', idx: 7 },
+          risk: { alias: 'Risk category', idx: 8 },
+          quantity: { alias: 'Quantity', idx: 9 },
           historicalCostAvg: { alias: 'Historical average cost', idx: 10 },
           currentCost: { alias: 'Current cost', idx: 11 },
           updateDate: {
@@ -911,9 +911,13 @@ class Portfolio {
           project: { alias: 'Project', pk: true, idx: 2, notNull: true },
           symbol: { alias: 'Symbol', pk: true, idx: 3, notNull: true },
           quantity: { alias: 'Quantity', idx: 4 },
-          priceAvg: { alias: 'Price avg', idx: 5 },
-          priceBuy: { alias: 'Price buy', idx: 6 },
-          priceSell: { alias: 'Price sell', idx: 7 },
+          quantityBuy: { alias: 'Quantity buy', idx: 5 },
+          quantitySell: { alias: 'Quantity sell', idx: 6 },
+          quantityRest: { alias: 'Quantity rest', idx: 7 },
+          priceAvg: { alias: 'Price avg', idx: 8 },
+          priceBuy: { alias: 'Price buy', idx: 9 },
+          priceSell: { alias: 'Price sell', idx: 10 },
+          priceCurr: { alias: 'Price curr', idx: 11 },
         },
       },
       historicalPrices: {
@@ -935,7 +939,8 @@ class Portfolio {
           symbol: { alias: 'Symbol', pk: true, idx: 6, notNull: true },
           quantity: { alias: 'Quantity', idx: 7 },
           price: { alias: 'Price', idx: 8 },
-          isDelete: { alias: 'Is delete', idx: 8 },
+          isDelete: { alias: 'Is delete', idx: 9 },
+          registryRowNum: { alias: 'Registry row num', idx: 10 },
         },
       },
       coins: {
@@ -982,6 +987,7 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
+          tokenStatus: { alias: 'Token status', idx: 2, notNull: true },
         },
       },
       operations: {
@@ -1183,20 +1189,26 @@ class HistoricalPricesAvg {
           return agg
         }, {});
       const avgHistoricalPricesArrayOfObject = [];
+      const prices = new Portfolio().getWorkSheet('prices').object;
       Object.entries(aggHistoricalPrices).forEach(([account, level0]) => {
         Object.entries(level0).forEach(([project, level1]) => {
           Object.entries(level1).forEach(([symbol, object]) => {
-            const avgPrice = object.cost / object.quantity || void 0;
+            const avgPrice = object.cost / object.quantity || 0;
             if (avgPrice) {
+              const pricesKey = new Hash(symbol).md5;
               avgHistoricalPricesArrayOfObject.push({
                 rowKey: new Hash(account + project + symbol).md5,
-                account,
-                project,
-                symbol,
-                quantity: object.quantity,
-                priceAvg: object.cost / object.quantity || void 0,
-                priceBuy: object.costBuy / object.quantityBuy || void 0,
-                priceSell: object.costSell / object.quantitySell || void 0,
+                account: account.toUpperCase(),
+                project: project.toUpperCase(),
+                symbol: symbol.toUpperCase(),
+                quantity: object.quantity || 0,
+                quantityBuy: object.quantityBuy || 0,
+                quantitySell: object.quantitySell || 0,
+                quantityRest: object.quantityBuy - object.quantitySell || 0,
+                priceAvg: object.cost / object.quantity || 0,
+                priceBuy: object.costBuy / object.quantityBuy || 0,
+                priceSell: object.costSell / object.quantitySell || 0,
+                priceCurr: prices[pricesKey]?.price || 0,
               });
             }
           });
@@ -1431,16 +1443,19 @@ class Price$1 {
 
   getSinglePrice(fsym = '', tsyms = 'USD') {
     try {
-      return this.methods.get({
+      const upperTsyms = tsyms.toUpperCase();
+      const upperFsym = fsym.toUpperCase();
+      const resp = this.methods.get({
         endPoint: '/price',
         query: {
-          fsym: fsym.toUpperCase(),
-          tsyms: tsyms,
+          fsym: upperFsym,
+          tsyms: upperTsyms,
           relaxedValidation: true,
         },
-      })
+      });
+      return resp[upperTsyms]
     } catch (error) {
-      console.error('Price.getSinglePrice', error);
+      console.error('Price.getSinglePrice', error.stack);
     }
   }
 
@@ -1471,7 +1486,7 @@ class Price$1 {
       });
       return priceArray
     } catch (error) {
-      console.error('Price.getMultiPrice', error);
+      console.error('Price.getMultiPrice', error.stack);
     }
   }
 
@@ -1494,7 +1509,7 @@ class Price$1 {
         return void 0
       }
     } catch (error) {
-      console.error('Price.getMultiFullPrice', error);
+      console.error('Price.getMultiFullPrice', error.stack);
     }
   }
 
@@ -1517,7 +1532,7 @@ class Price$1 {
         return void 0
       }
     } catch (error) {
-      console.error('Price.getHistoryPrice', error);
+      console.error('Price.getHistoryPrice', error.stack);
     }
   }
 }
@@ -1570,7 +1585,7 @@ class TopList {
       }
       return list
     } catch (error) {
-      console.error('TopList.topListBy24h', error);
+      console.error('TopList.topListBy24h', error.stack);
     }
   }
 }
@@ -1699,24 +1714,35 @@ class Prices {
 
   updateId() {
     try {
-      const coinsArray = new Portfolio().getWorkSheet('coins').arrayOfObject;
+      // const coins = new Portfolio().getWorkSheet('coins').arrayOfObject
+      const coins = new Portfolio().getWorkSheet('coins').object;
       this.workSheet.arrayOfObject.map((object) => {
-        const coinPrice = coinsArray.filter((row) => {
-          return (
-            new RegExp(object.name.toString().toLowerCase(), 'g').test(
-              row.name.toString().toLowerCase()
-            ) &&
-            new Hash(object.source).md5 === new Hash(row.source).md5 &&
-            new Hash(object.symbol).md5 === new Hash(row.symbol).md5
-          )
-        })[0];
-        object.id = coinPrice?.id || '#N/A';
-        object.dateTime = new Date();
+        const coinsKey = new Hash(object.source + object.name + object.symbol)
+          .md5;
+        // const coin = coins.filter((row) => {
+        //   return (
+        //     new RegExp(object.name.toString().toLowerCase(), 'g').test(
+        //       row.name.toString().toLowerCase()
+        //     ) &&
+        //     new Hash(object.source).md5 === new Hash(row.source).md5 &&
+        //     new Hash(object.symbol).md5 === new Hash(row.symbol).md5
+        //   )
+        // })[0]
+        object.id = coins[coinsKey]?.id || '#N/A';
+        if (
+          new Hash(object.source).md5 === new Hash('cryptoCompare'.md5) &&
+          !object.price
+        ) {
+          object.price = new Price$1().getSinglePrice(
+            coins[coinsKey]?.id
+          );
+        }
         return object
       });
 
       this.workSheet.arrayOfObject.forEach((object) => {
-        this.workSheet.updateRow(object);
+        new Log().addMessage('Prices.updateId', 'object', object);
+        // this.workSheet.updateRow(object)
       });
     } catch (error) {
       new Log().addError('Prices.updateId', error);
@@ -1902,6 +1928,7 @@ class HistoricalPrices {
               }
             });
           } else {
+            tx.quantity = positiveQuantity;
             this.workSheet.insertRow(tx);
           }
         });
@@ -2286,6 +2313,7 @@ class Registry {
           this.workSheet.isRange
         );
       }
+      this.workSheet.deleteEmptyRows();
     } catch (error) {
       new Log().addError('Registry.updateTransactions', error);
     }
@@ -2383,33 +2411,43 @@ class Balance {
       ).object;
       const prices = new Portfolio().getWorkSheet('prices').object;
       const contractors = new Portfolio().getWorkSheet('contractors').object;
-
+      const services = new Portfolio().getWorkSheet('services').object;
       const aggBalance = new Portfolio()
         .getWorkSheet('transactions')
         .arrayOfObject.filter((row) => !row.isDelete)
         .reduce((object, tx) => {
+          let newService;
+          if (
+            ['liquidity pool (1)', 'liquidity pool (2)']
+              .map((m) => (m = new Hash(m).md5))
+              .indexOf(new Hash(tx.service).md5) !== -1
+          ) {
+            newService = 'Liquidity pool';
+          } else {
+            newService = tx.service;
+          }
           if (!object[tx.account]) {
             object[tx.account] = {};
           }
           if (!object[tx.account][tx.contractor]) {
             object[tx.account][tx.contractor] = {};
           }
-          if (!object[tx.account][tx.contractor][tx.service]) {
-            object[tx.account][tx.contractor][tx.service] = {};
+          if (!object[tx.account][tx.contractor][newService]) {
+            object[tx.account][tx.contractor][newService] = {};
           }
-          if (!object[tx.account][tx.contractor][tx.service][tx.project]) {
-            object[tx.account][tx.contractor][tx.service][tx.project] = {};
+          if (!object[tx.account][tx.contractor][newService][tx.project]) {
+            object[tx.account][tx.contractor][newService][tx.project] = {};
           }
           if (
-            !object[tx.account][tx.contractor][tx.service][tx.project][
+            !object[tx.account][tx.contractor][newService][tx.project][
               tx.symbol
             ]
           ) {
-            object[tx.account][tx.contractor][tx.service][tx.project][
+            object[tx.account][tx.contractor][newService][tx.project][
               tx.symbol
             ] = 0;
           }
-          object[tx.account][tx.contractor][tx.service][tx.project][
+          object[tx.account][tx.contractor][newService][tx.project][
             tx.symbol
           ] += tx.quantity;
           return object
@@ -2419,51 +2457,44 @@ class Balance {
           Object.entries(level1).forEach(([service, level2]) => {
             Object.entries(level2).forEach(([project, level3]) => {
               Object.entries(level3).forEach(([symbol, quantity]) => {
-                let newService;
                 const quantityRound = Math.round(quantity * 1000) / 1000;
                 if (quantityRound) {
+                  const historicalPricesAvgKey = new Hash(
+                    account + project + symbol
+                  ).md5;
                   const currentCost =
                     quantityRound * prices[new Hash(symbol).md5]?.price;
                   const symbolType =
                     prices[new Hash(symbol).md5]?.symbolType.toUpperCase() ||
                     void 0;
                   const historicalCostBuy =
-                    quantityRound *
-                      historicalPricesAvg[
-                        new Hash(account + project + symbol).md5
-                      ]?.priceBuy || 0;
+                    historicalPricesAvg[historicalPricesAvgKey]?.quantityBuy *
+                      historicalPricesAvg[historicalPricesAvgKey]?.priceBuy || 0;
+                  const historicalCostSell =
+                    historicalPricesAvg[historicalPricesAvgKey]?.quantitySell *
+                      historicalPricesAvg[historicalPricesAvgKey]?.priceSell ||
+                    0;
                   const historicalCostAvg =
                     quantityRound *
-                      historicalPricesAvg[
-                        new Hash(account + project + symbol).md5
-                      ]?.priceAvg || 0;
+                      historicalPricesAvg[historicalPricesAvgKey]?.priceAvg || 0;
                   const risk =
                     prices[new Hash(symbol).md5]?.risk.toUpperCase() || void 0;
-
-                  if (
-                    [('Liquidity pool (1)', 'Liquidity pool (2)')].indexOf(
-                      service
-                    ) !== -1
-                  ) {
-                    newService = 'Liquidity pool'.toUpperCase();
-                  } else {
-                    newService = service.toUpperCase();
-                  }
                   const contractorType =
                     contractors[new Hash(contractor).md5]?.type.toUpperCase() ||
                     void 0;
-
+                  const tokenStatus =
+                    services[new Hash(service).md5].tokenStatus;
                   newArrayOfObject.push({
                     account: account.toUpperCase(),
                     contractor: contractor.toUpperCase(),
                     contractorType: contractorType,
-                    service: newService,
+                    service: service.toUpperCase(),
                     project: project.toUpperCase(),
                     symbol: symbol.toUpperCase(),
                     symbolType: symbolType,
+                    tokenStatus: tokenStatus.toUpperCase(),
                     risk: risk,
                     quantity: quantityRound,
-                    historicalCostBuy,
                     historicalCostAvg,
                     currentCost,
                   });
@@ -2657,17 +2688,19 @@ function updateBalance() {
 
 function updateOnEdit(editRange) {
   const startProcess = new FormatDate();
-  let countRowInRange, shetNameInRange;
+  let countRowInRange, sheetNameInRange, rowStartInRange, rowEndInRange;
   try {
-    shetNameInRange = editRange.range.getSheet().getName();
+    sheetNameInRange = editRange.range.getSheet().getName();
     countRowInRange = editRange.range.rowEnd - editRange.range.rowStart + 1;
+    rowStartInRange = editRange.range.rowStart;
+    rowEndInRange = editRange.range.rowEnd;
     const workSheet = new Portfolio().updateOnEdit(editRange.range);
     if (workSheet.isNotNull) {
       if (workSheet.isChangePrimaryKey) {
         workSheet.savePrimaryKeyChanges();
       }
       if (new Hash(workSheet.sheetName).md5 === new Hash('prices').md5) {
-        new Prices(workSheet).updateId();
+        // new Prices(workSheet).updateId()
       } else if (workSheet.sheetName.match(new RegExp('[Registry]+', 'g'))) {
         new Registry(workSheet).updateTransactions();
       }
@@ -2679,7 +2712,11 @@ function updateOnEdit(editRange) {
       'updateOnEdit',
       'ID:' + startProcess.value,
       'Sheet name: ' +
-        shetNameInRange +
+        sheetNameInRange +
+        ', Start row: ' +
+        rowStartInRange +
+        ', End Row: ' +
+        rowEndInRange +
         ', Count row: ' +
         countRowInRange +
         ', Time spent: ' +

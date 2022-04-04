@@ -38,16 +38,19 @@ class Price {
 
   getSinglePrice(fsym = '', tsyms = 'USD') {
     try {
-      return this.methods.get({
+      const upperTsyms = tsyms.toUpperCase()
+      const upperFsym = fsym.toUpperCase()
+      const resp = this.methods.get({
         endPoint: '/price',
         query: {
-          fsym: fsym.toUpperCase(),
-          tsyms: tsyms,
+          fsym: upperFsym,
+          tsyms: upperTsyms,
           relaxedValidation: true,
         },
       })
+      return resp[upperTsyms]
     } catch (error) {
-      console.error('Price.getSinglePrice', error)
+      console.error('Price.getSinglePrice', error.stack)
     }
   }
 
@@ -78,7 +81,7 @@ class Price {
       })
       return priceArray
     } catch (error) {
-      console.error('Price.getMultiPrice', error)
+      console.error('Price.getMultiPrice', error.stack)
     }
   }
 
@@ -101,7 +104,7 @@ class Price {
         return void 0
       }
     } catch (error) {
-      console.error('Price.getMultiFullPrice', error)
+      console.error('Price.getMultiFullPrice', error.stack)
     }
   }
 
@@ -124,7 +127,7 @@ class Price {
         return void 0
       }
     } catch (error) {
-      console.error('Price.getHistoryPrice', error)
+      console.error('Price.getHistoryPrice', error.stack)
     }
   }
 }
@@ -177,7 +180,7 @@ class TopList {
       }
       return list
     } catch (error) {
-      console.error('TopList.topListBy24h', error)
+      console.error('TopList.topListBy24h', error.stack)
     }
   }
 }

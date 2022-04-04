@@ -71,17 +71,19 @@ function updateBalance() {
 
 function updateOnEdit(editRange) {
   const startProcess = new FormatDate()
-  let countRowInRange, shetNameInRange
+  let countRowInRange, sheetNameInRange, rowStartInRange, rowEndInRange
   try {
-    shetNameInRange = editRange.range.getSheet().getName()
+    sheetNameInRange = editRange.range.getSheet().getName()
     countRowInRange = editRange.range.rowEnd - editRange.range.rowStart + 1
+    rowStartInRange = editRange.range.rowStart
+    rowEndInRange = editRange.range.rowEnd
     const workSheet = new Portfolio().updateOnEdit(editRange.range)
     if (workSheet.isNotNull) {
       if (workSheet.isChangePrimaryKey) {
         workSheet.savePrimaryKeyChanges()
       }
       if (new Hash(workSheet.sheetName).md5 === new Hash('prices').md5) {
-        new Prices(workSheet).updateId()
+        // new Prices(workSheet).updateId()
       } else if (workSheet.sheetName.match(new RegExp('[Registry]+', 'g'))) {
         new Registry(workSheet).updateTransactions()
       }
@@ -93,7 +95,11 @@ function updateOnEdit(editRange) {
       'updateOnEdit',
       'ID:' + startProcess.value,
       'Sheet name: ' +
-        shetNameInRange +
+        sheetNameInRange +
+        ', Start row: ' +
+        rowStartInRange +
+        ', End Row: ' +
+        rowEndInRange +
         ', Count row: ' +
         countRowInRange +
         ', Time spent: ' +

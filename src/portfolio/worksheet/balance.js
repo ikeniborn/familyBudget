@@ -18,33 +18,43 @@ class Balance {
       ).object
       const prices = new Portfolio().getWorkSheet('prices').object
       const contractors = new Portfolio().getWorkSheet('contractors').object
-
+      const services = new Portfolio().getWorkSheet('services').object
       const aggBalance = new Portfolio()
         .getWorkSheet('transactions')
         .arrayOfObject.filter((row) => !row.isDelete)
         .reduce((object, tx) => {
+          let newService
+          if (
+            ['liquidity pool (1)', 'liquidity pool (2)']
+              .map((m) => (m = new Hash(m).md5))
+              .indexOf(new Hash(tx.service).md5) !== -1
+          ) {
+            newService = 'Liquidity pool'
+          } else {
+            newService = tx.service
+          }
           if (!object[tx.account]) {
             object[tx.account] = {}
           }
           if (!object[tx.account][tx.contractor]) {
             object[tx.account][tx.contractor] = {}
           }
-          if (!object[tx.account][tx.contractor][tx.service]) {
-            object[tx.account][tx.contractor][tx.service] = {}
+          if (!object[tx.account][tx.contractor][newService]) {
+            object[tx.account][tx.contractor][newService] = {}
           }
-          if (!object[tx.account][tx.contractor][tx.service][tx.project]) {
-            object[tx.account][tx.contractor][tx.service][tx.project] = {}
+          if (!object[tx.account][tx.contractor][newService][tx.project]) {
+            object[tx.account][tx.contractor][newService][tx.project] = {}
           }
           if (
-            !object[tx.account][tx.contractor][tx.service][tx.project][
+            !object[tx.account][tx.contractor][newService][tx.project][
               tx.symbol
             ]
           ) {
-            object[tx.account][tx.contractor][tx.service][tx.project][
+            object[tx.account][tx.contractor][newService][tx.project][
               tx.symbol
             ] = 0
           }
-          object[tx.account][tx.contractor][tx.service][tx.project][
+          object[tx.account][tx.contractor][newService][tx.project][
             tx.symbol
           ] += tx.quantity
           return object
@@ -54,51 +64,44 @@ class Balance {
           Object.entries(level1).forEach(([service, level2]) => {
             Object.entries(level2).forEach(([project, level3]) => {
               Object.entries(level3).forEach(([symbol, quantity]) => {
-                let newService
                 const quantityRound = Math.round(quantity * 1000) / 1000
                 if (quantityRound) {
+                  const historicalPricesAvgKey = new Hash(
+                    account + project + symbol
+                  ).md5
                   const currentCost =
                     quantityRound * prices[new Hash(symbol).md5]?.price
                   const symbolType =
                     prices[new Hash(symbol).md5]?.symbolType.toUpperCase() ||
                     void 0
                   const historicalCostBuy =
-                    quantityRound *
-                      historicalPricesAvg[
-                        new Hash(account + project + symbol).md5
-                      ]?.priceBuy || 0
+                    historicalPricesAvg[historicalPricesAvgKey]?.quantityBuy *
+                      historicalPricesAvg[historicalPricesAvgKey]?.priceBuy || 0
+                  const historicalCostSell =
+                    historicalPricesAvg[historicalPricesAvgKey]?.quantitySell *
+                      historicalPricesAvg[historicalPricesAvgKey]?.priceSell ||
+                    0
                   const historicalCostAvg =
                     quantityRound *
-                      historicalPricesAvg[
-                        new Hash(account + project + symbol).md5
-                      ]?.priceAvg || 0
+                      historicalPricesAvg[historicalPricesAvgKey]?.priceAvg || 0
                   const risk =
                     prices[new Hash(symbol).md5]?.risk.toUpperCase() || void 0
-
-                  if (
-                    [('Liquidity pool (1)', 'Liquidity pool (2)')].indexOf(
-                      service
-                    ) !== -1
-                  ) {
-                    newService = 'Liquidity pool'.toUpperCase()
-                  } else {
-                    newService = service.toUpperCase()
-                  }
                   const contractorType =
                     contractors[new Hash(contractor).md5]?.type.toUpperCase() ||
                     void 0
-
+                  const tokenStatus =
+                    services[new Hash(service).md5].tokenStatus
                   newArrayOfObject.push({
                     account: account.toUpperCase(),
                     contractor: contractor.toUpperCase(),
                     contractorType: contractorType,
-                    service: newService,
+                    service: service.toUpperCase(),
                     project: project.toUpperCase(),
                     symbol: symbol.toUpperCase(),
                     symbolType: symbolType,
+                    tokenStatus: tokenStatus.toUpperCase(),
                     risk: risk,
                     quantity: quantityRound,
-                    historicalCostBuy,
                     historicalCostAvg,
                     currentCost,
                   })
