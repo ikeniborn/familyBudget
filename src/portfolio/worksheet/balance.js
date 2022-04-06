@@ -24,6 +24,12 @@ class Balance {
         .arrayOfObject.filter((row) => !row.isDelete)
         .reduce((object, tx) => {
           let newService
+          let quantityBuy = 0
+          let quantitySell = 0
+          let quantityRefill = 0
+          let quantityWriteOff = 0
+          let quantityTransferIn = 0
+          let quantityTransferOut = 0
           if (
             ['liquidity pool (1)', 'liquidity pool (2)']
               .map((m) => (m = new Hash(m).md5))
@@ -34,26 +40,33 @@ class Balance {
             newService = tx.service
           }
           //* Распределение количества по потокам
-          const quantityBuy =
-            tx.direction === 'in' && tx.operation === 'buy' ? tx.quantity : 0
-          const quantitySell =
-            tx.direction === 'out' && tx.operation === 'sell'
-              ? tx.quantity * -1
-              : 0
-          const quantityRefill =
-            tx.direction === 'in' && tx.operation === 'refill' ? tx.quantity : 0
-          const quantityWriteOff =
-            tx.direction === 'out' && tx.operation === 'write-off'
-              ? tx.quantity * -1
-              : 0
-          const quantityTransferIn =
-            tx.direction === 'in' && tx.operation === 'transfer'
-              ? tx.quantity
-              : 0
-          const quantityTransferOut =
-            tx.direction === 'out' && tx.operation === 'transfer'
-              ? tx.quantity * -1
-              : 0
+
+          new Hash(tx.operation).md5 === new Hash('buy').md5
+            ? (quantityBuy += tx.quantity)
+            : (quantityBuy += 0)
+
+          new Hash(tx.operation).md5 === new Hash('sell').md5
+            ? (quantitySell += tx.quantity)
+            : (quantitySell += 0)
+
+          new Hash(tx.operation).md5 === new Hash('refill').md5
+            ? (quantityRefill += tx.quantity)
+            : (quantityRefill += 0)
+
+          new Hash(tx.operation).md5 === new Hash('write-off').md5
+            ? (quantityWriteOff += tx.quantity * -1)
+            : (quantityWriteOff += 0)
+
+          new Hash(tx.operation + tx.direction).md5 ===
+          new Hash('transfer' + 'in').md5
+            ? (quantityTransferIn += tx.quantity)
+            : (quantityTransferIn += 0)
+
+          new Hash(tx.operation + tx.direction).md5 ===
+          new Hash('transfer' + 'out').md5
+            ? (quantityTransferOut += tx.quantity * -1)
+            : (quantityTransferOut += 0)
+
           //* Агрегация
           if (!object[tx.account]) {
             object[tx.account] = {}
@@ -88,7 +101,6 @@ class Balance {
           object[tx.account][tx.contractor][newService][tx.project][
             tx.symbol
           ].quantityRest += tx.quantity
-          // quantityBuy + quantityRefill - quantitySell - quantityWriteOff
 
           object[tx.account][tx.contractor][newService][tx.project][
             tx.symbol
@@ -126,28 +138,26 @@ class Balance {
                 const historicalPricesAvgKey = new Hash(
                   account + project + symbol
                 ).md5
-                // const quantityRestShare =
-                //   (quantity.quantityBuy +
-                //     quantity.quantityRefill -
-                //     quantity.quantityWriteOff) /
-                //   (historicalPricesAvg[historicalPricesAvgKey]?.quantityBuy
-                //     +
-                //     historicalPricesAvg[historicalPricesAvgKey]
-                //       ?.quantityRefill +
-                //     historicalPricesAvg[historicalPricesAvgKey]
-                //       ?.quantityWriteOff)
-                const quantityRestShare =
-                  (quantity.quantityBuy +
-                    quantity.quantityRefill +
-                    quantity.quantityTransferIn) /
-                  (historicalPricesAvg[historicalPricesAvgKey]?.quantityBuy +
-                    historicalPricesAvg[historicalPricesAvgKey]?.quantityRefill)
-                const inFlow =
-                  historicalPricesAvg[historicalPricesAvgKey]?.inFlow *
-                    quantityRestShare || 0
-                const outFlow =
-                  historicalPricesAvg[historicalPricesAvgKey]?.outFlow *
-                    quantityRestShare || 0
+                const quantityInFlow =
+                  quantity.quantityBuy +
+                  quantity.quantityRefill +
+                  quantity.quantityTransferIn
+
+                const quantityOutFlow =
+                  quantity.quantitySell +
+                  quantity.quantityWriteOff +
+                  quantity.quantityTransferOut
+                const quantityFlow = quantityInFlow - quantityOutFlow
+                const costInFlow =
+                  historicalPricesAvg[historicalPricesAvgKey]?.costInFlow *
+                    (quantityFlow /
+                      historicalPricesAvg[historicalPricesAvgKey]
+                        ?.quantityInFlow) || 0
+                const costOutFlow =
+                  historicalPricesAvg[historicalPricesAvgKey]?.costOutFlow *
+                    (quantityFlow /
+                      historicalPricesAvg[historicalPricesAvgKey]
+                        ?.quantityInFlow) || 0
                 //* дополнительная аналитика
                 const symbolType =
                   prices[new Hash(symbol).md5]?.symbolType.toUpperCase() ||
@@ -159,9 +169,8 @@ class Balance {
                   void 0
                 const tokenStatus = services[new Hash(service).md5].tokenStatus
                 //* текущая стоимость
-                const currentRestCost =
+                const costRest =
                   quantity.quantityRest * prices[new Hash(symbol).md5]?.price
-
                 newArrayOfObject.push({
                   account: account.toUpperCase(),
                   contractor: contractor.toUpperCase(),
@@ -174,14 +183,16 @@ class Balance {
                   risk: risk,
                   quantityRest: quantity.quantityRest,
                   quantityBuy: quantity.quantityBuy,
-                  quantitySell: quantity.quantitySell,
+                  quantitySell: Math.abs(quantity.quantitySell),
                   quantityRefill: quantity.quantityRefill,
-                  quantityWriteOff: quantity.quantityWriteOff,
+                  quantityWriteOff: Math.abs(quantity.quantityWriteOff),
                   quantityTransferIn: quantity.quantityTransferIn,
-                  quantityTransferOut: quantity.quantityTransferOut,
-                  inFlow: inFlow,
-                  outFlow: outFlow,
-                  currentRestCost: currentRestCost,
+                  quantityTransferOut: Math.abs(quantity.quantityTransferOut),
+                  quantityInFlow: quantityInFlow,
+                  quantityOutFlow: Math.abs(quantityOutFlow),
+                  costInFlow: costInFlow,
+                  costOutFlow: Math.abs(costOutFlow),
+                  costRest: costRest,
                 })
               })
             })
