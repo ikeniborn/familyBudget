@@ -83,7 +83,7 @@ function updateOnEdit(editRange) {
         workSheet.savePrimaryKeyChanges()
       }
       if (new Hash(workSheet.sheetName).md5 === new Hash('prices').md5) {
-        // new Prices(workSheet).updateId()
+        new Prices(workSheet).updateId()
       } else if (workSheet.sheetName.match(new RegExp('[Registry]+', 'g'))) {
         new Registry(workSheet).updateTransactions()
       }

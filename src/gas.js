@@ -241,7 +241,7 @@ class WorkSheet extends SpreadSheet {
             }
           }),
         ]
-        this.deleteFilter()
+        // this.deleteFilter()
         this.workSheet
           .getRange(object.rowNum, 1, array.length, array[0].length)
           .setValues(array)

@@ -30,9 +30,9 @@ class HistoricalPrices {
             (row) => row.rowKey === tx.rowKey
           )
           const positiveQuantity =
-            new Hash(tx.direction).md5 === new Hash('out').md5 &&
-            new Hash(tx.operation).md5 === new Hash('sell').md5
-              ? tx.quantity * -1
+            new Hash(tx.direction).md5 === new Hash('out').md5
+              ? // && new Hash(tx.operation).md5 === new Hash('sell').md5
+                tx.quantity * -1
               : tx.quantity
           if (rowArray.length === 1) {
             const oldRow = this.workSheet.object[tx.rowKey]

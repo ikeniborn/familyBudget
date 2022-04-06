@@ -56,7 +56,10 @@ class Registry {
           if (['Transfer', 'Write-off'].indexOf(rowValues.operation) !== -1) {
             transactionRow.push({
               rowKey: new Hash(rowValues.rowKey + '#1').md5,
-              isPrice: false,
+              isPrice:
+                ['Write-off'].indexOf(rowValues.operation) !== -1
+                  ? true
+                  : false,
               isLiquidityPool,
               direction: 'out',
               account: rowValues.accountSender,
@@ -174,7 +177,11 @@ class Registry {
           })
         }
         //* Расчет текущей или исторической цены покупаемого токена
-        if (['Buy', 'Sell', 'Refill'].indexOf(rowValues.operation) !== -1) {
+        if (
+          ['Buy', 'Sell', 'Refill', 'Write-off'].indexOf(
+            rowValues.operation
+          ) !== -1
+        ) {
           cyrrencyPrice = historicalPrices.getHistoricalPriceBuy(
             rowValues.accountSender,
             project,

@@ -25,7 +25,8 @@ class Prices {
     try {
       // const coins = new Portfolio().getWorkSheet('coins').arrayOfObject
       const coins = new Portfolio().getWorkSheet('coins').object
-      this.workSheet.arrayOfObject.map((object) => {
+
+      this.workSheet.arrayOfObject.forEach((object) => {
         const coinsKey = new Hash(object.source + object.name + object.symbol)
           .md5
         // const coin = coins.filter((row) => {
@@ -46,13 +47,13 @@ class Prices {
             coins[coinsKey]?.id
           )
         }
-        return object
+        this.workSheet.updateRow(object)
       })
 
-      this.workSheet.arrayOfObject.forEach((object) => {
-        new Log().addMessage('Prices.updateId', 'object', object)
-        // this.workSheet.updateRow(object)
-      })
+      // this.workSheet.arrayOfObject.forEach((object) => {
+      //   // new Log().addMessage('Prices.updateId', 'object', object)
+      //   this.workSheet.updateRow(object)
+      // })
     } catch (error) {
       new Log().addError('Prices.updateId', error)
     }
