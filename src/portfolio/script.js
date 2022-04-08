@@ -8,7 +8,7 @@ import { Hash, FormatDate } from '../utils'
 import { Portfolio } from './spreadsheet/portfolio'
 import { LPToken } from './worksheet/lpToken.js'
 import { Log } from './worksheet/log'
-import { Flow } from './worksheet/flow'
+import { FlowSymbol } from './worksheet/flowSymbol'
 // import { GasProcess } from '../restApi/gasScriptApi'
 
 function updateLPToken() {
@@ -48,7 +48,7 @@ function updateCoins() {
 function updateFlow() {
   const startProcess = new FormatDate()
   try {
-    new Flow().updateFlow()
+    new FlowSymbol().updateFlow()
   } catch (error) {
     new Log().addError('updateFlow', error)
   } finally {
@@ -82,7 +82,7 @@ function updatePrices() {
       new Prices().updatePrices()
       resolve()
     }).then(() => {
-      new Flow().updateFlow()
+      new FlowSymbol().updateFlow()
       // new Promise((resolve) => {
       //   new HistoricalPricesAvg().updateHistoricalPricesAvg()
       //   resolve()
@@ -161,6 +161,7 @@ function updateOnEdit(editRange) {
           ', Time spent: ' +
           startProcess.getTimeDiff()
       )
+      SpreadsheetApp.getActive().toast('Save process ended', 'Save process', 1)
     })
     .catch((error) => {
       new Log().addError('updateOnEdit', error)

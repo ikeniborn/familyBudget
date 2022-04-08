@@ -967,42 +967,41 @@ class Portfolio {
           },
         },
       },
-      flow: {
-        type: 'dim',
+      flowSymbol: {
+        type: 'tx',
         rowNum: 1,
         columns: {
-          rowKey: { alias: 'Row key', idx: 0 },
-          account: { alias: 'Account', pk: true, idx: 1, notNull: true },
-          symbol: { alias: 'Symbol', pk: true, idx: 2, notNull: true },
-          symbolType: { alias: 'Symbol type', idx: 3 },
-          riskCategory: { alias: 'Risk category', idx: 4 },
-          quantityBuy: { alias: 'Quantity buy', idx: 5 },
-          quantitySell: { alias: 'Quantity sell', idx: 6 },
-          quantityRefill: { alias: 'Quantity refill', idx: 7 },
-          quantityWriteOff: { alias: 'Quantity write-off', idx: 8 },
-          quantityTransferIn: { alias: 'Quantity transfer in', idx: 9 },
-          quantityTransferOut: { alias: 'Quantity transfer out', idx: 10 },
-          quantityInFlow: { alias: 'Quantity in flow', idx: 11 },
-          quantityOutFlow: { alias: 'Quantity out flow', idx: 12 },
-          quantityRest: { alias: 'Quantity rest', idx: 13 },
-          priceBuy: { alias: 'Price buy', idx: 14 },
-          priceSell: { alias: 'Price sell', idx: 15 },
-          priceRefill: { alias: 'Price refill', idx: 16 },
-          priceWriteOff: { alias: 'Price write-off', idx: 17 },
-          priceTransferIn: { alias: 'Price transfer in', idx: 18 },
-          priceTransferOut: { alias: 'Price transfer out', idx: 19 },
-          priceInFlow: { alias: 'Price in flow', idx: 20 },
-          priceOutFlow: { alias: 'Price out flow', idx: 21 },
-          priceRest: { alias: 'Price rest', idx: 22 },
-          costBuy: { alias: 'Cost buy', idx: 23 },
-          costSell: { alias: 'Cost sell', idx: 24 },
-          costRefill: { alias: 'Cost refill', idx: 25 },
-          costWriteOff: { alias: 'Cost write-off', idx: 26 },
-          costTransferIn: { alias: 'Cost transfer in', idx: 27 },
-          costTransferOut: { alias: 'Cost transfer out', idx: 28 },
-          costInFlow: { alias: 'Cost in flow', idx: 29 },
-          costOutFlow: { alias: 'Cost out flow', idx: 30 },
-          costRest: { alias: 'Cost rest', idx: 31 },
+          account: { alias: 'Account', idx: 1 },
+          contractor: { alias: 'Contractor', idx: 2 },
+          contractorType: { alias: 'Contractor type', idx: 2 },
+          contractorCategory: {
+            alias: 'Contractor category',
+            idx: 2,
+          },
+          service: { alias: 'Service', idx: 3 },
+          symbol: { alias: 'Symbol', idx: 4 },
+          symbolCategory: { alias: 'Symbol category', idx: 4 },
+          symbolType: { alias: 'Symbol type', idx: 5 },
+          symbolStatus: { alias: 'Symbol status', idx: 6 },
+          riskCategory: { alias: 'Risk category', idx: 7 },
+          quantityInFlow: { alias: 'Quantity in flow', idx: 16 },
+          quantityOutFlow: { alias: 'Quantity out flow', idx: 17 },
+          quantityRest: { alias: 'Quantity rest', idx: 18 },
+          priceInFlow: { alias: 'Price in flow', idx: 25 },
+          priceOutFlow: { alias: 'Price out flow', idx: 26 },
+          priceRest: { alias: 'Price rest', idx: 27 },
+          costInFlow: { alias: 'Cost in flow', idx: 36 },
+          costOutFlow: { alias: 'Cost out flow', idx: 37 },
+          costRest: { alias: 'Cost rest', idx: 39 },
+          costRestLock: { alias: 'Cost rest lock', idx: 39 },
+          costRestUnlock: { alias: 'Cost rest unlock', idx: 39 },
+          pnl: { alias: 'PnL', idx: 40 },
+          update: {
+            alias: 'Update',
+            idx: 42,
+            type: 'date',
+            default: new Date(),
+          },
         },
       },
       coins: {
@@ -1048,7 +1047,7 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
-          tokenStatus: { alias: 'Token status', idx: 2, notNull: true },
+          symbolStatus: { alias: 'Symbol status', idx: 2, notNull: true },
         },
       },
       operations: {
@@ -2845,21 +2844,22 @@ class LPToken {
   }
 }
 
-class Flow {
+class FlowSymbol {
   constructor(workSheet = '') {
-    if (Flow.exists) {
+    if (FlowSymbol.exists) {
       return Flow.instance
     }
-    Flow.instance = this;
-    Flow.exists = true;
+    FlowSymbol.instance = this;
+    FlowSymbol.exists = true;
     this.workSheet = workSheet
       ? workSheet
-      : new Portfolio().getWorkSheet('Flow');
+      : new Portfolio().getWorkSheet('FlowSymbol');
   }
 
   updateFlow() {
     try {
       const prices = new Portfolio().getWorkSheet('prices').object;
+      const services = new Portfolio().getWorkSheet('services').object;
       const aggFlow = new Portfolio()
         .getWorkSheet('Transactions')
         .arrayOfObject.filter((row) => !row.isDelete)
@@ -2867,176 +2867,211 @@ class Flow {
           if (!agg[tx.account]) {
             agg[tx.account] = {};
           }
+          if (!agg[tx.account][tx.contractor]) {
+            agg[tx.account][tx.contractor] = {};
+          }
+          if (!agg[tx.account][tx.contractor][tx.service]) {
+            agg[tx.account][tx.contractor][tx.service] = {};
+          }
 
-          if (!agg[tx.account][tx.symbol]) {
-            agg[tx.account][tx.symbol] = {
-              quantityBuy: 0,
-              quantitySell: 0,
-              quantityRefill: 0,
-              quantityWriteOff: 0,
+          if (!agg[tx.account][tx.contractor][tx.service][tx.symbol]) {
+            agg[tx.account][tx.contractor][tx.service][tx.symbol] = {
+              quantityBuyIn: 0,
+              quantityBuyOut: 0,
+              quantitySellIn: 0,
+              quantitySellOut: 0,
+              quantityRefillIn: 0,
+              quantityWriteOffOut: 0,
               quantityTransferIn: 0,
               quantityTransferOut: 0,
               quantityRest: 0,
-              costBuy: 0,
-              costSell: 0,
-              costRefill: 0,
-              costWriteOff: 0,
+              costBuyIn: 0,
+              costBuyOut: 0,
+              costSellIn: 0,
+              costSellOut: 0,
+              costRefillIn: 0,
+              costWriteOffOut: 0,
               costTransferIn: 0,
               costTransferOut: 0,
             };
           }
           //* Распределение количества по потокам
-          let quantityBuy = 0;
-          let quantitySell = 0;
-          let quantityRefill = 0;
-          let quantityWriteOff = 0;
-          let quantityTransferIn = 0;
-          let quantityTransferOut = 0;
-          let quantityRest = 0;
-          let costBuy = 0;
-          let costSell = 0;
-          let costRefill = 0;
-          let costWriteOff = 0;
-          let costTransferIn = 0;
-          let costTransferOut = 0;
 
           if (new Hash(tx.operation).md5 === new Hash('buy').md5) {
-            quantityBuy += tx.quantity;
-            costBuy += tx.cost;
+            if (new Hash(tx.direction).md5 === new Hash('in').md5) {
+              agg[tx.account][tx.contractor][tx.service][
+                tx.symbol
+              ].quantityBuyIn += tx.quantity;
+              agg[tx.account][tx.contractor][tx.service][tx.symbol].costBuyIn +=
+                tx.cost;
+            } else if (new Hash(tx.direction).md5 === new Hash('out').md5) {
+              agg[tx.account][tx.contractor][tx.service][
+                tx.symbol
+              ].quantityBuyOut += tx.quantity * -1;
+              agg[tx.account][tx.contractor][tx.service][
+                tx.symbol
+              ].costBuyOut += tx.cost * -1;
+            }
           } else if (new Hash(tx.operation).md5 === new Hash('sell').md5) {
-            quantitySell += tx.quantity;
-            costSell += tx.cost;
+            if (new Hash(tx.direction).md5 === new Hash('in').md5) {
+              agg[tx.account][tx.contractor][tx.service][
+                tx.symbol
+              ].quantitySellIn += tx.quantity;
+              agg[tx.account][tx.contractor][tx.service][
+                tx.symbol
+              ].costSellIn += tx.cost;
+            } else if (new Hash(tx.direction).md5 === new Hash('out').md5) {
+              agg[tx.account][tx.contractor][tx.service][
+                tx.symbol
+              ].quantitySellOut += tx.quantity * -1;
+              agg[tx.account][tx.contractor][tx.service][
+                tx.symbol
+              ].costSellOut += tx.cost * -1;
+            }
           } else if (new Hash(tx.operation).md5 === new Hash('refill').md5) {
-            quantityRefill += tx.quantity;
-            costRefill += 0; //tx.cost
+            if (new Hash(tx.direction).md5 === new Hash('in').md5) {
+              agg[tx.account][tx.contractor][tx.service][
+                tx.symbol
+              ].quantityRefillIn += tx.quantity;
+              agg[tx.account][tx.contractor][tx.service][
+                tx.symbol
+              ].costRefillIn += tx.cost;
+            }
           } else if (new Hash(tx.operation).md5 === new Hash('write-off').md5) {
-            quantityWriteOff += tx.quantity * -1;
-            costRefill += tx.cost * -1;
-          } else if (
-            new Hash(tx.operation + tx.direction).md5 ===
-            new Hash('transfer' + 'in').md5
-          ) {
-            quantityTransferIn += tx.quantity;
-            costTransferIn += 0; //tx.cost
-          } else if (
-            new Hash(tx.operation + tx.direction).md5 ===
-            new Hash('transfer' + 'out').md5
-          ) {
-            quantityTransferOut += tx.quantity * -1;
-            costTransferOut += 0; //tx.cost * -1
+            if (new Hash(tx.direction).md5 === new Hash('out').md5) {
+              agg[tx.account][tx.contractor][tx.service][
+                tx.symbol
+              ].quantityWriteOffOut += tx.quantity * -1;
+              agg[tx.account][tx.contractor][tx.service][
+                tx.symbol
+              ].costWriteOffOut += tx.cost * -1;
+            }
+          } else if (new Hash(tx.operation).md5 === new Hash('transfer').md5) {
+            if (new Hash(tx.direction).md5 === new Hash('in').md5) {
+              agg[tx.account][tx.contractor][tx.service][
+                tx.symbol
+              ].quantityTransferIn += tx.quantity;
+              agg[tx.account][tx.contractor][tx.service][
+                tx.symbol
+              ].costTransferIn += tx.cost;
+            } else if (new Hash(tx.direction).md5 === new Hash('out').md5) {
+              agg[tx.account][tx.contractor][tx.service][
+                tx.symbol
+              ].quantityTransferOut += tx.quantity * -1;
+              agg[tx.account][tx.contractor][tx.service][
+                tx.symbol
+              ].costTransferOut += tx.cost * -1;
+            }
           }
-
-          agg[tx.account][tx.symbol].quantityBuy += quantityBuy;
-          agg[tx.account][tx.symbol].costBuy += costBuy;
-
-          agg[tx.account][tx.symbol].quantitySell += quantitySell;
-          agg[tx.account][tx.symbol].costSell += costSell;
-
-          agg[tx.account][tx.symbol].quantityRefill += quantityRefill;
-          agg[tx.account][tx.symbol].costRefill += costRefill;
-
-          agg[tx.account][tx.symbol].quantityWriteOff += quantityWriteOff;
-          agg[tx.account][tx.symbol].costWriteOff += costWriteOff;
-
-          agg[tx.account][tx.symbol].quantityTransferIn += quantityTransferIn;
-          agg[tx.account][tx.symbol].costTransferIn += costTransferIn;
-
-          agg[tx.account][tx.symbol].quantityTransferOut += quantityTransferOut;
-          agg[tx.account][tx.symbol].costTransferOut += costTransferOut;
-
-          agg[tx.account][tx.symbol].quantityRest += tx.quantity;
-
+          agg[tx.account][tx.contractor][tx.service][tx.symbol].quantityRest +=
+            tx.quantity;
           return agg
         }, {});
       const aggFlowArrayOfObject = [];
-
       Object.entries(aggFlow).forEach(([account, level0]) => {
-        // Object.entries(level0).forEach(([project, level1]) => {
-        Object.entries(level0).forEach(([symbol, object]) => {
-          const positiveObject = Object.fromEntries(
-            Object.entries(object).map(([key, value]) => {
-              return [
-                key,
-                value < 0 && key !== 'quantityRest' ? value * -1 : value,
-              ]
-            })
-          );
-          const priceKey = new Hash(symbol).md5;
-          const priceRest = prices[priceKey]?.price;
-          const symbolType = prices[priceKey]?.symbolType + '';
-          const riskCategory = prices[priceKey]?.risk + '';
-          //* расчет потоков
-          const costInFlow =
-            positiveObject.costBuy +
-            positiveObject.costRefill +
-            positiveObject.costTransferIn;
-          const costOutFlow =
-            positiveObject.costSell +
-            positiveObject.costWriteOff +
-            positiveObject.costTransferOut;
-          const quantityInFlow =
-            positiveObject.quantityBuy +
-            positiveObject.quantityRefill +
-            positiveObject.quantityTransferIn;
-          const quantityOutFlow =
-            positiveObject.quantitySell +
-            positiveObject.quantityWriteOff +
-            positiveObject.quantityTransferOut;
-          const quantityRest = positiveObject.quantityRest;
-          const costRest = quantityRest * priceRest;
-          //* расчет цены
-          const priceBuy = positiveObject.costBuy / positiveObject.quantityBuy;
-          const priceSell =
-            positiveObject.costSell / positiveObject.quantitySell;
-          const priceRefill =
-            positiveObject.costRefill / positiveObject.quantityRefill;
-          const priceWriteOff =
-            positiveObject.costWriteOff / positiveObject.quantityWriteOff;
-          const priceTransferIn =
-            positiveObject.costTransferIn / positiveObject.quantityTransferIn;
-          const priceTransferOut =
-            positiveObject.costTransferOut / positiveObject.quantityTransferOut;
-          const priceInFlow = costInFlow / quantityInFlow;
-          const priceOutFlow = costOutFlow / quantityOutFlow;
+        Object.entries(level0).forEach(([contractor, level1]) => {
+          Object.entries(level1).forEach(([service, level2]) => {
+            Object.entries(level2).forEach(([symbol, object]) => {
+              let newService;
+              if (
+                ['liquidity pool (1)', 'liquidity pool (2)']
+                  .map((m) => (m = new Hash(m).md5))
+                  .indexOf(new Hash(service).md5) !== -1
+              ) {
+                newService = 'Liquidity pool';
+              } else {
+                newService = service + '';
+              }
+              //* доп. атрибутика
+              const priceKey = new Hash(symbol).md5;
+              const priceRest = prices[priceKey]?.price;
+              const costRest = prices[priceKey]?.price * object.quantityRest;
+              const symbolType = prices[priceKey]?.symbolType + '';
+              const riskCategory = prices[priceKey]?.risk + '';
+              const symbolStatus =
+                services[new Hash(service).md5]?.symbolStatus + '';
+              //* расчет потоков
+              const costInFlow =
+                object.costBuyIn +
+                object.costSellIn +
+                object.costRefillIn +
+                object.costTransferIn;
+              const costOutFlow =
+                object.costBuyOut +
+                object.costSellOut +
+                object.costWriteOffOut +
+                object.costTransferOut;
+              const quantityInFlow =
+                object.quantityBuyIn +
+                object.quantitySellIn +
+                object.quantityRefillIn +
+                object.quantityTransferIn;
+              const quantityOutFlow =
+                object.quantityBuyOut +
+                object.quantitySellOut +
+                object.quantityWriteOffOut +
+                object.quantityTransferOut;
+              //* расчет цены
 
-          aggFlowArrayOfObject.push({
-            rowKey: new Hash(account + symbol).md5,
-            account: account.toUpperCase(),
-            // project: project.toUpperCase(),
-            symbol: symbol.toUpperCase(),
-            symbolType: symbolType.toUpperCase(),
-            riskCategory: riskCategory.toUpperCase(),
-            quantityBuy: positiveObject.quantityBuy || 0,
-            quantitySell: positiveObject.quantitySell || 0,
-            quantityRefill: positiveObject.quantityRefill || 0,
-            quantityWriteOff: positiveObject.quantityWriteOff || 0,
-            quantityTransferIn: positiveObject.quantityTransferIn || 0,
-            quantityTransferOut: positiveObject.quantityTransferOut || 0,
-            quantityWriteOff: positiveObject.quantityWriteOff || 0,
-            quantityInFlow: quantityInFlow || 0,
-            quantityOutFlow: quantityOutFlow || 0,
-            quantityRest: quantityRest || 0,
-            priceBuy: priceBuy || 0,
-            priceSell: priceSell || 0,
-            priceRefill: priceRefill || 0,
-            priceWriteOff: priceWriteOff || 0,
-            priceTransferIn: priceTransferIn || 0,
-            priceTransferOut: priceTransferOut || 0,
-            priceInFlow: priceInFlow || 0,
-            priceOutFlow: priceOutFlow || 0,
-            priceRest: priceRest || 0,
-            costBuy: positiveObject.costBuy || 0,
-            costSell: positiveObject.costSell || 0,
-            costRefill: positiveObject.costRefill || 0,
-            costWriteOff: positiveObject.costWriteOff || 0,
-            costTransferIn: positiveObject.costTransferIn || 0,
-            costTransferOut: positiveObject.costTransferOut || 0,
-            costInFlow: costInFlow || 0,
-            costOutFlow: costOutFlow || 0,
-            costRest: costRest || 0,
+              const priceInFlow = costInFlow / quantityInFlow;
+              const priceOutFlow = costOutFlow / quantityOutFlow;
+
+              aggFlowArrayOfObject.push({
+                account: account.toUpperCase(),
+                contractor: contractor.toUpperCase(),
+                contractorType: void 0,
+                contractorCategory: void 0,
+                service: newService.toUpperCase(),
+                symbol: symbol.toUpperCase(),
+                symbolCategory: void 0,
+                symbolType: symbolType.toUpperCase(),
+                symbolStatus: symbolStatus.toUpperCase(),
+                riskCategory: riskCategory.toUpperCase(),
+                // quantityBuyIn: object.quantityBuyIn || 0,
+                // quantityBuyOut: object.quantityBuyOut || 0,
+                // quantitySellIn: object.quantitySellIn || 0,
+                // quantitySellOut: object.quantitySellOut || 0,
+                // quantityRefillIn: object.quantityRefillIn || 0,
+                // quantityWriteOffOut: object.quantityWriteOffOut || 0,
+                // quantityTransferIn: object.quantityTransferIn || 0,
+                // quantityTransferOut: object.quantityTransferOut || 0,
+                quantityInFlow: quantityInFlow || 0,
+                quantityOutFlow: quantityOutFlow || 0,
+                quantityRest: object.quantityRest || 0,
+                // priceBuy: priceBuy || 0,
+                // priceSell: priceSell || 0,
+                // priceRefill: priceRefill || 0,
+                // priceWriteOff: priceWriteOff || 0,
+                // priceTransferIn: priceTransferIn || 0,
+                // priceTransferOut: priceTransferOut || 0,
+                priceInFlow: priceInFlow || 0,
+                priceOutFlow: priceOutFlow || 0,
+                priceRest: priceRest || 0,
+                // costBuyIn: object.costBuyIn || 0,
+                // costBuyOut: object.costBuyOut || 0,
+                // costSellIn: object.costSellIn || 0,
+                // costSellOut: object.costSellOut || 0,
+                // costRefillIn: object.costRefillIn || 0,
+                // costWriteOffOut: object.costWriteOffOut || 0,
+                // costTransferIn: object.costTransferIn || 0,
+                // costTransferOut: object.costTransferOut || 0,
+                costInFlow: costInFlow || 0,
+                costOutFlow: costOutFlow || 0,
+                costRest: costRest || 0,
+                costRestLock:
+                  new Hash(symbolStatus).md5 === new Hash('lock').md5
+                    ? costRest
+                    : 0,
+                costRestUnlock:
+                  new Hash(symbolStatus).md5 === new Hash('unlock').md5
+                    ? costRest
+                    : 0,
+
+                pnl: costOutFlow - costInFlow + costRest || 0,
+              });
+            });
           });
         });
-        // })
       });
 
       this.workSheet.truncateInsertRows(aggFlowArrayOfObject);
@@ -3085,7 +3120,7 @@ function updateCoins() {
 function updateFlow() {
   const startProcess = new FormatDate();
   try {
-    new Flow().updateFlow();
+    new FlowSymbol().updateFlow();
   } catch (error) {
     new Log().addError('updateFlow', error);
   } finally {
@@ -3119,7 +3154,7 @@ function updatePrices() {
       new Prices().updatePrices();
       resolve();
     }).then(() => {
-      new Flow().updateFlow();
+      new FlowSymbol().updateFlow();
       // new Promise((resolve) => {
       //   new HistoricalPricesAvg().updateHistoricalPricesAvg()
       //   resolve()
@@ -3198,6 +3233,7 @@ function updateOnEdit(editRange) {
           ', Time spent: ' +
           startProcess.getTimeDiff()
       );
+      SpreadsheetApp.getActive().toast('Save process ended', 'Save process', 1);
     })
     .catch((error) => {
       new Log().addError('updateOnEdit', error);
