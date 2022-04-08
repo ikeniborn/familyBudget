@@ -45,7 +45,12 @@ class Transactions {
           }
         })
       } else {
-        this.workSheet.truncateInsertRows(arrayOfObject)
+        const sourceKey = arrayOfObject[0].sourceKey
+        const otherArray = this.workSheet.arrayOfObject.filter(
+          (row) => row.sourceKey !== sourceKey
+        )
+        const splitArray = [...otherArray, ...arrayOfObject]
+        this.workSheet.truncateInsertRows(splitArray)
       }
     } catch (error) {
       new Log().addError('Transactions.updateTransactions', error)

@@ -42,11 +42,32 @@ class Registry {
           : rowValues.accountSender
         recipient = rowValues.recipient ? rowValues.recipient : rowValues.sender
         project = rowValues.project ? rowValues.project : 'No project'
-        coinQty = rowValues.coinQty
-        currencyQty = rowValues.currencyQty
+        coinQty = rowValues.coinQty || void 0
+        currencyQty = rowValues.currencyQty || void 0
+        currencyPerCoin = rowValues.currencyPerCoin || void 0
         coinSymbol = rowValues.coin
         currencySymbol = rowValues.currency
         isLiquidityPool = false
+
+        if (!currencyPerCoin && currencyQty) {
+          currencyPerCoin = currencyQty / coinQty
+        }
+        if (!currencyQty && currencyPerCoin) {
+          currencyQty = coinQty * currencyPerCoin
+        }
+        if (!coinQty) {
+          coinQty = currencyQty / currencyPerCoin
+        }
+        if (
+          ['Liquidity pool (1)', 'Liquidity pool (2)'].indexOf(
+            rowValues.service
+          ) !== -1
+        ) {
+          coinQty /= 2
+          mainSymbol = coinSymbol
+          isLiquidityPool = true
+        }
+
         if (
           ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !==
           -1
@@ -86,26 +107,6 @@ class Registry {
             })
           }
         } else if (['Buy'].indexOf(rowValues.operation) !== -1) {
-          if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
-            currencyQty = coinQty * rowValues.currencyPerCoin
-          }
-          if (!coinQty && rowValues.currencyPerCoin && currencyQty) {
-            coinQty = currencyQty / rowValues.currencyPerCoin
-          }
-          if (
-            ['Liquidity pool (1)', 'Liquidity pool (2)'].indexOf(
-              rowValues.service
-            ) !== -1
-          ) {
-            coinQty /= 2
-            mainSymbol = coinSymbol
-            isLiquidityPool = true
-          }
-          if (rowValues.currencyPerCoin) {
-            currencyPerCoin = rowValues.currencyPerCoin
-          } else {
-            currencyPerCoin = currencyQty / coinQty
-          }
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#1').md5,
             isPrice: false,
@@ -131,26 +132,6 @@ class Registry {
             quantity: coinQty,
           })
         } else if (['Sell'].indexOf(rowValues.operation) !== -1) {
-          if (coinQty && rowValues.currencyPerCoin && !currencyQty) {
-            currencyQty = coinQty * rowValues.currencyPerCoin
-          }
-          if (!coinQty && rowValues.currencyPerCoin && currencyQty) {
-            coinQty = currencyQty / rowValues.currencyPerCoin
-          }
-          if (
-            ['Liquidity pool (1)', 'Liquidity pool (2)'].indexOf(
-              rowValues.service
-            ) !== -1
-          ) {
-            coinQty /= 2
-            mainSymbol = coinSymbol
-            isLiquidityPool = true
-          }
-          if (!rowValues.currencyPerCoin) {
-            currencyPerCoin = currencyQty / coinQty
-          } else {
-            currencyPerCoin = rowValues.currencyPerCoin
-          }
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#1').md5,
             isPrice: true,
@@ -176,9 +157,10 @@ class Registry {
             quantity: currencyQty,
           })
         }
+
         //* Расчет текущей или исторической цены покупаемого токена
         if (
-          ['Buy', 'Sell', 'Refill', 'Write-off'].indexOf(
+          ['Buy', 'Sell', 'Refill', 'Write-off', 'Transfer'].indexOf(
             rowValues.operation
           ) !== -1
         ) {
@@ -188,10 +170,13 @@ class Registry {
             dateTime,
             currencySymbol
           )
-          symbolPrice = cyrrencyPrice * currencyPerCoin || void 0
+          symbolPrice = cyrrencyPrice * currencyPerCoin
         }
+
         //* Формирование строки транзакции
         transactionRow.forEach((tx) => {
+          const price = tx.isPrice ? symbolPrice : cyrrencyPrice
+          const cost = tx.quantity * price
           const object = {
             rowKey: tx.rowKey,
             sourceKey: new Hash(this.workSheet.sheetName).md5,
@@ -207,33 +192,34 @@ class Registry {
             mainSymbol: tx.mainSymbol ? tx.mainSymbol.toLowerCase() : void 0,
             symbol: tx.symbol.toLowerCase(),
             quantity: tx.quantity,
-            price: tx.isPrice ? symbolPrice : void 0,
-            comment: rowValues.comment.toLowerCase(),
+            price: price || 0,
+            cost: cost || 0,
+            comment: rowValues.comment.toString().toLowerCase(),
             registryRowNum: rowValues.rowNum,
             updateDate: updateDate,
             isDelete: rowValues.isDelete,
             isPrice: tx.isPrice,
             isLiquidityPool: tx.isLiquidityPool,
           }
-          transactionsArrayOfObject.push(new FormatObject(object).getCopy())
-          if (tx.isPrice && !tx.isLiquidityPool) {
-            historicalPricesArrayOfObject.push(
-              new FormatObject(object).getCopy()
-            )
-          }
+          transactionsArrayOfObject.push(object)
+          // if (tx.isPrice && !tx.isLiquidityPool) {
+          // if (tx.isPrice) {
+          // historicalPricesArrayOfObject.push(new FormatObject(object).getCopy())
+          // }
         })
       })
 
       if (transactionsArrayOfObject.length) {
-        new HistoricalPrices().updateHistoricalPrices(
-          historicalPricesArrayOfObject,
-          this.workSheet.isRange
-        )
+        // new HistoricalPrices().updateHistoricalPrices(
+        //   historicalPricesArrayOfObject,
+        //   this.workSheet.isRange
+        // )
         new Transactions().updateTransactions(
           transactionsArrayOfObject,
           this.workSheet.isRange
         )
       }
+
       this.workSheet.deleteEmptyRows()
     } catch (error) {
       new Log().addError('Registry.updateTransactions', error)

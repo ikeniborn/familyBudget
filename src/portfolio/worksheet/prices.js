@@ -47,7 +47,12 @@ class Prices {
             coins[coinsKey]?.id
           )
         }
-        this.workSheet.updateRow(object)
+        // this.workSheet.updateRow(object)
+        this.workSheet.insertValue(
+          object.id,
+          object.rowNum,
+          this.workSheet.head.id.idx + 1
+        )
       })
 
       // this.workSheet.arrayOfObject.forEach((object) => {

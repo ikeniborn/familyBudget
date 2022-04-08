@@ -16,6 +16,7 @@ class HistoricalPrices {
       ? workSheet
       : new Portfolio().getWorkSheet('HistoricalPrices')
     this.duplicatesRow = []
+    this.prices = new Prices().workSheet.object
   }
   /**
    * Обновление или добавление новой исторической записи цены токена
@@ -55,7 +56,12 @@ class HistoricalPrices {
           }
         })
       } else {
-        this.workSheet.truncateInsertRows(arrayOfObject)
+        const sourceKey = arrayOfObject[0].sourceKey
+        const otherArray = this.workSheet.arrayOfObject.filter(
+          (row) => row.sourceKey !== sourceKey
+        )
+        const splitArray = [...otherArray, ...arrayOfObject]
+        this.workSheet.truncateInsertRows(splitArray)
       }
     } catch (error) {
       new Log().addError('HistoricalPrices.updateHistoricalPrices', error)
@@ -76,8 +82,7 @@ class HistoricalPrices {
   getHistoricalPriceBuy(account, project, dateTime, symbol, convert = 'usd') {
     try {
       let historicalPrice = void 0
-      const prices = new Prices().workSheet.object
-      const coin = prices[new Hash(symbol).md5]
+      const coin = this.prices[new Hash(symbol).md5]
       const sourceKey = new Hash(coin.source).md5
       const id = coin.id
       const symbolTypeKey = new Hash(coin.symbolType).md5

@@ -158,6 +158,7 @@ class Balance {
                     (quantityFlow /
                       historicalPricesAvg[historicalPricesAvgKey]
                         ?.quantityInFlow) || 0
+                const costFlow = costInFlow - costOutFlow
                 //* дополнительная аналитика
                 const symbolType =
                   prices[new Hash(symbol).md5]?.symbolType.toUpperCase() ||
@@ -167,7 +168,8 @@ class Balance {
                 const contractorType =
                   contractors[new Hash(contractor).md5]?.type.toUpperCase() ||
                   void 0
-                const tokenStatus = services[new Hash(service).md5].tokenStatus
+                const symbolStatus =
+                  services[new Hash(service).md5]?.symbolStatus
                 //* текущая стоимость
                 const costRest =
                   quantity.quantityRest * prices[new Hash(symbol).md5]?.price
@@ -179,7 +181,7 @@ class Balance {
                   project: project.toUpperCase(),
                   symbol: symbol.toUpperCase(),
                   symbolType: symbolType,
-                  tokenStatus: tokenStatus.toUpperCase(),
+                  symbolStatus: symbolStatus.toUpperCase(),
                   risk: risk,
                   quantityRest: quantity.quantityRest,
                   quantityBuy: quantity.quantityBuy,
@@ -190,8 +192,10 @@ class Balance {
                   quantityTransferOut: Math.abs(quantity.quantityTransferOut),
                   quantityInFlow: quantityInFlow,
                   quantityOutFlow: Math.abs(quantityOutFlow),
+                  quantityFlow: quantityFlow,
                   costInFlow: costInFlow,
                   costOutFlow: Math.abs(costOutFlow),
+                  costFlow: costFlow,
                   costRest: costRest,
                 })
               })
