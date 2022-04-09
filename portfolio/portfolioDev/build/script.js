@@ -828,7 +828,7 @@ class Portfolio {
             idx: 4,
             notNull: true,
           },
-          risk: { alias: 'Risk', idx: 5 },
+          riskCategory: { alias: 'Risk category', idx: 5 },
           id: { alias: 'Id', idx: 6 },
           price: { alias: 'Price', idx: 7 },
           update: {
@@ -862,82 +862,17 @@ class Portfolio {
           comment: { alias: 'Comment', idx: 16 },
           isDelete: { alias: 'Delete', idx: 17 },
           isLiquidityPool: { alias: 'Is liquidity pool', idx: 19 },
-          registryRowNum: { alias: 'Registry row num', idx: 18 },
+          isFee: { alias: 'Is fee', idx: 19 },
+          registryRowNum: { alias: 'Registry row num', idx: 20 },
           updateDate: {
             alias: 'Update',
-            idx: 20,
+            idx: 21,
             type: 'date',
             default: new Date(),
           },
         },
       },
-      balance: {
-        type: 'tx',
-        rowNum: 1,
-        columns: {
-          account: { alias: 'Account', idx: 0 },
-          contractor: { alias: 'Contractor', idx: 1 },
-          contractorType: { alias: 'Contractor type', idx: 2 },
-          service: { alias: 'Service', idx: 3 },
-          project: { alias: 'Project', idx: 4 },
-          symbol: { alias: 'Symbol', idx: 5 },
-          symbolType: { alias: 'Symbol type', idx: 6 },
-          symbolStatus: { alias: 'Symbol status', idx: 7 },
-          risk: { alias: 'Risk category', idx: 8 },
-          quantityRest: { alias: 'Quantity rest', idx: 9 },
-          quantityBuy: { alias: 'Quantity buy', idx: 10 },
-          quantitySell: { alias: 'Quantity sell', idx: 11 },
-          quantityRefill: { alias: 'Quantity refill', idx: 12 },
-          quantityWriteOff: { alias: 'Quantity write-off', idx: 13 },
-          quantityTransferIn: { alias: 'Quantity transfer in', idx: 14 },
-          quantityTransferOut: { alias: 'Quantity transfer out', idx: 15 },
-          quantityInFlow: { alias: 'Quantity in flow', idx: 16 },
-          quantityOutFlow: { alias: 'Quantity out flow', idx: 17 },
-          quantityFlow: { alias: 'Quantity flow', idx: 18 },
-          costInFlow: { alias: 'Cost in flow', idx: 19 },
-          costOutFlow: { alias: 'Cost out flow', idx: 20 },
-          costFlow: { alias: 'Cost flow', idx: 21 },
-          costRest: { alias: 'Cost rest', idx: 22 },
-          updateDate: {
-            alias: 'Update',
-            idx: 23,
-            type: 'date',
-            default: new Date(),
-          },
-        },
-      },
-      historicalPricesAvg: {
-        type: 'dim',
-        rowNum: 1,
-        columns: {
-          rowKey: { alias: 'Row key', idx: 0 },
-          account: { alias: 'Account', pk: true, idx: 1, notNull: true },
-          project: { alias: 'Project', pk: true, idx: 2, notNull: true },
-          symbol: { alias: 'Symbol', pk: true, idx: 3, notNull: true },
-          quantityBuy: { alias: 'Quantity buy', idx: 4 },
-          quantitySell: { alias: 'Quantity sell', idx: 5 },
-          quantityRefill: { alias: 'Quantity refill', idx: 6 },
-          quantityWriteOff: { alias: 'Quantity write-off', idx: 7 },
-          quantityTransferIn: { alias: 'Quantity transfer in', idx: 8 },
-          quantityTransferOut: { alias: 'Quantity transfer out', idx: 9 },
-          quantityInFlow: { alias: 'Quantity in flow', idx: 10 },
-          quantityOutFlow: { alias: 'Quantity out flow', idx: 11 },
-          priceBuy: { alias: 'Price buy', idx: 12 },
-          priceSell: { alias: 'Price sell', idx: 13 },
-          priceRefill: { alias: 'Price refill', idx: 14 },
-          priceWriteOff: { alias: 'Price write-off', idx: 15 },
-          priceTransferIn: { alias: 'Price transfer in', idx: 16 },
-          priceTransferOut: { alias: 'Price transfer out', idx: 17 },
-          costBuy: { alias: 'Cost buy', idx: 18 },
-          costSell: { alias: 'Cost sell', idx: 19 },
-          costRefill: { alias: 'Cost refill', idx: 20 },
-          costWriteOff: { alias: 'Cost write-off', idx: 21 },
-          costTransferIn: { alias: 'Cost transfer in', idx: 22 },
-          costTransferOut: { alias: 'Cost transfer out', idx: 23 },
-          costInFlow: { alias: 'Cost in flow', idx: 24 },
-          costOutFlow: { alias: 'Cost out flow', idx: 25 },
-        },
-      },
+
       historicalPrices: {
         type: 'fct',
         rowNum: 1,
@@ -971,34 +906,27 @@ class Portfolio {
         type: 'tx',
         rowNum: 1,
         columns: {
-          account: { alias: 'Account', idx: 1 },
-          contractor: { alias: 'Contractor', idx: 2 },
-          contractorType: { alias: 'Contractor type', idx: 2 },
-          contractorCategory: {
-            alias: 'Contractor category',
-            idx: 2,
-          },
-          service: { alias: 'Service', idx: 3 },
-          symbol: { alias: 'Symbol', idx: 4 },
-          symbolCategory: { alias: 'Symbol category', idx: 4 },
-          symbolType: { alias: 'Symbol type', idx: 5 },
-          symbolStatus: { alias: 'Symbol status', idx: 6 },
-          riskCategory: { alias: 'Risk category', idx: 7 },
-          quantityInFlow: { alias: 'Quantity in flow', idx: 16 },
-          quantityOutFlow: { alias: 'Quantity out flow', idx: 17 },
-          quantityRest: { alias: 'Quantity rest', idx: 18 },
-          priceInFlow: { alias: 'Price in flow', idx: 25 },
-          priceOutFlow: { alias: 'Price out flow', idx: 26 },
-          priceRest: { alias: 'Price rest', idx: 27 },
-          costInFlow: { alias: 'Cost in flow', idx: 36 },
-          costOutFlow: { alias: 'Cost out flow', idx: 37 },
-          costRest: { alias: 'Cost rest', idx: 39 },
-          costRestLock: { alias: 'Cost rest lock', idx: 39 },
-          costRestUnlock: { alias: 'Cost rest unlock', idx: 39 },
-          pnl: { alias: 'PnL', idx: 40 },
+          account: { alias: 'Account', idx: 0 },
+          symbol: { alias: 'Symbol', idx: 1 },
+          symbolKey: { alias: 'Symbol key', idx: 2 },
+          // symbolCategory: { alias: 'Symbol category', idx: 3 },
+          // symbolType: { alias: 'Symbol type', idx: 4 },
+          // riskCategory: { alias: 'Risk category', idx: 5 },
+          quantityInFlow: { alias: 'Quantity in flow', idx: 3 },
+          quantityOutFlow: { alias: 'Quantity out flow', idx: 4 },
+          quantityRest: { alias: 'Quantity rest', idx: 5 },
+          priceInFlow: { alias: 'Price in flow', idx: 6 },
+          priceOutFlow: { alias: 'Price out flow', idx: 7 },
+          priceRest: { alias: 'Price rest', idx: 8 },
+          costInFlow: { alias: 'Cost in flow', idx: 9 },
+          costOutFlow: { alias: 'Cost out flow', idx: 10 },
+          costRest: { alias: 'Cost rest', idx: 11 },
+          costRestInFlow: { alias: 'Cost rest in flow', idx: 12 },
+          pnlTotal: { alias: 'PnL total', idx: 13 },
+          pnlRest: { alias: 'PnL rest', idx: 14 },
           update: {
             alias: 'Update',
-            idx: 42,
+            idx: 15,
             type: 'date',
             default: new Date(),
           },
@@ -1170,13 +1098,18 @@ class Log {
    * @param {string} error Текст ошибки
    */
   addError(method, error) {
-    this.workSheet.insertRow({
-      dateTime: new FormatDate().getFormatDate('yyyy-MM-dd HH:mm:ss'),
-      method,
-      type: 'error',
-      name: error?.name,
-      message: error?.message,
-      stack: error?.stack,
+    new Promise((resolve) => {
+      this.workSheet.insertRow({
+        dateTime: new FormatDate().getFormatDate('yyyy-MM-dd HH:mm:ss'),
+        method,
+        type: 'error',
+        name: error?.name,
+        message: error?.message,
+        stack: error?.stack,
+      });
+      resolve();
+    }).then(() => {
+      this.truncateLog();
     });
   }
   /**
@@ -1185,186 +1118,26 @@ class Log {
    * @param {string} error Текст ошибки
    */
   addMessage(method, name, message) {
-    const messageString =
-      typeof message !== 'string' ? JSON.stringify(message) : message;
-    this.workSheet.insertRow({
-      dateTime: new FormatDate().getFormatDate('yyyy-MM-dd HH:mm:ss'),
-      method: method,
-      type: 'message',
-      name: name,
-      message: messageString,
-      stack: void 0,
+    new Promise((resolve) => {
+      const messageString =
+        typeof message !== 'string' ? JSON.stringify(message) : message;
+      this.workSheet.insertRow({
+        dateTime: new FormatDate().getFormatDate('yyyy-MM-dd HH:mm:ss'),
+        method: method,
+        type: 'message',
+        name: name,
+        message: messageString,
+        stack: void 0,
+      });
+      resolve();
+    }).then(() => {
+      this.truncateLog();
     });
   }
-}
 
-class HistoricalPricesAvg {
-  constructor(workSheet = '') {
-    if (HistoricalPricesAvg.exists) {
-      return HistoricalPricesAvg.instance
-    }
-    HistoricalPricesAvg.instance = this;
-    HistoricalPricesAvg.exists = true;
-    this.workSheet = workSheet
-      ? workSheet
-      : new Portfolio().getWorkSheet('HistoricalPricesAvg');
-  }
-
-  updateHistoricalPricesAvg() {
-    try {
-      // const prices = new Portfolio().getWorkSheet('prices').object
-      const aggHistoricalPrices = new Portfolio()
-        .getWorkSheet('HistoricalPrices')
-        .arrayOfObject.filter((row) => !row.isDelete)
-        .reduce((agg, tx) => {
-          if (!agg[tx.account]) {
-            agg[tx.account] = {};
-          }
-          if (!agg[tx.account][tx.project]) {
-            agg[tx.account][tx.project] = {};
-          }
-          if (!agg[tx.account][tx.project][tx.symbol]) {
-            agg[tx.account][tx.project][tx.symbol] = {
-              quantityBuy: 0,
-              quantitySell: 0,
-              quantityRefill: 0,
-              quantityWriteOff: 0,
-              quantityTransferIn: 0,
-              quantityTransferOut: 0,
-              // quantityRest: 0,
-              costBuy: 0,
-              costSell: 0,
-              costRefill: 0,
-              costWriteOff: 0,
-              costTransferIn: 0,
-              costTransferOut: 0,
-            };
-          }
-          //* Распределение количества по потокам
-          let quantityBuy = 0;
-          let quantitySell = 0;
-          let quantityRefill = 0;
-          let quantityWriteOff = 0;
-          let quantityTransferIn = 0;
-          let quantityTransferOut = 0;
-
-          new Hash(tx.operation).md5 === new Hash('buy').md5
-            ? (quantityBuy += tx.quantity)
-            : (quantityBuy += 0);
-
-          new Hash(tx.operation).md5 === new Hash('sell').md5
-            ? (quantitySell += tx.quantity)
-            : (quantitySell += 0);
-
-          new Hash(tx.operation).md5 === new Hash('refill').md5
-            ? (quantityRefill += tx.quantity)
-            : (quantityRefill += 0);
-
-          new Hash(tx.operation).md5 === new Hash('write-off').md5
-            ? (quantityWriteOff += tx.quantity * -1)
-            : (quantityWriteOff += 0);
-
-          new Hash(tx.operation + tx.direction).md5 ===
-          new Hash('transfer' + 'in').md5
-            ? (quantityTransferIn += tx.quantity)
-            : (quantityTransferIn += 0);
-
-          new Hash(tx.operation + tx.direction).md5 ===
-          new Hash('transfer' + 'out').md5
-            ? (quantityTransferOut += tx.quantity * -1)
-            : (quantityTransferOut += 0);
-
-          // agg[tx.account][tx.project][tx.symbol].quantityRest += tx.quantity
-
-          agg[tx.account][tx.project][tx.symbol].quantityBuy += quantityBuy;
-          agg[tx.account][tx.project][tx.symbol].costBuy +=
-            quantityBuy * tx.price;
-
-          agg[tx.account][tx.project][tx.symbol].quantitySell += quantitySell;
-          agg[tx.account][tx.project][tx.symbol].costSell +=
-            quantitySell * tx.price;
-
-          agg[tx.account][tx.project][
-            tx.symbol
-          ].quantityRefill += quantityRefill;
-          agg[tx.account][tx.project][tx.symbol].costRefill +=
-            quantityRefill * tx.price;
-
-          agg[tx.account][tx.project][
-            tx.symbol
-          ].quantityWriteOff += quantityWriteOff;
-          agg[tx.account][tx.project][tx.symbol].costWriteOff +=
-            quantityWriteOff * tx.price;
-
-          agg[tx.account][tx.project][
-            tx.symbol
-          ].quantityTransferIn += quantityTransferIn;
-          agg[tx.account][tx.project][tx.symbol].costTransferIn +=
-            quantityTransferIn * tx.price;
-
-          agg[tx.account][tx.project][
-            tx.symbol
-          ].quantityTransferOut += quantityTransferOut;
-          agg[tx.account][tx.project][tx.symbol].costTransferOut +=
-            quantityTransferOut * tx.price;
-
-          return agg
-        }, {});
-      const avgHistoricalPricesArrayOfObject = [];
-      Object.entries(aggHistoricalPrices).forEach(([account, level0]) => {
-        Object.entries(level0).forEach(([project, level1]) => {
-          Object.entries(level1).forEach(([symbol, object]) => {
-            const costInFlow =
-              object.costBuy + object.costRefill + object.costTransferIn;
-            const costOutFlow =
-              object.costSell + object.costWriteOff + object.costTransferOut;
-            const quantityInFlow =
-              object.quantityBuy +
-              object.quantityRefill +
-              object.quantityTransferIn;
-            const quantityOutFlow =
-              object.quantitySell +
-              object.quantityWriteOff +
-              object.quantityTransferOut;
-            const objectRow = {
-              rowKey: new Hash(account + project + symbol).md5,
-              account: account.toUpperCase(),
-              project: project.toUpperCase(),
-              symbol: symbol.toUpperCase(),
-              quantityBuy: object.quantityBuy || 0,
-              quantitySell: object.quantitySell || 0,
-              quantityRefill: object.quantityRefill || 0,
-              quantityWriteOff: object.quantityWriteOff || 0,
-              quantityTransferIn: object.quantityTransferIn || 0,
-              quantityTransferOut: object.quantityTransferOut || 0,
-              quantityWriteOff: object.quantityWriteOff || 0,
-              quantityInFlow: quantityInFlow || 0,
-              quantityOutFlow: quantityOutFlow || 0,
-              priceBuy: object.costBuy / object.quantityBuy || 0,
-              priceSell: object.costSell / object.quantitySell || 0,
-              priceRefill: object.costRefill / object.quantityRefill || 0,
-              priceWriteOff: object.costWriteOff / object.quantityWriteOff || 0,
-              priceTransferIn:
-                object.costTransferIn / object.quantityTransferIn || 0,
-              priceTransferOut:
-                object.costTransferOut / object.quantityTransferOut || 0,
-              costBuy: object.costBuy || 0,
-              costSell: object.costSell || 0,
-              costRefill: object.costRefill || 0,
-              costWriteOff: object.costWriteOff || 0,
-              costTransferIn: object.costTransferIn || 0,
-              costTransferOut: object.costTransferOut || 0,
-              costInFlow: costInFlow || 0,
-              costOutFlow: costOutFlow || 0,
-            };
-            avgHistoricalPricesArrayOfObject.push(objectRow);
-          });
-        });
-      });
-
-      this.workSheet.truncateInsertRows(avgHistoricalPricesArrayOfObject);
-    } catch (error) {
-      new Log().addError('HistoricalPricesAvg.updateHistoricalPricesAvg', error);
+  truncateLog() {
+    if (this.workSheet.countRow > 25) {
+      this.workSheet.deleteRow(2, 20);
     }
   }
 }
@@ -1857,7 +1630,6 @@ class Prices {
     this.workSheet = workSheet
       ? workSheet
       : new Portfolio().getWorkSheet('Prices');
-    this.HistoricalPricesAvg = new HistoricalPricesAvg().workSheet.object;
   }
 
   updateId() {
@@ -1908,7 +1680,7 @@ class Prices {
       const price = this.workSheet.object[new Hash(symbol).md5];
       const symbolType = this.symbolType[new Hash(price?.symbolType).md5];
       if (symbolType?.name !== 'MarketCap') {
-        price.risk =
+        price.riskCategory =
           symbolType?.strategy +
           ' (' +
           this.strategy[new Hash(symbolType?.strategy).md5]?.distribution *
@@ -1916,17 +1688,22 @@ class Prices {
           '%)';
       } else {
         if (marketCapRank <= 100) {
-          price.risk =
+          price.riskCategory =
             'Top 100 (' +
             this.strategy[new Hash('Top 100').md5]?.distribution * 100 +
             '%)';
-        } else if (marketCapRank > 100 && marketCapRank <= 1000) {
-          price.risk =
+        } else if (marketCapRank > 100 && marketCapRank <= 500) {
+          price.riskCategory =
+            'Top 500 (' +
+            this.strategy[new Hash('Top 500').md5]?.distribution * 100 +
+            '%)';
+        } else if (marketCapRank > 500 && marketCapRank <= 1000) {
+          price.riskCategory =
             'Top 1000 (' +
             this.strategy[new Hash('Top 1000').md5]?.distribution * 100 +
             '%)';
         } else if (marketCapRank > 1000 || !marketCapRank) {
-          price.risk =
+          price.riskCategory =
             'Other (' +
             this.strategy[new Hash('Other').md5]?.distribution * 100 +
             '%)';
@@ -2017,18 +1794,18 @@ class Prices {
           }
         }
 
-        if (listId.custom.length) {
-          listId.custom.forEach((symbol) => {
-            const HistoricalPricesAvgKey = new Hash(
-              'ikeniborn' + 'no project' + symbol
-            ).md5;
-            const histirocalPrice =
-              this.HistoricalPricesAvg[HistoricalPricesAvgKey]?.priceAvg ||
-              void 0;
-            this.updatePrice(symbol, histirocalPrice);
-            this.updateRisk(symbol);
-          });
-        }
+        // if (listId.custom.length) {
+        //   listId.custom.forEach((symbol) => {
+        //     const HistoricalPricesAvgKey = new Hash(
+        //       'ikeniborn' + 'no project' + symbol
+        //     ).md5
+        //     const histirocalPrice =
+        //       this.HistoricalPricesAvg[HistoricalPricesAvgKey]?.priceAvg ||
+        //       void 0
+        //     this.updatePrice(symbol, histirocalPrice)
+        //     this.updateRisk(symbol)
+        //   })
+        // }
         resolve();
       }).then(this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject));
     } catch (error) {
@@ -2058,34 +1835,39 @@ class HistoricalPrices {
   updateHistoricalPrices(arrayOfObject = [], isRange = false) {
     try {
       if (isRange) {
-        arrayOfObject.forEach((tx) => {
-          const rowArray = this.workSheet.arrayOfObject.filter(
-            (row) => row.rowKey === tx.rowKey
-          );
-          const positiveQuantity =
-            new Hash(tx.direction).md5 === new Hash('out').md5
-              ? // && new Hash(tx.operation).md5 === new Hash('sell').md5
-                tx.quantity * -1
-              : tx.quantity;
-          if (rowArray.length === 1) {
-            const oldRow = this.workSheet.object[tx.rowKey];
-            tx.rowNum = oldRow.rowNum;
-            tx.quantity = positiveQuantity;
-            this.workSheet.updateRow(tx);
-          } else if (rowArray.length > 1) {
-            rowArray.forEach((row, indexRow) => {
-              if (!indexRow) {
-                tx.rowNum = row.rowNum;
-                tx.quantity = positiveQuantity;
-                this.workSheet.updateRow(tx);
-              } else {
-                this.duplicatesRow.push(row);
-              }
-            });
-          } else {
-            tx.quantity = positiveQuantity;
-            this.workSheet.insertRow(tx);
-          }
+        new Promise((resolve) => {
+          arrayOfObject.forEach((tx) => {
+            const rowArray = this.workSheet.arrayOfObject.filter(
+              (row) => row.rowKey === tx.rowKey
+            );
+            const positiveQuantity =
+              new Hash(tx.direction).md5 === new Hash('out').md5
+                ? // && new Hash(tx.operation).md5 === new Hash('sell').md5
+                  tx.quantity * -1
+                : tx.quantity;
+            if (rowArray.length === 1) {
+              const oldRow = this.workSheet.object[tx.rowKey];
+              tx.rowNum = oldRow.rowNum;
+              tx.quantity = positiveQuantity;
+              this.workSheet.updateRow(tx);
+            } else if (rowArray.length > 1) {
+              rowArray.forEach((row, indexRow) => {
+                if (!indexRow) {
+                  tx.rowNum = row.rowNum;
+                  tx.quantity = positiveQuantity;
+                  this.workSheet.updateRow(tx);
+                } else {
+                  this.duplicatesRow.push(row);
+                }
+              });
+            } else {
+              tx.quantity = positiveQuantity;
+              this.workSheet.insertRow(tx);
+            }
+          });
+          resolve();
+        }).then(() => {
+          this.workSheet.deleteRows(this.duplicatesRow);
         });
       } else {
         const sourceKey = arrayOfObject[0].sourceKey;
@@ -2097,8 +1879,6 @@ class HistoricalPrices {
       }
     } catch (error) {
       new Log().addError('HistoricalPrices.updateHistoricalPrices', error);
-    } finally {
-      this.workSheet.deleteRows(this.duplicatesRow);
     }
   }
 
@@ -2218,26 +1998,31 @@ class Transactions {
   updateTransactions(arrayOfObject = [], isRange = false) {
     try {
       if (isRange) {
-        arrayOfObject.forEach((tx) => {
-          const rowArray = this.workSheet.arrayOfObject.filter(
-            (row) => row.rowKey === tx.rowKey
-          );
-          if (rowArray.length === 1) {
-            const oldRow = this.workSheet.object[tx.rowKey];
-            tx.rowNum = oldRow.rowNum;
-            this.workSheet.updateRow(tx);
-          } else if (rowArray.length > 1) {
-            rowArray.forEach((row, indexRow) => {
-              if (!indexRow) {
-                tx.rowNum = row.rowNum;
-                this.workSheet.updateRow(tx);
-              } else {
-                this.duplicatesRow.push(row);
-              }
-            });
-          } else {
-            this.workSheet.insertRow(tx);
-          }
+        new Promise((resolve) => {
+          arrayOfObject.forEach((tx) => {
+            const rowArray = this.workSheet.arrayOfObject.filter(
+              (row) => row.rowKey === tx.rowKey
+            );
+            if (rowArray.length === 1) {
+              const oldRow = this.workSheet.object[tx.rowKey];
+              tx.rowNum = oldRow.rowNum;
+              this.workSheet.updateRow(tx);
+            } else if (rowArray.length > 1) {
+              rowArray.forEach((row, indexRow) => {
+                if (!indexRow) {
+                  tx.rowNum = row.rowNum;
+                  this.workSheet.updateRow(tx);
+                } else {
+                  this.duplicatesRow.push(row);
+                }
+              });
+            } else {
+              this.workSheet.insertRow(tx);
+            }
+          });
+          resolve();
+        }).then(() => {
+          this.workSheet.deleteRows(this.duplicatesRow);
         });
       } else {
         const sourceKey = arrayOfObject[0].sourceKey;
@@ -2249,9 +2034,12 @@ class Transactions {
       }
     } catch (error) {
       new Log().addError('Transactions.updateTransactions', error);
-    } finally {
-      this.workSheet.deleteRows(this.duplicatesRow);
     }
+  }
+
+  deleteDuplicatesRows() {
+    const newArrayOfObject = Object.values(this.workSheet.object);
+    this.workSheet.truncateInsertRows(newArrayOfObject);
   }
 }
 
@@ -2280,7 +2068,9 @@ class Registry {
           currencySymbol,
           cyrrencyPrice,
           mainSymbol,
-          isLiquidityPool;
+          isLiquidityPool,
+          isFee,
+          feeCurrencyPrice;
         const transactionRow = [];
         const hhmm = new FormatNumber(
           rowValues.time
@@ -2298,6 +2088,7 @@ class Registry {
         coinSymbol = rowValues.coin;
         currencySymbol = rowValues.currency;
         isLiquidityPool = false;
+        isFee = false;
 
         if (!currencyPerCoin && currencyQty) {
           currencyPerCoin = currencyQty / coinQty;
@@ -2309,9 +2100,9 @@ class Registry {
           coinQty = currencyQty / currencyPerCoin;
         }
         if (
-          ['Liquidity pool (1)', 'Liquidity pool (2)'].indexOf(
-            rowValues.service
-          ) !== -1
+          ['Liquidity pool (1)', 'Liquidity pool (2)']
+            .map((m) => (m = new Hash(m).md5))
+            .indexOf(new Hash(rowValues.service).md5) !== -1
         ) {
           coinQty /= 2;
           mainSymbol = coinSymbol;
@@ -2319,19 +2110,27 @@ class Registry {
         }
 
         if (
-          ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !==
-          -1
+          ['Transfer', 'Write-off', 'Refill']
+            .map((m) => (m = new Hash(m).md5))
+            .indexOf(new Hash(rowValues.operation).md5) !== -1
         ) {
           currencyPerCoin = 1;
           currencySymbol = coinSymbol;
-          if (['Transfer', 'Write-off'].indexOf(rowValues.operation) !== -1) {
+          if (
+            ['Transfer', 'Write-off']
+              .map((m) => (m = new Hash(m).md5))
+              .indexOf(new Hash(rowValues.operation).md5) !== -1
+          ) {
             transactionRow.push({
               rowKey: new Hash(rowValues.rowKey + '#1').md5,
               isPrice:
-                ['Write-off'].indexOf(rowValues.operation) !== -1
+                ['Write-off']
+                  .map((m) => (m = new Hash(m).md5))
+                  .indexOf(new Hash(rowValues.operation).md5) !== -1
                   ? true
                   : false,
               isLiquidityPool,
+              isFee,
               direction: 'out',
               account: rowValues.accountSender,
               contractor: rowValues.sender,
@@ -2341,12 +2140,21 @@ class Registry {
               quantity: coinQty * -1,
             });
           }
-          if (['Transfer', 'Refill'].indexOf(rowValues.operation) !== -1) {
+          if (
+            ['Transfer', 'Refill']
+              .map((m) => (m = new Hash(m).md5))
+              .indexOf(new Hash(rowValues.operation).md5) !== -1
+          ) {
             transactionRow.push({
               rowKey: new Hash(rowValues.rowKey + '#2').md5,
               isPrice:
-                ['Refill'].indexOf(rowValues.operation) !== -1 ? true : false,
+                ['Refill']
+                  .map((m) => (m = new Hash(m).md5))
+                  .indexOf(new Hash(rowValues.operation).md5) !== -1
+                  ? true
+                  : false,
               isLiquidityPool,
+              isFee,
               direction: 'in',
               account: accountRecipient,
               contractor: recipient,
@@ -2356,12 +2164,17 @@ class Registry {
               quantity: coinQty,
             });
           }
-        } else if (['Buy'].indexOf(rowValues.operation) !== -1) {
+        } else if (
+          ['Buy']
+            .map((m) => (m = new Hash(m).md5))
+            .indexOf(new Hash(rowValues.operation).md5) !== -1
+        ) {
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#1').md5,
             isPrice: false,
             direction: 'out',
             isLiquidityPool,
+            isFee,
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             project: 'No project',
@@ -2374,6 +2187,7 @@ class Registry {
             isPrice: true,
             direction: 'in',
             isLiquidityPool,
+            isFee,
             account: accountRecipient,
             contractor: recipient,
             project: project,
@@ -2381,12 +2195,17 @@ class Registry {
             symbol: coinSymbol,
             quantity: coinQty,
           });
-        } else if (['Sell'].indexOf(rowValues.operation) !== -1) {
+        } else if (
+          ['Sell']
+            .map((m) => (m = new Hash(m).md5))
+            .indexOf(new Hash(rowValues.operation).md5) !== -1
+        ) {
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#1').md5,
             isPrice: true,
             isLiquidityPool,
             direction: 'out',
+            isFee,
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             project: project,
@@ -2399,6 +2218,7 @@ class Registry {
             isPrice: false,
             isLiquidityPool,
             direction: 'in',
+            isFee,
             account: accountRecipient,
             contractor: recipient,
             project: 'No project',
@@ -2408,11 +2228,34 @@ class Registry {
           });
         }
 
+        //* Комиссия
+        if (rowValues.feeCurrency) {
+          transactionRow.push({
+            rowKey: new Hash(rowValues.rowKey + '#3').md5,
+            isPrice: false,
+            isLiquidityPool: false,
+            isFee: true,
+            direction: 'out',
+            account: rowValues.accountSender,
+            contractor: rowValues.sender,
+            project: 'No project',
+            mainSymbol: void 0,
+            symbol: rowValues.feeCurrency,
+            quantity: rowValues.feeQty * -1,
+          });
+          feeCurrencyPrice = historicalPrices.getHistoricalPriceBuy(
+            rowValues.accountSender,
+            project,
+            dateTime,
+            rowValues.feeCurrency
+          );
+        }
+
         //* Расчет текущей или исторической цены покупаемого токена
         if (
-          ['Buy', 'Sell', 'Refill', 'Write-off', 'Transfer'].indexOf(
-            rowValues.operation
-          ) !== -1
+          ['Buy', 'Sell', 'Refill', 'Write-off', 'Transfer']
+            .map((m) => (m = new Hash(m).md5))
+            .indexOf(new Hash(rowValues.operation).md5) !== -1
         ) {
           cyrrencyPrice = historicalPrices.getHistoricalPriceBuy(
             rowValues.accountSender,
@@ -2420,20 +2263,30 @@ class Registry {
             dateTime,
             currencySymbol
           );
+
           symbolPrice = cyrrencyPrice * currencyPerCoin;
         }
 
         //* Формирование строки транзакции
         transactionRow.forEach((tx) => {
-          const price = tx.isPrice ? symbolPrice : cyrrencyPrice;
+          let price;
+          if (tx.isPrice && !tx.isFee) {
+            price = symbolPrice;
+          } else if (tx.isFee) {
+            price = feeCurrencyPrice;
+          } else {
+            price = cyrrencyPrice;
+          }
           const cost = tx.quantity * price;
           const object = {
             rowKey: tx.rowKey,
             sourceKey: new Hash(this.workSheet.sheetName).md5,
             sourceName: new Hash(this.workSheet.sheetName).stringLowerCase,
             dateTime: dateTime,
-            direction: tx.direction.toLowerCase(),
-            operation: rowValues.operation.toLowerCase(),
+            direction: tx.isFee ? 'out' : tx.direction.toLowerCase(),
+            operation: tx.isFee
+              ? 'write-off'
+              : rowValues.operation.toLowerCase(),
             account: tx.account.toLowerCase(),
             platform: rowValues.platform.toLowerCase(),
             service: rowValues.service.toLowerCase(),
@@ -2450,6 +2303,7 @@ class Registry {
             isDelete: rowValues.isDelete,
             isPrice: tx.isPrice,
             isLiquidityPool: tx.isLiquidityPool,
+            isFee: tx.isFee,
           };
           transactionsArrayOfObject.push(object);
           // if (tx.isPrice && !tx.isLiquidityPool) {
@@ -2550,213 +2404,6 @@ class Coins {
       });
     });
     this.workSheet.truncateInsertRows(coins);
-  }
-}
-
-class Balance {
-  constructor(workSheet = '') {
-    this.workSheet = workSheet
-      ? workSheet
-      : new Portfolio().getWorkSheet('Balance');
-  }
-
-  truncateInsertBalance() {
-    try {
-      const newArrayOfObject = [];
-      const historicalPricesAvg = new Portfolio().getWorkSheet(
-        'historicalPricesAvg'
-      ).object;
-      const prices = new Portfolio().getWorkSheet('prices').object;
-      const contractors = new Portfolio().getWorkSheet('contractors').object;
-      const services = new Portfolio().getWorkSheet('services').object;
-      const aggBalance = new Portfolio()
-        .getWorkSheet('transactions')
-        .arrayOfObject.filter((row) => !row.isDelete)
-        .reduce((object, tx) => {
-          let newService;
-          let quantityBuy = 0;
-          let quantitySell = 0;
-          let quantityRefill = 0;
-          let quantityWriteOff = 0;
-          let quantityTransferIn = 0;
-          let quantityTransferOut = 0;
-          if (
-            ['liquidity pool (1)', 'liquidity pool (2)']
-              .map((m) => (m = new Hash(m).md5))
-              .indexOf(new Hash(tx.service).md5) !== -1
-          ) {
-            newService = 'Liquidity pool';
-          } else {
-            newService = tx.service;
-          }
-          //* Распределение количества по потокам
-
-          new Hash(tx.operation).md5 === new Hash('buy').md5
-            ? (quantityBuy += tx.quantity)
-            : (quantityBuy += 0);
-
-          new Hash(tx.operation).md5 === new Hash('sell').md5
-            ? (quantitySell += tx.quantity)
-            : (quantitySell += 0);
-
-          new Hash(tx.operation).md5 === new Hash('refill').md5
-            ? (quantityRefill += tx.quantity)
-            : (quantityRefill += 0);
-
-          new Hash(tx.operation).md5 === new Hash('write-off').md5
-            ? (quantityWriteOff += tx.quantity * -1)
-            : (quantityWriteOff += 0);
-
-          new Hash(tx.operation + tx.direction).md5 ===
-          new Hash('transfer' + 'in').md5
-            ? (quantityTransferIn += tx.quantity)
-            : (quantityTransferIn += 0);
-
-          new Hash(tx.operation + tx.direction).md5 ===
-          new Hash('transfer' + 'out').md5
-            ? (quantityTransferOut += tx.quantity * -1)
-            : (quantityTransferOut += 0);
-
-          //* Агрегация
-          if (!object[tx.account]) {
-            object[tx.account] = {};
-          }
-          if (!object[tx.account][tx.contractor]) {
-            object[tx.account][tx.contractor] = {};
-          }
-          if (!object[tx.account][tx.contractor][newService]) {
-            object[tx.account][tx.contractor][newService] = {};
-          }
-          if (!object[tx.account][tx.contractor][newService][tx.project]) {
-            object[tx.account][tx.contractor][newService][tx.project] = {};
-          }
-          if (
-            !object[tx.account][tx.contractor][newService][tx.project][
-              tx.symbol
-            ]
-          ) {
-            object[tx.account][tx.contractor][newService][tx.project][
-              tx.symbol
-            ] = {
-              quantityRest: 0,
-              quantityBuy: 0,
-              quantitySell: 0,
-              quantityRefill: 0,
-              quantityWriteOff: 0,
-              quantityTransferIn: 0,
-              quantityTransferOut: 0,
-            };
-          }
-
-          object[tx.account][tx.contractor][newService][tx.project][
-            tx.symbol
-          ].quantityRest += tx.quantity;
-
-          object[tx.account][tx.contractor][newService][tx.project][
-            tx.symbol
-          ].quantityBuy += quantityBuy;
-
-          object[tx.account][tx.contractor][newService][tx.project][
-            tx.symbol
-          ].quantitySell += quantitySell;
-
-          object[tx.account][tx.contractor][newService][tx.project][
-            tx.symbol
-          ].quantityRefill += quantityRefill;
-
-          object[tx.account][tx.contractor][newService][tx.project][
-            tx.symbol
-          ].quantityWriteOff += quantityWriteOff;
-
-          object[tx.account][tx.contractor][newService][tx.project][
-            tx.symbol
-          ].quantityTransferIn += quantityTransferIn;
-
-          object[tx.account][tx.contractor][newService][tx.project][
-            tx.symbol
-          ].quantityTransferOut += quantityTransferOut;
-
-          return object
-        }, {});
-
-      Object.entries(aggBalance).forEach(([account, level0]) => {
-        Object.entries(level0).forEach(([contractor, level1]) => {
-          Object.entries(level1).forEach(([service, level2]) => {
-            Object.entries(level2).forEach(([project, level3]) => {
-              Object.entries(level3).forEach(([symbol, quantity]) => {
-                //* Распределение потоков
-                const historicalPricesAvgKey = new Hash(
-                  account + project + symbol
-                ).md5;
-                const quantityInFlow =
-                  quantity.quantityBuy +
-                  quantity.quantityRefill +
-                  quantity.quantityTransferIn;
-
-                const quantityOutFlow =
-                  quantity.quantitySell +
-                  quantity.quantityWriteOff +
-                  quantity.quantityTransferOut;
-                const quantityFlow = quantityInFlow - quantityOutFlow;
-                const costInFlow =
-                  historicalPricesAvg[historicalPricesAvgKey]?.costInFlow *
-                    (quantityFlow /
-                      historicalPricesAvg[historicalPricesAvgKey]
-                        ?.quantityInFlow) || 0;
-                const costOutFlow =
-                  historicalPricesAvg[historicalPricesAvgKey]?.costOutFlow *
-                    (quantityFlow /
-                      historicalPricesAvg[historicalPricesAvgKey]
-                        ?.quantityInFlow) || 0;
-                const costFlow = costInFlow - costOutFlow;
-                //* дополнительная аналитика
-                const symbolType =
-                  prices[new Hash(symbol).md5]?.symbolType.toUpperCase() ||
-                  void 0;
-                const risk =
-                  prices[new Hash(symbol).md5]?.risk.toUpperCase() || void 0;
-                const contractorType =
-                  contractors[new Hash(contractor).md5]?.type.toUpperCase() ||
-                  void 0;
-                const symbolStatus =
-                  services[new Hash(service).md5]?.symbolStatus;
-                //* текущая стоимость
-                const costRest =
-                  quantity.quantityRest * prices[new Hash(symbol).md5]?.price;
-                newArrayOfObject.push({
-                  account: account.toUpperCase(),
-                  contractor: contractor.toUpperCase(),
-                  contractorType: contractorType,
-                  service: service.toUpperCase(),
-                  project: project.toUpperCase(),
-                  symbol: symbol.toUpperCase(),
-                  symbolType: symbolType,
-                  symbolStatus: symbolStatus.toUpperCase(),
-                  risk: risk,
-                  quantityRest: quantity.quantityRest,
-                  quantityBuy: quantity.quantityBuy,
-                  quantitySell: Math.abs(quantity.quantitySell),
-                  quantityRefill: quantity.quantityRefill,
-                  quantityWriteOff: Math.abs(quantity.quantityWriteOff),
-                  quantityTransferIn: quantity.quantityTransferIn,
-                  quantityTransferOut: Math.abs(quantity.quantityTransferOut),
-                  quantityInFlow: quantityInFlow,
-                  quantityOutFlow: Math.abs(quantityOutFlow),
-                  quantityFlow: quantityFlow,
-                  costInFlow: costInFlow,
-                  costOutFlow: Math.abs(costOutFlow),
-                  costFlow: costFlow,
-                  costRest: costRest,
-                });
-              });
-            });
-          });
-        });
-      });
-      this.workSheet.truncateInsertRows(newArrayOfObject);
-    } catch (error) {
-      new Log().addError('Balance.truncateInsertBalance', error);
-    }
   }
 }
 
@@ -2867,15 +2514,9 @@ class FlowSymbol {
           if (!agg[tx.account]) {
             agg[tx.account] = {};
           }
-          if (!agg[tx.account][tx.contractor]) {
-            agg[tx.account][tx.contractor] = {};
-          }
-          if (!agg[tx.account][tx.contractor][tx.service]) {
-            agg[tx.account][tx.contractor][tx.service] = {};
-          }
 
-          if (!agg[tx.account][tx.contractor][tx.service][tx.symbol]) {
-            agg[tx.account][tx.contractor][tx.service][tx.symbol] = {
+          if (!agg[tx.account][tx.symbol]) {
+            agg[tx.account][tx.symbol] = {
               quantityBuyIn: 0,
               quantityBuyOut: 0,
               quantitySellIn: 0,
@@ -2899,177 +2540,116 @@ class FlowSymbol {
 
           if (new Hash(tx.operation).md5 === new Hash('buy').md5) {
             if (new Hash(tx.direction).md5 === new Hash('in').md5) {
-              agg[tx.account][tx.contractor][tx.service][
-                tx.symbol
-              ].quantityBuyIn += tx.quantity;
-              agg[tx.account][tx.contractor][tx.service][tx.symbol].costBuyIn +=
-                tx.cost;
+              agg[tx.account][tx.symbol].quantityBuyIn += tx.quantity;
+              agg[tx.account][tx.symbol].costBuyIn += tx.cost;
             } else if (new Hash(tx.direction).md5 === new Hash('out').md5) {
-              agg[tx.account][tx.contractor][tx.service][
-                tx.symbol
-              ].quantityBuyOut += tx.quantity * -1;
-              agg[tx.account][tx.contractor][tx.service][
-                tx.symbol
-              ].costBuyOut += tx.cost * -1;
+              agg[tx.account][tx.symbol].quantityBuyOut += tx.quantity * -1;
+              agg[tx.account][tx.symbol].costBuyOut += tx.cost * -1;
             }
           } else if (new Hash(tx.operation).md5 === new Hash('sell').md5) {
             if (new Hash(tx.direction).md5 === new Hash('in').md5) {
-              agg[tx.account][tx.contractor][tx.service][
-                tx.symbol
-              ].quantitySellIn += tx.quantity;
-              agg[tx.account][tx.contractor][tx.service][
-                tx.symbol
-              ].costSellIn += tx.cost;
+              agg[tx.account][tx.symbol].quantitySellIn += tx.quantity;
+              agg[tx.account][tx.symbol].costSellIn += tx.cost;
             } else if (new Hash(tx.direction).md5 === new Hash('out').md5) {
-              agg[tx.account][tx.contractor][tx.service][
-                tx.symbol
-              ].quantitySellOut += tx.quantity * -1;
-              agg[tx.account][tx.contractor][tx.service][
-                tx.symbol
-              ].costSellOut += tx.cost * -1;
+              agg[tx.account][tx.symbol].quantitySellOut += tx.quantity * -1;
+              agg[tx.account][tx.symbol].costSellOut += tx.cost * -1;
             }
           } else if (new Hash(tx.operation).md5 === new Hash('refill').md5) {
             if (new Hash(tx.direction).md5 === new Hash('in').md5) {
-              agg[tx.account][tx.contractor][tx.service][
-                tx.symbol
-              ].quantityRefillIn += tx.quantity;
-              agg[tx.account][tx.contractor][tx.service][
-                tx.symbol
-              ].costRefillIn += tx.cost;
+              agg[tx.account][tx.symbol].quantityRefillIn += tx.quantity;
+              agg[tx.account][tx.symbol].costRefillIn += tx.cost;
             }
           } else if (new Hash(tx.operation).md5 === new Hash('write-off').md5) {
             if (new Hash(tx.direction).md5 === new Hash('out').md5) {
-              agg[tx.account][tx.contractor][tx.service][
-                tx.symbol
-              ].quantityWriteOffOut += tx.quantity * -1;
-              agg[tx.account][tx.contractor][tx.service][
-                tx.symbol
-              ].costWriteOffOut += tx.cost * -1;
+              agg[tx.account][tx.symbol].quantityWriteOffOut += tx.quantity * -1;
+              agg[tx.account][tx.symbol].costWriteOffOut += tx.cost * -1;
             }
           } else if (new Hash(tx.operation).md5 === new Hash('transfer').md5) {
             if (new Hash(tx.direction).md5 === new Hash('in').md5) {
-              agg[tx.account][tx.contractor][tx.service][
-                tx.symbol
-              ].quantityTransferIn += tx.quantity;
-              agg[tx.account][tx.contractor][tx.service][
-                tx.symbol
-              ].costTransferIn += tx.cost;
+              agg[tx.account][tx.symbol].quantityTransferIn += tx.quantity;
+              agg[tx.account][tx.symbol].costTransferIn += tx.cost;
             } else if (new Hash(tx.direction).md5 === new Hash('out').md5) {
-              agg[tx.account][tx.contractor][tx.service][
-                tx.symbol
-              ].quantityTransferOut += tx.quantity * -1;
-              agg[tx.account][tx.contractor][tx.service][
-                tx.symbol
-              ].costTransferOut += tx.cost * -1;
+              agg[tx.account][tx.symbol].quantityTransferOut += tx.quantity * -1;
+              agg[tx.account][tx.symbol].costTransferOut += tx.cost * -1;
             }
           }
-          agg[tx.account][tx.contractor][tx.service][tx.symbol].quantityRest +=
-            tx.quantity;
+          agg[tx.account][tx.symbol].quantityRest += tx.quantity;
           return agg
         }, {});
       const aggFlowArrayOfObject = [];
       Object.entries(aggFlow).forEach(([account, level0]) => {
-        Object.entries(level0).forEach(([contractor, level1]) => {
-          Object.entries(level1).forEach(([service, level2]) => {
-            Object.entries(level2).forEach(([symbol, object]) => {
-              let newService;
-              if (
-                ['liquidity pool (1)', 'liquidity pool (2)']
-                  .map((m) => (m = new Hash(m).md5))
-                  .indexOf(new Hash(service).md5) !== -1
-              ) {
-                newService = 'Liquidity pool';
-              } else {
-                newService = service + '';
-              }
-              //* доп. атрибутика
-              const priceKey = new Hash(symbol).md5;
-              const priceRest = prices[priceKey]?.price;
-              const costRest = prices[priceKey]?.price * object.quantityRest;
-              const symbolType = prices[priceKey]?.symbolType + '';
-              const riskCategory = prices[priceKey]?.risk + '';
-              const symbolStatus =
-                services[new Hash(service).md5]?.symbolStatus + '';
-              //* расчет потоков
-              const costInFlow =
-                object.costBuyIn +
-                object.costSellIn +
-                object.costRefillIn +
-                object.costTransferIn;
-              const costOutFlow =
-                object.costBuyOut +
-                object.costSellOut +
-                object.costWriteOffOut +
-                object.costTransferOut;
-              const quantityInFlow =
-                object.quantityBuyIn +
-                object.quantitySellIn +
-                object.quantityRefillIn +
-                object.quantityTransferIn;
-              const quantityOutFlow =
-                object.quantityBuyOut +
-                object.quantitySellOut +
-                object.quantityWriteOffOut +
-                object.quantityTransferOut;
-              //* расчет цены
+        // Object.entries(level0).forEach(([contractor, level1]) => {
+        // Object.entries(level1).forEach(([service, level2]) => {
+        Object.entries(level0).forEach(([symbol, object]) => {
+          //* доп. атрибутика
+          const symbolKey = new Hash(symbol).md5;
+          const priceRest = prices[symbolKey]?.price;
+          const costRest = prices[symbolKey]?.price * object.quantityRest;
+          // const symbolType = prices[priceKey]?.symbolType + ''
+          // const riskCategory = prices[priceKey]?.risk + ''
+          //* расчет потоков
+          const costInFlow =
+            object.costBuyIn + object.costSellIn + object.costRefillIn;
+          // object.costTransferIn
+          const costOutFlow =
+            object.costBuyOut + object.costSellOut + object.costWriteOffOut;
+          // object.costTransferOut
+          const quantityInFlow =
+            object.quantityBuyIn +
+            object.quantitySellIn +
+            object.quantityRefillIn;
+          // object.quantityTransferIn
+          const quantityOutFlow =
+            object.quantityBuyOut +
+            object.quantitySellOut +
+            object.quantityWriteOffOut;
+          // object.quantityTransferOut
+          //* расчет цены
 
-              const priceInFlow = costInFlow / quantityInFlow;
-              const priceOutFlow = costOutFlow / quantityOutFlow;
+          const priceInFlow = costInFlow / quantityInFlow;
+          const priceOutFlow = costOutFlow / quantityOutFlow;
 
-              aggFlowArrayOfObject.push({
-                account: account.toUpperCase(),
-                contractor: contractor.toUpperCase(),
-                contractorType: void 0,
-                contractorCategory: void 0,
-                service: newService.toUpperCase(),
-                symbol: symbol.toUpperCase(),
-                symbolCategory: void 0,
-                symbolType: symbolType.toUpperCase(),
-                symbolStatus: symbolStatus.toUpperCase(),
-                riskCategory: riskCategory.toUpperCase(),
-                // quantityBuyIn: object.quantityBuyIn || 0,
-                // quantityBuyOut: object.quantityBuyOut || 0,
-                // quantitySellIn: object.quantitySellIn || 0,
-                // quantitySellOut: object.quantitySellOut || 0,
-                // quantityRefillIn: object.quantityRefillIn || 0,
-                // quantityWriteOffOut: object.quantityWriteOffOut || 0,
-                // quantityTransferIn: object.quantityTransferIn || 0,
-                // quantityTransferOut: object.quantityTransferOut || 0,
-                quantityInFlow: quantityInFlow || 0,
-                quantityOutFlow: quantityOutFlow || 0,
-                quantityRest: object.quantityRest || 0,
-                // priceBuy: priceBuy || 0,
-                // priceSell: priceSell || 0,
-                // priceRefill: priceRefill || 0,
-                // priceWriteOff: priceWriteOff || 0,
-                // priceTransferIn: priceTransferIn || 0,
-                // priceTransferOut: priceTransferOut || 0,
-                priceInFlow: priceInFlow || 0,
-                priceOutFlow: priceOutFlow || 0,
-                priceRest: priceRest || 0,
-                // costBuyIn: object.costBuyIn || 0,
-                // costBuyOut: object.costBuyOut || 0,
-                // costSellIn: object.costSellIn || 0,
-                // costSellOut: object.costSellOut || 0,
-                // costRefillIn: object.costRefillIn || 0,
-                // costWriteOffOut: object.costWriteOffOut || 0,
-                // costTransferIn: object.costTransferIn || 0,
-                // costTransferOut: object.costTransferOut || 0,
-                costInFlow: costInFlow || 0,
-                costOutFlow: costOutFlow || 0,
-                costRest: costRest || 0,
-                costRestLock:
-                  new Hash(symbolStatus).md5 === new Hash('lock').md5
-                    ? costRest
-                    : 0,
-                costRestUnlock:
-                  new Hash(symbolStatus).md5 === new Hash('unlock').md5
-                    ? costRest
-                    : 0,
-
-                pnl: costOutFlow - costInFlow + costRest || 0,
-              });
-            });
+          aggFlowArrayOfObject.push({
+            account: account.toUpperCase(),
+            symbol: symbol.toUpperCase(),
+            symbolKey: symbolKey,
+            // symbolCategory: void 0,
+            // symbolType: symbolType.toUpperCase(),
+            // riskCategory: riskCategory.toUpperCase(),
+            // quantityBuyIn: object.quantityBuyIn || 0,
+            // quantityBuyOut: object.quantityBuyOut || 0,
+            // quantitySellIn: object.quantitySellIn || 0,
+            // quantitySellOut: object.quantitySellOut || 0,
+            // quantityRefillIn: object.quantityRefillIn || 0,
+            // quantityWriteOffOut: object.quantityWriteOffOut || 0,
+            // quantityTransferIn: object.quantityTransferIn || 0,
+            // quantityTransferOut: object.quantityTransferOut || 0,
+            quantityInFlow: quantityInFlow || 0,
+            quantityOutFlow: quantityOutFlow || 0,
+            quantityRest: object.quantityRest || 0,
+            // priceBuy: priceBuy || 0,
+            // priceSell: priceSell || 0,
+            // priceRefill: priceRefill || 0,
+            // priceWriteOff: priceWriteOff || 0,
+            // priceTransferIn: priceTransferIn || 0,
+            // priceTransferOut: priceTransferOut || 0,
+            priceInFlow: priceInFlow || 0,
+            priceOutFlow: priceOutFlow || 0,
+            priceRest: priceRest || 0,
+            // costBuyIn: object.costBuyIn || 0,
+            // costBuyOut: object.costBuyOut || 0,
+            // costSellIn: object.costSellIn || 0,
+            // costSellOut: object.costSellOut || 0,
+            // costRefillIn: object.costRefillIn || 0,
+            // costWriteOffOut: object.costWriteOffOut || 0,
+            // costTransferIn: object.costTransferIn || 0,
+            // costTransferOut: object.costTransferOut || 0,
+            costInFlow: costInFlow || 0,
+            costOutFlow: costOutFlow || 0,
+            costRest: costRest || 0,
+            costRestInFlow: priceInFlow * object.quantityRest || 0,
+            pnlTotal: costOutFlow - costInFlow + costRest || 0,
+            pnlRest: costRest - priceInFlow * object.quantityRest || 0,
           });
         });
       });
@@ -3096,6 +2676,21 @@ function updateTransactions() {
   } finally {
     new Log().addMessage(
       'updateTransactions',
+      'ID:' + startProcess.value,
+      'Time spent: ' + startProcess.getTimeDiff()
+    );
+  }
+}
+
+function deleteDuplicatesRows() {
+  const startProcess = new FormatDate();
+  try {
+    new Transactions().deleteDuplicatesRows();
+  } catch (error) {
+    new Log().addError('deleteDuplicatesRows', error);
+  } finally {
+    new Log().addMessage(
+      'deleteDuplicatesRows',
       'ID:' + startProcess.value,
       'Time spent: ' + startProcess.getTimeDiff()
     );
@@ -3132,21 +2727,6 @@ function updateFlow() {
   }
 }
 
-function updateHistoricalPricesAvg() {
-  const startProcess = new FormatDate();
-  try {
-    new HistoricalPricesAvg().updateHistoricalPricesAvg();
-  } catch (error) {
-    new Log().addError('updateHistoricalPricesAvg', error);
-  } finally {
-    new Log().addMessage(
-      'updateHistoricalPricesAvg',
-      'ID:' + startProcess.value,
-      'Time spent: ' + startProcess.getTimeDiff()
-    );
-  }
-}
-
 function updatePrices() {
   const startProcess = new FormatDate();
   try {
@@ -3155,12 +2735,6 @@ function updatePrices() {
       resolve();
     }).then(() => {
       new FlowSymbol().updateFlow();
-      // new Promise((resolve) => {
-      //   new HistoricalPricesAvg().updateHistoricalPricesAvg()
-      //   resolve()
-      // }).then(() => {
-      //   new Balance().truncateInsertBalance()
-      // })
     });
   } catch (error) {
     new Log().addError('updatePrices', error);
@@ -3173,28 +2747,14 @@ function updatePrices() {
   }
 }
 
-function updateBalance() {
-  const startProcess = new FormatDate();
-  try {
-    new Promise((resolve) => {
-      new HistoricalPricesAvg().updateHistoricalPricesAvg();
-      resolve();
-    }).then(() => {
-      new Balance().truncateInsertBalance();
-    });
-  } catch (error) {
-  } finally {
-    new Log().addMessage(
-      'updateBalance',
-      'ID:' + startProcess.value,
-      'Time spent: ' + startProcess.getTimeDiff()
-    );
-  }
-}
-
 function updateOnEdit(editRange) {
   const startProcess = new FormatDate();
-  let countRowInRange, sheetNameInRange, rowStartInRange, rowEndInRange;
+  let countRowInRange,
+    sheetNameInRange,
+    rowStartInRange,
+    rowEndInRange,
+    isRegistry;
+  isRegistry = false;
   sheetNameInRange = editRange.range.getSheet().getName();
   countRowInRange = editRange.range.rowEnd - editRange.range.rowStart + 1;
   countColumnInRange =
@@ -3212,13 +2772,14 @@ function updateOnEdit(editRange) {
           new Prices(workSheet).updateId();
         } else if (workSheet.sheetName.match(new RegExp('[Registry]+', 'g'))) {
           new Registry(workSheet).updateTransactions();
+          isRegistry = true;
         }
       }
       return true
     };
-    update() ? resolve() : reject();
+    update() ? resolve(isRegistry) : reject();
   })
-    .then(() => {
+    .then((isRegistry) => {
       new Log().addMessage(
         'updateOnEdit',
         'ID:' + startProcess.value,
@@ -3233,7 +2794,13 @@ function updateOnEdit(editRange) {
           ', Time spent: ' +
           startProcess.getTimeDiff()
       );
-      SpreadsheetApp.getActive().toast('Save process ended', 'Save process', 1);
+      if (isRegistry) {
+        SpreadsheetApp.getActive().toast(
+          'Save process ended',
+          'Save process',
+          1
+        );
+      }
     })
     .catch((error) => {
       new Log().addError('updateOnEdit', error);
@@ -3248,7 +2815,6 @@ function createMenu() {
       .createMenu('Update')
       // .addItem('Update average historical price and balance', 'updateBalance')
       .addItem('Update current prices and flow', 'updatePrices')
-      // .addItem('Update average historical price', 'updateHistoricalPricesAvg')
       .addItem('Update coins', 'updateCoins')
       .addItem('Update transactions', 'updateTransactions')
       .addItem('Update flow', 'updateFlow')

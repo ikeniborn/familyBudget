@@ -30,7 +30,9 @@ class Registry {
           currencySymbol,
           cyrrencyPrice,
           mainSymbol,
-          isLiquidityPool
+          isLiquidityPool,
+          isFee,
+          feeCurrencyPrice
         const transactionRow = []
         const hhmm = new FormatNumber(
           rowValues.time
@@ -48,6 +50,7 @@ class Registry {
         coinSymbol = rowValues.coin
         currencySymbol = rowValues.currency
         isLiquidityPool = false
+        isFee = false
 
         if (!currencyPerCoin && currencyQty) {
           currencyPerCoin = currencyQty / coinQty
@@ -59,9 +62,9 @@ class Registry {
           coinQty = currencyQty / currencyPerCoin
         }
         if (
-          ['Liquidity pool (1)', 'Liquidity pool (2)'].indexOf(
-            rowValues.service
-          ) !== -1
+          ['Liquidity pool (1)', 'Liquidity pool (2)']
+            .map((m) => (m = new Hash(m).md5))
+            .indexOf(new Hash(rowValues.service).md5) !== -1
         ) {
           coinQty /= 2
           mainSymbol = coinSymbol
@@ -69,19 +72,27 @@ class Registry {
         }
 
         if (
-          ['Transfer', 'Write-off', 'Refill'].indexOf(rowValues.operation) !==
-          -1
+          ['Transfer', 'Write-off', 'Refill']
+            .map((m) => (m = new Hash(m).md5))
+            .indexOf(new Hash(rowValues.operation).md5) !== -1
         ) {
           currencyPerCoin = 1
           currencySymbol = coinSymbol
-          if (['Transfer', 'Write-off'].indexOf(rowValues.operation) !== -1) {
+          if (
+            ['Transfer', 'Write-off']
+              .map((m) => (m = new Hash(m).md5))
+              .indexOf(new Hash(rowValues.operation).md5) !== -1
+          ) {
             transactionRow.push({
               rowKey: new Hash(rowValues.rowKey + '#1').md5,
               isPrice:
-                ['Write-off'].indexOf(rowValues.operation) !== -1
+                ['Write-off']
+                  .map((m) => (m = new Hash(m).md5))
+                  .indexOf(new Hash(rowValues.operation).md5) !== -1
                   ? true
                   : false,
               isLiquidityPool,
+              isFee,
               direction: 'out',
               account: rowValues.accountSender,
               contractor: rowValues.sender,
@@ -91,12 +102,21 @@ class Registry {
               quantity: coinQty * -1,
             })
           }
-          if (['Transfer', 'Refill'].indexOf(rowValues.operation) !== -1) {
+          if (
+            ['Transfer', 'Refill']
+              .map((m) => (m = new Hash(m).md5))
+              .indexOf(new Hash(rowValues.operation).md5) !== -1
+          ) {
             transactionRow.push({
               rowKey: new Hash(rowValues.rowKey + '#2').md5,
               isPrice:
-                ['Refill'].indexOf(rowValues.operation) !== -1 ? true : false,
+                ['Refill']
+                  .map((m) => (m = new Hash(m).md5))
+                  .indexOf(new Hash(rowValues.operation).md5) !== -1
+                  ? true
+                  : false,
               isLiquidityPool,
+              isFee,
               direction: 'in',
               account: accountRecipient,
               contractor: recipient,
@@ -106,12 +126,17 @@ class Registry {
               quantity: coinQty,
             })
           }
-        } else if (['Buy'].indexOf(rowValues.operation) !== -1) {
+        } else if (
+          ['Buy']
+            .map((m) => (m = new Hash(m).md5))
+            .indexOf(new Hash(rowValues.operation).md5) !== -1
+        ) {
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#1').md5,
             isPrice: false,
             direction: 'out',
             isLiquidityPool,
+            isFee,
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             project: 'No project',
@@ -124,6 +149,7 @@ class Registry {
             isPrice: true,
             direction: 'in',
             isLiquidityPool,
+            isFee,
             account: accountRecipient,
             contractor: recipient,
             project: project,
@@ -131,12 +157,17 @@ class Registry {
             symbol: coinSymbol,
             quantity: coinQty,
           })
-        } else if (['Sell'].indexOf(rowValues.operation) !== -1) {
+        } else if (
+          ['Sell']
+            .map((m) => (m = new Hash(m).md5))
+            .indexOf(new Hash(rowValues.operation).md5) !== -1
+        ) {
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#1').md5,
             isPrice: true,
             isLiquidityPool,
             direction: 'out',
+            isFee,
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             project: project,
@@ -149,6 +180,7 @@ class Registry {
             isPrice: false,
             isLiquidityPool,
             direction: 'in',
+            isFee,
             account: accountRecipient,
             contractor: recipient,
             project: 'No project',
@@ -158,11 +190,34 @@ class Registry {
           })
         }
 
+        //* Комиссия
+        if (rowValues.feeCurrency) {
+          transactionRow.push({
+            rowKey: new Hash(rowValues.rowKey + '#3').md5,
+            isPrice: false,
+            isLiquidityPool: false,
+            isFee: true,
+            direction: 'out',
+            account: rowValues.accountSender,
+            contractor: rowValues.sender,
+            project: 'No project',
+            mainSymbol: void 0,
+            symbol: rowValues.feeCurrency,
+            quantity: rowValues.feeQty * -1,
+          })
+          feeCurrencyPrice = historicalPrices.getHistoricalPriceBuy(
+            rowValues.accountSender,
+            project,
+            dateTime,
+            rowValues.feeCurrency
+          )
+        }
+
         //* Расчет текущей или исторической цены покупаемого токена
         if (
-          ['Buy', 'Sell', 'Refill', 'Write-off', 'Transfer'].indexOf(
-            rowValues.operation
-          ) !== -1
+          ['Buy', 'Sell', 'Refill', 'Write-off', 'Transfer']
+            .map((m) => (m = new Hash(m).md5))
+            .indexOf(new Hash(rowValues.operation).md5) !== -1
         ) {
           cyrrencyPrice = historicalPrices.getHistoricalPriceBuy(
             rowValues.accountSender,
@@ -170,20 +225,30 @@ class Registry {
             dateTime,
             currencySymbol
           )
+
           symbolPrice = cyrrencyPrice * currencyPerCoin
         }
 
         //* Формирование строки транзакции
         transactionRow.forEach((tx) => {
-          const price = tx.isPrice ? symbolPrice : cyrrencyPrice
+          let price
+          if (tx.isPrice && !tx.isFee) {
+            price = symbolPrice
+          } else if (tx.isFee) {
+            price = feeCurrencyPrice
+          } else {
+            price = cyrrencyPrice
+          }
           const cost = tx.quantity * price
           const object = {
             rowKey: tx.rowKey,
             sourceKey: new Hash(this.workSheet.sheetName).md5,
             sourceName: new Hash(this.workSheet.sheetName).stringLowerCase,
             dateTime: dateTime,
-            direction: tx.direction.toLowerCase(),
-            operation: rowValues.operation.toLowerCase(),
+            direction: tx.isFee ? 'out' : tx.direction.toLowerCase(),
+            operation: tx.isFee
+              ? 'write-off'
+              : rowValues.operation.toLowerCase(),
             account: tx.account.toLowerCase(),
             platform: rowValues.platform.toLowerCase(),
             service: rowValues.service.toLowerCase(),
@@ -200,6 +265,7 @@ class Registry {
             isDelete: rowValues.isDelete,
             isPrice: tx.isPrice,
             isLiquidityPool: tx.isLiquidityPool,
+            isFee: tx.isFee,
           }
           transactionsArrayOfObject.push(object)
           // if (tx.isPrice && !tx.isLiquidityPool) {

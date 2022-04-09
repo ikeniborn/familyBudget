@@ -23,26 +23,31 @@ class Transactions {
   updateTransactions(arrayOfObject = [], isRange = false) {
     try {
       if (isRange) {
-        arrayOfObject.forEach((tx) => {
-          const rowArray = this.workSheet.arrayOfObject.filter(
-            (row) => row.rowKey === tx.rowKey
-          )
-          if (rowArray.length === 1) {
-            const oldRow = this.workSheet.object[tx.rowKey]
-            tx.rowNum = oldRow.rowNum
-            this.workSheet.updateRow(tx)
-          } else if (rowArray.length > 1) {
-            rowArray.forEach((row, indexRow) => {
-              if (!indexRow) {
-                tx.rowNum = row.rowNum
-                this.workSheet.updateRow(tx)
-              } else {
-                this.duplicatesRow.push(row)
-              }
-            })
-          } else {
-            this.workSheet.insertRow(tx)
-          }
+        new Promise((resolve) => {
+          arrayOfObject.forEach((tx) => {
+            const rowArray = this.workSheet.arrayOfObject.filter(
+              (row) => row.rowKey === tx.rowKey
+            )
+            if (rowArray.length === 1) {
+              const oldRow = this.workSheet.object[tx.rowKey]
+              tx.rowNum = oldRow.rowNum
+              this.workSheet.updateRow(tx)
+            } else if (rowArray.length > 1) {
+              rowArray.forEach((row, indexRow) => {
+                if (!indexRow) {
+                  tx.rowNum = row.rowNum
+                  this.workSheet.updateRow(tx)
+                } else {
+                  this.duplicatesRow.push(row)
+                }
+              })
+            } else {
+              this.workSheet.insertRow(tx)
+            }
+          })
+          resolve()
+        }).then(() => {
+          this.workSheet.deleteRows(this.duplicatesRow)
         })
       } else {
         const sourceKey = arrayOfObject[0].sourceKey
@@ -54,8 +59,11 @@ class Transactions {
       }
     } catch (error) {
       new Log().addError('Transactions.updateTransactions', error)
-    } finally {
-      this.workSheet.deleteRows(this.duplicatesRow)
     }
+  }
+
+  deleteDuplicatesRows() {
+    const newArrayOfObject = Object.values(this.workSheet.object)
+    this.workSheet.truncateInsertRows(newArrayOfObject)
   }
 }

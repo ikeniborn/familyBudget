@@ -17,13 +17,18 @@ class Log {
    * @param {string} error Текст ошибки
    */
   addError(method, error) {
-    this.workSheet.insertRow({
-      dateTime: new FormatDate().getFormatDate('yyyy-MM-dd HH:mm:ss'),
-      method,
-      type: 'error',
-      name: error?.name,
-      message: error?.message,
-      stack: error?.stack,
+    new Promise((resolve) => {
+      this.workSheet.insertRow({
+        dateTime: new FormatDate().getFormatDate('yyyy-MM-dd HH:mm:ss'),
+        method,
+        type: 'error',
+        name: error?.name,
+        message: error?.message,
+        stack: error?.stack,
+      })
+      resolve()
+    }).then(() => {
+      this.truncateLog()
     })
   }
   /**
@@ -32,15 +37,26 @@ class Log {
    * @param {string} error Текст ошибки
    */
   addMessage(method, name, message) {
-    const messageString =
-      typeof message !== 'string' ? JSON.stringify(message) : message
-    this.workSheet.insertRow({
-      dateTime: new FormatDate().getFormatDate('yyyy-MM-dd HH:mm:ss'),
-      method: method,
-      type: 'message',
-      name: name,
-      message: messageString,
-      stack: void 0,
+    new Promise((resolve) => {
+      const messageString =
+        typeof message !== 'string' ? JSON.stringify(message) : message
+      this.workSheet.insertRow({
+        dateTime: new FormatDate().getFormatDate('yyyy-MM-dd HH:mm:ss'),
+        method: method,
+        type: 'message',
+        name: name,
+        message: messageString,
+        stack: void 0,
+      })
+      resolve()
+    }).then(() => {
+      this.truncateLog()
     })
+  }
+
+  truncateLog() {
+    if (this.workSheet.countRow > 25) {
+      this.workSheet.deleteRow(2, 20)
+    }
   }
 }

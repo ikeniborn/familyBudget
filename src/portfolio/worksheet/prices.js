@@ -1,6 +1,5 @@
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash, FormatDate } from '../../utils'
-import { HistoricalPricesAvg } from './historicalPricesAvg'
 // import * as cryptoRank from '../../restApi/cryptoRank'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
 // import * as coinMarketCap from '../../restApi/coinMarketCap'
@@ -18,7 +17,6 @@ class Prices {
     this.workSheet = workSheet
       ? workSheet
       : new Portfolio().getWorkSheet('Prices')
-    this.HistoricalPricesAvg = new HistoricalPricesAvg().workSheet.object
   }
 
   updateId() {
@@ -69,7 +67,7 @@ class Prices {
       const price = this.workSheet.object[new Hash(symbol).md5]
       const symbolType = this.symbolType[new Hash(price?.symbolType).md5]
       if (symbolType?.name !== 'MarketCap') {
-        price.risk =
+        price.riskCategory =
           symbolType?.strategy +
           ' (' +
           this.strategy[new Hash(symbolType?.strategy).md5]?.distribution *
@@ -77,17 +75,22 @@ class Prices {
           '%)'
       } else {
         if (marketCapRank <= 100) {
-          price.risk =
+          price.riskCategory =
             'Top 100 (' +
             this.strategy[new Hash('Top 100').md5]?.distribution * 100 +
             '%)'
-        } else if (marketCapRank > 100 && marketCapRank <= 1000) {
-          price.risk =
+        } else if (marketCapRank > 100 && marketCapRank <= 500) {
+          price.riskCategory =
+            'Top 500 (' +
+            this.strategy[new Hash('Top 500').md5]?.distribution * 100 +
+            '%)'
+        } else if (marketCapRank > 500 && marketCapRank <= 1000) {
+          price.riskCategory =
             'Top 1000 (' +
             this.strategy[new Hash('Top 1000').md5]?.distribution * 100 +
             '%)'
         } else if (marketCapRank > 1000 || !marketCapRank) {
-          price.risk =
+          price.riskCategory =
             'Other (' +
             this.strategy[new Hash('Other').md5]?.distribution * 100 +
             '%)'
@@ -178,18 +181,18 @@ class Prices {
           }
         }
 
-        if (listId.custom.length) {
-          listId.custom.forEach((symbol) => {
-            const HistoricalPricesAvgKey = new Hash(
-              'ikeniborn' + 'no project' + symbol
-            ).md5
-            const histirocalPrice =
-              this.HistoricalPricesAvg[HistoricalPricesAvgKey]?.priceAvg ||
-              void 0
-            this.updatePrice(symbol, histirocalPrice)
-            this.updateRisk(symbol)
-          })
-        }
+        // if (listId.custom.length) {
+        //   listId.custom.forEach((symbol) => {
+        //     const HistoricalPricesAvgKey = new Hash(
+        //       'ikeniborn' + 'no project' + symbol
+        //     ).md5
+        //     const histirocalPrice =
+        //       this.HistoricalPricesAvg[HistoricalPricesAvgKey]?.priceAvg ||
+        //       void 0
+        //     this.updatePrice(symbol, histirocalPrice)
+        //     this.updateRisk(symbol)
+        //   })
+        // }
         resolve()
       }).then(this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject))
     } catch (error) {

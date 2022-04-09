@@ -1,14 +1,13 @@
 import { Registry } from './worksheet/registry'
-import { HistoricalPricesAvg } from './worksheet/historicalPricesAvg'
 // import { HistoricalPrices } from './worksheet/historicalPrices'
 import { Prices } from './worksheet/prices'
 import { Coins } from './worksheet/coins'
-import { Balance } from './worksheet/balance'
 import { Hash, FormatDate } from '../utils'
 import { Portfolio } from './spreadsheet/portfolio'
 import { LPToken } from './worksheet/lpToken.js'
 import { Log } from './worksheet/log'
 import { FlowSymbol } from './worksheet/flowSymbol'
+import { Transactions } from './worksheet/transactions'
 // import { GasProcess } from '../restApi/gasScriptApi'
 
 function updateLPToken() {
@@ -24,6 +23,21 @@ function updateTransactions() {
   } finally {
     new Log().addMessage(
       'updateTransactions',
+      'ID:' + startProcess.value,
+      'Time spent: ' + startProcess.getTimeDiff()
+    )
+  }
+}
+
+function deleteDuplicatesRows() {
+  const startProcess = new FormatDate()
+  try {
+    new Transactions().deleteDuplicatesRows()
+  } catch (error) {
+    new Log().addError('deleteDuplicatesRows', error)
+  } finally {
+    new Log().addMessage(
+      'deleteDuplicatesRows',
       'ID:' + startProcess.value,
       'Time spent: ' + startProcess.getTimeDiff()
     )
@@ -60,21 +74,6 @@ function updateFlow() {
   }
 }
 
-function updateHistoricalPricesAvg() {
-  const startProcess = new FormatDate()
-  try {
-    new HistoricalPricesAvg().updateHistoricalPricesAvg()
-  } catch (error) {
-    new Log().addError('updateHistoricalPricesAvg', error)
-  } finally {
-    new Log().addMessage(
-      'updateHistoricalPricesAvg',
-      'ID:' + startProcess.value,
-      'Time spent: ' + startProcess.getTimeDiff()
-    )
-  }
-}
-
 function updatePrices() {
   const startProcess = new FormatDate()
   try {
@@ -83,12 +82,6 @@ function updatePrices() {
       resolve()
     }).then(() => {
       new FlowSymbol().updateFlow()
-      // new Promise((resolve) => {
-      //   new HistoricalPricesAvg().updateHistoricalPricesAvg()
-      //   resolve()
-      // }).then(() => {
-      //   new Balance().truncateInsertBalance()
-      // })
     })
   } catch (error) {
     new Log().addError('updatePrices', error)
@@ -101,28 +94,14 @@ function updatePrices() {
   }
 }
 
-function updateBalance() {
-  const startProcess = new FormatDate()
-  try {
-    new Promise((resolve) => {
-      new HistoricalPricesAvg().updateHistoricalPricesAvg()
-      resolve()
-    }).then(() => {
-      new Balance().truncateInsertBalance()
-    })
-  } catch (error) {
-  } finally {
-    new Log().addMessage(
-      'updateBalance',
-      'ID:' + startProcess.value,
-      'Time spent: ' + startProcess.getTimeDiff()
-    )
-  }
-}
-
 function updateOnEdit(editRange) {
   const startProcess = new FormatDate()
-  let countRowInRange, sheetNameInRange, rowStartInRange, rowEndInRange
+  let countRowInRange,
+    sheetNameInRange,
+    rowStartInRange,
+    rowEndInRange,
+    isRegistry
+  isRegistry = false
   sheetNameInRange = editRange.range.getSheet().getName()
   countRowInRange = editRange.range.rowEnd - editRange.range.rowStart + 1
   countColumnInRange =
@@ -140,13 +119,14 @@ function updateOnEdit(editRange) {
           new Prices(workSheet).updateId()
         } else if (workSheet.sheetName.match(new RegExp('[Registry]+', 'g'))) {
           new Registry(workSheet).updateTransactions()
+          isRegistry = true
         }
       }
       return true
     }
-    update() ? resolve() : reject()
+    update() ? resolve(isRegistry) : reject()
   })
-    .then(() => {
+    .then((isRegistry) => {
       new Log().addMessage(
         'updateOnEdit',
         'ID:' + startProcess.value,
@@ -161,7 +141,13 @@ function updateOnEdit(editRange) {
           ', Time spent: ' +
           startProcess.getTimeDiff()
       )
-      SpreadsheetApp.getActive().toast('Save process ended', 'Save process', 1)
+      if (isRegistry) {
+        SpreadsheetApp.getActive().toast(
+          'Save process ended',
+          'Save process',
+          1
+        )
+      }
     })
     .catch((error) => {
       new Log().addError('updateOnEdit', error)
@@ -176,7 +162,6 @@ function createMenu() {
       .createMenu('Update')
       // .addItem('Update average historical price and balance', 'updateBalance')
       .addItem('Update current prices and flow', 'updatePrices')
-      // .addItem('Update average historical price', 'updateHistoricalPricesAvg')
       .addItem('Update coins', 'updateCoins')
       .addItem('Update transactions', 'updateTransactions')
       .addItem('Update flow', 'updateFlow')
