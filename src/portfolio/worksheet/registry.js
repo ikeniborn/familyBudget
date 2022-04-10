@@ -1,6 +1,5 @@
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash, FormatDate, FormatNumber, FormatObject } from '../../utils'
-import { HistoricalPrices } from './historicalPrices'
 import { Transactions } from './transactions'
 import { Log } from './log'
 export { Registry }
@@ -12,12 +11,12 @@ class Registry {
       : new Portfolio().getWorkSheet(SpreadsheetApp.getActiveSheet().getName())
   }
 
-  updateTransactions() {
+  updateTransactions(isRange = false) {
     try {
+      const transactions = new Transactions()
       const transactionsArrayOfObject = []
-      const historicalPricesArrayOfObject = []
       const updateDate = new Date()
-      const historicalPrices = new HistoricalPrices()
+      const services = new Portfolio().getWorkSheet('services').object
       this.workSheet.arrayOfObject.forEach((rowValues) => {
         let coinQty,
           currencyQty,
@@ -32,7 +31,8 @@ class Registry {
           mainSymbol,
           isLiquidityPool,
           isFee,
-          feeCurrencyPrice
+          feeCurrencyPrice,
+          isLock
         const transactionRow = []
         const hhmm = new FormatNumber(
           rowValues.time
@@ -51,6 +51,7 @@ class Registry {
         currencySymbol = rowValues.currency
         isLiquidityPool = false
         isFee = false
+        isLock = false
 
         if (!currencyPerCoin && currencyQty) {
           currencyPerCoin = currencyQty / coinQty
@@ -93,6 +94,17 @@ class Registry {
                   : false,
               isLiquidityPool,
               isFee,
+              isLock:
+                new Hash(
+                  services[new Hash(rowValues.service).md5]?.symbolStatus
+                ).md5 === new Hash('lock').md5 &&
+                new Hash([rowValues.platform]).md5 ===
+                  new Hash(rowValues.sender).md5 &&
+                ['Transfer']
+                  .map((m) => (m = new Hash(m).md5))
+                  .indexOf(new Hash(rowValues.operation).md5) !== -1
+                  ? true
+                  : false,
               direction: 'out',
               account: rowValues.accountSender,
               contractor: rowValues.sender,
@@ -117,6 +129,17 @@ class Registry {
                   : false,
               isLiquidityPool,
               isFee,
+              isLock:
+                new Hash(
+                  services[new Hash(rowValues.service).md5]?.symbolStatus
+                ).md5 === new Hash('lock').md5 &&
+                new Hash([rowValues.platform]).md5 ===
+                  new Hash(recipient).md5 &&
+                ['Transfer']
+                  .map((m) => (m = new Hash(m).md5))
+                  .indexOf(new Hash(rowValues.operation).md5) !== -1
+                  ? true
+                  : false,
               direction: 'in',
               account: accountRecipient,
               contractor: recipient,
@@ -137,6 +160,7 @@ class Registry {
             direction: 'out',
             isLiquidityPool,
             isFee,
+            isLock,
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             project: 'No project',
@@ -150,6 +174,7 @@ class Registry {
             direction: 'in',
             isLiquidityPool,
             isFee,
+            isLock,
             account: accountRecipient,
             contractor: recipient,
             project: project,
@@ -168,6 +193,7 @@ class Registry {
             isLiquidityPool,
             direction: 'out',
             isFee,
+            isLock,
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             project: project,
@@ -181,6 +207,7 @@ class Registry {
             isLiquidityPool,
             direction: 'in',
             isFee,
+            isLock,
             account: accountRecipient,
             contractor: recipient,
             project: 'No project',
@@ -197,6 +224,7 @@ class Registry {
             isPrice: false,
             isLiquidityPool: false,
             isFee: true,
+            isLock,
             direction: 'out',
             account: rowValues.accountSender,
             contractor: rowValues.sender,
@@ -205,11 +233,12 @@ class Registry {
             symbol: rowValues.feeCurrency,
             quantity: rowValues.feeQty * -1,
           })
-          feeCurrencyPrice = historicalPrices.getHistoricalPriceBuy(
+          feeCurrencyPrice = transactions.getHistoricalPriceBuy(
             rowValues.accountSender,
             project,
             dateTime,
-            rowValues.feeCurrency
+            rowValues.feeCurrency,
+            isRange
           )
         }
 
@@ -219,13 +248,13 @@ class Registry {
             .map((m) => (m = new Hash(m).md5))
             .indexOf(new Hash(rowValues.operation).md5) !== -1
         ) {
-          cyrrencyPrice = historicalPrices.getHistoricalPriceBuy(
+          cyrrencyPrice = transactions.getHistoricalPriceBuy(
             rowValues.accountSender,
             project,
             dateTime,
-            currencySymbol
+            currencySymbol,
+            isRange
           )
-
           symbolPrice = cyrrencyPrice * currencyPerCoin
         }
 
@@ -266,6 +295,7 @@ class Registry {
             isPrice: tx.isPrice,
             isLiquidityPool: tx.isLiquidityPool,
             isFee: tx.isFee,
+            isLock: tx.isLock,
           }
           transactionsArrayOfObject.push(object)
           // if (tx.isPrice && !tx.isLiquidityPool) {
@@ -276,11 +306,7 @@ class Registry {
       })
 
       if (transactionsArrayOfObject.length) {
-        // new HistoricalPrices().updateHistoricalPrices(
-        //   historicalPricesArrayOfObject,
-        //   this.workSheet.isRange
-        // )
-        new Transactions().updateTransactions(
+        transactions.updateTransactions(
           transactionsArrayOfObject,
           this.workSheet.isRange
         )

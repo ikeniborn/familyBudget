@@ -86,36 +86,34 @@ class FlowSymbol {
             }
           }
           agg[tx.account][tx.symbol].quantityRest += tx.quantity
+
           return agg
         }, {})
       const aggFlowArrayOfObject = []
       Object.entries(aggFlow).forEach(([account, level0]) => {
-        // Object.entries(level0).forEach(([contractor, level1]) => {
-        // Object.entries(level1).forEach(([service, level2]) => {
         Object.entries(level0).forEach(([symbol, object]) => {
-          //* доп. атрибутика
+          //* доп. атрибуты
           const symbolKey = new Hash(symbol).md5
           const priceRest = prices[symbolKey]?.price
           const costRest = prices[symbolKey]?.price * object.quantityRest
-          // const symbolType = prices[priceKey]?.symbolType + ''
-          // const riskCategory = prices[priceKey]?.risk + ''
-          //* расчет потоков
+
+          //* расчет потоков без перемещений. т.к. между токенами нет перемещений
           const costInFlow =
             object.costBuyIn + object.costSellIn + object.costRefillIn
-          // object.costTransferIn
+
           const costOutFlow =
             object.costBuyOut + object.costSellOut + object.costWriteOffOut
-          // object.costTransferOut
+
           const quantityInFlow =
             object.quantityBuyIn +
             object.quantitySellIn +
             object.quantityRefillIn
-          // object.quantityTransferIn
+
           const quantityOutFlow =
             object.quantityBuyOut +
             object.quantitySellOut +
             object.quantityWriteOffOut
-          // object.quantityTransferOut
+
           //* расчет цены
 
           const priceInFlow = costInFlow / quantityInFlow
@@ -125,9 +123,6 @@ class FlowSymbol {
             account: account.toUpperCase(),
             symbol: symbol.toUpperCase(),
             symbolKey: symbolKey,
-            // symbolCategory: void 0,
-            // symbolType: symbolType.toUpperCase(),
-            // riskCategory: riskCategory.toUpperCase(),
             // quantityBuyIn: object.quantityBuyIn || 0,
             // quantityBuyOut: object.quantityBuyOut || 0,
             // quantitySellIn: object.quantitySellIn || 0,
@@ -168,7 +163,7 @@ class FlowSymbol {
 
       this.workSheet.truncateInsertRows(aggFlowArrayOfObject)
     } catch (error) {
-      new Log().addError('Flow.updateFlow', error)
+      new Log().addError('FlowSymbol.updateFlow', error)
     }
   }
 }

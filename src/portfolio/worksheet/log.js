@@ -26,6 +26,7 @@ class Log {
         message: error?.message,
         stack: error?.stack,
       })
+      Browser.msgBox('New error!')
       resolve()
     }).then(() => {
       this.truncateLog()

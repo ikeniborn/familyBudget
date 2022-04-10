@@ -863,45 +863,46 @@ class Portfolio {
           isDelete: { alias: 'Delete', idx: 17 },
           isLiquidityPool: { alias: 'Is liquidity pool', idx: 19 },
           isFee: { alias: 'Is fee', idx: 19 },
-          registryRowNum: { alias: 'Registry row num', idx: 20 },
+          isLock: { alias: 'Is lock', idx: 20 },
+          registryRowNum: { alias: 'Registry row num', idx: 21 },
           updateDate: {
             alias: 'Update',
-            idx: 21,
+            idx: 22,
             type: 'date',
             default: new Date(),
           },
         },
       },
 
-      historicalPrices: {
-        type: 'fct',
-        rowNum: 1,
-        columns: {
-          rowKey: { alias: 'Row key', idx: 0 },
-          dateTime: {
-            alias: 'Date and time',
-            pk: true,
-            idx: 1,
-            type: 'date',
-            notNull: true,
-          },
-          operation: { alias: 'Operation', idx: 2, pk: true, notNull: true },
-          direction: { alias: 'Direction', pk: true, idx: 3, notNull: true },
-          account: { alias: 'Account', pk: true, idx: 4, notNull: true },
-          project: { alias: 'Project', pk: true, idx: 5, notNull: true },
-          symbol: { alias: 'Symbol', pk: true, idx: 6, notNull: true },
-          quantity: { alias: 'Quantity', idx: 7 },
-          price: { alias: 'Price', idx: 8 },
-          isDelete: { alias: 'Is delete', idx: 9 },
-          registryRowNum: { alias: 'Registry row num', idx: 10 },
-          updateDate: {
-            alias: 'Update date',
-            idx: 11,
-            type: 'date',
-            default: new Date(),
-          },
-        },
-      },
+      // historicalPrices: {
+      //   type: 'fct',
+      //   rowNum: 1,
+      //   columns: {
+      //     rowKey: { alias: 'Row key', idx: 0 },
+      //     dateTime: {
+      //       alias: 'Date and time',
+      //       pk: true,
+      //       idx: 1,
+      //       type: 'date',
+      //       notNull: true,
+      //     },
+      //     operation: { alias: 'Operation', idx: 2, pk: true, notNull: true },
+      //     direction: { alias: 'Direction', pk: true, idx: 3, notNull: true },
+      //     account: { alias: 'Account', pk: true, idx: 4, notNull: true },
+      //     project: { alias: 'Project', pk: true, idx: 5, notNull: true },
+      //     symbol: { alias: 'Symbol', pk: true, idx: 6, notNull: true },
+      //     quantity: { alias: 'Quantity', idx: 7 },
+      //     price: { alias: 'Price', idx: 8 },
+      //     isDelete: { alias: 'Is delete', idx: 9 },
+      //     registryRowNum: { alias: 'Registry row num', idx: 10 },
+      //     updateDate: {
+      //       alias: 'Update date',
+      //       idx: 11,
+      //       type: 'date',
+      //       default: new Date(),
+      //     },
+      //   },
+      // },
       flowSymbol: {
         type: 'tx',
         rowNum: 1,
@@ -909,11 +910,39 @@ class Portfolio {
           account: { alias: 'Account', idx: 0 },
           symbol: { alias: 'Symbol', idx: 1 },
           symbolKey: { alias: 'Symbol key', idx: 2 },
-          // symbolCategory: { alias: 'Symbol category', idx: 3 },
-          // symbolType: { alias: 'Symbol type', idx: 4 },
-          // riskCategory: { alias: 'Risk category', idx: 5 },
           quantityInFlow: { alias: 'Quantity in flow', idx: 3 },
           quantityOutFlow: { alias: 'Quantity out flow', idx: 4 },
+          quantityRest: { alias: 'Quantity rest', idx: 5 },
+          priceInFlow: { alias: 'Price in flow', idx: 6 },
+          priceOutFlow: { alias: 'Price out flow', idx: 7 },
+          priceRest: { alias: 'Price rest', idx: 8 },
+          costInFlow: { alias: 'Cost in flow', idx: 9 },
+          costOutFlow: { alias: 'Cost out flow', idx: 10 },
+          costRest: { alias: 'Cost rest', idx: 11 },
+          costRestInFlow: { alias: 'Cost rest in flow', idx: 12 },
+          pnlTotal: { alias: 'PnL total', idx: 13 },
+          pnlRest: { alias: 'PnL rest', idx: 14 },
+          update: {
+            alias: 'Update',
+            idx: 15,
+            type: 'date',
+            default: new Date(),
+          },
+        },
+      },
+      flowContractor: {
+        type: 'tx',
+        rowNum: 1,
+        columns: {
+          account: { alias: 'Account', idx: 0 },
+          constractor: { alias: 'Contractor', idx: 0 },
+          contractorKey: { alias: 'Contractor key', idx: 0 },
+          symbol: { alias: 'Symbol', idx: 1 },
+          symbolKey: { alias: 'Symbol key', idx: 2 },
+          isLock: { alias: 'Is lock', idx: 2 },
+          quantityInFlow: { alias: 'Quantity in flow', idx: 3 },
+          quantityOutFlow: { alias: 'Quantity out flow', idx: 4 },
+          quantityRest: { alias: 'Quantity rest', idx: 5 },
           quantityRest: { alias: 'Quantity rest', idx: 5 },
           priceInFlow: { alias: 'Price in flow', idx: 6 },
           priceOutFlow: { alias: 'Price out flow', idx: 7 },
@@ -1107,6 +1136,7 @@ class Log {
         message: error?.message,
         stack: error?.stack,
       });
+      Browser.msgBox('New error!');
       resolve();
     }).then(() => {
       this.truncateLog();
@@ -1814,169 +1844,6 @@ class Prices {
   }
 }
 
-class HistoricalPrices {
-  constructor(workSheet = '') {
-    if (HistoricalPrices.exists) {
-      return HistoricalPrices.instance
-    }
-    HistoricalPrices.instance = this;
-    HistoricalPrices.exists = true;
-    this.workSheet = workSheet
-      ? workSheet
-      : new Portfolio().getWorkSheet('HistoricalPrices');
-    this.duplicatesRow = [];
-    this.prices = new Prices().workSheet.object;
-  }
-  /**
-   * Обновление или добавление новой исторической записи цены токена
-   * @param {*} arrayOfObject
-   * @param {*} isRange
-   */
-  updateHistoricalPrices(arrayOfObject = [], isRange = false) {
-    try {
-      if (isRange) {
-        new Promise((resolve) => {
-          arrayOfObject.forEach((tx) => {
-            const rowArray = this.workSheet.arrayOfObject.filter(
-              (row) => row.rowKey === tx.rowKey
-            );
-            const positiveQuantity =
-              new Hash(tx.direction).md5 === new Hash('out').md5
-                ? // && new Hash(tx.operation).md5 === new Hash('sell').md5
-                  tx.quantity * -1
-                : tx.quantity;
-            if (rowArray.length === 1) {
-              const oldRow = this.workSheet.object[tx.rowKey];
-              tx.rowNum = oldRow.rowNum;
-              tx.quantity = positiveQuantity;
-              this.workSheet.updateRow(tx);
-            } else if (rowArray.length > 1) {
-              rowArray.forEach((row, indexRow) => {
-                if (!indexRow) {
-                  tx.rowNum = row.rowNum;
-                  tx.quantity = positiveQuantity;
-                  this.workSheet.updateRow(tx);
-                } else {
-                  this.duplicatesRow.push(row);
-                }
-              });
-            } else {
-              tx.quantity = positiveQuantity;
-              this.workSheet.insertRow(tx);
-            }
-          });
-          resolve();
-        }).then(() => {
-          this.workSheet.deleteRows(this.duplicatesRow);
-        });
-      } else {
-        const sourceKey = arrayOfObject[0].sourceKey;
-        const otherArray = this.workSheet.arrayOfObject.filter(
-          (row) => row.sourceKey !== sourceKey
-        );
-        const splitArray = [...otherArray, ...arrayOfObject];
-        this.workSheet.truncateInsertRows(splitArray);
-      }
-    } catch (error) {
-      new Log().addError('HistoricalPrices.updateHistoricalPrices', error);
-    }
-  }
-
-  /**
-   * Получение средневзвешенной цены покупки токена
-   * @param {string} account
-   * @param {*} project
-   * @param {*} dateTime
-   * @param {*} symbol
-   * @param {*} convert
-   * @returns
-   */
-  getHistoricalPriceBuy(account, project, dateTime, symbol, convert = 'usd') {
-    try {
-      let historicalPrice = void 0;
-      const coin = this.prices[new Hash(symbol).md5];
-      const sourceKey = new Hash(coin.source).md5;
-      const id = coin.id;
-      const symbolTypeKey = new Hash(coin.symbolType).md5;
-      if (
-        ['stablecoin']
-          .map((m) => (m = new Hash(m).md5))
-          .indexOf(symbolTypeKey) === -1
-      ) {
-        // Расчет средневзвешенной стоимости покупки токена на основании истории покупок
-        const historicalPriceAgg = this.workSheet.arrayOfObject
-          .filter((row) => {
-            return (
-              new FormatDate(row.dateTime).value <=
-                new FormatDate(dateTime).value &&
-              new Hash(account).md5 === new Hash(row.account).md5 &&
-              new Hash(project).md5 === new Hash(row.project).md5 &&
-              new Hash(symbol).md5 === new Hash(row.symbol).md5 &&
-              new Hash('in').md5 === new Hash(row.direction).md5
-            )
-          })
-          .reduce((agg, tx) => {
-            if (!agg[tx.account]) {
-              agg[tx.account] = {};
-            }
-            if (!agg[tx.account][tx.project]) {
-              agg[tx.account][tx.project] = {};
-            }
-            if (!agg[tx.account][tx.project][tx.symbol]) {
-              agg[tx.account][tx.project][tx.symbol] = {
-                quantity: 0,
-                cost: 0,
-              };
-            }
-            agg[tx.account][tx.project][tx.symbol].quantity += tx.quantity;
-            agg[tx.account][tx.project][tx.symbol].cost +=
-              tx.quantity * tx.price;
-            return agg
-          }, {});
-
-        // Расчет средней цены покупки токена
-        Object.entries(historicalPriceAgg).forEach(([account, level0]) => {
-          Object.entries(level0).forEach(([project, level1]) => {
-            Object.entries(level1).forEach(([symbol, object]) => {
-              historicalPrice = object.cost / object.quantity || void 0;
-            });
-          });
-        });
-        if (historicalPrice) {
-          return historicalPrice
-        } else {
-          if (
-            new FormatDate(dateTime).yyyymmdd === new FormatDate().yyyymmdd &&
-            sourceKey === new Hash('coingecko').md5
-          ) {
-            //* Получение исторической цены из coinGecko
-            return new coinGecko.Price()
-              .getMarketsPrice(id)
-              .reduce((price, data) => {
-                price = data.current_price;
-                return price
-              }, 0)
-          } else {
-            //* Получение исторической цены из CryptoCompare
-            if (sourceKey === new Hash('cryptocompare').md5) {
-              return new Price$1().getHistoryPrice(
-                id,
-                dateTime,
-                convert
-              )
-            }
-          }
-        }
-      } else {
-        // Для стабильных токенов возвращать единицу
-        return 1
-      }
-    } catch (error) {
-      new Log().addError('HistoricalPrices.getHistoricalPriceBuy', error);
-    }
-  }
-}
-
 class Transactions {
   constructor(workSheet = '') {
     if (Transactions.exists) {
@@ -1988,6 +1855,7 @@ class Transactions {
       ? workSheet
       : new Portfolio().getWorkSheet('Transactions');
     this.duplicatesRow = [];
+    this.prices = new Prices().workSheet.object;
   }
 
   /**
@@ -2041,6 +1909,111 @@ class Transactions {
     const newArrayOfObject = Object.values(this.workSheet.object);
     this.workSheet.truncateInsertRows(newArrayOfObject);
   }
+
+  /**
+   * Получение средневзвешенной цены покупки токена
+   * @param {string} account
+   * @param {*} project
+   * @param {*} dateTime
+   * @param {*} symbol
+   * @param {*} convert
+   *    @param {*} isRange
+   * @returns
+   */
+  getHistoricalPriceBuy(
+    account,
+    project,
+    dateTime,
+    symbol,
+    isRange = false,
+    convert = 'usd'
+  ) {
+    try {
+      let historicalPrice = void 0;
+      const coin = this.prices[new Hash(symbol).md5];
+      const sourceKey = new Hash(coin.source).md5;
+      const id = coin.id;
+      const symbolTypeKey = new Hash(coin.symbolType).md5;
+      if (
+        ['stablecoin']
+          .map((m) => (m = new Hash(m).md5))
+          .indexOf(symbolTypeKey) === -1
+      ) {
+        //* Расчет средневзвешенной стоимости покупки токена на основании истории покупок
+        if (isRange) {
+          const historicalPriceAgg = this.workSheet.arrayOfObject
+            .filter((row) => {
+              return (
+                new FormatDate(row.dateTime).value <=
+                  new FormatDate(dateTime).value &&
+                new Hash(account).md5 === new Hash(row.account).md5 &&
+                new Hash(project).md5 === new Hash(row.project).md5 &&
+                new Hash(symbol).md5 === new Hash(row.symbol).md5 &&
+                new Hash('in').md5 === new Hash(row.direction).md5
+              )
+            })
+            .reduce((agg, tx) => {
+              if (!agg[tx.account]) {
+                agg[tx.account] = {};
+              }
+              if (!agg[tx.account][tx.project]) {
+                agg[tx.account][tx.project] = {};
+              }
+              if (!agg[tx.account][tx.project][tx.symbol]) {
+                agg[tx.account][tx.project][tx.symbol] = {
+                  quantity: 0,
+                  cost: 0,
+                };
+              }
+              agg[tx.account][tx.project][tx.symbol].quantity += tx.quantity;
+              agg[tx.account][tx.project][tx.symbol].cost +=
+                tx.quantity * tx.price;
+              return agg
+            }, {});
+
+          // Расчет средней цены покупки токена
+          Object.entries(historicalPriceAgg).forEach(([account, level0]) => {
+            Object.entries(level0).forEach(([project, level1]) => {
+              Object.entries(level1).forEach(([symbol, object]) => {
+                historicalPrice = object.cost / object.quantity || void 0;
+              });
+            });
+          });
+        }
+
+        if (historicalPrice) {
+          return historicalPrice
+        } else {
+          if (
+            new FormatDate(dateTime).yyyymmdd === new FormatDate().yyyymmdd &&
+            sourceKey === new Hash('coingecko').md5
+          ) {
+            //* Получение исторической цены из coinGecko
+            return new coinGecko.Price()
+              .getMarketsPrice(id)
+              .reduce((price, data) => {
+                price = data.current_price;
+                return price
+              }, 0)
+          } else {
+            //* Получение исторической цены из CryptoCompare
+            if (sourceKey === new Hash('cryptocompare').md5) {
+              return new Price$1().getHistoryPrice(
+                id,
+                dateTime,
+                convert
+              )
+            }
+          }
+        }
+      } else {
+        // Для стабильных токенов возвращать единицу
+        return 1
+      }
+    } catch (error) {
+      new Log().addError('Transactions.getHistoricalPriceBuy', error);
+    }
+  }
 }
 
 class Registry {
@@ -2050,12 +2023,12 @@ class Registry {
       : new Portfolio().getWorkSheet(SpreadsheetApp.getActiveSheet().getName());
   }
 
-  updateTransactions() {
+  updateTransactions(isRange = false) {
     try {
+      const transactions = new Transactions();
       const transactionsArrayOfObject = [];
-      const historicalPricesArrayOfObject = [];
       const updateDate = new Date();
-      const historicalPrices = new HistoricalPrices();
+      const services = new Portfolio().getWorkSheet('services').object;
       this.workSheet.arrayOfObject.forEach((rowValues) => {
         let coinQty,
           currencyQty,
@@ -2070,7 +2043,8 @@ class Registry {
           mainSymbol,
           isLiquidityPool,
           isFee,
-          feeCurrencyPrice;
+          feeCurrencyPrice,
+          isLock;
         const transactionRow = [];
         const hhmm = new FormatNumber(
           rowValues.time
@@ -2089,6 +2063,7 @@ class Registry {
         currencySymbol = rowValues.currency;
         isLiquidityPool = false;
         isFee = false;
+        isLock = false;
 
         if (!currencyPerCoin && currencyQty) {
           currencyPerCoin = currencyQty / coinQty;
@@ -2131,6 +2106,17 @@ class Registry {
                   : false,
               isLiquidityPool,
               isFee,
+              isLock:
+                new Hash(
+                  services[new Hash(rowValues.service).md5]?.symbolStatus
+                ).md5 === new Hash('lock').md5 &&
+                new Hash([rowValues.platform]).md5 ===
+                  new Hash(rowValues.sender).md5 &&
+                ['Transfer']
+                  .map((m) => (m = new Hash(m).md5))
+                  .indexOf(new Hash(rowValues.operation).md5) !== -1
+                  ? true
+                  : false,
               direction: 'out',
               account: rowValues.accountSender,
               contractor: rowValues.sender,
@@ -2155,6 +2141,17 @@ class Registry {
                   : false,
               isLiquidityPool,
               isFee,
+              isLock:
+                new Hash(
+                  services[new Hash(rowValues.service).md5]?.symbolStatus
+                ).md5 === new Hash('lock').md5 &&
+                new Hash([rowValues.platform]).md5 ===
+                  new Hash(recipient).md5 &&
+                ['Transfer']
+                  .map((m) => (m = new Hash(m).md5))
+                  .indexOf(new Hash(rowValues.operation).md5) !== -1
+                  ? true
+                  : false,
               direction: 'in',
               account: accountRecipient,
               contractor: recipient,
@@ -2175,6 +2172,7 @@ class Registry {
             direction: 'out',
             isLiquidityPool,
             isFee,
+            isLock,
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             project: 'No project',
@@ -2188,6 +2186,7 @@ class Registry {
             direction: 'in',
             isLiquidityPool,
             isFee,
+            isLock,
             account: accountRecipient,
             contractor: recipient,
             project: project,
@@ -2206,6 +2205,7 @@ class Registry {
             isLiquidityPool,
             direction: 'out',
             isFee,
+            isLock,
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             project: project,
@@ -2219,6 +2219,7 @@ class Registry {
             isLiquidityPool,
             direction: 'in',
             isFee,
+            isLock,
             account: accountRecipient,
             contractor: recipient,
             project: 'No project',
@@ -2235,6 +2236,7 @@ class Registry {
             isPrice: false,
             isLiquidityPool: false,
             isFee: true,
+            isLock,
             direction: 'out',
             account: rowValues.accountSender,
             contractor: rowValues.sender,
@@ -2243,11 +2245,12 @@ class Registry {
             symbol: rowValues.feeCurrency,
             quantity: rowValues.feeQty * -1,
           });
-          feeCurrencyPrice = historicalPrices.getHistoricalPriceBuy(
+          feeCurrencyPrice = transactions.getHistoricalPriceBuy(
             rowValues.accountSender,
             project,
             dateTime,
-            rowValues.feeCurrency
+            rowValues.feeCurrency,
+            isRange
           );
         }
 
@@ -2257,13 +2260,13 @@ class Registry {
             .map((m) => (m = new Hash(m).md5))
             .indexOf(new Hash(rowValues.operation).md5) !== -1
         ) {
-          cyrrencyPrice = historicalPrices.getHistoricalPriceBuy(
+          cyrrencyPrice = transactions.getHistoricalPriceBuy(
             rowValues.accountSender,
             project,
             dateTime,
-            currencySymbol
+            currencySymbol,
+            isRange
           );
-
           symbolPrice = cyrrencyPrice * currencyPerCoin;
         }
 
@@ -2304,6 +2307,7 @@ class Registry {
             isPrice: tx.isPrice,
             isLiquidityPool: tx.isLiquidityPool,
             isFee: tx.isFee,
+            isLock: tx.isLock,
           };
           transactionsArrayOfObject.push(object);
           // if (tx.isPrice && !tx.isLiquidityPool) {
@@ -2314,11 +2318,7 @@ class Registry {
       });
 
       if (transactionsArrayOfObject.length) {
-        // new HistoricalPrices().updateHistoricalPrices(
-        //   historicalPricesArrayOfObject,
-        //   this.workSheet.isRange
-        // )
-        new Transactions().updateTransactions(
+        transactions.updateTransactions(
           transactionsArrayOfObject,
           this.workSheet.isRange
         );
@@ -2574,36 +2574,34 @@ class FlowSymbol {
             }
           }
           agg[tx.account][tx.symbol].quantityRest += tx.quantity;
+
           return agg
         }, {});
       const aggFlowArrayOfObject = [];
       Object.entries(aggFlow).forEach(([account, level0]) => {
-        // Object.entries(level0).forEach(([contractor, level1]) => {
-        // Object.entries(level1).forEach(([service, level2]) => {
         Object.entries(level0).forEach(([symbol, object]) => {
-          //* доп. атрибутика
+          //* доп. атрибуты
           const symbolKey = new Hash(symbol).md5;
           const priceRest = prices[symbolKey]?.price;
           const costRest = prices[symbolKey]?.price * object.quantityRest;
-          // const symbolType = prices[priceKey]?.symbolType + ''
-          // const riskCategory = prices[priceKey]?.risk + ''
-          //* расчет потоков
+
+          //* расчет потоков без перемещений. т.к. между токенами нет перемещений
           const costInFlow =
             object.costBuyIn + object.costSellIn + object.costRefillIn;
-          // object.costTransferIn
+
           const costOutFlow =
             object.costBuyOut + object.costSellOut + object.costWriteOffOut;
-          // object.costTransferOut
+
           const quantityInFlow =
             object.quantityBuyIn +
             object.quantitySellIn +
             object.quantityRefillIn;
-          // object.quantityTransferIn
+
           const quantityOutFlow =
             object.quantityBuyOut +
             object.quantitySellOut +
             object.quantityWriteOffOut;
-          // object.quantityTransferOut
+
           //* расчет цены
 
           const priceInFlow = costInFlow / quantityInFlow;
@@ -2613,9 +2611,6 @@ class FlowSymbol {
             account: account.toUpperCase(),
             symbol: symbol.toUpperCase(),
             symbolKey: symbolKey,
-            // symbolCategory: void 0,
-            // symbolType: symbolType.toUpperCase(),
-            // riskCategory: riskCategory.toUpperCase(),
             // quantityBuyIn: object.quantityBuyIn || 0,
             // quantityBuyOut: object.quantityBuyOut || 0,
             // quantitySellIn: object.quantitySellIn || 0,
@@ -2656,7 +2651,198 @@ class FlowSymbol {
 
       this.workSheet.truncateInsertRows(aggFlowArrayOfObject);
     } catch (error) {
-      new Log().addError('Flow.updateFlow', error);
+      new Log().addError('FlowSymbol.updateFlow', error);
+    }
+  }
+}
+
+class FlowContractor {
+  constructor(workSheet = '') {
+    if (FlowContractor.exists) {
+      return FlowContractor.instance
+    }
+    FlowContractor.instance = this;
+    FlowContractor.exists = true;
+    this.workSheet = workSheet
+      ? workSheet
+      : new Portfolio().getWorkSheet('FlowContractor');
+  }
+
+  updateFlow() {
+    try {
+      const prices = new Portfolio().getWorkSheet('prices').object;
+      const aggFlow = new Portfolio()
+        .getWorkSheet('Transactions')
+        .arrayOfObject.filter((row) => !row.isDelete)
+        .reduce((agg, tx) => {
+          if (!agg[tx.account]) {
+            agg[tx.account] = {};
+          }
+          if (!agg[tx.account][tx.contractor]) {
+            agg[tx.account][tx.contractor] = {};
+          }
+
+          if (!agg[tx.account][tx.contractor][tx.symbol]) {
+            agg[tx.account][tx.contractor][tx.symbol] = {};
+          }
+
+          if (!agg[tx.account][tx.contractor][tx.symbol][tx.isLock]) {
+            agg[tx.account][tx.contractor][tx.symbol][tx.isLock] = {
+              quantityBuyIn: 0,
+              quantityBuyOut: 0,
+              quantitySellIn: 0,
+              quantitySellOut: 0,
+              quantityRefillIn: 0,
+              quantityWriteOffOut: 0,
+              quantityTransferIn: 0,
+              quantityTransferOut: 0,
+              quantityRest: 0,
+              costBuyIn: 0,
+              costBuyOut: 0,
+              costSellIn: 0,
+              costSellOut: 0,
+              costRefillIn: 0,
+              costWriteOffOut: 0,
+              costTransferIn: 0,
+              costTransferOut: 0,
+            };
+          }
+          //* Распределение количества по потокам
+
+          if (new Hash(tx.operation).md5 === new Hash('buy').md5) {
+            if (new Hash(tx.direction).md5 === new Hash('in').md5) {
+              agg[tx.account][tx.contractor][tx.symbol][
+                tx.isLock
+              ].quantityBuyIn += tx.quantity;
+              agg[tx.account][tx.contractor][tx.symbol][tx.isLock].costBuyIn +=
+                tx.cost;
+            } else if (new Hash(tx.direction).md5 === new Hash('out').md5) {
+              agg[tx.account][tx.contractor][tx.symbol][
+                tx.isLock
+              ].quantityBuyOut += tx.quantity * -1;
+              agg[tx.account][tx.contractor][tx.symbol][tx.isLock].costBuyOut +=
+                tx.cost * -1;
+            }
+          } else if (new Hash(tx.operation).md5 === new Hash('sell').md5) {
+            if (new Hash(tx.direction).md5 === new Hash('in').md5) {
+              agg[tx.account][tx.contractor][tx.symbol][
+                tx.isLock
+              ].quantitySellIn += tx.quantity;
+              agg[tx.account][tx.contractor][tx.symbol][tx.isLock].costSellIn +=
+                tx.cost;
+            } else if (new Hash(tx.direction).md5 === new Hash('out').md5) {
+              agg[tx.account][tx.contractor][tx.symbol][
+                tx.isLock
+              ].quantitySellOut += tx.quantity * -1;
+              agg[tx.account][tx.contractor][tx.symbol][
+                tx.isLock
+              ].costSellOut += tx.cost * -1;
+            }
+          } else if (new Hash(tx.operation).md5 === new Hash('refill').md5) {
+            if (new Hash(tx.direction).md5 === new Hash('in').md5) {
+              agg[tx.account][tx.contractor][tx.symbol][
+                tx.isLock
+              ].quantityRefillIn += tx.quantity;
+              agg[tx.account][tx.contractor][tx.symbol][
+                tx.isLock
+              ].costRefillIn += tx.cost;
+            }
+          } else if (new Hash(tx.operation).md5 === new Hash('write-off').md5) {
+            if (new Hash(tx.direction).md5 === new Hash('out').md5) {
+              agg[tx.account][tx.contractor][tx.symbol][
+                tx.isLock
+              ].quantityWriteOffOut += tx.quantity * -1;
+              agg[tx.account][tx.contractor][tx.symbol][
+                tx.isLock
+              ].costWriteOffOut += tx.cost * -1;
+            }
+          } else if (new Hash(tx.operation).md5 === new Hash('transfer').md5) {
+            if (new Hash(tx.direction).md5 === new Hash('in').md5) {
+              agg[tx.account][tx.contractor][tx.symbol][
+                tx.isLock
+              ].quantityTransferIn += tx.quantity;
+              agg[tx.account][tx.contractor][tx.symbol][
+                tx.isLock
+              ].costTransferIn += tx.cost;
+            } else if (new Hash(tx.direction).md5 === new Hash('out').md5) {
+              agg[tx.account][tx.contractor][tx.symbol][
+                tx.isLock
+              ].quantityTransferOut += tx.quantity * -1;
+              agg[tx.account][tx.contractor][tx.symbol][
+                tx.isLock
+              ].costTransferOut += tx.cost * -1;
+            }
+          }
+
+          agg[tx.account][tx.contractor][tx.symbol][tx.isLock].quantityRest +=
+            tx.quantity;
+
+          return agg
+        }, {});
+      const aggFlowArrayOfObject = [];
+
+      Object.entries(aggFlow).forEach(([account, level0]) => {
+        Object.entries(level0).forEach(([contractor, level1]) => {
+          const contractorKey = new Hash(contractor).md5;
+          Object.entries(level1).forEach(([symbol, level2]) => {
+            const symbolKey = new Hash(symbol).md5;
+            const priceRest = prices[symbolKey]?.price;
+            Object.entries(level2).forEach(([isLock, object]) => {
+              const costRest = priceRest * object.quantityRest;
+              //* расчет потоков с учетом перемещений
+              const costInFlow =
+                object.costBuyIn +
+                object.costSellIn +
+                object.costRefillIn +
+                object.costTransferIn;
+              const costOutFlow =
+                object.costBuyOut +
+                object.costSellOut +
+                object.costWriteOffOut +
+                object.costTransferOut;
+              const quantityInFlow =
+                object.quantityBuyIn +
+                object.quantitySellIn +
+                object.quantityRefillIn +
+                object.quantityTransferIn;
+              const quantityOutFlow =
+                object.quantityBuyOut +
+                object.quantitySellOut +
+                object.quantityWriteOffOut +
+                object.quantityTransferOut;
+              //* расчет цены
+
+              const priceInFlow = costInFlow / quantityInFlow;
+              const priceOutFlow = costOutFlow / quantityOutFlow;
+
+              aggFlowArrayOfObject.push({
+                account: account.toUpperCase(),
+                constractor: contractor.toUpperCase(),
+                contractorKey: contractorKey,
+                symbol: symbol.toUpperCase(),
+                symbolKey: symbolKey,
+                isLock: isLock,
+                quantityInFlow: quantityInFlow || 0,
+                quantityOutFlow: quantityOutFlow || 0,
+                quantityRest: object.quantityRest || 0,
+                priceInFlow: priceInFlow || 0,
+                priceOutFlow: priceOutFlow || 0,
+                priceRest: priceRest || 0,
+                costInFlow: costInFlow || 0,
+                costOutFlow: costOutFlow || 0,
+                costRest: costRest || 0,
+                costRestInFlow: priceInFlow * object.quantityRest || 0,
+                pnlTotal: costOutFlow - costInFlow + costRest || 0,
+                pnlRest: costRest - priceInFlow * object.quantityRest || 0,
+              });
+            });
+          });
+        });
+      });
+
+      this.workSheet.truncateInsertRows(aggFlowArrayOfObject);
+    } catch (error) {
+      new Log().addError('FlowContractors.updateFlow', error);
     }
   }
 }
@@ -2716,6 +2902,7 @@ function updateFlow() {
   const startProcess = new FormatDate();
   try {
     new FlowSymbol().updateFlow();
+    new FlowContractor().updateFlow();
   } catch (error) {
     new Log().addError('updateFlow', error);
   } finally {
@@ -2735,6 +2922,7 @@ function updatePrices() {
       resolve();
     }).then(() => {
       new FlowSymbol().updateFlow();
+      new FlowContractor().updateFlow();
     });
   } catch (error) {
     new Log().addError('updatePrices', error);
@@ -2771,7 +2959,7 @@ function updateOnEdit(editRange) {
         if (new Hash(workSheet.sheetName).md5 === new Hash('prices').md5) {
           new Prices(workSheet).updateId();
         } else if (workSheet.sheetName.match(new RegExp('[Registry]+', 'g'))) {
-          new Registry(workSheet).updateTransactions();
+          new Registry(workSheet).updateTransactions(true);
           isRegistry = true;
         }
       }
