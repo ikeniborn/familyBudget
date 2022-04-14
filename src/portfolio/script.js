@@ -7,7 +7,7 @@ import { Portfolio } from './spreadsheet/portfolio'
 import { LPToken } from './worksheet/lpToken.js'
 import { Log } from './worksheet/log'
 import { FlowSymbol } from './worksheet/flowSymbol'
-import { FlowContractor } from './worksheet/flowContractor'
+import { Flow } from './worksheet/flow'
 import { Transactions } from './worksheet/transactions'
 // import { GasProcess } from '../restApi/gasScriptApi'
 
@@ -64,7 +64,7 @@ function updateFlow() {
   const startProcess = new FormatDate()
   try {
     new FlowSymbol().updateFlow()
-    new FlowContractor().updateFlow()
+    // new Flow().updateFlow()
   } catch (error) {
     new Log().addError('updateFlow', error)
   } finally {
@@ -84,7 +84,7 @@ function updatePrices() {
       resolve()
     }).then(() => {
       new FlowSymbol().updateFlow()
-      new FlowContractor().updateFlow()
+      // new Flow().updateFlow()
     })
   } catch (error) {
     new Log().addError('updatePrices', error)
@@ -121,8 +121,17 @@ function updateOnEdit(editRange) {
         if (new Hash(workSheet.sheetName).md5 === new Hash('prices').md5) {
           new Prices(workSheet).updateId()
         } else if (workSheet.sheetName.match(new RegExp('[Registry]+', 'g'))) {
-          new Registry(workSheet).updateTransactions(true)
-          isRegistry = true
+          new Promise((resolve) => {
+            SpreadsheetApp.getActive().toast(
+              'Save registry starting',
+              'Save process',
+              1
+            )
+            resolve()
+          }).then(() => {
+            new Registry(workSheet).updateTransactions(true)
+            isRegistry = true
+          })
         }
       }
       return true

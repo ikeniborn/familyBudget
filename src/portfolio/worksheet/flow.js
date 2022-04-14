@@ -1,18 +1,18 @@
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash } from '../../utils'
 import { Log } from './log'
-export { FlowContractor }
+export { Flow }
 
-class FlowContractor {
+class Flow {
   constructor(workSheet = '') {
-    if (FlowContractor.exists) {
-      return FlowContractor.instance
+    if (Flow.exists) {
+      return Flow.instance
     }
-    FlowContractor.instance = this
-    FlowContractor.exists = true
+    Flow.instance = this
+    Flow.exists = true
     this.workSheet = workSheet
       ? workSheet
-      : new Portfolio().getWorkSheet('FlowContractor')
+      : new Portfolio().getWorkSheet('Flow')
   }
 
   updateFlow() {
@@ -32,9 +32,12 @@ class FlowContractor {
           if (!agg[tx.account][tx.contractor][tx.symbol]) {
             agg[tx.account][tx.contractor][tx.symbol] = {}
           }
+          if (!agg[tx.account][tx.contractor][tx.symbol]) {
+            agg[tx.account][tx.contractor][tx.symbol] = {}
+          }
 
-          if (!agg[tx.account][tx.contractor][tx.symbol][tx.isLock]) {
-            agg[tx.account][tx.contractor][tx.symbol][tx.isLock] = {
+          if (!agg[tx.account][tx.contractor][tx.symbol]) {
+            agg[tx.account][tx.contractor][tx.symbol] = {
               quantityBuyIn: 0,
               quantityBuyOut: 0,
               quantitySellIn: 0,

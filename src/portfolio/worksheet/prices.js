@@ -36,7 +36,7 @@ class Prices {
         //     new Hash(object.symbol).md5 === new Hash(row.symbol).md5
         //   )
         // })[0]
-        object.id = coins[coinsKey]?.id || '#N/A'
+        object.id = coins[coinsKey]?.id || void 0
         if (
           new Hash(object.source).md5 === new Hash('cryptoCompare'.md5) &&
           !object.price

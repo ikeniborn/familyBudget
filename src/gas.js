@@ -272,8 +272,10 @@ class WorkSheet extends SpreadSheet {
     }
   }
 
-  insertValue(value, row, column) {
-    this.workSheet.getRange(row, column).setValue(value)
+  insertValue(value, rowNum, column) {
+    if (rowNum !== this.headerRowNum) {
+      this.workSheet.getRange(rowNum, column).setValue(value)
+    }
   }
   /**
    *

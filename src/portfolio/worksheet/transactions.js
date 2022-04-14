@@ -91,6 +91,8 @@ class Transactions {
   ) {
     try {
       let historicalPrice = void 0
+      let isHistoricalAveragePrice
+      isHistoricalAveragePrice = false
       const coin = this.prices[new Hash(symbol).md5]
       const sourceKey = new Hash(coin.source).md5
       const id = coin.id
@@ -107,10 +109,15 @@ class Transactions {
               return (
                 new FormatDate(row.dateTime).value <=
                   new FormatDate(dateTime).value &&
-                new Hash(account).md5 === new Hash(row.account).md5 &&
-                new Hash(project).md5 === new Hash(row.project).md5 &&
-                new Hash(symbol).md5 === new Hash(row.symbol).md5 &&
-                new Hash('in').md5 === new Hash(row.direction).md5
+                new Hash(account + project + symbol + 'buy' + 'in').md5 ===
+                  new Hash(
+                    row.account +
+                      row.project +
+                      row.symbol +
+                      row.operation +
+                      row.direction
+                  ).md5 &&
+                row.isBuyPrice
               )
             })
             .reduce((agg, tx) => {
@@ -132,25 +139,26 @@ class Transactions {
               return agg
             }, {})
 
-          // Расчет средней цены покупки токена
-          Object.entries(historicalPriceAgg).forEach(([account, level0]) => {
-            Object.entries(level0).forEach(([project, level1]) => {
-              Object.entries(level1).forEach(([symbol, object]) => {
+          //* Расчет средней цены покупки токена
+          Object.values(historicalPriceAgg).forEach((level0) => {
+            Object.values(level0).forEach((level1) => {
+              Object.values(level1).forEach((object) => {
                 historicalPrice = object.cost / object.quantity || void 0
+                isHistoricalAveragePrice = true
               })
             })
           })
         }
 
         if (historicalPrice) {
-          return historicalPrice
+          return { historicalPrice, isHistoricalAveragePrice }
         } else {
           if (
             new FormatDate(dateTime).yyyymmdd === new FormatDate().yyyymmdd &&
             sourceKey === new Hash('coingecko').md5
           ) {
             //* Получение исторической цены из coinGecko
-            return new coinGecko.Price()
+            historicalPrice = new coinGecko.Price()
               .getMarketsPrice(id)
               .reduce((price, data) => {
                 price = data.current_price
@@ -159,17 +167,19 @@ class Transactions {
           } else {
             //* Получение исторической цены из CryptoCompare
             if (sourceKey === new Hash('cryptocompare').md5) {
-              return new cryptoCompare.Price().getHistoryPrice(
+              historicalPrice = new cryptoCompare.Price().getHistoryPrice(
                 id,
                 dateTime,
                 convert
               )
             }
           }
+          return { historicalPrice, isHistoricalAveragePrice }
         }
       } else {
         // Для стабильных токенов возвращать единицу
-        return 1
+        historicalPrice = 1
+        return { historicalPrice, isHistoricalAveragePrice }
       }
     } catch (error) {
       new Log().addError('Transactions.getHistoricalPriceBuy', error)

@@ -563,8 +563,10 @@ class WorkSheet extends SpreadSheet {
     }
   }
 
-  insertValue(value, row, column) {
-    this.workSheet.getRange(row, column).setValue(value);
+  insertValue(value, rowNum, column) {
+    if (rowNum !== this.headerRowNum) {
+      this.workSheet.getRange(rowNum, column).setValue(value);
+    }
   }
   /**
    *
@@ -789,17 +791,18 @@ class Portfolio {
           service: { alias: 'Service', idx: 5, notNull: true },
           sender: { alias: 'Sender', idx: 6, notNull: true },
           recipient: { alias: 'Recipient', idx: 7 },
-          coin: { alias: 'Coin', idx: 8, notNull: true },
-          coinQty: { alias: 'Coin, qty', idx: 9 },
-          currency: { alias: 'Currency', idx: 10 },
-          currencyQty: { alias: 'Currency, qty', idx: 11 },
-          currencyPerCoin: { alias: 'Currency per coin', idx: 12 },
-          feeCurrency: { alias: 'Fee currency', idx: 13 },
-          feeQty: { alias: 'Fee, qty', idx: 14 },
-          comment: { alias: 'Comment', idx: 15 },
-          date: { alias: 'Date', idx: 16, notNull: true, type: 'date' },
-          time: { alias: 'Time', idx: 17, notNull: true },
-          isDelete: { alias: 'Is delete', idx: 18 },
+          isLock: { alias: 'Is lock', idx: 8 },
+          coin: { alias: 'Coin', idx: 9, notNull: true },
+          coinQty: { alias: 'Coin, qty', idx: 10 },
+          currency: { alias: 'Currency', idx: 11 },
+          currencyQty: { alias: 'Currency, qty', idx: 12 },
+          currencyPerCoin: { alias: 'Currency per coin', idx: 13 },
+          feeCurrency: { alias: 'Fee currency', idx: 14 },
+          feeQty: { alias: 'Fee, qty', idx: 15 },
+          comment: { alias: 'Comment', idx: 16 },
+          date: { alias: 'Date', idx: 17, notNull: true, type: 'date' },
+          time: { alias: 'Time', idx: 18, notNull: true },
+          isDelete: { alias: 'Is delete', idx: 19 },
         },
       },
       prices: {
@@ -828,12 +831,25 @@ class Portfolio {
             idx: 4,
             notNull: true,
           },
-          riskCategory: { alias: 'Risk category', idx: 5 },
-          id: { alias: 'Id', idx: 6 },
-          price: { alias: 'Price', idx: 7 },
+          category: {
+            alias: 'Category',
+            idx: 5,
+            notNull: true,
+          },
+          proofType: {
+            alias: 'Proof type',
+            idx: 6,
+          },
+          ecosystem: {
+            alias: 'Ecosystem',
+            idx: 7,
+          },
+          riskCategory: { alias: 'Risk category', idx: 8 },
+          id: { alias: 'Id', idx: 9 },
+          price: { alias: 'Price', idx: 10 },
           update: {
             alias: 'Update',
-            idx: 8,
+            idx: 11,
             type: 'date',
             default: new Date(),
           },
@@ -864,45 +880,20 @@ class Portfolio {
           isLiquidityPool: { alias: 'Is liquidity pool', idx: 19 },
           isFee: { alias: 'Is fee', idx: 19 },
           isLock: { alias: 'Is lock', idx: 20 },
-          registryRowNum: { alias: 'Registry row num', idx: 21 },
+          isBuyPrice: { alias: 'Is buy price', idx: 21 },
+          isHistoricalAveragePrice: {
+            alias: 'Is historical average price',
+            idx: 22,
+          },
+          registryRowNum: { alias: 'Registry row num', idx: 23 },
           updateDate: {
             alias: 'Update',
-            idx: 22,
+            idx: 24,
             type: 'date',
             default: new Date(),
           },
         },
       },
-
-      // historicalPrices: {
-      //   type: 'fct',
-      //   rowNum: 1,
-      //   columns: {
-      //     rowKey: { alias: 'Row key', idx: 0 },
-      //     dateTime: {
-      //       alias: 'Date and time',
-      //       pk: true,
-      //       idx: 1,
-      //       type: 'date',
-      //       notNull: true,
-      //     },
-      //     operation: { alias: 'Operation', idx: 2, pk: true, notNull: true },
-      //     direction: { alias: 'Direction', pk: true, idx: 3, notNull: true },
-      //     account: { alias: 'Account', pk: true, idx: 4, notNull: true },
-      //     project: { alias: 'Project', pk: true, idx: 5, notNull: true },
-      //     symbol: { alias: 'Symbol', pk: true, idx: 6, notNull: true },
-      //     quantity: { alias: 'Quantity', idx: 7 },
-      //     price: { alias: 'Price', idx: 8 },
-      //     isDelete: { alias: 'Is delete', idx: 9 },
-      //     registryRowNum: { alias: 'Registry row num', idx: 10 },
-      //     updateDate: {
-      //       alias: 'Update date',
-      //       idx: 11,
-      //       type: 'date',
-      //       default: new Date(),
-      //     },
-      //   },
-      // },
       flowSymbol: {
         type: 'tx',
         rowNum: 1,
@@ -930,35 +921,50 @@ class Portfolio {
           },
         },
       },
-      flowContractor: {
+      flow: {
         type: 'tx',
         rowNum: 1,
         columns: {
-          account: { alias: 'Account', idx: 0 },
-          constractor: { alias: 'Contractor', idx: 0 },
-          contractorKey: { alias: 'Contractor key', idx: 0 },
-          symbol: { alias: 'Symbol', idx: 1 },
-          symbolKey: { alias: 'Symbol key', idx: 2 },
-          isLock: { alias: 'Is lock', idx: 2 },
-          quantityInFlow: { alias: 'Quantity in flow', idx: 3 },
-          quantityOutFlow: { alias: 'Quantity out flow', idx: 4 },
-          quantityRest: { alias: 'Quantity rest', idx: 5 },
-          quantityRest: { alias: 'Quantity rest', idx: 5 },
-          priceInFlow: { alias: 'Price in flow', idx: 6 },
-          priceOutFlow: { alias: 'Price out flow', idx: 7 },
-          priceRest: { alias: 'Price rest', idx: 8 },
-          costInFlow: { alias: 'Cost in flow', idx: 9 },
-          costOutFlow: { alias: 'Cost out flow', idx: 10 },
-          costRest: { alias: 'Cost rest', idx: 11 },
-          costRestInFlow: { alias: 'Cost rest in flow', idx: 12 },
-          pnlTotal: { alias: 'PnL total', idx: 13 },
-          pnlRest: { alias: 'PnL rest', idx: 14 },
+          account: { alias: 'Account', idx: 1 },
+          constractor: { alias: 'Contractor', idx: 2 },
+          contractorKey: { alias: 'Contractor key', idx: 3 },
+          project: { alias: 'Project', idx: 4 },
+          projectKey: { alias: 'Project key', idx: 5 },
+          symbol: { alias: 'Symbol', idx: 6 },
+          symbolKey: { alias: 'Symbol key', idx: 7 },
+          quantityInFlow: { alias: 'Quantity in flow', idx: 8 },
+          quantityOutFlow: { alias: 'Quantity out flow', idx: 10 },
+          quantityRest: { alias: 'Quantity rest', idx: 11 },
+          quantityLock: { alias: 'Quantity rest', idx: 12 },
+          quantityUnlock: { alias: 'Quantity rest', idx: 13 },
+          priceInFlow: { alias: 'Price in flow', idx: 14 },
+          priceOutFlow: { alias: 'Price out flow', idx: 15 },
+          priceRest: { alias: 'Price rest', idx: 16 },
+          costInFlow: { alias: 'Cost in flow', idx: 17 },
+          costOutFlow: { alias: 'Cost out flow', idx: 18 },
+          costRestInFlow: { alias: 'Cost rest in flow', idx: 19 },
+          costRest: { alias: 'Cost rest', idx: 20 },
+          costLock: { alias: 'Cost lock', idx: 21 },
+          costUnlock: { alias: 'Cost unlock', idx: 22 },
+          pnlRest: { alias: 'PnL rest', idx: 23 },
+          pnlTotal: { alias: 'PnL total', idx: 24 },
           update: {
             alias: 'Update',
-            idx: 15,
+            idx: 25,
             type: 'date',
             default: new Date(),
           },
+        },
+      },
+      historicalPrices: {
+        type: 'dim',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          yyyymmdd: { alias: 'YYYYMMDD', pk: true, idx: 1, notNull: true },
+          source: { alias: 'Source', pk: true, idx: 2, notNull: true },
+          symbol: { alias: 'Symbol', pk: true, idx: 3, notNull: true },
+          priceAvg: { alias: 'Avarage price', idx: 4 },
         },
       },
       coins: {
@@ -977,7 +983,24 @@ class Portfolio {
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0, notNull: true },
-          name: { alias: 'Name', pk: true, idx: 1 },
+          name: { alias: 'Name', pk: true, idx: 1, notNull: true },
+        },
+      },
+      symbolCategory: {
+        type: 'dim',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0, notNull: true },
+          name: { alias: 'Name', pk: true, idx: 1, notNull: true },
+        },
+      },
+      proofType: {
+        type: 'dim',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0, notNull: true },
+          name: { alias: 'Name', pk: true, idx: 1, notNull: true },
+          description: { alias: 'Description', idx: 1 },
         },
       },
       symbolType: {
@@ -985,17 +1008,18 @@ class Portfolio {
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0, notNull: true },
-          name: { alias: 'Name', pk: true, idx: 1 },
-          strategy: { alias: 'Strategy', idx: 2 },
+          name: { alias: 'Name', pk: true, idx: 1, notNull: true },
+          strategy: { alias: 'Strategy', idx: 2, notNull: true },
         },
       },
+
       strategy: {
         type: 'dim',
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
-          distribution: { alias: 'Distribution', idx: 2 },
+          distribution: { alias: 'Distribution', idx: 2, notNull: true },
         },
       },
       services: {
@@ -1004,7 +1028,6 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
-          symbolStatus: { alias: 'Symbol status', idx: 2, notNull: true },
         },
       },
       operations: {
@@ -1016,6 +1039,14 @@ class Portfolio {
         },
       },
       project: {
+        type: 'dim',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          name: { alias: 'Name', pk: true, idx: 1, notNull: true },
+        },
+      },
+      ecosystem: {
         type: 'dim',
         rowNum: 1,
         columns: {
@@ -1037,8 +1068,8 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
-          type: { alias: 'Type', idx: 2 },
-          category: { alias: 'Category', idx: 3 },
+          type: { alias: 'Type', idx: 2, notNull: true },
+          category: { alias: 'Category', idx: 3, notNull: true },
         },
       },
       lptoken: {
@@ -1679,7 +1710,7 @@ class Prices {
         //     new Hash(object.symbol).md5 === new Hash(row.symbol).md5
         //   )
         // })[0]
-        object.id = coins[coinsKey]?.id || '#N/A';
+        object.id = coins[coinsKey]?.id || void 0;
         if (
           new Hash(object.source).md5 === new Hash('cryptoCompare'.md5) &&
           !object.price
@@ -1930,6 +1961,8 @@ class Transactions {
   ) {
     try {
       let historicalPrice = void 0;
+      let isHistoricalAveragePrice;
+      isHistoricalAveragePrice = false;
       const coin = this.prices[new Hash(symbol).md5];
       const sourceKey = new Hash(coin.source).md5;
       const id = coin.id;
@@ -1946,10 +1979,15 @@ class Transactions {
               return (
                 new FormatDate(row.dateTime).value <=
                   new FormatDate(dateTime).value &&
-                new Hash(account).md5 === new Hash(row.account).md5 &&
-                new Hash(project).md5 === new Hash(row.project).md5 &&
-                new Hash(symbol).md5 === new Hash(row.symbol).md5 &&
-                new Hash('in').md5 === new Hash(row.direction).md5
+                new Hash(account + project + symbol + 'buy' + 'in').md5 ===
+                  new Hash(
+                    row.account +
+                      row.project +
+                      row.symbol +
+                      row.operation +
+                      row.direction
+                  ).md5 &&
+                row.isBuyPrice
               )
             })
             .reduce((agg, tx) => {
@@ -1971,44 +2009,47 @@ class Transactions {
               return agg
             }, {});
 
-          // Расчет средней цены покупки токена
-          Object.entries(historicalPriceAgg).forEach(([account, level0]) => {
-            Object.entries(level0).forEach(([project, level1]) => {
-              Object.entries(level1).forEach(([symbol, object]) => {
+          //* Расчет средней цены покупки токена
+          Object.values(historicalPriceAgg).forEach((level0) => {
+            Object.values(level0).forEach((level1) => {
+              Object.values(level1).forEach((object) => {
                 historicalPrice = object.cost / object.quantity || void 0;
+                isHistoricalAveragePrice = true;
               });
             });
           });
         }
 
         if (historicalPrice) {
-          return historicalPrice
+          return { historicalPrice, isHistoricalAveragePrice }
         } else {
           if (
             new FormatDate(dateTime).yyyymmdd === new FormatDate().yyyymmdd &&
             sourceKey === new Hash('coingecko').md5
           ) {
             //* Получение исторической цены из coinGecko
-            return new coinGecko.Price()
+            historicalPrice = new coinGecko.Price()
               .getMarketsPrice(id)
               .reduce((price, data) => {
                 price = data.current_price;
                 return price
-              }, 0)
+              }, 0);
           } else {
             //* Получение исторической цены из CryptoCompare
             if (sourceKey === new Hash('cryptocompare').md5) {
-              return new Price$1().getHistoryPrice(
+              historicalPrice = new Price$1().getHistoryPrice(
                 id,
                 dateTime,
                 convert
-              )
+              );
             }
           }
+          return { historicalPrice, isHistoricalAveragePrice }
         }
       } else {
         // Для стабильных токенов возвращать единицу
-        return 1
+        historicalPrice = 1;
+        return { historicalPrice, isHistoricalAveragePrice }
       }
     } catch (error) {
       new Log().addError('Transactions.getHistoricalPriceBuy', error);
@@ -2039,12 +2080,21 @@ class Registry {
           accountRecipient,
           recipient,
           currencySymbol,
-          cyrrencyPrice,
+          currencyPrice,
+          feePrice,
           mainSymbol,
           isLiquidityPool,
           isFee,
-          feeCurrencyPrice,
-          isLock;
+          isLock,
+          isBuyPrice,
+          isSymbolPrice,
+          isCurencyPrice,
+          isFeePrice,
+          isHistoricalAveragePrice,
+          isHistoricalAveragePriceSymbol,
+          isHistoricalAveragePriceFeeCurrency,
+          isHistoricalAveragePriceCurrency;
+
         const transactionRow = [];
         const hhmm = new FormatNumber(
           rowValues.time
@@ -2063,7 +2113,14 @@ class Registry {
         currencySymbol = rowValues.currency;
         isLiquidityPool = false;
         isFee = false;
+        isBuyPrice = false;
         isLock = false;
+        isSymbolPrice = false;
+        isCurencyPrice = false;
+        isFeePrice = false;
+        isHistoricalAveragePriceSymbol = false;
+        isHistoricalAveragePriceFeeCurrency = false;
+        isHistoricalAveragePriceCurrency = false;
 
         if (!currencyPerCoin && currencyQty) {
           currencyPerCoin = currencyQty / coinQty;
@@ -2074,6 +2131,7 @@ class Registry {
         if (!coinQty) {
           coinQty = currencyQty / currencyPerCoin;
         }
+        //* расчет пулов ликвидности
         if (
           ['Liquidity pool (1)', 'Liquidity pool (2)']
             .map((m) => (m = new Hash(m).md5))
@@ -2083,7 +2141,6 @@ class Registry {
           mainSymbol = coinSymbol;
           isLiquidityPool = true;
         }
-
         if (
           ['Transfer', 'Write-off', 'Refill']
             .map((m) => (m = new Hash(m).md5))
@@ -2098,25 +2155,6 @@ class Registry {
           ) {
             transactionRow.push({
               rowKey: new Hash(rowValues.rowKey + '#1').md5,
-              isPrice:
-                ['Write-off']
-                  .map((m) => (m = new Hash(m).md5))
-                  .indexOf(new Hash(rowValues.operation).md5) !== -1
-                  ? true
-                  : false,
-              isLiquidityPool,
-              isFee,
-              isLock:
-                new Hash(
-                  services[new Hash(rowValues.service).md5]?.symbolStatus
-                ).md5 === new Hash('lock').md5 &&
-                new Hash([rowValues.platform]).md5 ===
-                  new Hash(rowValues.sender).md5 &&
-                ['Transfer']
-                  .map((m) => (m = new Hash(m).md5))
-                  .indexOf(new Hash(rowValues.operation).md5) !== -1
-                  ? true
-                  : false,
               direction: 'out',
               account: rowValues.accountSender,
               contractor: rowValues.sender,
@@ -2124,6 +2162,13 @@ class Registry {
               mainSymbol: void 0,
               symbol: coinSymbol,
               quantity: coinQty * -1,
+              isFee,
+              isLock,
+              isLiquidityPool,
+              isBuyPrice,
+              isSymbolPrice: true,
+              isFeePrice,
+              isCurencyPrice,
             });
           }
           if (
@@ -2133,25 +2178,6 @@ class Registry {
           ) {
             transactionRow.push({
               rowKey: new Hash(rowValues.rowKey + '#2').md5,
-              isPrice:
-                ['Refill']
-                  .map((m) => (m = new Hash(m).md5))
-                  .indexOf(new Hash(rowValues.operation).md5) !== -1
-                  ? true
-                  : false,
-              isLiquidityPool,
-              isFee,
-              isLock:
-                new Hash(
-                  services[new Hash(rowValues.service).md5]?.symbolStatus
-                ).md5 === new Hash('lock').md5 &&
-                new Hash([rowValues.platform]).md5 ===
-                  new Hash(recipient).md5 &&
-                ['Transfer']
-                  .map((m) => (m = new Hash(m).md5))
-                  .indexOf(new Hash(rowValues.operation).md5) !== -1
-                  ? true
-                  : false,
               direction: 'in',
               account: accountRecipient,
               contractor: recipient,
@@ -2159,6 +2185,14 @@ class Registry {
               mainSymbol: void 0,
               symbol: coinSymbol,
               quantity: coinQty,
+              isFee,
+              isLock: rowValues.isLock,
+              isLiquidityPool,
+              isBuyPrice,
+              isSymbolPrice: true,
+              isFeePrice,
+
+              isCurencyPrice,
             });
           }
         } else if (
@@ -2168,31 +2202,38 @@ class Registry {
         ) {
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#1').md5,
-            isPrice: false,
             direction: 'out',
-            isLiquidityPool,
-            isFee,
-            isLock,
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             project: 'No project',
             mainSymbol: mainSymbol,
             symbol: currencySymbol,
             quantity: currencyQty * -1,
+            isFee,
+            isLock,
+            isLiquidityPool,
+            isBuyPrice,
+            isCurencyPrice: true,
+            isFeePrice,
+            isSymbolPrice,
           });
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#2').md5,
-            isPrice: true,
             direction: 'in',
-            isLiquidityPool,
-            isFee,
-            isLock,
+            isLock: rowValues.isLock,
             account: accountRecipient,
             contractor: recipient,
             project: project,
             mainSymbol: mainSymbol,
             symbol: coinSymbol,
             quantity: coinQty,
+            isFee,
+            isLock,
+            isLiquidityPool,
+            isBuyPrice: true,
+            isSymbolPrice: true,
+            isFeePrice,
+            isCurencyPrice,
           });
         } else if (
           ['Sell']
@@ -2201,31 +2242,38 @@ class Registry {
         ) {
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#1').md5,
-            isPrice: true,
-            isLiquidityPool,
             direction: 'out',
-            isFee,
-            isLock,
             account: rowValues.accountSender,
             contractor: rowValues.sender,
             project: project,
             mainSymbol: mainSymbol,
             symbol: coinSymbol,
             quantity: coinQty * -1,
+            isFee,
+            isLock,
+            isLiquidityPool,
+            isBuyPrice,
+            isSymbolPrice: true,
+            isFeePrice,
+            isCurencyPrice,
           });
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#2').md5,
-            isPrice: false,
-            isLiquidityPool,
             direction: 'in',
-            isFee,
-            isLock,
+            isLock: rowValues.isLock,
             account: accountRecipient,
             contractor: recipient,
             project: 'No project',
             mainSymbol: mainSymbol,
             symbol: currencySymbol,
             quantity: currencyQty,
+            isFee,
+            isLock,
+            isLiquidityPool,
+            isBuyPrice,
+            isCurencyPrice: true,
+            isFeePrice,
+            isSymbolPrice,
           });
         }
 
@@ -2233,10 +2281,6 @@ class Registry {
         if (rowValues.feeCurrency) {
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#3').md5,
-            isPrice: false,
-            isLiquidityPool: false,
-            isFee: true,
-            isLock,
             direction: 'out',
             account: rowValues.accountSender,
             contractor: rowValues.sender,
@@ -2244,14 +2288,24 @@ class Registry {
             mainSymbol: void 0,
             symbol: rowValues.feeCurrency,
             quantity: rowValues.feeQty * -1,
+            isFee: true,
+            isLock,
+            isLiquidityPool,
+            isBuyPrice,
+            isFeePrice: true,
+            isSymbolPrice,
+            isCurencyPrice,
           });
-          feeCurrencyPrice = transactions.getHistoricalPriceBuy(
+          const historicalPriceBuy = transactions.getHistoricalPriceBuy(
             rowValues.accountSender,
             project,
             dateTime,
             rowValues.feeCurrency,
             isRange
           );
+          feePrice = historicalPriceBuy.historicalPrice;
+          isHistoricalAveragePriceFeeCurrency =
+            historicalPriceBuy.isHistoricalAveragePrice;
         }
 
         //* Расчет текущей или исторической цены покупаемого токена
@@ -2260,25 +2314,33 @@ class Registry {
             .map((m) => (m = new Hash(m).md5))
             .indexOf(new Hash(rowValues.operation).md5) !== -1
         ) {
-          cyrrencyPrice = transactions.getHistoricalPriceBuy(
+          const historicalPriceBuy = transactions.getHistoricalPriceBuy(
             rowValues.accountSender,
             project,
             dateTime,
             currencySymbol,
             isRange
           );
-          symbolPrice = cyrrencyPrice * currencyPerCoin;
+          isHistoricalAveragePriceCurrency =
+            historicalPriceBuy.isHistoricalAveragePrice;
+          currencyPrice = historicalPriceBuy.historicalPrice;
+          isHistoricalAveragePriceSymbol =
+            historicalPriceBuy.isHistoricalAveragePrice;
+          symbolPrice = currencyPrice * currencyPerCoin;
         }
 
         //* Формирование строки транзакции
         transactionRow.forEach((tx) => {
           let price;
-          if (tx.isPrice && !tx.isFee) {
+          if (tx.isSymbolPrice) {
             price = symbolPrice;
-          } else if (tx.isFee) {
-            price = feeCurrencyPrice;
-          } else {
-            price = cyrrencyPrice;
+            isHistoricalAveragePrice = isHistoricalAveragePriceCurrency;
+          } else if (tx.isFeePrice) {
+            price = feePrice;
+            isHistoricalAveragePrice = isHistoricalAveragePriceFeeCurrency;
+          } else if (tx.isCurencyPrice) {
+            price = currencyPrice;
+            isHistoricalAveragePrice = isHistoricalAveragePriceCurrency;
           }
           const cost = tx.quantity * price;
           const object = {
@@ -2304,16 +2366,13 @@ class Registry {
             registryRowNum: rowValues.rowNum,
             updateDate: updateDate,
             isDelete: rowValues.isDelete,
-            isPrice: tx.isPrice,
+            isBuyPrice: tx.isBuyPrice,
             isLiquidityPool: tx.isLiquidityPool,
             isFee: tx.isFee,
             isLock: tx.isLock,
+            isHistoricalAveragePrice,
           };
           transactionsArrayOfObject.push(object);
-          // if (tx.isPrice && !tx.isLiquidityPool) {
-          // if (tx.isPrice) {
-          // historicalPricesArrayOfObject.push(new FormatObject(object).getCopy())
-          // }
         });
       });
 
@@ -2656,197 +2715,6 @@ class FlowSymbol {
   }
 }
 
-class FlowContractor {
-  constructor(workSheet = '') {
-    if (FlowContractor.exists) {
-      return FlowContractor.instance
-    }
-    FlowContractor.instance = this;
-    FlowContractor.exists = true;
-    this.workSheet = workSheet
-      ? workSheet
-      : new Portfolio().getWorkSheet('FlowContractor');
-  }
-
-  updateFlow() {
-    try {
-      const prices = new Portfolio().getWorkSheet('prices').object;
-      const aggFlow = new Portfolio()
-        .getWorkSheet('Transactions')
-        .arrayOfObject.filter((row) => !row.isDelete)
-        .reduce((agg, tx) => {
-          if (!agg[tx.account]) {
-            agg[tx.account] = {};
-          }
-          if (!agg[tx.account][tx.contractor]) {
-            agg[tx.account][tx.contractor] = {};
-          }
-
-          if (!agg[tx.account][tx.contractor][tx.symbol]) {
-            agg[tx.account][tx.contractor][tx.symbol] = {};
-          }
-
-          if (!agg[tx.account][tx.contractor][tx.symbol][tx.isLock]) {
-            agg[tx.account][tx.contractor][tx.symbol][tx.isLock] = {
-              quantityBuyIn: 0,
-              quantityBuyOut: 0,
-              quantitySellIn: 0,
-              quantitySellOut: 0,
-              quantityRefillIn: 0,
-              quantityWriteOffOut: 0,
-              quantityTransferIn: 0,
-              quantityTransferOut: 0,
-              quantityRest: 0,
-              costBuyIn: 0,
-              costBuyOut: 0,
-              costSellIn: 0,
-              costSellOut: 0,
-              costRefillIn: 0,
-              costWriteOffOut: 0,
-              costTransferIn: 0,
-              costTransferOut: 0,
-            };
-          }
-          //* Распределение количества по потокам
-
-          if (new Hash(tx.operation).md5 === new Hash('buy').md5) {
-            if (new Hash(tx.direction).md5 === new Hash('in').md5) {
-              agg[tx.account][tx.contractor][tx.symbol][
-                tx.isLock
-              ].quantityBuyIn += tx.quantity;
-              agg[tx.account][tx.contractor][tx.symbol][tx.isLock].costBuyIn +=
-                tx.cost;
-            } else if (new Hash(tx.direction).md5 === new Hash('out').md5) {
-              agg[tx.account][tx.contractor][tx.symbol][
-                tx.isLock
-              ].quantityBuyOut += tx.quantity * -1;
-              agg[tx.account][tx.contractor][tx.symbol][tx.isLock].costBuyOut +=
-                tx.cost * -1;
-            }
-          } else if (new Hash(tx.operation).md5 === new Hash('sell').md5) {
-            if (new Hash(tx.direction).md5 === new Hash('in').md5) {
-              agg[tx.account][tx.contractor][tx.symbol][
-                tx.isLock
-              ].quantitySellIn += tx.quantity;
-              agg[tx.account][tx.contractor][tx.symbol][tx.isLock].costSellIn +=
-                tx.cost;
-            } else if (new Hash(tx.direction).md5 === new Hash('out').md5) {
-              agg[tx.account][tx.contractor][tx.symbol][
-                tx.isLock
-              ].quantitySellOut += tx.quantity * -1;
-              agg[tx.account][tx.contractor][tx.symbol][
-                tx.isLock
-              ].costSellOut += tx.cost * -1;
-            }
-          } else if (new Hash(tx.operation).md5 === new Hash('refill').md5) {
-            if (new Hash(tx.direction).md5 === new Hash('in').md5) {
-              agg[tx.account][tx.contractor][tx.symbol][
-                tx.isLock
-              ].quantityRefillIn += tx.quantity;
-              agg[tx.account][tx.contractor][tx.symbol][
-                tx.isLock
-              ].costRefillIn += tx.cost;
-            }
-          } else if (new Hash(tx.operation).md5 === new Hash('write-off').md5) {
-            if (new Hash(tx.direction).md5 === new Hash('out').md5) {
-              agg[tx.account][tx.contractor][tx.symbol][
-                tx.isLock
-              ].quantityWriteOffOut += tx.quantity * -1;
-              agg[tx.account][tx.contractor][tx.symbol][
-                tx.isLock
-              ].costWriteOffOut += tx.cost * -1;
-            }
-          } else if (new Hash(tx.operation).md5 === new Hash('transfer').md5) {
-            if (new Hash(tx.direction).md5 === new Hash('in').md5) {
-              agg[tx.account][tx.contractor][tx.symbol][
-                tx.isLock
-              ].quantityTransferIn += tx.quantity;
-              agg[tx.account][tx.contractor][tx.symbol][
-                tx.isLock
-              ].costTransferIn += tx.cost;
-            } else if (new Hash(tx.direction).md5 === new Hash('out').md5) {
-              agg[tx.account][tx.contractor][tx.symbol][
-                tx.isLock
-              ].quantityTransferOut += tx.quantity * -1;
-              agg[tx.account][tx.contractor][tx.symbol][
-                tx.isLock
-              ].costTransferOut += tx.cost * -1;
-            }
-          }
-
-          agg[tx.account][tx.contractor][tx.symbol][tx.isLock].quantityRest +=
-            tx.quantity;
-
-          return agg
-        }, {});
-      const aggFlowArrayOfObject = [];
-
-      Object.entries(aggFlow).forEach(([account, level0]) => {
-        Object.entries(level0).forEach(([contractor, level1]) => {
-          const contractorKey = new Hash(contractor).md5;
-          Object.entries(level1).forEach(([symbol, level2]) => {
-            const symbolKey = new Hash(symbol).md5;
-            const priceRest = prices[symbolKey]?.price;
-            Object.entries(level2).forEach(([isLock, object]) => {
-              const costRest = priceRest * object.quantityRest;
-              //* расчет потоков с учетом перемещений
-              const costInFlow =
-                object.costBuyIn +
-                object.costSellIn +
-                object.costRefillIn +
-                object.costTransferIn;
-              const costOutFlow =
-                object.costBuyOut +
-                object.costSellOut +
-                object.costWriteOffOut +
-                object.costTransferOut;
-              const quantityInFlow =
-                object.quantityBuyIn +
-                object.quantitySellIn +
-                object.quantityRefillIn +
-                object.quantityTransferIn;
-              const quantityOutFlow =
-                object.quantityBuyOut +
-                object.quantitySellOut +
-                object.quantityWriteOffOut +
-                object.quantityTransferOut;
-              //* расчет цены
-
-              const priceInFlow = costInFlow / quantityInFlow;
-              const priceOutFlow = costOutFlow / quantityOutFlow;
-
-              aggFlowArrayOfObject.push({
-                account: account.toUpperCase(),
-                constractor: contractor.toUpperCase(),
-                contractorKey: contractorKey,
-                symbol: symbol.toUpperCase(),
-                symbolKey: symbolKey,
-                isLock: isLock,
-                quantityInFlow: quantityInFlow || 0,
-                quantityOutFlow: quantityOutFlow || 0,
-                quantityRest: object.quantityRest || 0,
-                priceInFlow: priceInFlow || 0,
-                priceOutFlow: priceOutFlow || 0,
-                priceRest: priceRest || 0,
-                costInFlow: costInFlow || 0,
-                costOutFlow: costOutFlow || 0,
-                costRest: costRest || 0,
-                costRestInFlow: priceInFlow * object.quantityRest || 0,
-                pnlTotal: costOutFlow - costInFlow + costRest || 0,
-                pnlRest: costRest - priceInFlow * object.quantityRest || 0,
-              });
-            });
-          });
-        });
-      });
-
-      this.workSheet.truncateInsertRows(aggFlowArrayOfObject);
-    } catch (error) {
-      new Log().addError('FlowContractors.updateFlow', error);
-    }
-  }
-}
-
 // import { GasProcess } from '../restApi/gasScriptApi'
 
 function updateLPToken() {
@@ -2902,7 +2770,7 @@ function updateFlow() {
   const startProcess = new FormatDate();
   try {
     new FlowSymbol().updateFlow();
-    new FlowContractor().updateFlow();
+    // new Flow().updateFlow()
   } catch (error) {
     new Log().addError('updateFlow', error);
   } finally {
@@ -2922,7 +2790,7 @@ function updatePrices() {
       resolve();
     }).then(() => {
       new FlowSymbol().updateFlow();
-      new FlowContractor().updateFlow();
+      // new Flow().updateFlow()
     });
   } catch (error) {
     new Log().addError('updatePrices', error);
@@ -2959,8 +2827,17 @@ function updateOnEdit(editRange) {
         if (new Hash(workSheet.sheetName).md5 === new Hash('prices').md5) {
           new Prices(workSheet).updateId();
         } else if (workSheet.sheetName.match(new RegExp('[Registry]+', 'g'))) {
-          new Registry(workSheet).updateTransactions(true);
-          isRegistry = true;
+          new Promise((resolve) => {
+            SpreadsheetApp.getActive().toast(
+              'Save registry starting',
+              'Save process',
+              1
+            );
+            resolve();
+          }).then(() => {
+            new Registry(workSheet).updateTransactions(true);
+            isRegistry = true;
+          });
         }
       }
       return true
