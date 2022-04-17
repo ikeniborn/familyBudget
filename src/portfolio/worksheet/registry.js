@@ -12,11 +12,12 @@ class Registry {
   }
 
   updateTransactions(isRange = false) {
+    const startProcess = new FormatDate()
     try {
       const transactions = new Transactions()
       const transactionsArrayOfObject = []
       const updateDate = new Date()
-      const services = new Portfolio().getWorkSheet('services').object
+      // const services = new Portfolio().getWorkSheet('services').object
       this.workSheet.arrayOfObject.forEach((rowValues) => {
         let coinQty,
           currencyQty,
@@ -281,13 +282,14 @@ class Registry {
           let price
           if (tx.isSymbolPrice) {
             price = symbolPrice
-            isHistoricalAveragePrice = isHistoricalAveragePriceCurrency
+            isHistoricalAveragePrice = isHistoricalAveragePriceCurrency || false
           } else if (tx.isFeePrice) {
             price = feePrice
-            isHistoricalAveragePrice = isHistoricalAveragePriceFeeCurrency
+            isHistoricalAveragePrice =
+              isHistoricalAveragePriceFeeCurrency || false
           } else if (tx.isCurencyPrice) {
             price = currencyPrice
-            isHistoricalAveragePrice = isHistoricalAveragePriceCurrency
+            isHistoricalAveragePrice = isHistoricalAveragePriceCurrency || false
           }
           const cost = tx.quantity * price
           const object = {
@@ -333,6 +335,11 @@ class Registry {
       this.workSheet.deleteEmptyRows()
     } catch (error) {
       new Log().addError('Registry.updateTransactions', error)
+    } finally {
+      console.info(
+        'Registry.updateTransactions.timeSpent: ',
+        startProcess.getTimeDiff()
+      )
     }
   }
 }

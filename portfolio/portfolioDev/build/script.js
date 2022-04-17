@@ -270,12 +270,12 @@ class Header {
     return head[new Hash(sheetName).md5]
   }
 
-  getPrimaryKey(head = {}, rowValues = {}) {
+  getPrimaryKey(head = {}, rowObject = {}) {
     return new Hash(
       Object.keys(head)
         .filter((column) => head[column].pk)
         .map((column) => {
-          const value = rowValues[column];
+          const value = rowObject[column];
           if (value instanceof Date) {
             return new Date(value).valueOf()
           } else {
@@ -286,16 +286,16 @@ class Header {
     ).md5
   }
 
-  isChangePrimaryKey(head, rowValues = {}) {
+  isChangePrimaryKey(head, rowObject = {}) {
     return Object.keys(head)
       .filter((column) => head[column].pk)
-      .some((column) => (rowValues[column] ? true : false))
+      .some((column) => (rowObject[column] ? true : false))
   }
 
-  isNotNull(head, rowValues = {}) {
+  isNotNull(head, rowObject = {}) {
     const data = Object.keys(head).filter((column) => head[column].notNull);
     if (data.length) {
-      return data.every((column) => rowValues[column])
+      return data.every((column) => rowObject[column])
     }
     return false
   }
@@ -379,7 +379,7 @@ class WorkSheet extends SpreadSheet {
    */
   constructor(spreadSheetName = '', sheetName = '', head = {}) {
     super(spreadSheetName);
-    if (WorkSheet.key === new Hash(sheetName).md5) {
+    if (WorkSheet.workSheetKey === new Hash(sheetName).md5) {
       return WorkSheet.instance
     }
     WorkSheet.instance = this;
@@ -403,10 +403,8 @@ class WorkSheet extends SpreadSheet {
         : this.workSheet
             .getDataRange()
             .offset(this.headRowNum - 1, 0, 1, this.countColumn);
-    // this.metadata = new WorkSheetMetadata(this.workSheet)
     this.arrayOfObject = [];
     this.object = {};
-    this.getDataset();
   }
 
   get lastRow() {
@@ -647,12 +645,14 @@ class WorkSheet extends SpreadSheet {
 class WorkSheetRange extends WorkSheet {
   constructor(spreadSheetName, sheetName, head, range) {
     super(spreadSheetName, sheetName, head);
+    this.workSheet = range.getSheet();
     this.range = range;
+    this.startRow = this.range.rowStart;
+    this.rowEnd = this.range.rowEnd;
     this.countRow = this.range.rowEnd - this.range.rowStart + 1;
     this.countColumn = this.range.columnEnd - this.range.columnStart + 1;
     this.firstRowNum = this.range.rowStart;
     this.isChangePrimaryKey = false;
-    this.isNotNull = false;
     this.isRange = true;
     this.dataRange = range.offset(
       0,
@@ -668,7 +668,8 @@ class WorkSheetRange extends WorkSheet {
     );
     this.arrayOfObject = [];
     this.object = {};
-    this.getDataset();
+    this.isChangeData = false;
+    this.workSheetMetadata = new WorkSheetMetadata(this.workSheet);
   }
 
   get isDeleteRow() {
@@ -676,82 +677,288 @@ class WorkSheetRange extends WorkSheet {
   }
 
   getFact() {
-    this.dataRange.getValues().forEach((arrayRow, indexRow) => {
-      const rowNum = this.firstRowNum + indexRow;
-      const rowKey = arrayRow[this.head.rowKey.idx];
-      const instanceRow = arrayRow.reduce((object, value, index) => {
-        object['rowNum'] = rowNum;
-        if (!object[this.headKey[index]]) {
-          object[this.headKey[index]] = value;
-        }
-        return object
-      }, {});
-      if (!this.object[rowKey]) {
-        this.object[rowKey] = instanceRow;
-      }
-      this.arrayOfObject.push(instanceRow);
-    });
-    return this
-  }
-
-  getDimension() {
-    this.object = this.dataRange
-      .getValues()
-      .reduce((objectRow, arrayRow, indexRow) => {
-        const rowNum = this.firstRowNum + indexRow;
-        const object = arrayRow.reduce((object, value, index) => {
-          if (!object[this.headKey[index]]) {
-            object[this.headKey[index]] = value;
-          }
-          object['rowNum'] = rowNum;
-          return object
-        }, {});
-        const newRowKey = new Header().getPrimaryKey(this.head, object);
-        object.isChangePrimaryKey = false;
-        if (object.rowKey !== newRowKey) {
-          object.rowKey = newRowKey;
-          this.isChangePrimaryKey = true;
-        }
-        if (!objectRow[object.rowKey]) {
-          objectRow[object.rowKey] = object;
-        }
-        this.isNotNull = new Header().isNotNull(this.head, object);
-        return objectRow
-      }, {});
-    this.arrayOfObject = Object.values(this.object);
-    return this
-  }
-
-  getTransactions() {
+    const startProcess = new FormatDate();
     try {
       this.dataRange.getValues().forEach((arrayRow, indexRow) => {
         const rowNum = this.firstRowNum + indexRow;
-        const rowKey = new Hash(rowNum + this.sheetName).md5;
-        const instanceRow = arrayRow.reduce((object, value, column) => {
-          if (!object[this.headKey[column]]) {
-            object[this.headKey[column]] = value;
-            object['rowKey'] = rowKey;
-            object['rowNum'] = rowNum;
+        const rowKey = arrayRow[this.head.rowKey.idx];
+        const instanceRow = arrayRow.reduce((object, value, index) => {
+          object['rowNum'] = rowNum;
+          if (!object[this.headKey[index]]) {
+            object[this.headKey[index]] = value;
           }
           return object
         }, {});
         if (!this.object[rowKey]) {
           this.object[rowKey] = instanceRow;
-          this.isNotNull = new Header().isNotNull(this.head, instanceRow);
         }
         this.arrayOfObject.push(instanceRow);
       });
       return this
     } catch (error) {
+      console.error('WorkSheetRange.getFact', error.stack);
+    } finally {
+      console.info(
+        'WorkSheetRange.getFact.timeSpent: ',
+        startProcess.getTimeDiff()
+      );
+    }
+  }
+
+  getDimension() {
+    const startProcess = new FormatDate();
+    try {
+      this.object = this.dataRange
+        .getValues()
+        .reduce((objectRow, arrayRow, indexRow) => {
+          const rowNum = this.firstRowNum + indexRow;
+          const object = arrayRow.reduce((object, value, index) => {
+            if (!object[this.headKey[index]]) {
+              object[this.headKey[index]] = value;
+            }
+            object['rowNum'] = rowNum;
+            return object
+          }, {});
+          const newRowKey = new Header().getPrimaryKey(this.head, object);
+          object.isChangePrimaryKey = false;
+          if (object.rowKey !== newRowKey) {
+            object.rowKey = newRowKey;
+            this.isChangePrimaryKey = true;
+          }
+          const isNotNull = new Header().isNotNull(this.head, object);
+          if (!objectRow[object.rowKey] && isNotNull) {
+            objectRow[object.rowKey] = object;
+          }
+          return objectRow
+        }, {});
+
+      this.arrayOfObject = Object.values(this.object);
+      this.isChangeData = this.arrayOfObject.length ? true : false;
+      return this
+    } catch (error) {
+      console.error('WorkSheetRange.getDimension', error.stack);
+    } finally {
+      console.info(
+        'WorkSheetRange.getDimension.timeSpent: ',
+        startProcess.getTimeDiff()
+      );
+    }
+  }
+
+  getTransactions() {
+    const startProcess = new FormatDate();
+    try {
+      this.dataRange.getValues().forEach((arrayRow, indexRow) => {
+        const rowNum = this.firstRowNum + indexRow;
+        const isChangeRow = this.isChangeRow(rowNum, arrayRow);
+        if (isChangeRow) {
+          const rowKey = new Hash(rowNum + this.sheetName).md5;
+          const instanceRow = arrayRow.reduce((object, value, column) => {
+            if (!object[this.headKey[column]]) {
+              object[this.headKey[column]] = value;
+              object['rowKey'] = rowKey;
+              object['rowNum'] = rowNum;
+            }
+            return object
+          }, {});
+          const isNotNull = new Header().isNotNull(this.head, instanceRow);
+          if (isNotNull) {
+            if (!this.object[rowKey]) {
+              this.object[rowKey] = instanceRow;
+            }
+            this.arrayOfObject.push(instanceRow);
+          }
+        }
+      });
+      this.isChangeData = this.arrayOfObject.length ? true : false;
+      return this
+    } catch (error) {
       console.error('WorkSheetRange.getTransactions', error.stack);
+    } finally {
+      console.info(
+        'WorkSheetRange.getTransactions.timeSpent: ',
+        startProcess.getTimeDiff()
+      );
     }
   }
 
   savePrimaryKeyChanges() {
-    if (this.firstRowNum !== this.headRowNum) {
-      this.arrayOfObject.forEach((object) => {
-        this.updateRow(object);
-      });
+    const startProcess = new FormatDate();
+    try {
+      if (this.firstRowNum !== this.headRowNum) {
+        this.arrayOfObject.forEach((object) => {
+          this.updateRow(object);
+        });
+      }
+    } catch (error) {
+    } finally {
+      console.info(
+        'WorkSheetRange.savePrimaryKeyChanges.timeSpent: ',
+        startProcess.getTimeDiff()
+      );
+    }
+  }
+
+  isChangeRow(rowNum, arrayRow = []) {
+    const startProcess = new FormatDate();
+    try {
+      const rowHash = new Hash(arrayRow.join('#')).md5;
+      const rowHashOld = this.workSheetMetadata.getRowKey(rowNum);
+      if (rowHash !== rowHashOld) {
+        this.workSheetMetadata.addRowKey(rowNum, rowHash);
+        return true
+      } else {
+        return false
+      }
+    } catch (error) {
+    } finally {
+      console.info(
+        'WorkSheetRange.isChangeRow.timeSpent: ',
+        startProcess.getTimeDiff()
+      );
+    }
+  }
+
+  getDataset() {
+    if (this.headType === 'dim') {
+      this.getDimension();
+    } else if (this.headType === 'fct') {
+      this.getFact();
+    } else if (this.headType === 'tx') {
+      this.getTransactions();
+    }
+    return this
+  }
+}
+class Metadata {
+  /**
+   * Методы работы с метаданными листа книги
+   * @param {object} target объект метаданных: принимает книгу, лист, диапазон
+   */
+  constructor(target) {
+    this.target = target;
+    this.metadata = target.getDeveloperMetadata().reduce((keys, metadata) => {
+      keys[metadata.getKey()] = {
+        remove: () => metadata.remove(),
+        getKey: () => metadata.getKey(),
+        getValue: () => metadata.getValue(),
+        setValue: (value) => metadata.setValue(value),
+        value: metadata.getValue(),
+      };
+      return keys
+    }, {});
+    this.metaMap = new Map(Object.entries(this.metadata));
+  }
+  /**
+   * Добавление значения в метаданные листа
+   * @param {string} key ключ метаданых
+   * @param {string} value значение ключа
+   */
+  addMetadata(key, value) {
+    const newValue = value;
+    if (this.metaMap.has(key)) {
+      const oldValue = this.metadata[key].getValue();
+      if (new Hash(newValue).md5 !== new Hash(oldValue).md5) {
+        this.metadata[key].setValue(newValue);
+        this.metadata[key].value = newValue;
+      }
+    } else {
+      this.metadata = this.target
+        .addDeveloperMetadata(key, newValue)
+        .getDeveloperMetadata()
+        .reduce((keys, metadata) => {
+          keys[metadata.getKey()] = {
+            remove: () => metadata.remove(),
+            getKey: () => metadata.getKey(),
+            getValue: () => metadata.getValue(),
+            setValue: (value) => metadata.setValue(value),
+          };
+          return keys
+        }, {});
+      this.metaMap = new Map(Object.entries(this.metadata));
+    }
+  }
+
+  getMetadata(key) {
+    if (this.metaMap.has(key)) {
+      return this.metadata[key].getValue()
+    }
+  }
+
+  deleteMetadata(key) {
+    key = key.toString();
+    if (this.metaMap.has(key)) {
+      this.metadata[key].remove();
+    }
+  }
+  deleteAllMetadata() {
+    Object.keys(this.metadata).forEach((key) => {
+      this.metadata[key].remove();
+    });
+  }
+}
+
+class WorkSheetMetadata {
+  /**
+   * Работа с метаданными листа
+   * @param {object} workSheet объект листа
+   */
+  constructor(workSheet) {
+    if (
+      WorkSheetMetadata.workSheetNameHashMd5 ===
+      new Hash(workSheet.getName()).md5
+    ) {
+      return WorkSheetMetadata.instance
+    }
+    WorkSheetMetadata.instance = this;
+    this.metadata = new Metadata(workSheet);
+    this.workSheetNameHash = new Hash(workSheet.getName());
+    this.workSheetNameHashMd5 = new Hash(workSheet.getName()).md5;
+  }
+
+  /**
+   * Добавление ключа строки в метаданные
+   * @param {number} rowNum номер строки листа
+   */
+  addRowKey(rowNum, value) {
+    const key = 'ROWKEY_' + rowNum;
+    this.metadata.addMetadata(key, value);
+    return value
+  }
+
+  getRowKey(rowNum) {
+    const key = 'ROWKEY_' + rowNum;
+    return this.metadata.getMetadata(key)
+  }
+
+  /**
+   * Добавление ключа листа в метаданные
+   * @param {string} sheetKey ключ листа в формате Hash
+   */
+  addSheetKey() {
+    const value = this.workSheetNameHash.stringUpperCase;
+    this.metadata.addMetadata('SHEETKEY', value);
+    return value
+  }
+
+  /**
+   * Получение ключа листа из метаданных
+   * @returns ключ листа в формате Hash
+   */
+  getSheetKey() {
+    return this.metadata.getMetadata('SHEETKEY')
+  }
+
+  getSheetName() {
+    const oldValue = this.metadata.getMetadata('SHEETNAME');
+    if (oldValue) {
+      return oldValue
+    } else {
+      this.metadata.addMetadata(
+        'SHEETNAME',
+        this.workSheetNameHash.stringUpperCase
+      );
+      return this.workSheetNameHash.stringUpperCase
     }
   }
 }
@@ -1122,7 +1329,7 @@ class Portfolio {
       headSheetName = 'Registry';
     }
     const head = new Header().getHead(this.workSheetHeads, headSheetName);
-    return new WorkSheet(this.spreadSheetName, sheetName, head)
+    return new WorkSheet(this.spreadSheetName, sheetName, head).getDataset()
   }
 
   updateOnEdit(range) {
@@ -1138,7 +1345,7 @@ class Portfolio {
       sheetName,
       head,
       range
-    );
+    ).getDataset();
     return workSheet
   }
 }
@@ -1895,6 +2102,7 @@ class Transactions {
    * @param {boolean} isRange Признак обновления диапазона передаваемых данных
    */
   updateTransactions(arrayOfObject = [], isRange = false) {
+    const startProcess = new FormatDate();
     try {
       if (isRange) {
         new Promise((resolve) => {
@@ -1933,12 +2141,27 @@ class Transactions {
       }
     } catch (error) {
       new Log().addError('Transactions.updateTransactions', error);
+    } finally {
+      console.info(
+        'Transactions.updateTransactions.timeSpent: ',
+        startProcess.getTimeDiff()
+      );
     }
   }
 
   deleteDuplicatesRows() {
-    const newArrayOfObject = Object.values(this.workSheet.object);
-    this.workSheet.truncateInsertRows(newArrayOfObject);
+    const startProcess = new FormatDate();
+    try {
+      const newArrayOfObject = Object.values(this.workSheet.object);
+      this.workSheet.truncateInsertRows(newArrayOfObject);
+    } catch (error) {
+      new Log().addError('Transactions.deleteDuplicatesRows', error);
+    } finally {
+      console.info(
+        'Transactions.deleteDuplicatesRows.timeSpent: ',
+        startProcess.getTimeDiff()
+      );
+    }
   }
 
   /**
@@ -1948,7 +2171,7 @@ class Transactions {
    * @param {*} dateTime
    * @param {*} symbol
    * @param {*} convert
-   *    @param {*} isRange
+   * @param {*} isRange
    * @returns
    */
   getHistoricalPriceBuy(
@@ -1959,20 +2182,20 @@ class Transactions {
     isRange = false,
     convert = 'usd'
   ) {
+    const startProcess = new FormatDate();
     try {
-      let historicalPrice = void 0;
+      let historicalPrice;
       let isHistoricalAveragePrice;
-      isHistoricalAveragePrice = false;
+      historicalPrice = void 0;
       const coin = this.prices[new Hash(symbol).md5];
-      const sourceKey = new Hash(coin.source).md5;
+      const sourceKey = new Hash(coin?.source).md5;
       const id = coin.id;
-      const symbolTypeKey = new Hash(coin.symbolType).md5;
-      if (
-        ['stablecoin']
-          .map((m) => (m = new Hash(m).md5))
-          .indexOf(symbolTypeKey) === -1
-      ) {
-        //* Расчет средневзвешенной стоимости покупки токена на основании истории покупок
+      const symbolTypeKey = new Hash(coin?.symbolType).md5;
+      console.log('symbol', symbol);
+      console.log('coin?.symbolType', coin?.symbolType);
+      console.log(new Hash('stablecoin').md5 !== symbolTypeKey);
+      if (new Hash('stablecoin').md5 !== symbolTypeKey) {
+        //* Расчет средневзвешенной стоимости покупки токена на основании истории покупок для диапазона данных
         if (isRange) {
           const historicalPriceAgg = this.workSheet.arrayOfObject
             .filter((row) => {
@@ -2034,6 +2257,7 @@ class Transactions {
                 price = data.current_price;
                 return price
               }, 0);
+            isHistoricalAveragePrice = false;
           } else {
             //* Получение исторической цены из CryptoCompare
             if (sourceKey === new Hash('cryptocompare').md5) {
@@ -2042,6 +2266,7 @@ class Transactions {
                 dateTime,
                 convert
               );
+              isHistoricalAveragePrice = true;
             }
           }
           return { historicalPrice, isHistoricalAveragePrice }
@@ -2049,10 +2274,16 @@ class Transactions {
       } else {
         // Для стабильных токенов возвращать единицу
         historicalPrice = 1;
+        isHistoricalAveragePrice = false;
         return { historicalPrice, isHistoricalAveragePrice }
       }
     } catch (error) {
       new Log().addError('Transactions.getHistoricalPriceBuy', error);
+    } finally {
+      console.info(
+        'Transactions.getHistoricalPriceBuy.timeSpent: ',
+        startProcess.getTimeDiff()
+      );
     }
   }
 }
@@ -2065,11 +2296,12 @@ class Registry {
   }
 
   updateTransactions(isRange = false) {
+    const startProcess = new FormatDate();
     try {
       const transactions = new Transactions();
       const transactionsArrayOfObject = [];
       const updateDate = new Date();
-      const services = new Portfolio().getWorkSheet('services').object;
+      // const services = new Portfolio().getWorkSheet('services').object
       this.workSheet.arrayOfObject.forEach((rowValues) => {
         let coinQty,
           currencyQty,
@@ -2200,6 +2432,7 @@ class Registry {
             .map((m) => (m = new Hash(m).md5))
             .indexOf(new Hash(rowValues.operation).md5) !== -1
         ) {
+          currencySymbol = rowValues.currency;
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#1').md5,
             direction: 'out',
@@ -2240,6 +2473,7 @@ class Registry {
             .map((m) => (m = new Hash(m).md5))
             .indexOf(new Hash(rowValues.operation).md5) !== -1
         ) {
+          currencySymbol = rowValues.currency;
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#1').md5,
             direction: 'out',
@@ -2334,13 +2568,14 @@ class Registry {
           let price;
           if (tx.isSymbolPrice) {
             price = symbolPrice;
-            isHistoricalAveragePrice = isHistoricalAveragePriceCurrency;
+            isHistoricalAveragePrice = isHistoricalAveragePriceCurrency || false;
           } else if (tx.isFeePrice) {
             price = feePrice;
-            isHistoricalAveragePrice = isHistoricalAveragePriceFeeCurrency;
+            isHistoricalAveragePrice =
+              isHistoricalAveragePriceFeeCurrency || false;
           } else if (tx.isCurencyPrice) {
             price = currencyPrice;
-            isHistoricalAveragePrice = isHistoricalAveragePriceCurrency;
+            isHistoricalAveragePrice = isHistoricalAveragePriceCurrency || false;
           }
           const cost = tx.quantity * price;
           const object = {
@@ -2386,6 +2621,11 @@ class Registry {
       this.workSheet.deleteEmptyRows();
     } catch (error) {
       new Log().addError('Registry.updateTransactions', error);
+    } finally {
+      console.info(
+        'Registry.updateTransactions.timeSpent: ',
+        startProcess.getTimeDiff()
+      );
     }
   }
 }
@@ -2805,26 +3045,14 @@ function updatePrices() {
 
 function updateOnEdit(editRange) {
   const startProcess = new FormatDate();
-  let countRowInRange,
-    sheetNameInRange,
-    rowStartInRange,
-    rowEndInRange,
-    isRegistry;
-  isRegistry = false;
-  sheetNameInRange = editRange.range.getSheet().getName();
-  countRowInRange = editRange.range.rowEnd - editRange.range.rowStart + 1;
-  countColumnInRange =
-    editRange.range.columnEnd - editRange.range.columnStart + 1;
-  rowStartInRange = editRange.range.rowStart;
-  rowEndInRange = editRange.range.rowEnd;
   new Promise((resolve, reject) => {
     const update = () => {
       const workSheet = new Portfolio().updateOnEdit(editRange.range);
-      if (workSheet.isNotNull) {
+      if (workSheet.isChangeData) {
         if (workSheet.isChangePrimaryKey) {
           workSheet.savePrimaryKeyChanges();
         }
-        if (new Hash(workSheet.sheetName).md5 === new Hash('prices').md5) {
+        if (workSheet.workSheetKey === new Hash('prices').md5) {
           new Prices(workSheet).updateId();
         } else if (workSheet.sheetName.match(new RegExp('[Registry]+', 'g'))) {
           new Promise((resolve) => {
@@ -2836,30 +3064,33 @@ function updateOnEdit(editRange) {
             resolve();
           }).then(() => {
             new Registry(workSheet).updateTransactions(true);
-            isRegistry = true;
+            workSheet.isRegistry = true;
           });
         }
       }
-      return true
+      workSheet.isResolve = true;
+      SpreadsheetApp.flush();
+      return workSheet
     };
-    update() ? resolve(isRegistry) : reject();
+    const updateData = update();
+    updateData.isResolve ? resolve(updateData) : reject();
   })
-    .then((isRegistry) => {
+    .then((workSheet) => {
       new Log().addMessage(
         'updateOnEdit',
         'ID:' + startProcess.value,
         'Sheet name: ' +
-          sheetNameInRange +
+          workSheet.sheetName +
           ', Start row: ' +
-          rowStartInRange +
+          workSheet.startRow +
           ', End Row: ' +
-          rowEndInRange +
+          workSheet.rowEnd +
           ', Count row: ' +
-          countRowInRange +
+          workSheet.countRow +
           ', Time spent: ' +
           startProcess.getTimeDiff()
       );
-      if (isRegistry) {
+      if (workSheet.isRegistry) {
         SpreadsheetApp.getActive().toast(
           'Save process ended',
           'Save process',

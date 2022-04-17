@@ -24,12 +24,12 @@ class Header {
     return head[new Hash(sheetName).md5]
   }
 
-  getPrimaryKey(head = {}, rowValues = {}) {
+  getPrimaryKey(head = {}, rowObject = {}) {
     return new Hash(
       Object.keys(head)
         .filter((column) => head[column].pk)
         .map((column) => {
-          const value = rowValues[column]
+          const value = rowObject[column]
           if (value instanceof Date) {
             return new Date(value).valueOf()
           } else {
@@ -40,16 +40,16 @@ class Header {
     ).md5
   }
 
-  isChangePrimaryKey(head, rowValues = {}) {
+  isChangePrimaryKey(head, rowObject = {}) {
     return Object.keys(head)
       .filter((column) => head[column].pk)
-      .some((column) => (rowValues[column] ? true : false))
+      .some((column) => (rowObject[column] ? true : false))
   }
 
-  isNotNull(head, rowValues = {}) {
+  isNotNull(head, rowObject = {}) {
     const data = Object.keys(head).filter((column) => head[column].notNull)
     if (data.length) {
-      return data.every((column) => rowValues[column])
+      return data.every((column) => rowObject[column])
     }
     return false
   }

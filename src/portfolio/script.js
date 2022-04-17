@@ -99,26 +99,14 @@ function updatePrices() {
 
 function updateOnEdit(editRange) {
   const startProcess = new FormatDate()
-  let countRowInRange,
-    sheetNameInRange,
-    rowStartInRange,
-    rowEndInRange,
-    isRegistry
-  isRegistry = false
-  sheetNameInRange = editRange.range.getSheet().getName()
-  countRowInRange = editRange.range.rowEnd - editRange.range.rowStart + 1
-  countColumnInRange =
-    editRange.range.columnEnd - editRange.range.columnStart + 1
-  rowStartInRange = editRange.range.rowStart
-  rowEndInRange = editRange.range.rowEnd
   new Promise((resolve, reject) => {
     const update = () => {
       const workSheet = new Portfolio().updateOnEdit(editRange.range)
-      if (workSheet.isNotNull) {
+      if (workSheet.isChangeData) {
         if (workSheet.isChangePrimaryKey) {
           workSheet.savePrimaryKeyChanges()
         }
-        if (new Hash(workSheet.sheetName).md5 === new Hash('prices').md5) {
+        if (workSheet.workSheetKey === new Hash('prices').md5) {
           new Prices(workSheet).updateId()
         } else if (workSheet.sheetName.match(new RegExp('[Registry]+', 'g'))) {
           new Promise((resolve) => {
@@ -130,30 +118,33 @@ function updateOnEdit(editRange) {
             resolve()
           }).then(() => {
             new Registry(workSheet).updateTransactions(true)
-            isRegistry = true
+            workSheet.isRegistry = true
           })
         }
       }
-      return true
+      workSheet.isResolve = true
+      SpreadsheetApp.flush()
+      return workSheet
     }
-    update() ? resolve(isRegistry) : reject()
+    const updateData = update()
+    updateData.isResolve ? resolve(updateData) : reject()
   })
-    .then((isRegistry) => {
+    .then((workSheet) => {
       new Log().addMessage(
         'updateOnEdit',
         'ID:' + startProcess.value,
         'Sheet name: ' +
-          sheetNameInRange +
+          workSheet.sheetName +
           ', Start row: ' +
-          rowStartInRange +
+          workSheet.startRow +
           ', End Row: ' +
-          rowEndInRange +
+          workSheet.rowEnd +
           ', Count row: ' +
-          countRowInRange +
+          workSheet.countRow +
           ', Time spent: ' +
           startProcess.getTimeDiff()
       )
-      if (isRegistry) {
+      if (workSheet.isRegistry) {
         SpreadsheetApp.getActive().toast(
           'Save process ended',
           'Save process',

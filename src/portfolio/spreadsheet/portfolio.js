@@ -369,7 +369,7 @@ class Portfolio {
       headSheetName = 'Registry'
     }
     const head = new Header().getHead(this.workSheetHeads, headSheetName)
-    return new WorkSheet(this.spreadSheetName, sheetName, head)
+    return new WorkSheet(this.spreadSheetName, sheetName, head).getDataset()
   }
 
   updateOnEdit(range) {
@@ -385,7 +385,7 @@ class Portfolio {
       sheetName,
       head,
       range
-    )
+    ).getDataset()
     return workSheet
   }
 }
