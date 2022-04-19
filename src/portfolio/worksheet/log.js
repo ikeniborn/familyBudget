@@ -11,10 +11,11 @@ class Log {
     Log.exists = true
     this.workSheet = new Portfolio().getWorkSheet('Log')
   }
+
   /**
    * Добавление ошибки в реестр ошибок
    * @param {string} method Название метода
-   * @param {string} error Текст ошибки
+   * @param {string} error Объект ошибки {name, massage, stack}
    */
   addError(method, error) {
     new Promise((resolve) => {
@@ -26,18 +27,19 @@ class Log {
         message: error?.message,
         stack: error?.stack,
       })
-      Browser.msgBox('New error!')
       resolve()
     }).then(() => {
       this.truncateLog()
     })
   }
+
   /**
-   * Добавление ошибки в реестр ошибок
-   * @param {string} name Название метода
-   * @param {string} error Текст ошибки
+   * Добаление информации в лог
+   * @param {string} method Название метода
+   * @param {string} name Название параметры
+   * @param {*} message  Сообщение
    */
-  addMessage(method, name, message) {
+  addMessage(method, parametr, message) {
     new Promise((resolve) => {
       const messageString =
         typeof message !== 'string' ? JSON.stringify(message) : message
@@ -45,7 +47,7 @@ class Log {
         dateTime: new FormatDate().getFormatDate('yyyy-MM-dd HH:mm:ss'),
         method: method,
         type: 'message',
-        name: name,
+        name: parametr,
         message: messageString,
         stack: void 0,
       })
@@ -55,9 +57,12 @@ class Log {
     })
   }
 
+  /**
+   * Удление старых записей из лога
+   */
   truncateLog() {
-    if (this.workSheet.countRow > 25) {
-      this.workSheet.deleteRow(2, 20)
+    if (this.workSheet.countRow > 100) {
+      this.workSheet.deleteRow(2, 50)
     }
   }
 }

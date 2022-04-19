@@ -239,7 +239,7 @@ class WorkSheet extends SpreadSheet {
             }
           }),
         ]
-        // this.deleteFilter()
+
         this.workSheet
           .getRange(object.rowNum, 1, array.length, array[0].length)
           .setValues(array)
@@ -386,7 +386,6 @@ class WorkSheetRange extends WorkSheet {
   }
 
   getFact() {
-    const startProcess = new FormatDate()
     try {
       this.dataRange.getValues().forEach((arrayRow, indexRow) => {
         const rowNum = this.firstRowNum + indexRow
@@ -406,16 +405,10 @@ class WorkSheetRange extends WorkSheet {
       return this
     } catch (error) {
       console.error('WorkSheetRange.getFact', error.stack)
-    } finally {
-      console.info(
-        'WorkSheetRange.getFact.timeSpent: ',
-        startProcess.getTimeDiff()
-      )
     }
   }
 
   getDimension() {
-    const startProcess = new FormatDate()
     try {
       this.object = this.dataRange
         .getValues()
@@ -428,13 +421,15 @@ class WorkSheetRange extends WorkSheet {
             object['rowNum'] = rowNum
             return object
           }, {})
-          const newRowKey = new Header().getPrimaryKey(this.head, object)
+          const newRowKey = this.getPrimaryKey(object)
+
           object.isChangePrimaryKey = false
           if (object.rowKey !== newRowKey) {
             object.rowKey = newRowKey
             this.isChangePrimaryKey = true
           }
-          const isNotNull = new Header().isNotNull(this.head, object)
+          const isNotNull = this.isNotNull(object)
+
           if (!objectRow[object.rowKey] && isNotNull) {
             objectRow[object.rowKey] = object
           }
@@ -446,16 +441,10 @@ class WorkSheetRange extends WorkSheet {
       return this
     } catch (error) {
       console.error('WorkSheetRange.getDimension', error.stack)
-    } finally {
-      console.info(
-        'WorkSheetRange.getDimension.timeSpent: ',
-        startProcess.getTimeDiff()
-      )
     }
   }
 
   getTransactions() {
-    const startProcess = new FormatDate()
     try {
       this.dataRange.getValues().forEach((arrayRow, indexRow) => {
         const rowNum = this.firstRowNum + indexRow
@@ -470,7 +459,7 @@ class WorkSheetRange extends WorkSheet {
             }
             return object
           }, {})
-          const isNotNull = new Header().isNotNull(this.head, instanceRow)
+          const isNotNull = this.isNotNull(instanceRow)
           if (isNotNull) {
             if (!this.object[rowKey]) {
               this.object[rowKey] = instanceRow
@@ -483,11 +472,6 @@ class WorkSheetRange extends WorkSheet {
       return this
     } catch (error) {
       console.error('WorkSheetRange.getTransactions', error.stack)
-    } finally {
-      console.info(
-        'WorkSheetRange.getTransactions.timeSpent: ',
-        startProcess.getTimeDiff()
-      )
     }
   }
 
@@ -509,7 +493,6 @@ class WorkSheetRange extends WorkSheet {
   }
 
   isChangeRow(rowNum, arrayRow = []) {
-    const startProcess = new FormatDate()
     try {
       const rowHash = new Hash(arrayRow.join('#')).md5
       const rowHashOld = this.workSheetMetadata.getRowKey(rowNum)
@@ -519,25 +502,51 @@ class WorkSheetRange extends WorkSheet {
       } else {
         return false
       }
-    } catch (error) {
-    } finally {
-      console.info(
-        'WorkSheetRange.isChangeRow.timeSpent: ',
-        startProcess.getTimeDiff()
-      )
-    }
+    } catch (error) {}
   }
 
-  getDataset() {
-    if (this.headType === 'dim') {
-      this.getDimension()
-    } else if (this.headType === 'fct') {
-      this.getFact()
-    } else if (this.headType === 'tx') {
-      this.getTransactions()
+  // isChangePrimaryKey(rowObject = {}) {
+  //   return Object.keys(this.head)
+  //     .filter((column) => this.head[column].pk)
+  //     .some((column) => (rowObject[column] ? true : false))
+  // }
+
+  isNotNull(rowObject = {}) {
+    const data = Object.keys(this.head).filter(
+      (column) => this.head[column].notNull
+    )
+    if (data.length) {
+      return data.every((column) => rowObject[column])
     }
-    return this
+    return false
   }
+
+  getPrimaryKey(rowObject = {}) {
+    return new Hash(
+      Object.keys(this.head)
+        .filter((column) => this.head[column].pk)
+        .map((column) => {
+          const value = rowObject[column]
+          if (value instanceof Date) {
+            return new Date(value).valueOf()
+          } else {
+            return value
+          }
+        })
+        .join('')
+    ).md5
+  }
+
+  // getDataset() {
+  //   if (this.headType === 'dim') {
+  //     this.getDimension()
+  //   } else if (this.headType === 'fct') {
+  //     this.getFact()
+  //   } else if (this.headType === 'tx') {
+  //     this.getTransactions()
+  //   }
+  //   return this
+  // }
 }
 
 class GoogleCache {

@@ -130,8 +130,15 @@ function updateOnEdit(editRange) {
     updateData.isResolve ? resolve(updateData) : reject()
   })
     .then((workSheet) => {
+      if (workSheet.isRegistry) {
+        SpreadsheetApp.getActive().toast(
+          'Save process ended',
+          'Save process',
+          1
+        )
+      }
       new Log().addMessage(
-        'updateOnEdit',
+        'script.updateOnEdit',
         'ID:' + startProcess.value,
         'Sheet name: ' +
           workSheet.sheetName +
@@ -144,16 +151,9 @@ function updateOnEdit(editRange) {
           ', Time spent: ' +
           startProcess.getTimeDiff()
       )
-      if (workSheet.isRegistry) {
-        SpreadsheetApp.getActive().toast(
-          'Save process ended',
-          'Save process',
-          1
-        )
-      }
     })
     .catch((error) => {
-      new Log().addError('updateOnEdit', error)
+      new Log().addError('script.updateOnEdit', error)
     })
 }
 

@@ -269,37 +269,39 @@ class Header {
     );
     return head[new Hash(sheetName).md5]
   }
-
-  getPrimaryKey(head = {}, rowObject = {}) {
-    return new Hash(
-      Object.keys(head)
-        .filter((column) => head[column].pk)
-        .map((column) => {
-          const value = rowObject[column];
-          if (value instanceof Date) {
-            return new Date(value).valueOf()
-          } else {
-            return value
-          }
-        })
-        .join('')
-    ).md5
-  }
-
-  isChangePrimaryKey(head, rowObject = {}) {
-    return Object.keys(head)
-      .filter((column) => head[column].pk)
-      .some((column) => (rowObject[column] ? true : false))
-  }
-
-  isNotNull(head, rowObject = {}) {
-    const data = Object.keys(head).filter((column) => head[column].notNull);
-    if (data.length) {
-      return data.every((column) => rowObject[column])
-    }
-    return false
-  }
 }
+
+//* Deprecated
+//* Header
+// getPrimaryKey(head = {}, rowObject = {}) {
+//   return new Hash(
+//     Object.keys(head)
+//       .filter((column) => head[column].pk)
+//       .map((column) => {
+//         const value = rowObject[column]
+//         if (value instanceof Date) {
+//           return new Date(value).valueOf()
+//         } else {
+//           return value
+//         }
+//       })
+//       .join('')
+//   ).md5
+// }
+
+// isChangePrimaryKey(head, rowObject = {}) {
+//   return Object.keys(head)
+//     .filter((column) => head[column].pk)
+//     .some((column) => (rowObject[column] ? true : false))
+// }
+
+// isNotNull(head, rowObject = {}) {
+//   const data = Object.keys(head).filter((column) => head[column].notNull)
+//   if (data.length) {
+//     return data.every((column) => rowObject[column])
+//   }
+//   return false
+// }
 
 class Environment {
   constructor(
@@ -530,7 +532,7 @@ class WorkSheet extends SpreadSheet {
             }
           }),
         ];
-        // this.deleteFilter()
+
         this.workSheet
           .getRange(object.rowNum, 1, array.length, array[0].length)
           .setValues(array);
@@ -677,7 +679,6 @@ class WorkSheetRange extends WorkSheet {
   }
 
   getFact() {
-    const startProcess = new FormatDate();
     try {
       this.dataRange.getValues().forEach((arrayRow, indexRow) => {
         const rowNum = this.firstRowNum + indexRow;
@@ -697,16 +698,10 @@ class WorkSheetRange extends WorkSheet {
       return this
     } catch (error) {
       console.error('WorkSheetRange.getFact', error.stack);
-    } finally {
-      console.info(
-        'WorkSheetRange.getFact.timeSpent: ',
-        startProcess.getTimeDiff()
-      );
     }
   }
 
   getDimension() {
-    const startProcess = new FormatDate();
     try {
       this.object = this.dataRange
         .getValues()
@@ -719,13 +714,15 @@ class WorkSheetRange extends WorkSheet {
             object['rowNum'] = rowNum;
             return object
           }, {});
-          const newRowKey = new Header().getPrimaryKey(this.head, object);
+          const newRowKey = this.getPrimaryKey(object);
+
           object.isChangePrimaryKey = false;
           if (object.rowKey !== newRowKey) {
             object.rowKey = newRowKey;
             this.isChangePrimaryKey = true;
           }
-          const isNotNull = new Header().isNotNull(this.head, object);
+          const isNotNull = this.isNotNull(object);
+
           if (!objectRow[object.rowKey] && isNotNull) {
             objectRow[object.rowKey] = object;
           }
@@ -737,16 +734,10 @@ class WorkSheetRange extends WorkSheet {
       return this
     } catch (error) {
       console.error('WorkSheetRange.getDimension', error.stack);
-    } finally {
-      console.info(
-        'WorkSheetRange.getDimension.timeSpent: ',
-        startProcess.getTimeDiff()
-      );
     }
   }
 
   getTransactions() {
-    const startProcess = new FormatDate();
     try {
       this.dataRange.getValues().forEach((arrayRow, indexRow) => {
         const rowNum = this.firstRowNum + indexRow;
@@ -761,7 +752,7 @@ class WorkSheetRange extends WorkSheet {
             }
             return object
           }, {});
-          const isNotNull = new Header().isNotNull(this.head, instanceRow);
+          const isNotNull = this.isNotNull(instanceRow);
           if (isNotNull) {
             if (!this.object[rowKey]) {
               this.object[rowKey] = instanceRow;
@@ -774,11 +765,6 @@ class WorkSheetRange extends WorkSheet {
       return this
     } catch (error) {
       console.error('WorkSheetRange.getTransactions', error.stack);
-    } finally {
-      console.info(
-        'WorkSheetRange.getTransactions.timeSpent: ',
-        startProcess.getTimeDiff()
-      );
     }
   }
 
@@ -800,7 +786,6 @@ class WorkSheetRange extends WorkSheet {
   }
 
   isChangeRow(rowNum, arrayRow = []) {
-    const startProcess = new FormatDate();
     try {
       const rowHash = new Hash(arrayRow.join('#')).md5;
       const rowHashOld = this.workSheetMetadata.getRowKey(rowNum);
@@ -810,25 +795,51 @@ class WorkSheetRange extends WorkSheet {
       } else {
         return false
       }
-    } catch (error) {
-    } finally {
-      console.info(
-        'WorkSheetRange.isChangeRow.timeSpent: ',
-        startProcess.getTimeDiff()
-      );
-    }
+    } catch (error) {}
   }
 
-  getDataset() {
-    if (this.headType === 'dim') {
-      this.getDimension();
-    } else if (this.headType === 'fct') {
-      this.getFact();
-    } else if (this.headType === 'tx') {
-      this.getTransactions();
+  // isChangePrimaryKey(rowObject = {}) {
+  //   return Object.keys(this.head)
+  //     .filter((column) => this.head[column].pk)
+  //     .some((column) => (rowObject[column] ? true : false))
+  // }
+
+  isNotNull(rowObject = {}) {
+    const data = Object.keys(this.head).filter(
+      (column) => this.head[column].notNull
+    );
+    if (data.length) {
+      return data.every((column) => rowObject[column])
     }
-    return this
+    return false
   }
+
+  getPrimaryKey(rowObject = {}) {
+    return new Hash(
+      Object.keys(this.head)
+        .filter((column) => this.head[column].pk)
+        .map((column) => {
+          const value = rowObject[column];
+          if (value instanceof Date) {
+            return new Date(value).valueOf()
+          } else {
+            return value
+          }
+        })
+        .join('')
+    ).md5
+  }
+
+  // getDataset() {
+  //   if (this.headType === 'dim') {
+  //     this.getDimension()
+  //   } else if (this.headType === 'fct') {
+  //     this.getFact()
+  //   } else if (this.headType === 'tx') {
+  //     this.getTransactions()
+  //   }
+  //   return this
+  // }
 }
 class Metadata {
   /**
@@ -959,6 +970,71 @@ class WorkSheetMetadata {
         this.workSheetNameHash.stringUpperCase
       );
       return this.workSheetNameHash.stringUpperCase
+    }
+  }
+}
+
+class Log {
+  constructor() {
+    if (Log.exists) {
+      return Log.instance
+    }
+    Log.instance = this;
+    Log.exists = true;
+    this.workSheet = new Portfolio().getWorkSheet('Log');
+  }
+
+  /**
+   * Добавление ошибки в реестр ошибок
+   * @param {string} method Название метода
+   * @param {string} error Объект ошибки {name, massage, stack}
+   */
+  addError(method, error) {
+    new Promise((resolve) => {
+      this.workSheet.insertRow({
+        dateTime: new FormatDate().getFormatDate('yyyy-MM-dd HH:mm:ss'),
+        method,
+        type: 'error',
+        name: error?.name,
+        message: error?.message,
+        stack: error?.stack,
+      });
+      resolve();
+    }).then(() => {
+      this.truncateLog();
+    });
+  }
+
+  /**
+   * Добаление информации в лог
+   * @param {string} method Название метода
+   * @param {string} name Название параметры
+   * @param {*} message  Сообщение
+   */
+  addMessage(method, parametr, message) {
+    new Promise((resolve) => {
+      const messageString =
+        typeof message !== 'string' ? JSON.stringify(message) : message;
+      this.workSheet.insertRow({
+        dateTime: new FormatDate().getFormatDate('yyyy-MM-dd HH:mm:ss'),
+        method: method,
+        type: 'message',
+        name: parametr,
+        message: messageString,
+        stack: void 0,
+      });
+      resolve();
+    }).then(() => {
+      this.truncateLog();
+    });
+  }
+
+  /**
+   * Удление старых записей из лога
+   */
+  truncateLog() {
+    if (this.workSheet.countRow > 100) {
+      this.workSheet.deleteRow(2, 50);
     }
   }
 }
@@ -1111,18 +1187,22 @@ class Portfolio {
           quantityInFlow: { alias: 'Quantity in flow', idx: 3 },
           quantityOutFlow: { alias: 'Quantity out flow', idx: 4 },
           quantityRest: { alias: 'Quantity rest', idx: 5 },
-          priceInFlow: { alias: 'Price in flow', idx: 6 },
-          priceOutFlow: { alias: 'Price out flow', idx: 7 },
-          priceRest: { alias: 'Price rest', idx: 8 },
-          costInFlow: { alias: 'Cost in flow', idx: 9 },
-          costOutFlow: { alias: 'Cost out flow', idx: 10 },
-          costRest: { alias: 'Cost rest', idx: 11 },
-          costRestInFlow: { alias: 'Cost rest in flow', idx: 12 },
-          pnlTotal: { alias: 'PnL total', idx: 13 },
-          pnlRest: { alias: 'PnL rest', idx: 14 },
+          quantityRestLock: { alias: 'Quantity rest lock', idx: 6 },
+          quantityRestUnlock: { alias: 'Quantity rest unlock', idx: 7 },
+          priceInFlow: { alias: 'Price in flow', idx: 8 },
+          priceOutFlow: { alias: 'Price out flow', idx: 9 },
+          priceRest: { alias: 'Price rest', idx: 10 },
+          costInFlow: { alias: 'Cost in flow', idx: 11 },
+          costOutFlow: { alias: 'Cost out flow', idx: 12 },
+          costRest: { alias: 'Cost rest', idx: 13 },
+          costRestInFlow: { alias: 'Cost rest in flow', idx: 14 },
+          costRestLock: { alias: 'Cost rest lock', idx: 15 },
+          costRestUnlock: { alias: 'Cost rest unlock', idx: 16 },
+          pnlTotal: { alias: 'PnL total', idx: 17 },
+          pnlRest: { alias: 'PnL rest', idx: 18 },
           update: {
             alias: 'Update',
-            idx: 15,
+            idx: 19,
             type: 'date',
             default: new Date(),
           },
@@ -1324,88 +1404,36 @@ class Portfolio {
   }
 
   getWorkSheet(sheetName) {
-    let headSheetName = sheetName;
-    if (sheetName.match('Registry')) {
-      headSheetName = 'Registry';
+    try {
+      let headSheetName = sheetName;
+      if (sheetName.match('Registry')) {
+        headSheetName = 'Registry';
+      }
+      const head = new Header().getHead(this.workSheetHeads, headSheetName);
+      return new WorkSheet(this.spreadSheetName, sheetName, head).getDataset()
+    } catch (error) {
+      new Log().addError('Portfolio.getWorkSheet', error);
     }
-    const head = new Header().getHead(this.workSheetHeads, headSheetName);
-    return new WorkSheet(this.spreadSheetName, sheetName, head).getDataset()
   }
 
   updateOnEdit(range) {
-    let sheetName, headSheetName;
-    sheetName = range.getSheet().getSheetName();
-    headSheetName = sheetName;
-    if (sheetName.match('Registry')) {
-      headSheetName = 'Registry';
-    }
-    const head = new Header().getHead(this.workSheetHeads, headSheetName);
-    const workSheet = new WorkSheetRange(
-      this.spreadSheetName,
-      sheetName,
-      head,
-      range
-    ).getDataset();
-    return workSheet
-  }
-}
-
-class Log {
-  constructor() {
-    if (Log.exists) {
-      return Log.instance
-    }
-    Log.instance = this;
-    Log.exists = true;
-    this.workSheet = new Portfolio().getWorkSheet('Log');
-  }
-  /**
-   * Добавление ошибки в реестр ошибок
-   * @param {string} method Название метода
-   * @param {string} error Текст ошибки
-   */
-  addError(method, error) {
-    new Promise((resolve) => {
-      this.workSheet.insertRow({
-        dateTime: new FormatDate().getFormatDate('yyyy-MM-dd HH:mm:ss'),
-        method,
-        type: 'error',
-        name: error?.name,
-        message: error?.message,
-        stack: error?.stack,
-      });
-      Browser.msgBox('New error!');
-      resolve();
-    }).then(() => {
-      this.truncateLog();
-    });
-  }
-  /**
-   * Добавление ошибки в реестр ошибок
-   * @param {string} name Название метода
-   * @param {string} error Текст ошибки
-   */
-  addMessage(method, name, message) {
-    new Promise((resolve) => {
-      const messageString =
-        typeof message !== 'string' ? JSON.stringify(message) : message;
-      this.workSheet.insertRow({
-        dateTime: new FormatDate().getFormatDate('yyyy-MM-dd HH:mm:ss'),
-        method: method,
-        type: 'message',
-        name: name,
-        message: messageString,
-        stack: void 0,
-      });
-      resolve();
-    }).then(() => {
-      this.truncateLog();
-    });
-  }
-
-  truncateLog() {
-    if (this.workSheet.countRow > 25) {
-      this.workSheet.deleteRow(2, 20);
+    try {
+      let sheetName, headSheetName;
+      sheetName = range.getSheet().getSheetName();
+      headSheetName = sheetName;
+      if (sheetName.match('Registry')) {
+        headSheetName = 'Registry';
+      }
+      const head = new Header().getHead(this.workSheetHeads, headSheetName);
+      const workSheet = new WorkSheetRange(
+        this.spreadSheetName,
+        sheetName,
+        head,
+        range
+      ).getDataset();
+      return workSheet
+    } catch (error) {
+      new Log().addError('Portfolio.updateOnEdit', error);
     }
   }
 }
@@ -1888,6 +1916,94 @@ class CoinsList {
   }
 }
 
+class Coins {
+  constructor(workSheet = '') {
+    if (Coins.exists) {
+      return Coins.instance
+    }
+    Coins.instance = this;
+    Coins.exists = true;
+    this.workSheet = workSheet
+      ? workSheet
+      : new Portfolio().getWorkSheet('Coins');
+  }
+
+  updateCoins() {
+    try {
+      const coins = [];
+      new CoinsList().getCoinsList().forEach((coin) => {
+        const rowKey = new Hash('coingecko' + coin.name + coin.symbol).md5;
+        coins.push({
+          rowKey: rowKey,
+          source: 'coingecko',
+          name: coin.name,
+          symbol: coin.symbol,
+          id: coin.id,
+        });
+      });
+
+      Object.entries(new CoinsList$1().getCoinsList()).forEach(
+        (coin) => {
+          const key = new Hash('cryptocompare' + coin[1].CoinName + coin[0]);
+          coins.push({
+            rowKey: key.md5,
+            source: 'cryptocompare',
+            name: coin[1].CoinName,
+            symbol: coin[1].Symbol,
+            id: coin[0],
+          });
+        }
+      );
+      const currency = [
+        ['USA dollar', 'USD'],
+        ['Russian rubble', 'RUB'],
+        ['Euro', 'EUR'],
+      ];
+      currency.forEach((coin) => {
+        const key = new Hash('cryptocompare' + coin[0] + coin[1]);
+        coins.push({
+          rowKey: key.md5,
+          source: 'cryptocompare',
+          name: coin[0],
+          symbol: coin[1],
+          id: coin[1],
+        });
+      });
+      this.workSheet.truncateInsertRows(coins);
+    } catch (error) {
+      new Log().addError('Coins.updateCoins', error);
+    } finally {
+      new Log().addMessage(
+        'Coins.updateCoins',
+        'TimeSpent',
+        'Time spent: ' + startProcess.getTimeDiff()
+      );
+    }
+  }
+}
+
+//* Deprecated
+// new cryptoRank.CoinsList().getCoinsList(15000).forEach((coin) => {
+//   const key = new Hash('cryptorank' + coin.name + coin.symbol)
+//   coins.push({
+//     rowKey: key.md5,
+//     source: 'cryptorank',
+//     name: coin.name,
+//     symbol: coin.symbol,
+//     id: coin.id,
+//   })
+// })
+// new coinMarketCap.CoinsList().getCoinsList().forEach((coin) => {
+//   const key = new Hash('coinmarketcap' + coin.name + coin.symbol)
+//   coins.push({
+//     rowKey: key.md5,
+//     source: 'coinmarketcap',
+//     name: coin.name,
+//     symbol: coin.symbol,
+//     id: coin.id,
+//   })
+// })
+
 class Prices {
   constructor(workSheet = '') {
     if (Prices.exists) {
@@ -1901,22 +2017,13 @@ class Prices {
   }
 
   updateId() {
+    new FormatDate();
     try {
-      // const coins = new Portfolio().getWorkSheet('coins').arrayOfObject
-      const coins = new Portfolio().getWorkSheet('coins').object;
-
+      const coins = new Coins().workSheet.object;
       this.workSheet.arrayOfObject.forEach((object) => {
         const coinsKey = new Hash(object.source + object.name + object.symbol)
           .md5;
-        // const coin = coins.filter((row) => {
-        //   return (
-        //     new RegExp(object.name.toString().toLowerCase(), 'g').test(
-        //       row.name.toString().toLowerCase()
-        //     ) &&
-        //     new Hash(object.source).md5 === new Hash(row.source).md5 &&
-        //     new Hash(object.symbol).md5 === new Hash(row.symbol).md5
-        //   )
-        // })[0]
+
         object.id = coins[coinsKey]?.id || void 0;
         if (
           new Hash(object.source).md5 === new Hash('cryptoCompare'.md5) &&
@@ -1926,18 +2033,13 @@ class Prices {
             coins[coinsKey]?.id
           );
         }
-        // this.workSheet.updateRow(object)
+
         this.workSheet.insertValue(
           object.id,
           object.rowNum,
           this.workSheet.head.id.idx + 1
         );
       });
-
-      // this.workSheet.arrayOfObject.forEach((object) => {
-      //   // new Log().addMessage('Prices.updateId', 'object', object)
-      //   this.workSheet.updateRow(object)
-      // })
     } catch (error) {
       new Log().addError('Prices.updateId', error);
     }
@@ -1996,6 +2098,7 @@ class Prices {
   }
 
   updatePrices() {
+    const startProcess = new FormatDate();
     try {
       new Promise((resolve) => {
         this.symbolType = new Portfolio().getWorkSheet('symbolType').object;
@@ -2019,13 +2122,6 @@ class Prices {
           ])
         );
 
-        // if (listId.cryptorank) {
-        //   new cryptoRank.Price().getLastPrice(listId.cryptorank).forEach((coin) => {
-        //     updatePrice(coin.symbol, coin.values.USD.price)
-        //     updateRisk(coin.symbol, coin.rank)
-        //   })
-        // }
-
         if (listId.coingecko) {
           const priceArray = new Price().getMarketsPrice(
             listId.coingecko
@@ -2037,15 +2133,6 @@ class Prices {
             });
           }
         }
-
-        // if (listId.coinmarketcap) {
-        //   Object.values(
-        //     new coinMarketCap.Price().getLastPrice(listId.coinmarketcap)
-        //   ).forEach((coin) => {
-        //     updatePrice(coin.symbol, coin.quote.USD.price)
-        //     updateRisk(coin.symbol, coin.cmc_rank)
-        //   })
-        // }
 
         if (listId.cryptocompare) {
           const priceArray = new Price$1().getMultiPrice(
@@ -2062,25 +2149,64 @@ class Prices {
           }
         }
 
-        // if (listId.custom.length) {
-        //   listId.custom.forEach((symbol) => {
-        //     const HistoricalPricesAvgKey = new Hash(
-        //       'ikeniborn' + 'no project' + symbol
-        //     ).md5
-        //     const histirocalPrice =
-        //       this.HistoricalPricesAvg[HistoricalPricesAvgKey]?.priceAvg ||
-        //       void 0
-        //     this.updatePrice(symbol, histirocalPrice)
-        //     this.updateRisk(symbol)
-        //   })
-        // }
         resolve();
       }).then(this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject));
     } catch (error) {
       new Log().addError('Prices.updatePrices', error);
+    } finally {
+      new Log().addMessage(
+        'Prices.updatePrices',
+        'TimeSpent',
+        'Time spent: ' + startProcess.getTimeDiff()
+      );
     }
   }
 }
+
+//* Deprecated
+//* Prices.updateId
+// const coins = new Portfolio().getWorkSheet('coins').arrayOfObject
+// const coin = coins.filter((row) => {
+//   return (
+//     new RegExp(object.name.toString().toLowerCase(), 'g').test(
+//       row.name.toString().toLowerCase()
+//     ) &&
+//     new Hash(object.source).md5 === new Hash(row.source).md5 &&
+//     new Hash(object.symbol).md5 === new Hash(row.symbol).md5
+//   )
+// })[0]
+// this.workSheet.updateRow(object)
+// this.workSheet.arrayOfObject.forEach((object) => {
+//   // new Log().addMessage('Prices.updateId', 'object', object)
+//   this.workSheet.updateRow(object)
+// })
+//* Prices.updatePrices
+// if (listId.cryptorank) {
+//   new cryptoRank.Price().getLastPrice(listId.cryptorank).forEach((coin) => {
+//     updatePrice(coin.symbol, coin.values.USD.price)
+//     updateRisk(coin.symbol, coin.rank)
+//   })
+// }
+// if (listId.coinmarketcap) {
+//   Object.values(
+//     new coinMarketCap.Price().getLastPrice(listId.coinmarketcap)
+//   ).forEach((coin) => {
+//     updatePrice(coin.symbol, coin.quote.USD.price)
+//     updateRisk(coin.symbol, coin.cmc_rank)
+//   })
+// }
+// if (listId.custom.length) {
+//   listId.custom.forEach((symbol) => {
+//     const HistoricalPricesAvgKey = new Hash(
+//       'ikeniborn' + 'no project' + symbol
+//     ).md5
+//     const histirocalPrice =
+//       this.HistoricalPricesAvg[HistoricalPricesAvgKey]?.priceAvg ||
+//       void 0
+//     this.updatePrice(symbol, histirocalPrice)
+//     this.updateRisk(symbol)
+//   })
+// }
 
 class Transactions {
   constructor(workSheet = '') {
@@ -2142,9 +2268,10 @@ class Transactions {
     } catch (error) {
       new Log().addError('Transactions.updateTransactions', error);
     } finally {
-      console.info(
-        'Transactions.updateTransactions.timeSpent: ',
-        startProcess.getTimeDiff()
+      new Log().addMessage(
+        'Transactions.updateTransactions',
+        'TimeSpent',
+        'Time spent: ' + startProcess.getTimeDiff()
       );
     }
   }
@@ -2157,9 +2284,10 @@ class Transactions {
     } catch (error) {
       new Log().addError('Transactions.deleteDuplicatesRows', error);
     } finally {
-      console.info(
-        'Transactions.deleteDuplicatesRows.timeSpent: ',
-        startProcess.getTimeDiff()
+      new Log().addMessage(
+        'Transactions.deleteDuplicatesRows',
+        'TimeSpent',
+        'Time spent: ' + startProcess.getTimeDiff()
       );
     }
   }
@@ -2189,11 +2317,8 @@ class Transactions {
       historicalPrice = void 0;
       const coin = this.prices[new Hash(symbol).md5];
       const sourceKey = new Hash(coin?.source).md5;
-      const id = coin.id;
+      const symbolId = coin?.id;
       const symbolTypeKey = new Hash(coin?.symbolType).md5;
-      console.log('symbol', symbol);
-      console.log('coin?.symbolType', coin?.symbolType);
-      console.log(new Hash('stablecoin').md5 !== symbolTypeKey);
       if (new Hash('stablecoin').md5 !== symbolTypeKey) {
         //* Расчет средневзвешенной стоимости покупки токена на основании истории покупок для диапазона данных
         if (isRange) {
@@ -2252,7 +2377,7 @@ class Transactions {
           ) {
             //* Получение исторической цены из coinGecko
             historicalPrice = new coinGecko.Price()
-              .getMarketsPrice(id)
+              .getMarketsPrice(symbolId)
               .reduce((price, data) => {
                 price = data.current_price;
                 return price
@@ -2262,7 +2387,7 @@ class Transactions {
             //* Получение исторической цены из CryptoCompare
             if (sourceKey === new Hash('cryptocompare').md5) {
               historicalPrice = new Price$1().getHistoryPrice(
-                id,
+                symbolId,
                 dateTime,
                 convert
               );
@@ -2272,7 +2397,7 @@ class Transactions {
           return { historicalPrice, isHistoricalAveragePrice }
         }
       } else {
-        // Для стабильных токенов возвращать единицу
+        //* Для стабильных токенов возвращать единицу
         historicalPrice = 1;
         isHistoricalAveragePrice = false;
         return { historicalPrice, isHistoricalAveragePrice }
@@ -2280,9 +2405,10 @@ class Transactions {
     } catch (error) {
       new Log().addError('Transactions.getHistoricalPriceBuy', error);
     } finally {
-      console.info(
-        'Transactions.getHistoricalPriceBuy.timeSpent: ',
-        startProcess.getTimeDiff()
+      new Log().addMessage(
+        'Transactions.getHistoricalPriceBuy',
+        'TimeSpent',
+        'Time spent: ' + startProcess.getTimeDiff()
       );
     }
   }
@@ -2301,7 +2427,6 @@ class Registry {
       const transactions = new Transactions();
       const transactionsArrayOfObject = [];
       const updateDate = new Date();
-      // const services = new Portfolio().getWorkSheet('services').object
       this.workSheet.arrayOfObject.forEach((rowValues) => {
         let coinQty,
           currencyQty,
@@ -2315,6 +2440,7 @@ class Registry {
           currencyPrice,
           feePrice,
           mainSymbol,
+          isDelete,
           isLiquidityPool,
           isFee,
           isLock,
@@ -2344,6 +2470,7 @@ class Registry {
         coinSymbol = rowValues.coin;
         currencySymbol = rowValues.currency;
         isLiquidityPool = false;
+        isDelete = rowValues.isDelete || false;
         isFee = false;
         isBuyPrice = false;
         isLock = false;
@@ -2432,7 +2559,6 @@ class Registry {
             .map((m) => (m = new Hash(m).md5))
             .indexOf(new Hash(rowValues.operation).md5) !== -1
         ) {
-          currencySymbol = rowValues.currency;
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#1').md5,
             direction: 'out',
@@ -2473,7 +2599,6 @@ class Registry {
             .map((m) => (m = new Hash(m).md5))
             .indexOf(new Hash(rowValues.operation).md5) !== -1
         ) {
-          currencySymbol = rowValues.currency;
           transactionRow.push({
             rowKey: new Hash(rowValues.rowKey + '#1').md5,
             direction: 'out',
@@ -2537,9 +2662,9 @@ class Registry {
             rowValues.feeCurrency,
             isRange
           );
-          feePrice = historicalPriceBuy.historicalPrice;
+          feePrice = historicalPriceBuy?.historicalPrice;
           isHistoricalAveragePriceFeeCurrency =
-            historicalPriceBuy.isHistoricalAveragePrice;
+            historicalPriceBuy?.isHistoricalAveragePrice || false;
         }
 
         //* Расчет текущей или исторической цены покупаемого токена
@@ -2556,10 +2681,10 @@ class Registry {
             isRange
           );
           isHistoricalAveragePriceCurrency =
-            historicalPriceBuy.isHistoricalAveragePrice;
-          currencyPrice = historicalPriceBuy.historicalPrice;
+            historicalPriceBuy?.isHistoricalAveragePrice || false;
+          currencyPrice = historicalPriceBuy?.historicalPrice;
           isHistoricalAveragePriceSymbol =
-            historicalPriceBuy.isHistoricalAveragePrice;
+            historicalPriceBuy?.isHistoricalAveragePrice || false;
           symbolPrice = currencyPrice * currencyPerCoin;
         }
 
@@ -2600,7 +2725,7 @@ class Registry {
             comment: rowValues.comment.toString().toLowerCase(),
             registryRowNum: rowValues.rowNum,
             updateDate: updateDate,
-            isDelete: rowValues.isDelete,
+            isDelete: isDelete,
             isBuyPrice: tx.isBuyPrice,
             isLiquidityPool: tx.isLiquidityPool,
             isFee: tx.isFee,
@@ -2622,87 +2747,12 @@ class Registry {
     } catch (error) {
       new Log().addError('Registry.updateTransactions', error);
     } finally {
-      console.info(
-        'Registry.updateTransactions.timeSpent: ',
-        startProcess.getTimeDiff()
+      new Log().addMessage(
+        'Registry.updateTransactions',
+        'TimeSpent',
+        'Time spent: ' + startProcess.getTimeDiff()
       );
     }
-  }
-}
-
-class Coins {
-  constructor(workSheet = '') {
-    if (Coins.exists) {
-      return Coins.instance
-    }
-    Coins.instance = this;
-    Coins.exists = true;
-    this.workSheet = workSheet
-      ? workSheet
-      : new Portfolio().getWorkSheet('Coins');
-  }
-
-  updateCoins() {
-    const coins = [];
-    new CoinsList().getCoinsList().forEach((coin) => {
-      const rowKey = new Hash('coingecko' + coin.name + coin.symbol).md5;
-      coins.push({
-        rowKey: rowKey,
-        source: 'coingecko',
-        name: coin.name,
-        symbol: coin.symbol,
-        id: coin.id,
-      });
-    });
-    // new cryptoRank.CoinsList().getCoinsList(15000).forEach((coin) => {
-    //   const key = new Hash('cryptorank' + coin.name + coin.symbol)
-    //   coins.push({
-    //     rowKey: key.md5,
-    //     source: 'cryptorank',
-    //     name: coin.name,
-    //     symbol: coin.symbol,
-    //     id: coin.id,
-    //   })
-    // })
-    // new coinMarketCap.CoinsList().getCoinsList().forEach((coin) => {
-    //   const key = new Hash('coinmarketcap' + coin.name + coin.symbol)
-    //   coins.push({
-    //     rowKey: key.md5,
-    //     source: 'coinmarketcap',
-    //     name: coin.name,
-    //     symbol: coin.symbol,
-    //     id: coin.id,
-    //   })
-    // })
-
-    Object.entries(new CoinsList$1().getCoinsList()).forEach(
-      (coin) => {
-        const key = new Hash('cryptocompare' + coin[1].CoinName + coin[0]);
-        coins.push({
-          rowKey: key.md5,
-          source: 'cryptocompare',
-          name: coin[1].CoinName,
-          symbol: coin[1].Symbol,
-          id: coin[0],
-        });
-      }
-    );
-    const currency = [
-      ['USA dollar', 'USD'],
-      ['Russian rubble', 'RUB'],
-      ['Euro', 'EUR'],
-    ];
-    currency.forEach((coin) => {
-      const key = new Hash('cryptocompare' + coin[0] + coin[1]);
-      coins.push({
-        rowKey: key.md5,
-        source: 'cryptocompare',
-        name: coin[0],
-        symbol: coin[1],
-        id: coin[1],
-      });
-    });
-    this.workSheet.truncateInsertRows(coins);
   }
 }
 
@@ -2714,14 +2764,11 @@ class LPToken {
   }
 
   updateLPToken() {
-    // const prices = new Portfolio().getWorkSheet('prices').object
-    const transactionsLpToken = new Portfolio()
-      .getWorkSheet('transactions')
-      .arrayOfObject.filter(
-        (row) =>
-          ['liquidity pool (1)', 'liquidity pool (2)'].indexOf(row.service) !==
-            -1 && row.operation === 'buy'
-      );
+    const transactionsLpToken = new Transactions().workSheet.arrayOfObject.filter(
+      (row) =>
+        ['liquidity pool (1)', 'liquidity pool (2)'].indexOf(row.service) !==
+          -1 && row.operation === 'buy'
+    );
     const aggBalance = transactionsLpToken.reduce((object, tx) => {
       const positiveQuantity = tx.quantity < 0 ? tx.quantity * -1 : tx.quantity;
       if (!object[tx.account]) {
@@ -2803,13 +2850,14 @@ class FlowSymbol {
   }
 
   updateFlow() {
+    const startProcess = new FormatDate();
     try {
-      const prices = new Portfolio().getWorkSheet('prices').object;
-      const services = new Portfolio().getWorkSheet('services').object;
-      const aggFlow = new Portfolio()
-        .getWorkSheet('Transactions')
-        .arrayOfObject.filter((row) => !row.isDelete)
+      const prices = new Prices().workSheet.object;
+      const aggFlow = new Transactions().workSheet.arrayOfObject
+        .filter((row) => !row.isDelete)
         .reduce((agg, tx) => {
+          const operationKey = new Hash(tx.operation).md5;
+          const directionKey = new Hash(tx.direction).md5;
           if (!agg[tx.account]) {
             agg[tx.account] = {};
           }
@@ -2825,6 +2873,8 @@ class FlowSymbol {
               quantityTransferIn: 0,
               quantityTransferOut: 0,
               quantityRest: 0,
+              quantityRestLock: 0,
+              quantityRestUnlock: 0,
               costBuyIn: 0,
               costBuyOut: 0,
               costSellIn: 0,
@@ -2837,40 +2887,46 @@ class FlowSymbol {
           }
           //* Распределение количества по потокам
 
-          if (new Hash(tx.operation).md5 === new Hash('buy').md5) {
-            if (new Hash(tx.direction).md5 === new Hash('in').md5) {
+          if (operationKey === new Hash('buy').md5) {
+            if (directionKey === new Hash('in').md5) {
               agg[tx.account][tx.symbol].quantityBuyIn += tx.quantity;
               agg[tx.account][tx.symbol].costBuyIn += tx.cost;
-            } else if (new Hash(tx.direction).md5 === new Hash('out').md5) {
+            } else if (directionKey === new Hash('out').md5) {
               agg[tx.account][tx.symbol].quantityBuyOut += tx.quantity * -1;
               agg[tx.account][tx.symbol].costBuyOut += tx.cost * -1;
             }
-          } else if (new Hash(tx.operation).md5 === new Hash('sell').md5) {
-            if (new Hash(tx.direction).md5 === new Hash('in').md5) {
+          } else if (operationKey === new Hash('sell').md5) {
+            if (directionKey === new Hash('in').md5) {
               agg[tx.account][tx.symbol].quantitySellIn += tx.quantity;
               agg[tx.account][tx.symbol].costSellIn += tx.cost;
-            } else if (new Hash(tx.direction).md5 === new Hash('out').md5) {
+            } else if (directionKey === new Hash('out').md5) {
               agg[tx.account][tx.symbol].quantitySellOut += tx.quantity * -1;
               agg[tx.account][tx.symbol].costSellOut += tx.cost * -1;
             }
-          } else if (new Hash(tx.operation).md5 === new Hash('refill').md5) {
-            if (new Hash(tx.direction).md5 === new Hash('in').md5) {
+          } else if (operationKey === new Hash('refill').md5) {
+            if (directionKey === new Hash('in').md5) {
               agg[tx.account][tx.symbol].quantityRefillIn += tx.quantity;
               agg[tx.account][tx.symbol].costRefillIn += tx.cost;
             }
-          } else if (new Hash(tx.operation).md5 === new Hash('write-off').md5) {
-            if (new Hash(tx.direction).md5 === new Hash('out').md5) {
+          } else if (operationKey === new Hash('write-off').md5) {
+            if (directionKey === new Hash('out').md5) {
               agg[tx.account][tx.symbol].quantityWriteOffOut += tx.quantity * -1;
               agg[tx.account][tx.symbol].costWriteOffOut += tx.cost * -1;
             }
-          } else if (new Hash(tx.operation).md5 === new Hash('transfer').md5) {
-            if (new Hash(tx.direction).md5 === new Hash('in').md5) {
+          } else if (operationKey === new Hash('transfer').md5) {
+            if (directionKey === new Hash('in').md5) {
               agg[tx.account][tx.symbol].quantityTransferIn += tx.quantity;
               agg[tx.account][tx.symbol].costTransferIn += tx.cost;
-            } else if (new Hash(tx.direction).md5 === new Hash('out').md5) {
+            } else if (directionKey === new Hash('out').md5) {
               agg[tx.account][tx.symbol].quantityTransferOut += tx.quantity * -1;
               agg[tx.account][tx.symbol].costTransferOut += tx.cost * -1;
             }
+          }
+
+          if (tx.isLock) {
+            agg[tx.account][tx.symbol].quantityRestLock += tx.quantity;
+          } else {
+            agg[tx.account][tx.symbol].quantityRestUnlock += tx.quantity;
           }
           agg[tx.account][tx.symbol].quantityRest += tx.quantity;
 
@@ -2881,8 +2937,10 @@ class FlowSymbol {
         Object.entries(level0).forEach(([symbol, object]) => {
           //* доп. атрибуты
           const symbolKey = new Hash(symbol).md5;
-          const priceRest = prices[symbolKey]?.price;
-          const costRest = prices[symbolKey]?.price * object.quantityRest;
+          const priceRest = prices[symbolKey]?.price || 0;
+          const costRest = priceRest * object.quantityRest;
+          const costRestLock = priceRest * object.quantityRestLock;
+          const costRestUnlock = priceRest * object.quantityRestUnlock;
 
           //* расчет потоков без перемещений. т.к. между токенами нет перемещений
           const costInFlow =
@@ -2910,38 +2968,20 @@ class FlowSymbol {
             account: account.toUpperCase(),
             symbol: symbol.toUpperCase(),
             symbolKey: symbolKey,
-            // quantityBuyIn: object.quantityBuyIn || 0,
-            // quantityBuyOut: object.quantityBuyOut || 0,
-            // quantitySellIn: object.quantitySellIn || 0,
-            // quantitySellOut: object.quantitySellOut || 0,
-            // quantityRefillIn: object.quantityRefillIn || 0,
-            // quantityWriteOffOut: object.quantityWriteOffOut || 0,
-            // quantityTransferIn: object.quantityTransferIn || 0,
-            // quantityTransferOut: object.quantityTransferOut || 0,
             quantityInFlow: quantityInFlow || 0,
             quantityOutFlow: quantityOutFlow || 0,
             quantityRest: object.quantityRest || 0,
-            // priceBuy: priceBuy || 0,
-            // priceSell: priceSell || 0,
-            // priceRefill: priceRefill || 0,
-            // priceWriteOff: priceWriteOff || 0,
-            // priceTransferIn: priceTransferIn || 0,
-            // priceTransferOut: priceTransferOut || 0,
+            quantityRestLock: object.quantityRestLock || 0,
+            quantityRestUnlock: object.quantityRestUnlock || 0,
             priceInFlow: priceInFlow || 0,
             priceOutFlow: priceOutFlow || 0,
             priceRest: priceRest || 0,
-            // costBuyIn: object.costBuyIn || 0,
-            // costBuyOut: object.costBuyOut || 0,
-            // costSellIn: object.costSellIn || 0,
-            // costSellOut: object.costSellOut || 0,
-            // costRefillIn: object.costRefillIn || 0,
-            // costWriteOffOut: object.costWriteOffOut || 0,
-            // costTransferIn: object.costTransferIn || 0,
-            // costTransferOut: object.costTransferOut || 0,
             costInFlow: costInFlow || 0,
             costOutFlow: costOutFlow || 0,
             costRest: costRest || 0,
             costRestInFlow: priceInFlow * object.quantityRest || 0,
+            costRestLock: costRestLock || 0,
+            costRestUnlock: costRestUnlock || 0,
             pnlTotal: costOutFlow - costInFlow + costRest || 0,
             pnlRest: costRest - priceInFlow * object.quantityRest || 0,
           });
@@ -2951,9 +2991,40 @@ class FlowSymbol {
       this.workSheet.truncateInsertRows(aggFlowArrayOfObject);
     } catch (error) {
       new Log().addError('FlowSymbol.updateFlow', error);
+    } finally {
+      new Log().addMessage(
+        'FlowSymbol.updateFlow',
+        'TimeSpent',
+        'Time spent: ' + startProcess.getTimeDiff()
+      );
     }
   }
 }
+
+//* Deprecated
+//* FlowSymbol.updateFlow
+// quantityBuyIn: object.quantityBuyIn || 0,
+// quantityBuyOut: object.quantityBuyOut || 0,
+// quantitySellIn: object.quantitySellIn || 0,
+// quantitySellOut: object.quantitySellOut || 0,
+// quantityRefillIn: object.quantityRefillIn || 0,
+// quantityWriteOffOut: object.quantityWriteOffOut || 0,
+// quantityTransferIn: object.quantityTransferIn || 0,
+// quantityTransferOut: object.quantityTransferOut || 0,
+// priceBuy: priceBuy || 0,
+// priceSell: priceSell || 0,
+// priceRefill: priceRefill || 0,
+// priceWriteOff: priceWriteOff || 0,
+// priceTransferIn: priceTransferIn || 0,
+// priceTransferOut: priceTransferOut || 0,
+// costBuyIn: object.costBuyIn || 0,
+// costBuyOut: object.costBuyOut || 0,
+// costSellIn: object.costSellIn || 0,
+// costSellOut: object.costSellOut || 0,
+// costRefillIn: object.costRefillIn || 0,
+// costWriteOffOut: object.costWriteOffOut || 0,
+// costTransferIn: object.costTransferIn || 0,
+// costTransferOut: object.costTransferOut || 0,
 
 // import { GasProcess } from '../restApi/gasScriptApi'
 
@@ -3076,8 +3147,15 @@ function updateOnEdit(editRange) {
     updateData.isResolve ? resolve(updateData) : reject();
   })
     .then((workSheet) => {
+      if (workSheet.isRegistry) {
+        SpreadsheetApp.getActive().toast(
+          'Save process ended',
+          'Save process',
+          1
+        );
+      }
       new Log().addMessage(
-        'updateOnEdit',
+        'script.updateOnEdit',
         'ID:' + startProcess.value,
         'Sheet name: ' +
           workSheet.sheetName +
@@ -3090,16 +3168,9 @@ function updateOnEdit(editRange) {
           ', Time spent: ' +
           startProcess.getTimeDiff()
       );
-      if (workSheet.isRegistry) {
-        SpreadsheetApp.getActive().toast(
-          'Save process ended',
-          'Save process',
-          1
-        );
-      }
     })
     .catch((error) => {
-      new Log().addError('updateOnEdit', error);
+      new Log().addError('script.updateOnEdit', error);
     });
 }
 

@@ -1,6 +1,7 @@
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash } from '../../utils'
 import { Log } from './log'
+import { Transactions } from './transactions'
 export { LPToken }
 
 class LPToken {
@@ -11,14 +12,11 @@ class LPToken {
   }
 
   updateLPToken() {
-    // const prices = new Portfolio().getWorkSheet('prices').object
-    const transactionsLpToken = new Portfolio()
-      .getWorkSheet('transactions')
-      .arrayOfObject.filter(
-        (row) =>
-          ['liquidity pool (1)', 'liquidity pool (2)'].indexOf(row.service) !==
-            -1 && row.operation === 'buy'
-      )
+    const transactionsLpToken = new Transactions().workSheet.arrayOfObject.filter(
+      (row) =>
+        ['liquidity pool (1)', 'liquidity pool (2)'].indexOf(row.service) !==
+          -1 && row.operation === 'buy'
+    )
     const aggBalance = transactionsLpToken.reduce((object, tx) => {
       const positiveQuantity = tx.quantity < 0 ? tx.quantity * -1 : tx.quantity
       if (!object[tx.account]) {

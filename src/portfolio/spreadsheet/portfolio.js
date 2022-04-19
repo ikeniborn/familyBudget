@@ -1,6 +1,8 @@
 import { Environment } from '../../gas'
 import { Header } from '../../header'
+import { FormatDate } from '../../utils'
 import { WorkSheet, WorkSheetRange } from '../../gas'
+import { Log } from '../worksheet/log'
 export { Portfolio }
 
 new Environment([
@@ -151,18 +153,22 @@ class Portfolio {
           quantityInFlow: { alias: 'Quantity in flow', idx: 3 },
           quantityOutFlow: { alias: 'Quantity out flow', idx: 4 },
           quantityRest: { alias: 'Quantity rest', idx: 5 },
-          priceInFlow: { alias: 'Price in flow', idx: 6 },
-          priceOutFlow: { alias: 'Price out flow', idx: 7 },
-          priceRest: { alias: 'Price rest', idx: 8 },
-          costInFlow: { alias: 'Cost in flow', idx: 9 },
-          costOutFlow: { alias: 'Cost out flow', idx: 10 },
-          costRest: { alias: 'Cost rest', idx: 11 },
-          costRestInFlow: { alias: 'Cost rest in flow', idx: 12 },
-          pnlTotal: { alias: 'PnL total', idx: 13 },
-          pnlRest: { alias: 'PnL rest', idx: 14 },
+          quantityRestLock: { alias: 'Quantity rest lock', idx: 6 },
+          quantityRestUnlock: { alias: 'Quantity rest unlock', idx: 7 },
+          priceInFlow: { alias: 'Price in flow', idx: 8 },
+          priceOutFlow: { alias: 'Price out flow', idx: 9 },
+          priceRest: { alias: 'Price rest', idx: 10 },
+          costInFlow: { alias: 'Cost in flow', idx: 11 },
+          costOutFlow: { alias: 'Cost out flow', idx: 12 },
+          costRest: { alias: 'Cost rest', idx: 13 },
+          costRestInFlow: { alias: 'Cost rest in flow', idx: 14 },
+          costRestLock: { alias: 'Cost rest lock', idx: 15 },
+          costRestUnlock: { alias: 'Cost rest unlock', idx: 16 },
+          pnlTotal: { alias: 'PnL total', idx: 17 },
+          pnlRest: { alias: 'PnL rest', idx: 18 },
           update: {
             alias: 'Update',
-            idx: 15,
+            idx: 19,
             type: 'date',
             default: new Date(),
           },
@@ -364,28 +370,36 @@ class Portfolio {
   }
 
   getWorkSheet(sheetName) {
-    let headSheetName = sheetName
-    if (sheetName.match('Registry')) {
-      headSheetName = 'Registry'
+    try {
+      let headSheetName = sheetName
+      if (sheetName.match('Registry')) {
+        headSheetName = 'Registry'
+      }
+      const head = new Header().getHead(this.workSheetHeads, headSheetName)
+      return new WorkSheet(this.spreadSheetName, sheetName, head).getDataset()
+    } catch (error) {
+      new Log().addError('Portfolio.getWorkSheet', error)
     }
-    const head = new Header().getHead(this.workSheetHeads, headSheetName)
-    return new WorkSheet(this.spreadSheetName, sheetName, head).getDataset()
   }
 
   updateOnEdit(range) {
-    let sheetName, headSheetName
-    sheetName = range.getSheet().getSheetName()
-    headSheetName = sheetName
-    if (sheetName.match('Registry')) {
-      headSheetName = 'Registry'
+    try {
+      let sheetName, headSheetName
+      sheetName = range.getSheet().getSheetName()
+      headSheetName = sheetName
+      if (sheetName.match('Registry')) {
+        headSheetName = 'Registry'
+      }
+      const head = new Header().getHead(this.workSheetHeads, headSheetName)
+      const workSheet = new WorkSheetRange(
+        this.spreadSheetName,
+        sheetName,
+        head,
+        range
+      ).getDataset()
+      return workSheet
+    } catch (error) {
+      new Log().addError('Portfolio.updateOnEdit', error)
     }
-    const head = new Header().getHead(this.workSheetHeads, headSheetName)
-    const workSheet = new WorkSheetRange(
-      this.spreadSheetName,
-      sheetName,
-      head,
-      range
-    ).getDataset()
-    return workSheet
   }
 }

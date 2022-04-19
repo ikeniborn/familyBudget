@@ -5,6 +5,7 @@ import * as cryptoCompare from '../../restApi/cryptoCompare'
 // import * as coinMarketCap from '../../restApi/coinMarketCap'
 import * as coinGecko from '../../restApi/coinGecko'
 import { Log } from './log'
+import { Coins } from './coins'
 export { Prices }
 
 class Prices {
@@ -20,22 +21,13 @@ class Prices {
   }
 
   updateId() {
+    const startProcess = new FormatDate()
     try {
-      // const coins = new Portfolio().getWorkSheet('coins').arrayOfObject
-      const coins = new Portfolio().getWorkSheet('coins').object
-
+      const coins = new Coins().workSheet.object
       this.workSheet.arrayOfObject.forEach((object) => {
         const coinsKey = new Hash(object.source + object.name + object.symbol)
           .md5
-        // const coin = coins.filter((row) => {
-        //   return (
-        //     new RegExp(object.name.toString().toLowerCase(), 'g').test(
-        //       row.name.toString().toLowerCase()
-        //     ) &&
-        //     new Hash(object.source).md5 === new Hash(row.source).md5 &&
-        //     new Hash(object.symbol).md5 === new Hash(row.symbol).md5
-        //   )
-        // })[0]
+
         object.id = coins[coinsKey]?.id || void 0
         if (
           new Hash(object.source).md5 === new Hash('cryptoCompare'.md5) &&
@@ -45,18 +37,13 @@ class Prices {
             coins[coinsKey]?.id
           )
         }
-        // this.workSheet.updateRow(object)
+
         this.workSheet.insertValue(
           object.id,
           object.rowNum,
           this.workSheet.head.id.idx + 1
         )
       })
-
-      // this.workSheet.arrayOfObject.forEach((object) => {
-      //   // new Log().addMessage('Prices.updateId', 'object', object)
-      //   this.workSheet.updateRow(object)
-      // })
     } catch (error) {
       new Log().addError('Prices.updateId', error)
     }
@@ -115,6 +102,7 @@ class Prices {
   }
 
   updatePrices() {
+    const startProcess = new FormatDate()
     try {
       new Promise((resolve) => {
         this.symbolType = new Portfolio().getWorkSheet('symbolType').object
@@ -138,13 +126,6 @@ class Prices {
           ])
         )
 
-        // if (listId.cryptorank) {
-        //   new cryptoRank.Price().getLastPrice(listId.cryptorank).forEach((coin) => {
-        //     updatePrice(coin.symbol, coin.values.USD.price)
-        //     updateRisk(coin.symbol, coin.rank)
-        //   })
-        // }
-
         if (listId.coingecko) {
           const priceArray = new coinGecko.Price().getMarketsPrice(
             listId.coingecko
@@ -156,15 +137,6 @@ class Prices {
             })
           }
         }
-
-        // if (listId.coinmarketcap) {
-        //   Object.values(
-        //     new coinMarketCap.Price().getLastPrice(listId.coinmarketcap)
-        //   ).forEach((coin) => {
-        //     updatePrice(coin.symbol, coin.quote.USD.price)
-        //     updateRisk(coin.symbol, coin.cmc_rank)
-        //   })
-        // }
 
         if (listId.cryptocompare) {
           const priceArray = new cryptoCompare.Price().getMultiPrice(
@@ -181,22 +153,61 @@ class Prices {
           }
         }
 
-        // if (listId.custom.length) {
-        //   listId.custom.forEach((symbol) => {
-        //     const HistoricalPricesAvgKey = new Hash(
-        //       'ikeniborn' + 'no project' + symbol
-        //     ).md5
-        //     const histirocalPrice =
-        //       this.HistoricalPricesAvg[HistoricalPricesAvgKey]?.priceAvg ||
-        //       void 0
-        //     this.updatePrice(symbol, histirocalPrice)
-        //     this.updateRisk(symbol)
-        //   })
-        // }
         resolve()
       }).then(this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject))
     } catch (error) {
       new Log().addError('Prices.updatePrices', error)
+    } finally {
+      new Log().addMessage(
+        'Prices.updatePrices',
+        'TimeSpent',
+        'Time spent: ' + startProcess.getTimeDiff()
+      )
     }
   }
 }
+
+//* Deprecated
+//* Prices.updateId
+// const coins = new Portfolio().getWorkSheet('coins').arrayOfObject
+// const coin = coins.filter((row) => {
+//   return (
+//     new RegExp(object.name.toString().toLowerCase(), 'g').test(
+//       row.name.toString().toLowerCase()
+//     ) &&
+//     new Hash(object.source).md5 === new Hash(row.source).md5 &&
+//     new Hash(object.symbol).md5 === new Hash(row.symbol).md5
+//   )
+// })[0]
+// this.workSheet.updateRow(object)
+// this.workSheet.arrayOfObject.forEach((object) => {
+//   // new Log().addMessage('Prices.updateId', 'object', object)
+//   this.workSheet.updateRow(object)
+// })
+//* Prices.updatePrices
+// if (listId.cryptorank) {
+//   new cryptoRank.Price().getLastPrice(listId.cryptorank).forEach((coin) => {
+//     updatePrice(coin.symbol, coin.values.USD.price)
+//     updateRisk(coin.symbol, coin.rank)
+//   })
+// }
+// if (listId.coinmarketcap) {
+//   Object.values(
+//     new coinMarketCap.Price().getLastPrice(listId.coinmarketcap)
+//   ).forEach((coin) => {
+//     updatePrice(coin.symbol, coin.quote.USD.price)
+//     updateRisk(coin.symbol, coin.cmc_rank)
+//   })
+// }
+// if (listId.custom.length) {
+//   listId.custom.forEach((symbol) => {
+//     const HistoricalPricesAvgKey = new Hash(
+//       'ikeniborn' + 'no project' + symbol
+//     ).md5
+//     const histirocalPrice =
+//       this.HistoricalPricesAvg[HistoricalPricesAvgKey]?.priceAvg ||
+//       void 0
+//     this.updatePrice(symbol, histirocalPrice)
+//     this.updateRisk(symbol)
+//   })
+// }

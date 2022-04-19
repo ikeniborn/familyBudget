@@ -1,6 +1,8 @@
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash } from '../../utils'
 import { Log } from './log'
+import { Prices } from './prices'
+import { Transactions } from './transactions'
 export { Flow }
 
 class Flow {
@@ -16,11 +18,11 @@ class Flow {
   }
 
   updateFlow() {
+    const startProcess = new FormatDate()
     try {
-      const prices = new Portfolio().getWorkSheet('prices').object
-      const aggFlow = new Portfolio()
-        .getWorkSheet('Transactions')
-        .arrayOfObject.filter((row) => !row.isDelete)
+      const prices = new Prices().workSheet.object
+      const aggFlow = new Transactions().workSheet.arrayOfObject
+        .filter((row) => !row.isDelete)
         .reduce((agg, tx) => {
           if (!agg[tx.account]) {
             agg[tx.account] = {}
@@ -192,7 +194,13 @@ class Flow {
 
       this.workSheet.truncateInsertRows(aggFlowArrayOfObject)
     } catch (error) {
-      new Log().addError('FlowContractors.updateFlow', error)
+      new Log().addError('Flow.updateFlow', error)
+    } finally {
+      new Log().addMessage(
+        'Flow.updateFlow',
+        'TimeSpent',
+        'Time spent: ' + startProcess.getTimeDiff()
+      )
     }
   }
 }

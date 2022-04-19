@@ -23,34 +23,36 @@ class Header {
     )
     return head[new Hash(sheetName).md5]
   }
-
-  getPrimaryKey(head = {}, rowObject = {}) {
-    return new Hash(
-      Object.keys(head)
-        .filter((column) => head[column].pk)
-        .map((column) => {
-          const value = rowObject[column]
-          if (value instanceof Date) {
-            return new Date(value).valueOf()
-          } else {
-            return value
-          }
-        })
-        .join('')
-    ).md5
-  }
-
-  isChangePrimaryKey(head, rowObject = {}) {
-    return Object.keys(head)
-      .filter((column) => head[column].pk)
-      .some((column) => (rowObject[column] ? true : false))
-  }
-
-  isNotNull(head, rowObject = {}) {
-    const data = Object.keys(head).filter((column) => head[column].notNull)
-    if (data.length) {
-      return data.every((column) => rowObject[column])
-    }
-    return false
-  }
 }
+
+//* Deprecated
+//* Header
+// getPrimaryKey(head = {}, rowObject = {}) {
+//   return new Hash(
+//     Object.keys(head)
+//       .filter((column) => head[column].pk)
+//       .map((column) => {
+//         const value = rowObject[column]
+//         if (value instanceof Date) {
+//           return new Date(value).valueOf()
+//         } else {
+//           return value
+//         }
+//       })
+//       .join('')
+//   ).md5
+// }
+
+// isChangePrimaryKey(head, rowObject = {}) {
+//   return Object.keys(head)
+//     .filter((column) => head[column].pk)
+//     .some((column) => (rowObject[column] ? true : false))
+// }
+
+// isNotNull(head, rowObject = {}) {
+//   const data = Object.keys(head).filter((column) => head[column].notNull)
+//   if (data.length) {
+//     return data.every((column) => rowObject[column])
+//   }
+//   return false
+// }

@@ -65,9 +65,10 @@ class Transactions {
     } catch (error) {
       new Log().addError('Transactions.updateTransactions', error)
     } finally {
-      console.info(
-        'Transactions.updateTransactions.timeSpent: ',
-        startProcess.getTimeDiff()
+      new Log().addMessage(
+        'Transactions.updateTransactions',
+        'TimeSpent',
+        'Time spent: ' + startProcess.getTimeDiff()
       )
     }
   }
@@ -80,9 +81,10 @@ class Transactions {
     } catch (error) {
       new Log().addError('Transactions.deleteDuplicatesRows', error)
     } finally {
-      console.info(
-        'Transactions.deleteDuplicatesRows.timeSpent: ',
-        startProcess.getTimeDiff()
+      new Log().addMessage(
+        'Transactions.deleteDuplicatesRows',
+        'TimeSpent',
+        'Time spent: ' + startProcess.getTimeDiff()
       )
     }
   }
@@ -112,11 +114,8 @@ class Transactions {
       historicalPrice = void 0
       const coin = this.prices[new Hash(symbol).md5]
       const sourceKey = new Hash(coin?.source).md5
-      const id = coin.id
+      const symbolId = coin?.id
       const symbolTypeKey = new Hash(coin?.symbolType).md5
-      console.log('symbol', symbol)
-      console.log('coin?.symbolType', coin?.symbolType)
-      console.log(new Hash('stablecoin').md5 !== symbolTypeKey)
       if (new Hash('stablecoin').md5 !== symbolTypeKey) {
         //* Расчет средневзвешенной стоимости покупки токена на основании истории покупок для диапазона данных
         if (isRange) {
@@ -175,7 +174,7 @@ class Transactions {
           ) {
             //* Получение исторической цены из coinGecko
             historicalPrice = new coinGecko.Price()
-              .getMarketsPrice(id)
+              .getMarketsPrice(symbolId)
               .reduce((price, data) => {
                 price = data.current_price
                 return price
@@ -185,7 +184,7 @@ class Transactions {
             //* Получение исторической цены из CryptoCompare
             if (sourceKey === new Hash('cryptocompare').md5) {
               historicalPrice = new cryptoCompare.Price().getHistoryPrice(
-                id,
+                symbolId,
                 dateTime,
                 convert
               )
@@ -195,7 +194,7 @@ class Transactions {
           return { historicalPrice, isHistoricalAveragePrice }
         }
       } else {
-        // Для стабильных токенов возвращать единицу
+        //* Для стабильных токенов возвращать единицу
         historicalPrice = 1
         isHistoricalAveragePrice = false
         return { historicalPrice, isHistoricalAveragePrice }
@@ -203,9 +202,10 @@ class Transactions {
     } catch (error) {
       new Log().addError('Transactions.getHistoricalPriceBuy', error)
     } finally {
-      console.info(
-        'Transactions.getHistoricalPriceBuy.timeSpent: ',
-        startProcess.getTimeDiff()
+      new Log().addMessage(
+        'Transactions.getHistoricalPriceBuy',
+        'TimeSpent',
+        'Time spent: ' + startProcess.getTimeDiff()
       )
     }
   }

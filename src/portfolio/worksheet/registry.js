@@ -17,7 +17,6 @@ class Registry {
       const transactions = new Transactions()
       const transactionsArrayOfObject = []
       const updateDate = new Date()
-      // const services = new Portfolio().getWorkSheet('services').object
       this.workSheet.arrayOfObject.forEach((rowValues) => {
         let coinQty,
           currencyQty,
@@ -31,6 +30,7 @@ class Registry {
           currencyPrice,
           feePrice,
           mainSymbol,
+          isDelete,
           isLiquidityPool,
           isFee,
           isLock,
@@ -60,6 +60,7 @@ class Registry {
         coinSymbol = rowValues.coin
         currencySymbol = rowValues.currency
         isLiquidityPool = false
+        isDelete = rowValues.isDelete || false
         isFee = false
         isBuyPrice = false
         isLock = false
@@ -251,9 +252,9 @@ class Registry {
             rowValues.feeCurrency,
             isRange
           )
-          feePrice = historicalPriceBuy.historicalPrice
+          feePrice = historicalPriceBuy?.historicalPrice
           isHistoricalAveragePriceFeeCurrency =
-            historicalPriceBuy.isHistoricalAveragePrice
+            historicalPriceBuy?.isHistoricalAveragePrice || false
         }
 
         //* Расчет текущей или исторической цены покупаемого токена
@@ -270,10 +271,10 @@ class Registry {
             isRange
           )
           isHistoricalAveragePriceCurrency =
-            historicalPriceBuy.isHistoricalAveragePrice
-          currencyPrice = historicalPriceBuy.historicalPrice
+            historicalPriceBuy?.isHistoricalAveragePrice || false
+          currencyPrice = historicalPriceBuy?.historicalPrice
           isHistoricalAveragePriceSymbol =
-            historicalPriceBuy.isHistoricalAveragePrice
+            historicalPriceBuy?.isHistoricalAveragePrice || false
           symbolPrice = currencyPrice * currencyPerCoin
         }
 
@@ -314,7 +315,7 @@ class Registry {
             comment: rowValues.comment.toString().toLowerCase(),
             registryRowNum: rowValues.rowNum,
             updateDate: updateDate,
-            isDelete: rowValues.isDelete,
+            isDelete: isDelete,
             isBuyPrice: tx.isBuyPrice,
             isLiquidityPool: tx.isLiquidityPool,
             isFee: tx.isFee,
@@ -336,9 +337,10 @@ class Registry {
     } catch (error) {
       new Log().addError('Registry.updateTransactions', error)
     } finally {
-      console.info(
-        'Registry.updateTransactions.timeSpent: ',
-        startProcess.getTimeDiff()
+      new Log().addMessage(
+        'Registry.updateTransactions',
+        'TimeSpent',
+        'Time spent: ' + startProcess.getTimeDiff()
       )
     }
   }
