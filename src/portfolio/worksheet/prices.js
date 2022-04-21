@@ -1,10 +1,9 @@
 import { Portfolio } from '../spreadsheet/portfolio'
-import { Hash, FormatDate } from '../../utils'
+import { Hash } from '../../utils'
 // import * as cryptoRank from '../../restApi/cryptoRank'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
 // import * as coinMarketCap from '../../restApi/coinMarketCap'
 import * as coinGecko from '../../restApi/coinGecko'
-import { Log } from './log'
 import { Coins } from './coins'
 export { Prices }
 
@@ -21,7 +20,6 @@ class Prices {
   }
 
   updateId() {
-    const startProcess = new FormatDate()
     try {
       const coins = new Coins().workSheet.object
       this.workSheet.arrayOfObject.forEach((object) => {
@@ -45,19 +43,22 @@ class Prices {
         )
       })
     } catch (error) {
-      new Log().addError('Prices.updateId', error)
+      this.workSheet.log.addError('Prices.updateId', error)
     }
   }
 
   updateRisk(symbol, marketCapRank = 0) {
     try {
       const price = this.workSheet.object[new Hash(symbol).md5]
-      const symbolType = this.symbolType[new Hash(price?.symbolType).md5]
-      if (symbolType?.name !== 'MarketCap') {
+      const symbolCategory = this.symbolCategory[new Hash(price?.category).md5]
+      const riskCategory = this.riskCategory[
+        new Hash(symbolCategory?.riskCategory).md5
+      ]
+      if (riskCategory?.name !== 'MarketCap') {
         price.riskCategory =
-          symbolType?.strategy +
+          riskCategory?.strategy +
           ' (' +
-          this.strategy[new Hash(symbolType?.strategy).md5]?.distribution *
+          this.strategy[new Hash(riskCategory?.strategy).md5]?.distribution *
             100 +
           '%)'
       } else {
@@ -84,7 +85,7 @@ class Prices {
         }
       }
     } catch (error) {
-      new Log().addError('Prices.updateRisk', error)
+      this.workSheet.log.addError('Prices.updateRisk', error)
     }
   }
 
@@ -97,15 +98,17 @@ class Prices {
       }
       this.workSheet.object[new Hash(symbol).md5].update = new Date()
     } catch (error) {
-      new Log().addError('Prices.updatePrice', error)
+      this.workSheet.log.addError('Prices.updatePrice', error)
     }
   }
 
   updatePrices() {
-    const startProcess = new FormatDate()
     try {
       new Promise((resolve) => {
-        this.symbolType = new Portfolio().getWorkSheet('symbolType').object
+        this.riskCategory = new Portfolio().getWorkSheet('riskCategory').object
+        this.symbolCategory = new Portfolio().getWorkSheet(
+          'symbolCategory'
+        ).object
         this.strategy = new Portfolio().getWorkSheet('strategy').object
         const listId = Object.fromEntries(
           Object.entries(
@@ -156,13 +159,7 @@ class Prices {
         resolve()
       }).then(this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject))
     } catch (error) {
-      new Log().addError('Prices.updatePrices', error)
-    } finally {
-      new Log().addMessage(
-        'Prices.updatePrices',
-        'TimeSpent',
-        'Time spent: ' + startProcess.getTimeDiff()
-      )
+      this.workSheet.log.addError('Prices.updatePrices', error)
     }
   }
 }
@@ -181,7 +178,7 @@ class Prices {
 // })[0]
 // this.workSheet.updateRow(object)
 // this.workSheet.arrayOfObject.forEach((object) => {
-//   // new Log().addMessage('Prices.updateId', 'object', object)
+//   //  this.workSheet.log.addMessage('Prices.updateId', 'object', object)
 //   this.workSheet.updateRow(object)
 // })
 //* Prices.updatePrices

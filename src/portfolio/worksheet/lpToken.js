@@ -1,6 +1,5 @@
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash } from '../../utils'
-import { Log } from './log'
 import { Transactions } from './transactions'
 export { LPToken }
 

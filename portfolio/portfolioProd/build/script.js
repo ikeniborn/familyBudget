@@ -487,10 +487,82 @@ class WorkSheet extends SpreadSheet {
   }
 
   truncateInsertRows(arrayOfObject = [], firstRow = 1, firstColumn = 1) {
-    const array = arrayOfObject.reduce(
-      (values, rowObject) => {
-        const rowArray = this.headKey.map((column) => {
-          let value = rowObject[column];
+    new Promise((resolve, reject) => {
+      const action = () => {
+        const array = arrayOfObject.reduce(
+          (values, rowObject) => {
+            const rowArray = this.headKey.map((column) => {
+              let value = rowObject[column];
+              if (this.head[column]?.default && !value) {
+                value = this.head[column].default;
+              }
+              if (this.head[column]?.type === 'date') {
+                return new Date(value)
+              } else {
+                return value
+              }
+            });
+            values.push(rowArray);
+            return values
+          },
+          [new Header().getHeaderAlias(this.head)]
+        );
+        if (array.length) {
+          this.deleteFilter();
+          this.workSheet
+            .clear()
+            .getRange(firstRow, firstColumn, array.length, array[0].length)
+            .setValues(array);
+          SpreadsheetApp.flush();
+          return true
+        }
+      };
+      action() ? resolve() : reject(error);
+    })
+      .then(this.deleteEmptyRows().deleteEmptyColumns())
+      .catch((error) => {
+        console.error('WorkSheet.updateRow', error.stack);
+      });
+    return this
+  }
+
+  updateRow(object = {}) {
+    new Promise((resolve, reject) => {
+      const action = () => {
+        if (object.rowNum !== this.headerRowNum) {
+          const array = [
+            this.headKey.map((column) => {
+              let value = object[column];
+              if (this.head[column]?.default && !value) {
+                value = this.head[column].default;
+              }
+              if (this.head[column]?.type === 'date') {
+                return new Date(value)
+              } else {
+                return value
+              }
+            }),
+          ];
+          this.workSheet
+            .getRange(object.rowNum, 1, array.length, array[0].length)
+            .setValues(array);
+          SpreadsheetApp.flush();
+          return true
+        }
+      };
+      action() ? resolve() : reject(error);
+    })
+      .then(this.deleteEmptyRows().deleteEmptyColumns())
+      .catch((error) => {
+        console.error('WorkSheet.updateRow', error.stack);
+      });
+  }
+
+  insertRow(object = {}) {
+    new Promise((resolve, reject) => {
+      const action = () => {
+        const array = this.headKey.map((column) => {
+          let value = object[column];
           if (this.head[column]?.default && !value) {
             value = this.head[column].default;
           }
@@ -500,72 +572,22 @@ class WorkSheet extends SpreadSheet {
             return value
           }
         });
-        values.push(rowArray);
-        return values
-      },
-      [new Header().getHeaderAlias(this.head)]
-    );
-    if (array.length) {
-      this.deleteFilter();
-      this.workSheet
-        .clear()
-        .getRange(firstRow, firstColumn, array.length, array[0].length)
-        .setValues(array);
-      this.deleteEmptyRows().deleteEmptyColumns();
-    }
-    return this
-  }
-
-  updateRow(object = {}) {
-    try {
-      if (object.rowNum !== this.headerRowNum) {
-        const array = [
-          this.headKey.map((column) => {
-            let value = object[column];
-            if (this.head[column]?.default && !value) {
-              value = this.head[column].default;
-            }
-            if (this.head[column]?.type === 'date') {
-              return new Date(value)
-            } else {
-              return value
-            }
-          }),
-        ];
-
-        this.workSheet
-          .getRange(object.rowNum, 1, array.length, array[0].length)
-          .setValues(array);
-        this.deleteEmptyRows().deleteEmptyColumns();
-      }
-    } catch (error) {
-      console.error('WorkSheet.updateRow', error.stack);
-    }
-  }
-
-  insertRow(object = {}) {
-    try {
-      const array = this.headKey.map((column) => {
-        let value = object[column];
-        if (this.head[column]?.default && !value) {
-          value = this.head[column].default;
-        }
-        if (this.head[column]?.type === 'date') {
-          return new Date(value)
-        } else {
-          return value
-        }
+        this.workSheet.appendRow(array);
+        SpreadsheetApp.flush();
+        return true
+      };
+      action() ? resolve() : reject(error);
+    })
+      .then(this.deleteEmptyRows().deleteEmptyColumns())
+      .catch((error) => {
+        console.error('WorkSheet.insertRow', error.stack);
       });
-      this.workSheet.appendRow(array);
-      this.deleteEmptyRows().deleteEmptyColumns();
-    } catch (error) {
-      console.error('WorkSheet.insertRow', error.stack);
-    }
   }
 
   insertValue(value, rowNum, column) {
     if (rowNum !== this.headerRowNum) {
       this.workSheet.getRange(rowNum, column).setValue(value);
+      SpreadsheetApp.flush();
     }
   }
   /**
@@ -574,6 +596,7 @@ class WorkSheet extends SpreadSheet {
    */
   deleteRow(rowNum, countRow = 1) {
     this.workSheet.deleteRows(rowNum, countRow);
+    SpreadsheetApp.flush();
   }
 
   /**
@@ -586,7 +609,6 @@ class WorkSheet extends SpreadSheet {
         return b.rowNum - a.rowNum
       });
       sortArrayOfObject.forEach((row) => {
-        console.log('deleteRows', row.rowNum);
         this.deleteRow(row.rowNum);
       });
     }
@@ -609,6 +631,7 @@ class WorkSheet extends SpreadSheet {
       const firstEmptyRow = this.lastRow + 10;
       if (countEmptyRow > 10) {
         this.workSheet.deleteRows(firstEmptyRow, countEmptyRow - 10);
+        SpreadsheetApp.flush();
       }
       return this
     } catch (error) {
@@ -625,6 +648,7 @@ class WorkSheet extends SpreadSheet {
       const firstEmptyRow = this.lastColumn + 1;
       if (countEmptyRow) {
         this.workSheet.deleteColumns(firstEmptyRow, countEmptyRow);
+        SpreadsheetApp.flush();
       }
       return this
     } catch (error) {
@@ -769,20 +793,13 @@ class WorkSheetRange extends WorkSheet {
   }
 
   savePrimaryKeyChanges() {
-    const startProcess = new FormatDate();
     try {
       if (this.firstRowNum !== this.headRowNum) {
         this.arrayOfObject.forEach((object) => {
           this.updateRow(object);
         });
       }
-    } catch (error) {
-    } finally {
-      console.info(
-        'WorkSheetRange.savePrimaryKeyChanges.timeSpent: ',
-        startProcess.getTimeDiff()
-      );
-    }
+    } catch (error) {}
   }
 
   isChangeRow(rowNum, arrayRow = []) {
@@ -975,13 +992,29 @@ class WorkSheetMetadata {
 }
 
 class Log {
-  constructor() {
+  constructor(spreadSheetName) {
     if (Log.exists) {
       return Log.instance
     }
     Log.instance = this;
     Log.exists = true;
-    this.workSheet = new Portfolio().getWorkSheet('Log');
+    this.headLog = {
+      type: 'tx',
+      rowNum: 1,
+      columns: {
+        dateTime: { alias: 'Date and time', idx: 0, type: 'date' },
+        method: { alias: 'Method', idx: 1 },
+        type: { alias: 'Type', idx: 2 },
+        name: { alias: 'Name', idx: 3 },
+        message: { alias: 'Message', idx: 4 },
+        stack: { alias: 'Stack', idx: 5 },
+      },
+    };
+    this.workSheet = new WorkSheet(
+      spreadSheetName,
+      'Log',
+      this.headLog
+    ).getDataset();
   }
 
   /**
@@ -1109,30 +1142,25 @@ class Portfolio {
             idx: 3,
             notNull: true,
           },
-          symbolType: {
-            alias: 'Symbol type',
-            idx: 4,
-            notNull: true,
-          },
           category: {
             alias: 'Category',
-            idx: 5,
+            idx: 4,
             notNull: true,
           },
           proofType: {
             alias: 'Proof type',
-            idx: 6,
+            idx: 5,
           },
           ecosystem: {
             alias: 'Ecosystem',
-            idx: 7,
+            idx: 6,
           },
-          riskCategory: { alias: 'Risk category', idx: 8 },
-          id: { alias: 'Id', idx: 9 },
-          price: { alias: 'Price', idx: 10 },
+          riskCategory: { alias: 'Risk category', idx: 7 },
+          id: { alias: 'Id', idx: 8 },
+          price: { alias: 'Price', idx: 9 },
           update: {
             alias: 'Update',
-            idx: 11,
+            idx: 10,
             type: 'date',
             default: new Date(),
           },
@@ -1163,7 +1191,7 @@ class Portfolio {
           isLiquidityPool: { alias: 'Is liquidity pool', idx: 19 },
           isFee: { alias: 'Is fee', idx: 19 },
           isLock: { alias: 'Is lock', idx: 20 },
-          isBuyPrice: { alias: 'Is buy price', idx: 21 },
+          isAvgPrice: { alias: 'Is average price', idx: 21 },
           isHistoricalAveragePrice: {
             alias: 'Is historical average price',
             idx: 22,
@@ -1279,6 +1307,11 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0, notNull: true },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
+          riskCategory: {
+            alias: 'Risk category',
+            idx: 0,
+            notNull: true,
+          },
         },
       },
       proofType: {
@@ -1290,13 +1323,13 @@ class Portfolio {
           description: { alias: 'Description', idx: 1 },
         },
       },
-      symbolType: {
+      riskCategory: {
         type: 'dim',
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0, notNull: true },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
-          strategy: { alias: 'Strategy', idx: 2, notNull: true },
+          strategy: { alias: 'Strategy', idx: 2 },
         },
       },
 
@@ -1387,20 +1420,9 @@ class Portfolio {
           pairTwoPrice: { alias: 'Pair two price', idx: 1 },
         },
       },
-      log: {
-        type: 'tx',
-        rowNum: 1,
-        columns: {
-          dateTime: { alias: 'Date and time', idx: 0, type: 'date' },
-          method: { alias: 'Method', idx: 1 },
-          type: { alias: 'Type', idx: 2 },
-          name: { alias: 'Name', idx: 3 },
-          message: { alias: 'Message', idx: 4 },
-          stack: { alias: 'Stack', idx: 5 },
-        },
-      },
     };
     this.spreadSheetName = 'portfolio';
+    this.log = new Log(this.spreadSheetName);
   }
 
   getWorkSheet(sheetName) {
@@ -1412,7 +1434,7 @@ class Portfolio {
       const head = new Header().getHead(this.workSheetHeads, headSheetName);
       return new WorkSheet(this.spreadSheetName, sheetName, head).getDataset()
     } catch (error) {
-      new Log().addError('Portfolio.getWorkSheet', error);
+      this.log.addError('Portfolio.getWorkSheet', error);
     }
   }
 
@@ -1433,7 +1455,7 @@ class Portfolio {
       ).getDataset();
       return workSheet
     } catch (error) {
-      new Log().addError('Portfolio.updateOnEdit', error);
+      this.log.addError('Portfolio.updateOnEdit', error);
     }
   }
 }
@@ -1971,13 +1993,7 @@ class Coins {
       });
       this.workSheet.truncateInsertRows(coins);
     } catch (error) {
-      new Log().addError('Coins.updateCoins', error);
-    } finally {
-      new Log().addMessage(
-        'Coins.updateCoins',
-        'TimeSpent',
-        'Time spent: ' + startProcess.getTimeDiff()
-      );
+      this.workSheet.log.addError('Coins.updateCoins', error);
     }
   }
 }
@@ -2017,7 +2033,6 @@ class Prices {
   }
 
   updateId() {
-    new FormatDate();
     try {
       const coins = new Coins().workSheet.object;
       this.workSheet.arrayOfObject.forEach((object) => {
@@ -2041,19 +2056,22 @@ class Prices {
         );
       });
     } catch (error) {
-      new Log().addError('Prices.updateId', error);
+      this.workSheet.log.addError('Prices.updateId', error);
     }
   }
 
   updateRisk(symbol, marketCapRank = 0) {
     try {
       const price = this.workSheet.object[new Hash(symbol).md5];
-      const symbolType = this.symbolType[new Hash(price?.symbolType).md5];
-      if (symbolType?.name !== 'MarketCap') {
+      const symbolCategory = this.symbolCategory[new Hash(price?.category).md5];
+      const riskCategory = this.riskCategory[
+        new Hash(symbolCategory?.riskCategory).md5
+      ];
+      if (riskCategory?.name !== 'MarketCap') {
         price.riskCategory =
-          symbolType?.strategy +
+          riskCategory?.strategy +
           ' (' +
-          this.strategy[new Hash(symbolType?.strategy).md5]?.distribution *
+          this.strategy[new Hash(riskCategory?.strategy).md5]?.distribution *
             100 +
           '%)';
       } else {
@@ -2080,7 +2098,7 @@ class Prices {
         }
       }
     } catch (error) {
-      new Log().addError('Prices.updateRisk', error);
+      this.workSheet.log.addError('Prices.updateRisk', error);
     }
   }
 
@@ -2093,15 +2111,17 @@ class Prices {
       }
       this.workSheet.object[new Hash(symbol).md5].update = new Date();
     } catch (error) {
-      new Log().addError('Prices.updatePrice', error);
+      this.workSheet.log.addError('Prices.updatePrice', error);
     }
   }
 
   updatePrices() {
-    const startProcess = new FormatDate();
     try {
       new Promise((resolve) => {
-        this.symbolType = new Portfolio().getWorkSheet('symbolType').object;
+        this.riskCategory = new Portfolio().getWorkSheet('riskCategory').object;
+        this.symbolCategory = new Portfolio().getWorkSheet(
+          'symbolCategory'
+        ).object;
         this.strategy = new Portfolio().getWorkSheet('strategy').object;
         const listId = Object.fromEntries(
           Object.entries(
@@ -2152,13 +2172,7 @@ class Prices {
         resolve();
       }).then(this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject));
     } catch (error) {
-      new Log().addError('Prices.updatePrices', error);
-    } finally {
-      new Log().addMessage(
-        'Prices.updatePrices',
-        'TimeSpent',
-        'Time spent: ' + startProcess.getTimeDiff()
-      );
+      this.workSheet.log.addError('Prices.updatePrices', error);
     }
   }
 }
@@ -2177,7 +2191,7 @@ class Prices {
 // })[0]
 // this.workSheet.updateRow(object)
 // this.workSheet.arrayOfObject.forEach((object) => {
-//   // new Log().addMessage('Prices.updateId', 'object', object)
+//   //  this.workSheet.log.addMessage('Prices.updateId', 'object', object)
 //   this.workSheet.updateRow(object)
 // })
 //* Prices.updatePrices
@@ -2228,7 +2242,6 @@ class Transactions {
    * @param {boolean} isRange Признак обновления диапазона передаваемых данных
    */
   updateTransactions(arrayOfObject = [], isRange = false) {
-    const startProcess = new FormatDate();
     try {
       if (isRange) {
         new Promise((resolve) => {
@@ -2266,60 +2279,60 @@ class Transactions {
         this.workSheet.truncateInsertRows(splitArray);
       }
     } catch (error) {
-      new Log().addError('Transactions.updateTransactions', error);
-    } finally {
-      new Log().addMessage(
-        'Transactions.updateTransactions',
-        'TimeSpent',
-        'Time spent: ' + startProcess.getTimeDiff()
-      );
+      this.workSheet.log.addError('Transactions.updateTransactions', error);
     }
   }
 
   deleteDuplicatesRows() {
-    const startProcess = new FormatDate();
     try {
       const newArrayOfObject = Object.values(this.workSheet.object);
       this.workSheet.truncateInsertRows(newArrayOfObject);
     } catch (error) {
-      new Log().addError('Transactions.deleteDuplicatesRows', error);
-    } finally {
-      new Log().addMessage(
-        'Transactions.deleteDuplicatesRows',
-        'TimeSpent',
-        'Time spent: ' + startProcess.getTimeDiff()
-      );
+      this.workSheet.log.addError('Transactions.deleteDuplicatesRows', error);
     }
   }
 
   /**
    * Получение средневзвешенной цены покупки токена
    * @param {string} account
-   * @param {*} project
-   * @param {*} dateTime
-   * @param {*} symbol
-   * @param {*} convert
-   * @param {*} isRange
+   * @param {string} project
+   * @param {date} dateTime
+   * @param {string} symbol
+   * @param {string} convert
+   * @param {boolean} isRange
    * @returns
    */
   getHistoricalPriceBuy(
+    dateTime,
     account,
     project,
-    dateTime,
-    symbol,
+    currencysymbol,
     isRange = false,
     convert = 'usd'
   ) {
-    const startProcess = new FormatDate();
     try {
       let historicalPrice;
       let isHistoricalAveragePrice;
-      historicalPrice = void 0;
-      const coin = this.prices[new Hash(symbol).md5];
+      historicalPrice = 0;
+      isHistoricalAveragePrice = false;
+      const coin = this.prices[new Hash(currencysymbol).md5];
       const sourceKey = new Hash(coin?.source).md5;
       const symbolId = coin?.id;
-      const symbolTypeKey = new Hash(coin?.symbolType).md5;
-      if (new Hash('stablecoin').md5 !== symbolTypeKey) {
+      const categoryKey = new Hash(coin?.category).md5;
+      if (new Hash('stablecoin').md5 === categoryKey) {
+        //* Для стабильных токенов возвращать единицу
+        historicalPrice = 1;
+        isHistoricalAveragePrice = false;
+      } else if (new Hash('fiat').md5 === categoryKey) {
+        if (sourceKey === new Hash('cryptocompare').md5) {
+          historicalPrice = new Price$1().getHistoryPrice(
+            symbolId,
+            dateTime,
+            convert
+          );
+          isHistoricalAveragePrice = false;
+        }
+      } else {
         //* Расчет средневзвешенной стоимости покупки токена на основании истории покупок для диапазона данных
         if (isRange) {
           const historicalPriceAgg = this.workSheet.arrayOfObject
@@ -2327,15 +2340,10 @@ class Transactions {
               return (
                 new FormatDate(row.dateTime).value <=
                   new FormatDate(dateTime).value &&
-                new Hash(account + project + symbol + 'buy' + 'in').md5 ===
-                  new Hash(
-                    row.account +
-                      row.project +
-                      row.symbol +
-                      row.operation +
-                      row.direction
-                  ).md5 &&
-                row.isBuyPrice
+                new Hash(account + project + currencysymbol).md5 ===
+                  new Hash(row.account + row.project + row.symbol).md5 &&
+                row.isAvgPrice &&
+                !row.isDelete
               )
             })
             .reduce((agg, tx) => {
@@ -2366,50 +2374,39 @@ class Transactions {
               });
             });
           });
-        }
-
-        if (historicalPrice) {
-          return { historicalPrice, isHistoricalAveragePrice }
-        } else {
-          if (
-            new FormatDate(dateTime).yyyymmdd === new FormatDate().yyyymmdd &&
-            sourceKey === new Hash('coingecko').md5
-          ) {
-            //* Получение исторической цены из coinGecko
-            historicalPrice = new coinGecko.Price()
-              .getMarketsPrice(symbolId)
-              .reduce((price, data) => {
-                price = data.current_price;
-                return price
-              }, 0);
-            isHistoricalAveragePrice = false;
+          if (historicalPrice) {
+            return { historicalPrice, isHistoricalAveragePrice }
           } else {
-            //* Получение исторической цены из CryptoCompare
-            if (sourceKey === new Hash('cryptocompare').md5) {
-              historicalPrice = new Price$1().getHistoryPrice(
-                symbolId,
-                dateTime,
-                convert
-              );
-              isHistoricalAveragePrice = true;
+            if (
+              new FormatDate(dateTime).yyyymmdd === new FormatDate().yyyymmdd &&
+              sourceKey === new Hash('coingecko').md5
+            ) {
+              //* Получение исторической цены из coinGecko
+              historicalPrice = new coinGecko.Price()
+                .getMarketsPrice(symbolId)
+                .reduce((price, data) => {
+                  price = data.current_price;
+                  return price
+                }, 0);
+              isHistoricalAveragePrice = false;
+            } else {
+              //* Получение исторической цены из CryptoCompare
+              if (sourceKey === new Hash('cryptocompare').md5) {
+                historicalPrice = new Price$1().getHistoryPrice(
+                  symbolId,
+                  dateTime,
+                  convert
+                );
+                isHistoricalAveragePrice = true;
+              }
             }
+            return { historicalPrice, isHistoricalAveragePrice }
           }
-          return { historicalPrice, isHistoricalAveragePrice }
         }
-      } else {
-        //* Для стабильных токенов возвращать единицу
-        historicalPrice = 1;
-        isHistoricalAveragePrice = false;
-        return { historicalPrice, isHistoricalAveragePrice }
       }
+      return { historicalPrice, isHistoricalAveragePrice }
     } catch (error) {
-      new Log().addError('Transactions.getHistoricalPriceBuy', error);
-    } finally {
-      new Log().addMessage(
-        'Transactions.getHistoricalPriceBuy',
-        'TimeSpent',
-        'Time spent: ' + startProcess.getTimeDiff()
-      );
+      this.workSheet.log.addError('Transactions.getHistoricalPriceBuy', error);
     }
   }
 }
@@ -2422,7 +2419,6 @@ class Registry {
   }
 
   updateTransactions(isRange = false) {
-    const startProcess = new FormatDate();
     try {
       const transactions = new Transactions();
       const transactionsArrayOfObject = [];
@@ -2444,7 +2440,7 @@ class Registry {
           isLiquidityPool,
           isFee,
           isLock,
-          isBuyPrice,
+          isAvgPrice,
           isSymbolPrice,
           isCurencyPrice,
           isFeePrice,
@@ -2472,7 +2468,7 @@ class Registry {
         isLiquidityPool = false;
         isDelete = rowValues.isDelete || false;
         isFee = false;
-        isBuyPrice = false;
+        isAvgPrice = false;
         isLock = false;
         isSymbolPrice = false;
         isCurencyPrice = false;
@@ -2524,7 +2520,7 @@ class Registry {
               isFee,
               isLock,
               isLiquidityPool,
-              isBuyPrice,
+              isAvgPrice,
               isSymbolPrice: true,
               isFeePrice,
               isCurencyPrice,
@@ -2547,7 +2543,7 @@ class Registry {
               isFee,
               isLock: rowValues.isLock,
               isLiquidityPool,
-              isBuyPrice,
+              isAvgPrice,
               isSymbolPrice: true,
               isFeePrice,
 
@@ -2571,7 +2567,7 @@ class Registry {
             isFee,
             isLock,
             isLiquidityPool,
-            isBuyPrice,
+            isAvgPrice,
             isCurencyPrice: true,
             isFeePrice,
             isSymbolPrice,
@@ -2589,7 +2585,7 @@ class Registry {
             isFee,
             isLock,
             isLiquidityPool,
-            isBuyPrice: true,
+            isAvgPrice: true,
             isSymbolPrice: true,
             isFeePrice,
             isCurencyPrice,
@@ -2611,7 +2607,7 @@ class Registry {
             isFee,
             isLock,
             isLiquidityPool,
-            isBuyPrice,
+            isAvgPrice: true,
             isSymbolPrice: true,
             isFeePrice,
             isCurencyPrice,
@@ -2629,7 +2625,7 @@ class Registry {
             isFee,
             isLock,
             isLiquidityPool,
-            isBuyPrice,
+            isAvgPrice,
             isCurencyPrice: true,
             isFeePrice,
             isSymbolPrice,
@@ -2650,15 +2646,15 @@ class Registry {
             isFee: true,
             isLock,
             isLiquidityPool,
-            isBuyPrice,
+            isAvgPrice,
             isFeePrice: true,
             isSymbolPrice,
             isCurencyPrice,
           });
           const historicalPriceBuy = transactions.getHistoricalPriceBuy(
+            dateTime,
             rowValues.accountSender,
             project,
-            dateTime,
             rowValues.feeCurrency,
             isRange
           );
@@ -2674,9 +2670,9 @@ class Registry {
             .indexOf(new Hash(rowValues.operation).md5) !== -1
         ) {
           const historicalPriceBuy = transactions.getHistoricalPriceBuy(
+            dateTime,
             rowValues.accountSender,
             project,
-            dateTime,
             currencySymbol,
             isRange
           );
@@ -2726,7 +2722,7 @@ class Registry {
             registryRowNum: rowValues.rowNum,
             updateDate: updateDate,
             isDelete: isDelete,
-            isBuyPrice: tx.isBuyPrice,
+            isAvgPrice: tx.isAvgPrice,
             isLiquidityPool: tx.isLiquidityPool,
             isFee: tx.isFee,
             isLock: tx.isLock,
@@ -2745,13 +2741,7 @@ class Registry {
 
       this.workSheet.deleteEmptyRows();
     } catch (error) {
-      new Log().addError('Registry.updateTransactions', error);
-    } finally {
-      new Log().addMessage(
-        'Registry.updateTransactions',
-        'TimeSpent',
-        'Time spent: ' + startProcess.getTimeDiff()
-      );
+      this.workSheet.log.addError('Registry.updateTransactions', error);
     }
   }
 }
@@ -2850,7 +2840,6 @@ class FlowSymbol {
   }
 
   updateFlow() {
-    const startProcess = new FormatDate();
     try {
       const prices = new Prices().workSheet.object;
       const aggFlow = new Transactions().workSheet.arrayOfObject
@@ -2959,7 +2948,7 @@ class FlowSymbol {
             object.quantitySellOut +
             object.quantityWriteOffOut;
 
-          //* расчет цены
+          //* расчет цены потоков
 
           const priceInFlow = costInFlow / quantityInFlow;
           const priceOutFlow = costOutFlow / quantityOutFlow;
@@ -2990,13 +2979,7 @@ class FlowSymbol {
 
       this.workSheet.truncateInsertRows(aggFlowArrayOfObject);
     } catch (error) {
-      new Log().addError('FlowSymbol.updateFlow', error);
-    } finally {
-      new Log().addMessage(
-        'FlowSymbol.updateFlow',
-        'TimeSpent',
-        'Time spent: ' + startProcess.getTimeDiff()
-      );
+      this.workSheet.log.addError('FlowSymbol.updateFlow', error);
     }
   }
 }
@@ -3037,9 +3020,9 @@ function updateTransactions() {
   try {
     new Registry().updateTransactions();
   } catch (error) {
-    new Log().addError('updateTransactions', error);
+    new Portfolio().log.addError('updateTransactions', error);
   } finally {
-    new Log().addMessage(
+    new Portfolio().log.addMessage(
       'updateTransactions',
       'ID:' + startProcess.value,
       'Time spent: ' + startProcess.getTimeDiff()
@@ -3052,9 +3035,9 @@ function deleteDuplicatesRows() {
   try {
     new Transactions().deleteDuplicatesRows();
   } catch (error) {
-    new Log().addError('deleteDuplicatesRows', error);
+    new Portfolio().log.addError('deleteDuplicatesRows', error);
   } finally {
-    new Log().addMessage(
+    new Portfolio().log.addMessage(
       'deleteDuplicatesRows',
       'ID:' + startProcess.value,
       'Time spent: ' + startProcess.getTimeDiff()
@@ -3067,9 +3050,9 @@ function updateCoins() {
   try {
     new Coins().updateCoins();
   } catch (error) {
-    new Log().addError('updateCoins', error);
+    new Portfolio().log.addError('updateCoins', error);
   } finally {
-    new Log().addMessage(
+    new Portfolio().log.addMessage(
       'updateCoins',
       'ID:' + startProcess.value,
       'Time spent: ' + startProcess.getTimeDiff()
@@ -3083,9 +3066,9 @@ function updateFlow() {
     new FlowSymbol().updateFlow();
     // new Flow().updateFlow()
   } catch (error) {
-    new Log().addError('updateFlow', error);
+    new Portfolio().log.addError('updateFlow', error);
   } finally {
-    new Log().addMessage(
+    new Portfolio().log.addMessage(
       'updateFlow',
       'ID:' + startProcess.value,
       'Time spent: ' + startProcess.getTimeDiff()
@@ -3104,9 +3087,9 @@ function updatePrices() {
       // new Flow().updateFlow()
     });
   } catch (error) {
-    new Log().addError('updatePrices', error);
+    new Portfolio().log.addError('updatePrices', error);
   } finally {
-    new Log().addMessage(
+    new Portfolio().log.addMessage(
       'updatePrices',
       'ID:' + startProcess.value,
       'Time spent: ' + startProcess.getTimeDiff()
@@ -3154,7 +3137,7 @@ function updateOnEdit(editRange) {
           1
         );
       }
-      new Log().addMessage(
+      new Portfolio().log.addMessage(
         'script.updateOnEdit',
         'ID:' + startProcess.value,
         'Sheet name: ' +
@@ -3170,7 +3153,7 @@ function updateOnEdit(editRange) {
       );
     })
     .catch((error) => {
-      new Log().addError('script.updateOnEdit', error);
+      new Portfolio().log.addError('script.updateOnEdit', error);
     });
 }
 
@@ -3180,11 +3163,8 @@ function createMenu() {
   menu.addSubMenu(
     SpreadsheetApp.getUi()
       .createMenu('Update')
-      // .addItem('Update average historical price and balance', 'updateBalance')
-      .addItem('Update current prices and flow', 'updatePrices')
-      .addItem('Update coins', 'updateCoins')
-      .addItem('Update transactions', 'updateTransactions')
       .addItem('Update flow', 'updateFlow')
+      .addItem('Update current prices and flow', 'updatePrices')
   );
   menu.addToUi();
 }

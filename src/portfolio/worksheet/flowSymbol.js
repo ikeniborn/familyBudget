@@ -1,6 +1,5 @@
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash, FormatDate } from '../../utils'
-import { Log } from './log'
 import { Prices } from './prices'
 import { Transactions } from './transactions'
 export { FlowSymbol }
@@ -18,7 +17,6 @@ class FlowSymbol {
   }
 
   updateFlow() {
-    const startProcess = new FormatDate()
     try {
       const prices = new Prices().workSheet.object
       const aggFlow = new Transactions().workSheet.arrayOfObject
@@ -127,7 +125,7 @@ class FlowSymbol {
             object.quantitySellOut +
             object.quantityWriteOffOut
 
-          //* расчет цены
+          //* расчет цены потоков
 
           const priceInFlow = costInFlow / quantityInFlow
           const priceOutFlow = costOutFlow / quantityOutFlow
@@ -158,13 +156,7 @@ class FlowSymbol {
 
       this.workSheet.truncateInsertRows(aggFlowArrayOfObject)
     } catch (error) {
-      new Log().addError('FlowSymbol.updateFlow', error)
-    } finally {
-      new Log().addMessage(
-        'FlowSymbol.updateFlow',
-        'TimeSpent',
-        'Time spent: ' + startProcess.getTimeDiff()
-      )
+      this.workSheet.log.addError('FlowSymbol.updateFlow', error)
     }
   }
 }

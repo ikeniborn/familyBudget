@@ -1,15 +1,31 @@
-import { FormatDate } from '../../utils'
-import { Portfolio } from '../spreadsheet/portfolio'
+import { FormatDate } from './utils'
+import { WorkSheet } from './gas'
 export { Log }
 
 class Log {
-  constructor() {
+  constructor(spreadSheetName) {
     if (Log.exists) {
       return Log.instance
     }
     Log.instance = this
     Log.exists = true
-    this.workSheet = new Portfolio().getWorkSheet('Log')
+    this.headLog = {
+      type: 'tx',
+      rowNum: 1,
+      columns: {
+        dateTime: { alias: 'Date and time', idx: 0, type: 'date' },
+        method: { alias: 'Method', idx: 1 },
+        type: { alias: 'Type', idx: 2 },
+        name: { alias: 'Name', idx: 3 },
+        message: { alias: 'Message', idx: 4 },
+        stack: { alias: 'Stack', idx: 5 },
+      },
+    }
+    this.workSheet = new WorkSheet(
+      spreadSheetName,
+      'Log',
+      this.headLog
+    ).getDataset()
   }
 
   /**

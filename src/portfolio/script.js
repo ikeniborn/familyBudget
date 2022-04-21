@@ -5,9 +5,8 @@ import { Coins } from './worksheet/coins'
 import { Hash, FormatDate } from '../utils'
 import { Portfolio } from './spreadsheet/portfolio'
 import { LPToken } from './worksheet/lpToken.js'
-import { Log } from './worksheet/log'
 import { FlowSymbol } from './worksheet/flowSymbol'
-import { Flow } from './worksheet/flow'
+// import { Flow } from './worksheet/flow'
 import { Transactions } from './worksheet/transactions'
 // import { GasProcess } from '../restApi/gasScriptApi'
 
@@ -20,9 +19,9 @@ function updateTransactions() {
   try {
     new Registry().updateTransactions()
   } catch (error) {
-    new Log().addError('updateTransactions', error)
+    new Portfolio().log.addError('updateTransactions', error)
   } finally {
-    new Log().addMessage(
+    new Portfolio().log.addMessage(
       'updateTransactions',
       'ID:' + startProcess.value,
       'Time spent: ' + startProcess.getTimeDiff()
@@ -35,9 +34,9 @@ function deleteDuplicatesRows() {
   try {
     new Transactions().deleteDuplicatesRows()
   } catch (error) {
-    new Log().addError('deleteDuplicatesRows', error)
+    new Portfolio().log.addError('deleteDuplicatesRows', error)
   } finally {
-    new Log().addMessage(
+    new Portfolio().log.addMessage(
       'deleteDuplicatesRows',
       'ID:' + startProcess.value,
       'Time spent: ' + startProcess.getTimeDiff()
@@ -50,9 +49,9 @@ function updateCoins() {
   try {
     new Coins().updateCoins()
   } catch (error) {
-    new Log().addError('updateCoins', error)
+    new Portfolio().log.addError('updateCoins', error)
   } finally {
-    new Log().addMessage(
+    new Portfolio().log.addMessage(
       'updateCoins',
       'ID:' + startProcess.value,
       'Time spent: ' + startProcess.getTimeDiff()
@@ -66,9 +65,9 @@ function updateFlow() {
     new FlowSymbol().updateFlow()
     // new Flow().updateFlow()
   } catch (error) {
-    new Log().addError('updateFlow', error)
+    new Portfolio().log.addError('updateFlow', error)
   } finally {
-    new Log().addMessage(
+    new Portfolio().log.addMessage(
       'updateFlow',
       'ID:' + startProcess.value,
       'Time spent: ' + startProcess.getTimeDiff()
@@ -87,9 +86,9 @@ function updatePrices() {
       // new Flow().updateFlow()
     })
   } catch (error) {
-    new Log().addError('updatePrices', error)
+    new Portfolio().log.addError('updatePrices', error)
   } finally {
-    new Log().addMessage(
+    new Portfolio().log.addMessage(
       'updatePrices',
       'ID:' + startProcess.value,
       'Time spent: ' + startProcess.getTimeDiff()
@@ -137,7 +136,7 @@ function updateOnEdit(editRange) {
           1
         )
       }
-      new Log().addMessage(
+      new Portfolio().log.addMessage(
         'script.updateOnEdit',
         'ID:' + startProcess.value,
         'Sheet name: ' +
@@ -153,7 +152,7 @@ function updateOnEdit(editRange) {
       )
     })
     .catch((error) => {
-      new Log().addError('script.updateOnEdit', error)
+      new Portfolio().log.addError('script.updateOnEdit', error)
     })
 }
 
@@ -163,11 +162,8 @@ function createMenu() {
   menu.addSubMenu(
     SpreadsheetApp.getUi()
       .createMenu('Update')
-      // .addItem('Update average historical price and balance', 'updateBalance')
-      .addItem('Update current prices and flow', 'updatePrices')
-      .addItem('Update coins', 'updateCoins')
-      .addItem('Update transactions', 'updateTransactions')
       .addItem('Update flow', 'updateFlow')
+      .addItem('Update current prices and flow', 'updatePrices')
   )
   menu.addToUi()
 }

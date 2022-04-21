@@ -1,5 +1,4 @@
 import { Portfolio } from '../spreadsheet/portfolio'
-import { Log } from './log'
 import { Prices } from './prices'
 import { Hash, FormatDate } from '../../utils'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
@@ -25,7 +24,6 @@ class Transactions {
    * @param {boolean} isRange Признак обновления диапазона передаваемых данных
    */
   updateTransactions(arrayOfObject = [], isRange = false) {
-    const startProcess = new FormatDate()
     try {
       if (isRange) {
         new Promise((resolve) => {
@@ -63,60 +61,60 @@ class Transactions {
         this.workSheet.truncateInsertRows(splitArray)
       }
     } catch (error) {
-      new Log().addError('Transactions.updateTransactions', error)
-    } finally {
-      new Log().addMessage(
-        'Transactions.updateTransactions',
-        'TimeSpent',
-        'Time spent: ' + startProcess.getTimeDiff()
-      )
+      this.workSheet.log.addError('Transactions.updateTransactions', error)
     }
   }
 
   deleteDuplicatesRows() {
-    const startProcess = new FormatDate()
     try {
       const newArrayOfObject = Object.values(this.workSheet.object)
       this.workSheet.truncateInsertRows(newArrayOfObject)
     } catch (error) {
-      new Log().addError('Transactions.deleteDuplicatesRows', error)
-    } finally {
-      new Log().addMessage(
-        'Transactions.deleteDuplicatesRows',
-        'TimeSpent',
-        'Time spent: ' + startProcess.getTimeDiff()
-      )
+      this.workSheet.log.addError('Transactions.deleteDuplicatesRows', error)
     }
   }
 
   /**
    * Получение средневзвешенной цены покупки токена
    * @param {string} account
-   * @param {*} project
-   * @param {*} dateTime
-   * @param {*} symbol
-   * @param {*} convert
-   * @param {*} isRange
+   * @param {string} project
+   * @param {date} dateTime
+   * @param {string} symbol
+   * @param {string} convert
+   * @param {boolean} isRange
    * @returns
    */
   getHistoricalPriceBuy(
+    dateTime,
     account,
     project,
-    dateTime,
-    symbol,
+    currencysymbol,
     isRange = false,
     convert = 'usd'
   ) {
-    const startProcess = new FormatDate()
     try {
       let historicalPrice
       let isHistoricalAveragePrice
-      historicalPrice = void 0
-      const coin = this.prices[new Hash(symbol).md5]
+      historicalPrice = 0
+      isHistoricalAveragePrice = false
+      const coin = this.prices[new Hash(currencysymbol).md5]
       const sourceKey = new Hash(coin?.source).md5
       const symbolId = coin?.id
-      const symbolTypeKey = new Hash(coin?.symbolType).md5
-      if (new Hash('stablecoin').md5 !== symbolTypeKey) {
+      const categoryKey = new Hash(coin?.category).md5
+      if (new Hash('stablecoin').md5 === categoryKey) {
+        //* Для стабильных токенов возвращать единицу
+        historicalPrice = 1
+        isHistoricalAveragePrice = false
+      } else if (new Hash('fiat').md5 === categoryKey) {
+        if (sourceKey === new Hash('cryptocompare').md5) {
+          historicalPrice = new cryptoCompare.Price().getHistoryPrice(
+            symbolId,
+            dateTime,
+            convert
+          )
+          isHistoricalAveragePrice = false
+        }
+      } else {
         //* Расчет средневзвешенной стоимости покупки токена на основании истории покупок для диапазона данных
         if (isRange) {
           const historicalPriceAgg = this.workSheet.arrayOfObject
@@ -124,15 +122,10 @@ class Transactions {
               return (
                 new FormatDate(row.dateTime).value <=
                   new FormatDate(dateTime).value &&
-                new Hash(account + project + symbol + 'buy' + 'in').md5 ===
-                  new Hash(
-                    row.account +
-                      row.project +
-                      row.symbol +
-                      row.operation +
-                      row.direction
-                  ).md5 &&
-                row.isBuyPrice
+                new Hash(account + project + currencysymbol).md5 ===
+                  new Hash(row.account + row.project + row.symbol).md5 &&
+                row.isAvgPrice &&
+                !row.isDelete
               )
             })
             .reduce((agg, tx) => {
@@ -163,50 +156,39 @@ class Transactions {
               })
             })
           })
-        }
-
-        if (historicalPrice) {
-          return { historicalPrice, isHistoricalAveragePrice }
-        } else {
-          if (
-            new FormatDate(dateTime).yyyymmdd === new FormatDate().yyyymmdd &&
-            sourceKey === new Hash('coingecko').md5
-          ) {
-            //* Получение исторической цены из coinGecko
-            historicalPrice = new coinGecko.Price()
-              .getMarketsPrice(symbolId)
-              .reduce((price, data) => {
-                price = data.current_price
-                return price
-              }, 0)
-            isHistoricalAveragePrice = false
+          if (historicalPrice) {
+            return { historicalPrice, isHistoricalAveragePrice }
           } else {
-            //* Получение исторической цены из CryptoCompare
-            if (sourceKey === new Hash('cryptocompare').md5) {
-              historicalPrice = new cryptoCompare.Price().getHistoryPrice(
-                symbolId,
-                dateTime,
-                convert
-              )
-              isHistoricalAveragePrice = true
+            if (
+              new FormatDate(dateTime).yyyymmdd === new FormatDate().yyyymmdd &&
+              sourceKey === new Hash('coingecko').md5
+            ) {
+              //* Получение исторической цены из coinGecko
+              historicalPrice = new coinGecko.Price()
+                .getMarketsPrice(symbolId)
+                .reduce((price, data) => {
+                  price = data.current_price
+                  return price
+                }, 0)
+              isHistoricalAveragePrice = false
+            } else {
+              //* Получение исторической цены из CryptoCompare
+              if (sourceKey === new Hash('cryptocompare').md5) {
+                historicalPrice = new cryptoCompare.Price().getHistoryPrice(
+                  symbolId,
+                  dateTime,
+                  convert
+                )
+                isHistoricalAveragePrice = true
+              }
             }
+            return { historicalPrice, isHistoricalAveragePrice }
           }
-          return { historicalPrice, isHistoricalAveragePrice }
         }
-      } else {
-        //* Для стабильных токенов возвращать единицу
-        historicalPrice = 1
-        isHistoricalAveragePrice = false
-        return { historicalPrice, isHistoricalAveragePrice }
       }
+      return { historicalPrice, isHistoricalAveragePrice }
     } catch (error) {
-      new Log().addError('Transactions.getHistoricalPriceBuy', error)
-    } finally {
-      new Log().addMessage(
-        'Transactions.getHistoricalPriceBuy',
-        'TimeSpent',
-        'Time spent: ' + startProcess.getTimeDiff()
-      )
+      this.workSheet.log.addError('Transactions.getHistoricalPriceBuy', error)
     }
   }
 }

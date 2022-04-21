@@ -1,8 +1,8 @@
 import { Environment } from '../../gas'
 import { Header } from '../../header'
-import { FormatDate } from '../../utils'
+// import { FormatDate } from '../../utils'
 import { WorkSheet, WorkSheetRange } from '../../gas'
-import { Log } from '../worksheet/log'
+import { Log } from '../../log'
 export { Portfolio }
 
 new Environment([
@@ -75,30 +75,25 @@ class Portfolio {
             idx: 3,
             notNull: true,
           },
-          symbolType: {
-            alias: 'Symbol type',
-            idx: 4,
-            notNull: true,
-          },
           category: {
             alias: 'Category',
-            idx: 5,
+            idx: 4,
             notNull: true,
           },
           proofType: {
             alias: 'Proof type',
-            idx: 6,
+            idx: 5,
           },
           ecosystem: {
             alias: 'Ecosystem',
-            idx: 7,
+            idx: 6,
           },
-          riskCategory: { alias: 'Risk category', idx: 8 },
-          id: { alias: 'Id', idx: 9 },
-          price: { alias: 'Price', idx: 10 },
+          riskCategory: { alias: 'Risk category', idx: 7 },
+          id: { alias: 'Id', idx: 8 },
+          price: { alias: 'Price', idx: 9 },
           update: {
             alias: 'Update',
-            idx: 11,
+            idx: 10,
             type: 'date',
             default: new Date(),
           },
@@ -129,7 +124,7 @@ class Portfolio {
           isLiquidityPool: { alias: 'Is liquidity pool', idx: 19 },
           isFee: { alias: 'Is fee', idx: 19 },
           isLock: { alias: 'Is lock', idx: 20 },
-          isBuyPrice: { alias: 'Is buy price', idx: 21 },
+          isAvgPrice: { alias: 'Is average price', idx: 21 },
           isHistoricalAveragePrice: {
             alias: 'Is historical average price',
             idx: 22,
@@ -245,6 +240,11 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0, notNull: true },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
+          riskCategory: {
+            alias: 'Risk category',
+            idx: 0,
+            notNull: true,
+          },
         },
       },
       proofType: {
@@ -256,13 +256,13 @@ class Portfolio {
           description: { alias: 'Description', idx: 1 },
         },
       },
-      symbolType: {
+      riskCategory: {
         type: 'dim',
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0, notNull: true },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
-          strategy: { alias: 'Strategy', idx: 2, notNull: true },
+          strategy: { alias: 'Strategy', idx: 2 },
         },
       },
 
@@ -353,20 +353,9 @@ class Portfolio {
           pairTwoPrice: { alias: 'Pair two price', idx: 1 },
         },
       },
-      log: {
-        type: 'tx',
-        rowNum: 1,
-        columns: {
-          dateTime: { alias: 'Date and time', idx: 0, type: 'date' },
-          method: { alias: 'Method', idx: 1 },
-          type: { alias: 'Type', idx: 2 },
-          name: { alias: 'Name', idx: 3 },
-          message: { alias: 'Message', idx: 4 },
-          stack: { alias: 'Stack', idx: 5 },
-        },
-      },
     }
     this.spreadSheetName = 'portfolio'
+    this.log = new Log(this.spreadSheetName)
   }
 
   getWorkSheet(sheetName) {
@@ -378,7 +367,7 @@ class Portfolio {
       const head = new Header().getHead(this.workSheetHeads, headSheetName)
       return new WorkSheet(this.spreadSheetName, sheetName, head).getDataset()
     } catch (error) {
-      new Log().addError('Portfolio.getWorkSheet', error)
+      this.log.addError('Portfolio.getWorkSheet', error)
     }
   }
 
@@ -399,7 +388,7 @@ class Portfolio {
       ).getDataset()
       return workSheet
     } catch (error) {
-      new Log().addError('Portfolio.updateOnEdit', error)
+      this.log.addError('Portfolio.updateOnEdit', error)
     }
   }
 }

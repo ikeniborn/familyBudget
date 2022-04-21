@@ -194,10 +194,82 @@ class WorkSheet extends SpreadSheet {
   }
 
   truncateInsertRows(arrayOfObject = [], firstRow = 1, firstColumn = 1) {
-    const array = arrayOfObject.reduce(
-      (values, rowObject) => {
-        const rowArray = this.headKey.map((column) => {
-          let value = rowObject[column]
+    new Promise((resolve, reject) => {
+      const action = () => {
+        const array = arrayOfObject.reduce(
+          (values, rowObject) => {
+            const rowArray = this.headKey.map((column) => {
+              let value = rowObject[column]
+              if (this.head[column]?.default && !value) {
+                value = this.head[column].default
+              }
+              if (this.head[column]?.type === 'date') {
+                return new Date(value)
+              } else {
+                return value
+              }
+            })
+            values.push(rowArray)
+            return values
+          },
+          [new Header().getHeaderAlias(this.head)]
+        )
+        if (array.length) {
+          this.deleteFilter()
+          this.workSheet
+            .clear()
+            .getRange(firstRow, firstColumn, array.length, array[0].length)
+            .setValues(array)
+          SpreadsheetApp.flush()
+          return true
+        }
+      }
+      action() ? resolve() : reject(error)
+    })
+      .then(this.deleteEmptyRows().deleteEmptyColumns())
+      .catch((error) => {
+        console.error('WorkSheet.updateRow', error.stack)
+      })
+    return this
+  }
+
+  updateRow(object = {}) {
+    new Promise((resolve, reject) => {
+      const action = () => {
+        if (object.rowNum !== this.headerRowNum) {
+          const array = [
+            this.headKey.map((column) => {
+              let value = object[column]
+              if (this.head[column]?.default && !value) {
+                value = this.head[column].default
+              }
+              if (this.head[column]?.type === 'date') {
+                return new Date(value)
+              } else {
+                return value
+              }
+            }),
+          ]
+          this.workSheet
+            .getRange(object.rowNum, 1, array.length, array[0].length)
+            .setValues(array)
+          SpreadsheetApp.flush()
+          return true
+        }
+      }
+      action() ? resolve() : reject(error)
+    })
+      .then(this.deleteEmptyRows().deleteEmptyColumns())
+      .catch((error) => {
+        console.error('WorkSheet.updateRow', error.stack)
+      })
+  }
+
+  insertRow(object = {}) {
+    new Promise((resolve, reject) => {
+      const action = () => {
+        const array = this.headKey.map((column) => {
+          let value = object[column]
           if (this.head[column]?.default && !value) {
             value = this.head[column].default
           }
@@ -207,72 +279,22 @@ class WorkSheet extends SpreadSheet {
             return value
           }
         })
-        values.push(rowArray)
-        return values
-      },
-      [new Header().getHeaderAlias(this.head)]
-    )
-    if (array.length) {
-      this.deleteFilter()
-      this.workSheet
-        .clear()
-        .getRange(firstRow, firstColumn, array.length, array[0].length)
-        .setValues(array)
-      this.deleteEmptyRows().deleteEmptyColumns()
-    }
-    return this
-  }
-
-  updateRow(object = {}) {
-    try {
-      if (object.rowNum !== this.headerRowNum) {
-        const array = [
-          this.headKey.map((column) => {
-            let value = object[column]
-            if (this.head[column]?.default && !value) {
-              value = this.head[column].default
-            }
-            if (this.head[column]?.type === 'date') {
-              return new Date(value)
-            } else {
-              return value
-            }
-          }),
-        ]
-
-        this.workSheet
-          .getRange(object.rowNum, 1, array.length, array[0].length)
-          .setValues(array)
-        this.deleteEmptyRows().deleteEmptyColumns()
+        this.workSheet.appendRow(array)
+        SpreadsheetApp.flush()
+        return true
       }
-    } catch (error) {
-      console.error('WorkSheet.updateRow', error.stack)
-    }
-  }
-
-  insertRow(object = {}) {
-    try {
-      const array = this.headKey.map((column) => {
-        let value = object[column]
-        if (this.head[column]?.default && !value) {
-          value = this.head[column].default
-        }
-        if (this.head[column]?.type === 'date') {
-          return new Date(value)
-        } else {
-          return value
-        }
+      action() ? resolve() : reject(error)
+    })
+      .then(this.deleteEmptyRows().deleteEmptyColumns())
+      .catch((error) => {
+        console.error('WorkSheet.insertRow', error.stack)
       })
-      this.workSheet.appendRow(array)
-      this.deleteEmptyRows().deleteEmptyColumns()
-    } catch (error) {
-      console.error('WorkSheet.insertRow', error.stack)
-    }
   }
 
   insertValue(value, rowNum, column) {
     if (rowNum !== this.headerRowNum) {
       this.workSheet.getRange(rowNum, column).setValue(value)
+      SpreadsheetApp.flush()
     }
   }
   /**
@@ -281,6 +303,7 @@ class WorkSheet extends SpreadSheet {
    */
   deleteRow(rowNum, countRow = 1) {
     this.workSheet.deleteRows(rowNum, countRow)
+    SpreadsheetApp.flush()
   }
 
   /**
@@ -293,7 +316,6 @@ class WorkSheet extends SpreadSheet {
         return b.rowNum - a.rowNum
       })
       sortArrayOfObject.forEach((row) => {
-        console.log('deleteRows', row.rowNum)
         this.deleteRow(row.rowNum)
       })
     }
@@ -316,6 +338,7 @@ class WorkSheet extends SpreadSheet {
       const firstEmptyRow = this.lastRow + 10
       if (countEmptyRow > 10) {
         this.workSheet.deleteRows(firstEmptyRow, countEmptyRow - 10)
+        SpreadsheetApp.flush()
       }
       return this
     } catch (error) {
@@ -332,6 +355,7 @@ class WorkSheet extends SpreadSheet {
       const firstEmptyRow = this.lastColumn + 1
       if (countEmptyRow) {
         this.workSheet.deleteColumns(firstEmptyRow, countEmptyRow)
+        SpreadsheetApp.flush()
       }
       return this
     } catch (error) {
@@ -476,20 +500,13 @@ class WorkSheetRange extends WorkSheet {
   }
 
   savePrimaryKeyChanges() {
-    const startProcess = new FormatDate()
     try {
       if (this.firstRowNum !== this.headRowNum) {
         this.arrayOfObject.forEach((object) => {
           this.updateRow(object)
         })
       }
-    } catch (error) {
-    } finally {
-      console.info(
-        'WorkSheetRange.savePrimaryKeyChanges.timeSpent: ',
-        startProcess.getTimeDiff()
-      )
-    }
+    } catch (error) {}
   }
 
   isChangeRow(rowNum, arrayRow = []) {

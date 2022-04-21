@@ -1,6 +1,6 @@
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash } from '../../utils'
-import { Log } from './log'
+// import { Log } from './log'
 // import * as cryptoRank from '../../restApi/cryptoRank'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
 // import * as coinMarketCap from '../../restApi/coinMarketCap'
@@ -62,13 +62,7 @@ class Coins {
       })
       this.workSheet.truncateInsertRows(coins)
     } catch (error) {
-      new Log().addError('Coins.updateCoins', error)
-    } finally {
-      new Log().addMessage(
-        'Coins.updateCoins',
-        'TimeSpent',
-        'Time spent: ' + startProcess.getTimeDiff()
-      )
+      this.workSheet.log.addError('Coins.updateCoins', error)
     }
   }
 }

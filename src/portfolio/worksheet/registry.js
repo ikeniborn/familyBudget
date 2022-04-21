@@ -1,7 +1,6 @@
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash, FormatDate, FormatNumber, FormatObject } from '../../utils'
 import { Transactions } from './transactions'
-import { Log } from './log'
 export { Registry }
 
 class Registry {
@@ -12,7 +11,6 @@ class Registry {
   }
 
   updateTransactions(isRange = false) {
-    const startProcess = new FormatDate()
     try {
       const transactions = new Transactions()
       const transactionsArrayOfObject = []
@@ -34,7 +32,7 @@ class Registry {
           isLiquidityPool,
           isFee,
           isLock,
-          isBuyPrice,
+          isAvgPrice,
           isSymbolPrice,
           isCurencyPrice,
           isFeePrice,
@@ -62,7 +60,7 @@ class Registry {
         isLiquidityPool = false
         isDelete = rowValues.isDelete || false
         isFee = false
-        isBuyPrice = false
+        isAvgPrice = false
         isLock = false
         isSymbolPrice = false
         isCurencyPrice = false
@@ -114,7 +112,7 @@ class Registry {
               isFee,
               isLock,
               isLiquidityPool,
-              isBuyPrice,
+              isAvgPrice,
               isSymbolPrice: true,
               isFeePrice,
               isCurencyPrice,
@@ -137,7 +135,7 @@ class Registry {
               isFee,
               isLock: rowValues.isLock,
               isLiquidityPool,
-              isBuyPrice,
+              isAvgPrice,
               isSymbolPrice: true,
               isFeePrice,
 
@@ -161,7 +159,7 @@ class Registry {
             isFee,
             isLock,
             isLiquidityPool,
-            isBuyPrice,
+            isAvgPrice,
             isCurencyPrice: true,
             isFeePrice,
             isSymbolPrice,
@@ -179,7 +177,7 @@ class Registry {
             isFee,
             isLock,
             isLiquidityPool,
-            isBuyPrice: true,
+            isAvgPrice: true,
             isSymbolPrice: true,
             isFeePrice,
             isCurencyPrice,
@@ -201,7 +199,7 @@ class Registry {
             isFee,
             isLock,
             isLiquidityPool,
-            isBuyPrice,
+            isAvgPrice: true,
             isSymbolPrice: true,
             isFeePrice,
             isCurencyPrice,
@@ -219,7 +217,7 @@ class Registry {
             isFee,
             isLock,
             isLiquidityPool,
-            isBuyPrice,
+            isAvgPrice,
             isCurencyPrice: true,
             isFeePrice,
             isSymbolPrice,
@@ -240,15 +238,15 @@ class Registry {
             isFee: true,
             isLock,
             isLiquidityPool,
-            isBuyPrice,
+            isAvgPrice,
             isFeePrice: true,
             isSymbolPrice,
             isCurencyPrice,
           })
           const historicalPriceBuy = transactions.getHistoricalPriceBuy(
+            dateTime,
             rowValues.accountSender,
             project,
-            dateTime,
             rowValues.feeCurrency,
             isRange
           )
@@ -264,9 +262,9 @@ class Registry {
             .indexOf(new Hash(rowValues.operation).md5) !== -1
         ) {
           const historicalPriceBuy = transactions.getHistoricalPriceBuy(
+            dateTime,
             rowValues.accountSender,
             project,
-            dateTime,
             currencySymbol,
             isRange
           )
@@ -316,7 +314,7 @@ class Registry {
             registryRowNum: rowValues.rowNum,
             updateDate: updateDate,
             isDelete: isDelete,
-            isBuyPrice: tx.isBuyPrice,
+            isAvgPrice: tx.isAvgPrice,
             isLiquidityPool: tx.isLiquidityPool,
             isFee: tx.isFee,
             isLock: tx.isLock,
@@ -335,13 +333,7 @@ class Registry {
 
       this.workSheet.deleteEmptyRows()
     } catch (error) {
-      new Log().addError('Registry.updateTransactions', error)
-    } finally {
-      new Log().addMessage(
-        'Registry.updateTransactions',
-        'TimeSpent',
-        'Time spent: ' + startProcess.getTimeDiff()
-      )
+      this.workSheet.log.addError('Registry.updateTransactions', error)
     }
   }
 }
