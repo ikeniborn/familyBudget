@@ -101,12 +101,14 @@ class Transactions {
       const sourceKey = new Hash(coin?.source).md5
       const symbolId = coin?.id
       const categoryKey = new Hash(coin?.category).md5
-      if (new Hash('stablecoin').md5 === categoryKey) {
+      if ('e5e3fd01394b9a81296b75d5a7f4c1a2' === categoryKey /*stablecoin*/) {
         //* Для стабильных токенов возвращать единицу
         historicalPrice = 1
         isHistoricalAveragePrice = false
-      } else if (new Hash('fiat').md5 === categoryKey) {
-        if (sourceKey === new Hash('cryptocompare').md5) {
+      } else if ('7d5f30a0d1641c0b6980aaf2556b32ce' === categoryKey /*fiat*/) {
+        if (
+          sourceKey === '1dab445b170a7f0acfccea645a8879e0' /*cryptocompare*/
+        ) {
           historicalPrice = new cryptoCompare.Price().getHistoryPrice(
             symbolId,
             dateTime,
@@ -161,7 +163,7 @@ class Transactions {
           } else {
             if (
               new FormatDate(dateTime).yyyymmdd === new FormatDate().yyyymmdd &&
-              sourceKey === new Hash('coingecko').md5
+              sourceKey === 'b40555dbd3865016ed3f7b4a9bf3b806' /*coingecko*/
             ) {
               //* Получение исторической цены из coinGecko
               historicalPrice = new coinGecko.Price()
@@ -173,7 +175,10 @@ class Transactions {
               isHistoricalAveragePrice = false
             } else {
               //* Получение исторической цены из CryptoCompare
-              if (sourceKey === new Hash('cryptocompare').md5) {
+              if (
+                sourceKey ===
+                '1dab445b170a7f0acfccea645a8879e0' /*cryptocompare*/
+              ) {
                 historicalPrice = new cryptoCompare.Price().getHistoryPrice(
                   symbolId,
                   dateTime,

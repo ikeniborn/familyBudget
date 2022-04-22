@@ -53,37 +53,45 @@ class FlowSymbol {
           }
           //* Распределение количества по потокам
 
-          if (operationKey === new Hash('buy').md5) {
-            if (directionKey === new Hash('in').md5) {
+          if (operationKey === '0461ebd2b773878eac9f78a891912d65' /*buy*/) {
+            if (directionKey === new Hash('in').md5 /*in*/) {
               agg[tx.account][tx.symbol].quantityBuyIn += tx.quantity
               agg[tx.account][tx.symbol].costBuyIn += tx.cost
-            } else if (directionKey === new Hash('out').md5) {
+            } else if (directionKey === new Hash('out').md5 /*out*/) {
               agg[tx.account][tx.symbol].quantityBuyOut += tx.quantity * -1
               agg[tx.account][tx.symbol].costBuyOut += tx.cost * -1
             }
-          } else if (operationKey === new Hash('sell').md5) {
-            if (directionKey === new Hash('in').md5) {
+          } else if (
+            operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
+          ) {
+            if (directionKey === new Hash('in').md5 /*in*/) {
               agg[tx.account][tx.symbol].quantitySellIn += tx.quantity
               agg[tx.account][tx.symbol].costSellIn += tx.cost
-            } else if (directionKey === new Hash('out').md5) {
+            } else if (directionKey === new Hash('out').md5 /*out*/) {
               agg[tx.account][tx.symbol].quantitySellOut += tx.quantity * -1
               agg[tx.account][tx.symbol].costSellOut += tx.cost * -1
             }
-          } else if (operationKey === new Hash('refill').md5) {
-            if (directionKey === new Hash('in').md5) {
+          } else if (
+            operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
+          ) {
+            if (directionKey === new Hash('in').md5 /*in*/) {
               agg[tx.account][tx.symbol].quantityRefillIn += tx.quantity
               agg[tx.account][tx.symbol].costRefillIn += tx.cost
             }
-          } else if (operationKey === new Hash('write-off').md5) {
-            if (directionKey === new Hash('out').md5) {
+          } else if (
+            operationKey === '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
+          ) {
+            if (directionKey === new Hash('out').md5 /*out*/) {
               agg[tx.account][tx.symbol].quantityWriteOffOut += tx.quantity * -1
               agg[tx.account][tx.symbol].costWriteOffOut += tx.cost * -1
             }
-          } else if (operationKey === new Hash('transfer').md5) {
-            if (directionKey === new Hash('in').md5) {
+          } else if (
+            operationKey === '84a0f3455dcca894ace136be62efa292' /*transfer*/
+          ) {
+            if (directionKey === new Hash('in').md5 /*in*/) {
               agg[tx.account][tx.symbol].quantityTransferIn += tx.quantity
               agg[tx.account][tx.symbol].costTransferIn += tx.cost
-            } else if (directionKey === new Hash('out').md5) {
+            } else if (directionKey === new Hash('out').md5 /*out*/) {
               agg[tx.account][tx.symbol].quantityTransferOut += tx.quantity * -1
               agg[tx.account][tx.symbol].costTransferOut += tx.cost * -1
             }

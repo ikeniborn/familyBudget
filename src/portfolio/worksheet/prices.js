@@ -28,7 +28,7 @@ class Prices {
 
         object.id = coins[coinsKey]?.id || void 0
         if (
-          new Hash(object.source).md5 === new Hash('cryptoCompare'.md5) &&
+          new Hash(object.source).md5 === '1dab445b170a7f0acfccea645a8879e0' &&
           !object.price
         ) {
           object.price = new cryptoCompare.Price().getSinglePrice(
@@ -50,11 +50,13 @@ class Prices {
   updateRisk(symbol, marketCapRank = 0) {
     try {
       const price = this.workSheet.object[new Hash(symbol).md5]
-      const symbolCategory = this.symbolCategory[new Hash(price?.category).md5]
+      const categoryKey = new Hash(price?.category).md5
+      const symbolCategory = this.symbolCategory[categoryKey]
       const riskCategory = this.riskCategory[
         new Hash(symbolCategory?.riskCategory).md5
       ]
-      if (riskCategory?.name !== 'MarketCap') {
+      const riskCategoryKey = new Hash(riskCategory?.name).md5
+      if (riskCategoryKey !== '0264bc825e9c4af5f34c5a9d6d807f31') {
         price.riskCategory =
           riskCategory?.strategy +
           ' (' +
@@ -65,22 +67,26 @@ class Prices {
         if (marketCapRank <= 100) {
           price.riskCategory =
             'Top 100 (' +
-            this.strategy[new Hash('Top 100').md5]?.distribution * 100 +
+            this.strategy['5b93ad92b4d924219e0d8fff2393a5d6']?.distribution *
+              100 +
             '%)'
         } else if (marketCapRank > 100 && marketCapRank <= 500) {
           price.riskCategory =
             'Top 500 (' +
-            this.strategy[new Hash('Top 500').md5]?.distribution * 100 +
+            this.strategy['c53ded038e27eacf4b3124fca6b5e777']?.distribution *
+              100 +
             '%)'
         } else if (marketCapRank > 500 && marketCapRank <= 1000) {
           price.riskCategory =
             'Top 1000 (' +
-            this.strategy[new Hash('Top 1000').md5]?.distribution * 100 +
+            this.strategy['7a62ba4a955d8ea7e7066f0cd420320c']?.distribution *
+              100 +
             '%)'
         } else if (marketCapRank > 1000 || !marketCapRank) {
           price.riskCategory =
             'Other (' +
-            this.strategy[new Hash('Other').md5]?.distribution * 100 +
+            this.strategy['795f3202b17cb6bc3d4b771d8c6c9eaf']?.distribution *
+              100 +
             '%)'
         }
       }
@@ -91,12 +97,13 @@ class Prices {
 
   updatePrice(symbol, price) {
     try {
+      const symbolKey = new Hash(symbol).md5
       if (price) {
-        this.workSheet.object[new Hash(symbol).md5].price = price
+        this.workSheet.object[symbolKey].price = price
       } else {
-        this.workSheet.object[new Hash(symbol).md5].price = void 0
+        this.workSheet.object[symbolKey].price = void 0
       }
-      this.workSheet.object[new Hash(symbol).md5].update = new Date()
+      this.workSheet.object[symbolKey].update = new Date()
     } catch (error) {
       this.workSheet.log.addError('Prices.updatePrice', error)
     }
@@ -125,7 +132,10 @@ class Prices {
             }, {})
           ).map(([source, idArray]) => [
             source,
-            source !== 'custom' ? idArray.join(',') : idArray,
+            new Hash(source).md5 !==
+            '8b9035807842a4e4dbe009f3f1478127' /*custom*/
+              ? idArray.join(',')
+              : idArray,
           ])
         )
 

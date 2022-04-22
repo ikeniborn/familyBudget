@@ -18,6 +18,7 @@ function updateTransactions() {
   const startProcess = new FormatDate()
   try {
     new Registry().updateTransactions()
+    SpreadsheetApp.flush()
   } catch (error) {
     new Portfolio().log.addError('updateTransactions', error)
   } finally {
@@ -33,6 +34,7 @@ function deleteDuplicatesRows() {
   const startProcess = new FormatDate()
   try {
     new Transactions().deleteDuplicatesRows()
+    SpreadsheetApp.flush()
   } catch (error) {
     new Portfolio().log.addError('deleteDuplicatesRows', error)
   } finally {
@@ -48,6 +50,7 @@ function updateCoins() {
   const startProcess = new FormatDate()
   try {
     new Coins().updateCoins()
+    SpreadsheetApp.flush()
   } catch (error) {
     new Portfolio().log.addError('updateCoins', error)
   } finally {
@@ -63,6 +66,7 @@ function updateFlow() {
   const startProcess = new FormatDate()
   try {
     new FlowSymbol().updateFlow()
+    SpreadsheetApp.flush()
     // new Flow().updateFlow()
   } catch (error) {
     new Portfolio().log.addError('updateFlow', error)
@@ -76,84 +80,87 @@ function updateFlow() {
 }
 
 function updatePrices() {
-  const startProcess = new FormatDate()
-  try {
-    new Promise((resolve) => {
-      new Prices().updatePrices()
-      resolve()
-    }).then(() => {
-      new FlowSymbol().updateFlow()
-      // new Flow().updateFlow()
+  const instanceProcess = () => {
+    const startProcess = new FormatDate()
+    new Promise((resolve, reject) => {
+      const process = () => {
+        new Prices().updatePrices()
+        SpreadsheetApp.flush()
+        new FlowSymbol().updateFlow()
+        // new Flow().updateFlow()
+        return true
+      }
+      process() ? resolve() : reject(new Error('No change'))
     })
-  } catch (error) {
-    new Portfolio().log.addError('updatePrices', error)
-  } finally {
-    new Portfolio().log.addMessage(
-      'updatePrices',
-      'ID:' + startProcess.value,
-      'Time spent: ' + startProcess.getTimeDiff()
-    )
+      .catch((error) => {
+        new Portfolio().log.addError('updatePrices', error)
+      })
+      .finally(
+        new Portfolio().log.addMessage(
+          'updatePrices',
+          'ID:' + startProcess.value,
+          'Time spent: ' + startProcess.getTimeDiff()
+        )
+      )
   }
+  instanceProcess()
+  SpreadsheetApp.flush()
 }
 
 function updateOnEdit(editRange) {
-  const startProcess = new FormatDate()
-  new Promise((resolve, reject) => {
-    const update = () => {
-      const workSheet = new Portfolio().updateOnEdit(editRange.range)
-      if (workSheet.isChangeData) {
-        if (workSheet.isChangePrimaryKey) {
-          workSheet.savePrimaryKeyChanges()
-        }
-        if (workSheet.workSheetKey === new Hash('prices').md5) {
-          new Prices(workSheet).updateId()
-        } else if (workSheet.sheetName.match(new RegExp('[Registry]+', 'g'))) {
-          new Promise((resolve) => {
-            SpreadsheetApp.getActive().toast(
-              'Save registry starting',
-              'Save process',
-              1
-            )
-            resolve()
-          }).then(() => {
+  const instanceProcess = () => {
+    const startProcess = new FormatDate()
+    new Promise((resolve, reject) => {
+      const update = () => {
+        const workSheet = new Portfolio().updateOnEdit(editRange.range)
+        if (workSheet.isChangeData) {
+          if (workSheet.isChangePrimaryKey) {
+            workSheet.savePrimaryKeyChanges()
+          }
+          if (workSheet.workSheetKey === new Hash('prices').md5) {
+            new Prices(workSheet).updateId()
+          } else if (workSheet.isRegistry) {
             new Registry(workSheet).updateTransactions(true)
-            workSheet.isRegistry = true
-          })
+          }
+          workSheet.isResolve = true
         }
+        workSheet.isResolve = true
+        return workSheet
       }
-      workSheet.isResolve = true
-      SpreadsheetApp.flush()
-      return workSheet
-    }
-    const updateData = update()
-    updateData.isResolve ? resolve(updateData) : reject()
-  })
-    .then((workSheet) => {
-      if (workSheet.isRegistry) {
-        SpreadsheetApp.getActive().toast(
-          'Save process ended',
-          'Save process',
-          1
+      const updateData = update()
+      updateData.isResolve
+        ? resolve(updateData)
+        : reject(new Error('instanceProcess'))
+    })
+      .then((workSheet) => {
+        if (workSheet.isRegistry) {
+          SpreadsheetApp.getActive().toast(
+            'Save process ended',
+            'Save process',
+            1
+          )
+        }
+        new Portfolio().log.addMessage(
+          'script.updateOnEdit',
+          'ID:' + startProcess.value,
+          'Sheet name: ' +
+            workSheet.sheetName +
+            ', Start row: ' +
+            workSheet.startRow +
+            ', End Row: ' +
+            workSheet.rowEnd +
+            ', Count row: ' +
+            workSheet.countRow +
+            ', Time spent: ' +
+            startProcess.getTimeDiff()
         )
-      }
-      new Portfolio().log.addMessage(
-        'script.updateOnEdit',
-        'ID:' + startProcess.value,
-        'Sheet name: ' +
-          workSheet.sheetName +
-          ', Start row: ' +
-          workSheet.startRow +
-          ', End Row: ' +
-          workSheet.rowEnd +
-          ', Count row: ' +
-          workSheet.countRow +
-          ', Time spent: ' +
-          startProcess.getTimeDiff()
-      )
-    })
-    .catch((error) => {
-      new Portfolio().log.addError('script.updateOnEdit', error)
-    })
+      })
+      .catch((error) => {
+        new Portfolio().log.addError('script.updateOnEdit', error)
+      })
+  }
+  instanceProcess()
+  SpreadsheetApp.flush()
 }
 
 function createMenu() {

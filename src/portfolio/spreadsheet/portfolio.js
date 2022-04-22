@@ -40,7 +40,7 @@ class Portfolio {
           service: { alias: 'Service', idx: 5, notNull: true },
           sender: { alias: 'Sender', idx: 6, notNull: true },
           recipient: { alias: 'Recipient', idx: 7 },
-          isLock: { alias: 'Is lock', idx: 8 },
+          lockStatus: { alias: 'Lock status', idx: 8 },
           coin: { alias: 'Coin', idx: 9, notNull: true },
           coinQty: { alias: 'Coin, qty', idx: 10 },
           currency: { alias: 'Currency', idx: 11 },
@@ -315,6 +315,14 @@ class Portfolio {
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
         },
       },
+      lockStatus: {
+        type: 'dim',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          name: { alias: 'Name', pk: true, idx: 1, notNull: true },
+        },
+      },
       contractors: {
         type: 'dim',
         rowNum: 1,
@@ -360,12 +368,22 @@ class Portfolio {
 
   getWorkSheet(sheetName) {
     try {
-      let headSheetName = sheetName
+      let headSheetName, isRegistry
+      headSheetName = sheetName
+      isRegistry = false
       if (sheetName.match('Registry')) {
         headSheetName = 'Registry'
+        isRegistry = true
       }
       const head = new Header().getHead(this.workSheetHeads, headSheetName)
-      return new WorkSheet(this.spreadSheetName, sheetName, head).getDataset()
+      const workSheet = new WorkSheet(
+        this.spreadSheetName,
+        sheetName,
+        head
+      ).getDataset()
+      workSheet.isRegistry = isRegistry
+      workSheet.log = this.log
+      return workSheet
     } catch (error) {
       this.log.addError('Portfolio.getWorkSheet', error)
     }
@@ -373,11 +391,13 @@ class Portfolio {
 
   updateOnEdit(range) {
     try {
-      let sheetName, headSheetName
+      let sheetName, headSheetName, isRegistry
       sheetName = range.getSheet().getSheetName()
       headSheetName = sheetName
+      isRegistry = false
       if (sheetName.match('Registry')) {
         headSheetName = 'Registry'
+        isRegistry = true
       }
       const head = new Header().getHead(this.workSheetHeads, headSheetName)
       const workSheet = new WorkSheetRange(
@@ -386,6 +406,8 @@ class Portfolio {
         head,
         range
       ).getDataset()
+      workSheet.isRegistry = isRegistry
+      workSheet.log = this.log
       return workSheet
     } catch (error) {
       this.log.addError('Portfolio.updateOnEdit', error)
