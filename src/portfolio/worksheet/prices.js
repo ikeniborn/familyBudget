@@ -1,6 +1,6 @@
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash } from '../../utils'
-// import * as cryptoRank from '../../restApi/cryptoRank'
+import * as cryptoRank from '../../restApi/cryptoRank'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
 // import * as coinMarketCap from '../../restApi/coinMarketCap'
 import * as coinGecko from '../../restApi/coinGecko'
@@ -23,23 +23,14 @@ class Prices {
     try {
       const coins = new Coins().workSheet.object
       this.workSheet.arrayOfObject.forEach((object) => {
+        //* обновление ID
         const coinsKey = new Hash(object.source + object.name + object.symbol)
           .md5
-
-        object.id = coins[coinsKey]?.id || void 0
-        if (
-          new Hash(object.source).md5 === '1dab445b170a7f0acfccea645a8879e0' &&
-          !object.price
-        ) {
-          object.price = new cryptoCompare.Price().getSinglePrice(
-            coins[coinsKey]?.id
-          )
-        }
-
+        const sourceId = coins[coinsKey]?.id || void 0
         this.workSheet.insertValue(
-          object.id,
+          sourceId,
           object.rowNum,
-          this.workSheet.head.id.idx + 1
+          this.workSheet.head.sourceId.idx + 1
         )
       })
     } catch (error) {
@@ -47,84 +38,56 @@ class Prices {
     }
   }
 
-  updateRisk(symbol, marketCapRank = 0) {
-    try {
-      const price = this.workSheet.object[new Hash(symbol).md5]
-      const categoryKey = new Hash(price?.category).md5
-      const symbolCategory = this.symbolCategory[categoryKey]
-      const riskCategory = this.riskCategory[
-        new Hash(symbolCategory?.riskCategory).md5
-      ]
-      const riskCategoryKey = new Hash(riskCategory?.name).md5
-      if (riskCategoryKey !== '0264bc825e9c4af5f34c5a9d6d807f31') {
-        price.riskCategory =
-          riskCategory?.strategy +
-          ' (' +
-          this.strategy[new Hash(riskCategory?.strategy).md5]?.distribution *
-            100 +
-          '%)'
-      } else {
-        if (marketCapRank <= 100) {
-          price.riskCategory =
-            'Top 100 (' +
-            this.strategy['5b93ad92b4d924219e0d8fff2393a5d6']?.distribution *
-              100 +
-            '%)'
-        } else if (marketCapRank > 100 && marketCapRank <= 500) {
-          price.riskCategory =
-            'Top 500 (' +
-            this.strategy['c53ded038e27eacf4b3124fca6b5e777']?.distribution *
-              100 +
-            '%)'
-        } else if (marketCapRank > 500 && marketCapRank <= 1000) {
-          price.riskCategory =
-            'Top 1000 (' +
-            this.strategy['7a62ba4a955d8ea7e7066f0cd420320c']?.distribution *
-              100 +
-            '%)'
-        } else if (marketCapRank > 1000 || !marketCapRank) {
-          price.riskCategory =
-            'Other (' +
-            this.strategy['795f3202b17cb6bc3d4b771d8c6c9eaf']?.distribution *
-              100 +
-            '%)'
-        }
-      }
-    } catch (error) {
-      this.workSheet.log.addError('Prices.updateRisk', error)
-    }
-  }
-
-  updatePrice(symbol, price) {
-    try {
-      const symbolKey = new Hash(symbol).md5
-      if (price) {
-        this.workSheet.object[symbolKey].price = price
-      } else {
-        this.workSheet.object[symbolKey].price = void 0
-      }
-      this.workSheet.object[symbolKey].update = new Date()
-    } catch (error) {
-      this.workSheet.log.addError('Prices.updatePrice', error)
-    }
-  }
-
   updatePrices() {
-    try {
-      new Promise((resolve) => {
-        this.riskCategory = new Portfolio().getWorkSheet('riskCategory').object
-        this.symbolCategory = new Portfolio().getWorkSheet(
-          'symbolCategory'
-        ).object
-        this.strategy = new Portfolio().getWorkSheet('strategy').object
+    new Promise((resolve, reject) => {
+      const process = () => {
+        /**
+         * Обновление данных строки
+         * @param {object} symbolObject
+         * @param {number} price
+         * @param {number} rank
+         */
+        const updatePricesRow = (
+          symbolObject,
+          price = void 0,
+          rank = void 0
+        ) => {
+          new Promise((resolve) => {
+            const process = () => {
+              let coinMarketCapRankGroup = void 0
+              if (rank <= 50) {
+                coinMarketCapRankGroup = 'Top 50'
+              } else if (rank > 50 && rank <= 100) {
+                coinMarketCapRankGroup = 'Top 100'
+              } else if (rank > 100 && rank <= 500) {
+                coinMarketCapRankGroup = 'Top 500'
+              } else if (rank > 500 && rank <= 1000) {
+                coinMarketCapRankGroup = 'Top 1000'
+              } else if (rank > 1000 || !rank) {
+                coinMarketCapRankGroup = 'Over 1000'
+              }
+              symbolObject.marketCapGroup = coinMarketCapRankGroup
+              symbolObject.price = price
+              symbolObject.update = new Date()
+              return true
+            }
+            process() ? resolve() : reject(new Error('updatePricesRow'))
+          }).catch((error) => {
+            this.workSheet.log.addError('Prices.updatePrices', error)
+          })
+        }
         const listId = Object.fromEntries(
           Object.entries(
             this.workSheet.arrayOfObject.reduce((list, object) => {
               if (!list[object.source]) {
                 list[object.source] = []
               }
-              if (object.id && object.source !== 'custom') {
-                list[object.source].push(object.id)
+              if (
+                object.sourceId &&
+                new Hash(object.source).md5 !==
+                  '8b9035807842a4e4dbe009f3f1478127' /*custom*/
+              ) {
+                list[object.source].push(object.sourceId)
               } else {
                 list[object.source].push(object.symbol)
               }
@@ -145,8 +108,30 @@ class Prices {
           )
           if (priceArray.length) {
             priceArray.forEach((coin) => {
-              this.updatePrice(coin.symbol, coin.current_price)
-              this.updateRisk(coin.symbol, coin.market_cap_rank)
+              const symbolKey = new Hash(coin.symbol).md5
+              updatePricesRow(
+                this.workSheet.object[symbolKey],
+                coin?.current_price,
+                coin?.market_cap_rank
+              )
+            })
+          }
+        }
+
+        if (listId.cryptorank) {
+          const priceArray = new cryptoRank.Price().getLastPrice(
+            listId.cryptorank
+          )
+
+          if (priceArray.length) {
+            priceArray.forEach((coin) => {
+              console.log(coin?.symbol, coin?.values?.USD?.price, coin?.rank)
+              const symbolKey = new Hash(coin?.symbol).md5
+              updatePricesRow(
+                this.workSheet.object[symbolKey],
+                coin?.values?.USD?.price,
+                coin?.rank
+              )
             })
           }
         }
@@ -156,21 +141,25 @@ class Prices {
             listId.cryptocompare
           )
           if (priceArray.length) {
-            const topMarketCap = new cryptoCompare.TopList().topMarketCap(1000)
+            const marketCapRank = new cryptoCompare.TopList().topMarketCap(1000)
             priceArray.forEach((coin) => {
-              this.updatePrice(coin.symbol, coin.price)
-              const key = new Hash(coin.symbol).md5
-              const rank = topMarketCap[key]?.rank || 1000
-              this.updateRisk(coin.symbol, rank)
+              const symbolKey = new Hash(coin.symbol).md5
+              updatePricesRow(
+                this.workSheet.object[symbolKey],
+                coin?.price,
+                marketCapRank[symbolKey]?.rank
+              )
             })
           }
         }
-
-        resolve()
-      }).then(this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject))
-    } catch (error) {
-      this.workSheet.log.addError('Prices.updatePrices', error)
-    }
+        return true
+      }
+      process() ? resolve() : reject(new Error('updatePrices'))
+    })
+      .then(this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject))
+      .catch((error) => {
+        this.workSheet.log.addError('Prices.updatePrices', error)
+      })
   }
 }
 

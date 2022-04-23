@@ -583,10 +583,15 @@ class WorkSheet extends SpreadSheet {
         console.error('WorkSheet.insertRow', error.stack);
       });
   }
-
-  insertValue(value, rowNum, column) {
+  /**
+   *
+   * @param {*} value
+   * @param {number} rowNum
+   * @param {number} columnNum
+   */
+  insertValue(value, rowNum, columnNum) {
     if (rowNum !== this.headerRowNum) {
-      this.workSheet.getRange(rowNum, column).setValue(value);
+      this.workSheet.getRange(rowNum, columnNum).setValue(value);
       SpreadsheetApp.flush();
     }
   }
@@ -1142,25 +1147,29 @@ class Portfolio {
             idx: 3,
             notNull: true,
           },
-          category: {
-            alias: 'Category',
+          symbolCategory: {
+            alias: 'Symbol category ',
             idx: 4,
             notNull: true,
           },
-          proofType: {
-            alias: 'Proof type',
-            idx: 5,
-          },
           ecosystem: {
             alias: 'Ecosystem',
+            idx: 5,
+          },
+          marketCapGroup: {
+            alias: 'MarketCap group',
             idx: 6,
           },
-          riskCategory: { alias: 'Risk category', idx: 7 },
-          id: { alias: 'Id', idx: 8 },
-          price: { alias: 'Price', idx: 9 },
+          web3SpaceInterest: {
+            alias: 'Web3Space interest',
+            idx: 7,
+          },
+          strategy: { alias: 'Strategy', idx: 8 },
+          sourceId: { alias: 'Source id', idx: 9 },
+          price: { alias: 'Price', idx: 10 },
           update: {
             alias: 'Update',
-            idx: 10,
+            idx: 11,
             type: 'date',
             default: new Date(),
           },
@@ -1307,11 +1316,7 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0, notNull: true },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
-          riskCategory: {
-            alias: 'Risk category',
-            idx: 0,
-            notNull: true,
-          },
+          nameRu: { alias: 'Name (ru)', idx: 2, notNull: true },
         },
       },
       proofType: {
@@ -1323,13 +1328,14 @@ class Portfolio {
           description: { alias: 'Description', idx: 1 },
         },
       },
-      riskCategory: {
+
+      web3SpaceInterest: {
         type: 'dim',
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0, notNull: true },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
-          strategy: { alias: 'Strategy', idx: 2 },
+          sort: { alias: 'Sort' },
         },
       },
 
@@ -1372,6 +1378,7 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
+          proofType: { alias: 'Proof type', idx: 2, notNull: true },
         },
       },
       accounts: {
@@ -1664,6 +1671,79 @@ class Fetch {
     } catch (error) {
       console.error(error);
     }
+  }
+}
+
+/**
+ * CryptoRank instance
+ */
+class Instance$2 {
+  /**
+   * Create new inctance API CryptoRank
+   */
+  constructor() {
+    if (Instance$2.exists) {
+      return Instance$2.instance
+    }
+    Instance$2.instance = this;
+    Instance$2.exists = true;
+    this.methods = new Methods({
+      domain: 'https://api.cryptorank.io/v1',
+      query: {
+        api_key: 'f512dfeb3966b63ac221826ab8501a53d96662a203ad786860d5cc268b85',
+      },
+      data: {
+        muteHttpExceptions: true,
+        contentType: 'application/json',
+      },
+    });
+  }
+}
+/**
+ * CryptoRank price
+ */
+class Price$2 {
+  constructor() {
+    this.methods = new Instance$2().methods;
+  }
+  getLastPrice(ids = '1', convert = 'USD') {
+    return (
+      this.methods.get({
+        endPoint: '/currencies',
+        query: {
+          convert: convert,
+          ids: ids,
+        },
+      })?.data || []
+    )
+  }
+
+  getRank(id) {
+    const data = this.methods.get({
+      endPoint: '/currencies/{id}',
+      path: { id },
+    })?.data?.rank;
+    return data
+  }
+}
+/**
+ * CryptoRank coin list
+ */
+class CoinsList$2 {
+  constructor() {
+    this.methods = new Instance$2().methods;
+  }
+  getCoinsList(limit = 100) {
+    return (
+      this.methods.get({
+        endPoint: '/currencies',
+        query: {
+          convert: 'USD',
+          state: 'active',
+          limit: limit,
+        },
+      })?.data || []
+    )
   }
 }
 
@@ -1973,64 +2053,74 @@ class Coins {
   }
 
   updateCoins() {
-    try {
-      const coins = [];
-      new CoinsList().getCoinsList().forEach((coin) => {
-        const rowKey = new Hash('coingecko' + coin.name + coin.symbol).md5;
-        coins.push({
-          rowKey: rowKey,
-          source: 'coingecko',
-          name: coin.name,
-          symbol: coin.symbol,
-          id: coin.id,
+    new Promise((resolve, reject) => {
+      const process = () => {
+        const coins = [];
+        new CoinsList().getCoinsList().forEach((coin) => {
+          const rowKey = new Hash('coingecko' + coin.name + coin.symbol).md5;
+          coins.push({
+            rowKey: rowKey,
+            source: 'coingecko',
+            name: coin.name,
+            symbol: coin.symbol,
+            id: coin.id,
+          });
         });
-      });
 
-      Object.entries(new CoinsList$1().getCoinsList()).forEach(
-        (coin) => {
-          const key = new Hash('cryptocompare' + coin[1].CoinName + coin[0]);
+        new CoinsList$2().getCoinsList(15000).forEach((coin) => {
+          const key = new Hash('cryptorank' + coin.name + coin.symbol);
+          coins.push({
+            rowKey: key.md5,
+            source: 'cryptorank',
+            name: coin.name,
+            symbol: coin.symbol,
+            id: coin.id,
+          });
+        });
+
+        Object.entries(new CoinsList$1().getCoinsList()).forEach(
+          (coin) => {
+            const key = new Hash('cryptocompare' + coin[1].CoinName + coin[0]);
+            coins.push({
+              rowKey: key.md5,
+              source: 'cryptocompare',
+              name: coin[1].CoinName,
+              symbol: coin[1].Symbol,
+              id: coin[0],
+            });
+          }
+        );
+        const currency = [
+          ['USA dollar', 'USD'],
+          ['Russian rubble', 'RUB'],
+          ['Euro', 'EUR'],
+        ];
+        currency.forEach((coin) => {
+          const key = new Hash('cryptocompare' + coin[0] + coin[1]);
           coins.push({
             rowKey: key.md5,
             source: 'cryptocompare',
-            name: coin[1].CoinName,
-            symbol: coin[1].Symbol,
-            id: coin[0],
+            name: coin[0],
+            symbol: coin[1],
+            id: coin[1],
           });
-        }
-      );
-      const currency = [
-        ['USA dollar', 'USD'],
-        ['Russian rubble', 'RUB'],
-        ['Euro', 'EUR'],
-      ];
-      currency.forEach((coin) => {
-        const key = new Hash('cryptocompare' + coin[0] + coin[1]);
-        coins.push({
-          rowKey: key.md5,
-          source: 'cryptocompare',
-          name: coin[0],
-          symbol: coin[1],
-          id: coin[1],
         });
+
+        return { result: true, array: coins }
+      };
+      const data = process();
+      resolve(data.array) ;
+    })
+      .then((array) => {
+        this.workSheet.truncateInsertRows(array);
+      })
+      .catch((error) => {
+        this.workSheet.log.addError('Coins.updateCoins', error);
       });
-      this.workSheet.truncateInsertRows(coins);
-    } catch (error) {
-      this.workSheet.log.addError('Coins.updateCoins', error);
-    }
   }
 }
 
 //* Deprecated
-// new cryptoRank.CoinsList().getCoinsList(15000).forEach((coin) => {
-//   const key = new Hash('cryptorank' + coin.name + coin.symbol)
-//   coins.push({
-//     rowKey: key.md5,
-//     source: 'cryptorank',
-//     name: coin.name,
-//     symbol: coin.symbol,
-//     id: coin.id,
-//   })
-// })
 // new coinMarketCap.CoinsList().getCoinsList().forEach((coin) => {
 //   const key = new Hash('coinmarketcap' + coin.name + coin.symbol)
 //   coins.push({
@@ -2058,23 +2148,14 @@ class Prices {
     try {
       const coins = new Coins().workSheet.object;
       this.workSheet.arrayOfObject.forEach((object) => {
+        //* обновление ID
         const coinsKey = new Hash(object.source + object.name + object.symbol)
           .md5;
-
-        object.id = coins[coinsKey]?.id || void 0;
-        if (
-          new Hash(object.source).md5 === '1dab445b170a7f0acfccea645a8879e0' &&
-          !object.price
-        ) {
-          object.price = new Price$1().getSinglePrice(
-            coins[coinsKey]?.id
-          );
-        }
-
+        const sourceId = coins[coinsKey]?.id || void 0;
         this.workSheet.insertValue(
-          object.id,
+          sourceId,
           object.rowNum,
-          this.workSheet.head.id.idx + 1
+          this.workSheet.head.sourceId.idx + 1
         );
       });
     } catch (error) {
@@ -2082,84 +2163,56 @@ class Prices {
     }
   }
 
-  updateRisk(symbol, marketCapRank = 0) {
-    try {
-      const price = this.workSheet.object[new Hash(symbol).md5];
-      const categoryKey = new Hash(price?.category).md5;
-      const symbolCategory = this.symbolCategory[categoryKey];
-      const riskCategory = this.riskCategory[
-        new Hash(symbolCategory?.riskCategory).md5
-      ];
-      const riskCategoryKey = new Hash(riskCategory?.name).md5;
-      if (riskCategoryKey !== '0264bc825e9c4af5f34c5a9d6d807f31') {
-        price.riskCategory =
-          riskCategory?.strategy +
-          ' (' +
-          this.strategy[new Hash(riskCategory?.strategy).md5]?.distribution *
-            100 +
-          '%)';
-      } else {
-        if (marketCapRank <= 100) {
-          price.riskCategory =
-            'Top 100 (' +
-            this.strategy['5b93ad92b4d924219e0d8fff2393a5d6']?.distribution *
-              100 +
-            '%)';
-        } else if (marketCapRank > 100 && marketCapRank <= 500) {
-          price.riskCategory =
-            'Top 500 (' +
-            this.strategy['c53ded038e27eacf4b3124fca6b5e777']?.distribution *
-              100 +
-            '%)';
-        } else if (marketCapRank > 500 && marketCapRank <= 1000) {
-          price.riskCategory =
-            'Top 1000 (' +
-            this.strategy['7a62ba4a955d8ea7e7066f0cd420320c']?.distribution *
-              100 +
-            '%)';
-        } else if (marketCapRank > 1000 || !marketCapRank) {
-          price.riskCategory =
-            'Other (' +
-            this.strategy['795f3202b17cb6bc3d4b771d8c6c9eaf']?.distribution *
-              100 +
-            '%)';
-        }
-      }
-    } catch (error) {
-      this.workSheet.log.addError('Prices.updateRisk', error);
-    }
-  }
-
-  updatePrice(symbol, price) {
-    try {
-      const symbolKey = new Hash(symbol).md5;
-      if (price) {
-        this.workSheet.object[symbolKey].price = price;
-      } else {
-        this.workSheet.object[symbolKey].price = void 0;
-      }
-      this.workSheet.object[symbolKey].update = new Date();
-    } catch (error) {
-      this.workSheet.log.addError('Prices.updatePrice', error);
-    }
-  }
-
   updatePrices() {
-    try {
-      new Promise((resolve) => {
-        this.riskCategory = new Portfolio().getWorkSheet('riskCategory').object;
-        this.symbolCategory = new Portfolio().getWorkSheet(
-          'symbolCategory'
-        ).object;
-        this.strategy = new Portfolio().getWorkSheet('strategy').object;
+    new Promise((resolve, reject) => {
+      const process = () => {
+        /**
+         * Обновление данных строки
+         * @param {object} symbolObject
+         * @param {number} price
+         * @param {number} rank
+         */
+        const updatePricesRow = (
+          symbolObject,
+          price = void 0,
+          rank = void 0
+        ) => {
+          new Promise((resolve) => {
+            const process = () => {
+              let coinMarketCapRankGroup = void 0;
+              if (rank <= 50) {
+                coinMarketCapRankGroup = 'Top 50';
+              } else if (rank > 50 && rank <= 100) {
+                coinMarketCapRankGroup = 'Top 100';
+              } else if (rank > 100 && rank <= 500) {
+                coinMarketCapRankGroup = 'Top 500';
+              } else if (rank > 500 && rank <= 1000) {
+                coinMarketCapRankGroup = 'Top 1000';
+              } else if (rank > 1000 || !rank) {
+                coinMarketCapRankGroup = 'Over 1000';
+              }
+              symbolObject.marketCapGroup = coinMarketCapRankGroup;
+              symbolObject.price = price;
+              symbolObject.update = new Date();
+              return true
+            };
+            process() ? resolve() : reject(new Error('updatePricesRow'));
+          }).catch((error) => {
+            this.workSheet.log.addError('Prices.updatePrices', error);
+          });
+        };
         const listId = Object.fromEntries(
           Object.entries(
             this.workSheet.arrayOfObject.reduce((list, object) => {
               if (!list[object.source]) {
                 list[object.source] = [];
               }
-              if (object.id && object.source !== 'custom') {
-                list[object.source].push(object.id);
+              if (
+                object.sourceId &&
+                new Hash(object.source).md5 !==
+                  '8b9035807842a4e4dbe009f3f1478127' /*custom*/
+              ) {
+                list[object.source].push(object.sourceId);
               } else {
                 list[object.source].push(object.symbol);
               }
@@ -2180,8 +2233,30 @@ class Prices {
           );
           if (priceArray.length) {
             priceArray.forEach((coin) => {
-              this.updatePrice(coin.symbol, coin.current_price);
-              this.updateRisk(coin.symbol, coin.market_cap_rank);
+              const symbolKey = new Hash(coin.symbol).md5;
+              updatePricesRow(
+                this.workSheet.object[symbolKey],
+                coin?.current_price,
+                coin?.market_cap_rank
+              );
+            });
+          }
+        }
+
+        if (listId.cryptorank) {
+          const priceArray = new Price$2().getLastPrice(
+            listId.cryptorank
+          );
+
+          if (priceArray.length) {
+            priceArray.forEach((coin) => {
+              console.log(coin?.symbol, coin?.values?.USD?.price, coin?.rank);
+              const symbolKey = new Hash(coin?.symbol).md5;
+              updatePricesRow(
+                this.workSheet.object[symbolKey],
+                coin?.values?.USD?.price,
+                coin?.rank
+              );
             });
           }
         }
@@ -2191,21 +2266,25 @@ class Prices {
             listId.cryptocompare
           );
           if (priceArray.length) {
-            const topMarketCap = new TopList().topMarketCap(1000);
+            const marketCapRank = new TopList().topMarketCap(1000);
             priceArray.forEach((coin) => {
-              this.updatePrice(coin.symbol, coin.price);
-              const key = new Hash(coin.symbol).md5;
-              const rank = topMarketCap[key]?.rank || 1000;
-              this.updateRisk(coin.symbol, rank);
+              const symbolKey = new Hash(coin.symbol).md5;
+              updatePricesRow(
+                this.workSheet.object[symbolKey],
+                coin?.price,
+                marketCapRank[symbolKey]?.rank
+              );
             });
           }
         }
-
-        resolve();
-      }).then(this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject));
-    } catch (error) {
-      this.workSheet.log.addError('Prices.updatePrices', error);
-    }
+        return true
+      };
+      process() ? resolve() : reject(new Error('updatePrices'));
+    })
+      .then(this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject))
+      .catch((error) => {
+        this.workSheet.log.addError('Prices.updatePrices', error);
+      });
   }
 }
 
@@ -3190,87 +3269,77 @@ function updateFlow() {
 }
 
 function updatePrices() {
-  const instanceProcess = () => {
-    const startProcess = new FormatDate();
-    new Promise((resolve, reject) => {
-      const process = () => {
-        new Prices().updatePrices();
-        SpreadsheetApp.flush();
-        new FlowSymbol().updateFlow();
-        // new Flow().updateFlow()
-        return true
-      };
-      process() ? resolve() : reject(new Error('No change'));
-    })
-      .catch((error) => {
-        new Portfolio().log.addError('updatePrices', error);
-      })
-      .finally(
-        new Portfolio().log.addMessage(
-          'updatePrices',
-          'ID:' + startProcess.value,
-          'Time spent: ' + startProcess.getTimeDiff()
-        )
-      );
-  };
-  instanceProcess();
-  SpreadsheetApp.flush();
+  const startProcess = new FormatDate();
+  new Promise((resolve, reject) => {
+    const process = () => {
+      new Prices().updatePrices();
+      SpreadsheetApp.flush();
+      new FlowSymbol().updateFlow();
+      // new Flow().updateFlow()
+      return true
+    };
+    process() ? resolve() : reject(new Error('script.updatePrices'));
+  })
+    .then(
+      new Portfolio().log.addMessage(
+        'updatePrices',
+        'ID:' + startProcess.value,
+        'Time spent: ' + startProcess.getTimeDiff()
+      )
+    )
+    .catch((error) => {
+      new Portfolio().log.addError('updatePrices', error);
+    });
 }
 
 function updateOnEdit(editRange) {
-  const instanceProcess = () => {
-    const startProcess = new FormatDate();
-    new Promise((resolve, reject) => {
-      const update = () => {
-        const workSheet = new Portfolio().updateOnEdit(editRange.range);
-        if (workSheet.isChangeData) {
-          if (workSheet.isChangePrimaryKey) {
-            workSheet.savePrimaryKeyChanges();
-          }
-          if (workSheet.workSheetKey === new Hash('prices').md5) {
-            new Prices(workSheet).updateId();
-          } else if (workSheet.isRegistry) {
-            new Registry(workSheet).updateTransactions(true);
-          }
-          workSheet.isResolve = true;
+  const startProcess = new FormatDate();
+  new Promise((resolve, reject) => {
+    const process = () => {
+      const workSheet = new Portfolio().updateOnEdit(editRange.range);
+      if (workSheet.isChangeData) {
+        if (workSheet.isChangePrimaryKey) {
+          workSheet.savePrimaryKeyChanges();
+        }
+        if (workSheet.workSheetKey === new Hash('prices').md5) {
+          new Prices(workSheet).updateId();
+        } else if (workSheet.isRegistry) {
+          new Registry(workSheet).updateTransactions(true);
         }
         workSheet.isResolve = true;
-        return workSheet
-      };
-      const updateData = update();
-      updateData.isResolve
-        ? resolve(updateData)
-        : reject(new Error('instanceProcess'));
-    })
-      .then((workSheet) => {
-        if (workSheet.isRegistry) {
-          SpreadsheetApp.getActive().toast(
-            'Save process ended',
-            'Save process',
-            1
-          );
-        }
-        new Portfolio().log.addMessage(
-          'script.updateOnEdit',
-          'ID:' + startProcess.value,
-          'Sheet name: ' +
-            workSheet.sheetName +
-            ', Start row: ' +
-            workSheet.startRow +
-            ', End Row: ' +
-            workSheet.rowEnd +
-            ', Count row: ' +
-            workSheet.countRow +
-            ', Time spent: ' +
-            startProcess.getTimeDiff()
+      }
+      workSheet.isResolve = true;
+      return workSheet
+    };
+    const data = process();
+    data.isResolve ? resolve(data) : reject(new Error('script.updateOnEdit'));
+  })
+    .then((workSheet) => {
+      if (workSheet.isRegistry) {
+        SpreadsheetApp.getActive().toast(
+          'Save process ended',
+          'Save process',
+          1
         );
-      })
-      .catch((error) => {
-        new Portfolio().log.addError('script.updateOnEdit', error);
-      });
-  };
-  instanceProcess();
-  SpreadsheetApp.flush();
+      }
+      new Portfolio().log.addMessage(
+        'script.updateOnEdit',
+        'ID:' + startProcess.value,
+        'Sheet name: ' +
+          workSheet.sheetName +
+          ', Start row: ' +
+          workSheet.startRow +
+          ', End Row: ' +
+          workSheet.rowEnd +
+          ', Count row: ' +
+          workSheet.countRow +
+          ', Time spent: ' +
+          startProcess.getTimeDiff()
+      );
+    })
+    .catch((error) => {
+      new Portfolio().log.addError('updateOnEdit', error);
+    });
 }
 
 function createMenu() {

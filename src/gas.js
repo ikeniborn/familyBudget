@@ -290,10 +290,15 @@ class WorkSheet extends SpreadSheet {
         console.error('WorkSheet.insertRow', error.stack)
       })
   }
-
-  insertValue(value, rowNum, column) {
+  /**
+   *
+   * @param {*} value
+   * @param {number} rowNum
+   * @param {number} columnNum
+   */
+  insertValue(value, rowNum, columnNum) {
     if (rowNum !== this.headerRowNum) {
-      this.workSheet.getRange(rowNum, column).setValue(value)
+      this.workSheet.getRange(rowNum, columnNum).setValue(value)
       SpreadsheetApp.flush()
     }
   }

@@ -80,87 +80,77 @@ function updateFlow() {
 }
 
 function updatePrices() {
-  const instanceProcess = () => {
-    const startProcess = new FormatDate()
-    new Promise((resolve, reject) => {
-      const process = () => {
-        new Prices().updatePrices()
-        SpreadsheetApp.flush()
-        new FlowSymbol().updateFlow()
-        // new Flow().updateFlow()
-        return true
-      }
-      process() ? resolve() : reject(new Error('No change'))
-    })
-      .catch((error) => {
-        new Portfolio().log.addError('updatePrices', error)
-      })
-      .finally(
-        new Portfolio().log.addMessage(
-          'updatePrices',
-          'ID:' + startProcess.value,
-          'Time spent: ' + startProcess.getTimeDiff()
-        )
+  const startProcess = new FormatDate()
+  new Promise((resolve, reject) => {
+    const process = () => {
+      new Prices().updatePrices()
+      SpreadsheetApp.flush()
+      new FlowSymbol().updateFlow()
+      // new Flow().updateFlow()
+      return true
+    }
+    process() ? resolve() : reject(new Error('script.updatePrices'))
+  })
+    .then(
+      new Portfolio().log.addMessage(
+        'updatePrices',
+        'ID:' + startProcess.value,
+        'Time spent: ' + startProcess.getTimeDiff()
       )
-  }
-  instanceProcess()
-  SpreadsheetApp.flush()
+    )
+    .catch((error) => {
+      new Portfolio().log.addError('updatePrices', error)
+    })
 }
 
 function updateOnEdit(editRange) {
-  const instanceProcess = () => {
-    const startProcess = new FormatDate()
-    new Promise((resolve, reject) => {
-      const update = () => {
-        const workSheet = new Portfolio().updateOnEdit(editRange.range)
-        if (workSheet.isChangeData) {
-          if (workSheet.isChangePrimaryKey) {
-            workSheet.savePrimaryKeyChanges()
-          }
-          if (workSheet.workSheetKey === new Hash('prices').md5) {
-            new Prices(workSheet).updateId()
-          } else if (workSheet.isRegistry) {
-            new Registry(workSheet).updateTransactions(true)
-          }
-          workSheet.isResolve = true
+  const startProcess = new FormatDate()
+  new Promise((resolve, reject) => {
+    const process = () => {
+      const workSheet = new Portfolio().updateOnEdit(editRange.range)
+      if (workSheet.isChangeData) {
+        if (workSheet.isChangePrimaryKey) {
+          workSheet.savePrimaryKeyChanges()
+        }
+        if (workSheet.workSheetKey === new Hash('prices').md5) {
+          new Prices(workSheet).updateId()
+        } else if (workSheet.isRegistry) {
+          new Registry(workSheet).updateTransactions(true)
         }
         workSheet.isResolve = true
-        return workSheet
       }
-      const updateData = update()
-      updateData.isResolve
-        ? resolve(updateData)
-        : reject(new Error('instanceProcess'))
-    })
-      .then((workSheet) => {
-        if (workSheet.isRegistry) {
-          SpreadsheetApp.getActive().toast(
-            'Save process ended',
-            'Save process',
-            1
-          )
-        }
-        new Portfolio().log.addMessage(
-          'script.updateOnEdit',
-          'ID:' + startProcess.value,
-          'Sheet name: ' +
-            workSheet.sheetName +
-            ', Start row: ' +
-            workSheet.startRow +
-            ', End Row: ' +
-            workSheet.rowEnd +
-            ', Count row: ' +
-            workSheet.countRow +
-            ', Time spent: ' +
-            startProcess.getTimeDiff()
+      workSheet.isResolve = true
+      return workSheet
+    }
+    const data = process()
+    data.isResolve ? resolve(data) : reject(new Error('script.updateOnEdit'))
+  })
+    .then((workSheet) => {
+      if (workSheet.isRegistry) {
+        SpreadsheetApp.getActive().toast(
+          'Save process ended',
+          'Save process',
+          1
         )
-      })
-      .catch((error) => {
-        new Portfolio().log.addError('script.updateOnEdit', error)
-      })
-  }
-  instanceProcess()
-  SpreadsheetApp.flush()
+      }
+      new Portfolio().log.addMessage(
+        'script.updateOnEdit',
+        'ID:' + startProcess.value,
+        'Sheet name: ' +
+          workSheet.sheetName +
+          ', Start row: ' +
+          workSheet.startRow +
+          ', End Row: ' +
+          workSheet.rowEnd +
+          ', Count row: ' +
+          workSheet.countRow +
+          ', Time spent: ' +
+          startProcess.getTimeDiff()
+      )
+    })
+    .catch((error) => {
+      new Portfolio().log.addError('updateOnEdit', error)
+    })
 }
 
 function createMenu() {

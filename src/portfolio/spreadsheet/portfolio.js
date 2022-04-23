@@ -75,25 +75,29 @@ class Portfolio {
             idx: 3,
             notNull: true,
           },
-          category: {
-            alias: 'Category',
+          symbolCategory: {
+            alias: 'Symbol category ',
             idx: 4,
             notNull: true,
           },
-          proofType: {
-            alias: 'Proof type',
-            idx: 5,
-          },
           ecosystem: {
             alias: 'Ecosystem',
+            idx: 5,
+          },
+          marketCapGroup: {
+            alias: 'MarketCap group',
             idx: 6,
           },
-          riskCategory: { alias: 'Risk category', idx: 7 },
-          id: { alias: 'Id', idx: 8 },
-          price: { alias: 'Price', idx: 9 },
+          web3SpaceInterest: {
+            alias: 'Web3Space interest',
+            idx: 7,
+          },
+          strategy: { alias: 'Strategy', idx: 8 },
+          sourceId: { alias: 'Source id', idx: 9 },
+          price: { alias: 'Price', idx: 10 },
           update: {
             alias: 'Update',
-            idx: 10,
+            idx: 11,
             type: 'date',
             default: new Date(),
           },
@@ -240,11 +244,7 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0, notNull: true },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
-          riskCategory: {
-            alias: 'Risk category',
-            idx: 0,
-            notNull: true,
-          },
+          nameRu: { alias: 'Name (ru)', idx: 2, notNull: true },
         },
       },
       proofType: {
@@ -256,13 +256,14 @@ class Portfolio {
           description: { alias: 'Description', idx: 1 },
         },
       },
-      riskCategory: {
+
+      web3SpaceInterest: {
         type: 'dim',
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0, notNull: true },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
-          strategy: { alias: 'Strategy', idx: 2 },
+          sort: { alias: 'Sort' },
         },
       },
 
@@ -305,6 +306,7 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
+          proofType: { alias: 'Proof type', idx: 2, notNull: true },
         },
       },
       accounts: {
