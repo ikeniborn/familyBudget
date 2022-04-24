@@ -27,6 +27,7 @@ class Transactions {
     try {
       if (isRange) {
         new Promise((resolve) => {
+          const arrayKeys = []
           arrayOfObject.forEach((tx) => {
             const rowArray = this.workSheet.arrayOfObject.filter(
               (row) => row.rowKey === tx.rowKey
@@ -44,13 +45,16 @@ class Transactions {
                   this.duplicatesRow.push(row)
                 }
               })
+              arrayKeys.push(tx.rowKey)
             } else {
               this.workSheet.insertRow(tx)
+              arrayKeys.push(tx.rowKey)
             }
           })
-          resolve()
-        }).then(() => {
+          resolve(arrayKeys)
+        }).then((data) => {
           this.workSheet.deleteRows(this.duplicatesRow)
+          this.workSheet.scriptCache.removeAllCache(data)
         })
       } else {
         const sourceKey = arrayOfObject[0].sourceKey
@@ -100,7 +104,7 @@ class Transactions {
       const coin = this.prices[new Hash(currencysymbol).md5]
       const sourceKey = new Hash(coin?.source).md5
       const symbolId = coin?.id
-      const categoryKey = new Hash(coin?.category).md5
+      const categoryKey = new Hash(coin?.symbolCategory).md5
       if ('e5e3fd01394b9a81296b75d5a7f4c1a2' === categoryKey /*stablecoin*/) {
         //* Для стабильных токенов возвращать единицу
         historicalPrice = 1

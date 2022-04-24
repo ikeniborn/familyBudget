@@ -55,16 +55,20 @@ class Prices {
           new Promise((resolve) => {
             const process = () => {
               let coinMarketCapRankGroup = void 0
-              if (rank <= 50) {
+              let rankNumber
+              rank ? (rankNumber = rank * 1) : (rankNumber = 100000)
+              if (rankNumber <= 50) {
                 coinMarketCapRankGroup = 'Top 50'
-              } else if (rank > 50 && rank <= 100) {
+              } else if (rankNumber > 50 && rankNumber <= 100) {
                 coinMarketCapRankGroup = 'Top 100'
-              } else if (rank > 100 && rank <= 500) {
+              } else if (rankNumber > 100 && rankNumber <= 500) {
                 coinMarketCapRankGroup = 'Top 500'
-              } else if (rank > 500 && rank <= 1000) {
+              } else if (rankNumber > 500 && rankNumber <= 1000) {
                 coinMarketCapRankGroup = 'Top 1000'
-              } else if (rank > 1000 || !rank) {
+              } else if (rankNumber > 1000 && rankNumber < 100000) {
                 coinMarketCapRankGroup = 'Over 1000'
+              } else {
+                coinMarketCapRankGroup = 'Not rank group'
               }
               symbolObject.marketCapGroup = coinMarketCapRankGroup
               symbolObject.price = price
@@ -125,7 +129,6 @@ class Prices {
 
           if (priceArray.length) {
             priceArray.forEach((coin) => {
-              console.log(coin?.symbol, coin?.values?.USD?.price, coin?.rank)
               const symbolKey = new Hash(coin?.symbol).md5
               updatePricesRow(
                 this.workSheet.object[symbolKey],

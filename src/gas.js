@@ -74,6 +74,7 @@ class SpreadSheet {
         }
         return workSheets
       }, {})
+    this.scriptCache = new ScriptCache(120)
   }
 }
 
@@ -220,7 +221,6 @@ class WorkSheet extends SpreadSheet {
             .clear()
             .getRange(firstRow, firstColumn, array.length, array[0].length)
             .setValues(array)
-          SpreadsheetApp.flush()
           return true
         }
       }
@@ -253,7 +253,7 @@ class WorkSheet extends SpreadSheet {
           this.workSheet
             .getRange(object.rowNum, 1, array.length, array[0].length)
             .setValues(array)
-          SpreadsheetApp.flush()
+
           return true
         }
       }
@@ -280,7 +280,7 @@ class WorkSheet extends SpreadSheet {
           }
         })
         this.workSheet.appendRow(array)
-        SpreadsheetApp.flush()
+
         return true
       }
       action() ? resolve() : reject(error)
@@ -299,7 +299,6 @@ class WorkSheet extends SpreadSheet {
   insertValue(value, rowNum, columnNum) {
     if (rowNum !== this.headerRowNum) {
       this.workSheet.getRange(rowNum, columnNum).setValue(value)
-      SpreadsheetApp.flush()
     }
   }
   /**
@@ -308,7 +307,6 @@ class WorkSheet extends SpreadSheet {
    */
   deleteRow(rowNum, countRow = 1) {
     this.workSheet.deleteRows(rowNum, countRow)
-    SpreadsheetApp.flush()
   }
 
   /**
@@ -343,7 +341,6 @@ class WorkSheet extends SpreadSheet {
       const firstEmptyRow = this.lastRow + 10
       if (countEmptyRow > 10) {
         this.workSheet.deleteRows(firstEmptyRow, countEmptyRow - 10)
-        SpreadsheetApp.flush()
       }
       return this
     } catch (error) {
@@ -360,7 +357,6 @@ class WorkSheet extends SpreadSheet {
       const firstEmptyRow = this.lastColumn + 1
       if (countEmptyRow) {
         this.workSheet.deleteColumns(firstEmptyRow, countEmptyRow)
-        SpreadsheetApp.flush()
       }
       return this
     } catch (error) {
@@ -478,13 +474,14 @@ class WorkSheetRange extends WorkSheet {
       this.dataRange.getValues().forEach((arrayRow, indexRow) => {
         const rowNum = this.firstRowNum + indexRow
         const isChangeRow = this.isChangeRow(rowNum, arrayRow)
-        if (isChangeRow) {
+        if (isChangeRow.sign) {
           const rowKey = new Hash(rowNum + this.sheetName).md5
           const instanceRow = arrayRow.reduce((object, value, column) => {
             if (!object[this.headKey[column]]) {
               object[this.headKey[column]] = value
               object['rowKey'] = rowKey
               object['rowNum'] = rowNum
+              object['rowHash'] = isChangeRow.hash
             }
             return object
           }, {})
@@ -514,15 +511,21 @@ class WorkSheetRange extends WorkSheet {
     } catch (error) {}
   }
 
+  /**
+   * Проверка изменения строки
+   * @param {number} rowNum номер строки
+   * @param {array} arrayRow массив значений строки
+   * @returns {object} объект { sign, hash }
+   */
   isChangeRow(rowNum, arrayRow = []) {
     try {
       const rowHash = new Hash(arrayRow.join('#')).md5
       const rowHashOld = this.workSheetMetadata.getRowKey(rowNum)
       if (rowHash !== rowHashOld) {
         this.workSheetMetadata.addRowKey(rowNum, rowHash)
-        return true
+        return { sign: true, hash: rowHash }
       } else {
-        return false
+        return { sign: false, hash: rowHash }
       }
     } catch (error) {}
   }
@@ -543,6 +546,11 @@ class WorkSheetRange extends WorkSheet {
     return false
   }
 
+  /**
+   * Формирование хэша ключа строки
+   * @param {object} rowObject строка в формате {key:value}
+   * @returns
+   */
   getPrimaryKey(rowObject = {}) {
     return new Hash(
       Object.keys(this.head)
@@ -571,7 +579,7 @@ class WorkSheetRange extends WorkSheet {
   // }
 }
 
-class GoogleCache {
+class ScriptCache {
   /**
    * Работа с кэшем Google
    * @param {integer} seconds Время хранения кэша в секундах
@@ -586,14 +594,13 @@ class GoogleCache {
    * @param {object} object - Данные в формате {key:value}
    * @param data - строка
    */
-  addCache(object) {
-    const key = Object.keys(object)[0]
-    const data = JSON.stringify(object[key])
+  addCache(key, value) {
+    const data = JSON.stringify(value)
     this.cache.put(key, data, this.seconds)
   }
 
   /**
-   *
+   * Массовое добавление данных в кэш
    * @param {object} object Данные в формате {key:value}
    */
   addAllCache(object) {
@@ -601,7 +608,7 @@ class GoogleCache {
   }
 
   /**
-   *
+   * Получаение данных из кэша по ключу
    * @param {string} key
    * @returns
    */
@@ -610,16 +617,16 @@ class GoogleCache {
   }
 
   /**
-   *
-   * @param {array} keys Массив ключей
+   * Массовое получаение данных по массиву ключей
+   * @param {array} arrayKey Массив ключей
    * @returns
    */
-  getAllCache(keys) {
-    return this.cache.getAll(keys)
+  getAllCache(arrayKey) {
+    return this.cache.getAll(arrayKey)
   }
 
   /**
-   *
+   * Удаление данных из кэша по ключу
    * @param {string} key
    */
   removeCache(key) {
@@ -627,11 +634,11 @@ class GoogleCache {
   }
 
   /**
-   *
-   * @param {array} keys
+   * Массовое удаление данных по массиву ключей
+   * @param {array} arrayKey массив ключей
    */
-  removeAllCache(keys) {
-    this.cache.removeAll(keys)
+  removeAllCache(arrayKey) {
+    this.cache.removeAll(arrayKey)
   }
 }
 

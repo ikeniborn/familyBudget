@@ -49,7 +49,9 @@ class Registry {
           rowKey1,
           rowKey2,
           rowKey3,
-          lockStatusKey
+          lockStatusKey,
+          registryRowKey,
+          registryRowHash
 
         const transactionRow = []
         const hhmm = new FormatNumber(
@@ -57,6 +59,8 @@ class Registry {
         ).getHourAndMinuteFromNumber()
         const dateTime = new FormatDate(rowValues.date).addTime(hhmm.h, hhmm.m)
           .date
+        registryRowKey = rowValues.rowKey
+        registryRowHash = rowValues.rowHash
         accountRecipient = rowValues.accountRecipient
           ? rowValues.accountRecipient
           : rowValues.accountSender
@@ -83,6 +87,7 @@ class Registry {
         isHistoricalAveragePriceFeeCurrency = false
         isHistoricalAveragePriceCurrency = false
 
+        //* Расчет пустых значений транзакции количества валюты за один токен, количество токена, количество валюты
         if (!currencyPerCoin && currencyQty) {
           currencyPerCoin = currencyQty / coinQty
         }
@@ -94,8 +99,8 @@ class Registry {
         }
         //* расчет пулов ликвидности
         if (
-          /*Liquidity pool (1), Liquidity pool (2)*/
           [
+            /*Liquidity pool (1), Liquidity pool (2)*/
             'd70311b68290664f7a442bfa8266dbb9',
             '0dc48f5ee42e5f36afa288473e6e1799',
           ].indexOf(new Hash(rowValues.service).md5) !== -1
@@ -120,8 +125,8 @@ class Registry {
         }
 
         if (
-          /*Transfer, Write-off, Refill*/
           [
+            /*Transfer, Write-off, Refill*/
             '84a0f3455dcca894ace136be62efa292',
             '7b33b9f52598cd60f7aa6ca0082515c4',
             'b4479040173a9f41eeb4e98339f2a21d',
@@ -131,8 +136,8 @@ class Registry {
           currencySymbol = coinSymbol
 
           if (
-            /*Transfer, Write-off*/
             [
+              /*Transfer, Write-off*/
               '84a0f3455dcca894ace136be62efa292',
               '7b33b9f52598cd60f7aa6ca0082515c4',
             ].indexOf(operationKey) !== -1
@@ -158,8 +163,8 @@ class Registry {
             })
           }
           if (
-            /*Transfer, Refill*/
             [
+              /*Transfer, Refill*/
               '84a0f3455dcca894ace136be62efa292',
               'b4479040173a9f41eeb4e98339f2a21d',
             ].indexOf(operationKey) !== -1
@@ -185,8 +190,8 @@ class Registry {
             })
           }
         } else if (
-          /*buy*/
-          ['0461ebd2b773878eac9f78a891912d65'].indexOf(operationKey) !== -1
+          [/*buy*/ '0461ebd2b773878eac9f78a891912d65'].indexOf(operationKey) !==
+          -1
         ) {
           rowKey1 = new Hash(rowValues.rowKey + '#1').md5
           transactionsRowOldCurrency = transactions.workSheet.object[rowKey1]
@@ -228,8 +233,9 @@ class Registry {
             isCurencyPrice,
           })
         } else if (
-          /*sell*/
-          ['8325324b47e1e62a1c2998a640cbdc72'].indexOf(operationKey) !== -1
+          [/*sell*/ '8325324b47e1e62a1c2998a640cbdc72'].indexOf(
+            operationKey
+          ) !== -1
         ) {
           rowKey1 = new Hash(rowValues.rowKey + '#1').md5
           transactionsRowOldSymbol = transactions.workSheet.object[rowKey1]
@@ -296,11 +302,11 @@ class Registry {
 
           //* проверка изменения атрибутов влияющих на цену
           const isChangePrice = () => {
-            return [9, 10, 11, 12, 13, 14, 15, 17, 18].some((column) => {
+            return [10, 11, 12, 13, 14, 15, 16, 18, 19].some((column) => {
               return this.workSheet.columnNumArray.indexOf(column) !== -1
             })
           }
-          if (isChangePrice()) {
+          if (/*isChangePrice()*/ true) {
             //* Расчет текущей или исторической цены комиссии токена
             const historicalPriceBuyFee = transactions.getHistoricalPriceBuy(
               dateTime,
@@ -321,6 +327,7 @@ class Registry {
               currencySymbol,
               isRange
             )
+
             isHistoricalAveragePriceCurrency =
               historicalPriceBuyCoin?.isHistoricalAveragePrice || false
             currencyPrice = historicalPriceBuyCoin?.historicalPrice
@@ -330,11 +337,11 @@ class Registry {
           }
         } else {
           isHistoricalAveragePriceFeeCurrency =
-            transactionsRowOldFee?.isHistoricalAveragePrice
+            transactionsRowOldFee?.isHistoricalAveragePrice || false
           isHistoricalAveragePriceCurrency =
-            transactionsRowOldCurrency?.isHistoricalAveragePrice
+            transactionsRowOldCurrency?.isHistoricalAveragePrice || false
           isHistoricalAveragePriceSymbol =
-            transactionsRowOldSymbol?.isHistoricalAveragePrice
+            transactionsRowOldSymbol?.isHistoricalAveragePrice || false
           feePrice = transactionsRowOldFee?.price
           currencyPrice = transactionsRowOldCurrency?.price
           symbolPrice = transactionsRowOldSymbol?.price
@@ -342,21 +349,26 @@ class Registry {
 
         //* Формирование строки транзакции
         transactionRow.forEach((tx) => {
+          //* данные из кэша
+          const cacheTx =
+            this.workSheet.scriptCache.getCache(tx.rowKey) || void 0
+
           let price
           if (tx.isSymbolPrice) {
             price = symbolPrice
-            isHistoricalAveragePrice = isHistoricalAveragePriceSymbol || false
+            isHistoricalAveragePrice = isHistoricalAveragePriceSymbol
           } else if (tx.isFeePrice) {
             price = feePrice
-            isHistoricalAveragePrice =
-              isHistoricalAveragePriceFeeCurrency || false
+            isHistoricalAveragePrice = isHistoricalAveragePriceFeeCurrency
           } else if (tx.isCurencyPrice) {
             price = currencyPrice
-            isHistoricalAveragePrice = isHistoricalAveragePriceCurrency || false
+            isHistoricalAveragePrice = isHistoricalAveragePriceCurrency
           }
           const cost = tx.quantity * price
           const object = {
             rowKey: tx.rowKey,
+            registryRowKey,
+            registryRowHash,
             sourceKey: new Hash(this.workSheet.sheetName).md5,
             sourceName: new Hash(this.workSheet.sheetName).stringLowerCase,
             dateTime: dateTime,
@@ -384,7 +396,10 @@ class Registry {
             isLock: tx.isLock,
             isHistoricalAveragePrice,
           }
-          transactionsArrayOfObject.push(object)
+          if (registryRowHash !== cacheTx?.registryRowHash) {
+            this.workSheet.scriptCache.addCache(tx.rowKey, object)
+            transactionsArrayOfObject.push(object)
+          }
         })
       })
 

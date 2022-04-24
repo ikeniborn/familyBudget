@@ -367,6 +367,7 @@ class SpreadSheet {
         }
         return workSheets
       }, {});
+    this.scriptCache = new ScriptCache(120);
   }
 }
 
@@ -513,7 +514,6 @@ class WorkSheet extends SpreadSheet {
             .clear()
             .getRange(firstRow, firstColumn, array.length, array[0].length)
             .setValues(array);
-          SpreadsheetApp.flush();
           return true
         }
       };
@@ -546,7 +546,7 @@ class WorkSheet extends SpreadSheet {
           this.workSheet
             .getRange(object.rowNum, 1, array.length, array[0].length)
             .setValues(array);
-          SpreadsheetApp.flush();
+
           return true
         }
       };
@@ -573,7 +573,7 @@ class WorkSheet extends SpreadSheet {
           }
         });
         this.workSheet.appendRow(array);
-        SpreadsheetApp.flush();
+
         return true
       };
       action() ? resolve() : reject(error);
@@ -592,7 +592,6 @@ class WorkSheet extends SpreadSheet {
   insertValue(value, rowNum, columnNum) {
     if (rowNum !== this.headerRowNum) {
       this.workSheet.getRange(rowNum, columnNum).setValue(value);
-      SpreadsheetApp.flush();
     }
   }
   /**
@@ -601,7 +600,6 @@ class WorkSheet extends SpreadSheet {
    */
   deleteRow(rowNum, countRow = 1) {
     this.workSheet.deleteRows(rowNum, countRow);
-    SpreadsheetApp.flush();
   }
 
   /**
@@ -636,7 +634,6 @@ class WorkSheet extends SpreadSheet {
       const firstEmptyRow = this.lastRow + 10;
       if (countEmptyRow > 10) {
         this.workSheet.deleteRows(firstEmptyRow, countEmptyRow - 10);
-        SpreadsheetApp.flush();
       }
       return this
     } catch (error) {
@@ -653,7 +650,6 @@ class WorkSheet extends SpreadSheet {
       const firstEmptyRow = this.lastColumn + 1;
       if (countEmptyRow) {
         this.workSheet.deleteColumns(firstEmptyRow, countEmptyRow);
-        SpreadsheetApp.flush();
       }
       return this
     } catch (error) {
@@ -771,13 +767,14 @@ class WorkSheetRange extends WorkSheet {
       this.dataRange.getValues().forEach((arrayRow, indexRow) => {
         const rowNum = this.firstRowNum + indexRow;
         const isChangeRow = this.isChangeRow(rowNum, arrayRow);
-        if (isChangeRow) {
+        if (isChangeRow.sign) {
           const rowKey = new Hash(rowNum + this.sheetName).md5;
           const instanceRow = arrayRow.reduce((object, value, column) => {
             if (!object[this.headKey[column]]) {
               object[this.headKey[column]] = value;
               object['rowKey'] = rowKey;
               object['rowNum'] = rowNum;
+              object['rowHash'] = isChangeRow.hash;
             }
             return object
           }, {});
@@ -807,15 +804,21 @@ class WorkSheetRange extends WorkSheet {
     } catch (error) {}
   }
 
+  /**
+   * Проверка изменения строки
+   * @param {number} rowNum номер строки
+   * @param {array} arrayRow массив значений строки
+   * @returns {object} объект { sign, hash }
+   */
   isChangeRow(rowNum, arrayRow = []) {
     try {
       const rowHash = new Hash(arrayRow.join('#')).md5;
       const rowHashOld = this.workSheetMetadata.getRowKey(rowNum);
       if (rowHash !== rowHashOld) {
         this.workSheetMetadata.addRowKey(rowNum, rowHash);
-        return true
+        return { sign: true, hash: rowHash }
       } else {
-        return false
+        return { sign: false, hash: rowHash }
       }
     } catch (error) {}
   }
@@ -836,6 +839,11 @@ class WorkSheetRange extends WorkSheet {
     return false
   }
 
+  /**
+   * Формирование хэша ключа строки
+   * @param {object} rowObject строка в формате {key:value}
+   * @returns
+   */
   getPrimaryKey(rowObject = {}) {
     return new Hash(
       Object.keys(this.head)
@@ -862,6 +870,69 @@ class WorkSheetRange extends WorkSheet {
   //   }
   //   return this
   // }
+}
+
+class ScriptCache {
+  /**
+   * Работа с кэшем Google
+   * @param {integer} seconds Время хранения кэша в секундах
+   */
+  constructor(seconds = 60) {
+    this.seconds = seconds;
+    this.cache = CacheService.getScriptCache();
+  }
+
+  /**
+   * Добавление в кэш по ключу. Данные приводятся к строке
+   * @param {object} object - Данные в формате {key:value}
+   * @param data - строка
+   */
+  addCache(key, value) {
+    const data = JSON.stringify(value);
+    this.cache.put(key, data, this.seconds);
+  }
+
+  /**
+   * Массовое добавление данных в кэш
+   * @param {object} object Данные в формате {key:value}
+   */
+  addAllCache(object) {
+    this.cache.putAll(object, this.seconds);
+  }
+
+  /**
+   * Получаение данных из кэша по ключу
+   * @param {string} key
+   * @returns
+   */
+  getCache(key) {
+    return JSON.parse(this.cache.get(key)) || void 0
+  }
+
+  /**
+   * Массовое получаение данных по массиву ключей
+   * @param {array} arrayKey Массив ключей
+   * @returns
+   */
+  getAllCache(arrayKey) {
+    return this.cache.getAll(arrayKey)
+  }
+
+  /**
+   * Удаление данных из кэша по ключу
+   * @param {string} key
+   */
+  removeCache(key) {
+    this.cache.remove(key);
+  }
+
+  /**
+   * Массовое удаление данных по массиву ключей
+   * @param {array} arrayKey массив ключей
+   */
+  removeAllCache(arrayKey) {
+    this.cache.removeAll(arrayKey);
+  }
 }
 class Metadata {
   /**
@@ -2180,16 +2251,20 @@ class Prices {
           new Promise((resolve) => {
             const process = () => {
               let coinMarketCapRankGroup = void 0;
-              if (rank <= 50) {
+              let rankNumber;
+              rank ? (rankNumber = rank * 1) : (rankNumber = 100000);
+              if (rankNumber <= 50) {
                 coinMarketCapRankGroup = 'Top 50';
-              } else if (rank > 50 && rank <= 100) {
+              } else if (rankNumber > 50 && rankNumber <= 100) {
                 coinMarketCapRankGroup = 'Top 100';
-              } else if (rank > 100 && rank <= 500) {
+              } else if (rankNumber > 100 && rankNumber <= 500) {
                 coinMarketCapRankGroup = 'Top 500';
-              } else if (rank > 500 && rank <= 1000) {
+              } else if (rankNumber > 500 && rankNumber <= 1000) {
                 coinMarketCapRankGroup = 'Top 1000';
-              } else if (rank > 1000 || !rank) {
+              } else if (rankNumber > 1000 && rankNumber < 100000) {
                 coinMarketCapRankGroup = 'Over 1000';
+              } else {
+                coinMarketCapRankGroup = 'Not rank group';
               }
               symbolObject.marketCapGroup = coinMarketCapRankGroup;
               symbolObject.price = price;
@@ -2250,7 +2325,6 @@ class Prices {
 
           if (priceArray.length) {
             priceArray.forEach((coin) => {
-              console.log(coin?.symbol, coin?.values?.USD?.price, coin?.rank);
               const symbolKey = new Hash(coin?.symbol).md5;
               updatePricesRow(
                 this.workSheet.object[symbolKey],
@@ -2356,6 +2430,7 @@ class Transactions {
     try {
       if (isRange) {
         new Promise((resolve) => {
+          const arrayKeys = [];
           arrayOfObject.forEach((tx) => {
             const rowArray = this.workSheet.arrayOfObject.filter(
               (row) => row.rowKey === tx.rowKey
@@ -2373,13 +2448,16 @@ class Transactions {
                   this.duplicatesRow.push(row);
                 }
               });
+              arrayKeys.push(tx.rowKey);
             } else {
               this.workSheet.insertRow(tx);
+              arrayKeys.push(tx.rowKey);
             }
           });
-          resolve();
-        }).then(() => {
+          resolve(arrayKeys);
+        }).then((data) => {
           this.workSheet.deleteRows(this.duplicatesRow);
+          this.workSheet.scriptCache.removeAllCache(data);
         });
       } else {
         const sourceKey = arrayOfObject[0].sourceKey;
@@ -2429,7 +2507,7 @@ class Transactions {
       const coin = this.prices[new Hash(currencysymbol).md5];
       const sourceKey = new Hash(coin?.source).md5;
       const symbolId = coin?.id;
-      const categoryKey = new Hash(coin?.category).md5;
+      const categoryKey = new Hash(coin?.symbolCategory).md5;
       if ('e5e3fd01394b9a81296b75d5a7f4c1a2' === categoryKey /*stablecoin*/) {
         //* Для стабильных токенов возвращать единицу
         historicalPrice = 1;
@@ -2573,7 +2651,9 @@ class Registry {
           rowKey1,
           rowKey2,
           rowKey3,
-          lockStatusKey;
+          lockStatusKey,
+          registryRowKey,
+          registryRowHash;
 
         const transactionRow = [];
         const hhmm = new FormatNumber(
@@ -2581,6 +2661,8 @@ class Registry {
         ).getHourAndMinuteFromNumber();
         const dateTime = new FormatDate(rowValues.date).addTime(hhmm.h, hhmm.m)
           .date;
+        registryRowKey = rowValues.rowKey;
+        registryRowHash = rowValues.rowHash;
         accountRecipient = rowValues.accountRecipient
           ? rowValues.accountRecipient
           : rowValues.accountSender;
@@ -2607,6 +2689,7 @@ class Registry {
         isHistoricalAveragePriceFeeCurrency = false;
         isHistoricalAveragePriceCurrency = false;
 
+        //* Расчет пустых значений транзакции количества валюты за один токен, количество токена, количество валюты
         if (!currencyPerCoin && currencyQty) {
           currencyPerCoin = currencyQty / coinQty;
         }
@@ -2618,8 +2701,8 @@ class Registry {
         }
         //* расчет пулов ликвидности
         if (
-          /*Liquidity pool (1), Liquidity pool (2)*/
           [
+            /*Liquidity pool (1), Liquidity pool (2)*/
             'd70311b68290664f7a442bfa8266dbb9',
             '0dc48f5ee42e5f36afa288473e6e1799',
           ].indexOf(new Hash(rowValues.service).md5) !== -1
@@ -2644,8 +2727,8 @@ class Registry {
         }
 
         if (
-          /*Transfer, Write-off, Refill*/
           [
+            /*Transfer, Write-off, Refill*/
             '84a0f3455dcca894ace136be62efa292',
             '7b33b9f52598cd60f7aa6ca0082515c4',
             'b4479040173a9f41eeb4e98339f2a21d',
@@ -2655,8 +2738,8 @@ class Registry {
           currencySymbol = coinSymbol;
 
           if (
-            /*Transfer, Write-off*/
             [
+              /*Transfer, Write-off*/
               '84a0f3455dcca894ace136be62efa292',
               '7b33b9f52598cd60f7aa6ca0082515c4',
             ].indexOf(operationKey) !== -1
@@ -2682,8 +2765,8 @@ class Registry {
             });
           }
           if (
-            /*Transfer, Refill*/
             [
+              /*Transfer, Refill*/
               '84a0f3455dcca894ace136be62efa292',
               'b4479040173a9f41eeb4e98339f2a21d',
             ].indexOf(operationKey) !== -1
@@ -2709,8 +2792,8 @@ class Registry {
             });
           }
         } else if (
-          /*buy*/
-          ['0461ebd2b773878eac9f78a891912d65'].indexOf(operationKey) !== -1
+          [/*buy*/ '0461ebd2b773878eac9f78a891912d65'].indexOf(operationKey) !==
+          -1
         ) {
           rowKey1 = new Hash(rowValues.rowKey + '#1').md5;
           transactionsRowOldCurrency = transactions.workSheet.object[rowKey1];
@@ -2752,8 +2835,9 @@ class Registry {
             isCurencyPrice,
           });
         } else if (
-          /*sell*/
-          ['8325324b47e1e62a1c2998a640cbdc72'].indexOf(operationKey) !== -1
+          [/*sell*/ '8325324b47e1e62a1c2998a640cbdc72'].indexOf(
+            operationKey
+          ) !== -1
         ) {
           rowKey1 = new Hash(rowValues.rowKey + '#1').md5;
           transactionsRowOldSymbol = transactions.workSheet.object[rowKey1];
@@ -2820,11 +2904,11 @@ class Registry {
 
           //* проверка изменения атрибутов влияющих на цену
           const isChangePrice = () => {
-            return [9, 10, 11, 12, 13, 14, 15, 17, 18].some((column) => {
+            return [10, 11, 12, 13, 14, 15, 16, 18, 19].some((column) => {
               return this.workSheet.columnNumArray.indexOf(column) !== -1
             })
           };
-          if (isChangePrice()) {
+          if (/*isChangePrice()*/ true) {
             //* Расчет текущей или исторической цены комиссии токена
             const historicalPriceBuyFee = transactions.getHistoricalPriceBuy(
               dateTime,
@@ -2845,6 +2929,7 @@ class Registry {
               currencySymbol,
               isRange
             );
+
             isHistoricalAveragePriceCurrency =
               historicalPriceBuyCoin?.isHistoricalAveragePrice || false;
             currencyPrice = historicalPriceBuyCoin?.historicalPrice;
@@ -2854,11 +2939,11 @@ class Registry {
           }
         } else {
           isHistoricalAveragePriceFeeCurrency =
-            transactionsRowOldFee?.isHistoricalAveragePrice;
+            transactionsRowOldFee?.isHistoricalAveragePrice || false;
           isHistoricalAveragePriceCurrency =
-            transactionsRowOldCurrency?.isHistoricalAveragePrice;
+            transactionsRowOldCurrency?.isHistoricalAveragePrice || false;
           isHistoricalAveragePriceSymbol =
-            transactionsRowOldSymbol?.isHistoricalAveragePrice;
+            transactionsRowOldSymbol?.isHistoricalAveragePrice || false;
           feePrice = transactionsRowOldFee?.price;
           currencyPrice = transactionsRowOldCurrency?.price;
           symbolPrice = transactionsRowOldSymbol?.price;
@@ -2866,21 +2951,26 @@ class Registry {
 
         //* Формирование строки транзакции
         transactionRow.forEach((tx) => {
+          //* данные из кэша
+          const cacheTx =
+            this.workSheet.scriptCache.getCache(tx.rowKey) || void 0;
+
           let price;
           if (tx.isSymbolPrice) {
             price = symbolPrice;
-            isHistoricalAveragePrice = isHistoricalAveragePriceSymbol || false;
+            isHistoricalAveragePrice = isHistoricalAveragePriceSymbol;
           } else if (tx.isFeePrice) {
             price = feePrice;
-            isHistoricalAveragePrice =
-              isHistoricalAveragePriceFeeCurrency || false;
+            isHistoricalAveragePrice = isHistoricalAveragePriceFeeCurrency;
           } else if (tx.isCurencyPrice) {
             price = currencyPrice;
-            isHistoricalAveragePrice = isHistoricalAveragePriceCurrency || false;
+            isHistoricalAveragePrice = isHistoricalAveragePriceCurrency;
           }
           const cost = tx.quantity * price;
           const object = {
             rowKey: tx.rowKey,
+            registryRowKey,
+            registryRowHash,
             sourceKey: new Hash(this.workSheet.sheetName).md5,
             sourceName: new Hash(this.workSheet.sheetName).stringLowerCase,
             dateTime: dateTime,
@@ -2908,7 +2998,10 @@ class Registry {
             isLock: tx.isLock,
             isHistoricalAveragePrice,
           };
-          transactionsArrayOfObject.push(object);
+          if (registryRowHash !== cacheTx?.registryRowHash) {
+            this.workSheet.scriptCache.addCache(tx.rowKey, object);
+            transactionsArrayOfObject.push(object);
+          }
         });
       });
 
@@ -3207,7 +3300,6 @@ function updateTransactions() {
   const startProcess = new FormatDate();
   try {
     new Registry().updateTransactions();
-    SpreadsheetApp.flush();
   } catch (error) {
     new Portfolio().log.addError('updateTransactions', error);
   } finally {
@@ -3223,7 +3315,6 @@ function deleteDuplicatesRows() {
   const startProcess = new FormatDate();
   try {
     new Transactions().deleteDuplicatesRows();
-    SpreadsheetApp.flush();
   } catch (error) {
     new Portfolio().log.addError('deleteDuplicatesRows', error);
   } finally {
@@ -3239,7 +3330,6 @@ function updateCoins() {
   const startProcess = new FormatDate();
   try {
     new Coins().updateCoins();
-    SpreadsheetApp.flush();
   } catch (error) {
     new Portfolio().log.addError('updateCoins', error);
   } finally {
@@ -3255,7 +3345,7 @@ function updateFlow() {
   const startProcess = new FormatDate();
   try {
     new FlowSymbol().updateFlow();
-    SpreadsheetApp.flush();
+
     // new Flow().updateFlow()
   } catch (error) {
     new Portfolio().log.addError('updateFlow', error);
@@ -3311,6 +3401,7 @@ function updateOnEdit(editRange) {
       workSheet.isResolve = true;
       return workSheet
     };
+
     const data = process();
     data.isResolve ? resolve(data) : reject(new Error('script.updateOnEdit'));
   })

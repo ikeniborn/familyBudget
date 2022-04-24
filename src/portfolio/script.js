@@ -18,7 +18,6 @@ function updateTransactions() {
   const startProcess = new FormatDate()
   try {
     new Registry().updateTransactions()
-    SpreadsheetApp.flush()
   } catch (error) {
     new Portfolio().log.addError('updateTransactions', error)
   } finally {
@@ -34,7 +33,6 @@ function deleteDuplicatesRows() {
   const startProcess = new FormatDate()
   try {
     new Transactions().deleteDuplicatesRows()
-    SpreadsheetApp.flush()
   } catch (error) {
     new Portfolio().log.addError('deleteDuplicatesRows', error)
   } finally {
@@ -50,7 +48,6 @@ function updateCoins() {
   const startProcess = new FormatDate()
   try {
     new Coins().updateCoins()
-    SpreadsheetApp.flush()
   } catch (error) {
     new Portfolio().log.addError('updateCoins', error)
   } finally {
@@ -66,7 +63,7 @@ function updateFlow() {
   const startProcess = new FormatDate()
   try {
     new FlowSymbol().updateFlow()
-    SpreadsheetApp.flush()
+
     // new Flow().updateFlow()
   } catch (error) {
     new Portfolio().log.addError('updateFlow', error)
@@ -122,6 +119,7 @@ function updateOnEdit(editRange) {
       workSheet.isResolve = true
       return workSheet
     }
+
     const data = process()
     data.isResolve ? resolve(data) : reject(new Error('script.updateOnEdit'))
   })
