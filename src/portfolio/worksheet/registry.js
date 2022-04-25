@@ -1,6 +1,7 @@
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash, FormatDate, FormatNumber, FormatObject } from '../../utils'
 import { Transactions } from './transactions'
+import { Prices } from './prices'
 export { Registry }
 
 class Registry {
@@ -12,6 +13,7 @@ class Registry {
 
   updateTransactions(isRange = false) {
     try {
+      const prices = new Prices().workSheet.object
       const transactions = new Transactions()
       const transactionsArrayOfObject = []
       const updateDate = new Date()
@@ -43,9 +45,6 @@ class Registry {
           isHistoricalAveragePriceCurrency,
           isLock,
           operationKey,
-          transactionsRowOldSymbol,
-          transactionsRowOldCurrency,
-          transactionsRowOldFee,
           rowKey1,
           rowKey2,
           rowKey3,
@@ -134,7 +133,15 @@ class Registry {
         ) {
           currencyPerCoin = 1
           currencySymbol = coinSymbol
-
+          if (
+            [
+              /*Write-off, Refill*/
+              '7b33b9f52598cd60f7aa6ca0082515c4',
+              'b4479040173a9f41eeb4e98339f2a21d',
+            ].indexOf(operationKey) !== -1
+          ) {
+            isAvgPrice = true
+          }
           if (
             [
               /*Transfer, Write-off*/
@@ -143,7 +150,7 @@ class Registry {
             ].indexOf(operationKey) !== -1
           ) {
             rowKey1 = new Hash(rowValues.rowKey + '#1').md5
-            transactionsRowOldCurrency = transactions.workSheet.object[rowKey1]
+
             transactionRow.push({
               rowKey: rowKey1,
               direction: 'out',
@@ -170,7 +177,7 @@ class Registry {
             ].indexOf(operationKey) !== -1
           ) {
             rowKey2 = new Hash(rowValues.rowKey + '#2').md5
-            transactionsRowOldSymbol = transactions.workSheet.object[rowKey2]
+
             transactionRow.push({
               rowKey: rowKey2,
               direction: 'in',
@@ -194,7 +201,7 @@ class Registry {
           -1
         ) {
           rowKey1 = new Hash(rowValues.rowKey + '#1').md5
-          transactionsRowOldCurrency = transactions.workSheet.object[rowKey1]
+
           transactionRow.push({
             rowKey: rowKey1,
             direction: 'out',
@@ -213,7 +220,7 @@ class Registry {
             isSymbolPrice,
           })
           rowKey2 = new Hash(rowValues.rowKey + '#2').md5
-          transactionsRowOldSymbol = transactions.workSheet.object[rowKey2]
+
           transactionRow.push({
             rowKey: rowKey2,
             direction: 'in',
@@ -238,7 +245,7 @@ class Registry {
           ) !== -1
         ) {
           rowKey1 = new Hash(rowValues.rowKey + '#1').md5
-          transactionsRowOldSymbol = transactions.workSheet.object[rowKey1]
+
           transactionRow.push({
             rowKey: rowKey1,
             direction: 'out',
@@ -257,7 +264,7 @@ class Registry {
             isCurencyPrice,
           })
           rowKey2 = new Hash(rowValues.rowKey + '#2').md5
-          transactionsRowOldCurrency = transactions.workSheet.object[rowKey2]
+
           transactionRow.push({
             rowKey: rowKey2,
             direction: 'in',
@@ -281,7 +288,13 @@ class Registry {
         //* Комиссия
         if (rowValues.feeCurrency) {
           rowKey3 = new Hash(rowValues.rowKey + '#3').md5
-          transactionsRowOldFee = transactions.workSheet.object[rowKey3]
+          const coin = prices[new Hash(rowValues.feeCurrency).md5]
+          const categoryKey = new Hash(coin?.symbolCategory).md5
+          if (
+            'e5e3fd01394b9a81296b75d5a7f4c1a2' !== categoryKey /*stablecoin*/
+          ) {
+            isAvgPrice = true
+          }
           transactionRow.push({
             rowKey: rowKey3,
             direction: 'out',
@@ -300,106 +313,107 @@ class Registry {
             isCurencyPrice,
           })
 
-          //* проверка изменения атрибутов влияющих на цену
-          const isChangePrice = () => {
-            return [10, 11, 12, 13, 14, 15, 16, 18, 19].some((column) => {
-              return this.workSheet.columnNumArray.indexOf(column) !== -1
-            })
-          }
-          if (/*isChangePrice()*/ true) {
-            //* Расчет текущей или исторической цены комиссии токена
-            const historicalPriceBuyFee = transactions.getHistoricalPriceBuy(
-              dateTime,
-              rowValues.accountSender,
-              project,
-              rowValues.feeCurrency,
-              isRange
-            )
-            feePrice = historicalPriceBuyFee?.historicalPrice
-            isHistoricalAveragePriceFeeCurrency =
-              historicalPriceBuyFee?.isHistoricalAveragePrice || false
-
-            //* Расчет текущей или исторической цены покупаемого токена
-            const historicalPriceBuyCoin = transactions.getHistoricalPriceBuy(
-              dateTime,
-              rowValues.accountSender,
-              project,
-              currencySymbol,
-              isRange
-            )
-
-            isHistoricalAveragePriceCurrency =
-              historicalPriceBuyCoin?.isHistoricalAveragePrice || false
-            currencyPrice = historicalPriceBuyCoin?.historicalPrice
-            isHistoricalAveragePriceSymbol =
-              historicalPriceBuyCoin?.isHistoricalAveragePrice || false
-            symbolPrice = currencyPrice * currencyPerCoin
-          }
-        } else {
+          //* Расчет текущей или исторической цены комиссии токена
+          const historicalPriceBuyFee = transactions.getHistoricalPriceBuy(
+            dateTime,
+            rowValues.accountSender,
+            project,
+            rowValues.feeCurrency,
+            isRange
+          )
+          feePrice = historicalPriceBuyFee?.historicalPrice
           isHistoricalAveragePriceFeeCurrency =
-            transactionsRowOldFee?.isHistoricalAveragePrice || false
-          isHistoricalAveragePriceCurrency =
-            transactionsRowOldCurrency?.isHistoricalAveragePrice || false
-          isHistoricalAveragePriceSymbol =
-            transactionsRowOldSymbol?.isHistoricalAveragePrice || false
-          feePrice = transactionsRowOldFee?.price
-          currencyPrice = transactionsRowOldCurrency?.price
-          symbolPrice = transactionsRowOldSymbol?.price
+            historicalPriceBuyFee?.isHistoricalAveragePrice || false
         }
 
-        //* Формирование строки транзакции
-        transactionRow.forEach((tx) => {
-          //* данные из кэша
-          const cacheTx =
-            this.workSheet.scriptCache.getCache(tx.rowKey) || void 0
+        //* Расчет текущей или исторической цены покупаемого токена
+        const historicalPriceBuyCoin = transactions.getHistoricalPriceBuy(
+          dateTime,
+          rowValues.accountSender,
+          project,
+          currencySymbol,
+          isRange
+        )
 
-          let price
-          if (tx.isSymbolPrice) {
-            price = symbolPrice
-            isHistoricalAveragePrice = isHistoricalAveragePriceSymbol
-          } else if (tx.isFeePrice) {
-            price = feePrice
-            isHistoricalAveragePrice = isHistoricalAveragePriceFeeCurrency
-          } else if (tx.isCurencyPrice) {
-            price = currencyPrice
-            isHistoricalAveragePrice = isHistoricalAveragePriceCurrency
-          }
-          const cost = tx.quantity * price
-          const object = {
-            rowKey: tx.rowKey,
-            registryRowKey,
-            registryRowHash,
-            sourceKey: new Hash(this.workSheet.sheetName).md5,
-            sourceName: new Hash(this.workSheet.sheetName).stringLowerCase,
-            dateTime: dateTime,
-            direction: tx.isFee ? 'out' : tx.direction.toLowerCase(),
-            operation: tx.isFee
-              ? 'write-off'
-              : rowValues.operation.toLowerCase(),
-            account: tx.account.toLowerCase(),
-            platform: rowValues.platform.toLowerCase(),
-            service: rowValues.service.toLowerCase(),
-            project: tx.project.toLowerCase(),
-            contractor: tx.contractor.toLowerCase(),
-            mainSymbol: tx.mainSymbol ? tx.mainSymbol.toLowerCase() : void 0,
-            symbol: tx.symbol.toLowerCase(),
-            quantity: tx.quantity,
-            price: price || 0,
-            cost: cost || 0,
-            comment: rowValues.comment.toString().toLowerCase(),
-            registryRowNum: rowValues.rowNum,
-            updateDate: updateDate,
-            isDelete: isDelete,
-            isAvgPrice: tx.isAvgPrice,
-            isLiquidityPool: tx.isLiquidityPool,
-            isFee: tx.isFee,
-            isLock: tx.isLock,
-            isHistoricalAveragePrice,
-          }
-          if (registryRowHash !== cacheTx?.registryRowHash) {
-            this.workSheet.scriptCache.addCache(tx.rowKey, object)
-            transactionsArrayOfObject.push(object)
-          }
+        isHistoricalAveragePriceCurrency =
+          historicalPriceBuyCoin?.isHistoricalAveragePrice || false
+        currencyPrice = historicalPriceBuyCoin?.historicalPrice
+        isHistoricalAveragePriceSymbol =
+          historicalPriceBuyCoin?.isHistoricalAveragePrice || false
+        symbolPrice = currencyPrice * currencyPerCoin
+
+        new Promise((resolve) => {
+          //* Формирование строки транзакции
+          transactionRow
+            .forEach((tx) => {
+              //* данные из кэша
+              const cacheTx =
+                this.workSheet.scriptCache.getCache(tx.rowKey) || void 0
+              let price
+              if (tx.isSymbolPrice) {
+                price = symbolPrice
+                isHistoricalAveragePrice = isHistoricalAveragePriceSymbol
+              } else if (tx.isFeePrice) {
+                price = feePrice
+                isHistoricalAveragePrice = isHistoricalAveragePriceFeeCurrency
+              } else if (tx.isCurencyPrice) {
+                price = currencyPrice
+                isHistoricalAveragePrice = isHistoricalAveragePriceCurrency
+              }
+              const cost = tx.quantity * price
+              const object = {
+                rowKey: tx.rowKey,
+                registryRowKey,
+                registryRowHash,
+
+                sourceKey: new Hash(this.workSheet.sheetName).md5,
+                sourceName: new Hash(this.workSheet.sheetName).stringLowerCase,
+                historicalAveragePriceKey: new Hash(
+                  tx.account + tx.project + tx.symbol
+                ).md5,
+                dateTime: dateTime,
+                direction: tx.isFee ? 'out' : tx.direction.toLowerCase(),
+                operation: tx.isFee
+                  ? 'write-off'
+                  : rowValues.operation.toLowerCase(),
+                account: tx.account.toLowerCase(),
+                platform: rowValues.platform.toLowerCase(),
+                service: rowValues.service.toLowerCase(),
+                project: tx.project.toLowerCase(),
+                contractor: tx.contractor.toLowerCase(),
+                mainSymbol: tx.mainSymbol
+                  ? tx.mainSymbol.toLowerCase()
+                  : void 0,
+                symbol: tx.symbol.toLowerCase(),
+                quantity: tx.quantity,
+                price: price || 0,
+                cost: cost || 0,
+                comment: rowValues.comment.toString().toLowerCase(),
+                registryRowNum: rowValues.rowNum,
+                updateDate: updateDate,
+                isDelete: isDelete,
+                isAvgPrice: tx.isAvgPrice,
+                isLiquidityPool: tx.isLiquidityPool,
+                isFee: tx.isFee,
+                isLock: tx.isLock,
+                isHistoricalAveragePrice,
+              }
+
+              //* вставка строки в транзакции
+              if (registryRowHash !== cacheTx?.registryRowHash) {
+                this.workSheet.scriptCache.addCache(tx.rowKey, object)
+                transactionsArrayOfObject.push(object)
+              }
+              resolve()
+            })
+            .then(
+              //* вставка даты сохранения
+              this.workSheet.insertValue(
+                new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss'),
+                rowValues.rowNum,
+                this.workSheet.head.saveDateAndTime.idx + 1
+              )
+            )
         })
       })
 

@@ -24,6 +24,7 @@ class Transactions {
    * @param {boolean} isRange Признак обновления диапазона передаваемых данных
    */
   updateTransactions(arrayOfObject = [], isRange = false) {
+    const startProcess = new FormatDate()
     try {
       if (isRange) {
         new Promise((resolve) => {
@@ -53,8 +54,10 @@ class Transactions {
           })
           resolve(arrayKeys)
         }).then((data) => {
-          this.workSheet.deleteRows(this.duplicatesRow)
-          this.workSheet.scriptCache.removeAllCache(data)
+          if (this.duplicatesRow.length) {
+            this.workSheet.deleteRows(this.duplicatesRow)
+          }
+          // this.workSheet.scriptCache.removeAllCache(data)
         })
       } else {
         const sourceKey = arrayOfObject[0].sourceKey
@@ -66,6 +69,12 @@ class Transactions {
       }
     } catch (error) {
       this.workSheet.log.addError('Transactions.updateTransactions', error)
+    } finally {
+      this.workSheet.log.addMessage(
+        'Transactions.updateTransactions',
+        'Spent time',
+        'Spent time: ' + startProcess.getTimeDiff()
+      )
     }
   }
 
@@ -96,6 +105,7 @@ class Transactions {
     isRange = false,
     convert = 'usd'
   ) {
+    const startProcess = new FormatDate()
     try {
       let historicalPrice
       let isHistoricalAveragePrice
@@ -105,6 +115,7 @@ class Transactions {
       const sourceKey = new Hash(coin?.source).md5
       const symbolId = coin?.id
       const categoryKey = new Hash(coin?.symbolCategory).md5
+
       if ('e5e3fd01394b9a81296b75d5a7f4c1a2' === categoryKey /*stablecoin*/) {
         //* Для стабильных токенов возвращать единицу
         historicalPrice = 1
@@ -123,45 +134,35 @@ class Transactions {
       } else {
         //* Расчет средневзвешенной стоимости покупки токена на основании истории покупок для диапазона данных
         if (isRange) {
+          const historicalAveragePriceKey = new Hash(
+            account + project + currencysymbol
+          ).md5
           const historicalPriceAgg = this.workSheet.arrayOfObject
             .filter((row) => {
               return (
                 new FormatDate(row.dateTime).value <=
                   new FormatDate(dateTime).value &&
-                new Hash(account + project + currencysymbol).md5 ===
-                  new Hash(row.account + row.project + row.symbol).md5 &&
+                historicalAveragePriceKey === row.historicalAveragePriceKey &&
+                // new Hash(row.account + row.project + row.symbol).md5
                 row.isAvgPrice &&
                 !row.isDelete
               )
             })
-            .reduce((agg, tx) => {
-              if (!agg[tx.account]) {
-                agg[tx.account] = {}
-              }
-              if (!agg[tx.account][tx.project]) {
-                agg[tx.account][tx.project] = {}
-              }
-              if (!agg[tx.account][tx.project][tx.symbol]) {
-                agg[tx.account][tx.project][tx.symbol] = {
-                  quantity: 0,
-                  cost: 0,
-                }
-              }
-              agg[tx.account][tx.project][tx.symbol].quantity += tx.quantity
-              agg[tx.account][tx.project][tx.symbol].cost +=
-                tx.quantity * tx.price
-              return agg
-            }, {})
+            .reduce(
+              (agg, tx) => {
+                agg.quantity += tx.quantity
+                agg.cost += tx.quantity * tx.price
+
+                return agg
+              },
+              { quantity: 0, cost: 0 }
+            )
 
           //* Расчет средней цены покупки токена
-          Object.values(historicalPriceAgg).forEach((level0) => {
-            Object.values(level0).forEach((level1) => {
-              Object.values(level1).forEach((object) => {
-                historicalPrice = object.cost / object.quantity || void 0
-                isHistoricalAveragePrice = true
-              })
-            })
-          })
+          historicalPrice =
+            historicalPriceAgg.cost / historicalPriceAgg.quantity || void 0
+          isHistoricalAveragePrice = true
+
           if (historicalPrice) {
             return { historicalPrice, isHistoricalAveragePrice }
           } else {
@@ -198,6 +199,12 @@ class Transactions {
       return { historicalPrice, isHistoricalAveragePrice }
     } catch (error) {
       this.workSheet.log.addError('Transactions.getHistoricalPriceBuy', error)
+    } finally {
+      this.workSheet.log.addMessage(
+        'Transactions.getHistoricalPriceBuy',
+        'Spend time',
+        currencysymbol + ': ' + startProcess.getTimeDiff()
+      )
     }
   }
 }

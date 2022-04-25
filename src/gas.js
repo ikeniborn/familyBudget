@@ -1,4 +1,4 @@
-import { Hash, FormatDate } from './utils'
+import { Hash, FormatDate, FormatObject } from './utils'
 import { Header } from './header'
 
 export {
@@ -97,9 +97,9 @@ class WorkSheet extends SpreadSheet {
     this.sheetName = sheetName
     this.headType = head.type
     this.head = head.columns
-    this.headKey = Object.keys(this.head)
     this.headRowNum = head.rowNum
     this.firstRowNum = this.headRowNum + 1
+    this.headKey = Object.keys(new FormatObject(this.head).getCopy())
     this.workSheet = this.workSheets[this.workSheetKey]
     this.range = this.workSheet.getDataRange()
     this.countRow = this.range.getNumRows() - this.headRowNum
@@ -505,7 +505,12 @@ class WorkSheetRange extends WorkSheet {
     try {
       if (this.firstRowNum !== this.headRowNum) {
         this.arrayOfObject.forEach((object) => {
-          this.updateRow(object)
+          this.insertValue(
+            object.rowKey,
+            object.rowNum,
+            this.head.rowKey.idx + 1
+          )
+          // this.updateRow(object)
         })
       }
     } catch (error) {}
