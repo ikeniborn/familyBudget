@@ -50,7 +50,8 @@ class Registry {
           rowKey3,
           lockStatusKey,
           registryRowKey,
-          registryRowHash
+          registryRowKeyTimestamp,
+          registryTimestamp
 
         const transactionRow = []
         const hhmm = new FormatNumber(
@@ -59,7 +60,8 @@ class Registry {
         const dateTime = new FormatDate(rowValues.date).addTime(hhmm.h, hhmm.m)
           .date
         registryRowKey = rowValues.rowKey
-        registryRowHash = rowValues.rowHash
+        registryRowKeyTimestamp = rowValues.rowKeyTimestamp
+        registryTimestamp = rowValues.timestamp
         accountRecipient = rowValues.accountRecipient
           ? rowValues.accountRecipient
           : rowValues.accountSender
@@ -150,7 +152,6 @@ class Registry {
             ].indexOf(operationKey) !== -1
           ) {
             rowKey1 = new Hash(rowValues.rowKey + '#1').md5
-
             transactionRow.push({
               rowKey: rowKey1,
               direction: 'out',
@@ -201,7 +202,6 @@ class Registry {
           -1
         ) {
           rowKey1 = new Hash(rowValues.rowKey + '#1').md5
-
           transactionRow.push({
             rowKey: rowKey1,
             direction: 'out',
@@ -245,7 +245,6 @@ class Registry {
           ) !== -1
         ) {
           rowKey1 = new Hash(rowValues.rowKey + '#1').md5
-
           transactionRow.push({
             rowKey: rowKey1,
             direction: 'out',
@@ -285,6 +284,21 @@ class Registry {
           })
         }
 
+        //* Расчет текущей или исторической цены покупаемого токена
+        const historicalPriceBuyCoin = transactions.getHistoricalPriceBuy(
+          dateTime,
+          rowValues.accountSender,
+          currencySymbol,
+          isRange
+        )
+
+        isHistoricalAveragePriceCurrency =
+          historicalPriceBuyCoin?.isHistoricalAveragePrice || false
+        isHistoricalAveragePriceSymbol =
+          historicalPriceBuyCoin?.isHistoricalAveragePrice || false
+        currencyPrice = historicalPriceBuyCoin?.historicalPrice
+        symbolPrice = historicalPriceBuyCoin?.historicalPrice * currencyPerCoin
+
         //* Комиссия
         if (rowValues.feeCurrency) {
           rowKey3 = new Hash(rowValues.rowKey + '#3').md5
@@ -314,41 +328,31 @@ class Registry {
           })
 
           //* Расчет текущей или исторической цены комиссии токена
+          // if (
+          //   rowValues.feeCurrency !== coinSymbol &&
+          //   !historicalPriceBuyCoin?.isHistoricalAveragePrice
+          // ) {
           const historicalPriceBuyFee = transactions.getHistoricalPriceBuy(
             dateTime,
             rowValues.accountSender,
-            project,
             rowValues.feeCurrency,
             isRange
           )
+
           feePrice = historicalPriceBuyFee?.historicalPrice
           isHistoricalAveragePriceFeeCurrency =
-            historicalPriceBuyFee?.isHistoricalAveragePrice || false
+            historicalPriceBuyFee?.isHistoricalAveragePrice
+          // } else {
+          //   feePrice = symbolPrice
+          //   isHistoricalAveragePriceFeeCurrency =
+          //     historicalPriceBuyCoin?.isHistoricalAveragePrice || false
+          // }
         }
 
-        //* Расчет текущей или исторической цены покупаемого токена
-        const historicalPriceBuyCoin = transactions.getHistoricalPriceBuy(
-          dateTime,
-          rowValues.accountSender,
-          project,
-          currencySymbol,
-          isRange
-        )
-
-        isHistoricalAveragePriceCurrency =
-          historicalPriceBuyCoin?.isHistoricalAveragePrice || false
-        currencyPrice = historicalPriceBuyCoin?.historicalPrice
-        isHistoricalAveragePriceSymbol =
-          historicalPriceBuyCoin?.isHistoricalAveragePrice || false
-        symbolPrice = currencyPrice * currencyPerCoin
-
-        new Promise((resolve) => {
-          //* Формирование строки транзакции
-          transactionRow
-            .forEach((tx) => {
-              //* данные из кэша
-              const cacheTx =
-                this.workSheet.scriptCache.getCache(tx.rowKey) || void 0
+        new Promise((resolve, reject) => {
+          const process = () => {
+            //* Формирование строки транзакции
+            transactionRow.forEach((tx) => {
               let price
               if (tx.isSymbolPrice) {
                 price = symbolPrice
@@ -363,14 +367,10 @@ class Registry {
               const cost = tx.quantity * price
               const object = {
                 rowKey: tx.rowKey,
-                registryRowKey,
-                registryRowHash,
 
                 sourceKey: new Hash(this.workSheet.sheetName).md5,
                 sourceName: new Hash(this.workSheet.sheetName).stringLowerCase,
-                historicalAveragePriceKey: new Hash(
-                  tx.account + tx.project + tx.symbol
-                ).md5,
+                historicalAveragePriceKey: new Hash(tx.account + tx.symbol).md5,
                 dateTime: dateTime,
                 direction: tx.isFee ? 'out' : tx.direction.toLowerCase(),
                 operation: tx.isFee
@@ -389,7 +389,6 @@ class Registry {
                 price: price || 0,
                 cost: cost || 0,
                 comment: rowValues.comment.toString().toLowerCase(),
-                registryRowNum: rowValues.rowNum,
                 updateDate: updateDate,
                 isDelete: isDelete,
                 isAvgPrice: tx.isAvgPrice,
@@ -397,33 +396,63 @@ class Registry {
                 isFee: tx.isFee,
                 isLock: tx.isLock,
                 isHistoricalAveragePrice,
+                registryRowKey,
+                registryRowNum: rowValues.rowNum,
               }
 
               //* вставка строки в транзакции
-              if (registryRowHash !== cacheTx?.registryRowHash) {
-                this.workSheet.scriptCache.addCache(tx.rowKey, object)
+              const registryTimestampCache = this.workSheet.scriptCache.getCache(
+                registryRowKeyTimestamp
+              )
+              if (
+                registryTimestamp === registryTimestampCache ||
+                !registryTimestampCache
+              ) {
                 transactionsArrayOfObject.push(object)
               }
-              resolve()
             })
-            .then(
-              //* вставка даты сохранения
-              this.workSheet.insertValue(
-                new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss'),
-                rowValues.rowNum,
-                this.workSheet.head.saveDateAndTime.idx + 1
-              )
-            )
+            return true
+          }
+          process() ? resolve() : reject(new Error('Data not changed'))
+        }).catch((error) => {
+          //* вставка даты сохранения
+          this.workSheet.insertValue(
+            error,
+            rowValues.rowNum,
+            this.workSheet.head.rowStatus.idx + 1
+          )
         })
       })
 
-      if (transactionsArrayOfObject.length) {
-        transactions.updateTransactions(
-          transactionsArrayOfObject,
-          this.workSheet.isRange
-        )
-      }
+      //* вставка даты сохранения
+      new Promise((resolve) => {
+        if (transactionsArrayOfObject.length) {
+          transactions.updateTransactions(
+            transactionsArrayOfObject,
+            this.workSheet.isRange
+          )
+          const arrayRegistryRowNum = Object.values(
+            transactionsArrayOfObject.reduce((array, row) => {
+              if (!array[row.registryRowNum]) {
+                array[row.registryRowNum] = row.registryRowNum
+              }
+              return array
+            }, {})
+          )
+          console.log(arrayRegistryRowNum)
+          resolve(arrayRegistryRowNum)
+        }
+      }).then((arrayRegistryRowNum) => {
+        arrayRegistryRowNum.forEach((rowNum) => {
+          this.workSheet.insertValue(
+            'Saved: ' + new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss'),
+            rowNum,
+            this.workSheet.head.rowStatus.idx + 1
+          )
+        })
+      })
 
+      //* удаление пустых строк
       this.workSheet.deleteEmptyRows()
     } catch (error) {
       this.workSheet.log.addError('Registry.updateTransactions', error)

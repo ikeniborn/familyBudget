@@ -178,10 +178,10 @@ class FormatDate {
 
   /**
    * Расчет количества дней между двух дат. Даты приводятся к началу дню.
-   * @param {date} endDate - Дата окончания
+   * @param {date} endDate - Дата окончания. По умолчанию: текущая дата
    * @returns Количество полных дней
    */
-  diffBetweenDate(endDate) {
+  diffBetweenDate(endDate = new Date()) {
     const strtdt = this.date.getDateBegin()
     const enddt = new Date(endDate).getDateBegin()
     if (new Date(strtdt).getFullYear() > 2000) {
@@ -195,6 +195,18 @@ class FormatDate {
   }
 }
 
+//* Get start date
+Date.prototype.getDateBegin = function () {
+  const sourceDate = new Date(this)
+  const tmzn = 'Europe/Moscow'
+  ScriptApp.get
+  const strDate = Utilities.formatDate(
+    sourceDate,
+    tmzn,
+    'MMMM dd, yyyy 00:00:00 Z'
+  )
+  return new Date(strDate)
+}
 class FormatNumber {
   constructor(number = 0) {
     this.number = typeof string === 'number' ? number : number * 1

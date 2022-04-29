@@ -24,6 +24,7 @@ class FlowSymbol {
         .reduce((agg, tx) => {
           const operationKey = new Hash(tx.operation).md5
           const directionKey = new Hash(tx.direction).md5
+          const dayInPortfolio = new FormatDate().diffBetweenDate(tx.dateTime)
           if (!agg[tx.account]) {
             agg[tx.account] = {}
           }
@@ -49,6 +50,7 @@ class FlowSymbol {
               costWriteOffOut: 0,
               costTransferIn: 0,
               costTransferOut: 0,
+              dayInPortfolioAvgSum: 0,
             }
           }
           //* Распределение количества по потокам
@@ -103,7 +105,8 @@ class FlowSymbol {
             agg[tx.account][tx.symbol].quantityRestUnlock += tx.quantity
           }
           agg[tx.account][tx.symbol].quantityRest += tx.quantity
-
+          agg[tx.account][tx.symbol].dayInPortfolioAvgSum +=
+            dayInPortfolio * tx.quantity
           return agg
         }, {})
       const aggFlowArrayOfObject = []
@@ -138,6 +141,11 @@ class FlowSymbol {
           const priceInFlow = costInFlow / quantityInFlow
           const priceOutFlow = costOutFlow / quantityOutFlow
 
+          //* Расчет среднего времени в портфеле
+
+          const dayInPortfolioAvg =
+            object.dayInPortfolioAvgSum / object.quantityRest || void 0
+
           aggFlowArrayOfObject.push({
             account: account.toUpperCase(),
             symbol: symbol.toUpperCase(),
@@ -158,6 +166,7 @@ class FlowSymbol {
             costRestUnlock: costRestUnlock || 0,
             pnlTotal: costOutFlow - costInFlow + costRest || 0,
             pnlRest: costRest - priceInFlow * object.quantityRest || 0,
+            dayInPortfolioAvg,
           })
         })
       })

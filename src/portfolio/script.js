@@ -124,27 +124,24 @@ function updateOnEdit(editRange) {
     data.isResolve ? resolve(data) : reject(new Error('script.updateOnEdit'))
   })
     .then((workSheet) => {
-      if (workSheet.isRegistry) {
-        SpreadsheetApp.getActive().toast(
-          'Save process ended',
-          'Save process',
-          1
+      if (workSheet.isChangeData) {
+        new Portfolio().log.addMessage(
+          'script.updateOnEdit',
+          'ID:' + startProcess.value,
+          'Sheet name: ' +
+            workSheet.sheetName +
+            ', Start row: ' +
+            workSheet.startRow +
+            ', End Row: ' +
+            workSheet.rowEnd +
+            ', Count row: ' +
+            workSheet.countRow +
+            ', Start: ' +
+            startProcess.getFormatDate('YYYY-MM-dd HH:mm:ss') +
+            ', Time spent: ' +
+            startProcess.getTimeDiff()
         )
       }
-      new Portfolio().log.addMessage(
-        'script.updateOnEdit',
-        'ID:' + startProcess.value,
-        'Sheet name: ' +
-          workSheet.sheetName +
-          ', Start row: ' +
-          workSheet.startRow +
-          ', End Row: ' +
-          workSheet.rowEnd +
-          ', Count row: ' +
-          workSheet.countRow +
-          ', Time spent: ' +
-          startProcess.getTimeDiff()
-      )
     })
     .catch((error) => {
       new Portfolio().log.addError('updateOnEdit', error)

@@ -476,24 +476,34 @@ class WorkSheetRange extends WorkSheet {
         const isChangeRow = this.isChangeRow(rowNum, arrayRow)
         if (isChangeRow.sign) {
           const rowKey = new Hash(rowNum + this.sheetName).md5
+          const rowKeyTimestamp = new Hash(
+            rowNum + this.sheetName + 'timestamp'
+          ).md5
           const instanceRow = arrayRow.reduce((object, value, column) => {
             if (!object[this.headKey[column]]) {
               object[this.headKey[column]] = value
               object['rowKey'] = rowKey
               object['rowNum'] = rowNum
               object['rowHash'] = isChangeRow.hash
+              object['timestamp'] = new Date().valueOf()
             }
             return object
           }, {})
-          const isNotNull = this.isNotNull(instanceRow)
-          if (isNotNull) {
-            if (!this.object[rowKey]) {
-              this.object[rowKey] = instanceRow
+          const rowHashCache = this.scriptCache.getCache(rowKey)
+          if (rowHashCache !== instanceRow.rowHash) {
+            this.scriptCache.addCache(rowKey, instanceRow.rowHash)
+            this.scriptCache.addCache(rowKeyTimestamp, instanceRow.timestamp)
+            const isNotNull = this.isNotNull(instanceRow)
+            if (isNotNull) {
+              if (!this.object[rowKey]) {
+                this.object[rowKey] = instanceRow
+              }
+              this.arrayOfObject.push(instanceRow)
             }
-            this.arrayOfObject.push(instanceRow)
           }
         }
       })
+
       this.isChangeData = this.arrayOfObject.length ? true : false
       return this
     } catch (error) {
@@ -528,6 +538,7 @@ class WorkSheetRange extends WorkSheet {
       const rowHashOld = this.workSheetMetadata.getRowKey(rowNum)
       if (rowHash !== rowHashOld) {
         this.workSheetMetadata.addRowKey(rowNum, rowHash)
+
         return { sign: true, hash: rowHash }
       } else {
         return { sign: false, hash: rowHash }
@@ -657,7 +668,6 @@ class FileDB {
   }
   getDataFromFile() {
     const file = DriveApp.getFilesByName(this.fileName).next()
-
     const info = file.getAs('application/octet-stream').getDataAsString()
     return JSON.parse(info)
   }
