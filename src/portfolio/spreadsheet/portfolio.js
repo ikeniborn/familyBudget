@@ -51,10 +51,15 @@ class Portfolio {
           date: { alias: 'Date', idx: 16, notNull: true, type: 'date' },
           time: { alias: 'Time', idx: 17, notNull: true },
           isDelete: { alias: 'Is delete', idx: 18 },
-          rowStatus: {
-            alias: 'Row status',
+          dateSaved: {
+            alias: 'Date saved',
             idx: 19,
             type: 'date',
+          },
+          timeSpent: {
+            alias: 'Time spent (hh:mm:ss.ms)',
+            idx: 20,
+            type: 'string',
           },
         },
       },
@@ -197,7 +202,6 @@ class Portfolio {
           },
         },
       },
-
       coins: {
         type: 'dim',
         rowNum: 1,
@@ -276,6 +280,7 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
+          telegramId: { alias: 'Telegram Id', idx: 2 },
         },
       },
       lockStatus: {
@@ -302,26 +307,34 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           account: { alias: 'Account', idx: 1 },
-          project: { alias: 'Project', idx: 2 },
-          mainSymbol: { alias: 'Main symbol', pk: true, idx: 3, notNull: true },
+          mainSymbol: { alias: 'Main symbol', pk: true, idx: 2, notNull: true },
           mainSymbolQty: {
             alias: 'Main symbol qty',
             pk: true,
-            idx: 4,
+            idx: 3,
             notNull: true,
           },
           mainSymbolHistoricalCost: {
             alias: 'Main symbol historical cost',
             pk: true,
-            idx: 5,
+            idx: 4,
             notNull: true,
           },
-          pairOneSymbol: { alias: 'Pair one symbol', idx: 6 },
-          pairOneQty: { alias: 'Pair one qty', idx: 7 },
-          pairOnePrice: { alias: 'Pair one price', idx: 8 },
-          pairTwoSymbol: { alias: 'Pair one symbol', idx: 9 },
-          pairTwoQty: { alias: 'Pair two qty', idx: 10 },
-          pairTwoPrice: { alias: 'Pair two price', idx: 1 },
+          pairOneSymbol: { alias: 'Pair one symbol', idx: 5 },
+          pairOneQty: { alias: 'Pair one qty', idx: 6 },
+          pairOnePrice: { alias: 'Pair one price', idx: 7 },
+          pairTwoSymbol: { alias: 'Pair one symbol', idx: 8 },
+          pairTwoQty: { alias: 'Pair two qty', idx: 9 },
+          pairTwoPrice: { alias: 'Pair two price', idx: 10 },
+          pairThreeSymbol: { alias: 'Pair three symbol', idx: 11 },
+          pairThreeQty: { alias: 'Pair three qty', idx: 12 },
+          pairThreePrice: { alias: 'Pair three price', idx: 13 },
+          update: {
+            alias: 'Update',
+            idx: 14,
+            type: 'date',
+            default: new Date(),
+          },
         },
       },
     }

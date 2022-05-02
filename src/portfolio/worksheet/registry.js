@@ -446,13 +446,25 @@ class Registry {
         }
       }).then((arrayRegistryRowNum) => {
         arrayRegistryRowNum.forEach((rowNum) => {
+          // this.workSheet.insertRange(
+          //   [
+          //     [new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss')],
+          //     [startProcess.getTimeDiff() + ''],
+          //   ],
+          //   rowNum,
+          //   this.workSheet.head.dateSaved.idx + 1,
+          //   1,
+          //   2
+          // )
           this.workSheet.insertValue(
-            'Saved: ' +
-              new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss') +
-              ', Time spend: ' +
-              startProcess.getTimeDiff(),
+            new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss'),
             rowNum,
-            this.workSheet.head.rowStatus.idx + 1
+            this.workSheet.head.dateSaved.idx + 1
+          )
+          this.workSheet.insertValue(
+            startProcess.getTimeDiff() + '',
+            rowNum,
+            this.workSheet.head.timeSpent.idx + 1
           )
         })
       })

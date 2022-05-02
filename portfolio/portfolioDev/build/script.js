@@ -389,7 +389,7 @@ class SpreadSheet {
         }
         return workSheets
       }, {});
-    this.scriptCache = new ScriptCache(120);
+    this.scriptCache = new ScriptCache(300);
   }
 }
 
@@ -412,7 +412,7 @@ class WorkSheet extends SpreadSheet {
     this.sheetName = sheetName;
     this.headType = head.type;
     this.head = head.columns;
-    this.headRowNum = head.rowNum;
+    this.headRowNum = head.rowNum || 1;
     this.firstRowNum = this.headRowNum + 1;
     this.headKey = Object.keys(new FormatObject(this.head).getCopy());
     this.workSheet = this.workSheets[this.workSheetKey];
@@ -552,7 +552,7 @@ class WorkSheet extends SpreadSheet {
   updateRow(object = {}) {
     new Promise((resolve, reject) => {
       const action = () => {
-        if (object.rowNum !== this.headerRowNum) {
+        if (object.rowNum !== this.headRowNum) {
           const array = [
             this.headKey.map((column) => {
               let value = object[column];
@@ -613,13 +613,37 @@ class WorkSheet extends SpreadSheet {
    * @param {number} columnNum
    */
   insertValue(value, rowNum, columnNum) {
-    if (rowNum !== this.headerRowNum) {
+    if (rowNum !== this.headRowNum) {
       this.workSheet.getRange(rowNum, columnNum).setValue(value);
     }
   }
+
+  /**
+   *
+   * @param {array} arrayOfArray
+   * @param {number} rowStart
+   * @param {number} columnStart
+   * @param {number} countRow
+   * @param {number} countColumn
+   */
+  insertRange(
+    arrayOfArray = [],
+    rowStart = 1,
+    columnStart = 1,
+    countRow = 1,
+    countColumn = 1
+  ) {
+    if (rowStart !== this.headRowNum && rowStart !== countRow) {
+      this.workSheet
+        .getRange(rowStart, columnStart, countRow, countColumn)
+        .setValues(arrayOfArray);
+    }
+  }
+
   /**
    *
    * @param {number} rowNum
+   * @param {number} countRow
    */
   deleteRow(rowNum, countRow = 1) {
     this.workSheet.deleteRows(rowNum, countRow);
@@ -719,7 +743,6 @@ class WorkSheetRange extends WorkSheet {
     this.arrayOfObject = [];
     this.object = {};
     this.isChangeData = false;
-    this.workSheetMetadata = new WorkSheetMetadata(this.workSheet);
   }
 
   get isDeleteRow() {
@@ -839,7 +862,9 @@ class WorkSheetRange extends WorkSheet {
           // this.updateRow(object)
         });
       }
-    } catch (error) {}
+    } catch (error) {
+      console.error('WorkSheetRange.savePrimaryKeyChanges', error.stack);
+    }
   }
 
   /**
@@ -851,15 +876,19 @@ class WorkSheetRange extends WorkSheet {
   isChangeRow(rowNum, arrayRow = []) {
     try {
       const rowHash = new Hash(arrayRow.join('#')).md5;
-      const rowHashOld = this.workSheetMetadata.getRowKey(rowNum);
+      const rowHashOld = this.scriptCache.getCache(
+        this.sheetName + 'rowkey' + rowNum
+      );
+      console.log(rowHashOld);
       if (rowHash !== rowHashOld) {
-        this.workSheetMetadata.addRowKey(rowNum, rowHash);
-
+        this.scriptCache.addCache(this.sheetName + 'rowkey' + rowNum, rowHash);
         return { sign: true, hash: rowHash }
       } else {
         return { sign: false, hash: rowHash }
       }
-    } catch (error) {}
+    } catch (error) {
+      console.error('WorkSheetRange.isChangeRow', error.stack);
+    }
   }
 
   // isChangePrimaryKey(rowObject = {}) {
@@ -971,138 +1000,6 @@ class ScriptCache {
    */
   removeAllCache(arrayKey) {
     this.cache.removeAll(arrayKey);
-  }
-}
-class Metadata {
-  /**
-   * Методы работы с метаданными листа книги
-   * @param {object} target объект метаданных: принимает книгу, лист, диапазон
-   */
-  constructor(target) {
-    this.target = target;
-    this.metadata = target.getDeveloperMetadata().reduce((keys, metadata) => {
-      keys[metadata.getKey()] = {
-        remove: () => metadata.remove(),
-        getKey: () => metadata.getKey(),
-        getValue: () => metadata.getValue(),
-        setValue: (value) => metadata.setValue(value),
-        value: metadata.getValue(),
-      };
-      return keys
-    }, {});
-    this.metaMap = new Map(Object.entries(this.metadata));
-  }
-  /**
-   * Добавление значения в метаданные листа
-   * @param {string} key ключ метаданых
-   * @param {string} value значение ключа
-   */
-  addMetadata(key, value) {
-    const newValue = value;
-    if (this.metaMap.has(key)) {
-      const oldValue = this.metadata[key].getValue();
-      if (new Hash(newValue).md5 !== new Hash(oldValue).md5) {
-        this.metadata[key].setValue(newValue);
-        this.metadata[key].value = newValue;
-      }
-    } else {
-      this.metadata = this.target
-        .addDeveloperMetadata(key, newValue)
-        .getDeveloperMetadata()
-        .reduce((keys, metadata) => {
-          keys[metadata.getKey()] = {
-            remove: () => metadata.remove(),
-            getKey: () => metadata.getKey(),
-            getValue: () => metadata.getValue(),
-            setValue: (value) => metadata.setValue(value),
-          };
-          return keys
-        }, {});
-      this.metaMap = new Map(Object.entries(this.metadata));
-    }
-  }
-
-  getMetadata(key) {
-    if (this.metaMap.has(key)) {
-      return this.metadata[key].getValue()
-    }
-  }
-
-  deleteMetadata(key) {
-    key = key.toString();
-    if (this.metaMap.has(key)) {
-      this.metadata[key].remove();
-    }
-  }
-  deleteAllMetadata() {
-    Object.keys(this.metadata).forEach((key) => {
-      this.metadata[key].remove();
-    });
-  }
-}
-
-class WorkSheetMetadata {
-  /**
-   * Работа с метаданными листа
-   * @param {object} workSheet объект листа
-   */
-  constructor(workSheet) {
-    if (
-      WorkSheetMetadata.workSheetNameHashMd5 ===
-      new Hash(workSheet.getName()).md5
-    ) {
-      return WorkSheetMetadata.instance
-    }
-    WorkSheetMetadata.instance = this;
-    this.metadata = new Metadata(workSheet);
-    this.workSheetNameHash = new Hash(workSheet.getName());
-    this.workSheetNameHashMd5 = new Hash(workSheet.getName()).md5;
-  }
-
-  /**
-   * Добавление ключа строки в метаданные
-   * @param {number} rowNum номер строки листа
-   */
-  addRowKey(rowNum, value) {
-    const key = 'ROWKEY_' + rowNum;
-    this.metadata.addMetadata(key, value);
-    return value
-  }
-
-  getRowKey(rowNum) {
-    const key = 'ROWKEY_' + rowNum;
-    return this.metadata.getMetadata(key)
-  }
-
-  /**
-   * Добавление ключа листа в метаданные
-   * @param {string} sheetKey ключ листа в формате Hash
-   */
-  addSheetKey() {
-    const value = this.workSheetNameHash.stringUpperCase;
-    this.metadata.addMetadata('SHEETKEY', value);
-    return value
-  }
-
-  /**
-   * Получение ключа листа из метаданных
-   * @returns ключ листа в формате Hash
-   */
-  getSheetKey() {
-    return this.metadata.getMetadata('SHEETKEY')
-  }
-
-  getSheetName() {
-    const oldValue = this.metadata.getMetadata('SHEETNAME');
-    if (oldValue) {
-      return oldValue
-    } else {
-      this.metadata.addMetadata(
-        'SHEETNAME',
-        this.workSheetNameHash.stringUpperCase
-      );
-      return this.workSheetNameHash.stringUpperCase
-    }
   }
 }
 
@@ -1233,10 +1130,15 @@ class Portfolio {
           date: { alias: 'Date', idx: 16, notNull: true, type: 'date' },
           time: { alias: 'Time', idx: 17, notNull: true },
           isDelete: { alias: 'Is delete', idx: 18 },
-          rowStatus: {
-            alias: 'Row status',
+          dateSaved: {
+            alias: 'Date saved',
             idx: 19,
             type: 'date',
+          },
+          timeSpent: {
+            alias: 'Time spent (hh:mm:ss.ms)',
+            idx: 20,
+            type: 'string',
           },
         },
       },
@@ -1379,7 +1281,6 @@ class Portfolio {
           },
         },
       },
-
       coins: {
         type: 'dim',
         rowNum: 1,
@@ -1458,6 +1359,7 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
+          telegramId: { alias: 'Telegram Id', idx: 2 },
         },
       },
       lockStatus: {
@@ -1484,26 +1386,34 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           account: { alias: 'Account', idx: 1 },
-          project: { alias: 'Project', idx: 2 },
-          mainSymbol: { alias: 'Main symbol', pk: true, idx: 3, notNull: true },
+          mainSymbol: { alias: 'Main symbol', pk: true, idx: 2, notNull: true },
           mainSymbolQty: {
             alias: 'Main symbol qty',
             pk: true,
-            idx: 4,
+            idx: 3,
             notNull: true,
           },
           mainSymbolHistoricalCost: {
             alias: 'Main symbol historical cost',
             pk: true,
-            idx: 5,
+            idx: 4,
             notNull: true,
           },
-          pairOneSymbol: { alias: 'Pair one symbol', idx: 6 },
-          pairOneQty: { alias: 'Pair one qty', idx: 7 },
-          pairOnePrice: { alias: 'Pair one price', idx: 8 },
-          pairTwoSymbol: { alias: 'Pair one symbol', idx: 9 },
-          pairTwoQty: { alias: 'Pair two qty', idx: 10 },
-          pairTwoPrice: { alias: 'Pair two price', idx: 1 },
+          pairOneSymbol: { alias: 'Pair one symbol', idx: 5 },
+          pairOneQty: { alias: 'Pair one qty', idx: 6 },
+          pairOnePrice: { alias: 'Pair one price', idx: 7 },
+          pairTwoSymbol: { alias: 'Pair one symbol', idx: 8 },
+          pairTwoQty: { alias: 'Pair two qty', idx: 9 },
+          pairTwoPrice: { alias: 'Pair two price', idx: 10 },
+          pairThreeSymbol: { alias: 'Pair three symbol', idx: 11 },
+          pairThreeQty: { alias: 'Pair three qty', idx: 12 },
+          pairThreePrice: { alias: 'Pair three price', idx: 13 },
+          update: {
+            alias: 'Update',
+            idx: 14,
+            type: 'date',
+            default: new Date(),
+          },
         },
       },
     };
@@ -3074,13 +2984,25 @@ class Registry {
         }
       }).then((arrayRegistryRowNum) => {
         arrayRegistryRowNum.forEach((rowNum) => {
+          // this.workSheet.insertRange(
+          //   [
+          //     [new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss')],
+          //     [startProcess.getTimeDiff() + ''],
+          //   ],
+          //   rowNum,
+          //   this.workSheet.head.dateSaved.idx + 1,
+          //   1,
+          //   2
+          // )
           this.workSheet.insertValue(
-            'Saved: ' +
-              new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss') +
-              ', Time spend: ' +
-              startProcess.getTimeDiff(),
+            new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss'),
             rowNum,
-            this.workSheet.head.rowStatus.idx + 1
+            this.workSheet.head.dateSaved.idx + 1
+          );
+          this.workSheet.insertValue(
+            startProcess.getTimeDiff() + '',
+            rowNum,
+            this.workSheet.head.timeSpent.idx + 1
           );
         });
       });

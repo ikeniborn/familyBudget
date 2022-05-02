@@ -6,7 +6,7 @@ export {
   SpreadSheet,
   WorkSheet,
   SpreadsheetsTrigger,
-  WorkSheetMetadata,
+  // WorkSheetMetadata,
   WorkSheetRange,
 }
 
@@ -74,7 +74,7 @@ class SpreadSheet {
         }
         return workSheets
       }, {})
-    this.scriptCache = new ScriptCache(120)
+    this.scriptCache = new ScriptCache(300)
   }
 }
 
@@ -97,7 +97,7 @@ class WorkSheet extends SpreadSheet {
     this.sheetName = sheetName
     this.headType = head.type
     this.head = head.columns
-    this.headRowNum = head.rowNum
+    this.headRowNum = head.rowNum || 1
     this.firstRowNum = this.headRowNum + 1
     this.headKey = Object.keys(new FormatObject(this.head).getCopy())
     this.workSheet = this.workSheets[this.workSheetKey]
@@ -237,7 +237,7 @@ class WorkSheet extends SpreadSheet {
   updateRow(object = {}) {
     new Promise((resolve, reject) => {
       const action = () => {
-        if (object.rowNum !== this.headerRowNum) {
+        if (object.rowNum !== this.headRowNum) {
           const array = [
             this.headKey.map((column) => {
               let value = object[column]
@@ -298,13 +298,37 @@ class WorkSheet extends SpreadSheet {
    * @param {number} columnNum
    */
   insertValue(value, rowNum, columnNum) {
-    if (rowNum !== this.headerRowNum) {
+    if (rowNum !== this.headRowNum) {
       this.workSheet.getRange(rowNum, columnNum).setValue(value)
     }
   }
+
+  /**
+   *
+   * @param {array} arrayOfArray
+   * @param {number} rowStart
+   * @param {number} columnStart
+   * @param {number} countRow
+   * @param {number} countColumn
+   */
+  insertRange(
+    arrayOfArray = [],
+    rowStart = 1,
+    columnStart = 1,
+    countRow = 1,
+    countColumn = 1
+  ) {
+    if (rowStart !== this.headRowNum && rowStart !== countRow) {
+      this.workSheet
+        .getRange(rowStart, columnStart, countRow, countColumn)
+        .setValues(arrayOfArray)
+    }
+  }
+
   /**
    *
    * @param {number} rowNum
+   * @param {number} countRow
    */
   deleteRow(rowNum, countRow = 1) {
     this.workSheet.deleteRows(rowNum, countRow)
@@ -404,7 +428,6 @@ class WorkSheetRange extends WorkSheet {
     this.arrayOfObject = []
     this.object = {}
     this.isChangeData = false
-    this.workSheetMetadata = new WorkSheetMetadata(this.workSheet)
   }
 
   get isDeleteRow() {
@@ -524,7 +547,9 @@ class WorkSheetRange extends WorkSheet {
           // this.updateRow(object)
         })
       }
-    } catch (error) {}
+    } catch (error) {
+      console.error('WorkSheetRange.savePrimaryKeyChanges', error.stack)
+    }
   }
 
   /**
@@ -536,15 +561,19 @@ class WorkSheetRange extends WorkSheet {
   isChangeRow(rowNum, arrayRow = []) {
     try {
       const rowHash = new Hash(arrayRow.join('#')).md5
-      const rowHashOld = this.workSheetMetadata.getRowKey(rowNum)
+      const rowHashOld = this.scriptCache.getCache(
+        this.sheetName + 'rowkey' + rowNum
+      )
+      console.log(rowHashOld)
       if (rowHash !== rowHashOld) {
-        this.workSheetMetadata.addRowKey(rowNum, rowHash)
-
+        this.scriptCache.addCache(this.sheetName + 'rowkey' + rowNum, rowHash)
         return { sign: true, hash: rowHash }
       } else {
         return { sign: false, hash: rowHash }
       }
-    } catch (error) {}
+    } catch (error) {
+      console.error('WorkSheetRange.isChangeRow', error.stack)
+    }
   }
 
   // isChangePrimaryKey(rowObject = {}) {
