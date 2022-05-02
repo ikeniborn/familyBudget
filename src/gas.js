@@ -215,6 +215,7 @@ class WorkSheet extends SpreadSheet {
           },
           [new Header().getHeaderAlias(this.head)]
         )
+
         if (array.length) {
           this.deleteFilter()
           this.workSheet

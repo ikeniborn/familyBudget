@@ -42,7 +42,7 @@ class GasProcess {
         },
       })
     } catch (error) {
-      console.error('GASProcess.getRunningProcess', error)
+      console.error('GasProcess.getRunningProcess', error)
     }
   }
 }

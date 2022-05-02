@@ -145,6 +145,7 @@ class Prices {
           )
           if (priceArray.length) {
             const marketCapRank = new cryptoCompare.TopList().topMarketCap(1000)
+
             priceArray.forEach((coin) => {
               const symbolKey = new Hash(coin.symbol).md5
               updatePricesRow(

@@ -530,6 +530,7 @@ class WorkSheet extends SpreadSheet {
           },
           [new Header().getHeaderAlias(this.head)]
         );
+
         if (array.length) {
           this.deleteFilter();
           this.workSheet
@@ -1329,87 +1330,56 @@ class Portfolio {
           },
         },
       },
-      flowSymbol: {
-        type: 'tx',
-        rowNum: 1,
-        columns: {
-          account: { alias: 'Account', idx: 0 },
-          symbol: { alias: 'Symbol', idx: 1 },
-          symbolKey: { alias: 'Symbol key', idx: 2 },
-          quantityInFlow: { alias: 'Quantity in flow', idx: 3 },
-          quantityOutFlow: { alias: 'Quantity out flow', idx: 4 },
-          quantityRest: { alias: 'Quantity rest', idx: 5 },
-          quantityRestLock: { alias: 'Quantity rest lock', idx: 6 },
-          quantityRestUnlock: { alias: 'Quantity rest unlock', idx: 7 },
-          priceInFlow: { alias: 'Price in flow', idx: 8 },
-          priceOutFlow: { alias: 'Price out flow', idx: 9 },
-          priceRest: { alias: 'Price rest', idx: 10 },
-          costInFlow: { alias: 'Cost in flow', idx: 11 },
-          costOutFlow: { alias: 'Cost out flow', idx: 12 },
-          costRest: { alias: 'Cost rest', idx: 13 },
-          costRestInFlow: { alias: 'Cost rest in flow', idx: 14 },
-          costRestLock: { alias: 'Cost rest lock', idx: 15 },
-          costRestUnlock: { alias: 'Cost rest unlock', idx: 16 },
-          pnlTotal: { alias: 'PnL total', idx: 17 },
-          pnlRest: { alias: 'PnL rest', idx: 18 },
-          dayInPortfolioAvg: {
-            alias: 'Day in Portfolio (avg)',
-            idx: 19,
-          },
-          update: {
-            alias: 'Update',
-            idx: 20,
-            type: 'date',
-            default: new Date(),
-          },
-        },
-      },
       flow: {
         type: 'tx',
         rowNum: 1,
         columns: {
-          account: { alias: 'Account', idx: 1 },
-          constractor: { alias: 'Contractor', idx: 2 },
-          contractorKey: { alias: 'Contractor key', idx: 3 },
-          project: { alias: 'Project', idx: 4 },
-          projectKey: { alias: 'Project key', idx: 5 },
-          symbol: { alias: 'Symbol', idx: 6 },
-          symbolKey: { alias: 'Symbol key', idx: 7 },
-          quantityInFlow: { alias: 'Quantity in flow', idx: 8 },
-          quantityOutFlow: { alias: 'Quantity out flow', idx: 10 },
-          quantityRest: { alias: 'Quantity rest', idx: 11 },
-          quantityLock: { alias: 'Quantity rest', idx: 12 },
-          quantityUnlock: { alias: 'Quantity rest', idx: 13 },
-          priceInFlow: { alias: 'Price in flow', idx: 14 },
-          priceOutFlow: { alias: 'Price out flow', idx: 15 },
-          priceRest: { alias: 'Price rest', idx: 16 },
-          costInFlow: { alias: 'Cost in flow', idx: 17 },
-          costOutFlow: { alias: 'Cost out flow', idx: 18 },
-          costRestInFlow: { alias: 'Cost rest in flow', idx: 19 },
-          costRest: { alias: 'Cost rest', idx: 20 },
-          costLock: { alias: 'Cost lock', idx: 21 },
-          costUnlock: { alias: 'Cost unlock', idx: 22 },
-          pnlRest: { alias: 'PnL rest', idx: 23 },
-          pnlTotal: { alias: 'PnL total', idx: 24 },
+          account: { alias: 'Account', idx: 0 },
+          contractor: { alias: 'Contractor', idx: 1 },
+          contractorType: { alias: 'Contractor type', idx: 2 },
+          contractorCategory: { alias: 'Contractor category', idx: 3 },
+          symbol: { alias: 'Symbol name', idx: 4 },
+          symbolFullName: { alias: 'Symbol full name', idx: 5 },
+          symbolCategory: { alias: 'Symbol category', idx: 6 },
+          symbolEcosystem: { alias: 'Symbol ecosystem', idx: 7 },
+          symbolMarketCapGroup: { alias: 'Symbol marketcap group', idx: 8 },
+          symbolWeb3SpaceInterest: {
+            alias: 'Symbol Web3Space interest',
+            idx: 9,
+          },
+          quantityOwnInFlow: { alias: 'Quantity (own in flow)', idx: 10 },
+          quantityInFlow: { alias: 'Quantity (in flow)', idx: 11 },
+          quantityOutFlow: { alias: 'Quantity (out flow)', idx: 12 },
+          quantityRest: { alias: 'Quantity (rest)', idx: 13 },
+          quantityRestLock: { alias: 'Quantity (rest lock)', idx: 14 },
+          quantityRestUnlock: { alias: 'Quantity (rest unlock)', idx: 15 },
+          priceOwnInFlow: { alias: 'Price (own in flow), $', idx: 16 },
+          priceInFlow: { alias: 'Price (in flow), $', idx: 17 },
+          priceOutFlow: { alias: 'Price (out flow), $', idx: 18 },
+          priceRest: { alias: 'Price (rest), $', idx: 19 },
+          costOwnInFlow: { alias: 'Cost (own in flow), $', idx: 20 },
+          costInFlow: { alias: 'Cost (in flow), $', idx: 21 },
+          costOutFlow: { alias: 'Cost (out flow), $', idx: 22 },
+          costRest: { alias: 'Cost (rest), $', idx: 23 },
+          costRestInFlow: { alias: 'Cost (rest in flow), $', idx: 24 },
+          costRestLock: { alias: 'Cost (rest lock), $', idx: 25 },
+          costRestUnlock: { alias: 'Cost (rest unlock), $', idx: 26 },
+          pnlTotal: { alias: 'PnL (total), $', idx: 27 },
+          pnlRest: { alias: 'PnL (rest), $', idx: 28 },
+          payback: { alias: 'Payback, $', idx: 29 },
+          dayInPortfolioAvg: {
+            alias: 'Average day in portfolio',
+            idx: 30,
+          },
           update: {
-            alias: 'Update',
-            idx: 25,
+            alias: 'Update data mart',
+            idx: 31,
             type: 'date',
             default: new Date(),
           },
         },
       },
-      historicalPrices: {
-        type: 'dim',
-        rowNum: 1,
-        columns: {
-          rowKey: { alias: 'Row key', idx: 0 },
-          yyyymmdd: { alias: 'YYYYMMDD', pk: true, idx: 1, notNull: true },
-          source: { alias: 'Source', pk: true, idx: 2, notNull: true },
-          symbol: { alias: 'Symbol', pk: true, idx: 3, notNull: true },
-          priceAvg: { alias: 'Avarage price', idx: 4 },
-        },
-      },
+
       coins: {
         type: 'dim',
         rowNum: 1,
@@ -1447,7 +1417,6 @@ class Portfolio {
           description: { alias: 'Description', idx: 1 },
         },
       },
-
       web3SpaceInterest: {
         type: 'dim',
         rowNum: 1,
@@ -1590,6 +1559,47 @@ class Portfolio {
     }
   }
 }
+
+// Deprecated
+// flowSymbol: {
+//   type: 'tx',
+//   rowNum: 1,
+//   columns: {
+//     account: { alias: 'Account', idx: 0 },
+//     symbol: { alias: 'Symbol', idx: 1 },
+//     symbolKey: { alias: 'Symbol key', idx: 2 },
+//     quantityOwnInFlow: { alias: 'Quantity own in flow', idx: 3 },
+//     quantityInFlow: { alias: 'Quantity in flow', idx: 4 },
+//     quantityOutFlow: { alias: 'Quantity out flow', idx: 5 },
+//     quantityRest: { alias: 'Quantity rest', idx: 6 },
+//     quantityRestLock: { alias: 'Quantity rest lock', idx: 7 },
+//     quantityRestUnlock: { alias: 'Quantity rest unlock', idx: 8 },
+//     priceOwnInFlow: { alias: 'Price own in flow', idx: 9 },
+//     priceInFlow: { alias: 'Price in flow', idx: 10 },
+//     priceOutFlow: { alias: 'Price out flow', idx: 11 },
+//     priceRest: { alias: 'Price rest', idx: 12 },
+//     costOwnInFlow: { alias: 'Cost own in flow', idx: 13 },
+//     costInFlow: { alias: 'Cost in flow', idx: 14 },
+//     costOutFlow: { alias: 'Cost out flow', idx: 15 },
+//     costRest: { alias: 'Cost rest', idx: 16 },
+//     costRestInFlow: { alias: 'Cost rest in flow', idx: 17 },
+//     costRestLock: { alias: 'Cost rest lock', idx: 18 },
+//     costRestUnlock: { alias: 'Cost rest unlock', idx: 19 },
+//     pnlTotal: { alias: 'PnL total', idx: 20 },
+//     pnlRest: { alias: 'PnL rest', idx: 21 },
+//     payback: { alias: 'Payback', idx: 22 },
+//     dayInPortfolioAvg: {
+//       alias: 'Day in Portfolio (avg)',
+//       idx: 23,
+//     },
+//     update: {
+//       alias: 'Update',
+//       idx: 24,
+//       type: 'date',
+//       default: new Date(),
+//     },
+//   },
+// },
 
 class Methods {
   constructor(
@@ -2372,6 +2382,7 @@ class Prices {
           );
           if (priceArray.length) {
             const marketCapRank = new TopList().topMarketCap(1000);
+
             priceArray.forEach((coin) => {
               const symbolKey = new Hash(coin.symbol).md5;
               updatePricesRow(
@@ -2629,6 +2640,7 @@ class Registry {
   }
 
   updateTransactions(isRange = false) {
+    const startProcess = new FormatDate();
     try {
       const prices = new Prices().workSheet.object;
       const transactions = new Transactions();
@@ -2718,12 +2730,14 @@ class Registry {
         //* расчет пулов ликвидности
         if (
           [
-            /*Liquidity pool (1), Liquidity pool (2)*/
+            /*Liquidity pool (1), Liquidity pool (2), Liquidity pool (3)*/
             'd70311b68290664f7a442bfa8266dbb9',
             '0dc48f5ee42e5f36afa288473e6e1799',
+            '4c110eef236fbdeffe3a353057692a58',
           ].indexOf(new Hash(rowValues.service).md5) !== -1
         ) {
-          coinQty /= 2;
+          const countSymbolInLiquidityPool = coinSymbol.split(':').length - 1;
+          coinQty /= countSymbolInLiquidityPool;
           mainSymbol = coinSymbol;
           isLiquidityPool = true;
         }
@@ -2936,12 +2950,12 @@ class Registry {
             symbol: rowValues.feeCurrency,
             quantity: rowValues.feeQty * -1,
             isFee: true,
-            isLock,
-            isLiquidityPool,
+            isLock: false,
+            isLiquidityPool: false,
             isAvgPrice,
             isFeePrice: true,
-            isSymbolPrice,
-            isCurencyPrice,
+            isSymbolPrice: false,
+            isCurencyPrice: false,
           });
 
           //* Расчет текущей или исторической цены комиссии токена
@@ -3056,13 +3070,15 @@ class Registry {
               return array
             }, {})
           );
-          console.log(arrayRegistryRowNum);
           resolve(arrayRegistryRowNum);
         }
       }).then((arrayRegistryRowNum) => {
         arrayRegistryRowNum.forEach((rowNum) => {
           this.workSheet.insertValue(
-            'Saved: ' + new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss'),
+            'Saved: ' +
+              new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss') +
+              ', Time spend: ' +
+              startProcess.getTimeDiff(),
             rowNum,
             this.workSheet.head.rowStatus.idx + 1
           );
@@ -3158,21 +3174,24 @@ class LPToken {
   }
 }
 
-class FlowSymbol {
+class Flow {
   constructor(workSheet = '') {
-    if (FlowSymbol.exists) {
+    if (Flow.exists) {
       return Flow.instance
     }
-    FlowSymbol.instance = this;
-    FlowSymbol.exists = true;
+    Flow.instance = this;
+    Flow.exists = true;
     this.workSheet = workSheet
       ? workSheet
-      : new Portfolio().getWorkSheet('FlowSymbol');
+      : new Portfolio().getWorkSheet('Flow');
   }
 
   updateFlow() {
     try {
       const prices = new Prices().workSheet.object;
+      const contractors = new Portfolio().getWorkSheet('Contractors').object;
+      const inKey = new Hash('in').md5;
+      const outKey = new Hash('out').md5;
       const aggFlow = new Transactions().workSheet.arrayOfObject
         .filter((row) => !row.isDelete)
         .reduce((agg, tx) => {
@@ -3182,9 +3201,12 @@ class FlowSymbol {
           if (!agg[tx.account]) {
             agg[tx.account] = {};
           }
+          if (!agg[tx.account][tx.contractor]) {
+            agg[tx.account][tx.contractor] = {};
+          }
 
-          if (!agg[tx.account][tx.symbol]) {
-            agg[tx.account][tx.symbol] = {
+          if (!agg[tx.account][tx.contractor][tx.symbol]) {
+            agg[tx.account][tx.contractor][tx.symbol] = {
               quantityBuyIn: 0,
               quantityBuyOut: 0,
               quantitySellIn: 0,
@@ -3204,123 +3226,239 @@ class FlowSymbol {
               costWriteOffOut: 0,
               costTransferIn: 0,
               costTransferOut: 0,
-              dayInPortfolioAvgSum: 0,
+              dayInPortfolioBuyInSum: 0,
+              dayInPortfolioBuyOutSum: 0,
+              dayInPortfolioSellOutSum: 0,
+              dayInPortfolioSellInSum: 0,
+              dayInPortfolioRefillInSum: 0,
+              dayInPortfolioWriteOffOutSum: 0,
+              dayInPortfolioTransferInSum: 0,
+              dayInPortfolioTransferOutSum: 0,
             };
           }
           //* Распределение количества по потокам
 
           if (operationKey === '0461ebd2b773878eac9f78a891912d65' /*buy*/) {
-            if (directionKey === new Hash('in').md5 /*in*/) {
-              agg[tx.account][tx.symbol].quantityBuyIn += tx.quantity;
-              agg[tx.account][tx.symbol].costBuyIn += tx.cost;
-            } else if (directionKey === new Hash('out').md5 /*out*/) {
-              agg[tx.account][tx.symbol].quantityBuyOut += tx.quantity * -1;
-              agg[tx.account][tx.symbol].costBuyOut += tx.cost * -1;
+            if (directionKey === inKey) {
+              agg[tx.account][tx.contractor][tx.symbol].quantityBuyIn +=
+                tx.quantity;
+              agg[tx.account][tx.contractor][tx.symbol].costBuyIn += tx.cost;
+              agg[tx.account][tx.contractor][
+                tx.symbol
+              ].dayInPortfolioBuyInSum += dayInPortfolio * tx.quantity;
+            } else if (directionKey === outKey) {
+              agg[tx.account][tx.contractor][tx.symbol].quantityBuyOut +=
+                tx.quantity * -1;
+              agg[tx.account][tx.contractor][tx.symbol].costBuyOut +=
+                tx.cost * -1;
+              agg[tx.account][tx.contractor][
+                tx.symbol
+              ].dayInPortfolioBuyOutSum += dayInPortfolio * tx.quantity * -1;
             }
           } else if (
             operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
           ) {
-            if (directionKey === new Hash('in').md5 /*in*/) {
-              agg[tx.account][tx.symbol].quantitySellIn += tx.quantity;
-              agg[tx.account][tx.symbol].costSellIn += tx.cost;
-            } else if (directionKey === new Hash('out').md5 /*out*/) {
-              agg[tx.account][tx.symbol].quantitySellOut += tx.quantity * -1;
-              agg[tx.account][tx.symbol].costSellOut += tx.cost * -1;
+            if (directionKey === inKey) {
+              agg[tx.account][tx.contractor][tx.symbol].quantitySellIn +=
+                tx.quantity;
+              agg[tx.account][tx.contractor][tx.symbol].costSellIn += tx.cost;
+              agg[tx.account][tx.contractor][
+                tx.symbol
+              ].dayInPortfolioSellInSum += dayInPortfolio * tx.quantity;
+            } else if (directionKey === outKey) {
+              agg[tx.account][tx.contractor][tx.symbol].quantitySellOut +=
+                tx.quantity * -1;
+              agg[tx.account][tx.contractor][tx.symbol].costSellOut +=
+                tx.cost * -1;
+              agg[tx.account][tx.contractor][
+                tx.symbol
+              ].dayInPortfolioSellOutSum += dayInPortfolio * tx.quantity * -1;
             }
           } else if (
             operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
           ) {
-            if (directionKey === new Hash('in').md5 /*in*/) {
-              agg[tx.account][tx.symbol].quantityRefillIn += tx.quantity;
-              agg[tx.account][tx.symbol].costRefillIn += tx.cost;
+            if (directionKey === inKey) {
+              agg[tx.account][tx.contractor][tx.symbol].quantityRefillIn +=
+                tx.quantity;
+              agg[tx.account][tx.contractor][tx.symbol].costRefillIn += tx.cost;
+              agg[tx.account][tx.contractor][
+                tx.symbol
+              ].dayInPortfolioRefillInSum += dayInPortfolio * tx.quantity;
             }
           } else if (
             operationKey === '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
           ) {
-            if (directionKey === new Hash('out').md5 /*out*/) {
-              agg[tx.account][tx.symbol].quantityWriteOffOut += tx.quantity * -1;
-              agg[tx.account][tx.symbol].costWriteOffOut += tx.cost * -1;
+            if (directionKey === outKey) {
+              agg[tx.account][tx.contractor][tx.symbol].quantityWriteOffOut +=
+                tx.quantity * -1;
+              agg[tx.account][tx.contractor][tx.symbol].costWriteOffOut +=
+                tx.cost * -1;
+              agg[tx.account][tx.contractor][
+                tx.symbol
+              ].dayInPortfolioWriteOffOutSum +=
+                dayInPortfolio * tx.quantity * -1;
             }
           } else if (
             operationKey === '84a0f3455dcca894ace136be62efa292' /*transfer*/
           ) {
-            if (directionKey === new Hash('in').md5 /*in*/) {
-              agg[tx.account][tx.symbol].quantityTransferIn += tx.quantity;
-              agg[tx.account][tx.symbol].costTransferIn += tx.cost;
-            } else if (directionKey === new Hash('out').md5 /*out*/) {
-              agg[tx.account][tx.symbol].quantityTransferOut += tx.quantity * -1;
-              agg[tx.account][tx.symbol].costTransferOut += tx.cost * -1;
+            if (directionKey === inKey) {
+              agg[tx.account][tx.contractor][tx.symbol].quantityTransferIn +=
+                tx.quantity;
+              agg[tx.account][tx.contractor][tx.symbol].costTransferIn +=
+                tx.cost;
+              agg[tx.account][tx.contractor][
+                tx.symbol
+              ].dayInPortfolioTransferInSum += dayInPortfolio * tx.quantity;
+            } else if (directionKey === outKey) {
+              agg[tx.account][tx.contractor][tx.symbol].quantityTransferOut +=
+                tx.quantity * -1;
+              agg[tx.account][tx.contractor][tx.symbol].costTransferOut +=
+                tx.cost * -1;
+              agg[tx.account][tx.contractor][
+                tx.symbol
+              ].dayInPortfolioTransferOutSum +=
+                dayInPortfolio * tx.quantity * -1;
             }
           }
 
           if (tx.isLock) {
-            agg[tx.account][tx.symbol].quantityRestLock += tx.quantity;
+            agg[tx.account][tx.contractor][tx.symbol].quantityRestLock +=
+              tx.quantity;
           } else {
-            agg[tx.account][tx.symbol].quantityRestUnlock += tx.quantity;
+            agg[tx.account][tx.contractor][tx.symbol].quantityRestUnlock +=
+              tx.quantity;
           }
-          agg[tx.account][tx.symbol].quantityRest += tx.quantity;
-          agg[tx.account][tx.symbol].dayInPortfolioAvgSum +=
-            dayInPortfolio * tx.quantity;
+          agg[tx.account][tx.contractor][tx.symbol].quantityRest += tx.quantity;
           return agg
         }, {});
       const aggFlowArrayOfObject = [];
       Object.entries(aggFlow).forEach(([account, level0]) => {
-        Object.entries(level0).forEach(([symbol, object]) => {
-          //* доп. атрибуты
-          const symbolKey = new Hash(symbol).md5;
-          const priceRest = prices[symbolKey]?.price || 0;
-          const costRest = priceRest * object.quantityRest;
-          const costRestLock = priceRest * object.quantityRestLock;
-          const costRestUnlock = priceRest * object.quantityRestUnlock;
+        Object.entries(level0).forEach(([contractor, level1]) => {
+          Object.entries(level1).forEach(([symbol, object]) => {
+            //* доп. атрибуты
+            //* атрибуты символа
+            const symbolKey = new Hash(symbol).md5;
+            const symbolFullName = prices[symbolKey]?.name || '';
+            const symbolCategory = prices[symbolKey]?.symbolCategory || '';
+            const symbolEcosystem = prices[symbolKey]?.ecosystem || '';
+            const symbolMarketCapGroup = prices[symbolKey]?.marketCapGroup || '';
+            const symbolWeb3SpaceInterest =
+              prices[symbolKey]?.web3SpaceInterest || '';
+            //* атрибуты контрагента
+            const contractorKey = new Hash(contractor).md5;
+            const contractorType = contractors[contractorKey]?.type || '';
+            const contractorCategory =
+              contractors[contractorKey]?.category || '';
 
-          //* расчет потоков без перемещений. т.к. между токенами нет перемещений
-          const costInFlow =
-            object.costBuyIn + object.costSellIn + object.costRefillIn;
+            //* стоимость остатка
+            const priceRest = prices[symbolKey]?.price || 0;
+            const costRest =
+              Math.round(priceRest * object.quantityRest * 100) / 100;
+            const costRestLock = priceRest * object.quantityRestLock;
+            const costRestUnlock = priceRest * object.quantityRestUnlock;
 
-          const costOutFlow =
-            object.costBuyOut + object.costSellOut + object.costWriteOffOut;
+            //* расчет потоков
+            const costInFlow =
+              object.costBuyIn +
+              object.costSellIn +
+              object.costRefillIn +
+              object.costTransferIn;
 
-          const quantityInFlow =
-            object.quantityBuyIn +
-            object.quantitySellIn +
-            object.quantityRefillIn;
+            const costOwnInFlow =
+              object.costBuyIn + object.costSellIn + object.costTransferIn;
 
-          const quantityOutFlow =
-            object.quantityBuyOut +
-            object.quantitySellOut +
-            object.quantityWriteOffOut;
+            const costOutFlow =
+              object.costBuyOut +
+              object.costSellOut +
+              object.costWriteOffOut +
+              object.costTransferOut;
 
-          //* расчет цены потоков
+            const quantityInFlow =
+              object.quantityBuyIn +
+              object.quantitySellIn +
+              object.quantityRefillIn +
+              object.quantityTransferIn;
 
-          const priceInFlow = costInFlow / quantityInFlow;
-          const priceOutFlow = costOutFlow / quantityOutFlow;
+            const quantityOwnInFlow =
+              object.quantityBuyIn +
+              object.quantitySellIn +
+              object.quantityTransferIn;
 
-          //* Расчет среднего времени в портфеле
+            const quantityOutFlow =
+              object.quantityBuyOut +
+              object.quantitySellOut +
+              object.quantityWriteOffOut +
+              object.quantityTransferOut;
 
-          const dayInPortfolioAvg =
-            object.dayInPortfolioAvgSum / object.quantityRest || void 0;
+            //* расчет цены потоков
 
-          aggFlowArrayOfObject.push({
-            account: account.toUpperCase(),
-            symbol: symbol.toUpperCase(),
-            symbolKey: symbolKey,
-            quantityInFlow: quantityInFlow || 0,
-            quantityOutFlow: quantityOutFlow || 0,
-            quantityRest: object.quantityRest || 0,
-            quantityRestLock: object.quantityRestLock || 0,
-            quantityRestUnlock: object.quantityRestUnlock || 0,
-            priceInFlow: priceInFlow || 0,
-            priceOutFlow: priceOutFlow || 0,
-            priceRest: priceRest || 0,
-            costInFlow: costInFlow || 0,
-            costOutFlow: costOutFlow || 0,
-            costRest: costRest || 0,
-            costRestInFlow: priceInFlow * object.quantityRest || 0,
-            costRestLock: costRestLock || 0,
-            costRestUnlock: costRestUnlock || 0,
-            pnlTotal: costOutFlow - costInFlow + costRest || 0,
-            pnlRest: costRest - priceInFlow * object.quantityRest || 0,
-            dayInPortfolioAvg,
+            const priceInFlow = costInFlow / quantityInFlow;
+            const priceOwnInFlow = costOwnInFlow / quantityOwnInFlow;
+            const priceOutFlow = costOutFlow / quantityOutFlow;
+
+            //* расчет стоимости входящих потоков на остаток количества
+            const costRestInFlow = priceInFlow * object.quantityRest;
+
+            //* Расчет среднего времени в портфеле
+
+            const dayInPortfolioAvg =
+              object.dayInPortfolioBuyInSum / object.quantityBuyIn ||
+              0 + object.dayInPortfolioSellInSum / object.quantitySellIn ||
+              0 + object.dayInPortfolioRefillInSum / object.quantityRefillIn ||
+              0 +
+                object.dayInPortfolioTransferInSum /
+                  object.quantityTransferIn ||
+              -(
+                object.dayInPortfolioBuyOutSum / object.quantityBuyOut ||
+                0 + object.dayInPortfolioSellOutSum / object.quantitySellOut ||
+                0 +
+                  object.dayInPortfolioWriteOffOutSum /
+                    object.quantityWriteOffOut ||
+                0 +
+                  object.dayInPortfolioTransferOutSum /
+                    object.quantityTransferOut ||
+                0
+              );
+
+            //* сумма окупаемости от вложения собсвенных средств
+
+            const payback = costOutFlow - costOwnInFlow;
+
+            // if (costRest) {
+            aggFlowArrayOfObject.push({
+              account: account.toUpperCase(),
+              contractor: contractor.toUpperCase(),
+              contractorType: contractorType.toUpperCase(),
+              contractorCategory: contractorCategory.toUpperCase(),
+              symbol: symbol.toUpperCase(),
+              symbolFullName: symbolFullName.toUpperCase(),
+              symbolCategory: symbolCategory.toUpperCase(),
+              symbolEcosystem: symbolEcosystem.toUpperCase(),
+              symbolMarketCapGroup: symbolMarketCapGroup.toUpperCase(),
+              symbolWeb3SpaceInterest: symbolWeb3SpaceInterest.toUpperCase(),
+              quantityOwnInFlow: quantityOwnInFlow || 0,
+              quantityInFlow: quantityInFlow || 0,
+              quantityOutFlow: quantityOutFlow || 0,
+              quantityRest: object.quantityRest || 0,
+              quantityRestLock: object.quantityRestLock || 0,
+              quantityRestUnlock: object.quantityRestUnlock || 0,
+              priceOwnInFlow: priceOwnInFlow || 0,
+              priceInFlow: priceInFlow || 0,
+              priceOutFlow: priceOutFlow || 0,
+              priceRest: priceRest || 0,
+              costOwnInFlow: costOwnInFlow || 0,
+              costInFlow: costInFlow || 0,
+              costOutFlow: costOutFlow || 0,
+              costRest: costRest || 0,
+              costRestInFlow: costRestInFlow || 0,
+              costRestLock: costRestLock || 0,
+              costRestUnlock: costRestUnlock || 0,
+              pnlTotal: costOutFlow - costInFlow + costRest || 0,
+              pnlRest: costRest - costRestInFlow || 0,
+              payback: payback || 0,
+              dayInPortfolioAvg,
+            });
+            // }
           });
         });
       });
@@ -3408,21 +3546,25 @@ function updateCoins() {
   }
 }
 
-function updateFlow() {
+function updateDataMart() {
   const startProcess = new FormatDate();
-  try {
-    new FlowSymbol().updateFlow();
-
-    // new Flow().updateFlow()
-  } catch (error) {
-    new Portfolio().log.addError('updateFlow', error);
-  } finally {
-    new Portfolio().log.addMessage(
-      'updateFlow',
-      'ID:' + startProcess.value,
-      'Time spent: ' + startProcess.getTimeDiff()
-    );
-  }
+  new Promise((resolve, reject) => {
+    const process = () => {
+      new Flow().updateFlow();
+      return true
+    };
+    process() ? resolve() : reject(new Error('script.updateDataMart'));
+  })
+    .then(
+      new Portfolio().log.addMessage(
+        'script.updateDataMart',
+        'ID:' + startProcess.value,
+        'Time spent: ' + startProcess.getTimeDiff()
+      )
+    )
+    .catch((error) => {
+      new Portfolio().log.addError('script.updateDataMart', error);
+    });
 }
 
 function updatePrices() {
@@ -3430,13 +3572,11 @@ function updatePrices() {
   new Promise((resolve, reject) => {
     const process = () => {
       new Prices().updatePrices();
-      SpreadsheetApp.flush();
-      new FlowSymbol().updateFlow();
-      // new Flow().updateFlow()
       return true
     };
     process() ? resolve() : reject(new Error('script.updatePrices'));
   })
+    .then(new Flow().updateFlow())
     .then(
       new Portfolio().log.addMessage(
         'updatePrices',
@@ -3445,12 +3585,13 @@ function updatePrices() {
       )
     )
     .catch((error) => {
-      new Portfolio().log.addError('updatePrices', error);
+      new Portfolio().log.addError('script.updatePrices', error);
     });
 }
 
 function updateOnEdit(editRange) {
   const startProcess = new FormatDate();
+
   new Promise((resolve, reject) => {
     const process = () => {
       const workSheet = new Portfolio().updateOnEdit(editRange.range);
@@ -3494,6 +3635,18 @@ function updateOnEdit(editRange) {
     .catch((error) => {
       new Portfolio().log.addError('updateOnEdit', error);
     });
+
+  // new Promise((resolve) => {
+  //   let countRunProcess
+  //   do {
+  //     const runProcess = new GasProcess().getRunningProcesses()
+  //     console.log('runProcess', runProcess)
+  //     countRunProcess = runProcess?.processes.length || 0
+  //     Utilities.sleep(5000)
+  //     console.log('Paused')
+  //   } while (countRunProcess > 1)
+  //   resolve()
+  // }).then(updatePromise())
 }
 
 function createMenu() {
@@ -3502,8 +3655,8 @@ function createMenu() {
   menu.addSubMenu(
     SpreadsheetApp.getUi()
       .createMenu('Update')
-      .addItem('Update flow', 'updateFlow')
-      .addItem('Update current prices and flow', 'updatePrices')
+      .addItem('Update data mart', 'updateDataMart')
+      .addItem('Update current prices and data mart', 'updatePrices')
   );
   menu.addToUi();
 }

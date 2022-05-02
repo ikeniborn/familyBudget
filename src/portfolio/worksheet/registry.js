@@ -12,6 +12,7 @@ class Registry {
   }
 
   updateTransactions(isRange = false) {
+    const startProcess = new FormatDate()
     try {
       const prices = new Prices().workSheet.object
       const transactions = new Transactions()
@@ -101,12 +102,14 @@ class Registry {
         //* расчет пулов ликвидности
         if (
           [
-            /*Liquidity pool (1), Liquidity pool (2)*/
+            /*Liquidity pool (1), Liquidity pool (2), Liquidity pool (3)*/
             'd70311b68290664f7a442bfa8266dbb9',
             '0dc48f5ee42e5f36afa288473e6e1799',
+            '4c110eef236fbdeffe3a353057692a58',
           ].indexOf(new Hash(rowValues.service).md5) !== -1
         ) {
-          coinQty /= 2
+          const countSymbolInLiquidityPool = coinSymbol.split(':').length - 1
+          coinQty /= countSymbolInLiquidityPool
           mainSymbol = coinSymbol
           isLiquidityPool = true
         }
@@ -319,12 +322,12 @@ class Registry {
             symbol: rowValues.feeCurrency,
             quantity: rowValues.feeQty * -1,
             isFee: true,
-            isLock,
-            isLiquidityPool,
+            isLock: false,
+            isLiquidityPool: false,
             isAvgPrice,
             isFeePrice: true,
-            isSymbolPrice,
-            isCurencyPrice,
+            isSymbolPrice: false,
+            isCurencyPrice: false,
           })
 
           //* Расчет текущей или исторической цены комиссии токена
@@ -439,13 +442,15 @@ class Registry {
               return array
             }, {})
           )
-          console.log(arrayRegistryRowNum)
           resolve(arrayRegistryRowNum)
         }
       }).then((arrayRegistryRowNum) => {
         arrayRegistryRowNum.forEach((rowNum) => {
           this.workSheet.insertValue(
-            'Saved: ' + new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss'),
+            'Saved: ' +
+              new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss') +
+              ', Time spend: ' +
+              startProcess.getTimeDiff(),
             rowNum,
             this.workSheet.head.rowStatus.idx + 1
           )

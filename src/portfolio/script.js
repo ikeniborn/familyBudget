@@ -1,12 +1,10 @@
 import { Registry } from './worksheet/registry'
-// import { HistoricalPrices } from './worksheet/historicalPrices'
 import { Prices } from './worksheet/prices'
 import { Coins } from './worksheet/coins'
 import { Hash, FormatDate } from '../utils'
 import { Portfolio } from './spreadsheet/portfolio'
 import { LPToken } from './worksheet/lpToken.js'
-import { FlowSymbol } from './worksheet/flowSymbol'
-// import { Flow } from './worksheet/flow'
+import { Flow } from './worksheet/flow'
 import { Transactions } from './worksheet/transactions'
 // import { GasProcess } from '../restApi/gasScriptApi'
 
@@ -59,21 +57,25 @@ function updateCoins() {
   }
 }
 
-function updateFlow() {
+function updateDataMart() {
   const startProcess = new FormatDate()
-  try {
-    new FlowSymbol().updateFlow()
-
-    // new Flow().updateFlow()
-  } catch (error) {
-    new Portfolio().log.addError('updateFlow', error)
-  } finally {
-    new Portfolio().log.addMessage(
-      'updateFlow',
-      'ID:' + startProcess.value,
-      'Time spent: ' + startProcess.getTimeDiff()
+  new Promise((resolve, reject) => {
+    const process = () => {
+      new Flow().updateFlow()
+      return true
+    }
+    process() ? resolve() : reject(new Error('script.updateDataMart'))
+  })
+    .then(
+      new Portfolio().log.addMessage(
+        'script.updateDataMart',
+        'ID:' + startProcess.value,
+        'Time spent: ' + startProcess.getTimeDiff()
+      )
     )
-  }
+    .catch((error) => {
+      new Portfolio().log.addError('script.updateDataMart', error)
+    })
 }
 
 function updatePrices() {
@@ -81,13 +83,11 @@ function updatePrices() {
   new Promise((resolve, reject) => {
     const process = () => {
       new Prices().updatePrices()
-      SpreadsheetApp.flush()
-      new FlowSymbol().updateFlow()
-      // new Flow().updateFlow()
       return true
     }
     process() ? resolve() : reject(new Error('script.updatePrices'))
   })
+    .then(new Flow().updateFlow())
     .then(
       new Portfolio().log.addMessage(
         'updatePrices',
@@ -96,12 +96,13 @@ function updatePrices() {
       )
     )
     .catch((error) => {
-      new Portfolio().log.addError('updatePrices', error)
+      new Portfolio().log.addError('script.updatePrices', error)
     })
 }
 
 function updateOnEdit(editRange) {
   const startProcess = new FormatDate()
+
   new Promise((resolve, reject) => {
     const process = () => {
       const workSheet = new Portfolio().updateOnEdit(editRange.range)
@@ -119,7 +120,6 @@ function updateOnEdit(editRange) {
       workSheet.isResolve = true
       return workSheet
     }
-
     const data = process()
     data.isResolve ? resolve(data) : reject(new Error('script.updateOnEdit'))
   })
@@ -146,6 +146,18 @@ function updateOnEdit(editRange) {
     .catch((error) => {
       new Portfolio().log.addError('updateOnEdit', error)
     })
+
+  // new Promise((resolve) => {
+  //   let countRunProcess
+  //   do {
+  //     const runProcess = new GasProcess().getRunningProcesses()
+  //     console.log('runProcess', runProcess)
+  //     countRunProcess = runProcess?.processes.length || 0
+  //     Utilities.sleep(5000)
+  //     console.log('Paused')
+  //   } while (countRunProcess > 1)
+  //   resolve()
+  // }).then(updatePromise())
 }
 
 function createMenu() {
@@ -154,8 +166,8 @@ function createMenu() {
   menu.addSubMenu(
     SpreadsheetApp.getUi()
       .createMenu('Update')
-      .addItem('Update flow', 'updateFlow')
-      .addItem('Update current prices and flow', 'updatePrices')
+      .addItem('Update data mart', 'updateDataMart')
+      .addItem('Update current prices and data mart', 'updatePrices')
   )
   menu.addToUi()
 }
