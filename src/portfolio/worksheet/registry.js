@@ -401,6 +401,7 @@ class Registry {
                 isHistoricalAveragePrice,
                 registryRowKey,
                 registryRowNum: rowValues.rowNum,
+                registryRowId: rowValues.rowId,
               }
 
               //* вставка строки в транзакции
@@ -437,7 +438,10 @@ class Registry {
           const arrayRegistryRowNum = Object.values(
             transactionsArrayOfObject.reduce((array, row) => {
               if (!array[row.registryRowNum]) {
-                array[row.registryRowNum] = row.registryRowNum
+                array[row.registryRowNum] = {
+                  rowNum: row.registryRowNum,
+                  rowId: row.registryRowId,
+                }
               }
               return array
             }, {})
@@ -445,34 +449,35 @@ class Registry {
           resolve(arrayRegistryRowNum)
         }
       }).then((arrayRegistryRowNum) => {
-        arrayRegistryRowNum.forEach((rowNum) => {
-          // this.workSheet.insertRange(
-          //   [
-          //     [new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss')],
-          //     [startProcess.getTimeDiff() + ''],
-          //   ],
-          //   rowNum,
-          //   this.workSheet.head.dateSaved.idx + 1,
-          //   1,
-          //   2
-          // )
-          this.workSheet.insertValue(
-            new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss'),
-            rowNum,
+        arrayRegistryRowNum.forEach((object) => {
+          this.workSheet.insertRange(
+            [
+              [
+                new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss'),
+                startProcess.getTimeDiff() + '',
+                object.rowId,
+              ],
+            ],
+            object.rowNum,
             this.workSheet.head.dateSaved.idx + 1
           )
-          this.workSheet.insertValue(
-            startProcess.getTimeDiff() + '',
-            rowNum,
-            this.workSheet.head.timeSpent.idx + 1
-          )
+          // this.workSheet.insertValue(
+          //   new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss'),
+          //   rowNum,
+          //   this.workSheet.head.dateSaved.idx + 1
+          // )
+          // this.workSheet.insertValue(
+          //   startProcess.getTimeDiff() + '',
+          //   rowNum,
+          //   this.workSheet.head.timeSpent.idx + 1
+          // )
         })
       })
 
       //* удаление пустых строк
       this.workSheet.deleteEmptyRows()
     } catch (error) {
-      this.workSheet.log.addError('Registry.updateTransactions', error)
+      console.error('Registry.updateTransactions', error.stack)
     }
   }
 }

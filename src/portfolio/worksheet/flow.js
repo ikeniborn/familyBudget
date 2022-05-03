@@ -254,7 +254,6 @@ class Flow {
 
             const payback = costOutFlow - costOwnInFlow
 
-            // if (costRest) {
             aggFlowArrayOfObject.push({
               account: account.toUpperCase(),
               contractor: contractor.toUpperCase(),
@@ -288,14 +287,13 @@ class Flow {
               payback: payback || 0,
               dayInPortfolioAvg,
             })
-            // }
           })
         })
       })
 
       this.workSheet.truncateInsertRows(aggFlowArrayOfObject)
     } catch (error) {
-      this.workSheet.log.addError('FlowSymbol.updateFlow', error)
+      console.error('FlowSymbol.updateFlow', error.stack)
     }
   }
 }

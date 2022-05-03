@@ -17,7 +17,7 @@ function updateTransactions() {
   try {
     new Registry().updateTransactions()
   } catch (error) {
-    new Portfolio().log.addError('updateTransactions', error)
+    console.error('script.updateTransactions', error.stack)
   } finally {
     new Portfolio().log.addMessage(
       'updateTransactions',
@@ -32,7 +32,7 @@ function deleteDuplicatesRows() {
   try {
     new Transactions().deleteDuplicatesRows()
   } catch (error) {
-    new Portfolio().log.addError('deleteDuplicatesRows', error)
+    console.error('script.deleteDuplicatesRows', error.stack)
   } finally {
     new Portfolio().log.addMessage(
       'deleteDuplicatesRows',
@@ -47,7 +47,7 @@ function updateCoins() {
   try {
     new Coins().updateCoins()
   } catch (error) {
-    new Portfolio().log.addError('updateCoins', error)
+    console.error('script.updateCoins', error.stack)
   } finally {
     new Portfolio().log.addMessage(
       'updateCoins',
@@ -74,7 +74,7 @@ function updateDataMart() {
       )
     )
     .catch((error) => {
-      new Portfolio().log.addError('script.updateDataMart', error)
+      console.error('script.updateDataMart', error.stack)
     })
 }
 
@@ -96,13 +96,12 @@ function updatePrices() {
       )
     )
     .catch((error) => {
-      new Portfolio().log.addError('script.updatePrices', error)
+      console.error('script.updatePrices', error.stack)
     })
 }
 
 function updateOnEdit(editRange) {
   const startProcess = new FormatDate()
-
   new Promise((resolve, reject) => {
     const process = () => {
       const workSheet = new Portfolio().updateOnEdit(editRange.range)
@@ -144,7 +143,7 @@ function updateOnEdit(editRange) {
       }
     })
     .catch((error) => {
-      new Portfolio().log.addError('updateOnEdit', error)
+      console.error('script.updateOnEdit', error.stack)
     })
 
   // new Promise((resolve) => {

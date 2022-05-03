@@ -67,7 +67,7 @@ class Transactions {
         this.workSheet.truncateInsertRows(splitArray)
       }
     } catch (error) {
-      this.workSheet.log.addError('Transactions.updateTransactions', error)
+      console.error('Transactions.updateTransactions', error.stack)
     }
   }
 
@@ -76,7 +76,7 @@ class Transactions {
       const newArrayOfObject = Object.values(this.workSheet.object)
       this.workSheet.truncateInsertRows(newArrayOfObject)
     } catch (error) {
-      this.workSheet.log.addError('Transactions.deleteDuplicatesRows', error)
+      console.error('Transactions.deleteDuplicatesRows', error.stack)
     }
   }
 
@@ -182,7 +182,7 @@ class Transactions {
       }
       return { historicalPrice, isHistoricalAveragePrice }
     } catch (error) {
-      this.workSheet.log.addError('Transactions.getHistoricalPriceBuy', error)
+      console.error('Transactions.getHistoricalPriceBuy', error.stack)
     }
   }
 }

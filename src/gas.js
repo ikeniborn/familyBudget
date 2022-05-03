@@ -177,10 +177,12 @@ class WorkSheet extends SpreadSheet {
   getTransactions() {
     this.dataRange.getValues().forEach((arrayRow, indexRow) => {
       const rowNum = this.firstRowNum + indexRow
-      const rowKey = new Hash(rowNum + this.sheetName).md5
+      const rowId = arrayRow[this.head.rowId.idx] || rowNum
+      const rowKey = new Hash(rowId + this.sheetName).md5
       const instanceRow = arrayRow.reduce((object, value, column) => {
         object['rowKey'] = rowKey
         object['rowNum'] = rowNum
+        object['rowId'] = rowId
         if (!object[this.headKey[column]]) {
           object[this.headKey[column]] = value
         }
@@ -304,24 +306,20 @@ class WorkSheet extends SpreadSheet {
   }
 
   /**
-   *
-   * @param {array} arrayOfArray
+   * Вставка диапазона
+   * @param {array} arrayOfArray Массив из массивов [[...column]]
    * @param {number} rowStart
    * @param {number} columnStart
-   * @param {number} countRow
-   * @param {number} countColumn
    */
-  insertRange(
-    arrayOfArray = [],
-    rowStart = 1,
-    columnStart = 1,
-    countRow = 1,
-    countColumn = 1
-  ) {
-    if (rowStart !== this.headRowNum && rowStart !== countRow) {
-      this.workSheet
-        .getRange(rowStart, columnStart, countRow, countColumn)
-        .setValues(arrayOfArray)
+  insertRange(arrayOfArray = [], rowStart, columnStart) {
+    if (rowStart !== this.headRowNum) {
+      const range = this.workSheet.getRange(
+        rowStart,
+        columnStart,
+        arrayOfArray.length,
+        arrayOfArray[0].length
+      )
+      range.setValues(arrayOfArray)
     }
   }
 
@@ -438,6 +436,7 @@ class WorkSheetRange extends WorkSheet {
     try {
       this.dataRange.getValues().forEach((arrayRow, indexRow) => {
         const rowNum = this.firstRowNum + indexRow
+
         const rowKey = arrayRow[this.head.rowKey.idx]
         const instanceRow = arrayRow.reduce((object, value, index) => {
           object['rowNum'] = rowNum
@@ -497,9 +496,11 @@ class WorkSheetRange extends WorkSheet {
     try {
       this.dataRange.getValues().forEach((arrayRow, indexRow) => {
         const rowNum = this.firstRowNum + indexRow
+        const rowId = arrayRow[this.head.rowId.idx] || rowNum
+
         const isChangeRow = this.isChangeRow(rowNum, arrayRow)
         if (isChangeRow.sign) {
-          const rowKey = new Hash(rowNum + this.sheetName).md5
+          const rowKey = new Hash(rowId + this.sheetName).md5
           const rowKeyTimestamp = new Hash(
             rowNum + this.sheetName + 'timestamp'
           ).md5
@@ -510,6 +511,7 @@ class WorkSheetRange extends WorkSheet {
               object['rowNum'] = rowNum
               object['rowHash'] = isChangeRow.hash
               object['timestamp'] = new Date().valueOf()
+              object['rowId'] = rowId
             }
             return object
           }, {})
@@ -564,7 +566,6 @@ class WorkSheetRange extends WorkSheet {
       const rowHashOld = this.scriptCache.getCache(
         this.sheetName + 'rowkey' + rowNum
       )
-      console.log(rowHashOld)
       if (rowHash !== rowHashOld) {
         this.scriptCache.addCache(this.sheetName + 'rowkey' + rowNum, rowHash)
         return { sign: true, hash: rowHash }

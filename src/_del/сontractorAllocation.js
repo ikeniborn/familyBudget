@@ -66,9 +66,9 @@ class ContractorAllocation {
 
       this.workSheet.truncateInsertRows(aggArrayOfObject)
     } catch (error) {
-      this.workSheet.log.addError(
+      console.error(
         'ContractorAllocation.updateСontractorAllocation',
-        error
+        error.stack
       )
     }
   }

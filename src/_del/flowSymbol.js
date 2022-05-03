@@ -214,7 +214,7 @@ class FlowSymbol {
 
       this.workSheet.truncateInsertRows(aggFlowArrayOfObject)
     } catch (error) {
-      this.workSheet.log.addError('FlowSymbol.updateFlow', error)
+      console.error('FlowSymbol.updateFlow', error.stack)
     }
   }
 }

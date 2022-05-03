@@ -492,10 +492,12 @@ class WorkSheet extends SpreadSheet {
   getTransactions() {
     this.dataRange.getValues().forEach((arrayRow, indexRow) => {
       const rowNum = this.firstRowNum + indexRow;
-      const rowKey = new Hash(rowNum + this.sheetName).md5;
+      const rowId = arrayRow[this.head.rowId.idx] || rowNum;
+      const rowKey = new Hash(rowId + this.sheetName).md5;
       const instanceRow = arrayRow.reduce((object, value, column) => {
         object['rowKey'] = rowKey;
         object['rowNum'] = rowNum;
+        object['rowId'] = rowId;
         if (!object[this.headKey[column]]) {
           object[this.headKey[column]] = value;
         }
@@ -619,24 +621,20 @@ class WorkSheet extends SpreadSheet {
   }
 
   /**
-   *
-   * @param {array} arrayOfArray
+   * Вставка диапазона
+   * @param {array} arrayOfArray Массив из массивов [[...column]]
    * @param {number} rowStart
    * @param {number} columnStart
-   * @param {number} countRow
-   * @param {number} countColumn
    */
-  insertRange(
-    arrayOfArray = [],
-    rowStart = 1,
-    columnStart = 1,
-    countRow = 1,
-    countColumn = 1
-  ) {
-    if (rowStart !== this.headRowNum && rowStart !== countRow) {
-      this.workSheet
-        .getRange(rowStart, columnStart, countRow, countColumn)
-        .setValues(arrayOfArray);
+  insertRange(arrayOfArray = [], rowStart, columnStart) {
+    if (rowStart !== this.headRowNum) {
+      const range = this.workSheet.getRange(
+        rowStart,
+        columnStart,
+        arrayOfArray.length,
+        arrayOfArray[0].length
+      );
+      range.setValues(arrayOfArray);
     }
   }
 
@@ -753,6 +751,7 @@ class WorkSheetRange extends WorkSheet {
     try {
       this.dataRange.getValues().forEach((arrayRow, indexRow) => {
         const rowNum = this.firstRowNum + indexRow;
+
         const rowKey = arrayRow[this.head.rowKey.idx];
         const instanceRow = arrayRow.reduce((object, value, index) => {
           object['rowNum'] = rowNum;
@@ -812,9 +811,11 @@ class WorkSheetRange extends WorkSheet {
     try {
       this.dataRange.getValues().forEach((arrayRow, indexRow) => {
         const rowNum = this.firstRowNum + indexRow;
+        const rowId = arrayRow[this.head.rowId.idx] || rowNum;
+
         const isChangeRow = this.isChangeRow(rowNum, arrayRow);
         if (isChangeRow.sign) {
-          const rowKey = new Hash(rowNum + this.sheetName).md5;
+          const rowKey = new Hash(rowId + this.sheetName).md5;
           const rowKeyTimestamp = new Hash(
             rowNum + this.sheetName + 'timestamp'
           ).md5;
@@ -825,6 +826,7 @@ class WorkSheetRange extends WorkSheet {
               object['rowNum'] = rowNum;
               object['rowHash'] = isChangeRow.hash;
               object['timestamp'] = new Date().valueOf();
+              object['rowId'] = rowId;
             }
             return object
           }, {});
@@ -879,7 +881,6 @@ class WorkSheetRange extends WorkSheet {
       const rowHashOld = this.scriptCache.getCache(
         this.sheetName + 'rowkey' + rowNum
       );
-      console.log(rowHashOld);
       if (rowHash !== rowHashOld) {
         this.scriptCache.addCache(this.sheetName + 'rowkey' + rowNum, rowHash);
         return { sign: true, hash: rowHash }
@@ -1020,6 +1021,7 @@ class Log {
         name: { alias: 'Name', idx: 3 },
         message: { alias: 'Message', idx: 4 },
         stack: { alias: 'Stack', idx: 5 },
+        rowId: { alias: 'Row ID', idx: 6 },
       },
     };
     this.workSheet = new WorkSheet(
@@ -1140,6 +1142,7 @@ class Portfolio {
             idx: 20,
             type: 'string',
           },
+          rowId: { alias: 'Row ID', idx: 21 },
         },
       },
       prices: {
@@ -1224,9 +1227,10 @@ class Portfolio {
             idx: 22,
           },
           registryRowNum: { alias: 'Registry row num', idx: 23 },
+          registryRowId: { alias: 'Registry row id', idx: 24 },
           updateDate: {
             alias: 'Update',
-            idx: 24,
+            idx: 25,
             type: 'date',
             default: new Date(),
           },
@@ -1279,6 +1283,7 @@ class Portfolio {
             type: 'date',
             default: new Date(),
           },
+          rowId: { alias: 'Row ID', idx: 32 },
         },
       },
       coins: {
@@ -1440,7 +1445,7 @@ class Portfolio {
       workSheet.log = this.log;
       return workSheet
     } catch (error) {
-      this.log.addError('Portfolio.getWorkSheet', error);
+      console.error('Portfolio.getWorkSheet', error.stack);
     }
   }
 
@@ -1465,7 +1470,7 @@ class Portfolio {
       workSheet.log = this.log;
       return workSheet
     } catch (error) {
-      this.log.addError('Portfolio.updateOnEdit', error);
+      console.error('Portfolio.updateOnEdit', error.stack);
     }
   }
 }
@@ -2137,7 +2142,7 @@ class Coins {
         this.workSheet.truncateInsertRows(array);
       })
       .catch((error) => {
-        this.workSheet.log.addError('Coins.updateCoins', error);
+        console.error('Coins.updateCoins', error.stack);
       });
   }
 }
@@ -2181,7 +2186,7 @@ class Prices {
         );
       });
     } catch (error) {
-      this.workSheet.log.addError('Prices.updateId', error);
+      console.error('Prices.updateId', error.stack);
     }
   }
 
@@ -2224,7 +2229,7 @@ class Prices {
             };
             process() ? resolve() : reject(new Error('updatePricesRow'));
           }).catch((error) => {
-            this.workSheet.log.addError('Prices.updatePrices', error);
+            console.error('Prices.updatePrices', error.stack);
           });
         };
         const listId = Object.fromEntries(
@@ -2309,7 +2314,7 @@ class Prices {
     })
       .then(this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject))
       .catch((error) => {
-        this.workSheet.log.addError('Prices.updatePrices', error);
+        console.error('Prices.updatePrices', error.stack);
       });
   }
 }
@@ -2422,7 +2427,7 @@ class Transactions {
         this.workSheet.truncateInsertRows(splitArray);
       }
     } catch (error) {
-      this.workSheet.log.addError('Transactions.updateTransactions', error);
+      console.error('Transactions.updateTransactions', error.stack);
     }
   }
 
@@ -2431,7 +2436,7 @@ class Transactions {
       const newArrayOfObject = Object.values(this.workSheet.object);
       this.workSheet.truncateInsertRows(newArrayOfObject);
     } catch (error) {
-      this.workSheet.log.addError('Transactions.deleteDuplicatesRows', error);
+      console.error('Transactions.deleteDuplicatesRows', error.stack);
     }
   }
 
@@ -2537,7 +2542,7 @@ class Transactions {
       }
       return { historicalPrice, isHistoricalAveragePrice }
     } catch (error) {
-      this.workSheet.log.addError('Transactions.getHistoricalPriceBuy', error);
+      console.error('Transactions.getHistoricalPriceBuy', error.stack);
     }
   }
 }
@@ -2939,6 +2944,7 @@ class Registry {
                 isHistoricalAveragePrice,
                 registryRowKey,
                 registryRowNum: rowValues.rowNum,
+                registryRowId: rowValues.rowId,
               };
 
               //* вставка строки в транзакции
@@ -2975,7 +2981,10 @@ class Registry {
           const arrayRegistryRowNum = Object.values(
             transactionsArrayOfObject.reduce((array, row) => {
               if (!array[row.registryRowNum]) {
-                array[row.registryRowNum] = row.registryRowNum;
+                array[row.registryRowNum] = {
+                  rowNum: row.registryRowNum,
+                  rowId: row.registryRowId,
+                };
               }
               return array
             }, {})
@@ -2983,34 +2992,35 @@ class Registry {
           resolve(arrayRegistryRowNum);
         }
       }).then((arrayRegistryRowNum) => {
-        arrayRegistryRowNum.forEach((rowNum) => {
-          // this.workSheet.insertRange(
-          //   [
-          //     [new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss')],
-          //     [startProcess.getTimeDiff() + ''],
-          //   ],
-          //   rowNum,
-          //   this.workSheet.head.dateSaved.idx + 1,
-          //   1,
-          //   2
-          // )
-          this.workSheet.insertValue(
-            new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss'),
-            rowNum,
+        arrayRegistryRowNum.forEach((object) => {
+          this.workSheet.insertRange(
+            [
+              [
+                new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss'),
+                startProcess.getTimeDiff() + '',
+                object.rowId,
+              ],
+            ],
+            object.rowNum,
             this.workSheet.head.dateSaved.idx + 1
           );
-          this.workSheet.insertValue(
-            startProcess.getTimeDiff() + '',
-            rowNum,
-            this.workSheet.head.timeSpent.idx + 1
-          );
+          // this.workSheet.insertValue(
+          //   new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss'),
+          //   rowNum,
+          //   this.workSheet.head.dateSaved.idx + 1
+          // )
+          // this.workSheet.insertValue(
+          //   startProcess.getTimeDiff() + '',
+          //   rowNum,
+          //   this.workSheet.head.timeSpent.idx + 1
+          // )
         });
       });
 
       //* удаление пустых строк
       this.workSheet.deleteEmptyRows();
     } catch (error) {
-      this.workSheet.log.addError('Registry.updateTransactions', error);
+      console.error('Registry.updateTransactions', error.stack);
     }
   }
 }
@@ -3346,7 +3356,6 @@ class Flow {
 
             const payback = costOutFlow - costOwnInFlow;
 
-            // if (costRest) {
             aggFlowArrayOfObject.push({
               account: account.toUpperCase(),
               contractor: contractor.toUpperCase(),
@@ -3380,14 +3389,13 @@ class Flow {
               payback: payback || 0,
               dayInPortfolioAvg,
             });
-            // }
           });
         });
       });
 
       this.workSheet.truncateInsertRows(aggFlowArrayOfObject);
     } catch (error) {
-      this.workSheet.log.addError('FlowSymbol.updateFlow', error);
+      console.error('FlowSymbol.updateFlow', error.stack);
     }
   }
 }
@@ -3428,7 +3436,7 @@ function updateTransactions() {
   try {
     new Registry().updateTransactions();
   } catch (error) {
-    new Portfolio().log.addError('updateTransactions', error);
+    console.error('script.updateTransactions', error.stack);
   } finally {
     new Portfolio().log.addMessage(
       'updateTransactions',
@@ -3443,7 +3451,7 @@ function deleteDuplicatesRows() {
   try {
     new Transactions().deleteDuplicatesRows();
   } catch (error) {
-    new Portfolio().log.addError('deleteDuplicatesRows', error);
+    console.error('script.deleteDuplicatesRows', error.stack);
   } finally {
     new Portfolio().log.addMessage(
       'deleteDuplicatesRows',
@@ -3458,7 +3466,7 @@ function updateCoins() {
   try {
     new Coins().updateCoins();
   } catch (error) {
-    new Portfolio().log.addError('updateCoins', error);
+    console.error('script.updateCoins', error.stack);
   } finally {
     new Portfolio().log.addMessage(
       'updateCoins',
@@ -3485,7 +3493,7 @@ function updateDataMart() {
       )
     )
     .catch((error) => {
-      new Portfolio().log.addError('script.updateDataMart', error);
+      console.error('script.updateDataMart', error.stack);
     });
 }
 
@@ -3507,13 +3515,12 @@ function updatePrices() {
       )
     )
     .catch((error) => {
-      new Portfolio().log.addError('script.updatePrices', error);
+      console.error('script.updatePrices', error.stack);
     });
 }
 
 function updateOnEdit(editRange) {
   const startProcess = new FormatDate();
-
   new Promise((resolve, reject) => {
     const process = () => {
       const workSheet = new Portfolio().updateOnEdit(editRange.range);
@@ -3555,7 +3562,7 @@ function updateOnEdit(editRange) {
       }
     })
     .catch((error) => {
-      new Portfolio().log.addError('updateOnEdit', error);
+      console.error('script.updateOnEdit', error.stack);
     });
 
   // new Promise((resolve) => {

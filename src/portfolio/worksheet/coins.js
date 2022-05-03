@@ -81,7 +81,7 @@ class Coins {
         this.workSheet.truncateInsertRows(array)
       })
       .catch((error) => {
-        this.workSheet.log.addError('Coins.updateCoins', error)
+        console.error('Coins.updateCoins', error.stack)
       })
   }
 }

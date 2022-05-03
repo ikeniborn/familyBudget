@@ -61,6 +61,7 @@ class Portfolio {
             idx: 20,
             type: 'string',
           },
+          rowId: { alias: 'Row ID', idx: 21 },
         },
       },
       prices: {
@@ -145,9 +146,10 @@ class Portfolio {
             idx: 22,
           },
           registryRowNum: { alias: 'Registry row num', idx: 23 },
+          registryRowId: { alias: 'Registry row id', idx: 24 },
           updateDate: {
             alias: 'Update',
-            idx: 24,
+            idx: 25,
             type: 'date',
             default: new Date(),
           },
@@ -200,6 +202,7 @@ class Portfolio {
             type: 'date',
             default: new Date(),
           },
+          rowId: { alias: 'Row ID', idx: 32 },
         },
       },
       coins: {
@@ -361,7 +364,7 @@ class Portfolio {
       workSheet.log = this.log
       return workSheet
     } catch (error) {
-      this.log.addError('Portfolio.getWorkSheet', error)
+      console.error('Portfolio.getWorkSheet', error.stack)
     }
   }
 
@@ -386,7 +389,7 @@ class Portfolio {
       workSheet.log = this.log
       return workSheet
     } catch (error) {
-      this.log.addError('Portfolio.updateOnEdit', error)
+      console.error('Portfolio.updateOnEdit', error.stack)
     }
   }
 }

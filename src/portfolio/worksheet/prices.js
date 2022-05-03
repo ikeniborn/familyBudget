@@ -34,7 +34,7 @@ class Prices {
         )
       })
     } catch (error) {
-      this.workSheet.log.addError('Prices.updateId', error)
+      console.error('Prices.updateId', error.stack)
     }
   }
 
@@ -77,7 +77,7 @@ class Prices {
             }
             process() ? resolve() : reject(new Error('updatePricesRow'))
           }).catch((error) => {
-            this.workSheet.log.addError('Prices.updatePrices', error)
+            console.error('Prices.updatePrices', error.stack)
           })
         }
         const listId = Object.fromEntries(
@@ -162,7 +162,7 @@ class Prices {
     })
       .then(this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject))
       .catch((error) => {
-        this.workSheet.log.addError('Prices.updatePrices', error)
+        console.error('Prices.updatePrices', error.stack)
       })
   }
 }
