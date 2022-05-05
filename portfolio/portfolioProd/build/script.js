@@ -1262,28 +1262,29 @@ class Portfolio {
           priceOwnInFlow: { alias: 'Price (own in flow), $', idx: 16 },
           priceInFlow: { alias: 'Price (in flow), $', idx: 17 },
           priceOutFlow: { alias: 'Price (out flow), $', idx: 18 },
-          priceRest: { alias: 'Price (rest), $', idx: 19 },
-          costOwnInFlow: { alias: 'Cost (own in flow), $', idx: 20 },
-          costInFlow: { alias: 'Cost (in flow), $', idx: 21 },
-          costOutFlow: { alias: 'Cost (out flow), $', idx: 22 },
-          costRest: { alias: 'Cost (rest), $', idx: 23 },
-          costRestInFlow: { alias: 'Cost (rest in flow), $', idx: 24 },
-          costRestLock: { alias: 'Cost (rest lock), $', idx: 25 },
-          costRestUnlock: { alias: 'Cost (rest unlock), $', idx: 26 },
-          pnlTotal: { alias: 'PnL (total), $', idx: 27 },
-          pnlRest: { alias: 'PnL (rest), $', idx: 28 },
-          payback: { alias: 'Payback, $', idx: 29 },
+          priceRestInFlow: { alias: 'Price (rest in flow), $', idx: 19 },
+          priceRest: { alias: 'Price (rest), $', idx: 20 },
+          costOwnInFlow: { alias: 'Cost (own in flow), $', idx: 21 },
+          costInFlow: { alias: 'Cost (in flow), $', idx: 22 },
+          costOutFlow: { alias: 'Cost (out flow), $', idx: 23 },
+          costRest: { alias: 'Cost (rest), $', idx: 24 },
+          costRestInFlow: { alias: 'Cost (rest in flow), $', idx: 25 },
+          costRestLock: { alias: 'Cost (rest lock), $', idx: 26 },
+          costRestUnlock: { alias: 'Cost (rest unlock), $', idx: 27 },
+          pnlTotal: { alias: 'PnL (total), $', idx: 28 },
+          pnlRest: { alias: 'PnL (rest), $', idx: 29 },
+          payback: { alias: 'Payback, $', idx: 30 },
           dayInPortfolioAvg: {
             alias: 'Average day in portfolio',
-            idx: 30,
+            idx: 31,
           },
           update: {
             alias: 'Update data mart',
-            idx: 31,
+            idx: 32,
             type: 'date',
             default: new Date(),
           },
-          rowId: { alias: 'Row ID', idx: 32 },
+          rowId: { alias: 'Row ID', idx: 33, hide: true },
         },
       },
       coins: {
@@ -2611,9 +2612,16 @@ class Registry {
           : rowValues.accountSender;
         recipient = rowValues.recipient ? rowValues.recipient : rowValues.sender;
         project = rowValues.project ? rowValues.project : 'No project';
-        coinQty = rowValues.coinQty || void 0;
-        currencyQty = rowValues.currencyQty || void 0;
-        currencyPerCoin = rowValues.currencyPerCoin || void 0;
+        coinQty =
+          typeof rowValues.coinQty === 'number' ? rowValues.coinQty : void 0;
+        currencyQty =
+          typeof rowValues.currencyQty === 'number'
+            ? rowValues.currencyQty
+            : void 0;
+        currencyPerCoin =
+          typeof rowValues.currencyPerCoin === 'number'
+            ? rowValues.currencyPerCoin
+            : void 0;
         coinSymbol = rowValues.coin;
         currencySymbol = rowValues.currency;
         isLiquidityPool = false;
@@ -2634,13 +2642,13 @@ class Registry {
 
         //* Расчет пустых значений транзакции количества валюты за один токен, количество токена, количество валюты
         if (!currencyPerCoin && currencyQty) {
-          currencyPerCoin = currencyQty / coinQty;
+          currencyPerCoin = currencyQty / coinQty || void 0;
         }
         if (!currencyQty && currencyPerCoin) {
-          currencyQty = coinQty * currencyPerCoin;
+          currencyQty = coinQty * currencyPerCoin || void 0;
         }
         if (!coinQty) {
-          coinQty = currencyQty / currencyPerCoin;
+          coinQty = currencyQty / currencyPerCoin || void 0;
         }
         //* расчет пулов ликвидности
         if (
@@ -3125,7 +3133,10 @@ class Flow {
       const inKey = new Hash('in').md5;
       const outKey = new Hash('out').md5;
       const aggFlow = new Transactions().workSheet.arrayOfObject
-        .filter((row) => !row.isDelete)
+        .filter((row) => row.isDelete === false)
+        .sort((a, b) => {
+          return a.registryRowId - b.registryRowId
+        })
         .reduce((agg, tx) => {
           const operationKey = new Hash(tx.operation).md5;
           const directionKey = new Hash(tx.direction).md5;
@@ -3158,6 +3169,7 @@ class Flow {
               costWriteOffOut: 0,
               costTransferIn: 0,
               costTransferOut: 0,
+              costBalance: 0,
               dayInPortfolioBuyInSum: 0,
               dayInPortfolioBuyOutSum: 0,
               dayInPortfolioSellOutSum: 0,
@@ -3260,7 +3272,25 @@ class Flow {
             agg[tx.account][tx.contractor][tx.symbol].quantityRestUnlock +=
               tx.quantity;
           }
+
           agg[tx.account][tx.contractor][tx.symbol].quantityRest += tx.quantity;
+
+          if (agg[tx.account][tx.contractor][tx.symbol].quantityRest !== 0) {
+            agg[tx.account][tx.contractor][tx.symbol].costBalance += tx.cost;
+          } else {
+            agg[tx.account][tx.contractor][tx.symbol].costBalance = 0;
+          }
+          // if (new Hash(tx.symbol).md5 === new Hash('gmt').md5) {
+          //   console.log('registryRowId', tx.registryRowId)
+          //   console.log(
+          //     'quantityRest',
+          //     agg[tx.account][tx.contractor][tx.symbol].quantityRest
+          //   )
+          //   console.log(
+          //     'costBalance',
+          //     agg[tx.account][tx.contractor][tx.symbol].costBalance
+          //   )
+          // }
           return agg
         }, {});
       const aggFlowArrayOfObject = [];
@@ -3328,8 +3358,12 @@ class Flow {
             const priceOwnInFlow = costOwnInFlow / quantityOwnInFlow;
             const priceOutFlow = costOutFlow / quantityOutFlow;
 
-            //* расчет стоимости входящих потоков на остаток количества
-            const costRestInFlow = priceInFlow * object.quantityRest;
+            //* текущие остатки
+            const costRestInFlow =
+              object.costBalance < 0
+                ? priceInFlow * object.quantityRest
+                : object.costBalance;
+            const priceRestInFlow = costRestInFlow / object.quantityRest;
 
             //* Расчет среднего времени в портфеле
 
@@ -3376,6 +3410,7 @@ class Flow {
               priceOwnInFlow: priceOwnInFlow || 0,
               priceInFlow: priceInFlow || 0,
               priceOutFlow: priceOutFlow || 0,
+              priceRestInFlow: priceRestInFlow || 0,
               priceRest: priceRest || 0,
               costOwnInFlow: costOwnInFlow || 0,
               costInFlow: costInFlow || 0,
@@ -3521,7 +3556,9 @@ function updatePrices() {
 
 function updateOnEdit(editRange) {
   const startProcess = new FormatDate();
+  const lock = LockService.getScriptLock();
   new Promise((resolve, reject) => {
+    lock.tryLock(180000);
     const process = () => {
       const workSheet = new Portfolio().updateOnEdit(editRange.range);
       if (workSheet.isChangeData) {
@@ -3542,6 +3579,7 @@ function updateOnEdit(editRange) {
     data.isResolve ? resolve(data) : reject(new Error('script.updateOnEdit'));
   })
     .then((workSheet) => {
+      lock.releaseLock();
       if (workSheet.isChangeData) {
         new Portfolio().log.addMessage(
           'script.updateOnEdit',

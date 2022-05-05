@@ -23,7 +23,10 @@ class Flow {
       const inKey = new Hash('in').md5
       const outKey = new Hash('out').md5
       const aggFlow = new Transactions().workSheet.arrayOfObject
-        .filter((row) => !row.isDelete)
+        .filter((row) => row.isDelete === false)
+        .sort((a, b) => {
+          return a.registryRowId - b.registryRowId
+        })
         .reduce((agg, tx) => {
           const operationKey = new Hash(tx.operation).md5
           const directionKey = new Hash(tx.direction).md5
@@ -56,6 +59,7 @@ class Flow {
               costWriteOffOut: 0,
               costTransferIn: 0,
               costTransferOut: 0,
+              costBalance: 0,
               dayInPortfolioBuyInSum: 0,
               dayInPortfolioBuyOutSum: 0,
               dayInPortfolioSellOutSum: 0,
@@ -158,7 +162,25 @@ class Flow {
             agg[tx.account][tx.contractor][tx.symbol].quantityRestUnlock +=
               tx.quantity
           }
+
           agg[tx.account][tx.contractor][tx.symbol].quantityRest += tx.quantity
+
+          if (agg[tx.account][tx.contractor][tx.symbol].quantityRest !== 0) {
+            agg[tx.account][tx.contractor][tx.symbol].costBalance += tx.cost
+          } else {
+            agg[tx.account][tx.contractor][tx.symbol].costBalance = 0
+          }
+          // if (new Hash(tx.symbol).md5 === new Hash('gmt').md5) {
+          //   console.log('registryRowId', tx.registryRowId)
+          //   console.log(
+          //     'quantityRest',
+          //     agg[tx.account][tx.contractor][tx.symbol].quantityRest
+          //   )
+          //   console.log(
+          //     'costBalance',
+          //     agg[tx.account][tx.contractor][tx.symbol].costBalance
+          //   )
+          // }
           return agg
         }, {})
       const aggFlowArrayOfObject = []
@@ -226,8 +248,12 @@ class Flow {
             const priceOwnInFlow = costOwnInFlow / quantityOwnInFlow
             const priceOutFlow = costOutFlow / quantityOutFlow
 
-            //* расчет стоимости входящих потоков на остаток количества
-            const costRestInFlow = priceInFlow * object.quantityRest
+            //* текущие остатки
+            const costRestInFlow =
+              object.costBalance < 0
+                ? priceInFlow * object.quantityRest
+                : object.costBalance
+            const priceRestInFlow = costRestInFlow / object.quantityRest
 
             //* Расчет среднего времени в портфеле
 
@@ -274,6 +300,7 @@ class Flow {
               priceOwnInFlow: priceOwnInFlow || 0,
               priceInFlow: priceInFlow || 0,
               priceOutFlow: priceOutFlow || 0,
+              priceRestInFlow: priceRestInFlow || 0,
               priceRest: priceRest || 0,
               costOwnInFlow: costOwnInFlow || 0,
               costInFlow: costInFlow || 0,

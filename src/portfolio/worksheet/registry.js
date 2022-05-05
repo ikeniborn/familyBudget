@@ -68,9 +68,16 @@ class Registry {
           : rowValues.accountSender
         recipient = rowValues.recipient ? rowValues.recipient : rowValues.sender
         project = rowValues.project ? rowValues.project : 'No project'
-        coinQty = rowValues.coinQty || void 0
-        currencyQty = rowValues.currencyQty || void 0
-        currencyPerCoin = rowValues.currencyPerCoin || void 0
+        coinQty =
+          typeof rowValues.coinQty === 'number' ? rowValues.coinQty : void 0
+        currencyQty =
+          typeof rowValues.currencyQty === 'number'
+            ? rowValues.currencyQty
+            : void 0
+        currencyPerCoin =
+          typeof rowValues.currencyPerCoin === 'number'
+            ? rowValues.currencyPerCoin
+            : void 0
         coinSymbol = rowValues.coin
         currencySymbol = rowValues.currency
         isLiquidityPool = false
@@ -91,13 +98,13 @@ class Registry {
 
         //* Расчет пустых значений транзакции количества валюты за один токен, количество токена, количество валюты
         if (!currencyPerCoin && currencyQty) {
-          currencyPerCoin = currencyQty / coinQty
+          currencyPerCoin = currencyQty / coinQty || void 0
         }
         if (!currencyQty && currencyPerCoin) {
-          currencyQty = coinQty * currencyPerCoin
+          currencyQty = coinQty * currencyPerCoin || void 0
         }
         if (!coinQty) {
-          coinQty = currencyQty / currencyPerCoin
+          coinQty = currencyQty / currencyPerCoin || void 0
         }
         //* расчет пулов ликвидности
         if (

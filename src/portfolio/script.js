@@ -102,7 +102,9 @@ function updatePrices() {
 
 function updateOnEdit(editRange) {
   const startProcess = new FormatDate()
+  const lock = LockService.getScriptLock()
   new Promise((resolve, reject) => {
+    lock.tryLock(180000)
     const process = () => {
       const workSheet = new Portfolio().updateOnEdit(editRange.range)
       if (workSheet.isChangeData) {
@@ -123,6 +125,7 @@ function updateOnEdit(editRange) {
     data.isResolve ? resolve(data) : reject(new Error('script.updateOnEdit'))
   })
     .then((workSheet) => {
+      lock.releaseLock()
       if (workSheet.isChangeData) {
         new Portfolio().log.addMessage(
           'script.updateOnEdit',
