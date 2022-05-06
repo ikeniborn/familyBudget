@@ -25,7 +25,11 @@ class Flow {
       const aggFlow = new Transactions().workSheet.arrayOfObject
         .filter((row) => row.isDelete === false)
         .sort((a, b) => {
-          return a.registryRowId - b.registryRowId
+          return (
+            new Date(a.dateTime).valueOf() +
+            a.registryRowId -
+            (new Date(b.dateTime).valueOf() + b.registryRowId)
+          )
         })
         .reduce((agg, tx) => {
           const operationKey = new Hash(tx.operation).md5

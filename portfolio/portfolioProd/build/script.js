@@ -2453,7 +2453,7 @@ class Transactions {
   getHistoricalPriceBuy(
     dateTime,
     account,
-    currencysymbol,
+    currencySymbol,
     isRange = false,
     convert = 'usd'
   ) {
@@ -2463,7 +2463,7 @@ class Transactions {
       let isHistoricalAveragePrice;
       historicalPrice = 0;
       isHistoricalAveragePrice = false;
-      const coin = this.prices[new Hash(currencysymbol).md5];
+      const coin = this.prices[new Hash(currencySymbol).md5];
       const sourceKey = new Hash(coin?.source).md5;
       const symbolId = coin?.sourceId;
       const categoryKey = new Hash(coin?.symbolCategory).md5;
@@ -2485,8 +2485,9 @@ class Transactions {
       } else {
         //* Расчет средневзвешенной стоимости покупки токена на основании истории покупок для диапазона данных
         if (isRange) {
-          const historicalAveragePriceKey = new Hash(account + currencysymbol)
+          const historicalAveragePriceKey = new Hash(account + currencySymbol)
             .md5;
+          const inKey = new Hash('in').md5;
           const historicalPriceAgg = this.workSheet.arrayOfObject
             .filter((row) => {
               return (
@@ -2497,19 +2498,98 @@ class Transactions {
                 !row.isDelete
               )
             })
-            .reduce(
-              (agg, tx) => {
-                agg.quantity += tx.quantity;
-                agg.cost += tx.cost;
-                return agg
-              },
-              { quantity: 0, cost: 0 }
-            );
+            .sort((a, b) => {
+              return (
+                new Date(a.dateTime).valueOf() +
+                a.registryRowId -
+                (new Date(b.dateTime).valueOf() + b.registryRowId)
+              )
+            })
+            .reduce((agg, tx, indexRow) => {
+              const operationKey = new Hash(tx.operation).md5;
+              const directionKey = new Hash(tx.direction).md5;
+              if (!indexRow) {
+                agg = {
+                  quantityBuyIn: 0,
+                  quantitySellIn: 0,
+                  quantityRefillIn: 0,
+                  quantityTransferIn: 0,
+                  quantityRest: 0,
+                  costBuyIn: 0,
+                  costSellIn: 0,
+                  costRefillIn: 0,
+                  costTransferIn: 0,
+                  costBalance: 0,
+                };
+              }
+
+              //* Распределение количества по потокам
+
+              if (operationKey === '0461ebd2b773878eac9f78a891912d65' /*buy*/) {
+                if (directionKey === inKey) {
+                  agg.quantityBuyIn += tx.quantity;
+                  agg.costBuyIn += tx.cost;
+                }
+              } else if (
+                operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
+              ) {
+                if (directionKey === inKey) {
+                  agg.quantitySellIn += tx.quantity;
+                  agg.costSellIn += tx.cost;
+                }
+              } else if (
+                operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
+              ) {
+                if (directionKey === inKey) {
+                  agg.quantityRefillIn += tx.quantity;
+                  agg.costRefillIn += tx.cost;
+                }
+              } else if (
+                operationKey === '84a0f3455dcca894ace136be62efa292' /*transfer*/
+              ) {
+                if (directionKey === inKey) {
+                  agg.quantityTransferIn += tx.quantity;
+                  agg.costTransferIn += tx.cost;
+                  agg.dayInPortfolioTransferInSum +=
+                    dayInPortfolio * tx.quantity;
+                }
+              }
+
+              agg.quantityRest += tx.quantity;
+
+              if (agg.quantityRest !== 0) {
+                agg.costBalance += tx.cost;
+              } else {
+                agg.costBalance = 0;
+              }
+
+              // agg.quantity += tx.quantity
+              // agg.cost += tx.cost
+              return agg
+            }, {});
+
+          const costInFlow =
+            historicalPriceAgg.costBuyIn +
+            historicalPriceAgg.costSellIn +
+            historicalPriceAgg.costRefillIn +
+            historicalPriceAgg.costTransferIn;
+          const quantityInFlow =
+            historicalPriceAgg.quantityBuyIn +
+            historicalPriceAgg.quantitySellIn +
+            historicalPriceAgg.quantityRefillIn +
+            historicalPriceAgg.quantityTransferIn;
+          const priceInFlow = costInFlow / quantityInFlow;
+          //* текущие остатки
+          const costRestInFlow =
+            historicalPriceAgg.costBalance < 0
+              ? priceInFlow * historicalPriceAgg.quantityRest
+              : historicalPriceAgg.costBalance;
+          const priceRestInFlow =
+            costRestInFlow / historicalPriceAgg.quantityRes;
 
           //* Расчет средней цены покупки токена
-          if (historicalPriceAgg.cost / historicalPriceAgg.quantity) {
-            historicalPrice =
-              historicalPriceAgg.cost / historicalPriceAgg.quantity;
+          if (priceRestInFlow) {
+            historicalPrice = priceRestInFlow;
             isHistoricalAveragePrice = true;
           } else {
             if (
@@ -3135,7 +3215,11 @@ class Flow {
       const aggFlow = new Transactions().workSheet.arrayOfObject
         .filter((row) => row.isDelete === false)
         .sort((a, b) => {
-          return a.registryRowId - b.registryRowId
+          return (
+            new Date(a.dateTime).valueOf() +
+            a.registryRowId -
+            (new Date(b.dateTime).valueOf() + b.registryRowId)
+          )
         })
         .reduce((agg, tx) => {
           const operationKey = new Hash(tx.operation).md5;
