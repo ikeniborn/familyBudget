@@ -180,7 +180,7 @@ function createMenu() {
       .createMenu('Update')
       .addItem('Update data mart', 'updateDataMart')
       .addItem('Update current prices and data mart', 'updatePrices')
-      .addItem('Clean all metadata in worksheet', 'cleanAllMetadata')
+    // .addItem('Clean all metadata in worksheet', 'cleanAllMetadata')
   )
   menu.addToUi()
 }

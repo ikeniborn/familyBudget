@@ -217,19 +217,30 @@ class Transactions {
             historicalPriceAgg.costSellIn +
             historicalPriceAgg.costRefillIn +
             historicalPriceAgg.costTransferIn
+
           const quantityInFlow =
             historicalPriceAgg.quantityBuyIn +
             historicalPriceAgg.quantitySellIn +
             historicalPriceAgg.quantityRefillIn +
             historicalPriceAgg.quantityTransferIn
+
           const priceInFlow = costInFlow / quantityInFlow
+
           //* текущие остатки
           const costRestInFlow =
-            historicalPriceAgg.costBalance < 0
+            historicalPriceAgg.costBalance <= 0 ||
+            historicalPriceAgg.quantityRest <= 0
               ? priceInFlow * historicalPriceAgg.quantityRest
               : historicalPriceAgg.costBalance
           const priceRestInFlow =
             costRestInFlow / historicalPriceAgg.quantityRest
+          console.log('quantityRest', historicalPriceAgg.quantityRest)
+          console.log('costBalance', historicalPriceAgg.costBalance)
+          console.log('quantityInFlow', quantityInFlow)
+          console.log('priceInFlow', priceInFlow)
+          console.log('costInFlow', costInFlow)
+          console.log('costRestInFlow', costRestInFlow)
+          console.log('priceRestInFlow', priceRestInFlow)
           //* Расчет средней цены покупки токена
           if (priceRestInFlow) {
             historicalPrice = priceRestInFlow

@@ -812,19 +812,18 @@ class WorkSheetRange extends WorkSheet {
     try {
       this.dataRange.getValues().forEach((arrayRow, indexRow) => {
         const rowNum = this.firstRowNum + indexRow;
-        const maxRowId = this.workSheetMetadata.getMaxRowId();
-        console.log('maxRowId', maxRowId);
-        let rowId;
-        if (arrayRow[this.head.rowId.idx]) {
-          rowId = arrayRow[this.head.rowId.idx];
-          console.log('RowIdOld', rowId);
-        } else {
-          rowId = maxRowId + 1;
-          this.workSheetMetadata.addMaxRowId(rowId);
-          console.log('RowIdNew', rowId);
-        }
         const isChangeRow = this.isChangeRow(rowNum, arrayRow);
         if (isChangeRow.sign) {
+          const maxRowId = this.workSheetMetadata.getMaxRowId();
+          let isNewRowId = false;
+          const rowIdOld = arrayRow[this.head.rowId.idx] * 1;
+          let rowId;
+          if (rowIdOld) {
+            rowId = arrayRow[this.head.rowId.idx];
+          } else {
+            rowId = maxRowId ? maxRowId + 1 : rowNum;
+            isNewRowId = true;
+          }
           const rowKey = new Hash(rowId + this.sheetName).md5;
           const rowKeyTimestamp = new Hash(
             rowNum + this.sheetName + 'timestamp'
@@ -846,6 +845,9 @@ class WorkSheetRange extends WorkSheet {
             this.scriptCache.addCache(rowKeyTimestamp, instanceRow.timestamp);
             const isNotNull = this.isNotNull(instanceRow);
             if (isNotNull) {
+              if (isNewRowId) {
+                this.workSheetMetadata.addMaxRowId(rowId);
+              }
               if (!this.object[rowKey]) {
                 this.object[rowKey] = instanceRow;
               }
@@ -1130,7 +1132,11 @@ class WorkSheetMetadata {
    * @returns Максимальный идентификатор на листе
    */
   getMaxRowId() {
-    return this.metadata.getMetadata('MAXROWID') * 1
+    const data = this.metadata.getMetadata('MAXROWID') * 1;
+    if (typeof data === 'number') {
+      return data
+    }
+    return void 0
   }
 
   /**
@@ -1182,7 +1188,7 @@ class Log {
         name: { alias: 'Name', idx: 3 },
         message: { alias: 'Message', idx: 4 },
         stack: { alias: 'Stack', idx: 5 },
-        rowId: { alias: 'Row ID', idx: 6 },
+        rowId: { alias: 'Row Id', idx: 6 },
       },
     };
     this.workSheet = new WorkSheet(
@@ -2738,19 +2744,30 @@ class Transactions {
             historicalPriceAgg.costSellIn +
             historicalPriceAgg.costRefillIn +
             historicalPriceAgg.costTransferIn;
+
           const quantityInFlow =
             historicalPriceAgg.quantityBuyIn +
             historicalPriceAgg.quantitySellIn +
             historicalPriceAgg.quantityRefillIn +
             historicalPriceAgg.quantityTransferIn;
+
           const priceInFlow = costInFlow / quantityInFlow;
+
           //* текущие остатки
           const costRestInFlow =
-            historicalPriceAgg.costBalance < 0
+            historicalPriceAgg.costBalance <= 0 ||
+            historicalPriceAgg.quantityRest <= 0
               ? priceInFlow * historicalPriceAgg.quantityRest
               : historicalPriceAgg.costBalance;
           const priceRestInFlow =
             costRestInFlow / historicalPriceAgg.quantityRest;
+          console.log('quantityRest', historicalPriceAgg.quantityRest);
+          console.log('costBalance', historicalPriceAgg.costBalance);
+          console.log('quantityInFlow', quantityInFlow);
+          console.log('priceInFlow', priceInFlow);
+          console.log('costInFlow', costInFlow);
+          console.log('costRestInFlow', costRestInFlow);
+          console.log('priceRestInFlow', priceRestInFlow);
           //* Расчет средней цены покупки токена
           if (priceRestInFlow) {
             historicalPrice = priceRestInFlow;
@@ -3528,17 +3545,6 @@ class Flow {
           } else {
             agg[tx.account][tx.contractor][tx.symbol].costBalance = 0;
           }
-          // if (new Hash(tx.symbol).md5 === new Hash('gmt').md5) {
-          //   console.log('registryRowId', tx.registryRowId)
-          //   console.log(
-          //     'quantityRest',
-          //     agg[tx.account][tx.contractor][tx.symbol].quantityRest
-          //   )
-          //   console.log(
-          //     'costBalance',
-          //     agg[tx.account][tx.contractor][tx.symbol].costBalance
-          //   )
-          // }
           return agg
         }, {});
       const aggFlowArrayOfObject = [];
@@ -3608,7 +3614,7 @@ class Flow {
 
             //* текущие остатки
             const costRestInFlow =
-              object.costBalance < 0
+              object.costBalance <= 0 || object.quantityRest <= 0
                 ? priceInFlow * object.quantityRest
                 : object.costBalance;
             const priceRestInFlow = costRestInFlow / object.quantityRest;
@@ -3881,7 +3887,7 @@ function createMenu() {
       .createMenu('Update')
       .addItem('Update data mart', 'updateDataMart')
       .addItem('Update current prices and data mart', 'updatePrices')
-      .addItem('Clean all metadata in worksheet', 'cleanAllMetadata')
+    // .addItem('Clean all metadata in worksheet', 'cleanAllMetadata')
   );
   menu.addToUi();
 }

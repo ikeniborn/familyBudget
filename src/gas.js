@@ -497,16 +497,18 @@ class WorkSheetRange extends WorkSheet {
     try {
       this.dataRange.getValues().forEach((arrayRow, indexRow) => {
         const rowNum = this.firstRowNum + indexRow
-        const maxRowId = this.workSheetMetadata.getMaxRowId() || rowNum
-        let rowId
-        if (arrayRow[this.head.rowId.idx]) {
-          rowId = arrayRow[this.head.rowId.idx]
-        } else {
-          rowId = maxRowId + 1
-          this.workSheetMetadata.addMaxRowId(rowId)
-        }
         const isChangeRow = this.isChangeRow(rowNum, arrayRow)
         if (isChangeRow.sign) {
+          const maxRowId = this.workSheetMetadata.getMaxRowId()
+          let isNewRowId = false
+          const rowIdOld = arrayRow[this.head.rowId.idx] * 1
+          let rowId
+          if (rowIdOld) {
+            rowId = arrayRow[this.head.rowId.idx]
+          } else {
+            rowId = maxRowId ? maxRowId + 1 : rowNum
+            isNewRowId = true
+          }
           const rowKey = new Hash(rowId + this.sheetName).md5
           const rowKeyTimestamp = new Hash(
             rowNum + this.sheetName + 'timestamp'
@@ -528,6 +530,9 @@ class WorkSheetRange extends WorkSheet {
             this.scriptCache.addCache(rowKeyTimestamp, instanceRow.timestamp)
             const isNotNull = this.isNotNull(instanceRow)
             if (isNotNull) {
+              if (isNewRowId) {
+                this.workSheetMetadata.addMaxRowId(rowId)
+              }
               if (!this.object[rowKey]) {
                 this.object[rowKey] = instanceRow
               }
@@ -827,7 +832,11 @@ class WorkSheetMetadata {
    * @returns Максимальный идентификатор на листе
    */
   getMaxRowId() {
-    return this.metadata.getMetadata('MAXROWID') * 1
+    const data = this.metadata.getMetadata('MAXROWID') * 1
+    if (typeof data === 'number') {
+      return data
+    }
+    return void 0
   }
 
   /**

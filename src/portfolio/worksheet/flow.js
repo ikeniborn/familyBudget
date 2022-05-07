@@ -174,17 +174,6 @@ class Flow {
           } else {
             agg[tx.account][tx.contractor][tx.symbol].costBalance = 0
           }
-          // if (new Hash(tx.symbol).md5 === new Hash('gmt').md5) {
-          //   console.log('registryRowId', tx.registryRowId)
-          //   console.log(
-          //     'quantityRest',
-          //     agg[tx.account][tx.contractor][tx.symbol].quantityRest
-          //   )
-          //   console.log(
-          //     'costBalance',
-          //     agg[tx.account][tx.contractor][tx.symbol].costBalance
-          //   )
-          // }
           return agg
         }, {})
       const aggFlowArrayOfObject = []
@@ -254,7 +243,7 @@ class Flow {
 
             //* текущие остатки
             const costRestInFlow =
-              object.costBalance < 0
+              object.costBalance <= 0 || object.quantityRest <= 0
                 ? priceInFlow * object.quantityRest
                 : object.costBalance
             const priceRestInFlow = costRestInFlow / object.quantityRest

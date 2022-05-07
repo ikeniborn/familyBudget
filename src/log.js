@@ -19,7 +19,7 @@ class Log {
         name: { alias: 'Name', idx: 3 },
         message: { alias: 'Message', idx: 4 },
         stack: { alias: 'Stack', idx: 5 },
-        rowId: { alias: 'Row ID', idx: 6 },
+        rowId: { alias: 'Row Id', idx: 6 },
       },
     }
     this.workSheet = new WorkSheet(
