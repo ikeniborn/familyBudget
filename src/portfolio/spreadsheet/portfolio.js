@@ -145,11 +145,10 @@ class Portfolio {
             alias: 'Is historical average price',
             idx: 22,
           },
-          registryRowNum: { alias: 'Registry row num', idx: 23 },
-          registryRowId: { alias: 'Registry row id', idx: 24 },
+          registryRowId: { alias: 'Registry row id', idx: 23 },
           updateDate: {
             alias: 'Update',
-            idx: 25,
+            idx: 24,
             type: 'date',
             default: new Date(),
           },

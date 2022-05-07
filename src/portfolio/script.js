@@ -6,10 +6,17 @@ import { Portfolio } from './spreadsheet/portfolio'
 import { LPToken } from './worksheet/lpToken.js'
 import { Flow } from './worksheet/flow'
 import { Transactions } from './worksheet/transactions'
+import { WorkSheetMetadata } from '../gas'
 // import { GasProcess } from '../restApi/gasScriptApi'
 
 function updateLPToken() {
   new LPToken().updateLPToken()
+}
+
+function cleanAllMetadata() {
+  const activeWorkSheet = SpreadsheetApp.getActiveSheet()
+  console.log('activeWorkSheet: ', activeWorkSheet.getName())
+  new WorkSheetMetadata(activeWorkSheet).metadata.deleteAllMetadata()
 }
 
 function updateTransactions() {
@@ -61,7 +68,10 @@ function updateDataMart() {
   const startProcess = new FormatDate()
   new Promise((resolve, reject) => {
     const process = () => {
-      new Flow().updateFlow()
+      new Promise((resolve) => {
+        new Transactions().deleteDuplicatesRows()
+        resolve()
+      }).then(new Flow().updateFlow())
       return true
     }
     process() ? resolve() : reject(new Error('script.updateDataMart'))
@@ -170,6 +180,7 @@ function createMenu() {
       .createMenu('Update')
       .addItem('Update data mart', 'updateDataMart')
       .addItem('Update current prices and data mart', 'updatePrices')
+      .addItem('Clean all metadata in worksheet', 'cleanAllMetadata')
   )
   menu.addToUi()
 }

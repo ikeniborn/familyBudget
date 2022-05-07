@@ -73,7 +73,11 @@ class Transactions {
 
   deleteDuplicatesRows() {
     try {
-      const newArrayOfObject = Object.values(this.workSheet.object)
+      const newArrayOfObject = Object.values(this.workSheet.object).sort(
+        (a, b) => {
+          return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
+        }
+      )
       this.workSheet.truncateInsertRows(newArrayOfObject)
     } catch (error) {
       console.error('Transactions.deleteDuplicatesRows', error.stack)
@@ -96,7 +100,6 @@ class Transactions {
     isRange = false,
     convert = 'usd'
   ) {
-    const startProcess = new FormatDate()
     try {
       let historicalPrice
       let isHistoricalAveragePrice
@@ -127,6 +130,7 @@ class Transactions {
           const historicalAveragePriceKey = new Hash(account + currencySymbol)
             .md5
           const inKey = new Hash('in').md5
+
           const historicalPriceAgg = this.workSheet.arrayOfObject
             .filter((row) => {
               return (
@@ -138,16 +142,20 @@ class Transactions {
               )
             })
             .sort((a, b) => {
-              return (
-                new Date(a.dateTime).valueOf() +
-                a.registryRowId -
-                (new Date(b.dateTime).valueOf() + b.registryRowId)
-              )
+              if (
+                new FormatDate(a.dateTime).value ===
+                new FormatDate(b.dateTime).value
+              ) {
+                a.registryRowId - b.registryRowId
+              } else {
+                new FormatDate(a.dateTime).value -
+                  new FormatDate(b.dateTime).value
+              }
             })
             .reduce((agg, tx, indexRow) => {
               const operationKey = new Hash(tx.operation).md5
               const directionKey = new Hash(tx.direction).md5
-              if (!indexRow) {
+              if (indexRow === 0) {
                 agg = {
                   quantityBuyIn: 0,
                   quantitySellIn: 0,
@@ -201,9 +209,6 @@ class Transactions {
               } else {
                 agg.costBalance = 0
               }
-
-              // agg.quantity += tx.quantity
-              // agg.cost += tx.cost
               return agg
             }, {})
 
@@ -224,8 +229,7 @@ class Transactions {
               ? priceInFlow * historicalPriceAgg.quantityRest
               : historicalPriceAgg.costBalance
           const priceRestInFlow =
-            costRestInFlow / historicalPriceAgg.quantityRes
-
+            costRestInFlow / historicalPriceAgg.quantityRest
           //* Расчет средней цены покупки токена
           if (priceRestInFlow) {
             historicalPrice = priceRestInFlow

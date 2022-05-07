@@ -6,7 +6,7 @@ export {
   SpreadSheet,
   WorkSheet,
   SpreadsheetsTrigger,
-  // WorkSheetMetadata,
+  WorkSheetMetadata,
   WorkSheetRange,
 }
 
@@ -177,7 +177,7 @@ class WorkSheet extends SpreadSheet {
   getTransactions() {
     this.dataRange.getValues().forEach((arrayRow, indexRow) => {
       const rowNum = this.firstRowNum + indexRow
-      const rowId = arrayRow[this.head.rowId.idx] || rowNum
+      const rowId = arrayRow[this.head.rowId.idx]
       const rowKey = new Hash(rowId + this.sheetName).md5
       const instanceRow = arrayRow.reduce((object, value, column) => {
         object['rowKey'] = rowKey
@@ -426,6 +426,7 @@ class WorkSheetRange extends WorkSheet {
     this.arrayOfObject = []
     this.object = {}
     this.isChangeData = false
+    this.workSheetMetadata = new WorkSheetMetadata(this.workSheet)
   }
 
   get isDeleteRow() {
@@ -496,8 +497,14 @@ class WorkSheetRange extends WorkSheet {
     try {
       this.dataRange.getValues().forEach((arrayRow, indexRow) => {
         const rowNum = this.firstRowNum + indexRow
-        const rowId = arrayRow[this.head.rowId.idx] || rowNum
-
+        const maxRowId = this.workSheetMetadata.getMaxRowId() || rowNum
+        let rowId
+        if (arrayRow[this.head.rowId.idx]) {
+          rowId = arrayRow[this.head.rowId.idx]
+        } else {
+          rowId = maxRowId + 1
+          this.workSheetMetadata.addMaxRowId(rowId)
+        }
         const isChangeRow = this.isChangeRow(rowNum, arrayRow)
         if (isChangeRow.sign) {
           const rowKey = new Hash(rowId + this.sheetName).md5
@@ -765,9 +772,11 @@ class Metadata {
     }
   }
   deleteAllMetadata() {
-    Object.keys(this.metadata).forEach((key) => {
+    const arrayMetadataKey = Object.keys(this.metadata)
+    arrayMetadataKey.forEach((key) => {
       this.metadata[key].remove()
     })
+    console.log('Delete keys: ', arrayMetadataKey.length)
   }
 }
 
@@ -802,6 +811,23 @@ class WorkSheetMetadata {
   getRowKey(rowNum) {
     const key = 'ROWKEY_' + rowNum
     return this.metadata.getMetadata(key)
+  }
+
+  /**
+   * Добавление максимального идентификатора строки
+   * @param {number} rowNum номер строки листа
+   */
+  addMaxRowId(rowId) {
+    this.metadata.addMetadata('MAXROWID', rowId + '')
+    return rowId
+  }
+
+  /**
+   * Получение максимального идентификатора строки
+   * @returns Максимальный идентификатор на листе
+   */
+  getMaxRowId() {
+    return this.metadata.getMetadata('MAXROWID') * 1
   }
 
   /**

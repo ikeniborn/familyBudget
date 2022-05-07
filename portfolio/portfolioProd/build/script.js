@@ -492,7 +492,7 @@ class WorkSheet extends SpreadSheet {
   getTransactions() {
     this.dataRange.getValues().forEach((arrayRow, indexRow) => {
       const rowNum = this.firstRowNum + indexRow;
-      const rowId = arrayRow[this.head.rowId.idx] || rowNum;
+      const rowId = arrayRow[this.head.rowId.idx];
       const rowKey = new Hash(rowId + this.sheetName).md5;
       const instanceRow = arrayRow.reduce((object, value, column) => {
         object['rowKey'] = rowKey;
@@ -741,6 +741,7 @@ class WorkSheetRange extends WorkSheet {
     this.arrayOfObject = [];
     this.object = {};
     this.isChangeData = false;
+    this.workSheetMetadata = new WorkSheetMetadata(this.workSheet);
   }
 
   get isDeleteRow() {
@@ -811,8 +812,17 @@ class WorkSheetRange extends WorkSheet {
     try {
       this.dataRange.getValues().forEach((arrayRow, indexRow) => {
         const rowNum = this.firstRowNum + indexRow;
-        const rowId = arrayRow[this.head.rowId.idx] || rowNum;
-
+        const maxRowId = this.workSheetMetadata.getMaxRowId();
+        console.log('maxRowId', maxRowId);
+        let rowId;
+        if (arrayRow[this.head.rowId.idx]) {
+          rowId = arrayRow[this.head.rowId.idx];
+          console.log('RowIdOld', rowId);
+        } else {
+          rowId = maxRowId + 1;
+          this.workSheetMetadata.addMaxRowId(rowId);
+          console.log('RowIdNew', rowId);
+        }
         const isChangeRow = this.isChangeRow(rowNum, arrayRow);
         if (isChangeRow.sign) {
           const rowKey = new Hash(rowId + this.sheetName).md5;
@@ -1001,6 +1011,157 @@ class ScriptCache {
    */
   removeAllCache(arrayKey) {
     this.cache.removeAll(arrayKey);
+  }
+}
+class Metadata {
+  /**
+   * Методы работы с метаданными листа книги
+   * @param {object} target объект метаданных: принимает книгу, лист, диапазон
+   */
+  constructor(target) {
+    this.target = target;
+    this.metadata = target.getDeveloperMetadata().reduce((keys, metadata) => {
+      keys[metadata.getKey()] = {
+        remove: () => metadata.remove(),
+        getKey: () => metadata.getKey(),
+        getValue: () => metadata.getValue(),
+        setValue: (value) => metadata.setValue(value),
+        value: metadata.getValue(),
+      };
+      return keys
+    }, {});
+    this.metaMap = new Map(Object.entries(this.metadata));
+  }
+  /**
+   * Добавление значения в метаданные листа
+   * @param {string} key ключ метаданых
+   * @param {string} value значение ключа
+   */
+  addMetadata(key, value) {
+    const newValue = value;
+    if (this.metaMap.has(key)) {
+      const oldValue = this.metadata[key].getValue();
+      if (new Hash(newValue).md5 !== new Hash(oldValue).md5) {
+        this.metadata[key].setValue(newValue);
+        this.metadata[key].value = newValue;
+      }
+    } else {
+      this.metadata = this.target
+        .addDeveloperMetadata(key, newValue)
+        .getDeveloperMetadata()
+        .reduce((keys, metadata) => {
+          keys[metadata.getKey()] = {
+            remove: () => metadata.remove(),
+            getKey: () => metadata.getKey(),
+            getValue: () => metadata.getValue(),
+            setValue: (value) => metadata.setValue(value),
+          };
+          return keys
+        }, {});
+      this.metaMap = new Map(Object.entries(this.metadata));
+    }
+  }
+
+  getMetadata(key) {
+    if (this.metaMap.has(key)) {
+      return this.metadata[key].getValue()
+    }
+  }
+
+  deleteMetadata(key) {
+    key = key.toString();
+    if (this.metaMap.has(key)) {
+      this.metadata[key].remove();
+    }
+  }
+  deleteAllMetadata() {
+    const arrayMetadataKey = Object.keys(this.metadata);
+    arrayMetadataKey.forEach((key) => {
+      this.metadata[key].remove();
+    });
+    console.log('Delete keys: ', arrayMetadataKey.length);
+  }
+}
+
+class WorkSheetMetadata {
+  /**
+   * Работа с метаданными листа
+   * @param {object} workSheet объект листа
+   */
+  constructor(workSheet) {
+    if (
+      WorkSheetMetadata.workSheetNameHashMd5 ===
+      new Hash(workSheet.getName()).md5
+    ) {
+      return WorkSheetMetadata.instance
+    }
+    WorkSheetMetadata.instance = this;
+    this.metadata = new Metadata(workSheet);
+    this.workSheetNameHash = new Hash(workSheet.getName());
+    this.workSheetNameHashMd5 = new Hash(workSheet.getName()).md5;
+  }
+
+  /**
+   * Добавление ключа строки в метаданные
+   * @param {number} rowNum номер строки листа
+   */
+  addRowKey(rowNum, value) {
+    const key = 'ROWKEY_' + rowNum;
+    this.metadata.addMetadata(key, value);
+    return value
+  }
+
+  getRowKey(rowNum) {
+    const key = 'ROWKEY_' + rowNum;
+    return this.metadata.getMetadata(key)
+  }
+
+  /**
+   * Добавление максимального идентификатора строки
+   * @param {number} rowNum номер строки листа
+   */
+  addMaxRowId(rowId) {
+    this.metadata.addMetadata('MAXROWID', rowId + '');
+    return rowId
+  }
+
+  /**
+   * Получение максимального идентификатора строки
+   * @returns Максимальный идентификатор на листе
+   */
+  getMaxRowId() {
+    return this.metadata.getMetadata('MAXROWID') * 1
+  }
+
+  /**
+   * Добавление ключа листа в метаданные
+   * @param {string} sheetKey ключ листа в формате Hash
+   */
+  addSheetKey() {
+    const value = this.workSheetNameHash.stringUpperCase;
+    this.metadata.addMetadata('SHEETKEY', value);
+    return value
+  }
+
+  /**
+   * Получение ключа листа из метаданных
+   * @returns ключ листа в формате Hash
+   */
+  getSheetKey() {
+    return this.metadata.getMetadata('SHEETKEY')
+  }
+
+  getSheetName() {
+    const oldValue = this.metadata.getMetadata('SHEETNAME');
+    if (oldValue) {
+      return oldValue
+    } else {
+      this.metadata.addMetadata(
+        'SHEETNAME',
+        this.workSheetNameHash.stringUpperCase
+      );
+      return this.workSheetNameHash.stringUpperCase
+    }
   }
 }
 
@@ -1226,11 +1387,10 @@ class Portfolio {
             alias: 'Is historical average price',
             idx: 22,
           },
-          registryRowNum: { alias: 'Registry row num', idx: 23 },
-          registryRowId: { alias: 'Registry row id', idx: 24 },
+          registryRowId: { alias: 'Registry row id', idx: 23 },
           updateDate: {
             alias: 'Update',
-            idx: 25,
+            idx: 24,
             type: 'date',
             default: new Date(),
           },
@@ -2434,7 +2594,11 @@ class Transactions {
 
   deleteDuplicatesRows() {
     try {
-      const newArrayOfObject = Object.values(this.workSheet.object);
+      const newArrayOfObject = Object.values(this.workSheet.object).sort(
+        (a, b) => {
+          return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
+        }
+      );
       this.workSheet.truncateInsertRows(newArrayOfObject);
     } catch (error) {
       console.error('Transactions.deleteDuplicatesRows', error.stack);
@@ -2457,7 +2621,6 @@ class Transactions {
     isRange = false,
     convert = 'usd'
   ) {
-    new FormatDate();
     try {
       let historicalPrice;
       let isHistoricalAveragePrice;
@@ -2488,6 +2651,7 @@ class Transactions {
           const historicalAveragePriceKey = new Hash(account + currencySymbol)
             .md5;
           const inKey = new Hash('in').md5;
+
           const historicalPriceAgg = this.workSheet.arrayOfObject
             .filter((row) => {
               return (
@@ -2499,16 +2663,20 @@ class Transactions {
               )
             })
             .sort((a, b) => {
-              return (
-                new Date(a.dateTime).valueOf() +
-                a.registryRowId -
-                (new Date(b.dateTime).valueOf() + b.registryRowId)
-              )
+              if (
+                new FormatDate(a.dateTime).value ===
+                new FormatDate(b.dateTime).value
+              ) {
+                a.registryRowId - b.registryRowId;
+              } else {
+                new FormatDate(a.dateTime).value -
+                  new FormatDate(b.dateTime).value;
+              }
             })
             .reduce((agg, tx, indexRow) => {
               const operationKey = new Hash(tx.operation).md5;
               const directionKey = new Hash(tx.direction).md5;
-              if (!indexRow) {
+              if (indexRow === 0) {
                 agg = {
                   quantityBuyIn: 0,
                   quantitySellIn: 0,
@@ -2562,9 +2730,6 @@ class Transactions {
               } else {
                 agg.costBalance = 0;
               }
-
-              // agg.quantity += tx.quantity
-              // agg.cost += tx.cost
               return agg
             }, {});
 
@@ -2585,8 +2750,7 @@ class Transactions {
               ? priceInFlow * historicalPriceAgg.quantityRest
               : historicalPriceAgg.costBalance;
           const priceRestInFlow =
-            costRestInFlow / historicalPriceAgg.quantityRes;
-
+            costRestInFlow / historicalPriceAgg.quantityRest;
           //* Расчет средней цены покупки токена
           if (priceRestInFlow) {
             historicalPrice = priceRestInFlow;
@@ -3550,6 +3714,12 @@ function updateLPToken() {
   new LPToken().updateLPToken();
 }
 
+function cleanAllMetadata() {
+  const activeWorkSheet = SpreadsheetApp.getActiveSheet();
+  console.log('activeWorkSheet: ', activeWorkSheet.getName());
+  new WorkSheetMetadata(activeWorkSheet).metadata.deleteAllMetadata();
+}
+
 function updateTransactions() {
   const startProcess = new FormatDate();
   try {
@@ -3599,7 +3769,10 @@ function updateDataMart() {
   const startProcess = new FormatDate();
   new Promise((resolve, reject) => {
     const process = () => {
-      new Flow().updateFlow();
+      new Promise((resolve) => {
+        new Transactions().deleteDuplicatesRows();
+        resolve();
+      }).then(new Flow().updateFlow());
       return true
     };
     process() ? resolve() : reject(new Error('script.updateDataMart'));
@@ -3708,6 +3881,7 @@ function createMenu() {
       .createMenu('Update')
       .addItem('Update data mart', 'updateDataMart')
       .addItem('Update current prices and data mart', 'updatePrices')
+      .addItem('Clean all metadata in worksheet', 'cleanAllMetadata')
   );
   menu.addToUi();
 }
