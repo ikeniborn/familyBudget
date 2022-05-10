@@ -1394,9 +1394,10 @@ class Portfolio {
             idx: 22,
           },
           registryRowId: { alias: 'Registry row id', idx: 23 },
+          registryRowKey: { alias: 'Registry row key', idx: 24 },
           updateDate: {
             alias: 'Update',
-            idx: 24,
+            idx: 25,
             type: 'date',
             default: new Date(),
           },
@@ -2761,13 +2762,13 @@ class Transactions {
               : historicalPriceAgg.costBalance;
           const priceRestInFlow =
             costRestInFlow / historicalPriceAgg.quantityRest;
-          console.log('quantityRest', historicalPriceAgg.quantityRest);
-          console.log('costBalance', historicalPriceAgg.costBalance);
-          console.log('quantityInFlow', quantityInFlow);
-          console.log('priceInFlow', priceInFlow);
-          console.log('costInFlow', costInFlow);
-          console.log('costRestInFlow', costRestInFlow);
-          console.log('priceRestInFlow', priceRestInFlow);
+          // console.log('quantityRest', historicalPriceAgg.quantityRest)
+          // console.log('costBalance', historicalPriceAgg.costBalance)
+          // console.log('quantityInFlow', quantityInFlow)
+          // console.log('priceInFlow', priceInFlow)
+          // console.log('costInFlow', costInFlow)
+          // console.log('costRestInFlow', costRestInFlow)
+          // console.log('priceRestInFlow', priceRestInFlow)
           //* Расчет средней цены покупки токена
           if (priceRestInFlow) {
             historicalPrice = priceRestInFlow;
@@ -2807,6 +2808,17 @@ class Transactions {
       console.error('Transactions.getHistoricalPriceBuy', error.stack);
     }
   }
+
+  updateRegistryRowKey() {
+    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
+      const newRegistryRowKey = new Hash(
+        rowObject.registryRowId + rowObject.sourceName
+      ).md5;
+      rowObject.registryRowKey = newRegistryRowKey;
+      return rowObject
+    });
+    this.workSheet.truncateInsertRows(newArrayOfObject);
+  }
 }
 
 class Registry {
@@ -2839,6 +2851,7 @@ class Registry {
           isDelete,
           isLiquidityPool,
           isFee,
+          isLock,
           isSenderLock,
           isRecipientLock,
           isAvgPrice,
@@ -2849,7 +2862,6 @@ class Registry {
           isHistoricalAveragePriceSymbol,
           isHistoricalAveragePriceFeeCurrency,
           isHistoricalAveragePriceCurrency,
-          isLock,
           operationKey,
           rowKey1,
           rowKey2,
@@ -3292,6 +3304,55 @@ class Registry {
       console.error('Registry.updateTransactions', error.stack);
     }
   }
+
+  validateTransactions() {
+    try {
+      const transactions = new Transactions();
+      const errorKeyArray = [];
+      const sheetNameArray = ['Registry Ikeniborn', 'Registry Mskippy'];
+      sheetNameArray.forEach((sheetName) => {
+        const workSheetObject = new Portfolio().getWorkSheet(sheetName).object;
+        const sourceKey = new Hash(sheetName).md5;
+
+        const registryRowKeyArray = transactions.workSheet.arrayOfObject
+          .filter((objectRow) => sourceKey === objectRow.sourceKey)
+          .reduce((registryRowKeyArray, objectRow) => {
+            if (!registryRowKeyArray.includes(objectRow.registryRowKey)) {
+              registryRowKeyArray.push(objectRow.registryRowKey);
+            }
+            return registryRowKeyArray
+          }, []);
+
+        registryRowKeyArray.forEach((registryRowKey) => {
+          if (!workSheetObject[registryRowKey]) {
+            errorKeyArray.push(registryRowKey);
+          }
+        });
+      });
+      //* удаление пустых ключей
+      if (errorKeyArray.length) {
+        errorKeyArray.forEach((errorKey) => {
+          const transactionsRowArray = transactions.workSheet.arrayOfObject.filter(
+            (objectRow) => {
+              return objectRow.registryRowKey === errorKey
+            }
+          );
+          transactionsRowArray.forEach((row) => {
+            delete transactions.workSheet.object[row.rowKey];
+          });
+        });
+      }
+      //* Удаление дубликатов и сортировка
+      const newArrayOfObject = Object.values(
+        transactions.workSheet.object
+      ).sort((a, b) => {
+        return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
+      });
+      transactions.workSheet.truncateInsertRows(newArrayOfObject);
+    } catch (error) {
+      console.error('Registry.validateTransactions', error.stack);
+    }
+  }
 }
 
 class LPToken {
@@ -3409,6 +3470,7 @@ class Flow {
           if (!agg[tx.account]) {
             agg[tx.account] = {};
           }
+
           if (!agg[tx.account][tx.contractor]) {
             agg[tx.account][tx.contractor] = {};
           }
@@ -3545,6 +3607,7 @@ class Flow {
           } else {
             agg[tx.account][tx.contractor][tx.symbol].costBalance = 0;
           }
+
           return agg
         }, {});
       const aggFlowArrayOfObject = [];
@@ -3639,7 +3702,32 @@ class Flow {
                     object.quantityTransferOut ||
                 0
               );
-
+            // if (
+            //   new Hash(contractor).md5 === new Hash('binance').md5 &&
+            //   new Hash(symbol).md5 === new Hash('etc').md5
+            // ) {
+            //   console.log('binance etc')
+            //   console.log('quantityRest', object.quantityRest)
+            //   console.log('costBalance', object.costBalance)
+            //   console.log('quantityInFlow', quantityInFlow)
+            //   console.log('priceInFlow', priceInFlow)
+            //   console.log('costInFlow', costInFlow)
+            //   console.log('costRestInFlow', costRestInFlow)
+            //   console.log('priceRestInFlow', priceRestInFlow)
+            // }
+            // if (
+            //   new Hash(contractor).md5 === new Hash('pancakeswap').md5 &&
+            //   new Hash(symbol).md5 === new Hash('cake').md5
+            // ) {
+            //   console.log('pancakeswap cake')
+            //   console.log('quantityRest', object.quantityRest)
+            //   console.log('costBalance', object.costBalance)
+            //   console.log('quantityInFlow', quantityInFlow)
+            //   console.log('priceInFlow', priceInFlow)
+            //   console.log('costInFlow', costInFlow)
+            //   console.log('costRestInFlow', costRestInFlow)
+            //   console.log('priceRestInFlow', priceRestInFlow)
+            // }
             //* сумма окупаемости от вложения собсвенных средств
 
             const payback = costOutFlow - costOwnInFlow;
@@ -3775,10 +3863,7 @@ function updateDataMart() {
   const startProcess = new FormatDate();
   new Promise((resolve, reject) => {
     const process = () => {
-      new Promise((resolve) => {
-        new Transactions().deleteDuplicatesRows();
-        resolve();
-      }).then(new Flow().updateFlow());
+      new Flow().updateFlow();
       return true
     };
     process() ? resolve() : reject(new Error('script.updateDataMart'));
@@ -3795,6 +3880,27 @@ function updateDataMart() {
     });
 }
 
+function validateTransactions() {
+  const startProcess = new FormatDate();
+  new Promise((resolve, reject) => {
+    const process = () => {
+      new Registry().validateTransactions();
+      return true
+    };
+    process() ? resolve() : reject(new Error('script.validateTransactions'));
+  })
+    .then(
+      new Portfolio().log.addMessage(
+        'script.validateTransactions',
+        'ID:' + startProcess.value,
+        'Time spent: ' + startProcess.getTimeDiff()
+      )
+    )
+    .catch((error) => {
+      console.error('script.validateTransactions', error.stack);
+    });
+}
+
 function updatePrices() {
   const startProcess = new FormatDate();
   new Promise((resolve, reject) => {
@@ -3804,7 +3910,12 @@ function updatePrices() {
     };
     process() ? resolve() : reject(new Error('script.updatePrices'));
   })
-    .then(new Flow().updateFlow())
+    .then(
+      new Promise((resolve) => {
+        new Registry().validateTransactions();
+        resolve();
+      }).then(new Flow().updateFlow())
+    )
     .then(
       new Portfolio().log.addMessage(
         'updatePrices',
@@ -3817,30 +3928,44 @@ function updatePrices() {
     });
 }
 
+function updateRegistryRowKey() {
+  new Transactions().updateRegistryRowKey();
+}
+
 function updateOnEdit(editRange) {
   const startProcess = new FormatDate();
   const lock = LockService.getScriptLock();
-  new Promise((resolve, reject) => {
-    lock.tryLock(180000);
-    const process = () => {
-      const workSheet = new Portfolio().updateOnEdit(editRange.range);
-      if (workSheet.isChangeData) {
-        if (workSheet.isChangePrimaryKey) {
-          workSheet.savePrimaryKeyChanges();
-        }
-        if (workSheet.workSheetKey === new Hash('prices').md5) {
-          new Prices(workSheet).updateId();
-        } else if (workSheet.isRegistry) {
-          new Registry(workSheet).updateTransactions(true);
-        }
-        workSheet.isResolve = true;
-      }
-      workSheet.isResolve = true;
-      return workSheet
-    };
-    const data = process();
-    data.isResolve ? resolve(data) : reject(new Error('script.updateOnEdit'));
+  new Promise((resolve) => {
+    const workSheet = new Portfolio().updateOnEdit(editRange.range);
+    if (workSheet.isChangeData) {
+      lock.tryLock(180000);
+      resolve(workSheet);
+    }
   })
+    .then((workSheet) => {
+      return new Promise((resolve, reject) => {
+        const process = () => {
+          // const workSheet = new Portfolio().updateOnEdit(editRange.range)
+          // if (workSheet.isChangeData) {
+          if (workSheet.isChangePrimaryKey) {
+            workSheet.savePrimaryKeyChanges();
+          }
+          if (workSheet.workSheetKey === new Hash('prices').md5) {
+            new Prices(workSheet).updateId();
+          } else if (workSheet.isRegistry) {
+            new Registry(workSheet).updateTransactions(true);
+          }
+          workSheet.isResolve = true;
+          // }
+          workSheet.isResolve = true;
+          return workSheet
+        };
+        const data = process();
+        data.isResolve
+          ? resolve(data)
+          : reject(new Error('script.updateOnEdit'));
+      })
+    })
     .then((workSheet) => {
       lock.releaseLock();
       if (workSheet.isChangeData) {
@@ -3887,6 +4012,7 @@ function createMenu() {
       .createMenu('Update')
       .addItem('Update data mart', 'updateDataMart')
       .addItem('Update current prices and data mart', 'updatePrices')
+      .addItem('Validate transactions', 'validateTransactions')
     // .addItem('Clean all metadata in worksheet', 'cleanAllMetadata')
   );
   menu.addToUi();

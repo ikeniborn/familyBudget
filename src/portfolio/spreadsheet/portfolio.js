@@ -146,9 +146,10 @@ class Portfolio {
             idx: 22,
           },
           registryRowId: { alias: 'Registry row id', idx: 23 },
+          registryRowKey: { alias: 'Registry row key', idx: 24 },
           updateDate: {
             alias: 'Update',
-            idx: 24,
+            idx: 25,
             type: 'date',
             default: new Date(),
           },

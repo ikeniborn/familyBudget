@@ -38,6 +38,7 @@ class Flow {
           if (!agg[tx.account]) {
             agg[tx.account] = {}
           }
+
           if (!agg[tx.account][tx.contractor]) {
             agg[tx.account][tx.contractor] = {}
           }
@@ -174,6 +175,7 @@ class Flow {
           } else {
             agg[tx.account][tx.contractor][tx.symbol].costBalance = 0
           }
+
           return agg
         }, {})
       const aggFlowArrayOfObject = []
@@ -268,7 +270,32 @@ class Flow {
                     object.quantityTransferOut ||
                 0
               )
-
+            // if (
+            //   new Hash(contractor).md5 === new Hash('binance').md5 &&
+            //   new Hash(symbol).md5 === new Hash('etc').md5
+            // ) {
+            //   console.log('binance etc')
+            //   console.log('quantityRest', object.quantityRest)
+            //   console.log('costBalance', object.costBalance)
+            //   console.log('quantityInFlow', quantityInFlow)
+            //   console.log('priceInFlow', priceInFlow)
+            //   console.log('costInFlow', costInFlow)
+            //   console.log('costRestInFlow', costRestInFlow)
+            //   console.log('priceRestInFlow', priceRestInFlow)
+            // }
+            // if (
+            //   new Hash(contractor).md5 === new Hash('pancakeswap').md5 &&
+            //   new Hash(symbol).md5 === new Hash('cake').md5
+            // ) {
+            //   console.log('pancakeswap cake')
+            //   console.log('quantityRest', object.quantityRest)
+            //   console.log('costBalance', object.costBalance)
+            //   console.log('quantityInFlow', quantityInFlow)
+            //   console.log('priceInFlow', priceInFlow)
+            //   console.log('costInFlow', costInFlow)
+            //   console.log('costRestInFlow', costRestInFlow)
+            //   console.log('priceRestInFlow', priceRestInFlow)
+            // }
             //* сумма окупаемости от вложения собсвенных средств
 
             const payback = costOutFlow - costOwnInFlow

@@ -68,10 +68,7 @@ function updateDataMart() {
   const startProcess = new FormatDate()
   new Promise((resolve, reject) => {
     const process = () => {
-      new Promise((resolve) => {
-        new Transactions().deleteDuplicatesRows()
-        resolve()
-      }).then(new Flow().updateFlow())
+      new Flow().updateFlow()
       return true
     }
     process() ? resolve() : reject(new Error('script.updateDataMart'))
@@ -88,6 +85,27 @@ function updateDataMart() {
     })
 }
 
+function validateTransactions() {
+  const startProcess = new FormatDate()
+  new Promise((resolve, reject) => {
+    const process = () => {
+      new Registry().validateTransactions()
+      return true
+    }
+    process() ? resolve() : reject(new Error('script.validateTransactions'))
+  })
+    .then(
+      new Portfolio().log.addMessage(
+        'script.validateTransactions',
+        'ID:' + startProcess.value,
+        'Time spent: ' + startProcess.getTimeDiff()
+      )
+    )
+    .catch((error) => {
+      console.error('script.validateTransactions', error.stack)
+    })
+}
+
 function updatePrices() {
   const startProcess = new FormatDate()
   new Promise((resolve, reject) => {
@@ -97,7 +115,12 @@ function updatePrices() {
     }
     process() ? resolve() : reject(new Error('script.updatePrices'))
   })
-    .then(new Flow().updateFlow())
+    .then(
+      new Promise((resolve) => {
+        new Registry().validateTransactions()
+        resolve()
+      }).then(new Flow().updateFlow())
+    )
     .then(
       new Portfolio().log.addMessage(
         'updatePrices',
@@ -110,30 +133,40 @@ function updatePrices() {
     })
 }
 
+function updateRegistryRowKey() {
+  new Transactions().updateRegistryRowKey()
+}
+
 function updateOnEdit(editRange) {
   const startProcess = new FormatDate()
   const lock = LockService.getScriptLock()
-  new Promise((resolve, reject) => {
-    lock.tryLock(180000)
-    const process = () => {
-      const workSheet = new Portfolio().updateOnEdit(editRange.range)
-      if (workSheet.isChangeData) {
-        if (workSheet.isChangePrimaryKey) {
-          workSheet.savePrimaryKeyChanges()
-        }
-        if (workSheet.workSheetKey === new Hash('prices').md5) {
-          new Prices(workSheet).updateId()
-        } else if (workSheet.isRegistry) {
-          new Registry(workSheet).updateTransactions(true)
-        }
-        workSheet.isResolve = true
-      }
-      workSheet.isResolve = true
-      return workSheet
+  new Promise((resolve) => {
+    const workSheet = new Portfolio().updateOnEdit(editRange.range)
+    if (workSheet.isChangeData) {
+      lock.tryLock(180000)
+      resolve(workSheet)
     }
-    const data = process()
-    data.isResolve ? resolve(data) : reject(new Error('script.updateOnEdit'))
   })
+    .then((workSheet) => {
+      return new Promise((resolve, reject) => {
+        const process = () => {
+          if (workSheet.isChangePrimaryKey) {
+            workSheet.savePrimaryKeyChanges()
+          }
+          if (workSheet.workSheetKey === new Hash('prices').md5) {
+            new Prices(workSheet).updateId()
+          } else if (workSheet.isRegistry) {
+            new Registry(workSheet).updateTransactions(true)
+          }
+          workSheet.isResolve = true
+          return workSheet
+        }
+        const data = process()
+        data.isResolve
+          ? resolve(data)
+          : reject(new Error('script.updateOnEdit'))
+      })
+    })
     .then((workSheet) => {
       lock.releaseLock()
       if (workSheet.isChangeData) {
@@ -180,6 +213,7 @@ function createMenu() {
       .createMenu('Update')
       .addItem('Update data mart', 'updateDataMart')
       .addItem('Update current prices and data mart', 'updatePrices')
+      .addItem('Validate transactions', 'validateTransactions')
     // .addItem('Clean all metadata in worksheet', 'cleanAllMetadata')
   )
   menu.addToUi()

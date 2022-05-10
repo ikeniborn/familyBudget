@@ -234,13 +234,13 @@ class Transactions {
               : historicalPriceAgg.costBalance
           const priceRestInFlow =
             costRestInFlow / historicalPriceAgg.quantityRest
-          console.log('quantityRest', historicalPriceAgg.quantityRest)
-          console.log('costBalance', historicalPriceAgg.costBalance)
-          console.log('quantityInFlow', quantityInFlow)
-          console.log('priceInFlow', priceInFlow)
-          console.log('costInFlow', costInFlow)
-          console.log('costRestInFlow', costRestInFlow)
-          console.log('priceRestInFlow', priceRestInFlow)
+          // console.log('quantityRest', historicalPriceAgg.quantityRest)
+          // console.log('costBalance', historicalPriceAgg.costBalance)
+          // console.log('quantityInFlow', quantityInFlow)
+          // console.log('priceInFlow', priceInFlow)
+          // console.log('costInFlow', costInFlow)
+          // console.log('costRestInFlow', costRestInFlow)
+          // console.log('priceRestInFlow', priceRestInFlow)
           //* Расчет средней цены покупки токена
           if (priceRestInFlow) {
             historicalPrice = priceRestInFlow
@@ -279,5 +279,16 @@ class Transactions {
     } catch (error) {
       console.error('Transactions.getHistoricalPriceBuy', error.stack)
     }
+  }
+
+  updateRegistryRowKey() {
+    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
+      const newRegistryRowKey = new Hash(
+        rowObject.registryRowId + rowObject.sourceName
+      ).md5
+      rowObject.registryRowKey = newRegistryRowKey
+      return rowObject
+    })
+    this.workSheet.truncateInsertRows(newArrayOfObject)
   }
 }

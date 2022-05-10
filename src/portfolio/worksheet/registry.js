@@ -34,6 +34,7 @@ class Registry {
           isDelete,
           isLiquidityPool,
           isFee,
+          isLock,
           isSenderLock,
           isRecipientLock,
           isAvgPrice,
@@ -44,7 +45,6 @@ class Registry {
           isHistoricalAveragePriceSymbol,
           isHistoricalAveragePriceFeeCurrency,
           isHistoricalAveragePriceCurrency,
-          isLock,
           operationKey,
           rowKey1,
           rowKey2,
@@ -485,6 +485,55 @@ class Registry {
       this.workSheet.deleteEmptyRows()
     } catch (error) {
       console.error('Registry.updateTransactions', error.stack)
+    }
+  }
+
+  validateTransactions() {
+    try {
+      const transactions = new Transactions()
+      const errorKeyArray = []
+      const sheetNameArray = ['Registry Ikeniborn', 'Registry Mskippy']
+      sheetNameArray.forEach((sheetName) => {
+        const workSheetObject = new Portfolio().getWorkSheet(sheetName).object
+        const sourceKey = new Hash(sheetName).md5
+
+        const registryRowKeyArray = transactions.workSheet.arrayOfObject
+          .filter((objectRow) => sourceKey === objectRow.sourceKey)
+          .reduce((registryRowKeyArray, objectRow) => {
+            if (!registryRowKeyArray.includes(objectRow.registryRowKey)) {
+              registryRowKeyArray.push(objectRow.registryRowKey)
+            }
+            return registryRowKeyArray
+          }, [])
+
+        registryRowKeyArray.forEach((registryRowKey) => {
+          if (!workSheetObject[registryRowKey]) {
+            errorKeyArray.push(registryRowKey)
+          }
+        })
+      })
+      //* удаление пустых ключей
+      if (errorKeyArray.length) {
+        errorKeyArray.forEach((errorKey) => {
+          const transactionsRowArray = transactions.workSheet.arrayOfObject.filter(
+            (objectRow) => {
+              return objectRow.registryRowKey === errorKey
+            }
+          )
+          transactionsRowArray.forEach((row) => {
+            delete transactions.workSheet.object[row.rowKey]
+          })
+        })
+      }
+      //* Удаление дубликатов и сортировка
+      const newArrayOfObject = Object.values(
+        transactions.workSheet.object
+      ).sort((a, b) => {
+        return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
+      })
+      transactions.workSheet.truncateInsertRows(newArrayOfObject)
+    } catch (error) {
+      console.error('Registry.validateTransactions', error.stack)
     }
   }
 }
