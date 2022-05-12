@@ -78,7 +78,7 @@ class Log {
    * Удление старых записей из лога
    */
   truncateLog() {
-    if (this.workSheet.countRow > 50) {
+    if (this.workSheet.countRow > 100) {
       this.workSheet.deleteRow(2, 25)
     }
   }

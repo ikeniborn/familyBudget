@@ -492,7 +492,13 @@ class Registry {
     try {
       const transactions = new Transactions()
       const errorKeyArray = []
-      const sheetNameArray = ['Registry Ikeniborn', 'Registry Mskippy']
+      const deletedRows = []
+
+      const sheetNameArray = this.workSheet.spreadSheet
+        .getSheets()
+        .map((sheet) => sheet.getName())
+        .filter((sheetName) => sheetName.match('Registry'))
+
       sheetNameArray.forEach((sheetName) => {
         const workSheetObject = new Portfolio().getWorkSheet(sheetName).object
         const sourceKey = new Hash(sheetName).md5
@@ -521,10 +527,17 @@ class Registry {
             }
           )
           transactionsRowArray.forEach((row) => {
+            deletedRows.push(transactions.workSheet.object[row.rowKey])
             delete transactions.workSheet.object[row.rowKey]
           })
         })
+        this.workSheet.log.addMessage(
+          'Registry.validateTransactions',
+          'deletedRows',
+          deletedRows
+        )
       }
+
       //* Удаление дубликатов и сортировка
       const newArrayOfObject = Object.values(
         transactions.workSheet.object

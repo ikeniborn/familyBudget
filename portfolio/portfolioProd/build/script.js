@@ -1247,7 +1247,7 @@ class Log {
    * Удление старых записей из лога
    */
   truncateLog() {
-    if (this.workSheet.countRow > 50) {
+    if (this.workSheet.countRow > 100) {
       this.workSheet.deleteRow(2, 25);
     }
   }
@@ -2476,6 +2476,21 @@ class Prices {
             });
           }
         }
+        // if (listId.custom.length) {
+        //   const transactions = new Transactions()
+        //   listId.custom.forEach((symbol) => {
+        //     const historicalPricesAvg =
+        //       transactions.getHistoricalPriceBuy(
+        //         new Date(),
+        //         'ikeniborn (speculative)',
+        //         symbol,
+        //         true
+        //       ) || void 0
+
+        //     this.updatePrice(symbol, historicalPricesAvg)
+        //     this.updateRisk(symbol)
+        //   })
+        // }
         return true
       };
       process() ? resolve() : reject(new Error('updatePrices'));
@@ -3309,7 +3324,13 @@ class Registry {
     try {
       const transactions = new Transactions();
       const errorKeyArray = [];
-      const sheetNameArray = ['Registry Ikeniborn', 'Registry Mskippy'];
+      const deletedRows = [];
+
+      const sheetNameArray = this.workSheet.spreadSheet
+        .getSheets()
+        .map((sheet) => sheet.getName())
+        .filter((sheetName) => sheetName.match('Registry'));
+
       sheetNameArray.forEach((sheetName) => {
         const workSheetObject = new Portfolio().getWorkSheet(sheetName).object;
         const sourceKey = new Hash(sheetName).md5;
@@ -3338,10 +3359,17 @@ class Registry {
             }
           );
           transactionsRowArray.forEach((row) => {
+            deletedRows.push(transactions.workSheet.object[row.rowKey]);
             delete transactions.workSheet.object[row.rowKey];
           });
         });
+        this.workSheet.log.addMessage(
+          'Registry.validateTransactions',
+          'deletedRows',
+          deletedRows
+        );
       }
+
       //* Удаление дубликатов и сортировка
       const newArrayOfObject = Object.values(
         transactions.workSheet.object
@@ -3945,8 +3973,6 @@ function updateOnEdit(editRange) {
     .then((workSheet) => {
       return new Promise((resolve, reject) => {
         const process = () => {
-          // const workSheet = new Portfolio().updateOnEdit(editRange.range)
-          // if (workSheet.isChangeData) {
           if (workSheet.isChangePrimaryKey) {
             workSheet.savePrimaryKeyChanges();
           }
@@ -3955,8 +3981,6 @@ function updateOnEdit(editRange) {
           } else if (workSheet.isRegistry) {
             new Registry(workSheet).updateTransactions(true);
           }
-          workSheet.isResolve = true;
-          // }
           workSheet.isResolve = true;
           return workSheet
         };

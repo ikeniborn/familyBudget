@@ -4,6 +4,7 @@ import * as cryptoRank from '../../restApi/cryptoRank'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
 // import * as coinMarketCap from '../../restApi/coinMarketCap'
 import * as coinGecko from '../../restApi/coinGecko'
+// import { Transactions } from './transactions'
 import { Coins } from './coins'
 export { Prices }
 
@@ -156,6 +157,21 @@ class Prices {
             })
           }
         }
+        // if (listId.custom.length) {
+        //   const transactions = new Transactions()
+        //   listId.custom.forEach((symbol) => {
+        //     const historicalPricesAvg =
+        //       transactions.getHistoricalPriceBuy(
+        //         new Date(),
+        //         'ikeniborn (speculative)',
+        //         symbol,
+        //         true
+        //       ) || void 0
+
+        //     this.updatePrice(symbol, historicalPricesAvg)
+        //     this.updateRisk(symbol)
+        //   })
+        // }
         return true
       }
       process() ? resolve() : reject(new Error('updatePrices'))
