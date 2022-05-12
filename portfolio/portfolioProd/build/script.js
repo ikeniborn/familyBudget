@@ -1396,8 +1396,57 @@ class Portfolio {
           registryRowId: { alias: 'Registry row id', idx: 23 },
           registryRowKey: { alias: 'Registry row key', idx: 24 },
           updateDate: {
-            alias: 'Update',
+            alias: 'Update date',
             idx: 25,
+            type: 'date',
+            default: new Date(),
+          },
+        },
+      },
+      deletedTransactions: {
+        type: 'fct',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          sourceKey: { alias: 'Source key', idx: 1 },
+          historicalAveragePriceKey: {
+            alias: 'Historical average price key',
+            idx: 2,
+          },
+          sourceName: { alias: 'Source name', idx: 3 },
+          dateTime: { alias: 'Date and time', idx: 4, type: 'date' },
+          operation: { alias: 'Operation', idx: 5 },
+          direction: { alias: 'Direction', idx: 6 },
+          account: { alias: 'Account', idx: 7 },
+          platform: { alias: 'Platform', idx: 8 },
+          service: { alias: 'Service', idx: 9 },
+          contractor: { alias: 'Contractor', idx: 10 },
+          mainSymbol: { alias: 'Main coin', idx: 11 },
+          symbol: { alias: 'Coin', idx: 12 },
+          quantity: { alias: 'Quantity', idx: 13 },
+          price: { alias: 'Price', idx: 14 },
+          cost: { alias: 'Cost', idx: 15 },
+          comment: { alias: 'Comment', idx: 16 },
+          isDelete: { alias: 'Delete', idx: 17 },
+          isLiquidityPool: { alias: 'Is liquidity pool', idx: 18 },
+          isFee: { alias: 'Is fee', idx: 19 },
+          isLock: { alias: 'Is lock', idx: 20 },
+          isAvgPrice: { alias: 'Is average price', idx: 21 },
+          isHistoricalAveragePrice: {
+            alias: 'Is historical average price',
+            idx: 22,
+          },
+          registryRowId: { alias: 'Registry row id', idx: 23 },
+          registryRowKey: { alias: 'Registry row key', idx: 24 },
+          updateDate: {
+            alias: 'Update date',
+            idx: 25,
+            type: 'date',
+            default: new Date(),
+          },
+          deleteDate: {
+            alias: 'Delete date',
+            idx: 26,
             type: 'date',
             default: new Date(),
           },
@@ -1558,32 +1607,32 @@ class Portfolio {
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
-          account: { alias: 'Account', idx: 1 },
+          account: { alias: 'Account', pk: true, idx: 1, notNull: true },
           mainSymbol: { alias: 'Main symbol', pk: true, idx: 2, notNull: true },
           mainSymbolQty: {
             alias: 'Main symbol qty',
-            pk: true,
             idx: 3,
-            notNull: true,
           },
           mainSymbolHistoricalCost: {
             alias: 'Main symbol historical cost',
-            pk: true,
             idx: 4,
-            notNull: true,
           },
-          pairOneSymbol: { alias: 'Pair one symbol', idx: 5 },
-          pairOneQty: { alias: 'Pair one qty', idx: 6 },
-          pairOnePrice: { alias: 'Pair one price', idx: 7 },
-          pairTwoSymbol: { alias: 'Pair one symbol', idx: 8 },
-          pairTwoQty: { alias: 'Pair two qty', idx: 9 },
-          pairTwoPrice: { alias: 'Pair two price', idx: 10 },
-          pairThreeSymbol: { alias: 'Pair three symbol', idx: 11 },
-          pairThreeQty: { alias: 'Pair three qty', idx: 12 },
-          pairThreePrice: { alias: 'Pair three price', idx: 13 },
+          mainSymbolHistoricalPrice: {
+            alias: 'Main symbol historical price',
+            idx: 5,
+          },
+          pairOneSymbol: { alias: 'Pair one symbol', idx: 6 },
+          pairOneQty: { alias: 'Pair one qty', idx: 7 },
+          pairOnePrice: { alias: 'Pair one price', idx: 8 },
+          pairTwoSymbol: { alias: 'Pair one symbol', idx: 9 },
+          pairTwoQty: { alias: 'Pair two qty', idx: 10 },
+          pairTwoPrice: { alias: 'Pair two price', idx: 11 },
+          pairThreeSymbol: { alias: 'Pair three symbol', idx: 12 },
+          pairThreeQty: { alias: 'Pair three qty', idx: 13 },
+          pairThreePrice: { alias: 'Pair three price', idx: 14 },
           update: {
             alias: 'Update',
-            idx: 14,
+            idx: 15,
             type: 'date',
             default: new Date(),
           },
@@ -3352,6 +3401,9 @@ class Registry {
       });
       //* удаление пустых ключей
       if (errorKeyArray.length) {
+        const deletedTransactions = new Portfolio().getWorkSheet(
+          'DeletedTransactions'
+        );
         errorKeyArray.forEach((errorKey) => {
           const transactionsRowArray = transactions.workSheet.arrayOfObject.filter(
             (objectRow) => {
@@ -3359,14 +3411,14 @@ class Registry {
             }
           );
           transactionsRowArray.forEach((row) => {
-            deletedRows.push(transactions.workSheet.object[row.rowKey]);
+            deletedTransactions.arrayOfObject.push(
+              transactions.workSheet.object[row.rowKey]
+            );
             delete transactions.workSheet.object[row.rowKey];
           });
         });
-        this.workSheet.log.addMessage(
-          'Registry.validateTransactions',
-          'deletedRows',
-          deletedRows
+        deletedTransactions.truncateInsertRows(
+          deletedTransactions.arrayOfObject
         );
       }
 
@@ -3393,73 +3445,110 @@ class LPToken {
   updateLPToken() {
     const transactionsLpToken = new Transactions().workSheet.arrayOfObject.filter(
       (row) =>
-        ['liquidity pool (1)', 'liquidity pool (2)'].indexOf(row.service) !==
-          -1 && row.operation === 'buy'
+        [
+          'd70311b68290664f7a442bfa8266dbb9',
+          '0dc48f5ee42e5f36afa288473e6e1799',
+          '4c110eef236fbdeffe3a353057692a58' /*liquidity pool (1), liquidity pool (2),liquidity pool (2)*/,
+        ].indexOf(new Hash(row.service).md5) !== -1 &&
+        new Hash(row.operation).md5 ===
+          '0461ebd2b773878eac9f78a891912d65' /*'buy'*/ &&
+        !row.isDelete
     );
+    // console.log('transactionsLpToken', transactionsLpToken)
     const aggBalance = transactionsLpToken.reduce((object, tx) => {
       const positiveQuantity = tx.quantity < 0 ? tx.quantity * -1 : tx.quantity;
       if (!object[tx.account]) {
         object[tx.account] = {};
       }
-      if (!object[tx.account][tx.project]) {
-        object[tx.account][tx.project] = {};
+      if (!object[tx.account]) {
+        object[tx.account] = {};
       }
-      if (!object[tx.account][tx.project][tx.mainCoin]) {
-        object[tx.account][tx.project][tx.mainCoin] = [];
+      if (!object[tx.account][tx.mainSymbol]) {
+        object[tx.account][tx.mainSymbol] = [];
       }
       let part;
-      if (tx.mainCoin === tx.coin) {
+      if (new Hash(tx.mainSymbol).md5 === new Hash(tx.symbol).md5) {
         part = 'main';
       } else {
-        if (tx.service === 'liquidity pool (1)') {
+        if (
+          new Hash(tx.service).md5 ===
+          'd70311b68290664f7a442bfa8266dbb9' /*liquidity pool (1)*/
+        ) {
           part = 'one';
-        } else {
+        } else if (
+          new Hash(tx.service).md5 ===
+          '0dc48f5ee42e5f36afa288473e6e1799' /*liquidity pool (2)*/
+        ) {
           part = 'two';
+        } else if (
+          new Hash(tx.service).md5 ===
+          '4c110eef236fbdeffe3a353057692a58' /*liquidity pool (3)*/
+        ) {
+          part = 'three';
         }
       }
-      object[tx.account][tx.project][tx.mainCoin].push({
+      object[tx.account][tx.mainSymbol].push({
         quantity: positiveQuantity,
-        cost: tx.mainCoin === tx.coin ? positiveQuantity * tx.price : 0,
+        cost:
+          new Hash(tx.mainSymbol).md5 === new Hash(tx.symbol).md5
+            ? positiveQuantity * tx.price
+            : 0,
         part: part,
-        coin: tx.coin,
+        symbol: tx.symbol,
       });
 
       return object
     }, {});
+    // console.log('aggBalance', aggBalance)
     const newArrayOfObject = [];
     Object.entries(aggBalance).forEach(([account, level0]) => {
-      Object.entries(level0).forEach(([project, level1]) => {
-        Object.entries(level1).forEach(([mainCoin, level2]) => {
-          const aggMainCoin = level2.reduce((object, tx) => {
-            if (!object[tx.part]) {
-              object[tx.part] = {
-                quantity: 0,
-                cost: 0,
-                coin: tx.coin,
-              };
-            }
-            object[tx.part].quantity += tx.quantity;
-            object[tx.part].cost += tx.cost;
-            return object
-          }, {});
-
-          newArrayOfObject.push({
-            account: account.toUpperCase(),
-            project: project.toUpperCase(),
-            mainCoin: mainCoin.toUpperCase(),
-            mainCoinQty: aggMainCoin.main.quantity,
-            mainCoinHistoricalCost: aggMainCoin.main.cost,
-            pairOneCoin: aggMainCoin.one.coin,
-            pairOneQty: aggMainCoin.one.quantity,
-            pairOnePrice: aggMainCoin.main.cost / 2 / aggMainCoin.one.quantity,
-            pairTwoCoin: aggMainCoin.two.coin,
-            pairTwoQty: aggMainCoin.two.quantity,
-            pairTwoPrice: aggMainCoin.main.cost / 2 / aggMainCoin.two.quantity,
-          });
+      Object.entries(level0).forEach(([mainCoin, level1]) => {
+        const aggMainCoin = level1.reduce((object, tx) => {
+          if (!object[tx.part]) {
+            object[tx.part] = {
+              quantity: 0,
+              cost: 0,
+              symbol: tx.symbol || void 0,
+            };
+          }
+          object[tx.part].quantity += tx.quantity;
+          object[tx.part].cost += tx.cost;
+          return object
+        }, {});
+        // console.log('aggMainCoin', aggMainCoin)
+        let coeff = 1;
+        if (aggMainCoin?.two?.coin && !aggMainCoin?.three?.coin) {
+          coeff = 2;
+        } else if (aggMainCoin?.two?.coin && aggMainCoin?.three?.coin) {
+          coeff = 3;
+        }
+        newArrayOfObject.push({
+          rowKey: new Hash(account + mainCoin).md5,
+          account: account.toUpperCase(),
+          mainSymbol: mainCoin.toUpperCase(),
+          mainSymbolQty: aggMainCoin?.main?.quantity,
+          mainSymbolHistoricalCost: aggMainCoin?.main?.cost,
+          mainSymbolHistoricalPrice:
+            aggMainCoin?.main?.cost / aggMainCoin?.main?.quantity,
+          pairOneSymbol: aggMainCoin?.one?.symbol,
+          pairOneQty: aggMainCoin?.one?.quantity,
+          pairOnePrice:
+            aggMainCoin?.main?.cost / coeff / aggMainCoin?.one?.quantity ||
+            void 0,
+          pairTwoSymbol: aggMainCoin?.two?.symbol,
+          pairTwoQty: aggMainCoin?.two?.quantity,
+          pairTwoPrice: aggMainCoin?.two?.symbol
+            ? aggMainCoin?.main?.cost / coeff / aggMainCoin?.two?.quantity
+            : void 0,
+          pairThreeSymbol: aggMainCoin?.three?.symbol,
+          pairThreeQty: aggMainCoin?.three?.quantity,
+          pairThreePrice: aggMainCoin?.three?.symbol
+            ? aggMainCoin?.three?.cost / coeff / aggMainCoin?.three?.quantity
+            : void 0,
         });
       });
     });
-    // console.log(newArrayOfObject)
+    // console.log('newArrayOfObject', newArrayOfObject)
     this.workSheet.truncateInsertRows(newArrayOfObject);
   }
 }

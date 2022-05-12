@@ -520,6 +520,9 @@ class Registry {
       })
       //* удаление пустых ключей
       if (errorKeyArray.length) {
+        const deletedTransactions = new Portfolio().getWorkSheet(
+          'DeletedTransactions'
+        )
         errorKeyArray.forEach((errorKey) => {
           const transactionsRowArray = transactions.workSheet.arrayOfObject.filter(
             (objectRow) => {
@@ -527,14 +530,14 @@ class Registry {
             }
           )
           transactionsRowArray.forEach((row) => {
-            deletedRows.push(transactions.workSheet.object[row.rowKey])
+            deletedTransactions.arrayOfObject.push(
+              transactions.workSheet.object[row.rowKey]
+            )
             delete transactions.workSheet.object[row.rowKey]
           })
         })
-        this.workSheet.log.addMessage(
-          'Registry.validateTransactions',
-          'deletedRows',
-          deletedRows
+        deletedTransactions.truncateInsertRows(
+          deletedTransactions.arrayOfObject
         )
       }
 
