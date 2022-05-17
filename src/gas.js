@@ -142,6 +142,7 @@ class WorkSheet extends SpreadSheet {
         if (!object[this.headKey[index]]) {
           object[this.headKey[index]] = value
         }
+        object['rowKey'] = rowKey
         return object
       }, {})
       if (!this.object[rowKey]) {
@@ -164,6 +165,7 @@ class WorkSheet extends SpreadSheet {
               object[this.headKey[index]] = value
             }
             object['rowNum'] = rowNum
+            object['rowKey'] = rowKey
             return object
           }, {})
         }
@@ -206,7 +208,7 @@ class WorkSheet extends SpreadSheet {
               if (this.head[column]?.default && !value) {
                 value = this.head[column].default
               }
-              if (this.head[column]?.type === 'date') {
+              if (this.head[column]?.type === 'date' && value) {
                 return new Date(value)
               } else {
                 return value
@@ -353,11 +355,20 @@ class WorkSheet extends SpreadSheet {
   }
 
   deleteFilter() {
-    this.customFilter = this.workSheet.getFilter()
+    this.filter = {}
+    this.filter.customFilter = this.workSheet.getFilter()
     if (this.customFilter) {
-      this.customFilter.remove()
+      this.filter.isExist = true
+      for (i = 1; i <= maxColumn; i++) {
+        const criteria = this.customFilter.getColumnFilterCriteria(i)
+        if (criteria !== null) {
+          this.filter.columnPosition = i
+          this.filter.filterCriteria = criteria.copy()
+          break
+        }
+      }
+      this.filter.customFilter.remove()
     }
-    return this
   }
   /**
    *
@@ -365,7 +376,16 @@ class WorkSheet extends SpreadSheet {
    */
   createFilter(range = {}) {
     if (!this.workSheet.getFilter()) {
-      range.createFilter()
+      if (this?.filter?.isExist) {
+        range
+          .createFilter()
+          .setColumnFilterCriteria(
+            this.filter.columnPosition,
+            this.filter.filterCriteria
+          )
+      } else {
+        range.createFilter().setColumnFilterCri
+      }
     }
     return this
   }

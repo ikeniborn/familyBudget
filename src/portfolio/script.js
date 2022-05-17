@@ -1,7 +1,7 @@
 import { Registry } from './worksheet/registry'
 import { Prices } from './worksheet/prices'
 import { Coins } from './worksheet/coins'
-import { Hash, FormatDate } from '../utils'
+import { Hash, FormatDate, FormatNumber } from '../utils'
 import { Portfolio } from './spreadsheet/portfolio'
 import { LPToken } from './worksheet/lpToken.js'
 import { Flow } from './worksheet/flow'
@@ -205,6 +205,35 @@ function updateOnEdit(editRange) {
   // }).then(updatePromise())
 }
 
+function sortRegistry() {
+  const activeSheet = SpreadsheetApp.getActiveSheet()
+  const customFilter = activeSheet.getFilter()
+  if (customFilter) {
+    customFilter.remove()
+  }
+  const activeWorkSheet = new Portfolio().getWorkSheet(activeSheet.getName())
+  if (activeWorkSheet.isRegistry) {
+    const registry = new Registry(activeWorkSheet)
+    const newArrayOfObject = registry.workSheet.arrayOfObject
+      .filter((row) => {
+        return row.rowKey
+      })
+      .map((row) => {
+        const time = row.time || 1200
+        const date = row.date || new Date()
+        const hhmm = new FormatNumber(time).getHourAndMinuteFromNumber()
+        const DateTime = new FormatDate(date).addTime(hhmm.h, hhmm.m).date
+        row.dateTime = DateTime
+        return row
+      })
+      .sort((a, b) => {
+        return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
+      })
+    console.log(newArrayOfObject)
+    registry.workSheet.truncateInsertRows(newArrayOfObject)
+  }
+}
+
 function createMenu() {
   const ui = SpreadsheetApp.getUi()
   const menu = ui.createMenu('Portfolio')
@@ -214,6 +243,7 @@ function createMenu() {
       .addItem('Update data mart', 'updateDataMart')
       .addItem('Update current prices and data mart', 'updatePrices')
       .addItem('Validate transactions', 'validateTransactions')
+      .addItem('Sort registry', 'sortRegistry')
     // .addItem('Clean all metadata in worksheet', 'cleanAllMetadata')
   )
   menu.addToUi()

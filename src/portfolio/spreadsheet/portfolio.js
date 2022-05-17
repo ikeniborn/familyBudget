@@ -48,13 +48,20 @@ class Portfolio {
           feeCurrency: { alias: 'Fee currency', idx: 13 },
           feeQty: { alias: 'Fee, qty', idx: 14 },
           comment: { alias: 'Comment', idx: 15 },
-          date: { alias: 'Date', idx: 16, notNull: true, type: 'date' },
+          date: {
+            alias: 'Date',
+            idx: 16,
+            notNull: true,
+            type: 'date',
+            default: void 0,
+          },
           time: { alias: 'Time', idx: 17, notNull: true },
           isDelete: { alias: 'Is delete', idx: 18 },
           dateSaved: {
             alias: 'Date saved',
             idx: 19,
             type: 'date',
+            default: new Date(),
           },
           timeSpent: {
             alias: 'Time spent (hh:mm:ss.ms)',

@@ -457,6 +457,7 @@ class WorkSheet extends SpreadSheet {
         if (!object[this.headKey[index]]) {
           object[this.headKey[index]] = value;
         }
+        object['rowKey'] = rowKey;
         return object
       }, {});
       if (!this.object[rowKey]) {
@@ -479,6 +480,7 @@ class WorkSheet extends SpreadSheet {
               object[this.headKey[index]] = value;
             }
             object['rowNum'] = rowNum;
+            object['rowKey'] = rowKey;
             return object
           }, {});
         }
@@ -521,7 +523,7 @@ class WorkSheet extends SpreadSheet {
               if (this.head[column]?.default && !value) {
                 value = this.head[column].default;
               }
-              if (this.head[column]?.type === 'date') {
+              if (this.head[column]?.type === 'date' && value) {
                 return new Date(value)
               } else {
                 return value
@@ -668,11 +670,20 @@ class WorkSheet extends SpreadSheet {
   }
 
   deleteFilter() {
-    this.customFilter = this.workSheet.getFilter();
+    this.filter = {};
+    this.filter.customFilter = this.workSheet.getFilter();
     if (this.customFilter) {
-      this.customFilter.remove();
+      this.filter.isExist = true;
+      for (i = 1; i <= maxColumn; i++) {
+        const criteria = this.customFilter.getColumnFilterCriteria(i);
+        if (criteria !== null) {
+          this.filter.columnPosition = i;
+          this.filter.filterCriteria = criteria.copy();
+          break
+        }
+      }
+      this.filter.customFilter.remove();
     }
-    return this
   }
   /**
    *
@@ -680,7 +691,16 @@ class WorkSheet extends SpreadSheet {
    */
   createFilter(range = {}) {
     if (!this.workSheet.getFilter()) {
-      range.createFilter();
+      if (this?.filter?.isExist) {
+        range
+          .createFilter()
+          .setColumnFilterCriteria(
+            this.filter.columnPosition,
+            this.filter.filterCriteria
+          );
+      } else {
+        range.createFilter().setColumnFilterCri;
+      }
     }
     return this
   }
@@ -1311,13 +1331,20 @@ class Portfolio {
           feeCurrency: { alias: 'Fee currency', idx: 13 },
           feeQty: { alias: 'Fee, qty', idx: 14 },
           comment: { alias: 'Comment', idx: 15 },
-          date: { alias: 'Date', idx: 16, notNull: true, type: 'date' },
+          date: {
+            alias: 'Date',
+            idx: 16,
+            notNull: true,
+            type: 'date',
+            default: void 0,
+          },
           time: { alias: 'Time', idx: 17, notNull: true },
           isDelete: { alias: 'Is delete', idx: 18 },
           dateSaved: {
             alias: 'Date saved',
             idx: 19,
             type: 'date',
+            default: new Date(),
           },
           timeSpent: {
             alias: 'Time spent (hh:mm:ss.ms)',
@@ -4132,6 +4159,35 @@ function updateOnEdit(editRange) {
   // }).then(updatePromise())
 }
 
+function sortRegistry() {
+  const activeSheet = SpreadsheetApp.getActiveSheet();
+  const customFilter = activeSheet.getFilter();
+  if (customFilter) {
+    customFilter.remove();
+  }
+  const activeWorkSheet = new Portfolio().getWorkSheet(activeSheet.getName());
+  if (activeWorkSheet.isRegistry) {
+    const registry = new Registry(activeWorkSheet);
+    const newArrayOfObject = registry.workSheet.arrayOfObject
+      .filter((row) => {
+        return row.rowKey
+      })
+      .map((row) => {
+        const time = row.time || 1200;
+        const date = row.date || new Date();
+        const hhmm = new FormatNumber(time).getHourAndMinuteFromNumber();
+        const DateTime = new FormatDate(date).addTime(hhmm.h, hhmm.m).date;
+        row.dateTime = DateTime;
+        return row
+      })
+      .sort((a, b) => {
+        return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
+      });
+    console.log(newArrayOfObject);
+    registry.workSheet.truncateInsertRows(newArrayOfObject);
+  }
+}
+
 function createMenu() {
   const ui = SpreadsheetApp.getUi();
   const menu = ui.createMenu('Portfolio');
@@ -4141,6 +4197,7 @@ function createMenu() {
       .addItem('Update data mart', 'updateDataMart')
       .addItem('Update current prices and data mart', 'updatePrices')
       .addItem('Validate transactions', 'validateTransactions')
+      .addItem('Sort registry', 'sortRegistry')
     // .addItem('Clean all metadata in worksheet', 'cleanAllMetadata')
   );
   menu.addToUi();
