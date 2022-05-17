@@ -535,10 +535,15 @@ class WorkSheet extends SpreadSheet {
 
         if (array.length) {
           this.deleteFilter();
-          this.workSheet
-            .clear()
-            .getRange(firstRow, firstColumn, array.length, array[0].length)
-            .setValues(array);
+          this.workSheet.clear();
+          const range = this.workSheet.getRange(
+            firstRow,
+            firstColumn,
+            array.length,
+            array[0].length
+          );
+          range.setValues(array);
+          this.createFilter(range);
           return true
         }
       };
@@ -666,6 +671,16 @@ class WorkSheet extends SpreadSheet {
     this.customFilter = this.workSheet.getFilter();
     if (this.customFilter) {
       this.customFilter.remove();
+    }
+    return this
+  }
+  /**
+   *
+   * @param {object} range
+   */
+  createFilter(range = {}) {
+    if (!this.workSheet.getFilter()) {
+      range.createFilter();
     }
     return this
   }
