@@ -340,7 +340,8 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
-          telegramId: { alias: 'Telegram Id', idx: 2 },
+          mainAccount: { alias: 'Main account', idx: 2, notNull: true },
+          telegramId: { alias: 'Telegram Id', idx: 3 },
         },
       },
       lockStatus: {

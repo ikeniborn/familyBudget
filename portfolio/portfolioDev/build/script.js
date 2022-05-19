@@ -1650,7 +1650,8 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
-          telegramId: { alias: 'Telegram Id', idx: 2 },
+          mainAccount: { alias: 'Main account', idx: 2, notNull: true },
+          telegramId: { alias: 'Telegram Id', idx: 3 },
         },
       },
       lockStatus: {
@@ -4218,7 +4219,6 @@ function sortRegistry() {
         return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
       });
 
-    // console.log(newArrayOfObject.length)
     registry.workSheet.truncateInsertRows(newArrayOfObject);
   }
 }
