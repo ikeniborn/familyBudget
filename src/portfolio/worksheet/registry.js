@@ -492,15 +492,14 @@ class Registry {
     try {
       const transactions = new Transactions()
       const errorKeyArray = []
-      const deletedRows = []
-
       const sheetNameArray = this.workSheet.spreadSheet
         .getSheets()
         .map((sheet) => sheet.getName())
         .filter((sheetName) => sheetName.match('Registry'))
 
       sheetNameArray.forEach((sheetName) => {
-        const workSheetObject = new Portfolio().getWorkSheet(sheetName).object
+        const workSheetRegistry = new Portfolio().getWorkSheet(sheetName)
+        const workSheetObject = workSheetRegistry.object
         const sourceKey = new Hash(sheetName).md5
 
         const registryRowKeyArray = transactions.workSheet.arrayOfObject
@@ -517,6 +516,8 @@ class Registry {
             errorKeyArray.push(registryRowKey)
           }
         })
+
+        workSheetRegistry.createFilter(workSheetRegistry.range)
       })
       //* удаление пустых ключей
       if (errorKeyArray.length) {

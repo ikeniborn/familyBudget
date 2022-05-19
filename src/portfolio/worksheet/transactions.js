@@ -9,6 +9,7 @@ class Transactions {
     if (Transactions.exists) {
       return Transactions.instance
     }
+
     Transactions.instance = this
     Transactions.exists = true
     this.workSheet = workSheet

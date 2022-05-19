@@ -94,13 +94,13 @@ function validateTransactions() {
     }
     process() ? resolve() : reject(new Error('script.validateTransactions'))
   })
-    .then(
-      new Portfolio().log.addMessage(
-        'script.validateTransactions',
-        'ID:' + startProcess.value,
-        'Time spent: ' + startProcess.getTimeDiff()
-      )
-    )
+    // .then(
+    //   new Portfolio().log.addMessage(
+    //     'script.validateTransactions',
+    //     'ID:' + startProcess.value,
+    //     'Time spent: ' + startProcess.getTimeDiff()
+    //   )
+    // )
     .catch((error) => {
       console.error('script.validateTransactions', error.stack)
     })
@@ -144,19 +144,24 @@ function updateOnEdit(editRange) {
     const workSheet = new Portfolio().updateOnEdit(editRange.range)
     if (workSheet.isChangeData) {
       lock.tryLock(180000)
-      resolve(workSheet)
+      workSheet.afterLock = true
+    } else {
+      workSheet.afterLock = false
     }
+    resolve(workSheet)
   })
     .then((workSheet) => {
       return new Promise((resolve, reject) => {
         const process = () => {
-          if (workSheet.isChangePrimaryKey) {
-            workSheet.savePrimaryKeyChanges()
-          }
-          if (workSheet.workSheetKey === new Hash('prices').md5) {
-            new Prices(workSheet).updateId()
-          } else if (workSheet.isRegistry) {
-            new Registry(workSheet).updateTransactions(true)
+          if (workSheet.afterLock) {
+            if (workSheet.isChangePrimaryKey) {
+              workSheet.savePrimaryKeyChanges()
+            }
+            if (workSheet.workSheetKey === new Hash('prices').md5) {
+              new Prices(workSheet).updateId()
+            } else if (workSheet.isRegistry) {
+              new Registry(workSheet).updateTransactions(true)
+            }
           }
           workSheet.isResolve = true
           return workSheet
@@ -219,7 +224,7 @@ function sortRegistry() {
         return row.rowKey
       })
       .map((row) => {
-        const time = row.time || 1200
+        const time = row.time || 2359
         const date = row.date || new Date()
         const hhmm = new FormatNumber(time).getHourAndMinuteFromNumber()
         const DateTime = new FormatDate(date).addTime(hhmm.h, hhmm.m).date
@@ -229,7 +234,7 @@ function sortRegistry() {
       .sort((a, b) => {
         return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
       })
-    console.log(newArrayOfObject)
+
     registry.workSheet.truncateInsertRows(newArrayOfObject)
   }
 }

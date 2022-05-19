@@ -101,20 +101,11 @@ class WorkSheet extends SpreadSheet {
     this.firstRowNum = this.headRowNum + 1
     this.headKey = Object.keys(new FormatObject(this.head).getCopy())
     this.workSheet = this.workSheets[this.workSheetKey]
-    this.range = this.workSheet.getDataRange()
-    this.countRow = this.range.getNumRows() - this.headRowNum
-    this.countColumn = this.range.getNumColumns()
     this.isRange = false
-    this.dataRange =
-      this.countRow > 0
-        ? this.workSheet
-            .getDataRange()
-            .offset(this.headRowNum, 0, this.countRow, this.countColumn)
-        : this.workSheet
-            .getDataRange()
-            .offset(this.headRowNum - 1, 0, 1, this.countColumn)
     this.arrayOfObject = []
     this.object = {}
+    this.filter = {}
+    // this.deleteFilter().getWorkSheetRange()
   }
 
   get lastRow() {
@@ -131,6 +122,21 @@ class WorkSheet extends SpreadSheet {
 
   get maxColumn() {
     return this.workSheet.getMaxColumns()
+  }
+
+  getWorkSheetRange() {
+    this.range = this.workSheet.getDataRange()
+    this.countRow = this.range.getNumRows() - this.headRowNum
+    this.countColumn = this.range.getNumColumns()
+    this.dataRange =
+      this.countRow > 0
+        ? this.workSheet
+            .getDataRange()
+            .offset(this.headRowNum, 0, this.countRow, this.countColumn)
+        : this.workSheet
+            .getDataRange()
+            .offset(this.headRowNum - 1, 0, 1, this.countColumn)
+    return this
   }
 
   getFact() {
@@ -198,6 +204,13 @@ class WorkSheet extends SpreadSheet {
     return this
   }
 
+  /**
+   *
+   * @param {array} arrayOfObject
+   * @param {number} firstRow
+   * @param {number} firstColumn
+   * @returns
+   */
   truncateInsertRows(arrayOfObject = [], firstRow = 1, firstColumn = 1) {
     new Promise((resolve, reject) => {
       const action = () => {
@@ -205,23 +218,23 @@ class WorkSheet extends SpreadSheet {
           (values, rowObject) => {
             const rowArray = this.headKey.map((column) => {
               let value = rowObject[column]
-              if (this.head[column]?.default && !value) {
-                value = this.head[column].default
+              if (!value) {
+                if (this.head[column]?.default) {
+                  if (this.head[column]?.type === 'date') {
+                    value = new Date(this.head[column].default)
+                  } else {
+                    value = this.head[column].default
+                  }
+                }
               }
-              if (this.head[column]?.type === 'date' && value) {
-                return new Date(value)
-              } else {
-                return value
-              }
+              return value
             })
             values.push(rowArray)
             return values
           },
           [new Header().getHeaderAlias(this.head)]
         )
-
         if (array.length) {
-          this.deleteFilter()
           this.workSheet.clear()
           const range = this.workSheet.getRange(
             firstRow,
@@ -236,32 +249,40 @@ class WorkSheet extends SpreadSheet {
       }
       action() ? resolve() : reject(error)
     })
-      .then(this.deleteEmptyRows().deleteEmptyColumns())
+      .then(() => {
+        this.deleteEmptyRows().deleteEmptyColumns()
+      })
       .catch((error) => {
-        console.error('WorkSheet.updateRow', error.stack)
+        console.error('WorkSheet.truncateInsertRows', error.stack)
       })
     return this
   }
 
-  updateRow(object = {}) {
+  /**
+   *
+   * @param {object} rowObject
+   */
+  updateRow(rowObject = {}) {
     new Promise((resolve, reject) => {
       const action = () => {
-        if (object.rowNum !== this.headRowNum) {
+        if (rowObject.rowNum !== this.headRowNum) {
           const array = [
             this.headKey.map((column) => {
-              let value = object[column]
-              if (this.head[column]?.default && !value) {
-                value = this.head[column].default
+              let value = rowObject[column]
+              if (!value) {
+                if (this.head[column]?.default) {
+                  if (this.head[column]?.type === 'date') {
+                    value = new Date(this.head[column].default)
+                  } else {
+                    value = this.head[column].default
+                  }
+                }
               }
-              if (this.head[column]?.type === 'date') {
-                return new Date(value)
-              } else {
-                return value
-              }
+              return value
             }),
           ]
           this.workSheet
-            .getRange(object.rowNum, 1, array.length, array[0].length)
+            .getRange(rowObject.rowNum, 1, array.length, array[0].length)
             .setValues(array)
 
           return true
@@ -275,19 +296,25 @@ class WorkSheet extends SpreadSheet {
       })
   }
 
-  insertRow(object = {}) {
+  /**
+   *
+   * @param {object} rowObject
+   */
+  insertRow(rowObject = {}) {
     new Promise((resolve, reject) => {
       const action = () => {
         const array = this.headKey.map((column) => {
-          let value = object[column]
-          if (this.head[column]?.default && !value) {
-            value = this.head[column].default
+          let value = rowObject[column]
+          if (!value) {
+            if (this.head[column]?.default) {
+              if (this.head[column]?.type === 'date') {
+                value = new Date(this.head[column].default)
+              } else {
+                value = this.head[column].default
+              }
+            }
           }
-          if (this.head[column]?.type === 'date') {
-            return new Date(value)
-          } else {
-            return value
-          }
+          return value
         })
         this.workSheet.appendRow(array)
 
@@ -300,6 +327,7 @@ class WorkSheet extends SpreadSheet {
         console.error('WorkSheet.insertRow', error.stack)
       })
   }
+
   /**
    *
    * @param {*} value
@@ -354,29 +382,36 @@ class WorkSheet extends SpreadSheet {
     }
   }
 
+  /**
+   *
+   * @returns
+   */
   deleteFilter() {
-    this.filter = {}
     this.filter.customFilter = this.workSheet.getFilter()
-    if (this.customFilter) {
+    if (this.filter.customFilter) {
       this.filter.isExist = true
-      for (i = 1; i <= maxColumn; i++) {
-        const criteria = this.customFilter.getColumnFilterCriteria(i)
+      for (let i = 1; i <= this.maxColumn; i++) {
+        const criteria = this.filter.customFilter.getColumnFilterCriteria(i)
         if (criteria !== null) {
           this.filter.columnPosition = i
           this.filter.filterCriteria = criteria.copy()
           break
         }
       }
-      this.filter.customFilter.remove()
+      if (this.filter.columnPosition) {
+        this.filter.customFilter.remove()
+      }
     }
+    return this
   }
+
   /**
    *
    * @param {object} range
    */
-  createFilter(range = {}) {
+  createFilter(range) {
     if (!this.workSheet.getFilter()) {
-      if (this?.filter?.isExist) {
+      if (this.filter?.isExist) {
         range
           .createFilter()
           .setColumnFilterCriteria(
@@ -384,10 +419,9 @@ class WorkSheet extends SpreadSheet {
             this.filter.filterCriteria
           )
       } else {
-        range.createFilter().setColumnFilterCri
+        range.createFilter()
       }
     }
-    return this
   }
 
   /**
@@ -424,11 +458,17 @@ class WorkSheet extends SpreadSheet {
 
   getDataset() {
     if (this.headType === 'dim') {
-      this.getDimension()
+      this.isRange
+        ? this.getDimension()
+        : this.deleteFilter().getWorkSheetRange().getDimension()
     } else if (this.headType === 'fct') {
-      this.getFact()
+      this.isRange
+        ? this.getFact()
+        : this.deleteFilter().getWorkSheetRange().getFact()
     } else if (this.headType === 'tx') {
-      this.getTransactions()
+      this.isRange
+        ? this.getTransactions()
+        : this.deleteFilter().getWorkSheetRange().getTransactions()
     }
     return this
   }
@@ -438,6 +478,10 @@ class WorkSheetRange extends WorkSheet {
   constructor(spreadSheetName, sheetName, head, range) {
     super(spreadSheetName, sheetName, head)
     this.workSheet = range.getSheet()
+    this.arrayOfObject = []
+    this.object = {}
+    this.isChangeData = false
+    this.isRange = true
     this.range = range
     this.startRow = this.range.rowStart
     this.rowEnd = this.range.rowEnd
@@ -458,9 +502,6 @@ class WorkSheetRange extends WorkSheet {
     this.columnNumArray = [...Array(this.countColumn).keys()].map(
       (m) => (m = m + this.range.columnStart)
     )
-    this.arrayOfObject = []
-    this.object = {}
-    this.isChangeData = false
     this.workSheetMetadata = new WorkSheetMetadata(this.workSheet)
   }
 
@@ -472,7 +513,6 @@ class WorkSheetRange extends WorkSheet {
     try {
       this.dataRange.getValues().forEach((arrayRow, indexRow) => {
         const rowNum = this.firstRowNum + indexRow
-
         const rowKey = arrayRow[this.head.rowKey.idx]
         const instanceRow = arrayRow.reduce((object, value, index) => {
           object['rowNum'] = rowNum
@@ -576,7 +616,6 @@ class WorkSheetRange extends WorkSheet {
           }
         }
       })
-
       this.isChangeData = this.arrayOfObject.length ? true : false
       return this
     } catch (error) {
@@ -593,7 +632,6 @@ class WorkSheetRange extends WorkSheet {
             object.rowNum,
             this.head.rowKey.idx + 1
           )
-          // this.updateRow(object)
         })
       }
     } catch (error) {
@@ -660,17 +698,6 @@ class WorkSheetRange extends WorkSheet {
         .join('')
     ).md5
   }
-
-  // getDataset() {
-  //   if (this.headType === 'dim') {
-  //     this.getDimension()
-  //   } else if (this.headType === 'fct') {
-  //     this.getFact()
-  //   } else if (this.headType === 'tx') {
-  //     this.getTransactions()
-  //   }
-  //   return this
-  // }
 }
 
 class ScriptCache {
