@@ -2790,8 +2790,11 @@ class Transactions {
       } else {
         //* Расчет средневзвешенной стоимости покупки токена на основании истории покупок для диапазона данных
         if (isRange) {
-          const historicalAveragePriceKey = new Hash(account + currencySymbol)
-            .md5;
+          const accounts = new Portfolio().getWorkSheet('Accounts').object;
+          const mainAccount = accounts[new Hash(account).md5].mainAccount;
+          const historicalAveragePriceKey = new Hash(
+            mainAccount + currencySymbol
+          ).md5;
           const inKey = new Hash('in').md5;
 
           const historicalPriceAgg = this.workSheet.arrayOfObject
@@ -2954,6 +2957,71 @@ class Transactions {
     });
     this.workSheet.truncateInsertRows(newArrayOfObject);
   }
+
+  updateHistoricalAveragePriceKey() {
+    const accounts = new Portfolio().getWorkSheet('Accounts').object;
+    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
+      const mainAccount = accounts[new Hash(rowObject.account).md5].mainAccount;
+      const newHistoricalAveragePriceKey = new Hash(
+        mainAccount + rowObject.symbol
+      ).md5;
+      rowObject.historicalAveragePriceKey = newHistoricalAveragePriceKey;
+      return rowObject
+    });
+    this.workSheet.truncateInsertRows(newArrayOfObject);
+  }
+
+  updateTransferOperation(start, end) {
+    const newArrayOfObject = this.workSheet.arrayOfObject.map(
+      (rowObject, indexRow) => {
+        if (indexRow > start && indexRow <= end) {
+          if (
+            new Hash(rowObject.operation).md5 ===
+            '84a0f3455dcca894ace136be62efa292' /*transfer*/
+          ) {
+            const price = this.getHistoricalPriceBuy(
+              rowObject.dateTime,
+              rowObject.account,
+              rowObject.symbol,
+              true
+            ).historicalPrice;
+            rowObject.price = price;
+            rowObject.cost = rowObject.quantity * price;
+            rowObject.updateDate = new Date();
+          }
+        }
+        return rowObject
+      }
+    );
+    this.workSheet.truncateInsertRows(newArrayOfObject);
+  }
+
+  updateWriteOffAndRefillOperation(start, end) {
+    const newArrayOfObject = this.workSheet.arrayOfObject.map(
+      (rowObject, indexRow) => {
+        if (indexRow > start && indexRow <= end) {
+          if (
+            [
+              '7b33b9f52598cd60f7aa6ca0082515c4',
+              'b4479040173a9f41eeb4e98339f2a21d' /*write-off, refill*/,
+            ].indexOf(new Hash(rowObject.operation).md5) !== -1
+          ) {
+            const price = this.getHistoricalPriceBuy(
+              rowObject.dateTime,
+              rowObject.account,
+              rowObject.symbol,
+              true
+            ).historicalPrice;
+            rowObject.price = price;
+            rowObject.cost = rowObject.quantity * price;
+            rowObject.updateDate = new Date();
+          }
+        }
+        return rowObject
+      }
+    );
+    this.workSheet.truncateInsertRows(newArrayOfObject);
+  }
 }
 
 class Registry {
@@ -2967,6 +3035,7 @@ class Registry {
     const startProcess = new FormatDate();
     try {
       const prices = new Prices().workSheet.object;
+      const accounts = new Portfolio().getWorkSheet('Accounts').object;
       const transactions = new Transactions();
       const transactionsArrayOfObject = [];
       const updateDate = new Date();
@@ -3327,12 +3396,14 @@ class Registry {
                 isHistoricalAveragePrice = isHistoricalAveragePriceCurrency;
               }
               const cost = tx.quantity * price;
+              const mainAccount = accounts[new Hash(tx.account).md5].mainAccount;
               const object = {
                 rowKey: tx.rowKey,
 
                 sourceKey: new Hash(this.workSheet.sheetName).md5,
                 sourceName: new Hash(this.workSheet.sheetName).stringLowerCase,
-                historicalAveragePriceKey: new Hash(tx.account + tx.symbol).md5,
+                historicalAveragePriceKey: new Hash(mainAccount + tx.symbol)
+                  .md5,
                 dateTime: dateTime,
                 direction: tx.isFee ? 'out' : tx.direction.toLowerCase(),
                 operation: tx.isFee
@@ -4119,6 +4190,44 @@ function updatePrices() {
 
 function updateRegistryRowKey() {
   new Transactions().updateRegistryRowKey();
+}
+
+function updateHistoricalAveragePriceKey() {
+  new Transactions().updateHistoricalAveragePriceKey();
+}
+
+function updateTransferOperation1000() {
+  new Transactions().updateTransferOperation(0, 1000);
+}
+function updateTransferOperation2000() {
+  new Transactions().updateTransferOperation(1001, 2000);
+}
+function updateTransferOperation3000() {
+  new Transactions().updateTransferOperation(2001, 3000);
+}
+function updateTransferOperation4000() {
+  new Transactions().updateTransferOperation(3001, 4000);
+}
+
+function updateTransferOperation5000() {
+  new Transactions().updateTransferOperation(4001, 5000);
+}
+
+function updateWriteOffAndRefillOperation1000() {
+  new Transactions().updateWriteOffAndRefillOperation(0, 1000);
+}
+function updateWriteOffAndRefillOperation2000() {
+  new Transactions().updateWriteOffAndRefillOperation(1001, 2000);
+}
+function updateWriteOffAndRefillOperation3000() {
+  new Transactions().updateWriteOffAndRefillOperation(2001, 3000);
+}
+function updateWriteOffAndRefillOperation4000() {
+  new Transactions().updateWriteOffAndRefillOperation(3001, 4000);
+}
+
+function updateWriteOffAndRefillOperation5000() {
+  new Transactions().updateWriteOffAndRefillOperation(4001, 5000);
 }
 
 function updateOnEdit(editRange) {

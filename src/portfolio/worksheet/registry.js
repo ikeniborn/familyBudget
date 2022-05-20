@@ -15,6 +15,7 @@ class Registry {
     const startProcess = new FormatDate()
     try {
       const prices = new Prices().workSheet.object
+      const accounts = new Portfolio().getWorkSheet('Accounts').object
       const transactions = new Transactions()
       const transactionsArrayOfObject = []
       const updateDate = new Date()
@@ -375,12 +376,13 @@ class Registry {
                 isHistoricalAveragePrice = isHistoricalAveragePriceCurrency
               }
               const cost = tx.quantity * price
+              const mainAccount = accounts[new Hash(tx.account).md5].mainAccount
               const object = {
                 rowKey: tx.rowKey,
-
                 sourceKey: new Hash(this.workSheet.sheetName).md5,
                 sourceName: new Hash(this.workSheet.sheetName).stringLowerCase,
-                historicalAveragePriceKey: new Hash(tx.account + tx.symbol).md5,
+                historicalAveragePriceKey: new Hash(mainAccount + tx.symbol)
+                  .md5,
                 dateTime: dateTime,
                 direction: tx.isFee ? 'out' : tx.direction.toLowerCase(),
                 operation: tx.isFee

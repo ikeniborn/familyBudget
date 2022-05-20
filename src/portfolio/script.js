@@ -137,6 +137,44 @@ function updateRegistryRowKey() {
   new Transactions().updateRegistryRowKey()
 }
 
+function updateHistoricalAveragePriceKey() {
+  new Transactions().updateHistoricalAveragePriceKey()
+}
+
+function updateTransferOperation1000() {
+  new Transactions().updateTransferOperation(0, 1000)
+}
+function updateTransferOperation2000() {
+  new Transactions().updateTransferOperation(1001, 2000)
+}
+function updateTransferOperation3000() {
+  new Transactions().updateTransferOperation(2001, 3000)
+}
+function updateTransferOperation4000() {
+  new Transactions().updateTransferOperation(3001, 4000)
+}
+
+function updateTransferOperation5000() {
+  new Transactions().updateTransferOperation(4001, 5000)
+}
+
+function updateWriteOffAndRefillOperation1000() {
+  new Transactions().updateWriteOffAndRefillOperation(0, 1000)
+}
+function updateWriteOffAndRefillOperation2000() {
+  new Transactions().updateWriteOffAndRefillOperation(1001, 2000)
+}
+function updateWriteOffAndRefillOperation3000() {
+  new Transactions().updateWriteOffAndRefillOperation(2001, 3000)
+}
+function updateWriteOffAndRefillOperation4000() {
+  new Transactions().updateWriteOffAndRefillOperation(3001, 4000)
+}
+
+function updateWriteOffAndRefillOperation5000() {
+  new Transactions().updateWriteOffAndRefillOperation(4001, 5000)
+}
+
 function updateOnEdit(editRange) {
   const startProcess = new FormatDate()
   const lock = LockService.getScriptLock()
