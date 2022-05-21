@@ -6,18 +6,18 @@ import * as cryptoCompare from '../../restApi/cryptoCompare'
 import * as coinGecko from '../../restApi/coinGecko'
 // import { Transactions } from './transactions'
 import { Coins } from './coins'
-export { Prices }
+export { Symbols }
 
-class Prices {
+class Symbols {
   constructor(workSheet = '') {
-    if (Prices.exists) {
-      return Prices.instance
+    if (Symbols.exists) {
+      return Symbols.instance
     }
-    Prices.instance = this
-    Prices.exists = true
+    Symbols.instance = this
+    Symbols.exists = true
     this.workSheet = workSheet
       ? workSheet
-      : new Portfolio().getWorkSheet('Prices')
+      : new Portfolio().getWorkSheet('Symbols')
   }
 
   updateId() {
@@ -35,7 +35,7 @@ class Prices {
         )
       })
     } catch (error) {
-      console.error('Prices.updateId', error.stack)
+      console.error('Symbols.updateId', error.stack)
     }
   }
 
@@ -78,7 +78,7 @@ class Prices {
             }
             process() ? resolve() : reject(new Error('updatePricesRow'))
           }).catch((error) => {
-            console.error('Prices.updatePrices', error.stack)
+            console.error('Symbols.updatePrices', error.stack)
           })
         }
         const listId = Object.fromEntries(
@@ -178,7 +178,7 @@ class Prices {
     })
       .then(this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject))
       .catch((error) => {
-        console.error('Prices.updatePrices', error.stack)
+        console.error('Symbols.updatePrices', error.stack)
       })
   }
 }

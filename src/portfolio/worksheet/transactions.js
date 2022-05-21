@@ -1,5 +1,5 @@
 import { Portfolio } from '../spreadsheet/portfolio'
-import { Prices } from './prices'
+// import { Prices } from './prices'
 import { Hash, FormatDate } from '../../utils'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
 export { Transactions }
@@ -16,7 +16,7 @@ class Transactions {
       ? workSheet
       : new Portfolio().getWorkSheet('Transactions')
     this.duplicatesRow = []
-    this.prices = new Prices().workSheet.object
+    // this.prices = new Prices().workSheet.object
   }
 
   /**
@@ -87,17 +87,21 @@ class Transactions {
 
   /**
    * Получение средневзвешенной цены покупки токена
-   * @param {string} account
-   * @param {date} dateTime
-   * @param {string} symbol
-   * @param {string} convert
-   * @param {boolean} isRange
-   * @returns
+   * @param {*} dateTime дата и время
+   * @param {*} account счет
+   * @param {*} currencySymbol символ
+   * @param {*} currencySymbolCategoryKey ключ категории токена
+   * @param {*} symbols справочник символов
+   * @param {*} isRange признак диапазона
+   * @param {*} convert параметр конвертации
+   * @returns объект цена и признак исторической цены
    */
   getHistoricalPriceBuy(
     dateTime,
     account,
     currencySymbol,
+    currencySymbolCategoryKey,
+    symbols,
     isRange = false,
     convert = 'usd'
   ) {
@@ -106,15 +110,21 @@ class Transactions {
       let isHistoricalAveragePrice
       historicalPrice = 0
       isHistoricalAveragePrice = false
-      const coin = this.prices[new Hash(currencySymbol).md5]
+      const coin = symbols[new Hash(currencySymbol).md5]
       const sourceKey = new Hash(coin?.source).md5
       const symbolId = coin?.sourceId
-      const categoryKey = new Hash(coin?.symbolCategory).md5
-      if ('e5e3fd01394b9a81296b75d5a7f4c1a2' === categoryKey /*stablecoin*/) {
+      // const categoryKey = new Hash(coin?.symbolCategory).md5
+      if (
+        'e5e3fd01394b9a81296b75d5a7f4c1a2' ===
+        currencySymbolCategoryKey /*stablecoin*/
+      ) {
         //* Для стабильных токенов возвращать единицу
         historicalPrice = 1
         isHistoricalAveragePrice = false
-      } else if ('7d5f30a0d1641c0b6980aaf2556b32ce' === categoryKey /*fiat*/) {
+      } else if (
+        '7d5f30a0d1641c0b6980aaf2556b32ce' ===
+        currencySymbolCategoryKey /*fiat*/
+      ) {
         if (
           sourceKey === '1dab445b170a7f0acfccea645a8879e0' /*cryptocompare*/
         ) {
@@ -128,13 +138,9 @@ class Transactions {
       } else {
         //* Расчет средневзвешенной стоимости покупки токена на основании истории покупок для диапазона данных
         if (isRange) {
-          const accounts = new Portfolio().getWorkSheet('Accounts').object
-          const mainAccount = accounts[new Hash(account).md5].mainAccount
-          const historicalAveragePriceKey = new Hash(
-            mainAccount + currencySymbol
-          ).md5
+          const historicalAveragePriceKey = new Hash(account + currencySymbol)
+            .md5
           const inKey = new Hash('in').md5
-
           const historicalPriceAgg = this.workSheet.arrayOfObject
             .filter((row) => {
               return (
@@ -238,13 +244,7 @@ class Transactions {
               : historicalPriceAgg.costBalance
           const priceRestInFlow =
             costRestInFlow / historicalPriceAgg.quantityRest
-          // console.log('quantityRest', historicalPriceAgg.quantityRest)
-          // console.log('costBalance', historicalPriceAgg.costBalance)
-          // console.log('quantityInFlow', quantityInFlow)
-          // console.log('priceInFlow', priceInFlow)
-          // console.log('costInFlow', costInFlow)
-          // console.log('costRestInFlow', costRestInFlow)
-          // console.log('priceRestInFlow', priceRestInFlow)
+
           //* Расчет средней цены покупки токена
           if (priceRestInFlow) {
             historicalPrice = priceRestInFlow
@@ -309,45 +309,26 @@ class Transactions {
     this.workSheet.truncateInsertRows(newArrayOfObject)
   }
 
-  updateTransferOperation(start, end) {
+  recalculateTransactions(startRow, endRow) {
+    const symbols = new Portfolio().getWorkSheet('Symbols').object
+    const accounts = new Portfolio().getWorkSheet('Accounts').object
     const newArrayOfObject = this.workSheet.arrayOfObject.map(
       (rowObject, indexRow) => {
-        if (indexRow > start && indexRow <= end) {
-          if (
-            new Hash(rowObject.operation).md5 ===
-            '84a0f3455dcca894ace136be62efa292' /*transfer*/
-          ) {
-            const price = this.getHistoricalPriceBuy(
-              rowObject.dateTime,
-              rowObject.account,
-              rowObject.symbol,
-              true
-            ).historicalPrice
-            rowObject.price = price
-            rowObject.cost = rowObject.quantity * price
-            rowObject.updateDate = new Date()
-          }
-        }
-        return rowObject
-      }
-    )
-    this.workSheet.truncateInsertRows(newArrayOfObject)
-  }
-
-  updateWriteOffAndRefillOperation(start, end) {
-    const newArrayOfObject = this.workSheet.arrayOfObject.map(
-      (rowObject, indexRow) => {
-        if (indexRow > start && indexRow <= end) {
+        if (indexRow > startRow && indexRow <= endRow) {
           if (
             [
+              '84a0f3455dcca894ace136be62efa292',
               '7b33b9f52598cd60f7aa6ca0082515c4',
-              'b4479040173a9f41eeb4e98339f2a21d' /*write-off, refill*/,
+              'b4479040173a9f41eeb4e98339f2a21d' /*transfer,write-off, refill*/,
             ].indexOf(new Hash(rowObject.operation).md5) !== -1
           ) {
             const price = this.getHistoricalPriceBuy(
               rowObject.dateTime,
-              rowObject.account,
+              accounts[new Hash(rowObject.account).md5]?.mainAccount,
               rowObject.symbol,
+              new Hash(symbols[new Hash(rowObject.symbol).md5]?.symbolCategory)
+                .md5,
+              symbols,
               true
             ).historicalPrice
             rowObject.price = price
@@ -360,4 +341,76 @@ class Transactions {
     )
     this.workSheet.truncateInsertRows(newArrayOfObject)
   }
+  /**
+   * Пересчет транзакций по символу
+   * @param {string} symbol наименование символа
+   */
+  recalculateSymbolTransactions(symbol) {
+    const symbolKey = new Hash(symbol).md5
+    const symbols = new Portfolio().getWorkSheet('Symbols').object
+    const accounts = new Portfolio().getWorkSheet('Accounts').object
+    const symbolData = { quantity: 0, cost: 0 }
+
+    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
+      if ([symbolKey].indexOf(new Hash(rowObject.symbol).md5) !== -1) {
+        const price = this.getHistoricalPriceBuy(
+          rowObject.dateTime,
+          accounts[new Hash(rowObject.account).md5]?.mainAccount,
+          rowObject.symbol,
+          new Hash(symbols[symbolKey]?.symbolCategory).md5,
+          symbols,
+          true
+        ).historicalPrice
+        rowObject.price = price
+        rowObject.cost = rowObject.quantity * price
+        symbolData.quantity += rowObject.quantity
+        symbolData.cost += rowObject.cost
+        rowObject.updateDate = new Date()
+      }
+
+      return rowObject
+    })
+    this.workSheet.truncateInsertRows(newArrayOfObject)
+    console.log(
+      symbol +
+        ': quantity = ' +
+        symbolData.quantity +
+        ', price: ' +
+        symbolData.cost / symbolData.quantity +
+        ', cost: ' +
+        symbolData.cost
+    )
+  }
+
+  updateAccount() {
+    const accounts = new Portfolio().getWorkSheet('Accounts').object
+    const symbols = new Portfolio().getWorkSheet('Symbols').object
+    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
+      if (
+        [
+          'e5e3fd01394b9a81296b75d5a7f4c1a2',
+          '7d5f30a0d1641c0b6980aaf2556b32ce' /*Stablecoin, Fiat*/,
+        ].indexOf(
+          new Hash(symbols[new Hash(rowObject.symbol).md5]?.symbolCategory).md5
+        ) !== -1
+      ) {
+        rowObject.account =
+          accounts[new Hash(rowObject.account).md5]?.mainAccount
+        rowObject.updateDate = new Date()
+      }
+
+      return rowObject
+    })
+    this.workSheet.truncateInsertRows(newArrayOfObject)
+  }
 }
+
+/* 
+// console.log('quantityRest', historicalPriceAgg.quantityRest)
+// console.log('costBalance', historicalPriceAgg.costBalance)
+// console.log('quantityInFlow', quantityInFlow)
+// console.log('priceInFlow', priceInFlow)
+// console.log('costInFlow', costInFlow)
+// console.log('costRestInFlow', costRestInFlow)
+// console.log('priceRestInFlow', priceRestInFlow)
+*/

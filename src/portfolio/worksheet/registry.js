@@ -1,7 +1,7 @@
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash, FormatDate, FormatNumber, FormatObject } from '../../utils'
 import { Transactions } from './transactions'
-import { Prices } from './prices'
+import { Symbols } from './symbols'
 export { Registry }
 
 class Registry {
@@ -11,10 +11,63 @@ class Registry {
       : new Portfolio().getWorkSheet(SpreadsheetApp.getActiveSheet().getName())
   }
 
+  /**
+   * Получение счета
+   * @param {string} accountSender счет отправителя
+   * @param {string} accountRecipient счет получателя
+   * @param {object} accounts справочник счетов
+   * @param {string} symbolCategoryKey ключ категории символа
+   * @returns счет
+   */
+  getAccount(accountSender, accountRecipient, accounts, symbolCategoryKey) {
+    try {
+      const account = accountRecipient ? accountRecipient : accountSender
+      if (
+        [
+          'e5e3fd01394b9a81296b75d5a7f4c1a2',
+          '7d5f30a0d1641c0b6980aaf2556b32ce' /*stablecoin, fiat */,
+        ].indexOf(symbolCategoryKey) !== -1
+      ) {
+        return accounts[new Hash(account).md5]?.mainAccount
+      }
+      return account
+    } catch (error) {
+      console.error('Registry.getAccount', error.stack)
+    }
+  }
+
+  /**
+   * Получаение основного счета
+   * @param {string} account счет
+   * @param {object} accounts справочник счетов
+   * @returns основной счет
+   */
+  getMainAccount(account, accounts) {
+    try {
+      return accounts[new Hash(account).md5]?.mainAccount
+    } catch (error) {
+      console.error('Registry.getMainAccount', error.stack)
+    }
+  }
+
+  /**
+   * получение улюча категории символа
+   * @param {*} symbol символ
+   * @param {*} symbols справочник символов
+   * @returns ключ категории символа
+   */
+  getSymbolCategoryKey(symbol, symbols) {
+    try {
+      return new Hash(symbols[new Hash(symbol).md5]?.symbolCategory).md5
+    } catch (error) {
+      console.error('Registry.getSymbolCategoryKey', error.stack)
+    }
+  }
+
   updateTransactions(isRange = false) {
     const startProcess = new FormatDate()
     try {
-      const prices = new Prices().workSheet.object
+      const symbols = new Symbols().workSheet.object
       const accounts = new Portfolio().getWorkSheet('Accounts').object
       const transactions = new Transactions()
       const transactionsArrayOfObject = []
@@ -24,14 +77,22 @@ class Registry {
           currencyQty,
           currencyPerCoin,
           coinSymbol,
+          coinSymbolCategoryKey,
           symbolPrice,
-          project,
-          accountRecipient,
-          recipient,
           currencySymbol,
+          currencySymbolCategoryKey,
           currencyPrice,
+          accountSender,
+          accountRecipient,
+          mainAccountSender,
+          mainAccountRecipient,
+          sender,
+          recipient,
           feePrice,
           mainSymbol,
+          feeCurrency,
+          feeCurrencySymbolCategoryKey,
+          feeQty,
           isDelete,
           isLiquidityPool,
           isFee,
@@ -64,13 +125,11 @@ class Registry {
         registryRowKey = rowValues.rowKey
         registryRowKeyTimestamp = rowValues.rowKeyTimestamp
         registryTimestamp = rowValues.timestamp
-        accountRecipient = rowValues.accountRecipient
-          ? rowValues.accountRecipient
-          : rowValues.accountSender
-        recipient = rowValues.recipient ? rowValues.recipient : rowValues.sender
-        project = rowValues.project ? rowValues.project : 'No project'
+        operationKey = new Hash(rowValues.operation).md5
+        lockStatusKey = new Hash(rowValues.lockStatus).md5
         coinQty =
           typeof rowValues.coinQty === 'number' ? rowValues.coinQty : void 0
+
         currencyQty =
           typeof rowValues.currencyQty === 'number'
             ? rowValues.currencyQty
@@ -80,11 +139,18 @@ class Registry {
             ? rowValues.currencyPerCoin
             : void 0
         coinSymbol = rowValues.coin
-        currencySymbol = rowValues.currency
+        coinSymbolCategoryKey = this.getSymbolCategoryKey(coinSymbol, symbols)
+        currencySymbol = rowValues.currency || rowValues.coin
+        currencySymbolCategoryKey = this.getSymbolCategoryKey(
+          currencySymbol,
+          symbols
+        )
+        sender = rowValues.sender
+        recipient = rowValues.recipient ? rowValues.recipient : rowValues.sender
+        feeCurrency = rowValues.feeCurrency
+        feeQty = rowValues.feeQty
         isLiquidityPool = false
         isDelete = rowValues.isDelete || false
-        operationKey = new Hash(rowValues.operation).md5
-        lockStatusKey = new Hash(rowValues.lockStatus).md5
         isFee = false
         isAvgPrice = false
         isSenderLock = false
@@ -135,7 +201,7 @@ class Registry {
           isSenderLock = false
           isRecipientLock = false
         }
-
+        //* формирование транзакций
         if (
           [
             /*Transfer, Write-off, Refill*/
@@ -145,7 +211,7 @@ class Registry {
           ].indexOf(operationKey) !== -1
         ) {
           currencyPerCoin = 1
-          currencySymbol = coinSymbol
+          // currencySymbol = coinSymbol
           if (
             [
               /*Write-off, Refill*/
@@ -162,13 +228,20 @@ class Registry {
               '7b33b9f52598cd60f7aa6ca0082515c4',
             ].indexOf(operationKey) !== -1
           ) {
+            accountSender = this.getAccount(
+              rowValues.accountSender,
+              void 0,
+              accounts,
+              coinSymbolCategoryKey
+            )
+            mainAccountSender = this.getMainAccount(accountSender, accounts)
             rowKey1 = new Hash(rowValues.rowKey + '#1').md5
             transactionRow.push({
               rowKey: rowKey1,
               direction: 'out',
-              account: rowValues.accountSender,
-              contractor: rowValues.sender,
-              project: 'No project',
+              account: accountSender,
+              mainAccount: mainAccountSender,
+              contractor: sender,
               mainSymbol: void 0,
               symbol: coinSymbol,
               quantity: coinQty * -1,
@@ -188,14 +261,23 @@ class Registry {
               'b4479040173a9f41eeb4e98339f2a21d',
             ].indexOf(operationKey) !== -1
           ) {
+            accountRecipient = this.getAccount(
+              rowValues.accountSender,
+              rowValues.accountRecipient,
+              accounts,
+              coinSymbolCategoryKey
+            )
+            mainAccountRecipient = this.getMainAccount(
+              accountRecipient,
+              accounts
+            )
             rowKey2 = new Hash(rowValues.rowKey + '#2').md5
-
             transactionRow.push({
               rowKey: rowKey2,
               direction: 'in',
               account: accountRecipient,
+              mainAccount: mainAccountRecipient,
               contractor: recipient,
-              project: 'No project',
               mainSymbol: void 0,
               symbol: coinSymbol,
               quantity: coinQty,
@@ -212,13 +294,27 @@ class Registry {
           [/*buy*/ '0461ebd2b773878eac9f78a891912d65'].indexOf(operationKey) !==
           -1
         ) {
+          accountSender = this.getAccount(
+            rowValues.accountSender,
+            void 0,
+            accounts,
+            currencySymbolCategoryKey
+          )
+          accountRecipient = this.getAccount(
+            rowValues.accountSender,
+            rowValues.accountRecipient,
+            accounts,
+            coinSymbolCategoryKey
+          )
+          mainAccountSender = this.getMainAccount(accountSender, accounts)
+          mainAccountRecipient = this.getMainAccount(accountRecipient, accounts)
           rowKey1 = new Hash(rowValues.rowKey + '#1').md5
           transactionRow.push({
             rowKey: rowKey1,
             direction: 'out',
-            account: rowValues.accountSender,
-            contractor: rowValues.sender,
-            project: 'No project',
+            account: accountSender,
+            mainAccount: mainAccountSender,
+            contractor: sender,
             mainSymbol: mainSymbol,
             symbol: currencySymbol,
             quantity: currencyQty * -1,
@@ -231,14 +327,13 @@ class Registry {
             isSymbolPrice,
           })
           rowKey2 = new Hash(rowValues.rowKey + '#2').md5
-
           transactionRow.push({
             rowKey: rowKey2,
             direction: 'in',
             isLock: rowValues.isLock,
             account: accountRecipient,
+            mainAccount: mainAccountRecipient,
             contractor: recipient,
-            project: project,
             mainSymbol: mainSymbol,
             symbol: coinSymbol,
             quantity: coinQty,
@@ -255,13 +350,28 @@ class Registry {
             operationKey
           ) !== -1
         ) {
+          accountSender = this.getAccount(
+            rowValues.accountSender,
+            void 0,
+            accounts,
+            coinSymbolCategoryKey
+          )
+          accountRecipient = this.getAccount(
+            rowValues.accountSender,
+            rowValues.accountRecipient,
+            accounts,
+            currencySymbolCategoryKey
+          )
+
+          mainAccountSender = this.getMainAccount(accountSender, accounts)
+          mainAccountRecipient = this.getMainAccount(accountRecipient, accounts)
           rowKey1 = new Hash(rowValues.rowKey + '#1').md5
           transactionRow.push({
             rowKey: rowKey1,
             direction: 'out',
-            account: rowValues.accountSender,
-            contractor: rowValues.sender,
-            project: project,
+            account: accountSender,
+            mainAccount: mainAccountSender,
+            contractor: sender,
             mainSymbol: mainSymbol,
             symbol: coinSymbol,
             quantity: coinQty * -1,
@@ -274,14 +384,13 @@ class Registry {
             isCurencyPrice,
           })
           rowKey2 = new Hash(rowValues.rowKey + '#2').md5
-
           transactionRow.push({
             rowKey: rowKey2,
             direction: 'in',
             isLock: rowValues.isLock,
             account: accountRecipient,
+            mainAccount: mainAccountRecipient,
             contractor: recipient,
-            project: 'No project',
             mainSymbol: mainSymbol,
             symbol: currencySymbol,
             quantity: currencyQty,
@@ -298,8 +407,10 @@ class Registry {
         //* Расчет текущей или исторической цены покупаемого токена
         const historicalPriceBuyCoin = transactions.getHistoricalPriceBuy(
           dateTime,
-          rowValues.accountSender,
+          mainAccountSender,
           currencySymbol,
+          currencySymbolCategoryKey,
+          symbols,
           isRange
         )
 
@@ -313,22 +424,24 @@ class Registry {
         //* Комиссия
         if (rowValues.feeCurrency) {
           rowKey3 = new Hash(rowValues.rowKey + '#3').md5
-          const coin = prices[new Hash(rowValues.feeCurrency).md5]
-          const categoryKey = new Hash(coin?.symbolCategory).md5
+          feeCurrencySymbolCategoryKey = this.getSymbolCategoryKey(
+            rowValues.feeCurrency,
+            symbols
+          )
           if (
-            'e5e3fd01394b9a81296b75d5a7f4c1a2' !== categoryKey /*stablecoin*/
+            'e5e3fd01394b9a81296b75d5a7f4c1a2' !==
+            feeCurrencySymbolCategoryKey /*stablecoin*/
           ) {
             isAvgPrice = true
           }
           transactionRow.push({
             rowKey: rowKey3,
             direction: 'out',
-            account: rowValues.accountSender,
-            contractor: rowValues.sender,
-            project: 'No project',
+            account: accountSender,
+            contractor: sender,
             mainSymbol: void 0,
-            symbol: rowValues.feeCurrency,
-            quantity: rowValues.feeQty * -1,
+            symbol: feeCurrency,
+            quantity: feeQty * -1,
             isFee: true,
             isLock: false,
             isLiquidityPool: false,
@@ -339,101 +452,77 @@ class Registry {
           })
 
           //* Расчет текущей или исторической цены комиссии токена
-          // if (
-          //   rowValues.feeCurrency !== coinSymbol &&
-          //   !historicalPriceBuyCoin?.isHistoricalAveragePrice
-          // ) {
+
           const historicalPriceBuyFee = transactions.getHistoricalPriceBuy(
             dateTime,
-            rowValues.accountSender,
-            rowValues.feeCurrency,
+            mainAccountSender,
+            feeCurrencySymbolCategoryKey,
+            symbols,
             isRange
           )
 
           feePrice = historicalPriceBuyFee?.historicalPrice
           isHistoricalAveragePriceFeeCurrency =
             historicalPriceBuyFee?.isHistoricalAveragePrice
-          // } else {
-          //   feePrice = symbolPrice
-          //   isHistoricalAveragePriceFeeCurrency =
-          //     historicalPriceBuyCoin?.isHistoricalAveragePrice || false
-          // }
         }
 
-        new Promise((resolve, reject) => {
-          const process = () => {
-            //* Формирование строки транзакции
-            transactionRow.forEach((tx) => {
-              let price
-              if (tx.isSymbolPrice) {
-                price = symbolPrice
-                isHistoricalAveragePrice = isHistoricalAveragePriceSymbol
-              } else if (tx.isFeePrice) {
-                price = feePrice
-                isHistoricalAveragePrice = isHistoricalAveragePriceFeeCurrency
-              } else if (tx.isCurencyPrice) {
-                price = currencyPrice
-                isHistoricalAveragePrice = isHistoricalAveragePriceCurrency
-              }
-              const cost = tx.quantity * price
-              const mainAccount = accounts[new Hash(tx.account).md5].mainAccount
-              const object = {
-                rowKey: tx.rowKey,
-                sourceKey: new Hash(this.workSheet.sheetName).md5,
-                sourceName: new Hash(this.workSheet.sheetName).stringLowerCase,
-                historicalAveragePriceKey: new Hash(mainAccount + tx.symbol)
-                  .md5,
-                dateTime: dateTime,
-                direction: tx.isFee ? 'out' : tx.direction.toLowerCase(),
-                operation: tx.isFee
-                  ? 'write-off'
-                  : rowValues.operation.toLowerCase(),
-                account: tx.account.toLowerCase(),
-                platform: rowValues.platform.toLowerCase(),
-                service: rowValues.service.toLowerCase(),
-                project: tx.project.toLowerCase(),
-                contractor: tx.contractor.toLowerCase(),
-                mainSymbol: tx.mainSymbol
-                  ? tx.mainSymbol.toLowerCase()
-                  : void 0,
-                symbol: tx.symbol.toLowerCase(),
-                quantity: tx.quantity,
-                price: price || 0,
-                cost: cost || 0,
-                comment: rowValues.comment.toString().toLowerCase(),
-                updateDate: updateDate,
-                isDelete: isDelete,
-                isAvgPrice: tx.isAvgPrice,
-                isLiquidityPool: tx.isLiquidityPool,
-                isFee: tx.isFee,
-                isLock: tx.isLock,
-                isHistoricalAveragePrice,
-                registryRowKey,
-                registryRowNum: rowValues.rowNum,
-                registryRowId: rowValues.rowId,
-              }
-
-              //* вставка строки в транзакции
-              const registryTimestampCache = this.workSheet.scriptCache.getCache(
-                registryRowKeyTimestamp
-              )
-              if (
-                registryTimestamp === registryTimestampCache ||
-                !registryTimestampCache
-              ) {
-                transactionsArrayOfObject.push(object)
-              }
-            })
-            return true
+        //* Формирование строки транзакции
+        transactionRow.forEach((tx) => {
+          let price
+          if (tx.isSymbolPrice) {
+            price = symbolPrice
+            isHistoricalAveragePrice = isHistoricalAveragePriceSymbol
+          } else if (tx.isFeePrice) {
+            price = feePrice
+            isHistoricalAveragePrice = isHistoricalAveragePriceFeeCurrency
+          } else if (tx.isCurencyPrice) {
+            price = currencyPrice
+            isHistoricalAveragePrice = isHistoricalAveragePriceCurrency
           }
-          process() ? resolve() : reject(new Error('Data not changed'))
-        }).catch((error) => {
-          //* вставка даты сохранения
-          this.workSheet.insertValue(
-            error,
-            rowValues.rowNum,
-            this.workSheet.head.rowStatus.idx + 1
+          const cost = tx.quantity * price
+          const object = {
+            rowKey: tx.rowKey,
+            sourceKey: new Hash(this.workSheet.sheetName).md5,
+            sourceName: new Hash(this.workSheet.sheetName).stringLowerCase,
+            historicalAveragePriceKey: new Hash(tx.mainAccount + tx.symbol).md5,
+            dateTime: dateTime,
+            direction: tx.isFee ? 'out' : tx.direction.toLowerCase(),
+            operation: tx.isFee
+              ? 'write-off'
+              : rowValues.operation.toLowerCase(),
+            account: tx.account.toLowerCase(),
+            platform: rowValues.platform.toLowerCase(),
+            service: rowValues.service.toLowerCase(),
+            contractor: tx.contractor.toLowerCase(),
+            mainSymbol: tx.mainSymbol ? tx.mainSymbol.toLowerCase() : void 0,
+            symbol: tx.symbol.toLowerCase(),
+            quantity: tx.quantity,
+            price: price || 0,
+            cost: cost || 0,
+            comment: rowValues.comment.toString().toLowerCase(),
+            updateDate: updateDate,
+            isDelete: isDelete,
+            isAvgPrice: tx.isAvgPrice,
+            isLiquidityPool: tx.isLiquidityPool,
+            isFee: tx.isFee,
+            isLock: tx.isLock,
+            isHistoricalAveragePrice,
+            registryRowKey,
+            registryRowNum: rowValues.rowNum,
+            registryRowId: rowValues.rowId,
+          }
+
+          //* вставка строки в транзакции
+          const registryTimestampCache = this.workSheet.scriptCache.getCache(
+            registryRowKeyTimestamp
           )
+
+          if (
+            registryTimestamp === registryTimestampCache ||
+            !registryTimestampCache
+          ) {
+            transactionsArrayOfObject.push(object)
+          }
         })
       })
 

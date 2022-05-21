@@ -1,5 +1,5 @@
 import { Registry } from './worksheet/registry'
-import { Prices } from './worksheet/prices'
+import { Symbols } from './worksheet/symbols'
 import { Coins } from './worksheet/coins'
 import { Hash, FormatDate, FormatNumber } from '../utils'
 import { Portfolio } from './spreadsheet/portfolio'
@@ -110,7 +110,7 @@ function updatePrices() {
   const startProcess = new FormatDate()
   new Promise((resolve, reject) => {
     const process = () => {
-      new Prices().updatePrices()
+      new Symbols().updatePrices()
       return true
     }
     process() ? resolve() : reject(new Error('script.updatePrices'))
@@ -141,38 +141,16 @@ function updateHistoricalAveragePriceKey() {
   new Transactions().updateHistoricalAveragePriceKey()
 }
 
-function updateTransferOperation1000() {
-  new Transactions().updateTransferOperation(0, 1000)
-}
-function updateTransferOperation2000() {
-  new Transactions().updateTransferOperation(1001, 2000)
-}
-function updateTransferOperation3000() {
-  new Transactions().updateTransferOperation(2001, 3000)
-}
-function updateTransferOperation4000() {
-  new Transactions().updateTransferOperation(3001, 4000)
+function updateAccount() {
+  new Transactions().updateAccount()
 }
 
-function updateTransferOperation5000() {
-  new Transactions().updateTransferOperation(4001, 5000)
+function recalculateTransactions() {
+  new Transactions().recalculateTransactions(0, 1000)
 }
 
-function updateWriteOffAndRefillOperation1000() {
-  new Transactions().updateWriteOffAndRefillOperation(0, 1000)
-}
-function updateWriteOffAndRefillOperation2000() {
-  new Transactions().updateWriteOffAndRefillOperation(1001, 2000)
-}
-function updateWriteOffAndRefillOperation3000() {
-  new Transactions().updateWriteOffAndRefillOperation(2001, 3000)
-}
-function updateWriteOffAndRefillOperation4000() {
-  new Transactions().updateWriteOffAndRefillOperation(3001, 4000)
-}
-
-function updateWriteOffAndRefillOperation5000() {
-  new Transactions().updateWriteOffAndRefillOperation(4001, 5000)
+function recalculateSymbolTransactions() {
+  new Transactions().recalculateSymbolTransactions('sol')
 }
 
 function updateOnEdit(editRange) {
@@ -195,8 +173,8 @@ function updateOnEdit(editRange) {
             if (workSheet.isChangePrimaryKey) {
               workSheet.savePrimaryKeyChanges()
             }
-            if (workSheet.workSheetKey === new Hash('prices').md5) {
-              new Prices(workSheet).updateId()
+            if (workSheet.workSheetKey === new Hash('symbols').md5) {
+              new Symbols(workSheet).updateId()
             } else if (workSheet.isRegistry) {
               new Registry(workSheet).updateTransactions(true)
             }

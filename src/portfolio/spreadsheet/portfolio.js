@@ -71,7 +71,7 @@ class Portfolio {
           rowId: { alias: 'Row ID', idx: 21 },
         },
       },
-      prices: {
+      symbols: {
         type: 'dim',
         rowNum: 1,
         columns: {

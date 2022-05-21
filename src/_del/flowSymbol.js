@@ -1,6 +1,6 @@
 import { Portfolio } from '../portfolio/spreadsheet/portfolio'
 import { Hash, FormatDate } from '../utils'
-import { Prices } from '../portfolio/worksheet/prices'
+import { Prices } from '../portfolio/worksheet/symbols'
 import { Transactions } from '../portfolio/worksheet/transactions'
 export { FlowSymbol }
 

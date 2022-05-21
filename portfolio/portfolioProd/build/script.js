@@ -1381,7 +1381,7 @@ class Portfolio {
           rowId: { alias: 'Row ID', idx: 21 },
         },
       },
-      prices: {
+      symbols: {
         type: 'dim',
         rowNum: 1,
         columns: {
@@ -1989,11 +1989,12 @@ class Fetch {
 }
 
 /**
- * CryptoRank instance
+ * CryptoCompare instance
  */
 class Instance$2 {
   /**
-   * Create new inctance API CryptoRank
+   * Create new inctance API CryptoCompare
+   *
    */
   constructor() {
     if (Instance$2.exists) {
@@ -2001,80 +2002,6 @@ class Instance$2 {
     }
     Instance$2.instance = this;
     Instance$2.exists = true;
-    this.methods = new Methods({
-      domain: 'https://api.cryptorank.io/v1',
-      query: {
-        api_key: 'f512dfeb3966b63ac221826ab8501a53d96662a203ad786860d5cc268b85',
-      },
-      data: {
-        muteHttpExceptions: true,
-        contentType: 'application/json',
-      },
-    });
-  }
-}
-/**
- * CryptoRank price
- */
-class Price$2 {
-  constructor() {
-    this.methods = new Instance$2().methods;
-  }
-  getLastPrice(ids = '1', convert = 'USD') {
-    return (
-      this.methods.get({
-        endPoint: '/currencies',
-        query: {
-          convert: convert,
-          ids: ids,
-        },
-      })?.data || []
-    )
-  }
-
-  getRank(id) {
-    const data = this.methods.get({
-      endPoint: '/currencies/{id}',
-      path: { id },
-    })?.data?.rank;
-    return data
-  }
-}
-/**
- * CryptoRank coin list
- */
-class CoinsList$2 {
-  constructor() {
-    this.methods = new Instance$2().methods;
-  }
-  getCoinsList(limit = 100) {
-    return (
-      this.methods.get({
-        endPoint: '/currencies',
-        query: {
-          convert: 'USD',
-          state: 'active',
-          limit: limit,
-        },
-      })?.data || []
-    )
-  }
-}
-
-/**
- * CryptoCompare instance
- */
-class Instance$1 {
-  /**
-   * Create new inctance API CryptoCompare
-   *
-   */
-  constructor() {
-    if (Instance$1.exists) {
-      return Instance$1.instance
-    }
-    Instance$1.instance = this;
-    Instance$1.exists = true;
     this.methods = new Methods({
       domain: 'https://min-api.cryptocompare.com/data',
       query: {
@@ -2091,9 +2018,9 @@ class Instance$1 {
 /**
  * CryptoCompare price
  */
-class Price$1 {
+class Price$2 {
   constructor() {
-    this.methods = new Instance$1().methods;
+    this.methods = new Instance$2().methods;
   }
 
   getSinglePrice(fsym = '', tsyms = 'USD') {
@@ -2194,9 +2121,9 @@ class Price$1 {
 /**
  * CryptoCompare coin list
  */
-class CoinsList$1 {
+class CoinsList$2 {
   constructor() {
-    this.methods = new Instance$1().methods;
+    this.methods = new Instance$2().methods;
   }
   getCoinsList() {
     return this.methods.get({ endPoint: '/all/coinlist' })?.Data
@@ -2205,7 +2132,7 @@ class CoinsList$1 {
 
 class TopList {
   constructor() {
-    this.methods = new Instance$1().methods;
+    this.methods = new Instance$2().methods;
   }
   topMarketCap(top = 100, tsym = 'usd') {
     try {
@@ -2242,6 +2169,490 @@ class TopList {
     } catch (error) {
       console.error('TopList.topListBy24h', error.stack);
     }
+  }
+}
+
+class Transactions {
+  constructor(workSheet = '') {
+    if (Transactions.exists) {
+      return Transactions.instance
+    }
+
+    Transactions.instance = this;
+    Transactions.exists = true;
+    this.workSheet = workSheet
+      ? workSheet
+      : new Portfolio().getWorkSheet('Transactions');
+    this.duplicatesRow = [];
+    // this.prices = new Prices().workSheet.object
+  }
+
+  /**
+   *
+   * @param {array} arrayOfObject Массив транзакций
+   * @param {boolean} isRange Признак обновления диапазона передаваемых данных
+   */
+  updateTransactions(arrayOfObject = [], isRange = false) {
+    try {
+      if (isRange) {
+        new Promise((resolve) => {
+          const arrayregistryRowKey = [];
+          arrayOfObject.forEach((tx) => {
+            const rowArray = this.workSheet.arrayOfObject.filter(
+              (row) => row.rowKey === tx.rowKey
+            );
+            if (rowArray.length === 1) {
+              const oldRow = this.workSheet.object[tx.rowKey];
+              tx.rowNum = oldRow.rowNum;
+              this.workSheet.updateRow(tx);
+            } else if (rowArray.length > 1) {
+              rowArray.forEach((row, indexRow) => {
+                if (!indexRow) {
+                  tx.rowNum = row.rowNum;
+                  this.workSheet.updateRow(tx);
+                } else {
+                  this.duplicatesRow.push(row);
+                }
+              });
+              arrayregistryRowKey.push(tx.registryRowKey);
+            } else {
+              this.workSheet.insertRow(tx);
+              arrayregistryRowKey.push(tx.registryRowKey);
+            }
+          });
+          resolve(arrayregistryRowKey);
+        }).then((arrayregistryRowKey) => {
+          if (this.duplicatesRow.length) {
+            this.workSheet.deleteRows(this.duplicatesRow);
+          }
+          this.workSheet.scriptCache.removeAllCache(arrayregistryRowKey);
+        });
+      } else {
+        const sourceKey = arrayOfObject[0].sourceKey;
+        const otherArray = this.workSheet.arrayOfObject.filter(
+          (row) => row.sourceKey !== sourceKey
+        );
+        const splitArray = [...otherArray, ...arrayOfObject];
+        this.workSheet.truncateInsertRows(splitArray);
+      }
+    } catch (error) {
+      console.error('Transactions.updateTransactions', error.stack);
+    }
+  }
+
+  deleteDuplicatesRows() {
+    try {
+      const newArrayOfObject = Object.values(this.workSheet.object).sort(
+        (a, b) => {
+          return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
+        }
+      );
+      this.workSheet.truncateInsertRows(newArrayOfObject);
+    } catch (error) {
+      console.error('Transactions.deleteDuplicatesRows', error.stack);
+    }
+  }
+
+  /**
+   * Получение средневзвешенной цены покупки токена
+   * @param {*} dateTime дата и время
+   * @param {*} account счет
+   * @param {*} currencySymbol символ
+   * @param {*} currencySymbolCategoryKey ключ категории токена
+   * @param {*} symbols справочник символов
+   * @param {*} isRange признак диапазона
+   * @param {*} convert параметр конвертации
+   * @returns объект цена и признак исторической цены
+   */
+  getHistoricalPriceBuy(
+    dateTime,
+    account,
+    currencySymbol,
+    currencySymbolCategoryKey,
+    symbols,
+    isRange = false,
+    convert = 'usd'
+  ) {
+    try {
+      let historicalPrice;
+      let isHistoricalAveragePrice;
+      historicalPrice = 0;
+      isHistoricalAveragePrice = false;
+      const coin = symbols[new Hash(currencySymbol).md5];
+      const sourceKey = new Hash(coin?.source).md5;
+      const symbolId = coin?.sourceId;
+      // const categoryKey = new Hash(coin?.symbolCategory).md5
+      if (
+        'e5e3fd01394b9a81296b75d5a7f4c1a2' ===
+        currencySymbolCategoryKey /*stablecoin*/
+      ) {
+        //* Для стабильных токенов возвращать единицу
+        historicalPrice = 1;
+        isHistoricalAveragePrice = false;
+      } else if (
+        '7d5f30a0d1641c0b6980aaf2556b32ce' ===
+        currencySymbolCategoryKey /*fiat*/
+      ) {
+        if (
+          sourceKey === '1dab445b170a7f0acfccea645a8879e0' /*cryptocompare*/
+        ) {
+          historicalPrice = new Price$2().getHistoryPrice(
+            symbolId,
+            dateTime,
+            convert
+          );
+          isHistoricalAveragePrice = false;
+        }
+      } else {
+        //* Расчет средневзвешенной стоимости покупки токена на основании истории покупок для диапазона данных
+        if (isRange) {
+          const historicalAveragePriceKey = new Hash(account + currencySymbol)
+            .md5;
+          const inKey = new Hash('in').md5;
+          const historicalPriceAgg = this.workSheet.arrayOfObject
+            .filter((row) => {
+              return (
+                new FormatDate(row.dateTime).value <
+                  new FormatDate(dateTime).value &&
+                historicalAveragePriceKey === row.historicalAveragePriceKey &&
+                row.isAvgPrice &&
+                !row.isDelete
+              )
+            })
+            .sort((a, b) => {
+              if (
+                new FormatDate(a.dateTime).value ===
+                new FormatDate(b.dateTime).value
+              ) {
+                a.registryRowId - b.registryRowId;
+              } else {
+                new FormatDate(a.dateTime).value -
+                  new FormatDate(b.dateTime).value;
+              }
+            })
+            .reduce((agg, tx, indexRow) => {
+              const operationKey = new Hash(tx.operation).md5;
+              const directionKey = new Hash(tx.direction).md5;
+              if (indexRow === 0) {
+                agg = {
+                  quantityBuyIn: 0,
+                  quantitySellIn: 0,
+                  quantityRefillIn: 0,
+                  quantityTransferIn: 0,
+                  quantityRest: 0,
+                  costBuyIn: 0,
+                  costSellIn: 0,
+                  costRefillIn: 0,
+                  costTransferIn: 0,
+                  costBalance: 0,
+                };
+              }
+
+              //* Распределение количества по потокам
+
+              if (operationKey === '0461ebd2b773878eac9f78a891912d65' /*buy*/) {
+                if (directionKey === inKey) {
+                  agg.quantityBuyIn += tx.quantity;
+                  agg.costBuyIn += tx.cost;
+                }
+              } else if (
+                operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
+              ) {
+                if (directionKey === inKey) {
+                  agg.quantitySellIn += tx.quantity;
+                  agg.costSellIn += tx.cost;
+                }
+              } else if (
+                operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
+              ) {
+                if (directionKey === inKey) {
+                  agg.quantityRefillIn += tx.quantity;
+                  agg.costRefillIn += tx.cost;
+                }
+              } else if (
+                operationKey === '84a0f3455dcca894ace136be62efa292' /*transfer*/
+              ) {
+                if (directionKey === inKey) {
+                  agg.quantityTransferIn += tx.quantity;
+                  agg.costTransferIn += tx.cost;
+                  agg.dayInPortfolioTransferInSum +=
+                    dayInPortfolio * tx.quantity;
+                }
+              }
+
+              agg.quantityRest += tx.quantity;
+
+              if (agg.quantityRest !== 0) {
+                agg.costBalance += tx.cost;
+              } else {
+                agg.costBalance = 0;
+              }
+              return agg
+            }, {});
+
+          const costInFlow =
+            historicalPriceAgg.costBuyIn +
+            historicalPriceAgg.costSellIn +
+            historicalPriceAgg.costRefillIn +
+            historicalPriceAgg.costTransferIn;
+
+          const quantityInFlow =
+            historicalPriceAgg.quantityBuyIn +
+            historicalPriceAgg.quantitySellIn +
+            historicalPriceAgg.quantityRefillIn +
+            historicalPriceAgg.quantityTransferIn;
+
+          const priceInFlow = costInFlow / quantityInFlow;
+
+          //* текущие остатки
+          const costRestInFlow =
+            historicalPriceAgg.costBalance <= 0 ||
+            historicalPriceAgg.quantityRest <= 0
+              ? priceInFlow * historicalPriceAgg.quantityRest
+              : historicalPriceAgg.costBalance;
+          const priceRestInFlow =
+            costRestInFlow / historicalPriceAgg.quantityRest;
+
+          //* Расчет средней цены покупки токена
+          if (priceRestInFlow) {
+            historicalPrice = priceRestInFlow;
+            isHistoricalAveragePrice = true;
+          } else {
+            if (
+              new FormatDate(dateTime).yyyymmdd === new FormatDate().yyyymmdd &&
+              sourceKey === 'b40555dbd3865016ed3f7b4a9bf3b806' /*coingecko*/
+            ) {
+              //* Получение исторической цены из coinGecko
+              historicalPrice = new coinGecko.Price()
+                .getMarketsPrice(symbolId)
+                .reduce((price, data) => {
+                  price = data.current_price;
+                  return price
+                }, 0);
+              isHistoricalAveragePrice = false;
+            } else {
+              //* Получение исторической цены из CryptoCompare
+              if (
+                sourceKey ===
+                '1dab445b170a7f0acfccea645a8879e0' /*cryptocompare*/
+              ) {
+                historicalPrice = new Price$2().getHistoryPrice(
+                  symbolId,
+                  dateTime,
+                  convert
+                );
+                isHistoricalAveragePrice = true;
+              }
+            }
+          }
+        }
+      }
+      return { historicalPrice, isHistoricalAveragePrice }
+    } catch (error) {
+      console.error('Transactions.getHistoricalPriceBuy', error.stack);
+    }
+  }
+
+  updateRegistryRowKey() {
+    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
+      const newRegistryRowKey = new Hash(
+        rowObject.registryRowId + rowObject.sourceName
+      ).md5;
+      rowObject.registryRowKey = newRegistryRowKey;
+      return rowObject
+    });
+    this.workSheet.truncateInsertRows(newArrayOfObject);
+  }
+
+  updateHistoricalAveragePriceKey() {
+    const accounts = new Portfolio().getWorkSheet('Accounts').object;
+    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
+      const mainAccount = accounts[new Hash(rowObject.account).md5].mainAccount;
+      const newHistoricalAveragePriceKey = new Hash(
+        mainAccount + rowObject.symbol
+      ).md5;
+      rowObject.historicalAveragePriceKey = newHistoricalAveragePriceKey;
+      return rowObject
+    });
+    this.workSheet.truncateInsertRows(newArrayOfObject);
+  }
+
+  recalculateTransactions(startRow, endRow) {
+    const symbols = new Portfolio().getWorkSheet('Symbols').object;
+    const accounts = new Portfolio().getWorkSheet('Accounts').object;
+    const newArrayOfObject = this.workSheet.arrayOfObject.map(
+      (rowObject, indexRow) => {
+        if (indexRow > startRow && indexRow <= endRow) {
+          if (
+            [
+              '84a0f3455dcca894ace136be62efa292',
+              '7b33b9f52598cd60f7aa6ca0082515c4',
+              'b4479040173a9f41eeb4e98339f2a21d' /*transfer,write-off, refill*/,
+            ].indexOf(new Hash(rowObject.operation).md5) !== -1
+          ) {
+            const price = this.getHistoricalPriceBuy(
+              rowObject.dateTime,
+              accounts[new Hash(rowObject.account).md5]?.mainAccount,
+              rowObject.symbol,
+              new Hash(symbols[new Hash(rowObject.symbol).md5]?.symbolCategory)
+                .md5,
+              symbols,
+              true
+            ).historicalPrice;
+            rowObject.price = price;
+            rowObject.cost = rowObject.quantity * price;
+            rowObject.updateDate = new Date();
+          }
+        }
+        return rowObject
+      }
+    );
+    this.workSheet.truncateInsertRows(newArrayOfObject);
+  }
+  /**
+   * Пересчет транзакций по символу
+   * @param {string} symbol наименование символа
+   */
+  recalculateSymbolTransactions(symbol) {
+    const symbolKey = new Hash(symbol).md5;
+    const symbols = new Portfolio().getWorkSheet('Symbols').object;
+    const accounts = new Portfolio().getWorkSheet('Accounts').object;
+    const symbolData = { quantity: 0, cost: 0 };
+
+    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
+      if ([symbolKey].indexOf(new Hash(rowObject.symbol).md5) !== -1) {
+        const price = this.getHistoricalPriceBuy(
+          rowObject.dateTime,
+          accounts[new Hash(rowObject.account).md5]?.mainAccount,
+          rowObject.symbol,
+          new Hash(symbols[symbolKey]?.symbolCategory).md5,
+          symbols,
+          true
+        ).historicalPrice;
+        rowObject.price = price;
+        rowObject.cost = rowObject.quantity * price;
+        symbolData.quantity += rowObject.quantity;
+        symbolData.cost += rowObject.cost;
+        rowObject.updateDate = new Date();
+      }
+
+      return rowObject
+    });
+    this.workSheet.truncateInsertRows(newArrayOfObject);
+    console.log(
+      symbol +
+        ': quantity = ' +
+        symbolData.quantity +
+        ', price: ' +
+        symbolData.cost / symbolData.quantity +
+        ', cost: ' +
+        symbolData.cost
+    );
+  }
+
+  updateAccount() {
+    const accounts = new Portfolio().getWorkSheet('Accounts').object;
+    const symbols = new Portfolio().getWorkSheet('Symbols').object;
+    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
+      if (
+        [
+          'e5e3fd01394b9a81296b75d5a7f4c1a2',
+          '7d5f30a0d1641c0b6980aaf2556b32ce' /*Stablecoin, Fiat*/,
+        ].indexOf(
+          new Hash(symbols[new Hash(rowObject.symbol).md5]?.symbolCategory).md5
+        ) !== -1
+      ) {
+        rowObject.account =
+          accounts[new Hash(rowObject.account).md5]?.mainAccount;
+        rowObject.updateDate = new Date();
+      }
+
+      return rowObject
+    });
+    this.workSheet.truncateInsertRows(newArrayOfObject);
+  }
+}
+
+/* 
+// console.log('quantityRest', historicalPriceAgg.quantityRest)
+// console.log('costBalance', historicalPriceAgg.costBalance)
+// console.log('quantityInFlow', quantityInFlow)
+// console.log('priceInFlow', priceInFlow)
+// console.log('costInFlow', costInFlow)
+// console.log('costRestInFlow', costRestInFlow)
+// console.log('priceRestInFlow', priceRestInFlow)
+*/
+
+/**
+ * CryptoRank instance
+ */
+class Instance$1 {
+  /**
+   * Create new inctance API CryptoRank
+   */
+  constructor() {
+    if (Instance$1.exists) {
+      return Instance$1.instance
+    }
+    Instance$1.instance = this;
+    Instance$1.exists = true;
+    this.methods = new Methods({
+      domain: 'https://api.cryptorank.io/v1',
+      query: {
+        api_key: 'f512dfeb3966b63ac221826ab8501a53d96662a203ad786860d5cc268b85',
+      },
+      data: {
+        muteHttpExceptions: true,
+        contentType: 'application/json',
+      },
+    });
+  }
+}
+/**
+ * CryptoRank price
+ */
+class Price$1 {
+  constructor() {
+    this.methods = new Instance$1().methods;
+  }
+  getLastPrice(ids = '1', convert = 'USD') {
+    return (
+      this.methods.get({
+        endPoint: '/currencies',
+        query: {
+          convert: convert,
+          ids: ids,
+        },
+      })?.data || []
+    )
+  }
+
+  getRank(id) {
+    const data = this.methods.get({
+      endPoint: '/currencies/{id}',
+      path: { id },
+    })?.data?.rank;
+    return data
+  }
+}
+/**
+ * CryptoRank coin list
+ */
+class CoinsList$1 {
+  constructor() {
+    this.methods = new Instance$1().methods;
+  }
+  getCoinsList(limit = 100) {
+    return (
+      this.methods.get({
+        endPoint: '/currencies',
+        query: {
+          convert: 'USD',
+          state: 'active',
+          limit: limit,
+        },
+      })?.data || []
+    )
   }
 }
 
@@ -2381,7 +2792,7 @@ class Coins {
           });
         });
 
-        new CoinsList$2().getCoinsList(15000).forEach((coin) => {
+        new CoinsList$1().getCoinsList(15000).forEach((coin) => {
           const key = new Hash('cryptorank' + coin.name + coin.symbol);
           coins.push({
             rowKey: key.md5,
@@ -2392,7 +2803,7 @@ class Coins {
           });
         });
 
-        Object.entries(new CoinsList$1().getCoinsList()).forEach(
+        Object.entries(new CoinsList$2().getCoinsList()).forEach(
           (coin) => {
             const key = new Hash('cryptocompare' + coin[1].CoinName + coin[0]);
             coins.push({
@@ -2446,16 +2857,16 @@ class Coins {
 //   })
 // })
 
-class Prices {
+class Symbols {
   constructor(workSheet = '') {
-    if (Prices.exists) {
-      return Prices.instance
+    if (Symbols.exists) {
+      return Symbols.instance
     }
-    Prices.instance = this;
-    Prices.exists = true;
+    Symbols.instance = this;
+    Symbols.exists = true;
     this.workSheet = workSheet
       ? workSheet
-      : new Portfolio().getWorkSheet('Prices');
+      : new Portfolio().getWorkSheet('Symbols');
   }
 
   updateId() {
@@ -2473,7 +2884,7 @@ class Prices {
         );
       });
     } catch (error) {
-      console.error('Prices.updateId', error.stack);
+      console.error('Symbols.updateId', error.stack);
     }
   }
 
@@ -2516,7 +2927,7 @@ class Prices {
             };
             process() ? resolve() : reject(new Error('updatePricesRow'));
           }).catch((error) => {
-            console.error('Prices.updatePrices', error.stack);
+            console.error('Symbols.updatePrices', error.stack);
           });
         };
         const listId = Object.fromEntries(
@@ -2562,7 +2973,7 @@ class Prices {
         }
 
         if (listId.cryptorank) {
-          const priceArray = new Price$2().getLastPrice(
+          const priceArray = new Price$1().getLastPrice(
             listId.cryptorank
           );
 
@@ -2579,7 +2990,7 @@ class Prices {
         }
 
         if (listId.cryptocompare) {
-          const priceArray = new Price$1().getMultiPrice(
+          const priceArray = new Price$2().getMultiPrice(
             listId.cryptocompare
           );
           if (priceArray.length) {
@@ -2616,7 +3027,7 @@ class Prices {
     })
       .then(this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject))
       .catch((error) => {
-        console.error('Prices.updatePrices', error.stack);
+        console.error('Symbols.updatePrices', error.stack);
       });
   }
 }
@@ -2666,364 +3077,6 @@ class Prices {
 //   })
 // }
 
-class Transactions {
-  constructor(workSheet = '') {
-    if (Transactions.exists) {
-      return Transactions.instance
-    }
-
-    Transactions.instance = this;
-    Transactions.exists = true;
-    this.workSheet = workSheet
-      ? workSheet
-      : new Portfolio().getWorkSheet('Transactions');
-    this.duplicatesRow = [];
-    this.prices = new Prices().workSheet.object;
-  }
-
-  /**
-   *
-   * @param {array} arrayOfObject Массив транзакций
-   * @param {boolean} isRange Признак обновления диапазона передаваемых данных
-   */
-  updateTransactions(arrayOfObject = [], isRange = false) {
-    try {
-      if (isRange) {
-        new Promise((resolve) => {
-          const arrayregistryRowKey = [];
-          arrayOfObject.forEach((tx) => {
-            const rowArray = this.workSheet.arrayOfObject.filter(
-              (row) => row.rowKey === tx.rowKey
-            );
-            if (rowArray.length === 1) {
-              const oldRow = this.workSheet.object[tx.rowKey];
-              tx.rowNum = oldRow.rowNum;
-              this.workSheet.updateRow(tx);
-            } else if (rowArray.length > 1) {
-              rowArray.forEach((row, indexRow) => {
-                if (!indexRow) {
-                  tx.rowNum = row.rowNum;
-                  this.workSheet.updateRow(tx);
-                } else {
-                  this.duplicatesRow.push(row);
-                }
-              });
-              arrayregistryRowKey.push(tx.registryRowKey);
-            } else {
-              this.workSheet.insertRow(tx);
-              arrayregistryRowKey.push(tx.registryRowKey);
-            }
-          });
-          resolve(arrayregistryRowKey);
-        }).then((arrayregistryRowKey) => {
-          if (this.duplicatesRow.length) {
-            this.workSheet.deleteRows(this.duplicatesRow);
-          }
-          this.workSheet.scriptCache.removeAllCache(arrayregistryRowKey);
-        });
-      } else {
-        const sourceKey = arrayOfObject[0].sourceKey;
-        const otherArray = this.workSheet.arrayOfObject.filter(
-          (row) => row.sourceKey !== sourceKey
-        );
-        const splitArray = [...otherArray, ...arrayOfObject];
-        this.workSheet.truncateInsertRows(splitArray);
-      }
-    } catch (error) {
-      console.error('Transactions.updateTransactions', error.stack);
-    }
-  }
-
-  deleteDuplicatesRows() {
-    try {
-      const newArrayOfObject = Object.values(this.workSheet.object).sort(
-        (a, b) => {
-          return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
-        }
-      );
-      this.workSheet.truncateInsertRows(newArrayOfObject);
-    } catch (error) {
-      console.error('Transactions.deleteDuplicatesRows', error.stack);
-    }
-  }
-
-  /**
-   * Получение средневзвешенной цены покупки токена
-   * @param {string} account
-   * @param {date} dateTime
-   * @param {string} symbol
-   * @param {string} convert
-   * @param {boolean} isRange
-   * @returns
-   */
-  getHistoricalPriceBuy(
-    dateTime,
-    account,
-    currencySymbol,
-    isRange = false,
-    convert = 'usd'
-  ) {
-    try {
-      let historicalPrice;
-      let isHistoricalAveragePrice;
-      historicalPrice = 0;
-      isHistoricalAveragePrice = false;
-      const coin = this.prices[new Hash(currencySymbol).md5];
-      const sourceKey = new Hash(coin?.source).md5;
-      const symbolId = coin?.sourceId;
-      const categoryKey = new Hash(coin?.symbolCategory).md5;
-      if ('e5e3fd01394b9a81296b75d5a7f4c1a2' === categoryKey /*stablecoin*/) {
-        //* Для стабильных токенов возвращать единицу
-        historicalPrice = 1;
-        isHistoricalAveragePrice = false;
-      } else if ('7d5f30a0d1641c0b6980aaf2556b32ce' === categoryKey /*fiat*/) {
-        if (
-          sourceKey === '1dab445b170a7f0acfccea645a8879e0' /*cryptocompare*/
-        ) {
-          historicalPrice = new Price$1().getHistoryPrice(
-            symbolId,
-            dateTime,
-            convert
-          );
-          isHistoricalAveragePrice = false;
-        }
-      } else {
-        //* Расчет средневзвешенной стоимости покупки токена на основании истории покупок для диапазона данных
-        if (isRange) {
-          const accounts = new Portfolio().getWorkSheet('Accounts').object;
-          const mainAccount = accounts[new Hash(account).md5].mainAccount;
-          const historicalAveragePriceKey = new Hash(
-            mainAccount + currencySymbol
-          ).md5;
-          const inKey = new Hash('in').md5;
-
-          const historicalPriceAgg = this.workSheet.arrayOfObject
-            .filter((row) => {
-              return (
-                new FormatDate(row.dateTime).value <
-                  new FormatDate(dateTime).value &&
-                historicalAveragePriceKey === row.historicalAveragePriceKey &&
-                row.isAvgPrice &&
-                !row.isDelete
-              )
-            })
-            .sort((a, b) => {
-              if (
-                new FormatDate(a.dateTime).value ===
-                new FormatDate(b.dateTime).value
-              ) {
-                a.registryRowId - b.registryRowId;
-              } else {
-                new FormatDate(a.dateTime).value -
-                  new FormatDate(b.dateTime).value;
-              }
-            })
-            .reduce((agg, tx, indexRow) => {
-              const operationKey = new Hash(tx.operation).md5;
-              const directionKey = new Hash(tx.direction).md5;
-              if (indexRow === 0) {
-                agg = {
-                  quantityBuyIn: 0,
-                  quantitySellIn: 0,
-                  quantityRefillIn: 0,
-                  quantityTransferIn: 0,
-                  quantityRest: 0,
-                  costBuyIn: 0,
-                  costSellIn: 0,
-                  costRefillIn: 0,
-                  costTransferIn: 0,
-                  costBalance: 0,
-                };
-              }
-
-              //* Распределение количества по потокам
-
-              if (operationKey === '0461ebd2b773878eac9f78a891912d65' /*buy*/) {
-                if (directionKey === inKey) {
-                  agg.quantityBuyIn += tx.quantity;
-                  agg.costBuyIn += tx.cost;
-                }
-              } else if (
-                operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
-              ) {
-                if (directionKey === inKey) {
-                  agg.quantitySellIn += tx.quantity;
-                  agg.costSellIn += tx.cost;
-                }
-              } else if (
-                operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
-              ) {
-                if (directionKey === inKey) {
-                  agg.quantityRefillIn += tx.quantity;
-                  agg.costRefillIn += tx.cost;
-                }
-              } else if (
-                operationKey === '84a0f3455dcca894ace136be62efa292' /*transfer*/
-              ) {
-                if (directionKey === inKey) {
-                  agg.quantityTransferIn += tx.quantity;
-                  agg.costTransferIn += tx.cost;
-                  agg.dayInPortfolioTransferInSum +=
-                    dayInPortfolio * tx.quantity;
-                }
-              }
-
-              agg.quantityRest += tx.quantity;
-
-              if (agg.quantityRest !== 0) {
-                agg.costBalance += tx.cost;
-              } else {
-                agg.costBalance = 0;
-              }
-              return agg
-            }, {});
-
-          const costInFlow =
-            historicalPriceAgg.costBuyIn +
-            historicalPriceAgg.costSellIn +
-            historicalPriceAgg.costRefillIn +
-            historicalPriceAgg.costTransferIn;
-
-          const quantityInFlow =
-            historicalPriceAgg.quantityBuyIn +
-            historicalPriceAgg.quantitySellIn +
-            historicalPriceAgg.quantityRefillIn +
-            historicalPriceAgg.quantityTransferIn;
-
-          const priceInFlow = costInFlow / quantityInFlow;
-
-          //* текущие остатки
-          const costRestInFlow =
-            historicalPriceAgg.costBalance <= 0 ||
-            historicalPriceAgg.quantityRest <= 0
-              ? priceInFlow * historicalPriceAgg.quantityRest
-              : historicalPriceAgg.costBalance;
-          const priceRestInFlow =
-            costRestInFlow / historicalPriceAgg.quantityRest;
-          // console.log('quantityRest', historicalPriceAgg.quantityRest)
-          // console.log('costBalance', historicalPriceAgg.costBalance)
-          // console.log('quantityInFlow', quantityInFlow)
-          // console.log('priceInFlow', priceInFlow)
-          // console.log('costInFlow', costInFlow)
-          // console.log('costRestInFlow', costRestInFlow)
-          // console.log('priceRestInFlow', priceRestInFlow)
-          //* Расчет средней цены покупки токена
-          if (priceRestInFlow) {
-            historicalPrice = priceRestInFlow;
-            isHistoricalAveragePrice = true;
-          } else {
-            if (
-              new FormatDate(dateTime).yyyymmdd === new FormatDate().yyyymmdd &&
-              sourceKey === 'b40555dbd3865016ed3f7b4a9bf3b806' /*coingecko*/
-            ) {
-              //* Получение исторической цены из coinGecko
-              historicalPrice = new coinGecko.Price()
-                .getMarketsPrice(symbolId)
-                .reduce((price, data) => {
-                  price = data.current_price;
-                  return price
-                }, 0);
-              isHistoricalAveragePrice = false;
-            } else {
-              //* Получение исторической цены из CryptoCompare
-              if (
-                sourceKey ===
-                '1dab445b170a7f0acfccea645a8879e0' /*cryptocompare*/
-              ) {
-                historicalPrice = new Price$1().getHistoryPrice(
-                  symbolId,
-                  dateTime,
-                  convert
-                );
-                isHistoricalAveragePrice = true;
-              }
-            }
-          }
-        }
-      }
-      return { historicalPrice, isHistoricalAveragePrice }
-    } catch (error) {
-      console.error('Transactions.getHistoricalPriceBuy', error.stack);
-    }
-  }
-
-  updateRegistryRowKey() {
-    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
-      const newRegistryRowKey = new Hash(
-        rowObject.registryRowId + rowObject.sourceName
-      ).md5;
-      rowObject.registryRowKey = newRegistryRowKey;
-      return rowObject
-    });
-    this.workSheet.truncateInsertRows(newArrayOfObject);
-  }
-
-  updateHistoricalAveragePriceKey() {
-    const accounts = new Portfolio().getWorkSheet('Accounts').object;
-    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
-      const mainAccount = accounts[new Hash(rowObject.account).md5].mainAccount;
-      const newHistoricalAveragePriceKey = new Hash(
-        mainAccount + rowObject.symbol
-      ).md5;
-      rowObject.historicalAveragePriceKey = newHistoricalAveragePriceKey;
-      return rowObject
-    });
-    this.workSheet.truncateInsertRows(newArrayOfObject);
-  }
-
-  updateTransferOperation(start, end) {
-    const newArrayOfObject = this.workSheet.arrayOfObject.map(
-      (rowObject, indexRow) => {
-        if (indexRow > start && indexRow <= end) {
-          if (
-            new Hash(rowObject.operation).md5 ===
-            '84a0f3455dcca894ace136be62efa292' /*transfer*/
-          ) {
-            const price = this.getHistoricalPriceBuy(
-              rowObject.dateTime,
-              rowObject.account,
-              rowObject.symbol,
-              true
-            ).historicalPrice;
-            rowObject.price = price;
-            rowObject.cost = rowObject.quantity * price;
-            rowObject.updateDate = new Date();
-          }
-        }
-        return rowObject
-      }
-    );
-    this.workSheet.truncateInsertRows(newArrayOfObject);
-  }
-
-  updateWriteOffAndRefillOperation(start, end) {
-    const newArrayOfObject = this.workSheet.arrayOfObject.map(
-      (rowObject, indexRow) => {
-        if (indexRow > start && indexRow <= end) {
-          if (
-            [
-              '7b33b9f52598cd60f7aa6ca0082515c4',
-              'b4479040173a9f41eeb4e98339f2a21d' /*write-off, refill*/,
-            ].indexOf(new Hash(rowObject.operation).md5) !== -1
-          ) {
-            const price = this.getHistoricalPriceBuy(
-              rowObject.dateTime,
-              rowObject.account,
-              rowObject.symbol,
-              true
-            ).historicalPrice;
-            rowObject.price = price;
-            rowObject.cost = rowObject.quantity * price;
-            rowObject.updateDate = new Date();
-          }
-        }
-        return rowObject
-      }
-    );
-    this.workSheet.truncateInsertRows(newArrayOfObject);
-  }
-}
-
 class Registry {
   constructor(workSheet = '') {
     this.workSheet = workSheet
@@ -3031,10 +3084,63 @@ class Registry {
       : new Portfolio().getWorkSheet(SpreadsheetApp.getActiveSheet().getName());
   }
 
+  /**
+   * Получение счета
+   * @param {string} accountSender счет отправителя
+   * @param {string} accountRecipient счет получателя
+   * @param {object} accounts справочник счетов
+   * @param {string} symbolCategoryKey ключ категории символа
+   * @returns счет
+   */
+  getAccount(accountSender, accountRecipient, accounts, symbolCategoryKey) {
+    try {
+      const account = accountRecipient ? accountRecipient : accountSender;
+      if (
+        [
+          'e5e3fd01394b9a81296b75d5a7f4c1a2',
+          '7d5f30a0d1641c0b6980aaf2556b32ce' /*stablecoin, fiat */,
+        ].indexOf(symbolCategoryKey) !== -1
+      ) {
+        return accounts[new Hash(account).md5]?.mainAccount
+      }
+      return account
+    } catch (error) {
+      console.error('Registry.getAccount', error.stack);
+    }
+  }
+
+  /**
+   * Получаение основного счета
+   * @param {string} account счет
+   * @param {object} accounts справочник счетов
+   * @returns основной счет
+   */
+  getMainAccount(account, accounts) {
+    try {
+      return accounts[new Hash(account).md5]?.mainAccount
+    } catch (error) {
+      console.error('Registry.getMainAccount', error.stack);
+    }
+  }
+
+  /**
+   * получение улюча категории символа
+   * @param {*} symbol символ
+   * @param {*} symbols справочник символов
+   * @returns ключ категории символа
+   */
+  getSymbolCategoryKey(symbol, symbols) {
+    try {
+      return new Hash(symbols[new Hash(symbol).md5]?.symbolCategory).md5
+    } catch (error) {
+      console.error('Registry.getSymbolCategoryKey', error.stack);
+    }
+  }
+
   updateTransactions(isRange = false) {
     const startProcess = new FormatDate();
     try {
-      const prices = new Prices().workSheet.object;
+      const symbols = new Symbols().workSheet.object;
       const accounts = new Portfolio().getWorkSheet('Accounts').object;
       const transactions = new Transactions();
       const transactionsArrayOfObject = [];
@@ -3044,14 +3150,22 @@ class Registry {
           currencyQty,
           currencyPerCoin,
           coinSymbol,
+          coinSymbolCategoryKey,
           symbolPrice,
-          project,
-          accountRecipient,
-          recipient,
           currencySymbol,
+          currencySymbolCategoryKey,
           currencyPrice,
+          accountSender,
+          accountRecipient,
+          mainAccountSender,
+          mainAccountRecipient,
+          sender,
+          recipient,
           feePrice,
           mainSymbol,
+          feeCurrency,
+          feeCurrencySymbolCategoryKey,
+          feeQty,
           isDelete,
           isLiquidityPool,
           isFee,
@@ -3084,13 +3198,11 @@ class Registry {
         registryRowKey = rowValues.rowKey;
         registryRowKeyTimestamp = rowValues.rowKeyTimestamp;
         registryTimestamp = rowValues.timestamp;
-        accountRecipient = rowValues.accountRecipient
-          ? rowValues.accountRecipient
-          : rowValues.accountSender;
-        recipient = rowValues.recipient ? rowValues.recipient : rowValues.sender;
-        project = rowValues.project ? rowValues.project : 'No project';
+        operationKey = new Hash(rowValues.operation).md5;
+        lockStatusKey = new Hash(rowValues.lockStatus).md5;
         coinQty =
           typeof rowValues.coinQty === 'number' ? rowValues.coinQty : void 0;
+
         currencyQty =
           typeof rowValues.currencyQty === 'number'
             ? rowValues.currencyQty
@@ -3100,11 +3212,18 @@ class Registry {
             ? rowValues.currencyPerCoin
             : void 0;
         coinSymbol = rowValues.coin;
-        currencySymbol = rowValues.currency;
+        coinSymbolCategoryKey = this.getSymbolCategoryKey(coinSymbol, symbols);
+        currencySymbol = rowValues.currency || rowValues.coin;
+        currencySymbolCategoryKey = this.getSymbolCategoryKey(
+          currencySymbol,
+          symbols
+        );
+        sender = rowValues.sender;
+        recipient = rowValues.recipient ? rowValues.recipient : rowValues.sender;
+        feeCurrency = rowValues.feeCurrency;
+        feeQty = rowValues.feeQty;
         isLiquidityPool = false;
         isDelete = rowValues.isDelete || false;
-        operationKey = new Hash(rowValues.operation).md5;
-        lockStatusKey = new Hash(rowValues.lockStatus).md5;
         isFee = false;
         isAvgPrice = false;
         isSenderLock = false;
@@ -3155,7 +3274,7 @@ class Registry {
           isSenderLock = false;
           isRecipientLock = false;
         }
-
+        //* формирование транзакций
         if (
           [
             /*Transfer, Write-off, Refill*/
@@ -3165,7 +3284,7 @@ class Registry {
           ].indexOf(operationKey) !== -1
         ) {
           currencyPerCoin = 1;
-          currencySymbol = coinSymbol;
+          // currencySymbol = coinSymbol
           if (
             [
               /*Write-off, Refill*/
@@ -3182,13 +3301,20 @@ class Registry {
               '7b33b9f52598cd60f7aa6ca0082515c4',
             ].indexOf(operationKey) !== -1
           ) {
+            accountSender = this.getAccount(
+              rowValues.accountSender,
+              void 0,
+              accounts,
+              coinSymbolCategoryKey
+            );
+            mainAccountSender = this.getMainAccount(accountSender, accounts);
             rowKey1 = new Hash(rowValues.rowKey + '#1').md5;
             transactionRow.push({
               rowKey: rowKey1,
               direction: 'out',
-              account: rowValues.accountSender,
-              contractor: rowValues.sender,
-              project: 'No project',
+              account: accountSender,
+              mainAccount: mainAccountSender,
+              contractor: sender,
               mainSymbol: void 0,
               symbol: coinSymbol,
               quantity: coinQty * -1,
@@ -3208,14 +3334,23 @@ class Registry {
               'b4479040173a9f41eeb4e98339f2a21d',
             ].indexOf(operationKey) !== -1
           ) {
+            accountRecipient = this.getAccount(
+              rowValues.accountSender,
+              rowValues.accountRecipient,
+              accounts,
+              coinSymbolCategoryKey
+            );
+            mainAccountRecipient = this.getMainAccount(
+              accountRecipient,
+              accounts
+            );
             rowKey2 = new Hash(rowValues.rowKey + '#2').md5;
-
             transactionRow.push({
               rowKey: rowKey2,
               direction: 'in',
               account: accountRecipient,
+              mainAccount: mainAccountRecipient,
               contractor: recipient,
-              project: 'No project',
               mainSymbol: void 0,
               symbol: coinSymbol,
               quantity: coinQty,
@@ -3232,13 +3367,27 @@ class Registry {
           [/*buy*/ '0461ebd2b773878eac9f78a891912d65'].indexOf(operationKey) !==
           -1
         ) {
+          accountSender = this.getAccount(
+            rowValues.accountSender,
+            void 0,
+            accounts,
+            currencySymbolCategoryKey
+          );
+          accountRecipient = this.getAccount(
+            rowValues.accountSender,
+            rowValues.accountRecipient,
+            accounts,
+            coinSymbolCategoryKey
+          );
+          mainAccountSender = this.getMainAccount(accountSender, accounts);
+          mainAccountRecipient = this.getMainAccount(accountRecipient, accounts);
           rowKey1 = new Hash(rowValues.rowKey + '#1').md5;
           transactionRow.push({
             rowKey: rowKey1,
             direction: 'out',
-            account: rowValues.accountSender,
-            contractor: rowValues.sender,
-            project: 'No project',
+            account: accountSender,
+            mainAccount: mainAccountSender,
+            contractor: sender,
             mainSymbol: mainSymbol,
             symbol: currencySymbol,
             quantity: currencyQty * -1,
@@ -3251,14 +3400,13 @@ class Registry {
             isSymbolPrice,
           });
           rowKey2 = new Hash(rowValues.rowKey + '#2').md5;
-
           transactionRow.push({
             rowKey: rowKey2,
             direction: 'in',
             isLock: rowValues.isLock,
             account: accountRecipient,
+            mainAccount: mainAccountRecipient,
             contractor: recipient,
-            project: project,
             mainSymbol: mainSymbol,
             symbol: coinSymbol,
             quantity: coinQty,
@@ -3275,13 +3423,28 @@ class Registry {
             operationKey
           ) !== -1
         ) {
+          accountSender = this.getAccount(
+            rowValues.accountSender,
+            void 0,
+            accounts,
+            coinSymbolCategoryKey
+          );
+          accountRecipient = this.getAccount(
+            rowValues.accountSender,
+            rowValues.accountRecipient,
+            accounts,
+            currencySymbolCategoryKey
+          );
+
+          mainAccountSender = this.getMainAccount(accountSender, accounts);
+          mainAccountRecipient = this.getMainAccount(accountRecipient, accounts);
           rowKey1 = new Hash(rowValues.rowKey + '#1').md5;
           transactionRow.push({
             rowKey: rowKey1,
             direction: 'out',
-            account: rowValues.accountSender,
-            contractor: rowValues.sender,
-            project: project,
+            account: accountSender,
+            mainAccount: mainAccountSender,
+            contractor: sender,
             mainSymbol: mainSymbol,
             symbol: coinSymbol,
             quantity: coinQty * -1,
@@ -3294,14 +3457,13 @@ class Registry {
             isCurencyPrice,
           });
           rowKey2 = new Hash(rowValues.rowKey + '#2').md5;
-
           transactionRow.push({
             rowKey: rowKey2,
             direction: 'in',
             isLock: rowValues.isLock,
             account: accountRecipient,
+            mainAccount: mainAccountRecipient,
             contractor: recipient,
-            project: 'No project',
             mainSymbol: mainSymbol,
             symbol: currencySymbol,
             quantity: currencyQty,
@@ -3318,8 +3480,10 @@ class Registry {
         //* Расчет текущей или исторической цены покупаемого токена
         const historicalPriceBuyCoin = transactions.getHistoricalPriceBuy(
           dateTime,
-          rowValues.accountSender,
+          mainAccountSender,
           currencySymbol,
+          currencySymbolCategoryKey,
+          symbols,
           isRange
         );
 
@@ -3333,22 +3497,24 @@ class Registry {
         //* Комиссия
         if (rowValues.feeCurrency) {
           rowKey3 = new Hash(rowValues.rowKey + '#3').md5;
-          const coin = prices[new Hash(rowValues.feeCurrency).md5];
-          const categoryKey = new Hash(coin?.symbolCategory).md5;
+          feeCurrencySymbolCategoryKey = this.getSymbolCategoryKey(
+            rowValues.feeCurrency,
+            symbols
+          );
           if (
-            'e5e3fd01394b9a81296b75d5a7f4c1a2' !== categoryKey /*stablecoin*/
+            'e5e3fd01394b9a81296b75d5a7f4c1a2' !==
+            feeCurrencySymbolCategoryKey /*stablecoin*/
           ) {
             isAvgPrice = true;
           }
           transactionRow.push({
             rowKey: rowKey3,
             direction: 'out',
-            account: rowValues.accountSender,
-            contractor: rowValues.sender,
-            project: 'No project',
+            account: accountSender,
+            contractor: sender,
             mainSymbol: void 0,
-            symbol: rowValues.feeCurrency,
-            quantity: rowValues.feeQty * -1,
+            symbol: feeCurrency,
+            quantity: feeQty * -1,
             isFee: true,
             isLock: false,
             isLiquidityPool: false,
@@ -3359,102 +3525,77 @@ class Registry {
           });
 
           //* Расчет текущей или исторической цены комиссии токена
-          // if (
-          //   rowValues.feeCurrency !== coinSymbol &&
-          //   !historicalPriceBuyCoin?.isHistoricalAveragePrice
-          // ) {
+
           const historicalPriceBuyFee = transactions.getHistoricalPriceBuy(
             dateTime,
-            rowValues.accountSender,
-            rowValues.feeCurrency,
+            mainAccountSender,
+            feeCurrencySymbolCategoryKey,
+            symbols,
             isRange
           );
 
           feePrice = historicalPriceBuyFee?.historicalPrice;
           isHistoricalAveragePriceFeeCurrency =
             historicalPriceBuyFee?.isHistoricalAveragePrice;
-          // } else {
-          //   feePrice = symbolPrice
-          //   isHistoricalAveragePriceFeeCurrency =
-          //     historicalPriceBuyCoin?.isHistoricalAveragePrice || false
-          // }
         }
 
-        new Promise((resolve, reject) => {
-          const process = () => {
-            //* Формирование строки транзакции
-            transactionRow.forEach((tx) => {
-              let price;
-              if (tx.isSymbolPrice) {
-                price = symbolPrice;
-                isHistoricalAveragePrice = isHistoricalAveragePriceSymbol;
-              } else if (tx.isFeePrice) {
-                price = feePrice;
-                isHistoricalAveragePrice = isHistoricalAveragePriceFeeCurrency;
-              } else if (tx.isCurencyPrice) {
-                price = currencyPrice;
-                isHistoricalAveragePrice = isHistoricalAveragePriceCurrency;
-              }
-              const cost = tx.quantity * price;
-              const mainAccount = accounts[new Hash(tx.account).md5].mainAccount;
-              const object = {
-                rowKey: tx.rowKey,
-
-                sourceKey: new Hash(this.workSheet.sheetName).md5,
-                sourceName: new Hash(this.workSheet.sheetName).stringLowerCase,
-                historicalAveragePriceKey: new Hash(mainAccount + tx.symbol)
-                  .md5,
-                dateTime: dateTime,
-                direction: tx.isFee ? 'out' : tx.direction.toLowerCase(),
-                operation: tx.isFee
-                  ? 'write-off'
-                  : rowValues.operation.toLowerCase(),
-                account: tx.account.toLowerCase(),
-                platform: rowValues.platform.toLowerCase(),
-                service: rowValues.service.toLowerCase(),
-                project: tx.project.toLowerCase(),
-                contractor: tx.contractor.toLowerCase(),
-                mainSymbol: tx.mainSymbol
-                  ? tx.mainSymbol.toLowerCase()
-                  : void 0,
-                symbol: tx.symbol.toLowerCase(),
-                quantity: tx.quantity,
-                price: price || 0,
-                cost: cost || 0,
-                comment: rowValues.comment.toString().toLowerCase(),
-                updateDate: updateDate,
-                isDelete: isDelete,
-                isAvgPrice: tx.isAvgPrice,
-                isLiquidityPool: tx.isLiquidityPool,
-                isFee: tx.isFee,
-                isLock: tx.isLock,
-                isHistoricalAveragePrice,
-                registryRowKey,
-                registryRowNum: rowValues.rowNum,
-                registryRowId: rowValues.rowId,
-              };
-
-              //* вставка строки в транзакции
-              const registryTimestampCache = this.workSheet.scriptCache.getCache(
-                registryRowKeyTimestamp
-              );
-              if (
-                registryTimestamp === registryTimestampCache ||
-                !registryTimestampCache
-              ) {
-                transactionsArrayOfObject.push(object);
-              }
-            });
-            return true
+        //* Формирование строки транзакции
+        transactionRow.forEach((tx) => {
+          let price;
+          if (tx.isSymbolPrice) {
+            price = symbolPrice;
+            isHistoricalAveragePrice = isHistoricalAveragePriceSymbol;
+          } else if (tx.isFeePrice) {
+            price = feePrice;
+            isHistoricalAveragePrice = isHistoricalAveragePriceFeeCurrency;
+          } else if (tx.isCurencyPrice) {
+            price = currencyPrice;
+            isHistoricalAveragePrice = isHistoricalAveragePriceCurrency;
+          }
+          const cost = tx.quantity * price;
+          const object = {
+            rowKey: tx.rowKey,
+            sourceKey: new Hash(this.workSheet.sheetName).md5,
+            sourceName: new Hash(this.workSheet.sheetName).stringLowerCase,
+            historicalAveragePriceKey: new Hash(tx.mainAccount + tx.symbol).md5,
+            dateTime: dateTime,
+            direction: tx.isFee ? 'out' : tx.direction.toLowerCase(),
+            operation: tx.isFee
+              ? 'write-off'
+              : rowValues.operation.toLowerCase(),
+            account: tx.account.toLowerCase(),
+            platform: rowValues.platform.toLowerCase(),
+            service: rowValues.service.toLowerCase(),
+            contractor: tx.contractor.toLowerCase(),
+            mainSymbol: tx.mainSymbol ? tx.mainSymbol.toLowerCase() : void 0,
+            symbol: tx.symbol.toLowerCase(),
+            quantity: tx.quantity,
+            price: price || 0,
+            cost: cost || 0,
+            comment: rowValues.comment.toString().toLowerCase(),
+            updateDate: updateDate,
+            isDelete: isDelete,
+            isAvgPrice: tx.isAvgPrice,
+            isLiquidityPool: tx.isLiquidityPool,
+            isFee: tx.isFee,
+            isLock: tx.isLock,
+            isHistoricalAveragePrice,
+            registryRowKey,
+            registryRowNum: rowValues.rowNum,
+            registryRowId: rowValues.rowId,
           };
-          process() ? resolve() : reject(new Error('Data not changed'));
-        }).catch((error) => {
-          //* вставка даты сохранения
-          this.workSheet.insertValue(
-            error,
-            rowValues.rowNum,
-            this.workSheet.head.rowStatus.idx + 1
+
+          //* вставка строки в транзакции
+          const registryTimestampCache = this.workSheet.scriptCache.getCache(
+            registryRowKeyTimestamp
           );
+
+          if (
+            registryTimestamp === registryTimestampCache ||
+            !registryTimestampCache
+          ) {
+            transactionsArrayOfObject.push(object);
+          }
         });
       });
 
@@ -3710,7 +3851,7 @@ class Flow {
 
   updateFlow() {
     try {
-      const prices = new Prices().workSheet.object;
+      const symbols = new Symbols().workSheet.object;
       const contractors = new Portfolio().getWorkSheet('Contractors').object;
       const inKey = new Hash('in').md5;
       const outKey = new Hash('out').md5;
@@ -3877,12 +4018,13 @@ class Flow {
             //* доп. атрибуты
             //* атрибуты символа
             const symbolKey = new Hash(symbol).md5;
-            const symbolFullName = prices[symbolKey]?.name || '';
-            const symbolCategory = prices[symbolKey]?.symbolCategory || '';
-            const symbolEcosystem = prices[symbolKey]?.ecosystem || '';
-            const symbolMarketCapGroup = prices[symbolKey]?.marketCapGroup || '';
+            const symbolFullName = symbols[symbolKey]?.name || '';
+            const symbolCategory = symbols[symbolKey]?.symbolCategory || '';
+            const symbolEcosystem = symbols[symbolKey]?.ecosystem || '';
+            const symbolMarketCapGroup =
+              symbols[symbolKey]?.marketCapGroup || '';
             const symbolWeb3SpaceInterest =
-              prices[symbolKey]?.web3SpaceInterest || '';
+              symbols[symbolKey]?.web3SpaceInterest || '';
             //* атрибуты контрагента
             const contractorKey = new Hash(contractor).md5;
             const contractorType = contractors[contractorKey]?.type || '';
@@ -3890,7 +4032,7 @@ class Flow {
               contractors[contractorKey]?.category || '';
 
             //* стоимость остатка
-            const priceRest = prices[symbolKey]?.price || 0;
+            const priceRest = symbols[symbolKey]?.price || 0;
             const costRest =
               Math.round(priceRest * object.quantityRest * 100) / 100;
             const costRestLock = priceRest * object.quantityRestLock;
@@ -4165,7 +4307,7 @@ function updatePrices() {
   const startProcess = new FormatDate();
   new Promise((resolve, reject) => {
     const process = () => {
-      new Prices().updatePrices();
+      new Symbols().updatePrices();
       return true
     };
     process() ? resolve() : reject(new Error('script.updatePrices'));
@@ -4196,38 +4338,16 @@ function updateHistoricalAveragePriceKey() {
   new Transactions().updateHistoricalAveragePriceKey();
 }
 
-function updateTransferOperation1000() {
-  new Transactions().updateTransferOperation(0, 1000);
-}
-function updateTransferOperation2000() {
-  new Transactions().updateTransferOperation(1001, 2000);
-}
-function updateTransferOperation3000() {
-  new Transactions().updateTransferOperation(2001, 3000);
-}
-function updateTransferOperation4000() {
-  new Transactions().updateTransferOperation(3001, 4000);
+function updateAccount() {
+  new Transactions().updateAccount();
 }
 
-function updateTransferOperation5000() {
-  new Transactions().updateTransferOperation(4001, 5000);
+function recalculateTransactions() {
+  new Transactions().recalculateTransactions(0, 1000);
 }
 
-function updateWriteOffAndRefillOperation1000() {
-  new Transactions().updateWriteOffAndRefillOperation(0, 1000);
-}
-function updateWriteOffAndRefillOperation2000() {
-  new Transactions().updateWriteOffAndRefillOperation(1001, 2000);
-}
-function updateWriteOffAndRefillOperation3000() {
-  new Transactions().updateWriteOffAndRefillOperation(2001, 3000);
-}
-function updateWriteOffAndRefillOperation4000() {
-  new Transactions().updateWriteOffAndRefillOperation(3001, 4000);
-}
-
-function updateWriteOffAndRefillOperation5000() {
-  new Transactions().updateWriteOffAndRefillOperation(4001, 5000);
+function recalculateSymbolTransactions() {
+  new Transactions().recalculateSymbolTransactions('sol');
 }
 
 function updateOnEdit(editRange) {
@@ -4250,8 +4370,8 @@ function updateOnEdit(editRange) {
             if (workSheet.isChangePrimaryKey) {
               workSheet.savePrimaryKeyChanges();
             }
-            if (workSheet.workSheetKey === new Hash('prices').md5) {
-              new Prices(workSheet).updateId();
+            if (workSheet.workSheetKey === new Hash('symbols').md5) {
+              new Symbols(workSheet).updateId();
             } else if (workSheet.isRegistry) {
               new Registry(workSheet).updateTransactions(true);
             }

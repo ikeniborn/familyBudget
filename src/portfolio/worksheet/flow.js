@@ -1,6 +1,6 @@
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash, FormatDate } from '../../utils'
-import { Prices } from './prices'
+import { Symbols } from './symbols'
 import { Transactions } from './transactions'
 export { Flow }
 
@@ -18,7 +18,7 @@ class Flow {
 
   updateFlow() {
     try {
-      const prices = new Prices().workSheet.object
+      const symbols = new Symbols().workSheet.object
       const contractors = new Portfolio().getWorkSheet('Contractors').object
       const inKey = new Hash('in').md5
       const outKey = new Hash('out').md5
@@ -185,12 +185,13 @@ class Flow {
             //* доп. атрибуты
             //* атрибуты символа
             const symbolKey = new Hash(symbol).md5
-            const symbolFullName = prices[symbolKey]?.name || ''
-            const symbolCategory = prices[symbolKey]?.symbolCategory || ''
-            const symbolEcosystem = prices[symbolKey]?.ecosystem || ''
-            const symbolMarketCapGroup = prices[symbolKey]?.marketCapGroup || ''
+            const symbolFullName = symbols[symbolKey]?.name || ''
+            const symbolCategory = symbols[symbolKey]?.symbolCategory || ''
+            const symbolEcosystem = symbols[symbolKey]?.ecosystem || ''
+            const symbolMarketCapGroup =
+              symbols[symbolKey]?.marketCapGroup || ''
             const symbolWeb3SpaceInterest =
-              prices[symbolKey]?.web3SpaceInterest || ''
+              symbols[symbolKey]?.web3SpaceInterest || ''
             //* атрибуты контрагента
             const contractorKey = new Hash(contractor).md5
             const contractorType = contractors[contractorKey]?.type || ''
@@ -198,7 +199,7 @@ class Flow {
               contractors[contractorKey]?.category || ''
 
             //* стоимость остатка
-            const priceRest = prices[symbolKey]?.price || 0
+            const priceRest = symbols[symbolKey]?.price || 0
             const costRest =
               Math.round(priceRest * object.quantityRest * 100) / 100
             const costRestLock = priceRest * object.quantityRestLock
