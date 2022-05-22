@@ -3162,6 +3162,8 @@ class Registry {
           sender,
           recipient,
           feePrice,
+          feeAccount,
+          feeMainAccount,
           mainSymbol,
           feeCurrency,
           feeCurrencySymbolCategoryKey,
@@ -3501,6 +3503,13 @@ class Registry {
             rowValues.feeCurrency,
             symbols
           );
+          feeAccount = this.getAccount(
+            rowValues.accountSender,
+            void 0,
+            accounts,
+            feeCurrencySymbolCategoryKey
+          );
+          feeMainAccount = this.getMainAccount(feeAccount, accounts);
           if (
             'e5e3fd01394b9a81296b75d5a7f4c1a2' !==
             feeCurrencySymbolCategoryKey /*stablecoin*/
@@ -3510,7 +3519,8 @@ class Registry {
           transactionRow.push({
             rowKey: rowKey3,
             direction: 'out',
-            account: accountSender,
+            account: feeAccount,
+            mainAccount: feeMainAccount,
             contractor: sender,
             mainSymbol: void 0,
             symbol: feeCurrency,
@@ -3553,6 +3563,7 @@ class Registry {
             isHistoricalAveragePrice = isHistoricalAveragePriceCurrency;
           }
           const cost = tx.quantity * price;
+          console.log('tx', tx);
           const object = {
             rowKey: tx.rowKey,
             sourceKey: new Hash(this.workSheet.sheetName).md5,
@@ -4347,68 +4358,49 @@ function recalculateTransactions() {
 }
 
 function recalculateSymbolTransactions() {
-  new Transactions().recalculateSymbolTransactions('sol');
+  new Transactions().recalculateSymbolTransactions('ada');
 }
 
 function updateOnEdit(editRange) {
-  const startProcess = new FormatDate();
-  const lock = LockService.getScriptLock();
-  new Promise((resolve) => {
-    const workSheet = new Portfolio().updateOnEdit(editRange.range);
-    if (workSheet.isChangeData) {
-      lock.tryLock(180000);
-      workSheet.afterLock = true;
-    } else {
-      workSheet.afterLock = false;
-    }
-    resolve(workSheet);
-  })
-    .then((workSheet) => {
-      return new Promise((resolve, reject) => {
-        const process = () => {
-          if (workSheet.afterLock) {
-            if (workSheet.isChangePrimaryKey) {
-              workSheet.savePrimaryKeyChanges();
-            }
-            if (workSheet.workSheetKey === new Hash('symbols').md5) {
-              new Symbols(workSheet).updateId();
-            } else if (workSheet.isRegistry) {
-              new Registry(workSheet).updateTransactions(true);
-            }
-          }
-          workSheet.isResolve = true;
-          return workSheet
-        };
-        const data = process();
-        data.isResolve
-          ? resolve(data)
-          : reject(new Error('script.updateOnEdit'));
-      })
-    })
-    .then((workSheet) => {
-      lock.releaseLock();
+  try {
+    const startProcess = new FormatDate();
+    const lock = LockService.getScriptLock();
+    new Promise((resolve) => {
+      const workSheet = new Portfolio().updateOnEdit(editRange.range);
       if (workSheet.isChangeData) {
-        new Portfolio().log.addMessage(
-          'script.updateOnEdit',
-          'ID:' + startProcess.value,
-          'Sheet name: ' +
-            workSheet.sheetName +
-            ', Start row: ' +
-            workSheet.startRow +
-            ', End Row: ' +
-            workSheet.rowEnd +
-            ', Count row: ' +
-            workSheet.countRow +
-            ', Start: ' +
-            startProcess.getFormatDate('YYYY-MM-dd HH:mm:ss') +
-            ', Time spent: ' +
-            startProcess.getTimeDiff()
-        );
+        lock.tryLock(180000);
+        if (workSheet.isChangePrimaryKey) {
+          workSheet.savePrimaryKeyChanges();
+        }
+        if (workSheet.workSheetKey === new Hash('symbols').md5) {
+          new Symbols(workSheet).updateId();
+        } else if (workSheet.isRegistry) {
+          new Registry(workSheet).updateTransactions(true);
+        }
+        resolve(workSheet);
       }
-    })
-    .catch((error) => {
-      console.error('script.updateOnEdit', error.stack);
+    }).then((workSheet) => {
+      new Portfolio().log.addMessage(
+        'script.updateOnEdit',
+        'ID:' + startProcess.value,
+        'Sheet name: ' +
+          workSheet.sheetName +
+          ', Start row: ' +
+          workSheet.startRow +
+          ', End Row: ' +
+          workSheet.rowEnd +
+          ', Count row: ' +
+          workSheet.countRow +
+          ', Start: ' +
+          startProcess.getFormatDate('YYYY-MM-dd HH:mm:ss') +
+          ', Time spent: ' +
+          startProcess.getTimeDiff()
+      );
+      lock.releaseLock();
     });
+  } catch (error) {
+    console.error('script.updateOnEdit', error.stack);
+  }
 
   // new Promise((resolve) => {
   //   let countRunProcess

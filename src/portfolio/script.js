@@ -150,68 +150,49 @@ function recalculateTransactions() {
 }
 
 function recalculateSymbolTransactions() {
-  new Transactions().recalculateSymbolTransactions('sol')
+  new Transactions().recalculateSymbolTransactions('ada')
 }
 
 function updateOnEdit(editRange) {
-  const startProcess = new FormatDate()
-  const lock = LockService.getScriptLock()
-  new Promise((resolve) => {
-    const workSheet = new Portfolio().updateOnEdit(editRange.range)
-    if (workSheet.isChangeData) {
-      lock.tryLock(180000)
-      workSheet.afterLock = true
-    } else {
-      workSheet.afterLock = false
-    }
-    resolve(workSheet)
-  })
-    .then((workSheet) => {
-      return new Promise((resolve, reject) => {
-        const process = () => {
-          if (workSheet.afterLock) {
-            if (workSheet.isChangePrimaryKey) {
-              workSheet.savePrimaryKeyChanges()
-            }
-            if (workSheet.workSheetKey === new Hash('symbols').md5) {
-              new Symbols(workSheet).updateId()
-            } else if (workSheet.isRegistry) {
-              new Registry(workSheet).updateTransactions(true)
-            }
-          }
-          workSheet.isResolve = true
-          return workSheet
-        }
-        const data = process()
-        data.isResolve
-          ? resolve(data)
-          : reject(new Error('script.updateOnEdit'))
-      })
-    })
-    .then((workSheet) => {
-      lock.releaseLock()
+  try {
+    const startProcess = new FormatDate()
+    const lock = LockService.getScriptLock()
+    new Promise((resolve) => {
+      const workSheet = new Portfolio().updateOnEdit(editRange.range)
       if (workSheet.isChangeData) {
-        new Portfolio().log.addMessage(
-          'script.updateOnEdit',
-          'ID:' + startProcess.value,
-          'Sheet name: ' +
-            workSheet.sheetName +
-            ', Start row: ' +
-            workSheet.startRow +
-            ', End Row: ' +
-            workSheet.rowEnd +
-            ', Count row: ' +
-            workSheet.countRow +
-            ', Start: ' +
-            startProcess.getFormatDate('YYYY-MM-dd HH:mm:ss') +
-            ', Time spent: ' +
-            startProcess.getTimeDiff()
-        )
+        lock.tryLock(180000)
+        if (workSheet.isChangePrimaryKey) {
+          workSheet.savePrimaryKeyChanges()
+        }
+        if (workSheet.workSheetKey === new Hash('symbols').md5) {
+          new Symbols(workSheet).updateId()
+        } else if (workSheet.isRegistry) {
+          new Registry(workSheet).updateTransactions(true)
+        }
+        resolve(workSheet)
       }
+    }).then((workSheet) => {
+      new Portfolio().log.addMessage(
+        'script.updateOnEdit',
+        'ID:' + startProcess.value,
+        'Sheet name: ' +
+          workSheet.sheetName +
+          ', Start row: ' +
+          workSheet.startRow +
+          ', End Row: ' +
+          workSheet.rowEnd +
+          ', Count row: ' +
+          workSheet.countRow +
+          ', Start: ' +
+          startProcess.getFormatDate('YYYY-MM-dd HH:mm:ss') +
+          ', Time spent: ' +
+          startProcess.getTimeDiff()
+      )
+      lock.releaseLock()
     })
-    .catch((error) => {
-      console.error('script.updateOnEdit', error.stack)
-    })
+  } catch (error) {
+    console.error('script.updateOnEdit', error.stack)
+  }
 
   // new Promise((resolve) => {
   //   let countRunProcess

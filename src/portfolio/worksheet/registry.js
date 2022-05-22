@@ -89,6 +89,8 @@ class Registry {
           sender,
           recipient,
           feePrice,
+          feeAccount,
+          feeMainAccount,
           mainSymbol,
           feeCurrency,
           feeCurrencySymbolCategoryKey,
@@ -428,6 +430,13 @@ class Registry {
             rowValues.feeCurrency,
             symbols
           )
+          feeAccount = this.getAccount(
+            rowValues.accountSender,
+            void 0,
+            accounts,
+            feeCurrencySymbolCategoryKey
+          )
+          feeMainAccount = this.getMainAccount(feeAccount, accounts)
           if (
             'e5e3fd01394b9a81296b75d5a7f4c1a2' !==
             feeCurrencySymbolCategoryKey /*stablecoin*/
@@ -437,7 +446,8 @@ class Registry {
           transactionRow.push({
             rowKey: rowKey3,
             direction: 'out',
-            account: accountSender,
+            account: feeAccount,
+            mainAccount: feeMainAccount,
             contractor: sender,
             mainSymbol: void 0,
             symbol: feeCurrency,
@@ -480,6 +490,7 @@ class Registry {
             isHistoricalAveragePrice = isHistoricalAveragePriceCurrency
           }
           const cost = tx.quantity * price
+          console.log('tx', tx)
           const object = {
             rowKey: tx.rowKey,
             sourceKey: new Hash(this.workSheet.sheetName).md5,
