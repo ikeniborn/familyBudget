@@ -149,10 +149,6 @@ function recalculateTransactions() {
   new Transactions().recalculateTransactions(0, 1000)
 }
 
-function recalculateSymbolTransactions() {
-  new Transactions().recalculateSymbolTransactions('ada')
-}
-
 function updateOnEdit(editRange) {
   try {
     const startProcess = new FormatDate()
@@ -160,7 +156,9 @@ function updateOnEdit(editRange) {
     new Promise((resolve) => {
       const workSheet = new Portfolio().updateOnEdit(editRange.range)
       if (workSheet.isChangeData) {
+        const startLock = new FormatDate()
         lock.tryLock(180000)
+        workSheet.lockTime = startLock.getTimeDiff()
         if (workSheet.isChangePrimaryKey) {
           workSheet.savePrimaryKeyChanges()
         }
@@ -186,7 +184,9 @@ function updateOnEdit(editRange) {
           ', Start: ' +
           startProcess.getFormatDate('YYYY-MM-dd HH:mm:ss') +
           ', Time spent: ' +
-          startProcess.getTimeDiff()
+          startProcess.getTimeDiff() +
+          ', Lock time: ' +
+          workSheet?.lockTime || 0
       )
       lock.releaseLock()
     })
@@ -227,6 +227,9 @@ function sortRegistry() {
         const DateTime = new FormatDate(date).addTime(hhmm.h, hhmm.m).date
         row.dateTime = DateTime
         return row
+      })
+      .sort((a, b) => {
+        return ('' + a.coin).localeCompare(b.coin)
       })
       .sort((a, b) => {
         return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()

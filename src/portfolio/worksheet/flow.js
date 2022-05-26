@@ -20,6 +20,9 @@ class Flow {
     try {
       const symbols = new Symbols().workSheet.object
       const contractors = new Portfolio().getWorkSheet('Contractors').object
+      const accounts = new Portfolio().getWorkSheet('Accounts').object
+      const symbolCategories = new Portfolio().getWorkSheet('SymbolCategory')
+        .object
       const inKey = new Hash('in').md5
       const outKey = new Hash('out').md5
       const aggFlow = new Transactions().workSheet.arrayOfObject
@@ -64,7 +67,6 @@ class Flow {
               costWriteOffOut: 0,
               costTransferIn: 0,
               costTransferOut: 0,
-              costBalance: 0,
               dayInPortfolioBuyInSum: 0,
               dayInPortfolioBuyOutSum: 0,
               dayInPortfolioSellOutSum: 0,
@@ -170,12 +172,6 @@ class Flow {
 
           agg[tx.account][tx.contractor][tx.symbol].quantityRest += tx.quantity
 
-          if (agg[tx.account][tx.contractor][tx.symbol].quantityRest !== 0) {
-            agg[tx.account][tx.contractor][tx.symbol].costBalance += tx.cost
-          } else {
-            agg[tx.account][tx.contractor][tx.symbol].costBalance = 0
-          }
-
           return agg
         }, {})
       const aggFlowArrayOfObject = []
@@ -190,8 +186,7 @@ class Flow {
             const symbolEcosystem = symbols[symbolKey]?.ecosystem || ''
             const symbolMarketCapGroup =
               symbols[symbolKey]?.marketCapGroup || ''
-            const symbolWeb3SpaceInterest =
-              symbols[symbolKey]?.web3SpaceInterest || ''
+            const mainAccount = accounts[new Hash(account).md5].mainAccount
             //* атрибуты контрагента
             const contractorKey = new Hash(contractor).md5
             const contractorType = contractors[contractorKey]?.type || ''
@@ -245,11 +240,22 @@ class Flow {
             const priceOutFlow = costOutFlow / quantityOutFlow
 
             //* текущие остатки
-            const costRestInFlow =
-              object.costBalance <= 0 || object.quantityRest <= 0
-                ? priceInFlow * object.quantityRest
-                : object.costBalance
+            const costRestInFlow = priceInFlow * object.quantityRest
+
             const priceRestInFlow = costRestInFlow / object.quantityRest
+
+            // if (
+            //   // new Hash(contractor).md5 === new Hash('binance').md5 &&
+            //   new Hash(symbol).md5 === new Hash('bvc').md5
+            // ) {
+            //   console.log(account, contractor, symbol)
+            //   console.log('quantityRest', object.quantityRest)
+            //   console.log('quantityInFlow', quantityInFlow)
+            //   console.log('priceInFlow', priceInFlow)
+            //   console.log('costInFlow', costInFlow)
+            //   console.log('costRestInFlow', costRestInFlow)
+            //   console.log('priceRestInFlow', priceRestInFlow)
+            // }
 
             //* Расчет среднего времени в портфеле
 
@@ -271,37 +277,26 @@ class Flow {
                     object.quantityTransferOut ||
                 0
               )
-            // if (
-            //   new Hash(contractor).md5 === new Hash('binance').md5 &&
-            //   new Hash(symbol).md5 === new Hash('etc').md5
-            // ) {
-            //   console.log('binance etc')
-            //   console.log('quantityRest', object.quantityRest)
-            //   console.log('costBalance', object.costBalance)
-            //   console.log('quantityInFlow', quantityInFlow)
-            //   console.log('priceInFlow', priceInFlow)
-            //   console.log('costInFlow', costInFlow)
-            //   console.log('costRestInFlow', costRestInFlow)
-            //   console.log('priceRestInFlow', priceRestInFlow)
-            // }
-            // if (
-            //   new Hash(contractor).md5 === new Hash('pancakeswap').md5 &&
-            //   new Hash(symbol).md5 === new Hash('cake').md5
-            // ) {
-            //   console.log('pancakeswap cake')
-            //   console.log('quantityRest', object.quantityRest)
-            //   console.log('costBalance', object.costBalance)
-            //   console.log('quantityInFlow', quantityInFlow)
-            //   console.log('priceInFlow', priceInFlow)
-            //   console.log('costInFlow', costInFlow)
-            //   console.log('costRestInFlow', costRestInFlow)
-            //   console.log('priceRestInFlow', priceRestInFlow)
-            // }
-            //* сумма окупаемости от вложения собсвенных средств
+            //* Количество на ребалансировки от изменения цены
+            const costFlow = costInFlow - costOutFlow
+            const priceFlow = costFlow / object.quantityRest
+            let quantityRebalance
+            if (priceRest) {
+              const changePriceCoef = priceRest / priceFlow
+              const priceRebalance =
+                priceRest + (priceFlow - priceRest) * changePriceCoef
+
+              quantityRebalance =
+                (object.quantityRest * (priceFlow - priceRebalance)) /
+                (priceRebalance - priceRest)
+            } else {
+              quantityRebalance = 0
+            }
 
             const payback = costOutFlow - costOwnInFlow
 
             aggFlowArrayOfObject.push({
+              mainAccount: mainAccount.toUpperCase(),
               account: account.toUpperCase(),
               contractor: contractor.toUpperCase(),
               contractorType: contractorType.toUpperCase(),
@@ -311,7 +306,6 @@ class Flow {
               symbolCategory: symbolCategory.toUpperCase(),
               symbolEcosystem: symbolEcosystem.toUpperCase(),
               symbolMarketCapGroup: symbolMarketCapGroup.toUpperCase(),
-              symbolWeb3SpaceInterest: symbolWeb3SpaceInterest.toUpperCase(),
               quantityOwnInFlow: quantityOwnInFlow || 0,
               quantityInFlow: quantityInFlow || 0,
               quantityOutFlow: quantityOutFlow || 0,
@@ -332,6 +326,7 @@ class Flow {
               costRestUnlock: costRestUnlock || 0,
               pnlTotal: costOutFlow - costInFlow + costRest || 0,
               pnlRest: costRest - costRestInFlow || 0,
+              quantityRebalance: quantityRebalance || 0,
               payback: payback || 0,
               dayInPortfolioAvg,
             })

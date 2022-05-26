@@ -88,6 +88,7 @@ class Registry {
           mainAccountRecipient,
           sender,
           recipient,
+          feeSender,
           feePrice,
           feeAccount,
           feeMainAccount,
@@ -149,6 +150,7 @@ class Registry {
         )
         sender = rowValues.sender
         recipient = rowValues.recipient ? rowValues.recipient : rowValues.sender
+        feeSender = rowValues.feeSender || rowValues.sender
         feeCurrency = rowValues.feeCurrency
         feeQty = rowValues.feeQty
         isLiquidityPool = false
@@ -409,7 +411,7 @@ class Registry {
         //* Расчет текущей или исторической цены покупаемого токена
         const historicalPriceBuyCoin = transactions.getHistoricalPriceBuy(
           dateTime,
-          mainAccountSender,
+          accountSender,
           currencySymbol,
           currencySymbolCategoryKey,
           symbols,
@@ -448,7 +450,7 @@ class Registry {
             direction: 'out',
             account: feeAccount,
             mainAccount: feeMainAccount,
-            contractor: sender,
+            contractor: feeSender,
             mainSymbol: void 0,
             symbol: feeCurrency,
             quantity: feeQty * -1,
@@ -465,7 +467,7 @@ class Registry {
 
           const historicalPriceBuyFee = transactions.getHistoricalPriceBuy(
             dateTime,
-            mainAccountSender,
+            accountSender,
             feeCurrencySymbolCategoryKey,
             symbols,
             isRange
@@ -490,12 +492,11 @@ class Registry {
             isHistoricalAveragePrice = isHistoricalAveragePriceCurrency
           }
           const cost = tx.quantity * price
-          console.log('tx', tx)
           const object = {
             rowKey: tx.rowKey,
             sourceKey: new Hash(this.workSheet.sheetName).md5,
             sourceName: new Hash(this.workSheet.sheetName).stringLowerCase,
-            historicalAveragePriceKey: new Hash(tx.mainAccount + tx.symbol).md5,
+            historicalAveragePriceKey: new Hash(tx.account + tx.symbol).md5,
             dateTime: dateTime,
             direction: tx.isFee ? 'out' : tx.direction.toLowerCase(),
             operation: tx.isFee
@@ -570,16 +571,6 @@ class Registry {
             object.rowNum,
             this.workSheet.head.dateSaved.idx + 1
           )
-          // this.workSheet.insertValue(
-          //   new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss'),
-          //   rowNum,
-          //   this.workSheet.head.dateSaved.idx + 1
-          // )
-          // this.workSheet.insertValue(
-          //   startProcess.getTimeDiff() + '',
-          //   rowNum,
-          //   this.workSheet.head.timeSpent.idx + 1
-          // )
         })
       })
 
@@ -610,6 +601,7 @@ class Registry {
             if (!registryRowKeyArray.includes(objectRow.registryRowKey)) {
               registryRowKeyArray.push(objectRow.registryRowKey)
             }
+
             return registryRowKeyArray
           }, [])
 

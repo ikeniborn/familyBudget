@@ -572,16 +572,19 @@ class WorkSheetRange extends WorkSheet {
     try {
       this.dataRange.getValues().forEach((arrayRow, indexRow) => {
         const rowNum = this.firstRowNum + indexRow
+        const rowNumKey = new Hash(rowNum + this.sheetName).md5
         const isChangeRow = this.isChangeRow(rowNum, arrayRow)
+        let rowIdCache
         if (isChangeRow.sign) {
-          const maxRowId = this.workSheetMetadata.getMaxRowId()
           let isNewRowId = false
           const rowIdOld = arrayRow[this.head.rowId.idx] * 1
           let rowId
           if (rowIdOld) {
             rowId = arrayRow[this.head.rowId.idx]
           } else {
-            rowId = maxRowId ? maxRowId + 1 : rowNum
+            const maxRowId = this.workSheetMetadata.getMaxRowId()
+            rowIdCache = this.scriptCache.getCache(rowNumKey)
+            rowId = rowIdCache ? rowIdCache : maxRowId + 1
             isNewRowId = true
           }
           const rowKey = new Hash(rowId + this.sheetName).md5
@@ -606,7 +609,10 @@ class WorkSheetRange extends WorkSheet {
             const isNotNull = this.isNotNull(instanceRow)
             if (isNotNull) {
               if (isNewRowId) {
-                this.workSheetMetadata.addMaxRowId(rowId)
+                if (!rowIdCache) {
+                  this.workSheetMetadata.addMaxRowId(rowId)
+                }
+                this.scriptCache.addCache(rowNumKey, rowId)
               }
               if (!this.object[rowKey]) {
                 this.object[rowKey] = instanceRow

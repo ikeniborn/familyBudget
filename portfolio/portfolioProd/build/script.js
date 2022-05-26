@@ -887,16 +887,19 @@ class WorkSheetRange extends WorkSheet {
     try {
       this.dataRange.getValues().forEach((arrayRow, indexRow) => {
         const rowNum = this.firstRowNum + indexRow;
+        const rowNumKey = new Hash(rowNum + this.sheetName).md5;
         const isChangeRow = this.isChangeRow(rowNum, arrayRow);
+        let rowIdCache;
         if (isChangeRow.sign) {
-          const maxRowId = this.workSheetMetadata.getMaxRowId();
           let isNewRowId = false;
           const rowIdOld = arrayRow[this.head.rowId.idx] * 1;
           let rowId;
           if (rowIdOld) {
             rowId = arrayRow[this.head.rowId.idx];
           } else {
-            rowId = maxRowId ? maxRowId + 1 : rowNum;
+            const maxRowId = this.workSheetMetadata.getMaxRowId();
+            rowIdCache = this.scriptCache.getCache(rowNumKey);
+            rowId = rowIdCache ? rowIdCache : maxRowId + 1;
             isNewRowId = true;
           }
           const rowKey = new Hash(rowId + this.sheetName).md5;
@@ -921,7 +924,10 @@ class WorkSheetRange extends WorkSheet {
             const isNotNull = this.isNotNull(instanceRow);
             if (isNotNull) {
               if (isNewRowId) {
-                this.workSheetMetadata.addMaxRowId(rowId);
+                if (!rowIdCache) {
+                  this.workSheetMetadata.addMaxRowId(rowId);
+                }
+                this.scriptCache.addCache(rowNumKey, rowId);
               }
               if (!this.object[rowKey]) {
                 this.object[rowKey] = instanceRow;
@@ -1355,30 +1361,31 @@ class Portfolio {
           currency: { alias: 'Currency', idx: 10 },
           currencyQty: { alias: 'Currency, qty', idx: 11 },
           currencyPerCoin: { alias: 'Currency per coin', idx: 12 },
-          feeCurrency: { alias: 'Fee currency', idx: 13 },
-          feeQty: { alias: 'Fee, qty', idx: 14 },
-          comment: { alias: 'Comment', idx: 15 },
+          feeSender: { alias: 'Fee sender', idx: 13 },
+          feeCurrency: { alias: 'Fee currency', idx: 14 },
+          feeQty: { alias: 'Fee, qty', idx: 15 },
+          comment: { alias: 'Comment', idx: 16 },
           date: {
             alias: 'Date',
-            idx: 16,
+            idx: 17,
             notNull: true,
             type: 'date',
             default: void 0,
           },
-          time: { alias: 'Time', idx: 17, notNull: true },
-          isDelete: { alias: 'Is delete', idx: 18 },
+          time: { alias: 'Time', idx: 18, notNull: true },
+          isDelete: { alias: 'Is delete', idx: 19 },
           dateSaved: {
             alias: 'Date saved',
-            idx: 19,
+            idx: 20,
             type: 'date',
             default: new Date(),
           },
           timeSpent: {
             alias: 'Time spent (hh:mm:ss.ms)',
-            idx: 20,
+            idx: 21,
             type: 'string',
           },
-          rowId: { alias: 'Row ID', idx: 21 },
+          rowId: { alias: 'Row ID', idx: 22 },
         },
       },
       symbols: {
@@ -1415,15 +1422,11 @@ class Portfolio {
             alias: 'MarketCap group',
             idx: 6,
           },
-          web3SpaceInterest: {
-            alias: 'Web3Space interest',
-            idx: 7,
-          },
-          sourceId: { alias: 'Source id', idx: 8 },
-          price: { alias: 'Price', idx: 9 },
+          sourceId: { alias: 'Source id', idx: 7 },
+          price: { alias: 'Price', idx: 8 },
           update: {
             alias: 'Update',
-            idx: 10,
+            idx: 9,
             type: 'date',
             default: new Date(),
           },
@@ -1525,19 +1528,16 @@ class Portfolio {
         type: 'tx',
         rowNum: 1,
         columns: {
-          account: { alias: 'Account', idx: 0 },
-          contractor: { alias: 'Contractor', idx: 1 },
-          contractorType: { alias: 'Contractor type', idx: 2 },
-          contractorCategory: { alias: 'Contractor category', idx: 3 },
-          symbol: { alias: 'Symbol name', idx: 4 },
-          symbolFullName: { alias: 'Symbol full name', idx: 5 },
-          symbolCategory: { alias: 'Symbol category', idx: 6 },
-          symbolEcosystem: { alias: 'Symbol ecosystem', idx: 7 },
-          symbolMarketCapGroup: { alias: 'Symbol marketcap group', idx: 8 },
-          symbolWeb3SpaceInterest: {
-            alias: 'Symbol Web3Space interest',
-            idx: 9,
-          },
+          mainAccount: { alias: 'Main account', idx: 0 },
+          account: { alias: 'Account', idx: 1 },
+          contractor: { alias: 'Contractor', idx: 2 },
+          contractorType: { alias: 'Contractor type', idx: 3 },
+          contractorCategory: { alias: 'Contractor category', idx: 4 },
+          symbol: { alias: 'Symbol name', idx: 5 },
+          symbolFullName: { alias: 'Symbol full name', idx: 6 },
+          symbolCategory: { alias: 'Symbol category', idx: 7 },
+          symbolEcosystem: { alias: 'Symbol ecosystem', idx: 8 },
+          symbolMarketCapGroup: { alias: 'Symbol marketcap group', idx: 9 },
           quantityOwnInFlow: { alias: 'Quantity (own in flow)', idx: 10 },
           quantityInFlow: { alias: 'Quantity (in flow)', idx: 11 },
           quantityOutFlow: { alias: 'Quantity (out flow)', idx: 12 },
@@ -1559,17 +1559,18 @@ class Portfolio {
           pnlTotal: { alias: 'PnL (total), $', idx: 28 },
           pnlRest: { alias: 'PnL (rest), $', idx: 29 },
           payback: { alias: 'Payback, $', idx: 30 },
+          quantityRebalance: { alias: 'Rebalance, qty', idx: 31 },
           dayInPortfolioAvg: {
             alias: 'Average day in portfolio',
-            idx: 31,
+            idx: 32,
           },
           update: {
             alias: 'Update data mart',
-            idx: 32,
+            idx: 33,
             type: 'date',
             default: new Date(),
           },
-          rowId: { alias: 'Row ID', idx: 33, hide: true },
+          rowId: { alias: 'Row ID', idx: 34, hide: true },
         },
       },
       coins: {
@@ -1598,6 +1599,7 @@ class Portfolio {
           rowKey: { alias: 'Row key', idx: 0, notNull: true },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
           nameRu: { alias: 'Name (ru)', idx: 2, notNull: true },
+          share: { alias: 'Share, %', idx: 3 },
         },
       },
       proofType: {
@@ -1609,15 +1611,7 @@ class Portfolio {
           description: { alias: 'Description', idx: 1 },
         },
       },
-      web3SpaceInterest: {
-        type: 'dim',
-        rowNum: 1,
-        columns: {
-          rowKey: { alias: 'Row key', idx: 0, notNull: true },
-          name: { alias: 'Name', pk: true, idx: 1, notNull: true },
-          sort: { alias: 'Sort' },
-        },
-      },
+
       services: {
         type: 'dim',
         rowNum: 1,
@@ -1642,6 +1636,7 @@ class Portfolio {
           rowKey: { alias: 'Row key', idx: 0 },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
           proofType: { alias: 'Proof type', idx: 2, notNull: true },
+          share: { alias: 'Share, %', idx: 3 },
         },
       },
       accounts: {
@@ -2183,8 +2178,7 @@ class Transactions {
     this.workSheet = workSheet
       ? workSheet
       : new Portfolio().getWorkSheet('Transactions');
-    this.duplicatesRow = [];
-    // this.prices = new Prices().workSheet.object
+    this.forDeleteRow = [];
   }
 
   /**
@@ -2196,7 +2190,35 @@ class Transactions {
     try {
       if (isRange) {
         new Promise((resolve) => {
-          const arrayregistryRowKey = [];
+          const rowKeyArray = [];
+          //* определение всех ключей регистра
+          const registryRowKeyArray = arrayOfObject.reduce(
+            (registryRowKeyArray, objectRow) => {
+              if (!registryRowKeyArray.includes(objectRow.registryRowKey)) {
+                registryRowKeyArray.push(objectRow.registryRowKey);
+              }
+              rowKeyArray.push(objectRow.rowKey);
+              return registryRowKeyArray
+            },
+            []
+          );
+          //* определение всех ключей транзакций по ключам регистра
+          const transactionsRowKeyArray = [];
+          registryRowKeyArray.forEach((registryRowKey) => {
+            this.workSheet.arrayOfObject
+              .filter((row) => row.registryRowKey === registryRowKey)
+              .map((row) => {
+                transactionsRowKeyArray.push(row.rowKey);
+              });
+          });
+
+          //* проверка ключей транзакций на избыточность
+          transactionsRowKeyArray.forEach((transactionsRowKey) => {
+            if (rowKeyArray.indexOf(transactionsRowKey) === -1) {
+              this.forDeleteRow.push(this.workSheet.object[transactionsRowKey]);
+            }
+          });
+
           arrayOfObject.forEach((tx) => {
             const rowArray = this.workSheet.arrayOfObject.filter(
               (row) => row.rowKey === tx.rowKey
@@ -2211,21 +2233,26 @@ class Transactions {
                   tx.rowNum = row.rowNum;
                   this.workSheet.updateRow(tx);
                 } else {
-                  this.duplicatesRow.push(row);
+                  this.forDeleteRow.push(row);
                 }
               });
-              arrayregistryRowKey.push(tx.registryRowKey);
             } else {
               this.workSheet.insertRow(tx);
-              arrayregistryRowKey.push(tx.registryRowKey);
             }
           });
-          resolve(arrayregistryRowKey);
-        }).then((arrayregistryRowKey) => {
-          if (this.duplicatesRow.length) {
-            this.workSheet.deleteRows(this.duplicatesRow);
+          resolve();
+        }).then((registryRowKeyArray) => {
+          if (this.forDeleteRow.length) {
+            this.workSheet.deleteRows(this.forDeleteRow);
+            //* добавление в регистр удаления
+            const deletedTransactions = new Portfolio().getWorkSheet(
+              'DeletedTransactions'
+            );
+            this.forDeleteRow.forEach((deleteRowObject) => {
+              deletedTransactions.insertRow(deleteRowObject);
+            });
           }
-          this.workSheet.scriptCache.removeAllCache(arrayregistryRowKey);
+          this.workSheet.scriptCache.removeAllCache(registryRowKeyArray);
         });
       } else {
         const sourceKey = arrayOfObject[0].sourceKey;
@@ -2240,7 +2267,7 @@ class Transactions {
     }
   }
 
-  deleteDuplicatesRows() {
+  deleteforDeleteRows() {
     try {
       const newArrayOfObject = Object.values(this.workSheet.object).sort(
         (a, b) => {
@@ -2249,7 +2276,7 @@ class Transactions {
       );
       this.workSheet.truncateInsertRows(newArrayOfObject);
     } catch (error) {
-      console.error('Transactions.deleteDuplicatesRows', error.stack);
+      console.error('Transactions.deleteforDeleteRows', error.stack);
     }
   }
 
@@ -2281,11 +2308,12 @@ class Transactions {
       const coin = symbols[new Hash(currencySymbol).md5];
       const sourceKey = new Hash(coin?.source).md5;
       const symbolId = coin?.sourceId;
-      // const categoryKey = new Hash(coin?.symbolCategory).md5
+
       if (
         'e5e3fd01394b9a81296b75d5a7f4c1a2' ===
         currencySymbolCategoryKey /*stablecoin*/
       ) {
+        console.log('stablecoin');
         //* Для стабильных токенов возвращать единицу
         historicalPrice = 1;
         isHistoricalAveragePrice = false;
@@ -2308,6 +2336,9 @@ class Transactions {
         if (isRange) {
           const historicalAveragePriceKey = new Hash(account + currencySymbol)
             .md5;
+          console.log('historicalAveragePriceKey', historicalAveragePriceKey);
+          console.log('account', account);
+          console.log('currencySymbol', currencySymbol);
           const inKey = new Hash('in').md5;
           const historicalPriceAgg = this.workSheet.arrayOfObject
             .filter((row) => {
@@ -2331,87 +2362,26 @@ class Transactions {
               }
             })
             .reduce((agg, tx, indexRow) => {
-              const operationKey = new Hash(tx.operation).md5;
-              const directionKey = new Hash(tx.direction).md5;
               if (indexRow === 0) {
                 agg = {
-                  quantityBuyIn: 0,
-                  quantitySellIn: 0,
-                  quantityRefillIn: 0,
-                  quantityTransferIn: 0,
                   quantityRest: 0,
-                  costBuyIn: 0,
-                  costSellIn: 0,
-                  costRefillIn: 0,
-                  costTransferIn: 0,
-                  costBalance: 0,
+                  costRest: 0,
                 };
               }
 
-              //* Распределение количества по потокам
-
-              if (operationKey === '0461ebd2b773878eac9f78a891912d65' /*buy*/) {
-                if (directionKey === inKey) {
-                  agg.quantityBuyIn += tx.quantity;
-                  agg.costBuyIn += tx.cost;
-                }
-              } else if (
-                operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
-              ) {
-                if (directionKey === inKey) {
-                  agg.quantitySellIn += tx.quantity;
-                  agg.costSellIn += tx.cost;
-                }
-              } else if (
-                operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
-              ) {
-                if (directionKey === inKey) {
-                  agg.quantityRefillIn += tx.quantity;
-                  agg.costRefillIn += tx.cost;
-                }
-              } else if (
-                operationKey === '84a0f3455dcca894ace136be62efa292' /*transfer*/
-              ) {
-                if (directionKey === inKey) {
-                  agg.quantityTransferIn += tx.quantity;
-                  agg.costTransferIn += tx.cost;
-                  agg.dayInPortfolioTransferInSum +=
-                    dayInPortfolio * tx.quantity;
-                }
-              }
-
               agg.quantityRest += tx.quantity;
+              agg.costRest += tx.cost;
 
-              if (agg.quantityRest !== 0) {
-                agg.costBalance += tx.cost;
-              } else {
-                agg.costBalance = 0;
-              }
               return agg
             }, {});
 
-          const costInFlow =
-            historicalPriceAgg.costBuyIn +
-            historicalPriceAgg.costSellIn +
-            historicalPriceAgg.costRefillIn +
-            historicalPriceAgg.costTransferIn;
-
-          const quantityInFlow =
-            historicalPriceAgg.quantityBuyIn +
-            historicalPriceAgg.quantitySellIn +
-            historicalPriceAgg.quantityRefillIn +
-            historicalPriceAgg.quantityTransferIn;
-
-          const priceInFlow = costInFlow / quantityInFlow;
-
-          //* текущие остатки
-          const costRestInFlow =
-            historicalPriceAgg.costBalance <= 0 ||
-            historicalPriceAgg.quantityRest <= 0
-              ? priceInFlow * historicalPriceAgg.quantityRest
-              : historicalPriceAgg.costBalance;
           const priceRestInFlow =
-            costRestInFlow / historicalPriceAgg.quantityRest;
+            historicalPriceAgg.costRest / historicalPriceAgg.quantityRest;
+
+          // console.log(account, currencySymbol)
+          // console.log('quantityRest', historicalPriceAgg.quantityRest)
+          // console.log('costRest', historicalPriceAgg.costRest)
+          // console.log('priceRestInFlow', priceRestInFlow)
 
           //* Расчет средней цены покупки токена
           if (priceRestInFlow) {
@@ -2467,9 +2437,9 @@ class Transactions {
   updateHistoricalAveragePriceKey() {
     const accounts = new Portfolio().getWorkSheet('Accounts').object;
     const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
-      const mainAccount = accounts[new Hash(rowObject.account).md5].mainAccount;
+      accounts[new Hash(rowObject.account).md5].mainAccount;
       const newHistoricalAveragePriceKey = new Hash(
-        mainAccount + rowObject.symbol
+        rowObject.account + rowObject.symbol
       ).md5;
       rowObject.historicalAveragePriceKey = newHistoricalAveragePriceKey;
       return rowObject
@@ -2508,46 +2478,6 @@ class Transactions {
       }
     );
     this.workSheet.truncateInsertRows(newArrayOfObject);
-  }
-  /**
-   * Пересчет транзакций по символу
-   * @param {string} symbol наименование символа
-   */
-  recalculateSymbolTransactions(symbol) {
-    const symbolKey = new Hash(symbol).md5;
-    const symbols = new Portfolio().getWorkSheet('Symbols').object;
-    const accounts = new Portfolio().getWorkSheet('Accounts').object;
-    const symbolData = { quantity: 0, cost: 0 };
-
-    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
-      if ([symbolKey].indexOf(new Hash(rowObject.symbol).md5) !== -1) {
-        const price = this.getHistoricalPriceBuy(
-          rowObject.dateTime,
-          accounts[new Hash(rowObject.account).md5]?.mainAccount,
-          rowObject.symbol,
-          new Hash(symbols[symbolKey]?.symbolCategory).md5,
-          symbols,
-          true
-        ).historicalPrice;
-        rowObject.price = price;
-        rowObject.cost = rowObject.quantity * price;
-        symbolData.quantity += rowObject.quantity;
-        symbolData.cost += rowObject.cost;
-        rowObject.updateDate = new Date();
-      }
-
-      return rowObject
-    });
-    this.workSheet.truncateInsertRows(newArrayOfObject);
-    console.log(
-      symbol +
-        ': quantity = ' +
-        symbolData.quantity +
-        ', price: ' +
-        symbolData.cost / symbolData.quantity +
-        ', cost: ' +
-        symbolData.cost
-    );
   }
 
   updateAccount() {
@@ -3161,6 +3091,7 @@ class Registry {
           mainAccountRecipient,
           sender,
           recipient,
+          feeSender,
           feePrice,
           feeAccount,
           feeMainAccount,
@@ -3222,6 +3153,7 @@ class Registry {
         );
         sender = rowValues.sender;
         recipient = rowValues.recipient ? rowValues.recipient : rowValues.sender;
+        feeSender = rowValues.feeSender || rowValues.sender;
         feeCurrency = rowValues.feeCurrency;
         feeQty = rowValues.feeQty;
         isLiquidityPool = false;
@@ -3482,7 +3414,7 @@ class Registry {
         //* Расчет текущей или исторической цены покупаемого токена
         const historicalPriceBuyCoin = transactions.getHistoricalPriceBuy(
           dateTime,
-          mainAccountSender,
+          accountSender,
           currencySymbol,
           currencySymbolCategoryKey,
           symbols,
@@ -3521,7 +3453,7 @@ class Registry {
             direction: 'out',
             account: feeAccount,
             mainAccount: feeMainAccount,
-            contractor: sender,
+            contractor: feeSender,
             mainSymbol: void 0,
             symbol: feeCurrency,
             quantity: feeQty * -1,
@@ -3538,7 +3470,7 @@ class Registry {
 
           const historicalPriceBuyFee = transactions.getHistoricalPriceBuy(
             dateTime,
-            mainAccountSender,
+            accountSender,
             feeCurrencySymbolCategoryKey,
             symbols,
             isRange
@@ -3563,12 +3495,11 @@ class Registry {
             isHistoricalAveragePrice = isHistoricalAveragePriceCurrency;
           }
           const cost = tx.quantity * price;
-          console.log('tx', tx);
           const object = {
             rowKey: tx.rowKey,
             sourceKey: new Hash(this.workSheet.sheetName).md5,
             sourceName: new Hash(this.workSheet.sheetName).stringLowerCase,
-            historicalAveragePriceKey: new Hash(tx.mainAccount + tx.symbol).md5,
+            historicalAveragePriceKey: new Hash(tx.account + tx.symbol).md5,
             dateTime: dateTime,
             direction: tx.isFee ? 'out' : tx.direction.toLowerCase(),
             operation: tx.isFee
@@ -3643,16 +3574,6 @@ class Registry {
             object.rowNum,
             this.workSheet.head.dateSaved.idx + 1
           );
-          // this.workSheet.insertValue(
-          //   new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss'),
-          //   rowNum,
-          //   this.workSheet.head.dateSaved.idx + 1
-          // )
-          // this.workSheet.insertValue(
-          //   startProcess.getTimeDiff() + '',
-          //   rowNum,
-          //   this.workSheet.head.timeSpent.idx + 1
-          // )
         });
       });
 
@@ -3683,6 +3604,7 @@ class Registry {
             if (!registryRowKeyArray.includes(objectRow.registryRowKey)) {
               registryRowKeyArray.push(objectRow.registryRowKey);
             }
+
             return registryRowKeyArray
           }, []);
 
@@ -3864,6 +3786,9 @@ class Flow {
     try {
       const symbols = new Symbols().workSheet.object;
       const contractors = new Portfolio().getWorkSheet('Contractors').object;
+      const accounts = new Portfolio().getWorkSheet('Accounts').object;
+      const symbolCategories = new Portfolio().getWorkSheet('SymbolCategory')
+        .object;
       const inKey = new Hash('in').md5;
       const outKey = new Hash('out').md5;
       const aggFlow = new Transactions().workSheet.arrayOfObject
@@ -3908,7 +3833,6 @@ class Flow {
               costWriteOffOut: 0,
               costTransferIn: 0,
               costTransferOut: 0,
-              costBalance: 0,
               dayInPortfolioBuyInSum: 0,
               dayInPortfolioBuyOutSum: 0,
               dayInPortfolioSellOutSum: 0,
@@ -4014,12 +3938,6 @@ class Flow {
 
           agg[tx.account][tx.contractor][tx.symbol].quantityRest += tx.quantity;
 
-          if (agg[tx.account][tx.contractor][tx.symbol].quantityRest !== 0) {
-            agg[tx.account][tx.contractor][tx.symbol].costBalance += tx.cost;
-          } else {
-            agg[tx.account][tx.contractor][tx.symbol].costBalance = 0;
-          }
-
           return agg
         }, {});
       const aggFlowArrayOfObject = [];
@@ -4034,8 +3952,7 @@ class Flow {
             const symbolEcosystem = symbols[symbolKey]?.ecosystem || '';
             const symbolMarketCapGroup =
               symbols[symbolKey]?.marketCapGroup || '';
-            const symbolWeb3SpaceInterest =
-              symbols[symbolKey]?.web3SpaceInterest || '';
+            const mainAccount = accounts[new Hash(account).md5].mainAccount;
             //* атрибуты контрагента
             const contractorKey = new Hash(contractor).md5;
             const contractorType = contractors[contractorKey]?.type || '';
@@ -4089,11 +4006,22 @@ class Flow {
             const priceOutFlow = costOutFlow / quantityOutFlow;
 
             //* текущие остатки
-            const costRestInFlow =
-              object.costBalance <= 0 || object.quantityRest <= 0
-                ? priceInFlow * object.quantityRest
-                : object.costBalance;
+            const costRestInFlow = priceInFlow * object.quantityRest;
+
             const priceRestInFlow = costRestInFlow / object.quantityRest;
+
+            // if (
+            //   // new Hash(contractor).md5 === new Hash('binance').md5 &&
+            //   new Hash(symbol).md5 === new Hash('bvc').md5
+            // ) {
+            //   console.log(account, contractor, symbol)
+            //   console.log('quantityRest', object.quantityRest)
+            //   console.log('quantityInFlow', quantityInFlow)
+            //   console.log('priceInFlow', priceInFlow)
+            //   console.log('costInFlow', costInFlow)
+            //   console.log('costRestInFlow', costRestInFlow)
+            //   console.log('priceRestInFlow', priceRestInFlow)
+            // }
 
             //* Расчет среднего времени в портфеле
 
@@ -4115,37 +4043,26 @@ class Flow {
                     object.quantityTransferOut ||
                 0
               );
-            // if (
-            //   new Hash(contractor).md5 === new Hash('binance').md5 &&
-            //   new Hash(symbol).md5 === new Hash('etc').md5
-            // ) {
-            //   console.log('binance etc')
-            //   console.log('quantityRest', object.quantityRest)
-            //   console.log('costBalance', object.costBalance)
-            //   console.log('quantityInFlow', quantityInFlow)
-            //   console.log('priceInFlow', priceInFlow)
-            //   console.log('costInFlow', costInFlow)
-            //   console.log('costRestInFlow', costRestInFlow)
-            //   console.log('priceRestInFlow', priceRestInFlow)
-            // }
-            // if (
-            //   new Hash(contractor).md5 === new Hash('pancakeswap').md5 &&
-            //   new Hash(symbol).md5 === new Hash('cake').md5
-            // ) {
-            //   console.log('pancakeswap cake')
-            //   console.log('quantityRest', object.quantityRest)
-            //   console.log('costBalance', object.costBalance)
-            //   console.log('quantityInFlow', quantityInFlow)
-            //   console.log('priceInFlow', priceInFlow)
-            //   console.log('costInFlow', costInFlow)
-            //   console.log('costRestInFlow', costRestInFlow)
-            //   console.log('priceRestInFlow', priceRestInFlow)
-            // }
-            //* сумма окупаемости от вложения собсвенных средств
+            //* Количество на ребалансировки от изменения цены
+            const costFlow = costInFlow - costOutFlow;
+            const priceFlow = costFlow / object.quantityRest;
+            let quantityRebalance;
+            if (priceRest) {
+              const changePriceCoef = priceRest / priceFlow;
+              const priceRebalance =
+                priceRest + (priceFlow - priceRest) * changePriceCoef;
+
+              quantityRebalance =
+                (object.quantityRest * (priceFlow - priceRebalance)) /
+                (priceRebalance - priceRest);
+            } else {
+              quantityRebalance = 0;
+            }
 
             const payback = costOutFlow - costOwnInFlow;
 
             aggFlowArrayOfObject.push({
+              mainAccount: mainAccount.toUpperCase(),
               account: account.toUpperCase(),
               contractor: contractor.toUpperCase(),
               contractorType: contractorType.toUpperCase(),
@@ -4155,7 +4072,6 @@ class Flow {
               symbolCategory: symbolCategory.toUpperCase(),
               symbolEcosystem: symbolEcosystem.toUpperCase(),
               symbolMarketCapGroup: symbolMarketCapGroup.toUpperCase(),
-              symbolWeb3SpaceInterest: symbolWeb3SpaceInterest.toUpperCase(),
               quantityOwnInFlow: quantityOwnInFlow || 0,
               quantityInFlow: quantityInFlow || 0,
               quantityOutFlow: quantityOutFlow || 0,
@@ -4176,6 +4092,7 @@ class Flow {
               costRestUnlock: costRestUnlock || 0,
               pnlTotal: costOutFlow - costInFlow + costRest || 0,
               pnlRest: costRest - costRestInFlow || 0,
+              quantityRebalance: quantityRebalance || 0,
               payback: payback || 0,
               dayInPortfolioAvg,
             });
@@ -4357,10 +4274,6 @@ function recalculateTransactions() {
   new Transactions().recalculateTransactions(0, 1000);
 }
 
-function recalculateSymbolTransactions() {
-  new Transactions().recalculateSymbolTransactions('ada');
-}
-
 function updateOnEdit(editRange) {
   try {
     const startProcess = new FormatDate();
@@ -4368,7 +4281,9 @@ function updateOnEdit(editRange) {
     new Promise((resolve) => {
       const workSheet = new Portfolio().updateOnEdit(editRange.range);
       if (workSheet.isChangeData) {
+        const startLock = new FormatDate();
         lock.tryLock(180000);
+        workSheet.lockTime = startLock.getTimeDiff();
         if (workSheet.isChangePrimaryKey) {
           workSheet.savePrimaryKeyChanges();
         }
@@ -4394,7 +4309,9 @@ function updateOnEdit(editRange) {
           ', Start: ' +
           startProcess.getFormatDate('YYYY-MM-dd HH:mm:ss') +
           ', Time spent: ' +
-          startProcess.getTimeDiff()
+          startProcess.getTimeDiff() +
+          ', Lock time: ' +
+          workSheet?.lockTime || 0
       );
       lock.releaseLock();
     });
@@ -4435,6 +4352,9 @@ function sortRegistry() {
         const DateTime = new FormatDate(date).addTime(hhmm.h, hhmm.m).date;
         row.dateTime = DateTime;
         return row
+      })
+      .sort((a, b) => {
+        return ('' + a.coin).localeCompare(b.coin)
       })
       .sort((a, b) => {
         return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
