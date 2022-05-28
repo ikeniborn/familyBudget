@@ -1,6 +1,6 @@
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash, FormatDate, FormatNumber, FormatObject } from '../../utils'
-import { Transactions } from './transactions'
+import { Transactions, HistoricalPrice } from './transactions'
 import { Symbols } from './symbols'
 export { Registry }
 
@@ -70,6 +70,7 @@ class Registry {
       const symbols = new Symbols().workSheet.object
       const accounts = new Portfolio().getWorkSheet('Accounts').object
       const transactions = new Transactions()
+      const historicalPrice = new HistoricalPrice()
       const transactionsArrayOfObject = []
       const updateDate = new Date()
       this.workSheet.arrayOfObject.forEach((rowValues) => {
@@ -288,7 +289,7 @@ class Registry {
               isFee,
               isLock: isRecipientLock,
               isLiquidityPool,
-              isAvgPrice,
+              isAvgPrice: true,
               isSymbolPrice: true,
               isFeePrice,
               isCurencyPrice,
@@ -409,12 +410,14 @@ class Registry {
         }
 
         //* Расчет текущей или исторической цены покупаемого токена
-        const historicalPriceBuyCoin = transactions.getHistoricalPriceBuy(
+        const historicalPriceBuyCoin = historicalPrice.getHistoricalPrice(
           dateTime,
           accountSender,
+          sender,
           currencySymbol,
           currencySymbolCategoryKey,
           symbols,
+          transactions.workSheet.arrayOfObject,
           isRange
         )
 
@@ -465,11 +468,14 @@ class Registry {
 
           //* Расчет текущей или исторической цены комиссии токена
 
-          const historicalPriceBuyFee = transactions.getHistoricalPriceBuy(
+          const historicalPriceBuyFee = historicalPrice.getHistoricalPrice(
             dateTime,
-            accountSender,
+            feeAccount,
+            feeSender,
+            feeCurrency,
             feeCurrencySymbolCategoryKey,
             symbols,
+            transactions.workSheet.arrayOfObject,
             isRange
           )
 
@@ -491,12 +497,15 @@ class Registry {
             price = currencyPrice
             isHistoricalAveragePrice = isHistoricalAveragePriceCurrency
           }
+          console.log(tx.account, tx.symbol, isHistoricalAveragePrice)
           const cost = tx.quantity * price
           const object = {
             rowKey: tx.rowKey,
             sourceKey: new Hash(this.workSheet.sheetName).md5,
             sourceName: new Hash(this.workSheet.sheetName).stringLowerCase,
-            historicalAveragePriceKey: new Hash(tx.account + tx.symbol).md5,
+            historicalAveragePriceKey: new Hash(
+              tx.account + tx.contractor + tx.symbol
+            ).md5,
             dateTime: dateTime,
             direction: tx.isFee ? 'out' : tx.direction.toLowerCase(),
             operation: tx.isFee
@@ -637,11 +646,13 @@ class Registry {
       }
 
       //* Удаление дубликатов и сортировка
-      const newArrayOfObject = Object.values(
-        transactions.workSheet.object
-      ).sort((a, b) => {
-        return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
-      })
+      const newArrayOfObject = Object.values(transactions.workSheet.object)
+        .filter((row) => {
+          return !row.isDelete
+        })
+        .sort((a, b) => {
+          return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
+        })
       transactions.workSheet.truncateInsertRows(newArrayOfObject)
     } catch (error) {
       console.error('Registry.validateTransactions', error.stack)

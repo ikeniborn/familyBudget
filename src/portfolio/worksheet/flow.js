@@ -21,8 +21,6 @@ class Flow {
       const symbols = new Symbols().workSheet.object
       const contractors = new Portfolio().getWorkSheet('Contractors').object
       const accounts = new Portfolio().getWorkSheet('Accounts').object
-      const symbolCategories = new Portfolio().getWorkSheet('SymbolCategory')
-        .object
       const inKey = new Hash('in').md5
       const outKey = new Hash('out').md5
       const aggFlow = new Transactions().workSheet.arrayOfObject
@@ -67,6 +65,7 @@ class Flow {
               costWriteOffOut: 0,
               costTransferIn: 0,
               costTransferOut: 0,
+              costRest: 0,
               dayInPortfolioBuyInSum: 0,
               dayInPortfolioBuyOutSum: 0,
               dayInPortfolioSellOutSum: 0,
@@ -171,6 +170,7 @@ class Flow {
           }
 
           agg[tx.account][tx.contractor][tx.symbol].quantityRest += tx.quantity
+          agg[tx.account][tx.contractor][tx.symbol].costRest += tx.cost
 
           return agg
         }, {})
@@ -240,21 +240,17 @@ class Flow {
             const priceOutFlow = costOutFlow / quantityOutFlow
 
             //* текущие остатки
-            const costRestInFlow = priceInFlow * object.quantityRest
-
-            const priceRestInFlow = costRestInFlow / object.quantityRest
+            const costRestInFlow = object.costRest
+            const priceRestInFlow = object.costRest / object.quantityRest
 
             // if (
-            //   // new Hash(contractor).md5 === new Hash('binance').md5 &&
-            //   new Hash(symbol).md5 === new Hash('bvc').md5
+            //   new Hash(contractor).md5 === new Hash('bybit').md5 &&
+            //   new Hash(symbol).md5 === new Hash('btc').md5
             // ) {
             //   console.log(account, contractor, symbol)
             //   console.log('quantityRest', object.quantityRest)
-            //   console.log('quantityInFlow', quantityInFlow)
-            //   console.log('priceInFlow', priceInFlow)
-            //   console.log('costInFlow', costInFlow)
-            //   console.log('costRestInFlow', costRestInFlow)
             //   console.log('priceRestInFlow', priceRestInFlow)
+            //   console.log('costRestInFlow', costRestInFlow)
             // }
 
             //* Расчет среднего времени в портфеле
@@ -278,8 +274,8 @@ class Flow {
                 0
               )
             //* Количество на ребалансировки от изменения цены
-            const costFlow = costInFlow - costOutFlow
-            const priceFlow = costFlow / object.quantityRest
+
+            const priceFlow = priceRestInFlow
             let quantityRebalance
             if (priceRest) {
               const changePriceCoef = priceRest / priceFlow

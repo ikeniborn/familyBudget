@@ -105,7 +105,6 @@ class WorkSheet extends SpreadSheet {
     this.arrayOfObject = []
     this.object = {}
     this.filter = {}
-    // this.deleteFilter().getWorkSheetRange()
   }
 
   get lastRow() {
@@ -156,6 +155,7 @@ class WorkSheet extends SpreadSheet {
       }
       this.arrayOfObject.push(instanceRow)
     })
+
     return this
   }
 
@@ -235,6 +235,7 @@ class WorkSheet extends SpreadSheet {
           [new Header().getHeaderAlias(this.head)]
         )
         if (array.length) {
+          this.deleteFilter()
           this.workSheet.clear()
           const range = this.workSheet.getRange(
             firstRow,
@@ -422,6 +423,7 @@ class WorkSheet extends SpreadSheet {
         range.createFilter()
       }
     }
+    return this
   }
 
   /**
