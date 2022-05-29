@@ -259,10 +259,7 @@ class FormatObject {
     this.object = object
   }
   getCopy() {
-    // if (!Object.keys(this.object).length) {
     return JSON.parse(JSON.stringify(this.object))
-    // }
-    return this
   }
 }
 

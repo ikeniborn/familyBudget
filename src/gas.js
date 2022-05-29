@@ -262,6 +262,28 @@ class WorkSheet extends SpreadSheet {
   /**
    *
    * @param {object} rowObject
+   * @returns object
+   */
+  getRowObject(rowObject = {}) {
+    return this.headKey.reduce((newRowObject, column) => {
+      if (!newRowObject[column] && rowObject[column]) {
+        newRowObject[column] = rowObject[column]
+        if (this.head[column]?.default) {
+          if (this.head[column]?.type === 'date') {
+            value[column] = new Date(this.head[column].default)
+          } else {
+            value[column] = this.head[column].default
+          }
+        }
+      }
+
+      return rowObject
+    }, {})
+  }
+
+  /**
+   *
+   * @param {object} rowObject
    */
   updateRow(rowObject = {}) {
     new Promise((resolve, reject) => {

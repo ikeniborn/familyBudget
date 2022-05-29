@@ -417,7 +417,7 @@ class Registry {
           currencySymbol,
           currencySymbolCategoryKey,
           symbols,
-          transactions.workSheet.arrayOfObject,
+          Object.values(transactions.workSheet.object),
           isRange
         )
 
@@ -475,7 +475,7 @@ class Registry {
             feeCurrency,
             feeCurrencySymbolCategoryKey,
             symbols,
-            transactions.workSheet.arrayOfObject,
+            Object.values(transactions.workSheet.arrayOfObject),
             isRange
           )
 
@@ -497,7 +497,7 @@ class Registry {
             price = currencyPrice
             isHistoricalAveragePrice = isHistoricalAveragePriceCurrency
           }
-          console.log(tx.account, tx.symbol, isHistoricalAveragePrice)
+
           const cost = tx.quantity * price
           const object = {
             rowKey: tx.rowKey,
@@ -542,7 +542,15 @@ class Registry {
             registryTimestamp === registryTimestampCache ||
             !registryTimestampCache
           ) {
-            transactionsArrayOfObject.push(object)
+            new Promise((resolve) => {
+              transactionsArrayOfObject.push(object)
+              resolve(object)
+            }).then((object) => {
+              const rowObject = new FormatObject(
+                transactions.workSheet.getRowObject(object)
+              ).getCopy()
+              transactions.workSheet.object[rowObject.rowKey] = rowObject
+            })
           }
         })
       })
@@ -653,6 +661,7 @@ class Registry {
         .sort((a, b) => {
           return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
         })
+
       transactions.workSheet.truncateInsertRows(newArrayOfObject)
     } catch (error) {
       console.error('Registry.validateTransactions', error.stack)

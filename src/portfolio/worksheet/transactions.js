@@ -263,23 +263,17 @@ class HistoricalPrice {
           const historicalPriceAgg = transactionsArrayOfObject
             .filter((row) => {
               return (
-                new FormatDate(row.dateTime).value <
-                  new FormatDate(dateTime).value &&
+                new Date(row.dateTime).valueOf() <
+                  new Date(dateTime).valueOf() &&
                 historicalAveragePriceKey === row.historicalAveragePriceKey &&
                 row.isAvgPrice &&
                 !row.isDelete
               )
             })
             .sort((a, b) => {
-              if (
-                new FormatDate(a.dateTime).value ===
-                new FormatDate(b.dateTime).value
-              ) {
-                a.registryRowId - b.registryRowId
-              } else {
-                new FormatDate(a.dateTime).value -
-                  new FormatDate(b.dateTime).value
-              }
+              return (
+                new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
+              )
             })
             .reduce((agg, tx, indexRow) => {
               if (indexRow === 0) {
@@ -296,14 +290,12 @@ class HistoricalPrice {
             }, {})
 
           const priceRestFlow =
-            Math.round(historicalPriceAgg.costRest * 100) /
-            100 /
-            historicalPriceAgg.quantityRest
+            historicalPriceAgg.costRest / historicalPriceAgg.quantityRest
 
-          console.log(account, contractor, currencySymbol)
-          console.log('quantityRest', historicalPriceAgg.quantityRest)
-          console.log('priceRestFlow', priceRestFlow)
-          console.log('costRestFlow', historicalPriceAgg.costRest)
+          // console.log(account, contractor, currencySymbol)
+          // console.log('quantityRest', historicalPriceAgg.quantityRest)
+          // console.log('priceRestFlow', priceRestFlow)
+          // console.log('costRestFlow', historicalPriceAgg.costRest)
 
           //* Расчет средней цены покупки токена
           if (priceRestFlow) {

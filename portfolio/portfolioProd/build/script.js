@@ -257,7 +257,6 @@ class FormatObject {
     this.object = object;
   }
   getCopy() {
-    // if (!Object.keys(this.object).length) {
     return JSON.parse(JSON.stringify(this.object))
   }
 }
@@ -572,6 +571,28 @@ class WorkSheet extends SpreadSheet {
         console.error('WorkSheet.truncateInsertRows', error.stack);
       });
     return this
+  }
+
+  /**
+   *
+   * @param {object} rowObject
+   * @returns object
+   */
+  getRowObject(rowObject = {}) {
+    return this.headKey.reduce((newRowObject, column) => {
+      if (!newRowObject[column] && rowObject[column]) {
+        newRowObject[column] = rowObject[column];
+        if (this.head[column]?.default) {
+          if (this.head[column]?.type === 'date') {
+            value[column] = new Date(this.head[column].default);
+          } else {
+            value[column] = this.head[column].default;
+          }
+        }
+      }
+
+      return rowObject
+    }, {})
   }
 
   /**
@@ -2429,23 +2450,17 @@ class HistoricalPrice {
           const historicalPriceAgg = transactionsArrayOfObject
             .filter((row) => {
               return (
-                new FormatDate(row.dateTime).value <
-                  new FormatDate(dateTime).value &&
+                new Date(row.dateTime).valueOf() <
+                  new Date(dateTime).valueOf() &&
                 historicalAveragePriceKey === row.historicalAveragePriceKey &&
                 row.isAvgPrice &&
                 !row.isDelete
               )
             })
             .sort((a, b) => {
-              if (
-                new FormatDate(a.dateTime).value ===
-                new FormatDate(b.dateTime).value
-              ) {
-                a.registryRowId - b.registryRowId;
-              } else {
-                new FormatDate(a.dateTime).value -
-                  new FormatDate(b.dateTime).value;
-              }
+              return (
+                new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
+              )
             })
             .reduce((agg, tx, indexRow) => {
               if (indexRow === 0) {
@@ -2462,14 +2477,12 @@ class HistoricalPrice {
             }, {});
 
           const priceRestFlow =
-            Math.round(historicalPriceAgg.costRest * 100) /
-            100 /
-            historicalPriceAgg.quantityRest;
+            historicalPriceAgg.costRest / historicalPriceAgg.quantityRest;
 
-          console.log(account, contractor, currencySymbol);
-          console.log('quantityRest', historicalPriceAgg.quantityRest);
-          console.log('priceRestFlow', priceRestFlow);
-          console.log('costRestFlow', historicalPriceAgg.costRest);
+          // console.log(account, contractor, currencySymbol)
+          // console.log('quantityRest', historicalPriceAgg.quantityRest)
+          // console.log('priceRestFlow', priceRestFlow)
+          // console.log('costRestFlow', historicalPriceAgg.costRest)
 
           //* Расчет средней цены покупки токена
           if (priceRestFlow) {
@@ -3429,7 +3442,7 @@ class Registry {
           currencySymbol,
           currencySymbolCategoryKey,
           symbols,
-          transactions.workSheet.arrayOfObject,
+          Object.values(transactions.workSheet.object),
           isRange
         );
 
@@ -3487,7 +3500,7 @@ class Registry {
             feeCurrency,
             feeCurrencySymbolCategoryKey,
             symbols,
-            transactions.workSheet.arrayOfObject,
+            Object.values(transactions.workSheet.arrayOfObject),
             isRange
           );
 
@@ -3509,7 +3522,7 @@ class Registry {
             price = currencyPrice;
             isHistoricalAveragePrice = isHistoricalAveragePriceCurrency;
           }
-          console.log(tx.account, tx.symbol, isHistoricalAveragePrice);
+
           const cost = tx.quantity * price;
           const object = {
             rowKey: tx.rowKey,
@@ -3554,7 +3567,15 @@ class Registry {
             registryTimestamp === registryTimestampCache ||
             !registryTimestampCache
           ) {
-            transactionsArrayOfObject.push(object);
+            new Promise((resolve) => {
+              transactionsArrayOfObject.push(object);
+              resolve(object);
+            }).then((object) => {
+              const rowObject = new FormatObject(
+                transactions.workSheet.getRowObject(object)
+              ).getCopy();
+              transactions.workSheet.object[rowObject.rowKey] = rowObject;
+            });
           }
         });
       });
@@ -3665,6 +3686,7 @@ class Registry {
         .sort((a, b) => {
           return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
         });
+
       transactions.workSheet.truncateInsertRows(newArrayOfObject);
     } catch (error) {
       console.error('Registry.validateTransactions', error.stack);
@@ -3812,11 +3834,7 @@ class Flow {
       const aggFlow = new Transactions().workSheet.arrayOfObject
         .filter((row) => row.isDelete === false)
         .sort((a, b) => {
-          return (
-            new Date(a.dateTime).valueOf() +
-            a.registryRowId -
-            (new Date(b.dateTime).valueOf() + b.registryRowId)
-          )
+          return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
         })
         .reduce((agg, tx) => {
           const operationKey = new Hash(tx.operation).md5;
