@@ -4047,15 +4047,15 @@ class Flow {
             const costRestInFlow = object.costRest;
             const priceRestInFlow = object.costRest / object.quantityRest;
 
-            // if (
-            //   new Hash(contractor).md5 === new Hash('bybit').md5 &&
-            //   new Hash(symbol).md5 === new Hash('btc').md5
-            // ) {
-            //   console.log(account, contractor, symbol)
-            //   console.log('quantityRest', object.quantityRest)
-            //   console.log('priceRestInFlow', priceRestInFlow)
-            //   console.log('costRestInFlow', costRestInFlow)
-            // }
+            if (
+              new Hash(contractor).md5 === new Hash('BYBIT').md5 &&
+              new Hash(symbol).md5 === new Hash('LINK').md5
+            ) {
+              console.log(account, contractor, symbol);
+              console.log('quantityRest', object.quantityRest);
+              console.log('priceRestInFlow', priceRestInFlow);
+              console.log('costRestInFlow', costRestInFlow);
+            }
 
             //* Расчет среднего времени в портфеле
 
