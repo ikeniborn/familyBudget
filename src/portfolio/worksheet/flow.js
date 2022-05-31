@@ -165,12 +165,15 @@ class Flow {
             agg[tx.account][tx.contractor][tx.symbol].quantityRestUnlock +=
               tx.quantity
           }
-          //* поиск  минимального значения
+          //* расчет точности
           const precisionArray = tx.quantity.toString().split('.')
           const precision = precisionArray[1]
             ? [...precisionArray[1].split('')].length
             : 0
-          if (precision > agg[tx.account][tx.contractor][tx.symbol].precision) {
+          if (
+            precision > agg[tx.account][tx.contractor][tx.symbol].precision &&
+            precision <= 6
+          ) {
             agg[tx.account][tx.contractor][tx.symbol].precision = precision
           }
 

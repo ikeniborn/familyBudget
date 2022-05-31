@@ -2474,7 +2474,7 @@ class HistoricalPrice {
                 const precision = precisionArray[1]
                   ? [...precisionArray[1].split('')].length
                   : 0;
-                if (precision > agg.precision) {
+                if (precision > agg.precision && precision <= 6) {
                   agg.precision = precision;
                 }
                 return agg
@@ -2511,7 +2511,7 @@ class HistoricalPrice {
                 const precision = precisionArray[1]
                   ? [...precisionArray[1].split('')].length
                   : 0;
-                if (precision > agg.precision) {
+                if (precision > agg.precision && precision <= 6) {
                   agg.precision = precision;
                 }
                 return agg
@@ -4065,7 +4065,10 @@ class Flow {
           const precision = precisionArray[1]
             ? [...precisionArray[1].split('')].length
             : 0;
-          if (precision > agg[tx.account][tx.contractor][tx.symbol].precision) {
+          if (
+            precision > agg[tx.account][tx.contractor][tx.symbol].precision &&
+            precision <= 6
+          ) {
             agg[tx.account][tx.contractor][tx.symbol].precision = precision;
           }
 
