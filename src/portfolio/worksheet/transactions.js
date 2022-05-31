@@ -205,10 +205,11 @@ class HistoricalPrice {
    * Получение средневзвешенной цены покупки токена
    * @param {*} dateTime дата и время
    * @param {*} account счет
+   * @param {*} contractor контрагент
    * @param {*} currencySymbol символ
    * @param {*} currencySymbolCategoryKey ключ категории токена
    * @param {object} symbolsObject справочник символов
-   * @param {array} transactionsArrayOfObject факт транзакций
+   * @param {array} transactionsArrayOfObject массив транзакций транзакций [{}]
    * @param {*} isRange признак диапазона
    * @param {*} convert параметр конвертации
    * @returns объект цена и признак исторической цены
@@ -260,6 +261,7 @@ class HistoricalPrice {
           const historicalAveragePriceKey = new Hash(
             account + contractor + currencySymbol
           ).md5
+          //* цена исторических транзакций
           const historicalPriceAgg = transactionsArrayOfObject
             .filter((row) => {
               return (
@@ -275,32 +277,116 @@ class HistoricalPrice {
                 new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
               )
             })
-            .reduce((agg, tx, indexRow) => {
-              if (indexRow === 0) {
-                agg = {
-                  quantityRest: 0,
-                  costRest: 0,
+            .reduce(
+              (agg, tx) => {
+                agg.quantityRest += tx.quantity
+                agg.costRest += tx.cost
+                //* расчет точности
+                const precisionArray = tx.quantity.toString().split('.')
+                const precision = precisionArray[1]
+                  ? [...precisionArray[1].split('')].length
+                  : 0
+                if (precision > agg.precision) {
+                  agg.precision = precision
                 }
+                return agg
+              },
+              {
+                quantityRest: 0,
+                costRest: 0,
+                precision: 0,
               }
+            )
+          //* цена текущей транзации
+          const currentPrice = transactionsArrayOfObject
+            .filter((row) => {
+              return (
+                new Date(row.dateTime).valueOf() ===
+                  new Date(dateTime).valueOf() &&
+                historicalAveragePriceKey === row.historicalAveragePriceKey &&
+                row.isAvgPrice &&
+                !row.isDelete &&
+                !row.isFee
+              )
+            })
+            .sort((a, b) => {
+              return (
+                new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
+              )
+            })
+            .reduce(
+              (agg, tx) => {
+                agg.quantityRest += tx.quantity
+                agg.costRest += tx.cost
+                //* расчет точности
+                const precisionArray = tx.quantity.toString().split('.')
+                const precision = precisionArray[1]
+                  ? [...precisionArray[1].split('')].length
+                  : 0
+                if (precision > agg.precision) {
+                  agg.precision = precision
+                }
+                return agg
+              },
+              {
+                quantityRest: 0,
+                costRest: 0,
+                precision: 0,
+              }
+            )
+          //* исторические данные
 
-              agg.quantityRest += tx.quantity
-              agg.costRest += tx.cost
+          let historicalPricePrecisionCoeff = '1'
+          for (let i = 0; i < historicalPriceAgg.precision; i++) {
+            historicalPricePrecisionCoeff += '0'
+          }
+          historicalPricePrecisionCoeff = historicalPricePrecisionCoeff * 1
 
-              return agg
-            }, {})
+          const historicalPriceQuantityRest =
+            Math.round(
+              historicalPriceAgg.quantityRest * historicalPricePrecisionCoeff
+            ) / historicalPricePrecisionCoeff
+          const historicalPriceCostRest =
+            Math.round(historicalPriceAgg.costRest).toFixed(0) * 1
+          //* данные транзакции
 
+          let currentPricePrecisionCoeff = '1'
+          for (let i = 0; i < currentPrice.precision; i++) {
+            currentPricePrecisionCoeff += '0'
+          }
+          currentPricePrecisionCoeff = currentPricePrecisionCoeff * 1
+
+          const currentPriceQuantityRest =
+            Math.round(currentPrice.quantityRest * currentPricePrecisionCoeff) /
+            currentPricePrecisionCoeff
+          const currentPriceCostRest =
+            Math.round(currentPrice.costRest).toFixed(0) * 1
+          //* расчет цены
           const priceRestFlow =
-            historicalPriceAgg.costRest / historicalPriceAgg.quantityRest
+            Math.round(costRest * quantityRest).toFixed(0) > 0
+              ? historicalPriceCostRest / historicalPriceQuantityRest
+              : currentPriceCostRest / currentPriceQuantityRest
 
           // console.log(account, contractor, currencySymbol)
-          // console.log('quantityRest', historicalPriceAgg.quantityRest)
+          // console.log('currentPrice.quantityRest', currentPrice.quantityRest)
+          // console.log('currentPrice.costRest', currentPrice.costRest)
+          // console.log(
+          //   'historicalPriceAgg.quantityRest',
+          //   historicalPriceAgg.quantityRest
+          // )
+
+          // console.log(
+          //   'historicalPriceAgg.costRest',
+          //   historicalPriceAgg.costRest
+          // )
           // console.log('priceRestFlow', priceRestFlow)
-          // console.log('costRestFlow', historicalPriceAgg.costRest)
 
           //* Расчет средней цены покупки токена
           if (priceRestFlow) {
             historicalPrice = priceRestFlow
-            isHistoricalAveragePrice = true
+            isHistoricalAveragePrice = historicalPriceAgg.quantityRest
+              ? true
+              : false
           } else {
             if (
               new FormatDate(dateTime).yyyymmdd === new FormatDate().yyyymmdd &&

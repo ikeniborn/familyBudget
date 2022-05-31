@@ -53,6 +53,7 @@ class Flow {
               quantityRest: 0,
               quantityRestLock: 0,
               quantityRestUnlock: 0,
+              precision: 0,
               costBuyIn: 0,
               costBuyOut: 0,
               costSellIn: 0,
@@ -164,6 +165,14 @@ class Flow {
             agg[tx.account][tx.contractor][tx.symbol].quantityRestUnlock +=
               tx.quantity
           }
+          //* поиск  минимального значения
+          const precisionArray = tx.quantity.toString().split('.')
+          const precision = precisionArray[1]
+            ? [...precisionArray[1].split('')].length
+            : 0
+          if (precision > agg[tx.account][tx.contractor][tx.symbol].precision) {
+            agg[tx.account][tx.contractor][tx.symbol].precision = precision
+          }
 
           agg[tx.account][tx.contractor][tx.symbol].quantityRest += tx.quantity
           agg[tx.account][tx.contractor][tx.symbol].costRest += tx.cost
@@ -190,11 +199,24 @@ class Flow {
               contractors[contractorKey]?.category || ''
 
             //* стоимость остатка
+            let precisionCoeff = '1'
+            for (let i = 0; i < object.precision; i++) {
+              precisionCoeff += '0'
+            }
+            precisionCoeff = precisionCoeff * 1
+
+            const quantityRest =
+              Math.round(object.quantityRest * precisionCoeff) / precisionCoeff
+            const quantityRestLock =
+              Math.round(object.quantityRestLock * precisionCoeff) /
+              precisionCoeff
+            const quantityRestUnlock =
+              Math.round(object.quantityRestUnlock * precisionCoeff) /
+              precisionCoeff
             const priceRest = symbols[symbolKey]?.price || 0
-            const costRest =
-              Math.round(priceRest * object.quantityRest * 100) / 100
-            const costRestLock = priceRest * object.quantityRestLock
-            const costRestUnlock = priceRest * object.quantityRestUnlock
+            const costRest = Math.round(priceRest * quantityRest).toFixed(0) * 1
+            const costRestLock = priceRest * quantityRestLock
+            const costRestUnlock = priceRest * quantityRestUnlock
 
             //* расчет потоков
             const costInFlow =
@@ -236,15 +258,22 @@ class Flow {
             const priceOutFlow = costOutFlow / quantityOutFlow
 
             //* текущие остатки
-            const costRestInFlow = object.costRest
-            const priceRestInFlow = object.costRest / object.quantityRest
+            const costRestInFlow = Math.round(object.costRest).toFixed(0) * 1
+            const priceRestInFlow =
+              costRestInFlow * quantityRest > 0
+                ? costRestInFlow / quantityRest
+                : priceRest
 
             if (
-              new Hash(contractor).md5 === new Hash('BYBIT').md5 &&
-              new Hash(symbol).md5 === new Hash('LINK').md5
+              new Hash(contractor).md5 === new Hash('BINANCE').md5 &&
+              new Hash(symbol).md5 === new Hash('BTC').md5 &&
+              new Hash(account).md5 === new Hash('IKENIBORN (LONG-TERM)').md5
             ) {
               console.log(account, contractor, symbol)
-              console.log('quantityRest', object.quantityRest)
+              console.log('quantityPrecision', object.precision)
+              console.log('precisionCoeff', precisionCoeff)
+              console.log(' object.quantityRest', object.quantityRest)
+              console.log('quantityRest', quantityRest)
               console.log('priceRestInFlow', priceRestInFlow)
               console.log('costRestInFlow', costRestInFlow)
             }
@@ -279,7 +308,7 @@ class Flow {
                 priceRest + (priceFlow - priceRest) * changePriceCoef
 
               quantityRebalance =
-                (object.quantityRest * (priceFlow - priceRebalance)) /
+                (quantityRest * (priceFlow - priceRebalance)) /
                 (priceRebalance - priceRest)
             } else {
               quantityRebalance = 0
@@ -301,9 +330,9 @@ class Flow {
               quantityOwnInFlow: quantityOwnInFlow || 0,
               quantityInFlow: quantityInFlow || 0,
               quantityOutFlow: quantityOutFlow || 0,
-              quantityRest: object.quantityRest || 0,
-              quantityRestLock: object.quantityRestLock || 0,
-              quantityRestUnlock: object.quantityRestUnlock || 0,
+              quantityRest: quantityRest || 0,
+              quantityRestLock: quantityRestLock || 0,
+              quantityRestUnlock: quantityRestUnlock || 0,
               priceOwnInFlow: priceOwnInFlow || 0,
               priceInFlow: priceInFlow || 0,
               priceOutFlow: priceOutFlow || 0,
@@ -321,6 +350,7 @@ class Flow {
               quantityRebalance: quantityRebalance || 0,
               payback: payback || 0,
               dayInPortfolioAvg,
+              isSell: Math.round(costRest).toFixed(0) * 1 <= 0 ? true : false,
             })
           })
         })

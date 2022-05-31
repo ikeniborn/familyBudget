@@ -255,6 +255,7 @@ class Portfolio {
             default: new Date(),
           },
           rowId: { alias: 'Row ID', idx: 34, hide: true },
+          isSell: { alias: 'Is sell', idx: 35, default: false },
         },
       },
       coins: {
