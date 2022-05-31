@@ -1,0 +1,38 @@
+APY (rest) , %
+PnL (rest), %*Day in portfolio (avg)/365
+
+Cost (crypto share), $
+Sum(IF(Contractor category='FIAT',0,Cost (rest), $))
+
+Cost (rebalance), $
+Price (rebalance), $*sum(Quantity (rebalance))
+
+Cost, $
+SUM(Cost (rest), $)
+
+Day in portfolio (avg)
+SUM(Quantity (rest)*Average day in portfolio)/SUM(Quantity (rest))
+
+Payback, %
+sum(Payback, $)/SUM(Cost (own in flow), $)
+
+PnL (rest), %
+sum(PnL (rest), $)/SUM(Cost (rest in flow), $)
+
+PnL (total), %  
+SUM(PnL (total), $)/SUM(Cost (in flow), $+Cost (rest), $)
+
+Price (in flow), $
+SUM(Cost (in flow), $)/SUM(Quantity (in flow))
+
+Price (own in flow), $
+SUM(Cost (own in flow), $)/SUM(Quantity (own in flow))
+
+Price (rebalance), $
+sum(Price (rest), $*Quantity (rebalance)+Cost (rest in flow), $)/SUM(Quantity (rest)+Quantity (rebalance))
+
+Price (rest in flow), $
+sum(Cost (rest in flow), $)/sum(Quantity (rest))
+
+Price (rest), $
+sum(Cost (rest), $)/sum(Quantity (rest))

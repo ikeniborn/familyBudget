@@ -13,15 +13,13 @@ class Registry {
 
   /**
    * Получение счета
-   * @param {string} accountSender счет отправителя
-   * @param {string} accountRecipient счет получателя
+   * @param {string} account счет отправителя
    * @param {object} accounts справочник счетов
    * @param {string} symbolCategoryKey ключ категории символа
    * @returns счет
    */
-  getAccount(accountSender, accountRecipient, accounts, symbolCategoryKey) {
+  getAccount(account, accounts, symbolCategoryKey) {
     try {
-      const account = accountRecipient ? accountRecipient : accountSender
       if (
         [
           'e5e3fd01394b9a81296b75d5a7f4c1a2',
@@ -235,7 +233,6 @@ class Registry {
           ) {
             accountSender = this.getAccount(
               rowValues.accountSender,
-              void 0,
               accounts,
               coinSymbolCategoryKey
             )
@@ -267,11 +264,16 @@ class Registry {
             ].indexOf(operationKey) !== -1
           ) {
             accountRecipient = this.getAccount(
-              rowValues.accountSender,
-              rowValues.accountRecipient,
+              rowValues.accountRecipient || rowValues.accountSender,
               accounts,
               coinSymbolCategoryKey
             )
+            accountSender = this.getAccount(
+              rowValues.accountSender,
+              accounts,
+              coinSymbolCategoryKey
+            )
+
             mainAccountRecipient = this.getMainAccount(
               accountRecipient,
               accounts
@@ -301,13 +303,11 @@ class Registry {
         ) {
           accountSender = this.getAccount(
             rowValues.accountSender,
-            void 0,
             accounts,
             currencySymbolCategoryKey
           )
           accountRecipient = this.getAccount(
-            rowValues.accountSender,
-            rowValues.accountRecipient,
+            rowValues.accountRecipient || rowValues.accountSender,
             accounts,
             coinSymbolCategoryKey
           )
@@ -357,13 +357,11 @@ class Registry {
         ) {
           accountSender = this.getAccount(
             rowValues.accountSender,
-            void 0,
             accounts,
             coinSymbolCategoryKey
           )
           accountRecipient = this.getAccount(
-            rowValues.accountSender,
-            rowValues.accountRecipient,
+            rowValues.accountRecipient || rowValues.accountSender,
             accounts,
             currencySymbolCategoryKey
           )
@@ -410,6 +408,7 @@ class Registry {
         }
 
         //* Расчет текущей или исторической цены покупаемого токена
+
         const historicalPriceBuyCoin = historicalPrice.getHistoricalPrice(
           dateTime,
           accountSender,
@@ -437,7 +436,6 @@ class Registry {
           )
           feeAccount = this.getAccount(
             rowValues.accountSender,
-            void 0,
             accounts,
             feeCurrencySymbolCategoryKey
           )

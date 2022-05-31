@@ -1564,23 +1564,23 @@ class Portfolio {
           quantityOwnInFlow: { alias: 'Quantity (own in flow)', idx: 10 },
           quantityInFlow: { alias: 'Quantity (in flow)', idx: 11 },
           quantityOutFlow: { alias: 'Quantity (out flow)', idx: 12 },
-          quantityRest: { alias: 'Quantity (rest)', idx: 13 },
-          quantityRestLock: { alias: 'Quantity (rest lock)', idx: 14 },
-          quantityRestUnlock: { alias: 'Quantity (rest unlock)', idx: 15 },
+          quantityFlow: { alias: 'Quantity (flow)', idx: 13 },
+          quantityLock: { alias: 'Quantity (lock)', idx: 14 },
+          quantityUnlock: { alias: 'Quantity (unlock)', idx: 15 },
           priceOwnInFlow: { alias: 'Price (own in flow), $', idx: 16 },
           priceInFlow: { alias: 'Price (in flow), $', idx: 17 },
           priceOutFlow: { alias: 'Price (out flow), $', idx: 18 },
-          priceRestInFlow: { alias: 'Price (rest in flow), $', idx: 19 },
-          priceRest: { alias: 'Price (rest), $', idx: 20 },
+          priceFlow: { alias: 'Price (flow), $', idx: 19 },
+          price: { alias: 'Price, $', idx: 20 },
           costOwnInFlow: { alias: 'Cost (own in flow), $', idx: 21 },
           costInFlow: { alias: 'Cost (in flow), $', idx: 22 },
           costOutFlow: { alias: 'Cost (out flow), $', idx: 23 },
-          costRest: { alias: 'Cost (rest), $', idx: 24 },
-          costRestInFlow: { alias: 'Cost (rest in flow), $', idx: 25 },
-          costRestLock: { alias: 'Cost (rest lock), $', idx: 26 },
-          costRestUnlock: { alias: 'Cost (rest unlock), $', idx: 27 },
-          pnlTotal: { alias: 'PnL (total), $', idx: 28 },
-          pnlRest: { alias: 'PnL (rest), $', idx: 29 },
+          costFlow: { alias: 'Cost (flow), $', idx: 24 },
+          cost: { alias: 'Cost, $', idx: 25 },
+          costLock: { alias: 'Cost (lock), $', idx: 26 },
+          costUnlock: { alias: 'Cost (unlock), $', idx: 27 },
+          pnlFlow: { alias: 'PnL (flow), $', idx: 28 },
+          pnlTotal: { alias: 'PnL (total), $', idx: 29 },
           payback: { alias: 'Payback, $', idx: 30 },
           quantityRebalance: { alias: 'Rebalance, qty', idx: 31 },
           dayInPortfolioAvg: {
@@ -2446,10 +2446,14 @@ class HistoricalPrice {
       } else {
         //* Расчет средневзвешенной стоимости покупки токена на основании истории покупок для диапазона данных
         if (isRange) {
+          // console.log(account, contractor, currencySymbol)
           const historicalAveragePriceKey = new Hash(
             account + contractor + currencySymbol
           ).md5;
+          const inKey = new Hash('in').md5;
+          const outKey = new Hash('out').md5;
           //* цена исторических транзакций
+
           const historicalPriceAgg = transactionsArrayOfObject
             .filter((row) => {
               return (
@@ -2467,114 +2471,232 @@ class HistoricalPrice {
             })
             .reduce(
               (agg, tx) => {
-                agg.quantityRest += tx.quantity;
-                agg.costRest += tx.cost;
-                //* расчет точности
-                const precisionArray = tx.quantity.toString().split('.');
-                const precision = precisionArray[1]
-                  ? [...precisionArray[1].split('')].length
-                  : 0;
-                if (precision > agg.precision && precision <= 6) {
-                  agg.precision = precision;
+                const operationKey = new Hash(tx.operation).md5;
+                const directionKey = new Hash(tx.direction).md5;
+                //* Распределение количества по потокам
+                if (
+                  operationKey === '0461ebd2b773878eac9f78a891912d65' /*buy*/
+                ) {
+                  if (directionKey === inKey) {
+                    agg.quantityBuyIn += tx.quantity;
+                    agg.costBuyIn += tx.cost;
+                  } else if (directionKey === outKey) {
+                    agg.quantityBuyOut += tx.quantity * -1;
+                    agg.costBuyOut += tx.cost * -1;
+                  }
+                } else if (
+                  operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
+                ) {
+                  if (directionKey === inKey) {
+                    agg.quantitySellIn += tx.quantity;
+                    agg.costSellIn += tx.cost;
+                  } else if (directionKey === outKey) {
+                    agg.quantitySellOut += tx.quantity * -1;
+                    agg.costSellOut += tx.cost * -1;
+                  }
+                } else if (
+                  operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
+                ) {
+                  if (directionKey === inKey) {
+                    agg.quantityRefillIn += tx.quantity;
+                    agg.costRefillIn += tx.cost;
+                  }
+                } else if (
+                  operationKey ===
+                  '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
+                ) {
+                  if (directionKey === outKey) {
+                    agg.quantityWriteOffOut += tx.quantity * -1;
+                    agg.costWriteOffOut += tx.cost * -1;
+                  }
+                } else if (
+                  operationKey ===
+                  '84a0f3455dcca894ace136be62efa292' /*transfer*/
+                ) {
+                  if (directionKey === inKey) {
+                    agg.quantityTransferIn += tx.quantity;
+                    agg.costTransferIn += tx.cost;
+                  } else if (directionKey === outKey) {
+                    agg.quantityTransferOut += tx.quantity * -1;
+                    agg.costTransferOut += tx.cost * -1;
+                  }
                 }
-                return agg
-              },
-              {
-                quantityRest: 0,
-                costRest: 0,
-                precision: 0,
-              }
-            );
-          //* цена текущей транзации
-          const currentPrice = transactionsArrayOfObject
-            .filter((row) => {
-              return (
-                new Date(row.dateTime).valueOf() ===
-                  new Date(dateTime).valueOf() &&
-                historicalAveragePriceKey === row.historicalAveragePriceKey &&
-                row.isAvgPrice &&
-                !row.isDelete &&
-                !row.isFee
-              )
-            })
-            .sort((a, b) => {
-              return (
-                new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
-              )
-            })
-            .reduce(
-              (agg, tx) => {
-                agg.quantityRest += tx.quantity;
-                agg.costRest += tx.cost;
-                //* расчет точности
-                const precisionArray = tx.quantity.toString().split('.');
-                const precision = precisionArray[1]
-                  ? [...precisionArray[1].split('')].length
-                  : 0;
-                if (precision > agg.precision && precision <= 6) {
-                  agg.precision = precision;
-                }
-                return agg
-              },
-              {
-                quantityRest: 0,
-                costRest: 0,
-                precision: 0,
-              }
-            );
-          //* исторические данные
 
+                agg.quantityFlow += tx.quantity;
+
+                //* расчет точности
+                const precisionArray = tx.quantity.toString().split('.');
+                const precision = precisionArray[1]
+                  ? [...precisionArray[1].split('')].length
+                  : 0;
+                if (precision > agg.precision && precision <= 6) {
+                  agg.precision = precision;
+                }
+                return agg
+              },
+              {
+                quantityBuyIn: 0,
+                quantityBuyOut: 0,
+                quantitySellIn: 0,
+                quantitySellOut: 0,
+                quantityRefillIn: 0,
+                quantityWriteOffOut: 0,
+                quantityTransferIn: 0,
+                quantityTransferOut: 0,
+                quantityFlow: 0,
+                precision: 0,
+                costBuyIn: 0,
+                costBuyOut: 0,
+                costSellIn: 0,
+                costSellOut: 0,
+                costRefillIn: 0,
+                costWriteOffOut: 0,
+                costTransferIn: 0,
+                costTransferOut: 0,
+              }
+            );
+
+          //* точность стоимости
+          let costPrecisionCoeff = '1';
+          for (let i = 0; i < 2; i++) {
+            costPrecisionCoeff += '0';
+          }
+          costPrecisionCoeff = costPrecisionCoeff * 1;
+
+          //* точность исторических данных
           let historicalPricePrecisionCoeff = '1';
           for (let i = 0; i < historicalPriceAgg.precision; i++) {
             historicalPricePrecisionCoeff += '0';
           }
           historicalPricePrecisionCoeff = historicalPricePrecisionCoeff * 1;
 
-          const historicalPriceQuantityRest =
+          //* расчет потоков
+          const costInFlow =
             Math.round(
-              historicalPriceAgg.quantityRest * historicalPricePrecisionCoeff
-            ) / historicalPricePrecisionCoeff;
-          const historicalPriceCostRest =
-            Math.round(historicalPriceAgg.costRest).toFixed(0) * 1;
-          //* данные транзакции
+              (historicalPriceAgg.costBuyIn +
+                historicalPriceAgg.costSellIn +
+                historicalPriceAgg.costRefillIn +
+                historicalPriceAgg.costTransferIn) *
+                costPrecisionCoeff
+            ) / costPrecisionCoeff || 0;
 
-          let currentPricePrecisionCoeff = '1';
-          for (let i = 0; i < currentPrice.precision; i++) {
-            currentPricePrecisionCoeff += '0';
+          const costOutFlow =
+            Math.round(
+              (historicalPriceAgg.costBuyOut +
+                historicalPriceAgg.costSellOut +
+                historicalPriceAgg.costWriteOffOut +
+                historicalPriceAgg.costTransferOut) *
+                costPrecisionCoeff
+            ) / costPrecisionCoeff || 0;
+
+          const quantityInFlow =
+            Math.round(
+              (historicalPriceAgg.quantityBuyIn +
+                historicalPriceAgg.quantitySellIn +
+                historicalPriceAgg.quantityRefillIn +
+                historicalPriceAgg.quantityTransferIn) *
+                historicalPricePrecisionCoeff
+            ) / historicalPricePrecisionCoeff || 0;
+
+          const quantityOutFlow =
+            Math.round(
+              (historicalPriceAgg.quantityBuyOut +
+                historicalPriceAgg.quantitySellOut +
+                historicalPriceAgg.quantityWriteOffOut +
+                historicalPriceAgg.quantityTransferOut) *
+                historicalPricePrecisionCoeff
+            ) / historicalPricePrecisionCoeff || 0;
+
+          //* расчет цены потоков
+
+          const priceInFlow = quantityInFlow ? costInFlow / quantityInFlow : 0;
+          const priceOutFlow = quantityOutFlow
+            ? costOutFlow / quantityOutFlow
+            : 0;
+          const priceFlowSum =
+            priceInFlow * quantityInFlow + priceOutFlow * quantityOutFlow;
+          const quantityFlow = quantityInFlow + quantityOutFlow;
+          const historicalPricePriceRestFlow =
+            priceFlowSum && quantityFlow
+              ? priceFlowSum / (quantityInFlow + quantityOutFlow)
+              : 0;
+          // console.log('priceInFlow', priceInFlow)
+          // console.log('priceOutFlow', priceOutFlow)
+          // console.log('priceFlowSum', priceOutFlow)
+          // console.log('quantityFlow', quantityInFlow + quantityOutFlow)
+          // console.log(
+          //   'historicalPricePriceRestFlow',
+          //   historicalPricePriceRestFlow
+          // )
+
+          let priceFlow;
+
+          if (!historicalPricePriceRestFlow) {
+            //* цена текущей транзации
+            const currentPrice = transactionsArrayOfObject
+              .filter((row) => {
+                return (
+                  new Date(row.dateTime).valueOf() ===
+                    new Date(dateTime).valueOf() &&
+                  historicalAveragePriceKey === row.historicalAveragePriceKey &&
+                  row.isAvgPrice &&
+                  !row.isDelete &&
+                  !row.isFee
+                )
+              })
+              .sort((a, b) => {
+                return (
+                  new Date(a.dateTime).valueOf() -
+                  new Date(b.dateTime).valueOf()
+                )
+              })
+              .reduce(
+                (agg, tx) => {
+                  agg.quantityFlow += tx.quantity;
+                  agg.costFlow += tx.cost;
+                  //* расчет точности
+                  const precisionArray = tx.quantity.toString().split('.');
+                  const precision = precisionArray[1]
+                    ? [...precisionArray[1].split('')].length
+                    : 0;
+                  if (precision > agg.precision && precision <= 6) {
+                    agg.precision = precision;
+                  }
+                  return agg
+                },
+                {
+                  quantityFlow: 0,
+                  precision: 0,
+                  costFlow: 0,
+                }
+              );
+            //* расчет цены текущей транзакции
+
+            let currentPricePrecisionCoeff = '1';
+            for (let i = 0; i < currentPrice.precision; i++) {
+              currentPricePrecisionCoeff += '0';
+            }
+            currentPricePrecisionCoeff = currentPricePrecisionCoeff * 1;
+
+            const currentPriceQuantityRest =
+              Math.round(
+                currentPrice.quantityFlow * currentPricePrecisionCoeff
+              ) / currentPricePrecisionCoeff;
+            const currentPriceCostRest =
+              Math.round(currentPrice.costFlow * costPrecisionCoeff) /
+              costPrecisionCoeff;
+            historicalPricePriceRestFlow;
+            priceFlow = currentPriceCostRest / currentPriceQuantityRest || 0;
+          } else {
+            priceFlow = historicalPricePriceRestFlow;
           }
-          currentPricePrecisionCoeff = currentPricePrecisionCoeff * 1;
 
-          const currentPriceQuantityRest =
-            Math.round(currentPrice.quantityRest * currentPricePrecisionCoeff) /
-            currentPricePrecisionCoeff;
-          const currentPriceCostRest =
-            Math.round(currentPrice.costRest).toFixed(0) * 1;
-          //* расчет цены
-          const priceRestFlow =
-            Math.round(costRest * quantityRest).toFixed(0) > 0
-              ? historicalPriceCostRest / historicalPriceQuantityRest
-              : currentPriceCostRest / currentPriceQuantityRest;
-
-          // console.log(account, contractor, currencySymbol)
-          // console.log('currentPrice.quantityRest', currentPrice.quantityRest)
-          // console.log('currentPrice.costRest', currentPrice.costRest)
-          // console.log(
-          //   'historicalPriceAgg.quantityRest',
-          //   historicalPriceAgg.quantityRest
-          // )
-
-          // console.log(
-          //   'historicalPriceAgg.costRest',
-          //   historicalPriceAgg.costRest
-          // )
-          // console.log('priceRestFlow', priceRestFlow)
+          // console.log('priceFlow', priceFlow)
 
           //* Расчет средней цены покупки токена
-          if (priceRestFlow) {
-            historicalPrice = priceRestFlow;
-            isHistoricalAveragePrice = historicalPriceAgg.quantityRest
-              ? true
-              : false;
+          if (priceFlow) {
+            historicalPrice = priceFlow;
+            isHistoricalAveragePrice = true;
           } else {
             if (
               new FormatDate(dateTime).yyyymmdd === new FormatDate().yyyymmdd &&
@@ -2605,22 +2727,13 @@ class HistoricalPrice {
           }
         }
       }
+
       return { historicalPrice, isHistoricalAveragePrice }
     } catch (error) {
       console.error('Transactions.getHistoricalPriceBuy', error.stack);
     }
   }
 }
-
-/* 
-// console.log('quantityRest', historicalPriceAgg.quantityRest)
-// console.log('costBalance', historicalPriceAgg.costBalance)
-// console.log('quantityInFlow', quantityInFlow)
-// console.log('priceInFlow', priceInFlow)
-// console.log('costInFlow', costInFlow)
-// console.log('costRestInFlow', costRestInFlow)
-// console.log('priceRestInFlow', priceRestInFlow)
-*/
 
 /**
  * CryptoRank instance
@@ -3125,15 +3238,13 @@ class Registry {
 
   /**
    * Получение счета
-   * @param {string} accountSender счет отправителя
-   * @param {string} accountRecipient счет получателя
+   * @param {string} account счет отправителя
    * @param {object} accounts справочник счетов
    * @param {string} symbolCategoryKey ключ категории символа
    * @returns счет
    */
-  getAccount(accountSender, accountRecipient, accounts, symbolCategoryKey) {
+  getAccount(account, accounts, symbolCategoryKey) {
     try {
-      const account = accountRecipient ? accountRecipient : accountSender;
       if (
         [
           'e5e3fd01394b9a81296b75d5a7f4c1a2',
@@ -3347,7 +3458,6 @@ class Registry {
           ) {
             accountSender = this.getAccount(
               rowValues.accountSender,
-              void 0,
               accounts,
               coinSymbolCategoryKey
             );
@@ -3379,11 +3489,16 @@ class Registry {
             ].indexOf(operationKey) !== -1
           ) {
             accountRecipient = this.getAccount(
-              rowValues.accountSender,
-              rowValues.accountRecipient,
+              rowValues.accountRecipient || rowValues.accountSender,
               accounts,
               coinSymbolCategoryKey
             );
+            accountSender = this.getAccount(
+              rowValues.accountSender,
+              accounts,
+              coinSymbolCategoryKey
+            );
+
             mainAccountRecipient = this.getMainAccount(
               accountRecipient,
               accounts
@@ -3413,13 +3528,11 @@ class Registry {
         ) {
           accountSender = this.getAccount(
             rowValues.accountSender,
-            void 0,
             accounts,
             currencySymbolCategoryKey
           );
           accountRecipient = this.getAccount(
-            rowValues.accountSender,
-            rowValues.accountRecipient,
+            rowValues.accountRecipient || rowValues.accountSender,
             accounts,
             coinSymbolCategoryKey
           );
@@ -3469,13 +3582,11 @@ class Registry {
         ) {
           accountSender = this.getAccount(
             rowValues.accountSender,
-            void 0,
             accounts,
             coinSymbolCategoryKey
           );
           accountRecipient = this.getAccount(
-            rowValues.accountSender,
-            rowValues.accountRecipient,
+            rowValues.accountRecipient || rowValues.accountSender,
             accounts,
             currencySymbolCategoryKey
           );
@@ -3522,6 +3633,7 @@ class Registry {
         }
 
         //* Расчет текущей или исторической цены покупаемого токена
+
         const historicalPriceBuyCoin = historicalPrice.getHistoricalPrice(
           dateTime,
           accountSender,
@@ -3549,7 +3661,6 @@ class Registry {
           );
           feeAccount = this.getAccount(
             rowValues.accountSender,
-            void 0,
             accounts,
             feeCurrencySymbolCategoryKey
           );
@@ -3918,6 +4029,7 @@ class Flow {
       const accounts = new Portfolio().getWorkSheet('Accounts').object;
       const inKey = new Hash('in').md5;
       const outKey = new Hash('out').md5;
+
       const aggFlow = new Transactions().workSheet.arrayOfObject
         .filter((row) => row.isDelete === false)
         .sort((a, b) => {
@@ -3945,9 +4057,9 @@ class Flow {
               quantityWriteOffOut: 0,
               quantityTransferIn: 0,
               quantityTransferOut: 0,
-              quantityRest: 0,
-              quantityRestLock: 0,
-              quantityRestUnlock: 0,
+              quantityFlow: 0,
+              quantityLock: 0,
+              quantityUnlock: 0,
               precision: 0,
               costBuyIn: 0,
               costBuyOut: 0,
@@ -3957,7 +4069,6 @@ class Flow {
               costWriteOffOut: 0,
               costTransferIn: 0,
               costTransferOut: 0,
-              costRest: 0,
               dayInPortfolioBuyInSum: 0,
               dayInPortfolioBuyOutSum: 0,
               dayInPortfolioSellOutSum: 0,
@@ -4054,13 +4165,13 @@ class Flow {
           }
 
           if (tx.isLock) {
-            agg[tx.account][tx.contractor][tx.symbol].quantityRestLock +=
+            agg[tx.account][tx.contractor][tx.symbol].quantityLock +=
               tx.quantity;
           } else {
-            agg[tx.account][tx.contractor][tx.symbol].quantityRestUnlock +=
+            agg[tx.account][tx.contractor][tx.symbol].quantityUnlock +=
               tx.quantity;
           }
-          //* поиск  минимального значения
+          //* расчет точности
           const precisionArray = tx.quantity.toString().split('.');
           const precision = precisionArray[1]
             ? [...precisionArray[1].split('')].length
@@ -4072,8 +4183,7 @@ class Flow {
             agg[tx.account][tx.contractor][tx.symbol].precision = precision;
           }
 
-          agg[tx.account][tx.contractor][tx.symbol].quantityRest += tx.quantity;
-          agg[tx.account][tx.contractor][tx.symbol].costRest += tx.cost;
+          agg[tx.account][tx.contractor][tx.symbol].quantityFlow += tx.quantity;
 
           return agg
         }, {});
@@ -4096,25 +4206,24 @@ class Flow {
             const contractorCategory =
               contractors[contractorKey]?.category || '';
 
-            //* стоимость остатка
+            //* коэффициент точности по количеству
             let precisionCoeff = '1';
             for (let i = 0; i < object.precision; i++) {
               precisionCoeff += '0';
             }
             precisionCoeff = precisionCoeff * 1;
-
-            const quantityRest =
-              Math.round(object.quantityRest * precisionCoeff) / precisionCoeff;
-            const quantityRestLock =
-              Math.round(object.quantityRestLock * precisionCoeff) /
+            //* стоимость остатка
+            const quantityFlow =
+              Math.round(object.quantityFlow * precisionCoeff) / precisionCoeff;
+            const quantityLock =
+              Math.round(object.quantityLock * precisionCoeff) / precisionCoeff;
+            const quantityUnlock =
+              Math.round(object.quantityUnlock * precisionCoeff) /
               precisionCoeff;
-            const quantityRestUnlock =
-              Math.round(object.quantityRestUnlock * precisionCoeff) /
-              precisionCoeff;
-            const priceRest = symbols[symbolKey]?.price || 0;
-            const costRest = Math.round(priceRest * quantityRest).toFixed(0) * 1;
-            const costRestLock = priceRest * quantityRestLock;
-            const costRestUnlock = priceRest * quantityRestUnlock;
+            const price = symbols[symbolKey]?.price || 0;
+            const cost = Math.round(price * quantityFlow).toFixed(0) * 1;
+            const costLock = price * quantityLock;
+            const costUnlock = price * quantityUnlock;
 
             //* расчет потоков
             const costInFlow =
@@ -4154,27 +4263,22 @@ class Flow {
             const priceInFlow = costInFlow / quantityInFlow;
             const priceOwnInFlow = costOwnInFlow / quantityOwnInFlow;
             const priceOutFlow = costOutFlow / quantityOutFlow;
+            const priceFlowSum =
+              priceInFlow * quantityInFlow + priceOutFlow * quantityOutFlow;
 
-            //* текущие остатки
-            const costRestInFlow = Math.round(object.costRest).toFixed(0) * 1;
-            const priceRestInFlow =
-              costRestInFlow * quantityRest > 0
-                ? costRestInFlow / quantityRest
-                : priceRest;
+            const priceFlow = priceFlowSum / (quantityInFlow + quantityOutFlow);
+            const costFlow = Math.round(priceFlow * quantityFlow).toFixed(0) * 1;
 
-            if (
-              new Hash(contractor).md5 === new Hash('BINANCE').md5 &&
-              new Hash(symbol).md5 === new Hash('BTC').md5 &&
-              new Hash(account).md5 === new Hash('IKENIBORN (LONG-TERM)').md5
-            ) {
-              console.log(account, contractor, symbol);
-              console.log('quantityPrecision', object.precision);
-              console.log('precisionCoeff', precisionCoeff);
-              console.log(' object.quantityRest', object.quantityRest);
-              console.log('quantityRest', quantityRest);
-              console.log('priceRestInFlow', priceRestInFlow);
-              console.log('costRestInFlow', costRestInFlow);
-            }
+            // if (
+            //   new Hash(contractor).md5 === new Hash('BINANCE').md5 &&
+            //   new Hash(symbol).md5 === new Hash('BTC').md5 &&
+            //   new Hash(account).md5 === new Hash('IKENIBORN (LONG-TERM)').md5
+            // ) {
+            //   console.log(account, contractor, symbol)
+            //   console.log('quantityRest', quantityRest)
+            //   console.log('priceRestInFlow', priceRestInFlow)
+            //   console.log('costRestInFlow', costRestInFlow)
+            // }
 
             //* Расчет среднего времени в портфеле
 
@@ -4198,16 +4302,15 @@ class Flow {
               );
             //* Количество на ребалансировки от изменения цены
 
-            const priceFlow = priceRestInFlow;
             let quantityRebalance;
-            if (priceRest) {
-              const changePriceCoef = priceRest / priceFlow;
+            if (price) {
+              const changePriceCoef = price / priceFlow;
               const priceRebalance =
-                priceRest + (priceFlow - priceRest) * changePriceCoef;
+                price + (priceFlow - price) * changePriceCoef;
 
               quantityRebalance =
-                (quantityRest * (priceFlow - priceRebalance)) /
-                (priceRebalance - priceRest);
+                (quantityFlow * (priceFlow - priceRebalance)) /
+                (priceRebalance - price);
             } else {
               quantityRebalance = 0;
             }
@@ -4228,27 +4331,27 @@ class Flow {
               quantityOwnInFlow: quantityOwnInFlow || 0,
               quantityInFlow: quantityInFlow || 0,
               quantityOutFlow: quantityOutFlow || 0,
-              quantityRest: quantityRest || 0,
-              quantityRestLock: quantityRestLock || 0,
-              quantityRestUnlock: quantityRestUnlock || 0,
+              quantityFlow: quantityFlow || 0,
+              quantityLock: quantityLock || 0,
+              quantityUnlock: quantityUnlock || 0,
               priceOwnInFlow: priceOwnInFlow || 0,
               priceInFlow: priceInFlow || 0,
               priceOutFlow: priceOutFlow || 0,
-              priceRestInFlow: priceRestInFlow || 0,
-              priceRest: priceRest || 0,
+              priceFlow: priceFlow || 0,
+              price: price || 0,
               costOwnInFlow: costOwnInFlow || 0,
               costInFlow: costInFlow || 0,
               costOutFlow: costOutFlow || 0,
-              costRest: costRest || 0,
-              costRestInFlow: costRestInFlow || 0,
-              costRestLock: costRestLock || 0,
-              costRestUnlock: costRestUnlock || 0,
-              pnlTotal: costOutFlow - costInFlow + costRest || 0,
-              pnlRest: costRest - costRestInFlow || 0,
+              costFlow: costFlow || 0,
+              cost: cost || 0,
+              costLock: costLock || 0,
+              costUnlock: costUnlock || 0,
+              pnlFlow: cost - costFlow || 0,
+              pnlTotal: costOutFlow - costInFlow + cost || 0,
               quantityRebalance: quantityRebalance || 0,
               payback: payback || 0,
               dayInPortfolioAvg,
-              isSell: Math.round(costRest).toFixed(0) * 1 <= 0 ? true : false,
+              isSell: quantityFlow <= 0 ? true : false,
             });
           });
         });
