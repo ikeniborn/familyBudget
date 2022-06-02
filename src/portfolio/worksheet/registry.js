@@ -650,6 +650,16 @@ class Registry {
     }
   }
 
+  deleteDateSaved() {
+    this.workSheet.arrayOfObject.forEach((object) => {
+      this.workSheet.insertRange(
+        [[void 0, void 0]],
+        object.rowNum,
+        this.workSheet.head.dateSaved.idx + 1
+      )
+    })
+  }
+
   validateTransactions() {
     try {
       const transactions = new Transactions()

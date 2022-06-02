@@ -165,7 +165,14 @@ function updateOnEdit(editRange) {
         if (workSheet.workSheetKey === new Hash('symbols').md5) {
           new Symbols(workSheet).updateId()
         } else if (workSheet.isRegistry) {
-          new Registry(workSheet).updateTransactions(true)
+          new Promise((resolve) => {
+            const registry = new Registry(workSheet)
+            registry.deleteDateSaved()
+            resolve(registry)
+          }).then((registry) => {
+            registry.updateTransactions(true)
+          })
+          // new Registry(workSheet).updateTransactions(true)
         }
         resolve(workSheet)
       }
