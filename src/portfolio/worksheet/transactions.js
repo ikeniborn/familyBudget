@@ -421,17 +421,14 @@ class HistoricalPrice {
 
           //* расчет цены потоков
 
-          const priceInFlow = quantityInFlow ? costInFlow / quantityInFlow : 0
-          const priceOutFlow = quantityOutFlow
-            ? costOutFlow / quantityOutFlow
-            : 0
+          const priceInFlow = costInFlow / quantityInFlow
+          const priceOutFlow = costOutFlow / quantityOutFlow || 0
           const priceFlowSum =
             priceInFlow * quantityInFlow + priceOutFlow * quantityOutFlow
-          const quantityFlow = quantityInFlow + quantityOutFlow
+          const quantityFlowSum = quantityInFlow + quantityOutFlow
           const historicalPricePriceRestFlow =
-            priceFlowSum && quantityFlow
-              ? priceFlowSum / (quantityInFlow + quantityOutFlow)
-              : 0
+            priceFlowSum / quantityFlowSum || 0
+
           // console.log('priceInFlow', priceInFlow)
           // console.log('priceOutFlow', priceOutFlow)
           // console.log('priceFlowSum', priceOutFlow)

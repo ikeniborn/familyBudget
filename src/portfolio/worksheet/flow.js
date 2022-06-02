@@ -181,7 +181,8 @@ class Flow {
 
           return agg
         }, {})
-      const aggFlowArrayOfObject = []
+
+      let aggFlowArrayOfObject = []
       Object.entries(aggFlow).forEach(([account, level0]) => {
         Object.entries(level0).forEach(([contractor, level1]) => {
           Object.entries(level1).forEach(([symbol, object]) => {
@@ -193,6 +194,7 @@ class Flow {
             const symbolEcosystem = symbols[symbolKey]?.ecosystem || ''
             const symbolMarketCapGroup =
               symbols[symbolKey]?.marketCapGroup || ''
+            const useInReport = symbols[symbolKey]?.useInReport
             const mainAccount = accounts[new Hash(account).md5].mainAccount
             //* атрибуты контрагента
             const contractorKey = new Hash(contractor).md5
@@ -206,6 +208,7 @@ class Flow {
               precisionCoeff += '0'
             }
             precisionCoeff = precisionCoeff * 1
+
             //* стоимость остатка
             const quantityFlow =
               Math.round(object.quantityFlow * precisionCoeff) / precisionCoeff
@@ -215,7 +218,7 @@ class Flow {
               Math.round(object.quantityUnlock * precisionCoeff) /
               precisionCoeff
             const price = symbols[symbolKey]?.price || 0
-            const cost = Math.round(price * quantityFlow).toFixed(0) * 1
+            const cost = Math.round(price * quantityFlow * 100) / 100
             const costLock = price * quantityLock
             const costUnlock = price * quantityUnlock
 
@@ -254,24 +257,30 @@ class Flow {
 
             //* расчет цены потоков
 
-            const priceInFlow = costInFlow / quantityInFlow
-            const priceOwnInFlow = costOwnInFlow / quantityOwnInFlow
-            const priceOutFlow = costOutFlow / quantityOutFlow
+            const priceInFlow = costInFlow / quantityInFlow || 0
+            const priceOwnInFlow = costOwnInFlow / quantityOwnInFlow || 0
+            const priceOutFlow = costOutFlow / quantityOutFlow || 0
             const priceFlowSum =
               priceInFlow * quantityInFlow + priceOutFlow * quantityOutFlow
-
-            const priceFlow = priceFlowSum / (quantityInFlow + quantityOutFlow)
-            const costFlow = Math.round(priceFlow * quantityFlow).toFixed(0) * 1
+            const quantityFlowSum = quantityInFlow + quantityOutFlow
+            const priceFlow = priceFlowSum / quantityFlowSum || 0
+            const costFlow =
+              Math.round(priceFlow * quantityFlow * 100) / 100 || 0
 
             // if (
-            //   new Hash(contractor).md5 === new Hash('BINANCE').md5 &&
-            //   new Hash(symbol).md5 === new Hash('BTC').md5 &&
-            //   new Hash(account).md5 === new Hash('IKENIBORN (LONG-TERM)').md5
+            //   new Hash(contractor).md5 === new Hash('BYBIT').md5 &&
+            //   new Hash(symbol).md5 === new Hash('MANA').md5 &&
+            //   new Hash(account).md5 === new Hash('IKENIBORN (SHORT-TERM)').md5
             // ) {
             //   console.log(account, contractor, symbol)
-            //   console.log('quantityRest', quantityRest)
-            //   console.log('priceRestInFlow', priceRestInFlow)
-            //   console.log('costRestInFlow', costRestInFlow)
+            //   console.log('costInFlow', costInFlow)
+            //   console.log('quantityInFlow', quantityInFlow)
+            //   console.log('costOutFlow', costOutFlow)
+            //   console.log('quantityOutFlow', quantityOutFlow)
+            //   console.log('priceFlowSum', priceFlowSum)
+            //   console.log('quantityFlow', quantityFlow)
+            //   console.log('priceFlow', priceFlow)
+            //   console.log('costFlow', costFlow)
             // }
 
             //* Расчет среднего времени в портфеле
@@ -345,10 +354,36 @@ class Flow {
               quantityRebalance: quantityRebalance || 0,
               payback: payback || 0,
               dayInPortfolioAvg,
-              isSell: quantityFlow <= 0 ? true : false,
+              isSell: false,
+              useInReport: useInReport,
             })
           })
         })
+      })
+
+      //* агрегация количества по символу
+      const symbolsQuantityFlow = aggFlowArrayOfObject.reduce(
+        (symbolQuantityFlow, rowFlow) => {
+          if (!symbolQuantityFlow[rowFlow.mainAccount]) {
+            symbolQuantityFlow[rowFlow.mainAccount] = {}
+          }
+          if (!symbolQuantityFlow[rowFlow.mainAccount][rowFlow.symbol]) {
+            symbolQuantityFlow[rowFlow.mainAccount][rowFlow.symbol] = 0
+          }
+          symbolQuantityFlow[rowFlow.mainAccount][rowFlow.symbol] +=
+            rowFlow.quantityFlow
+          return symbolQuantityFlow
+        },
+        {}
+      )
+
+      //* формирование признака продажи
+      aggFlowArrayOfObject = aggFlowArrayOfObject.map((rowFlow) => {
+        if (symbolsQuantityFlow[rowFlow.mainAccount][rowFlow.symbol] === 0) {
+          rowFlow.isSell = true
+        }
+
+        return rowFlow
       })
 
       this.workSheet.truncateInsertRows(aggFlowArrayOfObject)

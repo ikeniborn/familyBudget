@@ -16,7 +16,7 @@ SUM(Quantity (rest)*Average day in portfolio)/SUM(Quantity (rest))
 Payback, %
 sum(Payback, $)/SUM(Cost (own in flow), $)
 
-PnL (rest), %
+PnL (flow), %
 sum(PnL (rest), $)/SUM(Cost (rest in flow), $)
 
 PnL (total), %  

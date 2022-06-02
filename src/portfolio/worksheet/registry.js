@@ -62,6 +62,42 @@ class Registry {
     }
   }
 
+  /**
+   * Получение признака средней цены для расчета истории
+   * @param {*} directionKey
+   * @param {*} operationKey
+   * @param {*} categoryKey
+   * @returns признак средней цены
+   */
+  getIsAvgPrice(directionKey, operationKey, categoryKey) {
+    const inKey = new Hash('in').md5
+    const outKey = new Hash('out').md5
+    if (/*stablecoin*/ 'e5e3fd01394b9a81296b75d5a7f4c1a2' !== categoryKey) {
+      if (
+        /*Write-off*/ '7b33b9f52598cd60f7aa6ca0082515c4' === operationKey &&
+        directionKey === outKey
+      ) {
+        return true
+      } else if (
+        [
+          /*Transfer*/ '84a0f3455dcca894ace136be62efa292',
+          /*Refill*/ 'b4479040173a9f41eeb4e98339f2a21d',
+        ].indexOf(operationKey) !== -1 &&
+        directionKey === inKey
+      ) {
+        return true
+      } else if (
+        [
+          /*buy*/ '0461ebd2b773878eac9f78a891912d65',
+          /*sell*/ '8325324b47e1e62a1c2998a640cbdc72',
+        ].indexOf(operationKey) !== -1
+      ) {
+        return true
+      }
+    }
+    return false
+  }
+
   updateTransactions(isRange = false) {
     const startProcess = new FormatDate()
     try {
@@ -116,7 +152,9 @@ class Registry {
           lockStatusKey,
           registryRowKey,
           registryRowKeyTimestamp,
-          registryTimestamp
+          registryTimestamp,
+          directionOut,
+          directionIn
 
         const transactionRow = []
         const hhmm = new FormatNumber(
@@ -165,6 +203,8 @@ class Registry {
         isHistoricalAveragePriceSymbol = false
         isHistoricalAveragePriceFeeCurrency = false
         isHistoricalAveragePriceCurrency = false
+        directionOut = new Hash('out')
+        directionIn = new Hash('in')
 
         //* Расчет пустых значений транзакции количества валюты за один токен, количество токена, количество валюты
         if (!currencyPerCoin && currencyQty) {
@@ -214,16 +254,7 @@ class Registry {
           ].indexOf(operationKey) !== -1
         ) {
           currencyPerCoin = 1
-          // currencySymbol = coinSymbol
-          if (
-            [
-              /*Write-off, Refill*/
-              '7b33b9f52598cd60f7aa6ca0082515c4',
-              'b4479040173a9f41eeb4e98339f2a21d',
-            ].indexOf(operationKey) !== -1
-          ) {
-            isAvgPrice = true
-          }
+
           if (
             [
               /*Transfer, Write-off*/
@@ -238,9 +269,10 @@ class Registry {
             )
             mainAccountSender = this.getMainAccount(accountSender, accounts)
             rowKey1 = new Hash(rowValues.rowKey + '#1').md5
+
             transactionRow.push({
               rowKey: rowKey1,
-              direction: 'out',
+              direction: directionOut.stringLowerCase,
               account: accountSender,
               mainAccount: mainAccountSender,
               contractor: sender,
@@ -250,7 +282,11 @@ class Registry {
               isFee,
               isLock: isSenderLock,
               isLiquidityPool,
-              isAvgPrice,
+              isAvgPrice: this.getIsAvgPrice(
+                directionOut.md5,
+                operationKey,
+                coinSymbolCategoryKey
+              ),
               isSymbolPrice: true,
               isFeePrice,
               isCurencyPrice,
@@ -291,7 +327,11 @@ class Registry {
               isFee,
               isLock: isRecipientLock,
               isLiquidityPool,
-              isAvgPrice: true,
+              isAvgPrice: this.getIsAvgPrice(
+                directionIn.md5,
+                operationKey,
+                coinSymbolCategoryKey
+              ),
               isSymbolPrice: true,
               isFeePrice,
               isCurencyPrice,
@@ -316,7 +356,7 @@ class Registry {
           rowKey1 = new Hash(rowValues.rowKey + '#1').md5
           transactionRow.push({
             rowKey: rowKey1,
-            direction: 'out',
+            direction: directionOut.stringLowerCase,
             account: accountSender,
             mainAccount: mainAccountSender,
             contractor: sender,
@@ -326,7 +366,11 @@ class Registry {
             isFee,
             isLock: isSenderLock,
             isLiquidityPool,
-            isAvgPrice,
+            isAvgPrice: this.getIsAvgPrice(
+              directionOut.md5,
+              operationKey,
+              currencySymbolCategoryKey
+            ),
             isCurencyPrice: true,
             isFeePrice,
             isSymbolPrice,
@@ -334,7 +378,7 @@ class Registry {
           rowKey2 = new Hash(rowValues.rowKey + '#2').md5
           transactionRow.push({
             rowKey: rowKey2,
-            direction: 'in',
+            direction: directionIn.stringLowerCase,
             isLock: rowValues.isLock,
             account: accountRecipient,
             mainAccount: mainAccountRecipient,
@@ -345,7 +389,11 @@ class Registry {
             isFee,
             isLock: isRecipientLock,
             isLiquidityPool,
-            isAvgPrice: true,
+            isAvgPrice: this.getIsAvgPrice(
+              directionIn.md5,
+              operationKey,
+              coinSymbolCategoryKey
+            ),
             isSymbolPrice: true,
             isFeePrice,
             isCurencyPrice,
@@ -371,7 +419,7 @@ class Registry {
           rowKey1 = new Hash(rowValues.rowKey + '#1').md5
           transactionRow.push({
             rowKey: rowKey1,
-            direction: 'out',
+            direction: directionOut.stringLowerCase,
             account: accountSender,
             mainAccount: mainAccountSender,
             contractor: sender,
@@ -381,7 +429,11 @@ class Registry {
             isFee,
             isLock: isSenderLock,
             isLiquidityPool,
-            isAvgPrice: true,
+            isAvgPrice: this.getIsAvgPrice(
+              directionOut.md5,
+              operationKey,
+              coinSymbolCategoryKey
+            ),
             isSymbolPrice: true,
             isFeePrice,
             isCurencyPrice,
@@ -389,7 +441,7 @@ class Registry {
           rowKey2 = new Hash(rowValues.rowKey + '#2').md5
           transactionRow.push({
             rowKey: rowKey2,
-            direction: 'in',
+            direction: directionIn.stringLowerCase,
             isLock: rowValues.isLock,
             account: accountRecipient,
             mainAccount: mainAccountRecipient,
@@ -400,7 +452,11 @@ class Registry {
             isFee,
             isLock: isRecipientLock,
             isLiquidityPool,
-            isAvgPrice,
+            isAvgPrice: this.getIsAvgPrice(
+              directionIn.md5,
+              operationKey,
+              currencySymbolCategoryKey
+            ),
             isCurencyPrice: true,
             isFeePrice,
             isSymbolPrice,
@@ -440,15 +496,9 @@ class Registry {
             feeCurrencySymbolCategoryKey
           )
           feeMainAccount = this.getMainAccount(feeAccount, accounts)
-          if (
-            'e5e3fd01394b9a81296b75d5a7f4c1a2' !==
-            feeCurrencySymbolCategoryKey /*stablecoin*/
-          ) {
-            isAvgPrice = true
-          }
           transactionRow.push({
             rowKey: rowKey3,
-            direction: 'out',
+            direction: directionOut.stringLowerCase,
             account: feeAccount,
             mainAccount: feeMainAccount,
             contractor: feeSender,
@@ -458,7 +508,11 @@ class Registry {
             isFee: true,
             isLock: false,
             isLiquidityPool: false,
-            isAvgPrice,
+            isAvgPrice: this.getIsAvgPrice(
+              directionOut.md5,
+              /*Write-off*/ '7b33b9f52598cd60f7aa6ca0082515c4',
+              feeCurrencySymbolCategoryKey
+            ),
             isFeePrice: true,
             isSymbolPrice: false,
             isCurencyPrice: false,
