@@ -223,7 +223,7 @@ class Flow {
               Math.round(object.quantityUnlock * precisionCoeff) /
               precisionCoeff
             const price = symbols[symbolKey]?.price || 0
-            const cost = Math.round(price * quantityFlow * 100) / 100
+            const cost = Math.round(price * quantityFlow)
             const costLock = price * quantityLock
             const costUnlock = price * quantityUnlock
 
@@ -287,8 +287,7 @@ class Flow {
               priceInFlow * quantityInFlow + priceOutFlow * quantityOutFlow
             const quantityFlowSum = quantityInFlow + quantityOutFlow
             const priceFlow = priceFlowSum / quantityFlowSum || 0
-            const costFlow =
-              Math.round(priceFlow * quantityFlow * 100) / 100 || 0
+            const costFlow = Math.round(priceFlow * quantityFlow) || 0
 
             // if (
             //   new Hash(contractor).md5 === new Hash('TREZOR').md5 &&
@@ -392,10 +391,17 @@ class Flow {
             symbolQuantityFlow[rowFlow.mainAccount] = {}
           }
           if (!symbolQuantityFlow[rowFlow.mainAccount][rowFlow.symbol]) {
-            symbolQuantityFlow[rowFlow.mainAccount][rowFlow.symbol] = 0
+            symbolQuantityFlow[rowFlow.mainAccount][rowFlow.symbol] = {
+              quantityFlow: 0,
+              costFlow: 0,
+            }
           }
-          symbolQuantityFlow[rowFlow.mainAccount][rowFlow.symbol] +=
-            rowFlow.quantityFlow
+          symbolQuantityFlow[rowFlow.mainAccount][
+            rowFlow.symbol
+          ].quantityFlow += rowFlow.quantityFlow
+
+          symbolQuantityFlow[rowFlow.mainAccount][rowFlow.symbol].costFlow +=
+            rowFlow.costFlow
           return symbolQuantityFlow
         },
         {}
@@ -403,7 +409,12 @@ class Flow {
 
       //* формирование признака продажи
       aggFlowArrayOfObject = aggFlowArrayOfObject.map((rowFlow) => {
-        if (symbolsQuantityFlow[rowFlow.mainAccount][rowFlow.symbol] === 0) {
+        if (
+          symbolsQuantityFlow[rowFlow.mainAccount][rowFlow.symbol]
+            .quantityFlow === 0 ||
+          symbolsQuantityFlow[rowFlow.mainAccount][rowFlow.symbol].costFlow ===
+            0
+        ) {
           rowFlow.isSell = true
         }
 
