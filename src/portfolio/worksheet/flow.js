@@ -175,6 +175,11 @@ class Flow {
             precision <= 6
           ) {
             agg[tx.account][tx.contractor][tx.symbol].precision = precision
+          } else if (
+            precision > agg[tx.account][tx.contractor][tx.symbol].precision &&
+            precision > 6
+          ) {
+            agg[tx.account][tx.contractor][tx.symbol].precision = 6
           }
 
           agg[tx.account][tx.contractor][tx.symbol].quantityFlow += tx.quantity
@@ -224,36 +229,54 @@ class Flow {
 
             //* расчет потоков
             const costInFlow =
-              object.costBuyIn +
-              object.costSellIn +
-              object.costRefillIn +
-              object.costTransferIn
+              Math.round(
+                (object.costBuyIn +
+                  object.costSellIn +
+                  object.costRefillIn +
+                  object.costTransferIn) *
+                  precisionCoeff
+              ) / precisionCoeff
 
             const costOwnInFlow =
-              object.costBuyIn + object.costSellIn + object.costTransferIn
+              Math.round(
+                (object.costBuyIn + object.costSellIn + object.costTransferIn) *
+                  precisionCoeff
+              ) / precisionCoeff
 
             const costOutFlow =
-              object.costBuyOut +
-              object.costSellOut +
-              object.costWriteOffOut +
-              object.costTransferOut
+              Math.round(
+                (object.costBuyOut +
+                  object.costSellOut +
+                  object.costWriteOffOut +
+                  object.costTransferOut) *
+                  precisionCoeff
+              ) / precisionCoeff
 
             const quantityInFlow =
-              object.quantityBuyIn +
-              object.quantitySellIn +
-              object.quantityRefillIn +
-              object.quantityTransferIn
+              Math.round(
+                (object.quantityBuyIn +
+                  object.quantitySellIn +
+                  object.quantityRefillIn +
+                  object.quantityTransferIn) *
+                  precisionCoeff
+              ) / precisionCoeff
 
             const quantityOwnInFlow =
-              object.quantityBuyIn +
-              object.quantitySellIn +
-              object.quantityTransferIn
+              Math.round(
+                (object.quantityBuyIn +
+                  object.quantitySellIn +
+                  object.quantityTransferIn) *
+                  precisionCoeff
+              ) / precisionCoeff
 
             const quantityOutFlow =
-              object.quantityBuyOut +
-              object.quantitySellOut +
-              object.quantityWriteOffOut +
-              object.quantityTransferOut
+              Math.round(
+                (object.quantityBuyOut +
+                  object.quantitySellOut +
+                  object.quantityWriteOffOut +
+                  object.quantityTransferOut) *
+                  precisionCoeff
+              ) / precisionCoeff
 
             //* расчет цены потоков
 
@@ -268,9 +291,9 @@ class Flow {
               Math.round(priceFlow * quantityFlow * 100) / 100 || 0
 
             // if (
-            //   new Hash(contractor).md5 === new Hash('BYBIT').md5 &&
-            //   new Hash(symbol).md5 === new Hash('MANA').md5 &&
-            //   new Hash(account).md5 === new Hash('IKENIBORN (SHORT-TERM)').md5
+            //   new Hash(contractor).md5 === new Hash('TREZOR').md5 &&
+            //   new Hash(symbol).md5 === new Hash('ETH').md5 &&
+            //   new Hash(account).md5 === new Hash('IKENIBORN (LONG-TERM)').md5
             // ) {
             //   console.log(account, contractor, symbol)
             //   console.log('costInFlow', costInFlow)
@@ -278,6 +301,7 @@ class Flow {
             //   console.log('costOutFlow', costOutFlow)
             //   console.log('quantityOutFlow', quantityOutFlow)
             //   console.log('priceFlowSum', priceFlowSum)
+            //   console.log('precisionCoeff', precisionCoeff)
             //   console.log('quantityFlow', quantityFlow)
             //   console.log('priceFlow', priceFlow)
             //   console.log('costFlow', costFlow)
