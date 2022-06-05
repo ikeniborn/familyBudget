@@ -660,6 +660,16 @@ class Registry {
     })
   }
 
+  insertDateSaved() {
+    this.workSheet.arrayOfObject.forEach((object) => {
+      this.workSheet.insertRange(
+        [[new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss'), void 0]],
+        object.rowNum,
+        this.workSheet.head.dateSaved.idx + 1
+      )
+    })
+  }
+
   validateTransactions() {
     try {
       const transactions = new Transactions()

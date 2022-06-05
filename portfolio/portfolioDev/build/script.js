@@ -2388,6 +2388,17 @@ class Transactions {
     });
     this.workSheet.truncateInsertRows(newArrayOfObject);
   }
+
+  updatePriceBTC() {
+    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
+      const newRegistryRowKey = new Hash(
+        rowObject.registryRowId + rowObject.sourceName
+      ).md5;
+      rowObject.registryRowKey = newRegistryRowKey;
+      return rowObject
+    });
+    this.workSheet.truncateInsertRows(newArrayOfObject);
+  }
 }
 
 class HistoricalPrice {
@@ -3884,6 +3895,16 @@ class Registry {
     });
   }
 
+  insertDateSaved() {
+    this.workSheet.arrayOfObject.forEach((object) => {
+      this.workSheet.insertRange(
+        [[new FormatDate().getFormatDate('YYYY-MM-dd HH:mm:ss'), void 0]],
+        object.rowNum,
+        this.workSheet.head.dateSaved.idx + 1
+      );
+    });
+  }
+
   validateTransactions() {
     try {
       const transactions = new Transactions();
@@ -4292,7 +4313,7 @@ class Flow {
               Math.round(object.quantityUnlock * precisionCoeff) /
               precisionCoeff;
             const price = symbols[symbolKey]?.price || 0;
-            const cost = Math.round(price * quantityFlow);
+            const cost = Math.round(price * quantityFlow * 100) / 100 || 0;
             const costLock = price * quantityLock;
             const costUnlock = price * quantityUnlock;
 
@@ -4308,8 +4329,7 @@ class Flow {
 
             const costOwnInFlow =
               Math.round(
-                (object.costBuyIn + object.costSellIn + object.costTransferIn) *
-                  precisionCoeff
+                (object.costBuyIn + object.costSellIn) * precisionCoeff
               ) / precisionCoeff;
 
             const costOutFlow =
@@ -4332,10 +4352,7 @@ class Flow {
 
             const quantityOwnInFlow =
               Math.round(
-                (object.quantityBuyIn +
-                  object.quantitySellIn +
-                  object.quantityTransferIn) *
-                  precisionCoeff
+                (object.quantityBuyIn + object.quantitySellIn) * precisionCoeff
               ) / precisionCoeff;
 
             const quantityOutFlow =
@@ -4356,7 +4373,8 @@ class Flow {
               priceInFlow * quantityInFlow + priceOutFlow * quantityOutFlow;
             const quantityFlowSum = quantityInFlow + quantityOutFlow;
             const priceFlow = priceFlowSum / quantityFlowSum || 0;
-            const costFlow = Math.round(priceFlow * quantityFlow) || 0;
+            const costFlow =
+              Math.round(priceFlow * quantityFlow * 100) / 100 || 0;
 
             // if (
             //   new Hash(contractor).md5 === new Hash('TREZOR').md5 &&
@@ -4468,6 +4486,7 @@ class Flow {
           symbolQuantityFlow[rowFlow.mainAccount][
             rowFlow.symbol
           ].quantityFlow += rowFlow.quantityFlow;
+
           symbolQuantityFlow[rowFlow.mainAccount][rowFlow.symbol].costFlow +=
             rowFlow.costFlow;
           return symbolQuantityFlow
@@ -4480,8 +4499,9 @@ class Flow {
         if (
           symbolsQuantityFlow[rowFlow.mainAccount][rowFlow.symbol]
             .quantityFlow === 0 ||
-          symbolsQuantityFlow[rowFlow.mainAccount][rowFlow.symbol].costFlow ===
-            0
+          Math.round(
+            symbolsQuantityFlow[rowFlow.mainAccount][rowFlow.symbol].costFlow
+          ) === 0
         ) {
           rowFlow.isSell = true;
         }
@@ -4686,7 +4706,6 @@ function updateOnEdit(editRange) {
           }).then((registry) => {
             registry.updateTransactions(true);
           });
-          // new Registry(workSheet).updateTransactions(true)
         }
         resolve(workSheet);
       }

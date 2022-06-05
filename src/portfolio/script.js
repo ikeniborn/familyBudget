@@ -172,7 +172,6 @@ function updateOnEdit(editRange) {
           }).then((registry) => {
             registry.updateTransactions(true)
           })
-          // new Registry(workSheet).updateTransactions(true)
         }
         resolve(workSheet)
       }

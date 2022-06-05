@@ -198,6 +198,17 @@ class Transactions {
     })
     this.workSheet.truncateInsertRows(newArrayOfObject)
   }
+
+  updatePriceBTC() {
+    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
+      const newRegistryRowKey = new Hash(
+        rowObject.registryRowId + rowObject.sourceName
+      ).md5
+      rowObject.registryRowKey = newRegistryRowKey
+      return rowObject
+    })
+    this.workSheet.truncateInsertRows(newArrayOfObject)
+  }
 }
 
 class HistoricalPrice {

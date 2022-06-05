@@ -223,7 +223,7 @@ class Flow {
               Math.round(object.quantityUnlock * precisionCoeff) /
               precisionCoeff
             const price = symbols[symbolKey]?.price || 0
-            const cost = Math.round(price * quantityFlow)
+            const cost = Math.round(price * quantityFlow * 100) / 100 || 0
             const costLock = price * quantityLock
             const costUnlock = price * quantityUnlock
 
@@ -239,8 +239,7 @@ class Flow {
 
             const costOwnInFlow =
               Math.round(
-                (object.costBuyIn + object.costSellIn + object.costTransferIn) *
-                  precisionCoeff
+                (object.costBuyIn + object.costSellIn) * precisionCoeff
               ) / precisionCoeff
 
             const costOutFlow =
@@ -263,10 +262,7 @@ class Flow {
 
             const quantityOwnInFlow =
               Math.round(
-                (object.quantityBuyIn +
-                  object.quantitySellIn +
-                  object.quantityTransferIn) *
-                  precisionCoeff
+                (object.quantityBuyIn + object.quantitySellIn) * precisionCoeff
               ) / precisionCoeff
 
             const quantityOutFlow =
@@ -287,7 +283,8 @@ class Flow {
               priceInFlow * quantityInFlow + priceOutFlow * quantityOutFlow
             const quantityFlowSum = quantityInFlow + quantityOutFlow
             const priceFlow = priceFlowSum / quantityFlowSum || 0
-            const costFlow = Math.round(priceFlow * quantityFlow) || 0
+            const costFlow =
+              Math.round(priceFlow * quantityFlow * 100) / 100 || 0
 
             // if (
             //   new Hash(contractor).md5 === new Hash('TREZOR').md5 &&
@@ -412,8 +409,9 @@ class Flow {
         if (
           symbolsQuantityFlow[rowFlow.mainAccount][rowFlow.symbol]
             .quantityFlow === 0 ||
-          symbolsQuantityFlow[rowFlow.mainAccount][rowFlow.symbol].costFlow ===
-            0
+          Math.round(
+            symbolsQuantityFlow[rowFlow.mainAccount][rowFlow.symbol].costFlow
+          ) === 0
         ) {
           rowFlow.isSell = true
         }
