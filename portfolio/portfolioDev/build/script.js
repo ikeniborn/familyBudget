@@ -3104,24 +3104,26 @@ class Symbols {
 
               if (price > 0 && price <= 1) {
                 coinPriceGroup = 'Price 0-1';
-              } else if (price > 1 && price <= 3) {
-                coinPriceGroup = 'Price 1-3';
-              } else if (price > 3 && price <= 5) {
-                coinPriceGroup = 'Price 3-5';
-              } else if (price > 5 && price <= 7) {
-                coinPriceGroup = 'Price 5-7';
-              } else if (price > 7 && price <= 10) {
-                coinPriceGroup = 'Price 7-10';
-              } else if (price > 10 && price <= 20) {
-                coinPriceGroup = 'Price 10-20';
-              } else if (price > 20 && price <= 40) {
-                coinPriceGroup = 'Price 20-40';
-              } else if (price > 40 && price <= 80) {
-                coinPriceGroup = 'Price 40-80';
-              } else if (price > 80 && price <= 160) {
-                coinPriceGroup = 'Price 80-160';
-              } else if (price > 160) {
-                coinPriceGroup = 'Over 160';
+              } else if (price > 1 && price <= 2) {
+                coinPriceGroup = 'Price 1-2';
+              } else if (price > 2 && price <= 4) {
+                coinPriceGroup = 'Price 2-4';
+              } else if (price > 4 && price <= 8) {
+                coinPriceGroup = 'Price 4-8';
+              } else if (price > 8 && price <= 16) {
+                coinPriceGroup = 'Price 8-16';
+              } else if (price > 16 && price <= 32) {
+                coinPriceGroup = 'Price 16-32';
+              } else if (price > 32 && price <= 64) {
+                coinPriceGroup = 'Price 32-64';
+              } else if (price > 64 && price <= 128) {
+                coinPriceGroup = 'Price 64-128';
+              } else if (price > 128 && price <= 256) {
+                coinPriceGroup = 'Price 128-256';
+              } else if (price > 256 && price <= 512) {
+                coinPriceGroup = 'Price 256-512';
+              } else if (price > 512) {
+                coinPriceGroup = 'Over 512';
               }
               symbolObject.priceGroup = coinPriceGroup;
               symbolObject.marketCapGroup = coinMarketCapRankGroup;
