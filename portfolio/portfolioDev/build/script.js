@@ -1590,13 +1590,20 @@ class Portfolio {
           },
           isSell: { alias: 'Is sell', idx: 33, default: false },
           useInReport: { alias: 'Use in report', idx: 34 },
-          update: {
+          updateDataMart: {
             alias: 'Update data mart',
             idx: 35,
             type: 'date',
-            default: new Date(),
           },
-          rowId: { alias: 'Row ID', idx: 36, default: 0 },
+          updateDataMartKey: {
+            alias: 'Update data mart key',
+            idx: 36,
+          },
+          actualDataMart: {
+            alias: 'Actual data mart',
+            idx: 37,
+          },
+          rowId: { alias: 'Row ID', idx: 38, default: 0 },
         },
       },
       coins: {
@@ -4113,6 +4120,8 @@ class Flow {
       const accounts = new Portfolio().getWorkSheet('Accounts').object;
       const inKey = new Hash('in').md5;
       const outKey = new Hash('out').md5;
+      const actualDate = new FormatDate();
+      const updateDataMart = new FormatDate();
 
       const aggFlow = new Transactions().workSheet.arrayOfObject
         .filter((row) => row.isDelete === false)
@@ -4466,6 +4475,12 @@ class Flow {
               dayInPortfolioAvg,
               isSell: false,
               useInReport: useInReport,
+              updateDataMart: updateDataMart.getFormatDate(
+                'yyyy-MM-dd hh:mm:ss'
+              ),
+              actualDataMart:
+                actualDate.yyyymmdd === updateDataMart.yyyymmdd ? true : false,
+              updateDataMartKey: new Hash(updateDataMart.yyyymmdd).md5,
             });
           });
         });
@@ -4749,13 +4764,28 @@ function updateOnEdit(editRange) {
 
 function sortRegistry() {
   const activeSheet = SpreadsheetApp.getActiveSheet();
-  const customFilter = activeSheet.getFilter();
-  if (customFilter) {
-    customFilter.remove();
+  //* обработка фильтрации
+  const filter = {};
+  filter.customFilter = activeSheet.getFilter();
+  if (filter.customFilter) {
+    filter.isExist = true;
+    for (let i = 1; i <= this.maxColumn; i++) {
+      const criteria = filter.customFilter.getColumnFilterCriteria(i);
+      if (criteria !== null) {
+        filter.columnPosition = i;
+        filter.filterCriteria = criteria.copy();
+        break
+      }
+    }
+    if (filter.columnPosition) {
+      filter.customFilter.remove();
+    }
   }
+  //* сортировка регистра
   const activeWorkSheet = new Portfolio().getWorkSheet(activeSheet.getName());
   if (activeWorkSheet.isRegistry) {
     const registry = new Registry(activeWorkSheet);
+    registry.filter = filter;
     const newArrayOfObject = registry.workSheet.arrayOfObject
       .filter((row) => {
         return row.rowKey
@@ -4774,7 +4804,6 @@ function sortRegistry() {
       .sort((a, b) => {
         return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
       });
-
     registry.workSheet.truncateInsertRows(newArrayOfObject);
   }
 }

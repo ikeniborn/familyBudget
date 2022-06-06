@@ -215,13 +215,28 @@ function updateOnEdit(editRange) {
 
 function sortRegistry() {
   const activeSheet = SpreadsheetApp.getActiveSheet()
-  const customFilter = activeSheet.getFilter()
-  if (customFilter) {
-    customFilter.remove()
+  //* обработка фильтрации
+  const filter = {}
+  filter.customFilter = activeSheet.getFilter()
+  if (filter.customFilter) {
+    filter.isExist = true
+    for (let i = 1; i <= this.maxColumn; i++) {
+      const criteria = filter.customFilter.getColumnFilterCriteria(i)
+      if (criteria !== null) {
+        filter.columnPosition = i
+        filter.filterCriteria = criteria.copy()
+        break
+      }
+    }
+    if (filter.columnPosition) {
+      filter.customFilter.remove()
+    }
   }
+  //* сортировка регистра
   const activeWorkSheet = new Portfolio().getWorkSheet(activeSheet.getName())
   if (activeWorkSheet.isRegistry) {
     const registry = new Registry(activeWorkSheet)
+    registry.filter = filter
     const newArrayOfObject = registry.workSheet.arrayOfObject
       .filter((row) => {
         return row.rowKey
@@ -240,7 +255,6 @@ function sortRegistry() {
       .sort((a, b) => {
         return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
       })
-
     registry.workSheet.truncateInsertRows(newArrayOfObject)
   }
 }

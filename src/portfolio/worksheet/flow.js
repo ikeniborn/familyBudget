@@ -23,6 +23,8 @@ class Flow {
       const accounts = new Portfolio().getWorkSheet('Accounts').object
       const inKey = new Hash('in').md5
       const outKey = new Hash('out').md5
+      const actualDate = new FormatDate()
+      const updateDataMart = new FormatDate()
 
       const aggFlow = new Transactions().workSheet.arrayOfObject
         .filter((row) => row.isDelete === false)
@@ -376,6 +378,12 @@ class Flow {
               dayInPortfolioAvg,
               isSell: false,
               useInReport: useInReport,
+              updateDataMart: updateDataMart.getFormatDate(
+                'yyyy-MM-dd hh:mm:ss'
+              ),
+              actualDataMart:
+                actualDate.yyyymmdd === updateDataMart.yyyymmdd ? true : false,
+              updateDataMartKey: new Hash(updateDataMart.yyyymmdd).md5,
             })
           })
         })

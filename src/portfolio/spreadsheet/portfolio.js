@@ -1,6 +1,6 @@
 import { Environment } from '../../gas'
 import { Header } from '../../header'
-// import { FormatDate } from '../../utils'
+import { FormatDate } from '../../utils'
 import { WorkSheet, WorkSheetRange } from '../../gas'
 import { Log } from '../../log'
 export { Portfolio }
@@ -251,13 +251,20 @@ class Portfolio {
           },
           isSell: { alias: 'Is sell', idx: 33, default: false },
           useInReport: { alias: 'Use in report', idx: 34 },
-          update: {
+          updateDataMart: {
             alias: 'Update data mart',
             idx: 35,
             type: 'date',
-            default: new Date(),
           },
-          rowId: { alias: 'Row ID', idx: 36, default: 0 },
+          updateDataMartKey: {
+            alias: 'Update data mart key',
+            idx: 36,
+          },
+          actualDataMart: {
+            alias: 'Actual data mart',
+            idx: 37,
+          },
+          rowId: { alias: 'Row ID', idx: 38, default: 0 },
         },
       },
       coins: {
