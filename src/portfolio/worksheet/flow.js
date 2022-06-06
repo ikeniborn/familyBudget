@@ -201,6 +201,7 @@ class Flow {
             const symbolEcosystem = symbols[symbolKey]?.ecosystem || ''
             const symbolMarketCapGroup =
               symbols[symbolKey]?.marketCapGroup || ''
+            const symbolPriceGroup = symbols[symbolKey]?.priceGroup || ''
             const useInReport = symbols[symbolKey]?.useInReport
             const mainAccount = accounts[new Hash(account).md5].mainAccount
             //* атрибуты контрагента
@@ -353,6 +354,7 @@ class Flow {
               symbolCategory: symbolCategory.toUpperCase(),
               symbolEcosystem: symbolEcosystem.toUpperCase(),
               symbolMarketCapGroup: symbolMarketCapGroup.toUpperCase(),
+              symbolPriceGroup: symbolPriceGroup.toUpperCase(),
               quantityOwnInFlow: quantityOwnInFlow || 0,
               quantityInFlow: quantityInFlow || 0,
               quantityOutFlow: quantityOutFlow || 0,

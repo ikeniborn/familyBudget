@@ -55,22 +55,52 @@ class Symbols {
         ) => {
           new Promise((resolve) => {
             const process = () => {
-              let coinMarketCapRankGroup = void 0
+              let coinMarketCapRankGroup = 'Not rank group'
+              let coinPriceGroup = 'Not price group'
               let rankNumber
+              //* определение группы по капитализации
               rank ? (rankNumber = rank * 1) : (rankNumber = 100000)
               if (rankNumber <= 50) {
                 coinMarketCapRankGroup = 'Top 50'
               } else if (rankNumber > 50 && rankNumber <= 100) {
                 coinMarketCapRankGroup = 'Top 100'
-              } else if (rankNumber > 100 && rankNumber <= 500) {
+              } else if (rankNumber > 100 && rankNumber <= 200) {
+                coinMarketCapRankGroup = 'Top 200'
+              } else if (rankNumber > 200 && rankNumber <= 300) {
+                coinMarketCapRankGroup = 'Top 300'
+              } else if (rankNumber > 300 && rankNumber <= 400) {
+                coinMarketCapRankGroup = 'Top 400'
+              } else if (rankNumber > 400 && rankNumber <= 500) {
                 coinMarketCapRankGroup = 'Top 500'
               } else if (rankNumber > 500 && rankNumber <= 1000) {
                 coinMarketCapRankGroup = 'Top 1000'
               } else if (rankNumber > 1000 && rankNumber < 100000) {
                 coinMarketCapRankGroup = 'Over 1000'
-              } else {
-                coinMarketCapRankGroup = 'Not rank group'
               }
+              //* определение группы по цене
+
+              if (price > 0 && price <= 1) {
+                coinPriceGroup = 'Price 0-1'
+              } else if (price > 1 && price <= 3) {
+                coinPriceGroup = 'Price 1-3'
+              } else if (price > 3 && price <= 5) {
+                coinPriceGroup = 'Price 3-5'
+              } else if (price > 5 && price <= 7) {
+                coinPriceGroup = 'Price 5-7'
+              } else if (price > 7 && price <= 10) {
+                coinPriceGroup = 'Price 7-10'
+              } else if (price > 10 && price <= 20) {
+                coinPriceGroup = 'Price 10-20'
+              } else if (price > 20 && price <= 40) {
+                coinPriceGroup = 'Price 20-40'
+              } else if (price > 40 && price <= 80) {
+                coinPriceGroup = 'Price 40-80'
+              } else if (price > 80 && price <= 160) {
+                coinPriceGroup = 'Price 80-160'
+              } else if (price > 160) {
+                coinPriceGroup = 'Over 160'
+              }
+              symbolObject.priceGroup = coinPriceGroup
               symbolObject.marketCapGroup = coinMarketCapRankGroup
               symbolObject.price = price
               symbolObject.update = new Date()
@@ -146,7 +176,6 @@ class Symbols {
           )
           if (priceArray.length) {
             const marketCapRank = new cryptoCompare.TopList().topMarketCap(1000)
-
             priceArray.forEach((coin) => {
               const symbolKey = new Hash(coin.symbol).md5
               updatePricesRow(

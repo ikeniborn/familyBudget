@@ -106,12 +106,16 @@ class Portfolio {
             alias: 'MarketCap group',
             idx: 6,
           },
-          sourceId: { alias: 'Source id', idx: 7 },
-          price: { alias: 'Price', idx: 8 },
-          useInReport: { alias: 'Use in report', idx: 9 },
+          priceGroup: {
+            alias: 'Price group',
+            idx: 7,
+          },
+          sourceId: { alias: 'Source id', idx: 8 },
+          price: { alias: 'Price', idx: 9 },
+          useInReport: { alias: 'Use in report', idx: 10 },
           update: {
             alias: 'Update',
-            idx: 10,
+            idx: 11,
             type: 'date',
             default: new Date(),
           },
@@ -265,6 +269,7 @@ class Portfolio {
             idx: 37,
           },
           rowId: { alias: 'Row ID', idx: 38, default: 0 },
+          symbolPriceGroup: { alias: 'Symbol price group', idx: 39 },
         },
       },
       coins: {
