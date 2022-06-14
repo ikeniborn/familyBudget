@@ -123,7 +123,7 @@ class Transactions {
   updateRegistryRowKey() {
     const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
       const newRegistryRowKey = new Hash(
-        rowObject.registryRowId + rowObject.sourceName
+        rowObject.registryRowId + rowObject.account
       ).md5
       rowObject.registryRowKey = newRegistryRowKey
       return rowObject
@@ -132,11 +132,12 @@ class Transactions {
   }
 
   updateHistoricalAveragePriceKey() {
-    const accounts = new Portfolio().getWorkSheet('Accounts').object
     const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
-      const mainAccount = accounts[new Hash(rowObject.account).md5].mainAccount
       const newHistoricalAveragePriceKey = new Hash(
-        rowObject.account + rowObject.contractor + rowObject.symbol
+        rowObject.account +
+          rowObject.portfolio +
+          rowObject.contractor +
+          rowObject.symbol
       ).md5
       rowObject.historicalAveragePriceKey = newHistoricalAveragePriceKey
       return rowObject
@@ -144,38 +145,38 @@ class Transactions {
     this.workSheet.truncateInsertRows(newArrayOfObject)
   }
 
-  recalculateTransactions(startRow, endRow) {
-    const symbols = new Portfolio().getWorkSheet('Symbols').object
-    const accounts = new Portfolio().getWorkSheet('Accounts').object
-    const newArrayOfObject = this.workSheet.arrayOfObject.map(
-      (rowObject, indexRow) => {
-        if (indexRow > startRow && indexRow <= endRow) {
-          if (
-            [
-              '84a0f3455dcca894ace136be62efa292',
-              '7b33b9f52598cd60f7aa6ca0082515c4',
-              'b4479040173a9f41eeb4e98339f2a21d' /*transfer,write-off, refill*/,
-            ].indexOf(new Hash(rowObject.operation).md5) !== -1
-          ) {
-            const price = this.getHistoricalPriceBuy(
-              rowObject.dateTime,
-              accounts[new Hash(rowObject.account).md5]?.mainAccount,
-              rowObject.symbol,
-              new Hash(symbols[new Hash(rowObject.symbol).md5]?.symbolCategory)
-                .md5,
-              symbols,
-              true
-            ).historicalPrice
-            rowObject.price = price
-            rowObject.cost = rowObject.quantity * price
-            rowObject.updateDate = new Date()
-          }
-        }
-        return rowObject
-      }
-    )
-    this.workSheet.truncateInsertRows(newArrayOfObject)
-  }
+  // recalculateTransactions(startRow, endRow) {
+  //   const symbols = new Portfolio().getWorkSheet('Symbols').object
+  //   const accounts = new Portfolio().getWorkSheet('Accounts').object
+  //   const newArrayOfObject = this.workSheet.arrayOfObject.map(
+  //     (rowObject, indexRow) => {
+  //       if (indexRow > startRow && indexRow <= endRow) {
+  //         if (
+  //           [
+  //             '84a0f3455dcca894ace136be62efa292',
+  //             '7b33b9f52598cd60f7aa6ca0082515c4',
+  //             'b4479040173a9f41eeb4e98339f2a21d' /*transfer,write-off, refill*/,
+  //           ].indexOf(new Hash(rowObject.operation).md5) !== -1
+  //         ) {
+  //           const price = this.getHistoricalPriceBuy(
+  //             rowObject.dateTime,
+  //             accounts[new Hash(rowObject.account).md5]?.mainAccount,
+  //             rowObject.symbol,
+  //             new Hash(symbols[new Hash(rowObject.symbol).md5]?.symbolCategory)
+  //               .md5,
+  //             symbols,
+  //             true
+  //           ).historicalPrice
+  //           rowObject.price = price
+  //           rowObject.cost = rowObject.quantity * price
+  //           rowObject.updateDate = new Date()
+  //         }
+  //       }
+  //       return rowObject
+  //     }
+  //   )
+  //   this.workSheet.truncateInsertRows(newArrayOfObject)
+  // }
 
   updateAccount() {
     const accounts = new Portfolio().getWorkSheet('Accounts').object
@@ -216,6 +217,7 @@ class HistoricalPrice {
    * Получение средневзвешенной цены покупки токена
    * @param {*} dateTime дата и время
    * @param {*} account счет
+   * @param {*} portfolio портфолио
    * @param {*} contractor контрагент
    * @param {*} currencySymbol символ
    * @param {*} currencySymbolCategoryKey ключ категории токена
@@ -228,6 +230,7 @@ class HistoricalPrice {
   getHistoricalPrice(
     dateTime,
     account,
+    portfolio,
     contractor,
     currencySymbol,
     currencySymbolCategoryKey,
@@ -269,9 +272,8 @@ class HistoricalPrice {
       } else {
         //* Расчет средневзвешенной стоимости покупки токена на основании истории покупок для диапазона данных
         if (isRange) {
-          // console.log(account, contractor, currencySymbol)
           const historicalAveragePriceKey = new Hash(
-            account + contractor + currencySymbol
+            account + portfolio + contractor + currencySymbol
           ).md5
           const inKey = new Hash('in').md5
           const outKey = new Hash('out').md5

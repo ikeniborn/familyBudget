@@ -25,14 +25,14 @@ class LPToken {
     // console.log('transactionsLpToken', transactionsLpToken)
     const aggBalance = transactionsLpToken.reduce((object, tx) => {
       const positiveQuantity = tx.quantity < 0 ? tx.quantity * -1 : tx.quantity
-      if (!object[tx.account]) {
-        object[tx.account] = {}
+      if (!object[tx.portfolio]) {
+        object[tx.portfolio] = {}
       }
-      if (!object[tx.account]) {
-        object[tx.account] = {}
+      if (!object[tx.portfolio]) {
+        object[tx.portfolio] = {}
       }
-      if (!object[tx.account][tx.mainSymbol]) {
-        object[tx.account][tx.mainSymbol] = []
+      if (!object[tx.portfolio][tx.mainSymbol]) {
+        object[tx.portfolio][tx.mainSymbol] = []
       }
       let part
       if (new Hash(tx.mainSymbol).md5 === new Hash(tx.symbol).md5) {
@@ -55,7 +55,7 @@ class LPToken {
           part = 'three'
         }
       }
-      object[tx.account][tx.mainSymbol].push({
+      object[tx.portfolio][tx.mainSymbol].push({
         quantity: positiveQuantity,
         cost:
           new Hash(tx.mainSymbol).md5 === new Hash(tx.symbol).md5
@@ -69,7 +69,7 @@ class LPToken {
     }, {})
     // console.log('aggBalance', aggBalance)
     const newArrayOfObject = []
-    Object.entries(aggBalance).forEach(([account, level0]) => {
+    Object.entries(aggBalance).forEach(([portfolio, level0]) => {
       Object.entries(level0).forEach(([mainCoin, level1]) => {
         const aggMainCoin = level1.reduce((object, tx) => {
           if (!object[tx.part]) {
@@ -91,8 +91,8 @@ class LPToken {
           coeff = 3
         }
         newArrayOfObject.push({
-          rowKey: new Hash(account + mainCoin).md5,
-          account: account.toUpperCase(),
+          rowKey: new Hash(portfolio + mainCoin).md5,
+          portfolio: portfolio.toUpperCase(),
           mainSymbol: mainCoin.toUpperCase(),
           mainSymbolQty: aggMainCoin?.main?.quantity,
           mainSymbolHistoricalCost: aggMainCoin?.main?.cost,

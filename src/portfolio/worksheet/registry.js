@@ -2,6 +2,7 @@ import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash, FormatDate, FormatNumber, FormatObject } from '../../utils'
 import { Transactions, HistoricalPrice } from './transactions'
 import { Symbols } from './symbols'
+import * as cryptoCompare from '../../restApi/cryptoCompare'
 export { Registry }
 
 class Registry {
@@ -12,39 +13,42 @@ class Registry {
   }
 
   /**
-   * Получение счета
-   * @param {string} account счет отправителя
-   * @param {object} accounts справочник счетов
+   * Получение портфолио
+   * @param {string} portfolio портфолио отправителя
    * @param {string} symbolCategoryKey ключ категории символа
    * @returns счет
    */
-  getAccount(account, accounts, symbolCategoryKey) {
+  getPortfolio(portfolio, symbolCategoryKey) {
     try {
       if (
-        [
-          'e5e3fd01394b9a81296b75d5a7f4c1a2',
-          '7d5f30a0d1641c0b6980aaf2556b32ce' /*stablecoin, fiat */,
-        ].indexOf(symbolCategoryKey) !== -1
+        /*stablecoin*/ 'e5e3fd01394b9a81296b75d5a7f4c1a2' === symbolCategoryKey
       ) {
-        return accounts[new Hash(account).md5]?.mainAccount
+        return 'Stablecoin'
+      } else if (
+        /* fiat */ '7d5f30a0d1641c0b6980aaf2556b32ce' === symbolCategoryKey
+      ) {
+        return 'Fiat'
       }
-      return account
+      return portfolio
     } catch (error) {
-      console.error('Registry.getAccount', error.stack)
+      console.error('Registry.getPortfolio', error.stack)
     }
   }
 
   /**
-   * Получаение основного счета
-   * @param {string} account счет
-   * @param {object} accounts справочник счетов
-   * @returns основной счет
+   * Определение счета
+   * @param {*} accountSender счет отправитель
+   * @param {*} accountRecipient счет получатель
+   * @returns
    */
-  getMainAccount(account, accounts) {
+  getAccount(accountSender, accountRecipient) {
     try {
-      return accounts[new Hash(account).md5]?.mainAccount
+      if (accountRecipient) {
+        return new Hash(accountRecipient)
+      }
+      return new Hash(accountSender)
     } catch (error) {
-      console.error('Registry.getMainAccount', error.stack)
+      console.error('Registry.getAccount', error.stack)
     }
   }
 
@@ -102,11 +106,13 @@ class Registry {
     const startProcess = new FormatDate()
     try {
       const symbols = new Symbols().workSheet.object
-      const accounts = new Portfolio().getWorkSheet('Accounts').object
       const transactions = new Transactions()
       const historicalPrice = new HistoricalPrice()
       const transactionsArrayOfObject = []
       const updateDate = new Date()
+      const account = this.workSheet.sheetName
+      const directionOut = new Hash('out')
+      const directionIn = new Hash('in')
       this.workSheet.arrayOfObject.forEach((rowValues) => {
         let coinQty,
           currencyQty,
@@ -117,16 +123,17 @@ class Registry {
           currencySymbol,
           currencySymbolCategoryKey,
           currencyPrice,
+          portfolioSender,
           accountSender,
+          accountSenderKey,
           accountRecipient,
-          mainAccountSender,
-          mainAccountRecipient,
+          accountRecipientKey,
+          portfolioRecipient,
           sender,
           recipient,
           feeSender,
           feePrice,
-          feeAccount,
-          feeMainAccount,
+          feePortfolio,
           mainSymbol,
           feeCurrency,
           feeCurrencySymbolCategoryKey,
@@ -153,8 +160,9 @@ class Registry {
           registryRowKey,
           registryRowKeyTimestamp,
           registryTimestamp,
-          directionOut,
-          directionIn
+          symbolPriceCoef,
+          currencyPriceCoef,
+          priceUSDBTC
 
         const transactionRow = []
         const hhmm = new FormatNumber(
@@ -163,13 +171,21 @@ class Registry {
         const dateTime = new FormatDate(rowValues.date).addTime(hhmm.h, hhmm.m)
           .date
         registryRowKey = rowValues.rowKey
+        const accountSenderTemp = this.getAccount(account, void 0)
+        accountSender = accountSenderTemp.stringLowerCase
+        accountSenderKey = accountSenderTemp.md5
+        const accountRecipientTemp = this.getAccount(
+          account,
+          rowValues.accountRecipient
+        )
+        accountRecipient = accountRecipientTemp.stringLowerCase
+        accountRecipientKey = accountRecipientTemp.md5
         registryRowKeyTimestamp = rowValues.rowKeyTimestamp
         registryTimestamp = rowValues.timestamp
         operationKey = new Hash(rowValues.operation).md5
         lockStatusKey = new Hash(rowValues.lockStatus).md5
         coinQty =
           typeof rowValues.coinQty === 'number' ? rowValues.coinQty : void 0
-
         currencyQty =
           typeof rowValues.currencyQty === 'number'
             ? rowValues.currencyQty
@@ -203,8 +219,6 @@ class Registry {
         isHistoricalAveragePriceSymbol = false
         isHistoricalAveragePriceFeeCurrency = false
         isHistoricalAveragePriceCurrency = false
-        directionOut = new Hash('out')
-        directionIn = new Hash('in')
 
         //* Расчет пустых значений транзакции количества валюты за один токен, количество токена, количество валюты
         if (!currencyPerCoin && currencyQty) {
@@ -262,22 +276,22 @@ class Registry {
               '7b33b9f52598cd60f7aa6ca0082515c4',
             ].indexOf(operationKey) !== -1
           ) {
-            accountSender = this.getAccount(
-              rowValues.accountSender,
-              accounts,
+            portfolioSender = this.getPortfolio(
+              rowValues.portfolioSender,
               coinSymbolCategoryKey
             )
-            mainAccountSender = this.getMainAccount(accountSender, accounts)
             rowKey1 = new Hash(rowValues.rowKey + '#1').md5
 
             transactionRow.push({
               rowKey: rowKey1,
-              direction: directionOut.stringLowerCase,
               account: accountSender,
-              mainAccount: mainAccountSender,
+              accountKey: accountSenderKey,
+              direction: directionOut.stringLowerCase,
+              portfolio: portfolioSender,
               contractor: sender,
               mainSymbol: void 0,
               symbol: coinSymbol,
+              pair: coinSymbol + '/' + currencySymbol,
               quantity: coinQty * -1,
               isFee,
               isLock: isSenderLock,
@@ -299,30 +313,25 @@ class Registry {
               'b4479040173a9f41eeb4e98339f2a21d',
             ].indexOf(operationKey) !== -1
           ) {
-            accountRecipient = this.getAccount(
-              rowValues.accountRecipient || rowValues.accountSender,
-              accounts,
+            portfolioRecipient = this.getPortfolio(
+              rowValues.portfolioRecipient || rowValues.portfolioSender,
               coinSymbolCategoryKey
             )
-            accountSender = this.getAccount(
-              rowValues.accountSender,
-              accounts,
+            portfolioSender = this.getPortfolio(
+              rowValues.portfolioSender,
               coinSymbolCategoryKey
-            )
-
-            mainAccountRecipient = this.getMainAccount(
-              accountRecipient,
-              accounts
             )
             rowKey2 = new Hash(rowValues.rowKey + '#2').md5
             transactionRow.push({
               rowKey: rowKey2,
               direction: 'in',
               account: accountRecipient,
-              mainAccount: mainAccountRecipient,
+              accountKey: accountRecipientKey,
+              portfolio: portfolioRecipient,
               contractor: recipient,
               mainSymbol: void 0,
               symbol: coinSymbol,
+              pair: coinSymbol + '/' + currencySymbol,
               quantity: coinQty,
               isFee,
               isLock: isRecipientLock,
@@ -341,27 +350,25 @@ class Registry {
           [/*buy*/ '0461ebd2b773878eac9f78a891912d65'].indexOf(operationKey) !==
           -1
         ) {
-          accountSender = this.getAccount(
-            rowValues.accountSender,
-            accounts,
+          portfolioSender = this.getPortfolio(
+            rowValues.portfolioSender,
             currencySymbolCategoryKey
           )
-          accountRecipient = this.getAccount(
-            rowValues.accountRecipient || rowValues.accountSender,
-            accounts,
+          portfolioRecipient = this.getPortfolio(
+            rowValues.portfolioRecipient || rowValues.portfolioSender,
             coinSymbolCategoryKey
           )
-          mainAccountSender = this.getMainAccount(accountSender, accounts)
-          mainAccountRecipient = this.getMainAccount(accountRecipient, accounts)
           rowKey1 = new Hash(rowValues.rowKey + '#1').md5
           transactionRow.push({
             rowKey: rowKey1,
             direction: directionOut.stringLowerCase,
             account: accountSender,
-            mainAccount: mainAccountSender,
+            accountKey: accountSenderKey,
+            portfolio: portfolioSender,
             contractor: sender,
             mainSymbol: mainSymbol,
             symbol: currencySymbol,
+            pair: currencySymbol + '/' + coinSymbol,
             quantity: currencyQty * -1,
             isFee,
             isLock: isSenderLock,
@@ -381,10 +388,12 @@ class Registry {
             direction: directionIn.stringLowerCase,
             isLock: rowValues.isLock,
             account: accountRecipient,
-            mainAccount: mainAccountRecipient,
+            accountKey: accountRecipientKey,
+            portfolio: portfolioRecipient,
             contractor: recipient,
             mainSymbol: mainSymbol,
             symbol: coinSymbol,
+            pair: coinSymbol + '/' + currencySymbol,
             quantity: coinQty,
             isFee,
             isLock: isRecipientLock,
@@ -403,28 +412,25 @@ class Registry {
             operationKey
           ) !== -1
         ) {
-          accountSender = this.getAccount(
-            rowValues.accountSender,
-            accounts,
+          portfolioSender = this.getPortfolio(
+            rowValues.portfolioSender,
             coinSymbolCategoryKey
           )
-          accountRecipient = this.getAccount(
-            rowValues.accountRecipient || rowValues.accountSender,
-            accounts,
+          portfolioRecipient = this.getPortfolio(
+            rowValues.portfolioRecipient || rowValues.portfolioSender,
             currencySymbolCategoryKey
           )
-
-          mainAccountSender = this.getMainAccount(accountSender, accounts)
-          mainAccountRecipient = this.getMainAccount(accountRecipient, accounts)
           rowKey1 = new Hash(rowValues.rowKey + '#1').md5
           transactionRow.push({
             rowKey: rowKey1,
             direction: directionOut.stringLowerCase,
             account: accountSender,
-            mainAccount: mainAccountSender,
+            accountKey: accountSenderKey,
+            portfolio: portfolioSender,
             contractor: sender,
             mainSymbol: mainSymbol,
             symbol: coinSymbol,
+            pair: coinSymbol + '/' + currencySymbol,
             quantity: coinQty * -1,
             isFee,
             isLock: isSenderLock,
@@ -444,10 +450,12 @@ class Registry {
             direction: directionIn.stringLowerCase,
             isLock: rowValues.isLock,
             account: accountRecipient,
-            mainAccount: mainAccountRecipient,
+            accountKey: accountRecipientKey,
+            portfolio: portfolioRecipient,
             contractor: recipient,
             mainSymbol: mainSymbol,
             symbol: currencySymbol,
+            pair: currencySymbol + '/' + coinSymbol,
             quantity: currencyQty,
             isFee,
             isLock: isRecipientLock,
@@ -468,6 +476,7 @@ class Registry {
         const historicalPriceBuyCoin = historicalPrice.getHistoricalPrice(
           dateTime,
           accountSender,
+          portfolioSender,
           sender,
           currencySymbol,
           currencySymbolCategoryKey,
@@ -482,6 +491,13 @@ class Registry {
           historicalPriceBuyCoin?.isHistoricalAveragePrice || false
         currencyPrice = historicalPriceBuyCoin?.historicalPrice
         symbolPrice = historicalPriceBuyCoin?.historicalPrice * currencyPerCoin
+        symbolPriceCoef = symbolPrice / currencyPrice
+        currencyPriceCoef = currencyPrice / symbolPrice
+        priceUSDBTC = new cryptoCompare.Price().getHistoryPrice(
+          'USD',
+          dateTime,
+          'BTC'
+        )
 
         //* Комиссия
         if (rowValues.feeCurrency) {
@@ -490,20 +506,20 @@ class Registry {
             rowValues.feeCurrency,
             symbols
           )
-          feeAccount = this.getAccount(
-            rowValues.accountSender,
-            accounts,
+          feePortfolio = this.getPortfolio(
+            rowValues.portfolioSender,
             feeCurrencySymbolCategoryKey
           )
-          feeMainAccount = this.getMainAccount(feeAccount, accounts)
           transactionRow.push({
             rowKey: rowKey3,
             direction: directionOut.stringLowerCase,
-            account: feeAccount,
-            mainAccount: feeMainAccount,
+            account: accountSender,
+            accountKey: accountSenderKey,
+            portfolio: feePortfolio,
             contractor: feeSender,
             mainSymbol: void 0,
             symbol: feeCurrency,
+            pair: void 0,
             quantity: feeQty * -1,
             isFee: true,
             isLock: false,
@@ -522,7 +538,8 @@ class Registry {
 
           const historicalPriceBuyFee = historicalPrice.getHistoricalPrice(
             dateTime,
-            feeAccount,
+            accountSender,
+            feePortfolio,
             feeSender,
             feeCurrency,
             feeCurrencySymbolCategoryKey,
@@ -538,40 +555,52 @@ class Registry {
 
         //* Формирование строки транзакции
         transactionRow.forEach((tx) => {
-          let price
+          let priceUSD, priceCoef, priceBTC, costBTC, costUSD
           if (tx.isSymbolPrice) {
-            price = symbolPrice
+            priceUSD = symbolPrice
+            priceBTC = priceUSDBTC * symbolPrice
             isHistoricalAveragePrice = isHistoricalAveragePriceSymbol
+            priceCoef = symbolPriceCoef
           } else if (tx.isFeePrice) {
-            price = feePrice
+            priceUSD = feePrice
+            priceBTC = priceUSDBTC * feePrice
             isHistoricalAveragePrice = isHistoricalAveragePriceFeeCurrency
+            priceCoef = 0
           } else if (tx.isCurencyPrice) {
-            price = currencyPrice
+            priceUSD = currencyPrice
+            priceBTC = priceUSDBTC * currencyPrice
             isHistoricalAveragePrice = isHistoricalAveragePriceCurrency
+            priceCoef = currencyPriceCoef
           }
 
-          const cost = tx.quantity * price
+          costUSD = tx.quantity * priceUSD
+          costBTC = tx.quantity * priceBTC
+
           const object = {
             rowKey: tx.rowKey,
-            sourceKey: new Hash(this.workSheet.sheetName).md5,
-            sourceName: new Hash(this.workSheet.sheetName).stringLowerCase,
+            accountKey: tx.accountKey,
+            account: tx.account,
             historicalAveragePriceKey: new Hash(
-              tx.account + tx.contractor + tx.symbol
+              tx.account + tx.portfolio + tx.contractor + tx.symbol
             ).md5,
             dateTime: dateTime,
             direction: tx.isFee ? 'out' : tx.direction.toLowerCase(),
             operation: tx.isFee
               ? 'write-off'
               : rowValues.operation.toLowerCase(),
-            account: tx.account.toLowerCase(),
+            portfolio: tx.portfolio.toLowerCase(),
             platform: rowValues.platform.toLowerCase(),
             service: rowValues.service.toLowerCase(),
             contractor: tx.contractor.toLowerCase(),
+            pair: tx.pair ? tx.pair.toLowerCase() : void 0,
             mainSymbol: tx.mainSymbol ? tx.mainSymbol.toLowerCase() : void 0,
             symbol: tx.symbol.toLowerCase(),
             quantity: tx.quantity,
-            price: price || 0,
-            cost: cost || 0,
+            price: priceUSD || 0,
+            cost: costUSD || 0,
+            priceBTC: priceBTC || 0,
+            costBTC: costBTC || 0,
+            priceCoef: priceCoef || 0,
             comment: rowValues.comment.toString().toLowerCase(),
             updateDate: updateDate,
             isDelete: isDelete,

@@ -1,6 +1,6 @@
 import { Environment } from '../../gas'
 import { Header } from '../../header'
-import { FormatDate } from '../../utils'
+import { FormatDate, Hash } from '../../utils'
 import { WorkSheet, WorkSheetRange } from '../../gas'
 import { Log } from '../../log'
 export { Portfolio }
@@ -33,43 +33,44 @@ class Portfolio {
         rowNum: 1,
         columns: {
           operation: { alias: 'Operation', idx: 0, notNull: true },
-          accountSender: { alias: 'Account sender', idx: 1, notNull: true },
+          portfolioSender: { alias: 'Portfolio sender', idx: 1, notNull: true },
           accountRecipient: { alias: 'Account recipient', idx: 2 },
-          platform: { alias: 'Platform', idx: 3, notNull: true },
-          service: { alias: 'Service', idx: 4, notNull: true },
-          sender: { alias: 'Sender', idx: 5, notNull: true },
-          recipient: { alias: 'Recipient', idx: 6 },
-          lockStatus: { alias: 'Lock status', idx: 7 },
-          coin: { alias: 'Coin', idx: 8, notNull: true },
-          coinQty: { alias: 'Coin, qty', idx: 9 },
-          currency: { alias: 'Currency', idx: 10 },
-          currencyQty: { alias: 'Currency, qty', idx: 11 },
-          currencyPerCoin: { alias: 'Currency per coin', idx: 12 },
-          feeSender: { alias: 'Fee sender', idx: 13 },
-          feeCurrency: { alias: 'Fee currency', idx: 14 },
-          feeQty: { alias: 'Fee, qty', idx: 15 },
-          comment: { alias: 'Comment', idx: 16 },
+          portfolioRecipient: { alias: 'Portfolio recipient', idx: 3 },
+          platform: { alias: 'Platform', idx: 4, notNull: true },
+          service: { alias: 'Service', idx: 5, notNull: true },
+          sender: { alias: 'Sender', idx: 6, notNull: true },
+          recipient: { alias: 'Recipient', idx: 7 },
+          lockStatus: { alias: 'Lock status', idx: 8 },
+          coin: { alias: 'Coin', idx: 9, notNull: true },
+          coinQty: { alias: 'Coin, qty', idx: 10 },
+          currency: { alias: 'Currency', idx: 11 },
+          currencyQty: { alias: 'Currency, qty', idx: 12 },
+          currencyPerCoin: { alias: 'Currency per coin', idx: 13 },
+          feeSender: { alias: 'Fee sender', idx: 14 },
+          feeCurrency: { alias: 'Fee currency', idx: 15 },
+          feeQty: { alias: 'Fee, qty', idx: 16 },
+          comment: { alias: 'Comment', idx: 17 },
           date: {
             alias: 'Date',
-            idx: 17,
+            idx: 18,
             notNull: true,
             type: 'date',
             default: void 0,
           },
-          time: { alias: 'Time', idx: 18, notNull: true },
-          isDelete: { alias: 'Is delete', idx: 19 },
+          time: { alias: 'Time', idx: 19, notNull: true },
+          isDelete: { alias: 'Is delete', idx: 20 },
           dateSaved: {
             alias: 'Date saved',
-            idx: 20,
+            idx: 21,
             type: 'date',
             default: new Date(),
           },
           timeSpent: {
             alias: 'Time spent (hh:mm:ss.ms)',
-            idx: 21,
+            idx: 22,
             type: 'string',
           },
-          rowId: { alias: 'Row ID', idx: 22 },
+          rowId: { alias: 'Row ID', idx: 23 },
         },
       },
       symbols: {
@@ -126,39 +127,43 @@ class Portfolio {
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
-          sourceKey: { alias: 'Source key', idx: 1 },
+          accountKey: { alias: 'Account key', idx: 1 },
           historicalAveragePriceKey: {
             alias: 'Historical average price key',
             idx: 2,
           },
-          sourceName: { alias: 'Source name', idx: 3 },
+          account: { alias: 'Account', idx: 3 },
           dateTime: { alias: 'Date and time', idx: 4, type: 'date' },
           operation: { alias: 'Operation', idx: 5 },
           direction: { alias: 'Direction', idx: 6 },
-          account: { alias: 'Account', idx: 7 },
+          portfolio: { alias: 'Portfolio', idx: 7 },
           platform: { alias: 'Platform', idx: 8 },
           service: { alias: 'Service', idx: 9 },
           contractor: { alias: 'Contractor', idx: 10 },
-          mainSymbol: { alias: 'Main coin', idx: 11 },
-          symbol: { alias: 'Coin', idx: 12 },
-          quantity: { alias: 'Quantity', idx: 13 },
-          price: { alias: 'Price', idx: 14 },
-          cost: { alias: 'Cost', idx: 15 },
-          comment: { alias: 'Comment', idx: 16 },
-          isDelete: { alias: 'Delete', idx: 17 },
-          isLiquidityPool: { alias: 'Is liquidity pool', idx: 18 },
-          isFee: { alias: 'Is fee', idx: 19 },
-          isLock: { alias: 'Is lock', idx: 20 },
-          isAvgPrice: { alias: 'Is average price', idx: 21 },
+          pair: { alias: 'Pair', idx: 11 },
+          mainSymbol: { alias: 'Main coin', idx: 12 },
+          symbol: { alias: 'Coin', idx: 13 },
+          quantity: { alias: 'Quantity', idx: 14 },
+          price: { alias: 'Price', idx: 15 },
+          priceCoef: { alias: 'Price coef', idx: 16 },
+          cost: { alias: 'Cost', idx: 17 },
+          priceBTC: { alias: 'Price BTC', idx: 18 },
+          costBTC: { alias: 'Cost BTC', idx: 19 },
+          comment: { alias: 'Comment', idx: 20 },
+          isDelete: { alias: 'Delete', idx: 21 },
+          isLiquidityPool: { alias: 'Is liquidity pool', idx: 22 },
+          isFee: { alias: 'Is fee', idx: 23 },
+          isLock: { alias: 'Is lock', idx: 24 },
+          isAvgPrice: { alias: 'Is average price', idx: 25 },
           isHistoricalAveragePrice: {
             alias: 'Is historical average price',
-            idx: 22,
+            idx: 26,
           },
-          registryRowId: { alias: 'Registry row id', idx: 23 },
-          registryRowKey: { alias: 'Registry row key', idx: 24 },
+          registryRowId: { alias: 'Registry row id', idx: 27 },
+          registryRowKey: { alias: 'Registry row key', idx: 28 },
           updateDate: {
             alias: 'Update date',
-            idx: 25,
+            idx: 29,
             type: 'date',
             default: new Date(),
           },
@@ -217,8 +222,8 @@ class Portfolio {
         type: 'tx',
         rowNum: 1,
         columns: {
-          mainAccount: { alias: 'Main account', idx: 0 },
-          account: { alias: 'Account', idx: 1 },
+          account: { alias: 'Account', idx: 0 },
+          portfolio: { alias: 'Portfolio', idx: 1 },
           contractor: { alias: 'Contractor', idx: 2 },
           contractorType: { alias: 'Contractor type', idx: 3 },
           contractorCategory: { alias: 'Contractor category', idx: 4 },
@@ -321,7 +326,6 @@ class Portfolio {
           description: { alias: 'Description', idx: 1 },
         },
       },
-
       services: {
         type: 'dim',
         rowNum: 1,
@@ -349,13 +353,20 @@ class Portfolio {
           share: { alias: 'Share, %', idx: 3 },
         },
       },
+      portfolios: {
+        type: 'dim',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          name: { alias: 'Name', pk: true, idx: 1, notNull: true },
+        },
+      },
       accounts: {
         type: 'dim',
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
-          mainAccount: { alias: 'Main account', idx: 2, notNull: true },
           telegramId: { alias: 'Telegram Id', idx: 3 },
         },
       },
@@ -383,31 +394,32 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           account: { alias: 'Account', pk: true, idx: 1, notNull: true },
-          mainSymbol: { alias: 'Main symbol', pk: true, idx: 2, notNull: true },
+          portfolio: { alias: 'Portfolio', pk: true, idx: 2, notNull: true },
+          mainSymbol: { alias: 'Main symbol', pk: true, idx: 3, notNull: true },
           mainSymbolQty: {
             alias: 'Main symbol qty',
-            idx: 3,
+            idx: 4,
           },
           mainSymbolHistoricalCost: {
             alias: 'Main symbol historical cost',
-            idx: 4,
+            idx: 5,
           },
           mainSymbolHistoricalPrice: {
             alias: 'Main symbol historical price',
-            idx: 5,
+            idx: 6,
           },
-          pairOneSymbol: { alias: 'Pair one symbol', idx: 6 },
-          pairOneQty: { alias: 'Pair one qty', idx: 7 },
-          pairOnePrice: { alias: 'Pair one price', idx: 8 },
-          pairTwoSymbol: { alias: 'Pair one symbol', idx: 9 },
-          pairTwoQty: { alias: 'Pair two qty', idx: 10 },
-          pairTwoPrice: { alias: 'Pair two price', idx: 11 },
-          pairThreeSymbol: { alias: 'Pair three symbol', idx: 12 },
-          pairThreeQty: { alias: 'Pair three qty', idx: 13 },
-          pairThreePrice: { alias: 'Pair three price', idx: 14 },
+          pairOneSymbol: { alias: 'Pair one symbol', idx: 7 },
+          pairOneQty: { alias: 'Pair one qty', idx: 8 },
+          pairOnePrice: { alias: 'Pair one price', idx: 9 },
+          pairTwoSymbol: { alias: 'Pair one symbol', idx: 10 },
+          pairTwoQty: { alias: 'Pair two qty', idx: 11 },
+          pairTwoPrice: { alias: 'Pair two price', idx: 12 },
+          pairThreeSymbol: { alias: 'Pair three symbol', idx: 13 },
+          pairThreeQty: { alias: 'Pair three qty', idx: 14 },
+          pairThreePrice: { alias: 'Pair three price', idx: 15 },
           update: {
             alias: 'Update',
-            idx: 15,
+            idx: 16,
             type: 'date',
             default: new Date(),
           },
@@ -418,14 +430,26 @@ class Portfolio {
     this.log = new Log(this.spreadSheetName)
   }
 
+  getAccountsKey() {
+    const head = new Header().getHead(this.workSheetHeads, 'Accounts')
+    const workSheet = new WorkSheet(
+      this.spreadSheetName,
+      'Accounts',
+      head
+    ).getDataset()
+    return workSheet.arrayOfObject.map((rowObject) => rowObject.rowKey)
+  }
+
   getWorkSheet(sheetName) {
     try {
       let headSheetName, isRegistry
       headSheetName = sheetName
       isRegistry = false
-      if (sheetName.match('Registry')) {
+      const accountsKey = this.getAccountsKey()
+      if (accountsKey.indexOf(new Hash(sheetName).md5) !== -1) {
         headSheetName = 'Registry'
         isRegistry = true
+        console.log('isRegistry', isRegistry)
       }
       const head = new Header().getHead(this.workSheetHeads, headSheetName)
       const workSheet = new WorkSheet(
@@ -447,7 +471,8 @@ class Portfolio {
       sheetName = range.getSheet().getSheetName()
       headSheetName = sheetName
       isRegistry = false
-      if (sheetName.match('Registry')) {
+      const accountsKey = this.getAccountsKey()
+      if (accountsKey.indexOf(new Hash(sheetName).md5) !== -1) {
         headSheetName = 'Registry'
         isRegistry = true
       }

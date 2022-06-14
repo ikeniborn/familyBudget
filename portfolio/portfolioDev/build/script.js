@@ -1372,43 +1372,44 @@ class Portfolio {
         rowNum: 1,
         columns: {
           operation: { alias: 'Operation', idx: 0, notNull: true },
-          accountSender: { alias: 'Account sender', idx: 1, notNull: true },
+          portfolioSender: { alias: 'Portfolio sender', idx: 1, notNull: true },
           accountRecipient: { alias: 'Account recipient', idx: 2 },
-          platform: { alias: 'Platform', idx: 3, notNull: true },
-          service: { alias: 'Service', idx: 4, notNull: true },
-          sender: { alias: 'Sender', idx: 5, notNull: true },
-          recipient: { alias: 'Recipient', idx: 6 },
-          lockStatus: { alias: 'Lock status', idx: 7 },
-          coin: { alias: 'Coin', idx: 8, notNull: true },
-          coinQty: { alias: 'Coin, qty', idx: 9 },
-          currency: { alias: 'Currency', idx: 10 },
-          currencyQty: { alias: 'Currency, qty', idx: 11 },
-          currencyPerCoin: { alias: 'Currency per coin', idx: 12 },
-          feeSender: { alias: 'Fee sender', idx: 13 },
-          feeCurrency: { alias: 'Fee currency', idx: 14 },
-          feeQty: { alias: 'Fee, qty', idx: 15 },
-          comment: { alias: 'Comment', idx: 16 },
+          portfolioRecipient: { alias: 'Portfolio recipient', idx: 3 },
+          platform: { alias: 'Platform', idx: 4, notNull: true },
+          service: { alias: 'Service', idx: 5, notNull: true },
+          sender: { alias: 'Sender', idx: 6, notNull: true },
+          recipient: { alias: 'Recipient', idx: 7 },
+          lockStatus: { alias: 'Lock status', idx: 8 },
+          coin: { alias: 'Coin', idx: 9, notNull: true },
+          coinQty: { alias: 'Coin, qty', idx: 10 },
+          currency: { alias: 'Currency', idx: 11 },
+          currencyQty: { alias: 'Currency, qty', idx: 12 },
+          currencyPerCoin: { alias: 'Currency per coin', idx: 13 },
+          feeSender: { alias: 'Fee sender', idx: 14 },
+          feeCurrency: { alias: 'Fee currency', idx: 15 },
+          feeQty: { alias: 'Fee, qty', idx: 16 },
+          comment: { alias: 'Comment', idx: 17 },
           date: {
             alias: 'Date',
-            idx: 17,
+            idx: 18,
             notNull: true,
             type: 'date',
             default: void 0,
           },
-          time: { alias: 'Time', idx: 18, notNull: true },
-          isDelete: { alias: 'Is delete', idx: 19 },
+          time: { alias: 'Time', idx: 19, notNull: true },
+          isDelete: { alias: 'Is delete', idx: 20 },
           dateSaved: {
             alias: 'Date saved',
-            idx: 20,
+            idx: 21,
             type: 'date',
             default: new Date(),
           },
           timeSpent: {
             alias: 'Time spent (hh:mm:ss.ms)',
-            idx: 21,
+            idx: 22,
             type: 'string',
           },
-          rowId: { alias: 'Row ID', idx: 22 },
+          rowId: { alias: 'Row ID', idx: 23 },
         },
       },
       symbols: {
@@ -1465,39 +1466,43 @@ class Portfolio {
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
-          sourceKey: { alias: 'Source key', idx: 1 },
+          accountKey: { alias: 'Account key', idx: 1 },
           historicalAveragePriceKey: {
             alias: 'Historical average price key',
             idx: 2,
           },
-          sourceName: { alias: 'Source name', idx: 3 },
+          account: { alias: 'Account', idx: 3 },
           dateTime: { alias: 'Date and time', idx: 4, type: 'date' },
           operation: { alias: 'Operation', idx: 5 },
           direction: { alias: 'Direction', idx: 6 },
-          account: { alias: 'Account', idx: 7 },
+          portfolio: { alias: 'Portfolio', idx: 7 },
           platform: { alias: 'Platform', idx: 8 },
           service: { alias: 'Service', idx: 9 },
           contractor: { alias: 'Contractor', idx: 10 },
-          mainSymbol: { alias: 'Main coin', idx: 11 },
-          symbol: { alias: 'Coin', idx: 12 },
-          quantity: { alias: 'Quantity', idx: 13 },
-          price: { alias: 'Price', idx: 14 },
-          cost: { alias: 'Cost', idx: 15 },
-          comment: { alias: 'Comment', idx: 16 },
-          isDelete: { alias: 'Delete', idx: 17 },
-          isLiquidityPool: { alias: 'Is liquidity pool', idx: 18 },
-          isFee: { alias: 'Is fee', idx: 19 },
-          isLock: { alias: 'Is lock', idx: 20 },
-          isAvgPrice: { alias: 'Is average price', idx: 21 },
+          pair: { alias: 'Pair', idx: 11 },
+          mainSymbol: { alias: 'Main coin', idx: 12 },
+          symbol: { alias: 'Coin', idx: 13 },
+          quantity: { alias: 'Quantity', idx: 14 },
+          price: { alias: 'Price', idx: 15 },
+          priceCoef: { alias: 'Price coef', idx: 16 },
+          cost: { alias: 'Cost', idx: 17 },
+          priceBTC: { alias: 'Price BTC', idx: 18 },
+          costBTC: { alias: 'Cost BTC', idx: 19 },
+          comment: { alias: 'Comment', idx: 20 },
+          isDelete: { alias: 'Delete', idx: 21 },
+          isLiquidityPool: { alias: 'Is liquidity pool', idx: 22 },
+          isFee: { alias: 'Is fee', idx: 23 },
+          isLock: { alias: 'Is lock', idx: 24 },
+          isAvgPrice: { alias: 'Is average price', idx: 25 },
           isHistoricalAveragePrice: {
             alias: 'Is historical average price',
-            idx: 22,
+            idx: 26,
           },
-          registryRowId: { alias: 'Registry row id', idx: 23 },
-          registryRowKey: { alias: 'Registry row key', idx: 24 },
+          registryRowId: { alias: 'Registry row id', idx: 27 },
+          registryRowKey: { alias: 'Registry row key', idx: 28 },
           updateDate: {
             alias: 'Update date',
-            idx: 25,
+            idx: 29,
             type: 'date',
             default: new Date(),
           },
@@ -1556,8 +1561,8 @@ class Portfolio {
         type: 'tx',
         rowNum: 1,
         columns: {
-          mainAccount: { alias: 'Main account', idx: 0 },
-          account: { alias: 'Account', idx: 1 },
+          account: { alias: 'Account', idx: 0 },
+          portfolio: { alias: 'Portfolio', idx: 1 },
           contractor: { alias: 'Contractor', idx: 2 },
           contractorType: { alias: 'Contractor type', idx: 3 },
           contractorCategory: { alias: 'Contractor category', idx: 4 },
@@ -1660,7 +1665,6 @@ class Portfolio {
           description: { alias: 'Description', idx: 1 },
         },
       },
-
       services: {
         type: 'dim',
         rowNum: 1,
@@ -1688,13 +1692,20 @@ class Portfolio {
           share: { alias: 'Share, %', idx: 3 },
         },
       },
+      portfolios: {
+        type: 'dim',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          name: { alias: 'Name', pk: true, idx: 1, notNull: true },
+        },
+      },
       accounts: {
         type: 'dim',
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
-          mainAccount: { alias: 'Main account', idx: 2, notNull: true },
           telegramId: { alias: 'Telegram Id', idx: 3 },
         },
       },
@@ -1722,31 +1733,32 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           account: { alias: 'Account', pk: true, idx: 1, notNull: true },
-          mainSymbol: { alias: 'Main symbol', pk: true, idx: 2, notNull: true },
+          portfolio: { alias: 'Portfolio', pk: true, idx: 2, notNull: true },
+          mainSymbol: { alias: 'Main symbol', pk: true, idx: 3, notNull: true },
           mainSymbolQty: {
             alias: 'Main symbol qty',
-            idx: 3,
+            idx: 4,
           },
           mainSymbolHistoricalCost: {
             alias: 'Main symbol historical cost',
-            idx: 4,
+            idx: 5,
           },
           mainSymbolHistoricalPrice: {
             alias: 'Main symbol historical price',
-            idx: 5,
+            idx: 6,
           },
-          pairOneSymbol: { alias: 'Pair one symbol', idx: 6 },
-          pairOneQty: { alias: 'Pair one qty', idx: 7 },
-          pairOnePrice: { alias: 'Pair one price', idx: 8 },
-          pairTwoSymbol: { alias: 'Pair one symbol', idx: 9 },
-          pairTwoQty: { alias: 'Pair two qty', idx: 10 },
-          pairTwoPrice: { alias: 'Pair two price', idx: 11 },
-          pairThreeSymbol: { alias: 'Pair three symbol', idx: 12 },
-          pairThreeQty: { alias: 'Pair three qty', idx: 13 },
-          pairThreePrice: { alias: 'Pair three price', idx: 14 },
+          pairOneSymbol: { alias: 'Pair one symbol', idx: 7 },
+          pairOneQty: { alias: 'Pair one qty', idx: 8 },
+          pairOnePrice: { alias: 'Pair one price', idx: 9 },
+          pairTwoSymbol: { alias: 'Pair one symbol', idx: 10 },
+          pairTwoQty: { alias: 'Pair two qty', idx: 11 },
+          pairTwoPrice: { alias: 'Pair two price', idx: 12 },
+          pairThreeSymbol: { alias: 'Pair three symbol', idx: 13 },
+          pairThreeQty: { alias: 'Pair three qty', idx: 14 },
+          pairThreePrice: { alias: 'Pair three price', idx: 15 },
           update: {
             alias: 'Update',
-            idx: 15,
+            idx: 16,
             type: 'date',
             default: new Date(),
           },
@@ -1757,14 +1769,26 @@ class Portfolio {
     this.log = new Log(this.spreadSheetName);
   }
 
+  getAccountsKey() {
+    const head = new Header().getHead(this.workSheetHeads, 'Accounts');
+    const workSheet = new WorkSheet(
+      this.spreadSheetName,
+      'Accounts',
+      head
+    ).getDataset();
+    return workSheet.arrayOfObject.map((rowObject) => rowObject.rowKey)
+  }
+
   getWorkSheet(sheetName) {
     try {
       let headSheetName, isRegistry;
       headSheetName = sheetName;
       isRegistry = false;
-      if (sheetName.match('Registry')) {
+      const accountsKey = this.getAccountsKey();
+      if (accountsKey.indexOf(new Hash(sheetName).md5) !== -1) {
         headSheetName = 'Registry';
         isRegistry = true;
+        console.log('isRegistry', isRegistry);
       }
       const head = new Header().getHead(this.workSheetHeads, headSheetName);
       const workSheet = new WorkSheet(
@@ -1786,7 +1810,8 @@ class Portfolio {
       sheetName = range.getSheet().getSheetName();
       headSheetName = sheetName;
       isRegistry = false;
-      if (sheetName.match('Registry')) {
+      const accountsKey = this.getAccountsKey();
+      if (accountsKey.indexOf(new Hash(sheetName).md5) !== -1) {
         headSheetName = 'Registry';
         isRegistry = true;
       }
@@ -2336,7 +2361,7 @@ class Transactions {
   updateRegistryRowKey() {
     const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
       const newRegistryRowKey = new Hash(
-        rowObject.registryRowId + rowObject.sourceName
+        rowObject.registryRowId + rowObject.account
       ).md5;
       rowObject.registryRowKey = newRegistryRowKey;
       return rowObject
@@ -2345,11 +2370,12 @@ class Transactions {
   }
 
   updateHistoricalAveragePriceKey() {
-    const accounts = new Portfolio().getWorkSheet('Accounts').object;
     const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
-      accounts[new Hash(rowObject.account).md5].mainAccount;
       const newHistoricalAveragePriceKey = new Hash(
-        rowObject.account + rowObject.contractor + rowObject.symbol
+        rowObject.account +
+          rowObject.portfolio +
+          rowObject.contractor +
+          rowObject.symbol
       ).md5;
       rowObject.historicalAveragePriceKey = newHistoricalAveragePriceKey;
       return rowObject
@@ -2357,38 +2383,38 @@ class Transactions {
     this.workSheet.truncateInsertRows(newArrayOfObject);
   }
 
-  recalculateTransactions(startRow, endRow) {
-    const symbols = new Portfolio().getWorkSheet('Symbols').object;
-    const accounts = new Portfolio().getWorkSheet('Accounts').object;
-    const newArrayOfObject = this.workSheet.arrayOfObject.map(
-      (rowObject, indexRow) => {
-        if (indexRow > startRow && indexRow <= endRow) {
-          if (
-            [
-              '84a0f3455dcca894ace136be62efa292',
-              '7b33b9f52598cd60f7aa6ca0082515c4',
-              'b4479040173a9f41eeb4e98339f2a21d' /*transfer,write-off, refill*/,
-            ].indexOf(new Hash(rowObject.operation).md5) !== -1
-          ) {
-            const price = this.getHistoricalPriceBuy(
-              rowObject.dateTime,
-              accounts[new Hash(rowObject.account).md5]?.mainAccount,
-              rowObject.symbol,
-              new Hash(symbols[new Hash(rowObject.symbol).md5]?.symbolCategory)
-                .md5,
-              symbols,
-              true
-            ).historicalPrice;
-            rowObject.price = price;
-            rowObject.cost = rowObject.quantity * price;
-            rowObject.updateDate = new Date();
-          }
-        }
-        return rowObject
-      }
-    );
-    this.workSheet.truncateInsertRows(newArrayOfObject);
-  }
+  // recalculateTransactions(startRow, endRow) {
+  //   const symbols = new Portfolio().getWorkSheet('Symbols').object
+  //   const accounts = new Portfolio().getWorkSheet('Accounts').object
+  //   const newArrayOfObject = this.workSheet.arrayOfObject.map(
+  //     (rowObject, indexRow) => {
+  //       if (indexRow > startRow && indexRow <= endRow) {
+  //         if (
+  //           [
+  //             '84a0f3455dcca894ace136be62efa292',
+  //             '7b33b9f52598cd60f7aa6ca0082515c4',
+  //             'b4479040173a9f41eeb4e98339f2a21d' /*transfer,write-off, refill*/,
+  //           ].indexOf(new Hash(rowObject.operation).md5) !== -1
+  //         ) {
+  //           const price = this.getHistoricalPriceBuy(
+  //             rowObject.dateTime,
+  //             accounts[new Hash(rowObject.account).md5]?.mainAccount,
+  //             rowObject.symbol,
+  //             new Hash(symbols[new Hash(rowObject.symbol).md5]?.symbolCategory)
+  //               .md5,
+  //             symbols,
+  //             true
+  //           ).historicalPrice
+  //           rowObject.price = price
+  //           rowObject.cost = rowObject.quantity * price
+  //           rowObject.updateDate = new Date()
+  //         }
+  //       }
+  //       return rowObject
+  //     }
+  //   )
+  //   this.workSheet.truncateInsertRows(newArrayOfObject)
+  // }
 
   updateAccount() {
     const accounts = new Portfolio().getWorkSheet('Accounts').object;
@@ -2429,6 +2455,7 @@ class HistoricalPrice {
    * Получение средневзвешенной цены покупки токена
    * @param {*} dateTime дата и время
    * @param {*} account счет
+   * @param {*} portfolio портфолио
    * @param {*} contractor контрагент
    * @param {*} currencySymbol символ
    * @param {*} currencySymbolCategoryKey ключ категории токена
@@ -2441,6 +2468,7 @@ class HistoricalPrice {
   getHistoricalPrice(
     dateTime,
     account,
+    portfolio,
     contractor,
     currencySymbol,
     currencySymbolCategoryKey,
@@ -2482,9 +2510,8 @@ class HistoricalPrice {
       } else {
         //* Расчет средневзвешенной стоимости покупки токена на основании истории покупок для диапазона данных
         if (isRange) {
-          // console.log(account, contractor, currencySymbol)
           const historicalAveragePriceKey = new Hash(
-            account + contractor + currencySymbol
+            account + portfolio + contractor + currencySymbol
           ).md5;
           const inKey = new Hash('in').md5;
           const outKey = new Hash('out').md5;
@@ -3379,39 +3406,42 @@ class Registry {
   }
 
   /**
-   * Получение счета
-   * @param {string} account счет отправителя
-   * @param {object} accounts справочник счетов
+   * Получение портфолио
+   * @param {string} portfolio портфолио отправителя
    * @param {string} symbolCategoryKey ключ категории символа
    * @returns счет
    */
-  getAccount(account, accounts, symbolCategoryKey) {
+  getPortfolio(portfolio, symbolCategoryKey) {
     try {
       if (
-        [
-          'e5e3fd01394b9a81296b75d5a7f4c1a2',
-          '7d5f30a0d1641c0b6980aaf2556b32ce' /*stablecoin, fiat */,
-        ].indexOf(symbolCategoryKey) !== -1
+        /*stablecoin*/ 'e5e3fd01394b9a81296b75d5a7f4c1a2' === symbolCategoryKey
       ) {
-        return accounts[new Hash(account).md5]?.mainAccount
+        return 'Stablecoin'
+      } else if (
+        /* fiat */ '7d5f30a0d1641c0b6980aaf2556b32ce' === symbolCategoryKey
+      ) {
+        return 'Fiat'
       }
-      return account
+      return portfolio
     } catch (error) {
-      console.error('Registry.getAccount', error.stack);
+      console.error('Registry.getPortfolio', error.stack);
     }
   }
 
   /**
-   * Получаение основного счета
-   * @param {string} account счет
-   * @param {object} accounts справочник счетов
-   * @returns основной счет
+   * Определение счета
+   * @param {*} accountSender счет отправитель
+   * @param {*} accountRecipient счет получатель
+   * @returns
    */
-  getMainAccount(account, accounts) {
+  getAccount(accountSender, accountRecipient) {
     try {
-      return accounts[new Hash(account).md5]?.mainAccount
+      if (accountRecipient) {
+        return new Hash(accountRecipient)
+      }
+      return new Hash(accountSender)
     } catch (error) {
-      console.error('Registry.getMainAccount', error.stack);
+      console.error('Registry.getAccount', error.stack);
     }
   }
 
@@ -3469,11 +3499,13 @@ class Registry {
     const startProcess = new FormatDate();
     try {
       const symbols = new Symbols().workSheet.object;
-      const accounts = new Portfolio().getWorkSheet('Accounts').object;
       const transactions = new Transactions();
       const historicalPrice = new HistoricalPrice();
       const transactionsArrayOfObject = [];
       const updateDate = new Date();
+      const account = this.workSheet.sheetName;
+      const directionOut = new Hash('out');
+      const directionIn = new Hash('in');
       this.workSheet.arrayOfObject.forEach((rowValues) => {
         let coinQty,
           currencyQty,
@@ -3484,16 +3516,17 @@ class Registry {
           currencySymbol,
           currencySymbolCategoryKey,
           currencyPrice,
+          portfolioSender,
           accountSender,
+          accountSenderKey,
           accountRecipient,
-          mainAccountSender,
-          mainAccountRecipient,
+          accountRecipientKey,
+          portfolioRecipient,
           sender,
           recipient,
           feeSender,
           feePrice,
-          feeAccount,
-          feeMainAccount,
+          feePortfolio,
           mainSymbol,
           feeCurrency,
           feeCurrencySymbolCategoryKey,
@@ -3520,8 +3553,9 @@ class Registry {
           registryRowKey,
           registryRowKeyTimestamp,
           registryTimestamp,
-          directionOut,
-          directionIn;
+          symbolPriceCoef,
+          currencyPriceCoef,
+          priceUSDBTC;
 
         const transactionRow = [];
         const hhmm = new FormatNumber(
@@ -3530,13 +3564,21 @@ class Registry {
         const dateTime = new FormatDate(rowValues.date).addTime(hhmm.h, hhmm.m)
           .date;
         registryRowKey = rowValues.rowKey;
+        const accountSenderTemp = this.getAccount(account, void 0);
+        accountSender = accountSenderTemp.stringLowerCase;
+        accountSenderKey = accountSenderTemp.md5;
+        const accountRecipientTemp = this.getAccount(
+          account,
+          rowValues.accountRecipient
+        );
+        accountRecipient = accountRecipientTemp.stringLowerCase;
+        accountRecipientKey = accountRecipientTemp.md5;
         registryRowKeyTimestamp = rowValues.rowKeyTimestamp;
         registryTimestamp = rowValues.timestamp;
         operationKey = new Hash(rowValues.operation).md5;
         lockStatusKey = new Hash(rowValues.lockStatus).md5;
         coinQty =
           typeof rowValues.coinQty === 'number' ? rowValues.coinQty : void 0;
-
         currencyQty =
           typeof rowValues.currencyQty === 'number'
             ? rowValues.currencyQty
@@ -3570,8 +3612,6 @@ class Registry {
         isHistoricalAveragePriceSymbol = false;
         isHistoricalAveragePriceFeeCurrency = false;
         isHistoricalAveragePriceCurrency = false;
-        directionOut = new Hash('out');
-        directionIn = new Hash('in');
 
         //* Расчет пустых значений транзакции количества валюты за один токен, количество токена, количество валюты
         if (!currencyPerCoin && currencyQty) {
@@ -3629,22 +3669,22 @@ class Registry {
               '7b33b9f52598cd60f7aa6ca0082515c4',
             ].indexOf(operationKey) !== -1
           ) {
-            accountSender = this.getAccount(
-              rowValues.accountSender,
-              accounts,
+            portfolioSender = this.getPortfolio(
+              rowValues.portfolioSender,
               coinSymbolCategoryKey
             );
-            mainAccountSender = this.getMainAccount(accountSender, accounts);
             rowKey1 = new Hash(rowValues.rowKey + '#1').md5;
 
             transactionRow.push({
               rowKey: rowKey1,
-              direction: directionOut.stringLowerCase,
               account: accountSender,
-              mainAccount: mainAccountSender,
+              accountKey: accountSenderKey,
+              direction: directionOut.stringLowerCase,
+              portfolio: portfolioSender,
               contractor: sender,
               mainSymbol: void 0,
               symbol: coinSymbol,
+              pair: coinSymbol + '/' + currencySymbol,
               quantity: coinQty * -1,
               isFee,
               isLock: isSenderLock,
@@ -3666,30 +3706,25 @@ class Registry {
               'b4479040173a9f41eeb4e98339f2a21d',
             ].indexOf(operationKey) !== -1
           ) {
-            accountRecipient = this.getAccount(
-              rowValues.accountRecipient || rowValues.accountSender,
-              accounts,
+            portfolioRecipient = this.getPortfolio(
+              rowValues.portfolioRecipient || rowValues.portfolioSender,
               coinSymbolCategoryKey
             );
-            accountSender = this.getAccount(
-              rowValues.accountSender,
-              accounts,
+            portfolioSender = this.getPortfolio(
+              rowValues.portfolioSender,
               coinSymbolCategoryKey
-            );
-
-            mainAccountRecipient = this.getMainAccount(
-              accountRecipient,
-              accounts
             );
             rowKey2 = new Hash(rowValues.rowKey + '#2').md5;
             transactionRow.push({
               rowKey: rowKey2,
               direction: 'in',
               account: accountRecipient,
-              mainAccount: mainAccountRecipient,
+              accountKey: accountRecipientKey,
+              portfolio: portfolioRecipient,
               contractor: recipient,
               mainSymbol: void 0,
               symbol: coinSymbol,
+              pair: coinSymbol + '/' + currencySymbol,
               quantity: coinQty,
               isFee,
               isLock: isRecipientLock,
@@ -3708,27 +3743,25 @@ class Registry {
           [/*buy*/ '0461ebd2b773878eac9f78a891912d65'].indexOf(operationKey) !==
           -1
         ) {
-          accountSender = this.getAccount(
-            rowValues.accountSender,
-            accounts,
+          portfolioSender = this.getPortfolio(
+            rowValues.portfolioSender,
             currencySymbolCategoryKey
           );
-          accountRecipient = this.getAccount(
-            rowValues.accountRecipient || rowValues.accountSender,
-            accounts,
+          portfolioRecipient = this.getPortfolio(
+            rowValues.portfolioRecipient || rowValues.portfolioSender,
             coinSymbolCategoryKey
           );
-          mainAccountSender = this.getMainAccount(accountSender, accounts);
-          mainAccountRecipient = this.getMainAccount(accountRecipient, accounts);
           rowKey1 = new Hash(rowValues.rowKey + '#1').md5;
           transactionRow.push({
             rowKey: rowKey1,
             direction: directionOut.stringLowerCase,
             account: accountSender,
-            mainAccount: mainAccountSender,
+            accountKey: accountSenderKey,
+            portfolio: portfolioSender,
             contractor: sender,
             mainSymbol: mainSymbol,
             symbol: currencySymbol,
+            pair: currencySymbol + '/' + coinSymbol,
             quantity: currencyQty * -1,
             isFee,
             isLock: isSenderLock,
@@ -3748,10 +3781,12 @@ class Registry {
             direction: directionIn.stringLowerCase,
             isLock: rowValues.isLock,
             account: accountRecipient,
-            mainAccount: mainAccountRecipient,
+            accountKey: accountRecipientKey,
+            portfolio: portfolioRecipient,
             contractor: recipient,
             mainSymbol: mainSymbol,
             symbol: coinSymbol,
+            pair: coinSymbol + '/' + currencySymbol,
             quantity: coinQty,
             isFee,
             isLock: isRecipientLock,
@@ -3770,28 +3805,25 @@ class Registry {
             operationKey
           ) !== -1
         ) {
-          accountSender = this.getAccount(
-            rowValues.accountSender,
-            accounts,
+          portfolioSender = this.getPortfolio(
+            rowValues.portfolioSender,
             coinSymbolCategoryKey
           );
-          accountRecipient = this.getAccount(
-            rowValues.accountRecipient || rowValues.accountSender,
-            accounts,
+          portfolioRecipient = this.getPortfolio(
+            rowValues.portfolioRecipient || rowValues.portfolioSender,
             currencySymbolCategoryKey
           );
-
-          mainAccountSender = this.getMainAccount(accountSender, accounts);
-          mainAccountRecipient = this.getMainAccount(accountRecipient, accounts);
           rowKey1 = new Hash(rowValues.rowKey + '#1').md5;
           transactionRow.push({
             rowKey: rowKey1,
             direction: directionOut.stringLowerCase,
             account: accountSender,
-            mainAccount: mainAccountSender,
+            accountKey: accountSenderKey,
+            portfolio: portfolioSender,
             contractor: sender,
             mainSymbol: mainSymbol,
             symbol: coinSymbol,
+            pair: coinSymbol + '/' + currencySymbol,
             quantity: coinQty * -1,
             isFee,
             isLock: isSenderLock,
@@ -3811,10 +3843,12 @@ class Registry {
             direction: directionIn.stringLowerCase,
             isLock: rowValues.isLock,
             account: accountRecipient,
-            mainAccount: mainAccountRecipient,
+            accountKey: accountRecipientKey,
+            portfolio: portfolioRecipient,
             contractor: recipient,
             mainSymbol: mainSymbol,
             symbol: currencySymbol,
+            pair: currencySymbol + '/' + coinSymbol,
             quantity: currencyQty,
             isFee,
             isLock: isRecipientLock,
@@ -3835,6 +3869,7 @@ class Registry {
         const historicalPriceBuyCoin = historicalPrice.getHistoricalPrice(
           dateTime,
           accountSender,
+          portfolioSender,
           sender,
           currencySymbol,
           currencySymbolCategoryKey,
@@ -3849,6 +3884,13 @@ class Registry {
           historicalPriceBuyCoin?.isHistoricalAveragePrice || false;
         currencyPrice = historicalPriceBuyCoin?.historicalPrice;
         symbolPrice = historicalPriceBuyCoin?.historicalPrice * currencyPerCoin;
+        symbolPriceCoef = symbolPrice / currencyPrice;
+        currencyPriceCoef = currencyPrice / symbolPrice;
+        priceUSDBTC = new Price$2().getHistoryPrice(
+          'USD',
+          dateTime,
+          'BTC'
+        );
 
         //* Комиссия
         if (rowValues.feeCurrency) {
@@ -3857,20 +3899,20 @@ class Registry {
             rowValues.feeCurrency,
             symbols
           );
-          feeAccount = this.getAccount(
-            rowValues.accountSender,
-            accounts,
+          feePortfolio = this.getPortfolio(
+            rowValues.portfolioSender,
             feeCurrencySymbolCategoryKey
           );
-          feeMainAccount = this.getMainAccount(feeAccount, accounts);
           transactionRow.push({
             rowKey: rowKey3,
             direction: directionOut.stringLowerCase,
-            account: feeAccount,
-            mainAccount: feeMainAccount,
+            account: accountSender,
+            accountKey: accountSenderKey,
+            portfolio: feePortfolio,
             contractor: feeSender,
             mainSymbol: void 0,
             symbol: feeCurrency,
+            pair: void 0,
             quantity: feeQty * -1,
             isFee: true,
             isLock: false,
@@ -3889,7 +3931,8 @@ class Registry {
 
           const historicalPriceBuyFee = historicalPrice.getHistoricalPrice(
             dateTime,
-            feeAccount,
+            accountSender,
+            feePortfolio,
             feeSender,
             feeCurrency,
             feeCurrencySymbolCategoryKey,
@@ -3905,40 +3948,52 @@ class Registry {
 
         //* Формирование строки транзакции
         transactionRow.forEach((tx) => {
-          let price;
+          let priceUSD, priceCoef, priceBTC, costBTC, costUSD;
           if (tx.isSymbolPrice) {
-            price = symbolPrice;
+            priceUSD = symbolPrice;
+            priceBTC = priceUSDBTC * symbolPrice;
             isHistoricalAveragePrice = isHistoricalAveragePriceSymbol;
+            priceCoef = symbolPriceCoef;
           } else if (tx.isFeePrice) {
-            price = feePrice;
+            priceUSD = feePrice;
+            priceBTC = priceUSDBTC * feePrice;
             isHistoricalAveragePrice = isHistoricalAveragePriceFeeCurrency;
+            priceCoef = 0;
           } else if (tx.isCurencyPrice) {
-            price = currencyPrice;
+            priceUSD = currencyPrice;
+            priceBTC = priceUSDBTC * currencyPrice;
             isHistoricalAveragePrice = isHistoricalAveragePriceCurrency;
+            priceCoef = currencyPriceCoef;
           }
 
-          const cost = tx.quantity * price;
+          costUSD = tx.quantity * priceUSD;
+          costBTC = tx.quantity * priceBTC;
+
           const object = {
             rowKey: tx.rowKey,
-            sourceKey: new Hash(this.workSheet.sheetName).md5,
-            sourceName: new Hash(this.workSheet.sheetName).stringLowerCase,
+            accountKey: tx.accountKey,
+            account: tx.account,
             historicalAveragePriceKey: new Hash(
-              tx.account + tx.contractor + tx.symbol
+              tx.account + tx.portfolio + tx.contractor + tx.symbol
             ).md5,
             dateTime: dateTime,
             direction: tx.isFee ? 'out' : tx.direction.toLowerCase(),
             operation: tx.isFee
               ? 'write-off'
               : rowValues.operation.toLowerCase(),
-            account: tx.account.toLowerCase(),
+            portfolio: tx.portfolio.toLowerCase(),
             platform: rowValues.platform.toLowerCase(),
             service: rowValues.service.toLowerCase(),
             contractor: tx.contractor.toLowerCase(),
+            pair: tx.pair ? tx.pair.toLowerCase() : void 0,
             mainSymbol: tx.mainSymbol ? tx.mainSymbol.toLowerCase() : void 0,
             symbol: tx.symbol.toLowerCase(),
             quantity: tx.quantity,
-            price: price || 0,
-            cost: cost || 0,
+            price: priceUSD || 0,
+            cost: costUSD || 0,
+            priceBTC: priceBTC || 0,
+            costBTC: costBTC || 0,
+            priceCoef: priceCoef || 0,
             comment: rowValues.comment.toString().toLowerCase(),
             updateDate: updateDate,
             isDelete: isDelete,
@@ -4130,14 +4185,14 @@ class LPToken {
     // console.log('transactionsLpToken', transactionsLpToken)
     const aggBalance = transactionsLpToken.reduce((object, tx) => {
       const positiveQuantity = tx.quantity < 0 ? tx.quantity * -1 : tx.quantity;
-      if (!object[tx.account]) {
-        object[tx.account] = {};
+      if (!object[tx.portfolio]) {
+        object[tx.portfolio] = {};
       }
-      if (!object[tx.account]) {
-        object[tx.account] = {};
+      if (!object[tx.portfolio]) {
+        object[tx.portfolio] = {};
       }
-      if (!object[tx.account][tx.mainSymbol]) {
-        object[tx.account][tx.mainSymbol] = [];
+      if (!object[tx.portfolio][tx.mainSymbol]) {
+        object[tx.portfolio][tx.mainSymbol] = [];
       }
       let part;
       if (new Hash(tx.mainSymbol).md5 === new Hash(tx.symbol).md5) {
@@ -4160,7 +4215,7 @@ class LPToken {
           part = 'three';
         }
       }
-      object[tx.account][tx.mainSymbol].push({
+      object[tx.portfolio][tx.mainSymbol].push({
         quantity: positiveQuantity,
         cost:
           new Hash(tx.mainSymbol).md5 === new Hash(tx.symbol).md5
@@ -4174,7 +4229,7 @@ class LPToken {
     }, {});
     // console.log('aggBalance', aggBalance)
     const newArrayOfObject = [];
-    Object.entries(aggBalance).forEach(([account, level0]) => {
+    Object.entries(aggBalance).forEach(([portfolio, level0]) => {
       Object.entries(level0).forEach(([mainCoin, level1]) => {
         const aggMainCoin = level1.reduce((object, tx) => {
           if (!object[tx.part]) {
@@ -4196,8 +4251,8 @@ class LPToken {
           coeff = 3;
         }
         newArrayOfObject.push({
-          rowKey: new Hash(account + mainCoin).md5,
-          account: account.toUpperCase(),
+          rowKey: new Hash(portfolio + mainCoin).md5,
+          portfolio: portfolio.toUpperCase(),
           mainSymbol: mainCoin.toUpperCase(),
           mainSymbolQty: aggMainCoin?.main?.quantity,
           mainSymbolHistoricalCost: aggMainCoin?.main?.cost,
@@ -4242,7 +4297,7 @@ class Flow {
     try {
       const symbols = new Symbols().workSheet.object;
       const contractors = new Portfolio().getWorkSheet('Contractors').object;
-      const accounts = new Portfolio().getWorkSheet('Accounts').object;
+      const portfolios = new Portfolio().getWorkSheet('Portfolios').object;
       const inKey = new Hash('in').md5;
       const outKey = new Hash('out').md5;
       const actualDate = new FormatDate();
@@ -4261,12 +4316,16 @@ class Flow {
             agg[tx.account] = {};
           }
 
-          if (!agg[tx.account][tx.contractor]) {
-            agg[tx.account][tx.contractor] = {};
+          if (!agg[tx.account][tx.portfolio]) {
+            agg[tx.account][tx.portfolio] = {};
           }
 
-          if (!agg[tx.account][tx.contractor][tx.symbol]) {
-            agg[tx.account][tx.contractor][tx.symbol] = {
+          if (!agg[tx.account][tx.portfolio][tx.contractor]) {
+            agg[tx.account][tx.portfolio][tx.contractor] = {};
+          }
+
+          if (!agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]) {
+            agg[tx.account][tx.portfolio][tx.contractor][tx.symbol] = {
               quantityBuyIn: 0,
               quantityBuyOut: 0,
               quantitySellIn: 0,
@@ -4301,18 +4360,23 @@ class Flow {
 
           if (operationKey === '0461ebd2b773878eac9f78a891912d65' /*buy*/) {
             if (directionKey === inKey) {
-              agg[tx.account][tx.contractor][tx.symbol].quantityBuyIn +=
-                tx.quantity;
-              agg[tx.account][tx.contractor][tx.symbol].costBuyIn += tx.cost;
-              agg[tx.account][tx.contractor][
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantityBuyIn += tx.quantity;
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].costBuyIn += tx.cost;
+              agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].dayInPortfolioBuyInSum += dayInPortfolio * tx.quantity;
             } else if (directionKey === outKey) {
-              agg[tx.account][tx.contractor][tx.symbol].quantityBuyOut +=
-                tx.quantity * -1;
-              agg[tx.account][tx.contractor][tx.symbol].costBuyOut +=
-                tx.cost * -1;
-              agg[tx.account][tx.contractor][
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantityBuyOut += tx.quantity * -1;
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].costBuyOut += tx.cost * -1;
+              agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].dayInPortfolioBuyOutSum += dayInPortfolio * tx.quantity * -1;
             }
@@ -4320,18 +4384,23 @@ class Flow {
             operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
           ) {
             if (directionKey === inKey) {
-              agg[tx.account][tx.contractor][tx.symbol].quantitySellIn +=
-                tx.quantity;
-              agg[tx.account][tx.contractor][tx.symbol].costSellIn += tx.cost;
-              agg[tx.account][tx.contractor][
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantitySellIn += tx.quantity;
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].costSellIn += tx.cost;
+              agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].dayInPortfolioSellInSum += dayInPortfolio * tx.quantity;
             } else if (directionKey === outKey) {
-              agg[tx.account][tx.contractor][tx.symbol].quantitySellOut +=
-                tx.quantity * -1;
-              agg[tx.account][tx.contractor][tx.symbol].costSellOut +=
-                tx.cost * -1;
-              agg[tx.account][tx.contractor][
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantitySellOut += tx.quantity * -1;
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].costSellOut += tx.cost * -1;
+              agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].dayInPortfolioSellOutSum += dayInPortfolio * tx.quantity * -1;
             }
@@ -4339,10 +4408,13 @@ class Flow {
             operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
           ) {
             if (directionKey === inKey) {
-              agg[tx.account][tx.contractor][tx.symbol].quantityRefillIn +=
-                tx.quantity;
-              agg[tx.account][tx.contractor][tx.symbol].costRefillIn += tx.cost;
-              agg[tx.account][tx.contractor][
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantityRefillIn += tx.quantity;
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].costRefillIn += tx.cost;
+              agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].dayInPortfolioRefillInSum += dayInPortfolio * tx.quantity;
             }
@@ -4350,11 +4422,13 @@ class Flow {
             operationKey === '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
           ) {
             if (directionKey === outKey) {
-              agg[tx.account][tx.contractor][tx.symbol].quantityWriteOffOut +=
-                tx.quantity * -1;
-              agg[tx.account][tx.contractor][tx.symbol].costWriteOffOut +=
-                tx.cost * -1;
-              agg[tx.account][tx.contractor][
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantityWriteOffOut += tx.quantity * -1;
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].costWriteOffOut += tx.cost * -1;
+              agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].dayInPortfolioWriteOffOutSum +=
                 dayInPortfolio * tx.quantity * -1;
@@ -4363,19 +4437,23 @@ class Flow {
             operationKey === '84a0f3455dcca894ace136be62efa292' /*transfer*/
           ) {
             if (directionKey === inKey) {
-              agg[tx.account][tx.contractor][tx.symbol].quantityTransferIn +=
-                tx.quantity;
-              agg[tx.account][tx.contractor][tx.symbol].costTransferIn +=
-                tx.cost;
-              agg[tx.account][tx.contractor][
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantityTransferIn += tx.quantity;
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].costTransferIn += tx.cost;
+              agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].dayInPortfolioTransferInSum += dayInPortfolio * tx.quantity;
             } else if (directionKey === outKey) {
-              agg[tx.account][tx.contractor][tx.symbol].quantityTransferOut +=
-                tx.quantity * -1;
-              agg[tx.account][tx.contractor][tx.symbol].costTransferOut +=
-                tx.cost * -1;
-              agg[tx.account][tx.contractor][
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantityTransferOut += tx.quantity * -1;
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].costTransferOut += tx.cost * -1;
+              agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].dayInPortfolioTransferOutSum +=
                 dayInPortfolio * tx.quantity * -1;
@@ -4383,11 +4461,13 @@ class Flow {
           }
 
           if (tx.isLock) {
-            agg[tx.account][tx.contractor][tx.symbol].quantityLock +=
-              tx.quantity;
+            agg[tx.account][tx.portfolio][tx.contractor][
+              tx.symbol
+            ].quantityLock += tx.quantity;
           } else {
-            agg[tx.account][tx.contractor][tx.symbol].quantityUnlock +=
-              tx.quantity;
+            agg[tx.account][tx.portfolio][tx.contractor][
+              tx.symbol
+            ].quantityUnlock += tx.quantity;
           }
           //* расчет точности
           const precisionArray = tx.quantity.toString().split('.');
@@ -4395,220 +4475,239 @@ class Flow {
             ? [...precisionArray[1].split('')].length
             : 0;
           if (
-            precision > agg[tx.account][tx.contractor][tx.symbol].precision &&
+            precision >
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                .precision &&
             precision <= 6
           ) {
-            agg[tx.account][tx.contractor][tx.symbol].precision = precision;
+            agg[tx.account][tx.portfolio][tx.contractor][
+              tx.symbol
+            ].precision = precision;
           } else if (
-            precision > agg[tx.account][tx.contractor][tx.symbol].precision &&
+            precision >
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                .precision &&
             precision > 6
           ) {
-            agg[tx.account][tx.contractor][tx.symbol].precision = 6;
+            agg[tx.account][tx.portfolio][tx.contractor][
+              tx.symbol
+            ].precision = 6;
           }
 
-          agg[tx.account][tx.contractor][tx.symbol].quantityFlow += tx.quantity;
+          agg[tx.account][tx.portfolio][tx.contractor][
+            tx.symbol
+          ].quantityFlow += tx.quantity;
 
           return agg
         }, {});
 
       let aggFlowArrayOfObject = [];
       Object.entries(aggFlow).forEach(([account, level0]) => {
-        Object.entries(level0).forEach(([contractor, level1]) => {
-          Object.entries(level1).forEach(([symbol, object]) => {
-            //* доп. атрибуты
-            //* атрибуты символа
-            const symbolKey = new Hash(symbol).md5;
-            const symbolFullName = symbols[symbolKey]?.name || '';
-            const symbolCategory = symbols[symbolKey]?.symbolCategory || '';
-            const symbolEcosystem = symbols[symbolKey]?.ecosystem || '';
-            const symbolMarketCapGroup =
-              symbols[symbolKey]?.marketCapGroup || '';
-            const symbolPriceGroup = symbols[symbolKey]?.priceGroup || '';
-            const useInReport = symbols[symbolKey]?.useInReport;
-            const mainAccount = accounts[new Hash(account).md5].mainAccount;
-            //* атрибуты контрагента
-            const contractorKey = new Hash(contractor).md5;
-            const contractorType = contractors[contractorKey]?.type || '';
-            const contractorCategory =
-              contractors[contractorKey]?.category || '';
+        Object.entries(level0).forEach(([portfolio, level1]) => {
+          Object.entries(level1).forEach(([contractor, level2]) => {
+            Object.entries(level2).forEach(([symbol, object]) => {
+              //* доп. атрибуты
+              //* атрибуты символа
+              const symbolKey = new Hash(symbol).md5;
+              const symbolFullName = symbols[symbolKey]?.name || '';
+              const symbolCategory = symbols[symbolKey]?.symbolCategory || '';
+              const symbolEcosystem = symbols[symbolKey]?.ecosystem || '';
+              const symbolMarketCapGroup =
+                symbols[symbolKey]?.marketCapGroup || '';
+              const symbolPriceGroup = symbols[symbolKey]?.priceGroup || '';
+              const useInReport = symbols[symbolKey]?.useInReport;
+              //* атрибуты контрагента
+              const contractorKey = new Hash(contractor).md5;
+              const contractorType = contractors[contractorKey]?.type || '';
+              const contractorCategory =
+                contractors[contractorKey]?.category || '';
 
-            //* коэффициент точности по количеству
-            let precisionCoeff = '1';
-            for (let i = 0; i < object.precision; i++) {
-              precisionCoeff += '0';
-            }
-            precisionCoeff = precisionCoeff * 1;
-
-            //* стоимость остатка
-            const quantityFlow =
-              Math.round(object.quantityFlow * precisionCoeff) / precisionCoeff;
-            const quantityLock =
-              Math.round(object.quantityLock * precisionCoeff) / precisionCoeff;
-            const quantityUnlock =
-              Math.round(object.quantityUnlock * precisionCoeff) /
-              precisionCoeff;
-            const price = symbols[symbolKey]?.price || 0;
-            const cost = Math.round(price * quantityFlow * 100) / 100 || 0;
-            const costLock = price * quantityLock;
-            const costUnlock = price * quantityUnlock;
-
-            //* расчет потоков
-            const costInFlow =
-              Math.round(
-                (object.costBuyIn +
-                  object.costSellIn +
-                  object.costRefillIn +
-                  object.costTransferIn) *
-                  precisionCoeff
-              ) / precisionCoeff;
-
-            const costOwnInFlow =
-              Math.round(
-                (object.costBuyIn + object.costSellIn) * precisionCoeff
-              ) / precisionCoeff;
-
-            const costOutFlow =
-              Math.round(
-                (object.costBuyOut +
-                  object.costSellOut +
-                  object.costWriteOffOut +
-                  object.costTransferOut) *
-                  precisionCoeff
-              ) / precisionCoeff;
-
-            const quantityInFlow =
-              Math.round(
-                (object.quantityBuyIn +
-                  object.quantitySellIn +
-                  object.quantityRefillIn +
-                  object.quantityTransferIn) *
-                  precisionCoeff
-              ) / precisionCoeff;
-
-            const quantityOwnInFlow =
-              Math.round(
-                (object.quantityBuyIn + object.quantitySellIn) * precisionCoeff
-              ) / precisionCoeff;
-
-            const quantityOutFlow =
-              Math.round(
-                (object.quantityBuyOut +
-                  object.quantitySellOut +
-                  object.quantityWriteOffOut +
-                  object.quantityTransferOut) *
-                  precisionCoeff
-              ) / precisionCoeff;
-
-            //* расчет цены потоков
-
-            const priceInFlow = costInFlow / quantityInFlow || 0;
-            const priceOwnInFlow = costOwnInFlow / quantityOwnInFlow || 0;
-            const priceOutFlow = costOutFlow / quantityOutFlow || 0;
-            const priceFlowSum =
-              priceInFlow * quantityInFlow + priceOutFlow * quantityOutFlow;
-            const quantityFlowSum = quantityInFlow + quantityOutFlow;
-            const priceFlow = priceFlowSum / quantityFlowSum || 0;
-            const costFlow =
-              Math.round(priceFlow * quantityFlow * 100) / 100 || 0;
-
-            // if (
-            //   new Hash(contractor).md5 === new Hash('TREZOR').md5 &&
-            //   new Hash(symbol).md5 === new Hash('ETH').md5 &&
-            //   new Hash(account).md5 === new Hash('IKENIBORN (LONG-TERM)').md5
-            // ) {
-            //   console.log(account, contractor, symbol)
-            //   console.log('costInFlow', costInFlow)
-            //   console.log('quantityInFlow', quantityInFlow)
-            //   console.log('costOutFlow', costOutFlow)
-            //   console.log('quantityOutFlow', quantityOutFlow)
-            //   console.log('priceFlowSum', priceFlowSum)
-            //   console.log('precisionCoeff', precisionCoeff)
-            //   console.log('quantityFlow', quantityFlow)
-            //   console.log('priceFlow', priceFlow)
-            //   console.log('costFlow', costFlow)
-            // }
-
-            //* Расчет среднего времени в портфеле
-
-            const dayInPortfolioAvg =
-              object.dayInPortfolioBuyInSum / object.quantityBuyIn ||
-              0 + object.dayInPortfolioSellInSum / object.quantitySellIn ||
-              0 + object.dayInPortfolioRefillInSum / object.quantityRefillIn ||
-              0 +
-                object.dayInPortfolioTransferInSum /
-                  object.quantityTransferIn ||
-              -(
-                object.dayInPortfolioBuyOutSum / object.quantityBuyOut ||
-                0 + object.dayInPortfolioSellOutSum / object.quantitySellOut ||
-                0 +
-                  object.dayInPortfolioWriteOffOutSum /
-                    object.quantityWriteOffOut ||
-                0 +
-                  object.dayInPortfolioTransferOutSum /
-                    object.quantityTransferOut ||
-                0
-              );
-            //* Количество на ребалансировки от изменения цены
-
-            let quantityRebalance;
-            if (price) {
-              const changePriceCoef = price / priceFlow;
-              let priceRebalance = price + (priceFlow - price) * changePriceCoef;
-              if (priceRebalance < 0) {
-                priceRebalance = 0;
+              //* коэффициент точности по количеству
+              let precisionCoeff = '1';
+              for (let i = 0; i < object.precision; i++) {
+                precisionCoeff += '0';
               }
-              quantityRebalance =
-                (quantityFlow * (priceFlow - priceRebalance)) /
-                (priceRebalance - price);
-            } else {
-              quantityRebalance = 0;
-            }
+              precisionCoeff = precisionCoeff * 1;
 
-            const payback = costOutFlow - costOwnInFlow;
+              //* стоимость остатка
+              const quantityFlow =
+                Math.round(object.quantityFlow * precisionCoeff) /
+                precisionCoeff;
+              const quantityLock =
+                Math.round(object.quantityLock * precisionCoeff) /
+                precisionCoeff;
+              const quantityUnlock =
+                Math.round(object.quantityUnlock * precisionCoeff) /
+                precisionCoeff;
+              const price = symbols[symbolKey]?.price || 0;
+              const cost = Math.round(price * quantityFlow * 100) / 100 || 0;
+              const costLock = price * quantityLock;
+              const costUnlock = price * quantityUnlock;
 
-            aggFlowArrayOfObject.push({
-              mainAccount: mainAccount.toUpperCase(),
-              account: account.toUpperCase(),
-              contractor: contractor.toUpperCase(),
-              contractorType: contractorType.toUpperCase(),
-              contractorCategory: contractorCategory.toUpperCase(),
-              symbol: symbol.toUpperCase(),
-              symbolFullName: symbolFullName.toUpperCase(),
-              symbolCategory: symbolCategory.toUpperCase(),
-              symbolEcosystem: symbolEcosystem.toUpperCase(),
-              symbolMarketCapGroup: symbolMarketCapGroup.toUpperCase(),
-              symbolPriceGroup: symbolPriceGroup.toUpperCase(),
-              quantityOwnInFlow: quantityOwnInFlow || 0,
-              quantityInFlow: quantityInFlow || 0,
-              quantityOutFlow: quantityOutFlow || 0,
-              quantityFlow: quantityFlow || 0,
-              quantityLock: quantityLock || 0,
-              quantityUnlock: quantityUnlock || 0,
-              priceOwnInFlow: priceOwnInFlow || 0,
-              priceInFlow: priceInFlow || 0,
-              priceOutFlow: priceOutFlow || 0,
-              priceFlow: priceFlow || 0,
-              price: price || 0,
-              costOwnInFlow: costOwnInFlow || 0,
-              costInFlow: costInFlow || 0,
-              costOutFlow: costOutFlow || 0,
-              costFlow: costFlow || 0,
-              cost: cost || 0,
-              costLock: costLock || 0,
-              costUnlock: costUnlock || 0,
-              pnlFlow: cost - costFlow || 0,
-              pnlTotal: costOutFlow - costInFlow + cost || 0,
-              quantityRebalance: quantityRebalance || 0,
-              payback: payback || 0,
-              dayInPortfolioAvg,
-              isSell: false,
-              useInReport: useInReport,
-              updateDataMart: updateDataMart.getFormatDate(
-                'yyyy-MM-dd hh:mm:ss'
-              ),
-              actualDataMart:
-                actualDate.yyyymmdd === updateDataMart.yyyymmdd ? true : false,
-              updateDataMartKey: new Hash(updateDataMart.yyyymmdd).md5,
+              //* расчет потоков
+              const costInFlow =
+                Math.round(
+                  (object.costBuyIn +
+                    object.costSellIn +
+                    object.costRefillIn +
+                    object.costTransferIn) *
+                    precisionCoeff
+                ) / precisionCoeff;
+
+              const costOwnInFlow =
+                Math.round(
+                  (object.costBuyIn + object.costSellIn) * precisionCoeff
+                ) / precisionCoeff;
+
+              const costOutFlow =
+                Math.round(
+                  (object.costBuyOut +
+                    object.costSellOut +
+                    object.costWriteOffOut +
+                    object.costTransferOut) *
+                    precisionCoeff
+                ) / precisionCoeff;
+
+              const quantityInFlow =
+                Math.round(
+                  (object.quantityBuyIn +
+                    object.quantitySellIn +
+                    object.quantityRefillIn +
+                    object.quantityTransferIn) *
+                    precisionCoeff
+                ) / precisionCoeff;
+
+              const quantityOwnInFlow =
+                Math.round(
+                  (object.quantityBuyIn + object.quantitySellIn) *
+                    precisionCoeff
+                ) / precisionCoeff;
+
+              const quantityOutFlow =
+                Math.round(
+                  (object.quantityBuyOut +
+                    object.quantitySellOut +
+                    object.quantityWriteOffOut +
+                    object.quantityTransferOut) *
+                    precisionCoeff
+                ) / precisionCoeff;
+
+              //* расчет цены потоков
+
+              const priceInFlow = costInFlow / quantityInFlow || 0;
+              const priceOwnInFlow = costOwnInFlow / quantityOwnInFlow || 0;
+              const priceOutFlow = costOutFlow / quantityOutFlow || 0;
+              const priceFlowSum =
+                priceInFlow * quantityInFlow + priceOutFlow * quantityOutFlow;
+              const quantityFlowSum = quantityInFlow + quantityOutFlow;
+              const priceFlow = priceFlowSum / quantityFlowSum || 0;
+              const costFlow =
+                Math.round(priceFlow * quantityFlow * 100) / 100 || 0;
+
+              // if (
+              //   new Hash(contractor).md5 === new Hash('TREZOR').md5 &&
+              //   new Hash(symbol).md5 === new Hash('ETH').md5 &&
+              //   new Hash(account).md5 === new Hash('IKENIBORN (LONG-TERM)').md5
+              // ) {
+              //   console.log(account, contractor, symbol)
+              //   console.log('costInFlow', costInFlow)
+              //   console.log('quantityInFlow', quantityInFlow)
+              //   console.log('costOutFlow', costOutFlow)
+              //   console.log('quantityOutFlow', quantityOutFlow)
+              //   console.log('priceFlowSum', priceFlowSum)
+              //   console.log('precisionCoeff', precisionCoeff)
+              //   console.log('quantityFlow', quantityFlow)
+              //   console.log('priceFlow', priceFlow)
+              //   console.log('costFlow', costFlow)
+              // }
+
+              //* Расчет среднего времени в портфеле
+
+              const dayInPortfolioAvg =
+                object.dayInPortfolioBuyInSum / object.quantityBuyIn ||
+                0 + object.dayInPortfolioSellInSum / object.quantitySellIn ||
+                0 +
+                  object.dayInPortfolioRefillInSum / object.quantityRefillIn ||
+                0 +
+                  object.dayInPortfolioTransferInSum /
+                    object.quantityTransferIn ||
+                -(
+                  object.dayInPortfolioBuyOutSum / object.quantityBuyOut ||
+                  0 +
+                    object.dayInPortfolioSellOutSum / object.quantitySellOut ||
+                  0 +
+                    object.dayInPortfolioWriteOffOutSum /
+                      object.quantityWriteOffOut ||
+                  0 +
+                    object.dayInPortfolioTransferOutSum /
+                      object.quantityTransferOut ||
+                  0
+                );
+              //* Количество на ребалансировки от изменения цены
+
+              let quantityRebalance;
+              if (price) {
+                const changePriceCoef = price / priceFlow;
+                let priceRebalance =
+                  price + (priceFlow - price) * changePriceCoef;
+                if (priceRebalance < 0) {
+                  priceRebalance = 0;
+                }
+                quantityRebalance =
+                  (quantityFlow * (priceFlow - priceRebalance)) /
+                  (priceRebalance - price);
+              } else {
+                quantityRebalance = 0;
+              }
+
+              const payback = costOutFlow - costOwnInFlow;
+
+              aggFlowArrayOfObject.push({
+                account: account.toUpperCase(),
+                portfolio: portfolio.toUpperCase(),
+                contractor: contractor.toUpperCase(),
+                contractorType: contractorType.toUpperCase(),
+                contractorCategory: contractorCategory.toUpperCase(),
+                symbol: symbol.toUpperCase(),
+                symbolFullName: symbolFullName.toUpperCase(),
+                symbolCategory: symbolCategory.toUpperCase(),
+                symbolEcosystem: symbolEcosystem.toUpperCase(),
+                symbolMarketCapGroup: symbolMarketCapGroup.toUpperCase(),
+                symbolPriceGroup: symbolPriceGroup.toUpperCase(),
+                quantityOwnInFlow: quantityOwnInFlow || 0,
+                quantityInFlow: quantityInFlow || 0,
+                quantityOutFlow: quantityOutFlow || 0,
+                quantityFlow: quantityFlow || 0,
+                quantityLock: quantityLock || 0,
+                quantityUnlock: quantityUnlock || 0,
+                priceOwnInFlow: priceOwnInFlow || 0,
+                priceInFlow: priceInFlow || 0,
+                priceOutFlow: priceOutFlow || 0,
+                priceFlow: priceFlow || 0,
+                price: price || 0,
+                costOwnInFlow: costOwnInFlow || 0,
+                costInFlow: costInFlow || 0,
+                costOutFlow: costOutFlow || 0,
+                costFlow: costFlow || 0,
+                cost: cost || 0,
+                costLock: costLock || 0,
+                costUnlock: costUnlock || 0,
+                pnlFlow: cost - costFlow || 0,
+                pnlTotal: costOutFlow - costInFlow + cost || 0,
+                quantityRebalance: quantityRebalance || 0,
+                payback: payback || 0,
+                dayInPortfolioAvg,
+                isSell: false,
+                useInReport: useInReport,
+                updateDataMart: updateDataMart.getFormatDate(
+                  'yyyy-MM-dd hh:mm:ss'
+                ),
+                actualDataMart:
+                  actualDate.yyyymmdd === updateDataMart.yyyymmdd
+                    ? true
+                    : false,
+                updateDataMartKey: new Hash(updateDataMart.yyyymmdd).md5,
+              });
             });
           });
         });
@@ -4617,20 +4716,19 @@ class Flow {
       //* агрегация количества по символу
       const symbolsQuantityFlow = aggFlowArrayOfObject.reduce(
         (symbolQuantityFlow, rowFlow) => {
-          if (!symbolQuantityFlow[rowFlow.mainAccount]) {
-            symbolQuantityFlow[rowFlow.mainAccount] = {};
+          if (!symbolQuantityFlow[rowFlow.account]) {
+            symbolQuantityFlow[rowFlow.account] = {};
           }
-          if (!symbolQuantityFlow[rowFlow.mainAccount][rowFlow.symbol]) {
-            symbolQuantityFlow[rowFlow.mainAccount][rowFlow.symbol] = {
+          if (!symbolQuantityFlow[rowFlow.account][rowFlow.symbol]) {
+            symbolQuantityFlow[rowFlow.account][rowFlow.symbol] = {
               quantityFlow: 0,
               costFlow: 0,
             };
           }
-          symbolQuantityFlow[rowFlow.mainAccount][
-            rowFlow.symbol
-          ].quantityFlow += rowFlow.quantityFlow;
+          symbolQuantityFlow[rowFlow.account][rowFlow.symbol].quantityFlow +=
+            rowFlow.quantityFlow;
 
-          symbolQuantityFlow[rowFlow.mainAccount][rowFlow.symbol].costFlow +=
+          symbolQuantityFlow[rowFlow.account][rowFlow.symbol].costFlow +=
             rowFlow.costFlow;
           return symbolQuantityFlow
         },
@@ -4640,10 +4738,10 @@ class Flow {
       //* формирование признака продажи
       aggFlowArrayOfObject = aggFlowArrayOfObject.map((rowFlow) => {
         if (
-          symbolsQuantityFlow[rowFlow.mainAccount][rowFlow.symbol]
-            .quantityFlow === 0 ||
+          symbolsQuantityFlow[rowFlow.account][rowFlow.symbol].quantityFlow ===
+            0 ||
           Math.round(
-            symbolsQuantityFlow[rowFlow.mainAccount][rowFlow.symbol].costFlow
+            symbolsQuantityFlow[rowFlow.account][rowFlow.symbol].costFlow
           ) === 0
         ) {
           rowFlow.isSell = true;
