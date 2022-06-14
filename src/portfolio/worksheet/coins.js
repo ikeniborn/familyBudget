@@ -2,7 +2,7 @@ import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash } from '../../utils'
 import * as cryptoRank from '../../restApi/cryptoRank'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
-// import * as coinMarketCap from '../../restApi/coinMarketCap'
+import * as coinMarketCap from '../../restApi/coinMarketCap'
 import * as coinGecko from '../../restApi/coinGecko'
 export { Coins }
 
@@ -38,6 +38,17 @@ class Coins {
           coins.push({
             rowKey: key.md5,
             source: 'cryptorank',
+            name: coin.name,
+            symbol: coin.symbol,
+            id: coin.id,
+          })
+        })
+
+        new coinMarketCap.CoinsList().getCoinsList().forEach((coin) => {
+          const key = new Hash('coinmarketcap' + coin.name + coin.symbol)
+          coins.push({
+            rowKey: key.md5,
+            source: 'coinmarketcap',
             name: coin.name,
             symbol: coin.symbol,
             id: coin.id,

@@ -1630,6 +1630,17 @@ class Portfolio {
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
         },
       },
+      web3Space: {
+        type: 'dim',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0, notNull: true },
+          source: { alias: 'Source', pk: true, idx: 1, notNull: true },
+          name: { alias: 'Name', pk: true, idx: 2, notNull: true },
+          symbol: { alias: 'Symbol', pk: true, idx: 3, notNull: true },
+          category: { alias: 'Category', idx: 4 },
+        },
+      },
       symbolCategory: {
         type: 'dim',
         rowNum: 1,
@@ -2024,17 +2035,17 @@ class Fetch {
 /**
  * CryptoCompare instance
  */
-class Instance$2 {
+class Instance$3 {
   /**
    * Create new inctance API CryptoCompare
    *
    */
   constructor() {
-    if (Instance$2.exists) {
-      return Instance$2.instance
+    if (Instance$3.exists) {
+      return Instance$3.instance
     }
-    Instance$2.instance = this;
-    Instance$2.exists = true;
+    Instance$3.instance = this;
+    Instance$3.exists = true;
     this.methods = new Methods({
       domain: 'https://min-api.cryptocompare.com/data',
       query: {
@@ -2053,7 +2064,7 @@ class Instance$2 {
  */
 class Price$2 {
   constructor() {
-    this.methods = new Instance$2().methods;
+    this.methods = new Instance$3().methods;
   }
 
   getSinglePrice(fsym = '', tsyms = 'USD') {
@@ -2154,9 +2165,9 @@ class Price$2 {
 /**
  * CryptoCompare coin list
  */
-class CoinsList$2 {
+class CoinsList$3 {
   constructor() {
-    this.methods = new Instance$2().methods;
+    this.methods = new Instance$3().methods;
   }
   getCoinsList() {
     return this.methods.get({ endPoint: '/all/coinlist' })?.Data
@@ -2165,7 +2176,7 @@ class CoinsList$2 {
 
 class TopList {
   constructor() {
-    this.methods = new Instance$2().methods;
+    this.methods = new Instance$3().methods;
   }
   topMarketCap(top = 100, tsym = 'usd') {
     try {
@@ -2760,16 +2771,16 @@ class HistoricalPrice {
 /**
  * CryptoRank instance
  */
-class Instance$1 {
+class Instance$2 {
   /**
    * Create new inctance API CryptoRank
    */
   constructor() {
-    if (Instance$1.exists) {
-      return Instance$1.instance
+    if (Instance$2.exists) {
+      return Instance$2.instance
     }
-    Instance$1.instance = this;
-    Instance$1.exists = true;
+    Instance$2.instance = this;
+    Instance$2.exists = true;
     this.methods = new Methods({
       domain: 'https://api.cryptorank.io/v1',
       query: {
@@ -2787,7 +2798,7 @@ class Instance$1 {
  */
 class Price$1 {
   constructor() {
-    this.methods = new Instance$1().methods;
+    this.methods = new Instance$2().methods;
   }
   getLastPrice(ids = '1', convert = 'USD') {
     return (
@@ -2812,9 +2823,9 @@ class Price$1 {
 /**
  * CryptoRank coin list
  */
-class CoinsList$1 {
+class CoinsList$2 {
   constructor() {
-    this.methods = new Instance$1().methods;
+    this.methods = new Instance$2().methods;
   }
   getCoinsList(limit = 100) {
     return (
@@ -2833,16 +2844,16 @@ class CoinsList$1 {
 /**
  * CoinGecko instance
  */
-class Instance {
+class Instance$1 {
   /**
    * Create new inctance API CoinGecko
    */
   constructor() {
-    if (Instance.exists) {
-      return Instance.instance
+    if (Instance$1.exists) {
+      return Instance$1.instance
     }
-    Instance.instance = this;
-    Instance.exists = true;
+    Instance$1.instance = this;
+    Instance$1.exists = true;
     this.methods = new Methods({
       domain: 'https://api.coingecko.com/api/v3',
       data: {
@@ -2857,7 +2868,7 @@ class Instance {
  */
 class Price {
   constructor() {
-    this.methods = new Instance().methods;
+    this.methods = new Instance$1().methods;
   }
 
   /**
@@ -2918,9 +2929,9 @@ class Price {
 /**
  * CoinGecko coin list
  */
-class CoinsList {
+class CoinsList$1 {
   constructor() {
-    this.methods = new Instance().methods;
+    this.methods = new Instance$1().methods;
   }
   /**
    *
@@ -2936,6 +2947,73 @@ class CoinsList {
         },
       }) || []
     )
+  }
+}
+
+/**
+ * CoinMarketCap instance
+ */
+class Instance {
+  constructor() {
+    if (Instance.exists) {
+      return Instance.instance
+    }
+    Instance.instance = this;
+    Instance.exists = true;
+    this.methods = new Methods({
+      domain: 'https://pro-api.coinmarketcap.com',
+      data: {
+        muteHttpExceptions: true,
+        contentType: 'accept: application/json',
+        headers: {
+          'X-CMC_PRO_API_KEY': '133c18b7-555c-4e57-ad7b-4d2bf6160c20',
+        },
+      },
+    });
+  }
+}
+/**
+ * CoinMarketCap coin list
+ */
+class CoinsList {
+  constructor() {
+    this.methods = new Instance().methods;
+  }
+  /**
+   * Get coins list
+   *
+   * @returns array coin
+   */
+  getCoinsList() {
+    return this.methods.get({
+      endPoint: '/v1/cryptocurrency/map',
+    })?.data
+  }
+}
+
+class Category {
+  constructor() {
+    this.methods = new Instance().methods;
+  }
+  /**
+   * Get coins list
+   *
+   * @returns category
+   */
+  getCategory(id) {
+    const object = this.methods.get({
+      endPoint: '/v2/cryptocurrency/info',
+      query: {
+        id,
+      },
+    })?.data;
+    return object[id]?.tags.join(', ')
+  }
+  getCategories() {
+    const object = this.methods.get({
+      endPoint: '/v1/cryptocurrency/categories',
+    })?.data;
+    return object
   }
 }
 
@@ -2955,7 +3033,7 @@ class Coins {
     new Promise((resolve, reject) => {
       const process = () => {
         const coins = [];
-        new CoinsList().getCoinsList().forEach((coin) => {
+        new CoinsList$1().getCoinsList().forEach((coin) => {
           const rowKey = new Hash('coingecko' + coin.name + coin.symbol).md5;
           coins.push({
             rowKey: rowKey,
@@ -2966,7 +3044,7 @@ class Coins {
           });
         });
 
-        new CoinsList$1().getCoinsList(15000).forEach((coin) => {
+        new CoinsList$2().getCoinsList(15000).forEach((coin) => {
           const key = new Hash('cryptorank' + coin.name + coin.symbol);
           coins.push({
             rowKey: key.md5,
@@ -2977,7 +3055,18 @@ class Coins {
           });
         });
 
-        Object.entries(new CoinsList$2().getCoinsList()).forEach(
+        new CoinsList().getCoinsList().forEach((coin) => {
+          const key = new Hash('coinmarketcap' + coin.name + coin.symbol);
+          coins.push({
+            rowKey: key.md5,
+            source: 'coinmarketcap',
+            name: coin.name,
+            symbol: coin.symbol,
+            id: coin.id,
+          });
+        });
+
+        Object.entries(new CoinsList$3().getCoinsList()).forEach(
           (coin) => {
             const key = new Hash('cryptocompare' + coin[1].CoinName + coin[0]);
             coins.push({
@@ -4464,9 +4553,10 @@ class Flow {
             let quantityRebalance;
             if (price) {
               const changePriceCoef = price / priceFlow;
-              const priceRebalance =
-                price + (priceFlow - price) * changePriceCoef;
-
+              let priceRebalance = price + (priceFlow - price) * changePriceCoef;
+              if (priceRebalance < 0) {
+                priceRebalance = 0;
+              }
               quantityRebalance =
                 (quantityFlow * (priceFlow - priceRebalance)) /
                 (priceRebalance - price);
@@ -4594,10 +4684,38 @@ class Flow {
 // costTransferIn: object.costTransferIn || 0,
 // costTransferOut: object.costTransferOut || 0,
 
+class Web3Space {
+  constructor(workSheet = '') {
+    this.workSheet = workSheet
+      ? workSheet
+      : new Portfolio().getWorkSheet('Web3Space');
+  }
+
+  getCategory() {
+    const coins = new Portfolio().getWorkSheet('coins').object;
+    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
+      const coinId = coins[rowObject.rowKey]?.id;
+      rowObject.category = coinId
+        ? new Category().getCategory(coinId)
+        : void 0;
+      return rowObject
+    });
+    this.workSheet.truncateInsertRows(newArrayOfObject);
+    // console.log(newArrayOfObject)
+  }
+}
+
 // import { GasProcess } from '../restApi/gasScriptApi'
 
 function updateLPToken() {
   new LPToken().updateLPToken();
+}
+
+function getCategory() {
+  new Web3Space().getCategory();
+}
+function getCategories() {
+  console.log(new Category().getCategories());
 }
 
 function cleanAllMetadata() {

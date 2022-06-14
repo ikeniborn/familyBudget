@@ -7,10 +7,19 @@ import { LPToken } from './worksheet/lpToken.js'
 import { Flow } from './worksheet/flow'
 import { Transactions } from './worksheet/transactions'
 import { WorkSheetMetadata } from '../gas'
+import { Web3Space } from './worksheet/web3space'
+import * as coinMarketCap from '../restApi/coinMarketCap'
 // import { GasProcess } from '../restApi/gasScriptApi'
 
 function updateLPToken() {
   new LPToken().updateLPToken()
+}
+
+function getCategory() {
+  new Web3Space().getCategory()
+}
+function getCategories() {
+  console.log(new coinMarketCap.Category().getCategories())
 }
 
 function cleanAllMetadata() {

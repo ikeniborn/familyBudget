@@ -1,5 +1,5 @@
 import { Methods } from './fetch'
-export { Price, CoinsList }
+export { Price, CoinsList, Category }
 /**
  * CoinMarketCap instance
  */
@@ -56,11 +56,37 @@ class CoinsList {
   /**
    * Get coins list
    *
-   * @returns {array}
+   * @returns array coin
    */
   getCoinsList() {
     return this.methods.get({
       endPoint: '/v1/cryptocurrency/map',
     })?.data
+  }
+}
+
+class Category {
+  constructor() {
+    this.methods = new Instance().methods
+  }
+  /**
+   * Get coins list
+   *
+   * @returns category
+   */
+  getCategory(id) {
+    const object = this.methods.get({
+      endPoint: '/v2/cryptocurrency/info',
+      query: {
+        id,
+      },
+    })?.data
+    return object[id]?.tags.join(', ')
+  }
+  getCategories() {
+    const object = this.methods.get({
+      endPoint: '/v1/cryptocurrency/categories',
+    })?.data
+    return object
   }
 }

@@ -291,6 +291,17 @@ class Portfolio {
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
         },
       },
+      web3Space: {
+        type: 'dim',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0, notNull: true },
+          source: { alias: 'Source', pk: true, idx: 1, notNull: true },
+          name: { alias: 'Name', pk: true, idx: 2, notNull: true },
+          symbol: { alias: 'Symbol', pk: true, idx: 3, notNull: true },
+          category: { alias: 'Category', idx: 4 },
+        },
+      },
       symbolCategory: {
         type: 'dim',
         rowNum: 1,

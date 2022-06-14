@@ -331,9 +331,10 @@ class Flow {
             let quantityRebalance
             if (price) {
               const changePriceCoef = price / priceFlow
-              const priceRebalance =
-                price + (priceFlow - price) * changePriceCoef
-
+              let priceRebalance = price + (priceFlow - price) * changePriceCoef
+              if (priceRebalance < 0) {
+                priceRebalance = 0
+              }
               quantityRebalance =
                 (quantityFlow * (priceFlow - priceRebalance)) /
                 (priceRebalance - price)
