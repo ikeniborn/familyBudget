@@ -2369,6 +2369,26 @@ class Transactions {
     this.workSheet.truncateInsertRows(newArrayOfObject);
   }
 
+  updateRowKey() {
+    const directionInKey = new Hash('in').md5;
+    const directionOutKey = new Hash('out').md5;
+    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
+      let newRowKey;
+      if (directionInKey === new Hash(rowObject.direction).md5) {
+        newRowKey = new Hash(rowObject.registryRowKey + '#2').md5;
+      } else if (directionOutKey === new Hash(rowObject.direction).md5) {
+        if (rowObject.isFee) {
+          newRowKey = new Hash(rowObject.registryRowKey + '#3').md5;
+        } else {
+          newRowKey = new Hash(rowObject.registryRowKey + '#1').md5;
+        }
+      }
+      rowObject.rowKey = newRowKey;
+      return rowObject
+    });
+    this.workSheet.truncateInsertRows(newArrayOfObject);
+  }
+
   updateHistoricalAveragePriceKey() {
     const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
       const newHistoricalAveragePriceKey = new Hash(
@@ -4938,6 +4958,10 @@ function updatePrices() {
 
 function updateRegistryRowKey() {
   new Transactions().updateRegistryRowKey();
+}
+
+function updateRowKey() {
+  new Transactions().updateRowKey();
 }
 
 function updateHistoricalAveragePriceKey() {

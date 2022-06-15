@@ -146,6 +146,10 @@ function updateRegistryRowKey() {
   new Transactions().updateRegistryRowKey()
 }
 
+function updateRowKey() {
+  new Transactions().updateRowKey()
+}
+
 function updateHistoricalAveragePriceKey() {
   new Transactions().updateHistoricalAveragePriceKey()
 }
