@@ -291,7 +291,7 @@ class Registry {
               contractor: sender,
               mainSymbol: void 0,
               symbol: coinSymbol,
-              pair: coinSymbol + '/' + currencySymbol,
+              overflow: coinSymbol + '/' + currencySymbol,
               quantity: coinQty * -1,
               isFee,
               isLock: isSenderLock,
@@ -331,7 +331,7 @@ class Registry {
               contractor: recipient,
               mainSymbol: void 0,
               symbol: coinSymbol,
-              pair: coinSymbol + '/' + currencySymbol,
+              overflow: coinSymbol + '/' + currencySymbol,
               quantity: coinQty,
               isFee,
               isLock: isRecipientLock,
@@ -368,7 +368,7 @@ class Registry {
             contractor: sender,
             mainSymbol: mainSymbol,
             symbol: currencySymbol,
-            pair: currencySymbol + '/' + coinSymbol,
+            overflow: currencySymbol + '/' + coinSymbol,
             quantity: currencyQty * -1,
             isFee,
             isLock: isSenderLock,
@@ -393,7 +393,7 @@ class Registry {
             contractor: recipient,
             mainSymbol: mainSymbol,
             symbol: coinSymbol,
-            pair: coinSymbol + '/' + currencySymbol,
+            overflow: coinSymbol + '/' + currencySymbol,
             quantity: coinQty,
             isFee,
             isLock: isRecipientLock,
@@ -430,7 +430,7 @@ class Registry {
             contractor: sender,
             mainSymbol: mainSymbol,
             symbol: coinSymbol,
-            pair: coinSymbol + '/' + currencySymbol,
+            overflow: coinSymbol + '/' + currencySymbol,
             quantity: coinQty * -1,
             isFee,
             isLock: isSenderLock,
@@ -455,7 +455,7 @@ class Registry {
             contractor: recipient,
             mainSymbol: mainSymbol,
             symbol: currencySymbol,
-            pair: currencySymbol + '/' + coinSymbol,
+            overflow: currencySymbol + '/' + coinSymbol,
             quantity: currencyQty,
             isFee,
             isLock: isRecipientLock,
@@ -519,7 +519,7 @@ class Registry {
             contractor: feeSender,
             mainSymbol: void 0,
             symbol: feeCurrency,
-            pair: void 0,
+            overflow: feeCurrency + '/' + feeCurrency,
             quantity: feeQty * -1,
             isFee: true,
             isLock: false,
@@ -565,7 +565,7 @@ class Registry {
             priceUSD = feePrice
             priceBTC = priceUSDBTC * feePrice
             isHistoricalAveragePrice = isHistoricalAveragePriceFeeCurrency
-            priceCoef = 0
+            priceCoef = 1
           } else if (tx.isCurencyPrice) {
             priceUSD = currencyPrice
             priceBTC = priceUSDBTC * currencyPrice
@@ -592,7 +592,7 @@ class Registry {
             platform: rowValues.platform.toLowerCase(),
             service: rowValues.service.toLowerCase(),
             contractor: tx.contractor.toLowerCase(),
-            pair: tx.pair ? tx.pair.toLowerCase() : void 0,
+            overflow: tx.overflow ? tx.overflow.toLowerCase() : void 0,
             mainSymbol: tx.mainSymbol ? tx.mainSymbol.toLowerCase() : void 0,
             symbol: tx.symbol.toLowerCase(),
             quantity: tx.quantity,

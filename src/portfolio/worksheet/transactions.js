@@ -151,6 +151,95 @@ class Transactions {
     this.workSheet.truncateInsertRows(newArrayOfObject)
   }
 
+  /**
+   *
+   * @param {number} startIndex
+   * @param {number} endIndex
+   */
+  updatePair(startIndex, endIndex) {
+    const directionInKey = new Hash('in').md5
+    const directionOutKey = new Hash('out').md5
+    const newObject = this.workSheet.arrayOfObject.reduce(
+      (newObject, rowObject) => {
+        if (!newObject[rowObject.registryRowKey]) {
+          newObject[rowObject.registryRowKey] = {}
+        }
+        if (directionInKey === new Hash(rowObject.direction).md5) {
+          newObject[rowObject.registryRowKey]['in'] = rowObject
+        } else if (directionOutKey === new Hash(rowObject.direction).md5) {
+          if (rowObject.isFee) {
+            newObject[rowObject.registryRowKey]['fee'] = rowObject
+          } else {
+            newObject[rowObject.registryRowKey]['out'] = rowObject
+          }
+        }
+        return newObject
+      },
+      {}
+    )
+    const newArrayOfObject = this.workSheet.arrayOfObject.map(
+      (rowObject, indexRow) => {
+        if (indexRow >= startIndex && indexRow <= endIndex) {
+          let newOverflow,
+            newPriceCoef,
+            outSymbol,
+            inSymbol,
+            feeSymbol,
+            outPrice,
+            inPrice,
+            feePrice,
+            priceUSDBTC,
+            priceBTC,
+            costBTC,
+            outQuantity,
+            inQuantity,
+            feeQuantity,
+            dateTime
+          const registryObject = newObject[rowObject.registryRowKey]
+          outSymbol = registryObject['out']?.symbol
+          inSymbol = registryObject['in']?.symbol
+          feeSymbol = registryObject['fee']?.symbol
+          outPrice = registryObject['out']?.price
+          inPrice = registryObject['in']?.price
+          feePrice = registryObject['fee']?.price
+          outQuantity = registryObject['out']?.quantity
+          inQuantity = registryObject['in']?.quantity
+          feeQuantity = registryObject['fee']?.quantity
+          dateTime = new Date(registryObject['in']?.dateTime)
+          priceUSDBTC = new cryptoCompare.Price().getHistoryPrice(
+            'USD',
+            dateTime,
+            'BTC'
+          )
+          if (directionInKey === new Hash(rowObject.direction).md5) {
+            newOverflow = inSymbol + '/' + (outSymbol || inSymbol)
+            newPriceCoef = inPrice / (outPrice || inPrice)
+            priceBTC = inPrice * priceUSDBTC
+            costBTC = inPrice * priceUSDBTC * inQuantity
+          } else if (directionOutKey === new Hash(rowObject.direction).md5) {
+            if (rowObject.isFee) {
+              newOverflow = feeSymbol + '/' + feeSymbol
+              newPriceCoef = 1
+              priceBTC = feePrice * priceUSDBTC
+              costBTC = feePrice * priceUSDBTC * feeQuantity
+            } else {
+              newOverflow = outSymbol + '/' + (inSymbol || outSymbol)
+              newPriceCoef = outPrice / (inPrice || outPrice)
+              priceBTC = outPrice * priceUSDBTC
+              costBTC = outPrice * priceUSDBTC * outQuantity
+            }
+          }
+          rowObject.overflow = newOverflow
+          rowObject.priceCoef = newPriceCoef
+          rowObject.priceBTC = priceBTC
+          rowObject.costBTC = costBTC
+        }
+        return rowObject
+      }
+    )
+    this.workSheet.truncateInsertRows(newArrayOfObject)
+  }
+
   updateHistoricalAveragePriceKey() {
     const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
       const newHistoricalAveragePriceKey = new Hash(
@@ -215,17 +304,6 @@ class Transactions {
         rowObject.updateDate = new Date()
       }
 
-      return rowObject
-    })
-    this.workSheet.truncateInsertRows(newArrayOfObject)
-  }
-
-  updatePriceBTC() {
-    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
-      const newRegistryRowKey = new Hash(
-        rowObject.registryRowId + rowObject.sourceName
-      ).md5
-      rowObject.registryRowKey = newRegistryRowKey
       return rowObject
     })
     this.workSheet.truncateInsertRows(newArrayOfObject)

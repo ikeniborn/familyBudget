@@ -20,7 +20,6 @@ class Flow {
     try {
       const symbols = new Symbols().workSheet.object
       const contractors = new Portfolio().getWorkSheet('Contractors').object
-      const portfolios = new Portfolio().getWorkSheet('Portfolios').object
       const inKey = new Hash('in').md5
       const outKey = new Hash('out').md5
       const actualDate = new FormatDate()

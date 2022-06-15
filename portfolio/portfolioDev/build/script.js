@@ -1479,7 +1479,7 @@ class Portfolio {
           platform: { alias: 'Platform', idx: 8 },
           service: { alias: 'Service', idx: 9 },
           contractor: { alias: 'Contractor', idx: 10 },
-          pair: { alias: 'Pair', idx: 11 },
+          overflow: { alias: 'Overflow', idx: 11 },
           mainSymbol: { alias: 'Main coin', idx: 12 },
           symbol: { alias: 'Coin', idx: 13 },
           quantity: { alias: 'Quantity', idx: 14 },
@@ -1614,6 +1614,27 @@ class Portfolio {
           },
           rowId: { alias: 'Row ID', idx: 38, default: 0 },
           symbolPriceGroup: { alias: 'Symbol price group', idx: 39 },
+        },
+      },
+      overflows: {
+        type: 'tx',
+        rowNum: 1,
+        columns: {
+          account: { alias: 'Account', idx: 0 },
+          portfolio: { alias: 'Portfolio', idx: 1 },
+          overflow: { alias: 'Overflow', idx: 2 },
+          tokenA: { alias: 'Token A', idx: 3 },
+          tokenB: { alias: 'Token B', idx: 4 },
+          quantityFlow: { alias: 'Quantity (flow)', idx: 5 },
+          priceCoefFlow: { alias: 'Price coef (flow)', idx: 6 },
+          priceCoef: { alias: 'Price coef', idx: 7 },
+          priceCoefDiff: { alias: 'Price coef diff, %', idx: 8 },
+          rowId: { alias: 'Row ID', idx: 9, default: 0 },
+          updateDataMart: {
+            alias: 'Update data mart',
+            idx: 10,
+            type: 'date',
+          },
         },
       },
       coins: {
@@ -2389,6 +2410,95 @@ class Transactions {
     this.workSheet.truncateInsertRows(newArrayOfObject);
   }
 
+  /**
+   *
+   * @param {number} startIndex
+   * @param {number} endIndex
+   */
+  updatePair(startIndex, endIndex) {
+    const directionInKey = new Hash('in').md5;
+    const directionOutKey = new Hash('out').md5;
+    const newObject = this.workSheet.arrayOfObject.reduce(
+      (newObject, rowObject) => {
+        if (!newObject[rowObject.registryRowKey]) {
+          newObject[rowObject.registryRowKey] = {};
+        }
+        if (directionInKey === new Hash(rowObject.direction).md5) {
+          newObject[rowObject.registryRowKey]['in'] = rowObject;
+        } else if (directionOutKey === new Hash(rowObject.direction).md5) {
+          if (rowObject.isFee) {
+            newObject[rowObject.registryRowKey]['fee'] = rowObject;
+          } else {
+            newObject[rowObject.registryRowKey]['out'] = rowObject;
+          }
+        }
+        return newObject
+      },
+      {}
+    );
+    const newArrayOfObject = this.workSheet.arrayOfObject.map(
+      (rowObject, indexRow) => {
+        if (indexRow >= startIndex && indexRow <= endIndex) {
+          let newOverflow,
+            newPriceCoef,
+            outSymbol,
+            inSymbol,
+            feeSymbol,
+            outPrice,
+            inPrice,
+            feePrice,
+            priceUSDBTC,
+            priceBTC,
+            costBTC,
+            outQuantity,
+            inQuantity,
+            feeQuantity,
+            dateTime;
+          const registryObject = newObject[rowObject.registryRowKey];
+          outSymbol = registryObject['out']?.symbol;
+          inSymbol = registryObject['in']?.symbol;
+          feeSymbol = registryObject['fee']?.symbol;
+          outPrice = registryObject['out']?.price;
+          inPrice = registryObject['in']?.price;
+          feePrice = registryObject['fee']?.price;
+          outQuantity = registryObject['out']?.quantity;
+          inQuantity = registryObject['in']?.quantity;
+          feeQuantity = registryObject['fee']?.quantity;
+          dateTime = new Date(registryObject['in']?.dateTime);
+          priceUSDBTC = new Price$2().getHistoryPrice(
+            'USD',
+            dateTime,
+            'BTC'
+          );
+          if (directionInKey === new Hash(rowObject.direction).md5) {
+            newOverflow = inSymbol + '/' + (outSymbol || inSymbol);
+            newPriceCoef = inPrice / (outPrice || inPrice);
+            priceBTC = inPrice * priceUSDBTC;
+            costBTC = inPrice * priceUSDBTC * inQuantity;
+          } else if (directionOutKey === new Hash(rowObject.direction).md5) {
+            if (rowObject.isFee) {
+              newOverflow = feeSymbol + '/' + feeSymbol;
+              newPriceCoef = 1;
+              priceBTC = feePrice * priceUSDBTC;
+              costBTC = feePrice * priceUSDBTC * feeQuantity;
+            } else {
+              newOverflow = outSymbol + '/' + (inSymbol || outSymbol);
+              newPriceCoef = outPrice / (inPrice || outPrice);
+              priceBTC = outPrice * priceUSDBTC;
+              costBTC = outPrice * priceUSDBTC * outQuantity;
+            }
+          }
+          rowObject.overflow = newOverflow;
+          rowObject.priceCoef = newPriceCoef;
+          rowObject.priceBTC = priceBTC;
+          rowObject.costBTC = costBTC;
+        }
+        return rowObject
+      }
+    );
+    this.workSheet.truncateInsertRows(newArrayOfObject);
+  }
+
   updateHistoricalAveragePriceKey() {
     const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
       const newHistoricalAveragePriceKey = new Hash(
@@ -2453,17 +2563,6 @@ class Transactions {
         rowObject.updateDate = new Date();
       }
 
-      return rowObject
-    });
-    this.workSheet.truncateInsertRows(newArrayOfObject);
-  }
-
-  updatePriceBTC() {
-    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
-      const newRegistryRowKey = new Hash(
-        rowObject.registryRowId + rowObject.sourceName
-      ).md5;
-      rowObject.registryRowKey = newRegistryRowKey;
       return rowObject
     });
     this.workSheet.truncateInsertRows(newArrayOfObject);
@@ -3704,7 +3803,7 @@ class Registry {
               contractor: sender,
               mainSymbol: void 0,
               symbol: coinSymbol,
-              pair: coinSymbol + '/' + currencySymbol,
+              overflow: coinSymbol + '/' + currencySymbol,
               quantity: coinQty * -1,
               isFee,
               isLock: isSenderLock,
@@ -3744,7 +3843,7 @@ class Registry {
               contractor: recipient,
               mainSymbol: void 0,
               symbol: coinSymbol,
-              pair: coinSymbol + '/' + currencySymbol,
+              overflow: coinSymbol + '/' + currencySymbol,
               quantity: coinQty,
               isFee,
               isLock: isRecipientLock,
@@ -3781,7 +3880,7 @@ class Registry {
             contractor: sender,
             mainSymbol: mainSymbol,
             symbol: currencySymbol,
-            pair: currencySymbol + '/' + coinSymbol,
+            overflow: currencySymbol + '/' + coinSymbol,
             quantity: currencyQty * -1,
             isFee,
             isLock: isSenderLock,
@@ -3806,7 +3905,7 @@ class Registry {
             contractor: recipient,
             mainSymbol: mainSymbol,
             symbol: coinSymbol,
-            pair: coinSymbol + '/' + currencySymbol,
+            overflow: coinSymbol + '/' + currencySymbol,
             quantity: coinQty,
             isFee,
             isLock: isRecipientLock,
@@ -3843,7 +3942,7 @@ class Registry {
             contractor: sender,
             mainSymbol: mainSymbol,
             symbol: coinSymbol,
-            pair: coinSymbol + '/' + currencySymbol,
+            overflow: coinSymbol + '/' + currencySymbol,
             quantity: coinQty * -1,
             isFee,
             isLock: isSenderLock,
@@ -3868,7 +3967,7 @@ class Registry {
             contractor: recipient,
             mainSymbol: mainSymbol,
             symbol: currencySymbol,
-            pair: currencySymbol + '/' + coinSymbol,
+            overflow: currencySymbol + '/' + coinSymbol,
             quantity: currencyQty,
             isFee,
             isLock: isRecipientLock,
@@ -3932,7 +4031,7 @@ class Registry {
             contractor: feeSender,
             mainSymbol: void 0,
             symbol: feeCurrency,
-            pair: void 0,
+            overflow: feeCurrency + '/' + feeCurrency,
             quantity: feeQty * -1,
             isFee: true,
             isLock: false,
@@ -3978,7 +4077,7 @@ class Registry {
             priceUSD = feePrice;
             priceBTC = priceUSDBTC * feePrice;
             isHistoricalAveragePrice = isHistoricalAveragePriceFeeCurrency;
-            priceCoef = 0;
+            priceCoef = 1;
           } else if (tx.isCurencyPrice) {
             priceUSD = currencyPrice;
             priceBTC = priceUSDBTC * currencyPrice;
@@ -4005,7 +4104,7 @@ class Registry {
             platform: rowValues.platform.toLowerCase(),
             service: rowValues.service.toLowerCase(),
             contractor: tx.contractor.toLowerCase(),
-            pair: tx.pair ? tx.pair.toLowerCase() : void 0,
+            overflow: tx.overflow ? tx.overflow.toLowerCase() : void 0,
             mainSymbol: tx.mainSymbol ? tx.mainSymbol.toLowerCase() : void 0,
             symbol: tx.symbol.toLowerCase(),
             quantity: tx.quantity,
@@ -4317,7 +4416,6 @@ class Flow {
     try {
       const symbols = new Symbols().workSheet.object;
       const contractors = new Portfolio().getWorkSheet('Contractors').object;
-      const portfolios = new Portfolio().getWorkSheet('Portfolios').object;
       const inKey = new Hash('in').md5;
       const outKey = new Hash('out').md5;
       const actualDate = new FormatDate();
@@ -4823,6 +4921,115 @@ class Web3Space {
   }
 }
 
+class Overflows {
+  constructor(workSheet = '') {
+    if (Overflows.exists) {
+      return Overflows.instance
+    }
+    Overflows.instance = this;
+    Overflows.exists = true;
+    this.workSheet = workSheet
+      ? workSheet
+      : new Portfolio().getWorkSheet('Overflows');
+  }
+
+  updateOverflows() {
+    try {
+      const symbols = new Symbols().workSheet.object;
+      const contractors = new Portfolio().getWorkSheet('Contractors').object;
+      const updateDataMart = new FormatDate();
+
+      const aggFlow = new Transactions().workSheet.arrayOfObject
+        .filter((row) => row.isDelete === false)
+        .sort((a, b) => {
+          return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
+        })
+        .reduce((agg, tx) => {
+          if (!agg[tx.account]) {
+            agg[tx.account] = {};
+          }
+
+          if (!agg[tx.account][tx.portfolio]) {
+            agg[tx.account][tx.portfolio] = {};
+          }
+
+          if (!agg[tx.account][tx.portfolio][tx.overflow]) {
+            agg[tx.account][tx.portfolio][tx.overflow] = {
+              quantity: 0,
+              priceCoefSum: 0,
+            };
+          }
+          agg[tx.account][tx.portfolio][tx.overflow].quantity += tx.quantity;
+          agg[tx.account][tx.portfolio][tx.overflow].priceCoefSum +=
+            tx.quantity * tx.priceCoef;
+
+          return agg
+        }, {});
+
+      let aggFlowArrayOfObject = [];
+      Object.entries(aggFlow).forEach(([account, level0]) => {
+        Object.entries(level0).forEach(([portfolio, level1]) => {
+          Object.entries(level1).forEach(([overflow, object]) => {
+            const quantityFlow = Math.round(object.quantity * 10000) / 10000;
+            const priceCoefFlow = object.priceCoefSum / quantityFlow;
+            if (quantityFlow > 0 && priceCoefFlow > 0) {
+              //* доп. атрибуты
+              //* атрибуты символа
+              const overflowArray = overflow.split('/');
+              const tokenA = overflowArray[0];
+              const tokenB = overflowArray[1];
+              const tokenAKey = new Hash(tokenA).md5;
+              const tokenACategory = symbols[tokenAKey]?.symbolCategory || '';
+              const tokenAPrice = symbols[tokenAKey]?.price || '';
+              const tokenBKey = new Hash(tokenB).md5;
+              const tokenBCategory = symbols[tokenBKey]?.symbolCategory || '';
+              const tokenBPrice = symbols[tokenBKey]?.price || '';
+
+              //* показатели
+
+              const priceCoefFlow = object.priceCoefSum / quantityFlow;
+              const priceCoef = tokenAPrice / tokenBPrice;
+              const priceCoefDiff = priceCoef / priceCoefFlow - 1;
+              if (
+                [
+                  '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+                  'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
+                  '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
+                ].indexOf(new Hash(tokenACategory).md5) === -1 &&
+                [
+                  '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+                  'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
+                  '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
+                ].indexOf(new Hash(tokenBCategory).md5) === -1 &&
+                tokenAKey !== tokenBKey
+              ) {
+                aggFlowArrayOfObject.push({
+                  account: account.toUpperCase(),
+                  portfolio: portfolio.toUpperCase(),
+                  overflow: overflow.toUpperCase(),
+                  tokenA: tokenA.toUpperCase(),
+                  tokenB: tokenB.toUpperCase(),
+                  quantityFlow: quantityFlow,
+                  priceCoefFlow: priceCoefFlow,
+                  priceCoef: priceCoef,
+                  priceCoefDiff: priceCoefDiff,
+                  updateDataMart: updateDataMart.getFormatDate(
+                    'yyyy-MM-dd hh:mm:ss'
+                  ),
+                });
+              }
+            }
+          });
+        });
+      });
+
+      this.workSheet.truncateInsertRows(aggFlowArrayOfObject);
+    } catch (error) {
+      console.error('Overflows.updateOverflows', error.stack);
+    }
+  }
+}
+
 // import { GasProcess } from '../restApi/gasScriptApi'
 
 function updateLPToken() {
@@ -4964,6 +5171,19 @@ function updateRowKey() {
   new Transactions().updateRowKey();
 }
 
+function updateOverflows() {
+  new Overflows().updateOverflows();
+}
+
+/**
+ *
+ * @param {*} startIndex
+ * @param {*} endIndex
+ */
+function updatePair(startIndex, endIndex) {
+  new Transactions().updatePair(startIndex, endIndex);
+}
+
 function updateHistoricalAveragePriceKey() {
   new Transactions().updateHistoricalAveragePriceKey();
 }
@@ -5093,6 +5313,7 @@ function createMenu() {
     SpreadsheetApp.getUi()
       .createMenu('Update')
       .addItem('Update data mart', 'updateDataMart')
+      .addItem('Update overflows', 'updateOverflows')
       .addItem('Update current prices and data mart', 'updatePrices')
       .addItem('Validate transactions', 'validateTransactions')
       .addItem('Sort registry', 'sortRegistry')

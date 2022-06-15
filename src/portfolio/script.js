@@ -8,6 +8,7 @@ import { Flow } from './worksheet/flow'
 import { Transactions } from './worksheet/transactions'
 import { WorkSheetMetadata } from '../gas'
 import { Web3Space } from './worksheet/web3space'
+import { Overflows } from './worksheet/overflows'
 import * as coinMarketCap from '../restApi/coinMarketCap'
 // import { GasProcess } from '../restApi/gasScriptApi'
 
@@ -150,6 +151,19 @@ function updateRowKey() {
   new Transactions().updateRowKey()
 }
 
+function updateOverflows() {
+  new Overflows().updateOverflows()
+}
+
+/**
+ *
+ * @param {*} startIndex
+ * @param {*} endIndex
+ */
+function updatePair(startIndex, endIndex) {
+  new Transactions().updatePair(startIndex, endIndex)
+}
+
 function updateHistoricalAveragePriceKey() {
   new Transactions().updateHistoricalAveragePriceKey()
 }
@@ -279,6 +293,7 @@ function createMenu() {
     SpreadsheetApp.getUi()
       .createMenu('Update')
       .addItem('Update data mart', 'updateDataMart')
+      .addItem('Update overflows', 'updateOverflows')
       .addItem('Update current prices and data mart', 'updatePrices')
       .addItem('Validate transactions', 'validateTransactions')
       .addItem('Sort registry', 'sortRegistry')
