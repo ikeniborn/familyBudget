@@ -83,6 +83,9 @@ function updateDataMart() {
     }
     process() ? resolve() : reject(new Error('script.updateDataMart'))
   })
+    .then(() => {
+      new Overflows().updateOverflows()
+    })
     .then(
       new Portfolio().log.addMessage(
         'script.updateDataMart',
@@ -155,13 +158,17 @@ function updateOverflows() {
   new Overflows().updateOverflows()
 }
 
+function updatePair() {
+  new Transactions().updatePair()
+}
+
 /**
  *
  * @param {*} startIndex
  * @param {*} endIndex
  */
-function updatePair(startIndex, endIndex) {
-  new Transactions().updatePair(startIndex, endIndex)
+function updatePriceCostBTC(startIndex, endIndex) {
+  new Transactions().updatePriceCostBTC(startIndex, endIndex)
 }
 
 function updateHistoricalAveragePriceKey() {
@@ -297,7 +304,6 @@ function createMenu() {
       .addItem('Update current prices and data mart', 'updatePrices')
       .addItem('Validate transactions', 'validateTransactions')
       .addItem('Sort registry', 'sortRegistry')
-    // .addItem('Clean all metadata in worksheet', 'cleanAllMetadata')
   )
   menu.addToUi()
 }

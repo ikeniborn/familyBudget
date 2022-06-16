@@ -151,12 +151,117 @@ class Transactions {
     this.workSheet.truncateInsertRows(newArrayOfObject)
   }
 
+  updatePair() {
+    const directionInKey = new Hash('in').md5
+    const directionOutKey = new Hash('out').md5
+    const newObject = this.workSheet.arrayOfObject.reduce(
+      (newObject, rowObject) => {
+        if (!newObject[rowObject.registryRowKey]) {
+          newObject[rowObject.registryRowKey] = {}
+        }
+        if (directionInKey === new Hash(rowObject.direction).md5) {
+          newObject[rowObject.registryRowKey]['in'] = rowObject
+        } else if (directionOutKey === new Hash(rowObject.direction).md5) {
+          if (rowObject.isFee) {
+            newObject[rowObject.registryRowKey]['fee'] = rowObject
+          } else {
+            newObject[rowObject.registryRowKey]['out'] = rowObject
+          }
+        }
+        return newObject
+      },
+      {}
+    )
+    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
+      let newOverflow,
+        newPriceCoef,
+        newOverflowRev,
+        newPriceCoefRev,
+        outSymbol,
+        inSymbol,
+        feeSymbol,
+        outPrice,
+        inPrice,
+        feePrice,
+        outQuantity,
+        inQuantity,
+        feeQuantity,
+        outOperationKey,
+        inOperationKey,
+        feeOperationKey
+
+      const registryObject = newObject[rowObject.registryRowKey]
+      outSymbol = registryObject['out']?.symbol
+      inSymbol = registryObject['in']?.symbol
+      feeSymbol = registryObject['fee']?.symbol
+      outPrice = registryObject['out']?.price
+      inPrice = registryObject['in']?.price
+      feePrice = registryObject['fee']?.price
+      outQuantity = registryObject['out']?.quantity
+      inQuantity = registryObject['in']?.quantity
+      feeQuantity = registryObject['fee']?.quantity
+      outOperationKey = new Hash(registryObject['out']?.operation).md5
+      inOperationKey = new Hash(registryObject['in']?.operation).md5
+      feeOperationKey = new Hash(registryObject['fee']?.operation).md5
+
+      if (directionInKey === new Hash(rowObject.direction).md5) {
+        if (
+          [
+            /*buy*/ '0461ebd2b773878eac9f78a891912d65',
+            /*sell*/ '8325324b47e1e62a1c2998a640cbdc72',
+          ].indexOf(inOperationKey) !== -1
+        ) {
+          newOverflow = inSymbol + '/' + outSymbol
+          newOverflowRev = outSymbol + '/' + inSymbol
+          newPriceCoef = inPrice / outPrice
+          newPriceCoefRev = outPrice / inPrice
+        } else {
+          newOverflow = newOverflowRev = inSymbol + '/' + inSymbol
+          // newOverflowRev = newOverflow
+          newPriceCoef = newPriceCoefRev = inPrice / inPrice
+          // newPriceCoefRev = newPriceCoef
+        }
+      } else if (directionOutKey === new Hash(rowObject.direction).md5) {
+        if (rowObject.isFee) {
+          newOverflow = newOverflowRev = feeSymbol + '/' + feeSymbol
+          // newOverflowRev = newOverflow
+          newPriceCoef = newPriceCoefRev = 1
+          // newPriceCoefRev = 1
+        } else {
+          if (
+            [
+              /*buy*/ '0461ebd2b773878eac9f78a891912d65',
+              /*sell*/ '8325324b47e1e62a1c2998a640cbdc72',
+            ].indexOf(inOperationKey) !== -1
+          ) {
+            newOverflow = outSymbol + '/' + inSymbol
+            newOverflowRev = inSymbol + '/' + outSymbol
+            newPriceCoef = outPrice / inPrice
+            newPriceCoefRev = inPrice / outPrice
+          } else {
+            newOverflow = newOverflowRev = outSymbol + '/' + outSymbol
+            // newOverflowRev = outSymbol + '/' + outSymbol
+            newPriceCoef = newPriceCoefRev = outPrice / outPrice
+            // newPriceCoefRev = outPrice / outPrice
+          }
+        }
+      }
+      rowObject.overflow = newOverflow
+      rowObject.priceCoef = newPriceCoef
+      rowObject.overflowRev = newOverflowRev
+      rowObject.priceCoefRev = newPriceCoefRev
+
+      return rowObject
+    })
+    this.workSheet.truncateInsertRows(newArrayOfObject)
+  }
+
   /**
    *
    * @param {number} startIndex
    * @param {number} endIndex
    */
-  updatePair(startIndex, endIndex) {
+  updatePriceCostBTC(startIndex, endIndex) {
     const directionInKey = new Hash('in').md5
     const directionOutKey = new Hash('out').md5
     const newObject = this.workSheet.arrayOfObject.reduce(
@@ -180,9 +285,7 @@ class Transactions {
     const newArrayOfObject = this.workSheet.arrayOfObject.map(
       (rowObject, indexRow) => {
         if (indexRow >= startIndex && indexRow <= endIndex) {
-          let newOverflow,
-            newPriceCoef,
-            outSymbol,
+          let outSymbol,
             inSymbol,
             feeSymbol,
             outPrice,
@@ -212,25 +315,18 @@ class Transactions {
             'BTC'
           )
           if (directionInKey === new Hash(rowObject.direction).md5) {
-            newOverflow = inSymbol + '/' + (outSymbol || inSymbol)
-            newPriceCoef = inPrice / (outPrice || inPrice)
             priceBTC = inPrice * priceUSDBTC
             costBTC = inPrice * priceUSDBTC * inQuantity
           } else if (directionOutKey === new Hash(rowObject.direction).md5) {
             if (rowObject.isFee) {
-              newOverflow = feeSymbol + '/' + feeSymbol
-              newPriceCoef = 1
               priceBTC = feePrice * priceUSDBTC
               costBTC = feePrice * priceUSDBTC * feeQuantity
             } else {
-              newOverflow = outSymbol + '/' + (inSymbol || outSymbol)
-              newPriceCoef = outPrice / (inPrice || outPrice)
               priceBTC = outPrice * priceUSDBTC
               costBTC = outPrice * priceUSDBTC * outQuantity
             }
           }
-          rowObject.overflow = newOverflow
-          rowObject.priceCoef = newPriceCoef
+
           rowObject.priceBTC = priceBTC
           rowObject.costBTC = costBTC
         }

@@ -1480,29 +1480,31 @@ class Portfolio {
           service: { alias: 'Service', idx: 9 },
           contractor: { alias: 'Contractor', idx: 10 },
           overflow: { alias: 'Overflow', idx: 11 },
-          mainSymbol: { alias: 'Main coin', idx: 12 },
-          symbol: { alias: 'Coin', idx: 13 },
-          quantity: { alias: 'Quantity', idx: 14 },
-          price: { alias: 'Price', idx: 15 },
-          priceCoef: { alias: 'Price coef', idx: 16 },
-          cost: { alias: 'Cost', idx: 17 },
-          priceBTC: { alias: 'Price BTC', idx: 18 },
-          costBTC: { alias: 'Cost BTC', idx: 19 },
-          comment: { alias: 'Comment', idx: 20 },
-          isDelete: { alias: 'Delete', idx: 21 },
-          isLiquidityPool: { alias: 'Is liquidity pool', idx: 22 },
-          isFee: { alias: 'Is fee', idx: 23 },
-          isLock: { alias: 'Is lock', idx: 24 },
-          isAvgPrice: { alias: 'Is average price', idx: 25 },
+          overflowRev: { alias: 'Overflow rev', idx: 12 },
+          mainSymbol: { alias: 'Main coin', idx: 13 },
+          symbol: { alias: 'Coin', idx: 14 },
+          quantity: { alias: 'Quantity', idx: 15 },
+          price: { alias: 'Price', idx: 16 },
+          priceCoef: { alias: 'Price coef', idx: 17 },
+          priceCoefRev: { alias: 'Price coef rev', idx: 18 },
+          cost: { alias: 'Cost', idx: 19 },
+          priceBTC: { alias: 'Price BTC', idx: 20 },
+          costBTC: { alias: 'Cost BTC', idx: 20 },
+          comment: { alias: 'Comment', idx: 21 },
+          isDelete: { alias: 'Delete', idx: 22 },
+          isLiquidityPool: { alias: 'Is liquidity pool', idx: 23 },
+          isFee: { alias: 'Is fee', idx: 24 },
+          isLock: { alias: 'Is lock', idx: 25 },
+          isAvgPrice: { alias: 'Is average price', idx: 26 },
           isHistoricalAveragePrice: {
             alias: 'Is historical average price',
-            idx: 26,
+            idx: 27,
           },
-          registryRowId: { alias: 'Registry row id', idx: 27 },
-          registryRowKey: { alias: 'Registry row key', idx: 28 },
+          registryRowId: { alias: 'Registry row id', idx: 28 },
+          registryRowKey: { alias: 'Registry row key', idx: 29 },
           updateDate: {
             alias: 'Update date',
-            idx: 29,
+            idx: 30,
             type: 'date',
             default: new Date(),
           },
@@ -1526,10 +1528,14 @@ class Portfolio {
           platform: { alias: 'Platform', idx: 8 },
           service: { alias: 'Service', idx: 9 },
           contractor: { alias: 'Contractor', idx: 10 },
+          overflow: { alias: 'Overflow', idx: 11 },
+          overflowRev: { alias: 'Overflow rev', idx: 12 },
           mainSymbol: { alias: 'Main coin', idx: 11 },
           symbol: { alias: 'Coin', idx: 12 },
           quantity: { alias: 'Quantity', idx: 13 },
           price: { alias: 'Price', idx: 14 },
+          priceCoef: { alias: 'Price coef', idx: 17 },
+          priceCoefRev: { alias: 'Price coef rev', idx: 18 },
           cost: { alias: 'Cost', idx: 15 },
           comment: { alias: 'Comment', idx: 16 },
           isDelete: { alias: 'Delete', idx: 17 },
@@ -1621,18 +1627,20 @@ class Portfolio {
         rowNum: 1,
         columns: {
           account: { alias: 'Account', idx: 0 },
-          portfolio: { alias: 'Portfolio', idx: 1 },
-          overflow: { alias: 'Overflow', idx: 2 },
-          tokenA: { alias: 'Token A', idx: 3 },
-          tokenB: { alias: 'Token B', idx: 4 },
-          quantityFlow: { alias: 'Quantity (flow)', idx: 5 },
-          priceCoefFlow: { alias: 'Price coef (flow)', idx: 6 },
-          priceCoef: { alias: 'Price coef', idx: 7 },
-          priceCoefDiff: { alias: 'Price coef diff, %', idx: 8 },
-          rowId: { alias: 'Row ID', idx: 9, default: 0 },
+          // portfolio: { alias: 'Portfolio', idx: 1 },
+          symbol: { alias: 'Symbol', idx: 2 },
+          quantityFlow: { alias: 'Quantity (flow)', idx: 3 },
+          priceCoefFlow: { alias: 'Price coef (flow)', idx: 4 },
+          overflow: { alias: 'Overflow', idx: 5 },
+          priceCoef: { alias: 'Price coef', idx: 6 },
+          priceCoefDiff: { alias: 'Price coef diff', idx: 7 },
+          priceCoefDiffPst: { alias: 'Price coef diff, %', idx: 8 },
+          overflowRev: { alias: 'Overflow reverse', idx: 9 },
+          priceCoefRev: { alias: 'Price coef rev', idx: 10 },
+          rowId: { alias: 'Row ID', idx: 11, default: 0 },
           updateDataMart: {
             alias: 'Update data mart',
-            idx: 10,
+            idx: 12,
             type: 'date',
           },
         },
@@ -2410,12 +2418,111 @@ class Transactions {
     this.workSheet.truncateInsertRows(newArrayOfObject);
   }
 
+  updatePair() {
+    const directionInKey = new Hash('in').md5;
+    const directionOutKey = new Hash('out').md5;
+    const newObject = this.workSheet.arrayOfObject.reduce(
+      (newObject, rowObject) => {
+        if (!newObject[rowObject.registryRowKey]) {
+          newObject[rowObject.registryRowKey] = {};
+        }
+        if (directionInKey === new Hash(rowObject.direction).md5) {
+          newObject[rowObject.registryRowKey]['in'] = rowObject;
+        } else if (directionOutKey === new Hash(rowObject.direction).md5) {
+          if (rowObject.isFee) {
+            newObject[rowObject.registryRowKey]['fee'] = rowObject;
+          } else {
+            newObject[rowObject.registryRowKey]['out'] = rowObject;
+          }
+        }
+        return newObject
+      },
+      {}
+    );
+    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
+      let newOverflow,
+        newPriceCoef,
+        newOverflowRev,
+        newPriceCoefRev,
+        outSymbol,
+        inSymbol,
+        feeSymbol,
+        outPrice,
+        inPrice,
+        inOperationKey;
+
+      const registryObject = newObject[rowObject.registryRowKey];
+      outSymbol = registryObject['out']?.symbol;
+      inSymbol = registryObject['in']?.symbol;
+      feeSymbol = registryObject['fee']?.symbol;
+      outPrice = registryObject['out']?.price;
+      inPrice = registryObject['in']?.price;
+      registryObject['fee']?.price;
+      registryObject['out']?.quantity;
+      registryObject['in']?.quantity;
+      registryObject['fee']?.quantity;
+      new Hash(registryObject['out']?.operation).md5;
+      inOperationKey = new Hash(registryObject['in']?.operation).md5;
+      new Hash(registryObject['fee']?.operation).md5;
+
+      if (directionInKey === new Hash(rowObject.direction).md5) {
+        if (
+          [
+            /*buy*/ '0461ebd2b773878eac9f78a891912d65',
+            /*sell*/ '8325324b47e1e62a1c2998a640cbdc72',
+          ].indexOf(inOperationKey) !== -1
+        ) {
+          newOverflow = inSymbol + '/' + outSymbol;
+          newOverflowRev = outSymbol + '/' + inSymbol;
+          newPriceCoef = inPrice / outPrice;
+          newPriceCoefRev = outPrice / inPrice;
+        } else {
+          newOverflow = newOverflowRev = inSymbol + '/' + inSymbol;
+          // newOverflowRev = newOverflow
+          newPriceCoef = newPriceCoefRev = inPrice / inPrice;
+          // newPriceCoefRev = newPriceCoef
+        }
+      } else if (directionOutKey === new Hash(rowObject.direction).md5) {
+        if (rowObject.isFee) {
+          newOverflow = newOverflowRev = feeSymbol + '/' + feeSymbol;
+          // newOverflowRev = newOverflow
+          newPriceCoef = newPriceCoefRev = 1;
+          // newPriceCoefRev = 1
+        } else {
+          if (
+            [
+              /*buy*/ '0461ebd2b773878eac9f78a891912d65',
+              /*sell*/ '8325324b47e1e62a1c2998a640cbdc72',
+            ].indexOf(inOperationKey) !== -1
+          ) {
+            newOverflow = outSymbol + '/' + inSymbol;
+            newOverflowRev = inSymbol + '/' + outSymbol;
+            newPriceCoef = outPrice / inPrice;
+            newPriceCoefRev = inPrice / outPrice;
+          } else {
+            newOverflow = newOverflowRev = outSymbol + '/' + outSymbol;
+            // newOverflowRev = outSymbol + '/' + outSymbol
+            newPriceCoef = newPriceCoefRev = outPrice / outPrice;
+            // newPriceCoefRev = outPrice / outPrice
+          }
+        }
+      }
+      rowObject.overflow = newOverflow;
+      rowObject.priceCoef = newPriceCoef;
+      rowObject.overflowRev = newOverflowRev;
+      rowObject.priceCoefRev = newPriceCoefRev;
+
+      return rowObject
+    });
+    this.workSheet.truncateInsertRows(newArrayOfObject);
+  }
+
   /**
    *
    * @param {number} startIndex
    * @param {number} endIndex
    */
-  updatePair(startIndex, endIndex) {
+  updatePriceCostBTC(startIndex, endIndex) {
     const directionInKey = new Hash('in').md5;
     const directionOutKey = new Hash('out').md5;
     const newObject = this.workSheet.arrayOfObject.reduce(
@@ -2439,12 +2546,7 @@ class Transactions {
     const newArrayOfObject = this.workSheet.arrayOfObject.map(
       (rowObject, indexRow) => {
         if (indexRow >= startIndex && indexRow <= endIndex) {
-          let newOverflow,
-            newPriceCoef,
-            outSymbol,
-            inSymbol,
-            feeSymbol,
-            outPrice,
+          let outPrice,
             inPrice,
             feePrice,
             priceUSDBTC,
@@ -2455,9 +2557,9 @@ class Transactions {
             feeQuantity,
             dateTime;
           const registryObject = newObject[rowObject.registryRowKey];
-          outSymbol = registryObject['out']?.symbol;
-          inSymbol = registryObject['in']?.symbol;
-          feeSymbol = registryObject['fee']?.symbol;
+          registryObject['out']?.symbol;
+          registryObject['in']?.symbol;
+          registryObject['fee']?.symbol;
           outPrice = registryObject['out']?.price;
           inPrice = registryObject['in']?.price;
           feePrice = registryObject['fee']?.price;
@@ -2471,25 +2573,18 @@ class Transactions {
             'BTC'
           );
           if (directionInKey === new Hash(rowObject.direction).md5) {
-            newOverflow = inSymbol + '/' + (outSymbol || inSymbol);
-            newPriceCoef = inPrice / (outPrice || inPrice);
             priceBTC = inPrice * priceUSDBTC;
             costBTC = inPrice * priceUSDBTC * inQuantity;
           } else if (directionOutKey === new Hash(rowObject.direction).md5) {
             if (rowObject.isFee) {
-              newOverflow = feeSymbol + '/' + feeSymbol;
-              newPriceCoef = 1;
               priceBTC = feePrice * priceUSDBTC;
               costBTC = feePrice * priceUSDBTC * feeQuantity;
             } else {
-              newOverflow = outSymbol + '/' + (inSymbol || outSymbol);
-              newPriceCoef = outPrice / (inPrice || outPrice);
               priceBTC = outPrice * priceUSDBTC;
               costBTC = outPrice * priceUSDBTC * outQuantity;
             }
           }
-          rowObject.overflow = newOverflow;
-          rowObject.priceCoef = newPriceCoef;
+
           rowObject.priceBTC = priceBTC;
           rowObject.costBTC = costBTC;
         }
@@ -3804,6 +3899,7 @@ class Registry {
               mainSymbol: void 0,
               symbol: coinSymbol,
               overflow: coinSymbol + '/' + currencySymbol,
+              overflowRev: currencySymbol + '/' + coinSymbol,
               quantity: coinQty * -1,
               isFee,
               isLock: isSenderLock,
@@ -3844,6 +3940,7 @@ class Registry {
               mainSymbol: void 0,
               symbol: coinSymbol,
               overflow: coinSymbol + '/' + currencySymbol,
+              overflowRev: currencySymbol + '/' + coinSymbol,
               quantity: coinQty,
               isFee,
               isLock: isRecipientLock,
@@ -3881,6 +3978,7 @@ class Registry {
             mainSymbol: mainSymbol,
             symbol: currencySymbol,
             overflow: currencySymbol + '/' + coinSymbol,
+            overflowRev: coinSymbol + '/' + currencySymbol,
             quantity: currencyQty * -1,
             isFee,
             isLock: isSenderLock,
@@ -3906,6 +4004,7 @@ class Registry {
             mainSymbol: mainSymbol,
             symbol: coinSymbol,
             overflow: coinSymbol + '/' + currencySymbol,
+            overflowRev: currencySymbol + '/' + coinSymbol,
             quantity: coinQty,
             isFee,
             isLock: isRecipientLock,
@@ -3943,6 +4042,7 @@ class Registry {
             mainSymbol: mainSymbol,
             symbol: coinSymbol,
             overflow: coinSymbol + '/' + currencySymbol,
+            overflowRev: currencySymbol + '/' + coinSymbol,
             quantity: coinQty * -1,
             isFee,
             isLock: isSenderLock,
@@ -3968,6 +4068,7 @@ class Registry {
             mainSymbol: mainSymbol,
             symbol: currencySymbol,
             overflow: currencySymbol + '/' + coinSymbol,
+            overflowRev: coinSymbol + '/' + currencySymbol,
             quantity: currencyQty,
             isFee,
             isLock: isRecipientLock,
@@ -4067,23 +4168,69 @@ class Registry {
 
         //* Формирование строки транзакции
         transactionRow.forEach((tx) => {
-          let priceUSD, priceCoef, priceBTC, costBTC, costUSD;
+          let priceUSD, priceCoef, priceBTC, costBTC, costUSD, priceCoefRev;
           if (tx.isSymbolPrice) {
             priceUSD = symbolPrice;
             priceBTC = priceUSDBTC * symbolPrice;
             isHistoricalAveragePrice = isHistoricalAveragePriceSymbol;
-            priceCoef = symbolPriceCoef;
+            if (
+              [
+                /*buy*/ '0461ebd2b773878eac9f78a891912d65',
+                /*sell*/ '8325324b47e1e62a1c2998a640cbdc72',
+              ].indexOf(operationKey) !== -1
+            ) {
+              priceCoef = symbolPriceCoef;
+              priceCoefRev = currencyPriceCoef;
+            } else {
+              priceCoef = 1;
+              priceCoefRev = 1;
+            }
           } else if (tx.isFeePrice) {
             priceUSD = feePrice;
             priceBTC = priceUSDBTC * feePrice;
             isHistoricalAveragePrice = isHistoricalAveragePriceFeeCurrency;
             priceCoef = 1;
+            priceCoefRev = 1;
           } else if (tx.isCurencyPrice) {
             priceUSD = currencyPrice;
             priceBTC = priceUSDBTC * currencyPrice;
             isHistoricalAveragePrice = isHistoricalAveragePriceCurrency;
-            priceCoef = currencyPriceCoef;
+            if (
+              [
+                /*buy*/ '0461ebd2b773878eac9f78a891912d65',
+                /*sell*/ '8325324b47e1e62a1c2998a640cbdc72',
+              ].indexOf(operationKey) !== -1
+            ) {
+              priceCoef = currencyPriceCoef;
+              priceCoefRev = symbolPriceCoef;
+            } else {
+              priceCoef = 1;
+              priceCoefRev = 1;
+            }
           }
+          // if (tx.isFeePrice) {
+          //   priceCoef = 1
+          //   priceCoefRev = 1
+          // } else {
+          //   if (
+          //     [/*buy*/ '0461ebd2b773878eac9f78a891912d65'].indexOf(
+          //       operationKey
+          //     ) !== -1
+          //   ) {
+          //     priceCoef = currencyPriceCoef
+          //     priceCoefRev = symbolPriceCoef
+          //   } else if (
+          //     [/*sell*/ '8325324b47e1e62a1c2998a640cbdc72'].indexOf(
+          //       operationKey
+          //     ) !== -1
+          //   ) {
+          //     priceCoef = symbolPriceCoef
+          //     priceCoefRev = currencyPriceCoef
+          //   } else {
+          //     priceCoef = 1
+          //     priceCoefRev = 1
+          //   }
+          // }
 
           costUSD = tx.quantity * priceUSD;
           costBTC = tx.quantity * priceBTC;
@@ -4105,6 +4252,7 @@ class Registry {
             service: rowValues.service.toLowerCase(),
             contractor: tx.contractor.toLowerCase(),
             overflow: tx.overflow ? tx.overflow.toLowerCase() : void 0,
+            overflowRev: tx.overflowRev ? tx.overflowRev.toLowerCase() : void 0,
             mainSymbol: tx.mainSymbol ? tx.mainSymbol.toLowerCase() : void 0,
             symbol: tx.symbol.toLowerCase(),
             quantity: tx.quantity,
@@ -4113,6 +4261,7 @@ class Registry {
             priceBTC: priceBTC || 0,
             costBTC: costBTC || 0,
             priceCoef: priceCoef || 0,
+            priceCoefRev: priceCoefRev || 0,
             comment: rowValues.comment.toString().toLowerCase(),
             updateDate: updateDate,
             isDelete: isDelete,
@@ -4936,89 +5085,336 @@ class Overflows {
   updateOverflows() {
     try {
       const symbols = new Symbols().workSheet.object;
-      const contractors = new Portfolio().getWorkSheet('Contractors').object;
       const updateDataMart = new FormatDate();
-
-      const aggFlow = new Transactions().workSheet.arrayOfObject
-        .filter((row) => row.isDelete === false)
+      const inKey = new Hash('in').md5;
+      const outKey = new Hash('out').md5;
+      const transactions = new Transactions().workSheet.arrayOfObject
+        .filter((rowObject) => {
+          const overflowArray = rowObject.overflow.split('/');
+          const tokenA = overflowArray[0];
+          const tokenB = overflowArray[1];
+          const tokenAKey = new Hash(tokenA).md5;
+          const tokenACategory = symbols[tokenAKey]?.symbolCategory || '';
+          const tokenBKey = new Hash(tokenB).md5;
+          const tokenBCategory = symbols[tokenBKey]?.symbolCategory || '';
+          return (
+            rowObject.isDelete === false &&
+            [
+              '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+              'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
+              '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
+            ].indexOf(new Hash(tokenACategory).md5) === -1 &&
+            [
+              '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+              'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
+              '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
+            ].indexOf(new Hash(tokenBCategory).md5) === -1 &&
+            tokenAKey !== tokenBKey
+          )
+        })
         .sort((a, b) => {
           return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
-        })
-        .reduce((agg, tx) => {
-          if (!agg[tx.account]) {
-            agg[tx.account] = {};
-          }
+        });
+      const aggOverflow = transactions.reduce((agg, tx) => {
+        const operationKey = new Hash(tx.operation).md5;
+        const directionKey = new Hash(tx.direction).md5;
+        if (!agg[tx.account]) {
+          agg[tx.account] = {};
+        }
 
-          if (!agg[tx.account][tx.portfolio]) {
-            agg[tx.account][tx.portfolio] = {};
-          }
+        if (!agg[tx.account][tx.overflow]) {
+          agg[tx.account][tx.overflow] = {};
+        }
 
-          if (!agg[tx.account][tx.portfolio][tx.overflow]) {
-            agg[tx.account][tx.portfolio][tx.overflow] = {
-              quantity: 0,
-              priceCoefSum: 0,
-            };
-          }
-          agg[tx.account][tx.portfolio][tx.overflow].quantity += tx.quantity;
-          agg[tx.account][tx.portfolio][tx.overflow].priceCoefSum +=
-            tx.quantity * tx.priceCoef;
+        if (!agg[tx.account][tx.overflow][tx.symbol]) {
+          agg[tx.account][tx.overflow][tx.symbol] = {
+            quantityBuyIn: 0,
+            quantityBuyOut: 0,
+            quantitySellIn: 0,
+            quantitySellOut: 0,
+            quantityRefillIn: 0,
+            quantityWriteOffOut: 0,
+            quantityTransferIn: 0,
+            quantityTransferOut: 0,
+            quantityFlow: 0,
+            priceCoefSumBuyIn: 0,
+            priceCoefSumBuyOut: 0,
+            priceCoefSumSellIn: 0,
+            priceCoefSumSellOut: 0,
+            priceCoefSumRefillIn: 0,
+            priceCoefSumWriteOffOut: 0,
+            priceCoefSumTransferIn: 0,
+            priceCoefSumTransferOut: 0,
+          };
+        }
 
-          return agg
-        }, {});
+        //* Распределение количества по потокам
+
+        if (operationKey === '0461ebd2b773878eac9f78a891912d65' /*buy*/) {
+          if (directionKey === inKey) {
+            agg[tx.account][tx.overflow][tx.symbol].quantityBuyIn += tx.quantity;
+            agg[tx.account][tx.overflow][tx.symbol].priceCoefSumBuyIn +=
+              tx.priceCoef * tx.quantity;
+          } else if (directionKey === outKey) {
+            agg[tx.account][tx.overflow][tx.symbol].quantityBuyOut +=
+              tx.quantity * -1;
+            agg[tx.account][tx.overflow][tx.symbol].priceCoefSumBuyOut +=
+              tx.priceCoef * tx.quantity * -1;
+          }
+        } else if (
+          operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
+        ) {
+          if (directionKey === inKey) {
+            agg[tx.account][tx.overflow][tx.symbol].quantitySellIn +=
+              tx.quantity;
+            agg[tx.account][tx.overflow][tx.symbol].priceCoefSumSellIn +=
+              tx.priceCoef * tx.quantity;
+          } else if (directionKey === outKey) {
+            agg[tx.account][tx.overflow][tx.symbol].quantitySellOut +=
+              tx.quantity * -1;
+            agg[tx.account][tx.overflow][tx.symbol].priceCoefSumSellOut +=
+              tx.priceCoef * tx.quantity * -1;
+          }
+        } else if (
+          operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
+        ) {
+          if (directionKey === inKey) {
+            agg[tx.account][tx.overflow][tx.symbol].quantityRefillIn +=
+              tx.quantity;
+            agg[tx.account][tx.overflow][tx.symbol].priceCoefSumRefillIn +=
+              tx.priceCoef * tx.quantity;
+          }
+        } else if (
+          operationKey === '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
+        ) {
+          if (directionKey === outKey) {
+            agg[tx.account][tx.overflow][tx.symbol].quantityWriteOffOut +=
+              tx.quantity * -1;
+            agg[tx.account][tx.overflow][tx.symbol].priceCoefSumWriteOffOut +=
+              tx.priceCoef * tx.quantity * -1;
+          }
+        } else if (
+          operationKey === '84a0f3455dcca894ace136be62efa292' /*transfer*/
+        ) {
+          if (directionKey === inKey) {
+            agg[tx.account][tx.overflow][tx.symbol].quantityTransferIn +=
+              tx.quantity;
+            agg[tx.account][tx.overflow][tx.symbol].priceCoefSumTransferIn +=
+              tx.priceCoef * tx.quantity;
+          } else if (directionKey === outKey) {
+            agg[tx.account][tx.overflow][tx.symbol].quantityTransferOut +=
+              tx.quantity * -1;
+            agg[tx.account][tx.overflow][tx.symbol].priceCoefSumTransferOut +=
+              tx.priceCoef * tx.quantity * -1;
+          }
+        }
+
+        agg[tx.account][tx.overflow][tx.symbol].quantityFlow += tx.quantity;
+
+        return agg
+      }, {});
+
+      transactions.forEach((tx) => {
+        if (aggOverflow[tx.account]) {
+          if (aggOverflow[tx.account][tx.overflowRev]) {
+            if (aggOverflow[tx.account][tx.overflowRev][tx.symbol]) {
+              const operationKey = new Hash(tx.operation).md5;
+              const directionKey = new Hash(tx.direction).md5;
+
+              //* Распределение количества по потокам
+
+              if (operationKey === '0461ebd2b773878eac9f78a891912d65' /*buy*/) {
+                if (directionKey === inKey) {
+                  aggOverflow[tx.account][tx.overflowRev][
+                    tx.symbol
+                  ].quantityBuyIn += tx.quantity;
+                  aggOverflow[tx.account][tx.overflowRev][
+                    tx.symbol
+                  ].priceCoefSumBuyIn += tx.priceCoef * tx.quantity;
+                } else if (directionKey === outKey) {
+                  aggOverflow[tx.account][tx.overflowRev][
+                    tx.symbol
+                  ].quantityBuyOut += tx.quantity * -1;
+                  aggOverflow[tx.account][tx.overflowRev][
+                    tx.symbol
+                  ].priceCoefSumBuyOut += tx.priceCoef * tx.quantity * -1;
+                }
+              } else if (
+                operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
+              ) {
+                if (directionKey === inKey) {
+                  aggOverflow[tx.account][tx.overflowRev][
+                    tx.symbol
+                  ].quantitySellIn += tx.quantity;
+                  aggOverflow[tx.account][tx.overflowRev][
+                    tx.symbol
+                  ].priceCoefSumSellIn += tx.priceCoef * tx.quantity;
+                } else if (directionKey === outKey) {
+                  aggOverflow[tx.account][tx.overflowRev][
+                    tx.symbol
+                  ].quantitySellOut += tx.quantity * -1;
+                  aggOverflow[tx.account][tx.overflowRev][
+                    tx.symbol
+                  ].priceCoefSumSellOut += tx.priceCoef * tx.quantity * -1;
+                }
+              } else if (
+                operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
+              ) {
+                if (directionKey === inKey) {
+                  aggOverflow[tx.account][tx.overflowRev][
+                    tx.symbol
+                  ].quantityRefillIn += tx.quantity;
+                  aggOverflow[tx.account][tx.overflowRev][
+                    tx.symbol
+                  ].priceCoefSumRefillIn += tx.priceCoef * tx.quantity;
+                }
+              } else if (
+                operationKey ===
+                '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
+              ) {
+                if (directionKey === outKey) {
+                  aggOverflow[tx.account][tx.overflowRev][
+                    tx.symbol
+                  ].quantityWriteOffOut += tx.quantity * -1;
+                  aggOverflow[tx.account][tx.overflowRev][
+                    tx.symbol
+                  ].priceCoefSumWriteOffOut += tx.priceCoef * tx.quantity * -1;
+                }
+              } else if (
+                operationKey === '84a0f3455dcca894ace136be62efa292' /*transfer*/
+              ) {
+                if (directionKey === inKey) {
+                  aggOverflow[tx.account][tx.overflowRev][
+                    tx.symbol
+                  ].quantityTransferIn += tx.quantity;
+                  aggOverflow[tx.account][tx.overflowRev][
+                    tx.symbol
+                  ].priceCoefSumTransferIn += tx.priceCoef * tx.quantity;
+                } else if (directionKey === outKey) {
+                  aggOverflow[tx.account][tx.overflowRev][
+                    tx.symbol
+                  ].quantityTransferOut += tx.quantity * -1;
+                  aggOverflow[tx.account][tx.overflowRev][
+                    tx.symbol
+                  ].priceCoefSumTransferOut += tx.priceCoef * tx.quantity * -1;
+                }
+              }
+
+              aggOverflow[tx.account][tx.overflowRev][tx.symbol].quantityFlow +=
+                tx.quantity;
+            }
+          }
+        }
+      });
+
+      // console.log(
+      //   'aggOverflow',
+      //   'ROSE/KAVA',
+      //   aggOverflow['ikeniborn']['rose/kava']
+      // )
 
       let aggFlowArrayOfObject = [];
-      Object.entries(aggFlow).forEach(([account, level0]) => {
-        Object.entries(level0).forEach(([portfolio, level1]) => {
-          Object.entries(level1).forEach(([overflow, object]) => {
-            const quantityFlow = Math.round(object.quantity * 10000) / 10000;
-            const priceCoefFlow = object.priceCoefSum / quantityFlow;
-            if (quantityFlow > 0 && priceCoefFlow > 0) {
-              //* доп. атрибуты
-              //* атрибуты символа
-              const overflowArray = overflow.split('/');
-              const tokenA = overflowArray[0];
-              const tokenB = overflowArray[1];
-              const tokenAKey = new Hash(tokenA).md5;
-              const tokenACategory = symbols[tokenAKey]?.symbolCategory || '';
-              const tokenAPrice = symbols[tokenAKey]?.price || '';
-              const tokenBKey = new Hash(tokenB).md5;
-              const tokenBCategory = symbols[tokenBKey]?.symbolCategory || '';
-              const tokenBPrice = symbols[tokenBKey]?.price || '';
+      Object.entries(aggOverflow).forEach(([account, level0]) => {
+        Object.entries(level0).forEach(([overflow, level1]) => {
+          Object.entries(level1).forEach(([symbol, object]) => {
+            //* расчет потоков
+            const priceCoefSumIn =
+              object.priceCoefSumBuyIn +
+              object.priceCoefSumSellIn +
+              object.priceCoefSumRefillIn +
+              object.priceCoefSumTransferIn;
 
-              //* показатели
+            const priceCoefSumOut =
+              object.priceCoefSumBuyOut +
+              object.priceCoefSumSellOut +
+              object.priceCoefSumWriteOffOut +
+              object.priceCoefSumTransferOut;
 
-              const priceCoefFlow = object.priceCoefSum / quantityFlow;
-              const priceCoef = tokenAPrice / tokenBPrice;
-              const priceCoefDiff = priceCoef / priceCoefFlow - 1;
-              if (
-                [
-                  '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
-                  'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
-                  '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
-                ].indexOf(new Hash(tokenACategory).md5) === -1 &&
-                [
-                  '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
-                  'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
-                  '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
-                ].indexOf(new Hash(tokenBCategory).md5) === -1 &&
-                tokenAKey !== tokenBKey
-              ) {
-                aggFlowArrayOfObject.push({
-                  account: account.toUpperCase(),
-                  portfolio: portfolio.toUpperCase(),
-                  overflow: overflow.toUpperCase(),
-                  tokenA: tokenA.toUpperCase(),
-                  tokenB: tokenB.toUpperCase(),
-                  quantityFlow: quantityFlow,
-                  priceCoefFlow: priceCoefFlow,
-                  priceCoef: priceCoef,
-                  priceCoefDiff: priceCoefDiff,
-                  updateDataMart: updateDataMart.getFormatDate(
-                    'yyyy-MM-dd hh:mm:ss'
-                  ),
-                });
-              }
-            }
+            const quantityInFlow =
+              object.quantityBuyIn +
+              object.quantitySellIn +
+              object.quantityRefillIn +
+              object.quantityTransferIn;
+
+            const quantityOutFlow =
+              object.quantityBuyOut +
+              object.quantitySellOut +
+              object.quantityWriteOffOut +
+              object.quantityTransferOut;
+
+            //* показатели
+            const quantityFlow = object.quantityFlow;
+            const priceCoefSumInFlow = priceCoefSumIn / quantityInFlow || 0;
+            const priceCoefSumOutFlow = priceCoefSumOut / quantityOutFlow || 0;
+            const priceCoefSumFlowSum =
+              priceCoefSumInFlow * quantityInFlow +
+              priceCoefSumOutFlow * quantityOutFlow;
+            const quantityFlowSum = quantityInFlow + quantityOutFlow;
+            const priceCoefFlow = priceCoefSumFlowSum / quantityFlowSum;
+            //* атрибуты перелива
+            const overflowArray = overflow.split('/');
+            const tokenA = overflowArray[0];
+            const tokenB = overflowArray[1];
+            const tokenAKey = new Hash(tokenA).md5;
+            const tokenAPrice = symbols[tokenAKey]?.price || '';
+            const tokenBKey = new Hash(tokenB).md5;
+            const tokenBPrice = symbols[tokenBKey]?.price || '';
+            const priceCoef = tokenAPrice / tokenBPrice;
+            const priceCoefDiff = priceCoef - priceCoefFlow;
+            const priceCoefDiffPst = priceCoef / priceCoefFlow - 1;
+            const overflowRev = tokenB + '/' + tokenA;
+            const priceCoefRev = tokenBPrice / tokenAPrice;
+
+            // if (
+            //   new Hash(tokenA + '/' + tokenB).md5 ===
+            //     new Hash('ROSE/KAVA').md5 &&
+            //   new Hash(account).md5 === new Hash('IKENIBORN').md5
+            // ) {
+            //   console.log(account, symbol)
+            //   console.log('quantityFlow', quantityFlow)
+            //   console.log('priceCoefSumInFlow', priceCoefSumInFlow)
+            //   console.log('priceCoefSumOutFlow', priceCoefSumOutFlow)
+            //   console.log('priceCoefSumFlowSum', priceCoefSumFlowSum)
+            //   console.log('quantityFlowSum', quantityFlowSum)
+            //   console.log('priceCoefFlow', priceCoefFlow)
+            //   console.log('overflow', overflow)
+            //   console.log('priceCoef', priceCoef)
+            //   console.log('priceCoefDiff', priceCoefDiff)
+            //   console.log('priceCoefDiffPst', priceCoefDiffPst)
+            //   console.log('overflowRev', overflowRev)
+            //   console.log('priceCoefRev', priceCoefRev)
+            // }
+
+            // if (
+            //   [
+            //     '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+            //     'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
+            //     '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
+            //   ].indexOf(new Hash(tokenACategory).md5) === -1 &&
+            //   [
+            //     '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+            //     'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
+            //     '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
+            //   ].indexOf(new Hash(tokenBCategory).md5) === -1 &&
+            //   tokenAKey !== tokenBKey
+            // ) {
+
+            aggFlowArrayOfObject.push({
+              account: account.toUpperCase(),
+              overflow: overflow.toUpperCase(),
+              overflowRev: overflowRev.toUpperCase(),
+              symbol: symbol.toUpperCase(),
+              quantityFlow: quantityFlow,
+              priceCoefFlow: priceCoefFlow,
+              priceCoef: priceCoef,
+              priceCoefDiff: priceCoefDiff,
+              priceCoefDiffPst: priceCoefDiffPst,
+              priceCoefRev: priceCoefRev,
+              updateDataMart: updateDataMart.getFormatDate(
+                'yyyy-MM-dd hh:mm:ss'
+              ),
+            });
+            // }
           });
         });
       });
@@ -5103,6 +5499,9 @@ function updateDataMart() {
     };
     process() ? resolve() : reject(new Error('script.updateDataMart'));
   })
+    .then(() => {
+      new Overflows().updateOverflows();
+    })
     .then(
       new Portfolio().log.addMessage(
         'script.updateDataMart',
@@ -5175,13 +5574,17 @@ function updateOverflows() {
   new Overflows().updateOverflows();
 }
 
+function updatePair() {
+  new Transactions().updatePair();
+}
+
 /**
  *
  * @param {*} startIndex
  * @param {*} endIndex
  */
-function updatePair(startIndex, endIndex) {
-  new Transactions().updatePair(startIndex, endIndex);
+function updatePriceCostBTC(startIndex, endIndex) {
+  new Transactions().updatePriceCostBTC(startIndex, endIndex);
 }
 
 function updateHistoricalAveragePriceKey() {
@@ -5317,7 +5720,6 @@ function createMenu() {
       .addItem('Update current prices and data mart', 'updatePrices')
       .addItem('Validate transactions', 'validateTransactions')
       .addItem('Sort registry', 'sortRegistry')
-    // .addItem('Clean all metadata in worksheet', 'cleanAllMetadata')
   );
   menu.addToUi();
 }

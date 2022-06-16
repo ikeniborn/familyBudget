@@ -292,6 +292,7 @@ class Registry {
               mainSymbol: void 0,
               symbol: coinSymbol,
               overflow: coinSymbol + '/' + currencySymbol,
+              overflowRev: currencySymbol + '/' + coinSymbol,
               quantity: coinQty * -1,
               isFee,
               isLock: isSenderLock,
@@ -332,6 +333,7 @@ class Registry {
               mainSymbol: void 0,
               symbol: coinSymbol,
               overflow: coinSymbol + '/' + currencySymbol,
+              overflowRev: currencySymbol + '/' + coinSymbol,
               quantity: coinQty,
               isFee,
               isLock: isRecipientLock,
@@ -369,6 +371,7 @@ class Registry {
             mainSymbol: mainSymbol,
             symbol: currencySymbol,
             overflow: currencySymbol + '/' + coinSymbol,
+            overflowRev: coinSymbol + '/' + currencySymbol,
             quantity: currencyQty * -1,
             isFee,
             isLock: isSenderLock,
@@ -394,6 +397,7 @@ class Registry {
             mainSymbol: mainSymbol,
             symbol: coinSymbol,
             overflow: coinSymbol + '/' + currencySymbol,
+            overflowRev: currencySymbol + '/' + coinSymbol,
             quantity: coinQty,
             isFee,
             isLock: isRecipientLock,
@@ -431,6 +435,7 @@ class Registry {
             mainSymbol: mainSymbol,
             symbol: coinSymbol,
             overflow: coinSymbol + '/' + currencySymbol,
+            overflowRev: currencySymbol + '/' + coinSymbol,
             quantity: coinQty * -1,
             isFee,
             isLock: isSenderLock,
@@ -456,6 +461,7 @@ class Registry {
             mainSymbol: mainSymbol,
             symbol: currencySymbol,
             overflow: currencySymbol + '/' + coinSymbol,
+            overflowRev: coinSymbol + '/' + currencySymbol,
             quantity: currencyQty,
             isFee,
             isLock: isRecipientLock,
@@ -555,23 +561,69 @@ class Registry {
 
         //* Формирование строки транзакции
         transactionRow.forEach((tx) => {
-          let priceUSD, priceCoef, priceBTC, costBTC, costUSD
+          let priceUSD, priceCoef, priceBTC, costBTC, costUSD, priceCoefRev
           if (tx.isSymbolPrice) {
             priceUSD = symbolPrice
             priceBTC = priceUSDBTC * symbolPrice
             isHistoricalAveragePrice = isHistoricalAveragePriceSymbol
-            priceCoef = symbolPriceCoef
+            if (
+              [
+                /*buy*/ '0461ebd2b773878eac9f78a891912d65',
+                /*sell*/ '8325324b47e1e62a1c2998a640cbdc72',
+              ].indexOf(operationKey) !== -1
+            ) {
+              priceCoef = symbolPriceCoef
+              priceCoefRev = currencyPriceCoef
+            } else {
+              priceCoef = 1
+              priceCoefRev = 1
+            }
           } else if (tx.isFeePrice) {
             priceUSD = feePrice
             priceBTC = priceUSDBTC * feePrice
             isHistoricalAveragePrice = isHistoricalAveragePriceFeeCurrency
             priceCoef = 1
+            priceCoefRev = 1
           } else if (tx.isCurencyPrice) {
             priceUSD = currencyPrice
             priceBTC = priceUSDBTC * currencyPrice
             isHistoricalAveragePrice = isHistoricalAveragePriceCurrency
-            priceCoef = currencyPriceCoef
+            if (
+              [
+                /*buy*/ '0461ebd2b773878eac9f78a891912d65',
+                /*sell*/ '8325324b47e1e62a1c2998a640cbdc72',
+              ].indexOf(operationKey) !== -1
+            ) {
+              priceCoef = currencyPriceCoef
+              priceCoefRev = symbolPriceCoef
+            } else {
+              priceCoef = 1
+              priceCoefRev = 1
+            }
           }
+          // if (tx.isFeePrice) {
+          //   priceCoef = 1
+          //   priceCoefRev = 1
+          // } else {
+          //   if (
+          //     [/*buy*/ '0461ebd2b773878eac9f78a891912d65'].indexOf(
+          //       operationKey
+          //     ) !== -1
+          //   ) {
+          //     priceCoef = currencyPriceCoef
+          //     priceCoefRev = symbolPriceCoef
+          //   } else if (
+          //     [/*sell*/ '8325324b47e1e62a1c2998a640cbdc72'].indexOf(
+          //       operationKey
+          //     ) !== -1
+          //   ) {
+          //     priceCoef = symbolPriceCoef
+          //     priceCoefRev = currencyPriceCoef
+          //   } else {
+          //     priceCoef = 1
+          //     priceCoefRev = 1
+          //   }
+          // }
 
           costUSD = tx.quantity * priceUSD
           costBTC = tx.quantity * priceBTC
@@ -593,6 +645,7 @@ class Registry {
             service: rowValues.service.toLowerCase(),
             contractor: tx.contractor.toLowerCase(),
             overflow: tx.overflow ? tx.overflow.toLowerCase() : void 0,
+            overflowRev: tx.overflowRev ? tx.overflowRev.toLowerCase() : void 0,
             mainSymbol: tx.mainSymbol ? tx.mainSymbol.toLowerCase() : void 0,
             symbol: tx.symbol.toLowerCase(),
             quantity: tx.quantity,
@@ -601,6 +654,7 @@ class Registry {
             priceBTC: priceBTC || 0,
             costBTC: costBTC || 0,
             priceCoef: priceCoef || 0,
+            priceCoefRev: priceCoefRev || 0,
             comment: rowValues.comment.toString().toLowerCase(),
             updateDate: updateDate,
             isDelete: isDelete,
