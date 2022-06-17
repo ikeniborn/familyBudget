@@ -1627,20 +1627,24 @@ class Portfolio {
         rowNum: 1,
         columns: {
           account: { alias: 'Account', idx: 0 },
-          // portfolio: { alias: 'Portfolio', idx: 1 },
-          symbol: { alias: 'Symbol', idx: 2 },
-          quantityFlow: { alias: 'Quantity (flow)', idx: 3 },
-          priceCoefFlow: { alias: 'Price coef (flow)', idx: 4 },
-          overflow: { alias: 'Overflow', idx: 5 },
-          priceCoef: { alias: 'Price coef', idx: 6 },
-          priceCoefDiff: { alias: 'Price coef diff', idx: 7 },
-          priceCoefDiffPst: { alias: 'Price coef diff, %', idx: 8 },
-          overflowRev: { alias: 'Overflow reverse', idx: 9 },
-          priceCoefRev: { alias: 'Price coef rev', idx: 10 },
-          rowId: { alias: 'Row ID', idx: 11, default: 0 },
+          overflow: { alias: 'Overflow', idx: 1 },
+          tokenA: { alias: 'Token A', idx: 2 },
+          tokenARest: { alias: 'Token A rest', idx: 3 },
+          tokenAQuantityFlow: { alias: 'Token A quantity flow', idx: 4 },
+          tokenB: { alias: 'Token B', idx: 5 },
+          tokenBRest: { alias: 'Token B rest', idx: 6 },
+          tokenBQuantityFlow: { alias: 'Token B quantity flow', idx: 7 },
+          ABPriceCoefFlow: { alias: 'A/B price coef flow', idx: 8 },
+          ABPriceCoef: { alias: 'A/B price coef', idx: 9 },
+          ABPriceCoefDiffPct: { alias: 'A/B price coef diff, %', idx: 10 },
+          BAPriceCoefFlow: { alias: 'B/A price coef flow', idx: 11 },
+          BAPriceCoef: { alias: 'B/A price coef', idx: 12 },
+          BAPriceCoefDiffPct: { alias: 'B/A price coef diff, %', idx: 13 },
+          overflowStatus: { alias: 'Overflow status', idx: 14 },
+          rowId: { alias: 'Row ID', idx: 15, default: 0 },
           updateDataMart: {
             alias: 'Update data mart',
-            idx: 12,
+            idx: 16,
             type: 'date',
           },
         },
@@ -5121,13 +5125,18 @@ class Overflows {
         if (!agg[tx.account]) {
           agg[tx.account] = {};
         }
-
-        if (!agg[tx.account][tx.overflow]) {
-          agg[tx.account][tx.overflow] = {};
+        let overflow;
+        if (outKey === directionKey) {
+          overflow = tx.overflow;
+        } else if (inKey === directionKey) {
+          overflow = tx.overflowRev;
+        }
+        if (!agg[tx.account][overflow]) {
+          agg[tx.account][overflow] = {};
         }
 
-        if (!agg[tx.account][tx.overflow][tx.symbol]) {
-          agg[tx.account][tx.overflow][tx.symbol] = {
+        if (!agg[tx.account][overflow][tx.symbol]) {
+          agg[tx.account][overflow][tx.symbol] = {
             quantityBuyIn: 0,
             quantityBuyOut: 0,
             quantitySellIn: 0,
@@ -5137,6 +5146,7 @@ class Overflows {
             quantityTransferIn: 0,
             quantityTransferOut: 0,
             quantityFlow: 0,
+            quantityRest: 0,
             priceCoefSumBuyIn: 0,
             priceCoefSumBuyOut: 0,
             priceCoefSumSellIn: 0,
@@ -5152,155 +5162,79 @@ class Overflows {
 
         if (operationKey === '0461ebd2b773878eac9f78a891912d65' /*buy*/) {
           if (directionKey === inKey) {
-            agg[tx.account][tx.overflow][tx.symbol].quantityBuyIn += tx.quantity;
-            agg[tx.account][tx.overflow][tx.symbol].priceCoefSumBuyIn +=
+            agg[tx.account][overflow][tx.symbol].quantityBuyIn += tx.quantity;
+            agg[tx.account][overflow][tx.symbol].priceCoefSumBuyIn +=
               tx.priceCoef * tx.quantity;
           } else if (directionKey === outKey) {
-            agg[tx.account][tx.overflow][tx.symbol].quantityBuyOut +=
+            agg[tx.account][overflow][tx.symbol].quantityBuyOut +=
               tx.quantity * -1;
-            agg[tx.account][tx.overflow][tx.symbol].priceCoefSumBuyOut +=
+            agg[tx.account][overflow][tx.symbol].priceCoefSumBuyOut +=
               tx.priceCoef * tx.quantity * -1;
           }
         } else if (
           operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
         ) {
           if (directionKey === inKey) {
-            agg[tx.account][tx.overflow][tx.symbol].quantitySellIn +=
-              tx.quantity;
-            agg[tx.account][tx.overflow][tx.symbol].priceCoefSumSellIn +=
+            agg[tx.account][overflow][tx.symbol].quantitySellIn += tx.quantity;
+            agg[tx.account][overflow][tx.symbol].priceCoefSumSellIn +=
               tx.priceCoef * tx.quantity;
           } else if (directionKey === outKey) {
-            agg[tx.account][tx.overflow][tx.symbol].quantitySellOut +=
+            agg[tx.account][overflow][tx.symbol].quantitySellOut +=
               tx.quantity * -1;
-            agg[tx.account][tx.overflow][tx.symbol].priceCoefSumSellOut +=
+            agg[tx.account][overflow][tx.symbol].priceCoefSumSellOut +=
               tx.priceCoef * tx.quantity * -1;
           }
         } else if (
           operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
         ) {
           if (directionKey === inKey) {
-            agg[tx.account][tx.overflow][tx.symbol].quantityRefillIn +=
-              tx.quantity;
-            agg[tx.account][tx.overflow][tx.symbol].priceCoefSumRefillIn +=
+            agg[tx.account][overflow][tx.symbol].quantityRefillIn += tx.quantity;
+            agg[tx.account][overflow][tx.symbol].priceCoefSumRefillIn +=
               tx.priceCoef * tx.quantity;
           }
         } else if (
           operationKey === '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
         ) {
           if (directionKey === outKey) {
-            agg[tx.account][tx.overflow][tx.symbol].quantityWriteOffOut +=
+            agg[tx.account][overflow][tx.symbol].quantityWriteOffOut +=
               tx.quantity * -1;
-            agg[tx.account][tx.overflow][tx.symbol].priceCoefSumWriteOffOut +=
+            agg[tx.account][overflow][tx.symbol].priceCoefSumWriteOffOut +=
               tx.priceCoef * tx.quantity * -1;
           }
         } else if (
           operationKey === '84a0f3455dcca894ace136be62efa292' /*transfer*/
         ) {
           if (directionKey === inKey) {
-            agg[tx.account][tx.overflow][tx.symbol].quantityTransferIn +=
+            agg[tx.account][overflow][tx.symbol].quantityTransferIn +=
               tx.quantity;
-            agg[tx.account][tx.overflow][tx.symbol].priceCoefSumTransferIn +=
+            agg[tx.account][overflow][tx.symbol].priceCoefSumTransferIn +=
               tx.priceCoef * tx.quantity;
           } else if (directionKey === outKey) {
-            agg[tx.account][tx.overflow][tx.symbol].quantityTransferOut +=
+            agg[tx.account][overflow][tx.symbol].quantityTransferOut +=
               tx.quantity * -1;
-            agg[tx.account][tx.overflow][tx.symbol].priceCoefSumTransferOut +=
+            agg[tx.account][overflow][tx.symbol].priceCoefSumTransferOut +=
               tx.priceCoef * tx.quantity * -1;
           }
         }
 
-        agg[tx.account][tx.overflow][tx.symbol].quantityFlow += tx.quantity;
+        agg[tx.account][overflow][tx.symbol].quantityFlow += tx.quantity;
+        agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity;
 
         return agg
       }, {});
 
       transactions.forEach((tx) => {
+        let overflow;
+        const directionKey = new Hash(tx.direction).md5;
+        if (outKey === directionKey) {
+          overflow = tx.overflowRev;
+        } else if (inKey === directionKey) {
+          overflow = tx.overflow;
+        }
         if (aggOverflow[tx.account]) {
-          if (aggOverflow[tx.account][tx.overflowRev]) {
-            if (aggOverflow[tx.account][tx.overflowRev][tx.symbol]) {
-              const operationKey = new Hash(tx.operation).md5;
-              const directionKey = new Hash(tx.direction).md5;
-
-              //* Распределение количества по потокам
-
-              if (operationKey === '0461ebd2b773878eac9f78a891912d65' /*buy*/) {
-                if (directionKey === inKey) {
-                  aggOverflow[tx.account][tx.overflowRev][
-                    tx.symbol
-                  ].quantityBuyIn += tx.quantity;
-                  aggOverflow[tx.account][tx.overflowRev][
-                    tx.symbol
-                  ].priceCoefSumBuyIn += tx.priceCoef * tx.quantity;
-                } else if (directionKey === outKey) {
-                  aggOverflow[tx.account][tx.overflowRev][
-                    tx.symbol
-                  ].quantityBuyOut += tx.quantity * -1;
-                  aggOverflow[tx.account][tx.overflowRev][
-                    tx.symbol
-                  ].priceCoefSumBuyOut += tx.priceCoef * tx.quantity * -1;
-                }
-              } else if (
-                operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
-              ) {
-                if (directionKey === inKey) {
-                  aggOverflow[tx.account][tx.overflowRev][
-                    tx.symbol
-                  ].quantitySellIn += tx.quantity;
-                  aggOverflow[tx.account][tx.overflowRev][
-                    tx.symbol
-                  ].priceCoefSumSellIn += tx.priceCoef * tx.quantity;
-                } else if (directionKey === outKey) {
-                  aggOverflow[tx.account][tx.overflowRev][
-                    tx.symbol
-                  ].quantitySellOut += tx.quantity * -1;
-                  aggOverflow[tx.account][tx.overflowRev][
-                    tx.symbol
-                  ].priceCoefSumSellOut += tx.priceCoef * tx.quantity * -1;
-                }
-              } else if (
-                operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
-              ) {
-                if (directionKey === inKey) {
-                  aggOverflow[tx.account][tx.overflowRev][
-                    tx.symbol
-                  ].quantityRefillIn += tx.quantity;
-                  aggOverflow[tx.account][tx.overflowRev][
-                    tx.symbol
-                  ].priceCoefSumRefillIn += tx.priceCoef * tx.quantity;
-                }
-              } else if (
-                operationKey ===
-                '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
-              ) {
-                if (directionKey === outKey) {
-                  aggOverflow[tx.account][tx.overflowRev][
-                    tx.symbol
-                  ].quantityWriteOffOut += tx.quantity * -1;
-                  aggOverflow[tx.account][tx.overflowRev][
-                    tx.symbol
-                  ].priceCoefSumWriteOffOut += tx.priceCoef * tx.quantity * -1;
-                }
-              } else if (
-                operationKey === '84a0f3455dcca894ace136be62efa292' /*transfer*/
-              ) {
-                if (directionKey === inKey) {
-                  aggOverflow[tx.account][tx.overflowRev][
-                    tx.symbol
-                  ].quantityTransferIn += tx.quantity;
-                  aggOverflow[tx.account][tx.overflowRev][
-                    tx.symbol
-                  ].priceCoefSumTransferIn += tx.priceCoef * tx.quantity;
-                } else if (directionKey === outKey) {
-                  aggOverflow[tx.account][tx.overflowRev][
-                    tx.symbol
-                  ].quantityTransferOut += tx.quantity * -1;
-                  aggOverflow[tx.account][tx.overflowRev][
-                    tx.symbol
-                  ].priceCoefSumTransferOut += tx.priceCoef * tx.quantity * -1;
-                }
-              }
-
-              aggOverflow[tx.account][tx.overflowRev][tx.symbol].quantityFlow +=
+          if (aggOverflow[tx.account][overflow]) {
+            if (aggOverflow[tx.account][overflow][tx.symbol]) {
+              aggOverflow[tx.account][overflow][tx.symbol].quantityRest +=
                 tx.quantity;
             }
           }
@@ -5308,12 +5242,15 @@ class Overflows {
       });
 
       // console.log(
-      //   'aggOverflow',
-      //   'ROSE/KAVA',
-      //   aggOverflow['ikeniborn']['rose/kava']
+      //   'aggOverflow dot/ksm',
+      //   Object.values(aggOverflow)[0]['dot/ksm']
+      // )
+      // console.log(
+      //   'aggOverflow ksm/dot',
+      //   Object.values(aggOverflow)[0]['ksm/dot']
       // )
 
-      let aggFlowArrayOfObject = [];
+      const aggFlowObject = {};
       Object.entries(aggOverflow).forEach(([account, level0]) => {
         Object.entries(level0).forEach(([overflow, level1]) => {
           Object.entries(level1).forEach(([symbol, object]) => {
@@ -5352,74 +5289,110 @@ class Overflows {
             const quantityFlowSum = quantityInFlow + quantityOutFlow;
             const priceCoefFlow = priceCoefSumFlowSum / quantityFlowSum;
             //* атрибуты перелива
-            const overflowArray = overflow.split('/');
-            const tokenA = overflowArray[0];
-            const tokenB = overflowArray[1];
-            const tokenAKey = new Hash(tokenA).md5;
-            const tokenAPrice = symbols[tokenAKey]?.price || '';
-            const tokenBKey = new Hash(tokenB).md5;
-            const tokenBPrice = symbols[tokenBKey]?.price || '';
-            const priceCoef = tokenAPrice / tokenBPrice;
-            const priceCoefDiff = priceCoef - priceCoefFlow;
-            const priceCoefDiffPst = priceCoef / priceCoefFlow - 1;
-            const overflowRev = tokenB + '/' + tokenA;
-            const priceCoefRev = tokenBPrice / tokenAPrice;
+            // const overflowArray = overflow.split('/')
+            // const tokenA = overflowArray[0]
+            // const tokenB = overflowArray[1]
+            // const overflowRev = tokenB + '/' + tokenA
 
-            // if (
-            //   new Hash(tokenA + '/' + tokenB).md5 ===
-            //     new Hash('ROSE/KAVA').md5 &&
-            //   new Hash(account).md5 === new Hash('IKENIBORN').md5
-            // ) {
-            //   console.log(account, symbol)
-            //   console.log('quantityFlow', quantityFlow)
-            //   console.log('priceCoefSumInFlow', priceCoefSumInFlow)
-            //   console.log('priceCoefSumOutFlow', priceCoefSumOutFlow)
-            //   console.log('priceCoefSumFlowSum', priceCoefSumFlowSum)
-            //   console.log('quantityFlowSum', quantityFlowSum)
-            //   console.log('priceCoefFlow', priceCoefFlow)
-            //   console.log('overflow', overflow)
-            //   console.log('priceCoef', priceCoef)
-            //   console.log('priceCoefDiff', priceCoefDiff)
-            //   console.log('priceCoefDiffPst', priceCoefDiffPst)
-            //   console.log('overflowRev', overflowRev)
-            //   console.log('priceCoefRev', priceCoefRev)
-            // }
+            if (!aggFlowObject[account]) {
+              aggFlowObject[account] = {};
+            }
 
-            // if (
-            //   [
-            //     '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
-            //     'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
-            //     '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
-            //   ].indexOf(new Hash(tokenACategory).md5) === -1 &&
-            //   [
-            //     '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
-            //     'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
-            //     '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
-            //   ].indexOf(new Hash(tokenBCategory).md5) === -1 &&
-            //   tokenAKey !== tokenBKey
-            // ) {
+            if (!aggFlowObject[account][overflow]) {
+              aggFlowObject[account][overflow] = {
+                tokenA: '',
+                tokenARest: 0,
+                tokenAQuantityFlow: 0,
+                ABPriceCoefFlow: 0,
+                tokenAPrice: 0,
+                tokenB: '',
+                tokenBRest: 0,
+                tokenBQuantityFlow: 0,
+                BAPriceCoefFlow: 0,
+                tokenBPrice: 0,
+              };
+            }
 
-            aggFlowArrayOfObject.push({
-              account: account.toUpperCase(),
-              overflow: overflow.toUpperCase(),
-              overflowRev: overflowRev.toUpperCase(),
-              symbol: symbol.toUpperCase(),
-              quantityFlow: quantityFlow,
-              priceCoefFlow: priceCoefFlow,
-              priceCoef: priceCoef,
-              priceCoefDiff: priceCoefDiff,
-              priceCoefDiffPst: priceCoefDiffPst,
-              priceCoefRev: priceCoefRev,
-              updateDataMart: updateDataMart.getFormatDate(
-                'yyyy-MM-dd hh:mm:ss'
-              ),
-            });
-            // }
+            if (quantityFlow < 0) {
+              const tokenAKey = new Hash(symbol).md5;
+              aggFlowObject[account][overflow].tokenA = symbol;
+              aggFlowObject[account][overflow].tokenARest = object.quantityRest;
+              aggFlowObject[account][overflow].tokenAQuantityFlow = quantityFlow;
+              aggFlowObject[account][overflow].ABPriceCoefFlow = priceCoefFlow;
+              aggFlowObject[account][overflow].tokenAPrice =
+                symbols[tokenAKey]?.price || 0;
+            }
+
+            if (quantityFlow > 0) {
+              const tokenBKey = new Hash(symbol).md5;
+              aggFlowObject[account][overflow].tokenB = symbol;
+              aggFlowObject[account][overflow].tokenBRest = object.quantityRest;
+              aggFlowObject[account][overflow].tokenBQuantityFlow = quantityFlow;
+              aggFlowObject[account][overflow].BAPriceCoefFlow = priceCoefFlow;
+              aggFlowObject[account][overflow].tokenBPrice =
+                symbols[tokenBKey]?.price || 0;
+            }
+          });
+        });
+      });
+      const aggFlowArrayOfObject = [];
+      Object.entries(aggFlowObject).forEach(([account, level0]) => {
+        Object.entries(level0).forEach(([overflow, object]) => {
+          let overflowStatus;
+          const overflowArray = overflow.split('/');
+          const tokenA = overflowArray[0];
+          const tokenB = overflowArray[1];
+          const overflowRev = tokenB + '/' + tokenA;
+          const ABPriceCoef = object.tokenAPrice / object.tokenBPrice;
+          const ABPriceCoefDiffPct = ABPriceCoef / object.ABPriceCoefFlow - 1;
+          const BAPriceCoef = object.tokenBPrice / object.tokenAPrice;
+          const BAPriceCoefDiffPct = BAPriceCoef / object.BAPriceCoefFlow - 1;
+          if (ABPriceCoefDiffPct < -0.05) {
+            overflowStatus = 'It is possible to do reverse';
+          } else if (ABPriceCoefDiffPct < -0.1) {
+            overflowStatus = 'Do a backflow';
+          } else if (ABPriceCoefDiffPct < 0) {
+            overflowStatus = 'Wait';
+          } else {
+            overflowStatus = 'Do nothing';
+          }
+          aggFlowArrayOfObject.push({
+            account: account.toUpperCase(),
+            overflow: overflow.toUpperCase(),
+            overflowRev: overflowRev.toUpperCase(),
+            tokenA: object.tokenA ? object.tokenA.toUpperCase() : void 0,
+            tokenARest: object.tokenARest,
+            tokenAQuantityFlow: object.tokenAQuantityFlow,
+            tokenB: object.tokenB ? object.tokenB.toUpperCase() : void 0,
+            tokenBRest: object.tokenBRest,
+            tokenBQuantityFlow: object.tokenBQuantityFlow,
+            ABPriceCoefFlow: object.ABPriceCoefFlow,
+            ABPriceCoef: ABPriceCoef,
+            ABPriceCoefDiffPct: ABPriceCoefDiffPct,
+            BAPriceCoefFlow: object.BAPriceCoefFlow,
+            BAPriceCoef: BAPriceCoef,
+            BAPriceCoefDiffPct: BAPriceCoefDiffPct,
+            overflowStatus: overflowStatus,
+            updateDataMart: updateDataMart.getFormatDate('yyyy-MM-dd hh:mm:ss'),
           });
         });
       });
 
-      this.workSheet.truncateInsertRows(aggFlowArrayOfObject);
+      // console.log(aggFlowObject['ikeniborn']['dot/ksm'])
+      const sortAggFlowArrayOfObject = aggFlowArrayOfObject
+        .filter((rowObject) => {
+          return (
+            Math.round(rowObject.tokenARest * 100) / 100 !== 0 &&
+            Math.round(rowObject.tokenBRest * 100) / 100 !== 0
+          )
+        })
+        .sort((a, b) => {
+          return (
+            ('' + a.overflow).localeCompare(b.overflow) &&
+            ('' + a.overflowRev).localeCompare(b.overflowRev)
+          )
+        });
+      this.workSheet.truncateInsertRows(sortAggFlowArrayOfObject);
     } catch (error) {
       console.error('Overflows.updateOverflows', error.stack);
     }
