@@ -33,7 +33,7 @@ class Coins {
           })
         })
 
-        new cryptoRank.CoinsList().getCoinsList(15000).forEach((coin) => {
+        new cryptoRank.CoinsList().getCoinsList(20000).forEach((coin) => {
           const key = new Hash('cryptorank' + coin.name + coin.symbol)
           coins.push({
             rowKey: key.md5,

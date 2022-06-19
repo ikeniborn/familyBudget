@@ -12,21 +12,63 @@ import { Overflows } from './worksheet/overflows'
 import * as coinMarketCap from '../restApi/coinMarketCap'
 // import { GasProcess } from '../restApi/gasScriptApi'
 
-function updateLPToken() {
-  new LPToken().updateLPToken()
-}
-
-function getCategory() {
-  new Web3Space().getCategory()
-}
-function getCategories() {
-  console.log(new coinMarketCap.Category().getCategories())
+function createMenu() {
+  const ui = SpreadsheetApp.getUi()
+  const menu = ui.createMenu('Portfolio')
+  menu.addSubMenu(
+    SpreadsheetApp.getUi()
+      .createMenu('Update')
+      .addItem('Update prices, datamart, overflows', 'updatePrices')
+  )
+  menu.addSubMenu(
+    SpreadsheetApp.getUi()
+      .createMenu('Service')
+      .addItem('Update data mart', 'updateDataMart')
+      .addItem('Update overflows', 'updateOverflows')
+      .addItem('Validate transactions', 'validateTransactions')
+      .addItem('Update coins', 'updateCoins')
+  )
+  menu.addItem('Sort registry', 'sortRegistry')
+  menu.addToUi()
 }
 
 function cleanAllMetadata() {
   const activeWorkSheet = SpreadsheetApp.getActiveSheet()
   console.log('activeWorkSheet: ', activeWorkSheet.getName())
   new WorkSheetMetadata(activeWorkSheet).metadata.deleteAllMetadata()
+}
+
+function getCategory() {
+  new Web3Space().getCategory()
+}
+
+function getCategories() {
+  console.log(new coinMarketCap.Category().getCategories())
+}
+
+function validateTransactions() {
+  const startProcess = new FormatDate()
+  new Promise((resolve, reject) => {
+    const process = () => {
+      new Registry().validateTransactions()
+      return true
+    }
+    process() ? resolve() : reject(new Error('script.validateTransactions'))
+  })
+    // .then(
+    //   new Portfolio().log.addMessage(
+    //     'script.validateTransactions',
+    //     'ID:' + startProcess.value,
+    //     'Time spent: ' + startProcess.getTimeDiff()
+    //   )
+    // )
+    .catch((error) => {
+      console.error('script.validateTransactions', error.stack)
+    })
+}
+
+function updateLPToken() {
+  new LPToken().updateLPToken()
 }
 
 function updateTransactions() {
@@ -38,21 +80,6 @@ function updateTransactions() {
   } finally {
     new Portfolio().log.addMessage(
       'updateTransactions',
-      'ID:' + startProcess.value,
-      'Time spent: ' + startProcess.getTimeDiff()
-    )
-  }
-}
-
-function deleteDuplicatesRows() {
-  const startProcess = new FormatDate()
-  try {
-    new Transactions().deleteDuplicatesRows()
-  } catch (error) {
-    console.error('script.deleteDuplicatesRows', error.stack)
-  } finally {
-    new Portfolio().log.addMessage(
-      'deleteDuplicatesRows',
       'ID:' + startProcess.value,
       'Time spent: ' + startProcess.getTimeDiff()
     )
@@ -98,27 +125,6 @@ function updateDataMart() {
     })
 }
 
-function validateTransactions() {
-  const startProcess = new FormatDate()
-  new Promise((resolve, reject) => {
-    const process = () => {
-      new Registry().validateTransactions()
-      return true
-    }
-    process() ? resolve() : reject(new Error('script.validateTransactions'))
-  })
-    // .then(
-    //   new Portfolio().log.addMessage(
-    //     'script.validateTransactions',
-    //     'ID:' + startProcess.value,
-    //     'Time spent: ' + startProcess.getTimeDiff()
-    //   )
-    // )
-    .catch((error) => {
-      console.error('script.validateTransactions', error.stack)
-    })
-}
-
 function updatePrices() {
   const startProcess = new FormatDate()
   new Promise((resolve, reject) => {
@@ -132,7 +138,9 @@ function updatePrices() {
       new Promise((resolve) => {
         new Registry().validateTransactions()
         resolve()
-      }).then(new Flow().updateFlow())
+      })
+        .then(new Flow().updateFlow())
+        .then(new Overflows().updateOverflows())
     )
     .then(
       new Portfolio().log.addMessage(
@@ -154,6 +162,10 @@ function updateRowKey() {
   new Transactions().updateRowKey()
 }
 
+function updateIsOverflow() {
+  new Transactions().updateIsOverflow()
+}
+
 function updateOverflows() {
   new Overflows().updateOverflows()
 }
@@ -162,11 +174,6 @@ function updatePair() {
   new Transactions().updatePair()
 }
 
-/**
- *
- * @param {*} startIndex
- * @param {*} endIndex
- */
 function updatePriceCostBTC(startIndex, endIndex) {
   new Transactions().updatePriceCostBTC(startIndex, endIndex)
 }
@@ -177,10 +184,6 @@ function updateHistoricalAveragePriceKey() {
 
 function updateAccount() {
   new Transactions().updateAccount()
-}
-
-function recalculateTransactions() {
-  new Transactions().recalculateTransactions(0, 1000)
 }
 
 function updateOnEdit(editRange) {
@@ -291,19 +294,4 @@ function sortRegistry() {
       })
     registry.workSheet.truncateInsertRows(newArrayOfObject)
   }
-}
-
-function createMenu() {
-  const ui = SpreadsheetApp.getUi()
-  const menu = ui.createMenu('Portfolio')
-  menu.addSubMenu(
-    SpreadsheetApp.getUi()
-      .createMenu('Update')
-      .addItem('Update data mart', 'updateDataMart')
-      .addItem('Update overflows', 'updateOverflows')
-      .addItem('Update current prices and data mart', 'updatePrices')
-      .addItem('Validate transactions', 'validateTransactions')
-      .addItem('Sort registry', 'sortRegistry')
-  )
-  menu.addToUi()
 }

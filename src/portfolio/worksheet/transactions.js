@@ -1,5 +1,6 @@
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash, FormatDate } from '../../utils'
+import { Symbols } from './symbols'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
 export { Transactions, HistoricalPrice }
 
@@ -146,6 +147,39 @@ class Transactions {
         }
       }
       rowObject.rowKey = newRowKey
+      return rowObject
+    })
+    this.workSheet.truncateInsertRows(newArrayOfObject)
+  }
+
+  updateIsOverflow() {
+    const symbols = new Symbols().workSheet.object
+    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
+      const overflowArray = rowObject.overflow.split('/')
+      const tokenA = overflowArray[0]
+      const tokenB = overflowArray[1]
+      const tokenAKey = new Hash(tokenA).md5
+      const tokenACategory = symbols[tokenAKey]?.symbolCategory || ''
+      const tokenBKey = new Hash(tokenB).md5
+      const tokenBCategory = symbols[tokenBKey]?.symbolCategory || ''
+      if (
+        [
+          '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+          'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
+          '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
+        ].indexOf(new Hash(tokenACategory).md5) === -1 &&
+        [
+          '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+          'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
+          '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
+        ].indexOf(new Hash(tokenBCategory).md5) === -1 &&
+        tokenA !== tokenB
+      ) {
+        rowObject.isOverflow = true
+      } else {
+        rowObject.isOverflow = false
+      }
+
       return rowObject
     })
     this.workSheet.truncateInsertRows(newArrayOfObject)

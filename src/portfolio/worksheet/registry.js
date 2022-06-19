@@ -162,7 +162,10 @@ class Registry {
           registryTimestamp,
           symbolPriceCoef,
           currencyPriceCoef,
-          priceUSDBTC
+          priceUSDBTC,
+          isOverflow,
+          coinSymbolKey,
+          currencySymbolKey
 
         const transactionRow = []
         const hhmm = new FormatNumber(
@@ -195,8 +198,10 @@ class Registry {
             ? rowValues.currencyPerCoin
             : void 0
         coinSymbol = rowValues.coin
+        coinSymbolKey = new Hash(coinSymbol).md5
         coinSymbolCategoryKey = this.getSymbolCategoryKey(coinSymbol, symbols)
         currencySymbol = rowValues.currency || rowValues.coin
+        currencySymbolKey = new Hash(currencySymbol).md5
         currencySymbolCategoryKey = this.getSymbolCategoryKey(
           currencySymbol,
           symbols
@@ -219,6 +224,24 @@ class Registry {
         isHistoricalAveragePriceSymbol = false
         isHistoricalAveragePriceFeeCurrency = false
         isHistoricalAveragePriceCurrency = false
+        isOverflow = false
+
+        //* определение перелива
+        if (
+          [
+            '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+            'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
+            '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
+          ].indexOf(new Hash(coinSymbolCategoryKey).md5) === -1 &&
+          [
+            '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+            'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
+            '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
+          ].indexOf(new Hash(currencySymbolCategoryKey).md5) === -1 &&
+          coinSymbolKey !== currencySymbolKey
+        ) {
+          isOverflow = true
+        }
 
         //* Расчет пустых значений транзакции количества валюты за один токен, количество токена, количество валюты
         if (!currencyPerCoin && currencyQty) {
@@ -305,6 +328,7 @@ class Registry {
               isSymbolPrice: true,
               isFeePrice,
               isCurencyPrice,
+              isOverflow,
             })
           }
           if (
@@ -346,6 +370,7 @@ class Registry {
               isSymbolPrice: true,
               isFeePrice,
               isCurencyPrice,
+              isOverflow,
             })
           }
         } else if (
@@ -384,6 +409,7 @@ class Registry {
             isCurencyPrice: true,
             isFeePrice,
             isSymbolPrice,
+            isOverflow,
           })
           rowKey2 = new Hash(rowValues.rowKey + '#2').md5
           transactionRow.push({
@@ -410,6 +436,7 @@ class Registry {
             isSymbolPrice: true,
             isFeePrice,
             isCurencyPrice,
+            isOverflow,
           })
         } else if (
           [/*sell*/ '8325324b47e1e62a1c2998a640cbdc72'].indexOf(
@@ -448,6 +475,7 @@ class Registry {
             isSymbolPrice: true,
             isFeePrice,
             isCurencyPrice,
+            isOverflow,
           })
           rowKey2 = new Hash(rowValues.rowKey + '#2').md5
           transactionRow.push({
@@ -474,6 +502,7 @@ class Registry {
             isCurencyPrice: true,
             isFeePrice,
             isSymbolPrice,
+            isOverflow,
           })
         }
 
@@ -538,6 +567,7 @@ class Registry {
             isFeePrice: true,
             isSymbolPrice: false,
             isCurencyPrice: false,
+            isOverflow,
           })
 
           //* Расчет текущей или исторической цены комиссии токена
@@ -601,29 +631,6 @@ class Registry {
               priceCoefRev = 1
             }
           }
-          // if (tx.isFeePrice) {
-          //   priceCoef = 1
-          //   priceCoefRev = 1
-          // } else {
-          //   if (
-          //     [/*buy*/ '0461ebd2b773878eac9f78a891912d65'].indexOf(
-          //       operationKey
-          //     ) !== -1
-          //   ) {
-          //     priceCoef = currencyPriceCoef
-          //     priceCoefRev = symbolPriceCoef
-          //   } else if (
-          //     [/*sell*/ '8325324b47e1e62a1c2998a640cbdc72'].indexOf(
-          //       operationKey
-          //     ) !== -1
-          //   ) {
-          //     priceCoef = symbolPriceCoef
-          //     priceCoefRev = currencyPriceCoef
-          //   } else {
-          //     priceCoef = 1
-          //     priceCoefRev = 1
-          //   }
-          // }
 
           costUSD = tx.quantity * priceUSD
           costBTC = tx.quantity * priceBTC
@@ -666,6 +673,7 @@ class Registry {
             registryRowKey,
             registryRowNum: rowValues.rowNum,
             registryRowId: rowValues.rowId,
+            isOverflow: tx.isOverflow,
           }
 
           //* вставка строки в транзакции

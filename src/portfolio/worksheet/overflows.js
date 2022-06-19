@@ -22,34 +22,34 @@ class Overflows {
       const updateDataMart = new FormatDate()
       const inKey = new Hash('in').md5
       const outKey = new Hash('out').md5
-      const transactions = new Transactions().workSheet.arrayOfObject
+      const transactionsOverflows = new Transactions().workSheet.arrayOfObject
         .filter((rowObject) => {
-          const overflowArray = rowObject.overflow.split('/')
-          const tokenA = overflowArray[0]
-          const tokenB = overflowArray[1]
-          const tokenAKey = new Hash(tokenA).md5
-          const tokenACategory = symbols[tokenAKey]?.symbolCategory || ''
-          const tokenBKey = new Hash(tokenB).md5
-          const tokenBCategory = symbols[tokenBKey]?.symbolCategory || ''
-          return (
-            rowObject.isDelete === false &&
-            [
-              '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
-              'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
-              '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
-            ].indexOf(new Hash(tokenACategory).md5) === -1 &&
-            [
-              '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
-              'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
-              '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
-            ].indexOf(new Hash(tokenBCategory).md5) === -1 &&
-            tokenAKey !== tokenBKey
-          )
+          return rowObject.isDelete === false && rowObject.isOverflow === true
         })
         .sort((a, b) => {
           return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
         })
-      const aggOverflow = transactions.reduce((agg, tx) => {
+      const transactions = new Transactions().workSheet.arrayOfObject
+        .filter((rowObject) => {
+          return rowObject.isDelete === false
+        })
+        .sort((a, b) => {
+          return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
+        })
+      const aggFlow = transactionsOverflows.reduce((agg, tx) => {
+        if (!agg[tx.account]) {
+          agg[tx.account] = {}
+        }
+        if (!agg[tx.account][tx.symbol]) {
+          agg[tx.account][tx.symbol] = {
+            quantityRest: 0,
+          }
+          agg[tx.account][tx.symbol].quantityRest += tx.quantity
+        }
+        return agg
+      }, {})
+
+      const aggOverflow = transactionsOverflows.reduce((agg, tx) => {
         const operationKey = new Hash(tx.operation).md5
         const directionKey = new Hash(tx.direction).md5
         if (!agg[tx.account]) {
@@ -171,15 +171,6 @@ class Overflows {
         }
       })
 
-      // console.log(
-      //   'aggOverflow dot/ksm',
-      //   Object.values(aggOverflow)[0]['dot/ksm']
-      // )
-      // console.log(
-      //   'aggOverflow ksm/dot',
-      //   Object.values(aggOverflow)[0]['ksm/dot']
-      // )
-
       const aggFlowObject = {}
       Object.entries(aggOverflow).forEach(([account, level0]) => {
         Object.entries(level0).forEach(([overflow, level1]) => {
@@ -218,11 +209,6 @@ class Overflows {
               priceCoefSumOutFlow * quantityOutFlow
             const quantityFlowSum = quantityInFlow + quantityOutFlow
             const priceCoefFlow = priceCoefSumFlowSum / quantityFlowSum
-            //* атрибуты перелива
-            // const overflowArray = overflow.split('/')
-            // const tokenA = overflowArray[0]
-            // const tokenB = overflowArray[1]
-            // const overflowRev = tokenB + '/' + tokenA
 
             if (!aggFlowObject[account]) {
               aggFlowObject[account] = {}
@@ -272,56 +258,74 @@ class Overflows {
           const overflowArray = overflow.split('/')
           const tokenA = overflowArray[0]
           const tokenB = overflowArray[1]
+          const tokenAKey = new Hash(overflowArray[0]).md5
+          const tokenBKey = new Hash(overflowArray[1]).md5
           const overflowRev = tokenB + '/' + tokenA
           const ABPriceCoef = object.tokenAPrice / object.tokenBPrice
-          const ABPriceCoefDiffPct = ABPriceCoef / object.ABPriceCoefFlow - 1
+          const ABPriceCoefDiffPct = object.ABPriceCoefFlow
+            ? ABPriceCoef / object.ABPriceCoefFlow - 1
+            : 0
           const BAPriceCoef = object.tokenBPrice / object.tokenAPrice
-          const BAPriceCoefDiffPct = BAPriceCoef / object.BAPriceCoefFlow - 1
-          if (ABPriceCoefDiffPct < -0.05) {
-            overflowStatus = 'It is possible to do reverse'
-          } else if (ABPriceCoefDiffPct < -0.1) {
+          const BAPriceCoefDiffPct = object.BAPriceCoefFlow
+            ? BAPriceCoef / object.BAPriceCoefFlow - 1
+            : 0
+          const tokenARest = aggFlow[account][object.tokenA]?.quantityRest || 0
+          const tokenBRest = aggFlow[account][object.tokenB]?.quantityRest || 0
+          if (ABPriceCoefDiffPct < -0.05 && tokenBRest > 0) {
+            overflowStatus = 'It is possible do a backflow'
+          } else if (ABPriceCoefDiffPct < -0.1 && tokenBRest > 0) {
             overflowStatus = 'Do a backflow'
-          } else if (ABPriceCoefDiffPct < 0) {
+          } else if (ABPriceCoefDiffPct >= 0 && tokenBRest > 0) {
             overflowStatus = 'Wait'
           } else {
             overflowStatus = 'Do nothing'
           }
-          aggFlowArrayOfObject.push({
-            account: account.toUpperCase(),
-            overflow: overflow.toUpperCase(),
-            overflowRev: overflowRev.toUpperCase(),
-            tokenA: object.tokenA ? object.tokenA.toUpperCase() : void 0,
-            tokenARest: object.tokenARest,
-            tokenAQuantityFlow: object.tokenAQuantityFlow,
-            tokenB: object.tokenB ? object.tokenB.toUpperCase() : void 0,
-            tokenBRest: object.tokenBRest,
-            tokenBQuantityFlow: object.tokenBQuantityFlow,
-            ABPriceCoefFlow: object.ABPriceCoefFlow,
-            ABPriceCoef: ABPriceCoef,
-            ABPriceCoefDiffPct: ABPriceCoefDiffPct,
-            BAPriceCoefFlow: object.BAPriceCoefFlow,
-            BAPriceCoef: BAPriceCoef,
-            BAPriceCoefDiffPct: BAPriceCoefDiffPct,
-            overflowStatus: overflowStatus,
-            updateDataMart: updateDataMart.getFormatDate('yyyy-MM-dd hh:mm:ss'),
-          })
+
+          if (
+            symbols[tokenAKey]?.useInReport === true &&
+            symbols[tokenBKey]?.useInReport === true
+          ) {
+            aggFlowArrayOfObject.push({
+              account: account.toUpperCase(),
+              overflow: overflow.toUpperCase(),
+              overflowRev: overflowRev.toUpperCase(),
+              tokenA: object.tokenA ? object.tokenA.toUpperCase() : void 0,
+              tokenARest: tokenARest,
+              tokenAQuantityFlow: object.tokenAQuantityFlow,
+              tokenB: object.tokenB ? object.tokenB.toUpperCase() : void 0,
+              tokenBRest: tokenBRest,
+              tokenBQuantityFlow: object.tokenBQuantityFlow,
+              ABPriceCoefFlow: object.ABPriceCoefFlow,
+              ABPriceCoef: ABPriceCoef,
+              ABPriceCoefDiffPct: ABPriceCoefDiffPct,
+              BAPriceCoefFlow: object.BAPriceCoefFlow,
+              BAPriceCoef: BAPriceCoef,
+              BAPriceCoefDiffPct: BAPriceCoefDiffPct,
+              overflowStatus: overflowStatus,
+              updateDataMart: updateDataMart.getFormatDate(
+                'yyyy-MM-dd hh:mm:ss'
+              ),
+            })
+          }
         })
       })
 
-      // console.log(aggFlowObject['ikeniborn']['dot/ksm'])
       const sortAggFlowArrayOfObject = aggFlowArrayOfObject
-        .filter((rowObject) => {
-          return (
-            Math.round(rowObject.tokenARest * 100) / 100 !== 0 &&
-            Math.round(rowObject.tokenBRest * 100) / 100 !== 0
-          )
-        })
+        // .filter((rowObject) => {
+        //   return (
+        //     Math.round(rowObject.tokenARest * 100) / 100 !== 0 &&
+        //     Math.round(rowObject.tokenBRest * 100) / 100 !== 0
+        //   )
+        // })
         .sort((a, b) => {
-          return (
-            ('' + a.overflow).localeCompare(b.overflow) &&
-            ('' + a.overflowRev).localeCompare(b.overflowRev)
-          )
+          return a.ABPriceCoefDiffPct - b.ABPriceCoefDiffPct
         })
+      // .sort((a, b) => {
+      //   return (
+      //     ('' + a.overflow).localeCompare(b.overflow) &&
+      //     ('' + a.overflowRev).localeCompare(b.overflowRev)
+      //   )
+      // })
       this.workSheet.truncateInsertRows(sortAggFlowArrayOfObject)
     } catch (error) {
       console.error('Overflows.updateOverflows', error.stack)

@@ -1500,11 +1500,12 @@ class Portfolio {
             alias: 'Is historical average price',
             idx: 27,
           },
-          registryRowId: { alias: 'Registry row id', idx: 28 },
-          registryRowKey: { alias: 'Registry row key', idx: 29 },
+          isOverflow: { alias: 'Is overflow', idx: 28 },
+          registryRowId: { alias: 'Registry row id', idx: 29 },
+          registryRowKey: { alias: 'Registry row key', idx: 30 },
           updateDate: {
             alias: 'Update date',
-            idx: 30,
+            idx: 31,
             type: 'date',
             default: new Date(),
           },
@@ -2091,12 +2092,11 @@ class Fetch {
 }
 
 /**
- * CryptoCompare instance
+ * CryptoRank instance
  */
 class Instance$3 {
   /**
-   * Create new inctance API CryptoCompare
-   *
+   * Create new inctance API CryptoRank
    */
   constructor() {
     if (Instance$3.exists) {
@@ -2104,6 +2104,80 @@ class Instance$3 {
     }
     Instance$3.instance = this;
     Instance$3.exists = true;
+    this.methods = new Methods({
+      domain: 'https://api.cryptorank.io/v1',
+      query: {
+        api_key: 'f512dfeb3966b63ac221826ab8501a53d96662a203ad786860d5cc268b85',
+      },
+      data: {
+        muteHttpExceptions: true,
+        contentType: 'application/json',
+      },
+    });
+  }
+}
+/**
+ * CryptoRank price
+ */
+class Price$2 {
+  constructor() {
+    this.methods = new Instance$3().methods;
+  }
+  getLastPrice(ids = '1', convert = 'USD') {
+    return (
+      this.methods.get({
+        endPoint: '/currencies',
+        query: {
+          convert: convert,
+          ids: ids,
+        },
+      })?.data || []
+    )
+  }
+
+  getRank(id) {
+    const data = this.methods.get({
+      endPoint: '/currencies/{id}',
+      path: { id },
+    })?.data?.rank;
+    return data
+  }
+}
+/**
+ * CryptoRank coin list
+ */
+class CoinsList$3 {
+  constructor() {
+    this.methods = new Instance$3().methods;
+  }
+  getCoinsList(limit = 100) {
+    return (
+      this.methods.get({
+        endPoint: '/currencies',
+        query: {
+          convert: 'USD',
+          state: 'active',
+          limit: limit,
+        },
+      })?.data || []
+    )
+  }
+}
+
+/**
+ * CryptoCompare instance
+ */
+class Instance$2 {
+  /**
+   * Create new inctance API CryptoCompare
+   *
+   */
+  constructor() {
+    if (Instance$2.exists) {
+      return Instance$2.instance
+    }
+    Instance$2.instance = this;
+    Instance$2.exists = true;
     this.methods = new Methods({
       domain: 'https://min-api.cryptocompare.com/data',
       query: {
@@ -2120,9 +2194,9 @@ class Instance$3 {
 /**
  * CryptoCompare price
  */
-class Price$2 {
+class Price$1 {
   constructor() {
-    this.methods = new Instance$3().methods;
+    this.methods = new Instance$2().methods;
   }
 
   getSinglePrice(fsym = '', tsyms = 'USD') {
@@ -2223,9 +2297,9 @@ class Price$2 {
 /**
  * CryptoCompare coin list
  */
-class CoinsList$3 {
+class CoinsList$2 {
   constructor() {
-    this.methods = new Instance$3().methods;
+    this.methods = new Instance$2().methods;
   }
   getCoinsList() {
     return this.methods.get({ endPoint: '/all/coinlist' })?.Data
@@ -2234,7 +2308,7 @@ class CoinsList$3 {
 
 class TopList {
   constructor() {
-    this.methods = new Instance$3().methods;
+    this.methods = new Instance$2().methods;
   }
   topMarketCap(top = 100, tsym = 'usd') {
     try {
@@ -2273,6 +2347,536 @@ class TopList {
     }
   }
 }
+
+/**
+ * CoinGecko instance
+ */
+class Instance$1 {
+  /**
+   * Create new inctance API CoinGecko
+   */
+  constructor() {
+    if (Instance$1.exists) {
+      return Instance$1.instance
+    }
+    Instance$1.instance = this;
+    Instance$1.exists = true;
+    this.methods = new Methods({
+      domain: 'https://api.coingecko.com/api/v3',
+      data: {
+        muteHttpExceptions: true,
+        header: 'accept: application/json',
+      },
+    });
+  }
+}
+/**
+ * CoinGecko price
+ */
+class Price {
+  constructor() {
+    this.methods = new Instance$1().methods;
+  }
+
+  /**
+   *
+   * @param {*} ids
+   * @param {*} vs_currencies
+   * @param {*} include_market_cap
+   * @param {*} include_24hr_vol
+   * @param {*} include_24hr_change
+   * @param {*} include_last_updated_at
+   * @returns
+   */
+  getSimplePrice(
+    ids,
+    vs_currencies,
+    include_market_cap = false,
+    include_24hr_vol = false,
+    include_24hr_change = false,
+    include_last_updated_at = false
+  ) {
+    return this.methods.get({
+      endPoint: '/simple/price',
+      query: {
+        ids,
+        vs_currencies,
+        include_market_cap,
+        include_24hr_vol,
+        include_24hr_change,
+        include_last_updated_at,
+      },
+    })
+  }
+
+  /**
+   *
+   * @param {*} ids
+   * @param {*} vs_currency
+   * @param {*} price_change_percentage
+   * @returns
+   */
+  getMarketsPrice(
+    ids,
+    vs_currency = 'usd',
+    price_change_percentage = '24h,7d,30d'
+  ) {
+    return (
+      this.methods.get({
+        endPoint: '/coins/markets',
+        query: {
+          vs_currency,
+          ids,
+          price_change_percentage,
+        },
+      }) || []
+    )
+  }
+}
+/**
+ * CoinGecko coin list
+ */
+class CoinsList$1 {
+  constructor() {
+    this.methods = new Instance$1().methods;
+  }
+  /**
+   *
+   * @param {*} include_platform
+   * @returns
+   */
+  getCoinsList(include_platform = false) {
+    return (
+      this.methods.get({
+        endPoint: '/coins/list',
+        query: {
+          include_platform,
+        },
+      }) || []
+    )
+  }
+}
+
+/**
+ * CoinMarketCap instance
+ */
+class Instance {
+  constructor() {
+    if (Instance.exists) {
+      return Instance.instance
+    }
+    Instance.instance = this;
+    Instance.exists = true;
+    this.methods = new Methods({
+      domain: 'https://pro-api.coinmarketcap.com',
+      data: {
+        muteHttpExceptions: true,
+        contentType: 'accept: application/json',
+        headers: {
+          'X-CMC_PRO_API_KEY': '133c18b7-555c-4e57-ad7b-4d2bf6160c20',
+        },
+      },
+    });
+  }
+}
+/**
+ * CoinMarketCap coin list
+ */
+class CoinsList {
+  constructor() {
+    this.methods = new Instance().methods;
+  }
+  /**
+   * Get coins list
+   *
+   * @returns array coin
+   */
+  getCoinsList() {
+    return this.methods.get({
+      endPoint: '/v1/cryptocurrency/map',
+    })?.data
+  }
+}
+
+class Category {
+  constructor() {
+    this.methods = new Instance().methods;
+  }
+  /**
+   * Get coins list
+   *
+   * @returns category
+   */
+  getCategory(id) {
+    const object = this.methods.get({
+      endPoint: '/v2/cryptocurrency/info',
+      query: {
+        id,
+      },
+    })?.data;
+    return object[id]?.tags.join(', ')
+  }
+  getCategories() {
+    const object = this.methods.get({
+      endPoint: '/v1/cryptocurrency/categories',
+    })?.data;
+    return object
+  }
+}
+
+class Coins {
+  constructor(workSheet = '') {
+    if (Coins.exists) {
+      return Coins.instance
+    }
+    Coins.instance = this;
+    Coins.exists = true;
+    this.workSheet = workSheet
+      ? workSheet
+      : new Portfolio().getWorkSheet('Coins');
+  }
+
+  updateCoins() {
+    new Promise((resolve, reject) => {
+      const process = () => {
+        const coins = [];
+        new CoinsList$1().getCoinsList().forEach((coin) => {
+          const rowKey = new Hash('coingecko' + coin.name + coin.symbol).md5;
+          coins.push({
+            rowKey: rowKey,
+            source: 'coingecko',
+            name: coin.name,
+            symbol: coin.symbol,
+            id: coin.id,
+          });
+        });
+
+        new CoinsList$3().getCoinsList(20000).forEach((coin) => {
+          const key = new Hash('cryptorank' + coin.name + coin.symbol);
+          coins.push({
+            rowKey: key.md5,
+            source: 'cryptorank',
+            name: coin.name,
+            symbol: coin.symbol,
+            id: coin.id,
+          });
+        });
+
+        new CoinsList().getCoinsList().forEach((coin) => {
+          const key = new Hash('coinmarketcap' + coin.name + coin.symbol);
+          coins.push({
+            rowKey: key.md5,
+            source: 'coinmarketcap',
+            name: coin.name,
+            symbol: coin.symbol,
+            id: coin.id,
+          });
+        });
+
+        Object.entries(new CoinsList$2().getCoinsList()).forEach(
+          (coin) => {
+            const key = new Hash('cryptocompare' + coin[1].CoinName + coin[0]);
+            coins.push({
+              rowKey: key.md5,
+              source: 'cryptocompare',
+              name: coin[1].CoinName,
+              symbol: coin[1].Symbol,
+              id: coin[0],
+            });
+          }
+        );
+        const currency = [
+          ['USA dollar', 'USD'],
+          ['Russian rubble', 'RUB'],
+          ['Euro', 'EUR'],
+        ];
+        currency.forEach((coin) => {
+          const key = new Hash('cryptocompare' + coin[0] + coin[1]);
+          coins.push({
+            rowKey: key.md5,
+            source: 'cryptocompare',
+            name: coin[0],
+            symbol: coin[1],
+            id: coin[1],
+          });
+        });
+
+        return { result: true, array: coins }
+      };
+      const data = process();
+      resolve(data.array) ;
+    })
+      .then((array) => {
+        this.workSheet.truncateInsertRows(array);
+      })
+      .catch((error) => {
+        console.error('Coins.updateCoins', error.stack);
+      });
+  }
+}
+
+//* Deprecated
+// new coinMarketCap.CoinsList().getCoinsList().forEach((coin) => {
+//   const key = new Hash('coinmarketcap' + coin.name + coin.symbol)
+//   coins.push({
+//     rowKey: key.md5,
+//     source: 'coinmarketcap',
+//     name: coin.name,
+//     symbol: coin.symbol,
+//     id: coin.id,
+//   })
+// })
+
+class Symbols {
+  constructor(workSheet = '') {
+    if (Symbols.exists) {
+      return Symbols.instance
+    }
+    Symbols.instance = this;
+    Symbols.exists = true;
+    this.workSheet = workSheet
+      ? workSheet
+      : new Portfolio().getWorkSheet('Symbols');
+  }
+
+  updateId() {
+    try {
+      const coins = new Coins().workSheet.object;
+      this.workSheet.arrayOfObject.forEach((object) => {
+        //* обновление ID
+        const coinsKey = new Hash(object.source + object.name + object.symbol)
+          .md5;
+        const sourceId = coins[coinsKey]?.id || void 0;
+        this.workSheet.insertValue(
+          sourceId,
+          object.rowNum,
+          this.workSheet.head.sourceId.idx + 1
+        );
+      });
+    } catch (error) {
+      console.error('Symbols.updateId', error.stack);
+    }
+  }
+
+  updatePrices() {
+    new Promise((resolve, reject) => {
+      const process = () => {
+        /**
+         * Обновление данных строки
+         * @param {object} symbolObject
+         * @param {number} price
+         * @param {number} rank
+         */
+        const updatePricesRow = (
+          symbolObject,
+          price = void 0,
+          rank = void 0
+        ) => {
+          new Promise((resolve) => {
+            const process = () => {
+              let coinMarketCapRankGroup = 'Not rank group';
+              let coinPriceGroup = 'Not price group';
+              let rankNumber;
+              //* определение группы по капитализации
+              rank ? (rankNumber = rank * 1) : (rankNumber = 100000);
+              if (rankNumber <= 50) {
+                coinMarketCapRankGroup = 'Top 50';
+              } else if (rankNumber > 50 && rankNumber <= 100) {
+                coinMarketCapRankGroup = 'Top 100';
+              } else if (rankNumber > 100 && rankNumber <= 200) {
+                coinMarketCapRankGroup = 'Top 200';
+              } else if (rankNumber > 200 && rankNumber <= 300) {
+                coinMarketCapRankGroup = 'Top 300';
+              } else if (rankNumber > 300 && rankNumber <= 400) {
+                coinMarketCapRankGroup = 'Top 400';
+              } else if (rankNumber > 400 && rankNumber <= 500) {
+                coinMarketCapRankGroup = 'Top 500';
+              } else if (rankNumber > 500 && rankNumber <= 1000) {
+                coinMarketCapRankGroup = 'Top 1000';
+              } else if (rankNumber > 1000 && rankNumber < 100000) {
+                coinMarketCapRankGroup = 'Over 1000';
+              }
+              //* определение группы по цене
+
+              if (price > 0 && price <= 1) {
+                coinPriceGroup = 'Price 0-1';
+              } else if (price > 1 && price <= 2) {
+                coinPriceGroup = 'Price 1-2';
+              } else if (price > 2 && price <= 4) {
+                coinPriceGroup = 'Price 2-4';
+              } else if (price > 4 && price <= 8) {
+                coinPriceGroup = 'Price 4-8';
+              } else if (price > 8 && price <= 16) {
+                coinPriceGroup = 'Price 8-16';
+              } else if (price > 16 && price <= 32) {
+                coinPriceGroup = 'Price 16-32';
+              } else if (price > 32 && price <= 64) {
+                coinPriceGroup = 'Price 32-64';
+              } else if (price > 64 && price <= 128) {
+                coinPriceGroup = 'Price 64-128';
+              } else if (price > 128 && price <= 256) {
+                coinPriceGroup = 'Price 128-256';
+              } else if (price > 256 && price <= 512) {
+                coinPriceGroup = 'Price 256-512';
+              } else if (price > 512) {
+                coinPriceGroup = 'Over 512';
+              }
+              symbolObject.priceGroup = coinPriceGroup;
+              symbolObject.marketCapGroup = coinMarketCapRankGroup;
+              symbolObject.price = price;
+              symbolObject.update = new Date();
+              return true
+            };
+            process() ? resolve() : reject(new Error('updatePricesRow'));
+          }).catch((error) => {
+            console.error('Symbols.updatePrices', error.stack);
+          });
+        };
+        const listId = Object.fromEntries(
+          Object.entries(
+            this.workSheet.arrayOfObject.reduce((list, object) => {
+              if (!list[object.source]) {
+                list[object.source] = [];
+              }
+              if (
+                object.sourceId &&
+                new Hash(object.source).md5 !==
+                  '8b9035807842a4e4dbe009f3f1478127' /*custom*/
+              ) {
+                list[object.source].push(object.sourceId);
+              } else {
+                list[object.source].push(object.symbol);
+              }
+              return list
+            }, {})
+          ).map(([source, idArray]) => [
+            source,
+            new Hash(source).md5 !==
+            '8b9035807842a4e4dbe009f3f1478127' /*custom*/
+              ? idArray.join(',')
+              : idArray,
+          ])
+        );
+
+        if (listId.coingecko) {
+          const priceArray = new Price().getMarketsPrice(
+            listId.coingecko
+          );
+          if (priceArray.length) {
+            priceArray.forEach((coin) => {
+              const symbolKey = new Hash(coin.symbol).md5;
+              updatePricesRow(
+                this.workSheet.object[symbolKey],
+                coin?.current_price,
+                coin?.market_cap_rank
+              );
+            });
+          }
+        }
+
+        if (listId.cryptorank) {
+          const priceArray = new Price$2().getLastPrice(
+            listId.cryptorank
+          );
+
+          if (priceArray.length) {
+            priceArray.forEach((coin) => {
+              const symbolKey = new Hash(coin?.symbol).md5;
+              updatePricesRow(
+                this.workSheet.object[symbolKey],
+                coin?.values?.USD?.price,
+                coin?.rank
+              );
+            });
+          }
+        }
+
+        if (listId.cryptocompare) {
+          const priceArray = new Price$1().getMultiPrice(
+            listId.cryptocompare
+          );
+          if (priceArray.length) {
+            const marketCapRank = new TopList().topMarketCap(1000);
+            priceArray.forEach((coin) => {
+              const symbolKey = new Hash(coin.symbol).md5;
+              updatePricesRow(
+                this.workSheet.object[symbolKey],
+                coin?.price,
+                marketCapRank[symbolKey]?.rank
+              );
+            });
+          }
+        }
+        // if (listId.custom.length) {
+        //   const transactions = new Transactions()
+        //   listId.custom.forEach((symbol) => {
+        //     const historicalPricesAvg =
+        //       transactions.getHistoricalPriceBuy(
+        //         new Date(),
+        //         'ikeniborn (speculative)',
+        //         symbol,
+        //         true
+        //       ) || void 0
+
+        //     this.updatePrice(symbol, historicalPricesAvg)
+        //     this.updateRisk(symbol)
+        //   })
+        // }
+        return true
+      };
+      process() ? resolve() : reject(new Error('updatePrices'));
+    })
+      .then(this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject))
+      .catch((error) => {
+        console.error('Symbols.updatePrices', error.stack);
+      });
+  }
+}
+
+//* Deprecated
+//* Prices.updateId
+// const coins = new Portfolio().getWorkSheet('coins').arrayOfObject
+// const coin = coins.filter((row) => {
+//   return (
+//     new RegExp(object.name.toString().toLowerCase(), 'g').test(
+//       row.name.toString().toLowerCase()
+//     ) &&
+//     new Hash(object.source).md5 === new Hash(row.source).md5 &&
+//     new Hash(object.symbol).md5 === new Hash(row.symbol).md5
+//   )
+// })[0]
+// this.workSheet.updateRow(object)
+// this.workSheet.arrayOfObject.forEach((object) => {
+//   //  this.workSheet.log.addMessage('Prices.updateId', 'object', object)
+//   this.workSheet.updateRow(object)
+// })
+//* Prices.updatePrices
+// if (listId.cryptorank) {
+//   new cryptoRank.Price().getLastPrice(listId.cryptorank).forEach((coin) => {
+//     updatePrice(coin.symbol, coin.values.USD.price)
+//     updateRisk(coin.symbol, coin.rank)
+//   })
+// }
+// if (listId.coinmarketcap) {
+//   Object.values(
+//     new coinMarketCap.Price().getLastPrice(listId.coinmarketcap)
+//   ).forEach((coin) => {
+//     updatePrice(coin.symbol, coin.quote.USD.price)
+//     updateRisk(coin.symbol, coin.cmc_rank)
+//   })
+// }
+// if (listId.custom.length) {
+//   listId.custom.forEach((symbol) => {
+//     const HistoricalPricesAvgKey = new Hash(
+//       'ikeniborn' + 'no project' + symbol
+//     ).md5
+//     const histirocalPrice =
+//       this.HistoricalPricesAvg[HistoricalPricesAvgKey]?.priceAvg ||
+//       void 0
+//     this.updatePrice(symbol, histirocalPrice)
+//     this.updateRisk(symbol)
+//   })
+// }
 
 class Transactions {
   constructor(workSheet = '') {
@@ -2417,6 +3021,39 @@ class Transactions {
         }
       }
       rowObject.rowKey = newRowKey;
+      return rowObject
+    });
+    this.workSheet.truncateInsertRows(newArrayOfObject);
+  }
+
+  updateIsOverflow() {
+    const symbols = new Symbols().workSheet.object;
+    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
+      const overflowArray = rowObject.overflow.split('/');
+      const tokenA = overflowArray[0];
+      const tokenB = overflowArray[1];
+      const tokenAKey = new Hash(tokenA).md5;
+      const tokenACategory = symbols[tokenAKey]?.symbolCategory || '';
+      const tokenBKey = new Hash(tokenB).md5;
+      const tokenBCategory = symbols[tokenBKey]?.symbolCategory || '';
+      if (
+        [
+          '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+          'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
+          '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
+        ].indexOf(new Hash(tokenACategory).md5) === -1 &&
+        [
+          '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+          'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
+          '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
+        ].indexOf(new Hash(tokenBCategory).md5) === -1 &&
+        tokenA !== tokenB
+      ) {
+        rowObject.isOverflow = true;
+      } else {
+        rowObject.isOverflow = false;
+      }
+
       return rowObject
     });
     this.workSheet.truncateInsertRows(newArrayOfObject);
@@ -2571,7 +3208,7 @@ class Transactions {
           inQuantity = registryObject['in']?.quantity;
           feeQuantity = registryObject['fee']?.quantity;
           dateTime = new Date(registryObject['in']?.dateTime);
-          priceUSDBTC = new Price$2().getHistoryPrice(
+          priceUSDBTC = new Price$1().getHistoryPrice(
             'USD',
             dateTime,
             'BTC'
@@ -2718,7 +3355,7 @@ class HistoricalPrice {
         if (
           sourceKey === '1dab445b170a7f0acfccea645a8879e0' /*cryptocompare*/
         ) {
-          historicalPrice = new Price$2().getHistoryPrice(
+          historicalPrice = new Price$1().getHistoryPrice(
             symbolId,
             dateTime,
             convert
@@ -2994,7 +3631,7 @@ class HistoricalPrice {
                 sourceKey ===
                 '1dab445b170a7f0acfccea645a8879e0' /*cryptocompare*/
               ) {
-                historicalPrice = new Price$2().getHistoryPrice(
+                historicalPrice = new Price$1().getHistoryPrice(
                   symbolId,
                   dateTime,
                   convert
@@ -3012,609 +3649,6 @@ class HistoricalPrice {
     }
   }
 }
-
-/**
- * CryptoRank instance
- */
-class Instance$2 {
-  /**
-   * Create new inctance API CryptoRank
-   */
-  constructor() {
-    if (Instance$2.exists) {
-      return Instance$2.instance
-    }
-    Instance$2.instance = this;
-    Instance$2.exists = true;
-    this.methods = new Methods({
-      domain: 'https://api.cryptorank.io/v1',
-      query: {
-        api_key: 'f512dfeb3966b63ac221826ab8501a53d96662a203ad786860d5cc268b85',
-      },
-      data: {
-        muteHttpExceptions: true,
-        contentType: 'application/json',
-      },
-    });
-  }
-}
-/**
- * CryptoRank price
- */
-class Price$1 {
-  constructor() {
-    this.methods = new Instance$2().methods;
-  }
-  getLastPrice(ids = '1', convert = 'USD') {
-    return (
-      this.methods.get({
-        endPoint: '/currencies',
-        query: {
-          convert: convert,
-          ids: ids,
-        },
-      })?.data || []
-    )
-  }
-
-  getRank(id) {
-    const data = this.methods.get({
-      endPoint: '/currencies/{id}',
-      path: { id },
-    })?.data?.rank;
-    return data
-  }
-}
-/**
- * CryptoRank coin list
- */
-class CoinsList$2 {
-  constructor() {
-    this.methods = new Instance$2().methods;
-  }
-  getCoinsList(limit = 100) {
-    return (
-      this.methods.get({
-        endPoint: '/currencies',
-        query: {
-          convert: 'USD',
-          state: 'active',
-          limit: limit,
-        },
-      })?.data || []
-    )
-  }
-}
-
-/**
- * CoinGecko instance
- */
-class Instance$1 {
-  /**
-   * Create new inctance API CoinGecko
-   */
-  constructor() {
-    if (Instance$1.exists) {
-      return Instance$1.instance
-    }
-    Instance$1.instance = this;
-    Instance$1.exists = true;
-    this.methods = new Methods({
-      domain: 'https://api.coingecko.com/api/v3',
-      data: {
-        muteHttpExceptions: true,
-        header: 'accept: application/json',
-      },
-    });
-  }
-}
-/**
- * CoinGecko price
- */
-class Price {
-  constructor() {
-    this.methods = new Instance$1().methods;
-  }
-
-  /**
-   *
-   * @param {*} ids
-   * @param {*} vs_currencies
-   * @param {*} include_market_cap
-   * @param {*} include_24hr_vol
-   * @param {*} include_24hr_change
-   * @param {*} include_last_updated_at
-   * @returns
-   */
-  getSimplePrice(
-    ids,
-    vs_currencies,
-    include_market_cap = false,
-    include_24hr_vol = false,
-    include_24hr_change = false,
-    include_last_updated_at = false
-  ) {
-    return this.methods.get({
-      endPoint: '/simple/price',
-      query: {
-        ids,
-        vs_currencies,
-        include_market_cap,
-        include_24hr_vol,
-        include_24hr_change,
-        include_last_updated_at,
-      },
-    })
-  }
-
-  /**
-   *
-   * @param {*} ids
-   * @param {*} vs_currency
-   * @param {*} price_change_percentage
-   * @returns
-   */
-  getMarketsPrice(
-    ids,
-    vs_currency = 'usd',
-    price_change_percentage = '24h,7d,30d'
-  ) {
-    return (
-      this.methods.get({
-        endPoint: '/coins/markets',
-        query: {
-          vs_currency,
-          ids,
-          price_change_percentage,
-        },
-      }) || []
-    )
-  }
-}
-/**
- * CoinGecko coin list
- */
-class CoinsList$1 {
-  constructor() {
-    this.methods = new Instance$1().methods;
-  }
-  /**
-   *
-   * @param {*} include_platform
-   * @returns
-   */
-  getCoinsList(include_platform = false) {
-    return (
-      this.methods.get({
-        endPoint: '/coins/list',
-        query: {
-          include_platform,
-        },
-      }) || []
-    )
-  }
-}
-
-/**
- * CoinMarketCap instance
- */
-class Instance {
-  constructor() {
-    if (Instance.exists) {
-      return Instance.instance
-    }
-    Instance.instance = this;
-    Instance.exists = true;
-    this.methods = new Methods({
-      domain: 'https://pro-api.coinmarketcap.com',
-      data: {
-        muteHttpExceptions: true,
-        contentType: 'accept: application/json',
-        headers: {
-          'X-CMC_PRO_API_KEY': '133c18b7-555c-4e57-ad7b-4d2bf6160c20',
-        },
-      },
-    });
-  }
-}
-/**
- * CoinMarketCap coin list
- */
-class CoinsList {
-  constructor() {
-    this.methods = new Instance().methods;
-  }
-  /**
-   * Get coins list
-   *
-   * @returns array coin
-   */
-  getCoinsList() {
-    return this.methods.get({
-      endPoint: '/v1/cryptocurrency/map',
-    })?.data
-  }
-}
-
-class Category {
-  constructor() {
-    this.methods = new Instance().methods;
-  }
-  /**
-   * Get coins list
-   *
-   * @returns category
-   */
-  getCategory(id) {
-    const object = this.methods.get({
-      endPoint: '/v2/cryptocurrency/info',
-      query: {
-        id,
-      },
-    })?.data;
-    return object[id]?.tags.join(', ')
-  }
-  getCategories() {
-    const object = this.methods.get({
-      endPoint: '/v1/cryptocurrency/categories',
-    })?.data;
-    return object
-  }
-}
-
-class Coins {
-  constructor(workSheet = '') {
-    if (Coins.exists) {
-      return Coins.instance
-    }
-    Coins.instance = this;
-    Coins.exists = true;
-    this.workSheet = workSheet
-      ? workSheet
-      : new Portfolio().getWorkSheet('Coins');
-  }
-
-  updateCoins() {
-    new Promise((resolve, reject) => {
-      const process = () => {
-        const coins = [];
-        new CoinsList$1().getCoinsList().forEach((coin) => {
-          const rowKey = new Hash('coingecko' + coin.name + coin.symbol).md5;
-          coins.push({
-            rowKey: rowKey,
-            source: 'coingecko',
-            name: coin.name,
-            symbol: coin.symbol,
-            id: coin.id,
-          });
-        });
-
-        new CoinsList$2().getCoinsList(15000).forEach((coin) => {
-          const key = new Hash('cryptorank' + coin.name + coin.symbol);
-          coins.push({
-            rowKey: key.md5,
-            source: 'cryptorank',
-            name: coin.name,
-            symbol: coin.symbol,
-            id: coin.id,
-          });
-        });
-
-        new CoinsList().getCoinsList().forEach((coin) => {
-          const key = new Hash('coinmarketcap' + coin.name + coin.symbol);
-          coins.push({
-            rowKey: key.md5,
-            source: 'coinmarketcap',
-            name: coin.name,
-            symbol: coin.symbol,
-            id: coin.id,
-          });
-        });
-
-        Object.entries(new CoinsList$3().getCoinsList()).forEach(
-          (coin) => {
-            const key = new Hash('cryptocompare' + coin[1].CoinName + coin[0]);
-            coins.push({
-              rowKey: key.md5,
-              source: 'cryptocompare',
-              name: coin[1].CoinName,
-              symbol: coin[1].Symbol,
-              id: coin[0],
-            });
-          }
-        );
-        const currency = [
-          ['USA dollar', 'USD'],
-          ['Russian rubble', 'RUB'],
-          ['Euro', 'EUR'],
-        ];
-        currency.forEach((coin) => {
-          const key = new Hash('cryptocompare' + coin[0] + coin[1]);
-          coins.push({
-            rowKey: key.md5,
-            source: 'cryptocompare',
-            name: coin[0],
-            symbol: coin[1],
-            id: coin[1],
-          });
-        });
-
-        return { result: true, array: coins }
-      };
-      const data = process();
-      resolve(data.array) ;
-    })
-      .then((array) => {
-        this.workSheet.truncateInsertRows(array);
-      })
-      .catch((error) => {
-        console.error('Coins.updateCoins', error.stack);
-      });
-  }
-}
-
-//* Deprecated
-// new coinMarketCap.CoinsList().getCoinsList().forEach((coin) => {
-//   const key = new Hash('coinmarketcap' + coin.name + coin.symbol)
-//   coins.push({
-//     rowKey: key.md5,
-//     source: 'coinmarketcap',
-//     name: coin.name,
-//     symbol: coin.symbol,
-//     id: coin.id,
-//   })
-// })
-
-class Symbols {
-  constructor(workSheet = '') {
-    if (Symbols.exists) {
-      return Symbols.instance
-    }
-    Symbols.instance = this;
-    Symbols.exists = true;
-    this.workSheet = workSheet
-      ? workSheet
-      : new Portfolio().getWorkSheet('Symbols');
-  }
-
-  updateId() {
-    try {
-      const coins = new Coins().workSheet.object;
-      this.workSheet.arrayOfObject.forEach((object) => {
-        //* обновление ID
-        const coinsKey = new Hash(object.source + object.name + object.symbol)
-          .md5;
-        const sourceId = coins[coinsKey]?.id || void 0;
-        this.workSheet.insertValue(
-          sourceId,
-          object.rowNum,
-          this.workSheet.head.sourceId.idx + 1
-        );
-      });
-    } catch (error) {
-      console.error('Symbols.updateId', error.stack);
-    }
-  }
-
-  updatePrices() {
-    new Promise((resolve, reject) => {
-      const process = () => {
-        /**
-         * Обновление данных строки
-         * @param {object} symbolObject
-         * @param {number} price
-         * @param {number} rank
-         */
-        const updatePricesRow = (
-          symbolObject,
-          price = void 0,
-          rank = void 0
-        ) => {
-          new Promise((resolve) => {
-            const process = () => {
-              let coinMarketCapRankGroup = 'Not rank group';
-              let coinPriceGroup = 'Not price group';
-              let rankNumber;
-              //* определение группы по капитализации
-              rank ? (rankNumber = rank * 1) : (rankNumber = 100000);
-              if (rankNumber <= 50) {
-                coinMarketCapRankGroup = 'Top 50';
-              } else if (rankNumber > 50 && rankNumber <= 100) {
-                coinMarketCapRankGroup = 'Top 100';
-              } else if (rankNumber > 100 && rankNumber <= 200) {
-                coinMarketCapRankGroup = 'Top 200';
-              } else if (rankNumber > 200 && rankNumber <= 300) {
-                coinMarketCapRankGroup = 'Top 300';
-              } else if (rankNumber > 300 && rankNumber <= 400) {
-                coinMarketCapRankGroup = 'Top 400';
-              } else if (rankNumber > 400 && rankNumber <= 500) {
-                coinMarketCapRankGroup = 'Top 500';
-              } else if (rankNumber > 500 && rankNumber <= 1000) {
-                coinMarketCapRankGroup = 'Top 1000';
-              } else if (rankNumber > 1000 && rankNumber < 100000) {
-                coinMarketCapRankGroup = 'Over 1000';
-              }
-              //* определение группы по цене
-
-              if (price > 0 && price <= 1) {
-                coinPriceGroup = 'Price 0-1';
-              } else if (price > 1 && price <= 2) {
-                coinPriceGroup = 'Price 1-2';
-              } else if (price > 2 && price <= 4) {
-                coinPriceGroup = 'Price 2-4';
-              } else if (price > 4 && price <= 8) {
-                coinPriceGroup = 'Price 4-8';
-              } else if (price > 8 && price <= 16) {
-                coinPriceGroup = 'Price 8-16';
-              } else if (price > 16 && price <= 32) {
-                coinPriceGroup = 'Price 16-32';
-              } else if (price > 32 && price <= 64) {
-                coinPriceGroup = 'Price 32-64';
-              } else if (price > 64 && price <= 128) {
-                coinPriceGroup = 'Price 64-128';
-              } else if (price > 128 && price <= 256) {
-                coinPriceGroup = 'Price 128-256';
-              } else if (price > 256 && price <= 512) {
-                coinPriceGroup = 'Price 256-512';
-              } else if (price > 512) {
-                coinPriceGroup = 'Over 512';
-              }
-              symbolObject.priceGroup = coinPriceGroup;
-              symbolObject.marketCapGroup = coinMarketCapRankGroup;
-              symbolObject.price = price;
-              symbolObject.update = new Date();
-              return true
-            };
-            process() ? resolve() : reject(new Error('updatePricesRow'));
-          }).catch((error) => {
-            console.error('Symbols.updatePrices', error.stack);
-          });
-        };
-        const listId = Object.fromEntries(
-          Object.entries(
-            this.workSheet.arrayOfObject.reduce((list, object) => {
-              if (!list[object.source]) {
-                list[object.source] = [];
-              }
-              if (
-                object.sourceId &&
-                new Hash(object.source).md5 !==
-                  '8b9035807842a4e4dbe009f3f1478127' /*custom*/
-              ) {
-                list[object.source].push(object.sourceId);
-              } else {
-                list[object.source].push(object.symbol);
-              }
-              return list
-            }, {})
-          ).map(([source, idArray]) => [
-            source,
-            new Hash(source).md5 !==
-            '8b9035807842a4e4dbe009f3f1478127' /*custom*/
-              ? idArray.join(',')
-              : idArray,
-          ])
-        );
-
-        if (listId.coingecko) {
-          const priceArray = new Price().getMarketsPrice(
-            listId.coingecko
-          );
-          if (priceArray.length) {
-            priceArray.forEach((coin) => {
-              const symbolKey = new Hash(coin.symbol).md5;
-              updatePricesRow(
-                this.workSheet.object[symbolKey],
-                coin?.current_price,
-                coin?.market_cap_rank
-              );
-            });
-          }
-        }
-
-        if (listId.cryptorank) {
-          const priceArray = new Price$1().getLastPrice(
-            listId.cryptorank
-          );
-
-          if (priceArray.length) {
-            priceArray.forEach((coin) => {
-              const symbolKey = new Hash(coin?.symbol).md5;
-              updatePricesRow(
-                this.workSheet.object[symbolKey],
-                coin?.values?.USD?.price,
-                coin?.rank
-              );
-            });
-          }
-        }
-
-        if (listId.cryptocompare) {
-          const priceArray = new Price$2().getMultiPrice(
-            listId.cryptocompare
-          );
-          if (priceArray.length) {
-            const marketCapRank = new TopList().topMarketCap(1000);
-            priceArray.forEach((coin) => {
-              const symbolKey = new Hash(coin.symbol).md5;
-              updatePricesRow(
-                this.workSheet.object[symbolKey],
-                coin?.price,
-                marketCapRank[symbolKey]?.rank
-              );
-            });
-          }
-        }
-        // if (listId.custom.length) {
-        //   const transactions = new Transactions()
-        //   listId.custom.forEach((symbol) => {
-        //     const historicalPricesAvg =
-        //       transactions.getHistoricalPriceBuy(
-        //         new Date(),
-        //         'ikeniborn (speculative)',
-        //         symbol,
-        //         true
-        //       ) || void 0
-
-        //     this.updatePrice(symbol, historicalPricesAvg)
-        //     this.updateRisk(symbol)
-        //   })
-        // }
-        return true
-      };
-      process() ? resolve() : reject(new Error('updatePrices'));
-    })
-      .then(this.workSheet.truncateInsertRows(this.workSheet.arrayOfObject))
-      .catch((error) => {
-        console.error('Symbols.updatePrices', error.stack);
-      });
-  }
-}
-
-//* Deprecated
-//* Prices.updateId
-// const coins = new Portfolio().getWorkSheet('coins').arrayOfObject
-// const coin = coins.filter((row) => {
-//   return (
-//     new RegExp(object.name.toString().toLowerCase(), 'g').test(
-//       row.name.toString().toLowerCase()
-//     ) &&
-//     new Hash(object.source).md5 === new Hash(row.source).md5 &&
-//     new Hash(object.symbol).md5 === new Hash(row.symbol).md5
-//   )
-// })[0]
-// this.workSheet.updateRow(object)
-// this.workSheet.arrayOfObject.forEach((object) => {
-//   //  this.workSheet.log.addMessage('Prices.updateId', 'object', object)
-//   this.workSheet.updateRow(object)
-// })
-//* Prices.updatePrices
-// if (listId.cryptorank) {
-//   new cryptoRank.Price().getLastPrice(listId.cryptorank).forEach((coin) => {
-//     updatePrice(coin.symbol, coin.values.USD.price)
-//     updateRisk(coin.symbol, coin.rank)
-//   })
-// }
-// if (listId.coinmarketcap) {
-//   Object.values(
-//     new coinMarketCap.Price().getLastPrice(listId.coinmarketcap)
-//   ).forEach((coin) => {
-//     updatePrice(coin.symbol, coin.quote.USD.price)
-//     updateRisk(coin.symbol, coin.cmc_rank)
-//   })
-// }
-// if (listId.custom.length) {
-//   listId.custom.forEach((symbol) => {
-//     const HistoricalPricesAvgKey = new Hash(
-//       'ikeniborn' + 'no project' + symbol
-//     ).md5
-//     const histirocalPrice =
-//       this.HistoricalPricesAvg[HistoricalPricesAvgKey]?.priceAvg ||
-//       void 0
-//     this.updatePrice(symbol, histirocalPrice)
-//     this.updateRisk(symbol)
-//   })
-// }
 
 class Registry {
   constructor(workSheet = '') {
@@ -3773,7 +3807,10 @@ class Registry {
           registryTimestamp,
           symbolPriceCoef,
           currencyPriceCoef,
-          priceUSDBTC;
+          priceUSDBTC,
+          isOverflow,
+          coinSymbolKey,
+          currencySymbolKey;
 
         const transactionRow = [];
         const hhmm = new FormatNumber(
@@ -3806,8 +3843,10 @@ class Registry {
             ? rowValues.currencyPerCoin
             : void 0;
         coinSymbol = rowValues.coin;
+        coinSymbolKey = new Hash(coinSymbol).md5;
         coinSymbolCategoryKey = this.getSymbolCategoryKey(coinSymbol, symbols);
         currencySymbol = rowValues.currency || rowValues.coin;
+        currencySymbolKey = new Hash(currencySymbol).md5;
         currencySymbolCategoryKey = this.getSymbolCategoryKey(
           currencySymbol,
           symbols
@@ -3830,6 +3869,24 @@ class Registry {
         isHistoricalAveragePriceSymbol = false;
         isHistoricalAveragePriceFeeCurrency = false;
         isHistoricalAveragePriceCurrency = false;
+        isOverflow = false;
+
+        //* определение перелива
+        if (
+          [
+            '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+            'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
+            '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
+          ].indexOf(new Hash(coinSymbolCategoryKey).md5) === -1 &&
+          [
+            '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+            'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
+            '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
+          ].indexOf(new Hash(currencySymbolCategoryKey).md5) === -1 &&
+          coinSymbolKey !== currencySymbolKey
+        ) {
+          isOverflow = true;
+        }
 
         //* Расчет пустых значений транзакции количества валюты за один токен, количество токена, количество валюты
         if (!currencyPerCoin && currencyQty) {
@@ -3916,6 +3973,7 @@ class Registry {
               isSymbolPrice: true,
               isFeePrice,
               isCurencyPrice,
+              isOverflow,
             });
           }
           if (
@@ -3957,6 +4015,7 @@ class Registry {
               isSymbolPrice: true,
               isFeePrice,
               isCurencyPrice,
+              isOverflow,
             });
           }
         } else if (
@@ -3995,6 +4054,7 @@ class Registry {
             isCurencyPrice: true,
             isFeePrice,
             isSymbolPrice,
+            isOverflow,
           });
           rowKey2 = new Hash(rowValues.rowKey + '#2').md5;
           transactionRow.push({
@@ -4021,6 +4081,7 @@ class Registry {
             isSymbolPrice: true,
             isFeePrice,
             isCurencyPrice,
+            isOverflow,
           });
         } else if (
           [/*sell*/ '8325324b47e1e62a1c2998a640cbdc72'].indexOf(
@@ -4059,6 +4120,7 @@ class Registry {
             isSymbolPrice: true,
             isFeePrice,
             isCurencyPrice,
+            isOverflow,
           });
           rowKey2 = new Hash(rowValues.rowKey + '#2').md5;
           transactionRow.push({
@@ -4085,6 +4147,7 @@ class Registry {
             isCurencyPrice: true,
             isFeePrice,
             isSymbolPrice,
+            isOverflow,
           });
         }
 
@@ -4110,7 +4173,7 @@ class Registry {
         symbolPrice = historicalPriceBuyCoin?.historicalPrice * currencyPerCoin;
         symbolPriceCoef = symbolPrice / currencyPrice;
         currencyPriceCoef = currencyPrice / symbolPrice;
-        priceUSDBTC = new Price$2().getHistoryPrice(
+        priceUSDBTC = new Price$1().getHistoryPrice(
           'USD',
           dateTime,
           'BTC'
@@ -4149,6 +4212,7 @@ class Registry {
             isFeePrice: true,
             isSymbolPrice: false,
             isCurencyPrice: false,
+            isOverflow,
           });
 
           //* Расчет текущей или исторической цены комиссии токена
@@ -4212,29 +4276,6 @@ class Registry {
               priceCoefRev = 1;
             }
           }
-          // if (tx.isFeePrice) {
-          //   priceCoef = 1
-          //   priceCoefRev = 1
-          // } else {
-          //   if (
-          //     [/*buy*/ '0461ebd2b773878eac9f78a891912d65'].indexOf(
-          //       operationKey
-          //     ) !== -1
-          //   ) {
-          //     priceCoef = currencyPriceCoef
-          //     priceCoefRev = symbolPriceCoef
-          //   } else if (
-          //     [/*sell*/ '8325324b47e1e62a1c2998a640cbdc72'].indexOf(
-          //       operationKey
-          //     ) !== -1
-          //   ) {
-          //     priceCoef = symbolPriceCoef
-          //     priceCoefRev = currencyPriceCoef
-          //   } else {
-          //     priceCoef = 1
-          //     priceCoefRev = 1
-          //   }
-          // }
 
           costUSD = tx.quantity * priceUSD;
           costBTC = tx.quantity * priceBTC;
@@ -4277,6 +4318,7 @@ class Registry {
             registryRowKey,
             registryRowNum: rowValues.rowNum,
             registryRowId: rowValues.rowId,
+            isOverflow: tx.isOverflow,
           };
 
           //* вставка строки в транзакции
@@ -5092,34 +5134,34 @@ class Overflows {
       const updateDataMart = new FormatDate();
       const inKey = new Hash('in').md5;
       const outKey = new Hash('out').md5;
-      const transactions = new Transactions().workSheet.arrayOfObject
+      const transactionsOverflows = new Transactions().workSheet.arrayOfObject
         .filter((rowObject) => {
-          const overflowArray = rowObject.overflow.split('/');
-          const tokenA = overflowArray[0];
-          const tokenB = overflowArray[1];
-          const tokenAKey = new Hash(tokenA).md5;
-          const tokenACategory = symbols[tokenAKey]?.symbolCategory || '';
-          const tokenBKey = new Hash(tokenB).md5;
-          const tokenBCategory = symbols[tokenBKey]?.symbolCategory || '';
-          return (
-            rowObject.isDelete === false &&
-            [
-              '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
-              'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
-              '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
-            ].indexOf(new Hash(tokenACategory).md5) === -1 &&
-            [
-              '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
-              'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
-              '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
-            ].indexOf(new Hash(tokenBCategory).md5) === -1 &&
-            tokenAKey !== tokenBKey
-          )
+          return rowObject.isDelete === false && rowObject.isOverflow === true
         })
         .sort((a, b) => {
           return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
         });
-      const aggOverflow = transactions.reduce((agg, tx) => {
+      const transactions = new Transactions().workSheet.arrayOfObject
+        .filter((rowObject) => {
+          return rowObject.isDelete === false
+        })
+        .sort((a, b) => {
+          return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
+        });
+      const aggFlow = transactionsOverflows.reduce((agg, tx) => {
+        if (!agg[tx.account]) {
+          agg[tx.account] = {};
+        }
+        if (!agg[tx.account][tx.symbol]) {
+          agg[tx.account][tx.symbol] = {
+            quantityRest: 0,
+          };
+          agg[tx.account][tx.symbol].quantityRest += tx.quantity;
+        }
+        return agg
+      }, {});
+
+      const aggOverflow = transactionsOverflows.reduce((agg, tx) => {
         const operationKey = new Hash(tx.operation).md5;
         const directionKey = new Hash(tx.direction).md5;
         if (!agg[tx.account]) {
@@ -5241,15 +5283,6 @@ class Overflows {
         }
       });
 
-      // console.log(
-      //   'aggOverflow dot/ksm',
-      //   Object.values(aggOverflow)[0]['dot/ksm']
-      // )
-      // console.log(
-      //   'aggOverflow ksm/dot',
-      //   Object.values(aggOverflow)[0]['ksm/dot']
-      // )
-
       const aggFlowObject = {};
       Object.entries(aggOverflow).forEach(([account, level0]) => {
         Object.entries(level0).forEach(([overflow, level1]) => {
@@ -5288,11 +5321,6 @@ class Overflows {
               priceCoefSumOutFlow * quantityOutFlow;
             const quantityFlowSum = quantityInFlow + quantityOutFlow;
             const priceCoefFlow = priceCoefSumFlowSum / quantityFlowSum;
-            //* атрибуты перелива
-            // const overflowArray = overflow.split('/')
-            // const tokenA = overflowArray[0]
-            // const tokenB = overflowArray[1]
-            // const overflowRev = tokenB + '/' + tokenA
 
             if (!aggFlowObject[account]) {
               aggFlowObject[account] = {};
@@ -5342,56 +5370,74 @@ class Overflows {
           const overflowArray = overflow.split('/');
           const tokenA = overflowArray[0];
           const tokenB = overflowArray[1];
+          const tokenAKey = new Hash(overflowArray[0]).md5;
+          const tokenBKey = new Hash(overflowArray[1]).md5;
           const overflowRev = tokenB + '/' + tokenA;
           const ABPriceCoef = object.tokenAPrice / object.tokenBPrice;
-          const ABPriceCoefDiffPct = ABPriceCoef / object.ABPriceCoefFlow - 1;
+          const ABPriceCoefDiffPct = object.ABPriceCoefFlow
+            ? ABPriceCoef / object.ABPriceCoefFlow - 1
+            : 0;
           const BAPriceCoef = object.tokenBPrice / object.tokenAPrice;
-          const BAPriceCoefDiffPct = BAPriceCoef / object.BAPriceCoefFlow - 1;
-          if (ABPriceCoefDiffPct < -0.05) {
-            overflowStatus = 'It is possible to do reverse';
-          } else if (ABPriceCoefDiffPct < -0.1) {
+          const BAPriceCoefDiffPct = object.BAPriceCoefFlow
+            ? BAPriceCoef / object.BAPriceCoefFlow - 1
+            : 0;
+          const tokenARest = aggFlow[account][object.tokenA]?.quantityRest || 0;
+          const tokenBRest = aggFlow[account][object.tokenB]?.quantityRest || 0;
+          if (ABPriceCoefDiffPct < -0.05 && tokenBRest > 0) {
+            overflowStatus = 'It is possible do a backflow';
+          } else if (ABPriceCoefDiffPct < -0.1 && tokenBRest > 0) {
             overflowStatus = 'Do a backflow';
-          } else if (ABPriceCoefDiffPct < 0) {
+          } else if (ABPriceCoefDiffPct >= 0 && tokenBRest > 0) {
             overflowStatus = 'Wait';
           } else {
             overflowStatus = 'Do nothing';
           }
-          aggFlowArrayOfObject.push({
-            account: account.toUpperCase(),
-            overflow: overflow.toUpperCase(),
-            overflowRev: overflowRev.toUpperCase(),
-            tokenA: object.tokenA ? object.tokenA.toUpperCase() : void 0,
-            tokenARest: object.tokenARest,
-            tokenAQuantityFlow: object.tokenAQuantityFlow,
-            tokenB: object.tokenB ? object.tokenB.toUpperCase() : void 0,
-            tokenBRest: object.tokenBRest,
-            tokenBQuantityFlow: object.tokenBQuantityFlow,
-            ABPriceCoefFlow: object.ABPriceCoefFlow,
-            ABPriceCoef: ABPriceCoef,
-            ABPriceCoefDiffPct: ABPriceCoefDiffPct,
-            BAPriceCoefFlow: object.BAPriceCoefFlow,
-            BAPriceCoef: BAPriceCoef,
-            BAPriceCoefDiffPct: BAPriceCoefDiffPct,
-            overflowStatus: overflowStatus,
-            updateDataMart: updateDataMart.getFormatDate('yyyy-MM-dd hh:mm:ss'),
-          });
+
+          if (
+            symbols[tokenAKey]?.useInReport === true &&
+            symbols[tokenBKey]?.useInReport === true
+          ) {
+            aggFlowArrayOfObject.push({
+              account: account.toUpperCase(),
+              overflow: overflow.toUpperCase(),
+              overflowRev: overflowRev.toUpperCase(),
+              tokenA: object.tokenA ? object.tokenA.toUpperCase() : void 0,
+              tokenARest: tokenARest,
+              tokenAQuantityFlow: object.tokenAQuantityFlow,
+              tokenB: object.tokenB ? object.tokenB.toUpperCase() : void 0,
+              tokenBRest: tokenBRest,
+              tokenBQuantityFlow: object.tokenBQuantityFlow,
+              ABPriceCoefFlow: object.ABPriceCoefFlow,
+              ABPriceCoef: ABPriceCoef,
+              ABPriceCoefDiffPct: ABPriceCoefDiffPct,
+              BAPriceCoefFlow: object.BAPriceCoefFlow,
+              BAPriceCoef: BAPriceCoef,
+              BAPriceCoefDiffPct: BAPriceCoefDiffPct,
+              overflowStatus: overflowStatus,
+              updateDataMart: updateDataMart.getFormatDate(
+                'yyyy-MM-dd hh:mm:ss'
+              ),
+            });
+          }
         });
       });
 
-      // console.log(aggFlowObject['ikeniborn']['dot/ksm'])
       const sortAggFlowArrayOfObject = aggFlowArrayOfObject
-        .filter((rowObject) => {
-          return (
-            Math.round(rowObject.tokenARest * 100) / 100 !== 0 &&
-            Math.round(rowObject.tokenBRest * 100) / 100 !== 0
-          )
-        })
+        // .filter((rowObject) => {
+        //   return (
+        //     Math.round(rowObject.tokenARest * 100) / 100 !== 0 &&
+        //     Math.round(rowObject.tokenBRest * 100) / 100 !== 0
+        //   )
+        // })
         .sort((a, b) => {
-          return (
-            ('' + a.overflow).localeCompare(b.overflow) &&
-            ('' + a.overflowRev).localeCompare(b.overflowRev)
-          )
+          return a.ABPriceCoefDiffPct - b.ABPriceCoefDiffPct
         });
+      // .sort((a, b) => {
+      //   return (
+      //     ('' + a.overflow).localeCompare(b.overflow) &&
+      //     ('' + a.overflowRev).localeCompare(b.overflowRev)
+      //   )
+      // })
       this.workSheet.truncateInsertRows(sortAggFlowArrayOfObject);
     } catch (error) {
       console.error('Overflows.updateOverflows', error.stack);
@@ -5401,21 +5447,63 @@ class Overflows {
 
 // import { GasProcess } from '../restApi/gasScriptApi'
 
-function updateLPToken() {
-  new LPToken().updateLPToken();
-}
-
-function getCategory() {
-  new Web3Space().getCategory();
-}
-function getCategories() {
-  console.log(new Category().getCategories());
+function createMenu() {
+  const ui = SpreadsheetApp.getUi();
+  const menu = ui.createMenu('Portfolio');
+  menu.addSubMenu(
+    SpreadsheetApp.getUi()
+      .createMenu('Update')
+      .addItem('Update prices, datamart, overflows', 'updatePrices')
+  );
+  menu.addSubMenu(
+    SpreadsheetApp.getUi()
+      .createMenu('Service')
+      .addItem('Update data mart', 'updateDataMart')
+      .addItem('Update overflows', 'updateOverflows')
+      .addItem('Validate transactions', 'validateTransactions')
+      .addItem('Update coins', 'updateCoins')
+  );
+  menu.addItem('Sort registry', 'sortRegistry');
+  menu.addToUi();
 }
 
 function cleanAllMetadata() {
   const activeWorkSheet = SpreadsheetApp.getActiveSheet();
   console.log('activeWorkSheet: ', activeWorkSheet.getName());
   new WorkSheetMetadata(activeWorkSheet).metadata.deleteAllMetadata();
+}
+
+function getCategory() {
+  new Web3Space().getCategory();
+}
+
+function getCategories() {
+  console.log(new Category().getCategories());
+}
+
+function validateTransactions() {
+  const startProcess = new FormatDate();
+  new Promise((resolve, reject) => {
+    const process = () => {
+      new Registry().validateTransactions();
+      return true
+    };
+    process() ? resolve() : reject(new Error('script.validateTransactions'));
+  })
+    // .then(
+    //   new Portfolio().log.addMessage(
+    //     'script.validateTransactions',
+    //     'ID:' + startProcess.value,
+    //     'Time spent: ' + startProcess.getTimeDiff()
+    //   )
+    // )
+    .catch((error) => {
+      console.error('script.validateTransactions', error.stack);
+    });
+}
+
+function updateLPToken() {
+  new LPToken().updateLPToken();
 }
 
 function updateTransactions() {
@@ -5427,21 +5515,6 @@ function updateTransactions() {
   } finally {
     new Portfolio().log.addMessage(
       'updateTransactions',
-      'ID:' + startProcess.value,
-      'Time spent: ' + startProcess.getTimeDiff()
-    );
-  }
-}
-
-function deleteDuplicatesRows() {
-  const startProcess = new FormatDate();
-  try {
-    new Transactions().deleteDuplicatesRows();
-  } catch (error) {
-    console.error('script.deleteDuplicatesRows', error.stack);
-  } finally {
-    new Portfolio().log.addMessage(
-      'deleteDuplicatesRows',
       'ID:' + startProcess.value,
       'Time spent: ' + startProcess.getTimeDiff()
     );
@@ -5487,27 +5560,6 @@ function updateDataMart() {
     });
 }
 
-function validateTransactions() {
-  const startProcess = new FormatDate();
-  new Promise((resolve, reject) => {
-    const process = () => {
-      new Registry().validateTransactions();
-      return true
-    };
-    process() ? resolve() : reject(new Error('script.validateTransactions'));
-  })
-    // .then(
-    //   new Portfolio().log.addMessage(
-    //     'script.validateTransactions',
-    //     'ID:' + startProcess.value,
-    //     'Time spent: ' + startProcess.getTimeDiff()
-    //   )
-    // )
-    .catch((error) => {
-      console.error('script.validateTransactions', error.stack);
-    });
-}
-
 function updatePrices() {
   const startProcess = new FormatDate();
   new Promise((resolve, reject) => {
@@ -5521,7 +5573,9 @@ function updatePrices() {
       new Promise((resolve) => {
         new Registry().validateTransactions();
         resolve();
-      }).then(new Flow().updateFlow())
+      })
+        .then(new Flow().updateFlow())
+        .then(new Overflows().updateOverflows())
     )
     .then(
       new Portfolio().log.addMessage(
@@ -5543,6 +5597,10 @@ function updateRowKey() {
   new Transactions().updateRowKey();
 }
 
+function updateIsOverflow() {
+  new Transactions().updateIsOverflow();
+}
+
 function updateOverflows() {
   new Overflows().updateOverflows();
 }
@@ -5551,11 +5609,6 @@ function updatePair() {
   new Transactions().updatePair();
 }
 
-/**
- *
- * @param {*} startIndex
- * @param {*} endIndex
- */
 function updatePriceCostBTC(startIndex, endIndex) {
   new Transactions().updatePriceCostBTC(startIndex, endIndex);
 }
@@ -5566,10 +5619,6 @@ function updateHistoricalAveragePriceKey() {
 
 function updateAccount() {
   new Transactions().updateAccount();
-}
-
-function recalculateTransactions() {
-  new Transactions().recalculateTransactions(0, 1000);
 }
 
 function updateOnEdit(editRange) {
@@ -5680,19 +5729,4 @@ function sortRegistry() {
       });
     registry.workSheet.truncateInsertRows(newArrayOfObject);
   }
-}
-
-function createMenu() {
-  const ui = SpreadsheetApp.getUi();
-  const menu = ui.createMenu('Portfolio');
-  menu.addSubMenu(
-    SpreadsheetApp.getUi()
-      .createMenu('Update')
-      .addItem('Update data mart', 'updateDataMart')
-      .addItem('Update overflows', 'updateOverflows')
-      .addItem('Update current prices and data mart', 'updatePrices')
-      .addItem('Validate transactions', 'validateTransactions')
-      .addItem('Sort registry', 'sortRegistry')
-  );
-  menu.addToUi();
 }
