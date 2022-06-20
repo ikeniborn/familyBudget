@@ -32,7 +32,7 @@ class Overflows {
       const transactionsFlow = new FormatArray(transactions)
         .getCopy()
         .filter((rowObject) => {
-          return rowObject.isDelete === false
+          return rowObject.isDelete === false && rowObject.isLock === false
         })
 
       const aggFlow = transactionsFlow.reduce((agg, tx) => {
