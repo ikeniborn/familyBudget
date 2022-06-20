@@ -1381,21 +1381,21 @@ class Portfolio {
         rowNum: 1,
         columns: {
           operation: { alias: 'Operation', idx: 0, notNull: true },
-          portfolioSender: { alias: 'Portfolio sender', idx: 1, notNull: true },
-          accountRecipient: { alias: 'Account recipient', idx: 2 },
-          portfolioRecipient: { alias: 'Portfolio recipient', idx: 3 },
+          portfolioSender: { alias: 'Portfolio (out)', idx: 1, notNull: true },
+          accountRecipient: { alias: 'Account (in)', idx: 2 },
+          portfolioRecipient: { alias: 'Portfolio (in)', idx: 3 },
           platform: { alias: 'Platform', idx: 4, notNull: true },
           service: { alias: 'Service', idx: 5, notNull: true },
-          sender: { alias: 'Sender', idx: 6, notNull: true },
-          recipient: { alias: 'Recipient', idx: 7 },
+          sender: { alias: 'Sender (out)', idx: 6, notNull: true },
+          recipient: { alias: 'Recipient (in)', idx: 7 },
           lockStatus: { alias: 'Lock status', idx: 8 },
-          coin: { alias: 'Coin', idx: 9, notNull: true },
+          coin: { alias: 'Coin (in)', idx: 9, notNull: true },
           coinQty: { alias: 'Coin, qty', idx: 10 },
-          currency: { alias: 'Currency', idx: 11 },
+          currency: { alias: 'Currency (out)', idx: 11 },
           currencyQty: { alias: 'Currency, qty', idx: 12 },
           currencyPerCoin: { alias: 'Currency per coin', idx: 13 },
-          feeSender: { alias: 'Fee sender', idx: 14 },
-          feeCurrency: { alias: 'Fee currency', idx: 15 },
+          feeSender: { alias: 'Fee (out)', idx: 14 },
+          feeCurrency: { alias: 'Fee currency (out)', idx: 15 },
           feeQty: { alias: 'Fee, qty', idx: 16 },
           comment: { alias: 'Comment', idx: 17 },
           date: {
@@ -3712,9 +3712,9 @@ class Registry {
    * @param {*} symbols справочник символов
    * @returns ключ категории символа
    */
-  getSymbolCategoryKey(symbol, symbols) {
+  getSymbolCategoryKey(symbolKey, symbols) {
     try {
-      return new Hash(symbols[new Hash(symbol).md5]?.symbolCategory).md5
+      return new Hash(symbols[symbolKey]?.symbolCategory).md5
     } catch (error) {
       console.error('Registry.getSymbolCategoryKey', error.stack);
     }
@@ -3853,11 +3853,14 @@ class Registry {
             : void 0;
         coinSymbol = rowValues.coin;
         coinSymbolKey = new Hash(coinSymbol).md5;
-        coinSymbolCategoryKey = this.getSymbolCategoryKey(coinSymbol, symbols);
+        coinSymbolCategoryKey = this.getSymbolCategoryKey(
+          coinSymbolKey,
+          symbols
+        );
         currencySymbol = rowValues.currency || rowValues.coin;
         currencySymbolKey = new Hash(currencySymbol).md5;
         currencySymbolCategoryKey = this.getSymbolCategoryKey(
-          currencySymbol,
+          currencySymbolKey,
           symbols
         );
         sender = rowValues.sender;
@@ -3886,12 +3889,12 @@ class Registry {
             '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
             'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
             '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
-          ].indexOf(new Hash(coinSymbolCategoryKey).md5) === -1 &&
+          ].indexOf(coinSymbolCategoryKey) === -1 &&
           [
             '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
             'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
             '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
-          ].indexOf(new Hash(currencySymbolCategoryKey).md5) === -1 &&
+          ].indexOf(currencySymbolCategoryKey) === -1 &&
           coinSymbolKey !== currencySymbolKey
         ) {
           isOverflow = true;
@@ -3982,7 +3985,7 @@ class Registry {
               isSymbolPrice: true,
               isFeePrice,
               isCurencyPrice,
-              isOverflow,
+              isOverflow: false,
             });
           }
           if (
@@ -4024,7 +4027,7 @@ class Registry {
               isSymbolPrice: true,
               isFeePrice,
               isCurencyPrice,
-              isOverflow,
+              isOverflow: false,
             });
           }
         } else if (
@@ -4191,8 +4194,9 @@ class Registry {
         //* Комиссия
         if (rowValues.feeCurrency) {
           rowKey3 = new Hash(rowValues.rowKey + '#3').md5;
+          const feeCurrencyKey = new Hash(rowValues.feeCurrency).md5;
           feeCurrencySymbolCategoryKey = this.getSymbolCategoryKey(
-            rowValues.feeCurrency,
+            feeCurrencyKey,
             symbols
           );
           feePortfolio = this.getPortfolio(
@@ -4221,7 +4225,7 @@ class Registry {
             isFeePrice: true,
             isSymbolPrice: false,
             isCurencyPrice: false,
-            isOverflow,
+            isOverflow: false,
           });
 
           //* Расчет текущей или исторической цены комиссии токена
