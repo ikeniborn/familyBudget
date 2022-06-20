@@ -1,5 +1,5 @@
 import { Portfolio } from '../spreadsheet/portfolio'
-import { Hash, FormatDate, FormatObject } from '../../utils'
+import { Hash, FormatDate, FormatArray } from '../../utils'
 import { Symbols } from './symbols'
 import { Transactions } from './transactions'
 export { Overflows }
@@ -22,21 +22,20 @@ class Overflows {
       const updateDataMart = new FormatDate()
       const inKey = new Hash('in').md5
       const outKey = new Hash('out').md5
-      const transactionsOverflows = new Transactions().workSheet.arrayOfObject
+      const transactions = new Transactions().workSheet.arrayOfObject
+      const transactionsOverflows = new FormatArray(transactions)
+        .getCopy()
         .filter((rowObject) => {
           return rowObject.isDelete === false && rowObject.isOverflow === true
         })
-        .sort((a, b) => {
-          return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
-        })
-      const transactions = new Transactions().workSheet.arrayOfObject
+
+      const transactionsFlow = new FormatArray(transactions)
+        .getCopy()
         .filter((rowObject) => {
           return rowObject.isDelete === false
         })
-        .sort((a, b) => {
-          return new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
-        })
-      const aggFlow = transactionsOverflows.reduce((agg, tx) => {
+
+      const aggFlow = transactionsFlow.reduce((agg, tx) => {
         if (!agg[tx.account]) {
           agg[tx.account] = {}
         }
@@ -44,8 +43,8 @@ class Overflows {
           agg[tx.account][tx.symbol] = {
             quantityRest: 0,
           }
-          agg[tx.account][tx.symbol].quantityRest += tx.quantity
         }
+        agg[tx.account][tx.symbol].quantityRest += tx.quantity
         return agg
       }, {})
 
@@ -254,7 +253,7 @@ class Overflows {
       const aggFlowArrayOfObject = []
       Object.entries(aggFlowObject).forEach(([account, level0]) => {
         Object.entries(level0).forEach(([overflow, object]) => {
-          let overflowStatus
+          let overflowStatus, overflowOrder
           const overflowArray = overflow.split('/')
           const tokenA = overflowArray[0]
           const tokenB = overflowArray[1]
@@ -271,14 +270,19 @@ class Overflows {
             : 0
           const tokenARest = aggFlow[account][object.tokenA]?.quantityRest || 0
           const tokenBRest = aggFlow[account][object.tokenB]?.quantityRest || 0
-          if (ABPriceCoefDiffPct < -0.05 && tokenBRest > 0) {
-            overflowStatus = 'It is possible do a backflow'
-          } else if (ABPriceCoefDiffPct < -0.1 && tokenBRest > 0) {
+
+          if (ABPriceCoefDiffPct < -0.1 && tokenBRest > 0) {
             overflowStatus = 'Do a backflow'
+            overflowOrder = 1
+          } else if (ABPriceCoefDiffPct < -0.05 && tokenBRest > 0) {
+            overflowStatus = 'It is possible do a backflow'
+            overflowOrder = 2
           } else if (ABPriceCoefDiffPct >= 0 && tokenBRest > 0) {
             overflowStatus = 'Wait'
+            overflowOrder = 3
           } else {
             overflowStatus = 'Do nothing'
+            overflowOrder = 4
           }
 
           if (
@@ -302,6 +306,7 @@ class Overflows {
               BAPriceCoef: BAPriceCoef,
               BAPriceCoefDiffPct: BAPriceCoefDiffPct,
               overflowStatus: overflowStatus,
+              overflowOrder: overflowOrder,
               updateDataMart: updateDataMart.getFormatDate(
                 'yyyy-MM-dd hh:mm:ss'
               ),
@@ -311,10 +316,9 @@ class Overflows {
       })
 
       const sortAggFlowArrayOfObject = aggFlowArrayOfObject
-        // .filter((rowObject) => {
-        //   return (
-        //     Math.round(rowObject.tokenARest * 100) / 100 !== 0 &&
-        //     Math.round(rowObject.tokenBRest * 100) / 100 !== 0
+        // .sort((a, b) => {
+        //   return ('' + a.overflowOrder + a.ABPriceCoefDiffPct).localeCompare(
+        //     '' + b.overflowOrder + b.ABPriceCoefDiffPct
         //   )
         // })
         .sort((a, b) => {

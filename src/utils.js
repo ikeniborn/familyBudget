@@ -1,4 +1,4 @@
-export { FormatNumber, Hash, FormatDate, FormatObject }
+export { FormatNumber, Hash, FormatDate, FormatObject, FormatArray }
 
 class Hash {
   /**
@@ -260,6 +260,15 @@ class FormatObject {
   }
   getCopy() {
     return JSON.parse(JSON.stringify(this.object))
+  }
+}
+
+class FormatArray {
+  constructor(array = []) {
+    this.array = array
+  }
+  getCopy() {
+    return JSON.parse(JSON.stringify(this.array))
   }
 }
 
