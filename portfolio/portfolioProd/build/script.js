@@ -5502,6 +5502,9 @@ class Overflows {
         //   )
         // })
         .sort((a, b) => {
+          return b.dayInOverflowAvg - a.dayInOverflowAvg
+        })
+        .sort((a, b) => {
           return a.ABPriceCoefDiffPct - b.ABPriceCoefDiffPct
         });
       // .sort((a, b) => {

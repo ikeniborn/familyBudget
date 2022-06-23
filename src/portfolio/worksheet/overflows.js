@@ -362,11 +362,9 @@ class Overflows {
       })
 
       const sortAggFlowArrayOfObject = aggFlowArrayOfObject
-        // .sort((a, b) => {
-        //   return ('' + a.overflowOrder + a.ABPriceCoefDiffPct).localeCompare(
-        //     '' + b.overflowOrder + b.ABPriceCoefDiffPct
-        //   )
-        // })
+        .sort((a, b) => {
+          return b.dayInOverflowAvg - a.dayInOverflowAvg
+        })
         .sort((a, b) => {
           return a.ABPriceCoefDiffPct - b.ABPriceCoefDiffPct
         })
