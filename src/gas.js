@@ -415,6 +415,7 @@ class WorkSheet extends SpreadSheet {
       this.filter.isExist = true
       for (let i = 1; i <= this.maxColumn; i++) {
         const criteria = this.filter.customFilter.getColumnFilterCriteria(i)
+
         if (criteria !== null) {
           this.filter.columnPosition = i
           this.filter.filterCriteria = criteria.copy()

@@ -738,6 +738,7 @@ class WorkSheet extends SpreadSheet {
       this.filter.isExist = true;
       for (let i = 1; i <= this.maxColumn; i++) {
         const criteria = this.filter.customFilter.getColumnFilterCriteria(i);
+
         if (criteria !== null) {
           this.filter.columnPosition = i;
           this.filter.filterCriteria = criteria.copy();
@@ -1640,24 +1641,29 @@ class Portfolio {
         rowNum: 1,
         columns: {
           account: { alias: 'Account', idx: 0 },
-          overflow: { alias: 'Overflow', idx: 1 },
+          dayInOverflowAvg: {
+            alias: 'Day in overflow (avg)',
+            idx: 1,
+          },
           tokenA: { alias: 'Token A', idx: 2 },
           tokenARest: { alias: 'Token A rest', idx: 3 },
           tokenAQuantityFlow: { alias: 'Token A quantity flow', idx: 4 },
           tokenB: { alias: 'Token B', idx: 5 },
           tokenBRest: { alias: 'Token B rest', idx: 6 },
           tokenBQuantityFlow: { alias: 'Token B quantity flow', idx: 7 },
-          ABPriceCoefFlow: { alias: 'A/B price coef flow', idx: 8 },
-          ABPriceCoef: { alias: 'A/B price coef', idx: 9 },
-          ABPriceCoefDiffPct: { alias: 'A/B price coef diff, %', idx: 10 },
-          BAPriceCoefFlow: { alias: 'B/A price coef flow', idx: 11 },
-          BAPriceCoef: { alias: 'B/A price coef', idx: 12 },
-          BAPriceCoefDiffPct: { alias: 'B/A price coef diff, %', idx: 13 },
-          overflowStatus: { alias: 'Overflow status', idx: 14 },
-          rowId: { alias: 'Row ID', idx: 15, default: 0 },
+          overflow: { alias: 'Overflow', idx: 8 },
+          ABPriceCoefFlow: { alias: 'A/B price coef flow', idx: 9 },
+          ABPriceCoef: { alias: 'A/B price coef', idx: 10 },
+          ABPriceCoefDiffPct: { alias: 'A/B price coef diff, %', idx: 11 },
+          backflow: { alias: 'Backflow', idx: 12 },
+          BAPriceCoefFlow: { alias: 'B/A price coef flow', idx: 13 },
+          BAPriceCoef: { alias: 'B/A price coef', idx: 14 },
+          BAPriceCoefDiffPct: { alias: 'B/A price coef diff, %', idx: 15 },
+          overflowStatus: { alias: 'Overflow status', idx: 16 },
+          rowId: { alias: 'Row ID', idx: 17, default: 0 },
           updateDataMart: {
             alias: 'Update data mart',
-            idx: 16,
+            idx: 18,
             type: 'date',
           },
         },
@@ -5179,6 +5185,7 @@ class Overflows {
       const aggOverflow = transactionsOverflows.reduce((agg, tx) => {
         const operationKey = new Hash(tx.operation).md5;
         const directionKey = new Hash(tx.direction).md5;
+        const dayInOverflow = new FormatDate().diffBetweenDate(tx.dateTime);
         if (!agg[tx.account]) {
           agg[tx.account] = {};
         }
@@ -5212,6 +5219,14 @@ class Overflows {
             priceCoefSumWriteOffOut: 0,
             priceCoefSumTransferIn: 0,
             priceCoefSumTransferOut: 0,
+            dayInOverflowBuyInSum: 0,
+            dayInOverflowBuyOutSum: 0,
+            dayInOverflowSellOutSum: 0,
+            dayInOverflowSellInSum: 0,
+            dayInOverflowRefillInSum: 0,
+            dayInOverflowWriteOffOutSum: 0,
+            dayInOverflowTransferInSum: 0,
+            dayInOverflowTransferOutSum: 0,
           };
         }
 
@@ -5222,11 +5237,15 @@ class Overflows {
             agg[tx.account][overflow][tx.symbol].quantityBuyIn += tx.quantity;
             agg[tx.account][overflow][tx.symbol].priceCoefSumBuyIn +=
               tx.priceCoef * tx.quantity;
+            agg[tx.account][overflow][tx.symbol].dayInOverflowBuyInSum +=
+              dayInOverflow * tx.quantity;
           } else if (directionKey === outKey) {
             agg[tx.account][overflow][tx.symbol].quantityBuyOut +=
               tx.quantity * -1;
             agg[tx.account][overflow][tx.symbol].priceCoefSumBuyOut +=
               tx.priceCoef * tx.quantity * -1;
+            agg[tx.account][overflow][tx.symbol].dayInOverflowBuyOutSum +=
+              dayInOverflow * tx.quantity * -1;
           }
         } else if (
           operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
@@ -5235,11 +5254,15 @@ class Overflows {
             agg[tx.account][overflow][tx.symbol].quantitySellIn += tx.quantity;
             agg[tx.account][overflow][tx.symbol].priceCoefSumSellIn +=
               tx.priceCoef * tx.quantity;
+            agg[tx.account][overflow][tx.symbol].dayInOverflowSellInSum +=
+              dayInOverflow * tx.quantity;
           } else if (directionKey === outKey) {
             agg[tx.account][overflow][tx.symbol].quantitySellOut +=
               tx.quantity * -1;
             agg[tx.account][overflow][tx.symbol].priceCoefSumSellOut +=
               tx.priceCoef * tx.quantity * -1;
+            agg[tx.account][overflow][tx.symbol].dayInOverflowSellOutSum +=
+              dayInOverflow * tx.quantity * -1;
           }
         } else if (
           operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
@@ -5248,6 +5271,8 @@ class Overflows {
             agg[tx.account][overflow][tx.symbol].quantityRefillIn += tx.quantity;
             agg[tx.account][overflow][tx.symbol].priceCoefSumRefillIn +=
               tx.priceCoef * tx.quantity;
+            agg[tx.account][overflow][tx.symbol].dayInOverflowRefillInSum +=
+              dayInOverflow * tx.quantity;
           }
         } else if (
           operationKey === '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
@@ -5257,6 +5282,10 @@ class Overflows {
               tx.quantity * -1;
             agg[tx.account][overflow][tx.symbol].priceCoefSumWriteOffOut +=
               tx.priceCoef * tx.quantity * -1;
+            agg[tx.account][overflow][tx.symbol].dayInOverflowWriteOffOutSum +=
+              dayInOverflow * tx.quantity * -1;
+            agg[tx.account][overflow][tx.symbol].dayInOverflowWriteOffOutSum +=
+              dayInOverflow * tx.quantity * -1;
           }
         } else if (
           operationKey === '84a0f3455dcca894ace136be62efa292' /*transfer*/
@@ -5266,11 +5295,15 @@ class Overflows {
               tx.quantity;
             agg[tx.account][overflow][tx.symbol].priceCoefSumTransferIn +=
               tx.priceCoef * tx.quantity;
+            agg[tx.account][overflow][tx.symbol].dayInOverflowTransferInSum +=
+              dayInOverflow * tx.quantity;
           } else if (directionKey === outKey) {
             agg[tx.account][overflow][tx.symbol].quantityTransferOut +=
               tx.quantity * -1;
             agg[tx.account][overflow][tx.symbol].priceCoefSumTransferOut +=
               tx.priceCoef * tx.quantity * -1;
+            agg[tx.account][overflow][tx.symbol].dayInOverflowTransferOutSum +=
+              dayInOverflow * tx.quantity * -1;
           }
         }
 
@@ -5327,6 +5360,26 @@ class Overflows {
               object.quantityWriteOffOut +
               object.quantityTransferOut;
 
+            //* Расчет среднего времени в портфеле
+
+            const dayInOverflowAvg =
+              object.dayInOverflowBuyInSum / object.quantityBuyIn ||
+              0 + object.dayInOverflowSellInSum / object.quantitySellIn ||
+              0 + object.dayInOverflowRefillInSum / object.quantityRefillIn ||
+              0 +
+                object.dayInOverflowTransferInSum / object.quantityTransferIn ||
+              -(
+                object.dayInOverflowBuyOutSum / object.quantityBuyOut ||
+                0 + object.dayInOverflowSellOutSum / object.quantitySellOut ||
+                0 +
+                  object.dayInOverflowWriteOffOutSum /
+                    object.quantityWriteOffOut ||
+                0 +
+                  object.dayInOverflowTransferOutSum /
+                    object.quantityTransferOut ||
+                0
+              );
+
             //* показатели
             const quantityFlow = object.quantityFlow;
             const priceCoefSumInFlow = priceCoefSumIn / quantityInFlow || 0;
@@ -5343,6 +5396,7 @@ class Overflows {
 
             if (!aggFlowObject[account][overflow]) {
               aggFlowObject[account][overflow] = {
+                dayInOverflowAvg: Math.abs(dayInOverflowAvg),
                 tokenA: '',
                 tokenARest: 0,
                 tokenAQuantityFlow: 0,
@@ -5381,13 +5435,13 @@ class Overflows {
       const aggFlowArrayOfObject = [];
       Object.entries(aggFlowObject).forEach(([account, level0]) => {
         Object.entries(level0).forEach(([overflow, object]) => {
-          let overflowStatus, overflowOrder;
+          let overflowStatus;
           const overflowArray = overflow.split('/');
           const tokenA = overflowArray[0];
           const tokenB = overflowArray[1];
           const tokenAKey = new Hash(overflowArray[0]).md5;
           const tokenBKey = new Hash(overflowArray[1]).md5;
-          const overflowRev = tokenB + '/' + tokenA;
+          const backflow = tokenB + '/' + tokenA;
           const ABPriceCoef = object.tokenAPrice / object.tokenBPrice;
           const ABPriceCoefDiffPct = object.ABPriceCoefFlow
             ? ABPriceCoef / object.ABPriceCoefFlow - 1
@@ -5399,18 +5453,16 @@ class Overflows {
           const tokenARest = aggFlow[account][object.tokenA]?.quantityRest || 0;
           const tokenBRest = aggFlow[account][object.tokenB]?.quantityRest || 0;
 
-          if (ABPriceCoefDiffPct < -0.1 && tokenBRest > 0) {
-            overflowStatus = 'Do a backflow';
-            overflowOrder = 1;
-          } else if (ABPriceCoefDiffPct < -0.05 && tokenBRest > 0) {
-            overflowStatus = 'It is possible do a backflow';
-            overflowOrder = 2;
-          } else if (ABPriceCoefDiffPct >= 0 && tokenBRest > 0) {
-            overflowStatus = 'Wait';
-            overflowOrder = 3;
+          if (tokenBRest >= object.tokenBQuantityFlow) {
+            if (ABPriceCoefDiffPct < -0.05) {
+              overflowStatus = '1 Do a backflow';
+            } else if (ABPriceCoefDiffPct > 0.05 && tokenARest > 0) {
+              overflowStatus = '2 Do a overflow';
+            } else {
+              overflowStatus = '3 Wait';
+            }
           } else {
-            overflowStatus = 'Do nothing';
-            overflowOrder = 4;
+            overflowStatus = '4 Do nothing';
           }
 
           if (
@@ -5419,8 +5471,9 @@ class Overflows {
           ) {
             aggFlowArrayOfObject.push({
               account: account.toUpperCase(),
+              dayInOverflowAvg: object.dayInOverflowAvg,
               overflow: overflow.toUpperCase(),
-              overflowRev: overflowRev.toUpperCase(),
+              backflow: backflow.toUpperCase(),
               tokenA: object.tokenA ? object.tokenA.toUpperCase() : void 0,
               tokenARest: tokenARest,
               tokenAQuantityFlow: object.tokenAQuantityFlow,
@@ -5434,7 +5487,6 @@ class Overflows {
               BAPriceCoef: BAPriceCoef,
               BAPriceCoefDiffPct: BAPriceCoefDiffPct,
               overflowStatus: overflowStatus,
-              overflowOrder: overflowOrder,
               updateDataMart: updateDataMart.getFormatDate(
                 'yyyy-MM-dd hh:mm:ss'
               ),
