@@ -1651,19 +1651,20 @@ class Portfolio {
           tokenB: { alias: 'Token B', idx: 5 },
           tokenBRest: { alias: 'Token B rest', idx: 6 },
           tokenBQuantityFlow: { alias: 'Token B quantity flow', idx: 7 },
-          overflow: { alias: 'Overflow', idx: 8 },
-          ABPriceCoefFlow: { alias: 'A/B price coef flow', idx: 9 },
-          ABPriceCoef: { alias: 'A/B price coef', idx: 10 },
-          ABPriceCoefDiffPct: { alias: 'A/B price coef diff, %', idx: 11 },
-          backflow: { alias: 'Backflow', idx: 12 },
-          BAPriceCoefFlow: { alias: 'B/A price coef flow', idx: 13 },
-          BAPriceCoef: { alias: 'B/A price coef', idx: 14 },
-          BAPriceCoefDiffPct: { alias: 'B/A price coef diff, %', idx: 15 },
-          overflowStatus: { alias: 'Overflow status', idx: 16 },
-          rowId: { alias: 'Row ID', idx: 17, default: 0 },
+          tokenBCostFlow: { alias: 'Token B cost flow, $', idx: 8 },
+          overflow: { alias: 'Overflow', idx: 9 },
+          ABPriceCoefFlow: { alias: 'A/B price coef flow', idx: 10 },
+          ABPriceCoef: { alias: 'A/B price coef', idx: 11 },
+          ABPriceCoefDiffPct: { alias: 'A/B price coef diff, %', idx: 12 },
+          backflow: { alias: 'Backflow', idx: 13 },
+          BAPriceCoefFlow: { alias: 'B/A price coef flow', idx: 14 },
+          BAPriceCoef: { alias: 'B/A price coef', idx: 15 },
+          BAPriceCoefDiffPct: { alias: 'B/A price coef diff, %', idx: 16 },
+          overflowStatus: { alias: 'Overflow status', idx: 17 },
+          rowId: { alias: 'Row ID', idx: 18, default: 0 },
           updateDataMart: {
             alias: 'Update data mart',
-            idx: 18,
+            idx: 19,
             type: 'date',
           },
         },
@@ -5452,6 +5453,8 @@ class Overflows {
             : 0;
           const tokenARest = aggFlow[account][object.tokenA]?.quantityRest || 0;
           const tokenBRest = aggFlow[account][object.tokenB]?.quantityRest || 0;
+          const tokenBCostFlow =
+            object.tokenBQuantityFlow * symbols[tokenBKey].price;
 
           if (tokenBRest >= object.tokenBQuantityFlow) {
             if (ABPriceCoefDiffPct < -0.05) {
@@ -5477,9 +5480,11 @@ class Overflows {
               tokenA: object.tokenA ? object.tokenA.toUpperCase() : void 0,
               tokenARest: tokenARest,
               tokenAQuantityFlow: object.tokenAQuantityFlow,
+
               tokenB: object.tokenB ? object.tokenB.toUpperCase() : void 0,
               tokenBRest: tokenBRest,
               tokenBQuantityFlow: object.tokenBQuantityFlow,
+              tokenBCostFlow: tokenBCostFlow,
               ABPriceCoefFlow: object.ABPriceCoefFlow,
               ABPriceCoef: ABPriceCoef,
               ABPriceCoefDiffPct: ABPriceCoefDiffPct,
@@ -5496,11 +5501,6 @@ class Overflows {
       });
 
       const sortAggFlowArrayOfObject = aggFlowArrayOfObject
-        // .sort((a, b) => {
-        //   return ('' + a.overflowOrder + a.ABPriceCoefDiffPct).localeCompare(
-        //     '' + b.overflowOrder + b.ABPriceCoefDiffPct
-        //   )
-        // })
         .sort((a, b) => {
           return b.dayInOverflowAvg - a.dayInOverflowAvg
         })

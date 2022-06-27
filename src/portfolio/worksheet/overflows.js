@@ -318,6 +318,8 @@ class Overflows {
             : 0
           const tokenARest = aggFlow[account][object.tokenA]?.quantityRest || 0
           const tokenBRest = aggFlow[account][object.tokenB]?.quantityRest || 0
+          const tokenBCostFlow =
+            object.tokenBQuantityFlow * symbols[tokenBKey].price
 
           if (tokenBRest >= object.tokenBQuantityFlow) {
             if (ABPriceCoefDiffPct < -0.05) {
@@ -343,9 +345,11 @@ class Overflows {
               tokenA: object.tokenA ? object.tokenA.toUpperCase() : void 0,
               tokenARest: tokenARest,
               tokenAQuantityFlow: object.tokenAQuantityFlow,
+
               tokenB: object.tokenB ? object.tokenB.toUpperCase() : void 0,
               tokenBRest: tokenBRest,
               tokenBQuantityFlow: object.tokenBQuantityFlow,
+              tokenBCostFlow: tokenBCostFlow,
               ABPriceCoefFlow: object.ABPriceCoefFlow,
               ABPriceCoef: ABPriceCoef,
               ABPriceCoefDiffPct: ABPriceCoefDiffPct,
