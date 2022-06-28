@@ -98,10 +98,7 @@ class Fetch {
    * @param {object} params parametrs { path: {}, query: {}, data: {} }
    */
   constructor(url, params = { path: {}, query: {}, data: {} }) {
-    this.fetchStatus = false
     this.result = ''
-    this.ms = 2000
-    this.iteration = 0
     this.getParametr(params)
     this.createUrl(url)
   }
@@ -147,38 +144,69 @@ class Fetch {
    */
   fetch() {
     try {
-      const fetchPromise = () => {
-        return new Promise((resolve, reject) => {
+      // const fetchPromise = (result = {}) => {
+      //   return new Promise((resolve, reject) => {
+      //     const response = UrlFetchApp.fetch(this.url, this.data)
+      //     result.code = response.getResponseCode()
+      //     if (result.code === 200) {
+      //       this.result = JSON.parse(response.getContentText())
+      //       result.fetchStatus = true
+      //       resolve(result)
+      //     } else {
+      //       reject(result)
+      //     }
+      //   })
+      // }
+      // const timeOutPromise = (result) => {
+      //   return new Promise((resolve) => {
+      //     console.log('URL: ' + this.url)
+      //     console.log('Response code: ' + code)
+      //     console.log('Start timeout: ' + this.ms / 1000 + ' sec')
+      //     Utilities.sleep(this.ms)
+      //     result.ms += 250
+      //     result.iteration += 1
+      //     if (result.iteration > 5) {
+      //       result.fetchStatus = true
+      //     }
+      //     resolve(result)
+      //   })
+      // }
+      const stepResult = {
+        code: 0,
+        fetchStatus: false,
+        ms: 250,
+        iteration: 0,
+        response: void 0,
+      }
+
+      do {
+        new Promise((resolve, reject) => {
           const response = UrlFetchApp.fetch(this.url, this.data)
-          const code = response.getResponseCode()
-          if (code === 200) {
-            this.result = JSON.parse(response.getContentText())
-            this.fetchStatus = true
+          stepResult.code = response.getResponseCode()
+          if (stepResult.code === 200) {
+            stepResult.response = JSON.parse(response.getContentText())
+            stepResult.fetchStatus = true
             resolve()
           } else {
-            reject(code)
+            reject()
           }
-        })
-      }
-      const timeOutPromise = (code) => {
-        return new Promise((resolve) => {
+        }).catch(() => {
           console.log('URL: ' + this.url)
-          console.log('Response code: ' + code)
-          console.log('Start timeout: ' + this.ms / 1000 + ' sec')
-          Utilities.sleep(this.ms)
-          this.ms += 250
-          this.iteration += 1
-          if (this.iteration > 5) {
-            this.fetchStatus = true
-          }
-          resolve()
+          console.log('Response code: ' + stepResult.code)
+          console.log('Start timeout: ' + stepResult.ms / 1000 + ' sec')
+          Utilities.sleep(stepResult.code)
         })
-      }
-      do {
-        fetchPromise().catch((code) => timeOutPromise(code))
-      } while (!this.fetchStatus)
+        stepResult.iteration += 1
+        stepResult.ms += 250
+        if (stepResult.iteration > 10) {
+          stepResult.fetchStatus = true
+        }
+        console.log('stepResult.iteration', stepResult.iteration)
+        console.log('stepResult.ms', stepResult.ms)
+        console.log(' stepResult.fetchStatus', stepResult.fetchStatus)
+      } while (!stepResult.fetchStatus)
 
-      return this.result
+      return stepResult.response
     } catch (error) {
       console.error(error)
     }
