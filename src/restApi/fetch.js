@@ -171,6 +171,7 @@ class Fetch {
       //     resolve(result)
       //   })
       // }
+
       const stepResult = {
         code: 0,
         fetchStatus: false,
@@ -178,32 +179,27 @@ class Fetch {
         iteration: 0,
         response: void 0,
       }
-
       do {
-        new Promise((resolve, reject) => {
-          const response = UrlFetchApp.fetch(this.url, this.data)
-          stepResult.code = response.getResponseCode()
-          if (stepResult.code === 200) {
-            stepResult.response = JSON.parse(response.getContentText())
-            stepResult.fetchStatus = true
-            resolve()
-          } else {
-            reject()
-          }
-        }).catch(() => {
-          console.log('URL: ' + this.url)
-          console.log('Response code: ' + stepResult.code)
-          console.log('Start timeout: ' + stepResult.ms / 1000 + ' sec')
-          Utilities.sleep(stepResult.code)
-        })
-        stepResult.iteration += 1
-        stepResult.ms += 250
-        if (stepResult.iteration > 10) {
+        const response = UrlFetchApp.fetch(this.url, this.data)
+        stepResult.code = response.getResponseCode()
+        if (stepResult.code === 200) {
+          stepResult.response = JSON.parse(response.getContentText())
+          stepResult.fetchStatus = true
+        } else {
+          console.log(
+            'URL: ' + this.url,
+            'Response code: ' + stepResult.code,
+            'Responce: ' + response,
+            'Iteration: ' + stepResult.iteration,
+            'Start timeout: ' + stepResult.ms / 1000 + ' sec'
+          )
+          stepResult.iteration += 1
+          stepResult.ms += 500
+          Utilities.sleep(stepResult.ms)
+        }
+        if (stepResult.iteration > 30) {
           stepResult.fetchStatus = true
         }
-        console.log('stepResult.iteration', stepResult.iteration)
-        console.log('stepResult.ms', stepResult.ms)
-        console.log(' stepResult.fetchStatus', stepResult.fetchStatus)
       } while (!stepResult.fetchStatus)
 
       return stepResult.response

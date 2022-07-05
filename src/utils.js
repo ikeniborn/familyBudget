@@ -107,7 +107,7 @@ class FormatDate {
   }
 
   get unix() {
-    return new Date(this.date).valueOf() / 1000
+    return Math.round(new Date(this.date).valueOf() / 1000)
   }
 
   get value() {
@@ -172,8 +172,8 @@ class FormatDate {
    */
   getPreviousDate(day) {
     const startDate = new Date(this.date)
-    startDate.setDate(this.date.getDate() - day)
-    return startDate
+    this.date = startDate.setDate(this.date.getDate() - day)
+    return this
   }
 
   /**

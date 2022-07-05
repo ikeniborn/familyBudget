@@ -8,6 +8,7 @@ export {
   SpreadsheetsTrigger,
   WorkSheetMetadata,
   WorkSheetRange,
+  ModalDialog,
 }
 
 class Environment {
@@ -609,7 +610,10 @@ class WorkSheetRange extends WorkSheet {
           } else {
             const maxRowId = this.workSheetMetadata.getMaxRowId()
             rowIdCache = this.scriptCache.getCache(rowNumKey)
-            rowId = rowIdCache ? rowIdCache : maxRowId + 1
+            rowId =
+              rowIdCache && typeof rowIdCache === 'number'
+                ? rowIdCache
+                : maxRowId + 1
             isNewRowId = true
           }
           const rowKey = new Hash(rowId + this.sheetName).md5
@@ -1089,5 +1093,36 @@ class SpreadsheetsTrigger extends Trigger {
     const triggers = this.sApp.getProjectTriggers()
     triggers.forEach((trigger) => this.sApp.deleteTrigger(trigger))
     return this
+  }
+}
+
+class ModalDialog {
+  constructor(htmlTempate, width, height) {
+    this.html = htmlTempate
+    this.width = width
+    this.height = height
+    this.ui = SpreadsheetApp.getUi()
+  }
+
+  showModalDialog(title) {
+    const output = HtmlService.createTemplateFromFile(this.html)
+      .evaluate()
+      .setWidth(this.width)
+      .setHeight(this.height)
+    this.ui.showModalDialog(output, title)
+  }
+
+  closeModalDialog(title, timer = 200) {
+    var output = HtmlService.createHtmlOutput(
+      '<script>var myVar = setInterval(myTimer ,' +
+        timer +
+        ');function myTimer() { google.script.host.close();}</script>'
+    )
+      .setWidth(this.width)
+      .setHeight(this.height)
+    this.ui.showModalDialog(output, title)
+  }
+  alert(title, message) {
+    this.ui.alert(title, message, this.ui.Button.YES)
   }
 }

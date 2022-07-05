@@ -105,7 +105,7 @@ class FormatDate {
   }
 
   get unix() {
-    return new Date(this.date).valueOf() / 1000
+    return Math.round(new Date(this.date).valueOf() / 1000)
   }
 
   get value() {
@@ -170,8 +170,8 @@ class FormatDate {
    */
   getPreviousDate(day) {
     const startDate = new Date(this.date);
-    startDate.setDate(this.date.getDate() - day);
-    return startDate
+    this.date = startDate.setDate(this.date.getDate() - day);
+    return this
   }
 
   /**
@@ -932,7 +932,10 @@ class WorkSheetRange extends WorkSheet {
           } else {
             const maxRowId = this.workSheetMetadata.getMaxRowId();
             rowIdCache = this.scriptCache.getCache(rowNumKey);
-            rowId = rowIdCache ? rowIdCache : maxRowId + 1;
+            rowId =
+              rowIdCache && typeof rowIdCache === 'number'
+                ? rowIdCache
+                : maxRowId + 1;
             isNewRowId = true;
           }
           const rowKey = new Hash(rowId + this.sheetName).md5;
@@ -1269,6 +1272,37 @@ class WorkSheetMetadata {
       );
       return this.workSheetNameHash.stringUpperCase
     }
+  }
+}
+
+class ModalDialog {
+  constructor(htmlTempate, width, height) {
+    this.html = htmlTempate;
+    this.width = width;
+    this.height = height;
+    this.ui = SpreadsheetApp.getUi();
+  }
+
+  showModalDialog(title) {
+    const output = HtmlService.createTemplateFromFile(this.html)
+      .evaluate()
+      .setWidth(this.width)
+      .setHeight(this.height);
+    this.ui.showModalDialog(output, title);
+  }
+
+  closeModalDialog(title, timer = 200) {
+    var output = HtmlService.createHtmlOutput(
+      '<script>var myVar = setInterval(myTimer ,' +
+        timer +
+        ');function myTimer() { google.script.host.close();}</script>'
+    )
+      .setWidth(this.width)
+      .setHeight(this.height);
+    this.ui.showModalDialog(output, title);
+  }
+  alert(title, message) {
+    this.ui.alert(title, message, this.ui.Button.YES);
   }
 }
 
@@ -2096,6 +2130,7 @@ class Fetch {
       //     resolve(result)
       //   })
       // }
+
       const stepResult = {
         code: 0,
         fetchStatus: false,
@@ -2103,35 +2138,29 @@ class Fetch {
         iteration: 0,
         response: void 0,
       };
-
       do {
-        new Promise((resolve, reject) => {
-          const response = UrlFetchApp.fetch(this.url, this.data);
-          stepResult.code = response.getResponseCode();
-          if (stepResult.code === 200) {
-            stepResult.response = JSON.parse(response.getContentText());
-            stepResult.fetchStatus = true;
-            resolve();
-          } else {
-            reject();
-          }
-        }).catch(() => {
-          console.log('URL: ' + this.url);
-          console.log('Response code: ' + stepResult.code);
-          console.log('Start timeout: ' + stepResult.ms / 1000 + ' sec');
-          Utilities.sleep(stepResult.code);
-        });
-        stepResult.iteration += 1;
-        stepResult.ms += 250;
-        if (stepResult.iteration > 10) {
+        const response = UrlFetchApp.fetch(this.url, this.data);
+        stepResult.code = response.getResponseCode();
+        if (stepResult.code === 200) {
+          stepResult.response = JSON.parse(response.getContentText());
+          stepResult.fetchStatus = true;
+        } else {
+          console.log(
+            'URL: ' + this.url,
+            'Response code: ' + stepResult.code,
+            'Responce: ' + response,
+            'Iteration: ' + stepResult.iteration,
+            'Start timeout: ' + stepResult.ms / 1000 + ' sec'
+          );
+          stepResult.iteration += 1;
+          stepResult.ms += 500;
+          Utilities.sleep(stepResult.ms);
+        }
+        if (stepResult.iteration > 30) {
           stepResult.fetchStatus = true;
         }
-        console.log('stepResult.iteration', stepResult.iteration);
-        console.log('stepResult.ms', stepResult.ms);
-        console.log(' stepResult.fetchStatus', stepResult.fetchStatus);
       } while (!stepResult.fetchStatus)
 
-      console.log('stepResult.response', stepResult.response);
       return stepResult.response
     } catch (error) {
       console.error(error);
@@ -4231,7 +4260,7 @@ class Registry {
         );
 
         //* Комиссия
-        if (rowValues.feeCurrency) {
+        if (feeCurrency && feeQty > 0) {
           rowKey3 = new Hash(rowValues.rowKey + '#3').md5;
           const feeCurrencyKey = new Hash(rowValues.feeCurrency).md5;
           feeCurrencySymbolCategoryKey = this.getSymbolCategoryKey(
@@ -5549,7 +5578,37 @@ class Overflows {
   }
 }
 
-// import { GasProcess } from '../restApi/gasScriptApi'
+// class GasScript {
+//   constructor(parametr) {
+//     this.parametr = parametr + ': '
+//     this.startDate = new Date()
+//   }
+//   getLastProjectVersion() {
+//     const url =
+//       'https://script.googleapis.com/v1/projects/' +
+//       ScriptApp.getScriptId() +
+//       '/versions'
+
+//     const res = UrlFetchApp.fetch(url, {
+//       headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+//     })
+//     return Math.max(JSON.parse(res).versions.map((m) => (m = m.versionNumber)))
+//   }
+
+//   getListScriptProcesses() {
+//     const url =
+//       'https://script.googleapis.com/v1/processes:listScriptProcesses?scriptId=' +
+//       ScriptApp.getScriptId() +
+//       '&scriptProcessFilter.statuses=RUNNING'
+//     const res = UrlFetchApp.fetch(url, {
+//       headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+//       accept: 'application/json',
+//       muteHttpExceptions: false,
+//     })
+//     const processes = JSON.parse(res)?.processes || void 0
+//     return processes
+//   }
+// }
 
 function createMenu() {
   const ui = SpreadsheetApp.getUi();
@@ -5729,6 +5788,12 @@ function updateOnEdit(editRange) {
   try {
     const startProcess = new FormatDate();
     const lock = LockService.getScriptLock();
+    const savingDialog = new ModalDialog('html/SavingProcess', 300, 100);
+    let startDialog = false;
+    if (editRange.range.rowEnd - editRange.range.rowStart > 1) {
+      savingDialog.showModalDialog('Saving process');
+      startDialog = true;
+    }
     new Promise((resolve) => {
       const workSheet = new Portfolio().updateOnEdit(editRange.range);
       if (workSheet.isChangeData) {
@@ -5771,6 +5836,9 @@ function updateOnEdit(editRange) {
           workSheet?.lockTime || 0
       );
       lock.releaseLock();
+      if (startDialog) {
+        savingDialog.closeModalDialog('All row saved!', 200);
+      }
     });
   } catch (error) {
     console.error('script.updateOnEdit', error.stack);

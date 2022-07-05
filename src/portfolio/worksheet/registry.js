@@ -538,7 +538,7 @@ class Registry {
         )
 
         //* Комиссия
-        if (rowValues.feeCurrency) {
+        if (feeCurrency && feeQty > 0) {
           rowKey3 = new Hash(rowValues.rowKey + '#3').md5
           const feeCurrencyKey = new Hash(rowValues.feeCurrency).md5
           feeCurrencySymbolCategoryKey = this.getSymbolCategoryKey(

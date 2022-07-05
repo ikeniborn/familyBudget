@@ -1,6 +1,6 @@
 import { Methods } from './fetch'
 import { FormatDate, Hash } from '../utils'
-export { Price, CoinsList, TopList }
+export { Price, CoinsList, TopList, Historical }
 /**
  * CryptoCompare instance
  */
@@ -182,5 +182,27 @@ class TopList {
     } catch (error) {
       console.error('TopList.topListBy24h', error.stack)
     }
+  }
+}
+
+class Historical {
+  constructor() {
+    this.methods = new Instance().methods
+  }
+
+  histoday(fsym, tsym, limit = 30, toTs = new Date()) {
+    const dateUnix = new FormatDate(toTs).unix
+    const upperTsym = tsym.toUpperCase()
+    const upperFsym = fsym.toUpperCase()
+    const result = this.methods.get({
+      endPoint: '/v2/histoday',
+      query: {
+        fsym: upperFsym,
+        tsym: upperTsym,
+        toTs: dateUnix,
+        limit: limit,
+      },
+    }).Data.Data
+    return result
   }
 }

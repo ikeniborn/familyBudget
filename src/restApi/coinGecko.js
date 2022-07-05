@@ -1,5 +1,6 @@
 import { Methods } from './fetch'
-export { Price, CoinsList }
+import { FormatDate, Hash } from '../utils'
+export { Price, CoinsList, Coins }
 
 /**
  * CoinGecko instance
@@ -107,5 +108,76 @@ class CoinsList {
         },
       }) || []
     )
+  }
+}
+
+class Coins {
+  constructor() {
+    this.methods = new Instance().methods
+  }
+  /**
+   *
+   * @param {*} include_platform
+   * @returns
+   */
+  getCoinsList(include_platform = false) {
+    return (
+      this.methods.get({
+        endPoint: '/coins/list',
+        query: {
+          include_platform,
+        },
+      }) || []
+    )
+  }
+
+  getCoinsRange(
+    id = 'bitcoin',
+    vs_currency = 'usd',
+    fromUnix = void 0,
+    toUnix = void 0
+  ) {
+    const lowerVs_currency = vs_currency.toLowerCase()
+    const lowerId = id.toLowerCase()
+    const result =
+      this.methods.get({
+        endPoint: '/coins/{id}/market_chart/range',
+        path: {
+          id: lowerId,
+        },
+        query: {
+          vs_currency: lowerVs_currency,
+          from: fromUnix + '',
+          to: toUnix + '',
+        },
+      }) || {}
+
+    if (Object.keys(result).length) {
+      const aggData = result?.prices.reduce((object, [dateValue, data]) => {
+        const dateUnix = new FormatDate(dateValue).unix
+        const dateKey = new Hash(dateUnix).md5
+        if (!object[dateKey]) {
+          object[dateKey] = {
+            dateUnix: dateUnix,
+            price: data,
+            marketCap: void 0,
+            volume: void 0,
+          }
+        }
+        return object
+      }, {})
+      result?.market_caps.forEach(([dateValue, data]) => {
+        const dateUnix = new FormatDate(dateValue).unix
+        const dateKey = new Hash(dateUnix).md5
+        aggData[dateKey].marketCap = data
+      })
+      result?.total_volumes.forEach(([dateValue, data]) => {
+        const dateUnix = new FormatDate(dateValue).unix
+        const dateKey = new Hash(dateUnix).md5
+        aggData[dateKey].volume = data
+      })
+      return aggData
+    }
+    return result
   }
 }

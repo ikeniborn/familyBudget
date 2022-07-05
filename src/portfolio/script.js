@@ -6,11 +6,11 @@ import { Portfolio } from './spreadsheet/portfolio'
 import { LPToken } from './worksheet/lpToken.js'
 import { Flow } from './worksheet/flow'
 import { Transactions } from './worksheet/transactions'
-import { WorkSheetMetadata } from '../gas'
+import { WorkSheetMetadata, ModalDialog } from '../gas'
 import { Web3Space } from './worksheet/web3space'
 import { Overflows } from './worksheet/overflows'
 import * as coinMarketCap from '../restApi/coinMarketCap'
-// import { GasProcess } from '../restApi/gasScriptApi'
+import { GasProcess } from '../restApi/gasScriptApi'
 
 function createMenu() {
   const ui = SpreadsheetApp.getUi()
@@ -190,6 +190,12 @@ function updateOnEdit(editRange) {
   try {
     const startProcess = new FormatDate()
     const lock = LockService.getScriptLock()
+    const savingDialog = new ModalDialog('html/SavingProcess', 300, 100)
+    let startDialog = false
+    if (editRange.range.rowEnd - editRange.range.rowStart > 1) {
+      savingDialog.showModalDialog('Saving process')
+      startDialog = true
+    }
     new Promise((resolve) => {
       const workSheet = new Portfolio().updateOnEdit(editRange.range)
       if (workSheet.isChangeData) {
@@ -232,6 +238,9 @@ function updateOnEdit(editRange) {
           workSheet?.lockTime || 0
       )
       lock.releaseLock()
+      if (startDialog) {
+        savingDialog.closeModalDialog('All row saved!', 200)
+      }
     })
   } catch (error) {
     console.error('script.updateOnEdit', error.stack)
