@@ -559,6 +559,7 @@ class Registry {
             mainSymbol: void 0,
             symbol: feeCurrency,
             overflow: feeCurrency + '/' + feeCurrency,
+            overflowRev: feeCurrency + '/' + feeCurrency,
             quantity: feeQty * -1,
             isFee: true,
             isLock: false,
@@ -769,18 +770,21 @@ class Registry {
     try {
       const transactions = new Transactions()
       const errorKeyArray = []
-      const sheetNameArray = this.workSheet.spreadSheet
-        .getSheets()
-        .map((sheet) => sheet.getName())
-        .filter((sheetName) => sheetName.match('Registry'))
+
+      const sheetNameArray = new Portfolio()
+        .getWorkSheet('Accounts')
+        .arrayOfObject.map((m) => m.name)
 
       sheetNameArray.forEach((sheetName) => {
         const workSheetRegistry = new Portfolio().getWorkSheet(sheetName)
         const workSheetObject = workSheetRegistry.object
-        const sourceKey = new Hash(sheetName).md5
+
+        const workSheetKeys = Object.keys(workSheetRegistry.object)
+
+        const accountKey = new Hash(sheetName).md5
 
         const registryRowKeyArray = transactions.workSheet.arrayOfObject
-          .filter((objectRow) => sourceKey === objectRow.sourceKey)
+          .filter((objectRow) => accountKey === objectRow.accountKey)
           .reduce((registryRowKeyArray, objectRow) => {
             if (!registryRowKeyArray.includes(objectRow.registryRowKey)) {
               registryRowKeyArray.push(objectRow.registryRowKey)
@@ -790,7 +794,7 @@ class Registry {
           }, [])
 
         registryRowKeyArray.forEach((registryRowKey) => {
-          if (!workSheetObject[registryRowKey]) {
+          if (!workSheetKeys.includes(registryRowKey)) {
             errorKeyArray.push(registryRowKey)
           }
         })

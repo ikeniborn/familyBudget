@@ -172,7 +172,7 @@ class FormatDate {
    */
   getPreviousDate(day) {
     const startDate = new Date(this.date)
-    this.date = startDate.setDate(this.date.getDate() - day)
+    this.date = new Date(startDate.setDate(this.date.getDate() - day))
     return this
   }
 
@@ -186,7 +186,7 @@ class FormatDate {
     const enddt = new Date(endDate).getDateBegin()
     if (new Date(strtdt).getFullYear() > 2000) {
       const diff = Math.round(
-        (strtdt.getTime() - enddt.getTime()) / (24 * 3600 * 1000)
+        (enddt.getTime() - strtdt.getTime()) / (24 * 3600 * 1000)
       )
       return isNaN(diff) ? 0 : diff
     } else {

@@ -189,9 +189,15 @@ class Historical {
   constructor() {
     this.methods = new Instance().methods
   }
-
-  histoday(fsym, tsym, limit = 30, toTs = new Date()) {
-    const dateUnix = new FormatDate(toTs).unix
+  /**
+   *
+   * @param {*} fsym
+   * @param {*} tsym
+   * @param {*} limit day
+   * @param {*} toTs dateUnix
+   * @returns
+   */
+  histoday(fsym, tsym, limit, toTs) {
     const upperTsym = tsym.toUpperCase()
     const upperFsym = fsym.toUpperCase()
     const result = this.methods.get({
@@ -199,7 +205,7 @@ class Historical {
       query: {
         fsym: upperFsym,
         tsym: upperTsym,
-        toTs: dateUnix,
+        toTs: toTs,
         limit: limit,
       },
     }).Data.Data

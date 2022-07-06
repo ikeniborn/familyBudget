@@ -1,37 +1,53 @@
 import { Analitics } from './ss/analitics'
-import { FormatDate, Hash } from '../utils'
+import { FormatDate, FormatObject, Hash } from '../utils'
 import * as cryptoCompare from '../restApi/cryptoCompare'
 import * as coinGecko from '../restApi/coinGecko'
 
-function testGetData() {
-  const fromUnix = new FormatDate().getPreviousDate(91).unix
-  const toUnix = new FormatDate().unix
-
-  const resp = new coinGecko.Coins().getCoinsRange(
-    'bitcoin',
-    'usd',
-    fromUnix,
-    toUnix
-  )
-  console.log(resp)
+function updateDotAtom() {
+  updateHistory('dot', 'atom', 'polkadot', 'cosmos', '2022-04-01', '2022-06-01')
 }
 
-function updateHistory() {
+/**
+ *
+ * @param {*} tokenASymbol
+ * @param {*} tokenBSymbol
+ * @param {*} tokenAId
+ * @param {*} tokenBID
+ * @param {*} from
+ * @param {*} to
+ */
+function updateHistory(
+  tokenASymbol,
+  tokenBSymbol,
+  tokenAId,
+  tokenBID,
+  from,
+  to
+) {
+  let dateFrom, fromUnix, countDay
   const histories = new Analitics().getWorkSheet('history')
-  const countDay = new FormatDate().diffBetweenDate(new Date(2022, 3, 4))
-  const fromUnix = new FormatDate(new Date(2022, 3, 3)).unix
-  const toUnix = new FormatDate().unix
+  dateFrom = new FormatDate(from)
+  const dateTo = new FormatDate(to)
+  fromUnix = dateFrom.unix
+  const toUnix = dateTo.unix
+  countDay = dateFrom.diffBetweenDate(dateTo.date) + 1
+
+  if (countDay < 91) {
+    countDay = 91
+    dateFrom = new FormatDate(dateTo.date).getPreviousDate(countDay)
+    fromUnix = dateFrom.unix
+  }
+
   const object = {}
-  const tokenASymbol = 'dot'
-  const tokenBSymbol = 'atom'
   const tokenAData = new cryptoCompare.Historical().histoday(
     tokenASymbol,
     'usd',
-    countDay
+    countDay,
+    toUnix
   )
 
   const tokenAMarketCap = new coinGecko.Coins().getCoinsRange(
-    'polkadot',
+    tokenAId,
     'usd',
     fromUnix,
     toUnix
@@ -40,11 +56,12 @@ function updateHistory() {
   const tokenBData = new cryptoCompare.Historical().histoday(
     tokenBSymbol,
     'usd',
-    countDay
+    countDay,
+    toUnix
   )
 
   const tokenBMarketCap = new coinGecko.Coins().getCoinsRange(
-    'cosmos',
+    tokenBID,
     'usd',
     fromUnix,
     toUnix
@@ -84,11 +101,12 @@ function updateHistory() {
 }
 
 function calculateCoef() {
-  let times, coefPrices, coefVolumes, coefMarketCaps
+  let times, coefPrices, coefVolumes, coefMarketCaps, coefVolatilitys
   times = []
   coefPrices = []
   coefVolumes = []
   coefMarketCaps = []
+  coefVolatilitys = []
   const histories = new Analitics().getWorkSheet('history')
   const newHistories = histories.arrayOfObject.reduce((object, rowObject) => {
     if (!object[rowObject.dateKey]) {
@@ -99,11 +117,21 @@ function calculateCoef() {
     object[rowObject.dateKey].coefVolume =
       rowObject.tokenAVolume / rowObject.tokenBVolume
     object[rowObject.dateKey].coefPriceMarketCap =
-      object[rowObject.dateKey].tokenAMarketCap / rowObject.tokenBMarketCap
+      rowObject.tokenAMarketCap / rowObject.tokenBMarketCap
+
+    //* расчет волантильности
+    object[rowObject.dateKey].tokenAVolatility =
+      rowObject.tokenAVolume / rowObject.tokenAMarketCap
+    object[rowObject.dateKey].tokenBVolatility =
+      rowObject.tokenBVolume / rowObject.tokenBMarketCap
+    object[rowObject.dateKey].coefVolatility =
+      object[rowObject.dateKey].tokenAVolatility /
+      object[rowObject.dateKey].tokenBVolatility
     times.push(rowObject.dateUnix)
-    coefPrices.push(rowObject.coefPrice)
-    coefVolumes.push(rowObject.coefVolume)
-    coefMarketCaps.push(rowObject.coefPriceMarketCap)
+    coefPrices.push(object[rowObject.dateKey].coefPrice)
+    coefVolumes.push(object[rowObject.dateKey].coefVolume)
+    coefMarketCaps.push(object[rowObject.dateKey].coefPriceMarketCap)
+    coefVolatilitys.push(object[rowObject.dateKey].coefVolatility)
     return object
   }, {})
 
@@ -124,31 +152,33 @@ function calculateCoef() {
     const dateKey = new Hash(time).md5
     newHistories[dateKey].lrcoefPriceMarketCap = value
   })
+
+  const lrCoefVolatilitys = findLineByLeastSquares(times, coefVolatilitys)
+  lrCoefVolatilitys.forEach(([time, value]) => {
+    const dateKey = new Hash(time).md5
+    newHistories[dateKey].lrCoefVolatility = value
+  })
+
   arrayOfObject = Object.values(newHistories)
   const arrayCoefPrices = arrayOfObject.map((m) => m.lrCoefPrice)
   const arrayCoefVolumes = arrayOfObject.map((m) => m.lrCoefVolume)
-  const arrayCoefMarketCap = arrayOfObject.map((m) => m.lrCoefVolume)
+  const arrayCoefMarketCap = arrayOfObject.map((m) => m.coefPriceMarketCap)
+  const arrayCoefVolatility = arrayOfObject.map((m) => m.lrCoefVolatility)
   const lrFormula1 = linearRegression(arrayCoefPrices, arrayCoefVolumes)
   const lrFormula2 = linearRegression(arrayCoefPrices, arrayCoefMarketCap)
-  const lrFormula3 = linearRegression(arrayCoefVolumes, arrayCoefMarketCap)
+  const lrFormula3 = linearRegression(arrayCoefPrices, arrayCoefVolatility)
   console.log('linearRegression(arrayCoefPrices, arrayCoefVolumes)', lrFormula1)
   console.log(
     'linearRegression(arrayCoefPrices, arrayCoefMarketCap)',
     lrFormula2
   )
   console.log(
-    'linearRegression(arrayCoefVolumes, arrayCoefMarketCap)',
+    'linearRegression(arrayCoefPrices, arrayCoefVolatility)',
     lrFormula3
   )
   histories.truncateInsertRows(Object.values(newHistories))
 }
 
-function updateData() {
-  new Promise((resolve) => {
-    updateHistory()
-    resolve()
-  }).then(calculateCoef())
-}
 /**
  *  y = slope * x + intercept
  * @param {array} y

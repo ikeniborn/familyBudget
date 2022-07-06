@@ -39,7 +39,11 @@ class Analitics {
           tokenBVolume: { alias: 'tokenBVolume', idx: 13 },
           coefVolume: { alias: 'coefVolume', idx: 14 },
           lrCoefVolume: { alias: 'lrCoefVolume', idx: 15 },
-          rowId: { alias: 'Row ID', idx: 16 },
+          tokenAVolatility: { alias: 'tokenAVolatility', idx: 16 },
+          tokenBVolatility: { alias: 'tokenBVolatility', idx: 17 },
+          coefVolatility: { alias: 'coefVolatility', idx: 18 },
+          lrCoefVolatility: { alias: 'lrCoefVolatility', idx: 19 },
+          rowId: { alias: 'Row ID', idx: 20 },
         },
       },
     }

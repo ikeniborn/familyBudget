@@ -170,7 +170,7 @@ class FormatDate {
    */
   getPreviousDate(day) {
     const startDate = new Date(this.date);
-    this.date = startDate.setDate(this.date.getDate() - day);
+    this.date = new Date(startDate.setDate(this.date.getDate() - day));
     return this
   }
 
@@ -184,7 +184,7 @@ class FormatDate {
     const enddt = new Date(endDate).getDateBegin();
     if (new Date(strtdt).getFullYear() > 2000) {
       const diff = Math.round(
-        (strtdt.getTime() - enddt.getTime()) / (24 * 3600 * 1000)
+        (enddt.getTime() - strtdt.getTime()) / (24 * 3600 * 1000)
       );
       return isNaN(diff) ? 0 : diff
     } else {
@@ -1875,7 +1875,6 @@ class Portfolio {
       if (accountsKey.indexOf(new Hash(sheetName).md5) !== -1) {
         headSheetName = 'Registry';
         isRegistry = true;
-        console.log('isRegistry', isRegistry);
       }
       const head = new Header().getHead(this.workSheetHeads, headSheetName);
       const workSheet = new WorkSheet(
@@ -2142,6 +2141,7 @@ class Fetch {
         const response = UrlFetchApp.fetch(this.url, this.data);
         stepResult.code = response.getResponseCode();
         if (stepResult.code === 200) {
+          // console.log('URL: ' + this.url, 'Response code: ' + stepResult.code)
           stepResult.response = JSON.parse(response.getContentText());
           stepResult.fetchStatus = true;
         } else {
@@ -2156,7 +2156,7 @@ class Fetch {
           stepResult.ms += 500;
           Utilities.sleep(stepResult.ms);
         }
-        if (stepResult.iteration > 30) {
+        if (stepResult.iteration > 10) {
           stepResult.fetchStatus = true;
         }
       } while (!stepResult.fetchStatus)
@@ -4281,6 +4281,7 @@ class Registry {
             mainSymbol: void 0,
             symbol: feeCurrency,
             overflow: feeCurrency + '/' + feeCurrency,
+            overflowRev: feeCurrency + '/' + feeCurrency,
             quantity: feeQty * -1,
             isFee: true,
             isLock: false,
@@ -4491,18 +4492,21 @@ class Registry {
     try {
       const transactions = new Transactions();
       const errorKeyArray = [];
-      const sheetNameArray = this.workSheet.spreadSheet
-        .getSheets()
-        .map((sheet) => sheet.getName())
-        .filter((sheetName) => sheetName.match('Registry'));
+
+      const sheetNameArray = new Portfolio()
+        .getWorkSheet('Accounts')
+        .arrayOfObject.map((m) => m.name);
 
       sheetNameArray.forEach((sheetName) => {
         const workSheetRegistry = new Portfolio().getWorkSheet(sheetName);
         const workSheetObject = workSheetRegistry.object;
-        const sourceKey = new Hash(sheetName).md5;
+
+        const workSheetKeys = Object.keys(workSheetRegistry.object);
+
+        const accountKey = new Hash(sheetName).md5;
 
         const registryRowKeyArray = transactions.workSheet.arrayOfObject
-          .filter((objectRow) => sourceKey === objectRow.sourceKey)
+          .filter((objectRow) => accountKey === objectRow.accountKey)
           .reduce((registryRowKeyArray, objectRow) => {
             if (!registryRowKeyArray.includes(objectRow.registryRowKey)) {
               registryRowKeyArray.push(objectRow.registryRowKey);
@@ -4512,7 +4516,7 @@ class Registry {
           }, []);
 
         registryRowKeyArray.forEach((registryRowKey) => {
-          if (!workSheetObject[registryRowKey]) {
+          if (!workSheetKeys.includes(registryRowKey)) {
             errorKeyArray.push(registryRowKey);
           }
         });

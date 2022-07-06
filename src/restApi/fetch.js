@@ -183,6 +183,7 @@ class Fetch {
         const response = UrlFetchApp.fetch(this.url, this.data)
         stepResult.code = response.getResponseCode()
         if (stepResult.code === 200) {
+          // console.log('URL: ' + this.url, 'Response code: ' + stepResult.code)
           stepResult.response = JSON.parse(response.getContentText())
           stepResult.fetchStatus = true
         } else {
@@ -197,7 +198,7 @@ class Fetch {
           stepResult.ms += 500
           Utilities.sleep(stepResult.ms)
         }
-        if (stepResult.iteration > 30) {
+        if (stepResult.iteration > 10) {
           stepResult.fetchStatus = true
         }
       } while (!stepResult.fetchStatus)

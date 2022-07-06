@@ -492,7 +492,6 @@ class Portfolio {
       if (accountsKey.indexOf(new Hash(sheetName).md5) !== -1) {
         headSheetName = 'Registry'
         isRegistry = true
-        console.log('isRegistry', isRegistry)
       }
       const head = new Header().getHead(this.workSheetHeads, headSheetName)
       const workSheet = new WorkSheet(
