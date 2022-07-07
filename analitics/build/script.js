@@ -866,19 +866,37 @@ class Analitics {
           tokenBPrice: { alias: 'tokenBPrice', idx: 5 },
           coefPrice: { alias: 'coefPrice', idx: 6 },
           lrCoefPrice: { alias: 'lrCoefPrice', idx: 7 },
-          tokenAMarketCap: { alias: 'tokenAMarketCap', idx: 8 },
-          tokenBMarketCap: { alias: 'tokenBMarketCap', idx: 9 },
-          coefPriceMarketCap: { alias: 'coefPriceMarketCap', idx: 10 },
-          lrcoefPriceMarketCap: { alias: 'lrcoefPriceMarketCap', idx: 11 },
-          tokenAVolume: { alias: 'tokenAVolume', idx: 12 },
-          tokenBVolume: { alias: 'tokenBVolume', idx: 13 },
-          coefVolume: { alias: 'coefVolume', idx: 14 },
-          lrCoefVolume: { alias: 'lrCoefVolume', idx: 15 },
-          tokenAVolatility: { alias: 'tokenAVolatility', idx: 16 },
-          tokenBVolatility: { alias: 'tokenBVolatility', idx: 17 },
-          coefVolatility: { alias: 'coefVolatility', idx: 18 },
-          lrCoefVolatility: { alias: 'lrCoefVolatility', idx: 19 },
-          rowId: { alias: 'Row ID', idx: 20 },
+          lrCoefPriceHigh: { alias: 'lrCoefPriceHigh', idx: 8 },
+          lrCoefPriceLow: { alias: 'lrCoefPriceLow', idx: 9 },
+          stdevPositiveArraydiffCoefPricestoLr: {
+            alias: 'stdevPositiveArraydiffCoefPricestoLr',
+            idx: 10,
+          },
+          varPositiveArraydiffCoefPricestoLr: {
+            alias: 'varPositiveArraydiffCoefPricestoLr',
+            idx: 11,
+          },
+          stdevNegativeArraydiffCoefPricestoLr: {
+            alias: 'stdevNegativeArraydiffCoefPricestoLr',
+            idx: 12,
+          },
+          varNegativeArraydiffCoefPricestoLr: {
+            alias: 'varNegativeArraydiffCoefPricestoLr',
+            idx: 13,
+          },
+          tokenAMarketCap: { alias: 'tokenAMarketCap', idx: 14 },
+          tokenBMarketCap: { alias: 'tokenBMarketCap', idx: 15 },
+          coefPriceMarketCap: { alias: 'coefPriceMarketCap', idx: 16 },
+          lrCoefPriceMarketCap: { alias: 'lrCoefPriceMarketCap', idx: 17 },
+          tokenAVolume: { alias: 'tokenAVolume', idx: 18 },
+          tokenBVolume: { alias: 'tokenBVolume', idx: 19 },
+          coefVolume: { alias: 'coefVolume', idx: 20 },
+          lrCoefVolume: { alias: 'lrCoefVolume', idx: 21 },
+          tokenAVolatility: { alias: 'tokenAVolatility', idx: 22 },
+          tokenBVolatility: { alias: 'tokenBVolatility', idx: 23 },
+          coefVolatility: { alias: 'coefVolatility', idx: 24 },
+          lrCoefVolatility: { alias: 'lrCoefVolatility', idx: 25 },
+          rowId: { alias: 'Row ID', idx: 26 },
         },
       },
     };
@@ -887,7 +905,7 @@ class Analitics {
 
   getWorkSheet(sheetName) {
     try {
-      let headSheetName, isRegistry;
+      let headSheetName;
       headSheetName = sheetName;
       const head = new Header().getHead(this.workSheetHeads, headSheetName);
       const workSheet = new WorkSheet(
@@ -1154,62 +1172,6 @@ class Fetch {
 }
 
 /**
- * CryptoCompare instance
- */
-class Instance$1 {
-  /**
-   * Create new inctance API CryptoCompare
-   *
-   */
-  constructor() {
-    if (Instance$1.exists) {
-      return Instance$1.instance
-    }
-    Instance$1.instance = this;
-    Instance$1.exists = true;
-    this.methods = new Methods({
-      domain: 'https://min-api.cryptocompare.com/data',
-      query: {
-        api_key:
-          '48597114e40192c1699cd11f30fc9b1b7d4db9e25ae08ac85736631ffad5a125',
-      },
-      data: {
-        muteHttpExceptions: true,
-        contentType: 'application/json',
-      },
-    });
-  }
-}
-
-class Historical {
-  constructor() {
-    this.methods = new Instance$1().methods;
-  }
-  /**
-   *
-   * @param {*} fsym
-   * @param {*} tsym
-   * @param {*} limit day
-   * @param {*} toTs dateUnix
-   * @returns
-   */
-  histoday(fsym, tsym, limit, toTs) {
-    const upperTsym = tsym.toUpperCase();
-    const upperFsym = fsym.toUpperCase();
-    const result = this.methods.get({
-      endPoint: '/v2/histoday',
-      query: {
-        fsym: upperFsym,
-        tsym: upperTsym,
-        toTs: toTs,
-        limit: limit,
-      },
-    }).Data.Data;
-    return result
-  }
-}
-
-/**
  * CoinGecko instance
  */
 class Instance {
@@ -1303,10 +1265,6 @@ class Coins {
   }
 }
 
-function updateDotAtom() {
-  updateHistory('dot', 'atom', 'polkadot', 'cosmos', '2022-04-01', '2022-06-01');
-}
-
 /**
  *
  * @param {*} tokenASymbol
@@ -1317,12 +1275,12 @@ function updateDotAtom() {
  * @param {*} to
  */
 function updateHistory(
+  from,
+  to,
   tokenASymbol,
   tokenBSymbol,
   tokenAId,
-  tokenBID,
-  from,
-  to
+  tokenBID
 ) {
   let dateFrom, fromUnix, countDay;
   const histories = new Analitics().getWorkSheet('history');
@@ -1339,53 +1297,61 @@ function updateHistory(
   }
 
   const object = {};
-  const tokenAData = new Historical().histoday(
-    tokenASymbol,
-    'usd',
-    countDay,
-    toUnix
+  const tokenAData = Object.values(
+    new Coins().getCoinsRange(tokenAId, 'usd', fromUnix, toUnix)
   );
 
-  const tokenAMarketCap = new Coins().getCoinsRange(
-    tokenAId,
-    'usd',
-    fromUnix,
-    toUnix
+  // const tokenAData = new cryptoCompare.Historical().histoday(
+  //   tokenASymbol,
+  //   'usdt',
+  //   countDay,
+  //   toUnix
+  // )
+
+  // const tokenAMarketCap = new coinGecko.Coins().getCoinsRange(
+  //   tokenAId,
+  //   'usd',
+  //   fromUnix,
+  //   toUnix
+  // )
+
+  const tokenBData = Object.values(
+    new Coins().getCoinsRange(tokenBID, 'usd', fromUnix, toUnix)
   );
 
-  const tokenBData = new Historical().histoday(
-    tokenBSymbol,
-    'usd',
-    countDay,
-    toUnix
-  );
+  // const tokenBData = new cryptoCompare.Historical().histoday(
+  //   tokenBSymbol,
+  //   'usdt',
+  //   countDay,
+  //   toUnix
+  // )
 
-  const tokenBMarketCap = new Coins().getCoinsRange(
-    tokenBID,
-    'usd',
-    fromUnix,
-    toUnix
-  );
+  // const tokenBMarketCap = new coinGecko.Coins().getCoinsRange(
+  //   tokenBID,
+  //   'usd',
+  //   fromUnix,
+  //   toUnix
+  // )
 
   tokenAData.forEach((rowObject) => {
-    const dataKey = new Hash(rowObject.time).md5;
+    const dataKey = new Hash(rowObject.dateUnix).md5;
     if (!object[dataKey]) {
       object[dataKey] = {
         dateKey: dataKey,
-        date: new FormatDate(new Date(rowObject.time * 1000)).getFormatDate(
+        date: new FormatDate(new Date(rowObject.dateUnix * 1000)).getFormatDate(
           'yyyy-MM-dd'
         ),
-        dateUnix: rowObject.time,
+        dateUnix: rowObject.dateUnix,
         tokenATokenB: tokenASymbol + '/' + tokenBSymbol,
         tokenBPrice: void 0,
-        tokenAPrice: rowObject.close * 1,
+        tokenAPrice: rowObject.price,
         coefPrice: void 0,
         lrCoefPrice: void 0,
-        tokenAMarketCap: tokenAMarketCap[dataKey]?.marketCap,
-        tokenBMarketCap: tokenBMarketCap[dataKey]?.marketCap,
+        tokenAMarketCap: rowObject.marketCap,
+        tokenBMarketCap: rowObject.marketCap,
         coefPriceMarketCap: void 0,
         tokenBVolume: void 0,
-        tokenAVolume: rowObject.volumeto,
+        tokenAVolume: rowObject.volume,
         coefVolume: void 0,
         lrCoefVolume: void 0,
       };
@@ -1393,11 +1359,23 @@ function updateHistory(
   });
 
   tokenBData.forEach((rowObject) => {
-    const dataKey = new Hash(rowObject.time).md5;
-    object[dataKey].tokenBPrice = rowObject.close * 1;
-    object[dataKey].tokenBVolume = rowObject.volumeto;
+    const dataKey = new Hash(rowObject.dateUnix).md5;
+    object[dataKey].tokenBPrice = rowObject.price;
+    object[dataKey].tokenBVolume = rowObject.volume;
+    object[dataKey].tokenBMarketCap = rowObject.marketCap;
   });
-  histories.truncateInsertRows(Object.values(object));
+  const filterArrayOfObject = Object.values(object).filter((rowObject) => {
+    return (
+      rowObject.tokenAPrice &&
+      rowObject.tokenBPrice &&
+      rowObject.tokenAMarketCap &&
+      rowObject.tokenBMarketCap &&
+      rowObject.tokenAVolume &&
+      rowObject.tokenBVolume &&
+      rowObject.dateUnix > new FormatDate(from).unix
+    )
+  });
+  histories.truncateInsertRows(filterArrayOfObject);
 }
 
 function calculateCoef() {
@@ -1435,48 +1413,168 @@ function calculateCoef() {
     return object
   }, {});
 
+  //* расчет коэфициента цены
+  const positiveArraydiffCoefPricestoLr = [];
+  const negativeArraydiffCoefPricestoLr = [];
+  const arraylrCoefPrices = [];
   const lrCoefPrices = findLineByLeastSquares(times, coefPrices);
   lrCoefPrices.forEach(([time, value]) => {
     const dateKey = new Hash(time).md5;
     newHistories[dateKey].lrCoefPrice = value;
+    arraylrCoefPrices.push(value);
+    //* расчет отклонения от средней регресионной
+    newHistories[dateKey].diffCoefPricestoLr =
+      newHistories[dateKey].coefPrice - value;
+    if (newHistories[dateKey].diffCoefPricestoLr > 0) {
+      //* положительное отклонение
+      positiveArraydiffCoefPricestoLr.push(
+        newHistories[dateKey].diffCoefPricestoLr
+      );
+    } else if (newHistories[dateKey].diffCoefPricestoLr < 0) {
+      //* отрицательное отклонение
+      negativeArraydiffCoefPricestoLr.push(
+        newHistories[dateKey].diffCoefPricestoLr * -1
+      );
+    }
   });
 
+  // const maxPositiveArraydiffCoefPricestoLr = positiveArraydiffCoefPricestoLr.reduce(
+  //   (max, value) => {
+  //     if (max < value) {
+  //       max = value
+  //     }
+  //     return max
+  //   },
+  //   0
+  // )
+  // const minPositiveArraydiffCoefPricestoLr = positiveArraydiffCoefPricestoLr.reduce(
+  //   (min, value) => {
+  //     if (min > value) {
+  //       min = value
+  //     }
+  //     return min
+  //   },
+  //   maxPositiveArraydiffCoefPricestoLr
+  // )
+
+  const stdevPositiveArraydiffCoefPricestoLr = getStandardDeviation(
+    positiveArraydiffCoefPricestoLr
+  );
+
+  const varPositiveArraydiffCoefPricestoLr = calculateVariance(
+    positiveArraydiffCoefPricestoLr
+  );
+
+  // console.log(
+  //   'positiveArraydiffCoefPricestoLr',
+  //   positiveArraydiffCoefPricestoLr
+  // )
+
+  // console.log(
+  //   'maxPositiveArraydiffCoefPricestoLr',
+  //   maxPositiveArraydiffCoefPricestoLr
+  // )
+  // console.log(
+  //   'minPositiveArraydiffCoefPricestoLr',
+  //   minPositiveArraydiffCoefPricestoLr
+  // )
+  // console.log(
+  //   'stdevPositiveArraydiffCoefPricestoLr',
+  //   stdevPositiveArraydiffCoefPricestoLr
+  // )
+
+  // console.log(
+  //   'varPositiveArraydiffCoefPricestoLr',
+  //   varPositiveArraydiffCoefPricestoLr
+  // )
+
+  const stdevNegativeArraydiffCoefPricestoLr = getStandardDeviation(
+    negativeArraydiffCoefPricestoLr
+  );
+
+  const varNegativeArraydiffCoefPricestoLr = calculateVariance(
+    negativeArraydiffCoefPricestoLr
+  );
+
+  //* расчет коэфициента объема
   const lrCoefVolumes = findLineByLeastSquares(times, coefVolumes);
   lrCoefVolumes.forEach(([time, value]) => {
     const dateKey = new Hash(time).md5;
     newHistories[dateKey].lrCoefVolume = value;
   });
-
+  //* расчет коэфициента капитализации
   const lrcoefPriceMarketCaps = findLineByLeastSquares(times, coefMarketCaps);
   lrcoefPriceMarketCaps.forEach(([time, value]) => {
     const dateKey = new Hash(time).md5;
-    newHistories[dateKey].lrcoefPriceMarketCap = value;
+    newHistories[dateKey].lrCoefPriceMarketCap = value;
   });
-
+  //* расчет коэфициента волантильности
   const lrCoefVolatilitys = findLineByLeastSquares(times, coefVolatilitys);
   lrCoefVolatilitys.forEach(([time, value]) => {
     const dateKey = new Hash(time).md5;
     newHistories[dateKey].lrCoefVolatility = value;
   });
 
-  arrayOfObject = Object.values(newHistories);
-  const arrayCoefPrices = arrayOfObject.map((m) => m.lrCoefPrice);
-  const arrayCoefVolumes = arrayOfObject.map((m) => m.lrCoefVolume);
-  const arrayCoefMarketCap = arrayOfObject.map((m) => m.coefPriceMarketCap);
-  const arrayCoefVolatility = arrayOfObject.map((m) => m.lrCoefVolatility);
-  const lrFormula1 = linearRegression(arrayCoefPrices, arrayCoefVolumes);
-  const lrFormula2 = linearRegression(arrayCoefPrices, arrayCoefMarketCap);
-  const lrFormula3 = linearRegression(arrayCoefPrices, arrayCoefVolatility);
-  console.log('linearRegression(arrayCoefPrices, arrayCoefVolumes)', lrFormula1);
-  console.log(
-    'linearRegression(arrayCoefPrices, arrayCoefMarketCap)',
-    lrFormula2
-  );
-  console.log(
-    'linearRegression(arrayCoefPrices, arrayCoefVolatility)',
-    lrFormula3
-  );
-  histories.truncateInsertRows(Object.values(newHistories));
+  // arrayOfObject = Object.values(newHistories)
+  // const arrayCoefPrices = arrayOfObject.map((m) => m.lrCoefPrice)
+  // const arrayCoefVolumes = arrayOfObject.map((m) => m.lrCoefVolume)
+  // const arrayCoefMarketCap = arrayOfObject.map((m) => m.lrCoefPriceMarketCap)
+  // const arrayCoefVolatility = arrayOfObject.map((m) => m.lrCoefVolatility)
+  // const lrFormula1 = linearRegression(arrayCoefPrices, arrayCoefVolumes)
+  // const lrFormula2 = linearRegression(arrayCoefPrices, arrayCoefMarketCap)
+  // const lrFormula3 = linearRegression(arrayCoefPrices, arrayCoefVolatility)
+  // const lrFormula4 = linearRegression(arrayCoefMarketCap, arrayCoefVolumes)
+  // const lrFormula5 = linearRegression(arrayCoefMarketCap, arrayCoefVolatility)
+  // const lrFormula6 = linearRegression(arrayCoefVolumes, arrayCoefVolatility)
+  // console.log('linearRegression(arrayCoefPrices, arrayCoefVolumes)', lrFormula1)
+  // console.log(
+  //   'linearRegression(arrayCoefPrices, arrayCoefMarketCap)',
+  //   lrFormula2
+  // )
+  // console.log(
+  //   'linearRegression(arrayCoefPrices, arrayCoefVolatility)',
+  //   lrFormula3
+  // )
+  // console.log(
+  //   'linearRegression(arrayCoefMarketCap, arrayCoefVolumes)',
+  //   lrFormula4
+  // )
+  // console.log(
+  //   'linearRegression(arrayCoefMarketCap, arrayCoefVolatility)',
+  //   lrFormula5
+  // )
+  // console.log(
+  //   'linearRegression(arrayCoefVolumes, arrayCoefVolatility)',
+  //   lrFormula6
+  // )
+  const arrayOfObjectNewHistories = Object.values(newHistories);
+  arrayOfObjectNewHistories.forEach((rowObject) => {
+    rowObject.lrCoefPriceHigh =
+      rowObject.lrCoefPrice +
+      (stdevPositiveArraydiffCoefPricestoLr -
+        varPositiveArraydiffCoefPricestoLr) *
+        2;
+    rowObject.stdevPositiveArraydiffCoefPricestoLr = stdevPositiveArraydiffCoefPricestoLr;
+    rowObject.varPositiveArraydiffCoefPricestoLr = varPositiveArraydiffCoefPricestoLr;
+    rowObject.lrCoefPriceLow =
+      rowObject.lrCoefPrice -
+      (stdevNegativeArraydiffCoefPricestoLr -
+        varNegativeArraydiffCoefPricestoLr) *
+        2;
+
+    rowObject.stdevNegativeArraydiffCoefPricestoLr = stdevNegativeArraydiffCoefPricestoLr;
+    rowObject.varNegativeArraydiffCoefPricestoLr = varNegativeArraydiffCoefPricestoLr;
+  });
+
+  histories.truncateInsertRows(Object.values(arrayOfObjectNewHistories));
+}
+
+function getStandardDeviation(array) {
+  const n = array.length;
+  const mean = array.reduce((a, b) => a + b) / n;
+  return Math.sqrt(
+    array.map((x) => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / n
+  )
 }
 
 /**
@@ -1579,3 +1677,60 @@ function findLineByLeastSquares(values_x, values_y) {
   // return [result_values_x, result_values_y]
   return arrayOfArray
 }
+
+function median(numbers) {
+  const sorted = Array.from(numbers).sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+
+  if (sorted.length % 2 === 0) {
+    return (sorted[middle - 1] + sorted[middle]) / 2
+  }
+
+  return sorted[middle]
+}
+
+function quickselect_median(arr) {
+  const L = arr.length,
+    halfL = L / 2;
+  if (L % 2 == 1) return quickselect(arr, halfL)
+  else return 0.5 * (quickselect(arr, halfL - 1) + quickselect(arr, halfL))
+}
+
+function quickselect(arr, k) {
+  // Select the kth element in arr
+  // arr: List of numerics
+  // k: Index
+  // return: The kth element (in numerical order) of arr
+  if (arr.length == 1) return arr[0]
+  else {
+    const pivot = arr[0];
+    const lows = arr.filter((e) => e < pivot);
+    const highs = arr.filter((e) => e > pivot);
+    const pivots = arr.filter((e) => e == pivot);
+    if (k < lows.length)
+      // the pivot is too high
+      return quickselect(lows, k)
+    else if (k < lows.length + pivots.length)
+      // We got lucky and guessed the median
+      return pivot
+    // the pivot is too low
+    else return quickselect(highs, k - lows.length - pivots.length)
+  }
+}
+
+// Calculate the average of all the numbers
+const calculateMean = (values) => {
+  const mean = values.reduce((sum, current) => sum + current) / values.length;
+  return mean
+};
+
+// Calculate variance
+const calculateVariance = (values) => {
+  const average = calculateMean(values);
+  const squareDiffs = values.map((value) => {
+    const diff = value - average;
+    return diff * diff
+  });
+  const variance = calculateMean(squareDiffs);
+  return variance
+};

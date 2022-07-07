@@ -31,19 +31,37 @@ class Analitics {
           tokenBPrice: { alias: 'tokenBPrice', idx: 5 },
           coefPrice: { alias: 'coefPrice', idx: 6 },
           lrCoefPrice: { alias: 'lrCoefPrice', idx: 7 },
-          tokenAMarketCap: { alias: 'tokenAMarketCap', idx: 8 },
-          tokenBMarketCap: { alias: 'tokenBMarketCap', idx: 9 },
-          coefPriceMarketCap: { alias: 'coefPriceMarketCap', idx: 10 },
-          lrcoefPriceMarketCap: { alias: 'lrcoefPriceMarketCap', idx: 11 },
-          tokenAVolume: { alias: 'tokenAVolume', idx: 12 },
-          tokenBVolume: { alias: 'tokenBVolume', idx: 13 },
-          coefVolume: { alias: 'coefVolume', idx: 14 },
-          lrCoefVolume: { alias: 'lrCoefVolume', idx: 15 },
-          tokenAVolatility: { alias: 'tokenAVolatility', idx: 16 },
-          tokenBVolatility: { alias: 'tokenBVolatility', idx: 17 },
-          coefVolatility: { alias: 'coefVolatility', idx: 18 },
-          lrCoefVolatility: { alias: 'lrCoefVolatility', idx: 19 },
-          rowId: { alias: 'Row ID', idx: 20 },
+          lrCoefPriceHigh: { alias: 'lrCoefPriceHigh', idx: 8 },
+          lrCoefPriceLow: { alias: 'lrCoefPriceLow', idx: 9 },
+          stdevPositiveArraydiffCoefPricestoLr: {
+            alias: 'stdevPositiveArraydiffCoefPricestoLr',
+            idx: 10,
+          },
+          varPositiveArraydiffCoefPricestoLr: {
+            alias: 'varPositiveArraydiffCoefPricestoLr',
+            idx: 11,
+          },
+          stdevNegativeArraydiffCoefPricestoLr: {
+            alias: 'stdevNegativeArraydiffCoefPricestoLr',
+            idx: 12,
+          },
+          varNegativeArraydiffCoefPricestoLr: {
+            alias: 'varNegativeArraydiffCoefPricestoLr',
+            idx: 13,
+          },
+          tokenAMarketCap: { alias: 'tokenAMarketCap', idx: 14 },
+          tokenBMarketCap: { alias: 'tokenBMarketCap', idx: 15 },
+          coefPriceMarketCap: { alias: 'coefPriceMarketCap', idx: 16 },
+          lrCoefPriceMarketCap: { alias: 'lrCoefPriceMarketCap', idx: 17 },
+          tokenAVolume: { alias: 'tokenAVolume', idx: 18 },
+          tokenBVolume: { alias: 'tokenBVolume', idx: 19 },
+          coefVolume: { alias: 'coefVolume', idx: 20 },
+          lrCoefVolume: { alias: 'lrCoefVolume', idx: 21 },
+          tokenAVolatility: { alias: 'tokenAVolatility', idx: 22 },
+          tokenBVolatility: { alias: 'tokenBVolatility', idx: 23 },
+          coefVolatility: { alias: 'coefVolatility', idx: 24 },
+          lrCoefVolatility: { alias: 'lrCoefVolatility', idx: 25 },
+          rowId: { alias: 'Row ID', idx: 26 },
         },
       },
     }
@@ -52,7 +70,7 @@ class Analitics {
 
   getWorkSheet(sheetName) {
     try {
-      let headSheetName, isRegistry
+      let headSheetName
       headSheetName = sheetName
       const head = new Header().getHead(this.workSheetHeads, headSheetName)
       const workSheet = new WorkSheet(
