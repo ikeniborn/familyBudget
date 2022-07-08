@@ -9,12 +9,12 @@ function createMenu() {
       .addItem('updateEthBtc', 'updateEthBtc')
       .addItem('updateAtomEvmos', 'updateAtomEvmos')
   )
-  menu.addItem('Calculate coefficient', 'calculateCoef')
+  menu.addItem('Calculate coefficient', 'updateCoef')
   menu.addToUi()
 }
 
 function updateDotAtom() {
-  updateHistory('2022-03-03', '2022-07-01', 'dot', 'atom', 'polkadot', 'cosmos')
+  updateHistory('2021-09-15', '2022-07-07', 'dot', 'atom', 'polkadot', 'cosmos')
 }
 
 function updateSdnBoba() {
@@ -33,4 +33,8 @@ function updateEthBtc() {
 
 function updateAtomEvmos() {
   updateHistory('2022-06-07', '2022-07-05', 'atom', 'evmos', 'cosmos', 'evmos')
+}
+
+function updateCoef() {
+  // calculateCoef('2022-03-05', '2022-07-01')
 }

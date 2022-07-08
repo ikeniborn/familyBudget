@@ -28,12 +28,26 @@ class FormatDate {
   /**
    * Форматирование и преобразование даты
    * @param {date} date значение даты. По умолчанию - текущее значение
-   * @param {string} timeZone часовой пояс в формате GMT. По умолчанию - GMT+3
+   * @param {object} options Часовой пояс и признак Timestamp. По умолчанию - GMT+3 , Timestamp = true
    */
   constructor(date = new Date(), timeZone = 'GMT+3') {
     this.date = new Date(date);
     this.timeZone = timeZone;
   }
+
+  getDateBegin() {
+    this.date = new Date(
+      this.date.getFullYear(),
+      this.date.getMonth(),
+      this.date.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
+    return this
+  }
+
   /**
    * Дата в формате dd.MM.yyyy
    */
@@ -52,6 +66,7 @@ class FormatDate {
   get md5() {
     return new Hash(this.yyyymmdd).md5
   }
+
   /**
    * Год в числовой формате YYYY
    */
@@ -105,11 +120,15 @@ class FormatDate {
   }
 
   get unix() {
-    return Math.round(new Date(this.date).valueOf() / 1000)
+    return Math.round(this.date.valueOf() / 1000)
   }
 
   get value() {
     return new Date(this.date).valueOf()
+  }
+
+  get dateKey() {
+    return new Hash(this.value).md5
   }
 
   /**
@@ -181,7 +200,7 @@ class FormatDate {
    */
   diffBetweenDate(endDate = new Date()) {
     const strtdt = this.date.getDateBegin();
-    const enddt = new Date(endDate).getDateBegin();
+    const enddt = new FormatDate(endDate).getDateBegin().date;
     if (new Date(strtdt).getFullYear() > 2000) {
       const diff = Math.round(
         (enddt.getTime() - strtdt.getTime()) / (24 * 3600 * 1000)
@@ -191,12 +210,36 @@ class FormatDate {
       return 0
     }
   }
+
+  getListDates(endDate = new Date()) {
+    const enddt = new FormatDate(endDate).date;
+    const countDay = this.diffBetweenDate(enddt) + 1;
+    this.listDates = [...Array(countDay).keys()].map(
+      (m) =>
+        (new FormatDate(
+          new Date(enddt.setDate(enddt.getDate() - 1))
+        ).getDateBegin().date)
+    );
+    return this
+  }
 }
 
 //* Get start date
 Date.prototype.getDateBegin = function () {
   const sourceDate = new Date(this);
   const tmzn = 'Europe/Moscow';
+  ScriptApp.get;
+  const strDate = Utilities.formatDate(
+    sourceDate,
+    tmzn,
+    'MMMM dd, yyyy 00:00:00 Z'
+  );
+  return new Date(strDate)
+};
+
+Date.prototype.getDateBeginUTC = function () {
+  const sourceDate = new Date(this);
+  const tmzn = 'UTC';
   ScriptApp.get;
   const strDate = Utilities.formatDate(
     sourceDate,

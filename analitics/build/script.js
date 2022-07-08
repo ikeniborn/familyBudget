@@ -28,12 +28,26 @@ class FormatDate {
   /**
    * Форматирование и преобразование даты
    * @param {date} date значение даты. По умолчанию - текущее значение
-   * @param {string} timeZone часовой пояс в формате GMT. По умолчанию - GMT+3
+   * @param {object} options Часовой пояс и признак Timestamp. По умолчанию - GMT+3 , Timestamp = true
    */
   constructor(date = new Date(), timeZone = 'GMT+3') {
     this.date = new Date(date);
     this.timeZone = timeZone;
   }
+
+  getDateBegin() {
+    this.date = new Date(
+      this.date.getFullYear(),
+      this.date.getMonth(),
+      this.date.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
+    return this
+  }
+
   /**
    * Дата в формате dd.MM.yyyy
    */
@@ -52,6 +66,7 @@ class FormatDate {
   get md5() {
     return new Hash(this.yyyymmdd).md5
   }
+
   /**
    * Год в числовой формате YYYY
    */
@@ -105,11 +120,15 @@ class FormatDate {
   }
 
   get unix() {
-    return Math.round(new Date(this.date).valueOf() / 1000)
+    return Math.round(this.date.valueOf() / 1000)
   }
 
   get value() {
     return new Date(this.date).valueOf()
+  }
+
+  get dateKey() {
+    return new Hash(this.value).md5
   }
 
   /**
@@ -181,7 +200,7 @@ class FormatDate {
    */
   diffBetweenDate(endDate = new Date()) {
     const strtdt = this.date.getDateBegin();
-    const enddt = new Date(endDate).getDateBegin();
+    const enddt = new FormatDate(endDate).getDateBegin().date;
     if (new Date(strtdt).getFullYear() > 2000) {
       const diff = Math.round(
         (enddt.getTime() - strtdt.getTime()) / (24 * 3600 * 1000)
@@ -191,12 +210,36 @@ class FormatDate {
       return 0
     }
   }
+
+  getListDates(endDate = new Date()) {
+    const enddt = new FormatDate(endDate).date;
+    const countDay = this.diffBetweenDate(enddt) + 1;
+    this.listDates = [...Array(countDay).keys()].map(
+      (m) =>
+        (new FormatDate(
+          new Date(enddt.setDate(enddt.getDate() - 1))
+        ).getDateBegin().date)
+    );
+    return this
+  }
 }
 
 //* Get start date
 Date.prototype.getDateBegin = function () {
   const sourceDate = new Date(this);
   const tmzn = 'Europe/Moscow';
+  ScriptApp.get;
+  const strDate = Utilities.formatDate(
+    sourceDate,
+    tmzn,
+    'MMMM dd, yyyy 00:00:00 Z'
+  );
+  return new Date(strDate)
+};
+
+Date.prototype.getDateBeginUTC = function () {
+  const sourceDate = new Date(this);
+  const tmzn = 'UTC';
   ScriptApp.get;
   const strDate = Utilities.formatDate(
     sourceDate,
@@ -876,27 +919,43 @@ class Analitics {
             alias: 'varPositiveArraydiffCoefPricestoLr',
             idx: 11,
           },
+          avgPositiveArraydiffCoefPricestoLr: {
+            alias: 'avgPositiveArraydiffCoefPricestoLr',
+            idx: 12,
+          },
+          coefVarPositiveArraydiffCoefPricestoLr: {
+            alias: 'coefVarPositiveArraydiffCoefPricestoLr',
+            idx: 13,
+          },
           stdevNegativeArraydiffCoefPricestoLr: {
             alias: 'stdevNegativeArraydiffCoefPricestoLr',
-            idx: 12,
+            idx: 14,
           },
           varNegativeArraydiffCoefPricestoLr: {
             alias: 'varNegativeArraydiffCoefPricestoLr',
-            idx: 13,
+            idx: 15,
           },
-          tokenAMarketCap: { alias: 'tokenAMarketCap', idx: 14 },
-          tokenBMarketCap: { alias: 'tokenBMarketCap', idx: 15 },
-          coefPriceMarketCap: { alias: 'coefPriceMarketCap', idx: 16 },
-          lrCoefPriceMarketCap: { alias: 'lrCoefPriceMarketCap', idx: 17 },
-          tokenAVolume: { alias: 'tokenAVolume', idx: 18 },
-          tokenBVolume: { alias: 'tokenBVolume', idx: 19 },
-          coefVolume: { alias: 'coefVolume', idx: 20 },
-          lrCoefVolume: { alias: 'lrCoefVolume', idx: 21 },
-          tokenAVolatility: { alias: 'tokenAVolatility', idx: 22 },
-          tokenBVolatility: { alias: 'tokenBVolatility', idx: 23 },
-          coefVolatility: { alias: 'coefVolatility', idx: 24 },
-          lrCoefVolatility: { alias: 'lrCoefVolatility', idx: 25 },
-          rowId: { alias: 'Row ID', idx: 26 },
+          avgNegativeArraydiffCoefPricestoLr: {
+            alias: 'avgNegativeArraydiffCoefPricestoLr',
+            idx: 16,
+          },
+          coefVarNegativeArraydiffCoefPricestoLr: {
+            alias: 'coefVarNegativeArraydiffCoefPricestoLr',
+            idx: 17,
+          },
+          tokenAMarketCap: { alias: 'tokenAMarketCap', idx: 18 },
+          tokenBMarketCap: { alias: 'tokenBMarketCap', idx: 19 },
+          coefPriceMarketCap: { alias: 'coefPriceMarketCap', idx: 20 },
+          lrCoefPriceMarketCap: { alias: 'lrCoefPriceMarketCap', idx: 21 },
+          tokenAVolume: { alias: 'tokenAVolume', idx: 22 },
+          tokenBVolume: { alias: 'tokenBVolume', idx: 23 },
+          coefVolume: { alias: 'coefVolume', idx: 24 },
+          lrCoefVolume: { alias: 'lrCoefVolume', idx: 25 },
+          tokenAVolatility: { alias: 'tokenAVolatility', idx: 26 },
+          tokenBVolatility: { alias: 'tokenBVolatility', idx: 27 },
+          coefVolatility: { alias: 'coefVolatility', idx: 28 },
+          lrCoefVolatility: { alias: 'lrCoefVolatility', idx: 29 },
+          rowId: { alias: 'Row ID', idx: 30 },
         },
       },
     };
@@ -1237,11 +1296,15 @@ class Coins {
 
     if (Object.keys(result).length) {
       const aggData = result?.prices.reduce((object, [dateValue, data]) => {
-        const dateUnix = new FormatDate(dateValue).unix;
-        const dateKey = new Hash(dateUnix).md5;
+        const dateData = new FormatDate(dateValue).getDateBegin();
+        const dateKey = dateData.dateKey;
         if (!object[dateKey]) {
           object[dateKey] = {
-            dateUnix: dateUnix,
+            dateKey: dateKey,
+            dateString: dateData.date,
+            dateUnix: dateData.unix,
+            dateValue: dateData.value,
+            timeZone: dateData.timeZone,
             price: data,
             marketCap: void 0,
             volume: void 0,
@@ -1250,13 +1313,11 @@ class Coins {
         return object
       }, {});
       result?.market_caps.forEach(([dateValue, data]) => {
-        const dateUnix = new FormatDate(dateValue).unix;
-        const dateKey = new Hash(dateUnix).md5;
+        const dateKey = new FormatDate(dateValue).getDateBegin().dateKey;
         aggData[dateKey].marketCap = data;
       });
       result?.total_volumes.forEach(([dateValue, data]) => {
-        const dateUnix = new FormatDate(dateValue).unix;
-        const dateKey = new Hash(dateUnix).md5;
+        const dateKey = new FormatDate(dateValue).getDateBegin().dateKey;
         aggData[dateKey].volume = data;
       });
       return aggData
@@ -1265,14 +1326,21 @@ class Coins {
   }
 }
 
+function test() {
+  console.log(
+    new FormatDate('2022-07-01').getDateBegin().getDateUTC().getListDates()
+      .listDates
+  );
+}
+
 /**
  *
+ * @param {*} from
+ * @param {*} to
  * @param {*} tokenASymbol
  * @param {*} tokenBSymbol
  * @param {*} tokenAId
  * @param {*} tokenBID
- * @param {*} from
- * @param {*} to
  */
 function updateHistory(
   from,
@@ -1284,108 +1352,94 @@ function updateHistory(
 ) {
   let dateFrom, fromUnix, countDay;
   const histories = new Analitics().getWorkSheet('history');
-  dateFrom = new FormatDate(from);
-  const dateTo = new FormatDate(to);
+  dateFrom = new FormatDate(from).getDateBegin();
+  const dateTo = new FormatDate(to).getDateBegin();
+
   fromUnix = dateFrom.unix;
   const toUnix = dateTo.unix;
   countDay = dateFrom.diffBetweenDate(dateTo.date) + 1;
 
   if (countDay < 91) {
     countDay = 91;
-    dateFrom = new FormatDate(dateTo.date).getPreviousDate(countDay);
+    dateFrom = new FormatDate(dateTo.date)
+      .getDateBegin()
+      .getPreviousDate(countDay);
     fromUnix = dateFrom.unix;
   }
 
-  const object = {};
-  const tokenAData = Object.values(
-    new Coins().getCoinsRange(tokenAId, 'usd', fromUnix, toUnix)
+  const tokenAData = new Coins().getCoinsRange(
+    tokenAId,
+    'usd',
+    fromUnix,
+    toUnix
   );
 
-  // const tokenAData = new cryptoCompare.Historical().histoday(
-  //   tokenASymbol,
-  //   'usdt',
-  //   countDay,
-  //   toUnix
-  // )
-
-  // const tokenAMarketCap = new coinGecko.Coins().getCoinsRange(
-  //   tokenAId,
-  //   'usd',
-  //   fromUnix,
-  //   toUnix
-  // )
-
-  const tokenBData = Object.values(
-    new Coins().getCoinsRange(tokenBID, 'usd', fromUnix, toUnix)
+  const tokenBData = new Coins().getCoinsRange(
+    tokenBID,
+    'usd',
+    fromUnix,
+    toUnix
   );
 
-  // const tokenBData = new cryptoCompare.Historical().histoday(
-  //   tokenBSymbol,
-  //   'usdt',
-  //   countDay,
-  //   toUnix
-  // )
+  const allData = new FormatDate(dateFrom.date)
+    .getListDates(dateTo.date)
+    .listDates.reduce((rowObject, date) => {
+      const dateData = new FormatDate(date).getDateBegin();
+      const dateKey = dateData.dateKey;
+      if (!rowObject[dateKey]) {
+        rowObject[dateKey] = {
+          dateKey: dateKey,
+          dateString: dateData.date,
+          dateValue: dateData.value,
+          dateUnix: dateData.unix,
+          date: dateData.getFormatDate('yyyy-MM-dd'),
+          tokenATokenB: tokenASymbol + '/' + tokenBSymbol,
+          tokenAPrice: tokenAData[dateKey]?.price,
+          tokenBPrice: tokenBData[dateKey]?.price,
+          coefPrice: void 0,
+          lrCoefPrice: void 0,
+          tokenAMarketCap: tokenAData[dateKey]?.marketCap,
+          tokenBMarketCap: tokenBData[dateKey]?.marketCap,
+          coefPriceMarketCap: void 0,
+          tokenAVolume: tokenAData[dateKey]?.volume,
+          tokenBVolume: tokenBData[dateKey]?.volume,
+          coefVolume: void 0,
+          lrCoefVolume: void 0,
+        };
+      }
+      return rowObject
+    }, {});
 
-  // const tokenBMarketCap = new coinGecko.Coins().getCoinsRange(
-  //   tokenBID,
-  //   'usd',
-  //   fromUnix,
-  //   toUnix
-  // )
-
-  tokenAData.forEach((rowObject) => {
-    const dataKey = new Hash(rowObject.dateUnix).md5;
-    if (!object[dataKey]) {
-      object[dataKey] = {
-        dateKey: dataKey,
-        date: new FormatDate(new Date(rowObject.dateUnix * 1000)).getFormatDate(
-          'yyyy-MM-dd'
-        ),
-        dateUnix: rowObject.dateUnix,
-        tokenATokenB: tokenASymbol + '/' + tokenBSymbol,
-        tokenBPrice: void 0,
-        tokenAPrice: rowObject.price,
-        coefPrice: void 0,
-        lrCoefPrice: void 0,
-        tokenAMarketCap: rowObject.marketCap,
-        tokenBMarketCap: rowObject.marketCap,
-        coefPriceMarketCap: void 0,
-        tokenBVolume: void 0,
-        tokenAVolume: rowObject.volume,
-        coefVolume: void 0,
-        lrCoefVolume: void 0,
-      };
-    }
-  });
-
-  tokenBData.forEach((rowObject) => {
-    const dataKey = new Hash(rowObject.dateUnix).md5;
-    object[dataKey].tokenBPrice = rowObject.price;
-    object[dataKey].tokenBVolume = rowObject.volume;
-    object[dataKey].tokenBMarketCap = rowObject.marketCap;
-  });
-  const filterArrayOfObject = Object.values(object).filter((rowObject) => {
+  const filterArrayOfObject = Object.values(allData).filter((rowObject) => {
     return (
       rowObject.tokenAPrice &&
       rowObject.tokenBPrice &&
       rowObject.tokenAMarketCap &&
       rowObject.tokenBMarketCap &&
       rowObject.tokenAVolume &&
-      rowObject.tokenBVolume &&
-      rowObject.dateUnix > new FormatDate(from).unix
+      rowObject.tokenBVolume
+      // rowObject.dateValue > new FormatDate(from).getDateBegin().value
     )
   });
   histories.truncateInsertRows(filterArrayOfObject);
 }
-
-function calculateCoef() {
-  let times, coefPrices, coefVolumes, coefMarketCaps, coefVolatilitys;
-  times = [];
+/**
+ * Расчет показателей
+ * @param {string} fromMetric yyyy-mm-dd
+ * @param {*} toMetric yyyy-mm-dd
+ */
+function calculateCoef(fromMetric, toMetric) {
+  const dateFromMetric = new FormatDate(fromMetric).getDateBegin();
+  const dateToMetric = new FormatDate(toMetric).getDateBegin();
+  let dateUnixs, coefPrices, coefVolumes, coefMarketCaps, coefVolatilitys;
+  dateUnixs = [];
   coefPrices = [];
   coefVolumes = [];
   coefMarketCaps = [];
   coefVolatilitys = [];
+
   const histories = new Analitics().getWorkSheet('history');
+
   const newHistories = histories.arrayOfObject.reduce((object, rowObject) => {
     if (!object[rowObject.dateKey]) {
       object[rowObject.dateKey] = rowObject;
@@ -1405,11 +1459,17 @@ function calculateCoef() {
     object[rowObject.dateKey].coefVolatility =
       object[rowObject.dateKey].tokenAVolatility /
       object[rowObject.dateKey].tokenBVolatility;
-    times.push(rowObject.dateUnix);
-    coefPrices.push(object[rowObject.dateKey].coefPrice);
-    coefVolumes.push(object[rowObject.dateKey].coefVolume);
-    coefMarketCaps.push(object[rowObject.dateKey].coefPriceMarketCap);
-    coefVolatilitys.push(object[rowObject.dateKey].coefVolatility);
+
+    if (
+      rowObject.dateUnix >= dateFromMetric.unix &&
+      rowObject.dateUnix <= dateToMetric.unix
+    ) {
+      dateUnixs.push(rowObject.dateUnix);
+      coefPrices.push(object[rowObject.dateKey].coefPrice);
+      coefVolumes.push(object[rowObject.dateKey].coefVolume);
+      coefMarketCaps.push(object[rowObject.dateKey].coefPriceMarketCap);
+      coefVolatilitys.push(object[rowObject.dateKey].coefVolatility);
+    }
     return object
   }, {});
 
@@ -1417,9 +1477,11 @@ function calculateCoef() {
   const positiveArraydiffCoefPricestoLr = [];
   const negativeArraydiffCoefPricestoLr = [];
   const arraylrCoefPrices = [];
-  const lrCoefPrices = findLineByLeastSquares(times, coefPrices);
-  lrCoefPrices.forEach(([time, value]) => {
-    const dateKey = new Hash(time).md5;
+  const lrCoefPrices = findLineByLeastSquares(dateUnixs, coefPrices);
+
+  lrCoefPrices.forEach(([dateUnix, value]) => {
+    const dateKey = new FormatDate(new Date(dateUnix * 1000)).getDateBegin()
+      .dateKey;
     newHistories[dateKey].lrCoefPrice = value;
     arraylrCoefPrices.push(value);
     //* расчет отклонения от средней регресионной
@@ -1456,64 +1518,55 @@ function calculateCoef() {
   //   },
   //   maxPositiveArraydiffCoefPricestoLr
   // )
-
+  //* стандратное отклонение
   const stdevPositiveArraydiffCoefPricestoLr = getStandardDeviation(
     positiveArraydiffCoefPricestoLr
   );
-
-  const varPositiveArraydiffCoefPricestoLr = calculateVariance(
-    positiveArraydiffCoefPricestoLr
-  );
-
-  // console.log(
-  //   'positiveArraydiffCoefPricestoLr',
-  //   positiveArraydiffCoefPricestoLr
-  // )
-
-  // console.log(
-  //   'maxPositiveArraydiffCoefPricestoLr',
-  //   maxPositiveArraydiffCoefPricestoLr
-  // )
-  // console.log(
-  //   'minPositiveArraydiffCoefPricestoLr',
-  //   minPositiveArraydiffCoefPricestoLr
-  // )
-  // console.log(
-  //   'stdevPositiveArraydiffCoefPricestoLr',
-  //   stdevPositiveArraydiffCoefPricestoLr
-  // )
-
-  // console.log(
-  //   'varPositiveArraydiffCoefPricestoLr',
-  //   varPositiveArraydiffCoefPricestoLr
-  // )
-
   const stdevNegativeArraydiffCoefPricestoLr = getStandardDeviation(
     negativeArraydiffCoefPricestoLr
   );
 
+  //* вариативность
+  const varPositiveArraydiffCoefPricestoLr = calculateVariance(
+    positiveArraydiffCoefPricestoLr
+  );
   const varNegativeArraydiffCoefPricestoLr = calculateVariance(
     negativeArraydiffCoefPricestoLr
   );
 
-  //* расчет коэфициента объема
-  const lrCoefVolumes = findLineByLeastSquares(times, coefVolumes);
-  lrCoefVolumes.forEach(([time, value]) => {
-    const dateKey = new Hash(time).md5;
-    newHistories[dateKey].lrCoefVolume = value;
-  });
-  //* расчет коэфициента капитализации
-  const lrcoefPriceMarketCaps = findLineByLeastSquares(times, coefMarketCaps);
-  lrcoefPriceMarketCaps.forEach(([time, value]) => {
-    const dateKey = new Hash(time).md5;
-    newHistories[dateKey].lrCoefPriceMarketCap = value;
-  });
-  //* расчет коэфициента волантильности
-  const lrCoefVolatilitys = findLineByLeastSquares(times, coefVolatilitys);
-  lrCoefVolatilitys.forEach(([time, value]) => {
-    const dateKey = new Hash(time).md5;
-    newHistories[dateKey].lrCoefVolatility = value;
-  });
+  //* среднее
+  const avgPositiveArraydiffCoefPricestoLr = calculateAvg(
+    positiveArraydiffCoefPricestoLr
+  );
+
+  const avgNegativeArraydiffCoefPricestoLr = calculateAvg(
+    positiveArraydiffCoefPricestoLr
+  );
+
+  //* коэффициент вариативности
+  const coefVarPositiveArraydiffCoefPricestoLr =
+    stdevPositiveArraydiffCoefPricestoLr / avgPositiveArraydiffCoefPricestoLr;
+  const coefVarNegativeArraydiffCoefPricestoLr =
+    stdevNegativeArraydiffCoefPricestoLr / avgNegativeArraydiffCoefPricestoLr;
+
+  // //* расчет коэффициента объема
+  // const lrCoefVolumes = findLineByLeastSquares(times, coefVolumes)
+  // lrCoefVolumes.forEach(([time, value]) => {
+  //   const dateKey = new Hash(time).md5
+  //   newHistories[dateKey].lrCoefVolume = value
+  // })
+  // //* расчет коэффициента капитализации
+  // const lrcoefPriceMarketCaps = findLineByLeastSquares(times, coefMarketCaps)
+  // lrcoefPriceMarketCaps.forEach(([time, value]) => {
+  //   const dateKey = new Hash(time).md5
+  //   newHistories[dateKey].lrCoefPriceMarketCap = value
+  // })
+  // //* расчет коэффициента волантильности
+  // const lrCoefVolatilitys = findLineByLeastSquares(times, coefVolatilitys)
+  // lrCoefVolatilitys.forEach(([time, value]) => {
+  //   const dateKey = new Hash(time).md5
+  //   newHistories[dateKey].lrCoefVolatility = value
+  // })
 
   // arrayOfObject = Object.values(newHistories)
   // const arrayCoefPrices = arrayOfObject.map((m) => m.lrCoefPrice)
@@ -1549,21 +1602,25 @@ function calculateCoef() {
   // )
   const arrayOfObjectNewHistories = Object.values(newHistories);
   arrayOfObjectNewHistories.forEach((rowObject) => {
-    rowObject.lrCoefPriceHigh =
-      rowObject.lrCoefPrice +
-      (stdevPositiveArraydiffCoefPricestoLr -
-        varPositiveArraydiffCoefPricestoLr) *
-        2;
-    rowObject.stdevPositiveArraydiffCoefPricestoLr = stdevPositiveArraydiffCoefPricestoLr;
-    rowObject.varPositiveArraydiffCoefPricestoLr = varPositiveArraydiffCoefPricestoLr;
-    rowObject.lrCoefPriceLow =
-      rowObject.lrCoefPrice -
-      (stdevNegativeArraydiffCoefPricestoLr -
-        varNegativeArraydiffCoefPricestoLr) *
-        2;
+    if (rowObject.lrCoefPrice) {
+      rowObject.lrCoefPriceHigh =
+        rowObject.lrCoefPrice +
+        stdevPositiveArraydiffCoefPricestoLr *
+          (coefVarPositiveArraydiffCoefPricestoLr + 1);
+      rowObject.stdevPositiveArraydiffCoefPricestoLr = stdevPositiveArraydiffCoefPricestoLr;
+      rowObject.varPositiveArraydiffCoefPricestoLr = varPositiveArraydiffCoefPricestoLr;
+      rowObject.avgPositiveArraydiffCoefPricestoLr = avgPositiveArraydiffCoefPricestoLr;
+      rowObject.coefVarPositiveArraydiffCoefPricestoLr = coefVarPositiveArraydiffCoefPricestoLr;
+      rowObject.lrCoefPriceLow =
+        rowObject.lrCoefPrice -
+        stdevNegativeArraydiffCoefPricestoLr *
+          (coefVarNegativeArraydiffCoefPricestoLr + 1);
 
-    rowObject.stdevNegativeArraydiffCoefPricestoLr = stdevNegativeArraydiffCoefPricestoLr;
-    rowObject.varNegativeArraydiffCoefPricestoLr = varNegativeArraydiffCoefPricestoLr;
+      rowObject.stdevNegativeArraydiffCoefPricestoLr = stdevNegativeArraydiffCoefPricestoLr;
+      rowObject.varNegativeArraydiffCoefPricestoLr = varNegativeArraydiffCoefPricestoLr;
+      rowObject.avgNegativeArraydiffCoefPricestoLr = avgNegativeArraydiffCoefPricestoLr;
+      rowObject.coefVarNegativeArraydiffCoefPricestoLr = coefVarNegativeArraydiffCoefPricestoLr;
+    }
   });
 
   histories.truncateInsertRows(Object.values(arrayOfObjectNewHistories));
@@ -1719,18 +1776,18 @@ function quickselect(arr, k) {
 }
 
 // Calculate the average of all the numbers
-const calculateMean = (values) => {
+const calculateAvg = (values) => {
   const mean = values.reduce((sum, current) => sum + current) / values.length;
   return mean
 };
 
-// Calculate variance
+// Calculate variance (dispersion)
 const calculateVariance = (values) => {
-  const average = calculateMean(values);
+  const average = calculateAvg(values);
   const squareDiffs = values.map((value) => {
     const diff = value - average;
     return diff * diff
   });
-  const variance = calculateMean(squareDiffs);
+  const variance = calculateAvg(squareDiffs);
   return variance
 };

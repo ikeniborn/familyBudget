@@ -154,11 +154,15 @@ class Coins {
 
     if (Object.keys(result).length) {
       const aggData = result?.prices.reduce((object, [dateValue, data]) => {
-        const dateUnix = new FormatDate(dateValue).unix
-        const dateKey = new Hash(dateUnix).md5
+        const dateData = new FormatDate(dateValue).getDateBegin()
+        const dateKey = dateData.dateKey
         if (!object[dateKey]) {
           object[dateKey] = {
-            dateUnix: dateUnix,
+            dateKey: dateKey,
+            dateString: dateData.date,
+            dateUnix: dateData.unix,
+            dateValue: dateData.value,
+            timeZone: dateData.timeZone,
             price: data,
             marketCap: void 0,
             volume: void 0,
@@ -167,13 +171,11 @@ class Coins {
         return object
       }, {})
       result?.market_caps.forEach(([dateValue, data]) => {
-        const dateUnix = new FormatDate(dateValue).unix
-        const dateKey = new Hash(dateUnix).md5
+        const dateKey = new FormatDate(dateValue).getDateBegin().dateKey
         aggData[dateKey].marketCap = data
       })
       result?.total_volumes.forEach(([dateValue, data]) => {
-        const dateUnix = new FormatDate(dateValue).unix
-        const dateKey = new Hash(dateUnix).md5
+        const dateKey = new FormatDate(dateValue).getDateBegin().dateKey
         aggData[dateKey].volume = data
       })
       return aggData
