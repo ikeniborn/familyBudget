@@ -539,7 +539,9 @@ class WorkSheet extends SpreadSheet {
               if (!value) {
                 if (this.head[column]?.default) {
                   if (this.head[column]?.type === 'date') {
-                    value = new Date(this.head[column].default);
+                    value = new FormatDate(
+                      this.head[column].default
+                    ).getFormatDate('yyyy-MM-dd HH:mm');
                   } else {
                     value = this.head[column].default;
                   }
@@ -588,7 +590,9 @@ class WorkSheet extends SpreadSheet {
         newRowObject[column] = rowObject[column];
         if (this.head[column]?.default) {
           if (this.head[column]?.type === 'date') {
-            value[column] = new Date(this.head[column].default);
+            value[column] = new FormatDate(
+              this.head[column].default
+            ).getFormatDate('yyyy-MM-dd HH:mm');
           } else {
             value[column] = this.head[column].default;
           }
@@ -613,7 +617,9 @@ class WorkSheet extends SpreadSheet {
               if (!value) {
                 if (this.head[column]?.default) {
                   if (this.head[column]?.type === 'date') {
-                    value = new Date(this.head[column].default);
+                    value = new FormatDate(
+                      this.head[column].default
+                    ).getFormatDate('yyyy-MM-dd HH:mm');
                   } else {
                     value = this.head[column].default;
                   }
@@ -649,7 +655,9 @@ class WorkSheet extends SpreadSheet {
           if (!value) {
             if (this.head[column]?.default) {
               if (this.head[column]?.type === 'date') {
-                value = new Date(this.head[column].default);
+                value = new FormatDate(this.head[column].default).getFormatDate(
+                  'yyyy-MM-dd HH:mm'
+                );
               } else {
                 value = this.head[column].default;
               }
@@ -904,58 +912,73 @@ class Analitics {
           dateKey: { alias: 'dateKey', idx: 0 },
           date: { alias: 'date', idx: 1 },
           dateUnix: { alias: 'dateUnix', idx: 2 },
-          tokenATokenB: { alias: 'tokenATokenB', idx: 3 },
-          tokenAPrice: { alias: 'tokenAPrice', idx: 4 },
-          tokenBPrice: { alias: 'tokenBPrice', idx: 5 },
-          coefPrice: { alias: 'coefPrice', idx: 6 },
-          lrCoefPrice: { alias: 'lrCoefPrice', idx: 7 },
-          lrCoefPriceHigh: { alias: 'lrCoefPriceHigh', idx: 8 },
-          lrCoefPriceLow: { alias: 'lrCoefPriceLow', idx: 9 },
-          stdevPositiveArraydiffCoefPricestoLr: {
-            alias: 'stdevPositiveArraydiffCoefPricestoLr',
-            idx: 10,
-          },
-          varPositiveArraydiffCoefPricestoLr: {
-            alias: 'varPositiveArraydiffCoefPricestoLr',
-            idx: 11,
-          },
-          avgPositiveArraydiffCoefPricestoLr: {
-            alias: 'avgPositiveArraydiffCoefPricestoLr',
-            idx: 12,
-          },
-          coefVarPositiveArraydiffCoefPricestoLr: {
-            alias: 'coefVarPositiveArraydiffCoefPricestoLr',
-            idx: 13,
-          },
-          stdevNegativeArraydiffCoefPricestoLr: {
-            alias: 'stdevNegativeArraydiffCoefPricestoLr',
-            idx: 14,
-          },
-          varNegativeArraydiffCoefPricestoLr: {
-            alias: 'varNegativeArraydiffCoefPricestoLr',
-            idx: 15,
-          },
-          avgNegativeArraydiffCoefPricestoLr: {
-            alias: 'avgNegativeArraydiffCoefPricestoLr',
-            idx: 16,
-          },
-          coefVarNegativeArraydiffCoefPricestoLr: {
-            alias: 'coefVarNegativeArraydiffCoefPricestoLr',
-            idx: 17,
-          },
-          tokenAMarketCap: { alias: 'tokenAMarketCap', idx: 18 },
-          tokenBMarketCap: { alias: 'tokenBMarketCap', idx: 19 },
-          coefPriceMarketCap: { alias: 'coefPriceMarketCap', idx: 20 },
-          lrCoefPriceMarketCap: { alias: 'lrCoefPriceMarketCap', idx: 21 },
-          tokenAVolume: { alias: 'tokenAVolume', idx: 22 },
-          tokenBVolume: { alias: 'tokenBVolume', idx: 23 },
-          coefVolume: { alias: 'coefVolume', idx: 24 },
-          lrCoefVolume: { alias: 'lrCoefVolume', idx: 25 },
-          tokenAVolatility: { alias: 'tokenAVolatility', idx: 26 },
-          tokenBVolatility: { alias: 'tokenBVolatility', idx: 27 },
-          coefVolatility: { alias: 'coefVolatility', idx: 28 },
-          lrCoefVolatility: { alias: 'lrCoefVolatility', idx: 29 },
-          rowId: { alias: 'Row ID', idx: 30 },
+          dateValue: { alias: 'dateValue', idx: 3 },
+          tokenATokenB: { alias: 'tokenATokenB', idx: 4 },
+          tokenAPrice: { alias: 'tokenAPrice', idx: 5 },
+          tokenBPrice: { alias: 'tokenBPrice', idx: 6 },
+          coefPrice: { alias: 'coefPrice', idx: 7 },
+          coefPriceAth: { alias: 'coefPriceAth', idx: 8 },
+          coefPriceAtl: { alias: 'coefPriceAtl', idx: 9 },
+          lrCoefPrice: { alias: 'lrCoefPrice', idx: 10 },
+          lrCoefPriceHigh: { alias: 'lrCoefPriceHigh', idx: 11 },
+          lrCoefPriceLow: { alias: 'lrCoefPriceLow', idx: 12 },
+          lrCoefPrice3d: { alias: 'lrCoefPrice3d', idx: 13 },
+          lrCoefPriceHigh3d: { alias: 'lrCoefPriceHigh3d', idx: 14 },
+          lrCoefPriceLow3d: { alias: 'lrCoefPriceLow3d', idx: 15 },
+          lrCoefPrice7d: { alias: 'lrCoefPrice7d', idx: 16 },
+          lrCoefPriceHigh7d: { alias: 'lrCoefPriceHigh7d', idx: 17 },
+          lrCoefPriceLow7d: { alias: 'lrCoefPriceLow7d', idx: 18 },
+          lrCoefPrice30d: { alias: 'lrCoefPrice30d', idx: 19 },
+          lrCoefPriceHigh30d: { alias: 'lrCoefPriceHigh30d', idx: 20 },
+          lrCoefPriceLow30d: { alias: 'lrCoefPriceLow30d', idx: 21 },
+          lrCoefPrice90d: { alias: 'lrCoefPrice90d', idx: 22 },
+          lrCoefPriceHigh90d: { alias: 'lrCoefPriceHigh90d', idx: 23 },
+          lrCoefPriceLow90d: { alias: 'lrCoefPriceLow90d', idx: 24 },
+          // stdevPositiveArraydiffCoefPricestoLr: {
+          //   alias: 'stdevPositiveArraydiffCoefPricestoLr',
+          //   idx: 10,
+          // },
+          // varPositiveArraydiffCoefPricestoLr: {
+          //   alias: 'varPositiveArraydiffCoefPricestoLr',
+          //   idx: 11,
+          // },
+          // avgPositiveArraydiffCoefPricestoLr: {
+          //   alias: 'avgPositiveArraydiffCoefPricestoLr',
+          //   idx: 12,
+          // },
+          // coefVarPositiveArraydiffCoefPricestoLr: {
+          //   alias: 'coefVarPositiveArraydiffCoefPricestoLr',
+          //   idx: 13,
+          // },
+          // stdevNegativeArraydiffCoefPricestoLr: {
+          //   alias: 'stdevNegativeArraydiffCoefPricestoLr',
+          //   idx: 14,
+          // },
+          // varNegativeArraydiffCoefPricestoLr: {
+          //   alias: 'varNegativeArraydiffCoefPricestoLr',
+          //   idx: 15,
+          // },
+          // avgNegativeArraydiffCoefPricestoLr: {
+          //   alias: 'avgNegativeArraydiffCoefPricestoLr',
+          //   idx: 16,
+          // },
+          // coefVarNegativeArraydiffCoefPricestoLr: {
+          //   alias: 'coefVarNegativeArraydiffCoefPricestoLr',
+          //   idx: 17,
+          // },
+          // tokenAMarketCap: { alias: 'tokenAMarketCap', idx: 18 },
+          // tokenBMarketCap: { alias: 'tokenBMarketCap', idx: 19 },
+          // coefPriceMarketCap: { alias: 'coefPriceMarketCap', idx: 20 },
+          // lrCoefPriceMarketCap: { alias: 'lrCoefPriceMarketCap', idx: 21 },
+          // tokenAVolume: { alias: 'tokenAVolume', idx: 22 },
+          // tokenBVolume: { alias: 'tokenBVolume', idx: 23 },
+          // coefVolume: { alias: 'coefVolume', idx: 24 },
+          // lrCoefVolume: { alias: 'lrCoefVolume', idx: 25 },
+          // tokenAVolatility: { alias: 'tokenAVolatility', idx: 26 },
+          // tokenBVolatility: { alias: 'tokenBVolatility', idx: 27 },
+          // coefVolatility: { alias: 'coefVolatility', idx: 28 },
+          // lrCoefVolatility: { alias: 'lrCoefVolatility', idx: 29 },
+          rowId: { alias: 'Row ID', idx: 25 },
         },
       },
     };
@@ -1326,34 +1349,20 @@ class Coins {
   }
 }
 
-function test() {
-  console.log(
-    new FormatDate('2022-07-01').getDateBegin().getDateUTC().getListDates()
-      .listDates
-  );
-}
-
 /**
  *
  * @param {*} from
  * @param {*} to
- * @param {*} tokenASymbol
- * @param {*} tokenBSymbol
  * @param {*} tokenAId
  * @param {*} tokenBID
  */
-function updateHistory(
-  from,
-  to,
-  tokenASymbol,
-  tokenBSymbol,
-  tokenAId,
-  tokenBID
-) {
+function updateHistory(from, to, tokenAId, tokenBID) {
   let dateFrom, fromUnix, countDay;
   const histories = new Analitics().getWorkSheet('history');
   dateFrom = new FormatDate(from).getDateBegin();
-  const dateTo = new FormatDate(to).getDateBegin();
+  const dateTo = to
+    ? new FormatDate(to).getDateBegin()
+    : new FormatDate(new Date()).getDateBegin();
 
   fromUnix = dateFrom.unix;
   const toUnix = dateTo.unix;
@@ -1393,17 +1402,18 @@ function updateHistory(
           dateValue: dateData.value,
           dateUnix: dateData.unix,
           date: dateData.getFormatDate('yyyy-MM-dd'),
-          tokenATokenB: tokenASymbol + '/' + tokenBSymbol,
+          tokenATokenB: tokenAId + '/' + tokenBID,
           tokenAPrice: tokenAData[dateKey]?.price,
           tokenBPrice: tokenBData[dateKey]?.price,
-          coefPrice: void 0,
+          coefPrice: tokenAData[dateKey]?.price / tokenBData[dateKey]?.price,
           lrCoefPrice: void 0,
           tokenAMarketCap: tokenAData[dateKey]?.marketCap,
           tokenBMarketCap: tokenBData[dateKey]?.marketCap,
-          coefPriceMarketCap: void 0,
+          coefPriceMarketCap:
+            tokenAData[dateKey]?.marketCap / tokenBData[dateKey]?.marketCap,
           tokenAVolume: tokenAData[dateKey]?.volume,
           tokenBVolume: tokenBData[dateKey]?.volume,
-          coefVolume: void 0,
+          coefVolume: tokenAData[dateKey]?.volume / tokenBData[dateKey]?.volume,
           lrCoefVolume: void 0,
         };
       }
@@ -1431,59 +1441,160 @@ function updateHistory(
 function calculateCoef(fromMetric, toMetric) {
   const dateFromMetric = new FormatDate(fromMetric).getDateBegin();
   const dateToMetric = new FormatDate(toMetric).getDateBegin();
-  let dateUnixs, coefPrices, coefVolumes, coefMarketCaps, coefVolatilitys;
+  let dateUnixs,
+    coefPrices,
+    dateUnixs3d,
+    coefPrices3d,
+    dateUnixs7d,
+    coefPrices7d,
+    dateUnixs30d,
+    coefPrices30d,
+    dateUnixs90d,
+    coefPrices90d,
+    dateToMetric0dUnix,
+    dateFromMetric3dUnix,
+    dateFromMetric7dUnix,
+    dateFromMetric30dUnix,
+    dateFromMetric90dUnix;
+  //  coefVolumes, coefMarketCaps, coefVolatilitys
   dateUnixs = [];
   coefPrices = [];
-  coefVolumes = [];
-  coefMarketCaps = [];
-  coefVolatilitys = [];
+  dateUnixs3d = [];
+  coefPrices3d = [];
+  dateUnixs7d = [];
+  coefPrices7d = [];
+  dateUnixs30d = [];
+  coefPrices30d = [];
+  dateUnixs90d = [];
+  coefPrices90d = [];
+  // coefPrices = []
+  // coefVolumes = []
+  // coefMarketCaps = []
+  // coefVolatilitys = []
 
   const histories = new Analitics().getWorkSheet('history');
+  dateToMetric0dUnix = histories.arrayOfObject.reduce((max, rowObject) => {
+    if (max < rowObject.dateUnix) {
+      max = rowObject.dateUnix;
+    }
+    return max
+  }, 0);
+  dateFromMetric3dUnix = new FormatDate(
+    dateToMetric0dUnix * 1000
+  ).getPreviousDate(3).unix;
+  dateFromMetric7dUnix = new FormatDate(
+    dateToMetric0dUnix * 1000
+  ).getPreviousDate(7).unix;
+  dateFromMetric30dUnix = new FormatDate(
+    dateToMetric0dUnix * 1000
+  ).getPreviousDate(30).unix;
+  dateFromMetric90dUnix = new FormatDate(
+    dateToMetric0dUnix * 1000
+  ).getPreviousDate(90).unix;
 
   const newHistories = histories.arrayOfObject.reduce((object, rowObject) => {
     if (!object[rowObject.dateKey]) {
       object[rowObject.dateKey] = rowObject;
     }
-    object[rowObject.dateKey].coefPrice =
-      rowObject.tokenAPrice / rowObject.tokenBPrice;
-    object[rowObject.dateKey].coefVolume =
-      rowObject.tokenAVolume / rowObject.tokenBVolume;
-    object[rowObject.dateKey].coefPriceMarketCap =
-      rowObject.tokenAMarketCap / rowObject.tokenBMarketCap;
 
-    //* расчет волантильности
-    object[rowObject.dateKey].tokenAVolatility =
-      rowObject.tokenAVolume / rowObject.tokenAMarketCap;
-    object[rowObject.dateKey].tokenBVolatility =
-      rowObject.tokenBVolume / rowObject.tokenBMarketCap;
-    object[rowObject.dateKey].coefVolatility =
-      object[rowObject.dateKey].tokenAVolatility /
-      object[rowObject.dateKey].tokenBVolatility;
-
+    // //* расчет волантильности
+    // object[rowObject.dateKey].tokenAVolatility =
+    //   rowObject.tokenAVolume / rowObject.tokenAMarketCap
+    // object[rowObject.dateKey].tokenBVolatility =
+    //   rowObject.tokenBVolume / rowObject.tokenBMarketCap
+    // object[rowObject.dateKey].coefVolatility =
+    //   object[rowObject.dateKey].tokenAVolatility /
+    //   object[rowObject.dateKey].tokenBVolatility
+    //* ограничение по входным параметрам
     if (
       rowObject.dateUnix >= dateFromMetric.unix &&
       rowObject.dateUnix <= dateToMetric.unix
     ) {
       dateUnixs.push(rowObject.dateUnix);
       coefPrices.push(object[rowObject.dateKey].coefPrice);
-      coefVolumes.push(object[rowObject.dateKey].coefVolume);
-      coefMarketCaps.push(object[rowObject.dateKey].coefPriceMarketCap);
-      coefVolatilitys.push(object[rowObject.dateKey].coefVolatility);
+      // coefVolumes.push(object[rowObject.dateKey].coefVolume)
+      // coefMarketCaps.push(object[rowObject.dateKey].coefPriceMarketCap)
+      // coefVolatilitys.push(object[rowObject.dateKey].coefVolatility)
+    }
+    //* за три последний дня
+    if (
+      rowObject.dateUnix >= dateFromMetric3dUnix &&
+      rowObject.dateUnix <= dateToMetric0dUnix
+    ) {
+      dateUnixs3d.push(rowObject.dateUnix);
+      coefPrices3d.push(object[rowObject.dateKey].coefPrice);
+    }
+    //* за 7 дней
+    if (
+      rowObject.dateUnix >= dateFromMetric7dUnix &&
+      rowObject.dateUnix <= dateToMetric0dUnix
+    ) {
+      dateUnixs7d.push(rowObject.dateUnix);
+      coefPrices7d.push(object[rowObject.dateKey].coefPrice);
+    }
+    //* за 30 дней
+    if (
+      rowObject.dateUnix >= dateFromMetric30dUnix &&
+      rowObject.dateUnix <= dateToMetric0dUnix
+    ) {
+      dateUnixs30d.push(rowObject.dateUnix);
+      coefPrices30d.push(object[rowObject.dateKey].coefPrice);
+    }
+    //* за 90 дней
+    if (
+      rowObject.dateUnix >= dateFromMetric90dUnix &&
+      rowObject.dateUnix <= dateToMetric0dUnix
+    ) {
+      dateUnixs90d.push(rowObject.dateUnix);
+      coefPrices90d.push(object[rowObject.dateKey].coefPrice);
     }
     return object
   }, {});
 
   //* расчет коэфициента цены
-  const positiveArraydiffCoefPricestoLr = [];
-  const negativeArraydiffCoefPricestoLr = [];
-  const arraylrCoefPrices = [];
-  const lrCoefPrices = findLineByLeastSquares(dateUnixs, coefPrices);
+  let positiveArraydiffCoefPricestoLr,
+    positiveArraydiffCoefPricestoLr3d,
+    positiveArraydiffCoefPricestoLr7d,
+    positiveArraydiffCoefPricestoLr30d,
+    positiveArraydiffCoefPricestoLr90d;
+  positiveArraydiffCoefPricestoLr = [];
+  positiveArraydiffCoefPricestoLr3d = [];
+  positiveArraydiffCoefPricestoLr7d = [];
+  positiveArraydiffCoefPricestoLr30d = [];
+  positiveArraydiffCoefPricestoLr90d = [];
+  let negativeArraydiffCoefPricestoLr,
+    negativeArraydiffCoefPricestoLr3d,
+    negativeArraydiffCoefPricestoLr7d,
+    negativeArraydiffCoefPricestoLr30d,
+    negativeArraydiffCoefPricestoLr90d;
+  negativeArraydiffCoefPricestoLr = [];
+  negativeArraydiffCoefPricestoLr3d = [];
+  negativeArraydiffCoefPricestoLr7d = [];
+  negativeArraydiffCoefPricestoLr30d = [];
+  negativeArraydiffCoefPricestoLr90d = [];
+
+  let lrCoefPrices,
+    lrCoefPrices3d,
+    lrCoefPrices7d,
+    lrCoefPrices30d,
+    lrCoefPrices90d;
+
+  lrCoefPrices = findLineByLeastSquares(dateUnixs, coefPrices);
+  lrCoefPrices3d = findLineByLeastSquares(dateUnixs3d, coefPrices3d);
+  lrCoefPrices7d = findLineByLeastSquares(dateUnixs7d, coefPrices7d);
+  lrCoefPrices30d = findLineByLeastSquares(dateUnixs30d, coefPrices30d);
+  lrCoefPrices90d = findLineByLeastSquares(dateUnixs90d, coefPrices90d);
+
+  let coefPriceAthArray, coefPriceAtlArray;
+
+  coefPriceAthArray = [];
+  coefPriceAtlArray = [];
 
   lrCoefPrices.forEach(([dateUnix, value]) => {
     const dateKey = new FormatDate(new Date(dateUnix * 1000)).getDateBegin()
       .dateKey;
+
     newHistories[dateKey].lrCoefPrice = value;
-    arraylrCoefPrices.push(value);
     //* расчет отклонения от средней регресионной
     newHistories[dateKey].diffCoefPricestoLr =
       newHistories[dateKey].coefPrice - value;
@@ -1492,62 +1603,299 @@ function calculateCoef(fromMetric, toMetric) {
       positiveArraydiffCoefPricestoLr.push(
         newHistories[dateKey].diffCoefPricestoLr
       );
+      coefPriceAthArray.push({
+        dateKey: dateKey,
+        diffCoefPricestoLr: newHistories[dateKey].diffCoefPricestoLr,
+        coefPrice: newHistories[dateKey].coefPrice,
+      });
     } else if (newHistories[dateKey].diffCoefPricestoLr < 0) {
       //* отрицательное отклонение
       negativeArraydiffCoefPricestoLr.push(
         newHistories[dateKey].diffCoefPricestoLr * -1
       );
+      coefPriceAtlArray.push({
+        dateKey: dateKey,
+        diffCoefPricestoLr: newHistories[dateKey].diffCoefPricestoLr * -1,
+        coefPrice: newHistories[dateKey].coefPrice,
+      });
     }
   });
 
-  // const maxPositiveArraydiffCoefPricestoLr = positiveArraydiffCoefPricestoLr.reduce(
-  //   (max, value) => {
-  //     if (max < value) {
-  //       max = value
-  //     }
-  //     return max
-  //   },
-  //   0
-  // )
-  // const minPositiveArraydiffCoefPricestoLr = positiveArraydiffCoefPricestoLr.reduce(
-  //   (min, value) => {
-  //     if (min > value) {
-  //       min = value
-  //     }
-  //     return min
-  //   },
-  //   maxPositiveArraydiffCoefPricestoLr
-  // )
+  //* Максимум и минимум коэффициенты
+  let coefPriceAth;
+  coefPriceAth = { dateKey: void 0, diffCoefPricestoLr: 0 };
+  coefPriceAthArray.forEach((object) => {
+    if (object.diffCoefPricestoLr > coefPriceAth.diffCoefPricestoLr) {
+      coefPriceAth = object;
+    }
+  });
+
+  let coefPriceAtl;
+  coefPriceAtl = { dateKey: void 0, diffCoefPricestoLr: 0 };
+  coefPriceAtlArray.forEach((object) => {
+    if (object.diffCoefPricestoLr > coefPriceAtl.diffCoefPricestoLr) {
+      coefPriceAtl = object;
+    }
+  });
+
+  lrCoefPrices3d.forEach(([dateUnix, value]) => {
+    const dateKey = new FormatDate(new Date(dateUnix * 1000)).getDateBegin()
+      .dateKey;
+    newHistories[dateKey].lrCoefPrice3d = value;
+    // arraylrCoefPrices.push(value)
+    //* расчет отклонения от средней регресионной
+    newHistories[dateKey].diffCoefPricestoLr3d =
+      newHistories[dateKey].coefPrice - value;
+    if (newHistories[dateKey].diffCoefPricestoLr3d > 0) {
+      //* положительное отклонение
+      positiveArraydiffCoefPricestoLr3d.push(
+        newHistories[dateKey].diffCoefPricestoLr3d
+      );
+    } else if (newHistories[dateKey].diffCoefPricestoLr3d < 0) {
+      //* отрицательное отклонение
+      negativeArraydiffCoefPricestoLr3d.push(
+        newHistories[dateKey].diffCoefPricestoLr3d * -1
+      );
+    }
+  });
+
+  lrCoefPrices7d.forEach(([dateUnix, value]) => {
+    const dateKey = new FormatDate(new Date(dateUnix * 1000)).getDateBegin()
+      .dateKey;
+    newHistories[dateKey].lrCoefPrice7d = value;
+    // arraylrCoefPrices.push(value)
+    //* расчет отклонения от средней регресионной
+    newHistories[dateKey].diffCoefPricestoLr7d =
+      newHistories[dateKey].coefPrice - value;
+    if (newHistories[dateKey].diffCoefPricestoLr7d > 0) {
+      //* положительное отклонение
+      positiveArraydiffCoefPricestoLr7d.push(
+        newHistories[dateKey].diffCoefPricestoLr7d
+      );
+    } else if (newHistories[dateKey].diffCoefPricestoLr7d < 0) {
+      //* отрицательное отклонение
+      negativeArraydiffCoefPricestoLr7d.push(
+        newHistories[dateKey].diffCoefPricestoLr7d * -1
+      );
+    }
+  });
+
+  lrCoefPrices30d.forEach(([dateUnix, value]) => {
+    const dateKey = new FormatDate(new Date(dateUnix * 1000)).getDateBegin()
+      .dateKey;
+    newHistories[dateKey].lrCoefPrice30d = value;
+    // arraylrCoefPrices.push(value)
+    //* расчет отклонения от средней регресионной
+    newHistories[dateKey].diffCoefPricestoLr30d =
+      newHistories[dateKey].coefPrice - value;
+    if (newHistories[dateKey].diffCoefPricestoLr30d > 0) {
+      //* положительное отклонение
+      positiveArraydiffCoefPricestoLr30d.push(
+        newHistories[dateKey].diffCoefPricestoLr30d
+      );
+    } else if (newHistories[dateKey].diffCoefPricestoLr30d < 0) {
+      //* отрицательное отклонение
+      negativeArraydiffCoefPricestoLr30d.push(
+        newHistories[dateKey].diffCoefPricestoLr30d * -1
+      );
+    }
+  });
+
+  lrCoefPrices90d.forEach(([dateUnix, value]) => {
+    const dateKey = new FormatDate(new Date(dateUnix * 1000)).getDateBegin()
+      .dateKey;
+    newHistories[dateKey].lrCoefPrice90d = value;
+    // arraylrCoefPrices.push(value)
+    //* расчет отклонения от средней регресионной
+    newHistories[dateKey].diffCoefPricestoLr90d =
+      newHistories[dateKey].coefPrice - value;
+    if (newHistories[dateKey].diffCoefPricestoLr90d > 0) {
+      //* положительное отклонение
+      positiveArraydiffCoefPricestoLr90d.push(
+        newHistories[dateKey].diffCoefPricestoLr90d
+      );
+    } else if (newHistories[dateKey].diffCoefPricestoLr90d < 0) {
+      //* отрицательное отклонение
+      negativeArraydiffCoefPricestoLr90d.push(
+        newHistories[dateKey].diffCoefPricestoLr90d * -1
+      );
+    }
+  });
+
+  let stdevPositiveArraydiffCoefPricestoLr,
+    stdevPositiveArraydiffCoefPricestoLr3d,
+    stdevPositiveArraydiffCoefPricestoLr7d,
+    stdevPositiveArraydiffCoefPricestoLr30d,
+    stdevPositiveArraydiffCoefPricestoLr90d;
+
   //* стандратное отклонение
-  const stdevPositiveArraydiffCoefPricestoLr = getStandardDeviation(
+  stdevPositiveArraydiffCoefPricestoLr = getStandardDeviation(
     positiveArraydiffCoefPricestoLr
   );
-  const stdevNegativeArraydiffCoefPricestoLr = getStandardDeviation(
+  stdevPositiveArraydiffCoefPricestoLr3d = getStandardDeviation(
+    positiveArraydiffCoefPricestoLr3d
+  );
+  stdevPositiveArraydiffCoefPricestoLr7d = getStandardDeviation(
+    positiveArraydiffCoefPricestoLr7d
+  );
+  stdevPositiveArraydiffCoefPricestoLr30d = getStandardDeviation(
+    positiveArraydiffCoefPricestoLr30d
+  );
+  stdevPositiveArraydiffCoefPricestoLr90d = getStandardDeviation(
+    positiveArraydiffCoefPricestoLr90d
+  );
+
+  let stdevNegativeArraydiffCoefPricestoLr,
+    stdevNegativeArraydiffCoefPricestoLr3d,
+    stdevNegativeArraydiffCoefPricestoLr7d,
+    stdevNegativeArraydiffCoefPricestoLr30d,
+    stdevNegativeArraydiffCoefPricestoLr90d;
+
+  stdevNegativeArraydiffCoefPricestoLr = getStandardDeviation(
     negativeArraydiffCoefPricestoLr
+  );
+  stdevNegativeArraydiffCoefPricestoLr3d = getStandardDeviation(
+    negativeArraydiffCoefPricestoLr3d
+  );
+  stdevNegativeArraydiffCoefPricestoLr7d = getStandardDeviation(
+    negativeArraydiffCoefPricestoLr7d
+  );
+  stdevNegativeArraydiffCoefPricestoLr30d = getStandardDeviation(
+    negativeArraydiffCoefPricestoLr30d
+  );
+  stdevNegativeArraydiffCoefPricestoLr90d = getStandardDeviation(
+    negativeArraydiffCoefPricestoLr90d
   );
 
   //* вариативность
-  const varPositiveArraydiffCoefPricestoLr = calculateVariance(
+  let varPositiveArraydiffCoefPricestoLr,
+    varPositiveArraydiffCoefPricestoLr3d,
+    varPositiveArraydiffCoefPricestoLr7d,
+    varPositiveArraydiffCoefPricestoLr30d,
+    varPositiveArraydiffCoefPricestoLr90d;
+
+  varPositiveArraydiffCoefPricestoLr = calculateVariance(
     positiveArraydiffCoefPricestoLr
   );
-  const varNegativeArraydiffCoefPricestoLr = calculateVariance(
+
+  let varNegativeArraydiffCoefPricestoLr,
+    varNegativeArraydiffCoefPricestoLr3d,
+    varNegativeArraydiffCoefPricestoLr7d,
+    varNegativeArraydiffCoefPricestoLr30d,
+    varNegativeArraydiffCoefPricestoLr90d;
+
+  varNegativeArraydiffCoefPricestoLr = calculateVariance(
     negativeArraydiffCoefPricestoLr
   );
 
-  //* среднее
-  const avgPositiveArraydiffCoefPricestoLr = calculateAvg(
-    positiveArraydiffCoefPricestoLr
+  varNegativeArraydiffCoefPricestoLr3d = calculateVariance(
+    negativeArraydiffCoefPricestoLr3d
+  );
+  varNegativeArraydiffCoefPricestoLr7d = calculateVariance(
+    negativeArraydiffCoefPricestoLr7d
+  );
+  varNegativeArraydiffCoefPricestoLr30d = calculateVariance(
+    negativeArraydiffCoefPricestoLr30d
+  );
+  varNegativeArraydiffCoefPricestoLr90d = calculateVariance(
+    negativeArraydiffCoefPricestoLr90d
   );
 
-  const avgNegativeArraydiffCoefPricestoLr = calculateAvg(
+  //* среднее
+  let avgPositiveArraydiffCoefPricestoLr,
+    avgPositiveArraydiffCoefPricestoLr3d,
+    avgPositiveArraydiffCoefPricestoLr7d,
+    avgPositiveArraydiffCoefPricestoLr30d,
+    avgPositiveArraydiffCoefPricestoLr90d;
+
+  avgPositiveArraydiffCoefPricestoLr = calculateAvg(
     positiveArraydiffCoefPricestoLr
+  );
+  avgPositiveArraydiffCoefPricestoLr3d = calculateAvg(
+    positiveArraydiffCoefPricestoLr3d
+  );
+  avgPositiveArraydiffCoefPricestoLr7d = calculateAvg(
+    positiveArraydiffCoefPricestoLr7d
+  );
+  avgPositiveArraydiffCoefPricestoLr30d = calculateAvg(
+    positiveArraydiffCoefPricestoLr30d
+  );
+  avgPositiveArraydiffCoefPricestoLr90d = calculateAvg(
+    positiveArraydiffCoefPricestoLr90d
+  );
+
+  let avgNegativeArraydiffCoefPricestoLr,
+    avgNegativeArraydiffCoefPricestoLr3d,
+    avgNegativeArraydiffCoefPricestoLr7d,
+    avgNegativeArraydiffCoefPricestoLr30d,
+    avgNegativeArraydiffCoefPricestoLr90d;
+
+  avgNegativeArraydiffCoefPricestoLr = calculateAvg(
+    positiveArraydiffCoefPricestoLr
+  );
+  avgNegativeArraydiffCoefPricestoLr3d = calculateAvg(
+    positiveArraydiffCoefPricestoLr3d
+  );
+  avgNegativeArraydiffCoefPricestoLr7d = calculateAvg(
+    positiveArraydiffCoefPricestoLr7d
+  );
+  avgNegativeArraydiffCoefPricestoLr30d = calculateAvg(
+    positiveArraydiffCoefPricestoLr30d
+  );
+  avgNegativeArraydiffCoefPricestoLr90d = calculateAvg(
+    positiveArraydiffCoefPricestoLr90d
   );
 
   //* коэффициент вариативности
-  const coefVarPositiveArraydiffCoefPricestoLr =
+  let coefVarPositiveArraydiffCoefPricestoLr,
+    coefVarPositiveArraydiffCoefPricestoLr3d,
+    coefVarPositiveArraydiffCoefPricestoLr7d,
+    coefVarPositiveArraydiffCoefPricestoLr30d,
+    coefVarPositiveArraydiffCoefPricestoLr90d;
+
+  coefVarPositiveArraydiffCoefPricestoLr =
     stdevPositiveArraydiffCoefPricestoLr / avgPositiveArraydiffCoefPricestoLr;
-  const coefVarNegativeArraydiffCoefPricestoLr =
+
+  coefVarPositiveArraydiffCoefPricestoLr3d =
+    stdevPositiveArraydiffCoefPricestoLr3d /
+    avgPositiveArraydiffCoefPricestoLr3d;
+
+  coefVarPositiveArraydiffCoefPricestoLr7d =
+    stdevPositiveArraydiffCoefPricestoLr7d /
+    avgPositiveArraydiffCoefPricestoLr7d;
+
+  coefVarPositiveArraydiffCoefPricestoLr30d =
+    stdevPositiveArraydiffCoefPricestoLr30d /
+    avgPositiveArraydiffCoefPricestoLr30d;
+
+  coefVarPositiveArraydiffCoefPricestoLr90d =
+    stdevPositiveArraydiffCoefPricestoLr90d /
+    avgPositiveArraydiffCoefPricestoLr90d;
+
+  let coefVarNegativeArraydiffCoefPricestoLr,
+    coefVarNegativeArraydiffCoefPricestoLr3d,
+    coefVarNegativeArraydiffCoefPricestoLr7d,
+    coefVarNegativeArraydiffCoefPricestoLr30d,
+    coefVarNegativeArraydiffCoefPricestoLr90d;
+
+  coefVarNegativeArraydiffCoefPricestoLr =
     stdevNegativeArraydiffCoefPricestoLr / avgNegativeArraydiffCoefPricestoLr;
+
+  coefVarNegativeArraydiffCoefPricestoLr3d =
+    stdevNegativeArraydiffCoefPricestoLr3d /
+    avgNegativeArraydiffCoefPricestoLr3d;
+
+  coefVarNegativeArraydiffCoefPricestoLr7d =
+    stdevNegativeArraydiffCoefPricestoLr7d /
+    avgNegativeArraydiffCoefPricestoLr7d;
+
+  coefVarNegativeArraydiffCoefPricestoLr30d =
+    stdevNegativeArraydiffCoefPricestoLr30d /
+    avgNegativeArraydiffCoefPricestoLr30d;
+
+  coefVarNegativeArraydiffCoefPricestoLr90d =
+    stdevNegativeArraydiffCoefPricestoLr90d /
+    avgNegativeArraydiffCoefPricestoLr90d;
 
   // //* расчет коэффициента объема
   // const lrCoefVolumes = findLineByLeastSquares(times, coefVolumes)
@@ -1600,26 +1948,84 @@ function calculateCoef(fromMetric, toMetric) {
   //   'linearRegression(arrayCoefVolumes, arrayCoefVolatility)',
   //   lrFormula6
   // )
+
   const arrayOfObjectNewHistories = Object.values(newHistories);
   arrayOfObjectNewHistories.forEach((rowObject) => {
-    if (rowObject.lrCoefPrice) {
+    if (
+      rowObject.lrCoefPrice &&
+      rowObject.dateUnix >= dateFromMetric.unix &&
+      rowObject.dateUnix <= dateToMetric.unix
+    ) {
       rowObject.lrCoefPriceHigh =
         rowObject.lrCoefPrice +
         stdevPositiveArraydiffCoefPricestoLr *
           (coefVarPositiveArraydiffCoefPricestoLr + 1);
-      rowObject.stdevPositiveArraydiffCoefPricestoLr = stdevPositiveArraydiffCoefPricestoLr;
-      rowObject.varPositiveArraydiffCoefPricestoLr = varPositiveArraydiffCoefPricestoLr;
-      rowObject.avgPositiveArraydiffCoefPricestoLr = avgPositiveArraydiffCoefPricestoLr;
-      rowObject.coefVarPositiveArraydiffCoefPricestoLr = coefVarPositiveArraydiffCoefPricestoLr;
+      // rowObject.stdevPositiveArraydiffCoefPricestoLr = stdevPositiveArraydiffCoefPricestoLr
+      // rowObject.varPositiveArraydiffCoefPricestoLr = varPositiveArraydiffCoefPricestoLr
+      // rowObject.avgPositiveArraydiffCoefPricestoLr = avgPositiveArraydiffCoefPricestoLr
+      // rowObject.coefVarPositiveArraydiffCoefPricestoLr = coefVarPositiveArraydiffCoefPricestoLr
       rowObject.lrCoefPriceLow =
         rowObject.lrCoefPrice -
         stdevNegativeArraydiffCoefPricestoLr *
           (coefVarNegativeArraydiffCoefPricestoLr + 1);
+      rowObject.coefPriceAth = coefPriceAth.coefPrice;
+      rowObject.coefPriceAtl = coefPriceAtl.coefPrice;
+      // rowObject.stdevNegativeArraydiffCoefPricestoLr = stdevNegativeArraydiffCoefPricestoLr
+      // rowObject.varNegativeArraydiffCoefPricestoLr = varNegativeArraydiffCoefPricestoLr
+      // rowObject.avgNegativeArraydiffCoefPricestoLr = avgNegativeArraydiffCoefPricestoLr
+      // rowObject.coefVarNegativeArraydiffCoefPricestoLr = coefVarNegativeArraydiffCoefPricestoLr
+    } else {
+      rowObject.lrCoefPrice = void 0;
+      rowObject.lrCoefPriceHigh = void 0;
+      rowObject.lrCoefPriceLow = void 0;
+      rowObject.coefPriceAth = void 0;
+      rowObject.coefPriceAtl = void 0;
+    }
 
-      rowObject.stdevNegativeArraydiffCoefPricestoLr = stdevNegativeArraydiffCoefPricestoLr;
-      rowObject.varNegativeArraydiffCoefPricestoLr = varNegativeArraydiffCoefPricestoLr;
-      rowObject.avgNegativeArraydiffCoefPricestoLr = avgNegativeArraydiffCoefPricestoLr;
-      rowObject.coefVarNegativeArraydiffCoefPricestoLr = coefVarNegativeArraydiffCoefPricestoLr;
+    if (rowObject.lrCoefPrice3d) {
+      rowObject.lrCoefPriceHigh3d =
+        rowObject.lrCoefPrice3d +
+        stdevPositiveArraydiffCoefPricestoLr3d *
+          (coefVarPositiveArraydiffCoefPricestoLr3d + 1);
+
+      rowObject.lrCoefPriceLow3d =
+        rowObject.lrCoefPrice3d -
+        stdevNegativeArraydiffCoefPricestoLr3d *
+          (coefVarNegativeArraydiffCoefPricestoLr3d + 1);
+    }
+
+    if (rowObject.lrCoefPrice7d) {
+      rowObject.lrCoefPriceHigh7d =
+        rowObject.lrCoefPrice7d +
+        stdevPositiveArraydiffCoefPricestoLr7d *
+          (coefVarPositiveArraydiffCoefPricestoLr7d + 1);
+
+      rowObject.lrCoefPriceLow7d =
+        rowObject.lrCoefPrice7d -
+        stdevNegativeArraydiffCoefPricestoLr7d *
+          (coefVarNegativeArraydiffCoefPricestoLr7d + 1);
+    }
+    if (rowObject.lrCoefPrice30d) {
+      rowObject.lrCoefPriceHigh30d =
+        rowObject.lrCoefPrice30d +
+        stdevPositiveArraydiffCoefPricestoLr30d *
+          (coefVarPositiveArraydiffCoefPricestoLr30d + 1);
+
+      rowObject.lrCoefPriceLow30d =
+        rowObject.lrCoefPrice30d -
+        stdevNegativeArraydiffCoefPricestoLr30d *
+          (coefVarNegativeArraydiffCoefPricestoLr30d + 1);
+    }
+    if (rowObject.lrCoefPrice90d) {
+      rowObject.lrCoefPriceHigh90d =
+        rowObject.lrCoefPrice90d +
+        stdevPositiveArraydiffCoefPricestoLr90d *
+          (coefVarPositiveArraydiffCoefPricestoLr90d + 1);
+
+      rowObject.lrCoefPriceLow90d =
+        rowObject.lrCoefPrice90d -
+        stdevNegativeArraydiffCoefPricestoLr90d *
+          (coefVarNegativeArraydiffCoefPricestoLr90d + 1);
     }
   });
 

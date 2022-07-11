@@ -1,3 +1,22 @@
+function updateCoef() {
+  calculateCoef('2022-04-01', '2022-07-10')
+}
+
+function updateDotAtom() {
+  updateHistory('2021-09-15', '2022-07-07', 'polkadot', 'cosmos')
+}
+
+function updateSdnBoba() {
+  updateHistory('2022-01-01', '2022-07-09', 'shiden', 'boba-network')
+}
+function updateEthBtc() {
+  updateHistory('2021-05-02', '2022-07-06', 'ethereum', 'bitcoin')
+}
+
+function updateAtomEvmos() {
+  updateHistory('2022-06-07', '2022-07-05', 'cosmos', 'evmos')
+}
+
 function createMenu() {
   const ui = SpreadsheetApp.getUi()
   const menu = ui.createMenu('Analitics')
@@ -11,30 +30,4 @@ function createMenu() {
   )
   menu.addItem('Calculate coefficient', 'updateCoef')
   menu.addToUi()
-}
-
-function updateDotAtom() {
-  updateHistory('2021-09-15', '2022-07-07', 'dot', 'atom', 'polkadot', 'cosmos')
-}
-
-function updateSdnBoba() {
-  updateHistory(
-    '2022-04-01',
-    '2022-07-05',
-    'sdn',
-    'boba',
-    'shiden',
-    'boba-network'
-  )
-}
-function updateEthBtc() {
-  updateHistory('2021-05-02', '2022-07-06', 'eth', 'btc', 'ethereum', 'bitcoin')
-}
-
-function updateAtomEvmos() {
-  updateHistory('2022-06-07', '2022-07-05', 'atom', 'evmos', 'cosmos', 'evmos')
-}
-
-function updateCoef() {
-  // calculateCoef('2022-03-05', '2022-07-01')
 }

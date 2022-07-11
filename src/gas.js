@@ -222,7 +222,9 @@ class WorkSheet extends SpreadSheet {
               if (!value) {
                 if (this.head[column]?.default) {
                   if (this.head[column]?.type === 'date') {
-                    value = new Date(this.head[column].default)
+                    value = new FormatDate(
+                      this.head[column].default
+                    ).getFormatDate('yyyy-MM-dd HH:mm')
                   } else {
                     value = this.head[column].default
                   }
@@ -271,7 +273,9 @@ class WorkSheet extends SpreadSheet {
         newRowObject[column] = rowObject[column]
         if (this.head[column]?.default) {
           if (this.head[column]?.type === 'date') {
-            value[column] = new Date(this.head[column].default)
+            value[column] = new FormatDate(
+              this.head[column].default
+            ).getFormatDate('yyyy-MM-dd HH:mm')
           } else {
             value[column] = this.head[column].default
           }
@@ -296,7 +300,9 @@ class WorkSheet extends SpreadSheet {
               if (!value) {
                 if (this.head[column]?.default) {
                   if (this.head[column]?.type === 'date') {
-                    value = new Date(this.head[column].default)
+                    value = new FormatDate(
+                      this.head[column].default
+                    ).getFormatDate('yyyy-MM-dd HH:mm')
                   } else {
                     value = this.head[column].default
                   }
@@ -332,7 +338,9 @@ class WorkSheet extends SpreadSheet {
           if (!value) {
             if (this.head[column]?.default) {
               if (this.head[column]?.type === 'date') {
-                value = new Date(this.head[column].default)
+                value = new FormatDate(this.head[column].default).getFormatDate(
+                  'yyyy-MM-dd HH:mm'
+                )
               } else {
                 value = this.head[column].default
               }

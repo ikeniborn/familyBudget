@@ -587,7 +587,9 @@ class WorkSheet extends SpreadSheet {
               if (!value) {
                 if (this.head[column]?.default) {
                   if (this.head[column]?.type === 'date') {
-                    value = new Date(this.head[column].default);
+                    value = new FormatDate(
+                      this.head[column].default
+                    ).getFormatDate('yyyy-MM-dd HH:mm');
                   } else {
                     value = this.head[column].default;
                   }
@@ -636,7 +638,9 @@ class WorkSheet extends SpreadSheet {
         newRowObject[column] = rowObject[column];
         if (this.head[column]?.default) {
           if (this.head[column]?.type === 'date') {
-            value[column] = new Date(this.head[column].default);
+            value[column] = new FormatDate(
+              this.head[column].default
+            ).getFormatDate('yyyy-MM-dd HH:mm');
           } else {
             value[column] = this.head[column].default;
           }
@@ -661,7 +665,9 @@ class WorkSheet extends SpreadSheet {
               if (!value) {
                 if (this.head[column]?.default) {
                   if (this.head[column]?.type === 'date') {
-                    value = new Date(this.head[column].default);
+                    value = new FormatDate(
+                      this.head[column].default
+                    ).getFormatDate('yyyy-MM-dd HH:mm');
                   } else {
                     value = this.head[column].default;
                   }
@@ -697,7 +703,9 @@ class WorkSheet extends SpreadSheet {
           if (!value) {
             if (this.head[column]?.default) {
               if (this.head[column]?.type === 'date') {
-                value = new Date(this.head[column].default);
+                value = new FormatDate(this.head[column].default).getFormatDate(
+                  'yyyy-MM-dd HH:mm'
+                );
               } else {
                 value = this.head[column].default;
               }
@@ -4752,7 +4760,7 @@ class Flow {
         .reduce((agg, tx) => {
           const operationKey = new Hash(tx.operation).md5;
           const directionKey = new Hash(tx.direction).md5;
-          const dayInPortfolio = new FormatDate().diffBetweenDate(tx.dateTime);
+          const dayInPortfolio = new FormatDate(tx.dateTime).diffBetweenDate();
           if (!agg[tx.account]) {
             agg[tx.account] = {};
           }

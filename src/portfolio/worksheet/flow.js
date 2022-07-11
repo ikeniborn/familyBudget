@@ -33,7 +33,7 @@ class Flow {
         .reduce((agg, tx) => {
           const operationKey = new Hash(tx.operation).md5
           const directionKey = new Hash(tx.direction).md5
-          const dayInPortfolio = new FormatDate().diffBetweenDate(tx.dateTime)
+          const dayInPortfolio = new FormatDate(tx.dateTime).diffBetweenDate()
           if (!agg[tx.account]) {
             agg[tx.account] = {}
           }
