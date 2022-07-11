@@ -1,5 +1,5 @@
 function updateCoef() {
-  calculateCoef('2022-04-01', '2022-07-10')
+  calculateCoef('2022-04-01', '2022-07-10', 'cosmos', 'evmos')
 }
 
 function updateDotAtom() {

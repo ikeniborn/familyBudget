@@ -233,10 +233,6 @@ class Flow {
               const symbolKey = new Hash(symbol).md5
               const symbolFullName = symbols[symbolKey]?.name || ''
               const symbolCategory = symbols[symbolKey]?.symbolCategory || ''
-              const symbolEcosystem = symbols[symbolKey]?.ecosystem || ''
-              const symbolMarketCapGroup =
-                symbols[symbolKey]?.marketCapGroup || ''
-              const symbolPriceGroup = symbols[symbolKey]?.priceGroup || ''
               const useInReport = symbols[symbolKey]?.useInReport
               //* атрибуты контрагента
               const contractorKey = new Hash(contractor).md5
@@ -393,9 +389,6 @@ class Flow {
                 symbol: symbol.toUpperCase(),
                 symbolFullName: symbolFullName.toUpperCase(),
                 symbolCategory: symbolCategory.toUpperCase(),
-                symbolEcosystem: symbolEcosystem.toUpperCase(),
-                symbolMarketCapGroup: symbolMarketCapGroup.toUpperCase(),
-                symbolPriceGroup: symbolPriceGroup.toUpperCase(),
                 quantityOwnInFlow: quantityOwnInFlow || 0,
                 quantityInFlow: quantityInFlow || 0,
                 quantityOutFlow: quantityOutFlow || 0,

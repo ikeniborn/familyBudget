@@ -1130,7 +1130,8 @@ class ModalDialog {
       .setHeight(this.height)
     this.ui.showModalDialog(output, title)
   }
+
   alert(title, message) {
-    this.ui.alert(title, message, this.ui.Button.YES)
+    this.ui.alert(title, message, this.ui.Button.OK)
   }
 }

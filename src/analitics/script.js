@@ -8,11 +8,17 @@ import * as coinGecko from '../restApi/coinGecko'
  * @param {*} from
  * @param {*} to
  * @param {*} tokenAId
- * @param {*} tokenBID
+ * @param {*} tokenBId
  */
-function updateHistory(from, to, tokenAId, tokenBID) {
+function updateHistory(from, to, tokenAId, tokenBId) {
   let dateFrom, fromUnix, countDay
   const histories = new Analitics().getWorkSheet('history')
+  const tokenATokenBData = new Hash(tokenAId + '/' + tokenBId)
+  const historiesOldData = new Analitics()
+    .getWorkSheet('history')
+    .arrayOfObject.filter((rowObject) => {
+      return rowObject.tokenATokenBKey !== tokenATokenBData.md5
+    })
   dateFrom = new FormatDate(from).getDateBegin()
   const dateTo = to
     ? new FormatDate(to).getDateBegin()
@@ -38,7 +44,7 @@ function updateHistory(from, to, tokenAId, tokenBID) {
   )
 
   const tokenBData = new coinGecko.Coins().getCoinsRange(
-    tokenBID,
+    tokenBId,
     'usd',
     fromUnix,
     toUnix
@@ -56,7 +62,8 @@ function updateHistory(from, to, tokenAId, tokenBID) {
           dateValue: dateData.value,
           dateUnix: dateData.unix,
           date: dateData.getFormatDate('yyyy-MM-dd'),
-          tokenATokenB: tokenAId + '/' + tokenBID,
+          tokenATokenB: tokenATokenBData.stringLowerCase,
+          tokenATokenBKey: tokenATokenBData.md5,
           tokenAPrice: tokenAData[dateKey]?.price,
           tokenBPrice: tokenBData[dateKey]?.price,
           coefPrice: tokenAData[dateKey]?.price / tokenBData[dateKey]?.price,
@@ -82,43 +89,48 @@ function updateHistory(from, to, tokenAId, tokenBID) {
       rowObject.tokenBMarketCap &&
       rowObject.tokenAVolume &&
       rowObject.tokenBVolume
-      // rowObject.dateValue > new FormatDate(from).getDateBegin().value
     )
   })
-  histories.truncateInsertRows(filterArrayOfObject)
+
+  histories.truncateInsertRows([...historiesOldData, ...filterArrayOfObject])
 }
 /**
- * Расчет показателей
- * @param {string} fromMetric yyyy-mm-dd
+ *
+ * @param {*} fromMetric yyyy-mm-dd
  * @param {*} toMetric yyyy-mm-dd
+ * @param {*} tokenAId
+ * @param {*} tokenBId
  */
-function calculateCoef(fromMetric, toMetric) {
-  const dateFromMetric = new FormatDate(fromMetric).getDateBegin()
-  const dateToMetric = new FormatDate(toMetric).getDateBegin()
+function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
   let dateUnixs,
     coefPrices,
-    dateUnixs3d,
-    coefPrices3d,
-    dateUnixs7d,
-    coefPrices7d,
+    // dateUnixs3d,
+    // coefPrices3d,
+    // dateUnixs7d,
+    // coefPrices7d,
     dateUnixs30d,
     coefPrices30d,
+    dateUnixs60d,
+    coefPrices60d,
     dateUnixs90d,
     coefPrices90d,
     dateToMetric0dUnix,
-    dateFromMetric3dUnix,
-    dateFromMetric7dUnix,
+    // dateFromMetric3dUnix,
+    // dateFromMetric7dUnix,
     dateFromMetric30dUnix,
+    dateFromMetric60dUnix,
     dateFromMetric90dUnix
   //  coefVolumes, coefMarketCaps, coefVolatilitys
   dateUnixs = []
   coefPrices = []
-  dateUnixs3d = []
-  coefPrices3d = []
-  dateUnixs7d = []
-  coefPrices7d = []
+  // dateUnixs3d = []
+  // coefPrices3d = []
+  // dateUnixs7d = []
+  // coefPrices7d = []
   dateUnixs30d = []
   coefPrices30d = []
+  dateUnixs60d = []
+  coefPrices60d = []
   dateUnixs90d = []
   coefPrices90d = []
   // coefPrices = []
@@ -126,27 +138,45 @@ function calculateCoef(fromMetric, toMetric) {
   // coefMarketCaps = []
   // coefVolatilitys = []
 
+  const dateFromMetric = new FormatDate(fromMetric).getDateBegin()
+  const dateToMetric = new FormatDate(toMetric).getDateBegin()
+  const tokenATokenBData = new Hash(tokenAId + '/' + tokenBId)
+
   const histories = new Analitics().getWorkSheet('history')
-  dateToMetric0dUnix = histories.arrayOfObject.reduce((max, rowObject) => {
+  const historiesOldData =
+    histories.arrayOfObject.filter((rowObject) => {
+      return rowObject.tokenATokenBKey !== tokenATokenBData.md5
+    }) || []
+
+  const historiesPair =
+    histories.arrayOfObject.filter((rowObject) => {
+      return rowObject.tokenATokenBKey === tokenATokenBData.md5
+    }) || []
+
+  dateToMetric0dUnix = historiesPair.reduce((max, rowObject) => {
     if (max < rowObject.dateUnix) {
       max = rowObject.dateUnix
     }
     return max
   }, 0)
-  dateFromMetric3dUnix = new FormatDate(
-    dateToMetric0dUnix * 1000
-  ).getPreviousDate(3).unix
-  dateFromMetric7dUnix = new FormatDate(
-    dateToMetric0dUnix * 1000
-  ).getPreviousDate(7).unix
+
+  // dateFromMetric3dUnix = new FormatDate(
+  //   dateToMetric0dUnix * 1000
+  // ).getPreviousDate(3).unix
+  // dateFromMetric7dUnix = new FormatDate(
+  //   dateToMetric0dUnix * 1000
+  // ).getPreviousDate(7).unix
   dateFromMetric30dUnix = new FormatDate(
     dateToMetric0dUnix * 1000
   ).getPreviousDate(30).unix
+  dateFromMetric60dUnix = new FormatDate(
+    dateToMetric0dUnix * 1000
+  ).getPreviousDate(60).unix
   dateFromMetric90dUnix = new FormatDate(
     dateToMetric0dUnix * 1000
   ).getPreviousDate(90).unix
 
-  const newHistories = histories.arrayOfObject.reduce((object, rowObject) => {
+  const historiesPairNew = historiesPair.reduce((object, rowObject) => {
     if (!object[rowObject.dateKey]) {
       object[rowObject.dateKey] = rowObject
     }
@@ -170,22 +200,22 @@ function calculateCoef(fromMetric, toMetric) {
       // coefMarketCaps.push(object[rowObject.dateKey].coefPriceMarketCap)
       // coefVolatilitys.push(object[rowObject.dateKey].coefVolatility)
     }
-    //* за три последний дня
-    if (
-      rowObject.dateUnix >= dateFromMetric3dUnix &&
-      rowObject.dateUnix <= dateToMetric0dUnix
-    ) {
-      dateUnixs3d.push(rowObject.dateUnix)
-      coefPrices3d.push(object[rowObject.dateKey].coefPrice)
-    }
-    //* за 7 дней
-    if (
-      rowObject.dateUnix >= dateFromMetric7dUnix &&
-      rowObject.dateUnix <= dateToMetric0dUnix
-    ) {
-      dateUnixs7d.push(rowObject.dateUnix)
-      coefPrices7d.push(object[rowObject.dateKey].coefPrice)
-    }
+    // //* за три последний дня
+    // if (
+    //   rowObject.dateUnix >= dateFromMetric3dUnix &&
+    //   rowObject.dateUnix <= dateToMetric0dUnix
+    // ) {
+    //   dateUnixs3d.push(rowObject.dateUnix)
+    //   coefPrices3d.push(object[rowObject.dateKey].coefPrice)
+    // }
+    // //* за 7 дней
+    // if (
+    //   rowObject.dateUnix >= dateFromMetric7dUnix &&
+    //   rowObject.dateUnix <= dateToMetric0dUnix
+    // ) {
+    //   dateUnixs7d.push(rowObject.dateUnix)
+    //   coefPrices7d.push(object[rowObject.dateKey].coefPrice)
+    // }
     //* за 30 дней
     if (
       rowObject.dateUnix >= dateFromMetric30dUnix &&
@@ -193,6 +223,14 @@ function calculateCoef(fromMetric, toMetric) {
     ) {
       dateUnixs30d.push(rowObject.dateUnix)
       coefPrices30d.push(object[rowObject.dateKey].coefPrice)
+    }
+    //* за 60 дней
+    if (
+      rowObject.dateUnix >= dateFromMetric60dUnix &&
+      rowObject.dateUnix <= dateToMetric0dUnix
+    ) {
+      dateUnixs60d.push(rowObject.dateUnix)
+      coefPrices60d.push(object[rowObject.dateKey].coefPrice)
     }
     //* за 90 дней
     if (
@@ -207,36 +245,42 @@ function calculateCoef(fromMetric, toMetric) {
 
   //* расчет коэфициента цены
   let positiveArraydiffCoefPricestoLr,
-    positiveArraydiffCoefPricestoLr3d,
-    positiveArraydiffCoefPricestoLr7d,
+    // positiveArraydiffCoefPricestoLr3d,
+    // positiveArraydiffCoefPricestoLr7d,
     positiveArraydiffCoefPricestoLr30d,
+    positiveArraydiffCoefPricestoLr60d,
     positiveArraydiffCoefPricestoLr90d
   positiveArraydiffCoefPricestoLr = []
-  positiveArraydiffCoefPricestoLr3d = []
-  positiveArraydiffCoefPricestoLr7d = []
+  // positiveArraydiffCoefPricestoLr3d = []
+  // positiveArraydiffCoefPricestoLr7d = []
   positiveArraydiffCoefPricestoLr30d = []
+  positiveArraydiffCoefPricestoLr60d = []
   positiveArraydiffCoefPricestoLr90d = []
   let negativeArraydiffCoefPricestoLr,
-    negativeArraydiffCoefPricestoLr3d,
-    negativeArraydiffCoefPricestoLr7d,
+    // negativeArraydiffCoefPricestoLr3d,
+    // negativeArraydiffCoefPricestoLr7d,
     negativeArraydiffCoefPricestoLr30d,
+    negativeArraydiffCoefPricestoLr60d,
     negativeArraydiffCoefPricestoLr90d
   negativeArraydiffCoefPricestoLr = []
-  negativeArraydiffCoefPricestoLr3d = []
-  negativeArraydiffCoefPricestoLr7d = []
+  // negativeArraydiffCoefPricestoLr3d = []
+  // negativeArraydiffCoefPricestoLr7d = []
   negativeArraydiffCoefPricestoLr30d = []
+  negativeArraydiffCoefPricestoLr60d = []
   negativeArraydiffCoefPricestoLr90d = []
 
   let lrCoefPrices,
-    lrCoefPrices3d,
-    lrCoefPrices7d,
+    // lrCoefPrices3d,
+    // lrCoefPrices7d,
     lrCoefPrices30d,
+    lrCoefPrices60d,
     lrCoefPrices90d
 
   lrCoefPrices = findLineByLeastSquares(dateUnixs, coefPrices)
-  lrCoefPrices3d = findLineByLeastSquares(dateUnixs3d, coefPrices3d)
-  lrCoefPrices7d = findLineByLeastSquares(dateUnixs7d, coefPrices7d)
+  // lrCoefPrices3d = findLineByLeastSquares(dateUnixs3d, coefPrices3d)
+  // lrCoefPrices7d = findLineByLeastSquares(dateUnixs7d, coefPrices7d)
   lrCoefPrices30d = findLineByLeastSquares(dateUnixs30d, coefPrices30d)
+  lrCoefPrices60d = findLineByLeastSquares(dateUnixs60d, coefPrices60d)
   lrCoefPrices90d = findLineByLeastSquares(dateUnixs90d, coefPrices90d)
 
   let coefPriceAthArray, coefPriceAtlArray
@@ -247,30 +291,29 @@ function calculateCoef(fromMetric, toMetric) {
   lrCoefPrices.forEach(([dateUnix, value]) => {
     const dateKey = new FormatDate(new Date(dateUnix * 1000)).getDateBegin()
       .dateKey
-
-    newHistories[dateKey].lrCoefPrice = value
+    historiesPairNew[dateKey].lrCoefPrice = value
     //* расчет отклонения от средней регресионной
-    newHistories[dateKey].diffCoefPricestoLr =
-      newHistories[dateKey].coefPrice - value
-    if (newHistories[dateKey].diffCoefPricestoLr > 0) {
+    historiesPairNew[dateKey].diffCoefPricestoLr =
+      historiesPairNew[dateKey].coefPrice - value
+    if (historiesPairNew[dateKey].diffCoefPricestoLr > 0) {
       //* положительное отклонение
       positiveArraydiffCoefPricestoLr.push(
-        newHistories[dateKey].diffCoefPricestoLr
+        historiesPairNew[dateKey].diffCoefPricestoLr
       )
       coefPriceAthArray.push({
         dateKey: dateKey,
-        diffCoefPricestoLr: newHistories[dateKey].diffCoefPricestoLr,
-        coefPrice: newHistories[dateKey].coefPrice,
+        diffCoefPricestoLr: historiesPairNew[dateKey].diffCoefPricestoLr,
+        coefPrice: historiesPairNew[dateKey].coefPrice,
       })
-    } else if (newHistories[dateKey].diffCoefPricestoLr < 0) {
+    } else if (historiesPairNew[dateKey].diffCoefPricestoLr < 0) {
       //* отрицательное отклонение
       negativeArraydiffCoefPricestoLr.push(
-        newHistories[dateKey].diffCoefPricestoLr * -1
+        historiesPairNew[dateKey].diffCoefPricestoLr * -1
       )
       coefPriceAtlArray.push({
         dateKey: dateKey,
-        diffCoefPricestoLr: newHistories[dateKey].diffCoefPricestoLr * -1,
-        coefPrice: newHistories[dateKey].coefPrice,
+        diffCoefPricestoLr: historiesPairNew[dateKey].diffCoefPricestoLr * -1,
+        coefPrice: historiesPairNew[dateKey].coefPrice,
       })
     }
   })
@@ -292,65 +335,86 @@ function calculateCoef(fromMetric, toMetric) {
     }
   })
 
-  lrCoefPrices3d.forEach(([dateUnix, value]) => {
-    const dateKey = new FormatDate(new Date(dateUnix * 1000)).getDateBegin()
-      .dateKey
-    newHistories[dateKey].lrCoefPrice3d = value
-    // arraylrCoefPrices.push(value)
-    //* расчет отклонения от средней регресионной
-    newHistories[dateKey].diffCoefPricestoLr3d =
-      newHistories[dateKey].coefPrice - value
-    if (newHistories[dateKey].diffCoefPricestoLr3d > 0) {
-      //* положительное отклонение
-      positiveArraydiffCoefPricestoLr3d.push(
-        newHistories[dateKey].diffCoefPricestoLr3d
-      )
-    } else if (newHistories[dateKey].diffCoefPricestoLr3d < 0) {
-      //* отрицательное отклонение
-      negativeArraydiffCoefPricestoLr3d.push(
-        newHistories[dateKey].diffCoefPricestoLr3d * -1
-      )
-    }
-  })
+  // lrCoefPrices3d.forEach(([dateUnix, value]) => {
+  //   const dateKey = new FormatDate(new Date(dateUnix * 1000)).getDateBegin()
+  //     .dateKey
+  //   historiesPairNew[dateKey].lrCoefPrice3d = value
+  //   // arraylrCoefPrices.push(value)
+  //   //* расчет отклонения от средней регресионной
+  //   historiesPairNew[dateKey].diffCoefPricestoLr3d =
+  //     historiesPairNew[dateKey].coefPrice - value
+  //   if (historiesPairNew[dateKey].diffCoefPricestoLr3d > 0) {
+  //     //* положительное отклонение
+  //     positiveArraydiffCoefPricestoLr3d.push(
+  //       historiesPairNew[dateKey].diffCoefPricestoLr3d
+  //     )
+  //   } else if (historiesPairNew[dateKey].diffCoefPricestoLr3d < 0) {
+  //     //* отрицательное отклонение
+  //     negativeArraydiffCoefPricestoLr3d.push(
+  //       historiesPairNew[dateKey].diffCoefPricestoLr3d * -1
+  //     )
+  //   }
+  // })
 
-  lrCoefPrices7d.forEach(([dateUnix, value]) => {
-    const dateKey = new FormatDate(new Date(dateUnix * 1000)).getDateBegin()
-      .dateKey
-    newHistories[dateKey].lrCoefPrice7d = value
-    // arraylrCoefPrices.push(value)
-    //* расчет отклонения от средней регресионной
-    newHistories[dateKey].diffCoefPricestoLr7d =
-      newHistories[dateKey].coefPrice - value
-    if (newHistories[dateKey].diffCoefPricestoLr7d > 0) {
-      //* положительное отклонение
-      positiveArraydiffCoefPricestoLr7d.push(
-        newHistories[dateKey].diffCoefPricestoLr7d
-      )
-    } else if (newHistories[dateKey].diffCoefPricestoLr7d < 0) {
-      //* отрицательное отклонение
-      negativeArraydiffCoefPricestoLr7d.push(
-        newHistories[dateKey].diffCoefPricestoLr7d * -1
-      )
-    }
-  })
+  // lrCoefPrices7d.forEach(([dateUnix, value]) => {
+  //   const dateKey = new FormatDate(new Date(dateUnix * 1000)).getDateBegin()
+  //     .dateKey
+  //   historiesPairNew[dateKey].lrCoefPrice7d = value
+  //   // arraylrCoefPrices.push(value)
+  //   //* расчет отклонения от средней регресионной
+  //   historiesPairNew[dateKey].diffCoefPricestoLr7d =
+  //     historiesPairNew[dateKey].coefPrice - value
+  //   if (historiesPairNew[dateKey].diffCoefPricestoLr7d > 0) {
+  //     //* положительное отклонение
+  //     positiveArraydiffCoefPricestoLr7d.push(
+  //       historiesPairNew[dateKey].diffCoefPricestoLr7d
+  //     )
+  //   } else if (historiesPairNew[dateKey].diffCoefPricestoLr7d < 0) {
+  //     //* отрицательное отклонение
+  //     negativeArraydiffCoefPricestoLr7d.push(
+  //       historiesPairNew[dateKey].diffCoefPricestoLr7d * -1
+  //     )
+  //   }
+  // })
 
   lrCoefPrices30d.forEach(([dateUnix, value]) => {
     const dateKey = new FormatDate(new Date(dateUnix * 1000)).getDateBegin()
       .dateKey
-    newHistories[dateKey].lrCoefPrice30d = value
+    historiesPairNew[dateKey].lrCoefPrice30d = value
     // arraylrCoefPrices.push(value)
     //* расчет отклонения от средней регресионной
-    newHistories[dateKey].diffCoefPricestoLr30d =
-      newHistories[dateKey].coefPrice - value
-    if (newHistories[dateKey].diffCoefPricestoLr30d > 0) {
+    historiesPairNew[dateKey].diffCoefPricestoLr30d =
+      historiesPairNew[dateKey].coefPrice - value
+    if (historiesPairNew[dateKey].diffCoefPricestoLr30d > 0) {
       //* положительное отклонение
       positiveArraydiffCoefPricestoLr30d.push(
-        newHistories[dateKey].diffCoefPricestoLr30d
+        historiesPairNew[dateKey].diffCoefPricestoLr30d
       )
-    } else if (newHistories[dateKey].diffCoefPricestoLr30d < 0) {
+    } else if (historiesPairNew[dateKey].diffCoefPricestoLr30d < 0) {
       //* отрицательное отклонение
       negativeArraydiffCoefPricestoLr30d.push(
-        newHistories[dateKey].diffCoefPricestoLr30d * -1
+        historiesPairNew[dateKey].diffCoefPricestoLr30d * -1
+      )
+    }
+  })
+
+  lrCoefPrices60d.forEach(([dateUnix, value]) => {
+    const dateKey = new FormatDate(new Date(dateUnix * 1000)).getDateBegin()
+      .dateKey
+    historiesPairNew[dateKey].lrCoefPrice60d = value
+    // arraylrCoefPrices.push(value)
+    //* расчет отклонения от средней регресионной
+    historiesPairNew[dateKey].diffCoefPricestoLr60d =
+      historiesPairNew[dateKey].coefPrice - value
+    if (historiesPairNew[dateKey].diffCoefPricestoLr60d > 0) {
+      //* положительное отклонение
+      positiveArraydiffCoefPricestoLr60d.push(
+        historiesPairNew[dateKey].diffCoefPricestoLr60d
+      )
+    } else if (historiesPairNew[dateKey].diffCoefPricestoLr60d < 0) {
+      //* отрицательное отклонение
+      negativeArraydiffCoefPricestoLr60d.push(
+        historiesPairNew[dateKey].diffCoefPricestoLr60d * -1
       )
     }
   })
@@ -358,64 +422,72 @@ function calculateCoef(fromMetric, toMetric) {
   lrCoefPrices90d.forEach(([dateUnix, value]) => {
     const dateKey = new FormatDate(new Date(dateUnix * 1000)).getDateBegin()
       .dateKey
-    newHistories[dateKey].lrCoefPrice90d = value
+    historiesPairNew[dateKey].lrCoefPrice90d = value
     // arraylrCoefPrices.push(value)
     //* расчет отклонения от средней регресионной
-    newHistories[dateKey].diffCoefPricestoLr90d =
-      newHistories[dateKey].coefPrice - value
-    if (newHistories[dateKey].diffCoefPricestoLr90d > 0) {
+    historiesPairNew[dateKey].diffCoefPricestoLr90d =
+      historiesPairNew[dateKey].coefPrice - value
+    if (historiesPairNew[dateKey].diffCoefPricestoLr90d > 0) {
       //* положительное отклонение
       positiveArraydiffCoefPricestoLr90d.push(
-        newHistories[dateKey].diffCoefPricestoLr90d
+        historiesPairNew[dateKey].diffCoefPricestoLr90d
       )
-    } else if (newHistories[dateKey].diffCoefPricestoLr90d < 0) {
+    } else if (historiesPairNew[dateKey].diffCoefPricestoLr90d < 0) {
       //* отрицательное отклонение
       negativeArraydiffCoefPricestoLr90d.push(
-        newHistories[dateKey].diffCoefPricestoLr90d * -1
+        historiesPairNew[dateKey].diffCoefPricestoLr90d * -1
       )
     }
   })
 
   let stdevPositiveArraydiffCoefPricestoLr,
-    stdevPositiveArraydiffCoefPricestoLr3d,
-    stdevPositiveArraydiffCoefPricestoLr7d,
+    // stdevPositiveArraydiffCoefPricestoLr3d,
+    // stdevPositiveArraydiffCoefPricestoLr7d,
     stdevPositiveArraydiffCoefPricestoLr30d,
+    stdevPositiveArraydiffCoefPricestoLr60d,
     stdevPositiveArraydiffCoefPricestoLr90d
 
   //* стандратное отклонение
   stdevPositiveArraydiffCoefPricestoLr = getStandardDeviation(
     positiveArraydiffCoefPricestoLr
   )
-  stdevPositiveArraydiffCoefPricestoLr3d = getStandardDeviation(
-    positiveArraydiffCoefPricestoLr3d
-  )
-  stdevPositiveArraydiffCoefPricestoLr7d = getStandardDeviation(
-    positiveArraydiffCoefPricestoLr7d
-  )
+  // stdevPositiveArraydiffCoefPricestoLr3d = getStandardDeviation(
+  //   positiveArraydiffCoefPricestoLr3d
+  // )
+  // stdevPositiveArraydiffCoefPricestoLr7d = getStandardDeviation(
+  //   positiveArraydiffCoefPricestoLr7d
+  // )
   stdevPositiveArraydiffCoefPricestoLr30d = getStandardDeviation(
     positiveArraydiffCoefPricestoLr30d
+  )
+  stdevPositiveArraydiffCoefPricestoLr60d = getStandardDeviation(
+    positiveArraydiffCoefPricestoLr60d
   )
   stdevPositiveArraydiffCoefPricestoLr90d = getStandardDeviation(
     positiveArraydiffCoefPricestoLr90d
   )
 
   let stdevNegativeArraydiffCoefPricestoLr,
-    stdevNegativeArraydiffCoefPricestoLr3d,
-    stdevNegativeArraydiffCoefPricestoLr7d,
+    // stdevNegativeArraydiffCoefPricestoLr3d,
+    // stdevNegativeArraydiffCoefPricestoLr7d,
     stdevNegativeArraydiffCoefPricestoLr30d,
+    stdevNegativeArraydiffCoefPricestoLr60d,
     stdevNegativeArraydiffCoefPricestoLr90d
 
   stdevNegativeArraydiffCoefPricestoLr = getStandardDeviation(
     negativeArraydiffCoefPricestoLr
   )
-  stdevNegativeArraydiffCoefPricestoLr3d = getStandardDeviation(
-    negativeArraydiffCoefPricestoLr3d
-  )
-  stdevNegativeArraydiffCoefPricestoLr7d = getStandardDeviation(
-    negativeArraydiffCoefPricestoLr7d
-  )
+  // stdevNegativeArraydiffCoefPricestoLr3d = getStandardDeviation(
+  //   negativeArraydiffCoefPricestoLr3d
+  // )
+  // stdevNegativeArraydiffCoefPricestoLr7d = getStandardDeviation(
+  //   negativeArraydiffCoefPricestoLr7d
+  // )
   stdevNegativeArraydiffCoefPricestoLr30d = getStandardDeviation(
     negativeArraydiffCoefPricestoLr30d
+  )
+  stdevNegativeArraydiffCoefPricestoLr60d = getStandardDeviation(
+    negativeArraydiffCoefPricestoLr60d
   )
   stdevNegativeArraydiffCoefPricestoLr90d = getStandardDeviation(
     negativeArraydiffCoefPricestoLr90d
@@ -423,9 +495,10 @@ function calculateCoef(fromMetric, toMetric) {
 
   //* вариативность
   let varPositiveArraydiffCoefPricestoLr,
-    varPositiveArraydiffCoefPricestoLr3d,
-    varPositiveArraydiffCoefPricestoLr7d,
+    // varPositiveArraydiffCoefPricestoLr3d,
+    // varPositiveArraydiffCoefPricestoLr7d,
     varPositiveArraydiffCoefPricestoLr30d,
+    varPositiveArraydiffCoefPricestoLr60d,
     varPositiveArraydiffCoefPricestoLr90d
 
   varPositiveArraydiffCoefPricestoLr = calculateVariance(
@@ -433,23 +506,27 @@ function calculateCoef(fromMetric, toMetric) {
   )
 
   let varNegativeArraydiffCoefPricestoLr,
-    varNegativeArraydiffCoefPricestoLr3d,
-    varNegativeArraydiffCoefPricestoLr7d,
+    // varNegativeArraydiffCoefPricestoLr3d,
+    // varNegativeArraydiffCoefPricestoLr7d,
     varNegativeArraydiffCoefPricestoLr30d,
+    varNegativeArraydiffCoefPricestoLr60d,
     varNegativeArraydiffCoefPricestoLr90d
 
   varNegativeArraydiffCoefPricestoLr = calculateVariance(
     negativeArraydiffCoefPricestoLr
   )
 
-  varNegativeArraydiffCoefPricestoLr3d = calculateVariance(
-    negativeArraydiffCoefPricestoLr3d
-  )
-  varNegativeArraydiffCoefPricestoLr7d = calculateVariance(
-    negativeArraydiffCoefPricestoLr7d
-  )
+  // varNegativeArraydiffCoefPricestoLr3d = calculateVariance(
+  //   negativeArraydiffCoefPricestoLr3d
+  // )
+  // varNegativeArraydiffCoefPricestoLr7d = calculateVariance(
+  //   negativeArraydiffCoefPricestoLr7d
+  // )
   varNegativeArraydiffCoefPricestoLr30d = calculateVariance(
     negativeArraydiffCoefPricestoLr30d
+  )
+  varNegativeArraydiffCoefPricestoLr60d = calculateVariance(
+    negativeArraydiffCoefPricestoLr60d
   )
   varNegativeArraydiffCoefPricestoLr90d = calculateVariance(
     negativeArraydiffCoefPricestoLr90d
@@ -457,95 +534,113 @@ function calculateCoef(fromMetric, toMetric) {
 
   //* среднее
   let avgPositiveArraydiffCoefPricestoLr,
-    avgPositiveArraydiffCoefPricestoLr3d,
-    avgPositiveArraydiffCoefPricestoLr7d,
+    // avgPositiveArraydiffCoefPricestoLr3d,
+    // avgPositiveArraydiffCoefPricestoLr7d,
     avgPositiveArraydiffCoefPricestoLr30d,
+    avgPositiveArraydiffCoefPricestoLr60d,
     avgPositiveArraydiffCoefPricestoLr90d
 
   avgPositiveArraydiffCoefPricestoLr = calculateAvg(
     positiveArraydiffCoefPricestoLr
   )
-  avgPositiveArraydiffCoefPricestoLr3d = calculateAvg(
-    positiveArraydiffCoefPricestoLr3d
-  )
-  avgPositiveArraydiffCoefPricestoLr7d = calculateAvg(
-    positiveArraydiffCoefPricestoLr7d
-  )
+  // avgPositiveArraydiffCoefPricestoLr3d = calculateAvg(
+  //   positiveArraydiffCoefPricestoLr3d
+  // )
+  // avgPositiveArraydiffCoefPricestoLr7d = calculateAvg(
+  //   positiveArraydiffCoefPricestoLr7d
+  // )
   avgPositiveArraydiffCoefPricestoLr30d = calculateAvg(
     positiveArraydiffCoefPricestoLr30d
+  )
+  avgPositiveArraydiffCoefPricestoLr60d = calculateAvg(
+    positiveArraydiffCoefPricestoLr60d
   )
   avgPositiveArraydiffCoefPricestoLr90d = calculateAvg(
     positiveArraydiffCoefPricestoLr90d
   )
 
   let avgNegativeArraydiffCoefPricestoLr,
-    avgNegativeArraydiffCoefPricestoLr3d,
-    avgNegativeArraydiffCoefPricestoLr7d,
+    // avgNegativeArraydiffCoefPricestoLr3d,
+    // avgNegativeArraydiffCoefPricestoLr7d,
     avgNegativeArraydiffCoefPricestoLr30d,
+    avgNegativeArraydiffCoefPricestoLr60d,
     avgNegativeArraydiffCoefPricestoLr90d
 
   avgNegativeArraydiffCoefPricestoLr = calculateAvg(
-    positiveArraydiffCoefPricestoLr
+    negativeArraydiffCoefPricestoLr
   )
-  avgNegativeArraydiffCoefPricestoLr3d = calculateAvg(
-    positiveArraydiffCoefPricestoLr3d
-  )
-  avgNegativeArraydiffCoefPricestoLr7d = calculateAvg(
-    positiveArraydiffCoefPricestoLr7d
-  )
+  // avgNegativeArraydiffCoefPricestoLr3d = calculateAvg(
+  //   positiveArraydiffCoefPricestoLr3d
+  // )
+  // avgNegativeArraydiffCoefPricestoLr7d = calculateAvg(
+  //   positiveArraydiffCoefPricestoLr7d
+  // )
   avgNegativeArraydiffCoefPricestoLr30d = calculateAvg(
-    positiveArraydiffCoefPricestoLr30d
+    negativeArraydiffCoefPricestoLr30d
+  )
+  avgNegativeArraydiffCoefPricestoLr60d = calculateAvg(
+    negativeArraydiffCoefPricestoLr60d
   )
   avgNegativeArraydiffCoefPricestoLr90d = calculateAvg(
-    positiveArraydiffCoefPricestoLr90d
+    negativeArraydiffCoefPricestoLr90d
   )
 
   //* коэффициент вариативности
   let coefVarPositiveArraydiffCoefPricestoLr,
-    coefVarPositiveArraydiffCoefPricestoLr3d,
-    coefVarPositiveArraydiffCoefPricestoLr7d,
+    // coefVarPositiveArraydiffCoefPricestoLr3d,
+    // coefVarPositiveArraydiffCoefPricestoLr7d,
     coefVarPositiveArraydiffCoefPricestoLr30d,
+    coefVarPositiveArraydiffCoefPricestoLr60d,
     coefVarPositiveArraydiffCoefPricestoLr90d
 
   coefVarPositiveArraydiffCoefPricestoLr =
     stdevPositiveArraydiffCoefPricestoLr / avgPositiveArraydiffCoefPricestoLr
 
-  coefVarPositiveArraydiffCoefPricestoLr3d =
-    stdevPositiveArraydiffCoefPricestoLr3d /
-    avgPositiveArraydiffCoefPricestoLr3d
+  // coefVarPositiveArraydiffCoefPricestoLr3d =
+  //   stdevPositiveArraydiffCoefPricestoLr3d /
+  //   avgPositiveArraydiffCoefPricestoLr3d
 
-  coefVarPositiveArraydiffCoefPricestoLr7d =
-    stdevPositiveArraydiffCoefPricestoLr7d /
-    avgPositiveArraydiffCoefPricestoLr7d
+  // coefVarPositiveArraydiffCoefPricestoLr7d =
+  //   stdevPositiveArraydiffCoefPricestoLr7d /
+  //   avgPositiveArraydiffCoefPricestoLr7d
 
   coefVarPositiveArraydiffCoefPricestoLr30d =
     stdevPositiveArraydiffCoefPricestoLr30d /
     avgPositiveArraydiffCoefPricestoLr30d
+
+  coefVarPositiveArraydiffCoefPricestoLr60d =
+    stdevPositiveArraydiffCoefPricestoLr60d /
+    avgPositiveArraydiffCoefPricestoLr60d
 
   coefVarPositiveArraydiffCoefPricestoLr90d =
     stdevPositiveArraydiffCoefPricestoLr90d /
     avgPositiveArraydiffCoefPricestoLr90d
 
   let coefVarNegativeArraydiffCoefPricestoLr,
-    coefVarNegativeArraydiffCoefPricestoLr3d,
-    coefVarNegativeArraydiffCoefPricestoLr7d,
+    // coefVarNegativeArraydiffCoefPricestoLr3d,
+    // coefVarNegativeArraydiffCoefPricestoLr7d,
     coefVarNegativeArraydiffCoefPricestoLr30d,
+    coefVarNegativeArraydiffCoefPricestoLr60d,
     coefVarNegativeArraydiffCoefPricestoLr90d
 
   coefVarNegativeArraydiffCoefPricestoLr =
     stdevNegativeArraydiffCoefPricestoLr / avgNegativeArraydiffCoefPricestoLr
 
-  coefVarNegativeArraydiffCoefPricestoLr3d =
-    stdevNegativeArraydiffCoefPricestoLr3d /
-    avgNegativeArraydiffCoefPricestoLr3d
+  // coefVarNegativeArraydiffCoefPricestoLr3d =
+  //   stdevNegativeArraydiffCoefPricestoLr3d /
+  //   avgNegativeArraydiffCoefPricestoLr3d
 
-  coefVarNegativeArraydiffCoefPricestoLr7d =
-    stdevNegativeArraydiffCoefPricestoLr7d /
-    avgNegativeArraydiffCoefPricestoLr7d
+  // coefVarNegativeArraydiffCoefPricestoLr7d =
+  //   stdevNegativeArraydiffCoefPricestoLr7d /
+  //   avgNegativeArraydiffCoefPricestoLr7d
 
   coefVarNegativeArraydiffCoefPricestoLr30d =
     stdevNegativeArraydiffCoefPricestoLr30d /
     avgNegativeArraydiffCoefPricestoLr30d
+
+  coefVarNegativeArraydiffCoefPricestoLr60d =
+    stdevNegativeArraydiffCoefPricestoLr60d /
+    avgNegativeArraydiffCoefPricestoLr60d
 
   coefVarNegativeArraydiffCoefPricestoLr90d =
     stdevNegativeArraydiffCoefPricestoLr90d /
@@ -555,22 +650,22 @@ function calculateCoef(fromMetric, toMetric) {
   // const lrCoefVolumes = findLineByLeastSquares(times, coefVolumes)
   // lrCoefVolumes.forEach(([time, value]) => {
   //   const dateKey = new Hash(time).md5
-  //   newHistories[dateKey].lrCoefVolume = value
+  //   historiesPairNew[dateKey].lrCoefVolume = value
   // })
   // //* расчет коэффициента капитализации
   // const lrcoefPriceMarketCaps = findLineByLeastSquares(times, coefMarketCaps)
   // lrcoefPriceMarketCaps.forEach(([time, value]) => {
   //   const dateKey = new Hash(time).md5
-  //   newHistories[dateKey].lrCoefPriceMarketCap = value
+  //   historiesPairNew[dateKey].lrCoefPriceMarketCap = value
   // })
   // //* расчет коэффициента волантильности
   // const lrCoefVolatilitys = findLineByLeastSquares(times, coefVolatilitys)
   // lrCoefVolatilitys.forEach(([time, value]) => {
   //   const dateKey = new Hash(time).md5
-  //   newHistories[dateKey].lrCoefVolatility = value
+  //   historiesPairNew[dateKey].lrCoefVolatility = value
   // })
 
-  // arrayOfObject = Object.values(newHistories)
+  // arrayOfObject = Object.values(historiesPairNew)
   // const arrayCoefPrices = arrayOfObject.map((m) => m.lrCoefPrice)
   // const arrayCoefVolumes = arrayOfObject.map((m) => m.lrCoefVolume)
   // const arrayCoefMarketCap = arrayOfObject.map((m) => m.lrCoefPriceMarketCap)
@@ -603,8 +698,8 @@ function calculateCoef(fromMetric, toMetric) {
   //   lrFormula6
   // )
 
-  const arrayOfObjectNewHistories = Object.values(newHistories)
-  arrayOfObjectNewHistories.forEach((rowObject) => {
+  const arrayOfObjecthistoriesPairNew = Object.values(historiesPairNew)
+  arrayOfObjecthistoriesPairNew.forEach((rowObject) => {
     if (
       rowObject.lrCoefPrice &&
       rowObject.dateUnix >= dateFromMetric.unix &&
@@ -636,29 +731,30 @@ function calculateCoef(fromMetric, toMetric) {
       rowObject.coefPriceAtl = void 0
     }
 
-    if (rowObject.lrCoefPrice3d) {
-      rowObject.lrCoefPriceHigh3d =
-        rowObject.lrCoefPrice3d +
-        stdevPositiveArraydiffCoefPricestoLr3d *
-          (coefVarPositiveArraydiffCoefPricestoLr3d + 1)
+    // if (rowObject.lrCoefPrice3d) {
+    //   rowObject.lrCoefPriceHigh3d =
+    //     rowObject.lrCoefPrice3d +
+    //     stdevPositiveArraydiffCoefPricestoLr3d *
+    //       (coefVarPositiveArraydiffCoefPricestoLr3d + 1)
 
-      rowObject.lrCoefPriceLow3d =
-        rowObject.lrCoefPrice3d -
-        stdevNegativeArraydiffCoefPricestoLr3d *
-          (coefVarNegativeArraydiffCoefPricestoLr3d + 1)
-    }
+    //   rowObject.lrCoefPriceLow3d =
+    //     rowObject.lrCoefPrice3d -
+    //     stdevNegativeArraydiffCoefPricestoLr3d *
+    //       (coefVarNegativeArraydiffCoefPricestoLr3d + 1)
+    // }
 
-    if (rowObject.lrCoefPrice7d) {
-      rowObject.lrCoefPriceHigh7d =
-        rowObject.lrCoefPrice7d +
-        stdevPositiveArraydiffCoefPricestoLr7d *
-          (coefVarPositiveArraydiffCoefPricestoLr7d + 1)
+    // if (rowObject.lrCoefPrice7d) {
+    //   rowObject.lrCoefPriceHigh7d =
+    //     rowObject.lrCoefPrice7d +
+    //     stdevPositiveArraydiffCoefPricestoLr7d *
+    //       (coefVarPositiveArraydiffCoefPricestoLr7d + 1)
 
-      rowObject.lrCoefPriceLow7d =
-        rowObject.lrCoefPrice7d -
-        stdevNegativeArraydiffCoefPricestoLr7d *
-          (coefVarNegativeArraydiffCoefPricestoLr7d + 1)
-    }
+    //   rowObject.lrCoefPriceLow7d =
+    //     rowObject.lrCoefPrice7d -
+    //     stdevNegativeArraydiffCoefPricestoLr7d *
+    //       (coefVarNegativeArraydiffCoefPricestoLr7d + 1)
+    // }
+
     if (rowObject.lrCoefPrice30d) {
       rowObject.lrCoefPriceHigh30d =
         rowObject.lrCoefPrice30d +
@@ -670,6 +766,19 @@ function calculateCoef(fromMetric, toMetric) {
         stdevNegativeArraydiffCoefPricestoLr30d *
           (coefVarNegativeArraydiffCoefPricestoLr30d + 1)
     }
+
+    if (rowObject.lrCoefPrice60d) {
+      rowObject.lrCoefPriceHigh60d =
+        rowObject.lrCoefPrice60d +
+        stdevPositiveArraydiffCoefPricestoLr60d *
+          (coefVarPositiveArraydiffCoefPricestoLr60d + 1)
+
+      rowObject.lrCoefPriceLow60d =
+        rowObject.lrCoefPrice60d -
+        stdevNegativeArraydiffCoefPricestoLr60d *
+          (coefVarNegativeArraydiffCoefPricestoLr60d + 1)
+    }
+
     if (rowObject.lrCoefPrice90d) {
       rowObject.lrCoefPriceHigh90d =
         rowObject.lrCoefPrice90d +
@@ -682,8 +791,8 @@ function calculateCoef(fromMetric, toMetric) {
           (coefVarNegativeArraydiffCoefPricestoLr90d + 1)
     }
   })
-
-  histories.truncateInsertRows(Object.values(arrayOfObjectNewHistories))
+  const historiesArrayOfObject = Object.values(arrayOfObjecthistoriesPairNew)
+  histories.truncateInsertRows([...historiesOldData, ...historiesArrayOfObject])
 }
 
 function getStandardDeviation(array) {

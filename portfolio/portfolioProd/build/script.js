@@ -1352,8 +1352,9 @@ class ModalDialog {
       .setHeight(this.height);
     this.ui.showModalDialog(output, title);
   }
+
   alert(title, message) {
-    this.ui.alert(title, message, this.ui.Button.YES);
+    this.ui.alert(title, message, this.ui.Button.OK);
   }
 }
 
@@ -1533,24 +1534,12 @@ class Portfolio {
             idx: 4,
             notNull: true,
           },
-          ecosystem: {
-            alias: 'Ecosystem',
-            idx: 5,
-          },
-          marketCapGroup: {
-            alias: 'MarketCap group',
-            idx: 6,
-          },
-          priceGroup: {
-            alias: 'Price group',
-            idx: 7,
-          },
-          sourceId: { alias: 'Source id', idx: 8 },
-          price: { alias: 'Price', idx: 9 },
-          useInReport: { alias: 'Use in report', idx: 10 },
+          sourceId: { alias: 'Source id', idx: 5 },
+          price: { alias: 'Price', idx: 6 },
+          useInReport: { alias: 'Use in report', idx: 7 },
           update: {
             alias: 'Update',
-            idx: 11,
+            idx: 8,
             type: 'date',
             default: new Date(),
           },
@@ -1674,51 +1663,48 @@ class Portfolio {
           symbol: { alias: 'Symbol name', idx: 5 },
           symbolFullName: { alias: 'Symbol full name', idx: 6 },
           symbolCategory: { alias: 'Symbol category', idx: 7 },
-          symbolEcosystem: { alias: 'Symbol ecosystem', idx: 8 },
-          symbolMarketCapGroup: { alias: 'Symbol marketcap group', idx: 9 },
-          quantityOwnInFlow: { alias: 'Quantity (own in flow)', idx: 10 },
-          quantityInFlow: { alias: 'Quantity (in flow)', idx: 11 },
-          quantityOutFlow: { alias: 'Quantity (out flow)', idx: 12 },
-          quantityFlow: { alias: 'Quantity (flow)', idx: 13 },
-          quantityLock: { alias: 'Quantity (lock)', idx: 14 },
-          quantityUnlock: { alias: 'Quantity (unlock)', idx: 15 },
-          priceOwnInFlow: { alias: 'Price (own in flow), $', idx: 16 },
-          priceInFlow: { alias: 'Price (in flow), $', idx: 17 },
-          priceOutFlow: { alias: 'Price (out flow), $', idx: 18 },
-          priceFlow: { alias: 'Price (flow), $', idx: 19 },
-          price: { alias: 'Price, $', idx: 20 },
-          costOwnInFlow: { alias: 'Cost (own in flow), $', idx: 21 },
-          costInFlow: { alias: 'Cost (in flow), $', idx: 22 },
-          costOutFlow: { alias: 'Cost (out flow), $', idx: 23 },
-          costFlow: { alias: 'Cost (flow), $', idx: 24 },
-          cost: { alias: 'Cost, $', idx: 25 },
-          costLock: { alias: 'Cost (lock), $', idx: 26 },
-          costUnlock: { alias: 'Cost (unlock), $', idx: 27 },
-          pnlFlow: { alias: 'PnL (flow), $', idx: 28 },
-          pnlTotal: { alias: 'PnL (total), $', idx: 29 },
-          payback: { alias: 'Payback, $', idx: 30 },
-          quantityRebalance: { alias: 'Rebalance, qty', idx: 31 },
+          quantityOwnInFlow: { alias: 'Quantity (own in flow)', idx: 8 },
+          quantityInFlow: { alias: 'Quantity (in flow)', idx: 9 },
+          quantityOutFlow: { alias: 'Quantity (out flow)', idx: 10 },
+          quantityFlow: { alias: 'Quantity (flow)', idx: 11 },
+          quantityLock: { alias: 'Quantity (lock)', idx: 12 },
+          quantityUnlock: { alias: 'Quantity (unlock)', idx: 13 },
+          priceOwnInFlow: { alias: 'Price (own in flow), $', idx: 14 },
+          priceInFlow: { alias: 'Price (in flow), $', idx: 15 },
+          priceOutFlow: { alias: 'Price (out flow), $', idx: 16 },
+          priceFlow: { alias: 'Price (flow), $', idx: 17 },
+          price: { alias: 'Price, $', idx: 18 },
+          costOwnInFlow: { alias: 'Cost (own in flow), $', idx: 19 },
+          costInFlow: { alias: 'Cost (in flow), $', idx: 20 },
+          costOutFlow: { alias: 'Cost (out flow), $', idx: 21 },
+          costFlow: { alias: 'Cost (flow), $', idx: 22 },
+          cost: { alias: 'Cost, $', idx: 23 },
+          costLock: { alias: 'Cost (lock), $', idx: 24 },
+          costUnlock: { alias: 'Cost (unlock), $', idx: 25 },
+          pnlFlow: { alias: 'PnL (flow), $', idx: 26 },
+          pnlTotal: { alias: 'PnL (total), $', idx: 27 },
+          payback: { alias: 'Payback, $', idx: 28 },
+          quantityRebalance: { alias: 'Rebalance, qty', idx: 29 },
           dayInPortfolioAvg: {
             alias: 'Average day in portfolio',
-            idx: 32,
+            idx: 30,
           },
-          isSell: { alias: 'Is sell', idx: 33, default: false },
-          useInReport: { alias: 'Use in report', idx: 34 },
+          isSell: { alias: 'Is sell', idx: 31, default: false },
+          useInReport: { alias: 'Use in report', idx: 32 },
           updateDataMart: {
             alias: 'Update data mart',
-            idx: 35,
+            idx: 33,
             type: 'date',
           },
           updateDataMartKey: {
             alias: 'Update data mart key',
-            idx: 36,
+            idx: 34,
           },
           actualDataMart: {
             alias: 'Actual data mart',
-            idx: 37,
+            idx: 35,
           },
-          rowId: { alias: 'Row ID', idx: 38, default: 0 },
-          symbolPriceGroup: { alias: 'Symbol price group', idx: 39 },
+          rowId: { alias: 'Row ID', idx: 36, default: 0 },
         },
       },
       overflows: {
@@ -1836,6 +1822,17 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
+        },
+      },
+      portfolioStrategies: {
+        type: 'dim',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          account: { alias: 'Account', pk: true, idx: 1, notNull: true },
+          portfolio: { alias: 'portfolio', pk: true, idx: 2, notNull: true },
+          symbol: { alias: 'symbol', pk: true, idx: 3, notNull: true },
+          share: { alias: 'Share, %', idx: 4 },
         },
       },
       accounts: {
@@ -4960,10 +4957,6 @@ class Flow {
               const symbolKey = new Hash(symbol).md5;
               const symbolFullName = symbols[symbolKey]?.name || '';
               const symbolCategory = symbols[symbolKey]?.symbolCategory || '';
-              const symbolEcosystem = symbols[symbolKey]?.ecosystem || '';
-              const symbolMarketCapGroup =
-                symbols[symbolKey]?.marketCapGroup || '';
-              const symbolPriceGroup = symbols[symbolKey]?.priceGroup || '';
               const useInReport = symbols[symbolKey]?.useInReport;
               //* атрибуты контрагента
               const contractorKey = new Hash(contractor).md5;
@@ -5120,9 +5113,6 @@ class Flow {
                 symbol: symbol.toUpperCase(),
                 symbolFullName: symbolFullName.toUpperCase(),
                 symbolCategory: symbolCategory.toUpperCase(),
-                symbolEcosystem: symbolEcosystem.toUpperCase(),
-                symbolMarketCapGroup: symbolMarketCapGroup.toUpperCase(),
-                symbolPriceGroup: symbolPriceGroup.toUpperCase(),
                 quantityOwnInFlow: quantityOwnInFlow || 0,
                 quantityInFlow: quantityInFlow || 0,
                 quantityOutFlow: quantityOutFlow || 0,
@@ -5845,11 +5835,13 @@ function updateOnEdit(editRange) {
     const lock = LockService.getScriptLock();
     const savingDialog = new ModalDialog('html/SavingProcess', 300, 100);
     let startDialog = false;
-    if (editRange.range.rowEnd - editRange.range.rowStart > 1) {
+    if (editRange.range.rowEnd - editRange.range.rowStart > 0) {
       savingDialog.showModalDialog('Saving process');
       startDialog = true;
+    } else {
+      SpreadsheetApp.getActive().toast('Start saving...', 'Process', 1);
     }
-    new Promise((resolve) => {
+    new Promise((resolve, reject) => {
       const workSheet = new Portfolio().updateOnEdit(editRange.range);
       if (workSheet.isChangeData) {
         const startLock = new FormatDate();
@@ -5870,31 +5862,41 @@ function updateOnEdit(editRange) {
           });
         }
         resolve(workSheet);
+      } else {
+        reject();
       }
-    }).then((workSheet) => {
-      new Portfolio().log.addMessage(
-        'script.updateOnEdit',
-        'ID:' + startProcess.value,
-        'Sheet name: ' +
-          workSheet.sheetName +
-          ', Start row: ' +
-          workSheet.startRow +
-          ', End Row: ' +
-          workSheet.rowEnd +
-          ', Count row: ' +
-          workSheet.countRow +
-          ', Start: ' +
-          startProcess.getFormatDate('YYYY-MM-dd HH:mm:ss') +
-          ', Time spent: ' +
-          startProcess.getTimeDiff() +
-          ', Lock time: ' +
-          workSheet?.lockTime || 0
-      );
-      lock.releaseLock();
-      if (startDialog) {
-        savingDialog.closeModalDialog('All row saved!', 200);
-      }
-    });
+    })
+      .then((workSheet) => {
+        new Portfolio().log.addMessage(
+          'script.updateOnEdit',
+          'ID:' + startProcess.value,
+          'Sheet name: ' +
+            workSheet.sheetName +
+            ', Start row: ' +
+            workSheet.startRow +
+            ', End Row: ' +
+            workSheet.rowEnd +
+            ', Count row: ' +
+            workSheet.countRow +
+            ', Start: ' +
+            startProcess.getFormatDate('YYYY-MM-dd HH:mm:ss') +
+            ', Time spent: ' +
+            startProcess.getTimeDiff() +
+            ', Lock time: ' +
+            workSheet?.lockTime || 0
+        );
+        lock.releaseLock();
+        if (startDialog) {
+          savingDialog.closeModalDialog('All row saved!', 200);
+        }
+      })
+      .catch(() => {
+        if (startDialog) {
+          savingDialog.closeModalDialog('All row saved!', 200);
+        } else {
+          SpreadsheetApp.getActive().toast('End saving...', 'Process', 1);
+        }
+      });
   } catch (error) {
     console.error('script.updateOnEdit', error.stack);
   }

@@ -5,6 +5,7 @@
 !appsscript.json
 !build/*.js
 !function/*.js
+!html/**
 
 # ignore even valid files if in…
 .git/**

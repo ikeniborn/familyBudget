@@ -192,11 +192,13 @@ function updateOnEdit(editRange) {
     const lock = LockService.getScriptLock()
     const savingDialog = new ModalDialog('html/SavingProcess', 300, 100)
     let startDialog = false
-    if (editRange.range.rowEnd - editRange.range.rowStart > 1) {
+    if (editRange.range.rowEnd - editRange.range.rowStart > 0) {
       savingDialog.showModalDialog('Saving process')
       startDialog = true
+    } else {
+      SpreadsheetApp.getActive().toast('Start saving...', 'Process', 1)
     }
-    new Promise((resolve) => {
+    new Promise((resolve, reject) => {
       const workSheet = new Portfolio().updateOnEdit(editRange.range)
       if (workSheet.isChangeData) {
         const startLock = new FormatDate()
@@ -217,31 +219,41 @@ function updateOnEdit(editRange) {
           })
         }
         resolve(workSheet)
-      }
-    }).then((workSheet) => {
-      new Portfolio().log.addMessage(
-        'script.updateOnEdit',
-        'ID:' + startProcess.value,
-        'Sheet name: ' +
-          workSheet.sheetName +
-          ', Start row: ' +
-          workSheet.startRow +
-          ', End Row: ' +
-          workSheet.rowEnd +
-          ', Count row: ' +
-          workSheet.countRow +
-          ', Start: ' +
-          startProcess.getFormatDate('YYYY-MM-dd HH:mm:ss') +
-          ', Time spent: ' +
-          startProcess.getTimeDiff() +
-          ', Lock time: ' +
-          workSheet?.lockTime || 0
-      )
-      lock.releaseLock()
-      if (startDialog) {
-        savingDialog.closeModalDialog('All row saved!', 200)
+      } else {
+        reject()
       }
     })
+      .then((workSheet) => {
+        new Portfolio().log.addMessage(
+          'script.updateOnEdit',
+          'ID:' + startProcess.value,
+          'Sheet name: ' +
+            workSheet.sheetName +
+            ', Start row: ' +
+            workSheet.startRow +
+            ', End Row: ' +
+            workSheet.rowEnd +
+            ', Count row: ' +
+            workSheet.countRow +
+            ', Start: ' +
+            startProcess.getFormatDate('YYYY-MM-dd HH:mm:ss') +
+            ', Time spent: ' +
+            startProcess.getTimeDiff() +
+            ', Lock time: ' +
+            workSheet?.lockTime || 0
+        )
+        lock.releaseLock()
+        if (startDialog) {
+          savingDialog.closeModalDialog('All row saved!', 200)
+        }
+      })
+      .catch(() => {
+        if (startDialog) {
+          savingDialog.closeModalDialog('All row saved!', 200)
+        } else {
+          SpreadsheetApp.getActive().toast('End saving...', 'Process', 1)
+        }
+      })
   } catch (error) {
     console.error('script.updateOnEdit', error.stack)
   }
