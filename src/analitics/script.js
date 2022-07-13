@@ -2,6 +2,11 @@ import { Analitics } from './ss/analitics'
 import { FormatDate, FormatObject, Hash } from '../utils'
 import * as cryptoCompare from '../restApi/cryptoCompare'
 import * as coinGecko from '../restApi/coinGecko'
+import { ModalDialog } from '../gas'
+
+function showAlert(message) {
+  new ModalDialog().alert(message)
+}
 
 /**
  *
@@ -11,6 +16,8 @@ import * as coinGecko from '../restApi/coinGecko'
  * @param {*} tokenBId
  */
 function updateHistory(from, to, tokenAId, tokenBId) {
+  const lock = LockService.getScriptLock()
+  lock.tryLock(180000)
   let dateFrom, fromUnix, countDay
   const histories = new Analitics().getWorkSheet('history')
   const tokenATokenBData = new Hash(tokenAId + '/' + tokenBId)
@@ -93,6 +100,8 @@ function updateHistory(from, to, tokenAId, tokenBId) {
   })
 
   histories.truncateInsertRows([...historiesOldData, ...filterArrayOfObject])
+  lock.releaseLock()
+  return filterArrayOfObject.length ? true : false
 }
 /**
  *
@@ -102,6 +111,8 @@ function updateHistory(from, to, tokenAId, tokenBId) {
  * @param {*} tokenBId
  */
 function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
+  const lock = LockService.getScriptLock()
+  lock.tryLock(180000)
   let dateUnixs,
     coefPrices,
     // dateUnixs3d,
@@ -793,6 +804,7 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
   })
   const historiesArrayOfObject = Object.values(arrayOfObjecthistoriesPairNew)
   histories.truncateInsertRows([...historiesOldData, ...historiesArrayOfObject])
+  lock.releaseLock()
 }
 
 function getStandardDeviation(array) {

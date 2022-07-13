@@ -983,10 +983,14 @@ class WorkSheetRange extends WorkSheet {
           } else {
             const maxRowId = this.workSheetMetadata.getMaxRowId();
             rowIdCache = this.scriptCache.getCache(rowNumKey);
-            rowId =
-              rowIdCache && typeof rowIdCache === 'number'
-                ? rowIdCache
-                : maxRowId + 1;
+            //* определение максимального идентификатора строки
+            if (rowIdCache > 0 && typeof rowIdCache === 'number') {
+              rowId = rowIdCache;
+            } else if (maxRowId > 0 && typeof maxRowId === 'number') {
+              rowId = maxRowId + 1;
+            } else {
+              rowId = 1;
+            }
             isNewRowId = true;
           }
           const rowKey = new Hash(rowId + this.sheetName).md5;
@@ -1353,8 +1357,8 @@ class ModalDialog {
     this.ui.showModalDialog(output, title);
   }
 
-  alert(title, message) {
-    this.ui.alert(title, message, this.ui.Button.OK);
+  alert(message) {
+    this.ui.alert(message);
   }
 }
 
@@ -2204,7 +2208,7 @@ class Fetch {
           stepResult.ms += 500;
           Utilities.sleep(stepResult.ms);
         }
-        if (stepResult.iteration > 10) {
+        if (stepResult.iteration > 15) {
           stepResult.fetchStatus = true;
         }
       } while (!stepResult.fetchStatus)

@@ -38,23 +38,49 @@
 <body>
   <div class="container pt-3">
     <h5 class="border-bottom pb-2 mb-4">
-      User <span class="badge badge-secondary">Form:add</span>
+      <span class="badge badge-secondary">Form:update and calculate</span>
     </h5>
     <div id="userForm">
+      <!-- start field -->
       <div class="form-group">
-        <label for="invoiceNumber">New client</label>
+        <label for="invoiceNumber">Token A (CoinGecko Id)</label>
         <div class="input-group">
           <div class="input-group-prepend"></div>
-          <!-- <input type="email" class="form-control" id="clientName" placeholder="name@gmail.com" pattern="[a-z0-9._%+-]+@gmail.com$" required> -->
-          <input type="text" class="form-control" id="clientName" required />
-          <!-- <div class="invalid-feedback">
-            Please enter Email.
-          </div> -->
+          <input type="text" class="form-control" id="tokenA" required />
+        </div>
+      </div>
+      <!-- end field -->
+      <!-- start field -->
+      <div class="form-group">
+        <label for="invoiceNumber">Token B (CoinGecko Id)</label>
+        <div class="input-group">
+          <div class="input-group-prepend"></div>
+          <input type="text" class="form-control" id="tokenB" required />
+        </div>
+      </div>
+      <!-- end field -->
+      <!-- start field -->
+      <div class="form-group">
+        <label for="invoiceNumber">Date from</label>
+        <div class="input-group">
+          <div class="input-group-prepend"></div>
+          <input type="text" class="form-control" id="dateFrom" placeholder="yyyy-mm-dd" required>
+        </div>
+      </div>
+      <!-- end field -->
+      <!-- start field -->
+      <div class="form-group">
+        <label for="invoiceNumber">Date to</label>
+        <div class="input-group">
+          <div class="input-group-prepend"></div>
+          <input type="text" class="form-control" id="dateTo" placeholder="yyyy-mm-dd" required>
         </div>
       </div>
       <!-- end field -->
 
-      <button class="btn btn-warning" id="mainButton">Add to Database</button>
+      <button class="btn btn-warning" id="updateButton">Update and calculate</button>
+      <p></p>
+      <button class="btn btn-warning" id="calculateButton">Calculate</button>
     </div>
     <!-- end userForm -->
   </div>
@@ -97,22 +123,70 @@
     -->
 
   <script>
-    let arrayOfValues
 
-    function afterButtonClicked() {
+    function afterEndUpdate() {
+
+      google.script.run.showAlertUpdate()
+    }
+
+    function afterEndUpdateError() {
+
+      google.script.run.showAlertUpdateError()
+    }
+
+    function afterUpdateClicked() {
       if (validate()) {
-        const clientName = document.getElementById('clientName')
-        const rowData = {
-          clientName: clientName.value,
-        }
-        google.script.run.withSuccessHandler(afterSubmit).addNewSheet(rowData)
+
+        google.script.run.showToast('Start update...', 'Process')
+        const tokenA = document.getElementById('tokenA').value
+        const tokenB = document.getElementById('tokenB').value
+        const dateFrom = document.getElementById('dateFrom').value
+        const dateTo = document.getElementById('dateTo').value
+        google.script.run.withSuccessHandler(calculateAfterUpdate).withFailureHandler(afterEndUpdateError).updateHistory(dateFrom, dateTo, tokenA, tokenB)
+      } else {
+        // $('#errorNotification').toast('show')
+      }
+    }
+
+
+    function afterEndCalculate() {
+
+      google.script.run.showAlertCalculate()
+    }
+
+    function afterEndUpdateAndCalculate() {
+
+      google.script.run.afterEndUpdateAndCalculate()
+    }
+
+    function afterCalculateClicked() {
+      if (validate()) {
+        google.script.run.showToast('Start calculate...', 'Process')
+        const tokenA = document.getElementById('tokenA').value
+        const tokenB = document.getElementById('tokenB').value
+        const dateFrom = document.getElementById('dateFrom').value
+        const dateTo = document.getElementById('dateTo').value
+        google.script.run.withSuccessHandler(afterEndCalculate).calculateCoef(dateFrom, dateTo, tokenA, tokenB)
+      } else {
+        // $('#errorNotification').toast('show')
+      }
+    }
+
+    function calculateAfterUpdate() {
+      if (validate()) {
+        google.script.run.showToast('Start calculate...', 'Process')
+        const tokenA = document.getElementById('tokenA').value
+        const tokenB = document.getElementById('tokenB').value
+        const dateFrom = document.getElementById('dateFrom').value
+        const dateTo = document.getElementById('dateTo').value
+        google.script.run.withSuccessHandler(afterEndUpdateAndCalculate).calculateCoef(dateFrom, dateTo, tokenA, tokenB)
       } else {
         // $('#errorNotification').toast('show')
       }
     }
 
     function afterSubmit(e) {
-      clearFields(['clientName'])
+      clearFields(['tokenA', 'tokenB', 'dateFrom', 'dateTo'])
       // $('#successNotification').toast('show');
       // updateQtyOnHand();
     }
@@ -147,23 +221,26 @@
     // }
 
     document
-      .getElementById('mainButton')
-      .addEventListener('click', afterButtonClicked)
+      .getElementById("updateButton")
+      .addEventListener("click", afterUpdateClicked)
+    document
+      .getElementById("calculateButton")
+      .addEventListener("click", afterCalculateClicked)
     // document.getElementById('typeCounterparty').addEventListener('change', afterFirstDropdownChanged);
     // document.getElementById('counterparty').addEventListener('change', afterSecondDropdownChanged);
     // document.getElementById('account').addEventListener('change', updateQtyOnHand);
     // document.getElementById('issues').addEventListener('click', afterInputButtonClicked);
     //document.getElementById('condition').addEventListener('change', addInput);
 
-    $(function () {
-      $('#condition').change(function () {
-        if (this.checked) {
-          addInput()
-        } else {
-          removeAllInputs()
-        }
-      })
-    })
+    // $(function () {
+    //   $('#condition').change(function () {
+    //     if (this.checked) {
+    //       addInput()
+    //     } else {
+    //       removeAllInputs()
+    //     }
+    //   })
+    // })
       // document.addEventListener('DOMContentLoaded', afterSidebarLoads);
   </script>
 </body>

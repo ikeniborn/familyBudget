@@ -1,33 +1,34 @@
-function updateCoef() {
-  calculateCoef('2022-04-01', '2022-07-10', 'cosmos', 'evmos')
-}
-
-function updateDotAtom() {
-  updateHistory('2021-09-15', '2022-07-07', 'polkadot', 'cosmos')
-}
-
-function updateSdnBoba() {
-  updateHistory('2022-01-01', '2022-07-09', 'shiden', 'boba-network')
-}
-function updateEthBtc() {
-  updateHistory('2021-05-02', '2022-07-06', 'ethereum', 'bitcoin')
-}
-
-function updateAtomEvmos() {
-  updateHistory('2022-06-07', '2022-07-05', 'cosmos', 'evmos')
+function loadUpdatePairForm() {
+  const htmlForSidebar = HtmlService.createTemplateFromFile('html/updatePair')
+  const htmlOutput = htmlForSidebar.evaluate()
+  htmlOutput.setTitle('Overflow')
+  const ui = SpreadsheetApp.getUi()
+  ui.showSidebar(htmlOutput)
 }
 
 function createMenu() {
   const ui = SpreadsheetApp.getUi()
   const menu = ui.createMenu('Analitics')
-  menu.addSubMenu(
-    SpreadsheetApp.getUi()
-      .createMenu('Update')
-      .addItem('updateDotAtom', 'updateDotAtom')
-      .addItem('updateSdnBoba', 'updateSdnBoba')
-      .addItem('updateEthBtc', 'updateEthBtc')
-      .addItem('updateAtomEvmos', 'updateAtomEvmos')
-  )
-  menu.addItem('Calculate coefficient', 'updateCoef')
+  menu.addItem('Update data', 'loadUpdatePairForm')
   menu.addToUi()
+}
+
+function showToast(msg, title) {
+  SpreadsheetApp.getActive().toast(msg, title, 3)
+}
+
+function showAlertUpdate() {
+  showAlert('Update complete')
+}
+
+function showAlertUpdateError() {
+  showAlert('Update not complete. Repeat update')
+}
+
+function showAlertCalculate() {
+  showAlert('Calculate complete')
+}
+
+function afterEndUpdateAndCalculate() {
+  showAlert('Update and calculate complete')
 }

@@ -888,6 +888,38 @@ class ScriptCache {
   }
 }
 
+class ModalDialog {
+  constructor(htmlTempate, width, height) {
+    this.html = htmlTempate;
+    this.width = width;
+    this.height = height;
+    this.ui = SpreadsheetApp.getUi();
+  }
+
+  showModalDialog(title) {
+    const output = HtmlService.createTemplateFromFile(this.html)
+      .evaluate()
+      .setWidth(this.width)
+      .setHeight(this.height);
+    this.ui.showModalDialog(output, title);
+  }
+
+  closeModalDialog(title, timer = 200) {
+    var output = HtmlService.createHtmlOutput(
+      '<script>var myVar = setInterval(myTimer ,' +
+        timer +
+        ');function myTimer() { google.script.host.close();}</script>'
+    )
+      .setWidth(this.width)
+      .setHeight(this.height);
+    this.ui.showModalDialog(output, title);
+  }
+
+  alert(message) {
+    this.ui.alert(message);
+  }
+}
+
 new Environment([
   {
     spreadSheetName: 'analitics',
@@ -1246,7 +1278,7 @@ class Fetch {
           stepResult.ms += 500;
           Utilities.sleep(stepResult.ms);
         }
-        if (stepResult.iteration > 10) {
+        if (stepResult.iteration > 15) {
           stepResult.fetchStatus = true;
         }
       } while (!stepResult.fetchStatus)
@@ -1354,6 +1386,10 @@ class Coins {
   }
 }
 
+function showAlert(message) {
+  new ModalDialog().alert(message);
+}
+
 /**
  *
  * @param {*} from
@@ -1362,6 +1398,8 @@ class Coins {
  * @param {*} tokenBId
  */
 function updateHistory(from, to, tokenAId, tokenBId) {
+  const lock = LockService.getScriptLock();
+  lock.tryLock(180000);
   let dateFrom, fromUnix, countDay;
   const histories = new Analitics().getWorkSheet('history');
   const tokenATokenBData = new Hash(tokenAId + '/' + tokenBId);
@@ -1444,6 +1482,8 @@ function updateHistory(from, to, tokenAId, tokenBId) {
   });
 
   histories.truncateInsertRows([...historiesOldData, ...filterArrayOfObject]);
+  lock.releaseLock();
+  return filterArrayOfObject.length ? true : false
 }
 /**
  *
@@ -1453,6 +1493,8 @@ function updateHistory(from, to, tokenAId, tokenBId) {
  * @param {*} tokenBId
  */
 function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
+  const lock = LockService.getScriptLock();
+  lock.tryLock(180000);
   let dateUnixs,
     coefPrices,
     // dateUnixs3d,
@@ -2144,6 +2186,7 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
   });
   const historiesArrayOfObject = Object.values(arrayOfObjecthistoriesPairNew);
   histories.truncateInsertRows([...historiesOldData, ...historiesArrayOfObject]);
+  lock.releaseLock();
 }
 
 function getStandardDeviation(array) {
