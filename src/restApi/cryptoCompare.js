@@ -113,6 +113,7 @@ class Price {
       const dateUnix = new FormatDate(ts).unix
       const upperTsyms = tsyms.toUpperCase()
       const upperFsym = fsym.toUpperCase()
+
       const result = this.methods.get({
         endPoint: '/pricehistorical',
         query: {
@@ -121,6 +122,7 @@ class Price {
           ts: dateUnix,
         },
       })
+
       if (!result.Response) {
         return result[upperFsym][upperTsyms]
       } else {

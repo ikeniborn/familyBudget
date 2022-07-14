@@ -2405,6 +2405,7 @@ class Price$1 {
       const dateUnix = new FormatDate(ts).unix;
       const upperTsyms = tsyms.toUpperCase();
       const upperFsym = fsym.toUpperCase();
+
       const result = this.methods.get({
         endPoint: '/pricehistorical',
         query: {
@@ -2413,6 +2414,7 @@ class Price$1 {
           ts: dateUnix,
         },
       });
+
       if (!result.Response) {
         return result[upperFsym][upperTsyms]
       } else {
@@ -3735,10 +3737,9 @@ class HistoricalPrice {
             priceFlow = historicalPricePriceRestFlow;
           }
 
-          // console.log('priceFlow', priceFlow)
-
           //* Расчет средней цены покупки токена
-          if (priceFlow) {
+
+          if (priceFlow > 0) {
             historicalPrice = priceFlow;
             isHistoricalAveragePrice = true;
           } else {
@@ -3747,12 +3748,13 @@ class HistoricalPrice {
               sourceKey === 'b40555dbd3865016ed3f7b4a9bf3b806' /*coingecko*/
             ) {
               //* Получение исторической цены из coinGecko
-              historicalPrice = new coinGecko.Price()
+              historicalPrice = new Price()
                 .getMarketsPrice(symbolId)
                 .reduce((price, data) => {
                   price = data.current_price;
                   return price
                 }, 0);
+              console.log('historicalPrice coinGecko', historicalPrice);
               isHistoricalAveragePrice = false;
             } else {
               //* Получение исторической цены из CryptoCompare
@@ -3765,6 +3767,7 @@ class HistoricalPrice {
                   dateTime,
                   convert
                 );
+
                 isHistoricalAveragePrice = true;
               }
             }

@@ -2,6 +2,7 @@ import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash, FormatDate } from '../../utils'
 import { Symbols } from './symbols'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
+import * as coinGecko from '../../restApi/coinGecko'
 export { Transactions, HistoricalPrice }
 
 class Transactions {
@@ -741,10 +742,9 @@ class HistoricalPrice {
             priceFlow = historicalPricePriceRestFlow
           }
 
-          // console.log('priceFlow', priceFlow)
-
           //* Расчет средней цены покупки токена
-          if (priceFlow) {
+
+          if (priceFlow > 0) {
             historicalPrice = priceFlow
             isHistoricalAveragePrice = true
           } else {
@@ -759,6 +759,7 @@ class HistoricalPrice {
                   price = data.current_price
                   return price
                 }, 0)
+
               isHistoricalAveragePrice = false
             } else {
               //* Получение исторической цены из CryptoCompare
@@ -771,6 +772,7 @@ class HistoricalPrice {
                   dateTime,
                   convert
                 )
+
                 isHistoricalAveragePrice = true
               }
             }

@@ -29,6 +29,6 @@ function showAlertCalculate() {
   showAlert('Calculate complete')
 }
 
-function afterEndUpdateAndCalculate() {
-  showAlert('Update and calculate complete')
+function afterEndUpdateAndCalculate(pair) {
+  showAlert('Update and calculate complete ' + pair)
 }

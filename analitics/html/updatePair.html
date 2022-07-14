@@ -43,7 +43,7 @@
     <div id="userForm">
       <!-- start field -->
       <div class="form-group">
-        <label for="invoiceNumber">Token A (CoinGecko Id)</label>
+        <label for="invoiceNumber">Token A (CoinGecko API id)</label>
         <div class="input-group">
           <div class="input-group-prepend"></div>
           <input type="text" class="form-control" id="tokenA" required />
@@ -52,7 +52,7 @@
       <!-- end field -->
       <!-- start field -->
       <div class="form-group">
-        <label for="invoiceNumber">Token B (CoinGecko Id)</label>
+        <label for="invoiceNumber">Token B (CoinGecko API id)</label>
         <div class="input-group">
           <div class="input-group-prepend"></div>
           <input type="text" class="form-control" id="tokenB" required />
@@ -150,13 +150,13 @@
 
 
     function afterEndCalculate() {
-
       google.script.run.showAlertCalculate()
     }
 
     function afterEndUpdateAndCalculate() {
-
-      google.script.run.afterEndUpdateAndCalculate()
+      const tokenA = document.getElementById('tokenA').value
+      const tokenB = document.getElementById('tokenB').value
+      google.script.run.afterEndUpdateAndCalculate(tokenA + '/' + tokenB)
     }
 
     function afterCalculateClicked() {
