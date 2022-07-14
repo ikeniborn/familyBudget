@@ -937,6 +937,53 @@ class Analitics {
     Analitics.instance = this;
     Analitics.exists = true;
     this.workSheetHeads = {
+      overflowList: {
+        type: 'dim',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'rowKey', idx: 0 },
+          tokenAId: {
+            alias: 'tokenAId',
+            pk: true,
+            notNull: true,
+            idx: 1,
+          },
+          tokenBId: {
+            alias: 'tokenBId',
+            pk: true,
+            notNull: true,
+            idx: 2,
+          },
+
+          dateFrom: { alias: 'dateFrom', idx: 5 },
+          dateTo: { alias: 'dateTo', idx: 6 },
+          lrCoefPriceSlope: { alias: 'lrCoefPriceSlope', idx: 7 },
+          lrCoefPriceIntercept: { alias: 'lrCoefPriceIntercept', idx: 8 },
+          lrCoefPriceR2: { alias: 'lrCoefPriceR2', idx: 7 },
+          lrCoefPriceHighSlope: { alias: 'lrCoefPriceHighSlope', idx: 9 },
+          lrCoefPriceHighIntercept: {
+            alias: 'lrCoefPriceHighIntercept',
+            idx: 10,
+          },
+          lrCoefPriceHighR2: { alias: 'lrCoefPriceHighR2', idx: 7 },
+          lrCoefPriceLowSlope: { alias: 'lrCoefPriceLowSlope', idx: 11 },
+          lrCoefPriceLowIntercept: {
+            alias: 'lrCoefPriceLowIntercept',
+            idx: 12,
+          },
+          lrCoefPriceLowR2: { alias: 'lrCoefPriceLowR2', idx: 7 },
+          isValideChannel: {
+            alias: 'isValideChannel',
+            idx: 13,
+          },
+          updateDate: {
+            alias: 'Update date',
+            idx: 14,
+            type: 'date',
+            default: new Date(),
+          },
+        },
+      },
       history: {
         type: 'tx',
         rowNum: 1,
@@ -1536,6 +1583,7 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
   const tokenATokenBData = new Hash(tokenAId + '/' + tokenBId);
 
   const histories = new Analitics().getWorkSheet('history');
+  const overflowLists = new Analitics().getWorkSheet('overflowList');
   const historiesOldData =
     histories.arrayOfObject.filter((rowObject) => {
       return rowObject.tokenATokenBKey !== tokenATokenBData.md5
@@ -2058,39 +2106,6 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
   //   historiesPairNew[dateKey].lrCoefVolatility = value
   // })
 
-  // arrayOfObject = Object.values(historiesPairNew)
-  // const arrayCoefPrices = arrayOfObject.map((m) => m.lrCoefPrice)
-  // const arrayCoefVolumes = arrayOfObject.map((m) => m.lrCoefVolume)
-  // const arrayCoefMarketCap = arrayOfObject.map((m) => m.lrCoefPriceMarketCap)
-  // const arrayCoefVolatility = arrayOfObject.map((m) => m.lrCoefVolatility)
-  // const lrFormula1 = linearRegression(arrayCoefPrices, arrayCoefVolumes)
-  // const lrFormula2 = linearRegression(arrayCoefPrices, arrayCoefMarketCap)
-  // const lrFormula3 = linearRegression(arrayCoefPrices, arrayCoefVolatility)
-  // const lrFormula4 = linearRegression(arrayCoefMarketCap, arrayCoefVolumes)
-  // const lrFormula5 = linearRegression(arrayCoefMarketCap, arrayCoefVolatility)
-  // const lrFormula6 = linearRegression(arrayCoefVolumes, arrayCoefVolatility)
-  // console.log('linearRegression(arrayCoefPrices, arrayCoefVolumes)', lrFormula1)
-  // console.log(
-  //   'linearRegression(arrayCoefPrices, arrayCoefMarketCap)',
-  //   lrFormula2
-  // )
-  // console.log(
-  //   'linearRegression(arrayCoefPrices, arrayCoefVolatility)',
-  //   lrFormula3
-  // )
-  // console.log(
-  //   'linearRegression(arrayCoefMarketCap, arrayCoefVolumes)',
-  //   lrFormula4
-  // )
-  // console.log(
-  //   'linearRegression(arrayCoefMarketCap, arrayCoefVolatility)',
-  //   lrFormula5
-  // )
-  // console.log(
-  //   'linearRegression(arrayCoefVolumes, arrayCoefVolatility)',
-  //   lrFormula6
-  // )
-
   const arrayOfObjecthistoriesPairNew = Object.values(historiesPairNew);
   arrayOfObjecthistoriesPairNew.forEach((rowObject) => {
     if (
@@ -2186,6 +2201,67 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
   });
   const historiesArrayOfObject = Object.values(arrayOfObjecthistoriesPairNew);
   histories.truncateInsertRows([...historiesOldData, ...historiesArrayOfObject]);
+  //*############################
+  //* Расчет и сохранение каналов
+  //*############################
+  const historiesArrayOfObjectfilter = historiesArrayOfObject.filter(
+    (rowObject) => {
+      return (
+        rowObject.dateUnix >= dateFromMetric.unix &&
+        rowObject.dateUnix <= dateToMetric.unix
+      )
+    }
+  );
+  const dateUnixArray = historiesArrayOfObjectfilter.map((m) => m.dateUnix);
+  const lrCoefPriceArray = historiesArrayOfObjectfilter.map(
+    (m) => m.lrCoefPrice
+  );
+  const LrCoefPriceHighArray = historiesArrayOfObjectfilter.map(
+    (m) => m.lrCoefPriceLow
+  );
+  const lrCoefPriceLowArray = historiesArrayOfObjectfilter.map(
+    (m) => m.lrCoefPriceHigh
+  );
+
+  const lrCoefPriceFormula = linearRegression(dateUnixArray, lrCoefPriceArray);
+  const LrCoefPriceHighFormula = linearRegression(
+    dateUnixArray,
+    LrCoefPriceHighArray
+  );
+  const lrCoefPriceLowFormula = linearRegression(
+    dateUnixArray,
+    lrCoefPriceLowArray
+  );
+  const dateFromData = new FormatDate(fromMetric);
+  const dateToData = new FormatDate(toMetric);
+
+  {
+  }
+  const rowKey = new Hash(
+    tokenAId + tokenBId + dateFromData.value + dateToData.value
+  ).md5;
+  const overflowListRowObject = {
+    rowKey: rowKey,
+    tokenAId: tokenAId,
+    tokenBId: tokenBId,
+    dateFrom: dateFromData.getFormatDate('yyyy-MM-dd'),
+    dateTo: dateToData.getFormatDate('yyyy-MM-dd'),
+    lrCoefPriceSlope: lrCoefPriceFormula.slope,
+    lrCoefPriceIntercept: lrCoefPriceFormula.intercept,
+    lrCoefPriceR2: lrCoefPriceFormula.r2,
+    lrCoefPriceHighSlope: LrCoefPriceHighFormula.slope,
+    lrCoefPriceHighIntercept: LrCoefPriceHighFormula.intercept,
+    lrCoefPriceHighR2: lrCoefPriceFormula.r2,
+    lrCoefPriceLowSlope: lrCoefPriceLowFormula.slope,
+    lrCoefPriceLowIntercept: lrCoefPriceLowFormula.intercept,
+    lrCoefPriceLowR2: lrCoefPriceFormula.r2,
+    isValideChannel: false,
+  };
+  if (!overflowLists.object[rowKey]) {
+    overflowLists.object[rowKey] = overflowListRowObject;
+  }
+
+  overflowLists.truncateInsertRows(Object.values(overflowLists.object));
   lock.releaseLock();
 }
 
@@ -2199,11 +2275,11 @@ function getStandardDeviation(array) {
 
 /**
  *  y = slope * x + intercept
- * @param {array} y
  * @param {array} x
- * @returns slope  , intercept , r2
+ * @param {array} y
+ * @returns slope, intercept, r2
  */
-function linearRegression(y, x) {
+function linearRegression(x, y) {
   /*y = slope * x + intercept */
   var lr = { slope: void 0, intercept: void 0, r2: void 0 };
   var n = y.length;

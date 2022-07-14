@@ -19,6 +19,53 @@ class Analitics {
     Analitics.instance = this
     Analitics.exists = true
     this.workSheetHeads = {
+      overflowList: {
+        type: 'dim',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'rowKey', idx: 0 },
+          tokenAId: {
+            alias: 'tokenAId',
+            pk: true,
+            notNull: true,
+            idx: 1,
+          },
+          tokenBId: {
+            alias: 'tokenBId',
+            pk: true,
+            notNull: true,
+            idx: 2,
+          },
+
+          dateFrom: { alias: 'dateFrom', idx: 5 },
+          dateTo: { alias: 'dateTo', idx: 6 },
+          lrCoefPriceSlope: { alias: 'lrCoefPriceSlope', idx: 7 },
+          lrCoefPriceIntercept: { alias: 'lrCoefPriceIntercept', idx: 8 },
+          lrCoefPriceR2: { alias: 'lrCoefPriceR2', idx: 7 },
+          lrCoefPriceHighSlope: { alias: 'lrCoefPriceHighSlope', idx: 9 },
+          lrCoefPriceHighIntercept: {
+            alias: 'lrCoefPriceHighIntercept',
+            idx: 10,
+          },
+          lrCoefPriceHighR2: { alias: 'lrCoefPriceHighR2', idx: 7 },
+          lrCoefPriceLowSlope: { alias: 'lrCoefPriceLowSlope', idx: 11 },
+          lrCoefPriceLowIntercept: {
+            alias: 'lrCoefPriceLowIntercept',
+            idx: 12,
+          },
+          lrCoefPriceLowR2: { alias: 'lrCoefPriceLowR2', idx: 7 },
+          isValideChannel: {
+            alias: 'isValideChannel',
+            idx: 13,
+          },
+          updateDate: {
+            alias: 'Update date',
+            idx: 14,
+            type: 'date',
+            default: new Date(),
+          },
+        },
+      },
       history: {
         type: 'tx',
         rowNum: 1,
