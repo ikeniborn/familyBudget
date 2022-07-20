@@ -43,24 +43,6 @@
     <div id="userForm">
       <!-- start field -->
       <div class="form-group">
-        <label for="invoiceNumber">Token A (CoinGecko API id)</label>
-        <div class="input-group">
-          <div class="input-group-prepend"></div>
-          <input type="text" class="form-control" id="tokenA" required />
-        </div>
-      </div>
-      <!-- end field -->
-      <!-- start field -->
-      <div class="form-group">
-        <label for="invoiceNumber">Token B (CoinGecko API id)</label>
-        <div class="input-group">
-          <div class="input-group-prepend"></div>
-          <input type="text" class="form-control" id="tokenB" required />
-        </div>
-      </div>
-      <!-- end field -->
-      <!-- start field -->
-      <div class="form-group">
         <label for="invoiceNumber">Date from</label>
         <div class="input-group">
           <div class="input-group-prepend"></div>
@@ -77,6 +59,37 @@
         </div>
       </div>
       <!-- end field -->
+      <!-- start field -->
+      <p>Add channel key from overflowList</p>
+      <div class="form-group">
+        <label for="invoiceNumber">Channel key</label>
+        <div class="input-group">
+          <div class="input-group-prepend"></div>
+          <input type="text" class="form-control" id="channelKey">
+        </div>
+      </div>
+      <!-- end field -->
+      <p>or add token id</p>
+      <!-- start field -->
+      <div class="form-group">
+        <label for="invoiceNumber">Token A (CoinGecko API id)</label>
+        <div class="input-group">
+          <div class="input-group-prepend"></div>
+          <input type="text" class="form-control" id="tokenA">
+        </div>
+      </div>
+      <!-- end field -->
+      <!-- start field -->
+      <div class="form-group">
+        <label for="invoiceNumber">Token B (CoinGecko API id)</label>
+        <div class="input-group">
+          <div class="input-group-prepend"></div>
+          <input type="text" class="form-control" id="tokenB">
+        </div>
+      </div>
+      <!-- end field -->
+
+
       <button class="btn btn-warning" id="loadButton">Load</button>
       <p></p>
       <button class="btn btn-warning" id="calculateButton">Calculate</button>
@@ -124,9 +137,7 @@
   <script>
 
     function afterEndLoad() {
-      const tokenA = document.getElementById('tokenA').value
-      const tokenB = document.getElementById('tokenB').value
-      google.script.run.showAlert('Load complete ' + tokenA + '/' + tokenB)
+      google.script.run.showAlert('Load complete.')
     }
 
     function afterEndLoadError() {
@@ -140,16 +151,16 @@
         const tokenB = document.getElementById('tokenB').value
         const dateFrom = document.getElementById('dateFrom').value
         const dateTo = document.getElementById('dateTo').value
-        google.script.run.withSuccessHandler(afterEndLoad).withFailureHandler(afterEndLoadError).updateHistory(dateFrom, dateTo, tokenA, tokenB)
-      } else {
-        // $('#errorNotification').toast('show')
+        const channelKey = document.getElementById('channelKey').value
+        google.script.run.withSuccessHandler(afterEndLoad).withFailureHandler(afterEndLoadError).updateHistory(dateFrom, dateTo, tokenA, tokenB, channelKey)
       }
+      // } else {
+      // $('#errorNotification').toast('show')
+      // }
     }
 
     function afterEndCalculate() {
-      const tokenA = document.getElementById('tokenA').value
-      const tokenB = document.getElementById('tokenB').value
-      google.script.run.showAlert('Calculate complete ' + tokenA + '/' + tokenB)
+      google.script.run.showAlert('Calculate complete.')
     }
 
     function afterEndCalculateError() {
@@ -164,10 +175,12 @@
         const tokenB = document.getElementById('tokenB').value
         const dateFrom = document.getElementById('dateFrom').value
         const dateTo = document.getElementById('dateTo').value
-        google.script.run.withSuccessHandler(afterEndCalculate).withFailureHandler(afterEndCalculateError).calculateCoef(dateFrom, dateTo, tokenA, tokenB)
-      } else {
-        // $('#errorNotification').toast('show')
+        const channelKey = document.getElementById('channelKey').value
+        google.script.run.withSuccessHandler(afterEndCalculate).withFailureHandler(afterEndCalculateError).calculateCoef(dateFrom, dateTo, tokenA, tokenB, channelKey)
       }
+      // else {
+      // $('#errorNotification').toast('show')
+      // }
     }
 
 

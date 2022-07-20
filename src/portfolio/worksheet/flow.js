@@ -418,6 +418,7 @@ class Flow {
                 costUnlock: costUnlock || 0,
                 pnlFlow: cost - costFlow || 0,
                 pnlTotal: costOutFlow - costInFlow + cost || 0,
+                // pnlTotal: costOutFlow - costInFlow || 0,
                 quantityRebalance: quantityRebalance || 0,
                 payback: payback || 0,
                 dayInPortfolioAvg,

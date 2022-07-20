@@ -5153,6 +5153,7 @@ class Flow {
                 costUnlock: costUnlock || 0,
                 pnlFlow: cost - costFlow || 0,
                 pnlTotal: costOutFlow - costInFlow + cost || 0,
+                // pnlTotal: costOutFlow - costInFlow || 0,
                 quantityRebalance: quantityRebalance || 0,
                 payback: payback || 0,
                 dayInPortfolioAvg,
@@ -5689,8 +5690,9 @@ function createMenu() {
       .createMenu('Service')
       .addItem('Update data mart', 'updateDataMart')
       .addItem('Update overflows', 'updateOverflows')
-      .addItem('Validate transactions', 'validateTransactions')
+      .addItem('Update prices', 'updatePrices')
       .addItem('Update coins', 'updateCoins')
+      .addItem('Validate transactions', 'validateTransactions')
   );
   menu.addItem('Sort registry', 'sortRegistry');
   menu.addToUi();
@@ -5781,19 +5783,37 @@ function updateDataMart() {
     });
 }
 
-function updatePortfolio() {
+function updatePrices() {
   const startProcess = new FormatDate();
   new Promise((resolve, reject) => {
     const process = () => {
-      const startUpdatePrices = new FormatDate();
       new Symbols().updatePrices();
-      console.info(
-        'script.updatePortfolio.updatePrices.timeSpent:',
-        startUpdatePrices.getTimeDiff()
-      );
       return true
     };
     process() ? resolve() : reject(new Error('script.updatePrices'));
+  })
+    .then(
+      new Portfolio().log.addMessage(
+        'updatePrices',
+        'ID:' + startProcess.value,
+        'Time spent: ' + startProcess.getTimeDiff()
+      )
+    )
+    .catch((error) => {
+      console.error('script.updatePrices', error.stack);
+    });
+}
+
+function updatePortfolio() {
+  const startProcess = new FormatDate();
+  new Promise((resolve, reject) => {
+    const startUpdatePrices = new FormatDate();
+    new Symbols().updatePrices();
+    console.info(
+      'script.updatePortfolio.updatePrices.timeSpent:',
+      startUpdatePrices.getTimeDiff()
+    );
+    resolve();
   })
     .then(
       new Promise((resolve) => {
@@ -5828,10 +5848,7 @@ function updatePortfolio() {
         'ID:' + startProcess.value,
         'Time spent: ' + startProcess.getTimeDiff()
       )
-    )
-    .catch((error) => {
-      console.error('script.updatePrices', error.stack);
-    });
+    );
 }
 
 function updateRegistryRowKey() {

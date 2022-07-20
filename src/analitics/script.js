@@ -41,13 +41,33 @@ function showAlert(message) {
  * @param {*} to
  * @param {*} tokenAId
  * @param {*} tokenBId
+ *  @param {*} channelKey
  */
-function updateHistory(from, to, tokenAId, tokenBId) {
+function updateHistory(from, to, tokenAId, tokenBId, channelKey) {
   const lock = LockService.getScriptLock()
   lock.tryLock(180000)
-  let dateFrom, fromUnix, countDay
+  let dateFrom,
+    fromUnix,
+    countDay,
+    channel,
+    isChannel,
+    tokenATokenBData,
+    _tokenAId,
+    _tokenBId
+  const overflowLists = new Analitics().getWorkSheet('overflowList')
+  if (channelKey) {
+    channel = overflowLists.object[channelKey]
+    tokenATokenBData = new Hash(channel.tokenAId + '/' + channel.tokenBId)
+    _tokenAId = channel.tokenAId
+    _tokenBId = channel.tokenBId
+    isChannel = true
+  } else {
+    tokenATokenBData = new Hash(tokenAId + '/' + tokenBId)
+    _tokenAId = tokenAId
+    _tokenBId = tokenBId
+    isChannel = false
+  }
   const histories = new Analitics().getWorkSheet('history')
-  const tokenATokenBData = new Hash(tokenAId + '/' + tokenBId)
   const historiesOtherData = histories.arrayOfObject.filter((rowObject) => {
     return rowObject.tokenATokenBKey !== tokenATokenBData.md5
   })
@@ -80,14 +100,14 @@ function updateHistory(from, to, tokenAId, tokenBId) {
   }
 
   const tokenAData = new coinGecko.Coins().getCoinsRange(
-    tokenAId,
+    _tokenAId,
     'usd',
     fromUnix,
     toUnix
   )
 
   const tokenBData = new coinGecko.Coins().getCoinsRange(
-    tokenBId,
+    _tokenBId,
     'usd',
     fromUnix,
     toUnix
@@ -139,26 +159,15 @@ function updateHistory(from, to, tokenAId, tokenBId) {
   return updateArrayOfObject.length ? true : false
 }
 
-function updateСhannel(channelKey) {
-  const lock = LockService.getScriptLock()
-  lock.tryLock(180000)
-  const channel = new Analitics().getWorkSheet('overflowList').object[
-    channelKey
-  ]
-  // const tokenATokenBKey =
-  const histories = new Analitics().getWorkSheet('history')
-  const historiesHistory = new Analitics().getWorkSheet('history')
-
-  console.log()
-}
 /**
  *
  * @param {*} fromMetric yyyy-mm-dd
  * @param {*} toMetric yyyy-mm-dd
  * @param {*} tokenAId
  * @param {*} tokenBId
+ * @param {*} channelKey
  */
-function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
+function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId, channelKey) {
   const lock = LockService.getScriptLock()
   lock.tryLock(180000)
   let dateUnixs,
@@ -178,8 +187,12 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
     // dateFromMetric7dUnix,
     dateFromMetric30dUnix,
     dateFromMetric60dUnix,
-    dateFromMetric90dUnix
+    dateFromMetric90dUnix,
+    tokenATokenBData,
+    channel,
+    isChannel
   //  coefVolumes, coefMarketCaps, coefVolatilitys
+
   dateUnixs = []
   coefPrices = []
   // dateUnixs3d = []
@@ -199,10 +212,18 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
 
   const dateFromMetric = new FormatDate(fromMetric).getDateBegin()
   const dateToMetric = new FormatDate(toMetric).getDateBegin()
-  const tokenATokenBData = new Hash(tokenAId + '/' + tokenBId)
+  const overflowLists = new Analitics().getWorkSheet('overflowList')
+  if (channelKey) {
+    channel = overflowLists.object[channelKey]
+    tokenATokenBData = new Hash(channel.tokenAId + '/' + channel.tokenBId)
+    isChannel = true
+  } else {
+    tokenATokenBData = new Hash(tokenAId + '/' + tokenBId)
+    isChannel = false
+  }
 
   const histories = new Analitics().getWorkSheet('history')
-  const overflowLists = new Analitics().getWorkSheet('overflowList')
+
   const historiesOldData =
     histories.arrayOfObject.filter((rowObject) => {
       return rowObject.tokenATokenBKey !== tokenATokenBData.md5
@@ -213,6 +234,8 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
       return rowObject.tokenATokenBKey === tokenATokenBData.md5
     }) || []
 
+  // console.log('historiesPair', historiesPair)
+  // return
   dateToMetric0dUnix = historiesPair.reduce((max, rowObject) => {
     if (max < rowObject.dateUnix) {
       max = rowObject.dateUnix
@@ -348,13 +371,23 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
   coefPriceAthArray = []
   coefPriceAtlArray = []
 
+  console.log('channel', channel)
+
   lrCoefPrices.forEach(([dateUnix, value]) => {
     const dateKey = new FormatDate(new Date(dateUnix * 1000)).getDateBegin()
       .dateKey
-    historiesPairNew[dateKey].lrCoefPrice = value
+    let _value
+    if (isChannel) {
+      _value =
+        dateUnix * channel.lrCoefPriceSlope + channel.lrCoefPriceIntercept
+    } else {
+      _value = value
+    }
+
+    historiesPairNew[dateKey].lrCoefPrice = _value
     //* расчет отклонения от средней регресионной
     historiesPairNew[dateKey].diffCoefPricestoLr =
-      historiesPairNew[dateKey].coefPrice - value
+      historiesPairNew[dateKey].coefPrice - _value
     if (historiesPairNew[dateKey].diffCoefPricestoLr > 0) {
       //* положительное отклонение
       positiveArraydiffCoefPricestoLr.push(
@@ -508,9 +541,11 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
     stdevPositiveArraydiffCoefPricestoLr90d
 
   //* стандратное отклонение
-  stdevPositiveArraydiffCoefPricestoLr = getStandardDeviation(
-    positiveArraydiffCoefPricestoLr
-  )
+  if (!isChannel) {
+    stdevPositiveArraydiffCoefPricestoLr = getStandardDeviation(
+      positiveArraydiffCoefPricestoLr
+    )
+  }
   // stdevPositiveArraydiffCoefPricestoLr3d = getStandardDeviation(
   //   positiveArraydiffCoefPricestoLr3d
   // )
@@ -533,10 +568,11 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
     stdevNegativeArraydiffCoefPricestoLr30d,
     stdevNegativeArraydiffCoefPricestoLr60d,
     stdevNegativeArraydiffCoefPricestoLr90d
-
-  stdevNegativeArraydiffCoefPricestoLr = getStandardDeviation(
-    negativeArraydiffCoefPricestoLr
-  )
+  if (!isChannel) {
+    stdevNegativeArraydiffCoefPricestoLr = getStandardDeviation(
+      negativeArraydiffCoefPricestoLr
+    )
+  }
   // stdevNegativeArraydiffCoefPricestoLr3d = getStandardDeviation(
   //   negativeArraydiffCoefPricestoLr3d
   // )
@@ -561,9 +597,11 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
     varPositiveArraydiffCoefPricestoLr60d,
     varPositiveArraydiffCoefPricestoLr90d
 
-  varPositiveArraydiffCoefPricestoLr = calculateVariance(
-    positiveArraydiffCoefPricestoLr
-  )
+  if (!isChannel) {
+    varPositiveArraydiffCoefPricestoLr = calculateVariance(
+      positiveArraydiffCoefPricestoLr
+    )
+  }
 
   let varNegativeArraydiffCoefPricestoLr,
     // varNegativeArraydiffCoefPricestoLr3d,
@@ -571,10 +609,11 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
     varNegativeArraydiffCoefPricestoLr30d,
     varNegativeArraydiffCoefPricestoLr60d,
     varNegativeArraydiffCoefPricestoLr90d
-
-  varNegativeArraydiffCoefPricestoLr = calculateVariance(
-    negativeArraydiffCoefPricestoLr
-  )
+  if (!isChannel) {
+    varNegativeArraydiffCoefPricestoLr = calculateVariance(
+      negativeArraydiffCoefPricestoLr
+    )
+  }
 
   // varNegativeArraydiffCoefPricestoLr3d = calculateVariance(
   //   negativeArraydiffCoefPricestoLr3d
@@ -600,9 +639,11 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
     avgPositiveArraydiffCoefPricestoLr60d,
     avgPositiveArraydiffCoefPricestoLr90d
 
-  avgPositiveArraydiffCoefPricestoLr = calculateAvg(
-    positiveArraydiffCoefPricestoLr
-  )
+  if (!isChannel) {
+    avgPositiveArraydiffCoefPricestoLr = calculateAvg(
+      positiveArraydiffCoefPricestoLr
+    )
+  }
   // avgPositiveArraydiffCoefPricestoLr3d = calculateAvg(
   //   positiveArraydiffCoefPricestoLr3d
   // )
@@ -626,9 +667,11 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
     avgNegativeArraydiffCoefPricestoLr60d,
     avgNegativeArraydiffCoefPricestoLr90d
 
-  avgNegativeArraydiffCoefPricestoLr = calculateAvg(
-    negativeArraydiffCoefPricestoLr
-  )
+  if (!isChannel) {
+    avgNegativeArraydiffCoefPricestoLr = calculateAvg(
+      negativeArraydiffCoefPricestoLr
+    )
+  }
   // avgNegativeArraydiffCoefPricestoLr3d = calculateAvg(
   //   positiveArraydiffCoefPricestoLr3d
   // )
@@ -653,9 +696,10 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
     coefVarPositiveArraydiffCoefPricestoLr60d,
     coefVarPositiveArraydiffCoefPricestoLr90d
 
-  coefVarPositiveArraydiffCoefPricestoLr =
-    stdevPositiveArraydiffCoefPricestoLr / avgPositiveArraydiffCoefPricestoLr
-
+  if (!isChannel) {
+    coefVarPositiveArraydiffCoefPricestoLr =
+      stdevPositiveArraydiffCoefPricestoLr / avgPositiveArraydiffCoefPricestoLr
+  }
   // coefVarPositiveArraydiffCoefPricestoLr3d =
   //   stdevPositiveArraydiffCoefPricestoLr3d /
   //   avgPositiveArraydiffCoefPricestoLr3d
@@ -683,9 +727,10 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
     coefVarNegativeArraydiffCoefPricestoLr60d,
     coefVarNegativeArraydiffCoefPricestoLr90d
 
-  coefVarNegativeArraydiffCoefPricestoLr =
-    stdevNegativeArraydiffCoefPricestoLr / avgNegativeArraydiffCoefPricestoLr
-
+  if (!isChannel) {
+    coefVarNegativeArraydiffCoefPricestoLr =
+      stdevNegativeArraydiffCoefPricestoLr / avgNegativeArraydiffCoefPricestoLr
+  }
   // coefVarNegativeArraydiffCoefPricestoLr3d =
   //   stdevNegativeArraydiffCoefPricestoLr3d /
   //   avgNegativeArraydiffCoefPricestoLr3d
@@ -726,24 +771,34 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
   // })
 
   const arrayOfObjecthistoriesPairNew = Object.values(historiesPairNew)
+  //* вставка новых и удаление старых данных
   arrayOfObjecthistoriesPairNew.forEach((rowObject) => {
     if (
       rowObject.lrCoefPrice &&
       rowObject.dateUnix >= dateFromMetric.unix &&
       rowObject.dateUnix <= dateToMetric.unix
     ) {
-      rowObject.lrCoefPriceHigh =
-        rowObject.lrCoefPrice +
-        stdevPositiveArraydiffCoefPricestoLr *
-          (coefVarPositiveArraydiffCoefPricestoLr + 1)
-      // rowObject.stdevPositiveArraydiffCoefPricestoLr = stdevPositiveArraydiffCoefPricestoLr
-      // rowObject.varPositiveArraydiffCoefPricestoLr = varPositiveArraydiffCoefPricestoLr
-      // rowObject.avgPositiveArraydiffCoefPricestoLr = avgPositiveArraydiffCoefPricestoLr
-      // rowObject.coefVarPositiveArraydiffCoefPricestoLr = coefVarPositiveArraydiffCoefPricestoLr
-      rowObject.lrCoefPriceLow =
-        rowObject.lrCoefPrice -
-        stdevNegativeArraydiffCoefPricestoLr *
-          (coefVarNegativeArraydiffCoefPricestoLr + 1)
+      if (isChannel) {
+        rowObject.lrCoefPriceHigh =
+          rowObject.dateUnix * channel.lrCoefPriceHighSlope +
+          channel.lrCoefPriceHighIntercept
+        rowObject.lrCoefPriceLow =
+          rowObject.dateUnix * channel.lrCoefPriceLowSlope +
+          channel.lrCoefPriceLowIntercept
+      } else {
+        rowObject.lrCoefPriceHigh =
+          rowObject.lrCoefPrice +
+          stdevPositiveArraydiffCoefPricestoLr *
+            (coefVarPositiveArraydiffCoefPricestoLr + 1)
+        // rowObject.stdevPositiveArraydiffCoefPricestoLr = stdevPositiveArraydiffCoefPricestoLr
+        // rowObject.varPositiveArraydiffCoefPricestoLr = varPositiveArraydiffCoefPricestoLr
+        // rowObject.avgPositiveArraydiffCoefPricestoLr = avgPositiveArraydiffCoefPricestoLr
+        // rowObject.coefVarPositiveArraydiffCoefPricestoLr = coefVarPositiveArraydiffCoefPricestoLr
+        rowObject.lrCoefPriceLow =
+          rowObject.lrCoefPrice -
+          stdevNegativeArraydiffCoefPricestoLr *
+            (coefVarNegativeArraydiffCoefPricestoLr + 1)
+      }
       rowObject.coefPriceAth = coefPriceAth.coefPrice
       rowObject.coefPriceAtl = coefPriceAtl.coefPrice
       // rowObject.stdevNegativeArraydiffCoefPricestoLr = stdevNegativeArraydiffCoefPricestoLr
@@ -782,7 +837,11 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
     //       (coefVarNegativeArraydiffCoefPricestoLr7d + 1)
     // }
 
-    if (rowObject.lrCoefPrice30d) {
+    if (
+      rowObject.lrCoefPrice30d &&
+      rowObject.dateUnix >= dateFromMetric30dUnix &&
+      rowObject.dateUnix <= dateToMetric0dUnix
+    ) {
       rowObject.lrCoefPriceHigh30d =
         rowObject.lrCoefPrice30d +
         stdevPositiveArraydiffCoefPricestoLr30d *
@@ -792,9 +851,17 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
         rowObject.lrCoefPrice30d -
         stdevNegativeArraydiffCoefPricestoLr30d *
           (coefVarNegativeArraydiffCoefPricestoLr30d + 1)
+    } else {
+      rowObject.lrCoefPrice30d = void 0
+      rowObject.lrCoefPriceHigh30d = void 0
+      rowObject.lrCoefPriceLow30d = void 0
     }
 
-    if (rowObject.lrCoefPrice60d) {
+    if (
+      rowObject.lrCoefPrice60d &&
+      rowObject.dateUnix >= dateFromMetric60dUnix &&
+      rowObject.dateUnix <= dateToMetric0dUnix
+    ) {
       rowObject.lrCoefPriceHigh60d =
         rowObject.lrCoefPrice60d +
         stdevPositiveArraydiffCoefPricestoLr60d *
@@ -804,9 +871,17 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
         rowObject.lrCoefPrice60d -
         stdevNegativeArraydiffCoefPricestoLr60d *
           (coefVarNegativeArraydiffCoefPricestoLr60d + 1)
+    } else {
+      rowObject.lrCoefPrice60d = void 0
+      rowObject.lrCoefPriceHigh60d = void 0
+      rowObject.lrCoefPriceLow60d = void 0
     }
 
-    if (rowObject.lrCoefPrice90d) {
+    if (
+      rowObject.lrCoefPrice90d &&
+      rowObject.dateUnix >= dateFromMetric90dUnix &&
+      rowObject.dateUnix <= dateToMetric0dUnix
+    ) {
       rowObject.lrCoefPriceHigh90d =
         rowObject.lrCoefPrice90d +
         stdevPositiveArraydiffCoefPricestoLr90d *
@@ -816,71 +891,77 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId) {
         rowObject.lrCoefPrice90d -
         stdevNegativeArraydiffCoefPricestoLr90d *
           (coefVarNegativeArraydiffCoefPricestoLr90d + 1)
+    } else {
+      rowObject.lrCoefPrice90d = void 0
+      rowObject.lrCoefPriceHigh90d = void 0
+      rowObject.lrCoefPriceLow90d = void 0
     }
   })
   const historiesArrayOfObject = Object.values(arrayOfObjecthistoriesPairNew)
   histories.truncateInsertRows([...historiesOldData, ...historiesArrayOfObject])
-  //*############################
-  //* Расчет и сохранение каналов
-  //*############################
-  const historiesArrayOfObjectfilter = historiesArrayOfObject.filter(
-    (rowObject) => {
-      return (
-        rowObject.dateUnix >= dateFromMetric.unix &&
-        rowObject.dateUnix <= dateToMetric.unix
-      )
+  if (!isChannel) {
+    //*############################
+    //* Расчет и сохранение каналов
+    //*############################
+    const historiesArrayOfObjectfilter = historiesArrayOfObject.filter(
+      (rowObject) => {
+        return (
+          rowObject.dateUnix >= dateFromMetric.unix &&
+          rowObject.dateUnix <= dateToMetric.unix
+        )
+      }
+    )
+    const dateUnixArray = historiesArrayOfObjectfilter.map((m) => m.dateUnix)
+    const lrCoefPriceArray = historiesArrayOfObjectfilter.map(
+      (m) => m.lrCoefPrice
+    )
+    const LrCoefPriceHighArray = historiesArrayOfObjectfilter.map(
+      (m) => m.lrCoefPriceLow
+    )
+    const lrCoefPriceLowArray = historiesArrayOfObjectfilter.map(
+      (m) => m.lrCoefPriceHigh
+    )
+
+    const lrCoefPriceFormula = linearRegression(dateUnixArray, lrCoefPriceArray)
+    const LrCoefPriceHighFormula = linearRegression(
+      dateUnixArray,
+      LrCoefPriceHighArray
+    )
+    const lrCoefPriceLowFormula = linearRegression(
+      dateUnixArray,
+      lrCoefPriceLowArray
+    )
+    const dateFromData = new FormatDate(fromMetric)
+    const dateToData = new FormatDate(toMetric)
+
+    {
     }
-  )
-  const dateUnixArray = historiesArrayOfObjectfilter.map((m) => m.dateUnix)
-  const lrCoefPriceArray = historiesArrayOfObjectfilter.map(
-    (m) => m.lrCoefPrice
-  )
-  const LrCoefPriceHighArray = historiesArrayOfObjectfilter.map(
-    (m) => m.lrCoefPriceLow
-  )
-  const lrCoefPriceLowArray = historiesArrayOfObjectfilter.map(
-    (m) => m.lrCoefPriceHigh
-  )
+    const rowKey = new Hash(
+      tokenAId + tokenBId + dateFromData.value + dateToData.value
+    ).md5
+    const overflowListRowObject = {
+      rowKey: rowKey,
+      tokenAId: tokenAId,
+      tokenBId: tokenBId,
+      dateFrom: dateFromData.getFormatDate('yyyy-MM-dd'),
+      dateTo: dateToData.getFormatDate('yyyy-MM-dd'),
+      lrCoefPriceSlope: lrCoefPriceFormula.slope,
+      lrCoefPriceIntercept: lrCoefPriceFormula.intercept,
+      lrCoefPriceR2: lrCoefPriceFormula.r2,
+      lrCoefPriceHighSlope: LrCoefPriceHighFormula.slope,
+      lrCoefPriceHighIntercept: LrCoefPriceHighFormula.intercept,
+      lrCoefPriceHighR2: lrCoefPriceFormula.r2,
+      lrCoefPriceLowSlope: lrCoefPriceLowFormula.slope,
+      lrCoefPriceLowIntercept: lrCoefPriceLowFormula.intercept,
+      lrCoefPriceLowR2: lrCoefPriceFormula.r2,
+      isValideChannel: false,
+    }
+    if (!overflowLists.object[rowKey]) {
+      overflowLists.object[rowKey] = overflowListRowObject
+    }
 
-  const lrCoefPriceFormula = linearRegression(dateUnixArray, lrCoefPriceArray)
-  const LrCoefPriceHighFormula = linearRegression(
-    dateUnixArray,
-    LrCoefPriceHighArray
-  )
-  const lrCoefPriceLowFormula = linearRegression(
-    dateUnixArray,
-    lrCoefPriceLowArray
-  )
-  const dateFromData = new FormatDate(fromMetric)
-  const dateToData = new FormatDate(toMetric)
-
-  {
+    overflowLists.truncateInsertRows(Object.values(overflowLists.object))
   }
-  const rowKey = new Hash(
-    tokenAId + tokenBId + dateFromData.value + dateToData.value
-  ).md5
-  const overflowListRowObject = {
-    rowKey: rowKey,
-    tokenAId: tokenAId,
-    tokenBId: tokenBId,
-    dateFrom: dateFromData.getFormatDate('yyyy-MM-dd'),
-    dateTo: dateToData.getFormatDate('yyyy-MM-dd'),
-    lrCoefPriceSlope: lrCoefPriceFormula.slope,
-    lrCoefPriceIntercept: lrCoefPriceFormula.intercept,
-    lrCoefPriceR2: lrCoefPriceFormula.r2,
-    lrCoefPriceHighSlope: LrCoefPriceHighFormula.slope,
-    lrCoefPriceHighIntercept: LrCoefPriceHighFormula.intercept,
-    lrCoefPriceHighR2: lrCoefPriceFormula.r2,
-    lrCoefPriceLowSlope: lrCoefPriceLowFormula.slope,
-    lrCoefPriceLowIntercept: lrCoefPriceLowFormula.intercept,
-    lrCoefPriceLowR2: lrCoefPriceFormula.r2,
-    isValideChannel: false,
-  }
-  if (!overflowLists.object[rowKey]) {
-    overflowLists.object[rowKey] = overflowListRowObject
-  }
-
-  overflowLists.truncateInsertRows(Object.values(overflowLists.object))
   lock.releaseLock()
 }
 
