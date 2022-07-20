@@ -22,8 +22,17 @@ class Flow {
       const contractors = new Portfolio().getWorkSheet('Contractors').object
       const inKey = new Hash('in').md5
       const outKey = new Hash('out').md5
-      const actualDate = new FormatDate()
-      const updateDataMart = new FormatDate()
+      const actualDate = new FormatDate().getDateBegin()
+      const updateDataMart = new FormatDate().getDateBegin()
+      const updateDate = new FormatDate()
+      const flowHistory = this.workSheet.arrayOfObject
+        .filter((rowObject) => {
+          return rowObject.updateDataMartKey !== actualDate.dateKey
+        })
+        .map((rowObject) => {
+          rowObject.actualDataMart = false
+          return rowObject
+        })
 
       const aggFlow = new Transactions().workSheet.arrayOfObject
         .filter((row) => row.isDelete === false)
@@ -414,14 +423,11 @@ class Flow {
                 dayInPortfolioAvg,
                 isSell: false,
                 useInReport: useInReport,
-                updateDataMart: updateDataMart.getFormatDate(
-                  'yyyy-MM-dd hh:mm:ss'
-                ),
+                updateDataMart: updateDataMart.getFormatDate('yyyy-MM-dd'),
+                updateDate: updateDate.getFormatDate('yyyy-MM-dd HH:mm'),
                 actualDataMart:
-                  actualDate.yyyymmdd === updateDataMart.yyyymmdd
-                    ? true
-                    : false,
-                updateDataMartKey: new Hash(updateDataMart.yyyymmdd).md5,
+                  actualDate.dateKey === updateDataMart.dateKey ? true : false,
+                updateDataMartKey: updateDataMart.dateKey,
               })
             })
           })
@@ -465,7 +471,10 @@ class Flow {
         return rowFlow
       })
 
-      this.workSheet.truncateInsertRows(aggFlowArrayOfObject)
+      this.workSheet.truncateInsertRows([
+        ...flowHistory,
+        ...aggFlowArrayOfObject,
+      ])
     } catch (error) {
       console.error('FlowSymbol.updateFlow', error.stack)
     }

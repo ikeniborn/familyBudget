@@ -15,11 +15,12 @@ import { GasProcess } from '../restApi/gasScriptApi'
 function createMenu() {
   const ui = SpreadsheetApp.getUi()
   const menu = ui.createMenu('Portfolio')
-  menu.addSubMenu(
-    SpreadsheetApp.getUi()
-      .createMenu('Update')
-      .addItem('Update prices, datamart, overflows', 'updatePrices')
-  )
+  // menu.addSubMenu(
+  //   SpreadsheetApp.getUi()
+  //     .createMenu('Update')
+  //     .addItem('Update portfolio', 'updatePortfolio')
+  // )
+  menu.addItem('Update portfolio', 'updatePortfolio')
   menu.addSubMenu(
     SpreadsheetApp.getUi()
       .createMenu('Service')
@@ -54,17 +55,9 @@ function validateTransactions() {
       return true
     }
     process() ? resolve() : reject(new Error('script.validateTransactions'))
+  }).catch((error) => {
+    console.error('script.validateTransactions', error.stack)
   })
-    // .then(
-    //   new Portfolio().log.addMessage(
-    //     'script.validateTransactions',
-    //     'ID:' + startProcess.value,
-    //     'Time spent: ' + startProcess.getTimeDiff()
-    //   )
-    // )
-    .catch((error) => {
-      console.error('script.validateTransactions', error.stack)
-    })
 }
 
 function updateLPToken() {
@@ -125,22 +118,46 @@ function updateDataMart() {
     })
 }
 
-function updatePrices() {
+function updatePortfolio() {
   const startProcess = new FormatDate()
   new Promise((resolve, reject) => {
     const process = () => {
+      const startUpdatePrices = new FormatDate()
       new Symbols().updatePrices()
+      console.info(
+        'script.updatePortfolio.updatePrices.timeSpent:',
+        startUpdatePrices.getTimeDiff()
+      )
       return true
     }
     process() ? resolve() : reject(new Error('script.updatePrices'))
   })
     .then(
       new Promise((resolve) => {
+        const startValidateTransactions = new FormatDate()
         new Registry().validateTransactions()
+        console.info(
+          'script.updatePortfolio.validateTransactions.timeSpent:',
+          startValidateTransactions.getTimeDiff()
+        )
         resolve()
       })
-        .then(new Flow().updateFlow())
-        .then(new Overflows().updateOverflows())
+        .then(() => {
+          const startUpdateFlow = new FormatDate()
+          new Flow().updateFlow()
+          console.info(
+            'script.updatePortfolio.updateFlow.timeSpent:',
+            startUpdateFlow.getTimeDiff()
+          )
+        })
+        .then(() => {
+          const startUpdateOverflows = new FormatDate()
+          new Overflows().updateOverflows()
+          console.info(
+            'script.updatePortfolio.updateOverflows.timeSpent:',
+            startUpdateOverflows.getTimeDiff()
+          )
+        })
     )
     .then(
       new Portfolio().log.addMessage(
@@ -223,39 +240,42 @@ function updateOnEdit(editRange) {
         }
         resolve(workSheet)
       } else {
-        reject()
-      }
-    }).then((workSheet) => {
-      new Portfolio().log.addMessage(
-        'script.updateOnEdit',
-        'ID:' + startProcess.value,
-        'Sheet name: ' +
-          workSheet.sheetName +
-          ', Start row: ' +
-          workSheet.startRow +
-          ', End Row: ' +
-          workSheet.rowEnd +
-          ', Count row: ' +
-          workSheet.countRow +
-          ', Start: ' +
-          startProcess.getFormatDate('YYYY-MM-dd HH:mm:ss') +
-          ', Time spent: ' +
-          startProcess.getTimeDiff() +
-          ', Lock time: ' +
-          workSheet?.lockTime || 0
-      )
-      lock.releaseLock()
-      if (startDialog) {
-        savingDialog.closeModalDialog('All row saved!', 200)
+        reject(workSheet)
       }
     })
-    // .catch(() => {
-    //   if (startDialog) {
-    //     savingDialog.closeModalDialog('All row saved!', 200)
-    //   } else {
-    //     SpreadsheetApp.getActive().toast('End saving...', 'Process', 1)
-    //   }
-    // })
+      .then((workSheet) => {
+        new Portfolio().log.addMessage(
+          'script.updateOnEdit',
+          'ID:' + startProcess.value,
+          'Sheet name: ' +
+            workSheet.sheetName +
+            ', Start row: ' +
+            workSheet.startRow +
+            ', End Row: ' +
+            workSheet.rowEnd +
+            ', Count row: ' +
+            workSheet.countRow +
+            ', Start: ' +
+            startProcess.getFormatDate('YYYY-MM-dd HH:mm:ss') +
+            ', Time spent: ' +
+            startProcess.getTimeDiff() +
+            ', Lock time: ' +
+            workSheet?.lockTime || 0
+        )
+        lock.releaseLock()
+        if (startDialog) {
+          savingDialog.closeModalDialog('All row saved!', 200)
+        }
+      })
+      .catch((workSheet) => {
+        // if (startDialog) {
+        //   savingDialog.closeModalDialog('All row saved!', 200)
+        // } else {
+        //   SpreadsheetApp.getActive().toast('End saving...', 'Process', 1)
+        // }
+        console.error('script.updateOnEdit', workSheet.sheetName)
+        lock.releaseLock()
+      })
   } catch (error) {
     console.error('script.updateOnEdit', error.stack)
   }

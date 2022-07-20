@@ -269,7 +269,11 @@ class Portfolio {
             alias: 'Actual data mart',
             idx: 35,
           },
-          rowId: { alias: 'Row ID', idx: 36, default: 0 },
+          updateDate: {
+            alias: 'Update date',
+            idx: 36,
+          },
+          rowId: { alias: 'Row ID', idx: 37, default: 0 },
         },
       },
       overflows: {

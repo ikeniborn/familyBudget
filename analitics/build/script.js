@@ -825,6 +825,245 @@ class WorkSheet extends SpreadSheet {
   }
 }
 
+class WorkSheetRange extends WorkSheet {
+  constructor(spreadSheetName, sheetName, head, range) {
+    super(spreadSheetName, sheetName, head);
+    this.workSheet = range.getSheet();
+    this.arrayOfObject = [];
+    this.object = {};
+    this.isChangeData = false;
+    this.isRange = true;
+    this.range = range;
+    this.startRow = this.range.rowStart;
+    this.rowEnd = this.range.rowEnd;
+    this.countRow = this.range.rowEnd - this.range.rowStart + 1;
+    this.countColumn = this.range.columnEnd - this.range.columnStart + 1;
+    this.firstRowNum = this.range.rowStart;
+    this.isChangePrimaryKey = false;
+    this.isRange = true;
+    this.dataRange = range.offset(
+      0,
+      1 - this.range.columnStart,
+      this.countRow,
+      this.maxColumn
+    );
+    this.rowNumArray = [...Array(this.countRow).keys()].map(
+      (m) => (m = m + this.range.rowStart)
+    );
+    this.columnNumArray = [...Array(this.countColumn).keys()].map(
+      (m) => (m = m + this.range.columnStart)
+    );
+    this.workSheetMetadata = new WorkSheetMetadata(this.workSheet);
+  }
+
+  get isDeleteRow() {
+    return this.countColumn === this.maxColumn
+  }
+
+  getFact() {
+    try {
+      this.dataRange.getValues().forEach((arrayRow, indexRow) => {
+        const rowNum = this.firstRowNum + indexRow;
+        const rowKey = arrayRow[this.head.rowKey.idx];
+        const instanceRow = arrayRow.reduce((object, value, index) => {
+          object['rowNum'] = rowNum;
+          if (!object[this.headKey[index]]) {
+            object[this.headKey[index]] = value;
+          }
+          return object
+        }, {});
+        if (!this.object[rowKey]) {
+          this.object[rowKey] = instanceRow;
+        }
+        this.arrayOfObject.push(instanceRow);
+      });
+      return this
+    } catch (error) {
+      console.error('WorkSheetRange.getFact', error.stack);
+    }
+  }
+
+  getDimension() {
+    try {
+      this.object = this.dataRange
+        .getValues()
+        .reduce((objectRow, arrayRow, indexRow) => {
+          const rowNum = this.firstRowNum + indexRow;
+          const object = arrayRow.reduce((object, value, index) => {
+            if (!object[this.headKey[index]]) {
+              object[this.headKey[index]] = value;
+            }
+            object['rowNum'] = rowNum;
+            return object
+          }, {});
+          const newRowKey = this.getPrimaryKey(object);
+
+          object.isChangePrimaryKey = false;
+          if (object.rowKey !== newRowKey) {
+            object.rowKey = newRowKey;
+            this.isChangePrimaryKey = true;
+          }
+          const isNotNull = this.isNotNull(object);
+
+          if (!objectRow[object.rowKey] && isNotNull) {
+            objectRow[object.rowKey] = object;
+          }
+          return objectRow
+        }, {});
+
+      this.arrayOfObject = Object.values(this.object);
+      this.isChangeData = this.arrayOfObject.length ? true : false;
+      return this
+    } catch (error) {
+      console.error('WorkSheetRange.getDimension', error.stack);
+    }
+  }
+
+  getTransactions() {
+    try {
+      this.dataRange.getValues().forEach((arrayRow, indexRow) => {
+        const rowNum = this.firstRowNum + indexRow;
+        const rowNumKey = new Hash(rowNum + this.sheetName).md5;
+        const isChangeRow = this.isChangeRow(rowNum, arrayRow);
+        let rowIdCache;
+        if (isChangeRow.sign) {
+          let isNewRowId = false;
+          const rowIdOld = arrayRow[this.head.rowId.idx] * 1;
+          let rowId;
+          if (rowIdOld) {
+            rowId = arrayRow[this.head.rowId.idx];
+          } else {
+            const maxRowId = this.workSheetMetadata.getMaxRowId();
+            rowIdCache = this.scriptCache.getCache(rowNumKey);
+            //* определение максимального идентификатора строки
+            if (rowIdCache > 0 && typeof rowIdCache === 'number') {
+              rowId = rowIdCache;
+            } else if (maxRowId > 0 && typeof maxRowId === 'number') {
+              rowId = maxRowId + 1;
+            } else {
+              rowId = 1;
+            }
+            isNewRowId = true;
+          }
+          const rowKey = new Hash(rowId + this.sheetName).md5;
+          const rowKeyTimestamp = new Hash(
+            rowNum + this.sheetName + 'timestamp'
+          ).md5;
+          const instanceRow = arrayRow.reduce((object, value, column) => {
+            if (!object[this.headKey[column]]) {
+              object[this.headKey[column]] = value;
+              object['rowKey'] = rowKey;
+              object['rowNum'] = rowNum;
+              object['rowHash'] = isChangeRow.hash;
+              object['timestamp'] = new Date().valueOf();
+              object['rowId'] = rowId;
+            }
+            return object
+          }, {});
+          const rowHashCache = this.scriptCache.getCache(rowKey);
+          if (rowHashCache !== instanceRow.rowHash) {
+            this.scriptCache.addCache(rowKey, instanceRow.rowHash);
+            this.scriptCache.addCache(rowKeyTimestamp, instanceRow.timestamp);
+            const isNotNull = this.isNotNull(instanceRow);
+            if (isNotNull) {
+              if (isNewRowId) {
+                if (!rowIdCache) {
+                  this.workSheetMetadata.addMaxRowId(rowId);
+                }
+                this.scriptCache.addCache(rowNumKey, rowId);
+              }
+              if (!this.object[rowKey]) {
+                this.object[rowKey] = instanceRow;
+              }
+              this.arrayOfObject.push(instanceRow);
+            }
+          }
+        }
+      });
+      this.isChangeData = this.arrayOfObject.length ? true : false;
+      return this
+    } catch (error) {
+      console.error('WorkSheetRange.getTransactions', error.stack);
+    }
+  }
+
+  savePrimaryKeyChanges() {
+    try {
+      if (this.firstRowNum !== this.headRowNum) {
+        this.arrayOfObject.forEach((object) => {
+          this.insertValue(
+            object.rowKey,
+            object.rowNum,
+            this.head.rowKey.idx + 1
+          );
+        });
+      }
+    } catch (error) {
+      console.error('WorkSheetRange.savePrimaryKeyChanges', error.stack);
+    }
+  }
+
+  /**
+   * Проверка изменения строки
+   * @param {number} rowNum номер строки
+   * @param {array} arrayRow массив значений строки
+   * @returns {object} объект { sign, hash }
+   */
+  isChangeRow(rowNum, arrayRow = []) {
+    try {
+      const rowHash = new Hash(arrayRow.join('#')).md5;
+      const rowHashOld = this.scriptCache.getCache(
+        this.sheetName + 'rowkey' + rowNum
+      );
+      if (rowHash !== rowHashOld) {
+        this.scriptCache.addCache(this.sheetName + 'rowkey' + rowNum, rowHash);
+        return { sign: true, hash: rowHash }
+      } else {
+        return { sign: false, hash: rowHash }
+      }
+    } catch (error) {
+      console.error('WorkSheetRange.isChangeRow', error.stack);
+    }
+  }
+
+  // isChangePrimaryKey(rowObject = {}) {
+  //   return Object.keys(this.head)
+  //     .filter((column) => this.head[column].pk)
+  //     .some((column) => (rowObject[column] ? true : false))
+  // }
+
+  isNotNull(rowObject = {}) {
+    const data = Object.keys(this.head).filter(
+      (column) => this.head[column].notNull
+    );
+    if (data.length) {
+      return data.every((column) => rowObject[column])
+    }
+    return false
+  }
+
+  /**
+   * Формирование хэша ключа строки
+   * @param {object} rowObject строка в формате {key:value}
+   * @returns
+   */
+  getPrimaryKey(rowObject = {}) {
+    return new Hash(
+      Object.keys(this.head)
+        .filter((column) => this.head[column].pk)
+        .map((column) => {
+          const value = rowObject[column];
+          if (value instanceof Date) {
+            return new Date(value).valueOf()
+          } else {
+            return value
+          }
+        })
+        .join('')
+    ).md5
+  }
+}
+
 class ScriptCache {
   /**
    * Работа с кэшем Google
@@ -885,6 +1124,161 @@ class ScriptCache {
    */
   removeAllCache(arrayKey) {
     this.cache.removeAll(arrayKey);
+  }
+}
+class Metadata {
+  /**
+   * Методы работы с метаданными листа книги
+   * @param {object} target объект метаданных: принимает книгу, лист, диапазон
+   */
+  constructor(target) {
+    this.target = target;
+    this.metadata = target.getDeveloperMetadata().reduce((keys, metadata) => {
+      keys[metadata.getKey()] = {
+        remove: () => metadata.remove(),
+        getKey: () => metadata.getKey(),
+        getValue: () => metadata.getValue(),
+        setValue: (value) => metadata.setValue(value),
+        value: metadata.getValue(),
+      };
+      return keys
+    }, {});
+    this.metaMap = new Map(Object.entries(this.metadata));
+  }
+  /**
+   * Добавление значения в метаданные листа
+   * @param {string} key ключ метаданых
+   * @param {string} value значение ключа
+   */
+  addMetadata(key, value) {
+    const newValue = value;
+    if (this.metaMap.has(key)) {
+      const oldValue = this.metadata[key].getValue();
+      if (new Hash(newValue).md5 !== new Hash(oldValue).md5) {
+        this.metadata[key].setValue(newValue);
+        this.metadata[key].value = newValue;
+      }
+    } else {
+      this.metadata = this.target
+        .addDeveloperMetadata(key, newValue)
+        .getDeveloperMetadata()
+        .reduce((keys, metadata) => {
+          keys[metadata.getKey()] = {
+            remove: () => metadata.remove(),
+            getKey: () => metadata.getKey(),
+            getValue: () => metadata.getValue(),
+            setValue: (value) => metadata.setValue(value),
+          };
+          return keys
+        }, {});
+      this.metaMap = new Map(Object.entries(this.metadata));
+    }
+  }
+
+  getMetadata(key) {
+    if (this.metaMap.has(key)) {
+      return this.metadata[key].getValue()
+    }
+  }
+
+  deleteMetadata(key) {
+    key = key.toString();
+    if (this.metaMap.has(key)) {
+      this.metadata[key].remove();
+    }
+  }
+  deleteAllMetadata() {
+    const arrayMetadataKey = Object.keys(this.metadata);
+    arrayMetadataKey.forEach((key) => {
+      this.metadata[key].remove();
+    });
+    console.log('Delete keys: ', arrayMetadataKey.length);
+  }
+}
+
+class WorkSheetMetadata {
+  /**
+   * Работа с метаданными листа
+   * @param {object} workSheet объект листа
+   */
+  constructor(workSheet) {
+    if (
+      WorkSheetMetadata.workSheetNameHashMd5 ===
+      new Hash(workSheet.getName()).md5
+    ) {
+      return WorkSheetMetadata.instance
+    }
+    WorkSheetMetadata.instance = this;
+    this.metadata = new Metadata(workSheet);
+    this.workSheetNameHash = new Hash(workSheet.getName());
+    this.workSheetNameHashMd5 = new Hash(workSheet.getName()).md5;
+  }
+
+  /**
+   * Добавление ключа строки в метаданные
+   * @param {number} rowNum номер строки листа
+   */
+  addRowKey(rowNum, value) {
+    const key = 'ROWKEY_' + rowNum;
+    this.metadata.addMetadata(key, value);
+    return value
+  }
+
+  getRowKey(rowNum) {
+    const key = 'ROWKEY_' + rowNum;
+    return this.metadata.getMetadata(key)
+  }
+
+  /**
+   * Добавление максимального идентификатора строки
+   * @param {number} rowNum номер строки листа
+   */
+  addMaxRowId(rowId) {
+    this.metadata.addMetadata('MAXROWID', rowId + '');
+    return rowId
+  }
+
+  /**
+   * Получение максимального идентификатора строки
+   * @returns Максимальный идентификатор на листе
+   */
+  getMaxRowId() {
+    const data = this.metadata.getMetadata('MAXROWID') * 1;
+    if (typeof data === 'number') {
+      return data
+    }
+    return void 0
+  }
+
+  /**
+   * Добавление ключа листа в метаданные
+   * @param {string} sheetKey ключ листа в формате Hash
+   */
+  addSheetKey() {
+    const value = this.workSheetNameHash.stringUpperCase;
+    this.metadata.addMetadata('SHEETKEY', value);
+    return value
+  }
+
+  /**
+   * Получение ключа листа из метаданных
+   * @returns ключ листа в формате Hash
+   */
+  getSheetKey() {
+    return this.metadata.getMetadata('SHEETKEY')
+  }
+
+  getSheetName() {
+    const oldValue = this.metadata.getMetadata('SHEETNAME');
+    if (oldValue) {
+      return oldValue
+    } else {
+      this.metadata.addMetadata(
+        'SHEETNAME',
+        this.workSheetNameHash.stringUpperCase
+      );
+      return this.workSheetNameHash.stringUpperCase
+    }
   }
 }
 
@@ -1065,6 +1459,18 @@ class Analitics {
           rowId: { alias: 'Row ID', idx: 25 },
         },
       },
+      tokenList: {
+        type: 'dim',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          symbol: { alias: 'Symbol', idx: 1, pk: true, notNull: true },
+          coinGeckoId: { alias: 'coinGecko id', idx: 2 },
+          cryptoCompareId: { alias: 'CryptoCompare id', idx: 3 },
+          coinMarketMapId: { alias: 'CoinMarketCap id', idx: 4 },
+          cryptoRankId: { alias: 'CryptoRank id', idx: 5 },
+        },
+      },
     };
     this.spreadSheetName = 'analitics';
   }
@@ -1084,48 +1490,27 @@ class Analitics {
       console.error('Analitics.getWorkSheet', error.stack);
     }
   }
-}
 
-// Deprecated
-// flowSymbol: {
-//   type: 'tx',
-//   rowNum: 1,
-//   columns: {
-//     account: { alias: 'Account', idx: 0 },
-//     symbol: { alias: 'Symbol', idx: 1 },
-//     symbolKey: { alias: 'Symbol key', idx: 2 },
-//     quantityOwnInFlow: { alias: 'Quantity own in flow', idx: 3 },
-//     quantityInFlow: { alias: 'Quantity in flow', idx: 4 },
-//     quantityOutFlow: { alias: 'Quantity out flow', idx: 5 },
-//     quantityRest: { alias: 'Quantity rest', idx: 6 },
-//     quantityRestLock: { alias: 'Quantity rest lock', idx: 7 },
-//     quantityRestUnlock: { alias: 'Quantity rest unlock', idx: 8 },
-//     priceOwnInFlow: { alias: 'Price own in flow', idx: 9 },
-//     priceInFlow: { alias: 'Price in flow', idx: 10 },
-//     priceOutFlow: { alias: 'Price out flow', idx: 11 },
-//     priceRest: { alias: 'Price rest', idx: 12 },
-//     costOwnInFlow: { alias: 'Cost own in flow', idx: 13 },
-//     costInFlow: { alias: 'Cost in flow', idx: 14 },
-//     costOutFlow: { alias: 'Cost out flow', idx: 15 },
-//     costRest: { alias: 'Cost rest', idx: 16 },
-//     costRestInFlow: { alias: 'Cost rest in flow', idx: 17 },
-//     costRestLock: { alias: 'Cost rest lock', idx: 18 },
-//     costRestUnlock: { alias: 'Cost rest unlock', idx: 19 },
-//     pnlTotal: { alias: 'PnL total', idx: 20 },
-//     pnlRest: { alias: 'PnL rest', idx: 21 },
-//     payback: { alias: 'Payback', idx: 22 },
-//     dayInPortfolioAvg: {
-//       alias: 'Day in Portfolio (avg)',
-//       idx: 23,
-//     },
-//     update: {
-//       alias: 'Update',
-//       idx: 24,
-//       type: 'date',
-//       default: new Date(),
-//     },
-//   },
-// },
+  updateOnEdit(range) {
+    try {
+      let sheetName, headSheetName, isRegistry;
+      sheetName = range.getSheet().getSheetName();
+      headSheetName = sheetName;
+
+      const head = new Header().getHead(this.workSheetHeads, headSheetName);
+      const workSheet = new WorkSheetRange(
+        this.spreadSheetName,
+        sheetName,
+        head,
+        range
+      ).getDataset();
+
+      return workSheet
+    } catch (error) {
+      console.error('Portfolio.updateOnEdit', error.stack);
+    }
+  }
+}
 
 class Methods {
   constructor(
@@ -1433,6 +1818,33 @@ class Coins {
   }
 }
 
+function updateOnEdit(editRange) {
+  const lock = LockService.getScriptLock();
+  new Promise((resolve, reject) => {
+    const workSheet = new Analitics().updateOnEdit(editRange.range);
+    if (workSheet.isChangeData) {
+      const startLock = new FormatDate();
+      lock.tryLock(180000);
+      workSheet.lockTime = startLock.getTimeDiff();
+      if (workSheet.isChangePrimaryKey) {
+        workSheet.savePrimaryKeyChanges();
+      }
+
+      resolve(workSheet);
+    } else {
+      reject(workSheet);
+    }
+  })
+    .then((workSheet) => {
+      console.info('script.updateOnEdit.lockTime', workSheet.lockTime);
+      lock.releaseLock();
+    })
+    .catch((workSheet) => {
+      console.error('script.updateOnEdit', workSheet.sheetName);
+      lock.releaseLock();
+    });
+}
+
 function showAlert(message) {
   new ModalDialog().alert(message);
 }
@@ -1450,11 +1862,20 @@ function updateHistory(from, to, tokenAId, tokenBId) {
   let dateFrom, fromUnix, countDay;
   const histories = new Analitics().getWorkSheet('history');
   const tokenATokenBData = new Hash(tokenAId + '/' + tokenBId);
-  const historiesOldData = new Analitics()
-    .getWorkSheet('history')
-    .arrayOfObject.filter((rowObject) => {
-      return rowObject.tokenATokenBKey !== tokenATokenBData.md5
-    });
+  const historiesOtherData = histories.arrayOfObject.filter((rowObject) => {
+    return rowObject.tokenATokenBKey !== tokenATokenBData.md5
+  });
+  const historiesObject = histories.arrayOfObject
+    .filter((rowObject) => {
+      return rowObject.tokenATokenBKey === tokenATokenBData.md5
+    })
+    .reduce((object, rowObject) => {
+      if (!object[rowObject.dateKey]) {
+        object[rowObject.dateKey] = rowObject;
+      }
+      return object
+    }, {});
+
   dateFrom = new FormatDate(from).getDateBegin();
   const dateTo = to
     ? new FormatDate(to).getDateBegin()
@@ -1486,13 +1907,13 @@ function updateHistory(from, to, tokenAId, tokenBId) {
     toUnix
   );
 
-  const allData = new FormatDate(dateFrom.date)
+  const newData = new FormatDate(dateFrom.date)
     .getListDates(dateTo.date)
-    .listDates.reduce((rowObject, date) => {
+    .listDates.reduce((arrayOfObject, date) => {
       const dateData = new FormatDate(date).getDateBegin();
       const dateKey = dateData.dateKey;
-      if (!rowObject[dateKey]) {
-        rowObject[dateKey] = {
+      if (tokenAData[dateKey]?.price && tokenBData[dateKey]?.price) {
+        arrayOfObject.push({
           dateKey: dateKey,
           dateString: dateData.date,
           dateValue: dateData.value,
@@ -1503,7 +1924,6 @@ function updateHistory(from, to, tokenAId, tokenBId) {
           tokenAPrice: tokenAData[dateKey]?.price,
           tokenBPrice: tokenBData[dateKey]?.price,
           coefPrice: tokenAData[dateKey]?.price / tokenBData[dateKey]?.price,
-          lrCoefPrice: void 0,
           tokenAMarketCap: tokenAData[dateKey]?.marketCap,
           tokenBMarketCap: tokenBData[dateKey]?.marketCap,
           coefPriceMarketCap:
@@ -1511,26 +1931,26 @@ function updateHistory(from, to, tokenAId, tokenBId) {
           tokenAVolume: tokenAData[dateKey]?.volume,
           tokenBVolume: tokenBData[dateKey]?.volume,
           coefVolume: tokenAData[dateKey]?.volume / tokenBData[dateKey]?.volume,
-          lrCoefVolume: void 0,
-        };
+        });
       }
-      return rowObject
-    }, {});
 
-  const filterArrayOfObject = Object.values(allData).filter((rowObject) => {
-    return (
-      rowObject.tokenAPrice &&
-      rowObject.tokenBPrice &&
-      rowObject.tokenAMarketCap &&
-      rowObject.tokenBMarketCap &&
-      rowObject.tokenAVolume &&
-      rowObject.tokenBVolume
-    )
+      return arrayOfObject
+    }, []);
+
+  newData.forEach((rowObject) => {
+    if (!historiesObject[rowObject.dateKey]) {
+      historiesObject[rowObject.dateKey] = rowObject;
+    }
   });
 
-  histories.truncateInsertRows([...historiesOldData, ...filterArrayOfObject]);
+  const updateArrayOfObject = Object.values(historiesObject).sort((a, b) => {
+    return a.dateValue - b.dateValue
+  });
+
+  histories.truncateInsertRows([...historiesOtherData, ...updateArrayOfObject]);
+
   lock.releaseLock();
-  return filterArrayOfObject.length ? true : false
+  return updateArrayOfObject.length ? true : false
 }
 /**
  *

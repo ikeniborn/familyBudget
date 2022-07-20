@@ -1,4 +1,4 @@
-import { Environment, WorkSheet } from '../../gas'
+import { Environment, WorkSheet, WorkSheetRange } from '../../gas'
 import { Header } from '../../header'
 export { Analitics }
 
@@ -147,6 +147,18 @@ class Analitics {
           rowId: { alias: 'Row ID', idx: 25 },
         },
       },
+      tokenList: {
+        type: 'dim',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          symbol: { alias: 'Symbol', idx: 1, pk: true, notNull: true },
+          coinGeckoId: { alias: 'coinGecko id', idx: 2 },
+          cryptoCompareId: { alias: 'CryptoCompare id', idx: 3 },
+          coinMarketMapId: { alias: 'CoinMarketCap id', idx: 4 },
+          cryptoRankId: { alias: 'CryptoRank id', idx: 5 },
+        },
+      },
     }
     this.spreadSheetName = 'analitics'
   }
@@ -166,45 +178,24 @@ class Analitics {
       console.error('Analitics.getWorkSheet', error.stack)
     }
   }
-}
 
-// Deprecated
-// flowSymbol: {
-//   type: 'tx',
-//   rowNum: 1,
-//   columns: {
-//     account: { alias: 'Account', idx: 0 },
-//     symbol: { alias: 'Symbol', idx: 1 },
-//     symbolKey: { alias: 'Symbol key', idx: 2 },
-//     quantityOwnInFlow: { alias: 'Quantity own in flow', idx: 3 },
-//     quantityInFlow: { alias: 'Quantity in flow', idx: 4 },
-//     quantityOutFlow: { alias: 'Quantity out flow', idx: 5 },
-//     quantityRest: { alias: 'Quantity rest', idx: 6 },
-//     quantityRestLock: { alias: 'Quantity rest lock', idx: 7 },
-//     quantityRestUnlock: { alias: 'Quantity rest unlock', idx: 8 },
-//     priceOwnInFlow: { alias: 'Price own in flow', idx: 9 },
-//     priceInFlow: { alias: 'Price in flow', idx: 10 },
-//     priceOutFlow: { alias: 'Price out flow', idx: 11 },
-//     priceRest: { alias: 'Price rest', idx: 12 },
-//     costOwnInFlow: { alias: 'Cost own in flow', idx: 13 },
-//     costInFlow: { alias: 'Cost in flow', idx: 14 },
-//     costOutFlow: { alias: 'Cost out flow', idx: 15 },
-//     costRest: { alias: 'Cost rest', idx: 16 },
-//     costRestInFlow: { alias: 'Cost rest in flow', idx: 17 },
-//     costRestLock: { alias: 'Cost rest lock', idx: 18 },
-//     costRestUnlock: { alias: 'Cost rest unlock', idx: 19 },
-//     pnlTotal: { alias: 'PnL total', idx: 20 },
-//     pnlRest: { alias: 'PnL rest', idx: 21 },
-//     payback: { alias: 'Payback', idx: 22 },
-//     dayInPortfolioAvg: {
-//       alias: 'Day in Portfolio (avg)',
-//       idx: 23,
-//     },
-//     update: {
-//       alias: 'Update',
-//       idx: 24,
-//       type: 'date',
-//       default: new Date(),
-//     },
-//   },
-// },
+  updateOnEdit(range) {
+    try {
+      let sheetName, headSheetName, isRegistry
+      sheetName = range.getSheet().getSheetName()
+      headSheetName = sheetName
+
+      const head = new Header().getHead(this.workSheetHeads, headSheetName)
+      const workSheet = new WorkSheetRange(
+        this.spreadSheetName,
+        sheetName,
+        head,
+        range
+      ).getDataset()
+
+      return workSheet
+    } catch (error) {
+      console.error('Portfolio.updateOnEdit', error.stack)
+    }
+  }
+}

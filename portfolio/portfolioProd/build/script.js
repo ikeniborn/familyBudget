@@ -1708,7 +1708,11 @@ class Portfolio {
             alias: 'Actual data mart',
             idx: 35,
           },
-          rowId: { alias: 'Row ID', idx: 36, default: 0 },
+          updateDate: {
+            alias: 'Update date',
+            idx: 36,
+          },
+          rowId: { alias: 'Row ID', idx: 37, default: 0 },
         },
       },
       overflows: {
@@ -4753,8 +4757,17 @@ class Flow {
       const contractors = new Portfolio().getWorkSheet('Contractors').object;
       const inKey = new Hash('in').md5;
       const outKey = new Hash('out').md5;
-      const actualDate = new FormatDate();
-      const updateDataMart = new FormatDate();
+      const actualDate = new FormatDate().getDateBegin();
+      const updateDataMart = new FormatDate().getDateBegin();
+      const updateDate = new FormatDate();
+      const flowHistory = this.workSheet.arrayOfObject
+        .filter((rowObject) => {
+          return rowObject.updateDataMartKey !== actualDate.dateKey
+        })
+        .map((rowObject) => {
+          rowObject.actualDataMart = false;
+          return rowObject
+        });
 
       const aggFlow = new Transactions().workSheet.arrayOfObject
         .filter((row) => row.isDelete === false)
@@ -5145,14 +5158,11 @@ class Flow {
                 dayInPortfolioAvg,
                 isSell: false,
                 useInReport: useInReport,
-                updateDataMart: updateDataMart.getFormatDate(
-                  'yyyy-MM-dd hh:mm:ss'
-                ),
+                updateDataMart: updateDataMart.getFormatDate('yyyy-MM-dd'),
+                updateDate: updateDate.getFormatDate('yyyy-MM-dd HH:mm'),
                 actualDataMart:
-                  actualDate.yyyymmdd === updateDataMart.yyyymmdd
-                    ? true
-                    : false,
-                updateDataMartKey: new Hash(updateDataMart.yyyymmdd).md5,
+                  actualDate.dateKey === updateDataMart.dateKey ? true : false,
+                updateDataMartKey: updateDataMart.dateKey,
               });
             });
           });
@@ -5196,7 +5206,10 @@ class Flow {
         return rowFlow
       });
 
-      this.workSheet.truncateInsertRows(aggFlowArrayOfObject);
+      this.workSheet.truncateInsertRows([
+        ...flowHistory,
+        ...aggFlowArrayOfObject,
+      ]);
     } catch (error) {
       console.error('FlowSymbol.updateFlow', error.stack);
     }
@@ -5665,11 +5678,12 @@ class Overflows {
 function createMenu() {
   const ui = SpreadsheetApp.getUi();
   const menu = ui.createMenu('Portfolio');
-  menu.addSubMenu(
-    SpreadsheetApp.getUi()
-      .createMenu('Update')
-      .addItem('Update prices, datamart, overflows', 'updatePrices')
-  );
+  // menu.addSubMenu(
+  //   SpreadsheetApp.getUi()
+  //     .createMenu('Update')
+  //     .addItem('Update portfolio', 'updatePortfolio')
+  // )
+  menu.addItem('Update portfolio', 'updatePortfolio');
   menu.addSubMenu(
     SpreadsheetApp.getUi()
       .createMenu('Service')
@@ -5704,17 +5718,9 @@ function validateTransactions() {
       return true
     };
     process() ? resolve() : reject(new Error('script.validateTransactions'));
-  })
-    // .then(
-    //   new Portfolio().log.addMessage(
-    //     'script.validateTransactions',
-    //     'ID:' + startProcess.value,
-    //     'Time spent: ' + startProcess.getTimeDiff()
-    //   )
-    // )
-    .catch((error) => {
-      console.error('script.validateTransactions', error.stack);
-    });
+  }).catch((error) => {
+    console.error('script.validateTransactions', error.stack);
+  });
 }
 
 function updateLPToken() {
@@ -5775,22 +5781,46 @@ function updateDataMart() {
     });
 }
 
-function updatePrices() {
+function updatePortfolio() {
   const startProcess = new FormatDate();
   new Promise((resolve, reject) => {
     const process = () => {
+      const startUpdatePrices = new FormatDate();
       new Symbols().updatePrices();
+      console.info(
+        'script.updatePortfolio.updatePrices.timeSpent:',
+        startUpdatePrices.getTimeDiff()
+      );
       return true
     };
     process() ? resolve() : reject(new Error('script.updatePrices'));
   })
     .then(
       new Promise((resolve) => {
+        const startValidateTransactions = new FormatDate();
         new Registry().validateTransactions();
+        console.info(
+          'script.updatePortfolio.validateTransactions.timeSpent:',
+          startValidateTransactions.getTimeDiff()
+        );
         resolve();
       })
-        .then(new Flow().updateFlow())
-        .then(new Overflows().updateOverflows())
+        .then(() => {
+          const startUpdateFlow = new FormatDate();
+          new Flow().updateFlow();
+          console.info(
+            'script.updatePortfolio.updateFlow.timeSpent:',
+            startUpdateFlow.getTimeDiff()
+          );
+        })
+        .then(() => {
+          const startUpdateOverflows = new FormatDate();
+          new Overflows().updateOverflows();
+          console.info(
+            'script.updatePortfolio.updateOverflows.timeSpent:',
+            startUpdateOverflows.getTimeDiff()
+          );
+        })
     )
     .then(
       new Portfolio().log.addMessage(
@@ -5873,39 +5903,42 @@ function updateOnEdit(editRange) {
         }
         resolve(workSheet);
       } else {
-        reject();
+        reject(workSheet);
       }
-    }).then((workSheet) => {
-      new Portfolio().log.addMessage(
-        'script.updateOnEdit',
-        'ID:' + startProcess.value,
-        'Sheet name: ' +
-          workSheet.sheetName +
-          ', Start row: ' +
-          workSheet.startRow +
-          ', End Row: ' +
-          workSheet.rowEnd +
-          ', Count row: ' +
-          workSheet.countRow +
-          ', Start: ' +
-          startProcess.getFormatDate('YYYY-MM-dd HH:mm:ss') +
-          ', Time spent: ' +
-          startProcess.getTimeDiff() +
-          ', Lock time: ' +
-          workSheet?.lockTime || 0
-      );
-      lock.releaseLock();
-      if (startDialog) {
-        savingDialog.closeModalDialog('All row saved!', 200);
-      }
-    });
-    // .catch(() => {
-    //   if (startDialog) {
-    //     savingDialog.closeModalDialog('All row saved!', 200)
-    //   } else {
-    //     SpreadsheetApp.getActive().toast('End saving...', 'Process', 1)
-    //   }
-    // })
+    })
+      .then((workSheet) => {
+        new Portfolio().log.addMessage(
+          'script.updateOnEdit',
+          'ID:' + startProcess.value,
+          'Sheet name: ' +
+            workSheet.sheetName +
+            ', Start row: ' +
+            workSheet.startRow +
+            ', End Row: ' +
+            workSheet.rowEnd +
+            ', Count row: ' +
+            workSheet.countRow +
+            ', Start: ' +
+            startProcess.getFormatDate('YYYY-MM-dd HH:mm:ss') +
+            ', Time spent: ' +
+            startProcess.getTimeDiff() +
+            ', Lock time: ' +
+            workSheet?.lockTime || 0
+        );
+        lock.releaseLock();
+        if (startDialog) {
+          savingDialog.closeModalDialog('All row saved!', 200);
+        }
+      })
+      .catch((workSheet) => {
+        // if (startDialog) {
+        //   savingDialog.closeModalDialog('All row saved!', 200)
+        // } else {
+        //   SpreadsheetApp.getActive().toast('End saving...', 'Process', 1)
+        // }
+        console.error('script.updateOnEdit', workSheet.sheetName);
+        lock.releaseLock();
+      });
   } catch (error) {
     console.error('script.updateOnEdit', error.stack);
   }

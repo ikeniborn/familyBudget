@@ -77,8 +77,7 @@
         </div>
       </div>
       <!-- end field -->
-
-      <button class="btn btn-warning" id="updateButton">Update and calculate</button>
+      <button class="btn btn-warning" id="loadButton">Load</button>
       <p></p>
       <button class="btn btn-warning" id="calculateButton">Calculate</button>
     </div>
@@ -124,40 +123,39 @@
 
   <script>
 
-    function afterEndUpdate() {
-
-      google.script.run.showAlertUpdate()
+    function afterEndLoad() {
+      const tokenA = document.getElementById('tokenA').value
+      const tokenB = document.getElementById('tokenB').value
+      google.script.run.showAlert('Load complete ' + tokenA + '/' + tokenB)
     }
 
-    function afterEndUpdateError() {
-
-      google.script.run.showAlertUpdateError()
+    function afterEndLoadError() {
+      google.script.run.showAlert('Load failed!')
     }
 
-    function afterUpdateClicked() {
+    function afterLoadClicked() {
       if (validate()) {
-
-        google.script.run.showToast('Start update...', 'Process')
+        google.script.run.showToast('Start load...', 'Process')
         const tokenA = document.getElementById('tokenA').value
         const tokenB = document.getElementById('tokenB').value
         const dateFrom = document.getElementById('dateFrom').value
         const dateTo = document.getElementById('dateTo').value
-        google.script.run.withSuccessHandler(calculateAfterUpdate).withFailureHandler(afterEndUpdateError).updateHistory(dateFrom, dateTo, tokenA, tokenB)
+        google.script.run.withSuccessHandler(afterEndLoad).withFailureHandler(afterEndLoadError).updateHistory(dateFrom, dateTo, tokenA, tokenB)
       } else {
         // $('#errorNotification').toast('show')
       }
     }
 
-
     function afterEndCalculate() {
-      google.script.run.showAlertCalculate()
-    }
-
-    function afterEndUpdateAndCalculate() {
       const tokenA = document.getElementById('tokenA').value
       const tokenB = document.getElementById('tokenB').value
-      google.script.run.afterEndUpdateAndCalculate(tokenA + '/' + tokenB)
+      google.script.run.showAlert('Calculate complete ' + tokenA + '/' + tokenB)
     }
+
+    function afterEndCalculateError() {
+      google.script.run.showAlert('Calculate failed!')
+    }
+
 
     function afterCalculateClicked() {
       if (validate()) {
@@ -166,24 +164,12 @@
         const tokenB = document.getElementById('tokenB').value
         const dateFrom = document.getElementById('dateFrom').value
         const dateTo = document.getElementById('dateTo').value
-        google.script.run.withSuccessHandler(afterEndCalculate).calculateCoef(dateFrom, dateTo, tokenA, tokenB)
+        google.script.run.withSuccessHandler(afterEndCalculate).withFailureHandler(afterEndCalculateError).calculateCoef(dateFrom, dateTo, tokenA, tokenB)
       } else {
         // $('#errorNotification').toast('show')
       }
     }
 
-    function calculateAfterUpdate() {
-      if (validate()) {
-        google.script.run.showToast('Start calculate...', 'Process')
-        const tokenA = document.getElementById('tokenA').value
-        const tokenB = document.getElementById('tokenB').value
-        const dateFrom = document.getElementById('dateFrom').value
-        const dateTo = document.getElementById('dateTo').value
-        google.script.run.withSuccessHandler(afterEndUpdateAndCalculate).calculateCoef(dateFrom, dateTo, tokenA, tokenB)
-      } else {
-        // $('#errorNotification').toast('show')
-      }
-    }
 
     function afterSubmit(e) {
       clearFields(['tokenA', 'tokenB', 'dateFrom', 'dateTo'])
@@ -221,8 +207,8 @@
     // }
 
     document
-      .getElementById("updateButton")
-      .addEventListener("click", afterUpdateClicked)
+      .getElementById("loadButton")
+      .addEventListener("click", afterLoadClicked)
     document
       .getElementById("calculateButton")
       .addEventListener("click", afterCalculateClicked)

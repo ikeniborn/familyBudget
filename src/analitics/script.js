@@ -4,6 +4,33 @@ import * as cryptoCompare from '../restApi/cryptoCompare'
 import * as coinGecko from '../restApi/coinGecko'
 import { ModalDialog } from '../gas'
 
+function updateOnEdit(editRange) {
+  const lock = LockService.getScriptLock()
+  new Promise((resolve, reject) => {
+    const workSheet = new Analitics().updateOnEdit(editRange.range)
+    if (workSheet.isChangeData) {
+      const startLock = new FormatDate()
+      lock.tryLock(180000)
+      workSheet.lockTime = startLock.getTimeDiff()
+      if (workSheet.isChangePrimaryKey) {
+        workSheet.savePrimaryKeyChanges()
+      }
+
+      resolve(workSheet)
+    } else {
+      reject(workSheet)
+    }
+  })
+    .then((workSheet) => {
+      console.info('script.updateOnEdit.lockTime', workSheet.lockTime)
+      lock.releaseLock()
+    })
+    .catch((workSheet) => {
+      console.error('script.updateOnEdit', workSheet.sheetName)
+      lock.releaseLock()
+    })
+}
+
 function showAlert(message) {
   new ModalDialog().alert(message)
 }
@@ -21,11 +48,20 @@ function updateHistory(from, to, tokenAId, tokenBId) {
   let dateFrom, fromUnix, countDay
   const histories = new Analitics().getWorkSheet('history')
   const tokenATokenBData = new Hash(tokenAId + '/' + tokenBId)
-  const historiesOldData = new Analitics()
-    .getWorkSheet('history')
-    .arrayOfObject.filter((rowObject) => {
-      return rowObject.tokenATokenBKey !== tokenATokenBData.md5
+  const historiesOtherData = histories.arrayOfObject.filter((rowObject) => {
+    return rowObject.tokenATokenBKey !== tokenATokenBData.md5
+  })
+  const historiesObject = histories.arrayOfObject
+    .filter((rowObject) => {
+      return rowObject.tokenATokenBKey === tokenATokenBData.md5
     })
+    .reduce((object, rowObject) => {
+      if (!object[rowObject.dateKey]) {
+        object[rowObject.dateKey] = rowObject
+      }
+      return object
+    }, {})
+
   dateFrom = new FormatDate(from).getDateBegin()
   const dateTo = to
     ? new FormatDate(to).getDateBegin()
@@ -57,13 +93,13 @@ function updateHistory(from, to, tokenAId, tokenBId) {
     toUnix
   )
 
-  const allData = new FormatDate(dateFrom.date)
+  const newData = new FormatDate(dateFrom.date)
     .getListDates(dateTo.date)
-    .listDates.reduce((rowObject, date) => {
+    .listDates.reduce((arrayOfObject, date) => {
       const dateData = new FormatDate(date).getDateBegin()
       const dateKey = dateData.dateKey
-      if (!rowObject[dateKey]) {
-        rowObject[dateKey] = {
+      if (tokenAData[dateKey]?.price && tokenBData[dateKey]?.price) {
+        arrayOfObject.push({
           dateKey: dateKey,
           dateString: dateData.date,
           dateValue: dateData.value,
@@ -74,7 +110,6 @@ function updateHistory(from, to, tokenAId, tokenBId) {
           tokenAPrice: tokenAData[dateKey]?.price,
           tokenBPrice: tokenBData[dateKey]?.price,
           coefPrice: tokenAData[dateKey]?.price / tokenBData[dateKey]?.price,
-          lrCoefPrice: void 0,
           tokenAMarketCap: tokenAData[dateKey]?.marketCap,
           tokenBMarketCap: tokenBData[dateKey]?.marketCap,
           coefPriceMarketCap:
@@ -82,26 +117,39 @@ function updateHistory(from, to, tokenAId, tokenBId) {
           tokenAVolume: tokenAData[dateKey]?.volume,
           tokenBVolume: tokenBData[dateKey]?.volume,
           coefVolume: tokenAData[dateKey]?.volume / tokenBData[dateKey]?.volume,
-          lrCoefVolume: void 0,
-        }
+        })
       }
-      return rowObject
-    }, {})
 
-  const filterArrayOfObject = Object.values(allData).filter((rowObject) => {
-    return (
-      rowObject.tokenAPrice &&
-      rowObject.tokenBPrice &&
-      rowObject.tokenAMarketCap &&
-      rowObject.tokenBMarketCap &&
-      rowObject.tokenAVolume &&
-      rowObject.tokenBVolume
-    )
+      return arrayOfObject
+    }, [])
+
+  newData.forEach((rowObject) => {
+    if (!historiesObject[rowObject.dateKey]) {
+      historiesObject[rowObject.dateKey] = rowObject
+    }
   })
 
-  histories.truncateInsertRows([...historiesOldData, ...filterArrayOfObject])
+  const updateArrayOfObject = Object.values(historiesObject).sort((a, b) => {
+    return a.dateValue - b.dateValue
+  })
+
+  histories.truncateInsertRows([...historiesOtherData, ...updateArrayOfObject])
+
   lock.releaseLock()
-  return filterArrayOfObject.length ? true : false
+  return updateArrayOfObject.length ? true : false
+}
+
+function updateСhannel(channelKey) {
+  const lock = LockService.getScriptLock()
+  lock.tryLock(180000)
+  const channel = new Analitics().getWorkSheet('overflowList').object[
+    channelKey
+  ]
+  // const tokenATokenBKey =
+  const histories = new Analitics().getWorkSheet('history')
+  const historiesHistory = new Analitics().getWorkSheet('history')
+
+  console.log()
 }
 /**
  *
