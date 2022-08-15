@@ -182,12 +182,24 @@ class FormatDate {
     if (ms < 10) ms = '0' + ms;
     return h + ':' + m + ':' + s + '.' + ms
   }
+
   /**
    * Получение прошлой даты на заданное количество дней
    * @param {number} day количество дней
    * @returns Дата
    */
   getPreviousDate(day) {
+    const startDate = new Date(this.date);
+    this.date = new Date(startDate.setDate(this.date.getDate() - day));
+    return this
+  }
+
+  /**
+   * Получение будущей даты на заданное количество дней
+   * @param {number} day количество дней
+   * @returns Дата
+   */
+  getNextDate(day) {
     const startDate = new Date(this.date);
     this.date = new Date(startDate.setDate(this.date.getDate() - day));
     return this
@@ -971,22 +983,24 @@ class WorkSheetRange extends WorkSheet {
     try {
       this.dataRange.getValues().forEach((arrayRow, indexRow) => {
         const rowNum = this.firstRowNum + indexRow;
-        const rowNumKey = new Hash(rowNum + this.sheetName).md5;
+        // const rowNumData = new Hash(rowNum + this.sheetName)
+        // const rowNumKey = rowNumData.md5
         const isChangeRow = this.isChangeRow(rowNum, arrayRow);
-        let rowIdCache;
+        // let rowIdCache
+        let rowId;
         if (isChangeRow.sign) {
           let isNewRowId = false;
           const rowIdOld = arrayRow[this.head.rowId.idx] * 1;
-          let rowId;
           if (rowIdOld) {
             rowId = arrayRow[this.head.rowId.idx];
           } else {
             const maxRowId = this.workSheetMetadata.getMaxRowId();
-            rowIdCache = this.scriptCache.getCache(rowNumKey);
-            //* определение максимального идентификатора строки
-            if (rowIdCache > 0 && typeof rowIdCache === 'number') {
-              rowId = rowIdCache;
-            } else if (maxRowId > 0 && typeof maxRowId === 'number') {
+            // rowIdCache = this.scriptCache.getCache(rowNumKey)
+            // //* определение максимального идентификатора строки
+            // if (rowIdCache > 0 && typeof rowIdCache === 'number') {
+            //   rowId = rowIdCache
+            // } else
+            if (maxRowId > 0 && typeof maxRowId === 'number') {
               rowId = maxRowId + 1;
             } else {
               rowId = 1;
@@ -1015,10 +1029,10 @@ class WorkSheetRange extends WorkSheet {
             const isNotNull = this.isNotNull(instanceRow);
             if (isNotNull) {
               if (isNewRowId) {
-                if (!rowIdCache) {
-                  this.workSheetMetadata.addMaxRowId(rowId);
-                }
-                this.scriptCache.addCache(rowNumKey, rowId);
+                // if (!rowIdCache) {
+                this.workSheetMetadata.addMaxRowId(rowId);
+                // }
+                // this.scriptCache.addCache(rowNumKey, rowId)
               }
               if (!this.object[rowKey]) {
                 this.object[rowKey] = instanceRow;
@@ -5579,17 +5593,11 @@ class Overflows {
           const tokenBRest = aggFlow[account][object.tokenB]?.quantityRest || 0;
           const tokenBCostFlow =
             object.tokenBQuantityFlow * symbols[tokenBKey].price;
-
-          if (tokenBRest >= object.tokenBQuantityFlow) {
-            if (ABPriceCoefDiffPct < -0.05) {
-              overflowStatus = '1 Do a backflow';
-            } else if (ABPriceCoefDiffPct > 0.05 && tokenARest > 0) {
-              overflowStatus = '2 Do a overflow';
-            } else {
-              overflowStatus = '3 Wait';
-            }
+          //* категория перелива
+          if (ABPriceCoefDiffPct < 0) {
+            overflowStatus = '1 Do a backflow';
           } else {
-            overflowStatus = '4 Do nothing';
+            overflowStatus = '2 Do a overflow';
           }
 
           if (
@@ -5617,7 +5625,7 @@ class Overflows {
               BAPriceCoefDiffPct: BAPriceCoefDiffPct,
               overflowStatus: overflowStatus,
               updateDataMart: updateDataMart.getFormatDate(
-                'yyyy-MM-dd hh:mm:ss'
+                'yyyy-MM-dd HH:mm:ss'
               ),
             });
           }

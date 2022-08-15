@@ -606,22 +606,24 @@ class WorkSheetRange extends WorkSheet {
     try {
       this.dataRange.getValues().forEach((arrayRow, indexRow) => {
         const rowNum = this.firstRowNum + indexRow
-        const rowNumKey = new Hash(rowNum + this.sheetName).md5
+        // const rowNumData = new Hash(rowNum + this.sheetName)
+        // const rowNumKey = rowNumData.md5
         const isChangeRow = this.isChangeRow(rowNum, arrayRow)
-        let rowIdCache
+        // let rowIdCache
+        let rowId
         if (isChangeRow.sign) {
           let isNewRowId = false
           const rowIdOld = arrayRow[this.head.rowId.idx] * 1
-          let rowId
           if (rowIdOld) {
             rowId = arrayRow[this.head.rowId.idx]
           } else {
             const maxRowId = this.workSheetMetadata.getMaxRowId()
-            rowIdCache = this.scriptCache.getCache(rowNumKey)
-            //* определение максимального идентификатора строки
-            if (rowIdCache > 0 && typeof rowIdCache === 'number') {
-              rowId = rowIdCache
-            } else if (maxRowId > 0 && typeof maxRowId === 'number') {
+            // rowIdCache = this.scriptCache.getCache(rowNumKey)
+            // //* определение максимального идентификатора строки
+            // if (rowIdCache > 0 && typeof rowIdCache === 'number') {
+            //   rowId = rowIdCache
+            // } else
+            if (maxRowId > 0 && typeof maxRowId === 'number') {
               rowId = maxRowId + 1
             } else {
               rowId = 1
@@ -650,10 +652,10 @@ class WorkSheetRange extends WorkSheet {
             const isNotNull = this.isNotNull(instanceRow)
             if (isNotNull) {
               if (isNewRowId) {
-                if (!rowIdCache) {
-                  this.workSheetMetadata.addMaxRowId(rowId)
-                }
-                this.scriptCache.addCache(rowNumKey, rowId)
+                // if (!rowIdCache) {
+                this.workSheetMetadata.addMaxRowId(rowId)
+                // }
+                // this.scriptCache.addCache(rowNumKey, rowId)
               }
               if (!this.object[rowKey]) {
                 this.object[rowKey] = instanceRow

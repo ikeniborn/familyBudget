@@ -43,30 +43,15 @@ function showAlert(message) {
  * @param {*} tokenBId
  *  @param {*} channelKey
  */
-function updateHistory(from, to, tokenAId, tokenBId, channelKey) {
+function updateHistory(from, to, tokenAId, tokenBId) {
   const lock = LockService.getScriptLock()
   lock.tryLock(180000)
-  let dateFrom,
-    fromUnix,
-    countDay,
-    channel,
-    isChannel,
-    tokenATokenBData,
-    _tokenAId,
-    _tokenBId
-  const overflowLists = new Analitics().getWorkSheet('overflowList')
-  if (channelKey) {
-    channel = overflowLists.object[channelKey]
-    tokenATokenBData = new Hash(channel.tokenAId + '/' + channel.tokenBId)
-    _tokenAId = channel.tokenAId
-    _tokenBId = channel.tokenBId
-    isChannel = true
-  } else {
-    tokenATokenBData = new Hash(tokenAId + '/' + tokenBId)
-    _tokenAId = tokenAId
-    _tokenBId = tokenBId
-    isChannel = false
-  }
+  let dateFrom, fromUnix, countDay, tokenATokenBData, _tokenAId, _tokenBId
+
+  tokenATokenBData = new Hash(tokenAId + '/' + tokenBId)
+  _tokenAId = tokenAId
+  _tokenBId = tokenBId
+
   const histories = new Analitics().getWorkSheet('history')
   const historiesOtherData = histories.arrayOfObject.filter((rowObject) => {
     return rowObject.tokenATokenBKey !== tokenATokenBData.md5
@@ -84,8 +69,8 @@ function updateHistory(from, to, tokenAId, tokenBId, channelKey) {
 
   dateFrom = new FormatDate(from).getDateBegin()
   const dateTo = to
-    ? new FormatDate(to).getDateBegin()
-    : new FormatDate(new Date()).getDateBegin()
+    ? new FormatDate(to).getNextDate(1).getDateBegin()
+    : new FormatDate(new Date()).getNextDate(2).getDateBegin()
 
   fromUnix = dateFrom.unix
   const toUnix = dateTo.unix
@@ -211,7 +196,10 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId, channelKey) {
   // coefVolatilitys = []
 
   const dateFromMetric = new FormatDate(fromMetric).getDateBegin()
-  const dateToMetric = new FormatDate(toMetric).getDateBegin()
+  const dateToMetric = toMetric
+    ? new FormatDate(toMetric).getNextDate(1).getDateBegin()
+    : new FormatDate(new Date()).getNextDate(2).getDateBegin()
+
   const overflowLists = new Analitics().getWorkSheet('overflowList')
   if (channelKey) {
     channel = overflowLists.object[channelKey]
@@ -370,8 +358,6 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId, channelKey) {
 
   coefPriceAthArray = []
   coefPriceAtlArray = []
-
-  console.log('channel', channel)
 
   lrCoefPrices.forEach(([dateUnix, value]) => {
     const dateKey = new FormatDate(new Date(dateUnix * 1000)).getDateBegin()
@@ -899,10 +885,10 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId, channelKey) {
   })
   const historiesArrayOfObject = Object.values(arrayOfObjecthistoriesPairNew)
   histories.truncateInsertRows([...historiesOldData, ...historiesArrayOfObject])
+  //*############################
+  //* Расчет и сохранение каналов
+  //*############################
   if (!isChannel) {
-    //*############################
-    //* Расчет и сохранение каналов
-    //*############################
     const historiesArrayOfObjectfilter = historiesArrayOfObject.filter(
       (rowObject) => {
         return (
@@ -931,20 +917,16 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId, channelKey) {
       dateUnixArray,
       lrCoefPriceLowArray
     )
-    const dateFromData = new FormatDate(fromMetric)
-    const dateToData = new FormatDate(toMetric)
 
-    {
-    }
     const rowKey = new Hash(
-      tokenAId + tokenBId + dateFromData.value + dateToData.value
+      tokenAId + tokenBId + dateFromMetric.value + dateToMetric.value
     ).md5
     const overflowListRowObject = {
       rowKey: rowKey,
       tokenAId: tokenAId,
       tokenBId: tokenBId,
-      dateFrom: dateFromData.getFormatDate('yyyy-MM-dd'),
-      dateTo: dateToData.getFormatDate('yyyy-MM-dd'),
+      dateFrom: dateFromMetric.getFormatDate('yyyy-MM-dd'),
+      dateTo: dateToMetric.getFormatDate('yyyy-MM-dd'),
       lrCoefPriceSlope: lrCoefPriceFormula.slope,
       lrCoefPriceIntercept: lrCoefPriceFormula.intercept,
       lrCoefPriceR2: lrCoefPriceFormula.r2,
@@ -959,7 +941,6 @@ function calculateCoef(fromMetric, toMetric, tokenAId, tokenBId, channelKey) {
     if (!overflowLists.object[rowKey]) {
       overflowLists.object[rowKey] = overflowListRowObject
     }
-
     overflowLists.truncateInsertRows(Object.values(overflowLists.object))
   }
   lock.releaseLock()
@@ -1129,4 +1110,50 @@ const calculateVariance = (values) => {
   })
   const variance = calculateAvg(squareDiffs)
   return variance
+}
+
+function loadLoadPriceForm() {
+  const htmlForSidebar = HtmlService.createTemplateFromFile('html/loadPrice')
+  const htmlOutput = htmlForSidebar.evaluate()
+  htmlOutput.setTitle('Переливы')
+  const ui = SpreadsheetApp.getUi()
+  ui.showSidebar(htmlOutput)
+}
+
+function loadCalculateChannelForm() {
+  const htmlForSidebar = HtmlService.createTemplateFromFile(
+    'html/calculateChannel'
+  )
+  const htmlOutput = htmlForSidebar.evaluate()
+  htmlOutput.setTitle('Переливы')
+  const ui = SpreadsheetApp.getUi()
+  ui.showSidebar(htmlOutput)
+}
+
+function createMenu() {
+  const ui = SpreadsheetApp.getUi()
+  const menu = ui.createMenu('Переливы')
+  menu.addItem('Загрузка цен и расчет нового канала', 'loadLoadPriceForm')
+  menu.addItem('Пересчет канала', 'loadCalculateChannelForm')
+  menu.addToUi()
+}
+
+function showToast(msg, title) {
+  SpreadsheetApp.getActive().toast(msg, title, 3)
+}
+
+function showAlertUpdate() {
+  showAlert('Update complete')
+}
+
+function showAlertUpdateError() {
+  showAlert('Update not complete. Repeat update')
+}
+
+function showAlertCalculate() {
+  showAlert('Calculate complete')
+}
+
+function afterEndUpdateAndCalculate(pair) {
+  showAlert('Update and calculate complete ' + pair)
 }

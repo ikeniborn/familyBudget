@@ -184,12 +184,24 @@ class FormatDate {
     if (ms < 10) ms = '0' + ms
     return h + ':' + m + ':' + s + '.' + ms
   }
+
   /**
    * Получение прошлой даты на заданное количество дней
    * @param {number} day количество дней
    * @returns Дата
    */
   getPreviousDate(day) {
+    const startDate = new Date(this.date)
+    this.date = new Date(startDate.setDate(this.date.getDate() - day))
+    return this
+  }
+
+  /**
+   * Получение будущей даты на заданное количество дней
+   * @param {number} day количество дней
+   * @returns Дата
+   */
+  getNextDate(day) {
     const startDate = new Date(this.date)
     this.date = new Date(startDate.setDate(this.date.getDate() - day))
     return this

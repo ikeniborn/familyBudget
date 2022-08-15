@@ -38,12 +38,14 @@
 <body>
   <div class="container pt-3">
     <h5 class="border-bottom pb-2 mb-4">
-      <span class="badge badge-secondary">Form:update and calculate</span>
+      <span class="badge badge-secondary">Загрузка цен </span>
+      <span class="badge badge-secondary">и расчет нового канала</span>
     </h5>
     <div id="userForm">
+      <p>* Обязательно</p>
       <!-- start field -->
       <div class="form-group">
-        <label for="invoiceNumber">Date from</label>
+        <label for="invoiceNumber">* Дата от (включительно)</label>
         <div class="input-group">
           <div class="input-group-prepend"></div>
           <input type="text" class="form-control" id="dateFrom" placeholder="yyyy-mm-dd" required>
@@ -52,27 +54,17 @@
       <!-- end field -->
       <!-- start field -->
       <div class="form-group">
-        <label for="invoiceNumber">Date to</label>
+        <label for="invoiceNumber">Дата до (включительно)</label>
         <div class="input-group">
           <div class="input-group-prepend"></div>
-          <input type="text" class="form-control" id="dateTo" placeholder="yyyy-mm-dd" required>
+          <input type="text" class="form-control" id="dateTo" placeholder="yyyy-mm-dd">
         </div>
       </div>
       <!-- end field -->
-      <!-- start field -->
-      <p>Add channel key from overflowList</p>
-      <div class="form-group">
-        <label for="invoiceNumber">Channel key</label>
-        <div class="input-group">
-          <div class="input-group-prepend"></div>
-          <input type="text" class="form-control" id="channelKey">
-        </div>
-      </div>
-      <!-- end field -->
-      <p>or add token id</p>
+      <p>Укажите идентификаторы токенов CoinGecko API id</p>
       <!-- start field -->
       <div class="form-group">
-        <label for="invoiceNumber">Token A (CoinGecko API id)</label>
+        <label for="invoiceNumber">* Токен A</label>
         <div class="input-group">
           <div class="input-group-prepend"></div>
           <input type="text" class="form-control" id="tokenA">
@@ -81,7 +73,7 @@
       <!-- end field -->
       <!-- start field -->
       <div class="form-group">
-        <label for="invoiceNumber">Token B (CoinGecko API id)</label>
+        <label for="invoiceNumber">* Токен B</label>
         <div class="input-group">
           <div class="input-group-prepend"></div>
           <input type="text" class="form-control" id="tokenB">
@@ -89,10 +81,11 @@
       </div>
       <!-- end field -->
 
-
-      <button class="btn btn-warning" id="loadButton">Load</button>
       <p></p>
-      <button class="btn btn-warning" id="calculateButton">Calculate</button>
+      <button class="btn btn-warning" id="loadButton">Загрузить цены</button>
+      <p></p>
+      <button class="btn btn-warning" id="calculateButton">Рассчитать новый канал</button>
+
     </div>
     <!-- end userForm -->
   </div>
@@ -136,8 +129,11 @@
 
   <script>
 
-    function afterEndLoad() {
-      google.script.run.showAlert('Load complete.')
+    function afterEndLoad(e) {
+      new Promise(resolve => {
+        google.script.run.showAlert('Load complete.')
+        resolve()
+      })
     }
 
     function afterEndLoadError() {
@@ -151,32 +147,32 @@
         const tokenB = document.getElementById('tokenB').value
         const dateFrom = document.getElementById('dateFrom').value
         const dateTo = document.getElementById('dateTo').value
-        const channelKey = document.getElementById('channelKey').value
-        google.script.run.withSuccessHandler(afterEndLoad).withFailureHandler(afterEndLoadError).updateHistory(dateFrom, dateTo, tokenA, tokenB, channelKey)
+        google.script.run.withSuccessHandler(afterEndLoad).withFailureHandler(afterEndLoadError).updateHistory(dateFrom, dateTo, tokenA, tokenB, void 0)
       }
       // } else {
       // $('#errorNotification').toast('show')
       // }
     }
 
-    function afterEndCalculate() {
-      google.script.run.showAlert('Calculate complete.')
+    function afterEndCalculate(e) {
+      new Promise(resolve => {
+        google.script.run.showAlert('Calculate complete.')
+        resolve()
+      })
     }
 
     function afterEndCalculateError() {
       google.script.run.showAlert('Calculate failed!')
     }
 
-
     function afterCalculateClicked() {
       if (validate()) {
         google.script.run.showToast('Start calculate...', 'Process')
-        const tokenA = document.getElementById('tokenA').value
-        const tokenB = document.getElementById('tokenB').value
         const dateFrom = document.getElementById('dateFrom').value
         const dateTo = document.getElementById('dateTo').value
-        const channelKey = document.getElementById('channelKey').value
-        google.script.run.withSuccessHandler(afterEndCalculate).withFailureHandler(afterEndCalculateError).calculateCoef(dateFrom, dateTo, tokenA, tokenB, channelKey)
+        const tokenA = document.getElementById('tokenA').value
+        const tokenB = document.getElementById('tokenB').value
+        google.script.run.withSuccessHandler(afterEndCalculate).withFailureHandler(afterEndCalculateError).calculateCoef(dateFrom, dateTo, tokenA, tokenB, void 0)
       }
       // else {
       // $('#errorNotification').toast('show')
@@ -185,7 +181,7 @@
 
 
     function afterSubmit(e) {
-      clearFields(['tokenA', 'tokenB', 'dateFrom', 'dateTo'])
+      clearFields(['dateFrom', 'dateTo'])
       // $('#successNotification').toast('show');
       // updateQtyOnHand();
     }
@@ -225,6 +221,7 @@
     document
       .getElementById("calculateButton")
       .addEventListener("click", afterCalculateClicked)
+
     // document.getElementById('typeCounterparty').addEventListener('change', afterFirstDropdownChanged);
     // document.getElementById('counterparty').addEventListener('change', afterSecondDropdownChanged);
     // document.getElementById('account').addEventListener('change', updateQtyOnHand);

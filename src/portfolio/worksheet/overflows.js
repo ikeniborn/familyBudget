@@ -320,17 +320,11 @@ class Overflows {
           const tokenBRest = aggFlow[account][object.tokenB]?.quantityRest || 0
           const tokenBCostFlow =
             object.tokenBQuantityFlow * symbols[tokenBKey].price
-
-          if (tokenBRest >= object.tokenBQuantityFlow) {
-            if (ABPriceCoefDiffPct < -0.05) {
-              overflowStatus = '1 Do a backflow'
-            } else if (ABPriceCoefDiffPct > 0.05 && tokenARest > 0) {
-              overflowStatus = '2 Do a overflow'
-            } else {
-              overflowStatus = '3 Wait'
-            }
+          //* категория перелива
+          if (ABPriceCoefDiffPct < 0) {
+            overflowStatus = '1 Do a backflow'
           } else {
-            overflowStatus = '4 Do nothing'
+            overflowStatus = '2 Do a overflow'
           }
 
           if (
@@ -358,7 +352,7 @@ class Overflows {
               BAPriceCoefDiffPct: BAPriceCoefDiffPct,
               overflowStatus: overflowStatus,
               updateDataMart: updateDataMart.getFormatDate(
-                'yyyy-MM-dd hh:mm:ss'
+                'yyyy-MM-dd HH:mm:ss'
               ),
             })
           }
