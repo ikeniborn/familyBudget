@@ -198,7 +198,7 @@ class Fetch {
           stepResult.ms += 500
           Utilities.sleep(stepResult.ms)
         }
-        if (stepResult.iteration > 15) {
+        if (stepResult.iteration > 5) {
           stepResult.fetchStatus = true
         }
       } while (!stepResult.fetchStatus)
