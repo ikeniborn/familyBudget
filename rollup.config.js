@@ -28,28 +28,28 @@ export default [
     ],
     plugins: [preventThreeShakingPlugin()],
   },
-  {
-    input: '/home/ikeni/Documents/Git/familyBudget/src/budget/script.js',
-    output: [
-      {
-        dir: '/home/ikeni/Documents/Git/familyBudget/budget/budgetDev/build',
-        format: 'es',
-      },
-      {
-        dir: '/home/ikeni/Documents/Git/familyBudget/budget/budgetProd/build',
-        format: 'es',
-      },
-    ],
-    plugins: [preventThreeShakingPlugin()],
-  },
-  {
-    input: '/home/ikeni/Documents/Git/familyBudget/src/analitics/script.js',
-    output: [
-      {
-        dir: '/home/ikeni/Documents/Git/familyBudget/analitics/build',
-        format: 'es',
-      },
-    ],
-    plugins: [preventThreeShakingPlugin()],
-  },
+  // {
+  //   input: '/home/ikeni/Documents/Git/familyBudget/src/budget/script.js',
+  //   output: [
+  //     {
+  //       dir: '/home/ikeni/Documents/Git/familyBudget/budget/budgetDev/build',
+  //       format: 'es',
+  //     },
+  //     {
+  //       dir: '/home/ikeni/Documents/Git/familyBudget/budget/budgetProd/build',
+  //       format: 'es',
+  //     },
+  //   ],
+  //   plugins: [preventThreeShakingPlugin()],
+  // },
+  // {
+  //   input: '/home/ikeni/Documents/Git/familyBudget/src/analitics/script.js',
+  //   output: [
+  //     {
+  //       dir: '/home/ikeni/Documents/Git/familyBudget/analitics/build',
+  //       format: 'es',
+  //     },
+  //   ],
+  //   plugins: [preventThreeShakingPlugin()],
+  // },
 ]

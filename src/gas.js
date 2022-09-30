@@ -1103,9 +1103,30 @@ class SpreadsheetsTrigger extends Trigger {
       .create()
     return this
   }
+
+  createForSpreadsheetArter(functionName, seconds) {
+    this.sApp
+      .newTrigger(functionName)
+      .timeBased()
+      .after(seconds * 1000)
+      .create()
+    return this
+  }
+
   deleteAllTrigger() {
     const triggers = this.sApp.getProjectTriggers()
     triggers.forEach((trigger) => this.sApp.deleteTrigger(trigger))
+    return this
+  }
+  deleteDisabledTrigger() {
+    const triggers = this.sApp.getProjectTriggers()
+    triggers
+      .filter((trigger) => {
+        return trigger.isDisabled()
+      })
+      .forEach((disabledTrigger) => {
+        this.sApp.deleteTrigger(disabledTrigger)
+      })
     return this
   }
 }

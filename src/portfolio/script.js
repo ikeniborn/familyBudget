@@ -6,7 +6,7 @@ import { Portfolio } from './spreadsheet/portfolio'
 import { LPToken } from './worksheet/lpToken.js'
 import { Flow } from './worksheet/flow'
 import { Transactions } from './worksheet/transactions'
-import { WorkSheetMetadata, ModalDialog } from '../gas'
+import { WorkSheetMetadata, ModalDialog, SpreadsheetsTrigger } from '../gas'
 import { Web3Space } from './worksheet/web3space'
 import { Overflows } from './worksheet/overflows'
 import * as coinMarketCap from '../restApi/coinMarketCap'
@@ -15,18 +15,13 @@ import { GasProcess } from '../restApi/gasScriptApi'
 function createMenu() {
   const ui = SpreadsheetApp.getUi()
   const menu = ui.createMenu('Portfolio')
-  // menu.addSubMenu(
-  //   SpreadsheetApp.getUi()
-  //     .createMenu('Update')
-  //     .addItem('Update portfolio', 'updatePortfolio')
-  // )
-  menu.addItem('Update portfolio', 'updatePortfolio')
   menu.addSubMenu(
     SpreadsheetApp.getUi()
       .createMenu('Service')
-      .addItem('Update data mart', 'updateDataMart')
-      .addItem('Update overflows', 'updateOverflows')
       .addItem('Update prices', 'updatePrices')
+      .addItem('Update flow', 'updateFlow')
+      .addItem('Update flow balance', 'updateFlowBalance')
+      .addItem('Update overflows', 'updateOverflows')
       .addItem('Update coins', 'updateCoins')
       .addItem('Validate transactions', 'validateTransactions')
   )
@@ -48,19 +43,6 @@ function getCategories() {
   console.log(new coinMarketCap.Category().getCategories())
 }
 
-function validateTransactions() {
-  const startProcess = new FormatDate()
-  new Promise((resolve, reject) => {
-    const process = () => {
-      new Registry().validateTransactions()
-      return true
-    }
-    process() ? resolve() : reject(new Error('script.validateTransactions'))
-  }).catch((error) => {
-    console.error('script.validateTransactions', error.stack)
-  })
-}
-
 function updateLPToken() {
   new LPToken().updateLPToken()
 }
@@ -80,6 +62,27 @@ function updateTransactions() {
   }
 }
 
+function validateTransactions() {
+  const startProcess = new FormatDate()
+  new Promise((resolve, reject) => {
+    const process = () => {
+      new Registry().validateTransactions()
+      return true
+    }
+    process() ? resolve() : reject(new Error('script.validateTransactions'))
+  })
+    .then(
+      new Portfolio().log.addMessage(
+        'script.validateTransactions',
+        'ID:' + startProcess.value,
+        'Time spent: ' + startProcess.getTimeDiff()
+      )
+    )
+    .catch((error) => {
+      console.error('script.validateTransactions', error.stack)
+    })
+}
+
 function updateCoins() {
   const startProcess = new FormatDate()
   try {
@@ -88,35 +91,11 @@ function updateCoins() {
     console.error('script.updateCoins', error.stack)
   } finally {
     new Portfolio().log.addMessage(
-      'updateCoins',
+      'script.updateCoins',
       'ID:' + startProcess.value,
       'Time spent: ' + startProcess.getTimeDiff()
     )
   }
-}
-
-function updateDataMart() {
-  const startProcess = new FormatDate()
-  new Promise((resolve, reject) => {
-    const process = () => {
-      new Flow().updateFlow()
-      return true
-    }
-    process() ? resolve() : reject(new Error('script.updateDataMart'))
-  })
-    .then(() => {
-      new Overflows().updateOverflows()
-    })
-    .then(
-      new Portfolio().log.addMessage(
-        'script.updateDataMart',
-        'ID:' + startProcess.value,
-        'Time spent: ' + startProcess.getTimeDiff()
-      )
-    )
-    .catch((error) => {
-      console.error('script.updateDataMart', error.stack)
-    })
 }
 
 function updatePrices() {
@@ -130,7 +109,7 @@ function updatePrices() {
   })
     .then(
       new Portfolio().log.addMessage(
-        'updatePrices',
+        'script.updatePrices',
         'ID:' + startProcess.value,
         'Time spent: ' + startProcess.getTimeDiff()
       )
@@ -140,51 +119,82 @@ function updatePrices() {
     })
 }
 
-function updatePortfolio() {
+function updateFlow() {
   const startProcess = new FormatDate()
   new Promise((resolve, reject) => {
-    const startUpdatePrices = new FormatDate()
-    new Symbols().updatePrices()
-    console.info(
-      'script.updatePortfolio.updatePrices.timeSpent:',
-      startUpdatePrices.getTimeDiff()
-    )
-    resolve()
+    const process = () => {
+      new Flow().updateFlow()
+      return true
+    }
+    process() ? resolve() : reject(new Error('script.updateFlow'))
   })
     .then(
-      new Promise((resolve) => {
-        const startValidateTransactions = new FormatDate()
-        new Registry().validateTransactions()
-        console.info(
-          'script.updatePortfolio.validateTransactions.timeSpent:',
-          startValidateTransactions.getTimeDiff()
-        )
-        resolve()
-      })
-        .then(() => {
-          const startUpdateFlow = new FormatDate()
-          new Flow().updateFlow()
-          console.info(
-            'script.updatePortfolio.updateFlow.timeSpent:',
-            startUpdateFlow.getTimeDiff()
-          )
-        })
-        .then(() => {
-          const startUpdateOverflows = new FormatDate()
-          new Overflows().updateOverflows()
-          console.info(
-            'script.updatePortfolio.updateOverflows.timeSpent:',
-            startUpdateOverflows.getTimeDiff()
-          )
-        })
-    )
-    .then(
       new Portfolio().log.addMessage(
-        'updatePrices',
+        'updateFlow',
         'ID:' + startProcess.value,
         'Time spent: ' + startProcess.getTimeDiff()
       )
     )
+    .catch((error) => {
+      console.error('script.updateFlow', error.stack)
+    })
+}
+
+function updateFlowBalance() {
+  const startProcess = new FormatDate()
+  new Promise((resolve, reject) => {
+    const process = () => {
+      new Flow().updateFlowBalance()
+      return true
+    }
+    process() ? resolve() : reject(new Error('script.updateFlowBalance'))
+  })
+    .then(
+      new Portfolio().log.addMessage(
+        'updateFlowBalance',
+        'ID:' + startProcess.value,
+        'Time spent: ' + startProcess.getTimeDiff()
+      )
+    )
+    .catch((error) => {
+      console.error('script.updateFlowBalance', error.stack)
+    })
+}
+
+function updateOverflows() {
+  const startProcess = new FormatDate()
+  new Promise((resolve, reject) => {
+    const process = () => {
+      new Overflows().updateOverflows()
+      return true
+    }
+    process() ? resolve() : reject(new Error('script.updateOverflows'))
+  })
+    .then(
+      new Portfolio().log.addMessage(
+        'script.updateOverflows',
+        'ID:' + startProcess.value,
+        'Time spent: ' + startProcess.getTimeDiff()
+      )
+    )
+    .catch((error) => {
+      console.error('script.updateOverflows', error.stack)
+    })
+}
+
+function deleteDisabledTrigger() {
+  new SpreadsheetsTrigger().deleteDisabledTrigger()
+}
+
+function updatePortfolio() {
+  new SpreadsheetsTrigger().createForSpreadsheetArter('updatePrices', 1)
+  new SpreadsheetsTrigger().createForSpreadsheetArter('updateFlow', 300)
+  new SpreadsheetsTrigger().createForSpreadsheetArter('updateFlowBalance', 600)
+  new SpreadsheetsTrigger().createForSpreadsheetArter('updateOverflows', 900)
+  new SpreadsheetsTrigger().createForSpreadsheetArter(
+    'deleteDisabledTrigger',
+    930
+  )
 }
 
 function updateRegistryRowKey() {
@@ -197,10 +207,6 @@ function updateRowKey() {
 
 function updateIsOverflow() {
   new Transactions().updateIsOverflow()
-}
-
-function updateOverflows() {
-  new Overflows().updateOverflows()
 }
 
 function updatePair() {

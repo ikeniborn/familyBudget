@@ -482,6 +482,7 @@ class HistoricalPrice {
         currencySymbolCategoryKey /*stablecoin*/
       ) {
         //* Для стабильных токенов возвращать единицу
+
         historicalPrice = 1
         isHistoricalAveragePrice = false
       } else if (

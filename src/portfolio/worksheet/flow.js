@@ -22,18 +22,7 @@ class Flow {
       const contractors = new Portfolio().getWorkSheet('Contractors').object
       const inKey = new Hash('in').md5
       const outKey = new Hash('out').md5
-      const actualDate = new FormatDate().getDateBegin()
-      const updateDataMart = new FormatDate().getDateBegin()
       const updateDate = new FormatDate()
-      const flowHistory = this.workSheet.arrayOfObject
-        .filter((rowObject) => {
-          return rowObject.updateDataMartKey !== actualDate.dateKey
-        })
-        .map((rowObject) => {
-          rowObject.actualDataMart = false
-          return rowObject
-        })
-
       const aggFlow = new Transactions().workSheet.arrayOfObject
         .filter((row) => row.isDelete === false)
         .sort((a, b) => {
@@ -423,11 +412,7 @@ class Flow {
                 dayInPortfolioAvg,
                 isSell: false,
                 useInReport: useInReport,
-                updateDataMart: updateDataMart.getFormatDate('yyyy-MM-dd'),
                 updateDate: updateDate.getFormatDate('yyyy-MM-dd HH:mm'),
-                actualDataMart:
-                  actualDate.dateKey === updateDataMart.dateKey ? true : false,
-                updateDataMartKey: updateDataMart.dateKey,
               })
             })
           })
@@ -471,12 +456,61 @@ class Flow {
         return rowFlow
       })
 
-      this.workSheet.truncateInsertRows([
-        ...flowHistory,
-        ...aggFlowArrayOfObject,
-      ])
+      this.workSheet.truncateInsertRows(aggFlowArrayOfObject)
     } catch (error) {
       console.error('FlowSymbol.updateFlow', error.stack)
+    }
+  }
+
+  updateFlowBalance() {
+    try {
+      const actualDate = new FormatDate().getDateBegin()
+      const updateDataMart = new FormatDate().getDateBegin()
+      const updateDate = new FormatDate()
+      const flowBalance = new Portfolio().getWorkSheet('FlowBalance')
+      const flowBalanceHistory = flowBalance.arrayOfObject.filter(
+        (rowObject) => {
+          return rowObject.updateDataMartKey !== actualDate.dateKey
+        }
+      )
+
+      const aggFlowBalance = this.workSheet.arrayOfObject
+        .filter((rowObject) => {
+          return rowObject.useInReport == true
+        })
+        .reduce((agg, tx) => {
+          if (!agg[tx.account]) {
+            agg[tx.account] = {}
+          }
+
+          if (!agg[tx.account][tx.symbolCategory]) {
+            agg[tx.account][tx.symbolCategory] = {
+              cost: 0,
+            }
+          }
+          agg[tx.account][tx.symbolCategory].cost += tx.cost
+          return agg
+        }, {})
+
+      let aggFlowBalanceArrayOfObject = []
+      Object.entries(aggFlowBalance).forEach(([account, level0]) => {
+        Object.entries(level0).forEach(([symbolCategory, object]) => {
+          aggFlowBalanceArrayOfObject.push({
+            account: account.toUpperCase(),
+            symbolCategory: symbolCategory.toUpperCase(),
+            cost: object.cost || 0,
+            updateDataMart: updateDataMart.getFormatDate('yyyy-MM-dd'),
+            updateDate: updateDate.getFormatDate('yyyy-MM-dd HH:mm'),
+            updateDataMartKey: updateDataMart.dateKey,
+          })
+        })
+      })
+      flowBalance.truncateInsertRows([
+        ...flowBalanceHistory,
+        ...aggFlowBalanceArrayOfObject,
+      ])
+    } catch (error) {
+      console.error('FlowSymbol.updateFlowBalance', error.stack)
     }
   }
 }

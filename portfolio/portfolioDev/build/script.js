@@ -1344,6 +1344,120 @@ class WorkSheetMetadata {
   }
 }
 
+class Trigger {
+  /**
+   * Информация по триггерам
+   */
+  constructor() {
+    this.sApp = ScriptApp;
+  }
+
+  getEventName(eventType) {
+    if (eventType == this.sApp.EventType.CLOCK) {
+      return 'CLOCK'
+    } else if (eventType == this.sApp.EventType.ON_EDIT) {
+      return 'ON_EDIT'
+    } else if (eventType == this.sApp.EventType.ON_OPEN) {
+      return 'ON_OPEN'
+    } else {
+      return void 0
+    }
+  }
+  getTriggerSourceName(triggerSource) {
+    if (triggerSource == this.sApp.TriggerSource.CLOCK) {
+      return 'CLOCK'
+    } else if (triggerSource == this.sApp.TriggerSource.SPREADSHEETS) {
+      return 'SPREADSHEETS'
+    } else {
+      return void 0
+    }
+  }
+
+  get list() {
+    const triggers = this.sApp.getProjectTriggers();
+    return triggers.reduce((list, trigger) => {
+      list[trigger.getUniqueId()] = {
+        triggerId: trigger.getUniqueId(),
+        sourceId: trigger.getTriggerSourceId(),
+        handlerFunction: trigger.getHandlerFunction(),
+        eventType: this.getEventName(trigger.getEventType()),
+        triggerSource: this.getTriggerSourceName(trigger.getTriggerSource()),
+      };
+      return list
+    }, {})
+  }
+}
+
+class SpreadsheetsTrigger extends Trigger {
+  /**
+   * Создание триггера для таблиц Google
+   * @param {object} ss объект книги
+   */
+  constructor(ss) {
+    super();
+    this.ss = ss;
+    this.instance = this;
+  }
+
+  /**
+   * Создание триггера при открытии
+   * @param {string} functionName Название функции
+   */
+  createForSpreadsheetOnOpen(functionName) {
+    this.sApp.newTrigger(functionName).forSpreadsheet(this.ss).onOpen().create();
+    return this
+  }
+  /**
+   * Создание триггера при редактировании электронной таблицы
+   * @param {string} functionName Название функции
+   */
+  createForSpreadsheetOnEdit(functionName) {
+    this.sApp.newTrigger(functionName).forSpreadsheet(this.ss).onEdit().create();
+    return this
+  }
+  /**
+   * Установка триггера по времени
+   * @param {number} hour время запуска в сутках
+   * @param {number} day интервал в днях
+   * @param {string} functionName Название функции
+   */
+  createForSpreadsheetAtHourEveryDays(hour, day, functionName) {
+    this.sApp
+      .newTrigger(functionName)
+      .timeBased()
+      .atHour(hour)
+      .everyDays(day)
+      .create();
+    return this
+  }
+
+  createForSpreadsheetArter(functionName, seconds) {
+    this.sApp
+      .newTrigger(functionName)
+      .timeBased()
+      .after(seconds * 1000)
+      .create();
+    return this
+  }
+
+  deleteAllTrigger() {
+    const triggers = this.sApp.getProjectTriggers();
+    triggers.forEach((trigger) => this.sApp.deleteTrigger(trigger));
+    return this
+  }
+  deleteDisabledTrigger() {
+    const triggers = this.sApp.getProjectTriggers();
+    triggers
+      .filter((trigger) => {
+        return trigger.isDisabled()
+      })
+      .forEach((disabledTrigger) => {
+        this.sApp.deleteTrigger(disabledTrigger);
+      });
+    return this
+  }
+}
+
 class ModalDialog {
   constructor(htmlTempate, width, height) {
     this.html = htmlTempate;
@@ -1709,24 +1823,34 @@ class Portfolio {
           },
           isSell: { alias: 'Is sell', idx: 31, default: false },
           useInReport: { alias: 'Use in report', idx: 32 },
+          updateDate: {
+            alias: 'Update date',
+            idx: 33,
+          },
+          rowId: { alias: 'Row ID', idx: 34, default: 0 },
+        },
+      },
+      flowBalance: {
+        type: 'tx',
+        rowNum: 1,
+        columns: {
+          account: { alias: 'Account', idx: 0 },
+          symbolCategory: { alias: 'Symbol category', idx: 1 },
+          cost: { alias: 'Cost, $', idx: 2 },
           updateDataMart: {
             alias: 'Update data mart',
-            idx: 33,
+            idx: 3,
             type: 'date',
           },
           updateDataMartKey: {
             alias: 'Update data mart key',
-            idx: 34,
-          },
-          actualDataMart: {
-            alias: 'Actual data mart',
-            idx: 35,
+            idx: 4,
           },
           updateDate: {
             alias: 'Update date',
-            idx: 36,
+            idx: 5,
           },
-          rowId: { alias: 'Row ID', idx: 37, default: 0 },
+          rowId: { alias: 'Row ID', idx: 6, default: 0 },
         },
       },
       overflows: {
@@ -1738,26 +1862,49 @@ class Portfolio {
             alias: 'Day in overflow (avg)',
             idx: 1,
           },
-          tokenA: { alias: 'Token A', idx: 2 },
-          tokenARest: { alias: 'Token A rest', idx: 3 },
-          tokenAQuantityFlow: { alias: 'Token A quantity flow', idx: 4 },
-          tokenB: { alias: 'Token B', idx: 5 },
-          tokenBRest: { alias: 'Token B rest', idx: 6 },
-          tokenBQuantityFlow: { alias: 'Token B quantity flow', idx: 7 },
-          tokenBCostFlow: { alias: 'Token B cost flow, $', idx: 8 },
-          overflow: { alias: 'Overflow', idx: 9 },
-          ABPriceCoefFlow: { alias: 'A/B price coef flow', idx: 10 },
-          ABPriceCoef: { alias: 'A/B price coef', idx: 11 },
-          ABPriceCoefDiffPct: { alias: 'A/B price coef diff, %', idx: 12 },
-          backflow: { alias: 'Backflow', idx: 13 },
-          BAPriceCoefFlow: { alias: 'B/A price coef flow', idx: 14 },
-          BAPriceCoef: { alias: 'B/A price coef', idx: 15 },
-          BAPriceCoefDiffPct: { alias: 'B/A price coef diff, %', idx: 16 },
-          overflowStatus: { alias: 'Overflow status', idx: 17 },
-          rowId: { alias: 'Row ID', idx: 18, default: 0 },
+          dayInBackFlowAvg: { alias: 'Day in backflow (avg)', idx: 2 },
+          dayInFlowAvg: {
+            alias: 'Day in flow (avg)',
+            idx: 3,
+          },
+          overflow: { alias: 'Overflow', idx: 4 },
+          backflow: { alias: 'Backflow', idx: 5 },
+          ABPriceCoefFlow: { alias: 'A/B price coef overflow', idx: 6 },
+          ABPriceCoef: { alias: 'A/B price coef', idx: 7 },
+          ABPriceCoefDiffPct: { alias: 'A/B price coef diff, %', idx: 8 },
+          overflowStatus: { alias: 'Overflow status', idx: 9 },
+          tokenA: { alias: 'Token A', idx: 10 },
+          tokenARestQuantity: { alias: 'Token A rest, qty', idx: 11 },
+          tokenAOverFlowQuantity: { alias: 'Token A overflow, qty', idx: 12 },
+          tokenABackFlowMaxPlanQuantity: {
+            alias: 'Token A backflow max (plan), qty',
+            idx: 13,
+          },
+          tokenABackFlowQuantity: {
+            alias: 'Token A backflow, qty',
+            idx: 14,
+          },
+          tokenAOverflowCostFreeze: {
+            alias: 'Token A overflow cost freeze, $',
+            idx: 15,
+          },
+          tokenAOverflowPnlQty: { alias: 'Token A overflow PnL, qty', idx: 16 },
+          tokenAOverflowPnlQtyPct: {
+            alias: 'Token A overflow PnL (qty), %',
+            idx: 17,
+          },
+          tokenB: { alias: 'Token B', idx: 18 },
+          tokenBRestQuantity: { alias: 'Token B rest, qty', idx: 19 },
+          tokenBOverFlowQuantity: { alias: 'Token B overflow, qty', idx: 20 },
+          // tokenBBackFlowQuantity: { alias: 'Token B backflow, qty', idx: 21 },
+          tokenBBackFlowMinPlanQuantity: {
+            alias: 'Token B backflow min (plan), qty',
+            idx: 21,
+          },
+          rowId: { alias: 'Row ID', idx: 22, default: 0 },
           updateDataMart: {
             alias: 'Update data mart',
-            idx: 19,
+            idx: 23,
             type: 'date',
           },
         },
@@ -3495,6 +3642,7 @@ class HistoricalPrice {
         currencySymbolCategoryKey /*stablecoin*/
       ) {
         //* Для стабильных токенов возвращать единицу
+
         historicalPrice = 1;
         isHistoricalAveragePrice = false;
       } else if (
@@ -4771,18 +4919,7 @@ class Flow {
       const contractors = new Portfolio().getWorkSheet('Contractors').object;
       const inKey = new Hash('in').md5;
       const outKey = new Hash('out').md5;
-      const actualDate = new FormatDate().getDateBegin();
-      const updateDataMart = new FormatDate().getDateBegin();
       const updateDate = new FormatDate();
-      const flowHistory = this.workSheet.arrayOfObject
-        .filter((rowObject) => {
-          return rowObject.updateDataMartKey !== actualDate.dateKey
-        })
-        .map((rowObject) => {
-          rowObject.actualDataMart = false;
-          return rowObject
-        });
-
       const aggFlow = new Transactions().workSheet.arrayOfObject
         .filter((row) => row.isDelete === false)
         .sort((a, b) => {
@@ -5172,11 +5309,7 @@ class Flow {
                 dayInPortfolioAvg,
                 isSell: false,
                 useInReport: useInReport,
-                updateDataMart: updateDataMart.getFormatDate('yyyy-MM-dd'),
                 updateDate: updateDate.getFormatDate('yyyy-MM-dd HH:mm'),
-                actualDataMart:
-                  actualDate.dateKey === updateDataMart.dateKey ? true : false,
-                updateDataMartKey: updateDataMart.dateKey,
               });
             });
           });
@@ -5220,12 +5353,61 @@ class Flow {
         return rowFlow
       });
 
-      this.workSheet.truncateInsertRows([
-        ...flowHistory,
-        ...aggFlowArrayOfObject,
-      ]);
+      this.workSheet.truncateInsertRows(aggFlowArrayOfObject);
     } catch (error) {
       console.error('FlowSymbol.updateFlow', error.stack);
+    }
+  }
+
+  updateFlowBalance() {
+    try {
+      const actualDate = new FormatDate().getDateBegin();
+      const updateDataMart = new FormatDate().getDateBegin();
+      const updateDate = new FormatDate();
+      const flowBalance = new Portfolio().getWorkSheet('FlowBalance');
+      const flowBalanceHistory = flowBalance.arrayOfObject.filter(
+        (rowObject) => {
+          return rowObject.updateDataMartKey !== actualDate.dateKey
+        }
+      );
+
+      const aggFlowBalance = this.workSheet.arrayOfObject
+        .filter((rowObject) => {
+          return rowObject.useInReport == true
+        })
+        .reduce((agg, tx) => {
+          if (!agg[tx.account]) {
+            agg[tx.account] = {};
+          }
+
+          if (!agg[tx.account][tx.symbolCategory]) {
+            agg[tx.account][tx.symbolCategory] = {
+              cost: 0,
+            };
+          }
+          agg[tx.account][tx.symbolCategory].cost += tx.cost;
+          return agg
+        }, {});
+
+      let aggFlowBalanceArrayOfObject = [];
+      Object.entries(aggFlowBalance).forEach(([account, level0]) => {
+        Object.entries(level0).forEach(([symbolCategory, object]) => {
+          aggFlowBalanceArrayOfObject.push({
+            account: account.toUpperCase(),
+            symbolCategory: symbolCategory.toUpperCase(),
+            cost: object.cost || 0,
+            updateDataMart: updateDataMart.getFormatDate('yyyy-MM-dd'),
+            updateDate: updateDate.getFormatDate('yyyy-MM-dd HH:mm'),
+            updateDataMartKey: updateDataMart.dateKey,
+          });
+        });
+      });
+      flowBalance.truncateInsertRows([
+        ...flowBalanceHistory,
+        ...aggFlowBalanceArrayOfObject,
+      ]);
+    } catch (error) {
+      console.error('FlowSymbol.updateFlowBalance', error.stack);
     }
   }
 }
@@ -5333,6 +5515,7 @@ class Overflows {
         } else if (inKey === directionKey) {
           overflow = tx.overflowRev;
         }
+
         if (!agg[tx.account][overflow]) {
           agg[tx.account][overflow] = {};
         }
@@ -5348,7 +5531,7 @@ class Overflows {
             quantityTransferIn: 0,
             quantityTransferOut: 0,
             quantityFlow: 0,
-            quantityRest: 0,
+            // quantityRest: 0,
             priceCoefSumBuyIn: 0,
             priceCoefSumBuyOut: 0,
             priceCoefSumSellIn: 0,
@@ -5446,7 +5629,7 @@ class Overflows {
         }
 
         agg[tx.account][overflow][tx.symbol].quantityFlow += tx.quantity;
-        agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity;
+        // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
 
         return agg
       }, {});
@@ -5459,6 +5642,7 @@ class Overflows {
         } else if (inKey === directionKey) {
           overflow = tx.overflow;
         }
+
         if (aggOverflow[tx.account]) {
           if (aggOverflow[tx.account][overflow]) {
             if (aggOverflow[tx.account][overflow][tx.symbol]) {
@@ -5536,13 +5720,13 @@ class Overflows {
               aggFlowObject[account][overflow] = {
                 dayInOverflowAvg: Math.abs(dayInOverflowAvg),
                 tokenA: '',
-                tokenARest: 0,
-                tokenAQuantityFlow: 0,
+                tokenARestQuantity: 0,
+                tokenAOverFlowQuantity: 0,
                 ABPriceCoefFlow: 0,
                 tokenAPrice: 0,
                 tokenB: '',
-                tokenBRest: 0,
-                tokenBQuantityFlow: 0,
+                tokenBRestQuantity: 0,
+                tokenBOverFlowQuantity: 0,
                 BAPriceCoefFlow: 0,
                 tokenBPrice: 0,
               };
@@ -5551,8 +5735,10 @@ class Overflows {
             if (quantityFlow < 0) {
               const tokenAKey = new Hash(symbol).md5;
               aggFlowObject[account][overflow].tokenA = symbol;
-              aggFlowObject[account][overflow].tokenARest = object.quantityRest;
-              aggFlowObject[account][overflow].tokenAQuantityFlow = quantityFlow;
+              // aggFlowObject[account][overflow].tokenARestQuantity = object.quantityRest
+              aggFlowObject[account][
+                overflow
+              ].tokenAOverFlowQuantity = quantityFlow;
               aggFlowObject[account][overflow].ABPriceCoefFlow = priceCoefFlow;
               aggFlowObject[account][overflow].tokenAPrice =
                 symbols[tokenAKey]?.price || 0;
@@ -5561,8 +5747,10 @@ class Overflows {
             if (quantityFlow > 0) {
               const tokenBKey = new Hash(symbol).md5;
               aggFlowObject[account][overflow].tokenB = symbol;
-              aggFlowObject[account][overflow].tokenBRest = object.quantityRest;
-              aggFlowObject[account][overflow].tokenBQuantityFlow = quantityFlow;
+              // aggFlowObject[account][overflow].tokenBRestQuantity = object.quantityRest
+              aggFlowObject[account][
+                overflow
+              ].tokenBOverFlowQuantity = quantityFlow;
               aggFlowObject[account][overflow].BAPriceCoefFlow = priceCoefFlow;
               aggFlowObject[account][overflow].tokenBPrice =
                 symbols[tokenBKey]?.price || 0;
@@ -5573,7 +5761,6 @@ class Overflows {
       const aggFlowArrayOfObject = [];
       Object.entries(aggFlowObject).forEach(([account, level0]) => {
         Object.entries(level0).forEach(([overflow, object]) => {
-          let overflowStatus;
           const overflowArray = overflow.split('/');
           const tokenA = overflowArray[0];
           const tokenB = overflowArray[1];
@@ -5584,20 +5771,10 @@ class Overflows {
           const ABPriceCoefDiffPct = object.ABPriceCoefFlow
             ? ABPriceCoef / object.ABPriceCoefFlow - 1
             : 0;
-          const BAPriceCoef = object.tokenBPrice / object.tokenAPrice;
-          const BAPriceCoefDiffPct = object.BAPriceCoefFlow
-            ? BAPriceCoef / object.BAPriceCoefFlow - 1
-            : 0;
-          const tokenARest = aggFlow[account][object.tokenA]?.quantityRest || 0;
-          const tokenBRest = aggFlow[account][object.tokenB]?.quantityRest || 0;
-          const tokenBCostFlow =
-            object.tokenBQuantityFlow * symbols[tokenBKey].price;
-          //* категория перелива
-          if (ABPriceCoefDiffPct < 0) {
-            overflowStatus = '1 Do a backflow';
-          } else {
-            overflowStatus = '2 Do a overflow';
-          }
+          const tokenARestQuantity =
+            aggFlow[account][object.tokenA]?.quantityRest || 0;
+          const tokenBRestQuantity =
+            aggFlow[account][object.tokenB]?.quantityRest || 0;
 
           if (
             symbols[tokenAKey]?.useInReport === true &&
@@ -5609,20 +5786,16 @@ class Overflows {
               overflow: overflow.toUpperCase(),
               backflow: backflow.toUpperCase(),
               tokenA: object.tokenA ? object.tokenA.toUpperCase() : void 0,
-              tokenARest: tokenARest,
-              tokenAQuantityFlow: object.tokenAQuantityFlow,
-
+              tokenARestQuantity: tokenARestQuantity,
+              tokenAOverFlowQuantity: Math.abs(object.tokenAOverFlowQuantity),
+              tokenABackFlowMaxPlanQuantity:
+                object.tokenBOverFlowQuantity / ABPriceCoef,
               tokenB: object.tokenB ? object.tokenB.toUpperCase() : void 0,
-              tokenBRest: tokenBRest,
-              tokenBQuantityFlow: object.tokenBQuantityFlow,
-              tokenBCostFlow: tokenBCostFlow,
+              tokenBRestQuantity: tokenBRestQuantity,
+              tokenBOverFlowQuantity: object.tokenBOverFlowQuantity,
               ABPriceCoefFlow: object.ABPriceCoefFlow,
               ABPriceCoef: ABPriceCoef,
               ABPriceCoefDiffPct: ABPriceCoefDiffPct,
-              BAPriceCoefFlow: object.BAPriceCoefFlow,
-              BAPriceCoef: BAPriceCoef,
-              BAPriceCoefDiffPct: BAPriceCoefDiffPct,
-              overflowStatus: overflowStatus,
               updateDataMart: updateDataMart.getFormatDate(
                 'yyyy-MM-dd HH:mm:ss'
               ),
@@ -5638,12 +5811,87 @@ class Overflows {
         .sort((a, b) => {
           return a.ABPriceCoefDiffPct - b.ABPriceCoefDiffPct
         });
-      // .sort((a, b) => {
-      //   return (
-      //     ('' + a.overflow).localeCompare(b.overflow) &&
-      //     ('' + a.overflowRev).localeCompare(b.overflowRev)
-      //   )
-      // })
+
+      //* расчет количества обратного перелива для токена А
+      const tokenAbackflowArrayOfObject = sortAggFlowArrayOfObject.reduce(
+        (backflowObject, object) => {
+          if (!backflowObject[object.backflow]) {
+            backflowObject[object.backflow] = {};
+          }
+
+          if (!backflowObject[object.backflow][object.tokenB]) {
+            backflowObject[object.backflow][object.tokenB] = {
+              tokenABackFlowQuantity: 0,
+              dayInBackFlowAvg: 0,
+            };
+          }
+          backflowObject[object.backflow][
+            object.tokenB
+          ].tokenABackFlowQuantity += object.tokenBOverFlowQuantity;
+          backflowObject[object.backflow][object.tokenB].dayInBackFlowAvg +=
+            object.dayInOverflowAvg;
+          return backflowObject
+        },
+        {}
+      );
+
+      sortAggFlowArrayOfObject.map((object) => {
+        object.tokenABackFlowQuantity = 0;
+        object.dayInBackFlowAvg = 0;
+        // object.tokenBBackFlowQuantity = 0
+
+        if (!tokenAbackflowArrayOfObject[object.overflow]) {
+        } else {
+          if (!tokenAbackflowArrayOfObject[object.overflow][object.tokenA]) {
+          } else {
+            object.tokenABackFlowQuantity =
+              tokenAbackflowArrayOfObject[object.overflow][
+                object.tokenA
+              ].tokenABackFlowQuantity;
+            object.dayInBackFlowAvg =
+              tokenAbackflowArrayOfObject[object.overflow][
+                object.tokenA
+              ].dayInBackFlowAvg;
+          }
+        }
+
+        //* расчет эффективности перелива
+        const tokenAKey = new Hash(object.tokenA).md5;
+
+        object.tokenAOverflowPnlQty =
+          object.tokenABackFlowQuantity - object.tokenAOverFlowQuantity;
+        object.tokenAOverflowPnlQtyPct =
+          (object.tokenABackFlowQuantity - object.tokenAOverFlowQuantity) /
+          object.tokenAOverFlowQuantity;
+
+        if (object.tokenAOverflowPnlQty > 0) {
+          object.tokenAOverflowCostFreeze = 0;
+        } else {
+          object.tokenAOverflowCostFreeze =
+            (object.tokenAOverFlowQuantity - object.tokenABackFlowQuantity) *
+            symbols[tokenAKey].price;
+        }
+
+        //* расчет остатка перелива в токена Б
+        object.tokenBBackFlowMinPlanQuantity =
+          (object.tokenAOverFlowQuantity - object.tokenABackFlowQuantity) *
+          object.ABPriceCoef;
+
+        //* расчет среднего интервала перелива
+        object.dayInFlowAvg = Math.abs(
+          object.dayInOverflowAvg - object.dayInBackFlowAvg
+        );
+
+        //* статус перелива
+        if (object.ABPriceCoefDiffPct < 0) {
+          object.overflowStatus = 'Backflow';
+        } else if (object.ABPriceCoefDiffPct >= 0) {
+          object.overflowStatus = 'Overflow';
+        }
+
+        return object
+      });
+
       this.workSheet.truncateInsertRows(sortAggFlowArrayOfObject);
     } catch (error) {
       console.error('Overflows.updateOverflows', error.stack);
@@ -5686,18 +5934,13 @@ class Overflows {
 function createMenu() {
   const ui = SpreadsheetApp.getUi();
   const menu = ui.createMenu('Portfolio');
-  // menu.addSubMenu(
-  //   SpreadsheetApp.getUi()
-  //     .createMenu('Update')
-  //     .addItem('Update portfolio', 'updatePortfolio')
-  // )
-  menu.addItem('Update portfolio', 'updatePortfolio');
   menu.addSubMenu(
     SpreadsheetApp.getUi()
       .createMenu('Service')
-      .addItem('Update data mart', 'updateDataMart')
-      .addItem('Update overflows', 'updateOverflows')
       .addItem('Update prices', 'updatePrices')
+      .addItem('Update flow', 'updateFlow')
+      .addItem('Update flow balance', 'updateFlowBalance')
+      .addItem('Update overflows', 'updateOverflows')
       .addItem('Update coins', 'updateCoins')
       .addItem('Validate transactions', 'validateTransactions')
   );
@@ -5719,19 +5962,6 @@ function getCategories() {
   console.log(new Category().getCategories());
 }
 
-function validateTransactions() {
-  const startProcess = new FormatDate();
-  new Promise((resolve, reject) => {
-    const process = () => {
-      new Registry().validateTransactions();
-      return true
-    };
-    process() ? resolve() : reject(new Error('script.validateTransactions'));
-  }).catch((error) => {
-    console.error('script.validateTransactions', error.stack);
-  });
-}
-
 function updateLPToken() {
   new LPToken().updateLPToken();
 }
@@ -5751,6 +5981,27 @@ function updateTransactions() {
   }
 }
 
+function validateTransactions() {
+  const startProcess = new FormatDate();
+  new Promise((resolve, reject) => {
+    const process = () => {
+      new Registry().validateTransactions();
+      return true
+    };
+    process() ? resolve() : reject(new Error('script.validateTransactions'));
+  })
+    .then(
+      new Portfolio().log.addMessage(
+        'script.validateTransactions',
+        'ID:' + startProcess.value,
+        'Time spent: ' + startProcess.getTimeDiff()
+      )
+    )
+    .catch((error) => {
+      console.error('script.validateTransactions', error.stack);
+    });
+}
+
 function updateCoins() {
   const startProcess = new FormatDate();
   try {
@@ -5759,35 +6010,11 @@ function updateCoins() {
     console.error('script.updateCoins', error.stack);
   } finally {
     new Portfolio().log.addMessage(
-      'updateCoins',
+      'script.updateCoins',
       'ID:' + startProcess.value,
       'Time spent: ' + startProcess.getTimeDiff()
     );
   }
-}
-
-function updateDataMart() {
-  const startProcess = new FormatDate();
-  new Promise((resolve, reject) => {
-    const process = () => {
-      new Flow().updateFlow();
-      return true
-    };
-    process() ? resolve() : reject(new Error('script.updateDataMart'));
-  })
-    .then(() => {
-      new Overflows().updateOverflows();
-    })
-    .then(
-      new Portfolio().log.addMessage(
-        'script.updateDataMart',
-        'ID:' + startProcess.value,
-        'Time spent: ' + startProcess.getTimeDiff()
-      )
-    )
-    .catch((error) => {
-      console.error('script.updateDataMart', error.stack);
-    });
 }
 
 function updatePrices() {
@@ -5801,7 +6028,7 @@ function updatePrices() {
   })
     .then(
       new Portfolio().log.addMessage(
-        'updatePrices',
+        'script.updatePrices',
         'ID:' + startProcess.value,
         'Time spent: ' + startProcess.getTimeDiff()
       )
@@ -5811,51 +6038,82 @@ function updatePrices() {
     });
 }
 
-function updatePortfolio() {
+function updateFlow() {
   const startProcess = new FormatDate();
   new Promise((resolve, reject) => {
-    const startUpdatePrices = new FormatDate();
-    new Symbols().updatePrices();
-    console.info(
-      'script.updatePortfolio.updatePrices.timeSpent:',
-      startUpdatePrices.getTimeDiff()
-    );
-    resolve();
+    const process = () => {
+      new Flow().updateFlow();
+      return true
+    };
+    process() ? resolve() : reject(new Error('script.updateFlow'));
   })
     .then(
-      new Promise((resolve) => {
-        const startValidateTransactions = new FormatDate();
-        new Registry().validateTransactions();
-        console.info(
-          'script.updatePortfolio.validateTransactions.timeSpent:',
-          startValidateTransactions.getTimeDiff()
-        );
-        resolve();
-      })
-        .then(() => {
-          const startUpdateFlow = new FormatDate();
-          new Flow().updateFlow();
-          console.info(
-            'script.updatePortfolio.updateFlow.timeSpent:',
-            startUpdateFlow.getTimeDiff()
-          );
-        })
-        .then(() => {
-          const startUpdateOverflows = new FormatDate();
-          new Overflows().updateOverflows();
-          console.info(
-            'script.updatePortfolio.updateOverflows.timeSpent:',
-            startUpdateOverflows.getTimeDiff()
-          );
-        })
-    )
-    .then(
       new Portfolio().log.addMessage(
-        'updatePrices',
+        'updateFlow',
         'ID:' + startProcess.value,
         'Time spent: ' + startProcess.getTimeDiff()
       )
-    );
+    )
+    .catch((error) => {
+      console.error('script.updateFlow', error.stack);
+    });
+}
+
+function updateFlowBalance() {
+  const startProcess = new FormatDate();
+  new Promise((resolve, reject) => {
+    const process = () => {
+      new Flow().updateFlowBalance();
+      return true
+    };
+    process() ? resolve() : reject(new Error('script.updateFlowBalance'));
+  })
+    .then(
+      new Portfolio().log.addMessage(
+        'updateFlowBalance',
+        'ID:' + startProcess.value,
+        'Time spent: ' + startProcess.getTimeDiff()
+      )
+    )
+    .catch((error) => {
+      console.error('script.updateFlowBalance', error.stack);
+    });
+}
+
+function updateOverflows() {
+  const startProcess = new FormatDate();
+  new Promise((resolve, reject) => {
+    const process = () => {
+      new Overflows().updateOverflows();
+      return true
+    };
+    process() ? resolve() : reject(new Error('script.updateOverflows'));
+  })
+    .then(
+      new Portfolio().log.addMessage(
+        'script.updateOverflows',
+        'ID:' + startProcess.value,
+        'Time spent: ' + startProcess.getTimeDiff()
+      )
+    )
+    .catch((error) => {
+      console.error('script.updateOverflows', error.stack);
+    });
+}
+
+function deleteDisabledTrigger() {
+  new SpreadsheetsTrigger().deleteDisabledTrigger();
+}
+
+function updatePortfolio() {
+  new SpreadsheetsTrigger().createForSpreadsheetArter('updatePrices', 1);
+  new SpreadsheetsTrigger().createForSpreadsheetArter('updateFlow', 300);
+  new SpreadsheetsTrigger().createForSpreadsheetArter('updateFlowBalance', 600);
+  new SpreadsheetsTrigger().createForSpreadsheetArter('updateOverflows', 900);
+  new SpreadsheetsTrigger().createForSpreadsheetArter(
+    'deleteDisabledTrigger',
+    930
+  );
 }
 
 function updateRegistryRowKey() {
@@ -5868,10 +6126,6 @@ function updateRowKey() {
 
 function updateIsOverflow() {
   new Transactions().updateIsOverflow();
-}
-
-function updateOverflows() {
-  new Overflows().updateOverflows();
 }
 
 function updatePair() {

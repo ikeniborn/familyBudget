@@ -61,6 +61,7 @@ class Overflows {
         } else if (inKey === directionKey) {
           overflow = tx.overflowRev
         }
+
         if (!agg[tx.account][overflow]) {
           agg[tx.account][overflow] = {}
         }
@@ -76,7 +77,7 @@ class Overflows {
             quantityTransferIn: 0,
             quantityTransferOut: 0,
             quantityFlow: 0,
-            quantityRest: 0,
+            // quantityRest: 0,
             priceCoefSumBuyIn: 0,
             priceCoefSumBuyOut: 0,
             priceCoefSumSellIn: 0,
@@ -174,7 +175,7 @@ class Overflows {
         }
 
         agg[tx.account][overflow][tx.symbol].quantityFlow += tx.quantity
-        agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
+        // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
 
         return agg
       }, {})
@@ -187,6 +188,7 @@ class Overflows {
         } else if (inKey === directionKey) {
           overflow = tx.overflow
         }
+
         if (aggOverflow[tx.account]) {
           if (aggOverflow[tx.account][overflow]) {
             if (aggOverflow[tx.account][overflow][tx.symbol]) {
@@ -264,13 +266,13 @@ class Overflows {
               aggFlowObject[account][overflow] = {
                 dayInOverflowAvg: Math.abs(dayInOverflowAvg),
                 tokenA: '',
-                tokenARest: 0,
-                tokenAQuantityFlow: 0,
+                tokenARestQuantity: 0,
+                tokenAOverFlowQuantity: 0,
                 ABPriceCoefFlow: 0,
                 tokenAPrice: 0,
                 tokenB: '',
-                tokenBRest: 0,
-                tokenBQuantityFlow: 0,
+                tokenBRestQuantity: 0,
+                tokenBOverFlowQuantity: 0,
                 BAPriceCoefFlow: 0,
                 tokenBPrice: 0,
               }
@@ -279,8 +281,10 @@ class Overflows {
             if (quantityFlow < 0) {
               const tokenAKey = new Hash(symbol).md5
               aggFlowObject[account][overflow].tokenA = symbol
-              aggFlowObject[account][overflow].tokenARest = object.quantityRest
-              aggFlowObject[account][overflow].tokenAQuantityFlow = quantityFlow
+              // aggFlowObject[account][overflow].tokenARestQuantity = object.quantityRest
+              aggFlowObject[account][
+                overflow
+              ].tokenAOverFlowQuantity = quantityFlow
               aggFlowObject[account][overflow].ABPriceCoefFlow = priceCoefFlow
               aggFlowObject[account][overflow].tokenAPrice =
                 symbols[tokenAKey]?.price || 0
@@ -289,8 +293,10 @@ class Overflows {
             if (quantityFlow > 0) {
               const tokenBKey = new Hash(symbol).md5
               aggFlowObject[account][overflow].tokenB = symbol
-              aggFlowObject[account][overflow].tokenBRest = object.quantityRest
-              aggFlowObject[account][overflow].tokenBQuantityFlow = quantityFlow
+              // aggFlowObject[account][overflow].tokenBRestQuantity = object.quantityRest
+              aggFlowObject[account][
+                overflow
+              ].tokenBOverFlowQuantity = quantityFlow
               aggFlowObject[account][overflow].BAPriceCoefFlow = priceCoefFlow
               aggFlowObject[account][overflow].tokenBPrice =
                 symbols[tokenBKey]?.price || 0
@@ -301,7 +307,6 @@ class Overflows {
       const aggFlowArrayOfObject = []
       Object.entries(aggFlowObject).forEach(([account, level0]) => {
         Object.entries(level0).forEach(([overflow, object]) => {
-          let overflowStatus
           const overflowArray = overflow.split('/')
           const tokenA = overflowArray[0]
           const tokenB = overflowArray[1]
@@ -312,20 +317,10 @@ class Overflows {
           const ABPriceCoefDiffPct = object.ABPriceCoefFlow
             ? ABPriceCoef / object.ABPriceCoefFlow - 1
             : 0
-          const BAPriceCoef = object.tokenBPrice / object.tokenAPrice
-          const BAPriceCoefDiffPct = object.BAPriceCoefFlow
-            ? BAPriceCoef / object.BAPriceCoefFlow - 1
-            : 0
-          const tokenARest = aggFlow[account][object.tokenA]?.quantityRest || 0
-          const tokenBRest = aggFlow[account][object.tokenB]?.quantityRest || 0
-          const tokenBCostFlow =
-            object.tokenBQuantityFlow * symbols[tokenBKey].price
-          //* категория перелива
-          if (ABPriceCoefDiffPct < 0) {
-            overflowStatus = '1 Do a backflow'
-          } else {
-            overflowStatus = '2 Do a overflow'
-          }
+          const tokenARestQuantity =
+            aggFlow[account][object.tokenA]?.quantityRest || 0
+          const tokenBRestQuantity =
+            aggFlow[account][object.tokenB]?.quantityRest || 0
 
           if (
             symbols[tokenAKey]?.useInReport === true &&
@@ -337,20 +332,16 @@ class Overflows {
               overflow: overflow.toUpperCase(),
               backflow: backflow.toUpperCase(),
               tokenA: object.tokenA ? object.tokenA.toUpperCase() : void 0,
-              tokenARest: tokenARest,
-              tokenAQuantityFlow: object.tokenAQuantityFlow,
-
+              tokenARestQuantity: tokenARestQuantity,
+              tokenAOverFlowQuantity: Math.abs(object.tokenAOverFlowQuantity),
+              tokenABackFlowMaxPlanQuantity:
+                object.tokenBOverFlowQuantity / ABPriceCoef,
               tokenB: object.tokenB ? object.tokenB.toUpperCase() : void 0,
-              tokenBRest: tokenBRest,
-              tokenBQuantityFlow: object.tokenBQuantityFlow,
-              tokenBCostFlow: tokenBCostFlow,
+              tokenBRestQuantity: tokenBRestQuantity,
+              tokenBOverFlowQuantity: object.tokenBOverFlowQuantity,
               ABPriceCoefFlow: object.ABPriceCoefFlow,
               ABPriceCoef: ABPriceCoef,
               ABPriceCoefDiffPct: ABPriceCoefDiffPct,
-              BAPriceCoefFlow: object.BAPriceCoefFlow,
-              BAPriceCoef: BAPriceCoef,
-              BAPriceCoefDiffPct: BAPriceCoefDiffPct,
-              overflowStatus: overflowStatus,
               updateDataMart: updateDataMart.getFormatDate(
                 'yyyy-MM-dd HH:mm:ss'
               ),
@@ -366,12 +357,87 @@ class Overflows {
         .sort((a, b) => {
           return a.ABPriceCoefDiffPct - b.ABPriceCoefDiffPct
         })
-      // .sort((a, b) => {
-      //   return (
-      //     ('' + a.overflow).localeCompare(b.overflow) &&
-      //     ('' + a.overflowRev).localeCompare(b.overflowRev)
-      //   )
-      // })
+
+      //* расчет количества обратного перелива для токена А
+      const tokenAbackflowArrayOfObject = sortAggFlowArrayOfObject.reduce(
+        (backflowObject, object) => {
+          if (!backflowObject[object.backflow]) {
+            backflowObject[object.backflow] = {}
+          }
+
+          if (!backflowObject[object.backflow][object.tokenB]) {
+            backflowObject[object.backflow][object.tokenB] = {
+              tokenABackFlowQuantity: 0,
+              dayInBackFlowAvg: 0,
+            }
+          }
+          backflowObject[object.backflow][
+            object.tokenB
+          ].tokenABackFlowQuantity += object.tokenBOverFlowQuantity
+          backflowObject[object.backflow][object.tokenB].dayInBackFlowAvg +=
+            object.dayInOverflowAvg
+          return backflowObject
+        },
+        {}
+      )
+
+      sortAggFlowArrayOfObject.map((object) => {
+        object.tokenABackFlowQuantity = 0
+        object.dayInBackFlowAvg = 0
+        // object.tokenBBackFlowQuantity = 0
+
+        if (!tokenAbackflowArrayOfObject[object.overflow]) {
+        } else {
+          if (!tokenAbackflowArrayOfObject[object.overflow][object.tokenA]) {
+          } else {
+            object.tokenABackFlowQuantity =
+              tokenAbackflowArrayOfObject[object.overflow][
+                object.tokenA
+              ].tokenABackFlowQuantity
+            object.dayInBackFlowAvg =
+              tokenAbackflowArrayOfObject[object.overflow][
+                object.tokenA
+              ].dayInBackFlowAvg
+          }
+        }
+
+        //* расчет эффективности перелива
+        const tokenAKey = new Hash(object.tokenA).md5
+
+        object.tokenAOverflowPnlQty =
+          object.tokenABackFlowQuantity - object.tokenAOverFlowQuantity
+        object.tokenAOverflowPnlQtyPct =
+          (object.tokenABackFlowQuantity - object.tokenAOverFlowQuantity) /
+          object.tokenAOverFlowQuantity
+
+        if (object.tokenAOverflowPnlQty > 0) {
+          object.tokenAOverflowCostFreeze = 0
+        } else {
+          object.tokenAOverflowCostFreeze =
+            (object.tokenAOverFlowQuantity - object.tokenABackFlowQuantity) *
+            symbols[tokenAKey].price
+        }
+
+        //* расчет остатка перелива в токена Б
+        object.tokenBBackFlowMinPlanQuantity =
+          (object.tokenAOverFlowQuantity - object.tokenABackFlowQuantity) *
+          object.ABPriceCoef
+
+        //* расчет среднего интервала перелива
+        object.dayInFlowAvg = Math.abs(
+          object.dayInOverflowAvg - object.dayInBackFlowAvg
+        )
+
+        //* статус перелива
+        if (object.ABPriceCoefDiffPct < 0) {
+          object.overflowStatus = 'Backflow'
+        } else if (object.ABPriceCoefDiffPct >= 0) {
+          object.overflowStatus = 'Overflow'
+        }
+
+        return object
+      })
+
       this.workSheet.truncateInsertRows(sortAggFlowArrayOfObject)
     } catch (error) {
       console.error('Overflows.updateOverflows', error.stack)
