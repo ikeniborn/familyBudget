@@ -5273,7 +5273,7 @@ class Flow {
                 quantityRebalance = 0;
               }
 
-              const payback = costOutFlow - costOwnInFlow;
+              const payback = costOutFlow - costInFlow;
 
               aggFlowArrayOfObject.push({
                 account: account.toUpperCase(),
