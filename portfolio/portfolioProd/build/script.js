@@ -4928,6 +4928,7 @@ class Flow {
         .reduce((agg, tx) => {
           const operationKey = new Hash(tx.operation).md5;
           const directionKey = new Hash(tx.direction).md5;
+
           const dayInPortfolio = new FormatDate(tx.dateTime).diffBetweenDate();
           if (!agg[tx.account]) {
             agg[tx.account] = {};
@@ -4943,9 +4944,13 @@ class Flow {
 
           if (!agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]) {
             agg[tx.account][tx.portfolio][tx.contractor][tx.symbol] = {
+              quantityOwnBuyIn: 0,
               quantityBuyIn: 0,
+              quantityOwnBuyOut: 0,
               quantityBuyOut: 0,
+              quantityOwnSellIn: 0,
               quantitySellIn: 0,
+              quantityOwnSellOut: 0,
               quantitySellOut: 0,
               quantityRefillIn: 0,
               quantityWriteOffOut: 0,
@@ -4955,17 +4960,25 @@ class Flow {
               quantityLock: 0,
               quantityUnlock: 0,
               precision: 0,
+              costOwnBuyIn: 0,
               costBuyIn: 0,
+              costOwnBuyOut: 0,
               costBuyOut: 0,
+              costOwnSellIn: 0,
               costSellIn: 0,
+              costOwnSellOut: 0,
               costSellOut: 0,
               costRefillIn: 0,
               costWriteOffOut: 0,
               costTransferIn: 0,
               costTransferOut: 0,
+              dayInPortfolioOwnBuyInSum: 0,
               dayInPortfolioBuyInSum: 0,
+              dayInPortfolioOwnBuyOutSum: 0,
               dayInPortfolioBuyOutSum: 0,
+              dayInPortfolioOwnSellOutSum: 0,
               dayInPortfolioSellOutSum: 0,
+              dayInPortfolioOwnSellInSum: 0,
               dayInPortfolioSellInSum: 0,
               dayInPortfolioRefillInSum: 0,
               dayInPortfolioWriteOffOutSum: 0,
@@ -4986,6 +4999,22 @@ class Flow {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].dayInPortfolioBuyInSum += dayInPortfolio * tx.quantity;
+              if (
+                tx.isOverflow === false &&
+                tx.isHistoricalAveragePrice === false &&
+                tx.isAvgPrice === true &&
+                tx.isFee === false
+              ) {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityOwnBuyIn += tx.quantity;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].costOwnBuyIn += tx.cost;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].dayInPortfolioOwnBuyInSum += dayInPortfolio * tx.quantity;
+              }
             } else if (directionKey === outKey) {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
@@ -4996,6 +5025,22 @@ class Flow {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].dayInPortfolioBuyOutSum += dayInPortfolio * tx.quantity * -1;
+            }
+            if (
+              tx.isOverflow === false &&
+              tx.isHistoricalAveragePrice === false &&
+              tx.isAvgPrice === true &&
+              tx.isFee === false
+            ) {
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantityOwnBuyOut += tx.quantity;
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].costOwnBuyOut += tx.cost;
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].dayInPortfolioOwnBuyOutSum += dayInPortfolio * tx.quantity;
             }
           } else if (
             operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
@@ -5010,6 +5055,22 @@ class Flow {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].dayInPortfolioSellInSum += dayInPortfolio * tx.quantity;
+              if (
+                tx.isOverflow === false &&
+                tx.isHistoricalAveragePrice === false &&
+                tx.isAvgPrice === true &&
+                tx.isFee === false
+              ) {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityOwnSellIn += tx.quantity;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].costOwnSellIn += tx.cost;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].dayInPortfolioOwnSellInSum += dayInPortfolio * tx.quantity;
+              }
             } else if (directionKey === outKey) {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
@@ -5020,6 +5081,22 @@ class Flow {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].dayInPortfolioSellOutSum += dayInPortfolio * tx.quantity * -1;
+            }
+            if (
+              tx.isOverflow === false &&
+              tx.isHistoricalAveragePrice === false &&
+              tx.isAvgPrice === true &&
+              tx.isFee === false
+            ) {
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantityOwnSellOut += tx.quantity;
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].costOwnSellOut += tx.cost;
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].dayInPortfolioOwnSellOutSum += dayInPortfolio * tx.quantity;
             }
           } else if (
             operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
@@ -5169,7 +5246,7 @@ class Flow {
 
               const costOwnInFlow =
                 Math.round(
-                  (object.costBuyIn + object.costSellIn) * precisionCoeff
+                  (object.costOwnBuyIn + object.costOwnSellIn) * precisionCoeff
                 ) / precisionCoeff;
 
               const costOutFlow =
@@ -5192,7 +5269,7 @@ class Flow {
 
               const quantityOwnInFlow =
                 Math.round(
-                  (object.quantityBuyIn + object.quantitySellIn) *
+                  (object.quantityOwnBuyIn + object.quantityOwnSellIn) *
                     precisionCoeff
                 ) / precisionCoeff;
 
