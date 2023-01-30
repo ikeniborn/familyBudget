@@ -5025,22 +5025,23 @@ class Flow {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].dayInPortfolioBuyOutSum += dayInPortfolio * tx.quantity * -1;
-            }
-            if (
-              tx.isOverflow === false &&
-              tx.isHistoricalAveragePrice === false &&
-              tx.isAvgPrice === true &&
-              tx.isFee === false
-            ) {
-              agg[tx.account][tx.portfolio][tx.contractor][
-                tx.symbol
-              ].quantityOwnBuyOut += tx.quantity;
-              agg[tx.account][tx.portfolio][tx.contractor][
-                tx.symbol
-              ].costOwnBuyOut += tx.cost;
-              agg[tx.account][tx.portfolio][tx.contractor][
-                tx.symbol
-              ].dayInPortfolioOwnBuyOutSum += dayInPortfolio * tx.quantity;
+              if (
+                tx.isOverflow === false &&
+                tx.isHistoricalAveragePrice === false &&
+                tx.isAvgPrice === true &&
+                tx.isFee === false
+              ) {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityOwnBuyOut += tx.quantity * -1;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].costOwnBuyOut += tx.cost * -1;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].dayInPortfolioOwnBuyOutSum +=
+                  dayInPortfolio * tx.quantity * -1;
+              }
             }
           } else if (
             operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
@@ -5081,22 +5082,23 @@ class Flow {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].dayInPortfolioSellOutSum += dayInPortfolio * tx.quantity * -1;
-            }
-            if (
-              tx.isOverflow === false &&
-              tx.isHistoricalAveragePrice === false &&
-              tx.isAvgPrice === true &&
-              tx.isFee === false
-            ) {
-              agg[tx.account][tx.portfolio][tx.contractor][
-                tx.symbol
-              ].quantityOwnSellOut += tx.quantity;
-              agg[tx.account][tx.portfolio][tx.contractor][
-                tx.symbol
-              ].costOwnSellOut += tx.cost;
-              agg[tx.account][tx.portfolio][tx.contractor][
-                tx.symbol
-              ].dayInPortfolioOwnSellOutSum += dayInPortfolio * tx.quantity;
+              if (
+                tx.isOverflow === false &&
+                tx.isHistoricalAveragePrice === false &&
+                tx.isAvgPrice === true &&
+                tx.isFee === false
+              ) {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityOwnSellOut += tx.quantity * -1;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].costOwnSellOut += tx.cost * -1;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].dayInPortfolioOwnSellOutSum +=
+                  dayInPortfolio * tx.quantity * -1;
+              }
             }
           } else if (
             operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
@@ -5249,6 +5251,12 @@ class Flow {
                   (object.costOwnBuyIn + object.costOwnSellIn) * precisionCoeff
                 ) / precisionCoeff;
 
+              const costOwnOutFlow =
+                Math.round(
+                  (object.costOwnBuyOut + object.costOwnSellOut) *
+                    precisionCoeff
+                ) / precisionCoeff;
+
               const costOutFlow =
                 Math.round(
                   (object.costBuyOut +
@@ -5350,7 +5358,7 @@ class Flow {
                 quantityRebalance = 0;
               }
 
-              const payback = costOutFlow - costInFlow;
+              const payback = costOwnOutFlow - costOwnInFlow;
 
               aggFlowArrayOfObject.push({
                 account: account.toUpperCase(),
