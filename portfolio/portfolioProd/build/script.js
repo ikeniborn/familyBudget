@@ -1799,35 +1799,39 @@ class Portfolio {
           quantityInFlow: { alias: 'Quantity (in flow)', idx: 9 },
           quantityOutFlow: { alias: 'Quantity (out flow)', idx: 10 },
           quantityFlow: { alias: 'Quantity (flow)', idx: 11 },
-          quantityLock: { alias: 'Quantity (lock)', idx: 12 },
-          quantityUnlock: { alias: 'Quantity (unlock)', idx: 13 },
-          priceOwnInFlow: { alias: 'Price (own in flow), $', idx: 14 },
-          priceInFlow: { alias: 'Price (in flow), $', idx: 15 },
-          priceOutFlow: { alias: 'Price (out flow), $', idx: 16 },
-          priceFlow: { alias: 'Price (flow), $', idx: 17 },
-          price: { alias: 'Price, $', idx: 18 },
-          costOwnInFlow: { alias: 'Cost (own in flow), $', idx: 19 },
-          costInFlow: { alias: 'Cost (in flow), $', idx: 20 },
-          costOutFlow: { alias: 'Cost (out flow), $', idx: 21 },
-          costFlow: { alias: 'Cost (flow), $', idx: 22 },
-          cost: { alias: 'Cost, $', idx: 23 },
-          costLock: { alias: 'Cost (lock), $', idx: 24 },
-          costUnlock: { alias: 'Cost (unlock), $', idx: 25 },
-          pnlFlow: { alias: 'PnL (flow), $', idx: 26 },
-          pnlTotal: { alias: 'PnL (total), $', idx: 27 },
-          payback: { alias: 'Payback, $', idx: 28 },
-          quantityRebalance: { alias: 'Rebalance, qty', idx: 29 },
+          quantityRest: { alias: 'Quantity (rest)', idx: 12 },
+          quantityLock: { alias: 'Quantity (lock)', idx: 13 },
+          quantityUnlock: { alias: 'Quantity (unlock)', idx: 14 },
+          priceOwnInFlow: { alias: 'Price (own in flow), $', idx: 15 },
+          priceInFlow: { alias: 'Price (in flow), $', idx: 16 },
+          priceOutFlow: { alias: 'Price (out flow), $', idx: 17 },
+          priceFlow: { alias: 'Price (flow), $', idx: 18 },
+          priceRest: { alias: 'Price (rest), $', idx: 19 },
+          price: { alias: 'Price, $', idx: 20 },
+          costOwnInFlow: { alias: 'Cost (own in flow), $', idx: 21 },
+          costInFlow: { alias: 'Cost (in flow), $', idx: 22 },
+          costOutFlow: { alias: 'Cost (out flow), $', idx: 23 },
+          costFlow: { alias: 'Cost (flow), $', idx: 24 },
+          costRest: { alias: 'Cost (rest), $', idx: 25 },
+          cost: { alias: 'Cost, $', idx: 26 },
+          costLock: { alias: 'Cost (lock), $', idx: 27 },
+          costUnlock: { alias: 'Cost (unlock), $', idx: 28 },
+          pnlFlow: { alias: 'PnL (flow), $', idx: 29 },
+          pnlRest: { alias: 'PnL (rest), $', idx: 30 },
+          pnlTotal: { alias: 'PnL (total), $', idx: 31 },
+          payback: { alias: 'Payback, $', idx: 32 },
+          quantityRebalance: { alias: 'Rebalance, qty', idx: 33 },
           dayInPortfolioAvg: {
             alias: 'Average day in portfolio',
-            idx: 30,
+            idx: 34,
           },
-          isSell: { alias: 'Is sell', idx: 31, default: false },
-          useInReport: { alias: 'Use in report', idx: 32 },
+          isSell: { alias: 'Is sell', idx: 35, default: false },
+          useInReport: { alias: 'Use in report', idx: 36 },
           updateDate: {
             alias: 'Update date',
-            idx: 33,
+            idx: 37,
           },
-          rowId: { alias: 'Row ID', idx: 34, default: 0 },
+          rowId: { alias: 'Row ID', idx: 38, default: 0 },
         },
       },
       flowBalance: {
@@ -4984,6 +4988,13 @@ class Flow {
               dayInPortfolioWriteOffOutSum: 0,
               dayInPortfolioTransferInSum: 0,
               dayInPortfolioTransferOutSum: 0,
+              quantityRest: 0,
+              costRest: 0,
+              priceRest: 0,
+              quantityRestPrev: 0,
+              costRestPrev: 0,
+              priceRestPrev: 0,
+              operationCount: 0,
             };
           }
           //* Распределение количества по потокам
@@ -4999,6 +5010,10 @@ class Flow {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].dayInPortfolioBuyInSum += dayInPortfolio * tx.quantity;
+              //* Накопление остатков
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantityRest += tx.quantity;
               if (
                 tx.isOverflow === false &&
                 tx.isHistoricalAveragePrice === false &&
@@ -5025,6 +5040,10 @@ class Flow {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].dayInPortfolioBuyOutSum += dayInPortfolio * tx.quantity * -1;
+              //* Накопление остатков
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantityRest += tx.quantity;
               if (
                 tx.isOverflow === false &&
                 tx.isHistoricalAveragePrice === false &&
@@ -5056,6 +5075,11 @@ class Flow {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].dayInPortfolioSellInSum += dayInPortfolio * tx.quantity;
+              //* Накопление остатков
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantityRest += tx.quantity;
+
               if (
                 tx.isOverflow === false &&
                 tx.isHistoricalAveragePrice === false &&
@@ -5082,6 +5106,10 @@ class Flow {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].dayInPortfolioSellOutSum += dayInPortfolio * tx.quantity * -1;
+              //* Накопление остатков
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantityRest += tx.quantity;
               if (
                 tx.isOverflow === false &&
                 tx.isHistoricalAveragePrice === false &&
@@ -5113,6 +5141,10 @@ class Flow {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].dayInPortfolioRefillInSum += dayInPortfolio * tx.quantity;
+              //* Накопление остатков
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantityRest += tx.quantity;
             }
           } else if (
             operationKey === '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
@@ -5128,6 +5160,10 @@ class Flow {
                 tx.symbol
               ].dayInPortfolioWriteOffOutSum +=
                 dayInPortfolio * tx.quantity * -1;
+              //* Накопление остатков
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantityRest += tx.quantity;
             }
           } else if (
             operationKey === '84a0f3455dcca894ace136be62efa292' /*transfer*/
@@ -5142,6 +5178,10 @@ class Flow {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].dayInPortfolioTransferInSum += dayInPortfolio * tx.quantity;
+              //* Накопление остатков
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantityRest += tx.quantity;
             } else if (directionKey === outKey) {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
@@ -5153,6 +5193,10 @@ class Flow {
                 tx.symbol
               ].dayInPortfolioTransferOutSum +=
                 dayInPortfolio * tx.quantity * -1;
+              //* Накопление остатков
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantityRest += tx.quantity;
             }
           }
 
@@ -5194,6 +5238,87 @@ class Flow {
             tx.symbol
           ].quantityFlow += tx.quantity;
 
+          //* Накопление остатков
+          if (
+            agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+              .operationCount === 0 ||
+            agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+              .priceRestPrev === 0
+          ) {
+            agg[tx.account][tx.portfolio][tx.contractor][
+              tx.symbol
+            ].costRestPrev = tx.cost;
+          }
+
+          if (tx.quantity < 0) {
+            agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRest =
+              tx.quantity *
+                agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                  .priceRestPrev +
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                .costRestPrev;
+          } else {
+            agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRest =
+              tx.cost +
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                .costRestPrev;
+          }
+
+          agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].priceRest =
+            agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRest /
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                .quantityRest || 0;
+
+          agg[tx.account][tx.portfolio][tx.contractor][
+            tx.symbol
+          ].priceRestPrev =
+            agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].priceRest;
+
+          agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRestPrev =
+            agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRest;
+
+          agg[tx.account][tx.portfolio][tx.contractor][
+            tx.symbol
+          ].operationCount += 1;
+
+          if (
+            new Hash(tx.account).md5 === new Hash('torrih').md5 &&
+            new Hash(tx.symbol).md5 === new Hash('btc').md5
+          ) {
+            console.log(tx.account, tx.symbol);
+            console.log(
+              'operationCount',
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                .operationCount
+            );
+            console.log('quantity', tx.quantity);
+            console.log('cost', tx.cost);
+            console.log('price', tx.cost / tx.quantity);
+            console.log(
+              'quantityRest',
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                .quantityRest
+            );
+            console.log(
+              'priceRest',
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].priceRest
+            );
+            console.log(
+              'costRest',
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRest
+            );
+            console.log(
+              'priceRestPrev',
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                .priceRestPrev
+            );
+            console.log(
+              'costRestPrev',
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                .costRestPrev
+            );
+          }
+
           return agg
         }, {});
 
@@ -5221,7 +5346,7 @@ class Flow {
               }
               precisionCoeff = precisionCoeff * 1;
 
-              //* стоимость остатка
+              //* стоимость остатка исторического
               const quantityFlow =
                 Math.round(object.quantityFlow * precisionCoeff) /
                 precisionCoeff;
@@ -5373,21 +5498,25 @@ class Flow {
                 quantityInFlow: quantityInFlow || 0,
                 quantityOutFlow: quantityOutFlow || 0,
                 quantityFlow: quantityFlow || 0,
+                quantityRest: object.quantityRest || 0,
                 quantityLock: quantityLock || 0,
                 quantityUnlock: quantityUnlock || 0,
                 priceOwnInFlow: priceOwnInFlow || 0,
                 priceInFlow: priceInFlow || 0,
                 priceOutFlow: priceOutFlow || 0,
                 priceFlow: priceFlow || 0,
+                priceRest: object.priceRest || 0,
                 price: price || 0,
                 costOwnInFlow: costOwnInFlow || 0,
                 costInFlow: costInFlow || 0,
                 costOutFlow: costOutFlow || 0,
                 costFlow: costFlow || 0,
+                costRest: object.costRest || 0,
                 cost: cost || 0,
                 costLock: costLock || 0,
                 costUnlock: costUnlock || 0,
                 pnlFlow: cost - costFlow || 0,
+                pnlRest: cost - object.costRest || 0,
                 pnlTotal: costOutFlow + cost - costInFlow || 0,
                 quantityRebalance: quantityRebalance || 0,
                 payback: payback || 0,
