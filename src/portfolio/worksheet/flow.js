@@ -340,51 +340,96 @@ class Flow {
           //* Накопление остатков
           if (
             agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
-              .operationCount === 0 ||
-            agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
-              .priceRestPrev === 0
+              .operationCount === 0
           ) {
+            agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRest =
+              tx.cost
+
             agg[tx.account][tx.portfolio][tx.contractor][
               tx.symbol
-            ].costRestPrev = tx.cost
-          }
+            ].costRestPrev =
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRest
 
-          if (tx.quantity < 0) {
-            agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRest =
-              tx.quantity *
-                agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
-                  .priceRestPrev +
-              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
-                .costRestPrev
+            agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].priceRest =
+              tx.cost / tx.quantity
+
+            agg[tx.account][tx.portfolio][tx.contractor][
+              tx.symbol
+            ].priceRestPrev =
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].priceRest
           } else {
-            agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRest =
-              tx.cost +
+            if (
               agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
-                .costRestPrev
+                .quantityRest > 0
+            ) {
+              if (tx.quantity < 0) {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].costRest =
+                  tx.quantity *
+                    agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                      .priceRestPrev +
+                  agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                    .costRestPrev
+              } else {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].costRest =
+                  tx.cost +
+                  agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                    .costRestPrev
+              }
+
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].priceRest =
+                agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                  .costRest /
+                  agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                    .quantityRest || 0
+
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].priceRestPrev =
+                agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                  .priceRest || 0
+
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].costRestPrev =
+                agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRest
+            } else {
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].priceRest = 0
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].priceRestPrev = 0
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].costRestPrev = 0
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].costRest = 0
+            }
           }
-
-          agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].priceRest =
-            agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRest /
-              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
-                .quantityRest || 0
-
-          agg[tx.account][tx.portfolio][tx.contractor][
-            tx.symbol
-          ].priceRestPrev =
-            agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].priceRest
-
-          agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRestPrev =
-            agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRest
 
           agg[tx.account][tx.portfolio][tx.contractor][
             tx.symbol
           ].operationCount += 1
 
           if (
-            new Hash(tx.account).md5 === new Hash('torrih').md5 &&
-            new Hash(tx.symbol).md5 === new Hash('btc').md5
+            new Hash(tx.account).md5 === new Hash('ikeniborn').md5 &&
+            new Hash(tx.symbol).md5 === new Hash('ocean').md5
           ) {
-            console.log(tx.account, tx.symbol)
+            console.log(
+              tx.account,
+              tx.portfolio,
+              tx.contractor,
+              tx.operation,
+              tx.direction,
+              tx.symbol
+            )
             console.log(
               'operationCount',
               agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
