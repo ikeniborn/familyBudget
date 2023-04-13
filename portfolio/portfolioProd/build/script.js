@@ -5245,6 +5245,7 @@ class Flow {
           ) {
             agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRest =
               tx.cost;
+
             agg[tx.account][tx.portfolio][tx.contractor][
               tx.symbol
             ].costRestPrev =
@@ -5252,6 +5253,7 @@ class Flow {
 
             agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].priceRest =
               tx.cost / tx.quantity;
+
             agg[tx.account][tx.portfolio][tx.contractor][
               tx.symbol
             ].priceRestPrev =
@@ -5317,50 +5319,50 @@ class Flow {
             tx.symbol
           ].operationCount += 1;
 
-          if (
-            new Hash(tx.account).md5 === new Hash('ikeniborn').md5 &&
-            new Hash(tx.symbol).md5 === new Hash('ocean').md5
-          ) {
-            console.log(
-              tx.account,
-              tx.portfolio,
-              tx.contractor,
-              tx.operation,
-              tx.direction,
-              tx.symbol
-            );
-            console.log(
-              'operationCount',
-              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
-                .operationCount
-            );
-            console.log('quantity', tx.quantity);
-            console.log('cost', tx.cost);
-            console.log('price', tx.cost / tx.quantity);
-            console.log(
-              'quantityRest',
-              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
-                .quantityRest
-            );
-            console.log(
-              'priceRest',
-              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].priceRest
-            );
-            console.log(
-              'costRest',
-              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRest
-            );
-            console.log(
-              'priceRestPrev',
-              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
-                .priceRestPrev
-            );
-            console.log(
-              'costRestPrev',
-              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
-                .costRestPrev
-            );
-          }
+          // if (
+          //   new Hash(tx.account).md5 === new Hash('mskippy').md5 &&
+          //   new Hash(tx.symbol).md5 === new Hash('op').md5
+          // ) {
+          //   console.log(
+          //     tx.account,
+          //     tx.portfolio,
+          //     tx.contractor,
+          //     tx.operation,
+          //     tx.direction,
+          //     tx.symbol
+          //   )
+          //   console.log(
+          //     'operationCount',
+          //     agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+          //       .operationCount
+          //   )
+          //   console.log('quantity', tx.quantity)
+          //   console.log('cost', tx.cost)
+          //   console.log('price', tx.cost / tx.quantity)
+          //   console.log(
+          //     'quantityRest',
+          //     agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+          //       .quantityRest
+          //   )
+          //   console.log(
+          //     'priceRest',
+          //     agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].priceRest
+          //   )
+          //   console.log(
+          //     'costRest',
+          //     agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRest
+          //   )
+          //   console.log(
+          //     'priceRestPrev',
+          //     agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+          //       .priceRestPrev
+          //   )
+          //   console.log(
+          //     'costRestPrev',
+          //     agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+          //       .costRestPrev
+          //   )
+          // }
 
           return agg
         }, {});
