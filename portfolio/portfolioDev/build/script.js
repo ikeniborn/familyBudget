@@ -1674,7 +1674,6 @@ class Portfolio {
           name: {
             alias: 'Name',
             idx: 2,
-            pk: true,
             notNull: true,
           },
           symbol: {
@@ -2829,6 +2828,17 @@ class Price {
       },
     })?.data
   }
+  /**
+   * Get last price
+   *
+   * @param {*} token_id
+   * @returns {array}
+   */
+  getLastPriceAll() {
+    return this.methods.get({
+      endPoint: '/token/latest',
+    })?.data
+  }
 }
 
 class Dimension {
@@ -3040,19 +3050,16 @@ class Symbols {
         //* обновление ID
         let sourceId = void 0;
         let symbolCategory = void 0;
-        const rowKey= object.rowKey;
-        console.log('object.rowKey',object.rowKey);
         if (new Hash(object.source).md5 == '9fcc5acecc1e69fad95aa3fec1b715c6' /*web3space*/) {
-          const coinsArray = new Dimension().getDimension(new Hash(rowKey).md5ToUuid());
-          const coinsObject = coinsArray.reduce((object, value) => {
-            const symbolKey = new Hash(value.token_id).uuidToMd5();
-            if (!object[symbolKey]) {
-              object[symbolKey] = value;
+          const tokenId = new Hash([object.name, object.symbol].join('#')).uuid;
+          sourceId = tokenId || void 0;
+          const coinsObject = new Dimension().getDimension(tokenId).reduce((object, value) => {
+            if (!object[value.token_id]) {
+              object[value.token_id] = value;
             }
             return object
           }, {});
-          sourceId = coinsObject[rowKey].token_id || void 0;
-          symbolCategory = coinsObject[rowKey].token_category_name_en || void 0;
+          symbolCategory = coinsObject[tokenId].token_category_name_en || void 0;
         } else {
           const coinsKey = new Hash(object.source + object.name + object.symbol).md5;
           sourceId = coins[coinsKey]?.id || void 0;
@@ -3074,7 +3081,7 @@ class Symbols {
     }
   }
 
-  updateSome(){
+  updateSome() {
     console.log('updateSome');
   }
 
@@ -3143,7 +3150,7 @@ class Symbols {
               } else if (price > 512) {
                 coinPriceGroup = 'Over 512';
               }
-              
+
               symbolObject.priceGroup = coinPriceGroup;
               symbolObject.marketCapGroup = coinMarketCapRankGroup;
               symbolObject.price = price;
@@ -3174,18 +3181,12 @@ class Symbols {
               }
               return list
             }, {})
-          ).map(([source, idArray]) => [
-            source,
-            new Hash(source).md5 !==
-              '8b9035807842a4e4dbe009f3f1478127' /*custom*/
-              ? idArray.join(',')
-              : idArray,
-          ])
+          )
         );
 
-        if (listId.coingecko) {
+        if (listId['coingecko']) {
           const priceArray = new Price$1().getMarketsPrice(
-            listId.coingecko
+            listId.coingecko.join(',')
           );
           if (priceArray.length) {
             priceArray.forEach((coin) => {
@@ -3198,33 +3199,45 @@ class Symbols {
             });
           }
         }
-
-        if (listId.web3space) {
-          const priceArray = new Price().getLastPrice(listId.web3space);
-          const priceObject = priceArray.reduce((object, value) => {
-          const symbolKey = new Hash(value.token_id).uuidToMd5();
-            if (!object[symbolKey]) {
-              object[symbolKey] = value;
-            }
-            return object
-          },{});
-
-          if (priceArray.length) {
-            priceArray.forEach((coin) => {
-              const symbolKey = new Hash(coin?.token_id).uuidToMd5();
+        
+        if (listId['web3space']) {
+          const chunkSize = 30;
+          for (let i = 0; i < listId.web3space.length; i += chunkSize) {
+          const coins = listId.web3space.slice(i, i + chunkSize).join(',');
+            const coinsObject = new Dimension().getDimension(coins).reduce((object, value) => {
+              if (!object[value.token_id]) {
+                object[value.token_id] = value;
+              }
+              object[value.token_id].symbol_key=new Hash(value?.token_symbol).md5;
+              return object
+            }, {});
+            console.log(coinsObject);
+            const priceArray = new Price().getLastPrice(coins);
+            const priceObject = priceArray.reduce((object, value) => {
+              if (!object[value.token_id]) {
+                object[value.token_id] = value;
+              }
+              return object
+            }, {});
+            console.log(priceObject);
+            priceArray.forEach((coin)=>{
+              console.log(coinsObject[coin.token_id]?.token_symbol);
+              console.log(coinsObject[coin.token_id]?.symbol_key);
+              console.log(priceObject[coin.token_id]?.price_close);
               updatePricesRow(
-                this.workSheet.object[symbolKey],
-                priceObject[symbolKey]?.price_close,
+                this.workSheet.object[coinsObject[coin.token_id]?.symbol_key],
+                priceObject[coin.token_id]?.price_close,
                 void 0,
-                new Date(priceObject[symbolKey]?.updated_dttm)
+                new Date(priceObject[coin.token_id]?.updated_dttm)
               );
             });
           }
+
         }
 
-        if (listId.cryptorank) {
+        if (listId['cryptorank']) {
           const priceArray = new Price$3().getLastPrice(
-            listId.cryptorank
+            listId.cryptorank.join(',')
           );
 
           if (priceArray.length) {
@@ -3239,9 +3252,9 @@ class Symbols {
           }
         }
 
-        if (listId.cryptocompare) {
+        if (listId['cryptocompare']) {
           const priceArray = new Price$2().getMultiPrice(
-            listId.cryptocompare
+            listId.cryptocompare.join(',')
           );
           if (priceArray.length) {
             const marketCapRank = new TopList().topMarketCap(1000);

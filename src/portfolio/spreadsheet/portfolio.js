@@ -86,7 +86,6 @@ class Portfolio {
           name: {
             alias: 'Name',
             idx: 2,
-            pk: true,
             notNull: true,
           },
           symbol: {

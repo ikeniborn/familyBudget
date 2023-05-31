@@ -43,6 +43,17 @@ class Price {
       },
     })?.data
   }
+  /**
+   * Get last price
+   *
+   * @param {*} token_id
+   * @returns {array}
+   */
+  getLastPriceAll() {
+    return this.methods.get({
+      endPoint: '/token/latest',
+    })?.data
+  }
 }
 
 class Dimension {
