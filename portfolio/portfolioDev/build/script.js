@@ -31,6 +31,11 @@ class Hash {
   uuidToMd5 (){
     return this.stringLowerCase.replace(/[-+]/g, '')
   }
+
+  md5ToUuid (){
+    const uuidRx = new RegExp(/([a-zA-Z0-9]{8})([a-zA-Z0-9]{4})([a-zA-Z0-9]{4})([a-zA-Z0-9]{4})([a-zA-Z0-9]{12})/);
+    return this.stringLowerCase.replace(uuidRx, "$1-$2-$3-$4-$5")
+  }
 }
 
 class FormatDate {
@@ -1138,9 +1143,6 @@ class WorkSheetRange extends WorkSheet {
     } else {
       nKey = nkeyArray.join('');
     }
-    console.log('nKey',nKey);
-    console.log('md5',new Hash(nKey).md5);
-    console.log('uuid',new Hash(nKey).uuid);
     return new Hash(nKey).md5
   }
 }
@@ -1684,7 +1686,6 @@ class Portfolio {
           symbolCategory: {
             alias: 'Symbol category ',
             idx: 4,
-            notNull: true,
           },
           sourceId: { alias: 'Source id', idx: 5 ,},
           price: { alias: 'Price', idx: 6 },
@@ -2830,6 +2831,26 @@ class Price {
   }
 }
 
+class Dimension {
+  constructor() {
+    this.methods = new Instance$1().methods;
+  }
+  /**
+   * Get last price
+   *
+   * @param {*} token_id
+   * @returns {array}
+   */
+  getDimension(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51') {
+    return this.methods.get({
+      endPoint: '/token/dimension',
+      query: {
+        token_id,
+      },
+    })?.data
+  }
+}
+
 /**
  * CoinMarketCap instance
  */
@@ -3017,24 +3038,44 @@ class Symbols {
       const coins = new Coins().workSheet.object;
       this.workSheet.arrayOfObject.forEach((object) => {
         //* обновление ID
-        let sourceId = '';
+        let sourceId = void 0;
+        let symbolCategory = void 0;
+        const rowKey= object.rowKey;
+        console.log('object.rowKey',object.rowKey);
         if (new Hash(object.source).md5 == '9fcc5acecc1e69fad95aa3fec1b715c6' /*web3space*/) {
-          const nKey =object.name.toLowerCase().replace(/[\s+]+$|^[\s+]+/g, '').trim() + '#' + object.symbol.toLowerCase().replace(/[\s+]+$|^[\s+]+/g, '').trim();
-          sourceId = new Hash(nKey).uuid;
+          const coinsArray = new Dimension().getDimension(new Hash(rowKey).md5ToUuid());
+          const coinsObject = coinsArray.reduce((object, value) => {
+            const symbolKey = new Hash(value.token_id).uuidToMd5();
+            if (!object[symbolKey]) {
+              object[symbolKey] = value;
+            }
+            return object
+          }, {});
+          sourceId = coinsObject[rowKey].token_id || void 0;
+          symbolCategory = coinsObject[rowKey].token_category_name_en || void 0;
         } else {
-          const coinsKey = new Hash(object.source + object.name + object.symbol)
-            .md5;
+          const coinsKey = new Hash(object.source + object.name + object.symbol).md5;
           sourceId = coins[coinsKey]?.id || void 0;
+          symbolCategory = object.symbolCategory || void 0;
         }
         this.workSheet.insertValue(
           sourceId,
           object.rowNum,
           this.workSheet.head.sourceId.idx + 1
         );
+        this.workSheet.insertValue(
+          symbolCategory,
+          object.rowNum,
+          this.workSheet.head.symbolCategory.idx + 1
+        );
       });
     } catch (error) {
       console.error('Symbols.updateId', error.stack);
     }
+  }
+
+  updateSome(){
+    console.log('updateSome');
   }
 
   updatePrices() {
@@ -3239,51 +3280,6 @@ class Symbols {
       });
   }
 }
-
-//* Deprecated
-//* Prices.updateId
-// const coins = new Portfolio().getWorkSheet('coins').arrayOfObject
-// const coin = coins.filter((row) => {
-//   return (
-//     new RegExp(object.name.toString().toLowerCase(), 'g').test(
-//       row.name.toString().toLowerCase()
-//     ) &&
-//     new Hash(object.source).md5 === new Hash(row.source).md5 &&
-//     new Hash(object.symbol).md5 === new Hash(row.symbol).md5
-//   )
-// })[0]
-// this.workSheet.updateRow(object)
-// this.workSheet.arrayOfObject.forEach((object) => {
-//   //  this.workSheet.log.addMessage('Prices.updateId', 'object', object)
-//   this.workSheet.updateRow(object)
-// })
-//* Prices.updatePrices
-// if (listId.cryptorank) {
-//   new cryptoRank.Price().getLastPrice(listId.cryptorank).forEach((coin) => {
-//     updatePrice(coin.symbol, coin.values.USD.price)
-//     updateRisk(coin.symbol, coin.rank)
-//   })
-// }
-// if (listId.coinmarketcap) {
-//   Object.values(
-//     new coinMarketCap.Price().getLastPrice(listId.coinmarketcap)
-//   ).forEach((coin) => {
-//     updatePrice(coin.symbol, coin.quote.USD.price)
-//     updateRisk(coin.symbol, coin.cmc_rank)
-//   })
-// }
-// if (listId.custom.length) {
-//   listId.custom.forEach((symbol) => {
-//     const HistoricalPricesAvgKey = new Hash(
-//       'ikeniborn' + 'no project' + symbol
-//     ).md5
-//     const histirocalPrice =
-//       this.HistoricalPricesAvg[HistoricalPricesAvgKey]?.priceAvg ||
-//       void 0
-//     this.updatePrice(symbol, histirocalPrice)
-//     this.updateRisk(symbol)
-//   })
-// }
 
 class Transactions {
   constructor(workSheet = '') {

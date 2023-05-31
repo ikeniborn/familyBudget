@@ -33,6 +33,11 @@ class Hash {
   uuidToMd5 (){
     return this.stringLowerCase.replace(/[-+]/g, '')
   }
+
+  md5ToUuid (){
+    const uuidRx = new RegExp(/([a-zA-Z0-9]{8})([a-zA-Z0-9]{4})([a-zA-Z0-9]{4})([a-zA-Z0-9]{4})([a-zA-Z0-9]{12})/)
+    return this.stringLowerCase.replace(uuidRx, "$1-$2-$3-$4-$5")
+  }
 }
 
 class FormatDate {

@@ -1,5 +1,5 @@
 import { Methods } from './fetch'
-export { Price }
+export { Price, Dimension }
 /**
  * CoinMarketCap instance
  */
@@ -38,6 +38,26 @@ class Price {
   getLastPrice(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51') {
     return this.methods.get({
       endPoint: '/token/latest',
+      query: {
+        token_id,
+      },
+    })?.data
+  }
+}
+
+class Dimension {
+  constructor() {
+    this.methods = new Instance().methods
+  }
+  /**
+   * Get last price
+   *
+   * @param {*} token_id
+   * @returns {array}
+   */
+  getDimension(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51') {
+    return this.methods.get({
+      endPoint: '/token/dimension',
       query: {
         token_id,
       },

@@ -98,7 +98,6 @@ class Portfolio {
           symbolCategory: {
             alias: 'Symbol category ',
             idx: 4,
-            notNull: true,
           },
           sourceId: { alias: 'Source id', idx: 5 ,},
           price: { alias: 'Price', idx: 6 },
