@@ -6,7 +6,7 @@
     "noResolve": true,
     "target": "ES2019",
     "module": "None",
-    "noImplicitUseStrict": true,
+    // "noImplicitUseStrict": true,
     "experimentalDecorators": true,
     "types": ["google-apps-script"]
   }

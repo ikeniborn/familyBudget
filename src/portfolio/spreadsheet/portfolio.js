@@ -84,14 +84,15 @@ class Portfolio {
             notNull: true,
           },
           name: {
-            alias: 'Full name',
+            alias: 'Name',
             idx: 2,
+            pk: true,
             notNull: true,
           },
           symbol: {
             alias: 'Symbol',
-            pk: true,
             idx: 3,
+            pk: true,
             notNull: true,
           },
           symbolCategory: {
@@ -99,7 +100,7 @@ class Portfolio {
             idx: 4,
             notNull: true,
           },
-          sourceId: { alias: 'Source id', idx: 5 },
+          sourceId: { alias: 'Source id', idx: 5 ,},
           price: { alias: 'Price', idx: 6 },
           useInReport: { alias: 'Use in report', idx: 7 },
           update: {

@@ -4,6 +4,7 @@ import * as cryptoRank from '../../restApi/cryptoRank'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
 // import * as coinMarketCap from '../../restApi/coinMarketCap'
 import * as coinGecko from '../../restApi/coinGecko'
+import * as web3Space from '../../restApi/web3Space'
 // import { Transactions } from './transactions'
 import { Coins } from './coins'
 export { Symbols }
@@ -25,9 +26,14 @@ class Symbols {
       const coins = new Coins().workSheet.object
       this.workSheet.arrayOfObject.forEach((object) => {
         //* обновление ID
-        const coinsKey = new Hash(object.source + object.name + object.symbol)
-          .md5
-        const sourceId = coins[coinsKey]?.id || void 0
+        let sourceId = ''
+        if (new Hash(object.source).md5 == '9fcc5acecc1e69fad95aa3fec1b715c6' /*web3space*/) {
+          sourceId = new Hash(object.name + '#' + object.symbol).uuid
+        } else {
+          const coinsKey = new Hash(object.source + object.name + object.symbol)
+            .md5
+          sourceId = coins[coinsKey]?.id || void 0
+        }
         this.workSheet.insertValue(
           sourceId,
           object.rowNum,
@@ -122,10 +128,11 @@ class Symbols {
               if (
                 object.sourceId &&
                 new Hash(object.source).md5 !==
-                  '8b9035807842a4e4dbe009f3f1478127' /*custom*/
+                '8b9035807842a4e4dbe009f3f1478127' /*custom*/
               ) {
                 list[object.source].push(object.sourceId)
-              } else {
+              }
+              else {
                 list[object.source].push(object.symbol)
               }
               return list
@@ -133,7 +140,7 @@ class Symbols {
           ).map(([source, idArray]) => [
             source,
             new Hash(source).md5 !==
-            '8b9035807842a4e4dbe009f3f1478127' /*custom*/
+              '8b9035807842a4e4dbe009f3f1478127' /*custom*/
               ? idArray.join(',')
               : idArray,
           ])
@@ -150,6 +157,22 @@ class Symbols {
                 this.workSheet.object[symbolKey],
                 coin?.current_price,
                 coin?.market_cap_rank
+              )
+            })
+          }
+        }
+
+        if (listId.web3space) {
+          const priceArray = new web3Space.Price().getLastPrice(listId.web3space)
+          if (priceArray.length) {
+            priceArray.forEach((coin) => {
+              const symbolKey = new Hash(coin?.token_id).md5
+              console.log(coin?.price_close)
+              console.log(this.workSheet.object[symbolKey])
+              updatePricesRow(
+                this.workSheet.object[symbolKey],
+                coin?.price_close,
+                0
               )
             })
           }

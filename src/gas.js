@@ -131,11 +131,11 @@ class WorkSheet extends SpreadSheet {
     this.dataRange =
       this.countRow > 0
         ? this.workSheet
-            .getDataRange()
-            .offset(this.headRowNum, 0, this.countRow, this.countColumn)
+          .getDataRange()
+          .offset(this.headRowNum, 0, this.countRow, this.countColumn)
         : this.workSheet
-            .getDataRange()
-            .offset(this.headRowNum - 1, 0, 1, this.countColumn)
+          .getDataRange()
+          .offset(this.headRowNum - 1, 0, 1, this.countColumn)
     return this
   }
 
@@ -579,6 +579,7 @@ class WorkSheetRange extends WorkSheet {
             object['rowNum'] = rowNum
             return object
           }, {})
+          // генерация нового ключа
           const newRowKey = this.getPrimaryKey(object)
 
           object.isChangePrimaryKey = false
@@ -733,19 +734,25 @@ class WorkSheetRange extends WorkSheet {
    * @returns
    */
   getPrimaryKey(rowObject = {}) {
-    return new Hash(
-      Object.keys(this.head)
-        .filter((column) => this.head[column].pk)
-        .map((column) => {
-          const value = rowObject[column]
-          if (value instanceof Date) {
-            return new Date(value).valueOf()
-          } else {
-            return value
-          }
-        })
-        .join('')
-    ).md5
+    let nKey = ''
+    const nkeyArray = Object.keys(this.head)
+      .filter((column) => this.head[column].pk)
+      .sort((a, b) => { return this.head[a].idx - this.head[b].idx }) // сортировка
+      .map((column) => {
+        const value = rowObject[column]
+        if (value instanceof Date) {
+          return new Date(value).valueOf()
+        } else {
+          return value.toString().trim()
+        }
+      })
+      
+    if (nkeyArray.length > 1) {
+      nKey = nkeyArray.join('#')
+    } else {
+      nKey = nkeyArray.join('')
+    }
+    return new Hash(nKey).md5
   }
 }
 
@@ -1150,8 +1157,8 @@ class ModalDialog {
   closeModalDialog(title, timer = 200) {
     var output = HtmlService.createHtmlOutput(
       '<script>var myVar = setInterval(myTimer ,' +
-        timer +
-        ');function myTimer() { google.script.host.close();}</script>'
+      timer +
+      ');function myTimer() { google.script.host.close();}</script>'
     )
       .setWidth(this.width)
       .setHeight(this.height)

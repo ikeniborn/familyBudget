@@ -22,6 +22,12 @@ class Hash {
     }
     return hexstr
   }
+
+  get uuid() {
+    const uuidRx = new RegExp(/([a-zA-Z0-9]{8})([a-zA-Z0-9]{4})([a-zA-Z0-9]{4})([a-zA-Z0-9]{4})([a-zA-Z0-9]{12})/);
+    return this.md5.replace(uuidRx, "$1-$2-$3-$4-$5")
+  }
+
 }
 
 class FormatDate {
@@ -508,11 +514,11 @@ class WorkSheet extends SpreadSheet {
     this.dataRange =
       this.countRow > 0
         ? this.workSheet
-            .getDataRange()
-            .offset(this.headRowNum, 0, this.countRow, this.countColumn)
+          .getDataRange()
+          .offset(this.headRowNum, 0, this.countRow, this.countColumn)
         : this.workSheet
-            .getDataRange()
-            .offset(this.headRowNum - 1, 0, 1, this.countColumn);
+          .getDataRange()
+          .offset(this.headRowNum - 1, 0, 1, this.countColumn);
     return this
   }
 
@@ -956,6 +962,7 @@ class WorkSheetRange extends WorkSheet {
             object['rowNum'] = rowNum;
             return object
           }, {});
+          // генерация нового ключа
           const newRowKey = this.getPrimaryKey(object);
 
           object.isChangePrimaryKey = false;
@@ -1110,19 +1117,30 @@ class WorkSheetRange extends WorkSheet {
    * @returns
    */
   getPrimaryKey(rowObject = {}) {
-    return new Hash(
-      Object.keys(this.head)
-        .filter((column) => this.head[column].pk)
-        .map((column) => {
-          const value = rowObject[column];
-          if (value instanceof Date) {
-            return new Date(value).valueOf()
-          } else {
-            return value
-          }
-        })
-        .join('')
-    ).md5
+    let nKey = '';
+    const nkeyArray = Object.keys(this.head)
+      .filter((column) => this.head[column].pk)
+      .sort((a, b) => { return this.head[a].idx - this.head[b].idx }) // сортировка
+      .map((column) => {
+        const value = rowObject[column];
+        if (value instanceof Date) {
+          return new Date(value).valueOf()
+        } else {
+          return value.toString().trim()
+        }
+      });
+      console.log(nkeyArray);
+      console.log(nkeyArray);
+      
+    if (nkeyArray.length > 1) {
+      nKey = nkeyArray.join('#');
+    } else {
+      nKey = nkeyArray.join('');
+    }
+    console.log(nKey);
+    console.log(new Hash(nKey).md5);
+    console.log(new Hash(nKey).uuid);
+    return new Hash(nKey).md5
   }
 }
 
@@ -1477,8 +1495,8 @@ class ModalDialog {
   closeModalDialog(title, timer = 200) {
     var output = HtmlService.createHtmlOutput(
       '<script>var myVar = setInterval(myTimer ,' +
-        timer +
-        ');function myTimer() { google.script.host.close();}</script>'
+      timer +
+      ');function myTimer() { google.script.host.close();}</script>'
     )
       .setWidth(this.width)
       .setHeight(this.height);
@@ -1651,14 +1669,15 @@ class Portfolio {
             notNull: true,
           },
           name: {
-            alias: 'Full name',
+            alias: 'Name',
             idx: 2,
+            pk: true,
             notNull: true,
           },
           symbol: {
             alias: 'Symbol',
-            pk: true,
             idx: 3,
+            pk: true,
             notNull: true,
           },
           symbolCategory: {
@@ -1666,7 +1685,7 @@ class Portfolio {
             idx: 4,
             notNull: true,
           },
-          sourceId: { alias: 'Source id', idx: 5 },
+          sourceId: { alias: 'Source id', idx: 5 ,},
           price: { alias: 'Price', idx: 6 },
           useInReport: { alias: 'Use in report', idx: 7 },
           update: {
@@ -2400,16 +2419,16 @@ class Fetch {
 /**
  * CryptoRank instance
  */
-class Instance$3 {
+class Instance$4 {
   /**
    * Create new inctance API CryptoRank
    */
   constructor() {
-    if (Instance$3.exists) {
-      return Instance$3.instance
+    if (Instance$4.exists) {
+      return Instance$4.instance
     }
-    Instance$3.instance = this;
-    Instance$3.exists = true;
+    Instance$4.instance = this;
+    Instance$4.exists = true;
     this.methods = new Methods({
       domain: 'https://api.cryptorank.io/v1',
       query: {
@@ -2425,9 +2444,9 @@ class Instance$3 {
 /**
  * CryptoRank price
  */
-class Price$2 {
+class Price$3 {
   constructor() {
-    this.methods = new Instance$3().methods;
+    this.methods = new Instance$4().methods;
   }
   getLastPrice(ids = '1', convert = 'USD') {
     return (
@@ -2454,7 +2473,7 @@ class Price$2 {
  */
 class CoinsList$3 {
   constructor() {
-    this.methods = new Instance$3().methods;
+    this.methods = new Instance$4().methods;
   }
   getCoinsList(limit = 100) {
     return (
@@ -2473,17 +2492,17 @@ class CoinsList$3 {
 /**
  * CryptoCompare instance
  */
-class Instance$2 {
+class Instance$3 {
   /**
    * Create new inctance API CryptoCompare
    *
    */
   constructor() {
-    if (Instance$2.exists) {
-      return Instance$2.instance
+    if (Instance$3.exists) {
+      return Instance$3.instance
     }
-    Instance$2.instance = this;
-    Instance$2.exists = true;
+    Instance$3.instance = this;
+    Instance$3.exists = true;
     this.methods = new Methods({
       domain: 'https://min-api.cryptocompare.com/data',
       query: {
@@ -2500,9 +2519,9 @@ class Instance$2 {
 /**
  * CryptoCompare price
  */
-class Price$1 {
+class Price$2 {
   constructor() {
-    this.methods = new Instance$2().methods;
+    this.methods = new Instance$3().methods;
   }
 
   getSinglePrice(fsym = '', tsyms = 'USD') {
@@ -2607,7 +2626,7 @@ class Price$1 {
  */
 class CoinsList$2 {
   constructor() {
-    this.methods = new Instance$2().methods;
+    this.methods = new Instance$3().methods;
   }
   getCoinsList() {
     return this.methods.get({ endPoint: '/all/coinlist' })?.Data
@@ -2616,7 +2635,7 @@ class CoinsList$2 {
 
 class TopList {
   constructor() {
-    this.methods = new Instance$2().methods;
+    this.methods = new Instance$3().methods;
   }
   topMarketCap(top = 100, tsym = 'usd') {
     try {
@@ -2659,16 +2678,16 @@ class TopList {
 /**
  * CoinGecko instance
  */
-class Instance$1 {
+class Instance$2 {
   /**
    * Create new inctance API CoinGecko
    */
   constructor() {
-    if (Instance$1.exists) {
-      return Instance$1.instance
+    if (Instance$2.exists) {
+      return Instance$2.instance
     }
-    Instance$1.instance = this;
-    Instance$1.exists = true;
+    Instance$2.instance = this;
+    Instance$2.exists = true;
     this.methods = new Methods({
       domain: 'https://api.coingecko.com/api/v3',
       data: {
@@ -2681,9 +2700,9 @@ class Instance$1 {
 /**
  * CoinGecko price
  */
-class Price {
+class Price$1 {
   constructor() {
-    this.methods = new Instance$1().methods;
+    this.methods = new Instance$2().methods;
   }
 
   /**
@@ -2746,7 +2765,7 @@ class Price {
  */
 class CoinsList$1 {
   constructor() {
-    this.methods = new Instance$1().methods;
+    this.methods = new Instance$2().methods;
   }
   /**
    *
@@ -2762,6 +2781,51 @@ class CoinsList$1 {
         },
       }) || []
     )
+  }
+}
+
+/**
+ * CoinMarketCap instance
+ */
+class Instance$1 {
+  constructor() {
+    if (Instance$1.exists) {
+      return Instance$1.instance
+    }
+    Instance$1.instance = this;
+    Instance$1.exists = true;
+    this.methods = new Methods({
+      domain: 'https://web-app-backend.w3s-crm.com/api/v1',
+      data: {
+        muteHttpExceptions: true,
+        contentType: 'accept: application/json',
+        headers: {
+          'X-API-Key': 'w3s-api-ITVMIXoUJKUHKrte5kIz2TCzVOAZqNPzg1wE5s5VGs4r4Oiv47O5erPY',
+        },
+      },
+    });
+  }
+}
+/**
+ * CoinMarketCap Price
+ */
+class Price {
+  constructor() {
+    this.methods = new Instance$1().methods;
+  }
+  /**
+   * Get last price
+   *
+   * @param {*} token_id
+   * @returns {array}
+   */
+  getLastPrice(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51') {
+    return this.methods.get({
+      endPoint: '/token/latest',
+      query: {
+        token_id,
+      },
+    })?.data
   }
 }
 
@@ -2952,9 +3016,14 @@ class Symbols {
       const coins = new Coins().workSheet.object;
       this.workSheet.arrayOfObject.forEach((object) => {
         //* обновление ID
-        const coinsKey = new Hash(object.source + object.name + object.symbol)
-          .md5;
-        const sourceId = coins[coinsKey]?.id || void 0;
+        let sourceId = '';
+        if (new Hash(object.source).md5 == '9fcc5acecc1e69fad95aa3fec1b715c6' /*web3space*/) {
+          sourceId = new Hash(object.name + '#' + object.symbol).uuid;
+        } else {
+          const coinsKey = new Hash(object.source + object.name + object.symbol)
+            .md5;
+          sourceId = coins[coinsKey]?.id || void 0;
+        }
         this.workSheet.insertValue(
           sourceId,
           object.rowNum,
@@ -3049,10 +3118,11 @@ class Symbols {
               if (
                 object.sourceId &&
                 new Hash(object.source).md5 !==
-                  '8b9035807842a4e4dbe009f3f1478127' /*custom*/
+                '8b9035807842a4e4dbe009f3f1478127' /*custom*/
               ) {
                 list[object.source].push(object.sourceId);
-              } else {
+              }
+              else {
                 list[object.source].push(object.symbol);
               }
               return list
@@ -3060,14 +3130,14 @@ class Symbols {
           ).map(([source, idArray]) => [
             source,
             new Hash(source).md5 !==
-            '8b9035807842a4e4dbe009f3f1478127' /*custom*/
+              '8b9035807842a4e4dbe009f3f1478127' /*custom*/
               ? idArray.join(',')
               : idArray,
           ])
         );
 
         if (listId.coingecko) {
-          const priceArray = new Price().getMarketsPrice(
+          const priceArray = new Price$1().getMarketsPrice(
             listId.coingecko
           );
           if (priceArray.length) {
@@ -3082,8 +3152,24 @@ class Symbols {
           }
         }
 
+        if (listId.web3space) {
+          const priceArray = new Price().getLastPrice(listId.web3space);
+          if (priceArray.length) {
+            priceArray.forEach((coin) => {
+              const symbolKey = new Hash(coin?.token_id).md5;
+              console.log(coin?.price_close);
+              console.log(this.workSheet.object[symbolKey]);
+              updatePricesRow(
+                this.workSheet.object[symbolKey],
+                coin?.price_close,
+                0
+              );
+            });
+          }
+        }
+
         if (listId.cryptorank) {
-          const priceArray = new Price$2().getLastPrice(
+          const priceArray = new Price$3().getLastPrice(
             listId.cryptorank
           );
 
@@ -3100,7 +3186,7 @@ class Symbols {
         }
 
         if (listId.cryptocompare) {
-          const priceArray = new Price$1().getMultiPrice(
+          const priceArray = new Price$2().getMultiPrice(
             listId.cryptocompare
           );
           if (priceArray.length) {
@@ -3516,7 +3602,7 @@ class Transactions {
           inQuantity = registryObject['in']?.quantity;
           feeQuantity = registryObject['fee']?.quantity;
           dateTime = new Date(registryObject['in']?.dateTime);
-          priceUSDBTC = new Price$1().getHistoryPrice(
+          priceUSDBTC = new Price$2().getHistoryPrice(
             'USD',
             dateTime,
             'BTC'
@@ -3664,7 +3750,7 @@ class HistoricalPrice {
         if (
           sourceKey === '1dab445b170a7f0acfccea645a8879e0' /*cryptocompare*/
         ) {
-          historicalPrice = new Price$1().getHistoryPrice(
+          historicalPrice = new Price$2().getHistoryPrice(
             symbolId,
             dateTime,
             convert
@@ -3926,7 +4012,7 @@ class HistoricalPrice {
               sourceKey === 'b40555dbd3865016ed3f7b4a9bf3b806' /*coingecko*/
             ) {
               //* Получение исторической цены из coinGecko
-              historicalPrice = new Price()
+              historicalPrice = new Price$1()
                 .getMarketsPrice(symbolId)
                 .reduce((price, data) => {
                   price = data.current_price;
@@ -3940,7 +4026,7 @@ class HistoricalPrice {
                 sourceKey ===
                 '1dab445b170a7f0acfccea645a8879e0' /*cryptocompare*/
               ) {
-                historicalPrice = new Price$1().getHistoryPrice(
+                historicalPrice = new Price$2().getHistoryPrice(
                   symbolId,
                   dateTime,
                   convert
@@ -4486,7 +4572,7 @@ class Registry {
         symbolPrice = historicalPriceBuyCoin?.historicalPrice * currencyPerCoin;
         symbolPriceCoef = symbolPrice / currencyPrice;
         currencyPriceCoef = currencyPrice / symbolPrice;
-        priceUSDBTC = new Price$1().getHistoryPrice(
+        priceUSDBTC = new Price$2().getHistoryPrice(
           'USD',
           dateTime,
           'BTC'

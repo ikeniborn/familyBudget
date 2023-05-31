@@ -24,6 +24,12 @@ class Hash {
     }
     return hexstr
   }
+
+  get uuid() {
+    const uuidRx = new RegExp(/([a-zA-Z0-9]{8})([a-zA-Z0-9]{4})([a-zA-Z0-9]{4})([a-zA-Z0-9]{4})([a-zA-Z0-9]{12})/)
+    return this.md5.replace(uuidRx, "$1-$2-$3-$4-$5")
+  }
+
 }
 
 class FormatDate {
