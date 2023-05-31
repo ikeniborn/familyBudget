@@ -28,7 +28,8 @@ class Symbols {
         //* обновление ID
         let sourceId = ''
         if (new Hash(object.source).md5 == '9fcc5acecc1e69fad95aa3fec1b715c6' /*web3space*/) {
-          sourceId = new Hash(object.name + '#' + object.symbol).uuid
+          const nKey =object.name.toLowerCase().replace(/[\s+]+$|^[\s+]+/g, '').trim() + '#' + object.symbol.toLowerCase().replace(/[\s+]+$|^[\s+]+/g, '').trim()
+          sourceId = new Hash(nKey).uuid
         } else {
           const coinsKey = new Hash(object.source + object.name + object.symbol)
             .md5

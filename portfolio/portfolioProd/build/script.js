@@ -14,7 +14,7 @@ class Hash {
     let hexstr = '';
     const digest = Utilities.computeDigest(
       Utilities.DigestAlgorithm.MD5,
-      this.stringLowerCase.replace(/[$+\s+]/g, '_').trim()
+      this.stringLowerCase.replace(/[\s+]+$|^[\s+]+/g, '').trim()
     );
     for (let i = 0; i < digest.length; i++) {
       var val = (digest[i] + 256) % 256;
@@ -1138,6 +1138,9 @@ class WorkSheetRange extends WorkSheet {
     } else {
       nKey = nkeyArray.join('');
     }
+    console.log('nKey',nKey);
+    console.log('md5',new Hash(nKey).md5);
+    console.log('uuid',new Hash(nKey).uuid);
     return new Hash(nKey).md5
   }
 }
@@ -3016,7 +3019,8 @@ class Symbols {
         //* обновление ID
         let sourceId = '';
         if (new Hash(object.source).md5 == '9fcc5acecc1e69fad95aa3fec1b715c6' /*web3space*/) {
-          sourceId = new Hash(object.name + '#' + object.symbol).uuid;
+          const nKey =object.name.toLowerCase().replace(/[\s+]+$|^[\s+]+/g, '').trim() + '#' + object.symbol.toLowerCase().replace(/[\s+]+$|^[\s+]+/g, '').trim();
+          sourceId = new Hash(nKey).uuid;
         } else {
           const coinsKey = new Hash(object.source + object.name + object.symbol)
             .md5;

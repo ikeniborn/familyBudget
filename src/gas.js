@@ -754,7 +754,7 @@ class WorkSheetRange extends WorkSheet {
     }
     console.log('nKey',nKey)
     console.log('md5',new Hash(nKey).md5)
-    console.log('uuid',new Hash(nKey).md5)
+    console.log('uuid',new Hash(nKey).uuid)
     return new Hash(nKey).md5
   }
 }

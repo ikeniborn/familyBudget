@@ -16,7 +16,7 @@ class Hash {
     let hexstr = ''
     const digest = Utilities.computeDigest(
       Utilities.DigestAlgorithm.MD5,
-      this.stringLowerCase.replace(/[$+\s+]/g, '_').trim()
+      this.stringLowerCase.replace(/[\s+]+$|^[\s+]+/g, '').trim()
     )
     for (let i = 0; i < digest.length; i++) {
       var val = (digest[i] + 256) % 256
