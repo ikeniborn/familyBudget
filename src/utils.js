@@ -30,6 +30,9 @@ class Hash {
     return this.md5.replace(uuidRx, "$1-$2-$3-$4-$5")
   }
 
+  uuidToMd5 (){
+    return this.stringLowerCase.replace(/[-+]/g, '')
+  }
 }
 
 class FormatDate {

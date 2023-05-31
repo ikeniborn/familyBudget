@@ -28,6 +28,9 @@ class Hash {
     return this.md5.replace(uuidRx, "$1-$2-$3-$4-$5")
   }
 
+  uuidToMd5 (){
+    return this.stringLowerCase.replace(/[-+]/g, '')
+  }
 }
 
 class FormatDate {
@@ -1129,17 +1132,12 @@ class WorkSheetRange extends WorkSheet {
           return value.toString().trim()
         }
       });
-      console.log(nkeyArray);
-      console.log(nkeyArray);
       
     if (nkeyArray.length > 1) {
       nKey = nkeyArray.join('#');
     } else {
       nKey = nkeyArray.join('');
     }
-    console.log(nKey);
-    console.log(new Hash(nKey).md5);
-    console.log(new Hash(nKey).uuid);
     return new Hash(nKey).md5
   }
 }
@@ -3043,11 +3041,13 @@ class Symbols {
          * @param {object} symbolObject
          * @param {number} price
          * @param {number} rank
+         * @param {number} updatedDttm
          */
         const updatePricesRow = (
-          symbolObject,
+          symbolObject = {},
           price = void 0,
-          rank = void 0
+          rank = void 0,
+          updatedDttm = new Date()
         ) => {
           new Promise((resolve) => {
             const process = () => {
@@ -3098,10 +3098,11 @@ class Symbols {
               } else if (price > 512) {
                 coinPriceGroup = 'Over 512';
               }
+              
               symbolObject.priceGroup = coinPriceGroup;
               symbolObject.marketCapGroup = coinMarketCapRankGroup;
               symbolObject.price = price;
-              symbolObject.update = new Date();
+              symbolObject.update = updatedDttm;
               return true
             };
             process() ? resolve() : reject(new Error('updatePricesRow'));
@@ -3109,6 +3110,7 @@ class Symbols {
             console.error('Symbols.updatePrices', error.stack);
           });
         };
+
         const listId = Object.fromEntries(
           Object.entries(
             this.workSheet.arrayOfObject.reduce((list, object) => {
@@ -3154,15 +3156,22 @@ class Symbols {
 
         if (listId.web3space) {
           const priceArray = new Price().getLastPrice(listId.web3space);
+          const priceObject = priceArray.reduce((object, value) => {
+          const symbolKey = new Hash(value.token_id).uuidToMd5();
+            if (!object[symbolKey]) {
+              object[symbolKey] = value;
+            }
+            return object
+          },{});
+
           if (priceArray.length) {
             priceArray.forEach((coin) => {
-              const symbolKey = new Hash(coin?.token_id).md5;
-              console.log(coin?.price_close);
-              console.log(this.workSheet.object[symbolKey]);
+              const symbolKey = new Hash(coin?.token_id).uuidToMd5();
               updatePricesRow(
                 this.workSheet.object[symbolKey],
-                coin?.price_close,
-                0
+                priceObject[symbolKey]?.price_close,
+                void 0,
+                new Date(priceObject[symbolKey]?.updated_dttm)
               );
             });
           }
