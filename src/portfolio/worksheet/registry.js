@@ -164,6 +164,7 @@ class Registry {
           symbolPriceCoef,
           currencyPriceCoef,
           priceUSDBTC,
+          priceUSDBTCObject,
           isOverflow,
           coinSymbolKey,
           currencySymbolKey
@@ -532,7 +533,7 @@ class Registry {
         symbolPrice = historicalPriceBuyCoin?.historicalPrice * currencyPerCoin
         symbolPriceCoef = symbolPrice / currencyPrice
         currencyPriceCoef = currencyPrice / symbolPrice
-        priceUSDBTCObject = new web3space.Price().getHistoryPrice(
+        priceUSDBTCObject = new web3space.Price().getHistoricalPrice(
           'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
           dateTime,
           dateTime
