@@ -37,7 +37,7 @@ class Symbols {
             }
             return object
           }, {})
-          symbolCategory = coinsObject[tokenId].token_category_name_en || void 0
+          symbolCategory = coinsObject[tokenId]?.token_category_name_en || void 0
         } else {
           const coinsKey = new Hash(object.source + object.name + object.symbol).md5
           sourceId = coins[coinsKey]?.id || void 0
@@ -59,9 +59,6 @@ class Symbols {
     }
   }
 
-  updateSome() {
-    console.log('updateSome')
-  }
 
   updatePrices() {
     new Promise((resolve, reject) => {
@@ -163,8 +160,9 @@ class Symbols {
         )
 
         if (listId['coingecko']) {
+          const list = new Array(...listId.coingecko).join(',')
           const priceArray = new coinGecko.Price().getMarketsPrice(
-            listId.coingecko.join(',')
+            list
           )
           if (priceArray.length) {
             priceArray.forEach((coin) => {
@@ -189,7 +187,6 @@ class Symbols {
               object[value.token_id].symbol_key=new Hash(value?.token_symbol).md5
               return object
             }, {})
-            console.log(coinsObject)
             const priceArray = new web3Space.Price().getLastPrice(coins)
             const priceObject = priceArray.reduce((object, value) => {
               if (!object[value.token_id]) {
@@ -197,11 +194,7 @@ class Symbols {
               }
               return object
             }, {})
-            console.log(priceObject)
             priceArray.forEach((coin)=>{
-              console.log(coinsObject[coin.token_id]?.token_symbol)
-              console.log(coinsObject[coin.token_id]?.symbol_key)
-              console.log(priceObject[coin.token_id]?.price_close)
               updatePricesRow(
                 this.workSheet.object[coinsObject[coin.token_id]?.symbol_key],
                 priceObject[coin.token_id]?.price_close,
@@ -214,8 +207,9 @@ class Symbols {
         }
 
         if (listId['cryptorank']) {
+          const list = new Array(...listId.cryptorank).join(',')
           const priceArray = new cryptoRank.Price().getLastPrice(
-            listId.cryptorank.join(',')
+            list
           )
 
           if (priceArray.length) {
@@ -231,8 +225,10 @@ class Symbols {
         }
 
         if (listId['cryptocompare']) {
+          const list = new Array(...listId.cryptorank).join(',')
+          console.log(list)
           const priceArray = new cryptoCompare.Price().getMultiPrice(
-            listId.cryptocompare.join(',')
+            list
           )
           if (priceArray.length) {
             const marketCapRank = new cryptoCompare.TopList().topMarketCap(1000)

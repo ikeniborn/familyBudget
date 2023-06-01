@@ -1,4 +1,5 @@
 import { Methods } from './fetch'
+import { Hash, FormatDate, FormatNumber } from '../utils'
 export { Price, Dimension }
 /**
  * CoinMarketCap instance
@@ -43,16 +44,18 @@ class Price {
       },
     })?.data
   }
-  /**
-   * Get last price
-   *
-   * @param {*} token_id
-   * @returns {array}
-   */
-  getLastPriceAll() {
-    return this.methods.get({
-      endPoint: '/token/latest',
+  getHistoricalPrice(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51', from = new Date(), to =new Date() ) {
+    const fromFormat = new FormatDate(from).getFormatDate('yyyy-MM-dd')
+    const toFormat = new FormatDate(to).getFormatDate('yyyy-MM-dd')
+    const array = this.methods.get({
+      endPoint: '/token/historical',
+      query: {
+        token_id,
+        from:fromFormat,
+        to:toFormat,
+      },
     })?.data
+    return array
   }
 }
 

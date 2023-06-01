@@ -3,6 +3,7 @@ import { Hash, FormatDate, FormatNumber, FormatObject } from '../../utils'
 import { Transactions, HistoricalPrice } from './transactions'
 import { Symbols } from './symbols'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
+import * as web3space from '../../restApi/web3Space'
 export { Registry }
 
 class Registry {
@@ -232,12 +233,12 @@ class Registry {
         //* определение перелива
         if (
           [
-            '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+            '04a714bd5aaab82a18da3bd93d7dcc4f' /*LP Token*/,
             'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
             '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
           ].indexOf(coinSymbolCategoryKey) === -1 &&
           [
-            '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+            '04a714bd5aaab82a18da3bd93d7dcc4f' /*LP Token*/,
             'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
             '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
           ].indexOf(currencySymbolCategoryKey) === -1 &&
@@ -531,11 +532,17 @@ class Registry {
         symbolPrice = historicalPriceBuyCoin?.historicalPrice * currencyPerCoin
         symbolPriceCoef = symbolPrice / currencyPrice
         currencyPriceCoef = currencyPrice / symbolPrice
-        priceUSDBTC = new cryptoCompare.Price().getHistoryPrice(
-          'USD',
+        priceUSDBTCObject = new web3space.Price().getHistoryPrice(
+          'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
           dateTime,
-          'BTC'
-        )
+          dateTime
+        ).reduce((object, value) => {
+          if (!object[value.token_id]) {
+            object[value.token_id] = value
+          }
+          return object
+        }, {})
+        priceUSDBTC = priceUSDBTCObject['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close
 
         //* Комиссия
         if (feeCurrency && feeQty > 0) {

@@ -2,6 +2,7 @@ import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash, FormatDate } from '../../utils'
 import { Symbols } from './symbols'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
+import * as web3space from '../../restApi/web3Space'
 import * as coinGecko from '../../restApi/coinGecko'
 export { Transactions, HistoricalPrice }
 
@@ -165,12 +166,12 @@ class Transactions {
       const tokenBCategory = symbols[tokenBKey]?.symbolCategory || ''
       if (
         [
-          '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+          '04a714bd5aaab82a18da3bd93d7dcc4f' /*LP Token*/,
           'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
           '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
         ].indexOf(new Hash(tokenACategory).md5) === -1 &&
         [
-          '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+          '04a714bd5aaab82a18da3bd93d7dcc4f' /*LP Token*/,
           'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
           '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
         ].indexOf(new Hash(tokenBCategory).md5) === -1 &&
@@ -375,9 +376,9 @@ class Transactions {
     const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
       const newHistoricalAveragePriceKey = new Hash(
         rowObject.account +
-          rowObject.portfolio +
-          rowObject.contractor +
-          rowObject.symbol
+        rowObject.portfolio +
+        rowObject.contractor +
+        rowObject.symbol
       ).md5
       rowObject.historicalAveragePriceKey = newHistoricalAveragePriceKey
       return rowObject
@@ -482,7 +483,6 @@ class HistoricalPrice {
         currencySymbolCategoryKey /*stablecoin*/
       ) {
         //* Для стабильных токенов возвращать единицу
-
         historicalPrice = 1
         isHistoricalAveragePrice = false
       } else if (
@@ -498,8 +498,20 @@ class HistoricalPrice {
             convert
           )
           isHistoricalAveragePrice = false
+        } else if (
+          sourceKey === '9fcc5acecc1e69fad95aa3fec1b715c6' /*web3space*/
+        ) {
+          const priceObject = new web3space.Price().getHistoricalPrice(symbolId, dateTime, dateTime).reduce((object, value) => {
+            if (!object[value.token_id]) {
+              object[value.token_id] = value
+            }
+            return object
+          }, {})
+          historicalPrice = priceObject[symbolId]?.price_close
+          isHistoricalAveragePrice = false
         }
-      } else {
+      }
+      else {
         //* Расчет средневзвешенной стоимости покупки токена на основании истории покупок для диапазона данных
         if (isRange) {
           const historicalAveragePriceKey = new Hash(
@@ -513,7 +525,7 @@ class HistoricalPrice {
             .filter((row) => {
               return (
                 new Date(row.dateTime).valueOf() <
-                  new Date(dateTime).valueOf() &&
+                new Date(dateTime).valueOf() &&
                 historicalAveragePriceKey === row.historicalAveragePriceKey &&
                 row.isAvgPrice &&
                 !row.isDelete
@@ -632,7 +644,7 @@ class HistoricalPrice {
                 historicalPriceAgg.costSellIn +
                 historicalPriceAgg.costRefillIn +
                 historicalPriceAgg.costTransferIn) *
-                costPrecisionCoeff
+              costPrecisionCoeff
             ) / costPrecisionCoeff || 0
 
           const costOutFlow =
@@ -641,7 +653,7 @@ class HistoricalPrice {
                 historicalPriceAgg.costSellOut +
                 historicalPriceAgg.costWriteOffOut +
                 historicalPriceAgg.costTransferOut) *
-                costPrecisionCoeff
+              costPrecisionCoeff
             ) / costPrecisionCoeff || 0
 
           const quantityInFlow =
@@ -650,7 +662,7 @@ class HistoricalPrice {
                 historicalPriceAgg.quantitySellIn +
                 historicalPriceAgg.quantityRefillIn +
                 historicalPriceAgg.quantityTransferIn) *
-                historicalPricePrecisionCoeff
+              historicalPricePrecisionCoeff
             ) / historicalPricePrecisionCoeff || 0
 
           const quantityOutFlow =
@@ -659,7 +671,7 @@ class HistoricalPrice {
                 historicalPriceAgg.quantitySellOut +
                 historicalPriceAgg.quantityWriteOffOut +
                 historicalPriceAgg.quantityTransferOut) *
-                historicalPricePrecisionCoeff
+              historicalPricePrecisionCoeff
             ) / historicalPricePrecisionCoeff || 0
 
           //* расчет цены потоков
@@ -689,7 +701,7 @@ class HistoricalPrice {
               .filter((row) => {
                 return (
                   new Date(row.dateTime).valueOf() ===
-                    new Date(dateTime).valueOf() &&
+                  new Date(dateTime).valueOf() &&
                   historicalAveragePriceKey === row.historicalAveragePriceKey &&
                   row.isAvgPrice &&
                   !row.isDelete &&
@@ -773,7 +785,17 @@ class HistoricalPrice {
                   dateTime,
                   convert
                 )
-
+                isHistoricalAveragePrice = true
+              } else if (
+                sourceKey === '9fcc5acecc1e69fad95aa3fec1b715c6' /*web3space*/
+              ) {
+                const priceObject = new web3space.Price().getHistoricalPrice(symbolId, dateTime, dateTime).reduce((object, value) => {
+                  if (!object[value.token_id]) {
+                    object[value.token_id] = value
+                  }
+                  return object
+                }, {})
+                historicalPrice = priceObject[symbolId]?.price_close
                 isHistoricalAveragePrice = true
               }
             }

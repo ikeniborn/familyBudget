@@ -2828,16 +2828,18 @@ class Price {
       },
     })?.data
   }
-  /**
-   * Get last price
-   *
-   * @param {*} token_id
-   * @returns {array}
-   */
-  getLastPriceAll() {
-    return this.methods.get({
-      endPoint: '/token/latest',
-    })?.data
+  getHistoricalPrice(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51', from = new Date(), to =new Date() ) {
+    const fromFormat = new FormatDate(from).getFormatDate('yyyy-MM-dd');
+    const toFormat = new FormatDate(to).getFormatDate('yyyy-MM-dd');
+    const array = this.methods.get({
+      endPoint: '/token/historical',
+      query: {
+        token_id,
+        from:fromFormat,
+        to:toFormat,
+      },
+    })?.data;
+    return array
   }
 }
 
@@ -3059,7 +3061,7 @@ class Symbols {
             }
             return object
           }, {});
-          symbolCategory = coinsObject[tokenId].token_category_name_en || void 0;
+          symbolCategory = coinsObject[tokenId]?.token_category_name_en || void 0;
         } else {
           const coinsKey = new Hash(object.source + object.name + object.symbol).md5;
           sourceId = coins[coinsKey]?.id || void 0;
@@ -3081,9 +3083,6 @@ class Symbols {
     }
   }
 
-  updateSome() {
-    console.log('updateSome');
-  }
 
   updatePrices() {
     new Promise((resolve, reject) => {
@@ -3185,8 +3184,9 @@ class Symbols {
         );
 
         if (listId['coingecko']) {
+          const list = new Array(...listId.coingecko).join(',');
           const priceArray = new Price$1().getMarketsPrice(
-            listId.coingecko.join(',')
+            list
           );
           if (priceArray.length) {
             priceArray.forEach((coin) => {
@@ -3211,7 +3211,6 @@ class Symbols {
               object[value.token_id].symbol_key=new Hash(value?.token_symbol).md5;
               return object
             }, {});
-            console.log(coinsObject);
             const priceArray = new Price().getLastPrice(coins);
             const priceObject = priceArray.reduce((object, value) => {
               if (!object[value.token_id]) {
@@ -3219,11 +3218,7 @@ class Symbols {
               }
               return object
             }, {});
-            console.log(priceObject);
             priceArray.forEach((coin)=>{
-              console.log(coinsObject[coin.token_id]?.token_symbol);
-              console.log(coinsObject[coin.token_id]?.symbol_key);
-              console.log(priceObject[coin.token_id]?.price_close);
               updatePricesRow(
                 this.workSheet.object[coinsObject[coin.token_id]?.symbol_key],
                 priceObject[coin.token_id]?.price_close,
@@ -3236,8 +3231,9 @@ class Symbols {
         }
 
         if (listId['cryptorank']) {
+          const list = new Array(...listId.cryptorank).join(',');
           const priceArray = new Price$3().getLastPrice(
-            listId.cryptorank.join(',')
+            list
           );
 
           if (priceArray.length) {
@@ -3253,8 +3249,10 @@ class Symbols {
         }
 
         if (listId['cryptocompare']) {
+          const list = new Array(...listId.cryptorank).join(',');
+          console.log(list);
           const priceArray = new Price$2().getMultiPrice(
-            listId.cryptocompare.join(',')
+            list
           );
           if (priceArray.length) {
             const marketCapRank = new TopList().topMarketCap(1000);
@@ -3454,12 +3452,12 @@ class Transactions {
       const tokenBCategory = symbols[tokenBKey]?.symbolCategory || '';
       if (
         [
-          '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+          '04a714bd5aaab82a18da3bd93d7dcc4f' /*LP Token*/,
           'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
           '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
         ].indexOf(new Hash(tokenACategory).md5) === -1 &&
         [
-          '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+          '04a714bd5aaab82a18da3bd93d7dcc4f' /*LP Token*/,
           'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
           '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
         ].indexOf(new Hash(tokenBCategory).md5) === -1 &&
@@ -3655,9 +3653,9 @@ class Transactions {
     const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
       const newHistoricalAveragePriceKey = new Hash(
         rowObject.account +
-          rowObject.portfolio +
-          rowObject.contractor +
-          rowObject.symbol
+        rowObject.portfolio +
+        rowObject.contractor +
+        rowObject.symbol
       ).md5;
       rowObject.historicalAveragePriceKey = newHistoricalAveragePriceKey;
       return rowObject
@@ -3762,7 +3760,6 @@ class HistoricalPrice {
         currencySymbolCategoryKey /*stablecoin*/
       ) {
         //* Для стабильных токенов возвращать единицу
-
         historicalPrice = 1;
         isHistoricalAveragePrice = false;
       } else if (
@@ -3778,8 +3775,20 @@ class HistoricalPrice {
             convert
           );
           isHistoricalAveragePrice = false;
+        } else if (
+          sourceKey === '9fcc5acecc1e69fad95aa3fec1b715c6' /*web3space*/
+        ) {
+          const priceObject = new Price().getHistoricalPrice(symbolId, dateTime, dateTime).reduce((object, value) => {
+            if (!object[value.token_id]) {
+              object[value.token_id] = value;
+            }
+            return object
+          }, {});
+          historicalPrice = priceObject[symbolId]?.price_close;
+          isHistoricalAveragePrice = false;
         }
-      } else {
+      }
+      else {
         //* Расчет средневзвешенной стоимости покупки токена на основании истории покупок для диапазона данных
         if (isRange) {
           const historicalAveragePriceKey = new Hash(
@@ -3793,7 +3802,7 @@ class HistoricalPrice {
             .filter((row) => {
               return (
                 new Date(row.dateTime).valueOf() <
-                  new Date(dateTime).valueOf() &&
+                new Date(dateTime).valueOf() &&
                 historicalAveragePriceKey === row.historicalAveragePriceKey &&
                 row.isAvgPrice &&
                 !row.isDelete
@@ -3912,7 +3921,7 @@ class HistoricalPrice {
                 historicalPriceAgg.costSellIn +
                 historicalPriceAgg.costRefillIn +
                 historicalPriceAgg.costTransferIn) *
-                costPrecisionCoeff
+              costPrecisionCoeff
             ) / costPrecisionCoeff || 0;
 
           const costOutFlow =
@@ -3921,7 +3930,7 @@ class HistoricalPrice {
                 historicalPriceAgg.costSellOut +
                 historicalPriceAgg.costWriteOffOut +
                 historicalPriceAgg.costTransferOut) *
-                costPrecisionCoeff
+              costPrecisionCoeff
             ) / costPrecisionCoeff || 0;
 
           const quantityInFlow =
@@ -3930,7 +3939,7 @@ class HistoricalPrice {
                 historicalPriceAgg.quantitySellIn +
                 historicalPriceAgg.quantityRefillIn +
                 historicalPriceAgg.quantityTransferIn) *
-                historicalPricePrecisionCoeff
+              historicalPricePrecisionCoeff
             ) / historicalPricePrecisionCoeff || 0;
 
           const quantityOutFlow =
@@ -3939,7 +3948,7 @@ class HistoricalPrice {
                 historicalPriceAgg.quantitySellOut +
                 historicalPriceAgg.quantityWriteOffOut +
                 historicalPriceAgg.quantityTransferOut) *
-                historicalPricePrecisionCoeff
+              historicalPricePrecisionCoeff
             ) / historicalPricePrecisionCoeff || 0;
 
           //* расчет цены потоков
@@ -3969,7 +3978,7 @@ class HistoricalPrice {
               .filter((row) => {
                 return (
                   new Date(row.dateTime).valueOf() ===
-                    new Date(dateTime).valueOf() &&
+                  new Date(dateTime).valueOf() &&
                   historicalAveragePriceKey === row.historicalAveragePriceKey &&
                   row.isAvgPrice &&
                   !row.isDelete &&
@@ -4053,7 +4062,17 @@ class HistoricalPrice {
                   dateTime,
                   convert
                 );
-
+                isHistoricalAveragePrice = true;
+              } else if (
+                sourceKey === '9fcc5acecc1e69fad95aa3fec1b715c6' /*web3space*/
+              ) {
+                const priceObject = new Price().getHistoricalPrice(symbolId, dateTime, dateTime).reduce((object, value) => {
+                  if (!object[value.token_id]) {
+                    object[value.token_id] = value;
+                  }
+                  return object
+                }, {});
+                historicalPrice = priceObject[symbolId]?.price_close;
                 isHistoricalAveragePrice = true;
               }
             }
@@ -4295,12 +4314,12 @@ class Registry {
         //* определение перелива
         if (
           [
-            '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+            '04a714bd5aaab82a18da3bd93d7dcc4f' /*LP Token*/,
             'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
             '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
           ].indexOf(coinSymbolCategoryKey) === -1 &&
           [
-            '4300a88e74641d7d783fbfb093d1f6ed' /*LP Token*/,
+            '04a714bd5aaab82a18da3bd93d7dcc4f' /*LP Token*/,
             'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
             '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
           ].indexOf(currencySymbolCategoryKey) === -1 &&
@@ -4594,11 +4613,17 @@ class Registry {
         symbolPrice = historicalPriceBuyCoin?.historicalPrice * currencyPerCoin;
         symbolPriceCoef = symbolPrice / currencyPrice;
         currencyPriceCoef = currencyPrice / symbolPrice;
-        priceUSDBTC = new Price$2().getHistoryPrice(
-          'USD',
+        priceUSDBTCObject = new Price().getHistoryPrice(
+          'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
           dateTime,
-          'BTC'
-        );
+          dateTime
+        ).reduce((object, value) => {
+          if (!object[value.token_id]) {
+            object[value.token_id] = value;
+          }
+          return object
+        }, {});
+        priceUSDBTC = priceUSDBTCObject['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close;
 
         //* Комиссия
         if (feeCurrency && feeQty > 0) {
