@@ -360,15 +360,15 @@ class Transactions {
           priceUSDBTC = priceUSDBTCObject['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close
 
           if (directionInKey === new Hash(rowObject.direction).md5) {
-            priceBTC = inPrice * priceUSDBTC
-            costBTC = inPrice * priceUSDBTC * inQuantity
+            priceBTC = inPrice / priceUSDBTC
+            costBTC = inPrice / priceUSDBTC * inQuantity
           } else if (directionOutKey === new Hash(rowObject.direction).md5) {
             if (rowObject.isFee) {
-              priceBTC = feePrice * priceUSDBTC
-              costBTC = feePrice * priceUSDBTC * feeQuantity
+              priceBTC = feePrice / priceUSDBTC
+              costBTC = feePrice / priceUSDBTC * feeQuantity
             } else {
-              priceBTC = outPrice * priceUSDBTC
-              costBTC = outPrice * priceUSDBTC * outQuantity
+              priceBTC = outPrice / priceUSDBTC
+              costBTC = outPrice / priceUSDBTC * outQuantity
             }
           }
 

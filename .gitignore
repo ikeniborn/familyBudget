@@ -212,3 +212,10 @@ dist
 
 # Clasp
 .clasprc.json
+
+# build toll-up
+portfolio/portfolioProd/build
+portfolio/portfolioDev/build
+budget/budgetProd/build
+budget/budgetDev/build
+analitics/build

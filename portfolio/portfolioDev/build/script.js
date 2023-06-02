@@ -3637,15 +3637,15 @@ class Transactions {
           priceUSDBTC = priceUSDBTCObject['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close;
 
           if (directionInKey === new Hash(rowObject.direction).md5) {
-            priceBTC = inPrice * priceUSDBTC;
-            costBTC = inPrice * priceUSDBTC * inQuantity;
+            priceBTC = inPrice / priceUSDBTC;
+            costBTC = inPrice / priceUSDBTC * inQuantity;
           } else if (directionOutKey === new Hash(rowObject.direction).md5) {
             if (rowObject.isFee) {
-              priceBTC = feePrice * priceUSDBTC;
-              costBTC = feePrice * priceUSDBTC * feeQuantity;
+              priceBTC = feePrice / priceUSDBTC;
+              costBTC = feePrice / priceUSDBTC * feeQuantity;
             } else {
-              priceBTC = outPrice * priceUSDBTC;
-              costBTC = outPrice * priceUSDBTC * outQuantity;
+              priceBTC = outPrice / priceUSDBTC;
+              costBTC = outPrice / priceUSDBTC * outQuantity;
             }
           }
 
@@ -4697,7 +4697,7 @@ class Registry {
           let priceUSD, priceCoef, priceBTC, costBTC, costUSD, priceCoefRev;
           if (tx.isSymbolPrice) {
             priceUSD = symbolPrice;
-            priceBTC = priceUSDBTC * symbolPrice;
+            priceBTC = symbolPrice/priceUSDBTC; 
             isHistoricalAveragePrice = isHistoricalAveragePriceSymbol;
             if (
               [
@@ -4713,13 +4713,13 @@ class Registry {
             }
           } else if (tx.isFeePrice) {
             priceUSD = feePrice;
-            priceBTC = priceUSDBTC * feePrice;
+            priceBTC = feePrice/ priceUSDBTC; 
             isHistoricalAveragePrice = isHistoricalAveragePriceFeeCurrency;
             priceCoef = 1;
             priceCoefRev = 1;
           } else if (tx.isCurencyPrice) {
             priceUSD = currencyPrice;
-            priceBTC = priceUSDBTC * currencyPrice;
+            priceBTC =  currencyPrice/priceUSDBTC; 
             isHistoricalAveragePrice = isHistoricalAveragePriceCurrency;
             if (
               [

@@ -607,7 +607,7 @@ class Registry {
           let priceUSD, priceCoef, priceBTC, costBTC, costUSD, priceCoefRev
           if (tx.isSymbolPrice) {
             priceUSD = symbolPrice
-            priceBTC = priceUSDBTC * symbolPrice
+            priceBTC = symbolPrice/priceUSDBTC 
             isHistoricalAveragePrice = isHistoricalAveragePriceSymbol
             if (
               [
@@ -623,13 +623,13 @@ class Registry {
             }
           } else if (tx.isFeePrice) {
             priceUSD = feePrice
-            priceBTC = priceUSDBTC * feePrice
+            priceBTC = feePrice/ priceUSDBTC 
             isHistoricalAveragePrice = isHistoricalAveragePriceFeeCurrency
             priceCoef = 1
             priceCoefRev = 1
           } else if (tx.isCurencyPrice) {
             priceUSD = currencyPrice
-            priceBTC = priceUSDBTC * currencyPrice
+            priceBTC =  currencyPrice/priceUSDBTC 
             isHistoricalAveragePrice = isHistoricalAveragePriceCurrency
             if (
               [
