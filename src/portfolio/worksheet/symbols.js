@@ -2,7 +2,7 @@ import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash } from '../../utils'
 import * as cryptoRank from '../../restApi/cryptoRank'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
-// import * as coinMarketCap from '../../restApi/coinMarketCap'
+import * as coinMarketCap from '../../restApi/coinMarketCap'
 import * as coinGecko from '../../restApi/coinGecko'
 import * as web3Space from '../../restApi/web3Space'
 // import { Transactions } from './transactions'
@@ -159,7 +159,7 @@ class Symbols {
           )
         )
 
-        if (listId['coingecko']) {
+        if (listId['coingecko'] && Array.isArray(listId['coingecko'])) {
           const list = new Array(...listId.coingecko).join(',')
           const priceArray = new coinGecko.Price().getMarketsPrice(
             list
@@ -175,8 +175,9 @@ class Symbols {
             })
           }
         }
+
         
-        if (listId['web3space']) {
+        if (listId['web3space'] && Array.isArray(listId['web3space'])) {
           const chunkSize = 30;
           for (let i = 0; i < listId.web3space.length; i += chunkSize) {
           const coins = listId.web3space.slice(i, i + chunkSize).join(',');
@@ -206,7 +207,7 @@ class Symbols {
 
         }
 
-        if (listId['cryptorank']) {
+        if (listId['cryptorank'] && Array.isArray(listId['cryptorank'])) {
           const list = new Array(...listId.cryptorank).join(',')
           const priceArray = new cryptoRank.Price().getLastPrice(
             list
@@ -224,12 +225,33 @@ class Symbols {
           }
         }
 
-        if (listId['cryptocompare']) {
-          const list = new Array(...listId.cryptorank).join(',')
-          console.log(list)
+        
+        if (listId['coinmarketcap'] && Array.isArray(listId['coinmarketcap'])) {
+          const list = new Array(...listId.coinmarketcap).join(',')
+
+          const priceArray = Object.values(new coinMarketCap.Price().getLastPrice(
+            list
+          ))
+          if (priceArray.length) {
+            priceArray.forEach((coin) => {
+              const symbolKey = new Hash(coin?.symbol).md5
+              updatePricesRow(
+                this.workSheet.object[symbolKey],
+                coin?.quote?.USD?.price,
+                void 0,
+                new Date(coin?.quote?.USD?.last_updated)
+              )
+            })
+          }
+        }
+
+        if (listId['cryptocompare'] && Array.isArray(listId['cryptocompare'])) {
+          const list = new Array(...listId.cryptocompare).join(',')
+
           const priceArray = new cryptoCompare.Price().getMultiPrice(
             list
           )
+
           if (priceArray.length) {
             const marketCapRank = new cryptoCompare.TopList().topMarketCap(1000)
             priceArray.forEach((coin) => {

@@ -2445,7 +2445,7 @@ class Instance$4 {
 /**
  * CryptoRank price
  */
-class Price$3 {
+class Price$4 {
   constructor() {
     this.methods = new Instance$4().methods;
   }
@@ -2520,7 +2520,7 @@ class Instance$3 {
 /**
  * CryptoCompare price
  */
-class Price$2 {
+class Price$3 {
   constructor() {
     this.methods = new Instance$3().methods;
   }
@@ -2677,18 +2677,109 @@ class TopList {
 }
 
 /**
- * CoinGecko instance
+ * CoinMarketCap instance
  */
 class Instance$2 {
-  /**
-   * Create new inctance API CoinGecko
-   */
   constructor() {
     if (Instance$2.exists) {
       return Instance$2.instance
     }
     Instance$2.instance = this;
     Instance$2.exists = true;
+    this.methods = new Methods({
+      domain: 'https://pro-api.coinmarketcap.com',
+      data: {
+        muteHttpExceptions: true,
+        contentType: 'accept: application/json',
+        headers: {
+          'X-CMC_PRO_API_KEY': '133c18b7-555c-4e57-ad7b-4d2bf6160c20',
+        },
+      },
+    });
+  }
+}
+/**
+ * CoinMarketCap Price
+ */
+class Price$2 {
+  constructor() {
+    this.methods = new Instance$2().methods;
+  }
+  /**
+   * Get last price
+   *
+   * @param {*} id
+   * @param {*} convert
+   * @returns {array}
+   */
+  getLastPrice(id = '1', convert = 'USD') {
+    return this.methods.get({
+      endPoint: '/v2/cryptocurrency/quotes/latest',
+      query: {
+        id,
+        convert,
+      },
+    })?.data
+  }
+}
+/**
+ * CoinMarketCap coin list
+ */
+class CoinsList$1 {
+  constructor() {
+    this.methods = new Instance$2().methods;
+  }
+  /**
+   * Get coins list
+   *
+   * @returns array coin
+   */
+  getCoinsList() {
+    return this.methods.get({
+      endPoint: '/v1/cryptocurrency/map',
+    })?.data
+  }
+}
+
+class Category {
+  constructor() {
+    this.methods = new Instance$2().methods;
+  }
+  /**
+   * Get coins list
+   *
+   * @returns category
+   */
+  getCategory(id) {
+    const object = this.methods.get({
+      endPoint: '/v2/cryptocurrency/info',
+      query: {
+        id,
+      },
+    })?.data;
+    return object[id]?.tags.join(', ')
+  }
+  getCategories() {
+    const object = this.methods.get({
+      endPoint: '/v1/cryptocurrency/categories',
+    })?.data;
+    return object
+  }
+}
+
+/**
+ * CoinGecko instance
+ */
+class Instance$1 {
+  /**
+   * Create new inctance API CoinGecko
+   */
+  constructor() {
+    if (Instance$1.exists) {
+      return Instance$1.instance
+    }
+    Instance$1.instance = this;
+    Instance$1.exists = true;
     this.methods = new Methods({
       domain: 'https://api.coingecko.com/api/v3',
       data: {
@@ -2703,7 +2794,7 @@ class Instance$2 {
  */
 class Price$1 {
   constructor() {
-    this.methods = new Instance$2().methods;
+    this.methods = new Instance$1().methods;
   }
 
   /**
@@ -2764,9 +2855,9 @@ class Price$1 {
 /**
  * CoinGecko coin list
  */
-class CoinsList$1 {
+class CoinsList {
   constructor() {
-    this.methods = new Instance$2().methods;
+    this.methods = new Instance$1().methods;
   }
   /**
    *
@@ -2788,13 +2879,13 @@ class CoinsList$1 {
 /**
  * CoinMarketCap instance
  */
-class Instance$1 {
+class Instance {
   constructor() {
-    if (Instance$1.exists) {
-      return Instance$1.instance
+    if (Instance.exists) {
+      return Instance.instance
     }
-    Instance$1.instance = this;
-    Instance$1.exists = true;
+    Instance.instance = this;
+    Instance.exists = true;
     this.methods = new Methods({
       domain: 'https://web-app-backend.w3s-crm.com/api/v1',
       data: {
@@ -2812,7 +2903,7 @@ class Instance$1 {
  */
 class Price {
   constructor() {
-    this.methods = new Instance$1().methods;
+    this.methods = new Instance().methods;
   }
   /**
    * Get last price
@@ -2845,7 +2936,7 @@ class Price {
 
 class Dimension {
   constructor() {
-    this.methods = new Instance$1().methods;
+    this.methods = new Instance().methods;
   }
   /**
    * Get last price
@@ -2860,73 +2951,6 @@ class Dimension {
         token_id,
       },
     })?.data
-  }
-}
-
-/**
- * CoinMarketCap instance
- */
-class Instance {
-  constructor() {
-    if (Instance.exists) {
-      return Instance.instance
-    }
-    Instance.instance = this;
-    Instance.exists = true;
-    this.methods = new Methods({
-      domain: 'https://pro-api.coinmarketcap.com',
-      data: {
-        muteHttpExceptions: true,
-        contentType: 'accept: application/json',
-        headers: {
-          'X-CMC_PRO_API_KEY': '133c18b7-555c-4e57-ad7b-4d2bf6160c20',
-        },
-      },
-    });
-  }
-}
-/**
- * CoinMarketCap coin list
- */
-class CoinsList {
-  constructor() {
-    this.methods = new Instance().methods;
-  }
-  /**
-   * Get coins list
-   *
-   * @returns array coin
-   */
-  getCoinsList() {
-    return this.methods.get({
-      endPoint: '/v1/cryptocurrency/map',
-    })?.data
-  }
-}
-
-class Category {
-  constructor() {
-    this.methods = new Instance().methods;
-  }
-  /**
-   * Get coins list
-   *
-   * @returns category
-   */
-  getCategory(id) {
-    const object = this.methods.get({
-      endPoint: '/v2/cryptocurrency/info',
-      query: {
-        id,
-      },
-    })?.data;
-    return object[id]?.tags.join(', ')
-  }
-  getCategories() {
-    const object = this.methods.get({
-      endPoint: '/v1/cryptocurrency/categories',
-    })?.data;
-    return object
   }
 }
 
@@ -2946,7 +2970,7 @@ class Coins {
     new Promise((resolve, reject) => {
       const process = () => {
         const coins = [];
-        new CoinsList$1().getCoinsList().forEach((coin) => {
+        new CoinsList().getCoinsList().forEach((coin) => {
           const rowKey = new Hash('coingecko' + coin.name + coin.symbol).md5;
           coins.push({
             rowKey: rowKey,
@@ -2968,7 +2992,7 @@ class Coins {
           });
         });
 
-        new CoinsList().getCoinsList().forEach((coin) => {
+        new CoinsList$1().getCoinsList().forEach((coin) => {
           const key = new Hash('coinmarketcap' + coin.name + coin.symbol);
           coins.push({
             rowKey: key.md5,
@@ -3183,7 +3207,7 @@ class Symbols {
           )
         );
 
-        if (listId['coingecko']) {
+        if (listId['coingecko'] && Array.isArray(listId['coingecko'])) {
           const list = new Array(...listId.coingecko).join(',');
           const priceArray = new Price$1().getMarketsPrice(
             list
@@ -3199,8 +3223,9 @@ class Symbols {
             });
           }
         }
+
         
-        if (listId['web3space']) {
+        if (listId['web3space'] && Array.isArray(listId['web3space'])) {
           const chunkSize = 30;
           for (let i = 0; i < listId.web3space.length; i += chunkSize) {
           const coins = listId.web3space.slice(i, i + chunkSize).join(',');
@@ -3230,9 +3255,9 @@ class Symbols {
 
         }
 
-        if (listId['cryptorank']) {
+        if (listId['cryptorank'] && Array.isArray(listId['cryptorank'])) {
           const list = new Array(...listId.cryptorank).join(',');
-          const priceArray = new Price$3().getLastPrice(
+          const priceArray = new Price$4().getLastPrice(
             list
           );
 
@@ -3248,12 +3273,33 @@ class Symbols {
           }
         }
 
-        if (listId['cryptocompare']) {
-          const list = new Array(...listId.cryptorank).join(',');
-          console.log(list);
-          const priceArray = new Price$2().getMultiPrice(
+        
+        if (listId['coinmarketcap'] && Array.isArray(listId['coinmarketcap'])) {
+          const list = new Array(...listId.coinmarketcap).join(',');
+
+          const priceArray = Object.values(new Price$2().getLastPrice(
+            list
+          ));
+          if (priceArray.length) {
+            priceArray.forEach((coin) => {
+              const symbolKey = new Hash(coin?.symbol).md5;
+              updatePricesRow(
+                this.workSheet.object[symbolKey],
+                coin?.quote?.USD?.price,
+                void 0,
+                new Date(coin?.quote?.USD?.last_updated)
+              );
+            });
+          }
+        }
+
+        if (listId['cryptocompare'] && Array.isArray(listId['cryptocompare'])) {
+          const list = new Array(...listId.cryptocompare).join(',');
+
+          const priceArray = new Price$3().getMultiPrice(
             list
           );
+
           if (priceArray.length) {
             const marketCapRank = new TopList().topMarketCap(1000);
             priceArray.forEach((coin) => {
@@ -3778,7 +3824,7 @@ class HistoricalPrice {
         if (
           sourceKey === '1dab445b170a7f0acfccea645a8879e0' /*cryptocompare*/
         ) {
-          historicalPrice = new Price$2().getHistoryPrice(
+          historicalPrice = new Price$3().getHistoryPrice(
             symbolId,
             dateTime,
             convert
@@ -4066,7 +4112,7 @@ class HistoricalPrice {
                 sourceKey ===
                 '1dab445b170a7f0acfccea645a8879e0' /*cryptocompare*/
               ) {
-                historicalPrice = new Price$2().getHistoryPrice(
+                historicalPrice = new Price$3().getHistoryPrice(
                   symbolId,
                   dateTime,
                   convert
