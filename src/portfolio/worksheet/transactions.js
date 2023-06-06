@@ -507,7 +507,8 @@ class HistoricalPrice {
             convert
           )
           isHistoricalAveragePrice = false
-        } else if (
+        } 
+        else if (
           sourceKey === '9fcc5acecc1e69fad95aa3fec1b715c6' /*web3space*/
         ) {
           const priceObject = new web3space.Price().getHistoricalPrice(symbolId, dateTime, dateTime).reduce((object, value) => {
