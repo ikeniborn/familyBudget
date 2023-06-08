@@ -3078,13 +3078,13 @@ class Symbols {
         let symbolCategory = void 0;
         if (new Hash(object.source).md5 == '9fcc5acecc1e69fad95aa3fec1b715c6' /*web3space*/) {
           const tokenId = new Hash([object.name, object.symbol].join('#')).uuid;
-          sourceId = tokenId || void 0;
           const coinsObject = new Dimension().getDimension(tokenId).reduce((object, value) => {
             if (!object[value.token_id]) {
               object[value.token_id] = value;
             }
             return object
           }, {});
+          sourceId = coinsObject[tokenId]?.token_id || void 0;
           symbolCategory = coinsObject[tokenId]?.token_category_name_en || void 0;
         } else {
           const coinsKey = new Hash(object.source + object.name + object.symbol).md5;
@@ -3830,7 +3830,8 @@ class HistoricalPrice {
             convert
           );
           isHistoricalAveragePrice = false;
-        } else if (
+        } 
+        else if (
           sourceKey === '9fcc5acecc1e69fad95aa3fec1b715c6' /*web3space*/
         ) {
           const priceObject = new Price().getHistoricalPrice(symbolId, dateTime, dateTime).reduce((object, value) => {
