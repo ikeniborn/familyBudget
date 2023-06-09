@@ -545,7 +545,7 @@ class Registry {
         // }, {});
         priceUSDBTCObject = {
           'b460f578-b1ce-950c-287e-dc61d0728e51': {
-            price_close: 0
+            price_close: new Symbols().workSheet.object[new Hash('btc').md5]?.price
           }
         }
         priceUSDBTC = priceUSDBTCObject['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close
