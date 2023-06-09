@@ -2917,7 +2917,7 @@ class Price {
       query: {
         token_id,
       },
-    })?.data
+    })?.data || []
   }
   getHistoricalPrice(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51', from = new Date(), to =new Date() ) {
     const fromFormat = new FormatDate(from).getFormatDate('yyyy-MM-dd');
@@ -2929,7 +2929,7 @@ class Price {
         from:fromFormat,
         to:toFormat,
       },
-    })?.data;
+    })?.data || [];
     return array
   }
 }
@@ -2950,7 +2950,7 @@ class Dimension {
       query: {
         token_id,
       },
-    })?.data
+    })?.data || []
   }
 }
 
@@ -3656,8 +3656,7 @@ class Transactions {
             costBTC,
             outQuantity,
             inQuantity,
-            feeQuantity,
-            dateTime;
+            feeQuantity;
             
           const registryObject = newObject[rowObject.registryRowKey];
           registryObject['out']?.symbol;
@@ -3669,17 +3668,22 @@ class Transactions {
           outQuantity = registryObject['out']?.quantity;
           inQuantity = registryObject['in']?.quantity;
           feeQuantity = registryObject['fee']?.quantity;
-          dateTime = new Date(registryObject['in']?.dateTime);
-          priceUSDBTCObject = new Price().getHistoricalPrice(
-            'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
-            dateTime,
-            dateTime
-          ).reduce((object, value) => {
-            if (!object[value.token_id]) {
-              object[value.token_id] = value;
-            }
-            return object
-          }, {});
+          new Date(registryObject['in']?.dateTime);
+         // priceUSDBTCObject = new Price().getHistoricalPrice(
+        //   'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
+        //   dateTime,
+        //   dateTime
+        // ).reduce((object, value) => {
+        //   if (!object[value.token_id]) {
+        //     object[value.token_id] = value;
+        //   }
+        //   return object
+        // }, {});
+        priceUSDBTCObject = {
+          'b460f578-b1ce-950c-287e-dc61d0728e51': {
+            price_close: 0
+          }
+        };
           priceUSDBTC = priceUSDBTCObject['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close;
 
           if (directionInKey === new Hash(rowObject.direction).md5) {
@@ -4670,16 +4674,21 @@ class Registry {
         symbolPrice = historicalPriceBuyCoin?.historicalPrice * currencyPerCoin;
         symbolPriceCoef = symbolPrice / currencyPrice;
         currencyPriceCoef = currencyPrice / symbolPrice;
-        priceUSDBTCObject = new Price().getHistoricalPrice(
-          'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
-          dateTime,
-          dateTime
-        ).reduce((object, value) => {
-          if (!object[value.token_id]) {
-            object[value.token_id] = value;
+      // priceUSDBTCObject = new Price().getHistoricalPrice(
+        //   'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
+        //   dateTime,
+        //   dateTime
+        // ).reduce((object, value) => {
+        //   if (!object[value.token_id]) {
+        //     object[value.token_id] = value;
+        //   }
+        //   return object
+        // }, {});
+        priceUSDBTCObject = {
+          'b460f578-b1ce-950c-287e-dc61d0728e51': {
+            price_close: 0
           }
-          return object
-        }, {});
+        };
         priceUSDBTC = priceUSDBTCObject['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close;
 
         //* Комиссия

@@ -347,16 +347,21 @@ class Transactions {
           inQuantity = registryObject['in']?.quantity
           feeQuantity = registryObject['fee']?.quantity
           dateTime = new Date(registryObject['in']?.dateTime)
-          priceUSDBTCObject = new web3space.Price().getHistoricalPrice(
-            'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
-            dateTime,
-            dateTime
-          ).reduce((object, value) => {
-            if (!object[value.token_id]) {
-              object[value.token_id] = value
-            }
-            return object
-          }, {})
+         // priceUSDBTCObject = new Price().getHistoricalPrice(
+        //   'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
+        //   dateTime,
+        //   dateTime
+        // ).reduce((object, value) => {
+        //   if (!object[value.token_id]) {
+        //     object[value.token_id] = value;
+        //   }
+        //   return object
+        // }, {});
+        priceUSDBTCObject = {
+          'b460f578-b1ce-950c-287e-dc61d0728e51': {
+            price_close: 0
+          }
+        }
           priceUSDBTC = priceUSDBTCObject['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close
 
           if (directionInKey === new Hash(rowObject.direction).md5) {

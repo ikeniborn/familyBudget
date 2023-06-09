@@ -42,7 +42,7 @@ class Price {
       query: {
         token_id,
       },
-    })?.data
+    })?.data || []
   }
   getHistoricalPrice(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51', from = new Date(), to =new Date() ) {
     const fromFormat = new FormatDate(from).getFormatDate('yyyy-MM-dd')
@@ -54,7 +54,7 @@ class Price {
         from:fromFormat,
         to:toFormat,
       },
-    })?.data
+    })?.data || []
     return array
   }
 }
@@ -75,6 +75,6 @@ class Dimension {
       query: {
         token_id,
       },
-    })?.data
+    })?.data || []
   }
 }
