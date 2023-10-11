@@ -4013,22 +4013,22 @@ class HistoricalPrice {
 
           //* расчет цены потоков
 
-          const priceInFlow = costInFlow / quantityInFlow;
+          const priceInFlow = costInFlow / quantityInFlow || 0;
           const priceOutFlow = costOutFlow / quantityOutFlow || 0;
-          const priceFlowSum =
-            priceInFlow * quantityInFlow + priceOutFlow * quantityOutFlow;
-          const quantityFlowSum = quantityInFlow + quantityOutFlow;
+          const costSum =
+          Math.round((priceInFlow * quantityInFlow + priceOutFlow * quantityOutFlow)/10)*10;
+          const quantitySum = quantityInFlow + quantityOutFlow;
           const historicalPricePriceRestFlow =
-            priceFlowSum / quantityFlowSum || 0;
+            costSum / quantitySum || 0;
 
-          // console.log('priceInFlow', priceInFlow)
-          // console.log('priceOutFlow', priceOutFlow)
-          // console.log('priceFlowSum', priceOutFlow)
-          // console.log('quantityFlow', quantityInFlow + quantityOutFlow)
-          // console.log(
-          //   'historicalPricePriceRestFlow',
-          //   historicalPricePriceRestFlow
-          // )
+          console.log('priceInFlow', priceInFlow);
+          console.log('priceOutFlow', priceOutFlow);
+          console.log('costSum', costSum);
+          console.log('quantitySum', quantitySum);
+          console.log(
+            'historicalPricePriceRestFlow',
+            historicalPricePriceRestFlow
+          );
 
           let priceFlow;
 
