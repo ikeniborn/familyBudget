@@ -2892,7 +2892,7 @@ class Instance {
         muteHttpExceptions: true,
         contentType: 'accept: application/json',
         headers: {
-          'X-API-Key': 'w3s-api-ITVMIXoUJKUHKrte5kIz2TCzVOAZqNPzg1wE5s5VGs4r4Oiv47O5erPY',
+          'X-API-Key': 'w3s-api-8QUmPH9Uq1mXGWCQayKnQaFQawQiDaxtpDi1iC4go3aT1v7ZRq0TGc57',
         },
       },
     });
