@@ -178,7 +178,6 @@ class Flow {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].quantityRest += tx.quantity
-
               if (
                 tx.isOverflow === false &&
                 tx.isHistoricalAveragePrice === false &&

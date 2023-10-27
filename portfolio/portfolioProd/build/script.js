@@ -3657,7 +3657,7 @@ class Transactions {
             outQuantity,
             inQuantity,
             feeQuantity;
-            
+
           const registryObject = newObject[rowObject.registryRowKey];
           registryObject['out']?.symbol;
           registryObject['in']?.symbol;
@@ -3669,21 +3669,21 @@ class Transactions {
           inQuantity = registryObject['in']?.quantity;
           feeQuantity = registryObject['fee']?.quantity;
           new Date(registryObject['in']?.dateTime);
-         // priceUSDBTCObject = new Price().getHistoricalPrice(
-        //   'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
-        //   dateTime,
-        //   dateTime
-        // ).reduce((object, value) => {
-        //   if (!object[value.token_id]) {
-        //     object[value.token_id] = value;
-        //   }
-        //   return object
-        // }, {});
-        priceUSDBTCObject = {
-          'b460f578-b1ce-950c-287e-dc61d0728e51': {
-            price_close: new Symbols().workSheet.object[new Hash('btc').md5]?.price
-          }
-        };
+          // priceUSDBTCObject = new Price().getHistoricalPrice(
+          //   'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
+          //   dateTime,
+          //   dateTime
+          // ).reduce((object, value) => {
+          //   if (!object[value.token_id]) {
+          //     object[value.token_id] = value;
+          //   }
+          //   return object
+          // }, {});
+          priceUSDBTCObject = {
+            'b460f578-b1ce-950c-287e-dc61d0728e51': {
+              price_close: new Symbols().workSheet.object[new Hash('btc').md5]?.price
+            }
+          };
           priceUSDBTC = priceUSDBTCObject['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close;
 
           if (directionInKey === new Hash(rowObject.direction).md5) {
@@ -3834,7 +3834,7 @@ class HistoricalPrice {
             convert
           );
           isHistoricalAveragePrice = false;
-        } 
+        }
         else if (
           sourceKey === '9fcc5acecc1e69fad95aa3fec1b715c6' /*web3space*/
         ) {
@@ -3884,9 +3884,13 @@ class HistoricalPrice {
                   if (directionKey === inKey) {
                     agg.quantityBuyIn += tx.quantity;
                     agg.costBuyIn += tx.cost;
+                    //* Накопление остатков
+                    agg.quantityRest += tx.quantity;
                   } else if (directionKey === outKey) {
                     agg.quantityBuyOut += tx.quantity * -1;
                     agg.costBuyOut += tx.cost * -1;
+                    //* Накопление остатков
+                    agg.quantityRest += tx.quantity;
                   }
                 } else if (
                   operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
@@ -3894,9 +3898,13 @@ class HistoricalPrice {
                   if (directionKey === inKey) {
                     agg.quantitySellIn += tx.quantity;
                     agg.costSellIn += tx.cost;
+                    //* Накопление остатков
+                    agg.quantityRest += tx.quantity;
                   } else if (directionKey === outKey) {
                     agg.quantitySellOut += tx.quantity * -1;
                     agg.costSellOut += tx.cost * -1;
+                    //* Накопление остатков
+                    agg.quantityRest += tx.quantity;
                   }
                 } else if (
                   operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
@@ -3904,6 +3912,8 @@ class HistoricalPrice {
                   if (directionKey === inKey) {
                     agg.quantityRefillIn += tx.quantity;
                     agg.costRefillIn += tx.cost;
+                    //* Накопление остатков
+                    agg.quantityRest += tx.quantity;
                   }
                 } else if (
                   operationKey ===
@@ -3912,6 +3922,8 @@ class HistoricalPrice {
                   if (directionKey === outKey) {
                     agg.quantityWriteOffOut += tx.quantity * -1;
                     agg.costWriteOffOut += tx.cost * -1;
+                    //* Накопление остатков
+                    agg.quantityRest += tx.quantity;
                   }
                 } else if (
                   operationKey ===
@@ -3920,13 +3932,49 @@ class HistoricalPrice {
                   if (directionKey === inKey) {
                     agg.quantityTransferIn += tx.quantity;
                     agg.costTransferIn += tx.cost;
+                    //* Накопление остатков
+                    agg.quantityRest += tx.quantity;
                   } else if (directionKey === outKey) {
                     agg.quantityTransferOut += tx.quantity * -1;
                     agg.costTransferOut += tx.cost * -1;
+                    //* Накопление остатков
+                    agg.quantityRest += tx.quantity;
                   }
                 }
 
                 agg.quantityFlow += tx.quantity;
+
+                //* Накопление остатков
+                if (
+                  agg.operationCount === 0
+                ) {
+                  agg.costRest = tx.cost;
+                  agg.costRestPrev = agg.costRest;
+                  agg.priceRest = tx.cost / tx.quantity;
+                  agg.priceRestPrev = agg.priceRest;
+                } else {
+                  if (
+                    agg.quantityRest > 0
+                  ) {
+                    if (tx.quantity < 0) {
+                      agg.costRest = tx.quantity * agg.priceRestPrev + agg.costRestPrev;
+                    } else {
+                      agg.costRest = tx.cost + agg.costRestPrev;
+                    }
+                    agg.priceRest = agg.costRest / agg.quantityRest || 0;
+                    agg.priceRestPrev =
+                      agg.priceRest || 0;
+                    agg.costRestPrev =
+                      agg.costRest;
+                  } else {
+                    agg.priceRest = 0;
+                    agg.priceRestPrev = 0;
+                    agg.costRestPrev = 0;
+                    agg.costRest = 0;
+                  }
+                }
+
+                agg.operationCount += 1;
 
                 //* расчет точности
                 const precisionArray = tx.quantity.toString().split('.');
@@ -3957,6 +4005,13 @@ class HistoricalPrice {
                 costWriteOffOut: 0,
                 costTransferIn: 0,
                 costTransferOut: 0,
+                quantityRest: 0,
+                costRest: 0,
+                priceRest: 0,
+                quantityRestPrev: 0,
+                costRestPrev: 0,
+                priceRestPrev: 0,
+                operationCount: 0,
               }
             );
 
@@ -4016,19 +4071,22 @@ class HistoricalPrice {
           const priceInFlow = costInFlow / quantityInFlow || 0;
           const priceOutFlow = costOutFlow / quantityOutFlow || 0;
           const costSum =
-          Math.round((priceInFlow * quantityInFlow + priceOutFlow * quantityOutFlow)/10)*10;
+            Math.round((priceInFlow * quantityInFlow + priceOutFlow * quantityOutFlow) / 10) * 10;
           const quantitySum = quantityInFlow + quantityOutFlow;
-          const historicalPricePriceRestFlow =
-            costSum / quantitySum || 0;
+          const historicalPricePriceRestFlow = historicalPriceAgg.priceRest;
+            // costSum / quantitySum || 0
 
-          console.log('priceInFlow', priceInFlow);
-          console.log('priceOutFlow', priceOutFlow);
-          console.log('costSum', costSum);
-          console.log('quantitySum', quantitySum);
-          console.log(
-            'historicalPricePriceRestFlow',
-            historicalPricePriceRestFlow
-          );
+          // console.log('priceInFlow', priceInFlow)
+          // console.log('priceOutFlow', priceOutFlow)
+          // console.log('costSum', costSum)
+          // console.log('quantitySum', quantitySum)
+          // console.log('costRest', historicalPriceAgg.costRest)
+          // console.log('quantityRest', historicalPriceAgg.quantityRest)
+          // console.log('priceRest', historicalPriceAgg.priceRest)
+          // console.log(
+          //   'historicalPricePriceRestFlow',
+          //   historicalPricePriceRestFlow
+          // )
 
           let priceFlow;
 
@@ -5286,7 +5344,6 @@ class Flow {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].quantityRest += tx.quantity;
-
               if (
                 tx.isOverflow === false &&
                 tx.isHistoricalAveragePrice === false &&
