@@ -4087,6 +4087,10 @@ class HistoricalPrice {
           //   'historicalPricePriceRestFlow',
           //   historicalPricePriceRestFlow
           // )
+          // console.log(
+          //   'historicalPricePricFlow',
+          //   costSum / quantitySum || 0
+          // )
 
           let priceFlow;
 
