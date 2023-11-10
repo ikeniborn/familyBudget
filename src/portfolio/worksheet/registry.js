@@ -21,15 +21,15 @@ class Registry {
    */
   getPortfolio(portfolio, symbolCategoryKey) {
     try {
-      if (
-        /*stablecoin*/ 'e5e3fd01394b9a81296b75d5a7f4c1a2' === symbolCategoryKey
-      ) {
-        return 'Stablecoin'
-      } else if (
-        /* fiat */ '7d5f30a0d1641c0b6980aaf2556b32ce' === symbolCategoryKey
-      ) {
-        return 'Fiat'
-      }
+      // if (
+      //   /*stablecoin*/ 'e5e3fd01394b9a81296b75d5a7f4c1a2' === symbolCategoryKey
+      // ) {
+      //   return 'Stablecoin'
+      // } else if (
+      //   /* fiat */ '7d5f30a0d1641c0b6980aaf2556b32ce' === symbolCategoryKey
+      // ) {
+      //   return 'Fiat'
+      // }
       return portfolio
     } catch (error) {
       console.error('Registry.getPortfolio', error.stack)
