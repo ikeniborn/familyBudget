@@ -513,6 +513,14 @@ class Flow {
                     object.costTransferIn) *
                     precisionCoeff
                 ) / precisionCoeff
+              
+                const costIn =
+                Math.round(
+                  (object.costBuyIn +
+                    object.costSellIn +
+                    object.costRefillIn) *
+                    precisionCoeff
+                ) / precisionCoeff
 
               const costOwnInFlow =
                 Math.round(
@@ -531,6 +539,14 @@ class Flow {
                     object.costSellOut +
                     object.costWriteOffOut +
                     object.costTransferOut) *
+                    precisionCoeff
+                ) / precisionCoeff
+
+                const costOut =
+                Math.round(
+                  (object.costBuyOut +
+                    object.costSellOut +
+                    object.costWriteOffOut) *
                     precisionCoeff
                 ) / precisionCoeff
 
@@ -653,6 +669,10 @@ class Flow {
                 costOwnInFlow: costOwnInFlow || 0,
                 costInFlow: costInFlow || 0,
                 costOutFlow: costOutFlow || 0,
+                costIn: costIn || 0,
+                costOut: costOut || 0,
+                costTransferIn:  object.costTransferIn || 0,
+                costTransferOut:  object.costTransferOut || 0,
                 costFlow: costFlow || 0,
                 costRest: object.costRest || 0,
                 cost: cost || 0,

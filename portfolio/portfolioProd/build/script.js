@@ -1831,27 +1831,31 @@ class Portfolio {
           costOwnInFlow: { alias: 'Cost (own in flow), $', idx: 21 },
           costInFlow: { alias: 'Cost (in flow), $', idx: 22 },
           costOutFlow: { alias: 'Cost (out flow), $', idx: 23 },
-          costFlow: { alias: 'Cost (flow), $', idx: 24 },
-          costRest: { alias: 'Cost (rest), $', idx: 25 },
-          cost: { alias: 'Cost, $', idx: 26 },
-          costLock: { alias: 'Cost (lock), $', idx: 27 },
-          costUnlock: { alias: 'Cost (unlock), $', idx: 28 },
-          pnlFlow: { alias: 'PnL (flow), $', idx: 29 },
-          pnlRest: { alias: 'PnL (rest), $', idx: 30 },
-          pnlTotal: { alias: 'PnL (total), $', idx: 31 },
-          payback: { alias: 'Payback, $', idx: 32 },
-          quantityRebalance: { alias: 'Rebalance, qty', idx: 33 },
+          costIn: { alias: 'Cost (in), $', idx: 24 },
+          costOut: { alias: 'Cost (out), $', idx: 25 },
+          costTransferIn: { alias: 'Cost (transfer in), $', idx: 26 },
+          costTransferOut: { alias: 'Cost (transfer out), $', idx: 27 },
+          costFlow: { alias: 'Cost (flow), $', idx: 28 },
+          costRest: { alias: 'Cost (rest), $', idx: 29 },
+          cost: { alias: 'Cost, $', idx: 30 },
+          costLock: { alias: 'Cost (lock), $', idx: 31 },
+          costUnlock: { alias: 'Cost (unlock), $', idx: 32 },
+          pnlFlow: { alias: 'PnL (flow), $', idx: 33 },
+          pnlRest: { alias: 'PnL (rest), $', idx: 34 },
+          pnlTotal: { alias: 'PnL (total), $', idx: 35 },
+          payback: { alias: 'Payback, $', idx: 36 },
+          quantityRebalance: { alias: 'Rebalance, qty', idx: 37 },
           dayInPortfolioAvg: {
             alias: 'Average day in portfolio',
-            idx: 34,
+            idx: 38,
           },
-          isSell: { alias: 'Is sell', idx: 35, default: false },
-          useInReport: { alias: 'Use in report', idx: 36 },
+          isSell: { alias: 'Is sell', idx: 39, default: false },
+          useInReport: { alias: 'Use in report', idx: 40 },
           updateDate: {
             alias: 'Update date',
-            idx: 37,
+            idx: 41,
           },
-          rowId: { alias: 'Row ID', idx: 38, default: 0 },
+          rowId: { alias: 'Row ID', idx: 42, default: 0 },
         },
       },
       flowBalance: {
@@ -5683,6 +5687,14 @@ class Flow {
                     object.costTransferIn) *
                     precisionCoeff
                 ) / precisionCoeff;
+              
+                const costIn =
+                Math.round(
+                  (object.costBuyIn +
+                    object.costSellIn +
+                    object.costRefillIn) *
+                    precisionCoeff
+                ) / precisionCoeff;
 
               const costOwnInFlow =
                 Math.round(
@@ -5701,6 +5713,14 @@ class Flow {
                     object.costSellOut +
                     object.costWriteOffOut +
                     object.costTransferOut) *
+                    precisionCoeff
+                ) / precisionCoeff;
+
+                const costOut =
+                Math.round(
+                  (object.costBuyOut +
+                    object.costSellOut +
+                    object.costWriteOffOut) *
                     precisionCoeff
                 ) / precisionCoeff;
 
@@ -5823,6 +5843,10 @@ class Flow {
                 costOwnInFlow: costOwnInFlow || 0,
                 costInFlow: costInFlow || 0,
                 costOutFlow: costOutFlow || 0,
+                costIn: costIn || 0,
+                costOut: costOut || 0,
+                costTransferIn:  object.costTransferIn || 0,
+                costTransferOut:  object.costTransferOut || 0,
                 costFlow: costFlow || 0,
                 costRest: object.costRest || 0,
                 cost: cost || 0,
