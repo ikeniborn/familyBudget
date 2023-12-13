@@ -1815,55 +1815,53 @@ class Portfolio {
           symbol: { alias: 'Symbol name', idx: 5 },
           symbolFullName: { alias: 'Symbol full name', idx: 6 },
           symbolCategory: { alias: 'Symbol category', idx: 7 },
-          quantityOwnInFlow: { alias: 'Quantity (own in flow)', idx: 8 },
-          quantityInFlow: { alias: 'Quantity (in flow)', idx: 9 },
-          quantityOutFlow: { alias: 'Quantity (out flow)', idx: 10 },
-          quantityFlow: { alias: 'Quantity (flow)', idx: 11 },
+          // quantityOwnInFlow: { alias: 'Quantity (own in flow)', idx: 8 },
+          // quantityInFlow: { alias: 'Quantity (in flow)', idx: 9 },
+          // quantityOutFlow: { alias: 'Quantity (out flow)', idx: 10 },
+          // quantityFlow: { alias: 'Quantity (flow)', idx: 11 },
           quantityRest: { alias: 'Quantity (rest)', idx: 12 },
           quantityLock: { alias: 'Quantity (lock)', idx: 13 },
           quantityUnlock: { alias: 'Quantity (unlock)', idx: 14 },
-          priceOwnInFlow: { alias: 'Price (own in flow), $', idx: 15 },
-          priceInFlow: { alias: 'Price (in flow), $', idx: 16 },
-          priceOutFlow: { alias: 'Price (out flow), $', idx: 17 },
-          priceFlow: { alias: 'Price (flow), $', idx: 18 },
+          // priceOwnInFlow: { alias: 'Price (own in flow), $', idx: 15 },
+          // priceInFlow: { alias: 'Price (in flow), $', idx: 16 },
+          // priceOutFlow: { alias: 'Price (out flow), $', idx: 17 },
+          // priceFlow: { alias: 'Price (flow), $', idx: 18 },
           priceRest: { alias: 'Price (rest), $', idx: 19 },
           price: { alias: 'Price, $', idx: 20 },
-          costOwnInFlow: { alias: 'Cost (own in flow), $', idx: 21 },
-          costInFlow: { alias: 'Cost (in flow), $', idx: 22 },
-          costOutFlow: { alias: 'Cost (out flow), $', idx: 23 },
-          costIn: { alias: 'Cost (in), $', idx: 24 },
-          costOut: { alias: 'Cost (out), $', idx: 25 },
-          costBuyIn: { alias: 'Cost (buy in), $', idx: 26 },
-          costBuyOut: { alias: 'Cost (buy out), $', idx: 27 },
-          costSellIn: { alias: 'Cost (sell in), $', idx: 28 },
-          costSellOut: { alias: 'Cost (sell out), $', idx: 29 },
-          costTransferIn: { alias: 'Cost (transfer in), $', idx: 30 },
-          costTransferOut: { alias: 'Cost (transfer out), $', idx: 31 },
-          costOverflowIn: { alias: 'Cost (overflow in), $', idx: 32 },
-          costOverflowOut: { alias: 'Cost (overflow out), $', idx: 33 },
-          costRefillIn: { alias: 'Cost (refill in), $', idx: 34 },
-          costWriteOffOut: { alias: 'Cost (write-off out), $', idx: 35 },
-          costFlow: { alias: 'Cost (flow), $', idx: 36 },
-          costRest: { alias: 'Cost (rest), $', idx: 37 },
-          cost: { alias: 'Cost, $', idx: 38 },
-          costLock: { alias: 'Cost (lock), $', idx: 39 },
-          costUnlock: { alias: 'Cost (unlock), $', idx: 40 },
-          pnlFlow: { alias: 'PnL (flow), $', idx: 41 },
-          pnlRest: { alias: 'PnL (rest), $', idx: 42 },
-          pnlTotal: { alias: 'PnL (total), $', idx: 43 },
-          payback: { alias: 'Payback, $', idx: 44 },
-          quantityRebalance: { alias: 'Rebalance, qty', idx: 45 },
+          costInvest: { alias: 'Cost (invest), $', idx: 21 },
+          costBuy: { alias: 'Cost (buy), $', idx: 22 },
+          costSell: { alias: 'Cost (sell), $', idx: 23 },
+          // costBuyIn: { alias: 'Cost (buy in), $', idx: 24 },
+          // costBuyOut: { alias: 'Cost (buy out), $', idx: 25 },
+          // costSellIn: { alias: 'Cost (sell in), $', idx: 26 },
+          // costSellOut: { alias: 'Cost (sell out), $', idx: 27 },
+          // costTransferIn: { alias: 'Cost (transfer in), $', idx: 28 },
+          // costTransferOut: { alias: 'Cost (transfer out), $', idx: 29 },
+          // costOverflowIn: { alias: 'Cost (overflow in), $', idx: 30 },
+          // costOverflowOut: { alias: 'Cost (overflow out), $', idx: 31 },
+          costOverflow: { alias: 'Cost (overflow), $', idx: 32 },
+          // costRefillIn: { alias: 'Cost (refill in), $', idx: 33 },
+          // costWriteOffOut: { alias: 'Cost (write-off out), $', idx: 34 },
+          costRest: { alias: 'Cost (rest), $', idx: 35 },
+          cost: { alias: 'Cost, $', idx: 36 },
+          costLock: { alias: 'Cost (lock), $', idx: 37 },
+          costUnlock: { alias: 'Cost (unlock), $', idx: 38 },
+          // costPayback: { alias: 'Cost (payback), $', idx: 42 },
+          pnlRealized: { alias: 'PnL (realized), $', idx: 39 },
+          pnlUnrealized: { alias: 'PnL (unrealized), $', idx: 40 },
+          pnlTotal: { alias: 'PnL (total), $', idx: 41 },
+          quantityRebalance: { alias: 'Rebalance, qty', idx: 43 },
           dayInPortfolioAvg: {
             alias: 'Average day in portfolio',
-            idx: 46,
+            idx: 44,
           },
-          isSell: { alias: 'Is sell', idx: 47, default: false },
-          useInReport: { alias: 'Use in report', idx: 48 },
+          isSell: { alias: 'Is sell', idx: 45, default: false },
+          useInReport: { alias: 'Use in report', idx: 46 },
           updateDate: {
             alias: 'Update date',
-            idx: 49,
+            idx: 47,
           },
-          rowId: { alias: 'Row ID', idx: 50, default: 0 },
+          rowId: { alias: 'Row ID', idx: 48, default: 0 },
         },
       },
       flowBalance: {
@@ -2205,7 +2203,7 @@ class Portfolio {
 //     costRestUnlock: { alias: 'Cost rest unlock', idx: 19 },
 //     pnlTotal: { alias: 'PnL total', idx: 20 },
 //     pnlRest: { alias: 'PnL rest', idx: 21 },
-//     payback: { alias: 'Payback', idx: 22 },
+//     costPayback: { alias: 'Payback', idx: 22 },
 //     dayInPortfolioAvg: {
 //       alias: 'Day in Portfolio (avg)',
 //       idx: 23,
@@ -5304,22 +5302,6 @@ class Flow {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].quantityRest += tx.quantity;
-              if (
-                tx.isOverflow === false &&
-                tx.isHistoricalAveragePrice === false &&
-                tx.isAvgPrice === true &&
-                tx.isFee === false
-              ) {
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].quantityOwnBuyIn += tx.quantity;
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].costOwnBuyIn += tx.cost;
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].dayInPortfolioOwnBuyInSum += dayInPortfolio * tx.quantity;
-              }
             } else if (directionKey === outKey) {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
@@ -5341,23 +5323,6 @@ class Flow {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].quantityRest += tx.quantity;
-              if (
-                tx.isOverflow === false &&
-                tx.isHistoricalAveragePrice === false &&
-                tx.isAvgPrice === true &&
-                tx.isFee === false
-              ) {
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].quantityOwnBuyOut += tx.quantity * -1;
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].costOwnBuyOut += tx.cost * -1;
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].dayInPortfolioOwnBuyOutSum +=
-                  dayInPortfolio * tx.quantity * -1;
-              }
             }
           } else if (
             operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
@@ -5383,22 +5348,6 @@ class Flow {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].quantityRest += tx.quantity;
-              if (
-                tx.isOverflow === false &&
-                tx.isHistoricalAveragePrice === false &&
-                tx.isAvgPrice === true &&
-                tx.isFee === false
-              ) {
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].quantityOwnSellIn += tx.quantity;
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].costOwnSellIn += tx.cost;
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].dayInPortfolioOwnSellInSum += dayInPortfolio * tx.quantity;
-              }
             } else if (directionKey === outKey) {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
@@ -5421,23 +5370,6 @@ class Flow {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].quantityRest += tx.quantity;
-              if (
-                tx.isOverflow === false &&
-                tx.isHistoricalAveragePrice === false &&
-                tx.isAvgPrice === true &&
-                tx.isFee === false
-              ) {
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].quantityOwnSellOut += tx.quantity * -1;
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].costOwnSellOut += tx.cost * -1;
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].dayInPortfolioOwnSellOutSum +=
-                  dayInPortfolio * tx.quantity * -1;
-              }
             }
           } else if (
             operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
@@ -5717,17 +5649,32 @@ class Flow {
               const costLock = price * quantityLock;
               const costUnlock = price * quantityUnlock;
 
-              //* расчет потоков
-              const costInFlow =
+              const costOverflow =
                 Math.round(
-                  (object.costBuyIn +
-                    object.costSellIn +
-                    object.costRefillIn +
-                    object.costTransferIn) *
+                  (object.costOverflowIn - object.costOverflowOut) *
                   precisionCoeff
                 ) / precisionCoeff;
 
-              const costIn =
+              let costOverflowBuy = 0;
+              let costOverflowSell = 0;
+
+              if (costOverflow > 0) {
+                costOverflowBuy += costOverflow;
+              } else {
+                costOverflowSell += costOverflow;
+              }
+
+              //* расчет потоков
+              // const costInFlow =
+              //   Math.round(
+              //     (object.costBuyIn +
+              //       object.costSellIn +
+              //       object.costRefillIn +
+              //       object.costTransferIn) *
+              //     precisionCoeff
+              //   ) / precisionCoeff
+
+              const costBuy =
                 Math.round(
                   (object.costBuyIn +
                     object.costSellIn +
@@ -5735,27 +5682,27 @@ class Flow {
                   precisionCoeff
                 ) / precisionCoeff;
 
-              const costOwnInFlow =
-                Math.round(
-                  (object.costOwnBuyIn + object.costOwnSellIn) * precisionCoeff
-                ) / precisionCoeff;
+              // const costOwnInFlow =
+              //   Math.round(
+              //     (object.costOwnBuyIn + object.costOwnSellIn) * precisionCoeff
+              //   ) / precisionCoeff
 
-              const costOwnOutFlow =
-                Math.round(
-                  (object.costOwnBuyOut + object.costOwnSellOut) *
-                  precisionCoeff
-                ) / precisionCoeff;
+              // const costOwnOutFlow =
+              //   Math.round(
+              //     (object.costOwnBuyOut + object.costOwnSellOut) *
+              //     precisionCoeff
+              //   ) / precisionCoeff
 
-              const costOutFlow =
-                Math.round(
-                  (object.costBuyOut +
-                    object.costSellOut +
-                    object.costWriteOffOut +
-                    object.costTransferOut) *
-                  precisionCoeff
-                ) / precisionCoeff;
+              // const costOutFlow =
+              //   Math.round(
+              //     (object.costBuyOut +
+              //       object.costSellOut +
+              //       object.costWriteOffOut +
+              //       object.costTransferOut) *
+              //     precisionCoeff
+              //   ) / precisionCoeff
 
-              const costOut =
+              const costSell =
                 Math.round(
                   (object.costBuyOut +
                     object.costSellOut +
@@ -5763,41 +5710,52 @@ class Flow {
                   precisionCoeff
                 ) / precisionCoeff;
 
-              const quantityInFlow =
-                Math.round(
-                  (object.quantityBuyIn +
-                    object.quantitySellIn +
-                    object.quantityRefillIn +
-                    object.quantityTransferIn) *
+              let costInvest = 0;
+              if ((costBuy - costSell + costOverflowBuy) > 0) {
+                costInvest += Math.round(
+                  (costBuy -
+                    costSell +
+                    costOverflowBuy
+                  ) *
                   precisionCoeff
                 ) / precisionCoeff;
+              }
 
-              const quantityOwnInFlow =
-                Math.round(
-                  (object.quantityOwnBuyIn + object.quantityOwnSellIn) *
-                  precisionCoeff
-                ) / precisionCoeff;
+              // const quantityInFlow =
+              //   Math.round(
+              //     (object.quantityBuyIn +
+              //       object.quantitySellIn +
+              //       object.quantityRefillIn +
+              //       object.quantityTransferIn) *
+              //     precisionCoeff
+              //   ) / precisionCoeff
 
-              const quantityOutFlow =
-                Math.round(
-                  (object.quantityBuyOut +
-                    object.quantitySellOut +
-                    object.quantityWriteOffOut +
-                    object.quantityTransferOut) *
-                  precisionCoeff
-                ) / precisionCoeff;
+              // const quantityOwnInFlow =
+              //   Math.round(
+              //     (object.quantityOwnBuyIn + object.quantityOwnSellIn) *
+              //     precisionCoeff
+              //   ) / precisionCoeff
+
+              // const quantityOutFlow =
+              //   Math.round(
+              //     (object.quantityBuyOut +
+              //       object.quantitySellOut +
+              //       object.quantityWriteOffOut +
+              //       object.quantityTransferOut) *
+              //     precisionCoeff
+              //   ) / precisionCoeff
 
               //* расчет цены потоков
 
-              const priceInFlow = costInFlow / quantityInFlow || 0;
-              const priceOwnInFlow = costOwnInFlow / quantityOwnInFlow || 0;
-              const priceOutFlow = costOutFlow / quantityOutFlow || 0;
-              const priceFlowSum =
-                priceInFlow * quantityInFlow + priceOutFlow * quantityOutFlow;
-              const quantityFlowSum = quantityInFlow + quantityOutFlow;
-              const priceFlow = priceFlowSum / quantityFlowSum || 0;
-              const costFlow =
-                Math.round(priceFlow * quantityFlow * 100) / 100 || 0;
+              // const priceInFlow = costInFlow / quantityInFlow || 0
+              // const priceOwnInFlow = costOwnInFlow / quantityOwnInFlow || 0
+              // const priceOutFlow = costOutFlow / quantityOutFlow || 0
+              // const priceFlowSum =
+              //   priceInFlow * quantityInFlow + priceOutFlow * quantityOutFlow
+              // const quantityFlowSum = quantityInFlow + quantityOutFlow
+              // const priceFlow = priceFlowSum / quantityFlowSum || 0
+              // const costFlow =
+              // Math.round(priceFlow * quantityFlow * 100) / 100 || 0
 
               // if (
               //   new Hash(contractor).md5 === new Hash('TREZOR').md5 &&
@@ -5842,20 +5800,42 @@ class Flow {
 
               let quantityRebalance;
               if (price) {
-                const changePriceCoef = price / priceFlow;
+                const changePriceCoef = price / object.priceRest;
                 let priceRebalance =
-                  price + (priceFlow - price) * changePriceCoef;
+                  price + (object.priceRest - price) * changePriceCoef;
                 if (priceRebalance < 0) {
                   priceRebalance = 0;
                 }
                 quantityRebalance =
-                  (quantityFlow * (priceFlow - priceRebalance)) /
+                  (quantityFlow * (object.priceRest - priceRebalance)) /
                   (priceRebalance - price);
               } else {
                 quantityRebalance = 0;
               }
 
-              const payback = costOwnOutFlow - costOwnInFlow;
+
+              const pnlRealized =
+                Math.round(
+                  (costSell - costBuy) *
+                  precisionCoeff
+                ) / precisionCoeff;
+
+              const pnlUnrealized =
+                Math.round(
+                  (cost - object.costRest) *
+                  precisionCoeff
+                ) / precisionCoeff;
+
+              const pnlTotal =
+                Math.round(
+                  (pnlRealized + pnlUnrealized) *
+                  precisionCoeff
+                ) / precisionCoeff;
+
+              // const costPayback =
+              //   Math.round((pnlRealized - costInvest) *
+              //     precisionCoeff
+              //   ) / precisionCoeff
 
               aggFlowArrayOfObject.push({
                 account: account.toUpperCase(),
@@ -5866,44 +5846,42 @@ class Flow {
                 symbol: symbol.toUpperCase(),
                 symbolFullName: symbolFullName.toUpperCase(),
                 symbolCategory: symbolCategory.toUpperCase(),
-                quantityOwnInFlow: quantityOwnInFlow || 0,
-                quantityInFlow: quantityInFlow || 0,
-                quantityOutFlow: quantityOutFlow || 0,
-                quantityFlow: quantityFlow || 0,
+                // quantityOwnInFlow: quantityOwnInFlow || 0,
+                // quantityInFlow: quantityInFlow || 0,
+                // quantityOutFlow: quantityOutFlow || 0,
+                // quantityFlow: quantityFlow || 0,
                 quantityRest: object.quantityRest || 0,
                 quantityLock: quantityLock || 0,
                 quantityUnlock: quantityUnlock || 0,
-                priceOwnInFlow: priceOwnInFlow || 0,
-                priceInFlow: priceInFlow || 0,
-                priceOutFlow: priceOutFlow || 0,
-                priceFlow: priceFlow || 0,
+                // priceOwnInFlow: priceOwnInFlow || 0,
+                // priceInFlow: priceInFlow || 0,
+                // priceOutFlow: priceOutFlow || 0,
+                // priceFlow: priceFlow || 0,
                 priceRest: object.priceRest || 0,
                 price: price || 0,
-                costOwnInFlow: costOwnInFlow || 0,
-                costInFlow: costInFlow || 0,
-                costOutFlow: costOutFlow || 0,
-                costIn: costIn || 0,
-                costOut: costOut || 0,
-                costBuyIn: object.costBuyIn || 0,
-                costBuyOut: object.costBuyOut || 0,
-                costSellIn: object.costSellIn || 0,
-                costSellOut: object.costSellOut || 0,
-                costTransferIn: object.costTransferIn || 0,
-                costTransferOut: object.costTransferOut || 0,
-                costOverflowIn: object.costOverflowIn || 0,
-                costOverflowOut: object.costOverflowOut || 0,
-                costRefillIn: object.costRefillIn || 0,
-                costWriteOffOut: object.costWriteOffOut || 0,
-                costFlow: costFlow || 0,
+                costInvest: costInvest || 0,
+                costBuy: costBuy || 0,
+                costSell: costSell || 0,
+                // costBuyIn: object.costBuyIn || 0,
+                // costBuyOut: object.costBuyOut || 0,
+                // costSellIn: object.costSellIn || 0,
+                // costSellOut: object.costSellOut || 0,
+                // costTransferIn: object.costTransferIn || 0,
+                // costTransferOut: object.costTransferOut || 0,
+                // costOverflowIn: object.costOverflowIn || 0,
+                // costOverflowOut: object.costOverflowOut || 0,
+                costOverflow: costOverflow || 0,
+                // costRefillIn: object.costRefillIn || 0,
+                // costWriteOffOut: object.costWriteOffOut || 0,
                 costRest: object.costRest || 0,
                 cost: cost || 0,
                 costLock: costLock || 0,
                 costUnlock: costUnlock || 0,
-                pnlFlow: cost - costFlow || 0,
-                pnlRest: cost - object.costRest || 0,
-                pnlTotal: costOutFlow + cost - costInFlow || 0,
+                pnlRealized: pnlRealized || 0,
+                pnlUnrealized: pnlUnrealized || 0,
+                pnlTotal: pnlTotal || 0,
                 quantityRebalance: quantityRebalance || 0,
-                payback: payback || 0,
+                // costPayback: costPayback || 0,
                 dayInPortfolioAvg,
                 isSell: false,
                 useInReport: useInReport,
