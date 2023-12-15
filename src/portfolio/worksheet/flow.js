@@ -47,29 +47,24 @@ class Flow {
 
           if (!agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]) {
             agg[tx.account][tx.portfolio][tx.contractor][tx.symbol] = {
-              quantityOwnBuyIn: 0,
               quantityBuyIn: 0,
-              quantityOwnBuyOut: 0,
               quantityBuyOut: 0,
-              quantityOwnSellIn: 0,
               quantitySellIn: 0,
-              quantityOwnSellOut: 0,
               quantitySellOut: 0,
               quantityRefillIn: 0,
               quantityWriteOffOut: 0,
               quantityTransferIn: 0,
               quantityTransferOut: 0,
-              quantityFlow: 0,
+              quantityOverflowIn: 0,
+              quantityOverflowOut: 0,
               quantityLock: 0,
               quantityUnlock: 0,
+              quantityRest: 0,
+              quantityRestPrev: 0,
               precision: 0,
-              costOwnBuyIn: 0,
               costBuyIn: 0,
-              costOwnBuyOut: 0,
               costBuyOut: 0,
-              costOwnSellIn: 0,
               costSellIn: 0,
-              costOwnSellOut: 0,
               costSellOut: 0,
               costRefillIn: 0,
               costWriteOffOut: 0,
@@ -77,43 +72,41 @@ class Flow {
               costTransferOut: 0,
               costOverflowIn: 0,
               costOverflowOut: 0,
-              dayInPortfolioOwnBuyInSum: 0,
+              costRest: 0,
+              costRestPrev: 0,
               dayInPortfolioBuyInSum: 0,
-              dayInPortfolioOwnBuyOutSum: 0,
               dayInPortfolioBuyOutSum: 0,
-              dayInPortfolioOwnSellOutSum: 0,
               dayInPortfolioSellOutSum: 0,
-              dayInPortfolioOwnSellInSum: 0,
               dayInPortfolioSellInSum: 0,
               dayInPortfolioRefillInSum: 0,
               dayInPortfolioWriteOffOutSum: 0,
               dayInPortfolioTransferInSum: 0,
               dayInPortfolioTransferOutSum: 0,
-              quantityRest: 0,
-              costRest: 0,
               priceRest: 0,
-              quantityRestPrev: 0,
-              costRestPrev: 0,
               priceRestPrev: 0,
               operationCount: 0,
+              pnlRealized: 0
             }
           }
           //* Распределение количества по потокам
 
           if (operationKey === '0461ebd2b773878eac9f78a891912d65' /*buy*/) {
             if (directionKey === inKey) {
-              agg[tx.account][tx.portfolio][tx.contractor][
-                tx.symbol
-              ].quantityBuyIn += tx.quantity
-              agg[tx.account][tx.portfolio][tx.contractor][
-                tx.symbol
-              ].dayInPortfolioBuyInSum += dayInPortfolio * tx.quantity
               if (tx.isOverflow === true) {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityOverflowIn += tx.quantity
                 agg[tx.account][tx.portfolio][tx.contractor][
                   tx.symbol
                 ].costOverflowIn += tx.cost
               }
               else {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityBuyIn += tx.quantity
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].dayInPortfolioBuyInSum += dayInPortfolio * tx.quantity
                 agg[tx.account][tx.portfolio][tx.contractor][
                   tx.symbol
                 ].costBuyIn += tx.cost
@@ -123,18 +116,21 @@ class Flow {
                 tx.symbol
               ].quantityRest += tx.quantity
             } else if (directionKey === outKey) {
-              agg[tx.account][tx.portfolio][tx.contractor][
-                tx.symbol
-              ].quantityBuyOut += tx.quantity * -1
-              agg[tx.account][tx.portfolio][tx.contractor][
-                tx.symbol
-              ].dayInPortfolioBuyOutSum += dayInPortfolio * tx.quantity * -1
               if (tx.isOverflow === true) {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityOverflowOut += tx.quantity * -1
                 agg[tx.account][tx.portfolio][tx.contractor][
                   tx.symbol
                 ].costOverflowOut += tx.cost * -1
               }
               else {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityBuyOut += tx.quantity * -1
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].dayInPortfolioBuyOutSum += dayInPortfolio * tx.quantity * -1
                 agg[tx.account][tx.portfolio][tx.contractor][
                   tx.symbol
                 ].costBuyOut += tx.cost * -1
@@ -148,18 +144,21 @@ class Flow {
             operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
           ) {
             if (directionKey === inKey) {
-              agg[tx.account][tx.portfolio][tx.contractor][
-                tx.symbol
-              ].quantitySellIn += tx.quantity
-              agg[tx.account][tx.portfolio][tx.contractor][
-                tx.symbol
-              ].dayInPortfolioSellInSum += dayInPortfolio * tx.quantity
               if (tx.isOverflow === true) {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityOverflowIn += tx.quantity
                 agg[tx.account][tx.portfolio][tx.contractor][
                   tx.symbol
                 ].costOverflowIn += tx.cost
               }
               else {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantitySellIn += tx.quantity
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].dayInPortfolioSellInSum += dayInPortfolio * tx.quantity
                 agg[tx.account][tx.portfolio][tx.contractor][
                   tx.symbol
                 ].costSellIn += tx.cost
@@ -169,19 +168,21 @@ class Flow {
                 tx.symbol
               ].quantityRest += tx.quantity
             } else if (directionKey === outKey) {
-              agg[tx.account][tx.portfolio][tx.contractor][
-                tx.symbol
-              ].quantitySellOut += tx.quantity * -1
-
-              agg[tx.account][tx.portfolio][tx.contractor][
-                tx.symbol
-              ].dayInPortfolioSellOutSum += dayInPortfolio * tx.quantity * -1
               if (tx.isOverflow === true) {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityOverflowOut += tx.quantity * -1
                 agg[tx.account][tx.portfolio][tx.contractor][
                   tx.symbol
                 ].costOverflowOut += tx.cost * -1
               }
               else {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantitySellOut += tx.quantity * -1
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].dayInPortfolioSellOutSum += dayInPortfolio * tx.quantity * -1
                 agg[tx.account][tx.portfolio][tx.contractor][
                   tx.symbol
                 ].costSellOut += tx.cost * -1
@@ -262,7 +263,7 @@ class Flow {
               ].quantityRest += tx.quantity
             }
           }
-
+          //* Блокировки 
           if (tx.isLock) {
             agg[tx.account][tx.portfolio][tx.contractor][
               tx.symbol
@@ -296,10 +297,6 @@ class Flow {
               tx.symbol
             ].precision = 6
           }
-
-          agg[tx.account][tx.portfolio][tx.contractor][
-            tx.symbol
-          ].quantityFlow += tx.quantity
 
           //* Накопление остатков
           if (
@@ -378,13 +375,28 @@ class Flow {
             }
           }
 
+          if (
+            operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
+          ) {
+            if (directionKey === outKey) {
+              if (tx.isOverflow === false) {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].pnlRealized += 
+                (tx.cost * -1) - 
+                agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].priceRest * 
+                (tx.quantity * -1)
+              }
+            }
+          }
+
           agg[tx.account][tx.portfolio][tx.contractor][
             tx.symbol
           ].operationCount += 1
 
           // if (
-          //   new Hash(tx.account).md5 === new Hash('mskippy').md5 &&
-          //   new Hash(tx.symbol).md5 === new Hash('op').md5
+          //   new Hash(tx.account).md5 === new Hash('ikeniborn').md5 &&
+          //   new Hash(tx.symbol).md5 === new Hash('eq').md5
           // ) {
           //   console.log(
           //     tx.account,
@@ -425,6 +437,11 @@ class Flow {
           //     agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
           //       .costRestPrev
           //   )
+          //   console.log(
+          //     'pnlRealized',
+          //     agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+          //       .pnlRealized
+          //   )
           // }
 
           return agg
@@ -455,19 +472,23 @@ class Flow {
               precisionCoeff = precisionCoeff * 1
 
               //* стоимость остатка исторического
-              const quantityFlow =
-                Math.round(object.quantityFlow * precisionCoeff) /
+              let quantityRest = 0
+              let quantityLock = 0
+              let quantityUnlock = 0
+
+              // if (object.quantityRest > 0) {
+              quantityRest = Math.round(object.quantityRest * precisionCoeff) /
                 precisionCoeff
-              const quantityLock =
-                Math.round(object.quantityLock * precisionCoeff) /
+              quantityLock = Math.round(object.quantityLock * precisionCoeff) /
                 precisionCoeff
-              const quantityUnlock =
-                Math.round(object.quantityUnlock * precisionCoeff) /
+              quantityUnlock = Math.round(object.quantityUnlock * precisionCoeff) /
                 precisionCoeff
-              const price = symbols[symbolKey]?.price || 0
-              const cost = Math.round(price * quantityFlow * 100) / 100 || 0
-              const costLock = price * quantityLock
-              const costUnlock = price * quantityUnlock
+              // }
+
+              const priceLast = symbols[symbolKey]?.price || 0
+              const costLast = Math.round(priceLast * quantityRest * 100) / 100 || 0
+              const costLock = priceLast * quantityLock
+              const costUnlock = priceLast * quantityUnlock
 
               const costOverflow =
                 Math.round(
@@ -475,124 +496,114 @@ class Flow {
                   precisionCoeff
                 ) / precisionCoeff
 
-              let costOverflowBuy = 0
-              let costOverflowSell = 0
+              // let costOverflowBuy = 0
+              // let costOverflowSell = 0
 
-              if (costOverflow > 0) {
-                costOverflowBuy += costOverflow
-              } else {
-                costOverflowSell += costOverflow
-              }
-
-              //* расчет потоков
-              // const costInFlow =
-              //   Math.round(
-              //     (object.costBuyIn +
-              //       object.costSellIn +
-              //       object.costRefillIn +
-              //       object.costTransferIn) *
-              //     precisionCoeff
-              //   ) / precisionCoeff
+              // if (costOverflow > 0) {
+              //   costOverflowBuy += costOverflow
+              // } else {
+              //   costOverflowSell += costOverflow
+              // }
 
               const costBuy =
                 Math.round(
                   (object.costBuyIn +
                     object.costSellIn +
-                    object.costRefillIn) *
+                    object.costRefillIn
+                  ) *
                   precisionCoeff
                 ) / precisionCoeff
 
-              // const costOwnInFlow =
-              //   Math.round(
-              //     (object.costOwnBuyIn + object.costOwnSellIn) * precisionCoeff
-              //   ) / precisionCoeff
-
-              // const costOwnOutFlow =
-              //   Math.round(
-              //     (object.costOwnBuyOut + object.costOwnSellOut) *
-              //     precisionCoeff
-              //   ) / precisionCoeff
-
-              // const costOutFlow =
-              //   Math.round(
-              //     (object.costBuyOut +
-              //       object.costSellOut +
-              //       object.costWriteOffOut +
-              //       object.costTransferOut) *
-              //     precisionCoeff
-              //   ) / precisionCoeff
 
               const costSell =
                 Math.round(
                   (object.costBuyOut +
                     object.costSellOut +
-                    object.costWriteOffOut) *
-                  precisionCoeff
-                ) / precisionCoeff
-
-              let costInvest = 0
-              if ((costBuy - costSell + costOverflowBuy) > 0) {
-                costInvest += Math.round(
-                  (costBuy -
-                    costSell +
-                    costOverflowBuy
+                    object.costWriteOffOut
                   ) *
                   precisionCoeff
                 ) / precisionCoeff
-              }
 
-              // const quantityInFlow =
+              const costTransfer =
+                Math.round(
+                  (object.costTransferIn -
+                    object.costTransferOut
+                  ) *
+                  precisionCoeff
+                ) / precisionCoeff
+
+              const costInvest =
+                Math.round(
+                  (costBuy -
+                    costSell +
+                    costTransfer +
+                    costOverflow
+                  ) *
+                  precisionCoeff
+                ) / precisionCoeff
+
+              // const costIn =
               //   Math.round(
-              //     (object.quantityBuyIn +
-              //       object.quantitySellIn +
-              //       object.quantityRefillIn +
-              //       object.quantityTransferIn) *
+              //     (costBuy +
+              //       object.costTransferIn +
+              //       object.costOverflowIn
+              //     ) *
               //     precisionCoeff
               //   ) / precisionCoeff
 
-              // const quantityOwnInFlow =
+              // const costOut =
               //   Math.round(
-              //     (object.quantityOwnBuyIn + object.quantityOwnSellIn) *
+              //     (costSell +
+              //       object.costTransferOut +
+              //       object.costOverflowOut
+              //     ) *
               //     precisionCoeff
               //   ) / precisionCoeff
 
-              // const quantityOutFlow =
-              //   Math.round(
-              //     (object.quantityBuyOut +
-              //       object.quantitySellOut +
-              //       object.quantityWriteOffOut +
-              //       object.quantityTransferOut) *
-              //     precisionCoeff
-              //   ) / precisionCoeff
+              //* количество 
 
-              //* расчет цены потоков
+              // const quantityIn =
+              //   object.quantityBuyIn +
+              //   object.quantitySellIn +
+              //   object.quantityRefillIn +
+              //   object.quantityTransferIn +
+              //   object.quantityOverflowIn
 
-              // const priceInFlow = costInFlow / quantityInFlow || 0
-              // const priceOwnInFlow = costOwnInFlow / quantityOwnInFlow || 0
-              // const priceOutFlow = costOutFlow / quantityOutFlow || 0
-              // const priceFlowSum =
-              //   priceInFlow * quantityInFlow + priceOutFlow * quantityOutFlow
-              // const quantityFlowSum = quantityInFlow + quantityOutFlow
-              // const priceFlow = priceFlowSum / quantityFlowSum || 0
-              // const costFlow =
-              // Math.round(priceFlow * quantityFlow * 100) / 100 || 0
+              // const quantityBuy =
+              //   object.quantityBuyIn +
+              //   object.quantitySellIn +
+              //   object.quantityRefillIn
 
-              // if (
-              //   new Hash(contractor).md5 === new Hash('TREZOR').md5 &&
-              //   new Hash(symbol).md5 === new Hash('ETH').md5 &&
-              //   new Hash(account).md5 === new Hash('IKENIBORN (LONG-TERM)').md5
-              // ) {
-              //   console.log(account, contractor, symbol)
-              //   console.log('costInFlow', costInFlow)
-              //   console.log('quantityInFlow', quantityInFlow)
-              //   console.log('costOutFlow', costOutFlow)
-              //   console.log('quantityOutFlow', quantityOutFlow)
-              //   console.log('priceFlowSum', priceFlowSum)
-              //   console.log('precisionCoeff', precisionCoeff)
-              //   console.log('quantityFlow', quantityFlow)
-              //   console.log('priceFlow', priceFlow)
-              //   console.log('costFlow', costFlow)
-              // }
+
+              // const quantityOut =
+              //   object.quantityBuyOut +
+              //   object.quantitySellOut +
+              //   object.quantityWriteOffOut +
+              //   object.quantityTransferOut +
+              //   object.quantityOverflowOut
+
+              // const quantityTransfer =
+              //   object.quantityTransferIn -
+              //   object.quantityTransferOut
+
+              const quantityOverflow =
+                object.quantityOverflowIn -
+                object.quantityOverflowOut
+
+              // const quantitySell =
+              //   object.quantityBuyOut +
+              //   object.quantitySellOut +
+              //   object.quantityWriteOffOut
+
+
+              // //* цены
+              // const priceIn =
+              //   costIn / quantityIn
+
+              // const priceOut =
+              //   costOut / quantityOut
+
+
 
               //* Расчет среднего времени в портфеле
 
@@ -616,46 +627,58 @@ class Flow {
                   object.quantityTransferOut ||
                   0
                 )
+
               //* Количество на ребалансировки от изменения цены
 
               let quantityRebalance
-              if (price) {
-                const changePriceCoef = price / object.priceRest
+              if (priceLast) {
+                const changePriceCoef = priceLast / object.priceRest
                 let priceRebalance =
-                  price + (object.priceRest - price) * changePriceCoef
+                  priceLast + (object.priceRest - priceLast) * changePriceCoef
                 if (priceRebalance < 0) {
                   priceRebalance = 0
                 }
                 quantityRebalance =
-                  (quantityFlow * (object.priceRest - priceRebalance)) /
-                  (priceRebalance - price)
+                  (quantityRest * (object.priceRest - priceRebalance)) /
+                  (priceRebalance - priceLast)
               } else {
                 quantityRebalance = 0
               }
 
-
               const pnlRealized =
                 Math.round(
-                  (costSell - costBuy) *
+                  object.pnlRealized *
                   precisionCoeff
                 ) / precisionCoeff
 
               const pnlUnrealized =
                 Math.round(
-                  (cost - object.costRest) *
+                  (costLast - object.costRest) *
                   precisionCoeff
                 ) / precisionCoeff
 
-              const pnlTotal =
-                Math.round(
-                  (pnlRealized + pnlUnrealized) *
-                  precisionCoeff
-                ) / precisionCoeff
+              const pnlTotal = pnlRealized + pnlUnrealized
 
-              // const costPayback =
-              //   Math.round((pnlRealized - costInvest) *
-              //     precisionCoeff
-              //   ) / precisionCoeff
+              //    if (
+              //   // new Hash(contractor).md5 === new Hash('TREZOR').md5 &&
+              //   new Hash(symbol).md5 === new Hash('BTC').md5 &&
+              //   new Hash(account).md5 === new Hash('TORRIH').md5
+              // ) {
+              //   console.log(account, contractor, symbol)
+              //   console.log('object.quantityBuyIn', object.quantityBuyIn)
+              //   console.log('object.quantitySellIn', object.quantitySellIn)
+              //   console.log('object.quantityRefillIn', object.quantityRefillIn)
+              //   console.log('object.quantityTransferIn', object.quantityTransferIn)
+              //   console.log('object.quantityOverflowIn', object.quantityOverflowIn)
+              //   console.log('object.quantityBuyOut', object.quantityBuyOut)
+              //   console.log('object.quantitySellOut', object.quantitySellOut)
+              //   console.log('object.quantityWriteOffOut', object.quantityWriteOffOut)
+              //   console.log('object.quantityTransferOut', object.quantityTransferOut)
+              //   console.log('object.quantityOverflowOut', object.quantityOverflowOut)
+              //   console.log('quantityIn', quantityIn)
+              //   console.log('quantityOut', quantityOut)
+              //   console.log('quantityRest', quantityRest)
+              // }
 
               aggFlowArrayOfObject.push({
                 account: account.toUpperCase(),
@@ -666,45 +689,50 @@ class Flow {
                 symbol: symbol.toUpperCase(),
                 symbolFullName: symbolFullName.toUpperCase(),
                 symbolCategory: symbolCategory.toUpperCase(),
-                // quantityOwnInFlow: quantityOwnInFlow || 0,
-                // quantityInFlow: quantityInFlow || 0,
-                // quantityOutFlow: quantityOutFlow || 0,
-                // quantityFlow: quantityFlow || 0,
-                quantityRest: object.quantityRest || 0,
+                // quantityBuy: quantityBuy || 0,
+                // quantitySell: quantitySell || 0,
+                // quantityTransfer: quantityTransfer || 0,
+                quantityOverflow: quantityOverflow || 0,
+                // quantitySell: quantitySell || 0,
+                // quantityIn: quantityIn || 0,
+                // quantityOut: quantityOut || 0,
+                // quantityIn: quantityIn || 0,
+                // quantityOut: quantityOut || 0,
+                quantityRest: quantityRest || 0,
                 quantityLock: quantityLock || 0,
                 quantityUnlock: quantityUnlock || 0,
-                // priceOwnInFlow: priceOwnInFlow || 0,
-                // priceInFlow: priceInFlow || 0,
-                // priceOutFlow: priceOutFlow || 0,
-                // priceFlow: priceFlow || 0,
+                // priceIn: priceIn || 0,
+                // priceOut: priceOut || 0,
                 priceRest: object.priceRest || 0,
-                price: price || 0,
-                costInvest: costInvest || 0,
-                costBuy: costBuy || 0,
-                costSell: costSell || 0,
+                priceLast: priceLast || 0,
+                // costBuy: costBuy || 0,
+                // costSell: costSell || 0,
                 // costBuyIn: object.costBuyIn || 0,
                 // costBuyOut: object.costBuyOut || 0,
+                // costRefillIn: object.costRefillIn || 0,
                 // costSellIn: object.costSellIn || 0,
                 // costSellOut: object.costSellOut || 0,
+                // costWriteOffOut: object.costWriteOffOut || 0,
                 // costTransferIn: object.costTransferIn || 0,
                 // costTransferOut: object.costTransferOut || 0,
+                // costTransfer: costTransfer || 0,
                 // costOverflowIn: object.costOverflowIn || 0,
                 // costOverflowOut: object.costOverflowOut || 0,
                 costOverflow: costOverflow || 0,
-                // costRefillIn: object.costRefillIn || 0,
-                // costWriteOffOut: object.costWriteOffOut || 0,
+                // costIn: costIn || 0,
+                // costOut: costOut || 0,
+                costInvest: costInvest || 0,
                 costRest: object.costRest || 0,
-                cost: cost || 0,
+                costLast: costLast || 0,
                 costLock: costLock || 0,
                 costUnlock: costUnlock || 0,
                 pnlRealized: pnlRealized || 0,
                 pnlUnrealized: pnlUnrealized || 0,
                 pnlTotal: pnlTotal || 0,
                 quantityRebalance: quantityRebalance || 0,
-                // costPayback: costPayback || 0,
                 dayInPortfolioAvg,
                 isSell: false,
-                useInReport: useInReport,
+                useInReport: useInReport || false,
                 updateDate: updateDate.getFormatDate('yyyy-MM-dd HH:mm'),
               })
             })
@@ -720,15 +748,15 @@ class Flow {
           }
           if (!symbolQuantityFlow[rowFlow.account][rowFlow.symbol]) {
             symbolQuantityFlow[rowFlow.account][rowFlow.symbol] = {
-              quantityFlow: 0,
-              costFlow: 0,
+              quantityRest: 0,
+              costRest: 0,
             }
           }
-          symbolQuantityFlow[rowFlow.account][rowFlow.symbol].quantityFlow +=
-            rowFlow.quantityFlow
+          symbolQuantityFlow[rowFlow.account][rowFlow.symbol].quantityRest +=
+            rowFlow.quantityRest
 
-          symbolQuantityFlow[rowFlow.account][rowFlow.symbol].costFlow +=
-            rowFlow.costFlow
+          symbolQuantityFlow[rowFlow.account][rowFlow.symbol].costRest +=
+            rowFlow.costRest
           return symbolQuantityFlow
         },
         {}
@@ -737,11 +765,11 @@ class Flow {
       //* формирование признака продажи
       aggFlowArrayOfObject = aggFlowArrayOfObject.map((rowFlow) => {
         if (
-          symbolsQuantityFlow[rowFlow.account][rowFlow.symbol].quantityFlow ===
+          symbolsQuantityFlow[rowFlow.account][rowFlow.symbol].quantityRest <=
           0 ||
           Math.round(
-            symbolsQuantityFlow[rowFlow.account][rowFlow.symbol].costFlow
-          ) === 0
+            symbolsQuantityFlow[rowFlow.account][rowFlow.symbol].costRest
+          ) <= 0
         ) {
           rowFlow.isSell = true
         }
@@ -778,10 +806,10 @@ class Flow {
 
           if (!agg[tx.account][tx.symbolCategory]) {
             agg[tx.account][tx.symbolCategory] = {
-              cost: 0,
+              costLast: 0,
             }
           }
-          agg[tx.account][tx.symbolCategory].cost += tx.cost
+          agg[tx.account][tx.symbolCategory].costLast += tx.costLast
           return agg
         }, {})
 
@@ -791,7 +819,7 @@ class Flow {
           aggFlowBalanceArrayOfObject.push({
             account: account.toUpperCase(),
             symbolCategory: symbolCategory.toUpperCase(),
-            cost: object.cost || 0,
+            costLast: object.costLast || 0,
             updateDataMart: updateDataMart.getFormatDate('yyyy-MM-dd'),
             updateDate: updateDate.getFormatDate('yyyy-MM-dd HH:mm'),
             updateDataMartKey: updateDataMart.dateKey,
@@ -808,27 +836,3 @@ class Flow {
   }
 }
 
-//* Deprecated
-//* FlowSymbol.updateFlow
-// quantityBuyIn: object.quantityBuyIn || 0,
-// quantityBuyOut: object.quantityBuyOut || 0,
-// quantitySellIn: object.quantitySellIn || 0,
-// quantitySellOut: object.quantitySellOut || 0,
-// quantityRefillIn: object.quantityRefillIn || 0,
-// quantityWriteOffOut: object.quantityWriteOffOut || 0,
-// quantityTransferIn: object.quantityTransferIn || 0,
-// quantityTransferOut: object.quantityTransferOut || 0,
-// priceBuy: priceBuy || 0,
-// priceSell: priceSell || 0,
-// priceRefill: priceRefill || 0,
-// priceWriteOff: priceWriteOff || 0,
-// priceTransferIn: priceTransferIn || 0,
-// priceTransferOut: priceTransferOut || 0,
-// costBuyIn: object.costBuyIn || 0,
-// costBuyOut: object.costBuyOut || 0,
-// costSellIn: object.costSellIn || 0,
-// costSellOut: object.costSellOut || 0,
-// costRefillIn: object.costRefillIn || 0,
-// costWriteOffOut: object.costWriteOffOut || 0,
-// costTransferIn: object.costTransferIn || 0,
-// costTransferOut: object.costTransferOut || 0,
