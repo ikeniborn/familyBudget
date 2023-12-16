@@ -496,14 +496,11 @@ class Flow {
                   precisionCoeff
                 ) / precisionCoeff
 
-              // let costOverflowBuy = 0
-              // let costOverflowSell = 0
+              let costOverflowInvest = 0
 
-              // if (costOverflow > 0) {
-              //   costOverflowBuy += costOverflow
-              // } else {
-              //   costOverflowSell += costOverflow
-              // }
+              if (costOverflow < 0) {
+                costOverflowInvest += costOverflowInvest*-1
+              } 
 
               const costBuy =
                 Math.round(
@@ -537,7 +534,7 @@ class Flow {
                   (costBuy -
                     costSell +
                     costTransfer +
-                    costOverflow
+                    costOverflowInvest
                   ) *
                   precisionCoeff
                 ) / precisionCoeff
