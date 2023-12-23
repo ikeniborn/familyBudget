@@ -375,6 +375,7 @@ class Flow {
             }
           }
 
+          //* расчет реализованной прибыли
           if (
             operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
           ) {
@@ -382,10 +383,10 @@ class Flow {
               if (tx.isOverflow === false) {
                 agg[tx.account][tx.portfolio][tx.contractor][
                   tx.symbol
-                ].pnlRealized += 
-                (tx.cost * -1) - 
-                agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].priceRest * 
-                (tx.quantity * -1)
+                ].pnlRealized +=
+                  (tx.cost * -1) -
+                  agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].priceRest *
+                  (tx.quantity * -1)
               }
             }
           }
@@ -395,8 +396,8 @@ class Flow {
           ].operationCount += 1
 
           // if (
-          //   new Hash(tx.account).md5 === new Hash('ikeniborn').md5 &&
-          //   new Hash(tx.symbol).md5 === new Hash('eq').md5
+          //   new Hash(tx.account).md5 === new Hash('torrih').md5 &&
+          //   new Hash(tx.symbol).md5 === new Hash('axl').md5
           // ) {
           //   console.log(
           //     tx.account,
@@ -499,14 +500,27 @@ class Flow {
               let costOverflowInvest = 0
 
               if (costOverflow < 0) {
-                costOverflowInvest += costOverflowInvest*-1
-              } 
+                costOverflowInvest += costOverflowInvest * -1
+              }
+
+              const costRefillWriteOff =
+                Math.round(
+                  (object.costRefillIn -
+                    object.costWriteOffOut
+                  ) *
+                  precisionCoeff
+                ) / precisionCoeff
+
+              let costRefillWriteOffInvest = 0
+
+              if (costRefillWriteOff < 0) {
+                costRefillWriteOffInvest += costRefillWriteOff * -1
+              }
 
               const costBuy =
                 Math.round(
                   (object.costBuyIn +
-                    object.costSellIn +
-                    object.costRefillIn
+                    object.costSellIn
                   ) *
                   precisionCoeff
                 ) / precisionCoeff
@@ -515,8 +529,7 @@ class Flow {
               const costSell =
                 Math.round(
                   (object.costBuyOut +
-                    object.costSellOut +
-                    object.costWriteOffOut
+                    object.costSellOut
                   ) *
                   precisionCoeff
                 ) / precisionCoeff
@@ -534,7 +547,8 @@ class Flow {
                   (costBuy -
                     costSell +
                     costTransfer +
-                    costOverflowInvest
+                    costOverflowInvest +
+                    costRefillWriteOffInvest
                   ) *
                   precisionCoeff
                 ) / precisionCoeff
@@ -702,7 +716,7 @@ class Flow {
                 // priceOut: priceOut || 0,
                 priceRest: object.priceRest || 0,
                 priceLast: priceLast || 0,
-                // costBuy: costBuy || 0,
+                costBuy: costBuy || 0,
                 // costSell: costSell || 0,
                 // costBuyIn: object.costBuyIn || 0,
                 // costBuyOut: object.costBuyOut || 0,
@@ -728,7 +742,7 @@ class Flow {
                 pnlTotal: pnlTotal || 0,
                 quantityRebalance: quantityRebalance || 0,
                 dayInPortfolioAvg,
-                isSell: false,
+                isSell: 0,
                 useInReport: useInReport || false,
                 updateDate: updateDate.getFormatDate('yyyy-MM-dd HH:mm'),
               })
@@ -768,7 +782,7 @@ class Flow {
             symbolsQuantityFlow[rowFlow.account][rowFlow.symbol].costRest
           ) <= 0
         ) {
-          rowFlow.isSell = true
+          rowFlow.isSell = 1
         }
 
         return rowFlow

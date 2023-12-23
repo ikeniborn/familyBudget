@@ -243,7 +243,7 @@ class Portfolio {
           // costBuyIn: { alias: 'Cost (buy in), $', idx: 24 },
           // costBuyOut: { alias: 'Cost (buy out), $', idx: 25 },
           // costRefillIn: { alias: 'Cost (refill in), $', idx: 33 },
-          // costBuy: { alias: 'Cost (buy), $', idx: 22 },
+          costBuy: { alias: 'Cost (buy), $', idx: 22 },
           // costSellIn: { alias: 'Cost (sell in), $', idx: 26 },
           // costSellOut: { alias: 'Cost (sell out), $', idx: 27 },
           // costWriteOffOut: { alias: 'Cost (write-off out), $', idx: 34 },
