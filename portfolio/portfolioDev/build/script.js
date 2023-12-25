@@ -1823,7 +1823,7 @@ class Portfolio {
           // quantityOut: { alias: 'Quantity (out)', idx: 13 },
           quantityRest: { alias: 'Quantity (rest)', idx: 12 },
           quantityLock: { alias: 'Quantity (lock)', idx: 13 },
-          quantityUnlock: { alias: 'Quantity (unlock)', idx: 14 },
+          // quantityUnlock: { alias: 'Quantity (unlock)', idx: 14 },
           // priceIn: { alias: 'Price (in), $', idx: 19 },
           // priceOut: { alias: 'Price (out), $', idx: 19 },
           priceRest: { alias: 'Price (rest), $', idx: 19 },
@@ -1831,7 +1831,7 @@ class Portfolio {
           // costBuyIn: { alias: 'Cost (buy in), $', idx: 24 },
           // costBuyOut: { alias: 'Cost (buy out), $', idx: 25 },
           // costRefillIn: { alias: 'Cost (refill in), $', idx: 33 },
-          costBuy: { alias: 'Cost (buy), $', idx: 22 },
+          costTotal: { alias: 'Cost (total), $', idx: 22 },
           // costSellIn: { alias: 'Cost (sell in), $', idx: 26 },
           // costSellOut: { alias: 'Cost (sell out), $', idx: 27 },
           // costWriteOffOut: { alias: 'Cost (write-off out), $', idx: 34 },
@@ -1848,7 +1848,7 @@ class Portfolio {
           costRest: { alias: 'Cost (rest), $', idx: 35 },
           costLast: { alias: 'Cost (last), $', idx: 36 },
           costLock: { alias: 'Cost (lock), $', idx: 37 },
-          costUnlock: { alias: 'Cost (unlock), $', idx: 38 },
+          // costUnlock: { alias: 'Cost (unlock), $', idx: 38 },
           pnlRealized: { alias: 'PnL (realized), $', idx: 39 },
           pnlUnrealized: { alias: 'PnL (unrealized), $', idx: 40 },
           pnlTotal: { alias: 'PnL (total), $', idx: 40 },
@@ -5577,55 +5577,55 @@ class Flow {
             tx.symbol
           ].operationCount += 1;
 
-          // if (
-          //   new Hash(tx.account).md5 === new Hash('torrih').md5 &&
-          //   new Hash(tx.symbol).md5 === new Hash('axl').md5
-          // ) {
-          //   console.log(
-          //     tx.account,
-          //     tx.portfolio,
-          //     tx.contractor,
-          //     tx.operation,
-          //     tx.direction,
-          //     tx.symbol
-          //   )
-          //   console.log(
-          //     'operationCount',
-          //     agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
-          //       .operationCount
-          //   )
-          //   console.log('quantity', tx.quantity)
-          //   console.log('cost', tx.cost)
-          //   console.log('price', tx.cost / tx.quantity)
-          //   console.log(
-          //     'quantityRest',
-          //     agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
-          //       .quantityRest
-          //   )
-          //   console.log(
-          //     'priceRest',
-          //     agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].priceRest
-          //   )
-          //   console.log(
-          //     'costRest',
-          //     agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRest
-          //   )
-          //   console.log(
-          //     'priceRestPrev',
-          //     agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
-          //       .priceRestPrev
-          //   )
-          //   console.log(
-          //     'costRestPrev',
-          //     agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
-          //       .costRestPrev
-          //   )
-          //   console.log(
-          //     'pnlRealized',
-          //     agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
-          //       .pnlRealized
-          //   )
-          // }
+          if (
+            new Hash(tx.account).md5 === new Hash('torrih').md5 &&
+            new Hash(tx.symbol).md5 === new Hash('btc').md5
+          ) {
+            console.log(
+              tx.account,
+              tx.portfolio,
+              tx.contractor,
+              tx.operation,
+              tx.direction,
+              tx.symbol
+            );
+            console.log(
+              'operationCount',
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                .operationCount
+            );
+            console.log('quantity', tx.quantity);
+            console.log('cost', tx.cost);
+            console.log('price', tx.cost / tx.quantity);
+            console.log(
+              'quantityRest',
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                .quantityRest
+            );
+            console.log(
+              'priceRest',
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].priceRest
+            );
+            console.log(
+              'costRest',
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRest
+            );
+            console.log(
+              'priceRestPrev',
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                .priceRestPrev
+            );
+            console.log(
+              'costRestPrev',
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                .costRestPrev
+            );
+            console.log(
+              'pnlRealized',
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                .pnlRealized
+            );
+          }
 
           return agg
         }, {});
@@ -5657,21 +5657,21 @@ class Flow {
               //* стоимость остатка исторического
               let quantityRest = 0;
               let quantityLock = 0;
-              let quantityUnlock = 0;
+              // let quantityUnlock = 0
 
               // if (object.quantityRest > 0) {
               quantityRest = Math.round(object.quantityRest * precisionCoeff) /
                 precisionCoeff;
               quantityLock = Math.round(object.quantityLock * precisionCoeff) /
                 precisionCoeff;
-              quantityUnlock = Math.round(object.quantityUnlock * precisionCoeff) /
-                precisionCoeff;
+              // quantityUnlock = Math.round(object.quantityUnlock * precisionCoeff) /
+              //   precisionCoeff
               // }
 
               const priceLast = symbols[symbolKey]?.price || 0;
               const costLast = Math.round(priceLast * quantityRest * 100) / 100 || 0;
               const costLock = priceLast * quantityLock;
-              const costUnlock = priceLast * quantityUnlock;
+              // const costUnlock = priceLast * quantityUnlock
 
               const costOverflow =
                 Math.round(
@@ -5679,11 +5679,11 @@ class Flow {
                   precisionCoeff
                 ) / precisionCoeff;
 
-              let costOverflowInvest = 0;
+              // let costOverflowInvest = 0
 
-              if (costOverflow < 0) {
-                costOverflowInvest += costOverflowInvest * -1;
-              }
+              // if (costOverflow < 0) {
+              //   costOverflowInvest += costOverflow * -1
+              // } 
 
               const costRefillWriteOff =
                 Math.round(
@@ -5707,7 +5707,6 @@ class Flow {
                   precisionCoeff
                 ) / precisionCoeff;
 
-
               const costSell =
                 Math.round(
                   (object.costBuyOut +
@@ -5724,13 +5723,20 @@ class Flow {
                   precisionCoeff
                 ) / precisionCoeff;
 
+              const costTotal =
+                Math.round(
+                  (costBuy +
+                    costOverflow +
+                    costTransfer +
+                    costRefillWriteOffInvest
+                  ) *
+                  precisionCoeff
+                ) / precisionCoeff;
+
               const costInvest =
                 Math.round(
-                  (costBuy -
-                    costSell +
-                    costTransfer +
-                    costOverflowInvest +
-                    costRefillWriteOffInvest
+                  (costTotal -
+                    costSell
                   ) *
                   precisionCoeff
                 ) / precisionCoeff;
@@ -5893,12 +5899,12 @@ class Flow {
                 // quantityOut: quantityOut || 0,
                 quantityRest: quantityRest || 0,
                 quantityLock: quantityLock || 0,
-                quantityUnlock: quantityUnlock || 0,
+                // quantityUnlock: quantityUnlock || 0,
                 // priceIn: priceIn || 0,
                 // priceOut: priceOut || 0,
                 priceRest: object.priceRest || 0,
                 priceLast: priceLast || 0,
-                costBuy: costBuy || 0,
+                costTotal: costTotal || 0,
                 // costSell: costSell || 0,
                 // costBuyIn: object.costBuyIn || 0,
                 // costBuyOut: object.costBuyOut || 0,
@@ -5918,7 +5924,7 @@ class Flow {
                 costRest: object.costRest || 0,
                 costLast: costLast || 0,
                 costLock: costLock || 0,
-                costUnlock: costUnlock || 0,
+                // costUnlock: costUnlock || 0,
                 pnlRealized: pnlRealized || 0,
                 pnlUnrealized: pnlUnrealized || 0,
                 pnlTotal: pnlTotal || 0,

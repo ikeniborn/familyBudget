@@ -397,7 +397,7 @@ class Flow {
 
           // if (
           //   new Hash(tx.account).md5 === new Hash('torrih').md5 &&
-          //   new Hash(tx.symbol).md5 === new Hash('axl').md5
+          //   new Hash(tx.symbol).md5 === new Hash('btc').md5
           // ) {
           //   console.log(
           //     tx.account,
@@ -475,21 +475,21 @@ class Flow {
               //* стоимость остатка исторического
               let quantityRest = 0
               let quantityLock = 0
-              let quantityUnlock = 0
+              // let quantityUnlock = 0
 
               // if (object.quantityRest > 0) {
               quantityRest = Math.round(object.quantityRest * precisionCoeff) /
                 precisionCoeff
               quantityLock = Math.round(object.quantityLock * precisionCoeff) /
                 precisionCoeff
-              quantityUnlock = Math.round(object.quantityUnlock * precisionCoeff) /
-                precisionCoeff
+              // quantityUnlock = Math.round(object.quantityUnlock * precisionCoeff) /
+              //   precisionCoeff
               // }
 
               const priceLast = symbols[symbolKey]?.price || 0
               const costLast = Math.round(priceLast * quantityRest * 100) / 100 || 0
               const costLock = priceLast * quantityLock
-              const costUnlock = priceLast * quantityUnlock
+              // const costUnlock = priceLast * quantityUnlock
 
               const costOverflow =
                 Math.round(
@@ -497,11 +497,11 @@ class Flow {
                   precisionCoeff
                 ) / precisionCoeff
 
-              let costOverflowInvest = 0
+              // let costOverflowInvest = 0
 
-              if (costOverflow < 0) {
-                costOverflowInvest += costOverflowInvest * -1
-              }
+              // if (costOverflow < 0) {
+              //   costOverflowInvest += costOverflow * -1
+              // } 
 
               const costRefillWriteOff =
                 Math.round(
@@ -525,7 +525,6 @@ class Flow {
                   precisionCoeff
                 ) / precisionCoeff
 
-
               const costSell =
                 Math.round(
                   (object.costBuyOut +
@@ -542,13 +541,20 @@ class Flow {
                   precisionCoeff
                 ) / precisionCoeff
 
+              const costTotal =
+                Math.round(
+                  (costBuy +
+                    costOverflow +
+                    costTransfer +
+                    costRefillWriteOffInvest
+                  ) *
+                  precisionCoeff
+                ) / precisionCoeff
+
               const costInvest =
                 Math.round(
-                  (costBuy -
-                    costSell +
-                    costTransfer +
-                    costOverflowInvest +
-                    costRefillWriteOffInvest
+                  (costTotal -
+                    costSell
                   ) *
                   precisionCoeff
                 ) / precisionCoeff
@@ -711,12 +717,12 @@ class Flow {
                 // quantityOut: quantityOut || 0,
                 quantityRest: quantityRest || 0,
                 quantityLock: quantityLock || 0,
-                quantityUnlock: quantityUnlock || 0,
+                // quantityUnlock: quantityUnlock || 0,
                 // priceIn: priceIn || 0,
                 // priceOut: priceOut || 0,
                 priceRest: object.priceRest || 0,
                 priceLast: priceLast || 0,
-                costBuy: costBuy || 0,
+                costTotal: costTotal || 0,
                 // costSell: costSell || 0,
                 // costBuyIn: object.costBuyIn || 0,
                 // costBuyOut: object.costBuyOut || 0,
@@ -736,7 +742,7 @@ class Flow {
                 costRest: object.costRest || 0,
                 costLast: costLast || 0,
                 costLock: costLock || 0,
-                costUnlock: costUnlock || 0,
+                // costUnlock: costUnlock || 0,
                 pnlRealized: pnlRealized || 0,
                 pnlUnrealized: pnlUnrealized || 0,
                 pnlTotal: pnlTotal || 0,
