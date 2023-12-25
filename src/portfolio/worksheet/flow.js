@@ -497,12 +497,6 @@ class Flow {
                   precisionCoeff
                 ) / precisionCoeff
 
-              // let costOverflowInvest = 0
-
-              // if (costOverflow < 0) {
-              //   costOverflowInvest += costOverflow * -1
-              // } 
-
               const costRefillWriteOff =
                 Math.round(
                   (object.costRefillIn -
@@ -647,8 +641,8 @@ class Flow {
 
               //* Количество на ребалансировки от изменения цены
 
-              let quantityRebalance
-              if (priceLast) {
+              let quantityRebalance = 0
+              if (priceLast !== 0 && object.priceRest !== 0) {
                 const changePriceCoef = priceLast / object.priceRest
                 let priceRebalance =
                   priceLast + (object.priceRest - priceLast) * changePriceCoef
@@ -658,8 +652,12 @@ class Flow {
                 quantityRebalance =
                   (quantityRest * (object.priceRest - priceRebalance)) /
                   (priceRebalance - priceLast)
-              } else {
-                quantityRebalance = 0
+              } 
+
+              let quantityInvest = 0
+
+              if (priceLast !== 0 && costInvest !== 0) {
+                quantityInvest = costInvest / priceLast
               }
 
               const pnlRealized =
@@ -706,6 +704,7 @@ class Flow {
                 symbol: symbol.toUpperCase(),
                 symbolFullName: symbolFullName.toUpperCase(),
                 symbolCategory: symbolCategory.toUpperCase(),
+                quantityInvest: quantityInvest || 0,
                 // quantityBuy: quantityBuy || 0,
                 // quantitySell: quantitySell || 0,
                 // quantityTransfer: quantityTransfer || 0,
