@@ -30,6 +30,7 @@ class Price {
   constructor() {
     this.methods = new Instance().methods
   }
+
   /**
    * Get last price
    *
@@ -44,6 +45,13 @@ class Price {
       },
     })?.data || []
   }
+
+  /**
+   * Get historical price
+   *
+   * @param {*} token_id
+   * @returns {array}
+   */
   getHistoricalPrice(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51', from = new Date(), to =new Date() ) {
     const fromFormat = new FormatDate(from).getFormatDate('yyyy-MM-dd')
     const toFormat = new FormatDate(to).getFormatDate('yyyy-MM-dd')
@@ -57,6 +65,21 @@ class Price {
     })?.data || []
     return array
   }
+
+    /**
+   * Gettoken search
+   *
+   * @param {*} token_id
+   * @returns {array}
+   */
+    getTokenSearch(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51') {
+      return this.methods.get({
+        endPoint: '/token/search',
+        query: {
+          token_id,
+        },
+      })?.data || []
+    }
 }
 
 class Dimension {

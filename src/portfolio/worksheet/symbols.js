@@ -178,7 +178,7 @@ class Symbols {
 
         
         if (listId['web3space'] && Array.isArray(listId['web3space'])) {
-          const chunkSize = 30;
+          const chunkSize = 10;
           for (let i = 0; i < listId.web3space.length; i += chunkSize) {
           const coins = listId.web3space.slice(i, i + chunkSize).join(',');
             const coinsObject = new web3Space.Dimension().getDimension(coins).reduce((object, value) => {
@@ -188,7 +188,7 @@ class Symbols {
               object[value.token_id].symbol_key=new Hash(value?.token_symbol).md5
               return object
             }, {})
-            const priceArray = new web3Space.Price().getLastPrice(coins)
+            const priceArray = new web3Space.Price().getTokenSearch(coins)
             const priceObject = priceArray.reduce((object, value) => {
               if (!object[value.token_id]) {
                 object[value.token_id] = value
@@ -198,7 +198,7 @@ class Symbols {
             priceArray.forEach((coin)=>{
               updatePricesRow(
                 this.workSheet.object[coinsObject[coin.token_id]?.symbol_key],
-                priceObject[coin.token_id]?.price_close,
+                priceObject[coin.token_id]?.price,
                 void 0,
                 new Date(priceObject[coin.token_id]?.updated_dttm)
               )

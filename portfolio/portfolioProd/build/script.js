@@ -2918,6 +2918,7 @@ class Price {
   constructor() {
     this.methods = new Instance().methods;
   }
+
   /**
    * Get last price
    *
@@ -2932,6 +2933,13 @@ class Price {
       },
     })?.data || []
   }
+
+  /**
+   * Get historical price
+   *
+   * @param {*} token_id
+   * @returns {array}
+   */
   getHistoricalPrice(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51', from = new Date(), to =new Date() ) {
     const fromFormat = new FormatDate(from).getFormatDate('yyyy-MM-dd');
     const toFormat = new FormatDate(to).getFormatDate('yyyy-MM-dd');
@@ -2945,6 +2953,21 @@ class Price {
     })?.data || [];
     return array
   }
+
+    /**
+   * Gettoken search
+   *
+   * @param {*} token_id
+   * @returns {array}
+   */
+    getTokenSearch(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51') {
+      return this.methods.get({
+        endPoint: '/token/search',
+        query: {
+          token_id,
+        },
+      })?.data || []
+    }
 }
 
 class Dimension {
@@ -3239,7 +3262,7 @@ class Symbols {
 
         
         if (listId['web3space'] && Array.isArray(listId['web3space'])) {
-          const chunkSize = 30;
+          const chunkSize = 10;
           for (let i = 0; i < listId.web3space.length; i += chunkSize) {
           const coins = listId.web3space.slice(i, i + chunkSize).join(',');
             const coinsObject = new Dimension().getDimension(coins).reduce((object, value) => {
@@ -3249,7 +3272,7 @@ class Symbols {
               object[value.token_id].symbol_key=new Hash(value?.token_symbol).md5;
               return object
             }, {});
-            const priceArray = new Price().getLastPrice(coins);
+            const priceArray = new Price().getTokenSearch(coins);
             const priceObject = priceArray.reduce((object, value) => {
               if (!object[value.token_id]) {
                 object[value.token_id] = value;
@@ -3259,7 +3282,7 @@ class Symbols {
             priceArray.forEach((coin)=>{
               updatePricesRow(
                 this.workSheet.object[coinsObject[coin.token_id]?.symbol_key],
-                priceObject[coin.token_id]?.price_close,
+                priceObject[coin.token_id]?.price,
                 void 0,
                 new Date(priceObject[coin.token_id]?.updated_dttm)
               );
