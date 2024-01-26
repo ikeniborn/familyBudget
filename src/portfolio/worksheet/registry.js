@@ -518,6 +518,19 @@ class Registry {
           accountSender,
           portfolioSender,
           sender,
+          coinSymbol,
+          coinSymbolCategoryKey,
+          symbols,
+          Object.values(transactions.workSheet.object),
+          isRange
+        )
+
+
+        const historicalPriceBuyCurrency = historicalPrice.getHistoricalPrice(
+          dateTime,
+          accountSender,
+          portfolioSender,
+          sender,
           currencySymbol,
           currencySymbolCategoryKey,
           symbols,
@@ -525,15 +538,34 @@ class Registry {
           isRange
         )
 
+
         isHistoricalAveragePriceCurrency =
-          historicalPriceBuyCoin?.isHistoricalAveragePrice || false
+          historicalPriceBuyCurrency?.isHistoricalAveragePrice || false
         isHistoricalAveragePriceSymbol =
           historicalPriceBuyCoin?.isHistoricalAveragePrice || false
-        currencyPrice = historicalPriceBuyCoin?.historicalPrice
-        symbolPrice = historicalPriceBuyCoin?.historicalPrice * currencyPerCoin
+        currencyPrice = historicalPriceBuyCurrency?.historicalPrice
+        //* определение корректной цены токена
+        if (isHistoricalAveragePriceSymbol == false && isHistoricalAveragePriceCurrency == true) {
+          symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
+        } else if (isHistoricalAveragePriceSymbol == true && isHistoricalAveragePriceCurrency == true) {
+          symbolPrice = historicalPriceBuyCoin?.historicalPrice ? historicalPriceBuyCoin?.historicalPrice : historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
+        } else if (isHistoricalAveragePriceSymbol == true && isHistoricalAveragePriceCurrency == false) {
+          symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
+        } else if (isHistoricalAveragePriceSymbol == false && isHistoricalAveragePriceCurrency == false) {
+          symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
+        }
         symbolPriceCoef = symbolPrice / currencyPrice
         currencyPriceCoef = currencyPrice / symbolPrice
-      // priceUSDBTCObject = new Price().getHistoricalPrice(
+
+        // console.log('currencySymbol', currencySymbol)
+        // console.log('historicalPriceBuyCurrency', historicalPriceBuyCurrency)
+        // console.log('currencyPrice', currencyPrice)
+
+        // console.log('coinSymbol', coinSymbol)
+        // console.log('historicalPriceBuyCoin', historicalPriceBuyCoin)
+        // console.log('symbolPrice', symbolPrice)
+
+        // priceUSDBTCObject = new Price().getHistoricalPrice(
         //   'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
         //   dateTime,
         //   dateTime
@@ -543,6 +575,7 @@ class Registry {
         //   }
         //   return object
         // }, {});
+
         priceUSDBTCObject = {
           'b460f578-b1ce-950c-287e-dc61d0728e51': {
             price_close: new Symbols().workSheet.object[new Hash('btc').md5]?.price
@@ -612,7 +645,7 @@ class Registry {
           let priceUSD, priceCoef, priceBTC, costBTC, costUSD, priceCoefRev
           if (tx.isSymbolPrice) {
             priceUSD = symbolPrice
-            priceBTC = symbolPrice/priceUSDBTC 
+            priceBTC = symbolPrice / priceUSDBTC
             isHistoricalAveragePrice = isHistoricalAveragePriceSymbol
             if (
               [
@@ -628,13 +661,13 @@ class Registry {
             }
           } else if (tx.isFeePrice) {
             priceUSD = feePrice
-            priceBTC = feePrice/ priceUSDBTC 
+            priceBTC = feePrice / priceUSDBTC
             isHistoricalAveragePrice = isHistoricalAveragePriceFeeCurrency
             priceCoef = 1
             priceCoefRev = 1
           } else if (tx.isCurencyPrice) {
             priceUSD = currencyPrice
-            priceBTC =  currencyPrice/priceUSDBTC 
+            priceBTC = currencyPrice / priceUSDBTC
             isHistoricalAveragePrice = isHistoricalAveragePriceCurrency
             if (
               [

@@ -536,16 +536,36 @@ class HistoricalPrice {
           const outKey = new Hash('out').md5
           //* цена исторических транзакций
 
-          const historicalPriceAgg = transactionsArrayOfObject
+          let transactions
+
+          const transactionsArrayOfObjectWithoutOverflow = transactionsArrayOfObject
             .filter((row) => {
               return (
                 new Date(row.dateTime).valueOf() <
                 new Date(dateTime).valueOf() &&
                 historicalAveragePriceKey === row.historicalAveragePriceKey &&
                 row.isAvgPrice &&
-                !row.isDelete
+                !row.isDelete &&
+                !row.isOverflow
               )
             })
+
+          if (transactionsArrayOfObjectWithoutOverflow.length > 0) {
+            transactions = transactionsArrayOfObjectWithoutOverflow
+          } else {
+            transactions = transactionsArrayOfObject
+              .filter((row) => {
+                return (
+                  new Date(row.dateTime).valueOf() <
+                  new Date(dateTime).valueOf() &&
+                  historicalAveragePriceKey === row.historicalAveragePriceKey &&
+                  row.isAvgPrice &&
+                  !row.isDelete
+                )
+              })
+          }
+
+          const historicalPriceAgg = transactions
             .sort((a, b) => {
               return (
                 new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
@@ -708,51 +728,53 @@ class HistoricalPrice {
           historicalPricePrecisionCoeff = historicalPricePrecisionCoeff * 1
 
           //* расчет потоков
-          const costInFlow =
-            Math.round(
-              (historicalPriceAgg.costBuyIn +
-                historicalPriceAgg.costSellIn +
-                historicalPriceAgg.costRefillIn +
-                historicalPriceAgg.costTransferIn) *
-              costPrecisionCoeff
-            ) / costPrecisionCoeff || 0
+          // const costInFlow =
+          //   Math.round(
+          //     (historicalPriceAgg.costBuyIn +
+          //       historicalPriceAgg.costSellIn +
+          //       historicalPriceAgg.costRefillIn +
+          //       historicalPriceAgg.costTransferIn) *
+          //     costPrecisionCoeff
+          //   ) / costPrecisionCoeff || 0
 
-          const costOutFlow =
-            Math.round(
-              (historicalPriceAgg.costBuyOut +
-                historicalPriceAgg.costSellOut +
-                historicalPriceAgg.costWriteOffOut +
-                historicalPriceAgg.costTransferOut) *
-              costPrecisionCoeff
-            ) / costPrecisionCoeff || 0
+          // const costOutFlow =
+          //   Math.round(
+          //     (historicalPriceAgg.costBuyOut +
+          //       historicalPriceAgg.costSellOut +
+          //       historicalPriceAgg.costWriteOffOut +
+          //       historicalPriceAgg.costTransferOut) *
+          //     costPrecisionCoeff
+          //   ) / costPrecisionCoeff || 0
 
-          const quantityInFlow =
-            Math.round(
-              (historicalPriceAgg.quantityBuyIn +
-                historicalPriceAgg.quantitySellIn +
-                historicalPriceAgg.quantityRefillIn +
-                historicalPriceAgg.quantityTransferIn) *
-              historicalPricePrecisionCoeff
-            ) / historicalPricePrecisionCoeff || 0
+          // const quantityInFlow =
+          //   Math.round(
+          //     (historicalPriceAgg.quantityBuyIn +
+          //       historicalPriceAgg.quantitySellIn +
+          //       historicalPriceAgg.quantityRefillIn +
+          //       historicalPriceAgg.quantityTransferIn) *
+          //     historicalPricePrecisionCoeff
+          //   ) / historicalPricePrecisionCoeff || 0
 
-          const quantityOutFlow =
-            Math.round(
-              (historicalPriceAgg.quantityBuyOut +
-                historicalPriceAgg.quantitySellOut +
-                historicalPriceAgg.quantityWriteOffOut +
-                historicalPriceAgg.quantityTransferOut) *
-              historicalPricePrecisionCoeff
-            ) / historicalPricePrecisionCoeff || 0
+          // const quantityOutFlow =
+          //   Math.round(
+          //     (historicalPriceAgg.quantityBuyOut +
+          //       historicalPriceAgg.quantitySellOut +
+          //       historicalPriceAgg.quantityWriteOffOut +
+          //       historicalPriceAgg.quantityTransferOut) *
+          //     historicalPricePrecisionCoeff
+          //   ) / historicalPricePrecisionCoeff || 0
 
           //* расчет цены потоков
 
-          const priceInFlow = costInFlow / quantityInFlow || 0
-          const priceOutFlow = costOutFlow / quantityOutFlow || 0
-          const costSum =
-            Math.round((priceInFlow * quantityInFlow + priceOutFlow * quantityOutFlow) / 10) * 10
-          const quantitySum = quantityInFlow + quantityOutFlow
-          const historicalPricePriceRestFlow = historicalPriceAgg.priceRest
-            // costSum / quantitySum || 0
+          // const priceInFlow = costInFlow / quantityInFlow || 0
+          // const priceOutFlow = costOutFlow / quantityOutFlow || 0
+          // const costSum =
+          //   Math.round((priceInFlow * quantityInFlow + priceOutFlow * quantityOutFlow) / 10) * 10
+          // const quantitySum = quantityInFlow + quantityOutFlow
+          let historicalPricePriceRest = 0
+          historicalPricePriceRest = historicalPriceAgg.priceRest || 0
+
+          // costSum / quantitySum || 0
 
           // console.log('priceInFlow', priceInFlow)
           // console.log('priceOutFlow', priceOutFlow)
@@ -762,17 +784,17 @@ class HistoricalPrice {
           // console.log('quantityRest', historicalPriceAgg.quantityRest)
           // console.log('priceRest', historicalPriceAgg.priceRest)
           // console.log(
-          //   'historicalPricePriceRestFlow',
-          //   historicalPricePriceRestFlow
+          //   'historicalPricePriceRest',
+          //   historicalPricePriceRest
           // )
           // console.log(
           //   'historicalPricePricFlow',
           //   costSum / quantitySum || 0
           // )
 
-          let priceFlow
+          let currentPricePriceRest = 0
 
-          if (!historicalPricePriceRestFlow) {
+          if (historicalPricePriceRest == 0) {
             //* цена текущей транзации
             const currentPrice = transactionsArrayOfObject
               .filter((row) => {
@@ -826,17 +848,18 @@ class HistoricalPrice {
             const currentPriceCostRest =
               Math.round(currentPrice.costFlow * costPrecisionCoeff) /
               costPrecisionCoeff
-            historicalPricePriceRestFlow
-            priceFlow = currentPriceCostRest / currentPriceQuantityRest || 0
-          } else {
-            priceFlow = historicalPricePriceRestFlow
+            currentPricePriceRest = currentPriceCostRest / currentPriceQuantityRest || 0
           }
+
 
           //* Расчет средней цены покупки токена
 
-          if (priceFlow > 0) {
-            historicalPrice = priceFlow
+          if (historicalPricePriceRest > 0) {
+            historicalPrice = historicalPricePriceRest
             isHistoricalAveragePrice = true
+          } else if (historicalPricePriceRest == 0 && currentPricePriceRest > 0) {
+            historicalPrice = currentPricePriceRest
+            isHistoricalAveragePrice = false
           } else {
             if (
               new FormatDate(dateTime).yyyymmdd === new FormatDate().yyyymmdd &&
@@ -861,9 +884,11 @@ class HistoricalPrice {
                   symbolId,
                   dateTime,
                   convert
-                )
-                isHistoricalAveragePrice = true
-              } else if (
+                ) || 0
+                isHistoricalAveragePrice = false
+              }
+              //* Получение исторической цены из web3space
+              else if (
                 sourceKey === '9fcc5acecc1e69fad95aa3fec1b715c6' /*web3space*/
               ) {
                 const priceObject = new web3space.Price().getHistoricalPrice(symbolId, dateTime, dateTime).reduce((object, value) => {
@@ -872,8 +897,8 @@ class HistoricalPrice {
                   }
                   return object
                 }, {})
-                historicalPrice = priceObject[symbolId]?.price_close
-                isHistoricalAveragePrice = true
+                historicalPrice = priceObject[symbolId]?.price_close || 0
+                isHistoricalAveragePrice = false
               }
             }
           }
