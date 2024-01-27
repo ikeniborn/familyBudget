@@ -85,8 +85,9 @@ class Registry {
         return true
       } else if (
         [
-          /*Transfer*/ '84a0f3455dcca894ace136be62efa292',
-          /*Refill*/ 'b4479040173a9f41eeb4e98339f2a21d',
+          '84a0f3455dcca894ace136be62efa292' /*Transfer*/
+          , 'b4479040173a9f41eeb4e98339f2a21d' /*Refill*/
+          , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
         ].indexOf(operationKey) !== -1 &&
         directionKey === inKey
       ) {
@@ -379,7 +380,10 @@ class Registry {
             })
           }
         } else if (
-          [/*buy*/ '0461ebd2b773878eac9f78a891912d65'].indexOf(operationKey) !==
+          [
+            '0461ebd2b773878eac9f78a891912d65' /*buy*/
+            , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
+          ].indexOf(operationKey) !==
           -1
         ) {
           portfolioSender = this.getPortfolio(
@@ -515,6 +519,7 @@ class Registry {
 
         const historicalPriceBuyCoin = historicalPrice.getHistoricalPrice(
           dateTime,
+          operationKey,
           accountSender,
           portfolioSender,
           sender,
@@ -522,12 +527,13 @@ class Registry {
           coinSymbolCategoryKey,
           symbols,
           Object.values(transactions.workSheet.object),
-          isRange
+          isRange,
+          'usd'
         )
-
 
         const historicalPriceBuyCurrency = historicalPrice.getHistoricalPrice(
           dateTime,
+          operationKey,
           accountSender,
           portfolioSender,
           sender,
@@ -535,33 +541,44 @@ class Registry {
           currencySymbolCategoryKey,
           symbols,
           Object.values(transactions.workSheet.object),
-          isRange
+          isRange,
+          'usd'
         )
 
 
 
         currencyPrice = historicalPriceBuyCurrency?.historicalPrice
+        let symbolPriceSource = 'na'
         //* определение корректной цены токена
         if (historicalPriceBuyCoin?.isHistoricalAveragePrice == false && historicalPriceBuyCurrency?.isHistoricalAveragePrice == true) {
           symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
+          symbolPriceSource = 'fromCurrency'
           isHistoricalAveragePriceCurrency =
             historicalPriceBuyCurrency?.isHistoricalAveragePrice
           isHistoricalAveragePriceSymbol =
             historicalPriceBuyCurrency?.isHistoricalAveragePrice
         } else if (historicalPriceBuyCoin?.isHistoricalAveragePrice == true && historicalPriceBuyCurrency?.isHistoricalAveragePrice == true) {
-          symbolPrice = historicalPriceBuyCoin?.historicalPrice ? historicalPriceBuyCoin?.historicalPrice : historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
+          if (historicalPriceBuyCoin?.historicalPrice > 0) {
+            symbolPrice = historicalPriceBuyCoin?.historicalPrice
+            symbolPriceSource = 'fromCoin'
+          } else {
+            symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
+            symbolPriceSource = 'fromCurrency'
+          }
           isHistoricalAveragePriceCurrency =
             historicalPriceBuyCurrency?.isHistoricalAveragePrice
           isHistoricalAveragePriceSymbol =
             historicalPriceBuyCoin?.isHistoricalAveragePrice
         } else if (historicalPriceBuyCoin?.isHistoricalAveragePrice == true && historicalPriceBuyCurrency?.isHistoricalAveragePrice == false) {
           symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
+          symbolPriceSource = 'fromCurrency'
           isHistoricalAveragePriceCurrency =
             historicalPriceBuyCurrency?.isHistoricalAveragePrice
           isHistoricalAveragePriceSymbol =
             historicalPriceBuyCurrency?.isHistoricalAveragePrice
         } else if (historicalPriceBuyCoin?.isHistoricalAveragePrice == false && historicalPriceBuyCurrency?.isHistoricalAveragePrice == false) {
           symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
+          symbolPriceSource = 'fromCurrency'
           isHistoricalAveragePriceCurrency =
             historicalPriceBuyCurrency?.isHistoricalAveragePrice
           isHistoricalAveragePriceSymbol =
@@ -571,15 +588,21 @@ class Registry {
         currencyPriceCoef = currencyPrice / symbolPrice
 
 
-        // console.log('currencySymbol', currencySymbol)
-        // console.log('historicalPriceBuyCurrency', historicalPriceBuyCurrency)
-        // console.log('currencyPrice', currencyPrice)
-        // console.log('isHistoricalAveragePriceCurrency', isHistoricalAveragePriceCurrency)
+        console.log(
+          'currencySymbol:', currencySymbol
+          , 'historicalPriceBuyCurrency:', historicalPriceBuyCurrency
+          , 'currencyPrice:', currencyPrice
+          , 'isHistoricalAveragePriceCurrency:', isHistoricalAveragePriceCurrency
+        )
 
-        // console.log('coinSymbol', coinSymbol)
-        // console.log('historicalPriceBuyCoin', historicalPriceBuyCoin)
-        // console.log('symbolPrice', symbolPrice)
-        // console.log('isHistoricalAveragePriceSymbol', isHistoricalAveragePriceSymbol)
+        console.log(
+          'coinSymbol:', coinSymbol
+          , 'historicalPriceBuyCoin:', historicalPriceBuyCoin
+          , 'symbolPrice:', symbolPrice
+          , 'isHistoricalAveragePriceSymbol:', isHistoricalAveragePriceSymbol
+          , 'symbolPriceSource:', symbolPriceSource
+        )
+
 
         // priceUSDBTCObject = new Price().getHistoricalPrice(
         //   'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
@@ -665,8 +688,9 @@ class Registry {
             isHistoricalAveragePrice = isHistoricalAveragePriceSymbol
             if (
               [
-                /*buy*/ '0461ebd2b773878eac9f78a891912d65',
-                /*sell*/ '8325324b47e1e62a1c2998a640cbdc72',
+                '0461ebd2b773878eac9f78a891912d65'  /*buy*/
+                , '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
+                , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
               ].indexOf(operationKey) !== -1
             ) {
               priceCoef = symbolPriceCoef
@@ -687,8 +711,9 @@ class Registry {
             isHistoricalAveragePrice = isHistoricalAveragePriceCurrency
             if (
               [
-                /*buy*/ '0461ebd2b773878eac9f78a891912d65',
-                /*sell*/ '8325324b47e1e62a1c2998a640cbdc72',
+                '0461ebd2b773878eac9f78a891912d65' /*buy*/
+                , '8325324b47e1e62a1c2998a640cbdc72'  /*sell*/
+                , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
               ].indexOf(operationKey) !== -1
             ) {
               priceCoef = currencyPriceCoef

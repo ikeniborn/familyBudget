@@ -460,6 +460,7 @@ class HistoricalPrice {
   /**
    * Получение средневзвешенной цены покупки токена
    * @param {*} dateTime дата и время
+   * @param {*} operationKey ключ операции
    * @param {*} account счет
    * @param {*} portfolio портфолио
    * @param {*} contractor контрагент
@@ -469,10 +470,12 @@ class HistoricalPrice {
    * @param {array} transactionsArrayOfObject массив транзакций транзакций [{}]
    * @param {*} isRange признак диапазона
    * @param {*} convert параметр конвертации
+   
    * @returns объект цена и признак исторической цены
    */
   getHistoricalPrice(
     dateTime,
+    operationKey,
     account,
     portfolio,
     contractor,
@@ -481,13 +484,12 @@ class HistoricalPrice {
     symbolsObject,
     transactionsArrayOfObject,
     isRange = false,
-    convert = 'usd'
+    convert = 'usd',
   ) {
     try {
-      let historicalPrice
-      let isHistoricalAveragePrice
-      historicalPrice = 0
-      isHistoricalAveragePrice = false
+      let historicalPrice = 0
+      let isHistoricalAveragePrice = false
+      let historicalSource = 'na'
       const coin = symbolsObject[new Hash(symbol).md5]
       const sourceKey = new Hash(coin?.source).md5
       const symbolId = coin?.sourceId
@@ -499,6 +501,7 @@ class HistoricalPrice {
         //* Для стабильных токенов возвращать единицу
         historicalPrice = 1
         isHistoricalAveragePrice = false
+        historicalSource = 'stablecoin'
       } else if (
         '7d5f30a0d1641c0b6980aaf2556b32ce' ===
         symbolCategoryKey /*fiat*/
@@ -512,6 +515,7 @@ class HistoricalPrice {
             convert
           )
           isHistoricalAveragePrice = false
+          historicalSource = 'fiatCryptocompare'
         }
         else if (
           sourceKey === '9fcc5acecc1e69fad95aa3fec1b715c6' /*web3space*/
@@ -525,6 +529,7 @@ class HistoricalPrice {
           }, {})
           historicalPrice = priceObject[symbolId]?.price_close
           isHistoricalAveragePrice = false
+          historicalSource = 'fiatWeb3space'
         }
       }
       else {
@@ -536,24 +541,36 @@ class HistoricalPrice {
           const inKey = new Hash('in').md5
           const outKey = new Hash('out').md5
           //* цена исторических транзакций
-
           let transactions
 
-          const transactionsArrayOfObjectWithoutOverflow = transactionsArrayOfObject
-            .filter((row) => {
-              return (
-                new Date(row.dateTime).valueOf() <
-                new Date(dateTime).valueOf() &&
-                historicalAveragePriceKey === row.historicalAveragePriceKey &&
-                row.isAvgPrice &&
-                !row.isDelete &&
-                !row.isOverflow
-              )
-            })
-
-          if (transactionsArrayOfObjectWithoutOverflow.length > 0) {
-            transactions = transactionsArrayOfObjectWithoutOverflow
-          } else {
+          if (
+            [
+              '0461ebd2b773878eac9f78a891912d65' /*buy*/
+              , '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
+              , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
+              , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
+            ].indexOf(
+              operationKey
+            ) !== -1
+          ) {
+            transactions = transactionsArrayOfObject
+              .filter((row) => {
+                return (
+                  new Date(row.dateTime).valueOf() <
+                  new Date(dateTime).valueOf() &&
+                  historicalAveragePriceKey === row.historicalAveragePriceKey &&
+                  row.isAvgPrice &&
+                  !row.isDelete &&
+                  !row.isOverflow
+                )
+              })
+          } else if (
+            [
+              '84a0f3455dcca894ace136be62efa292' /*transfer*/
+            ].indexOf(
+              operationKey
+            ) !== -1
+          ) {
             transactions = transactionsArrayOfObject
               .filter((row) => {
                 return (
@@ -728,69 +745,8 @@ class HistoricalPrice {
           }
           historicalPricePrecisionCoeff = historicalPricePrecisionCoeff * 1
 
-          //* расчет потоков
-          // const costInFlow =
-          //   Math.round(
-          //     (historicalPriceAgg.costBuyIn +
-          //       historicalPriceAgg.costSellIn +
-          //       historicalPriceAgg.costRefillIn +
-          //       historicalPriceAgg.costTransferIn) *
-          //     costPrecisionCoeff
-          //   ) / costPrecisionCoeff || 0
-
-          // const costOutFlow =
-          //   Math.round(
-          //     (historicalPriceAgg.costBuyOut +
-          //       historicalPriceAgg.costSellOut +
-          //       historicalPriceAgg.costWriteOffOut +
-          //       historicalPriceAgg.costTransferOut) *
-          //     costPrecisionCoeff
-          //   ) / costPrecisionCoeff || 0
-
-          // const quantityInFlow =
-          //   Math.round(
-          //     (historicalPriceAgg.quantityBuyIn +
-          //       historicalPriceAgg.quantitySellIn +
-          //       historicalPriceAgg.quantityRefillIn +
-          //       historicalPriceAgg.quantityTransferIn) *
-          //     historicalPricePrecisionCoeff
-          //   ) / historicalPricePrecisionCoeff || 0
-
-          // const quantityOutFlow =
-          //   Math.round(
-          //     (historicalPriceAgg.quantityBuyOut +
-          //       historicalPriceAgg.quantitySellOut +
-          //       historicalPriceAgg.quantityWriteOffOut +
-          //       historicalPriceAgg.quantityTransferOut) *
-          //     historicalPricePrecisionCoeff
-          //   ) / historicalPricePrecisionCoeff || 0
-
-          //* расчет цены потоков
-
-          // const priceInFlow = costInFlow / quantityInFlow || 0
-          // const priceOutFlow = costOutFlow / quantityOutFlow || 0
-          // const costSum =
-          //   Math.round((priceInFlow * quantityInFlow + priceOutFlow * quantityOutFlow) / 10) * 10
-          // const quantitySum = quantityInFlow + quantityOutFlow
-
           let historicalPricePriceRest = 0
           historicalPricePriceRest = historicalPriceAgg.priceRest || 0
-
-          // costSum / quantitySum || 0
-
-
-          // console.log('quantitySum', quantitySum)
-          // console.log('costRest', historicalPriceAgg.costRest)
-          // console.log('quantityRest', historicalPriceAgg.quantityRest)
-          // console.log('priceRest', historicalPriceAgg.priceRest)
-          // console.log(
-          //   'historicalPricePriceRest',
-          //   historicalPricePriceRest
-          // )
-          // console.log(
-          //   'historicalPricePricFlow',
-          //   costSum / quantitySum || 0
-          // )
 
           let currentPricePriceRest = 0
 
@@ -805,7 +761,7 @@ class HistoricalPrice {
                   row.isAvgPrice &&
                   !row.isDelete &&
                   !row.isFee &&
-                  !row.isOverflow 
+                  !row.isOverflow
                 )
               })
               .sort((a, b) => {
@@ -849,7 +805,10 @@ class HistoricalPrice {
             const currentPriceCostRest =
               Math.round(currentPrice.costFlow * costPrecisionCoeff) /
               costPrecisionCoeff
-            currentPricePriceRest = currentPriceCostRest / currentPriceQuantityRest || 0
+            if (currentPriceCostRest > 0 && currentPriceQuantityRest > 0) {
+              currentPricePriceRest = currentPriceCostRest / currentPriceQuantityRest
+            }
+
           }
 
           let externalPricePriceRest = 0
@@ -862,83 +821,57 @@ class HistoricalPrice {
               }
               return object
             }, {})
-            // console.log('symbolId', symbolId)
-            // console.log('dateTime', dateTime)
-            // console.log('formatDatetime', formatDatetime)
-            // console.log('historicalPriceObject', historicalPriceObject)
+
+            // console.log(
+            //   ' new web3space.Price().getHistoricalPrice:'
+            //   , 'symbolId:', symbolId
+            //   , 'formatDatetime:', formatDatetime
+            //   , 'historicalPriceObject:', historicalPriceObject
+            // )
+
             externalPricePriceRest = historicalPriceObject[symbolId]?.price_close || 0
+
           }
 
           //* Расчет средней цены покупки токена
 
+
           if (historicalPricePriceRest > 0) {
             historicalPrice = historicalPricePriceRest
             isHistoricalAveragePrice = true
-          } 
+            historicalSource = 'historyTransactions'
+          }
           else if (historicalPricePriceRest == 0 && currentPricePriceRest > 0) {
             historicalPrice = currentPricePriceRest
-            isHistoricalAveragePrice = false
-          } 
-          else if (historicalPricePriceRest == 0 && currentPricePriceRest == 0) {
+            isHistoricalAveragePrice = true
+            historicalSource = 'currentTransaction'
+          }
+          else if (historicalPricePriceRest == 0 && currentPricePriceRest == 0 && externalPricePriceRest > 0) {
             historicalPrice = externalPricePriceRest
             isHistoricalAveragePrice = false
-            //   if (
-            //     new FormatDate(dateTime).yyyymmdd === new FormatDate().yyyymmdd &&
-            //     sourceKey === 'b40555dbd3865016ed3f7b4a9bf3b806' /*coingecko*/
-            //   ) {
-            //     //* Получение исторической цены из coinGecko
-            //     historicalPrice = new coinGecko.Price()
-            //       .getMarketsPrice(symbolId)
-            //       .reduce((price, data) => {
-            //         price = data.current_price
-            //         return price
-            //       }, 0)
-
-            //     isHistoricalAveragePrice = false
-            //   } else {
-            //     //* Получение исторической цены из CryptoCompare
-            //     if (
-            //       sourceKey ===
-            //       '1dab445b170a7f0acfccea645a8879e0' /*cryptocompare*/
-            //     ) {
-            //       historicalPrice = new cryptoCompare.Price().getHistoryPrice(
-            //         symbolId,
-            //         dateTime,
-            //         convert
-            //       ) || 0
-            //       isHistoricalAveragePrice = false
-            //     }
-            //     //* Получение исторической цены из web3space
-            //     else if (
-            //       sourceKey === '9fcc5acecc1e69fad95aa3fec1b715c6' /*web3space*/
-            //     ) {
-            //       const priceObject = new web3space.Price().getHistoricalPrice(symbolId, dateTime, dateTime).reduce((object, value) => {
-            //         if (!object[value.token_id]) {
-            //           object[value.token_id] = value
-            //         }
-            //         return object
-            //       }, {})
-            //       historicalPrice = priceObject[symbolId]?.price_close || 0
-            //       isHistoricalAveragePrice = false
-            //     }
-            //   }
-            // }
-          } 
+            historicalSource = 'externalWeb3space'
+          }
           else {
             historicalPrice = 0
             isHistoricalAveragePrice = false
+            historicalSource = 'na'
           }
 
-          // console.log('symbol', symbol)
-          // console.log('historicalPricePriceRest', historicalPricePriceRest)
-          // console.log('currentPricePriceRest', currentPricePriceRest)
-          // console.log('externalPricePriceRest', externalPricePriceRest)
-          // console.log('historicalPrice', historicalPrice)
-          // console.log('isHistoricalAveragePrice', isHistoricalAveragePrice)
+
+          console.log(
+            'getHistoricalPrice:'
+            , 'symbol:', symbol
+            , 'historicalPricePriceRest:', historicalPricePriceRest
+            , 'currentPricePriceRest:', currentPricePriceRest
+            , 'externalPricePriceRest:', externalPricePriceRest
+            , 'historicalPrice:', historicalPrice
+            , 'isHistoricalAveragePrice:', isHistoricalAveragePrice
+            , 'historicalSource:', historicalSource
+          )
 
         }
       }
-      return { historicalPrice, isHistoricalAveragePrice }
+      return { historicalPrice, isHistoricalAveragePrice, historicalSource }
     } catch (error) {
       console.error('Transactions.getHistoricalPriceBuy', error.stack)
     }
