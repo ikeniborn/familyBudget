@@ -2940,34 +2940,34 @@ class Price {
    * @param {*} token_id
    * @returns {array}
    */
-  getHistoricalPrice(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51', from = new Date(), to =new Date() ) {
+  getHistoricalPrice(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51', from = new Date(), to = new Date()) {
     const fromFormat = new FormatDate(from).getFormatDate('yyyy-MM-dd');
     const toFormat = new FormatDate(to).getFormatDate('yyyy-MM-dd');
     const array = this.methods.get({
       endPoint: '/token/historical',
       query: {
         token_id,
-        from:fromFormat,
-        to:toFormat,
+        from: fromFormat,
+        to: toFormat,
       },
     })?.data || [];
     return array
   }
 
-    /**
-   * Gettoken search
-   *
-   * @param {*} token_id
-   * @returns {array}
-   */
-    getTokenSearch(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51') {
-      return this.methods.get({
-        endPoint: '/token/search',
-        query: {
-          token_id,
-        },
-      })?.data || []
-    }
+  /**
+ * Gettoken search
+ *
+ * @param {*} token_id
+ * @returns {array}
+ */
+  getTokenSearch(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51') {
+    return this.methods.get({
+      endPoint: '/token/search',
+      query: {
+        token_id,
+      },
+    })?.data || []
+  }
 }
 
 class Dimension {
@@ -4163,7 +4163,7 @@ class HistoricalPrice {
                   row.isAvgPrice &&
                   !row.isDelete &&
                   !row.isFee &&
-                  !row.isOverflow
+                  !row.isOverflow 
                 )
               })
               .sort((a, b) => {
@@ -4212,19 +4212,19 @@ class HistoricalPrice {
 
           let externalPricePriceRest = 0;
 
-          if (currentPricePriceRest == 0) {
+          if (currentPricePriceRest == 0 && historicalPricePriceRest == 0) {
             const formatDatetime = new FormatDate(dateTime).getFormatDate('yyyy-MM-dd');
-            const priceObject = new Price().getHistoricalPrice(symbolId, formatDatetime, formatDatetime).reduce((object, value) => {
+            const historicalPriceObject = new Price().getHistoricalPrice(symbolId, formatDatetime, formatDatetime).reduce((object, value) => {
               if (!object[value.token_id]) {
                 object[value.token_id] = value;
               }
               return object
             }, {});
-            console.log('symbolId', symbolId);
-            console.log('dateTime', dateTime);
-            console.log('formatDatetime', formatDatetime);
-            console.log('priceObject', priceObject);
-            externalPricePriceRest = priceObject[symbolId]?.price_close || 0;
+            // console.log('symbolId', symbolId)
+            // console.log('dateTime', dateTime)
+            // console.log('formatDatetime', formatDatetime)
+            // console.log('historicalPriceObject', historicalPriceObject)
+            externalPricePriceRest = historicalPriceObject[symbolId]?.price_close || 0;
           }
 
           //* Расчет средней цены покупки токена
@@ -4232,10 +4232,12 @@ class HistoricalPrice {
           if (historicalPricePriceRest > 0) {
             historicalPrice = historicalPricePriceRest;
             isHistoricalAveragePrice = true;
-          } else if (historicalPricePriceRest == 0 && currentPricePriceRest > 0) {
+          } 
+          else if (historicalPricePriceRest == 0 && currentPricePriceRest > 0) {
             historicalPrice = currentPricePriceRest;
             isHistoricalAveragePrice = false;
-          } else if (historicalPricePriceRest == 0 && currentPricePriceRest == 0) {
+          } 
+          else if (historicalPricePriceRest == 0 && currentPricePriceRest == 0) {
             historicalPrice = externalPricePriceRest;
             isHistoricalAveragePrice = false;
             //   if (
@@ -4279,17 +4281,19 @@ class HistoricalPrice {
             //     }
             //   }
             // }
-          } else {
+          } 
+          else {
             historicalPrice = 0;
             isHistoricalAveragePrice = false;
           }
 
-          console.log('symbol', symbol);
-          console.log('historicalPricePriceRest', historicalPricePriceRest);
-          console.log('currentPricePriceRest', currentPricePriceRest);
-          console.log('externalPricePriceRest', externalPricePriceRest);
-          console.log('historicalPrice', historicalPrice);
-          console.log('isHistoricalAveragePrice', isHistoricalAveragePrice);
+          // console.log('symbol', symbol)
+          // console.log('historicalPricePriceRest', historicalPricePriceRest)
+          // console.log('currentPricePriceRest', currentPricePriceRest)
+          // console.log('externalPricePriceRest', externalPricePriceRest)
+          // console.log('historicalPrice', historicalPrice)
+          // console.log('isHistoricalAveragePrice', isHistoricalAveragePrice)
+
         }
       }
       return { historicalPrice, isHistoricalAveragePrice }
@@ -4832,31 +4836,47 @@ class Registry {
         );
 
 
-        isHistoricalAveragePriceCurrency =
-          historicalPriceBuyCurrency?.isHistoricalAveragePrice || false;
-        isHistoricalAveragePriceSymbol =
-          historicalPriceBuyCoin?.isHistoricalAveragePrice || false;
+
         currencyPrice = historicalPriceBuyCurrency?.historicalPrice;
         //* определение корректной цены токена
-        if (isHistoricalAveragePriceSymbol == false && isHistoricalAveragePriceCurrency == true) {
+        if (historicalPriceBuyCoin?.isHistoricalAveragePrice == false && historicalPriceBuyCurrency?.isHistoricalAveragePrice == true) {
           symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin;
-        } else if (isHistoricalAveragePriceSymbol == true && isHistoricalAveragePriceCurrency == true) {
+          isHistoricalAveragePriceCurrency =
+            historicalPriceBuyCurrency?.isHistoricalAveragePrice;
+          isHistoricalAveragePriceSymbol =
+            historicalPriceBuyCurrency?.isHistoricalAveragePrice;
+        } else if (historicalPriceBuyCoin?.isHistoricalAveragePrice == true && historicalPriceBuyCurrency?.isHistoricalAveragePrice == true) {
           symbolPrice = historicalPriceBuyCoin?.historicalPrice ? historicalPriceBuyCoin?.historicalPrice : historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin;
-        } else if (isHistoricalAveragePriceSymbol == true && isHistoricalAveragePriceCurrency == false) {
+          isHistoricalAveragePriceCurrency =
+            historicalPriceBuyCurrency?.isHistoricalAveragePrice;
+          isHistoricalAveragePriceSymbol =
+            historicalPriceBuyCoin?.isHistoricalAveragePrice;
+        } else if (historicalPriceBuyCoin?.isHistoricalAveragePrice == true && historicalPriceBuyCurrency?.isHistoricalAveragePrice == false) {
           symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin;
-        } else if (isHistoricalAveragePriceSymbol == false && isHistoricalAveragePriceCurrency == false) {
+          isHistoricalAveragePriceCurrency =
+            historicalPriceBuyCurrency?.isHistoricalAveragePrice;
+          isHistoricalAveragePriceSymbol =
+            historicalPriceBuyCurrency?.isHistoricalAveragePrice;
+        } else if (historicalPriceBuyCoin?.isHistoricalAveragePrice == false && historicalPriceBuyCurrency?.isHistoricalAveragePrice == false) {
           symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin;
+          isHistoricalAveragePriceCurrency =
+            historicalPriceBuyCurrency?.isHistoricalAveragePrice;
+          isHistoricalAveragePriceSymbol =
+            historicalPriceBuyCurrency?.isHistoricalAveragePrice;
         }
         symbolPriceCoef = symbolPrice / currencyPrice;
         currencyPriceCoef = currencyPrice / symbolPrice;
 
+
         // console.log('currencySymbol', currencySymbol)
         // console.log('historicalPriceBuyCurrency', historicalPriceBuyCurrency)
         // console.log('currencyPrice', currencyPrice)
+        // console.log('isHistoricalAveragePriceCurrency', isHistoricalAveragePriceCurrency)
 
         // console.log('coinSymbol', coinSymbol)
         // console.log('historicalPriceBuyCoin', historicalPriceBuyCoin)
         // console.log('symbolPrice', symbolPrice)
+        // console.log('isHistoricalAveragePriceSymbol', isHistoricalAveragePriceSymbol)
 
         // priceUSDBTCObject = new Price().getHistoricalPrice(
         //   'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/

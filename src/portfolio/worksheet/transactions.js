@@ -805,7 +805,7 @@ class HistoricalPrice {
                   row.isAvgPrice &&
                   !row.isDelete &&
                   !row.isFee &&
-                  !row.isOverflow
+                  !row.isOverflow 
                 )
               })
               .sort((a, b) => {
@@ -854,19 +854,19 @@ class HistoricalPrice {
 
           let externalPricePriceRest = 0
 
-          if (currentPricePriceRest == 0) {
+          if (currentPricePriceRest == 0 && historicalPricePriceRest == 0) {
             const formatDatetime = new FormatDate(dateTime).getFormatDate('yyyy-MM-dd')
-            const priceObject = new web3space.Price().getHistoricalPrice(symbolId, formatDatetime, formatDatetime).reduce((object, value) => {
+            const historicalPriceObject = new web3space.Price().getHistoricalPrice(symbolId, formatDatetime, formatDatetime).reduce((object, value) => {
               if (!object[value.token_id]) {
                 object[value.token_id] = value
               }
               return object
             }, {})
-            console.log('symbolId', symbolId)
-            console.log('dateTime', dateTime)
-            console.log('formatDatetime', formatDatetime)
-            console.log('priceObject', priceObject)
-            externalPricePriceRest = priceObject[symbolId]?.price_close || 0
+            // console.log('symbolId', symbolId)
+            // console.log('dateTime', dateTime)
+            // console.log('formatDatetime', formatDatetime)
+            // console.log('historicalPriceObject', historicalPriceObject)
+            externalPricePriceRest = historicalPriceObject[symbolId]?.price_close || 0
           }
 
           //* Расчет средней цены покупки токена
@@ -874,10 +874,12 @@ class HistoricalPrice {
           if (historicalPricePriceRest > 0) {
             historicalPrice = historicalPricePriceRest
             isHistoricalAveragePrice = true
-          } else if (historicalPricePriceRest == 0 && currentPricePriceRest > 0) {
+          } 
+          else if (historicalPricePriceRest == 0 && currentPricePriceRest > 0) {
             historicalPrice = currentPricePriceRest
             isHistoricalAveragePrice = false
-          } else if (historicalPricePriceRest == 0 && currentPricePriceRest == 0) {
+          } 
+          else if (historicalPricePriceRest == 0 && currentPricePriceRest == 0) {
             historicalPrice = externalPricePriceRest
             isHistoricalAveragePrice = false
             //   if (
@@ -921,17 +923,19 @@ class HistoricalPrice {
             //     }
             //   }
             // }
-          } else {
+          } 
+          else {
             historicalPrice = 0
             isHistoricalAveragePrice = false
           }
 
-          console.log('symbol', symbol)
-          console.log('historicalPricePriceRest', historicalPricePriceRest)
-          console.log('currentPricePriceRest', currentPricePriceRest)
-          console.log('externalPricePriceRest', externalPricePriceRest)
-          console.log('historicalPrice', historicalPrice)
-          console.log('isHistoricalAveragePrice', isHistoricalAveragePrice)
+          // console.log('symbol', symbol)
+          // console.log('historicalPricePriceRest', historicalPricePriceRest)
+          // console.log('currentPricePriceRest', currentPricePriceRest)
+          // console.log('externalPricePriceRest', externalPricePriceRest)
+          // console.log('historicalPrice', historicalPrice)
+          // console.log('isHistoricalAveragePrice', isHistoricalAveragePrice)
+
         }
       }
       return { historicalPrice, isHistoricalAveragePrice }

@@ -52,34 +52,34 @@ class Price {
    * @param {*} token_id
    * @returns {array}
    */
-  getHistoricalPrice(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51', from = new Date(), to =new Date() ) {
+  getHistoricalPrice(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51', from = new Date(), to = new Date()) {
     const fromFormat = new FormatDate(from).getFormatDate('yyyy-MM-dd')
     const toFormat = new FormatDate(to).getFormatDate('yyyy-MM-dd')
     const array = this.methods.get({
       endPoint: '/token/historical',
       query: {
         token_id,
-        from:fromFormat,
-        to:toFormat,
+        from: fromFormat,
+        to: toFormat,
       },
     })?.data || []
     return array
   }
 
-    /**
-   * Gettoken search
-   *
-   * @param {*} token_id
-   * @returns {array}
-   */
-    getTokenSearch(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51') {
-      return this.methods.get({
-        endPoint: '/token/search',
-        query: {
-          token_id,
-        },
-      })?.data || []
-    }
+  /**
+ * Gettoken search
+ *
+ * @param {*} token_id
+ * @returns {array}
+ */
+  getTokenSearch(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51') {
+    return this.methods.get({
+      endPoint: '/token/search',
+      query: {
+        token_id,
+      },
+    })?.data || []
+  }
 }
 
 class Dimension {

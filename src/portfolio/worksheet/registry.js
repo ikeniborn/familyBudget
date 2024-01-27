@@ -539,31 +539,47 @@ class Registry {
         )
 
 
-        isHistoricalAveragePriceCurrency =
-          historicalPriceBuyCurrency?.isHistoricalAveragePrice || false
-        isHistoricalAveragePriceSymbol =
-          historicalPriceBuyCoin?.isHistoricalAveragePrice || false
+
         currencyPrice = historicalPriceBuyCurrency?.historicalPrice
         //* определение корректной цены токена
-        if (isHistoricalAveragePriceSymbol == false && isHistoricalAveragePriceCurrency == true) {
+        if (historicalPriceBuyCoin?.isHistoricalAveragePrice == false && historicalPriceBuyCurrency?.isHistoricalAveragePrice == true) {
           symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
-        } else if (isHistoricalAveragePriceSymbol == true && isHistoricalAveragePriceCurrency == true) {
+          isHistoricalAveragePriceCurrency =
+            historicalPriceBuyCurrency?.isHistoricalAveragePrice
+          isHistoricalAveragePriceSymbol =
+            historicalPriceBuyCurrency?.isHistoricalAveragePrice
+        } else if (historicalPriceBuyCoin?.isHistoricalAveragePrice == true && historicalPriceBuyCurrency?.isHistoricalAveragePrice == true) {
           symbolPrice = historicalPriceBuyCoin?.historicalPrice ? historicalPriceBuyCoin?.historicalPrice : historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
-        } else if (isHistoricalAveragePriceSymbol == true && isHistoricalAveragePriceCurrency == false) {
+          isHistoricalAveragePriceCurrency =
+            historicalPriceBuyCurrency?.isHistoricalAveragePrice
+          isHistoricalAveragePriceSymbol =
+            historicalPriceBuyCoin?.isHistoricalAveragePrice
+        } else if (historicalPriceBuyCoin?.isHistoricalAveragePrice == true && historicalPriceBuyCurrency?.isHistoricalAveragePrice == false) {
           symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
-        } else if (isHistoricalAveragePriceSymbol == false && isHistoricalAveragePriceCurrency == false) {
+          isHistoricalAveragePriceCurrency =
+            historicalPriceBuyCurrency?.isHistoricalAveragePrice
+          isHistoricalAveragePriceSymbol =
+            historicalPriceBuyCurrency?.isHistoricalAveragePrice
+        } else if (historicalPriceBuyCoin?.isHistoricalAveragePrice == false && historicalPriceBuyCurrency?.isHistoricalAveragePrice == false) {
           symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
+          isHistoricalAveragePriceCurrency =
+            historicalPriceBuyCurrency?.isHistoricalAveragePrice
+          isHistoricalAveragePriceSymbol =
+            historicalPriceBuyCurrency?.isHistoricalAveragePrice
         }
         symbolPriceCoef = symbolPrice / currencyPrice
         currencyPriceCoef = currencyPrice / symbolPrice
 
+
         // console.log('currencySymbol', currencySymbol)
         // console.log('historicalPriceBuyCurrency', historicalPriceBuyCurrency)
         // console.log('currencyPrice', currencyPrice)
+        // console.log('isHistoricalAveragePriceCurrency', isHistoricalAveragePriceCurrency)
 
         // console.log('coinSymbol', coinSymbol)
         // console.log('historicalPriceBuyCoin', historicalPriceBuyCoin)
         // console.log('symbolPrice', symbolPrice)
+        // console.log('isHistoricalAveragePriceSymbol', isHistoricalAveragePriceSymbol)
 
         // priceUSDBTCObject = new Price().getHistoricalPrice(
         //   'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
