@@ -3,7 +3,7 @@ import { Hash, FormatDate } from '../../utils'
 import { Symbols } from './symbols'
 import * as cryptoCompare from '../../restApi/cryptoCompare'
 import * as web3space from '../../restApi/web3Space'
-import * as coinGecko from '../../restApi/coinGecko'
+// import * as coinGecko from '../../restApi/coinGecko'
 export { Transactions, HistoricalPrice }
 
 class Transactions {
@@ -463,8 +463,8 @@ class HistoricalPrice {
    * @param {*} account счет
    * @param {*} portfolio портфолио
    * @param {*} contractor контрагент
-   * @param {*} currencySymbol символ
-   * @param {*} currencySymbolCategoryKey ключ категории токена
+   * @param {*} symbol символ
+   * @param {*} symbolCategoryKey ключ категории токена
    * @param {object} symbolsObject справочник символов
    * @param {array} transactionsArrayOfObject массив транзакций транзакций [{}]
    * @param {*} isRange признак диапазона
@@ -476,8 +476,8 @@ class HistoricalPrice {
     account,
     portfolio,
     contractor,
-    currencySymbol,
-    currencySymbolCategoryKey,
+    symbol,
+    symbolCategoryKey,
     symbolsObject,
     transactionsArrayOfObject,
     isRange = false,
@@ -488,20 +488,20 @@ class HistoricalPrice {
       let isHistoricalAveragePrice
       historicalPrice = 0
       isHistoricalAveragePrice = false
-      const coin = symbolsObject[new Hash(currencySymbol).md5]
+      const coin = symbolsObject[new Hash(symbol).md5]
       const sourceKey = new Hash(coin?.source).md5
       const symbolId = coin?.sourceId
 
       if (
         'e5e3fd01394b9a81296b75d5a7f4c1a2' ===
-        currencySymbolCategoryKey /*stablecoin*/
+        symbolCategoryKey /*stablecoin*/
       ) {
         //* Для стабильных токенов возвращать единицу
         historicalPrice = 1
         isHistoricalAveragePrice = false
       } else if (
         '7d5f30a0d1641c0b6980aaf2556b32ce' ===
-        currencySymbolCategoryKey /*fiat*/
+        symbolCategoryKey /*fiat*/
       ) {
         if (
           sourceKey === '1dab445b170a7f0acfccea645a8879e0' /*cryptocompare*/
@@ -516,7 +516,8 @@ class HistoricalPrice {
         else if (
           sourceKey === '9fcc5acecc1e69fad95aa3fec1b715c6' /*web3space*/
         ) {
-          const priceObject = new web3space.Price().getHistoricalPrice(symbolId, dateTime, dateTime).reduce((object, value) => {
+          const formatDatetime = new FormatDate(dateTime).getFormatDate('yyyy-MM-dd')
+          const priceObject = new web3space.Price().getHistoricalPrice(symbolId, formatDatetime, formatDatetime).reduce((object, value) => {
             if (!object[value.token_id]) {
               object[value.token_id] = value
             }
@@ -530,7 +531,7 @@ class HistoricalPrice {
         //* Расчет средневзвешенной стоимости покупки токена на основании истории покупок для диапазона данных
         if (isRange) {
           const historicalAveragePriceKey = new Hash(
-            account + portfolio + contractor + currencySymbol
+            account + portfolio + contractor + symbol
           ).md5
           const inKey = new Hash('in').md5
           const outKey = new Hash('out').md5
@@ -771,14 +772,13 @@ class HistoricalPrice {
           // const costSum =
           //   Math.round((priceInFlow * quantityInFlow + priceOutFlow * quantityOutFlow) / 10) * 10
           // const quantitySum = quantityInFlow + quantityOutFlow
+
           let historicalPricePriceRest = 0
           historicalPricePriceRest = historicalPriceAgg.priceRest || 0
 
           // costSum / quantitySum || 0
 
-          // console.log('priceInFlow', priceInFlow)
-          // console.log('priceOutFlow', priceOutFlow)
-          // console.log('costSum', costSum)
+
           // console.log('quantitySum', quantitySum)
           // console.log('costRest', historicalPriceAgg.costRest)
           // console.log('quantityRest', historicalPriceAgg.quantityRest)
@@ -804,7 +804,8 @@ class HistoricalPrice {
                   historicalAveragePriceKey === row.historicalAveragePriceKey &&
                   row.isAvgPrice &&
                   !row.isDelete &&
-                  !row.isFee
+                  !row.isFee &&
+                  !row.isOverflow
                 )
               })
               .sort((a, b) => {
@@ -851,6 +852,22 @@ class HistoricalPrice {
             currentPricePriceRest = currentPriceCostRest / currentPriceQuantityRest || 0
           }
 
+          let externalPricePriceRest = 0
+
+          if (currentPricePriceRest == 0) {
+            const formatDatetime = new FormatDate(dateTime).getFormatDate('yyyy-MM-dd')
+            const priceObject = new web3space.Price().getHistoricalPrice(symbolId, formatDatetime, formatDatetime).reduce((object, value) => {
+              if (!object[value.token_id]) {
+                object[value.token_id] = value
+              }
+              return object
+            }, {})
+            console.log('symbolId', symbolId)
+            console.log('dateTime', dateTime)
+            console.log('formatDatetime', formatDatetime)
+            console.log('priceObject', priceObject)
+            externalPricePriceRest = priceObject[symbolId]?.price_close || 0
+          }
 
           //* Расчет средней цены покупки токена
 
@@ -860,51 +877,63 @@ class HistoricalPrice {
           } else if (historicalPricePriceRest == 0 && currentPricePriceRest > 0) {
             historicalPrice = currentPricePriceRest
             isHistoricalAveragePrice = false
-          } else {
-            if (
-              new FormatDate(dateTime).yyyymmdd === new FormatDate().yyyymmdd &&
-              sourceKey === 'b40555dbd3865016ed3f7b4a9bf3b806' /*coingecko*/
-            ) {
-              //* Получение исторической цены из coinGecko
-              historicalPrice = new coinGecko.Price()
-                .getMarketsPrice(symbolId)
-                .reduce((price, data) => {
-                  price = data.current_price
-                  return price
-                }, 0)
+          } else if (historicalPricePriceRest == 0 && currentPricePriceRest == 0) {
+            historicalPrice = externalPricePriceRest
+            isHistoricalAveragePrice = false
+            //   if (
+            //     new FormatDate(dateTime).yyyymmdd === new FormatDate().yyyymmdd &&
+            //     sourceKey === 'b40555dbd3865016ed3f7b4a9bf3b806' /*coingecko*/
+            //   ) {
+            //     //* Получение исторической цены из coinGecko
+            //     historicalPrice = new coinGecko.Price()
+            //       .getMarketsPrice(symbolId)
+            //       .reduce((price, data) => {
+            //         price = data.current_price
+            //         return price
+            //       }, 0)
 
-              isHistoricalAveragePrice = false
-            } else {
-              //* Получение исторической цены из CryptoCompare
-              if (
-                sourceKey ===
-                '1dab445b170a7f0acfccea645a8879e0' /*cryptocompare*/
-              ) {
-                historicalPrice = new cryptoCompare.Price().getHistoryPrice(
-                  symbolId,
-                  dateTime,
-                  convert
-                ) || 0
-                isHistoricalAveragePrice = false
-              }
-              //* Получение исторической цены из web3space
-              else if (
-                sourceKey === '9fcc5acecc1e69fad95aa3fec1b715c6' /*web3space*/
-              ) {
-                const priceObject = new web3space.Price().getHistoricalPrice(symbolId, dateTime, dateTime).reduce((object, value) => {
-                  if (!object[value.token_id]) {
-                    object[value.token_id] = value
-                  }
-                  return object
-                }, {})
-                historicalPrice = priceObject[symbolId]?.price_close || 0
-                isHistoricalAveragePrice = false
-              }
-            }
+            //     isHistoricalAveragePrice = false
+            //   } else {
+            //     //* Получение исторической цены из CryptoCompare
+            //     if (
+            //       sourceKey ===
+            //       '1dab445b170a7f0acfccea645a8879e0' /*cryptocompare*/
+            //     ) {
+            //       historicalPrice = new cryptoCompare.Price().getHistoryPrice(
+            //         symbolId,
+            //         dateTime,
+            //         convert
+            //       ) || 0
+            //       isHistoricalAveragePrice = false
+            //     }
+            //     //* Получение исторической цены из web3space
+            //     else if (
+            //       sourceKey === '9fcc5acecc1e69fad95aa3fec1b715c6' /*web3space*/
+            //     ) {
+            //       const priceObject = new web3space.Price().getHistoricalPrice(symbolId, dateTime, dateTime).reduce((object, value) => {
+            //         if (!object[value.token_id]) {
+            //           object[value.token_id] = value
+            //         }
+            //         return object
+            //       }, {})
+            //       historicalPrice = priceObject[symbolId]?.price_close || 0
+            //       isHistoricalAveragePrice = false
+            //     }
+            //   }
+            // }
+          } else {
+            historicalPrice = 0
+            isHistoricalAveragePrice = false
           }
+
+          console.log('symbol', symbol)
+          console.log('historicalPricePriceRest', historicalPricePriceRest)
+          console.log('currentPricePriceRest', currentPricePriceRest)
+          console.log('externalPricePriceRest', externalPricePriceRest)
+          console.log('historicalPrice', historicalPrice)
+          console.log('isHistoricalAveragePrice', isHistoricalAveragePrice)
         }
       }
-
       return { historicalPrice, isHistoricalAveragePrice }
     } catch (error) {
       console.error('Transactions.getHistoricalPriceBuy', error.stack)
