@@ -4216,16 +4216,16 @@ class HistoricalPrice {
           }
 
 
-          console.log(
-            'getHistoricalPrice:'
-            , 'symbol:', symbol
-            , 'historicalPricePriceRest:', historicalPricePriceRest
-            , 'currentPricePriceRest:', currentPricePriceRest
-            , 'externalPricePriceRest:', externalPricePriceRest
-            , 'historicalPrice:', historicalPrice
-            , 'isHistoricalAveragePrice:', isHistoricalAveragePrice
-            , 'historicalSource:', historicalSource
-          );
+          // console.log(
+          //   'getHistoricalPrice:'
+          //   , 'symbol:', symbol
+          //   , 'historicalPricePriceRest:', historicalPricePriceRest
+          //   , 'currentPricePriceRest:', currentPricePriceRest
+          //   , 'externalPricePriceRest:', externalPricePriceRest
+          //   , 'historicalPrice:', historicalPrice
+          //   , 'isHistoricalAveragePrice:', isHistoricalAveragePrice
+          //   , 'historicalSource:', historicalSource
+          // )
 
         }
       }
@@ -4818,20 +4818,20 @@ class Registry {
         currencyPriceCoef = currencyPrice / symbolPrice;
 
 
-        console.log(
-          'currencySymbol:', currencySymbol
-          , 'historicalPriceBuyCurrency:', historicalPriceBuyCurrency
-          , 'currencyPrice:', currencyPrice
-          , 'isHistoricalAveragePriceCurrency:', isHistoricalAveragePriceCurrency
-        );
+        // console.log(
+        //   'currencySymbol:', currencySymbol
+        //   , 'historicalPriceBuyCurrency:', historicalPriceBuyCurrency
+        //   , 'currencyPrice:', currencyPrice
+        //   , 'isHistoricalAveragePriceCurrency:', isHistoricalAveragePriceCurrency
+        // )
 
-        console.log(
-          'coinSymbol:', coinSymbol
-          , 'historicalPriceBuyCoin:', historicalPriceBuyCoin
-          , 'symbolPrice:', symbolPrice
-          , 'isHistoricalAveragePriceSymbol:', isHistoricalAveragePriceSymbol
-          , 'symbolPriceSource:', symbolPriceSource
-        );
+        // console.log(
+        //   'coinSymbol:', coinSymbol
+        //   , 'historicalPriceBuyCoin:', historicalPriceBuyCoin
+        //   , 'symbolPrice:', symbolPrice
+        //   , 'isHistoricalAveragePriceSymbol:', isHistoricalAveragePriceSymbol
+        //   , 'symbolPriceSource:', symbolPriceSource
+        // )
 
 
         // priceUSDBTCObject = new Price().getHistoricalPrice(

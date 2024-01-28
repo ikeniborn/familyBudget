@@ -833,8 +833,7 @@ class HistoricalPrice {
 
           }
 
-          //* Расчет средней цены покупки токена
-
+          //* Определение цены токена
 
           if (historicalPricePriceRest > 0) {
             historicalPrice = historicalPricePriceRest
@@ -858,16 +857,16 @@ class HistoricalPrice {
           }
 
 
-          console.log(
-            'getHistoricalPrice:'
-            , 'symbol:', symbol
-            , 'historicalPricePriceRest:', historicalPricePriceRest
-            , 'currentPricePriceRest:', currentPricePriceRest
-            , 'externalPricePriceRest:', externalPricePriceRest
-            , 'historicalPrice:', historicalPrice
-            , 'isHistoricalAveragePrice:', isHistoricalAveragePrice
-            , 'historicalSource:', historicalSource
-          )
+          // console.log(
+          //   'getHistoricalPrice:'
+          //   , 'symbol:', symbol
+          //   , 'historicalPricePriceRest:', historicalPricePriceRest
+          //   , 'currentPricePriceRest:', currentPricePriceRest
+          //   , 'externalPricePriceRest:', externalPricePriceRest
+          //   , 'historicalPrice:', historicalPrice
+          //   , 'isHistoricalAveragePrice:', isHistoricalAveragePrice
+          //   , 'historicalSource:', historicalSource
+          // )
 
         }
       }

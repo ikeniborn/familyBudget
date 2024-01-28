@@ -79,14 +79,14 @@ class Registry {
     const outKey = new Hash('out').md5
     if (/*stablecoin*/ 'e5e3fd01394b9a81296b75d5a7f4c1a2' !== categoryKey) {
       if (
-        /*Write-off*/ '7b33b9f52598cd60f7aa6ca0082515c4' === operationKey &&
+        /*write-off*/ '7b33b9f52598cd60f7aa6ca0082515c4' === operationKey &&
         directionKey === outKey
       ) {
         return true
       } else if (
         [
-          '84a0f3455dcca894ace136be62efa292' /*Transfer*/
-          , 'b4479040173a9f41eeb4e98339f2a21d' /*Refill*/
+          '84a0f3455dcca894ace136be62efa292' /*transfer*/
+          , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
           , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
         ].indexOf(operationKey) !== -1 &&
         directionKey === inKey
@@ -290,7 +290,7 @@ class Registry {
         //* формирование транзакций
         if (
           [
-            /*Transfer, Write-off, Refill*/
+            /*transfer, write-off, refill*/
             '84a0f3455dcca894ace136be62efa292',
             '7b33b9f52598cd60f7aa6ca0082515c4',
             'b4479040173a9f41eeb4e98339f2a21d',
@@ -300,7 +300,7 @@ class Registry {
 
           if (
             [
-              /*Transfer, Write-off*/
+              /*transfer, write-off*/
               '84a0f3455dcca894ace136be62efa292',
               '7b33b9f52598cd60f7aa6ca0082515c4',
             ].indexOf(operationKey) !== -1
@@ -339,7 +339,7 @@ class Registry {
           }
           if (
             [
-              /*Transfer, Refill*/
+              /*transfer, refill*/
               '84a0f3455dcca894ace136be62efa292',
               'b4479040173a9f41eeb4e98339f2a21d',
             ].indexOf(operationKey) !== -1
@@ -547,49 +547,82 @@ class Registry {
 
 
 
-        currencyPrice = historicalPriceBuyCurrency?.historicalPrice
+
         let symbolPriceSource = 'na'
+        //* цена валюты
+        currencyPrice = historicalPriceBuyCurrency?.historicalPrice
+        isHistoricalAveragePriceCurrency =
+          historicalPriceBuyCurrency?.isHistoricalAveragePrice
         //* определение корректной цены токена
-        if (historicalPriceBuyCoin?.isHistoricalAveragePrice == false && historicalPriceBuyCurrency?.isHistoricalAveragePrice == true) {
-          symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
-          symbolPriceSource = 'fromCurrency'
-          isHistoricalAveragePriceCurrency =
-            historicalPriceBuyCurrency?.isHistoricalAveragePrice
-          isHistoricalAveragePriceSymbol =
-            historicalPriceBuyCurrency?.isHistoricalAveragePrice
-        } else if (historicalPriceBuyCoin?.isHistoricalAveragePrice == true && historicalPriceBuyCurrency?.isHistoricalAveragePrice == true) {
+        //* условие для продаажи и покупки
+        if (
+          [
+            '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
+            , '0461ebd2b773878eac9f78a891912d65' /*buy*/
+          ].indexOf(
+            operationKey
+          ) !== -1
+        ) {
+          //* цена для покупки продажи через стейблкоин или фиат
+          if (
+            [
+              'e5e3fd01394b9a81296b75d5a7f4c1a2' /*stablecoin*/
+              , '7d5f30a0d1641c0b6980aaf2556b32ce' /*fiat*/
+            ].indexOf(
+              currencySymbolCategoryKey
+            ) !== -1
+          ) {
+            symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
+            symbolPriceSource = 'fromCurrency'
+            isHistoricalAveragePriceSymbol =
+              historicalPriceBuyCurrency?.isHistoricalAveragePrice
+          }
+          //* цена для покупки продажи через токен
+          else {
+            if (historicalPriceBuyCoin?.historicalPrice > 0) {
+              symbolPrice = historicalPriceBuyCoin?.historicalPrice
+              symbolPriceSource = 'fromCoin'
+              isHistoricalAveragePriceSymbol =
+                historicalPriceBuyCoin?.isHistoricalAveragePrice
+            } else {
+              symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
+              symbolPriceSource = 'fromCurrency'
+              isHistoricalAveragePriceSymbol =
+                historicalPriceBuyCurrency?.isHistoricalAveragePrice
+            }
+          }
+        }
+        //* условие для перевода пополнения, списания и перелива
+        else if (
+          [
+            '84a0f3455dcca894ace136be62efa292'  /*transfer*/
+            , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
+            , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
+            , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
+          ].indexOf(
+            operationKey
+          ) !== -1
+        ) {
           if (historicalPriceBuyCoin?.historicalPrice > 0) {
             symbolPrice = historicalPriceBuyCoin?.historicalPrice
             symbolPriceSource = 'fromCoin'
+            isHistoricalAveragePriceSymbol =
+              historicalPriceBuyCoin?.isHistoricalAveragePrice
           } else {
             symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
             symbolPriceSource = 'fromCurrency'
+            isHistoricalAveragePriceSymbol =
+              historicalPriceBuyCurrency?.isHistoricalAveragePrice
           }
-          isHistoricalAveragePriceCurrency =
-            historicalPriceBuyCurrency?.isHistoricalAveragePrice
-          isHistoricalAveragePriceSymbol =
-            historicalPriceBuyCoin?.isHistoricalAveragePrice
-        } else if (historicalPriceBuyCoin?.isHistoricalAveragePrice == true && historicalPriceBuyCurrency?.isHistoricalAveragePrice == false) {
-          symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
-          symbolPriceSource = 'fromCurrency'
-          isHistoricalAveragePriceCurrency =
-            historicalPriceBuyCurrency?.isHistoricalAveragePrice
-          isHistoricalAveragePriceSymbol =
-            historicalPriceBuyCurrency?.isHistoricalAveragePrice
-        } else if (historicalPriceBuyCoin?.isHistoricalAveragePrice == false && historicalPriceBuyCurrency?.isHistoricalAveragePrice == false) {
-          symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
-          symbolPriceSource = 'fromCurrency'
-          isHistoricalAveragePriceCurrency =
-            historicalPriceBuyCurrency?.isHistoricalAveragePrice
-          isHistoricalAveragePriceSymbol =
-            historicalPriceBuyCurrency?.isHistoricalAveragePrice
         }
+
+        //* расчет коэффициентов пары
         symbolPriceCoef = symbolPrice / currencyPrice
         currencyPriceCoef = currencyPrice / symbolPrice
 
-
         console.log(
           'currencySymbol:', currencySymbol
+          , 'operation:', rowValues.operation
           , 'historicalPriceBuyCurrency:', historicalPriceBuyCurrency
           , 'currencyPrice:', currencyPrice
           , 'isHistoricalAveragePriceCurrency:', isHistoricalAveragePriceCurrency
@@ -597,12 +630,12 @@ class Registry {
 
         console.log(
           'coinSymbol:', coinSymbol
+          , 'operation:', rowValues.operation
           , 'historicalPriceBuyCoin:', historicalPriceBuyCoin
           , 'symbolPrice:', symbolPrice
           , 'isHistoricalAveragePriceSymbol:', isHistoricalAveragePriceSymbol
           , 'symbolPriceSource:', symbolPriceSource
         )
-
 
         // priceUSDBTCObject = new Price().getHistoricalPrice(
         //   'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
@@ -620,6 +653,7 @@ class Registry {
             price_close: new Symbols().workSheet.object[new Hash('btc').md5]?.price
           }
         }
+
         priceUSDBTC = priceUSDBTCObject['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close
 
         //* Комиссия
@@ -651,7 +685,7 @@ class Registry {
             isLiquidityPool: false,
             isAvgPrice: this.getIsAvgPrice(
               directionOut.md5,
-              /*Write-off*/ '7b33b9f52598cd60f7aa6ca0082515c4',
+              /*write-off*/ '7b33b9f52598cd60f7aa6ca0082515c4',
               feeCurrencySymbolCategoryKey
             ),
             isFeePrice: true,
