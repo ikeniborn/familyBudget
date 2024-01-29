@@ -1,6 +1,6 @@
 import { Environment } from '../../gas'
 import { Header } from '../../header'
-import { FormatDate, Hash } from '../../utils'
+import { Hash } from '../../utils'
 import { WorkSheet, WorkSheetRange } from '../../gas'
 import { Log } from '../../log'
 export { Portfolio }
@@ -51,13 +51,13 @@ class Portfolio {
           feeQty: { alias: 'Fee, qty', idx: 16 },
           comment: { alias: 'Comment', idx: 17 },
           date: {
-            alias: 'Date',
+            alias: 'Date (yyyy-MM-dd)',
             idx: 18,
             notNull: true,
             type: 'date',
             default: void 0,
           },
-          time: { alias: 'Time', idx: 19, notNull: true },
+          time: { alias: 'Time (HHmm)', idx: 19, notNull: true },
           isDelete: { alias: 'Is delete', idx: 20 },
           dateSaved: {
             alias: 'Date saved',
@@ -66,7 +66,7 @@ class Portfolio {
             default: new Date(),
           },
           timeSpent: {
-            alias: 'Time spent (hh:mm:ss.ms)',
+            alias: 'Time spent (hh:mm:ss)',
             idx: 22,
             type: 'string',
           },
@@ -383,17 +383,6 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0, notNull: true },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
-        },
-      },
-      web3Space: {
-        type: 'dim',
-        rowNum: 1,
-        columns: {
-          rowKey: { alias: 'Row key', idx: 0, notNull: true },
-          source: { alias: 'Source', pk: true, idx: 1, notNull: true },
-          name: { alias: 'Name', pk: true, idx: 2, notNull: true },
-          symbol: { alias: 'Symbol', pk: true, idx: 3, notNull: true },
-          category: { alias: 'Category', idx: 4 },
         },
       },
       symbolCategory: {

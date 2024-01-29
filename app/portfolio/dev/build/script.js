@@ -1639,13 +1639,13 @@ class Portfolio {
           feeQty: { alias: 'Fee, qty', idx: 16 },
           comment: { alias: 'Comment', idx: 17 },
           date: {
-            alias: 'Date',
+            alias: 'Date (yyyy-MM-dd)',
             idx: 18,
             notNull: true,
             type: 'date',
             default: void 0,
           },
-          time: { alias: 'Time', idx: 19, notNull: true },
+          time: { alias: 'Time (HHmm)', idx: 19, notNull: true },
           isDelete: { alias: 'Is delete', idx: 20 },
           dateSaved: {
             alias: 'Date saved',
@@ -1654,7 +1654,7 @@ class Portfolio {
             default: new Date(),
           },
           timeSpent: {
-            alias: 'Time spent (hh:mm:ss.ms)',
+            alias: 'Time spent (hh:mm:ss)',
             idx: 22,
             type: 'string',
           },
@@ -1971,17 +1971,6 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0, notNull: true },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
-        },
-      },
-      web3Space: {
-        type: 'dim',
-        rowNum: 1,
-        columns: {
-          rowKey: { alias: 'Row key', idx: 0, notNull: true },
-          source: { alias: 'Source', pk: true, idx: 1, notNull: true },
-          name: { alias: 'Name', pk: true, idx: 2, notNull: true },
-          symbol: { alias: 'Symbol', pk: true, idx: 3, notNull: true },
-          category: { alias: 'Category', idx: 4 },
         },
       },
       symbolCategory: {
@@ -3903,21 +3892,6 @@ class HistoricalPrice {
           const getHistoricalPricePriceRest = function () {
             //* цена исторических транзакций
             let transactions;
-            let transactionsFilter = transactionsArrayOfObject
-              .filter((row) => {
-                return (
-                  new Date(row.dateTime).valueOf() <
-                  new Date(dateTime).valueOf() &&
-                  historicalAveragePriceKey === row.historicalAveragePriceKey &&
-                  row.isAvgPrice &&
-                  !row.isDelete
-                )
-              })
-              .sort((a, b) => {
-                return (
-                  new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
-                )
-              });
 
             if (
               [
@@ -3946,7 +3920,6 @@ class HistoricalPrice {
             } else if (
               [
                 '84a0f3455dcca894ace136be62efa292' /*transfer*/
-                , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
                 , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
                 , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
               ].indexOf(
@@ -3993,21 +3966,6 @@ class HistoricalPrice {
                   }
                   else if (
                     operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
-                  ) {
-                    if (directionKey === inKey) {
-                      agg.quantitySellIn += tx.quantity;
-                      agg.costSellIn += tx.cost;
-                      //* Накопление остатков
-                      agg.quantityRest += tx.quantity;
-                    } else if (directionKey === outKey) {
-                      agg.quantitySellOut += tx.quantity * -1;
-                      agg.costSellOut += tx.cost * -1;
-                      //* Накопление остатков
-                      agg.quantityRest += tx.quantity;
-                    }
-                  }
-                  else if (
-                    operationKey === '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
                   ) {
                     if (directionKey === inKey) {
                       agg.quantitySellIn += tx.quantity;
@@ -4224,12 +4182,12 @@ class HistoricalPrice {
               return object
             }, {});
 
-            // console.log(
-            //   ' getExternalPricePriceRest:'
-            //   , 'symbolId:', symbolId
-            //   , 'formatDatetime:', formatDatetime
-            //   , 'historicalPriceObject:', historicalPriceObject
-            // )
+            console.log(
+              ' getExternalPricePriceRest:'
+              , 'symbolId:', symbolId
+              , 'formatDatetime:', formatDatetime
+              , 'historicalPriceObject:', historicalPriceObject
+            );
 
             return historicalPriceObject[symbolId]?.price_close || 0
           };
@@ -4240,7 +4198,7 @@ class HistoricalPrice {
           let currentPricePriceRest = 0;
           let externalPricePriceRest = 0;
 
-          if (isOverflow == true && operationKey != '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/) {
+          if (isOverflow == true) {
             externalPricePriceRest = getExternalPricePriceRest();
             if (externalPricePriceRest > 0) {
               historicalPrice = externalPricePriceRest;
@@ -4270,9 +4228,7 @@ class HistoricalPrice {
             }
           }
           else if (
-            (isOverflow == true && operationKey === '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/)
-            ||
-            (isOverflow == false && operationKey != '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/)
+            isOverflow == false
           ) {
             historicalPricePriceRest = getHistoricalPricePriceRest();
             if (historicalPricePriceRest > 0) {
@@ -4301,18 +4257,18 @@ class HistoricalPrice {
             }
           }
 
-          // console.log(
-          //   'getHistoricalPrice:'
-          //   , 'symbol:', symbol
-          //   , 'isOverflow:', isOverflow
-          //   , 'operationKey:', operationKey
-          //   , 'historicalPricePriceRest:', historicalPricePriceRest
-          //   , 'currentPricePriceRest:', currentPricePriceRest
-          //   , 'externalPricePriceRest:', externalPricePriceRest
-          //   , 'historicalPrice:', historicalPrice
-          //   , 'isHistoricalAveragePrice:', isHistoricalAveragePrice
-          //   , 'historicalSource:', historicalSource
-          // )
+          console.log(
+            'getHistoricalPrice:'
+            , 'symbol:', symbol
+            , 'isOverflow:', isOverflow
+            , 'operationKey:', operationKey
+            , 'historicalPricePriceRest:', historicalPricePriceRest
+            , 'currentPricePriceRest:', currentPricePriceRest
+            , 'externalPricePriceRest:', externalPricePriceRest
+            , 'historicalPrice:', historicalPrice
+            , 'isHistoricalAveragePrice:', isHistoricalAveragePrice
+            , 'historicalSource:', historicalSource
+          );
 
         }
       }
@@ -4404,7 +4360,6 @@ class Registry {
         [
           '84a0f3455dcca894ace136be62efa292' /*transfer*/
           , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
-          , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
           , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
         ].indexOf(operationKey) !== -1 &&
         directionKey === inKey
@@ -4700,7 +4655,6 @@ class Registry {
         } else if (
           [
             '0461ebd2b773878eac9f78a891912d65' /*buy*/
-            , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
           ].indexOf(operationKey) !==
           -1
         ) {
@@ -4857,7 +4811,7 @@ class Registry {
         isHistoricalAveragePriceCurrency =
           historicalPriceBuyCurrency?.isHistoricalAveragePrice;
         //* определение корректной цены токена
-        //* условие для продаажи и покупки
+        //* условие для продажи и покупки
         if (
           [
             '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
@@ -4915,7 +4869,6 @@ class Registry {
         else if (
           [
             '84a0f3455dcca894ace136be62efa292'  /*transfer*/
-            , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
           ].indexOf(
             operationKey
           ) !== -1
@@ -4951,24 +4904,24 @@ class Registry {
         symbolPriceCoef = symbolPrice / currencyPrice;
         currencyPriceCoef = currencyPrice / symbolPrice;
 
-        // console.log(
-        //   'currencySymbol:', currencySymbol
-        //   , 'operation:', rowValues.operation
-        //   , 'isOverflow:', isOverflow
-        //   , 'historicalPriceBuyCurrency:', historicalPriceBuyCurrency
-        //   , 'currencyPrice:', currencyPrice
-        //   , 'isHistoricalAveragePriceCurrency:', isHistoricalAveragePriceCurrency
-        // )
+        console.log(
+          'currencySymbol:', currencySymbol
+          , 'operation:', rowValues.operation
+          , 'isOverflow:', isOverflow
+          , 'historicalPriceBuyCurrency:', historicalPriceBuyCurrency
+          , 'currencyPrice:', currencyPrice
+          , 'isHistoricalAveragePriceCurrency:', isHistoricalAveragePriceCurrency
+        );
 
-        // console.log(
-        //   'coinSymbol:', coinSymbol
-        //   , 'operation:', rowValues.operation
-        //   , 'isOverflow:', isOverflow
-        //   , 'historicalPriceBuyCoin:', historicalPriceBuyCoin
-        //   , 'symbolPrice:', symbolPrice
-        //   , 'isHistoricalAveragePriceSymbol:', isHistoricalAveragePriceSymbol
-        //   , 'symbolPriceSource:', symbolPriceSource
-        // )
+        console.log(
+          'coinSymbol:', coinSymbol
+          , 'operation:', rowValues.operation
+          , 'isOverflow:', isOverflow
+          , 'historicalPriceBuyCoin:', historicalPriceBuyCoin
+          , 'symbolPrice:', symbolPrice
+          , 'isHistoricalAveragePriceSymbol:', isHistoricalAveragePriceSymbol
+          , 'symbolPriceSource:', symbolPriceSource
+        );
 
         // priceUSDBTCObject = new web3space.Price().getHistoricalPrice(
         //   'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
@@ -5052,13 +5005,13 @@ class Registry {
           isHistoricalAveragePriceFeeCurrency =
             historicalPriceBuyFee?.isHistoricalAveragePrice;
 
-          // console.log(
-          //   'feeCurrency:', feeCurrency
-          //   , 'isOverflow:', isOverflow
-          //   , 'historicalPriceBuyFee:', historicalPriceBuyFee
-          //   , 'feePrice:', feePrice
-          //   , 'isHistoricalAveragePriceFeeCurrency:', isHistoricalAveragePriceFeeCurrency
-          // )
+          console.log(
+            'feeCurrency:', feeCurrency
+            , 'isOverflow:', isOverflow
+            , 'historicalPriceBuyFee:', historicalPriceBuyFee
+            , 'feePrice:', feePrice
+            , 'isHistoricalAveragePriceFeeCurrency:', isHistoricalAveragePriceFeeCurrency
+          );
 
         }
 
@@ -5073,7 +5026,6 @@ class Registry {
               [
                 '0461ebd2b773878eac9f78a891912d65'  /*buy*/
                 , '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
-                , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
               ].indexOf(operationKey) !== -1
             ) {
               priceCoef = symbolPriceCoef;
@@ -5096,7 +5048,6 @@ class Registry {
               [
                 '0461ebd2b773878eac9f78a891912d65' /*buy*/
                 , '8325324b47e1e62a1c2998a640cbdc72'  /*sell*/
-                , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
               ].indexOf(operationKey) !== -1
             ) {
               priceCoef = currencyPriceCoef;
@@ -5567,59 +5518,6 @@ class Flow {
           }
           else if (
             operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
-          ) {
-            if (directionKey === inKey) {
-              if (tx.isOverflow === true) {
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].quantityOverflowIn += tx.quantity;
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].costOverflowIn += tx.cost;
-              }
-              else {
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].quantitySellIn += tx.quantity;
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].dayInPortfolioSellInSum += dayInPortfolio * tx.quantity;
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].costSellIn += tx.cost;
-              }
-              //* Накопление остатков
-              agg[tx.account][tx.portfolio][tx.contractor][
-                tx.symbol
-              ].quantityRest += tx.quantity;
-            } else if (directionKey === outKey) {
-              if (tx.isOverflow === true) {
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].quantityOverflowOut += tx.quantity * -1;
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].costOverflowOut += tx.cost * -1;
-              }
-              else {
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].quantitySellOut += tx.quantity * -1;
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].dayInPortfolioSellOutSum += dayInPortfolio * tx.quantity * -1;
-                agg[tx.account][tx.portfolio][tx.contractor][
-                  tx.symbol
-                ].costSellOut += tx.cost * -1;
-              }
-              //* Накопление остатков
-              agg[tx.account][tx.portfolio][tx.contractor][
-                tx.symbol
-              ].quantityRest += tx.quantity;
-            }
-          }
-          else if (
-            operationKey === '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
           ) {
             if (directionKey === inKey) {
               if (tx.isOverflow === true) {
@@ -6331,27 +6229,6 @@ class Flow {
   }
 }
 
-class Web3Space {
-  constructor(workSheet = '') {
-    this.workSheet = workSheet
-      ? workSheet
-      : new Portfolio().getWorkSheet('Web3Space');
-  }
-
-  getCategory() {
-    const coins = new Portfolio().getWorkSheet('coins').object;
-    const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
-      const coinId = coins[rowObject.rowKey]?.id;
-      rowObject.category = coinId
-        ? new Category().getCategory(coinId)
-        : void 0;
-      return rowObject
-    });
-    this.workSheet.truncateInsertRows(newArrayOfObject);
-    // console.log(newArrayOfObject)
-  }
-}
-
 class Overflows {
   constructor(workSheet = '') {
     if (Overflows.exists) {
@@ -6475,29 +6352,6 @@ class Overflows {
         }
         else if (
           operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
-        ) {
-          if (directionKey === inKey) {
-            agg[tx.account][overflow][tx.symbol].quantitySellIn += tx.quantity;
-            agg[tx.account][overflow][tx.symbol].priceCoefSumSellIn +=
-              tx.priceCoef * tx.quantity;
-            agg[tx.account][overflow][tx.symbol].dayInOverflowSellInSum +=
-              dayInOverflow * tx.quantity;
-            //* Накопление остатков
-            // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
-          } 
-          else if (directionKey === outKey) {
-            agg[tx.account][overflow][tx.symbol].quantitySellOut +=
-              tx.quantity * -1;
-            agg[tx.account][overflow][tx.symbol].priceCoefSumSellOut +=
-              tx.priceCoef * tx.quantity * -1;
-            agg[tx.account][overflow][tx.symbol].dayInOverflowSellOutSum +=
-              dayInOverflow * tx.quantity * -1;
-            //* Накопление остатков
-            // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
-          }
-        }
-        else if (
-          operationKey === '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
         ) {
           if (directionKey === inKey) {
             agg[tx.account][overflow][tx.symbol].quantitySellIn += tx.quantity;
@@ -6944,37 +6798,7 @@ class Overflows {
   }
 }
 
-// class GasScript {
-//   constructor(parametr) {
-//     this.parametr = parametr + ': '
-//     this.startDate = new Date()
-//   }
-//   getLastProjectVersion() {
-//     const url =
-//       'https://script.googleapis.com/v1/projects/' +
-//       ScriptApp.getScriptId() +
-//       '/versions'
-
-//     const res = UrlFetchApp.fetch(url, {
-//       headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
-//     })
-//     return Math.max(JSON.parse(res).versions.map((m) => (m = m.versionNumber)))
-//   }
-
-//   getListScriptProcesses() {
-//     const url =
-//       'https://script.googleapis.com/v1/processes:listScriptProcesses?scriptId=' +
-//       ScriptApp.getScriptId() +
-//       '&scriptProcessFilter.statuses=RUNNING'
-//     const res = UrlFetchApp.fetch(url, {
-//       headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
-//       accept: 'application/json',
-//       muteHttpExceptions: false,
-//     })
-//     const processes = JSON.parse(res)?.processes || void 0
-//     return processes
-//   }
-// }
+// import { GasProcess } from '../restApi/gasScriptApi'
 
 function createMenu() {
   const ui = SpreadsheetApp.getUi();
@@ -6999,9 +6823,9 @@ function cleanAllMetadata() {
   new WorkSheetMetadata(activeWorkSheet).metadata.deleteAllMetadata();
 }
 
-function getCategory() {
-  new Web3Space().getCategory();
-}
+// function getCategory() {
+//   new Web3Space().getCategory()
+// }
 
 function getCategories() {
   console.log(new Category().getCategories());

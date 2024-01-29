@@ -7,10 +7,10 @@ import { LPToken } from './worksheet/lpToken.js'
 import { Flow } from './worksheet/flow'
 import { Transactions } from './worksheet/transactions'
 import { WorkSheetMetadata, ModalDialog, SpreadsheetsTrigger } from '../gas'
-import { Web3Space } from './worksheet/web3space'
+// import { Web3Space } from './worksheet/web3space'
 import { Overflows } from './worksheet/overflows'
 import * as coinMarketCap from '../restApi/coinMarketCap'
-import { GasProcess } from '../restApi/gasScriptApi'
+// import { GasProcess } from '../restApi/gasScriptApi'
 
 function createMenu() {
   const ui = SpreadsheetApp.getUi()
@@ -35,9 +35,9 @@ function cleanAllMetadata() {
   new WorkSheetMetadata(activeWorkSheet).metadata.deleteAllMetadata()
 }
 
-function getCategory() {
-  new Web3Space().getCategory()
-}
+// function getCategory() {
+//   new Web3Space().getCategory()
+// }
 
 function getCategories() {
   console.log(new coinMarketCap.Category().getCategories())

@@ -2,8 +2,8 @@ import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash, FormatDate, FormatNumber, FormatObject } from '../../utils'
 import { Transactions, HistoricalPrice } from './transactions'
 import { Symbols } from './symbols'
-import * as cryptoCompare from '../../restApi/cryptoCompare'
-import * as web3space from '../../restApi/web3Space'
+// import * as cryptoCompare from '../../restApi/cryptoCompare'
+// import * as web3space from '../../restApi/web3Space'
 export { Registry }
 
 class Registry {
@@ -538,7 +538,7 @@ class Registry {
         isHistoricalAveragePriceCurrency =
           historicalPriceBuyCurrency?.isHistoricalAveragePrice
         //* определение корректной цены токена
-        //* условие для продаажи и покупки
+        //* условие для продажи и покупки
         if (
           [
             '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
@@ -631,24 +631,24 @@ class Registry {
         symbolPriceCoef = symbolPrice / currencyPrice
         currencyPriceCoef = currencyPrice / symbolPrice
 
-        // console.log(
-        //   'currencySymbol:', currencySymbol
-        //   , 'operation:', rowValues.operation
-        //   , 'isOverflow:', isOverflow
-        //   , 'historicalPriceBuyCurrency:', historicalPriceBuyCurrency
-        //   , 'currencyPrice:', currencyPrice
-        //   , 'isHistoricalAveragePriceCurrency:', isHistoricalAveragePriceCurrency
-        // )
+        console.log(
+          'currencySymbol:', currencySymbol
+          , 'operation:', rowValues.operation
+          , 'isOverflow:', isOverflow
+          , 'historicalPriceBuyCurrency:', historicalPriceBuyCurrency
+          , 'currencyPrice:', currencyPrice
+          , 'isHistoricalAveragePriceCurrency:', isHistoricalAveragePriceCurrency
+        )
 
-        // console.log(
-        //   'coinSymbol:', coinSymbol
-        //   , 'operation:', rowValues.operation
-        //   , 'isOverflow:', isOverflow
-        //   , 'historicalPriceBuyCoin:', historicalPriceBuyCoin
-        //   , 'symbolPrice:', symbolPrice
-        //   , 'isHistoricalAveragePriceSymbol:', isHistoricalAveragePriceSymbol
-        //   , 'symbolPriceSource:', symbolPriceSource
-        // )
+        console.log(
+          'coinSymbol:', coinSymbol
+          , 'operation:', rowValues.operation
+          , 'isOverflow:', isOverflow
+          , 'historicalPriceBuyCoin:', historicalPriceBuyCoin
+          , 'symbolPrice:', symbolPrice
+          , 'isHistoricalAveragePriceSymbol:', isHistoricalAveragePriceSymbol
+          , 'symbolPriceSource:', symbolPriceSource
+        )
 
         // priceUSDBTCObject = new web3space.Price().getHistoricalPrice(
         //   'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
@@ -732,13 +732,13 @@ class Registry {
           isHistoricalAveragePriceFeeCurrency =
             historicalPriceBuyFee?.isHistoricalAveragePrice
 
-          // console.log(
-          //   'feeCurrency:', feeCurrency
-          //   , 'isOverflow:', isOverflow
-          //   , 'historicalPriceBuyFee:', historicalPriceBuyFee
-          //   , 'feePrice:', feePrice
-          //   , 'isHistoricalAveragePriceFeeCurrency:', isHistoricalAveragePriceFeeCurrency
-          // )
+          console.log(
+            'feeCurrency:', feeCurrency
+            , 'isOverflow:', isOverflow
+            , 'historicalPriceBuyFee:', historicalPriceBuyFee
+            , 'feePrice:', feePrice
+            , 'isHistoricalAveragePriceFeeCurrency:', isHistoricalAveragePriceFeeCurrency
+          )
 
         }
 
