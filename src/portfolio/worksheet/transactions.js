@@ -835,12 +835,12 @@ class HistoricalPrice {
               return object
             }, {})
 
-            console.log(
-              ' getExternalPricePriceRest:'
-              , 'symbolId:', symbolId
-              , 'formatDatetime:', formatDatetime
-              , 'historicalPriceObject:', historicalPriceObject
-            )
+            // console.log(
+            //   ' getExternalPricePriceRest:'
+            //   , 'symbolId:', symbolId
+            //   , 'formatDatetime:', formatDatetime
+            //   , 'historicalPriceObject:', historicalPriceObject
+            // )
 
             return historicalPriceObject[symbolId]?.price_close || 0
           }
@@ -936,18 +936,18 @@ class HistoricalPrice {
             }
           }
 
-          console.log(
-            'getHistoricalPrice:'
-            , 'symbol:', symbol
-            , 'isOverflow:', isOverflow
-            , 'operationKey:', operationKey
-            , 'historicalPricePriceRest:', historicalPricePriceRest
-            , 'currentPricePriceRest:', currentPricePriceRest
-            , 'externalPricePriceRest:', externalPricePriceRest
-            , 'historicalPrice:', historicalPrice
-            , 'isHistoricalAveragePrice:', isHistoricalAveragePrice
-            , 'historicalSource:', historicalSource
-          )
+          // console.log(
+          //   'getHistoricalPrice:'
+          //   , 'symbol:', symbol
+          //   , 'isOverflow:', isOverflow
+          //   , 'operationKey:', operationKey
+          //   , 'historicalPricePriceRest:', historicalPricePriceRest
+          //   , 'currentPricePriceRest:', currentPricePriceRest
+          //   , 'externalPricePriceRest:', externalPricePriceRest
+          //   , 'historicalPrice:', historicalPrice
+          //   , 'isHistoricalAveragePrice:', isHistoricalAveragePrice
+          //   , 'historicalSource:', historicalSource
+          // )
 
         }
       }

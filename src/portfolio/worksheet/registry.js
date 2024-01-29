@@ -631,24 +631,24 @@ class Registry {
         symbolPriceCoef = symbolPrice / currencyPrice
         currencyPriceCoef = currencyPrice / symbolPrice
 
-        console.log(
-          'currencySymbol:', currencySymbol
-          , 'operation:', rowValues.operation
-          , 'isOverflow:', isOverflow
-          , 'historicalPriceBuyCurrency:', historicalPriceBuyCurrency
-          , 'currencyPrice:', currencyPrice
-          , 'isHistoricalAveragePriceCurrency:', isHistoricalAveragePriceCurrency
-        )
+        // console.log(
+        //   'currencySymbol:', currencySymbol
+        //   , 'operation:', rowValues.operation
+        //   , 'isOverflow:', isOverflow
+        //   , 'historicalPriceBuyCurrency:', historicalPriceBuyCurrency
+        //   , 'currencyPrice:', currencyPrice
+        //   , 'isHistoricalAveragePriceCurrency:', isHistoricalAveragePriceCurrency
+        // )
 
-        console.log(
-          'coinSymbol:', coinSymbol
-          , 'operation:', rowValues.operation
-          , 'isOverflow:', isOverflow
-          , 'historicalPriceBuyCoin:', historicalPriceBuyCoin
-          , 'symbolPrice:', symbolPrice
-          , 'isHistoricalAveragePriceSymbol:', isHistoricalAveragePriceSymbol
-          , 'symbolPriceSource:', symbolPriceSource
-        )
+        // console.log(
+        //   'coinSymbol:', coinSymbol
+        //   , 'operation:', rowValues.operation
+        //   , 'isOverflow:', isOverflow
+        //   , 'historicalPriceBuyCoin:', historicalPriceBuyCoin
+        //   , 'symbolPrice:', symbolPrice
+        //   , 'isHistoricalAveragePriceSymbol:', isHistoricalAveragePriceSymbol
+        //   , 'symbolPriceSource:', symbolPriceSource
+        // )
 
         // priceUSDBTCObject = new web3space.Price().getHistoricalPrice(
         //   'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
@@ -732,13 +732,13 @@ class Registry {
           isHistoricalAveragePriceFeeCurrency =
             historicalPriceBuyFee?.isHistoricalAveragePrice
 
-          console.log(
-            'feeCurrency:', feeCurrency
-            , 'isOverflow:', isOverflow
-            , 'historicalPriceBuyFee:', historicalPriceBuyFee
-            , 'feePrice:', feePrice
-            , 'isHistoricalAveragePriceFeeCurrency:', isHistoricalAveragePriceFeeCurrency
-          )
+          // console.log(
+          //   'feeCurrency:', feeCurrency
+          //   , 'isOverflow:', isOverflow
+          //   , 'historicalPriceBuyFee:', historicalPriceBuyFee
+          //   , 'feePrice:', feePrice
+          //   , 'isHistoricalAveragePriceFeeCurrency:', isHistoricalAveragePriceFeeCurrency
+          // )
 
         }
 
