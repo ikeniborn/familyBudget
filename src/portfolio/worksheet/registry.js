@@ -88,6 +88,7 @@ class Registry {
           '84a0f3455dcca894ace136be62efa292' /*transfer*/
           , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
           , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
+          , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
         ].indexOf(operationKey) !== -1 &&
         directionKey === inKey
       ) {
@@ -516,22 +517,8 @@ class Registry {
         }
 
         //* Расчет текущей или исторической цены покупаемого токена
-
-        const historicalPriceBuyCoin = historicalPrice.getHistoricalPrice(
-          dateTime,
-          operationKey,
-          accountSender,
-          portfolioSender,
-          sender,
-          coinSymbol,
-          coinSymbolCategoryKey,
-          symbols,
-          Object.values(transactions.workSheet.object),
-          isRange,
-          'usd'
-        )
-
-        const historicalPriceBuyCurrency = historicalPrice.getHistoricalPrice(
+        let historicalPriceBuyCurrency
+        historicalPriceBuyCurrency = historicalPrice.getHistoricalPrice(
           dateTime,
           operationKey,
           accountSender,
@@ -542,12 +529,11 @@ class Registry {
           symbols,
           Object.values(transactions.workSheet.object),
           isRange,
-          'usd'
+          'usd',
+          isOverflow
         )
 
-
-
-
+        let historicalPriceBuyCoin
         let symbolPriceSource = 'na'
         //* цена валюты
         currencyPrice = historicalPriceBuyCurrency?.historicalPrice
@@ -559,6 +545,8 @@ class Registry {
           [
             '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
             , '0461ebd2b773878eac9f78a891912d65' /*buy*/
+            , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
+            , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
           ].indexOf(
             operationKey
           ) !== -1
@@ -579,6 +567,20 @@ class Registry {
           }
           //* цена для покупки продажи через токен
           else {
+            historicalPriceBuyCoin = historicalPrice.getHistoricalPrice(
+              dateTime,
+              operationKey,
+              accountSender,
+              portfolioSender,
+              sender,
+              coinSymbol,
+              coinSymbolCategoryKey,
+              symbols,
+              Object.values(transactions.workSheet.object),
+              isRange,
+              'usd',
+              isOverflow
+            )
             if (historicalPriceBuyCoin?.historicalPrice > 0) {
               symbolPrice = historicalPriceBuyCoin?.historicalPrice
               symbolPriceSource = 'fromCoin'
@@ -596,13 +598,25 @@ class Registry {
         else if (
           [
             '84a0f3455dcca894ace136be62efa292'  /*transfer*/
-            , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
             , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
-            , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
           ].indexOf(
             operationKey
           ) !== -1
         ) {
+          historicalPriceBuyCoin = historicalPrice.getHistoricalPrice(
+            dateTime,
+            operationKey,
+            accountSender,
+            portfolioSender,
+            sender,
+            coinSymbol,
+            coinSymbolCategoryKey,
+            symbols,
+            Object.values(transactions.workSheet.object),
+            isRange,
+            'usd',
+            isOverflow
+          )
           if (historicalPriceBuyCoin?.historicalPrice > 0) {
             symbolPrice = historicalPriceBuyCoin?.historicalPrice
             symbolPriceSource = 'fromCoin'
@@ -620,33 +634,39 @@ class Registry {
         symbolPriceCoef = symbolPrice / currencyPrice
         currencyPriceCoef = currencyPrice / symbolPrice
 
-        console.log(
-          'currencySymbol:', currencySymbol
-          , 'operation:', rowValues.operation
-          , 'historicalPriceBuyCurrency:', historicalPriceBuyCurrency
-          , 'currencyPrice:', currencyPrice
-          , 'isHistoricalAveragePriceCurrency:', isHistoricalAveragePriceCurrency
-        )
+        // console.log(
+        //   'currencySymbol:', currencySymbol
+        //   , 'operation:', rowValues.operation
+        //   , 'isOverflow:', isOverflow
+        //   , 'historicalPriceBuyCurrency:', historicalPriceBuyCurrency
+        //   , 'currencyPrice:', currencyPrice
+        //   , 'isHistoricalAveragePriceCurrency:', isHistoricalAveragePriceCurrency
+        // )
 
-        console.log(
-          'coinSymbol:', coinSymbol
-          , 'operation:', rowValues.operation
-          , 'historicalPriceBuyCoin:', historicalPriceBuyCoin
-          , 'symbolPrice:', symbolPrice
-          , 'isHistoricalAveragePriceSymbol:', isHistoricalAveragePriceSymbol
-          , 'symbolPriceSource:', symbolPriceSource
-        )
+        // console.log(
+        //   'coinSymbol:', coinSymbol
+        //   , 'operation:', rowValues.operation
+        //   , 'isOverflow:', isOverflow
+        //   , 'historicalPriceBuyCoin:', historicalPriceBuyCoin
+        //   , 'symbolPrice:', symbolPrice
+        //   , 'isHistoricalAveragePriceSymbol:', isHistoricalAveragePriceSymbol
+        //   , 'symbolPriceSource:', symbolPriceSource
+        // )
 
-        // priceUSDBTCObject = new Price().getHistoricalPrice(
+        // priceUSDBTCObject = new web3space.Price().getHistoricalPrice(
         //   'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
-        //   dateTime,
-        //   dateTime
+        //   new FormatDate(dateTime).getFormatDate('yyyy-MM-dd'),
+        //   new FormatDate(dateTime).getFormatDate('yyyy-MM-dd')
         // ).reduce((object, value) => {
         //   if (!object[value.token_id]) {
         //     object[value.token_id] = value;
         //   }
         //   return object
         // }, {});
+
+        // console.log(
+        //   'priceUSDBTCObject:',priceUSDBTCObject
+        //   )
 
         priceUSDBTCObject = {
           'b460f578-b1ce-950c-287e-dc61d0728e51': {
@@ -698,19 +718,31 @@ class Registry {
 
           const historicalPriceBuyFee = historicalPrice.getHistoricalPrice(
             dateTime,
+            '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/,
             accountSender,
             feePortfolio,
             feeSender,
             feeCurrency,
             feeCurrencySymbolCategoryKey,
             symbols,
-            Object.values(transactions.workSheet.arrayOfObject),
-            isRange
+            Object.values(transactions.workSheet.object),
+            isRange,
+            'usd',
+            false
           )
 
           feePrice = historicalPriceBuyFee?.historicalPrice
           isHistoricalAveragePriceFeeCurrency =
             historicalPriceBuyFee?.isHistoricalAveragePrice
+
+          // console.log(
+          //   'feeCurrency:', feeCurrency
+          //   , 'isOverflow:', isOverflow
+          //   , 'historicalPriceBuyFee:', historicalPriceBuyFee
+          //   , 'feePrice:', feePrice
+          //   , 'isHistoricalAveragePriceFeeCurrency:', isHistoricalAveragePriceFeeCurrency
+          // )
+
         }
 
         //* Формирование строки транзакции

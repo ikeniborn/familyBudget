@@ -2395,7 +2395,7 @@ class Fetch {
       const stepResult = {
         code: 0,
         fetchStatus: false,
-        ms: 250,
+        ms: 50,
         iteration: 0,
         response: void 0,
       };
@@ -2418,7 +2418,7 @@ class Fetch {
           stepResult.ms += 500;
           Utilities.sleep(stepResult.ms);
         }
-        if (stepResult.iteration > 5) {
+        if (stepResult.iteration > 3) {
           stepResult.fetchStatus = true;
         }
       } while (!stepResult.fetchStatus)
@@ -3828,7 +3828,7 @@ class HistoricalPrice {
    * @param {array} transactionsArrayOfObject массив транзакций транзакций [{}]
    * @param {*} isRange признак диапазона
    * @param {*} convert параметр конвертации
-   
+   * @param {*} isOverflow признак перелива
    * @returns объект цена и признак исторической цены
    */
   getHistoricalPrice(
@@ -3843,6 +3843,7 @@ class HistoricalPrice {
     transactionsArrayOfObject,
     isRange = false,
     convert = 'usd',
+    isOverflow = false
   ) {
     try {
       let historicalPrice = 0;
@@ -3898,38 +3899,11 @@ class HistoricalPrice {
           ).md5;
           const inKey = new Hash('in').md5;
           const outKey = new Hash('out').md5;
-          //* цена исторических транзакций
-          let transactions;
 
-          if (
-            [
-              '0461ebd2b773878eac9f78a891912d65' /*buy*/
-              , '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
-              , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
-              , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
-            ].indexOf(
-              operationKey
-            ) !== -1
-          ) {
-            transactions = transactionsArrayOfObject
-              .filter((row) => {
-                return (
-                  new Date(row.dateTime).valueOf() <
-                  new Date(dateTime).valueOf() &&
-                  historicalAveragePriceKey === row.historicalAveragePriceKey &&
-                  row.isAvgPrice &&
-                  !row.isDelete &&
-                  !row.isOverflow
-                )
-              });
-          } else if (
-            [
-              '84a0f3455dcca894ace136be62efa292' /*transfer*/
-            ].indexOf(
-              operationKey
-            ) !== -1
-          ) {
-            transactions = transactionsArrayOfObject
+          const getHistoricalPricePriceRest = function () {
+            //* цена исторических транзакций
+            let transactions;
+            let transactionsFilter = transactionsArrayOfObject
               .filter((row) => {
                 return (
                   new Date(row.dateTime).valueOf() <
@@ -3938,177 +3912,242 @@ class HistoricalPrice {
                   row.isAvgPrice &&
                   !row.isDelete
                 )
+              })
+              .sort((a, b) => {
+                return (
+                  new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
+                )
               });
-          }
 
-          const historicalPriceAgg = transactions
-            .sort((a, b) => {
-              return (
-                new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
-              )
-            })
-            .reduce(
-              (agg, tx) => {
-                const operationKey = new Hash(tx.operation).md5;
-                const directionKey = new Hash(tx.direction).md5;
-                //* Распределение количества по потокам
-                if (
-                  operationKey === '0461ebd2b773878eac9f78a891912d65' /*buy*/
-                ) {
-                  if (directionKey === inKey) {
-                    agg.quantityBuyIn += tx.quantity;
-                    agg.costBuyIn += tx.cost;
-                    //* Накопление остатков
-                    agg.quantityRest += tx.quantity;
-                  } else if (directionKey === outKey) {
-                    agg.quantityBuyOut += tx.quantity * -1;
-                    agg.costBuyOut += tx.cost * -1;
-                    //* Накопление остатков
-                    agg.quantityRest += tx.quantity;
-                  }
-                } else if (
-                  operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
-                ) {
-                  if (directionKey === inKey) {
-                    agg.quantitySellIn += tx.quantity;
-                    agg.costSellIn += tx.cost;
-                    //* Накопление остатков
-                    agg.quantityRest += tx.quantity;
-                  } else if (directionKey === outKey) {
-                    agg.quantitySellOut += tx.quantity * -1;
-                    agg.costSellOut += tx.cost * -1;
-                    //* Накопление остатков
-                    agg.quantityRest += tx.quantity;
-                  }
-                } else if (
-                  operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
-                ) {
-                  if (directionKey === inKey) {
-                    agg.quantityRefillIn += tx.quantity;
-                    agg.costRefillIn += tx.cost;
-                    //* Накопление остатков
-                    agg.quantityRest += tx.quantity;
-                  }
-                } else if (
-                  operationKey ===
-                  '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
-                ) {
-                  if (directionKey === outKey) {
-                    agg.quantityWriteOffOut += tx.quantity * -1;
-                    agg.costWriteOffOut += tx.cost * -1;
-                    //* Накопление остатков
-                    agg.quantityRest += tx.quantity;
-                  }
-                } else if (
-                  operationKey ===
-                  '84a0f3455dcca894ace136be62efa292' /*transfer*/
-                ) {
-                  if (directionKey === inKey) {
-                    agg.quantityTransferIn += tx.quantity;
-                    agg.costTransferIn += tx.cost;
-                    //* Накопление остатков
-                    agg.quantityRest += tx.quantity;
-                  } else if (directionKey === outKey) {
-                    agg.quantityTransferOut += tx.quantity * -1;
-                    agg.costTransferOut += tx.cost * -1;
-                    //* Накопление остатков
-                    agg.quantityRest += tx.quantity;
-                  }
-                }
+            if (
+              [
+                '0461ebd2b773878eac9f78a891912d65' /*buy*/
+                , '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
+              ].indexOf(
+                operationKey
+              ) !== -1
+            ) {
+              transactions = transactionsArrayOfObject
+                .filter((row) => {
+                  return (
+                    new Date(row.dateTime).valueOf() <
+                    new Date(dateTime).valueOf() &&
+                    historicalAveragePriceKey === row.historicalAveragePriceKey &&
+                    row.isAvgPrice &&
+                    !row.isDelete &&
+                    !row.isOverflow
+                  )
+                })
+                .sort((a, b) => {
+                  return (
+                    new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
+                  )
+                });
+            } else if (
+              [
+                '84a0f3455dcca894ace136be62efa292' /*transfer*/
+                , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
+                , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
+                , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
+              ].indexOf(
+                operationKey
+              ) !== -1
+            ) {
+              transactions = transactionsArrayOfObject
+                .filter((row) => {
+                  return (
+                    new Date(row.dateTime).valueOf() <
+                    new Date(dateTime).valueOf() &&
+                    historicalAveragePriceKey === row.historicalAveragePriceKey &&
+                    row.isAvgPrice &&
+                    !row.isDelete
+                  )
+                })
+                .sort((a, b) => {
+                  return (
+                    new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
+                  )
+                });
+            }
 
-                agg.quantityFlow += tx.quantity;
-
-                //* Накопление остатков
-                if (
-                  agg.operationCount === 0
-                ) {
-                  agg.costRest = tx.cost;
-                  agg.costRestPrev = agg.costRest;
-                  agg.priceRest = tx.cost / tx.quantity;
-                  agg.priceRestPrev = agg.priceRest;
-                } else {
+            const historicalPriceAgg = transactions
+              .reduce(
+                (agg, tx) => {
+                  const operationKey = new Hash(tx.operation).md5;
+                  const directionKey = new Hash(tx.direction).md5;
+                  //* Распределение количества по потокам
                   if (
-                    agg.quantityRest > 0
+                    operationKey === '0461ebd2b773878eac9f78a891912d65' /*buy*/
                   ) {
-                    if (tx.quantity < 0) {
-                      agg.costRest = tx.quantity * agg.priceRestPrev + agg.costRestPrev;
-                    } else {
-                      agg.costRest = tx.cost + agg.costRestPrev;
+                    if (directionKey === inKey) {
+                      agg.quantityBuyIn += tx.quantity;
+                      agg.costBuyIn += tx.cost;
+                      //* Накопление остатков
+                      agg.quantityRest += tx.quantity;
+                    } else if (directionKey === outKey) {
+                      agg.quantityBuyOut += tx.quantity * -1;
+                      agg.costBuyOut += tx.cost * -1;
+                      //* Накопление остатков
+                      agg.quantityRest += tx.quantity;
                     }
-                    agg.priceRest = agg.costRest / agg.quantityRest || 0;
-                    agg.priceRestPrev =
-                      agg.priceRest || 0;
-                    agg.costRestPrev =
-                      agg.costRest;
-                  } else {
-                    agg.priceRest = 0;
-                    agg.priceRestPrev = 0;
-                    agg.costRestPrev = 0;
-                    agg.costRest = 0;
                   }
+                  else if (
+                    operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
+                  ) {
+                    if (directionKey === inKey) {
+                      agg.quantitySellIn += tx.quantity;
+                      agg.costSellIn += tx.cost;
+                      //* Накопление остатков
+                      agg.quantityRest += tx.quantity;
+                    } else if (directionKey === outKey) {
+                      agg.quantitySellOut += tx.quantity * -1;
+                      agg.costSellOut += tx.cost * -1;
+                      //* Накопление остатков
+                      agg.quantityRest += tx.quantity;
+                    }
+                  }
+                  else if (
+                    operationKey === '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
+                  ) {
+                    if (directionKey === inKey) {
+                      agg.quantitySellIn += tx.quantity;
+                      agg.costSellIn += tx.cost;
+                      //* Накопление остатков
+                      agg.quantityRest += tx.quantity;
+                    } else if (directionKey === outKey) {
+                      agg.quantitySellOut += tx.quantity * -1;
+                      agg.costSellOut += tx.cost * -1;
+                      //* Накопление остатков
+                      agg.quantityRest += tx.quantity;
+                    }
+                  }
+                  else if (
+                    operationKey === '84a0f3455dcca894ace136be62efa292' /*transfer*/
+                  ) {
+                    if (directionKey === inKey) {
+                      agg.quantitySellIn += tx.quantity;
+                      agg.costSellIn += tx.cost;
+                      //* Накопление остатков
+                      agg.quantityRest += tx.quantity;
+                    } else if (directionKey === outKey) {
+                      agg.quantitySellOut += tx.quantity * -1;
+                      agg.costSellOut += tx.cost * -1;
+                      //* Накопление остатков
+                      agg.quantityRest += tx.quantity;
+                    }
+                  }
+                  else if (
+                    operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
+                  ) {
+                    if (directionKey === inKey) {
+                      agg.quantityRefillIn += tx.quantity;
+                      agg.costRefillIn += tx.cost;
+                      //* Накопление остатков
+                      agg.quantityRest += tx.quantity;
+                    }
+                  } else if (
+                    operationKey ===
+                    '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
+                  ) {
+                    if (directionKey === outKey) {
+                      agg.quantityWriteOffOut += tx.quantity * -1;
+                      agg.costWriteOffOut += tx.cost * -1;
+                      //* Накопление остатков
+                      agg.quantityRest += tx.quantity;
+                    }
+                  }
+
+                  agg.quantityFlow += tx.quantity;
+
+                  //* Накопление остатков
+                  if (
+                    agg.operationCount === 0
+                  ) {
+                    agg.costRest = tx.cost;
+                    agg.costRestPrev = agg.costRest;
+                    agg.priceRest = tx.cost / tx.quantity;
+                    agg.priceRestPrev = agg.priceRest;
+                  } else {
+                    if (
+                      agg.quantityRest > 0
+                    ) {
+                      if (tx.quantity < 0) {
+                        agg.costRest = tx.quantity * agg.priceRestPrev + agg.costRestPrev;
+                      } else {
+                        agg.costRest = tx.cost + agg.costRestPrev;
+                      }
+                      agg.priceRest = agg.costRest / agg.quantityRest || 0;
+                      agg.priceRestPrev =
+                        agg.priceRest || 0;
+                      agg.costRestPrev =
+                        agg.costRest;
+                    } else {
+                      agg.priceRest = 0;
+                      agg.priceRestPrev = 0;
+                      agg.costRestPrev = 0;
+                      agg.costRest = 0;
+                    }
+                  }
+
+                  agg.operationCount += 1;
+
+                  //* расчет точности
+                  const precisionArray = tx.quantity.toString().split('.');
+                  const precision = precisionArray[1]
+                    ? [...precisionArray[1].split('')].length
+                    : 0;
+                  if (precision > agg.precision && precision <= 6) {
+                    agg.precision = precision;
+                  }
+                  return agg
+                },
+                {
+                  quantityBuyIn: 0,
+                  quantityBuyOut: 0,
+                  quantitySellIn: 0,
+                  quantitySellOut: 0,
+                  quantityRefillIn: 0,
+                  quantityWriteOffOut: 0,
+                  quantityTransferIn: 0,
+                  quantityTransferOut: 0,
+                  quantityFlow: 0,
+                  precision: 0,
+                  costBuyIn: 0,
+                  costBuyOut: 0,
+                  costSellIn: 0,
+                  costSellOut: 0,
+                  costRefillIn: 0,
+                  costWriteOffOut: 0,
+                  costTransferIn: 0,
+                  costTransferOut: 0,
+                  quantityRest: 0,
+                  costRest: 0,
+                  priceRest: 0,
+                  quantityRestPrev: 0,
+                  costRestPrev: 0,
+                  priceRestPrev: 0,
+                  operationCount: 0,
                 }
+              );
 
-                agg.operationCount += 1;
+            //* точность стоимости
+            let costPrecisionCoeff = '1';
+            for (let i = 0; i < 2; i++) {
+              costPrecisionCoeff += '0';
+            }
+            costPrecisionCoeff = costPrecisionCoeff * 1;
 
-                //* расчет точности
-                const precisionArray = tx.quantity.toString().split('.');
-                const precision = precisionArray[1]
-                  ? [...precisionArray[1].split('')].length
-                  : 0;
-                if (precision > agg.precision && precision <= 6) {
-                  agg.precision = precision;
-                }
-                return agg
-              },
-              {
-                quantityBuyIn: 0,
-                quantityBuyOut: 0,
-                quantitySellIn: 0,
-                quantitySellOut: 0,
-                quantityRefillIn: 0,
-                quantityWriteOffOut: 0,
-                quantityTransferIn: 0,
-                quantityTransferOut: 0,
-                quantityFlow: 0,
-                precision: 0,
-                costBuyIn: 0,
-                costBuyOut: 0,
-                costSellIn: 0,
-                costSellOut: 0,
-                costRefillIn: 0,
-                costWriteOffOut: 0,
-                costTransferIn: 0,
-                costTransferOut: 0,
-                quantityRest: 0,
-                costRest: 0,
-                priceRest: 0,
-                quantityRestPrev: 0,
-                costRestPrev: 0,
-                priceRestPrev: 0,
-                operationCount: 0,
-              }
-            );
+            //* точность исторических данных
+            let historicalPricePrecisionCoeff = '1';
+            for (let i = 0; i < historicalPriceAgg.precision; i++) {
+              historicalPricePrecisionCoeff += '0';
+            }
+            historicalPricePrecisionCoeff = historicalPricePrecisionCoeff * 1;
 
-          //* точность стоимости
-          let costPrecisionCoeff = '1';
-          for (let i = 0; i < 2; i++) {
-            costPrecisionCoeff += '0';
-          }
-          costPrecisionCoeff = costPrecisionCoeff * 1;
+            return historicalPriceAgg.priceRest || 0
+          };
 
-          //* точность исторических данных
-          let historicalPricePrecisionCoeff = '1';
-          for (let i = 0; i < historicalPriceAgg.precision; i++) {
-            historicalPricePrecisionCoeff += '0';
-          }
-          historicalPricePrecisionCoeff = historicalPricePrecisionCoeff * 1;
-
-          let historicalPricePriceRest = 0;
-          historicalPricePriceRest = historicalPriceAgg.priceRest || 0;
-
-          let currentPricePriceRest = 0;
-
-          if (historicalPricePriceRest == 0) {
+          const getCurrentPricePriceRest = function () {
             //* цена текущей транзации
             const currentPrice = transactionsArrayOfObject
               .filter((row) => {
@@ -4150,6 +4189,13 @@ class HistoricalPrice {
               );
             //* расчет цены текущей транзакции
 
+            //* точность стоимости
+            let costPrecisionCoeff = '1';
+            for (let i = 0; i < 2; i++) {
+              costPrecisionCoeff += '0';
+            }
+            costPrecisionCoeff = costPrecisionCoeff * 1;
+
             let currentPricePrecisionCoeff = '1';
             for (let i = 0; i < currentPrice.precision; i++) {
               currentPricePrecisionCoeff += '0';
@@ -4166,12 +4212,10 @@ class HistoricalPrice {
             if (currentPriceCostRest > 0 && currentPriceQuantityRest > 0) {
               currentPricePriceRest = currentPriceCostRest / currentPriceQuantityRest;
             }
+            return currentPricePriceRest || 0
+          };
 
-          }
-
-          let externalPricePriceRest = 0;
-
-          if (currentPricePriceRest == 0 && historicalPricePriceRest == 0) {
+          const getExternalPricePriceRest = function () {
             const formatDatetime = new FormatDate(dateTime).getFormatDate('yyyy-MM-dd');
             const historicalPriceObject = new Price().getHistoricalPrice(symbolId, formatDatetime, formatDatetime).reduce((object, value) => {
               if (!object[value.token_id]) {
@@ -4181,44 +4225,87 @@ class HistoricalPrice {
             }, {});
 
             // console.log(
-            //   ' new web3space.Price().getHistoricalPrice:'
+            //   ' getExternalPricePriceRest:'
             //   , 'symbolId:', symbolId
             //   , 'formatDatetime:', formatDatetime
             //   , 'historicalPriceObject:', historicalPriceObject
             // )
 
-            externalPricePriceRest = historicalPriceObject[symbolId]?.price_close || 0;
+            return historicalPriceObject[symbolId]?.price_close || 0
+          };
 
-          }
+          //* Определение цены токена
 
-          //* Расчет средней цены покупки токена
+          let historicalPricePriceRest = 0;
+          let currentPricePriceRest = 0;
+          let externalPricePriceRest = 0;
 
-
-          if (historicalPricePriceRest > 0) {
-            historicalPrice = historicalPricePriceRest;
-            isHistoricalAveragePrice = true;
-            historicalSource = 'historyTransactions';
+          if (isOverflow == true && operationKey != '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/) {
+            externalPricePriceRest = getExternalPricePriceRest();
+            if (externalPricePriceRest > 0) {
+              historicalPrice = externalPricePriceRest;
+              isHistoricalAveragePrice = false;
+              historicalSource = 'externalWeb3space';
+            }
+            else {
+              historicalPricePriceRest = getHistoricalPricePriceRest();
+              if (historicalPricePriceRest > 0) {
+                historicalPrice = historicalPricePriceRest;
+                isHistoricalAveragePrice = true;
+                historicalSource = 'historyTransactions';
+              }
+              else {
+                currentPricePriceRest = getCurrentPricePriceRest();
+                if (currentPricePriceRest > 0) {
+                  historicalPrice = currentPricePriceRest;
+                  isHistoricalAveragePrice = true;
+                  historicalSource = 'currentTransaction';
+                }
+                else {
+                  historicalPrice = 0;
+                  isHistoricalAveragePrice = false;
+                  historicalSource = 'na';
+                }
+              }
+            }
           }
-          else if (historicalPricePriceRest == 0 && currentPricePriceRest > 0) {
-            historicalPrice = currentPricePriceRest;
-            isHistoricalAveragePrice = true;
-            historicalSource = 'currentTransaction';
+          else if (
+            (isOverflow == true && operationKey === '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/)
+            ||
+            (isOverflow == false && operationKey != '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/)
+          ) {
+            historicalPricePriceRest = getHistoricalPricePriceRest();
+            if (historicalPricePriceRest > 0) {
+              historicalPrice = historicalPricePriceRest;
+              isHistoricalAveragePrice = true;
+              historicalSource = 'historyTransactions';
+            }
+            else {
+              currentPricePriceRest = getCurrentPricePriceRest();
+              if (currentPricePriceRest > 0) {
+                historicalPrice = currentPricePriceRest;
+                isHistoricalAveragePrice = true;
+                historicalSource = 'currentTransaction';
+              } else {
+                externalPricePriceRest = getExternalPricePriceRest();
+                if (externalPricePriceRest > 0) {
+                  historicalPrice = externalPricePriceRest;
+                  isHistoricalAveragePrice = false;
+                  historicalSource = 'externalWeb3space';
+                } else {
+                  historicalPrice = 0;
+                  isHistoricalAveragePrice = false;
+                  historicalSource = 'na';
+                }
+              }
+            }
           }
-          else if (historicalPricePriceRest == 0 && currentPricePriceRest == 0 && externalPricePriceRest > 0) {
-            historicalPrice = externalPricePriceRest;
-            isHistoricalAveragePrice = false;
-            historicalSource = 'externalWeb3space';
-          }
-          else {
-            historicalPrice = 0;
-            isHistoricalAveragePrice = false;
-            historicalSource = 'na';
-          }
-
 
           // console.log(
           //   'getHistoricalPrice:'
           //   , 'symbol:', symbol
+          //   , 'isOverflow:', isOverflow
+          //   , 'operationKey:', operationKey
           //   , 'historicalPricePriceRest:', historicalPricePriceRest
           //   , 'currentPricePriceRest:', currentPricePriceRest
           //   , 'externalPricePriceRest:', externalPricePriceRest
@@ -4309,15 +4396,16 @@ class Registry {
     const outKey = new Hash('out').md5;
     if (/*stablecoin*/ 'e5e3fd01394b9a81296b75d5a7f4c1a2' !== categoryKey) {
       if (
-        /*Write-off*/ '7b33b9f52598cd60f7aa6ca0082515c4' === operationKey &&
+        /*write-off*/ '7b33b9f52598cd60f7aa6ca0082515c4' === operationKey &&
         directionKey === outKey
       ) {
         return true
       } else if (
         [
-          '84a0f3455dcca894ace136be62efa292' /*Transfer*/
-          , 'b4479040173a9f41eeb4e98339f2a21d' /*Refill*/
+          '84a0f3455dcca894ace136be62efa292' /*transfer*/
+          , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
           , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
+          , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
         ].indexOf(operationKey) !== -1 &&
         directionKey === inKey
       ) {
@@ -4520,7 +4608,7 @@ class Registry {
         //* формирование транзакций
         if (
           [
-            /*Transfer, Write-off, Refill*/
+            /*transfer, write-off, refill*/
             '84a0f3455dcca894ace136be62efa292',
             '7b33b9f52598cd60f7aa6ca0082515c4',
             'b4479040173a9f41eeb4e98339f2a21d',
@@ -4530,7 +4618,7 @@ class Registry {
 
           if (
             [
-              /*Transfer, Write-off*/
+              /*transfer, write-off*/
               '84a0f3455dcca894ace136be62efa292',
               '7b33b9f52598cd60f7aa6ca0082515c4',
             ].indexOf(operationKey) !== -1
@@ -4569,7 +4657,7 @@ class Registry {
           }
           if (
             [
-              /*Transfer, Refill*/
+              /*transfer, refill*/
               '84a0f3455dcca894ace136be62efa292',
               'b4479040173a9f41eeb4e98339f2a21d',
             ].indexOf(operationKey) !== -1
@@ -4746,22 +4834,8 @@ class Registry {
         }
 
         //* Расчет текущей или исторической цены покупаемого токена
-
-        const historicalPriceBuyCoin = historicalPrice.getHistoricalPrice(
-          dateTime,
-          operationKey,
-          accountSender,
-          portfolioSender,
-          sender,
-          coinSymbol,
-          coinSymbolCategoryKey,
-          symbols,
-          Object.values(transactions.workSheet.object),
-          isRange,
-          'usd'
-        );
-
-        const historicalPriceBuyCurrency = historicalPrice.getHistoricalPrice(
+        let historicalPriceBuyCurrency;
+        historicalPriceBuyCurrency = historicalPrice.getHistoricalPrice(
           dateTime,
           operationKey,
           accountSender,
@@ -4772,54 +4846,115 @@ class Registry {
           symbols,
           Object.values(transactions.workSheet.object),
           isRange,
-          'usd'
+          'usd',
+          isOverflow
         );
 
-
-
-        currencyPrice = historicalPriceBuyCurrency?.historicalPrice;
+        let historicalPriceBuyCoin;
         let symbolPriceSource = 'na';
+        //* цена валюты
+        currencyPrice = historicalPriceBuyCurrency?.historicalPrice;
+        isHistoricalAveragePriceCurrency =
+          historicalPriceBuyCurrency?.isHistoricalAveragePrice;
         //* определение корректной цены токена
-        if (historicalPriceBuyCoin?.isHistoricalAveragePrice == false && historicalPriceBuyCurrency?.isHistoricalAveragePrice == true) {
-          symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin;
-          symbolPriceSource = 'fromCurrency';
-          isHistoricalAveragePriceCurrency =
-            historicalPriceBuyCurrency?.isHistoricalAveragePrice;
-          isHistoricalAveragePriceSymbol =
-            historicalPriceBuyCurrency?.isHistoricalAveragePrice;
-        } else if (historicalPriceBuyCoin?.isHistoricalAveragePrice == true && historicalPriceBuyCurrency?.isHistoricalAveragePrice == true) {
+        //* условие для продаажи и покупки
+        if (
+          [
+            '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
+            , '0461ebd2b773878eac9f78a891912d65' /*buy*/
+            , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
+            , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
+          ].indexOf(
+            operationKey
+          ) !== -1
+        ) {
+          //* цена для покупки продажи через стейблкоин или фиат
+          if (
+            [
+              'e5e3fd01394b9a81296b75d5a7f4c1a2' /*stablecoin*/
+              , '7d5f30a0d1641c0b6980aaf2556b32ce' /*fiat*/
+            ].indexOf(
+              currencySymbolCategoryKey
+            ) !== -1
+          ) {
+            symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin;
+            symbolPriceSource = 'fromCurrency';
+            isHistoricalAveragePriceSymbol =
+              historicalPriceBuyCurrency?.isHistoricalAveragePrice;
+          }
+          //* цена для покупки продажи через токен
+          else {
+            historicalPriceBuyCoin = historicalPrice.getHistoricalPrice(
+              dateTime,
+              operationKey,
+              accountSender,
+              portfolioSender,
+              sender,
+              coinSymbol,
+              coinSymbolCategoryKey,
+              symbols,
+              Object.values(transactions.workSheet.object),
+              isRange,
+              'usd',
+              isOverflow
+            );
+            if (historicalPriceBuyCoin?.historicalPrice > 0) {
+              symbolPrice = historicalPriceBuyCoin?.historicalPrice;
+              symbolPriceSource = 'fromCoin';
+              isHistoricalAveragePriceSymbol =
+                historicalPriceBuyCoin?.isHistoricalAveragePrice;
+            } else {
+              symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin;
+              symbolPriceSource = 'fromCurrency';
+              isHistoricalAveragePriceSymbol =
+                historicalPriceBuyCurrency?.isHistoricalAveragePrice;
+            }
+          }
+        }
+        //* условие для перевода пополнения, списания и перелива
+        else if (
+          [
+            '84a0f3455dcca894ace136be62efa292'  /*transfer*/
+            , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
+          ].indexOf(
+            operationKey
+          ) !== -1
+        ) {
+          historicalPriceBuyCoin = historicalPrice.getHistoricalPrice(
+            dateTime,
+            operationKey,
+            accountSender,
+            portfolioSender,
+            sender,
+            coinSymbol,
+            coinSymbolCategoryKey,
+            symbols,
+            Object.values(transactions.workSheet.object),
+            isRange,
+            'usd',
+            isOverflow
+          );
           if (historicalPriceBuyCoin?.historicalPrice > 0) {
             symbolPrice = historicalPriceBuyCoin?.historicalPrice;
             symbolPriceSource = 'fromCoin';
+            isHistoricalAveragePriceSymbol =
+              historicalPriceBuyCoin?.isHistoricalAveragePrice;
           } else {
             symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin;
             symbolPriceSource = 'fromCurrency';
+            isHistoricalAveragePriceSymbol =
+              historicalPriceBuyCurrency?.isHistoricalAveragePrice;
           }
-          isHistoricalAveragePriceCurrency =
-            historicalPriceBuyCurrency?.isHistoricalAveragePrice;
-          isHistoricalAveragePriceSymbol =
-            historicalPriceBuyCoin?.isHistoricalAveragePrice;
-        } else if (historicalPriceBuyCoin?.isHistoricalAveragePrice == true && historicalPriceBuyCurrency?.isHistoricalAveragePrice == false) {
-          symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin;
-          symbolPriceSource = 'fromCurrency';
-          isHistoricalAveragePriceCurrency =
-            historicalPriceBuyCurrency?.isHistoricalAveragePrice;
-          isHistoricalAveragePriceSymbol =
-            historicalPriceBuyCurrency?.isHistoricalAveragePrice;
-        } else if (historicalPriceBuyCoin?.isHistoricalAveragePrice == false && historicalPriceBuyCurrency?.isHistoricalAveragePrice == false) {
-          symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin;
-          symbolPriceSource = 'fromCurrency';
-          isHistoricalAveragePriceCurrency =
-            historicalPriceBuyCurrency?.isHistoricalAveragePrice;
-          isHistoricalAveragePriceSymbol =
-            historicalPriceBuyCurrency?.isHistoricalAveragePrice;
         }
+
+        //* расчет коэффициентов пары
         symbolPriceCoef = symbolPrice / currencyPrice;
         currencyPriceCoef = currencyPrice / symbolPrice;
 
-
         // console.log(
         //   'currencySymbol:', currencySymbol
+        //   , 'operation:', rowValues.operation
+        //   , 'isOverflow:', isOverflow
         //   , 'historicalPriceBuyCurrency:', historicalPriceBuyCurrency
         //   , 'currencyPrice:', currencyPrice
         //   , 'isHistoricalAveragePriceCurrency:', isHistoricalAveragePriceCurrency
@@ -4827,17 +4962,18 @@ class Registry {
 
         // console.log(
         //   'coinSymbol:', coinSymbol
+        //   , 'operation:', rowValues.operation
+        //   , 'isOverflow:', isOverflow
         //   , 'historicalPriceBuyCoin:', historicalPriceBuyCoin
         //   , 'symbolPrice:', symbolPrice
         //   , 'isHistoricalAveragePriceSymbol:', isHistoricalAveragePriceSymbol
         //   , 'symbolPriceSource:', symbolPriceSource
         // )
 
-
-        // priceUSDBTCObject = new Price().getHistoricalPrice(
+        // priceUSDBTCObject = new web3space.Price().getHistoricalPrice(
         //   'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
-        //   dateTime,
-        //   dateTime
+        //   new FormatDate(dateTime).getFormatDate('yyyy-MM-dd'),
+        //   new FormatDate(dateTime).getFormatDate('yyyy-MM-dd')
         // ).reduce((object, value) => {
         //   if (!object[value.token_id]) {
         //     object[value.token_id] = value;
@@ -4845,11 +4981,16 @@ class Registry {
         //   return object
         // }, {});
 
+        // console.log(
+        //   'priceUSDBTCObject:',priceUSDBTCObject
+        //   )
+
         priceUSDBTCObject = {
           'b460f578-b1ce-950c-287e-dc61d0728e51': {
             price_close: new Symbols().workSheet.object[new Hash('btc').md5]?.price
           }
         };
+
         priceUSDBTC = priceUSDBTCObject['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close;
 
         //* Комиссия
@@ -4881,7 +5022,7 @@ class Registry {
             isLiquidityPool: false,
             isAvgPrice: this.getIsAvgPrice(
               directionOut.md5,
-              /*Write-off*/ '7b33b9f52598cd60f7aa6ca0082515c4',
+              /*write-off*/ '7b33b9f52598cd60f7aa6ca0082515c4',
               feeCurrencySymbolCategoryKey
             ),
             isFeePrice: true,
@@ -4894,19 +5035,31 @@ class Registry {
 
           const historicalPriceBuyFee = historicalPrice.getHistoricalPrice(
             dateTime,
+            '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/,
             accountSender,
             feePortfolio,
             feeSender,
             feeCurrency,
             feeCurrencySymbolCategoryKey,
             symbols,
-            Object.values(transactions.workSheet.arrayOfObject),
-            isRange
+            Object.values(transactions.workSheet.object),
+            isRange,
+            'usd',
+            false
           );
 
           feePrice = historicalPriceBuyFee?.historicalPrice;
           isHistoricalAveragePriceFeeCurrency =
             historicalPriceBuyFee?.isHistoricalAveragePrice;
+
+          // console.log(
+          //   'feeCurrency:', feeCurrency
+          //   , 'isOverflow:', isOverflow
+          //   , 'historicalPriceBuyFee:', historicalPriceBuyFee
+          //   , 'feePrice:', feePrice
+          //   , 'isHistoricalAveragePriceFeeCurrency:', isHistoricalAveragePriceFeeCurrency
+          // )
+
         }
 
         //* Формирование строки транзакции
@@ -5411,7 +5564,8 @@ class Flow {
                 tx.symbol
               ].quantityRest += tx.quantity;
             }
-          } else if (
+          }
+          else if (
             operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
           ) {
             if (directionKey === inKey) {
@@ -5463,7 +5617,61 @@ class Flow {
                 tx.symbol
               ].quantityRest += tx.quantity;
             }
-          } else if (
+          }
+          else if (
+            operationKey === '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
+          ) {
+            if (directionKey === inKey) {
+              if (tx.isOverflow === true) {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityOverflowIn += tx.quantity;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].costOverflowIn += tx.cost;
+              }
+              else {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantitySellIn += tx.quantity;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].dayInPortfolioSellInSum += dayInPortfolio * tx.quantity;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].costSellIn += tx.cost;
+              }
+              //* Накопление остатков
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantityRest += tx.quantity;
+            } else if (directionKey === outKey) {
+              if (tx.isOverflow === true) {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityOverflowOut += tx.quantity * -1;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].costOverflowOut += tx.cost * -1;
+              }
+              else {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantitySellOut += tx.quantity * -1;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].dayInPortfolioSellOutSum += dayInPortfolio * tx.quantity * -1;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].costSellOut += tx.cost * -1;
+              }
+              //* Накопление остатков
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantityRest += tx.quantity;
+            }
+          }
+          else if (
             operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
           ) {
             if (directionKey === inKey) {
@@ -5923,7 +6131,7 @@ class Flow {
                 quantityRebalance =
                   (quantityRest * (object.priceRest - priceRebalance)) /
                   (priceRebalance - priceLast);
-              } 
+              }
 
               let quantityInvest = 0;
 
@@ -6253,7 +6461,8 @@ class Overflows {
               dayInOverflow * tx.quantity;
             //* Накопление остатков
             // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
-          } else if (directionKey === outKey) {
+          } 
+          else if (directionKey === outKey) {
             agg[tx.account][overflow][tx.symbol].quantityBuyOut +=
               tx.quantity * -1;
             agg[tx.account][overflow][tx.symbol].priceCoefSumBuyOut +=
@@ -6263,7 +6472,8 @@ class Overflows {
             // * Накопление остатков
             // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
           }
-        } else if (
+        }
+        else if (
           operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
         ) {
           if (directionKey === inKey) {
@@ -6274,7 +6484,8 @@ class Overflows {
               dayInOverflow * tx.quantity;
             //* Накопление остатков
             // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
-          } else if (directionKey === outKey) {
+          } 
+          else if (directionKey === outKey) {
             agg[tx.account][overflow][tx.symbol].quantitySellOut +=
               tx.quantity * -1;
             agg[tx.account][overflow][tx.symbol].priceCoefSumSellOut +=
@@ -6284,7 +6495,31 @@ class Overflows {
             //* Накопление остатков
             // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
           }
-        } else if (
+        }
+        else if (
+          operationKey === '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
+        ) {
+          if (directionKey === inKey) {
+            agg[tx.account][overflow][tx.symbol].quantitySellIn += tx.quantity;
+            agg[tx.account][overflow][tx.symbol].priceCoefSumSellIn +=
+              tx.priceCoef * tx.quantity;
+            agg[tx.account][overflow][tx.symbol].dayInOverflowSellInSum +=
+              dayInOverflow * tx.quantity;
+            //* Накопление остатков
+            // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
+          } 
+          else if (directionKey === outKey) {
+            agg[tx.account][overflow][tx.symbol].quantitySellOut +=
+              tx.quantity * -1;
+            agg[tx.account][overflow][tx.symbol].priceCoefSumSellOut +=
+              tx.priceCoef * tx.quantity * -1;
+            agg[tx.account][overflow][tx.symbol].dayInOverflowSellOutSum +=
+              dayInOverflow * tx.quantity * -1;
+            //* Накопление остатков
+            // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
+          }
+        }
+        else if (
           operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
         ) {
           if (directionKey === inKey) {
@@ -6296,7 +6531,8 @@ class Overflows {
             //* Накопление остатков
             // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
           }
-        } else if (
+        } 
+        else if (
           operationKey === '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
         ) {
           if (directionKey === outKey) {
@@ -6311,7 +6547,8 @@ class Overflows {
             //* Накопление остатков
             // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
           }
-        } else if (
+        } 
+        else if (
           operationKey === '84a0f3455dcca894ace136be62efa292' /*transfer*/
         ) {
           if (directionKey === inKey) {
@@ -6323,7 +6560,8 @@ class Overflows {
               dayInOverflow * tx.quantity;
             //* Накопление остатков
             // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
-          } else if (directionKey === outKey) {
+          } 
+          else if (directionKey === outKey) {
             agg[tx.account][overflow][tx.symbol].quantityTransferOut +=
               tx.quantity * -1;
             agg[tx.account][overflow][tx.symbol].priceCoefSumTransferOut +=

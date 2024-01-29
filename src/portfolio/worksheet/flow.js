@@ -140,7 +140,8 @@ class Flow {
                 tx.symbol
               ].quantityRest += tx.quantity
             }
-          } else if (
+          }
+          else if (
             operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
           ) {
             if (directionKey === inKey) {
@@ -192,7 +193,61 @@ class Flow {
                 tx.symbol
               ].quantityRest += tx.quantity
             }
-          } else if (
+          }
+          else if (
+            operationKey === '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
+          ) {
+            if (directionKey === inKey) {
+              if (tx.isOverflow === true) {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityOverflowIn += tx.quantity
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].costOverflowIn += tx.cost
+              }
+              else {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantitySellIn += tx.quantity
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].dayInPortfolioSellInSum += dayInPortfolio * tx.quantity
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].costSellIn += tx.cost
+              }
+              //* Накопление остатков
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantityRest += tx.quantity
+            } else if (directionKey === outKey) {
+              if (tx.isOverflow === true) {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityOverflowOut += tx.quantity * -1
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].costOverflowOut += tx.cost * -1
+              }
+              else {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantitySellOut += tx.quantity * -1
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].dayInPortfolioSellOutSum += dayInPortfolio * tx.quantity * -1
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].costSellOut += tx.cost * -1
+              }
+              //* Накопление остатков
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].quantityRest += tx.quantity
+            }
+          }
+          else if (
             operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
           ) {
             if (directionKey === inKey) {
@@ -652,7 +707,7 @@ class Flow {
                 quantityRebalance =
                   (quantityRest * (object.priceRest - priceRebalance)) /
                   (priceRebalance - priceLast)
-              } 
+              }
 
               let quantityInvest = 0
 

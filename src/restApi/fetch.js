@@ -175,7 +175,7 @@ class Fetch {
       const stepResult = {
         code: 0,
         fetchStatus: false,
-        ms: 250,
+        ms: 50,
         iteration: 0,
         response: void 0,
       }
@@ -198,7 +198,7 @@ class Fetch {
           stepResult.ms += 500
           Utilities.sleep(stepResult.ms)
         }
-        if (stepResult.iteration > 5) {
+        if (stepResult.iteration > 3) {
           stepResult.fetchStatus = true
         }
       } while (!stepResult.fetchStatus)
