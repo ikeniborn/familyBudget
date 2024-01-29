@@ -149,29 +149,6 @@ class Overflows {
           }
         }
         else if (
-          operationKey === '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
-        ) {
-          if (directionKey === inKey) {
-            agg[tx.account][overflow][tx.symbol].quantitySellIn += tx.quantity
-            agg[tx.account][overflow][tx.symbol].priceCoefSumSellIn +=
-              tx.priceCoef * tx.quantity
-            agg[tx.account][overflow][tx.symbol].dayInOverflowSellInSum +=
-              dayInOverflow * tx.quantity
-            //* Накопление остатков
-            // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
-          } 
-          else if (directionKey === outKey) {
-            agg[tx.account][overflow][tx.symbol].quantitySellOut +=
-              tx.quantity * -1
-            agg[tx.account][overflow][tx.symbol].priceCoefSumSellOut +=
-              tx.priceCoef * tx.quantity * -1
-            agg[tx.account][overflow][tx.symbol].dayInOverflowSellOutSum +=
-              dayInOverflow * tx.quantity * -1
-            //* Накопление остатков
-            // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
-          }
-        }
-        else if (
           operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
         ) {
           if (directionKey === inKey) {

@@ -87,7 +87,6 @@ class Registry {
         [
           '84a0f3455dcca894ace136be62efa292' /*transfer*/
           , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
-          , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
           , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
         ].indexOf(operationKey) !== -1 &&
         directionKey === inKey
@@ -383,7 +382,6 @@ class Registry {
         } else if (
           [
             '0461ebd2b773878eac9f78a891912d65' /*buy*/
-            , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
           ].indexOf(operationKey) !==
           -1
         ) {
@@ -598,7 +596,6 @@ class Registry {
         else if (
           [
             '84a0f3455dcca894ace136be62efa292'  /*transfer*/
-            , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
           ].indexOf(
             operationKey
           ) !== -1
@@ -756,7 +753,6 @@ class Registry {
               [
                 '0461ebd2b773878eac9f78a891912d65'  /*buy*/
                 , '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
-                , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
               ].indexOf(operationKey) !== -1
             ) {
               priceCoef = symbolPriceCoef
@@ -779,7 +775,6 @@ class Registry {
               [
                 '0461ebd2b773878eac9f78a891912d65' /*buy*/
                 , '8325324b47e1e62a1c2998a640cbdc72'  /*sell*/
-                , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
               ].indexOf(operationKey) !== -1
             ) {
               priceCoef = currencyPriceCoef

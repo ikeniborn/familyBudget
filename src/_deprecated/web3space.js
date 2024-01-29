@@ -1,6 +1,6 @@
-import { Portfolio } from '../spreadsheet/portfolio'
+import { Portfolio } from '../portfolio/spreadsheet/portfolio'
 export { Web3Space }
-import * as coinMarketCap from '../../restApi/coinMarketCap'
+import * as coinMarketCap from '../restApi/coinMarketCap'
 
 class Web3Space {
   constructor(workSheet = '') {

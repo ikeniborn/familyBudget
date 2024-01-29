@@ -545,21 +545,6 @@ class HistoricalPrice {
           const getHistoricalPricePriceRest = function () {
             //* цена исторических транзакций
             let transactions
-            let transactionsFilter = transactionsArrayOfObject
-              .filter((row) => {
-                return (
-                  new Date(row.dateTime).valueOf() <
-                  new Date(dateTime).valueOf() &&
-                  historicalAveragePriceKey === row.historicalAveragePriceKey &&
-                  row.isAvgPrice &&
-                  !row.isDelete
-                )
-              })
-              .sort((a, b) => {
-                return (
-                  new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
-                )
-              })
 
             if (
               [
@@ -588,7 +573,6 @@ class HistoricalPrice {
             } else if (
               [
                 '84a0f3455dcca894ace136be62efa292' /*transfer*/
-                , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
                 , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
                 , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
               ].indexOf(
@@ -635,21 +619,6 @@ class HistoricalPrice {
                   }
                   else if (
                     operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
-                  ) {
-                    if (directionKey === inKey) {
-                      agg.quantitySellIn += tx.quantity
-                      agg.costSellIn += tx.cost
-                      //* Накопление остатков
-                      agg.quantityRest += tx.quantity
-                    } else if (directionKey === outKey) {
-                      agg.quantitySellOut += tx.quantity * -1
-                      agg.costSellOut += tx.cost * -1
-                      //* Накопление остатков
-                      agg.quantityRest += tx.quantity
-                    }
-                  }
-                  else if (
-                    operationKey === '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
                   ) {
                     if (directionKey === inKey) {
                       agg.quantitySellIn += tx.quantity
@@ -882,7 +851,7 @@ class HistoricalPrice {
           let currentPricePriceRest = 0
           let externalPricePriceRest = 0
 
-          if (isOverflow == true && operationKey != '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/) {
+          if (isOverflow == true) {
             externalPricePriceRest = getExternalPricePriceRest()
             if (externalPricePriceRest > 0) {
               historicalPrice = externalPricePriceRest
@@ -912,9 +881,7 @@ class HistoricalPrice {
             }
           }
           else if (
-            (isOverflow == true && operationKey === '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/)
-            ||
-            (isOverflow == false && operationKey != '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/)
+            isOverflow == false
           ) {
             historicalPricePriceRest = getHistoricalPricePriceRest()
             if (historicalPricePriceRest > 0) {
