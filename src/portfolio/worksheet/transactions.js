@@ -763,7 +763,7 @@ class HistoricalPrice {
             //   , 'costRest:', historicalPriceAgg.costRest
             // )
 
-            if (historicalPriceAgg.costRest > 5 && historicalPriceAgg.quantityRest > 0) {
+            if (historicalPriceAgg.costRest > 1 && historicalPriceAgg.quantityRest > 0) {
               return historicalPriceAgg.priceRest
             } else {
               return 0

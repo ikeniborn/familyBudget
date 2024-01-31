@@ -4110,7 +4110,7 @@ class HistoricalPrice {
             //   , 'costRest:', historicalPriceAgg.costRest
             // )
 
-            if (historicalPriceAgg.costRest > 5 && historicalPriceAgg.quantityRest > 0) {
+            if (historicalPriceAgg.costRest > 1 && historicalPriceAgg.quantityRest > 0) {
               return historicalPriceAgg.priceRest
             } else {
               return 0
@@ -5454,6 +5454,10 @@ class Flow {
               quantityUnlock: 0,
               quantityRest: 0,
               quantityRestPrev: 0,
+              quantityRestWoOverflow: 0,
+              quantityRestPrevWoOverflow: 0,
+              quantityRestOverflow: 0,
+              quantityRestPrevOverflow: 0,
               precision: 0,
               costBuyIn: 0,
               costBuyOut: 0,
@@ -5467,6 +5471,10 @@ class Flow {
               costOverflowOut: 0,
               costRest: 0,
               costRestPrev: 0,
+              costRestWoOverflow: 0,
+              costRestPrevWoOverflow: 0,
+              costRestOverflow: 0,
+              costRestPrevOverflow: 0,
               dayInPortfolioBuyInSum: 0,
               dayInPortfolioBuyOutSum: 0,
               dayInPortfolioSellOutSum: 0,
@@ -5477,6 +5485,10 @@ class Flow {
               dayInPortfolioTransferOutSum: 0,
               priceRest: 0,
               priceRestPrev: 0,
+              priceRestWoOverflow: 0,
+              priceRestPrevWoOverflow: 0,
+              priceRestOverflow: 0,
+              priceRestPrevOverflow: 0,
               operationCount: 0,
               pnlRealized: 0
             };
@@ -5492,6 +5504,9 @@ class Flow {
                 agg[tx.account][tx.portfolio][tx.contractor][
                   tx.symbol
                 ].costOverflowIn += tx.cost;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityRestOverflow += tx.quantity;
               }
               else {
                 agg[tx.account][tx.portfolio][tx.contractor][
@@ -5503,6 +5518,9 @@ class Flow {
                 agg[tx.account][tx.portfolio][tx.contractor][
                   tx.symbol
                 ].costBuyIn += tx.cost;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityRestWoOverflow += tx.quantity;
               }
               //* Накопление остатков
               agg[tx.account][tx.portfolio][tx.contractor][
@@ -5516,6 +5534,9 @@ class Flow {
                 agg[tx.account][tx.portfolio][tx.contractor][
                   tx.symbol
                 ].costOverflowOut += tx.cost * -1;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityRestOverflow += tx.quantity;
               }
               else {
                 agg[tx.account][tx.portfolio][tx.contractor][
@@ -5527,6 +5548,9 @@ class Flow {
                 agg[tx.account][tx.portfolio][tx.contractor][
                   tx.symbol
                 ].costBuyOut += tx.cost * -1;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityRestWoOverflow += tx.quantity;
               }
               //* Накопление остатков
               agg[tx.account][tx.portfolio][tx.contractor][
@@ -5545,6 +5569,9 @@ class Flow {
                 agg[tx.account][tx.portfolio][tx.contractor][
                   tx.symbol
                 ].costOverflowIn += tx.cost;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityRestOverflow += tx.quantity;
               }
               else {
                 agg[tx.account][tx.portfolio][tx.contractor][
@@ -5556,6 +5583,9 @@ class Flow {
                 agg[tx.account][tx.portfolio][tx.contractor][
                   tx.symbol
                 ].costSellIn += tx.cost;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityRestWoOverflow += tx.quantity;
               }
               //* Накопление остатков
               agg[tx.account][tx.portfolio][tx.contractor][
@@ -5569,6 +5599,9 @@ class Flow {
                 agg[tx.account][tx.portfolio][tx.contractor][
                   tx.symbol
                 ].costOverflowOut += tx.cost * -1;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityRestOverflow += tx.quantity;
               }
               else {
                 agg[tx.account][tx.portfolio][tx.contractor][
@@ -5580,6 +5613,9 @@ class Flow {
                 agg[tx.account][tx.portfolio][tx.contractor][
                   tx.symbol
                 ].costSellOut += tx.cost * -1;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].quantityRestWoOverflow += tx.quantity;
               }
               //* Накопление остатков
               agg[tx.account][tx.portfolio][tx.contractor][
@@ -5658,6 +5694,7 @@ class Flow {
               ].quantityRest += tx.quantity;
             }
           }
+
           //* Блокировки 
           if (tx.isLock) {
             agg[tx.account][tx.portfolio][tx.contractor][
@@ -5668,6 +5705,7 @@ class Flow {
               tx.symbol
             ].quantityUnlock += tx.quantity;
           }
+
           //* расчет точности
           const precisionArray = tx.quantity.toString().split('.');
           const precision = precisionArray[1]
@@ -5698,6 +5736,43 @@ class Flow {
             agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
               .operationCount === 0
           ) {
+            //* остаток перелива
+            if (tx.isOverflow === true) {
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRestOverflow =
+                tx.cost;
+
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].costRestPrevOverflow =
+                agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRestOverflow;
+
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].priceRestOverflow =
+                tx.cost / tx.quantity;
+
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].priceRestPrevOverflow =
+                agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].priceRestOverflow;
+            }
+            //* остаток без перелива
+            else {
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRestWoOverflow =
+                tx.cost;
+
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].costRestPrevWoOverflow =
+                agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRestWoOverflow;
+
+              agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].priceRestWoOverflow =
+                tx.cost / tx.quantity;
+
+              agg[tx.account][tx.portfolio][tx.contractor][
+                tx.symbol
+              ].priceRestPrevWoOverflow =
+                agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].priceRestWoOverflow;
+            }
+            //* остаток общий
             agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRest =
               tx.cost;
 
@@ -5713,7 +5788,125 @@ class Flow {
               tx.symbol
             ].priceRestPrev =
               agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].priceRest;
+
           } else {
+            if (tx.isOverflow === true) {
+              //*остаток перелива
+              if (
+                agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                  .quantityRestOverflow > 0
+              ) {
+                if (tx.quantity < 0) {
+                  agg[tx.account][tx.portfolio][tx.contractor][
+                    tx.symbol
+                  ].costRestOverflow =
+                    tx.quantity *
+                    agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                      .priceRestPrevOverflow +
+                    agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                      .costRestPrevOverflow;
+                } else {
+                  agg[tx.account][tx.portfolio][tx.contractor][
+                    tx.symbol
+                  ].costRestOverflow =
+                    tx.cost +
+                    agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                      .costRestPrevOverflow;
+                }
+
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].priceRestOverflow =
+                  agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                    .costRestOverflow /
+                  agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                    .quantityRestOverflow || 0;
+
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].priceRestPrevOverflow =
+                  agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                    .priceRestOverflow || 0;
+
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].costRestPrevOverflow =
+                  agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRestOverflow;
+              }
+              else {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].priceRestOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].priceRestPrevOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].costRestPrevOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].costRestOverflow = 0;
+              }
+            }
+            else {
+              //*остаток без перелива
+              if (
+                agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                  .quantityRestWoOverflow > 0
+              ) {
+                if (tx.quantity < 0) {
+                  agg[tx.account][tx.portfolio][tx.contractor][
+                    tx.symbol
+                  ].costRestWoOverflow =
+                    tx.quantity *
+                    agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                      .priceRestPrevWoOverflow +
+                    agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                      .costRestPrevWoOverflow;
+                } else {
+                  agg[tx.account][tx.portfolio][tx.contractor][
+                    tx.symbol
+                  ].costRestWoOverflow =
+                    tx.cost +
+                    agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                      .costRestPrevWoOverflow;
+                }
+
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].priceRestWoOverflow =
+                  agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                    .costRestWoOverflow /
+                  agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                    .quantityRestWoOverflow || 0;
+
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].priceRestPrevWoOverflow =
+                  agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
+                    .priceRestWoOverflow || 0;
+
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].costRestPrevWoOverflow =
+                  agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRestWoOverflow;
+              }
+              else {
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].priceRestWoOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].priceRestPrevWoOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].costRestPrevWoOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.contractor][
+                  tx.symbol
+                ].costRestWoOverflow = 0;
+              }
+            }
+            //*остаток общий
             if (
               agg[tx.account][tx.portfolio][tx.contractor][tx.symbol]
                 .quantityRest > 0
@@ -5754,7 +5947,8 @@ class Flow {
                 tx.symbol
               ].costRestPrev =
                 agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].costRest;
-            } else {
+            }
+            else {
               agg[tx.account][tx.portfolio][tx.contractor][
                 tx.symbol
               ].priceRest = 0;
