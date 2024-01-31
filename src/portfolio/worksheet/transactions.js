@@ -755,7 +755,19 @@ class HistoricalPrice {
             }
             historicalPricePrecisionCoeff = historicalPricePrecisionCoeff * 1
 
-            return historicalPriceAgg.priceRest || 0
+            // console.log(
+            //   'historicalPriceAgg:'
+            //   , 'symbol:', symbol
+            //   , 'priceRest:', historicalPriceAgg.priceRest
+            //   , 'quantityRest:', historicalPriceAgg.quantityRest
+            //   , 'costRest:', historicalPriceAgg.costRest
+            // )
+
+            if (historicalPriceAgg.costRest > 5 && historicalPriceAgg.quantityRest > 0) {
+              return historicalPriceAgg.priceRest
+            } else {
+              return 0
+            }
           }
 
           const getCurrentPricePriceRest = function () {
@@ -837,6 +849,7 @@ class HistoricalPrice {
 
             // console.log(
             //   ' getExternalPricePriceRest:'
+            //   , 'symbol:', symbol
             //   , 'symbolId:', symbolId
             //   , 'formatDatetime:', formatDatetime
             //   , 'historicalPriceObject:', historicalPriceObject
@@ -851,87 +864,66 @@ class HistoricalPrice {
           let currentPricePriceRest = 0
           let externalPricePriceRest = 0
 
-          // if (isOverflow == true) {
-          //   externalPricePriceRest = getExternalPricePriceRest()
-          //   if (externalPricePriceRest > 0) {
-          //     historicalPrice = externalPricePriceRest
-          //     isHistoricalAveragePrice = false
-          //     historicalSource = 'externalWeb3space'
-          //   }
-          //   else {
-          //     historicalPricePriceRest = getHistoricalPricePriceRest()
-          //     if (historicalPricePriceRest > 0) {
-          //       historicalPrice = historicalPricePriceRest
-          //       isHistoricalAveragePrice = true
-          //       historicalSource = 'historyTransactions'
-          //     }
-          //     else {
-          //       currentPricePriceRest = getCurrentPricePriceRest()
-          //       if (currentPricePriceRest > 0) {
-          //         historicalPrice = currentPricePriceRest
-          //         isHistoricalAveragePrice = true
-          //         historicalSource = 'currentTransaction'
-          //       }
-          //       else {
-          //         historicalPrice = 0
-          //         isHistoricalAveragePrice = false
-          //         historicalSource = 'na'
-          //       }
-          //     }
-          //   }
-          // }
-          // else if (
-          //   isOverflow == false
-          // ) {
-          //   historicalPricePriceRest = getHistoricalPricePriceRest()
-          //   if (historicalPricePriceRest > 0) {
-          //     historicalPrice = historicalPricePriceRest
-          //     isHistoricalAveragePrice = true
-          //     historicalSource = 'historyTransactions'
-          //   }
-          //   else {
-          //     currentPricePriceRest = getCurrentPricePriceRest()
-          //     if (currentPricePriceRest > 0) {
-          //       historicalPrice = currentPricePriceRest
-          //       isHistoricalAveragePrice = true
-          //       historicalSource = 'currentTransaction'
-          //     } else {
-          //       externalPricePriceRest = getExternalPricePriceRest()
-          //       if (externalPricePriceRest > 0) {
-          //         historicalPrice = externalPricePriceRest
-          //         isHistoricalAveragePrice = false
-          //         historicalSource = 'externalWeb3space'
-          //       } else {
-          //         historicalPrice = 0
-          //         isHistoricalAveragePrice = false
-          //         historicalSource = 'na'
-          //       }
-          //     }
-          //   }
-          // }
-
-          historicalPricePriceRest = getHistoricalPricePriceRest()
-          if (historicalPricePriceRest > 0) {
-            historicalPrice = historicalPricePriceRest
-            isHistoricalAveragePrice = true
-            historicalSource = 'historyTransactions'
-          }
-          else {
-            currentPricePriceRest = getCurrentPricePriceRest()
-            if (currentPricePriceRest > 0) {
-              historicalPrice = currentPricePriceRest
+          if (
+            [
+              '84a0f3455dcca894ace136be62efa292' /*transfer*/
+              , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
+              , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
+            ].indexOf(
+              operationKey
+            ) !== -1
+          ) {
+            historicalPricePriceRest = getHistoricalPricePriceRest()
+            if (historicalPricePriceRest > 0) {
+              historicalPrice = historicalPricePriceRest
               isHistoricalAveragePrice = true
-              historicalSource = 'currentTransaction'
-            } else {
-              externalPricePriceRest = getExternalPricePriceRest()
-              if (externalPricePriceRest > 0) {
-                historicalPrice = externalPricePriceRest
-                isHistoricalAveragePrice = false
-                historicalSource = 'externalWeb3space'
+              historicalSource = 'historyTransactions'
+            }
+            else {
+              currentPricePriceRest = getCurrentPricePriceRest()
+              if (currentPricePriceRest > 0) {
+                historicalPrice = currentPricePriceRest
+                isHistoricalAveragePrice = true
+                historicalSource = 'currentTransaction'
               } else {
                 historicalPrice = 0
                 isHistoricalAveragePrice = false
                 historicalSource = 'na'
+
+              }
+            }
+          }
+          else if (
+            [
+              '0461ebd2b773878eac9f78a891912d65' /*buy*/
+              , '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
+            ].indexOf(
+              operationKey
+            ) !== -1
+          ) {
+            historicalPricePriceRest = getHistoricalPricePriceRest()
+            if (historicalPricePriceRest > 0) {
+              historicalPrice = historicalPricePriceRest
+              isHistoricalAveragePrice = true
+              historicalSource = 'historyTransactions'
+            }
+            else {
+              currentPricePriceRest = getCurrentPricePriceRest()
+              if (currentPricePriceRest > 0) {
+                historicalPrice = currentPricePriceRest
+                isHistoricalAveragePrice = true
+                historicalSource = 'currentTransaction'
+              } else {
+                externalPricePriceRest = getExternalPricePriceRest()
+                if (externalPricePriceRest > 0) {
+                  historicalPrice = externalPricePriceRest
+                  isHistoricalAveragePrice = false
+                  historicalSource = 'externalWeb3space'
+                } else {
+                  historicalPrice = 0
+                  isHistoricalAveragePrice = false
+                  historicalSource = 'na'
+                }
               }
             }
           }
