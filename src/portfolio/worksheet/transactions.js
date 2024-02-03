@@ -494,6 +494,7 @@ class HistoricalPrice {
       const coin = symbolsObject[new Hash(symbol).md5]
       const sourceKey = new Hash(coin?.source).md5
       const symbolId = coin?.sourceId
+      const symbolLastPrice = coin?.price || 0
 
       if (
         'e5e3fd01394b9a81296b75d5a7f4c1a2' ===
@@ -919,7 +920,13 @@ class HistoricalPrice {
                   historicalPrice = externalPricePriceRest
                   isHistoricalAveragePrice = false
                   historicalSource = 'externalWeb3space'
-                } else {
+                }
+                else if (symbolLastPrice > 0) {
+                  historicalPrice = symbolLastPrice
+                  isHistoricalAveragePrice = false
+                  historicalSource = 'lastPrice'
+                }
+                else {
                   historicalPrice = 0
                   isHistoricalAveragePrice = false
                   historicalSource = 'na'
