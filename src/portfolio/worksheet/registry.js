@@ -3,7 +3,7 @@ import { Hash, FormatDate, FormatNumber, FormatObject } from '../../utils'
 import { Transactions, HistoricalPrice } from './transactions'
 import { Symbols } from './symbols'
 // import * as cryptoCompare from '../../restApi/cryptoCompare'
-// import * as web3space from '../../restApi/web3Space'
+import * as web3space from '../../restApi/web3Space'
 export { Registry }
 
 class Registry {
@@ -165,7 +165,6 @@ class Registry {
           symbolPriceCoef,
           currencyPriceCoef,
           priceUSDBTC,
-          priceUSDBTCObject,
           isOverflow,
           coinSymbolKey,
           currencySymbolKey
@@ -528,7 +527,8 @@ class Registry {
           Object.values(transactions.workSheet.object),
           isRange,
           'usd',
-          isOverflow
+          isOverflow,
+          true
         )
 
         let historicalPriceBuyCoin
@@ -577,7 +577,8 @@ class Registry {
               Object.values(transactions.workSheet.object),
               isRange,
               'usd',
-              isOverflow
+              isOverflow,
+              false
             )
             if (historicalPriceBuyCoin?.historicalPrice > 0) {
               symbolPrice = historicalPriceBuyCoin?.historicalPrice
@@ -585,10 +586,17 @@ class Registry {
               isHistoricalAveragePriceSymbol =
                 historicalPriceBuyCoin?.isHistoricalAveragePrice
             } else {
-              symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
+              if (historicalPriceBuyCurrency?.historicalCurrencyPrice > 0) {
+                symbolPrice = historicalPriceBuyCurrency?.historicalCurrencyPrice * currencyPerCoin
+                isHistoricalAveragePriceSymbol =
+                  historicalPriceBuyCurrency?.isHistoricalCurrencyAveragePrice
+              }
+              else {
+                symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
+                isHistoricalAveragePriceSymbol =
+                  historicalPriceBuyCurrency?.isHistoricalAveragePrice
+              }
               symbolPriceSource = 'fromCurrency'
-              isHistoricalAveragePriceSymbol =
-                historicalPriceBuyCurrency?.isHistoricalAveragePrice
             }
           }
         }
@@ -600,31 +608,10 @@ class Registry {
             operationKey
           ) !== -1
         ) {
-          historicalPriceBuyCoin = historicalPrice.getHistoricalPrice(
-            dateTime,
-            operationKey,
-            accountSender,
-            portfolioSender,
-            sender,
-            coinSymbol,
-            coinSymbolCategoryKey,
-            symbols,
-            Object.values(transactions.workSheet.object),
-            isRange,
-            'usd',
-            isOverflow
-          )
-          if (historicalPriceBuyCoin?.historicalPrice > 0) {
-            symbolPrice = historicalPriceBuyCoin?.historicalPrice
-            symbolPriceSource = 'fromCoin'
-            isHistoricalAveragePriceSymbol =
-              historicalPriceBuyCoin?.isHistoricalAveragePrice
-          } else {
-            symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
-            symbolPriceSource = 'fromCurrency'
-            isHistoricalAveragePriceSymbol =
-              historicalPriceBuyCurrency?.isHistoricalAveragePrice
-          }
+          symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
+          symbolPriceSource = 'fromCurrency'
+          isHistoricalAveragePriceSymbol =
+            historicalPriceBuyCurrency?.isHistoricalAveragePrice
         }
 
         //* расчет коэффициентов пары
@@ -650,28 +637,29 @@ class Registry {
         //   , 'symbolPriceSource:', symbolPriceSource
         // )
 
-        // priceUSDBTCObject = new web3space.Price().getHistoricalPrice(
-        //   'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
-        //   new FormatDate(dateTime).getFormatDate('yyyy-MM-dd'),
-        //   new FormatDate(dateTime).getFormatDate('yyyy-MM-dd')
-        // ).reduce((object, value) => {
-        //   if (!object[value.token_id]) {
-        //     object[value.token_id] = value;
-        //   }
-        //   return object
-        // }, {});
+        const priceUSDBTCObjectExternal = new web3space.Price().getHistoricalPrice(
+          'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
+          new FormatDate(dateTime).getFormatDate('yyyy-MM-dd'),
+          new FormatDate(dateTime).getFormatDate('yyyy-MM-dd')
+        ).reduce((object, value) => {
+          if (!object[value.token_id]) {
+            object[value.token_id] = value;
+          }
+          return object
+        }, {});
 
-        // console.log(
-        //   'priceUSDBTCObject:',priceUSDBTCObject
-        //   )
-
-        priceUSDBTCObject = {
+        const priceUSDBTCObjectLast = {
           'b460f578-b1ce-950c-287e-dc61d0728e51': {
             price_close: new Symbols().workSheet.object[new Hash('btc').md5]?.price
           }
         }
 
-        priceUSDBTC = priceUSDBTCObject['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close
+        if(priceUSDBTCObjectExternal['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close>0){
+          priceUSDBTC =  priceUSDBTCObjectExternal['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close
+        } 
+        else {
+          priceUSDBTC =  priceUSDBTCObjectLast['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close
+        }
 
         //* Комиссия
         if (feeCurrency && feeQty > 0) {
@@ -725,6 +713,7 @@ class Registry {
             Object.values(transactions.workSheet.object),
             isRange,
             'usd',
+            false,
             false
           )
 

@@ -3819,6 +3819,7 @@ class HistoricalPrice {
    * @param {*} isRange признак диапазона
    * @param {*} convert параметр конвертации
    * @param {*} isOverflow признак перелива
+   * @param {*} isCurrency признак валюты
    * @returns объект цена и признак исторической цены
    */
   getHistoricalPrice(
@@ -3833,16 +3834,19 @@ class HistoricalPrice {
     transactionsArrayOfObject,
     isRange = false,
     convert = 'usd',
-    isOverflow = false
+    isOverflow = false,
+    isCurrency = false
   ) {
     try {
       let historicalPrice = 0;
       let isHistoricalAveragePrice = false;
       let historicalSource = 'na';
+      let historicalCurrencyPrice = 0;
+      let isHistoricalCurrencyAveragePrice = false;
+      let historicalCurrencySource = 'na';
       const coin = symbolsObject[new Hash(symbol).md5];
       const sourceKey = new Hash(coin?.source).md5;
       const symbolId = coin?.sourceId;
-      const symbolLastPrice = coin?.price || 0;
 
       if (
         'e5e3fd01394b9a81296b75d5a7f4c1a2' ===
@@ -4212,6 +4216,7 @@ class HistoricalPrice {
           let historicalPricePriceRest = 0;
           let currentPricePriceRest = 0;
           let externalPricePriceRest = 0;
+          let externalCurrencyPrice = 0;
 
           if (
             [
@@ -4269,11 +4274,6 @@ class HistoricalPrice {
                   isHistoricalAveragePrice = false;
                   historicalSource = 'externalWeb3space';
                 }
-                else if (symbolLastPrice > 0) {
-                  historicalPrice = symbolLastPrice;
-                  isHistoricalAveragePrice = false;
-                  historicalSource = 'lastPrice';
-                }
                 else {
                   historicalPrice = 0;
                   isHistoricalAveragePrice = false;
@@ -4281,12 +4281,28 @@ class HistoricalPrice {
                 }
               }
             }
+            if (isCurrency === true && isOverflow === true) {
+              if (externalPricePriceRest > 0) {
+                historicalCurrencyPrice = externalPricePriceRest;
+                isHistoricalCurrencyAveragePrice = false;
+                historicalCurrencySource = 'externalWeb3space';
+              } else {
+                externalCurrencyPrice = getExternalPricePriceRest();
+                if (externalCurrencyPrice > 0) {
+                  historicalCurrencyPrice = externalCurrencyPrice;
+                  isHistoricalCurrencyAveragePrice = false;
+                  historicalCurrencySource = 'externalCurrencyWeb3space';
+                }
+              }
+            }
           }
+
 
           // console.log(
           //   'getHistoricalPrice:'
           //   , 'symbol:', symbol
           //   , 'isOverflow:', isOverflow
+          //   , 'isCurrency:', isCurrency
           //   , 'operationKey:', operationKey
           //   , 'historicalPricePriceRest:', historicalPricePriceRest
           //   , 'currentPricePriceRest:', currentPricePriceRest
@@ -4294,11 +4310,14 @@ class HistoricalPrice {
           //   , 'historicalPrice:', historicalPrice
           //   , 'isHistoricalAveragePrice:', isHistoricalAveragePrice
           //   , 'historicalSource:', historicalSource
+          //   , 'historicalCurrencyPrice:', historicalCurrencyPrice
+          //   , 'isHistoricalCurrencyAveragePrice:', isHistoricalCurrencyAveragePrice
+          //   , 'historicalCurrencySource:', historicalCurrencySource
           // )
 
         }
       }
-      return { historicalPrice, isHistoricalAveragePrice, historicalSource }
+      return { historicalPrice, isHistoricalAveragePrice, historicalSource, historicalCurrencyPrice, isHistoricalCurrencyAveragePrice, historicalCurrencySource }
     } catch (error) {
       console.error('Transactions.getHistoricalPriceBuy', error.stack);
     }
@@ -4464,7 +4483,6 @@ class Registry {
           symbolPriceCoef,
           currencyPriceCoef,
           priceUSDBTC,
-          priceUSDBTCObject,
           isOverflow,
           coinSymbolKey,
           currencySymbolKey;
@@ -4827,7 +4845,8 @@ class Registry {
           Object.values(transactions.workSheet.object),
           isRange,
           'usd',
-          isOverflow
+          isOverflow,
+          true
         );
 
         let historicalPriceBuyCoin;
@@ -4876,7 +4895,8 @@ class Registry {
               Object.values(transactions.workSheet.object),
               isRange,
               'usd',
-              isOverflow
+              isOverflow,
+              false
             );
             if (historicalPriceBuyCoin?.historicalPrice > 0) {
               symbolPrice = historicalPriceBuyCoin?.historicalPrice;
@@ -4884,10 +4904,17 @@ class Registry {
               isHistoricalAveragePriceSymbol =
                 historicalPriceBuyCoin?.isHistoricalAveragePrice;
             } else {
-              symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin;
+              if (historicalPriceBuyCurrency?.historicalCurrencyPrice > 0) {
+                symbolPrice = historicalPriceBuyCurrency?.historicalCurrencyPrice * currencyPerCoin;
+                isHistoricalAveragePriceSymbol =
+                  historicalPriceBuyCurrency?.isHistoricalCurrencyAveragePrice;
+              }
+              else {
+                symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin;
+                isHistoricalAveragePriceSymbol =
+                  historicalPriceBuyCurrency?.isHistoricalAveragePrice;
+              }
               symbolPriceSource = 'fromCurrency';
-              isHistoricalAveragePriceSymbol =
-                historicalPriceBuyCurrency?.isHistoricalAveragePrice;
             }
           }
         }
@@ -4899,31 +4926,10 @@ class Registry {
             operationKey
           ) !== -1
         ) {
-          historicalPriceBuyCoin = historicalPrice.getHistoricalPrice(
-            dateTime,
-            operationKey,
-            accountSender,
-            portfolioSender,
-            sender,
-            coinSymbol,
-            coinSymbolCategoryKey,
-            symbols,
-            Object.values(transactions.workSheet.object),
-            isRange,
-            'usd',
-            isOverflow
-          );
-          if (historicalPriceBuyCoin?.historicalPrice > 0) {
-            symbolPrice = historicalPriceBuyCoin?.historicalPrice;
-            symbolPriceSource = 'fromCoin';
-            isHistoricalAveragePriceSymbol =
-              historicalPriceBuyCoin?.isHistoricalAveragePrice;
-          } else {
-            symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin;
-            symbolPriceSource = 'fromCurrency';
-            isHistoricalAveragePriceSymbol =
-              historicalPriceBuyCurrency?.isHistoricalAveragePrice;
-          }
+          symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin;
+          symbolPriceSource = 'fromCurrency';
+          isHistoricalAveragePriceSymbol =
+            historicalPriceBuyCurrency?.isHistoricalAveragePrice;
         }
 
         //* расчет коэффициентов пары
@@ -4949,28 +4955,29 @@ class Registry {
         //   , 'symbolPriceSource:', symbolPriceSource
         // )
 
-        // priceUSDBTCObject = new web3space.Price().getHistoricalPrice(
-        //   'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
-        //   new FormatDate(dateTime).getFormatDate('yyyy-MM-dd'),
-        //   new FormatDate(dateTime).getFormatDate('yyyy-MM-dd')
-        // ).reduce((object, value) => {
-        //   if (!object[value.token_id]) {
-        //     object[value.token_id] = value;
-        //   }
-        //   return object
-        // }, {});
+        const priceUSDBTCObjectExternal = new Price().getHistoricalPrice(
+          'b460f578-b1ce-950c-287e-dc61d0728e51', /*BTC*/
+          new FormatDate(dateTime).getFormatDate('yyyy-MM-dd'),
+          new FormatDate(dateTime).getFormatDate('yyyy-MM-dd')
+        ).reduce((object, value) => {
+          if (!object[value.token_id]) {
+            object[value.token_id] = value;
+          }
+          return object
+        }, {});
 
-        // console.log(
-        //   'priceUSDBTCObject:',priceUSDBTCObject
-        //   )
-
-        priceUSDBTCObject = {
+        const priceUSDBTCObjectLast = {
           'b460f578-b1ce-950c-287e-dc61d0728e51': {
             price_close: new Symbols().workSheet.object[new Hash('btc').md5]?.price
           }
         };
 
-        priceUSDBTC = priceUSDBTCObject['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close;
+        if(priceUSDBTCObjectExternal['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close>0){
+          priceUSDBTC =  priceUSDBTCObjectExternal['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close;
+        } 
+        else {
+          priceUSDBTC =  priceUSDBTCObjectLast['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close;
+        }
 
         //* Комиссия
         if (feeCurrency && feeQty > 0) {
@@ -5024,6 +5031,7 @@ class Registry {
             Object.values(transactions.workSheet.object),
             isRange,
             'usd',
+            false,
             false
           );
 
@@ -6086,49 +6094,9 @@ class Flow {
 
               //* количество 
 
-              // const quantityBuy =
-              //   object.quantityBuyIn +
-              //   object.quantitySellIn
-
-              // const quantitySell =
-              //   object.quantityBuyOut +
-              //   object.quantitySellOut
-
               const quantityOverflow =
                 object.quantityOverflowIn -
                 object.quantityOverflowOut;
-
-              // const quantityTransfer =
-              //   object.quantityTransferIn -
-              //   object.quantityTransferOut
-
-              // const quantityRefillWriteOff =
-              //   object.quantityRefillIn -
-              //   object.quantityWriteOffOut
-
-              // let quantityRefillWriteOffInvest = 0
-
-              // if (quantityRefillWriteOff < 0) {
-              //   quantityRefillWriteOffInvest += quantityRefillWriteOff * -1
-              // }
-
-              // const quantityTotal =
-              //   quantityBuy +
-              //   quantityOverflow +
-              //   quantityTransfer +
-              //   quantityRefillWriteOffInvest
-
-              // const quantityInvest =
-              //   quantityTotal -
-              //   quantitySell +
-              //   quantityRestInvest
-
-              // //* расчет цены 
-
-              // let priceInvest = 0
-              // if (quantityInvest != 0) {
-              //   priceInvest = costInvest / quantityInvest
-              // }
 
               //* Расчет среднего времени в портфеле
 
@@ -6225,7 +6193,7 @@ class Flow {
                 costOverflow: costOverflow || 0,
                 // costIn: costIn || 0,
                 // costOut: costOut || 0,
-                costInvest: costInvest || 0,
+                costInvest: costInvest|| 0,
                 costRest: object.costRest || 0,
                 costLast: costLast || 0,
                 costLock: costLock || 0,

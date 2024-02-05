@@ -685,49 +685,9 @@ class Flow {
 
               //* количество 
 
-              // const quantityBuy =
-              //   object.quantityBuyIn +
-              //   object.quantitySellIn
-
-              // const quantitySell =
-              //   object.quantityBuyOut +
-              //   object.quantitySellOut
-
               const quantityOverflow =
                 object.quantityOverflowIn -
                 object.quantityOverflowOut
-
-              // const quantityTransfer =
-              //   object.quantityTransferIn -
-              //   object.quantityTransferOut
-
-              // const quantityRefillWriteOff =
-              //   object.quantityRefillIn -
-              //   object.quantityWriteOffOut
-
-              // let quantityRefillWriteOffInvest = 0
-
-              // if (quantityRefillWriteOff < 0) {
-              //   quantityRefillWriteOffInvest += quantityRefillWriteOff * -1
-              // }
-
-              // const quantityTotal =
-              //   quantityBuy +
-              //   quantityOverflow +
-              //   quantityTransfer +
-              //   quantityRefillWriteOffInvest
-
-              // const quantityInvest =
-              //   quantityTotal -
-              //   quantitySell +
-              //   quantityRestInvest
-
-              // //* расчет цены 
-
-              // let priceInvest = 0
-              // if (quantityInvest != 0) {
-              //   priceInvest = costInvest / quantityInvest
-              // }
 
               //* Расчет среднего времени в портфеле
 
@@ -824,7 +784,7 @@ class Flow {
                 costOverflow: costOverflow || 0,
                 // costIn: costIn || 0,
                 // costOut: costOut || 0,
-                costInvest: costInvest || 0,
+                costInvest: costInvest|| 0,
                 costRest: object.costRest || 0,
                 costLast: costLast || 0,
                 costLock: costLock || 0,
