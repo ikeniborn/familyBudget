@@ -143,7 +143,6 @@ class Registry {
           isDelete,
           isLiquidityPool,
           isFee,
-          isLock,
           isSenderLock,
           isRecipientLock,
           isAvgPrice,
@@ -225,7 +224,6 @@ class Registry {
         isSymbolPrice = false
         isCurencyPrice = false
         isFeePrice = false
-        isLock = false
         isHistoricalAveragePriceSymbol = false
         isHistoricalAveragePriceFeeCurrency = false
         isHistoricalAveragePriceCurrency = false
@@ -619,22 +617,22 @@ class Registry {
         currencyPriceCoef = currencyPrice / symbolPrice
 
         // console.log(
-        //   'currencySymbol:', currencySymbol
-        //   , 'operation:', rowValues.operation
-        //   , 'isOverflow:', isOverflow
-        //   , 'historicalPriceBuyCurrency:', historicalPriceBuyCurrency
-        //   , 'currencyPrice:', currencyPrice
-        //   , 'isHistoricalAveragePriceCurrency:', isHistoricalAveragePriceCurrency
+        //   'currencySymbol:', currencySymbol, '\n'
+        //   , 'operation:', rowValues.operation, '\n'
+        //   , 'isOverflow:', isOverflow, '\n'
+        //   , 'historicalPriceBuyCurrency:', historicalPriceBuyCurrency, '\n'
+        //   , 'currencyPrice:', currencyPrice, '\n'
+        //   , 'isHistoricalAveragePriceCurrency:', isHistoricalAveragePriceCurrency, '\n'
         // )
 
         // console.log(
-        //   'coinSymbol:', coinSymbol
-        //   , 'operation:', rowValues.operation
-        //   , 'isOverflow:', isOverflow
-        //   , 'historicalPriceBuyCoin:', historicalPriceBuyCoin
-        //   , 'symbolPrice:', symbolPrice
-        //   , 'isHistoricalAveragePriceSymbol:', isHistoricalAveragePriceSymbol
-        //   , 'symbolPriceSource:', symbolPriceSource
+        //   'coinSymbol:', coinSymbol, '\n'
+        //   , 'operation:', rowValues.operation, '\n'
+        //   , 'isOverflow:', isOverflow, '\n'
+        //   , 'historicalPriceBuyCoin:', historicalPriceBuyCoin, '\n'
+        //   , 'symbolPrice:', symbolPrice, '\n'
+        //   , 'isHistoricalAveragePriceSymbol:', isHistoricalAveragePriceSymbol, '\n'
+        //   , 'symbolPriceSource:', symbolPriceSource, '\n'
         // )
 
         const priceUSDBTCObjectExternal = new web3space.Price().getHistoricalPrice(
@@ -722,11 +720,11 @@ class Registry {
             historicalPriceBuyFee?.isHistoricalAveragePrice
 
           // console.log(
-          //   'feeCurrency:', feeCurrency
-          //   , 'isOverflow:', isOverflow
-          //   , 'historicalPriceBuyFee:', historicalPriceBuyFee
-          //   , 'feePrice:', feePrice
-          //   , 'isHistoricalAveragePriceFeeCurrency:', isHistoricalAveragePriceFeeCurrency
+          //   'feeCurrency:', feeCurrency, '\n'
+          //   , 'isOverflow:', isOverflow, '\n'
+          //   , 'historicalPriceBuyFee:', historicalPriceBuyFee, '\n'
+          //   , 'feePrice:', feePrice, '\n'
+          //   , 'isHistoricalAveragePriceFeeCurrency:', isHistoricalAveragePriceFeeCurrency, '\n'
           // )
 
         }
@@ -782,7 +780,7 @@ class Registry {
             accountKey: tx.accountKey,
             account: tx.account,
             historicalAveragePriceKey: new Hash(
-              tx.account + tx.portfolio + tx.contractor + tx.symbol
+              tx.account + tx.portfolio + tx.symbol
             ).md5,
             dateTime: dateTime,
             direction: tx.isFee ? 'out' : tx.direction.toLowerCase(),

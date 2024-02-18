@@ -391,7 +391,6 @@ class Transactions {
       const newHistoricalAveragePriceKey = new Hash(
         rowObject.account +
         rowObject.portfolio +
-        rowObject.contractor +
         rowObject.symbol
       ).md5
       rowObject.historicalAveragePriceKey = newHistoricalAveragePriceKey
@@ -500,17 +499,18 @@ class HistoricalPrice {
       const sourceKey = new Hash(coin?.source).md5
       const symbolId = coin?.sourceId
 
+      //* Для стабильных токенов
       if (
-        'e5e3fd01394b9a81296b75d5a7f4c1a2' ===
-        symbolCategoryKey /*stablecoin*/
+        'e5e3fd01394b9a81296b75d5a7f4c1a2' === symbolCategoryKey /*stablecoin*/
       ) {
-        //* Для стабильных токенов возвращать единицу
+
         historicalPrice = 1
         isHistoricalAveragePrice = false
         historicalSource = 'stablecoin'
-      } else if (
-        '7d5f30a0d1641c0b6980aaf2556b32ce' ===
-        symbolCategoryKey /*fiat*/
+      }
+      //* Для фиата
+      else if (
+        '7d5f30a0d1641c0b6980aaf2556b32ce' === symbolCategoryKey /*fiat*/
       ) {
         if (
           sourceKey === '1dab445b170a7f0acfccea645a8879e0' /*cryptocompare*/
@@ -538,142 +538,37 @@ class HistoricalPrice {
           historicalSource = 'fiatWeb3space'
         }
       }
+      //* Для токенов
       else {
         //* Расчет средневзвешенной стоимости покупки токена на основании истории покупок для диапазона данных
+        const startProcess = new FormatDate()
         if (isRange) {
-          const historicalAveragePriceKey = new Hash(
-            account + portfolio + contractor + symbol
-          ).md5
-          const inKey = new Hash('in').md5
-          const outKey = new Hash('out').md5
 
-          const getHistoricalPricePriceRest = function () {
+          const getHistoricalPriceRest = function () {
+            const historicalAveragePriceKey = new Hash(account + portfolio + symbol).md5
             //* цена исторических транзакций
-            let transactions
 
-            if (
-              [
-                '0461ebd2b773878eac9f78a891912d65' /*buy*/
-                , '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
-              ].indexOf(
-                operationKey
-              ) !== -1
-            ) {
-              transactions = transactionsArrayOfObject
-                .filter((row) => {
-                  return (
-                    new Date(row.dateTime).valueOf() <
-                    new Date(dateTime).valueOf() &&
-                    historicalAveragePriceKey === row.historicalAveragePriceKey &&
-                    row.isAvgPrice &&
-                    !row.isDelete &&
-                    !row.isOverflow
-                  )
-                })
-                .sort((a, b) => {
-                  return (
-                    new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
-                  )
-                })
-            } else if (
-              [
-                '84a0f3455dcca894ace136be62efa292' /*transfer*/
-                , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
-                , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
-              ].indexOf(
-                operationKey
-              ) !== -1
-            ) {
-              transactions = transactionsArrayOfObject
-                .filter((row) => {
-                  return (
-                    new Date(row.dateTime).valueOf() <
-                    new Date(dateTime).valueOf() &&
-                    historicalAveragePriceKey === row.historicalAveragePriceKey &&
-                    row.isAvgPrice &&
-                    !row.isDelete
-                  )
-                })
-                .sort((a, b) => {
-                  return (
-                    new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
-                  )
-                })
-            }
-
-            const historicalPriceAgg = transactions
+            const historicalPriceAgg = transactionsArrayOfObject
+              .filter((row) => {
+                return (
+                  new Date(row.dateTime).valueOf() < new Date(dateTime).valueOf() &&
+                  ['84a0f3455dcca894ace136be62efa292' /*transfer*/].indexOf(new Hash(row.operation).md5) === -1 &&
+                  historicalAveragePriceKey === row.historicalAveragePriceKey &&
+                  row.isAvgPrice &&
+                  !row.isDelete &&
+                  !row.isFee &&
+                  !row.isOverflow
+                )
+              })
+              .sort((a, b) => {
+                return (
+                  new Date(a.dateTime).valueOf() - new Date(b.dateTime).valueOf()
+                )
+              })
               .reduce(
                 (agg, tx) => {
-                  const operationKey = new Hash(tx.operation).md5
-                  const directionKey = new Hash(tx.direction).md5
-                  //* Распределение количества по потокам
-                  if (
-                    operationKey === '0461ebd2b773878eac9f78a891912d65' /*buy*/
-                  ) {
-                    if (directionKey === inKey) {
-                      agg.quantityBuyIn += tx.quantity
-                      agg.costBuyIn += tx.cost
-                      //* Накопление остатков
-                      agg.quantityRest += tx.quantity
-                    } else if (directionKey === outKey) {
-                      agg.quantityBuyOut += tx.quantity * -1
-                      agg.costBuyOut += tx.cost * -1
-                      //* Накопление остатков
-                      agg.quantityRest += tx.quantity
-                    }
-                  }
-                  else if (
-                    operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
-                  ) {
-                    if (directionKey === inKey) {
-                      agg.quantitySellIn += tx.quantity
-                      agg.costSellIn += tx.cost
-                      //* Накопление остатков
-                      agg.quantityRest += tx.quantity
-                    } else if (directionKey === outKey) {
-                      agg.quantitySellOut += tx.quantity * -1
-                      agg.costSellOut += tx.cost * -1
-                      //* Накопление остатков
-                      agg.quantityRest += tx.quantity
-                    }
-                  }
-                  else if (
-                    operationKey === '84a0f3455dcca894ace136be62efa292' /*transfer*/
-                  ) {
-                    if (directionKey === inKey) {
-                      agg.quantitySellIn += tx.quantity
-                      agg.costSellIn += tx.cost
-                      //* Накопление остатков
-                      agg.quantityRest += tx.quantity
-                    } else if (directionKey === outKey) {
-                      agg.quantitySellOut += tx.quantity * -1
-                      agg.costSellOut += tx.cost * -1
-                      //* Накопление остатков
-                      agg.quantityRest += tx.quantity
-                    }
-                  }
-                  else if (
-                    operationKey === 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
-                  ) {
-                    if (directionKey === inKey) {
-                      agg.quantityRefillIn += tx.quantity
-                      agg.costRefillIn += tx.cost
-                      //* Накопление остатков
-                      agg.quantityRest += tx.quantity
-                    }
-                  } else if (
-                    operationKey ===
-                    '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
-                  ) {
-                    if (directionKey === outKey) {
-                      agg.quantityWriteOffOut += tx.quantity * -1
-                      agg.costWriteOffOut += tx.cost * -1
-                      //* Накопление остатков
-                      agg.quantityRest += tx.quantity
-                    }
-                  }
 
-                  agg.quantityFlow += tx.quantity
+                  agg.quantityRest += tx.quantity
 
                   //* Накопление остатков
                   if (
@@ -698,10 +593,11 @@ class HistoricalPrice {
                       agg.costRestPrev =
                         agg.costRest
                     } else {
+                      agg.quantityRest = 0
+                      agg.costRest = 0
+                      agg.costRestPrev = 0
                       agg.priceRest = 0
                       agg.priceRestPrev = 0
-                      agg.costRestPrev = 0
-                      agg.costRest = 0
                     }
                   }
 
@@ -718,24 +614,7 @@ class HistoricalPrice {
                   return agg
                 },
                 {
-                  quantityBuyIn: 0,
-                  quantityBuyOut: 0,
-                  quantitySellIn: 0,
-                  quantitySellOut: 0,
-                  quantityRefillIn: 0,
-                  quantityWriteOffOut: 0,
-                  quantityTransferIn: 0,
-                  quantityTransferOut: 0,
-                  quantityFlow: 0,
                   precision: 0,
-                  costBuyIn: 0,
-                  costBuyOut: 0,
-                  costSellIn: 0,
-                  costSellOut: 0,
-                  costRefillIn: 0,
-                  costWriteOffOut: 0,
-                  costTransferIn: 0,
-                  costTransferOut: 0,
                   quantityRest: 0,
                   costRest: 0,
                   priceRest: 0,
@@ -775,75 +654,7 @@ class HistoricalPrice {
             }
           }
 
-          const getCurrentPricePriceRest = function () {
-            //* цена текущей транзации
-            const currentPrice = transactionsArrayOfObject
-              .filter((row) => {
-                return (
-                  new Date(row.dateTime).valueOf() ===
-                  new Date(dateTime).valueOf() &&
-                  historicalAveragePriceKey === row.historicalAveragePriceKey &&
-                  row.isAvgPrice &&
-                  !row.isDelete &&
-                  !row.isFee &&
-                  !row.isOverflow
-                )
-              })
-              .sort((a, b) => {
-                return (
-                  new Date(a.dateTime).valueOf() -
-                  new Date(b.dateTime).valueOf()
-                )
-              })
-              .reduce(
-                (agg, tx) => {
-                  agg.quantityFlow += tx.quantity
-                  agg.costFlow += tx.cost
-                  //* расчет точности
-                  const precisionArray = tx.quantity.toString().split('.')
-                  const precision = precisionArray[1]
-                    ? [...precisionArray[1].split('')].length
-                    : 0
-                  if (precision > agg.precision && precision <= 6) {
-                    agg.precision = precision
-                  }
-                  return agg
-                },
-                {
-                  quantityFlow: 0,
-                  precision: 0,
-                  costFlow: 0,
-                }
-              )
-            //* расчет цены текущей транзакции
-
-            //* точность стоимости
-            let costPrecisionCoeff = '1'
-            for (let i = 0; i < 2; i++) {
-              costPrecisionCoeff += '0'
-            }
-            costPrecisionCoeff = costPrecisionCoeff * 1
-
-            let currentPricePrecisionCoeff = '1'
-            for (let i = 0; i < currentPrice.precision; i++) {
-              currentPricePrecisionCoeff += '0'
-            }
-            currentPricePrecisionCoeff = currentPricePrecisionCoeff * 1
-
-            const currentPriceQuantityRest =
-              Math.round(
-                currentPrice.quantityFlow * currentPricePrecisionCoeff
-              ) / currentPricePrecisionCoeff
-            const currentPriceCostRest =
-              Math.round(currentPrice.costFlow * costPrecisionCoeff) /
-              costPrecisionCoeff
-            if (currentPriceCostRest > 0 && currentPriceQuantityRest > 0) {
-              currentPricePriceRest = currentPriceCostRest / currentPriceQuantityRest
-            }
-            return currentPricePriceRest || 0
-          }
-
-          const getExternalPricePriceRest = function () {
+          const getExternalPriceRest = function () {
             const formatDatetime = new FormatDate(dateTime).getFormatDate('yyyy-MM-dd')
             const historicalPriceObject = new web3space.Price().getHistoricalPrice(symbolId, formatDatetime, formatDatetime).reduce((object, value) => {
               if (!object[value.token_id]) {
@@ -853,7 +664,7 @@ class HistoricalPrice {
             }, {})
 
             // console.log(
-            //   ' getExternalPricePriceRest:'
+            //   ' getExternalPriceRest:'
             //   , 'symbol:', symbol
             //   , 'symbolId:', symbolId
             //   , 'formatDatetime:', formatDatetime
@@ -865,8 +676,7 @@ class HistoricalPrice {
 
           //* Определение цены токена
 
-          let historicalPricePriceRest = 0
-          let currentPricePriceRest = 0
+          let historicalPriceRest = 0
           let externalPricePriceRest = 0
           let externalCurrencyPrice = 0
 
@@ -879,24 +689,16 @@ class HistoricalPrice {
               operationKey
             ) !== -1
           ) {
-            historicalPricePriceRest = getHistoricalPricePriceRest()
-            if (historicalPricePriceRest > 0) {
-              historicalPrice = historicalPricePriceRest
+            historicalPriceRest = getHistoricalPriceRest()
+            if (historicalPriceRest > 0) {
+              historicalPrice = historicalPriceRest
               isHistoricalAveragePrice = true
               historicalSource = 'historyTransactions'
             }
             else {
-              currentPricePriceRest = getCurrentPricePriceRest()
-              if (currentPricePriceRest > 0) {
-                historicalPrice = currentPricePriceRest
-                isHistoricalAveragePrice = true
-                historicalSource = 'currentTransaction'
-              } else {
-                historicalPrice = 0
-                isHistoricalAveragePrice = false
-                historicalSource = 'na'
-
-              }
+              historicalPrice = 0
+              isHistoricalAveragePrice = false
+              historicalSource = 'na'
             }
           }
           else if (
@@ -907,64 +709,80 @@ class HistoricalPrice {
               operationKey
             ) !== -1
           ) {
-            historicalPricePriceRest = getHistoricalPricePriceRest()
-            if (historicalPricePriceRest > 0) {
-              historicalPrice = historicalPricePriceRest
+            historicalPriceRest = getHistoricalPriceRest()
+            if (historicalPriceRest > 0) {
+              historicalPrice = historicalPriceRest
               isHistoricalAveragePrice = true
               historicalSource = 'historyTransactions'
             }
             else {
-              currentPricePriceRest = getCurrentPricePriceRest()
-              if (currentPricePriceRest > 0) {
-                historicalPrice = currentPricePriceRest
-                isHistoricalAveragePrice = true
-                historicalSource = 'currentTransaction'
-              } else {
-                externalPricePriceRest = getExternalPricePriceRest()
-                if (externalPricePriceRest > 0) {
-                  historicalPrice = externalPricePriceRest
-                  isHistoricalAveragePrice = false
-                  historicalSource = 'externalWeb3space'
-                }
-                else {
-                  historicalPrice = 0
-                  isHistoricalAveragePrice = false
-                  historicalSource = 'na'
-                }
+              externalPricePriceRest = getExternalPriceRest()
+              if (externalPricePriceRest > 0) {
+                historicalPrice = externalPricePriceRest
+                isHistoricalAveragePrice = false
+                historicalSource = 'externalWeb3space'
+              }
+              else {
+                historicalPrice = 0
+                isHistoricalAveragePrice = false
+                historicalSource = 'na'
               }
             }
+
+            //* цена валюты для перелива
             if (isCurrency === true && isOverflow === true) {
               if (externalPricePriceRest > 0) {
                 historicalCurrencyPrice = externalPricePriceRest
                 isHistoricalCurrencyAveragePrice = false
                 historicalCurrencySource = 'externalWeb3space'
               } else {
-                externalCurrencyPrice = getExternalPricePriceRest()
+                externalCurrencyPrice = getExternalPriceRest()
                 if (externalCurrencyPrice > 0) {
                   historicalCurrencyPrice = externalCurrencyPrice
                   isHistoricalCurrencyAveragePrice = false
                   historicalCurrencySource = 'externalCurrencyWeb3space'
                 }
+                else {
+                  historicalCurrencyPrice = 0
+                  isHistoricalCurrencyAveragePrice = false
+                  historicalSource = 'na'
+                }
               }
             }
           }
 
+          // new Portfolio().log.addMessage(
+          //   'getHistoricalPrice:'
+          //   , 'ID:' + startProcess.value
+          //   , 'Time spent: ' + startProcess.getTimeDiff() + '\n'
+          //   + 'symbol:' + symbol + '\n'
+          //   + 'isOverflow:' + isOverflow + '\n'
+          //   + 'isCurrency:' + isCurrency + '\n'
+          //   + 'operationKey:' + operationKey + '\n'
+          //   + 'historicalPriceRest:' + historicalPriceRest + '\n'
+          //   + 'externalPricePriceRest:' + externalPricePriceRest + '\n'
+          //   + 'historicalPrice:', historicalPrice + '\n'
+          //   + 'isHistoricalAveragePrice:' + isHistoricalAveragePrice + '\n'
+          //   + 'historicalSource:' + historicalSource + '\n'
+          //   + 'historicalCurrencyPrice:' + historicalCurrencyPrice + '\n'
+          //   + 'isHistoricalCurrencyAveragePrice:' + isHistoricalCurrencyAveragePrice + '\n'
+          //   + 'historicalCurrencySource:' + historicalCurrencySource + '\n'
+          // )
 
           // console.log(
-          //   'getHistoricalPrice:'
-          //   , 'symbol:', symbol
-          //   , 'isOverflow:', isOverflow
-          //   , 'isCurrency:', isCurrency
-          //   , 'operationKey:', operationKey
-          //   , 'historicalPricePriceRest:', historicalPricePriceRest
-          //   , 'currentPricePriceRest:', currentPricePriceRest
-          //   , 'externalPricePriceRest:', externalPricePriceRest
-          //   , 'historicalPrice:', historicalPrice
-          //   , 'isHistoricalAveragePrice:', isHistoricalAveragePrice
-          //   , 'historicalSource:', historicalSource
-          //   , 'historicalCurrencyPrice:', historicalCurrencyPrice
-          //   , 'isHistoricalCurrencyAveragePrice:', isHistoricalCurrencyAveragePrice
-          //   , 'historicalCurrencySource:', historicalCurrencySource
+          //   'getHistoricalPrice:', '\n'
+          //   , 'symbol:', symbol, '\n'
+          //   , 'isOverflow:', isOverflow, '\n'
+          //   , 'isCurrency:', isCurrency, '\n'
+          //   , 'operationKey:', operationKey, '\n'
+          //   , 'historicalPriceRest:', historicalPriceRest, '\n'
+          //   , 'externalPricePriceRest:', externalPricePriceRest, '\n'
+          //   , 'historicalPrice:', historicalPrice, '\n'
+          //   , 'isHistoricalAveragePrice:', isHistoricalAveragePrice, '\n'
+          //   , 'historicalSource:', historicalSource, '\n'
+          //   , 'historicalCurrencyPrice:', historicalCurrencyPrice, '\n'
+          //   , 'isHistoricalCurrencyAveragePrice:', isHistoricalCurrencyAveragePrice, '\n'
+          //   , 'historicalCurrencySource:', historicalCurrencySource, '\n'
           // )
 
         }

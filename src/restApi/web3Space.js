@@ -1,5 +1,5 @@
 import { Methods } from './fetch'
-import { Hash, FormatDate, FormatNumber } from '../utils'
+import { FormatDate } from '../utils'
 export { Price, Dimension }
 /**
  * CoinMarketCap instance
@@ -75,6 +75,22 @@ class Price {
   getTokenSearch(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51') {
     return this.methods.get({
       endPoint: '/token/search',
+      query: {
+        token_id,
+      },
+    })?.data || []
+  }
+
+  
+  /**
+ * Gettoken search
+ *
+ * @param {*} token_id
+ * @returns {array}
+ */
+  getTokenSearch2(token_id = 'b460f578-b1ce-950c-287e-dc61d0728e51') {
+    return this.methods.get({
+      endPoint: '/token/search2',
       query: {
         token_id,
       },
