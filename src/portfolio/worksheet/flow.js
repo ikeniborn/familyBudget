@@ -35,6 +35,8 @@ class Flow {
         .reduce((agg, tx) => {
           const operationKey = new Hash(tx.operation).md5
           const directionKey = new Hash(tx.direction).md5
+          const symbolKey = new Hash(tx.symbol).md5
+          const symbolCategory = symbols[symbolKey]?.symbolCategory || ''
 
           if (!agg[tx.account]) {
             agg[tx.account] = {}
@@ -66,12 +68,22 @@ class Flow {
           agg[tx.account][tx.portfolio][tx.symbol].quantityRest += tx.quantity
 
           if (
-            tx.isOverflow === false &&
-            tx.isFee === false &&
-            [
-              'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
-              , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
-            ].indexOf(operationKey) === -1
+            tx.isOverflow === false
+            &&
+            tx.isFee === false
+            &&
+            (
+              [
+                'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
+                , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
+              ].indexOf(operationKey) === -1
+              ||
+              [
+                '7d5f30a0d1641c0b6980aaf2556b32ce' /* Fiat */
+              ].indexOf(
+                new Hash(symbolCategory).md5
+              ) !== -1
+            )
           ) {
             agg[tx.account][tx.portfolio][tx.symbol].quantityRestInvest += tx.quantity
           }
@@ -82,12 +94,22 @@ class Flow {
               .operationCount === 0
           ) {
             if (
-              tx.isOverflow === false &&
-              tx.isFee === false &&
-              [
-                'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
-                , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
-              ].indexOf(operationKey) === -1
+              tx.isOverflow === false
+              &&
+              tx.isFee === false
+              &&
+              (
+                [
+                  'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
+                  , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
+                ].indexOf(operationKey) === -1
+                ||
+                [
+                  '7d5f30a0d1641c0b6980aaf2556b32ce' /* Fiat */
+                ].indexOf(
+                  new Hash(symbolCategory).md5
+                ) !== -1
+              )
             ) {
               agg[tx.account][tx.portfolio][tx.symbol].costRestInvest =
                 tx.cost
@@ -111,12 +133,22 @@ class Flow {
           else {
             //*остаток инвестиций
             if (
-              tx.isOverflow === false &&
-              tx.isFee === false &&
-              [
-                'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
-                , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
-              ].indexOf(operationKey) === -1
+              tx.isOverflow === false
+              &&
+              tx.isFee === false
+              &&
+              (
+                [
+                  'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
+                  , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
+                ].indexOf(operationKey) === -1
+                ||
+                [
+                  '7d5f30a0d1641c0b6980aaf2556b32ce' /* Fiat */
+                ].indexOf(
+                  new Hash(symbolCategory).md5
+                ) !== -1
+              )
             ) {
 
               if (
@@ -214,7 +246,7 @@ class Flow {
           ) {
             console.log(
               'account:', tx.account, '\n'
-              ,'dateTime', new FormatDate(tx.dateTime).getFormatDate('yyyy-MM-dd HH:mm') , '\n'
+              , 'dateTime', new FormatDate(tx.dateTime).getFormatDate('yyyy-MM-dd HH:mm'), '\n'
               , 'operation:', tx.operation, '\n'
               , 'portfolio:', tx.portfolio, '\n'
               , 'contractor:', tx.contractor, '\n'
@@ -434,8 +466,8 @@ class Flow {
               let quantityLock = 0
 
               // if (object.quantityRest > 0) {
-                quantityRest = Math.round(object.quantityRest * precisionCoeff) /
-                  precisionCoeff
+              quantityRest = Math.round(object.quantityRest * precisionCoeff) /
+                precisionCoeff
               // }
 
               if (object.quantityLock > 0) {
@@ -463,7 +495,7 @@ class Flow {
 
               if (aggFlowPortfolio[account][portfolio][symbol]) {
 
-                priceRest =  aggFlowPortfolio[account][portfolio][symbol].priceRest
+                priceRest = aggFlowPortfolio[account][portfolio][symbol].priceRest
 
                 //* стоимость инвестиций
                 costInvest = Math.round(

@@ -1,0 +1,6 @@
+[server]
+sslCertFile = '/home/bagatocorp/cert/budget.ikeniborn.ru.pem'
+sslKeyFile = '/home/bagatocorp/cert/budget.ikeniborn.ru.key'
+
+[client]
+showSidebarNavigation = false

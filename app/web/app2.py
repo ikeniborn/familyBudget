@@ -1,0 +1,30 @@
+import gspread
+import pandas as pd
+# from google.oauth2.service_account import Credentials
+
+credentials = {
+  "type": "service_account",
+  "project_id": "familybudget-317019",
+  "private_key_id": "797cf157b1ffc252d3a4753513f74c4566c63a5b",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC2SollgQZQ3aRf\nBWOJAfhLCmZciNuLx+lXjqfLtzBljciBBdHvRh80AtokIAtyLV45aBvL37XrMRY6\nbqdtuI2ieOPIvMhFJBBubogGkGM0NRDkKHdhypQomUuOU29+c0LhWOV+TOrxeuJp\ndiAXV/GiLlb6xrkumHk9qlBFAO5eeOYUub8Rq2Hm4A6ovnzSJc3DQJJZLiMZwkTu\nxxWdzRvDsEyPopyyfiKFbaRBaFZcmiWEmSnzOHShOajqF5mjrRFEv/U/Ziwzmyf0\ndHDkMfkOMYpcstueiLF4zN8ruSp1i7wSji1O9QOc6ajd/pYE2p88l0/NQ1BS60Rr\nrovwa2GlAgMBAAECggEAIYGFy6Bxlr+GjOiiqPYxuylIM038fK7cFvnjobAkNyZe\naki1k7Nh3N+BVQ6GzA/Gt+qI4WpXN8mn+kmIgMRhVDHAPI9miD7evk2Wtw4nDduL\nJUTC3LitjuDOYHS5k5Z//oemdxaQQJ6DqzrJH0FM6rB10FZih0wDTPBXHLfVGIv0\nTmdmglU2GGwbeds7D5BT1EK+Xkw1obUKnAH54YxaN9fCakWW8vfJudcOE6V1MU0P\nycmvh0CgeLCT1rtU8TkXDK3qD58uSe12vGONFcIajCsJ0gEXkNRjg0IRLmn4N1IJ\n52ZO6CqA2TQpwjpxVmp3QrTMCiwv/d5iYZGszG/GwQKBgQDz61hk5ZxWeIhVOK2Y\nFg3s/HTdpXczODuwRJhbWmfnD1SF4Sc8eMNMXTWBm5zRLXAK/9gxee1k0ap1VfTY\n/wdZx1X7KelJ9b0vBfRPVbsOTXrcTmQ55x0HiofOcD/FQG10juNQagrgktNZcA9v\n1P0Ndxpr0zl5f4WMcffaHLF0eQKBgQC/Uc68yVQap7fpmGMTg7QtWxQ/EnFx5tMJ\nyGPm8d5C8GqwfnPeiOYMUJTLlcfunrBZiJcec8Oxd43qRj54zNALcI6vM8Q/2pVn\nh4zktLFPhftzgY7STMeXk55FeB+y9j/1c5i1DuDZeL7RL11JG1cjERnMaLadBP2/\nzBA+AINTjQKBgQC+tyL0MPueOLwQNjK1GXll9LbDnt6ms68n0Vp3Ayb+aOQjkboF\n9D5vdOmjHzLr8uUKFKTLepP9IlpvR/gburvanJtDuK9pXrS/EZ7GcTfCpR4NJ1YC\nWAxAmzY4WVfjOM7cNeTSOTesA+EwqwfG3vfFEX0dFZh4wRaAi5PJfGnbsQKBgB2b\nbWDtzyQo3F88A+kbMqDqPWHdWs0DqZkT99HfkEPPrNMPXqMLkH5LYht3XG9jA2t3\npdtCkwA9viqJIFXVbES48HvQiQhQrVpOMdGa3O2vkFA5tn54/1JHt/CMPGuXjCJR\n90nduZIuC2mX6NnNb1iv5swpUElQYmxyCfluXuRpAoGBAOTfyIOcn5D/EzNoLuhW\ndey2+hOdvSdXuXS05zlYQVaxgKOMDUo3k/6KNwifxEQYPKAXAR7gsfcA9tYvtlFQ\ne0Itt9k6tlmFrftctn1D/wKFOFQOq9ru2ErC2cL5aXzvAZ56w8JuZGjAyId/LHuT\n1lFLsjjX2BkuwSRf+Cpg46v4\n-----END PRIVATE KEY-----\n",
+  "client_email": "streamlit@familybudget-317019.iam.gserviceaccount.com",
+  "client_id": "102111009563591596403",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/streamlit%40familybudget-317019.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
+
+gc = gspread.service_account_from_dict(credentials)
+
+sh = gc.open_by_key('12zOV6GkjmT2eUAQalQCTDP1OXOBCfLOhcBQaXQ4gbUQ')
+
+worksheet = sh.worksheet('test')
+
+# val = ws.get_all_records()
+dataframe = pd.DataFrame(worksheet.get_all_records())
+
+# ws.update_cell(1, 2, 'Bingo!')
+
+print(dataframe)

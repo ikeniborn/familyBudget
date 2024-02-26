@@ -1,0 +1,21 @@
+version: '2.4'
+
+services:
+  streamlit:
+    build:
+      dockerfile: ./Dockerfile
+      context: ./
+    ports:
+      - '433:433'
+    volumes:
+      - '/home/bagatocorp/web:/usr/src/app/web:delegated'
+    environment:
+      - USER_ID=1000
+      - GROUP_ID=1000
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8501"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
