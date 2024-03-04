@@ -45,4 +45,5 @@ sudo docker compose -f /home/bagatocorp/web/docker-compose.yaml down --rmi all
 
 >> очистка не используемых коонтейнеров и образов
 docker system prune -a 
-sudo docker ps..
+
+sudo docker ps
