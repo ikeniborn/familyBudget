@@ -43,4 +43,6 @@ sudo docker compose -f /home/bagatocorp/web/docker-compose.yaml up --build -d
 
 sudo docker compose -f /home/bagatocorp/web/docker-compose.yaml down --rmi all
 
-sudo docker ps
+>> очистка не используемых коонтейнеров и образов
+docker system prune -a 
+sudo docker ps..
