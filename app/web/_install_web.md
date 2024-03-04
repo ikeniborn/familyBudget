@@ -1,15 +1,14 @@
 
-sudo cat /etc/letsencrypt/live/budget.ikeniborn.ru/fullchain.pem > /home/bagatocorp/cert/budget.ikeniborn.ru.pem
-sudo cat /etc/letsencrypt/live/budget.ikeniborn.ru/privkey.pem > /home/bagatocorp/cert/budget.ikeniborn.ru.key
+sudo cat /etc/letsencrypt/live/budget.ikeniborn.ru/fullchain.pem > /home/bagatocorp/web/cert/budget.ikeniborn.ru.pem
+sudo cat /etc/letsencrypt/live/budget.ikeniborn.ru/privkey.pem > /home/bagatocorp/web/cert/budget.ikeniborn.ru.key
 
 mkdir /home/bagatocorp/cert
 
 nano /home/bagatocorp/cert/budget.ikeniborn.ru.pem
 nano /home/bagatocorp/cert/budget.ikeniborn.ru.key
 
-
-sudo chown root:root /home/bagatocorp/cert/budget.ikeniborn.ru.pem
-sudo chown root:root /home/bagatocorp/cert/budget.ikeniborn.ru.key
+sudo chown root:root /home/bagatocorp/web/cert/budget.ikeniborn.ru.pem
+sudo chown root:root /home/bagatocorp/web/cert/budget.ikeniborn.ru.key
 
 sudo su 
 apt install python3-pip python3-devel gcc gcc-c++ make jq

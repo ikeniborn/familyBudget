@@ -3,7 +3,6 @@
 git_folder="/home/bagatocorp/git"
 git_branch="master"
 app_folder="/home/bagatocorp/web"
-cert_folder="/home/bagatocorp/cert"
 
 # Проверить, существует ли директория "$git_folder"
 if [ -d "$git_folder" ]; then
@@ -21,8 +20,10 @@ fi
 git checkout "$git_branch"
 
 sudo rsync -av --delete "$git_folder/app/web/app/" "$app_folder/"
-sudo rsync -av --delete "$git_folder/app/web/cert/" "$cert_folder/"
+
+sudo chown root:root /home/bagatocorp/web/cert/budget.ikeniborn.ru.pem
+sudo chown root:root /home/bagatocorp/web/cert/budget.ikeniborn.ru.key
 
 # sudo chmod +x /home/rocky/chat-ai/project/app.py
 
-cd ~/web
+cd ~/

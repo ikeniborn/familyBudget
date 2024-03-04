@@ -8,8 +8,8 @@ services:
     ports:
       - '8501:8501'
     volumes:
-      - '/home/bagatocorp/web/app:/usr/src/app/web:delegated'
-      - '/home/bagatocorp/web/cert:/usr/src/app/cert:delegated'
+      - '/home/bagatocorp/web/app:/usr/src/app:delegated'
+      - '/home/bagatocorp/cert:/usr/src/app/cert:delegated'
     environment:
       - USER_ID=1000
       - GROUP_ID=1000

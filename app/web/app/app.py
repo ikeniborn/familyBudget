@@ -70,7 +70,7 @@ if st.session_state["authentication_status"]:
   # st.stop()
 
   SPREADSHEET = '12zOV6GkjmT2eUAQalQCTDP1OXOBCfLOhcBQaXQ4gbUQ'
-  CREDENTIAL = '/usr/src/app/web/secrets/familybudget-317019-797cf157b1ff.json'
+  CREDENTIAL = '/usr/src/app/secrets/familybudget-317019-797cf157b1ff.json'
 
   if 'key' not in st.session_state:
       st.session_state.key = secrets.token_hex(16)
