@@ -47,3 +47,7 @@ sudo docker compose -f /home/bagatocorp/web/docker-compose.yaml down --rmi all
 docker system prune -a 
 
 sudo docker ps
+
+. sync_app.sh
+
+sudo docker exec -ti web-streamlit-1 ping -c 4 5.161.50.136 4001
