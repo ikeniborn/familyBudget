@@ -2,3 +2,7 @@ streamlit
 streamlit-authenticator
 gspread
 delorean
+duckdb
+pandas
+secrets
+yaml
