@@ -30,3 +30,18 @@ sudo apt-get update
 sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 sudo apt-get -y install certbot
+
+# build Docker image in current directory
+sudo docker build -t 'chat-ai-latest' /home/rocky/chat-ai
+<!-- # Run docker image with port 8501 and volumes -->
+sudo docker run -it --rm -p '8501:8501' -v '/home/rocky/models:/usr/src/app/models' -v '/home/rocky/chat-ai/project:/usr/src/app/project' latest
+
+sudo docker run -it -p 8501:8501/tcp --expose 8080/tcp  --restart always -v '/home/rocky/models:/usr/src/app/models' -v '/home/rocky/chat-ai/project:/usr/src/app/project' chat-ai-latest
+
+sudo docker compose -f /home/bagatocorp/web/docker-compose.yaml up -d
+
+sudo docker compose -f /home/bagatocorp/web/docker-compose.yaml up --build -d
+
+sudo docker compose -f /home/bagatocorp/web/docker-compose.yaml down --rmi all
+
+sudo docker ps
