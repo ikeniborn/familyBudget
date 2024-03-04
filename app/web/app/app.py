@@ -153,9 +153,9 @@ if st.session_state["authentication_status"]:
   if form_selector=='Факт':
 
     with st.form(key='fact_form',clear_on_submit=True):
-      cfo = st.selectbox(label='ЦФО',options=df_t_d_financial_center['name'].to_list())
-      mvz = st.selectbox(label='МВЗ',options=df_t_d_cost_center['name'].drop_duplicates().to_list())
-      nomenclature = st.selectbox(label='Номенклатура',options=df_t_d_accounting_item['nomenclature'].drop_duplicates().to_list())
+      cfo = st.selectbox(label='ЦФО',options=df_t_d_financial_center['name'].to_list(),index=None)
+      mvz = st.selectbox(label='МВЗ',options=df_t_d_cost_center['name'].drop_duplicates().to_list(),index=None)
+      nomenclature = st.selectbox(label='Номенклатура',options=df_t_d_accounting_item['nomenclature'].drop_duplicates().to_list(),index=None)
       value = st.number_input(label='Сумма',min_value=0)
       comment = st.text_input(label='Комментарий')
       submitted = st.form_submit_button("Сохранить")
