@@ -1,20 +1,54 @@
-FROM python:3.9-slim
+###############
+# BUILD IMAGE #
+###############
+FROM python:3.9 AS build
 
-WORKDIR /app
+# virtualenv
+ENV VIRTUAL_ENV=/opt/venv
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    software-properties-common \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+# install dependencies
+RUN apt-get update
+RUN apt-get install -y python3-pip gcc make jq
 
-RUN git clone https://github.com/streamlit/streamlit-example.git .
+# add and install requirements
+RUN pip install wheel setuptools pip --upgrade
+COPY ./requirements.txt .
+RUN pip install -r requirements.txt
 
-RUN pip3 install -r requirements.txt
+#################
+# RUNTIME IMAGE #
+#################
+FROM python:3.9 AS runtime
 
-EXPOSE 8501
+# setup user and group ids
+ARG USER_ID=1000
+ENV USER_ID $USER_ID
+ARG GROUP_ID=1000
+ENV GROUP_ID $GROUP_ID
 
-HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
+# add non-root user and give permissions to workdir
+RUN groupadd --gid $GROUP_ID user && \
+          adduser user --ingroup user --gecos '' --disabled-password --uid $USER_ID && \
+          mkdir -p /usr/src/app && \
+          chown -R user:user /usr/src/app
 
-ENTRYPOINT ["streamlit", "run", "streamlit_app.py", "--server.port=8501"]
+# copy from build image
+COPY --chown=user:user --from=build /opt/venv /opt/venv
+
+# set working directory
+WORKDIR /usr/src/app
+
+# switch to non-root user
+USER user
+
+# disables lag in stdout/stderr output
+ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE 1
+# Path
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Run streamlit
+CMD streamlit run app.py
+# CMD streamlit run project/app.py --logger.level=error 2> project/logs.log
