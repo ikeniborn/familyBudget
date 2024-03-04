@@ -6,16 +6,16 @@ services:
       dockerfile: ./Dockerfile
       context: ./
     ports:
-      - '443:8501'
+      - '443:443'
     volumes:
       - '/home/bagatocorp/web:/usr/src/app:delegated'
     environment:
       - USER_ID=1000
       - GROUP_ID=1000
-    # healthcheck:
-    #   test: ["CMD", "curl", "--fail", "http://localhost:8501/_stcore/health"]
-    #   interval: 30s
-    #   timeout: 10s
-    #   retries: 5
-    #   start_period: 30s
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "https://localhost/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     restart: always
