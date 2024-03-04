@@ -50,5 +50,5 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Run streamlit
-CMD streamlit run app.py
+CMD streamlit run web/app.py
 # CMD streamlit run project/app.py --logger.level=error 2> project/logs.log
