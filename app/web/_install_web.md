@@ -50,4 +50,6 @@ sudo docker ps
 
 . sync_app.sh
 
+ss -ntlp | more
+sudo telnet budget.ikeniborn.ru 443 
 sudo docker exec -ti web-streamlit-1 ping -c 4 5.161.50.136 4001
