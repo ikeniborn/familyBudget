@@ -13,7 +13,7 @@ services:
       - USER_ID=1000
       - GROUP_ID=1000
     healthcheck:
-      test: ["CMD", "curl", "--fail", "https://localhost:443/_stcore/health"]
+      test: ["CMD", "curl", "--fail", "https://192.168.0.2:443/_stcore/health"]
       interval: 30s
       timeout: 10s
       retries: 5
