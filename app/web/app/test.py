@@ -73,7 +73,7 @@ if st.session_state["authentication_status"]:
   CREDENTIAL = '/home/ikeni/Documents/Git/familyBudget/app/web/app/secrets/familybudget-317019-797cf157b1ff.json'
 
   if 'key' not in st.session_state:
-      st.session_state.key = secrets.token_hex(16)
+      st.session_state.key = token_hex(16)
       
   class GoogleSpreadsheet:
     'Класс работы с табилцами гугл'
@@ -175,7 +175,7 @@ if st.session_state["authentication_status"]:
             nomenclature,
             value,
             comment,
-            secrets.token_hex(16),
+            token_hex(16),
             'Факт',
         ]
         )
