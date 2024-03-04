@@ -6,3 +6,7 @@ duckdb
 pandas
 secrets
 yaml
+cryptography~=3.4
+cffi
+wheel
+setuptools
