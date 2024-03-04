@@ -10,7 +10,7 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # install dependencies
 RUN apt-get update
-RUN apt-get install -y python3-pip gcc make jq
+RUN apt-get install -y python3-pip gcc make jq openssl
 
 # add and install requirements
 RUN pip install wheel setuptools pip --upgrade
