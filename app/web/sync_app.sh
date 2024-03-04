@@ -11,7 +11,7 @@ if [ -d "$git_folder" ]; then
     git pull
 else
     # Если директория не существует, клонировать репозиторий
-    git clone https://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@github.com/Web-3Space/ai.git "$git_folder"
+    git clone https://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@github.com//ikeniborn/familyBudget.git "$git_folder"
     git config --global --add safe.directory $git_folder
     cd "$git_folder" || exit
 fi
@@ -19,8 +19,8 @@ fi
 # Переключиться на ветку "dev"
 git checkout "$git_branch"
 
-sudo rsync -av --delete "$git_folder/chat-ai/" "$app_folder/"
+sudo rsync -av --delete "$git_folder/app/web/" "$app_folder/"
 
-sudo chmod +x /home/rocky/chat-ai/project/app.py
+# sudo chmod +x /home/rocky/chat-ai/project/app.py
 
 cd ~/
