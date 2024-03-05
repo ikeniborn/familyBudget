@@ -19,6 +19,7 @@ import streamlit_authenticator as stauth
 import yaml
 from yaml.loader import SafeLoader
 
+st.set_page_config(page_title='Домашний бюджет', page_icon=':book')
 # names = ["ilya",'oksana']
 # usernames = ["ilya",'oksana']
 # file_path = Path(__file__).parent / 'hashed_pw.pkl'
@@ -70,8 +71,8 @@ if st.session_state["authentication_status"]:
   # st.stop()
 
   SPREADSHEET = '12zOV6GkjmT2eUAQalQCTDP1OXOBCfLOhcBQaXQ4gbUQ'
-  CREDENTIAL = '/usr/src/app/secrets/familybudget-317019-797cf157b1ff.json'
-  # CREDENTIAL = '/home/ikeni/Documents/Git/familyBudget/app/web/app/secrets/familybudget-317019-797cf157b1ff.json'
+  # CREDENTIAL = '/usr/src/app/secrets/familybudget-317019-797cf157b1ff.json'
+  CREDENTIAL = '/home/ikeni/Documents/Git/familyBudget/app/web/app/secrets/familybudget-317019-797cf157b1ff.json'
 
   if 'key' not in st.session_state:
       st.session_state.key = secrets.token_hex(16)
@@ -147,7 +148,7 @@ if st.session_state["authentication_status"]:
       in_memory_db.sql(drop_table_sql)
       create_table_sql = f'CREATE TABLE "{worksheet_name}" AS SELECT * FROM dataframe'
       in_memory_db.sql(create_table_sql)
-
+  
   ss_budget = GoogleSpreadsheet(spreadsheet_id=SPREADSHEET,credential=CREDENTIAL).get_spreadsheet()
 
   ws_t_f_trello = GoogleWorksheet(spreadsheet=ss_budget, worksheet_name='t_f_trello').get_worksheet()

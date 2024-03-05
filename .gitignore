@@ -214,8 +214,7 @@ dist
 .clasprc.json
 
 # build toll-up
-portfolio/portfolioProd/build
-portfolio/portfolioDev/build
-budget/budgetProd/build
-budget/budgetDev/build
-analitics/build
+app/portfolio/
+app/budget/
+app/analitics/
+app/web/app/.streamlit/
