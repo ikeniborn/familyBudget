@@ -105,7 +105,7 @@ if st.session_state["authentication_status"]:
       self.worksheet_object:Worksheet=None
       self.worksheet_data:DataFrame=None
 
-    def get_worksheet(self,ttl=300):
+    def get_worksheet(self,ttl=3600):
       @st.cache_resource(ttl=ttl,show_spinner=f"Open worksheet {self.worksheet_name}...")
       def cached_get_worksheet(worksheet_name) -> Worksheet:
         return self.spreadsheet.worksheet(worksheet_name)
@@ -130,12 +130,6 @@ if st.session_state["authentication_status"]:
     def query(self, query:str=None)-> DataFrame:
       in_memory_db = db_connect()
       _key = None
-      if in_memory_db.table(self.worksheet_name):
-        pass
-      else:
-        # df= self.worksheet_data
-        create_table_sql = f'CREATE TABLE "{self.worksheet_name}" AS SELECT * FROM df'
-        in_memory_db.sql(create_table_sql)
       return in_memory_db.sql(query=query).to_df()
 
   def db_connect(ttl:int=3600):
@@ -233,12 +227,14 @@ if st.session_state["authentication_status"]:
             'ИД':str,
             'Тип':str,
             })
-        st.write(new_row)
+        
         ws_t_f_trello.worksheet_object.append_rows(new_row.to_records(index=False).tolist())
+        st.info('Последняя запись:')
+        st.write(new_row)
       else:
         pass
             
-      # st.write(ws_t_f_trello.query(query='select * from t_f_trello order by operation_dttm desc limit 5'))
+      # st.write(ws_t_f_trello.read().query(query='select * from t_f_trello order by operation_dttm desc limit 5'))
         
   else:
     st.stop()
