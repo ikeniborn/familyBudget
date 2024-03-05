@@ -12,8 +12,8 @@ services:
     environment:
       - USER_ID=1000
       - GROUP_ID=1000
-      - GOOGLE_CREDENTIAL_PATH='/usr/src/app/secrets/familybudget-317019-797cf157b1ff.json'
-      - GOOGLE_SPREADSHEET_ID='12zOV6GkjmT2eUAQalQCTDP1OXOBCfLOhcBQaXQ4gbUQ'
+      - GOOGLE_CREDENTIAL_PATH=/usr/src/app/secrets/familybudget-317019-797cf157b1ff.json
+      - GOOGLE_SPREADSHEET_ID=12zOV6GkjmT2eUAQalQCTDP1OXOBCfLOhcBQaXQ4gbUQ
     healthcheck:
       test: ["CMD", "curl", "--fail", "https://192.168.0.2:443/_stcore/health"]
       interval: 30s
