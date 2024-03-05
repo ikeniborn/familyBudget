@@ -3,7 +3,7 @@ from gspread import Worksheet, Spreadsheet
 import pandas as pd
 import datetime
 from delorean import Delorean
-import math
+# import math
 from pandas import DataFrame
 import streamlit as st
 import duckdb
@@ -70,8 +70,8 @@ if st.session_state["authentication_status"]:
   # st.stop()
 
   SPREADSHEET = '12zOV6GkjmT2eUAQalQCTDP1OXOBCfLOhcBQaXQ4gbUQ'
-  # CREDENTIAL = '/usr/src/app/secrets/familybudget-317019-797cf157b1ff.json'
-  CREDENTIAL = '/home/ikeni/Documents/Git/familyBudget/app/web/app/secrets/familybudget-317019-797cf157b1ff.json'
+  CREDENTIAL = '/usr/src/app/secrets/familybudget-317019-797cf157b1ff.json'
+  # CREDENTIAL = '/home/ikeni/Documents/Git/familyBudget/app/web/app/secrets/familybudget-317019-797cf157b1ff.json'
 
   if 'key' not in st.session_state:
       st.session_state.key = secrets.token_hex(16)
