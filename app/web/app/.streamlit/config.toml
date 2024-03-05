@@ -1,6 +1,2 @@
-[server]
-sslCertFile = '/usr/src/app/cert/budget.ikeniborn.ru.pem'
-sslKeyFile = '/usr/src/app/cert/budget.ikeniborn.ru.key'
-
 [client]
 showSidebarNavigation = false
