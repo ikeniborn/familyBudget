@@ -9,16 +9,16 @@ import streamlit as st
 import duckdb
 # from sql_metadata import Parser
 # from typing import Optional,Union
-# import random
-# import string
 import secrets
-# import os
+import os
 # import pickle
 from pathlib import Path
 import streamlit_authenticator as stauth
 import yaml
 from yaml.loader import SafeLoader
 
+
+st.set_page_config(page_title='Домашний бюджет', page_icon=':book',initial_sidebar_state='collapsed', layout= "centered")
 # names = ["ilya",'oksana']
 # usernames = ["ilya",'oksana']
 # file_path = Path(__file__).parent / 'hashed_pw.pkl'
@@ -39,7 +39,7 @@ authenticator = stauth.Authenticate(
       config['cookie']['expiry_days']
     )
 
-name, authentication_status, username = authenticator.login(location='main',fields={'Form name':'Login'})
+name, authentication_status, username = authenticator.login(location='main',fields={'Form name':'Авторизация'},max_concurrent_users=2)
   
 if st.session_state["authentication_status"]:
   
@@ -53,26 +53,13 @@ if st.session_state["authentication_status"]:
     except Exception as e:
         st.error(e)
 
-  # CHARACTERS = (
-  #     string.ascii_letters
-  #     + string.digits
-  # )
-  # def generate_unique_key():
-  #     return ''.join(random.sample(CHARACTERS, 16))
-  # print(generate_unique_key())
-
   def truncate_time(freq:str = 'second' ):
     d = Delorean(datetime.datetime.now(), timezone='US/Pacific')
     return d.truncate(freq).datetime
 
-  # st.write(truncate_time())
-
-  # st.stop()
-
-  SPREADSHEET = '12zOV6GkjmT2eUAQalQCTDP1OXOBCfLOhcBQaXQ4gbUQ'
-  CREDENTIAL = '/usr/src/app/secrets/familybudget-317019-797cf157b1ff.json'
-  # CREDENTIAL = '/home/ikeni/Documents/Git/familyBudget/app/web/app/secrets/familybudget-317019-797cf157b1ff.json'
-
+  SPREADSHEET = os.getenv('GOOGLE_SPREADSHEET_ID')
+  CREDENTIAL=os.getenv('GOOGLE_CREDENTIAL_PATH')
+  
   if 'key' not in st.session_state:
       st.session_state.key = secrets.token_hex(16)
       
@@ -147,7 +134,7 @@ if st.session_state["authentication_status"]:
       in_memory_db.sql(drop_table_sql)
       create_table_sql = f'CREATE TABLE "{worksheet_name}" AS SELECT * FROM dataframe'
       in_memory_db.sql(create_table_sql)
-
+  
   ss_budget = GoogleSpreadsheet(spreadsheet_id=SPREADSHEET,credential=CREDENTIAL).get_spreadsheet()
 
   ws_t_f_trello = GoogleWorksheet(spreadsheet=ss_budget, worksheet_name='t_f_trello').get_worksheet()
@@ -160,7 +147,7 @@ if st.session_state["authentication_status"]:
   df_t_d_accounting_item = ws_t_d_accounting_item.read(dummy_time=truncate_time(freq='day'),ttl=3600).worksheet_data
 
   form_selector=st.selectbox(label='Выбор учета',options=['Факт','Бюджет'],index=None)
- 
+
   if form_selector=='Факт':
 
     with st.form(key='fact_form',clear_on_submit=True):
@@ -189,7 +176,7 @@ if st.session_state["authentication_status"]:
     
       if add_row and value>0 and cfo!=None or nomenclature!=None:
         operation_dttm =Delorean(datetime=datetime.datetime.now(), timezone='Etc/GMT+3').truncate('second').format_datetime(format='dd.MM.yyyy HH:mm:ss',locale='ru_RU')
-        period_dttm = Delorean(datetime=datetime.datetime.now(), timezone='Etc/GMT+3').truncate('second').format_datetime(format='dd.MM.yyyy',locale='ru_RU')
+        period_dttm = Delorean(datetime=datetime.datetime.now(), timezone='Etc/GMT+3').truncate('month').format_datetime(format='dd.MM.yyyy',locale='ru_RU')
         new_row = DataFrame.from_dict({
             'Дата операции':[operation_dttm],
             'Период':[period_dttm],
