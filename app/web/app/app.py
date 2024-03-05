@@ -17,7 +17,6 @@ import streamlit_authenticator as stauth
 import yaml
 from yaml.loader import SafeLoader
 
-
 st.set_page_config(page_title='Домашний бюджет', page_icon=':book',initial_sidebar_state='collapsed', layout= "centered")
 # names = ["ilya",'oksana']
 # usernames = ["ilya",'oksana']
@@ -132,7 +131,7 @@ if st.session_state["authentication_status"]:
       create_table_sql = f'CREATE TABLE "{worksheet_name}" AS SELECT * FROM dataframe'
       in_memory_db.sql(create_table_sql)
   
-  ss_budget = GoogleSpreadsheet(spreadsheet_id=os.getenv(GOOGLE_SPREADSHEET_ID),credential=os.getenv(GOOGLE_CREDENTIAL_PATH)).get_spreadsheet()
+  ss_budget = GoogleSpreadsheet(spreadsheet_id=os.getenv('GOOGLE_SPREADSHEET_ID'),credential=os.getenv('GOOGLE_CREDENTIAL_PATH')).get_spreadsheet()
 
   ws_t_f_trello = GoogleWorksheet(spreadsheet=ss_budget, worksheet_name='t_f_trello').get_worksheet()
   ws_t_d_financial_center = GoogleWorksheet(spreadsheet=ss_budget,worksheet_name='t_d_financial_center').get_worksheet()
