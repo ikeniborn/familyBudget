@@ -3,7 +3,7 @@ from gspread import Worksheet, Spreadsheet
 import pandas as pd
 import datetime
 from delorean import Delorean
-import math
+# import math
 from pandas import DataFrame
 import streamlit as st
 import duckdb
@@ -71,6 +71,7 @@ if st.session_state["authentication_status"]:
 
   SPREADSHEET = '12zOV6GkjmT2eUAQalQCTDP1OXOBCfLOhcBQaXQ4gbUQ'
   CREDENTIAL = '/usr/src/app/secrets/familybudget-317019-797cf157b1ff.json'
+  # CREDENTIAL = '/home/ikeni/Documents/Git/familyBudget/app/web/app/secrets/familybudget-317019-797cf157b1ff.json'
 
   if 'key' not in st.session_state:
       st.session_state.key = secrets.token_hex(16)
@@ -83,49 +84,52 @@ if st.session_state["authentication_status"]:
     def __init__(self,spreadsheet_id,credential) -> None:
       self.spreadsheet_id=spreadsheet_id
       self.credential=credential
-      self.spreadsheet=None
-      self.worksheet=None
+      self.spreadsheet:Spreadsheet=None
+      # self.worksheet:Worksheet=None
 
     def get_spreadsheet(self,ttl=3600):
       @st.cache_resource(ttl=ttl,show_spinner="Open spreadsheet...")
       def cached_get_spreadsheet(spreadsheet_id,credential) -> Spreadsheet:
         return gspread.service_account(filename=credential).open_by_key(spreadsheet_id)
       self.spreadsheet = cached_get_spreadsheet(self.spreadsheet_id,self.credential)
-      return self.spreadsheet
+      return self
       
   class GoogleWorksheet():
+    'Класс работы с листами гугл'
     def __new__(cls, *args, **kwargs):
       return super().__new__(cls)
           
-    def __init__(self,spreadsheet,worksheet_name) -> None:
-      self.spreadsheet=spreadsheet
+    def __init__(self,spreadsheet,worksheet_name:str='') -> None:
+      self.spreadsheet:Spreadsheet=spreadsheet.spreadsheet
       self.worksheet_name=worksheet_name
-      self.worksheet:Worksheet=None
+      self.worksheet_object:Worksheet=None
+      self.worksheet_data:DataFrame=None
 
     def get_worksheet(self,ttl=3600):
       @st.cache_resource(ttl=ttl,show_spinner=f"Open worksheet {self.worksheet_name}...")
       def cached_get_worksheet(worksheet_name) -> Worksheet:
         return self.spreadsheet.worksheet(worksheet_name)
-      self.worksheet=cached_get_worksheet(self.worksheet_name)
+      self.worksheet_object=cached_get_worksheet(self.worksheet_name)
       return self
 
-    def read(self,key:str = None, ttl:int=3600, dummy_time:str=truncate_time()):
+    def read(self,key:str = None, ttl:int=10, dummy_time:str=truncate_time()):
       @st.cache_data(ttl=ttl,show_spinner=f"Load data from {self.worksheet_name}...")
       def cached_read(_worksheet,key:str, dummy_time:str, worksheet_name) -> DataFrame:
         if key!=None:
           return DataFrame(_worksheet.get_all_records()).dropna(how='all').set_index(keys=key)
         return DataFrame(_worksheet.get_all_records()).dropna(how='all')
-      return cached_read(self.worksheet, key, dummy_time,self.worksheet_name)
+      self.worksheet_data = cached_read(self.worksheet_object, key, dummy_time,self.worksheet_name)
+      in_memory_db = db_connect()
+      df = in_memory_db.table('duckdb_tables').df()
+      if len(df[df['table_name']==self.worksheet_name])==0:
+        df= self.worksheet_data
+        create_table_sql = f'CREATE TABLE "{self.worksheet_name}" AS SELECT * FROM df'
+        in_memory_db.sql(create_table_sql)
+      return self
 
-    def query(self,worksheet:str=None, query:str=None, ttl:int = 3600)-> DataFrame:
+    def query(self, query:str=None)-> DataFrame:
       in_memory_db = db_connect()
       _key = None
-      if in_memory_db.table(worksheet):
-        pass
-      else:
-        df= self.read(worksheet,_key,)
-        create_table_sql = f'CREATE TABLE "{worksheet}" AS SELECT * FROM df'
-        in_memory_db.sql(create_table_sql)
       return in_memory_db.sql(query=query).to_df()
 
   def db_connect(ttl:int=3600):
@@ -136,54 +140,102 @@ if st.session_state["authentication_status"]:
 
   ss_budget = GoogleSpreadsheet(spreadsheet_id=SPREADSHEET,credential=CREDENTIAL).get_spreadsheet()
 
-  ws_t_f_trello = GoogleWorksheet(spreadsheet=ss_budget,worksheet_name='t_f_trello').get_worksheet().worksheet
+
+  ws_t_f_trello = GoogleWorksheet(spreadsheet=ss_budget, worksheet_name='t_f_trello').get_worksheet()
   ws_t_d_financial_center = GoogleWorksheet(spreadsheet=ss_budget,worksheet_name='t_d_financial_center').get_worksheet()
   ws_t_d_cost_center = GoogleWorksheet(spreadsheet=ss_budget,worksheet_name='t_d_cost_center').get_worksheet()
   ws_t_d_accounting_item = GoogleWorksheet(spreadsheet=ss_budget,worksheet_name='t_d_accounting_item').get_worksheet()
 
-  df_t_d_financial_center = ws_t_d_financial_center.read(dummy_time=truncate_time(freq='hour'))
-  df_t_d_cost_center = ws_t_d_cost_center.read(dummy_time=truncate_time(freq='hour'))
-  df_t_d_accounting_item = ws_t_d_accounting_item.read(dummy_time=truncate_time(freq='hour'))
+  df_t_d_financial_center = ws_t_d_financial_center.read(dummy_time=truncate_time(freq='hour')).worksheet_data
+  df_t_d_cost_center = ws_t_d_cost_center.read(dummy_time=truncate_time(freq='hour')).worksheet_data
+  df_t_d_accounting_item = ws_t_d_accounting_item.read(dummy_time=truncate_time(freq='hour')).worksheet_data
+  
 
   # st.write(df_t_d_financial_center['name'].to_list())
 
   form_selector=st.selectbox(label='Выбор учета',options=['Факт','Бюджет'],index=None)
   # form_selector2=st.multiselect(label='Выбор учета',options=['Факт','Бюджет','Бюджет2'],default=None)
-
+ 
   if form_selector=='Факт':
 
     with st.form(key='fact_form',clear_on_submit=True):
-      cfo = st.selectbox(label='ЦФО',options=df_t_d_financial_center['name'].to_list(),index=None)
-      mvz = st.selectbox(label='МВЗ',options=df_t_d_cost_center['name'].drop_duplicates().to_list(),index=None)
-      nomenclature = st.selectbox(label='Номенклатура',options=df_t_d_accounting_item['nomenclature'].drop_duplicates().to_list(),index=None)
-      value = st.number_input(label='Сумма',min_value=0)
+      
+      st.info('Поля с * обязательные для заполнения!')
+      cfo = st.selectbox(label='ЦФО*',options=df_t_d_financial_center['name'].to_list(),index=None)
+      mvz_select = st.selectbox(label='МВЗ',options=df_t_d_cost_center['name'].drop_duplicates().to_list(),index=None)
+      if mvz_select==None:
+        mvz = cfo
+      else:
+        mvz = mvz_select
+      nomenclature = st.selectbox(label='Номенклатура*',options=df_t_d_accounting_item[df_t_d_accounting_item['fact']==1]['nomenclature'].drop_duplicates().to_list(),index=None)
+      if nomenclature:
+        operation = df_t_d_accounting_item[df_t_d_accounting_item['nomenclature']==nomenclature]['operation'].values[0]
+        bill = df_t_d_accounting_item[df_t_d_accounting_item['nomenclature']==nomenclature]['bill'].values[0]
+        account = df_t_d_accounting_item[df_t_d_accounting_item['nomenclature']==nomenclature]['account'].values[0]
+      else:
+        operation=''
+        bill = ''
+        account=''
+        
+      value = st.number_input(label='Сумма*',min_value=0)
       comment = st.text_input(label='Комментарий')
-      submitted = st.form_submit_button("Сохранить")
-      if submitted and value>=0:
-        operation_dttm = Delorean(datetime=datetime.datetime.now(), timezone='Etc/GMT+3').truncate('second').format_datetime(format='dd-MM-yyyy HH:mm:ss',locale='ru_RU')
+      
+      row_dict={
+            'Дата операции':[],
+            'Период':[],
+            'ЦФО':[],
+            'МВЗ':[],
+            'Операция':[],
+            'Счет':[],
+            'Статья':[],
+            'Номенклатура':[],
+            'Сумма':[],
+            'Комментарий':[],
+            'ИД':[],
+            'Тип':[],
+          }
+        
+      add_row = st.form_submit_button("Сохранить")
+    
+      if add_row and value>0 and cfo!=None or nomenclature!=None:
+        operation_dttm = pd.to_datetime(Delorean(datetime=datetime.datetime.now(), timezone='Etc/GMT+3').truncate('second').format_datetime(format='dd-MM-yyyy HH:mm:ss',locale='ru_RU'))
         period_dttm = Delorean(datetime=datetime.datetime.now(), timezone='Etc/GMT+3').truncate('month').format_datetime(format='dd-MM-yyyy',locale='ru_RU')
-        # st.write(operation_dttm)
-        # st.write(period_dttm)
-        new_row = DataFrame([
-            operation_dttm,
-            period_dttm,
-            cfo,
-            cfo,
-            '',
-            '',
-            '',
-            nomenclature,
-            value,
-            comment,
-            secrets.token_hex(16),
-            'Факт',
-        ]
-        )
-        ws_t_f_trello.append_row(new_row[0].tolist())
-        # st.write(new_row.to_numpy().tolist())
-
-    # st.write(ws_t_f_trello.read(dummy_time=truncate_time(freq='second')))
-
+        new_row = DataFrame.from_dict({
+            'Дата операции':[operation_dttm],
+            'Период':[period_dttm],
+            'ЦФО':[cfo],
+            'МВЗ':[mvz],
+            'Операция':[operation],
+            'Счет':[bill],
+            'Статья':[account],
+            'Номенклатура':[nomenclature],
+            'Сумма':[value],
+            'Комментарий':[comment],
+            'ИД':[secrets.token_hex(16)],
+            'Тип':[form_selector],
+          },orient='columns').astype({
+            'Дата операции':str,
+            'Период':str,
+            'ЦФО':str,
+            'МВЗ':str,
+            'Операция':str,
+            'Счет':str,
+            'Статья':str,
+            'Номенклатура':str,
+            'Сумма':int,
+            'Комментарий':str,
+            'ИД':str,
+            'Тип':str,
+            })
+        
+        ws_t_f_trello.worksheet_object.append_rows(new_row.to_records(index=False).tolist())
+        st.info('Последняя запись:')
+        st.write(new_row)
+      else:
+        pass
+            
+      # st.write(ws_t_f_trello.read().query(query='select * from t_f_trello order by operation_dttm desc limit 5'))
+        
   else:
     st.stop()
   
