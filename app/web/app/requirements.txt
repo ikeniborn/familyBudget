@@ -8,3 +8,4 @@ cryptography~=3.4
 cffi
 wheel
 setuptools
+sql_metadata
