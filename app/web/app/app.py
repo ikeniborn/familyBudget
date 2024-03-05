@@ -112,19 +112,17 @@ if st.session_state["authentication_status"]:
       self.worksheet_object=cached_get_worksheet(self.worksheet_name)
       return self
 
-    def read(self,key:str = None, ttl:int=10, dummy_time:str=truncate_time()):
+    def read(self,key:str = None, ttl:int=0, dummy_time:str=truncate_time(freq='second')):
       @st.cache_data(ttl=ttl,show_spinner=f"Load data from {self.worksheet_name}...")
       def cached_read(_worksheet,key:str, dummy_time:str, worksheet_name) -> DataFrame:
         if key!=None:
-          return DataFrame(_worksheet.get_all_records()).dropna(how='all').set_index(keys=key)
-        return DataFrame(_worksheet.get_all_records()).dropna(how='all')
-      self.worksheet_data = cached_read(self.worksheet_object, key, dummy_time,self.worksheet_name)
-      in_memory_db = db_connect()
-      df = in_memory_db.table('duckdb_tables').df()
-      if len(df[df['table_name']==self.worksheet_name])==0:
-        df= self.worksheet_data
-        create_table_sql = f'CREATE TABLE "{self.worksheet_name}" AS SELECT * FROM df'
-        in_memory_db.sql(create_table_sql)
+          df = DataFrame(_worksheet.get_all_records()).dropna(how='all').set_index(keys=key)
+        else:
+          df= DataFrame(_worksheet.get_all_records()).dropna(how='all')
+          df['row_num'] = df.index
+        return df
+      self.worksheet_data = cached_read(self.worksheet_object, key, dummy_time, self.worksheet_name)
+      db_create_table(self.worksheet_data,self.worksheet_name)
       return self
 
     def query(self, query:str=None)-> DataFrame:
@@ -137,24 +135,31 @@ if st.session_state["authentication_status"]:
     def cached_db_connect():
       return duckdb.connect()
     return cached_db_connect()
+  
+  def db_create_table(dataframe,worksheet_name):
+    in_memory_db = db_connect()
+    dfdb = in_memory_db.table('duckdb_tables').df()
+    if len(dfdb[dfdb['table_name']==worksheet_name])==0:
+      create_table_sql = f'CREATE TABLE "{worksheet_name}" AS SELECT * FROM dataframe'
+      in_memory_db.sql(create_table_sql)
+    else:
+      drop_table_sql = f'DROP TABLE "{worksheet_name}"'
+      in_memory_db.sql(drop_table_sql)
+      create_table_sql = f'CREATE TABLE "{worksheet_name}" AS SELECT * FROM dataframe'
+      in_memory_db.sql(create_table_sql)
 
   ss_budget = GoogleSpreadsheet(spreadsheet_id=SPREADSHEET,credential=CREDENTIAL).get_spreadsheet()
-
 
   ws_t_f_trello = GoogleWorksheet(spreadsheet=ss_budget, worksheet_name='t_f_trello').get_worksheet()
   ws_t_d_financial_center = GoogleWorksheet(spreadsheet=ss_budget,worksheet_name='t_d_financial_center').get_worksheet()
   ws_t_d_cost_center = GoogleWorksheet(spreadsheet=ss_budget,worksheet_name='t_d_cost_center').get_worksheet()
   ws_t_d_accounting_item = GoogleWorksheet(spreadsheet=ss_budget,worksheet_name='t_d_accounting_item').get_worksheet()
 
-  df_t_d_financial_center = ws_t_d_financial_center.read(dummy_time=truncate_time(freq='hour')).worksheet_data
-  df_t_d_cost_center = ws_t_d_cost_center.read(dummy_time=truncate_time(freq='hour')).worksheet_data
-  df_t_d_accounting_item = ws_t_d_accounting_item.read(dummy_time=truncate_time(freq='hour')).worksheet_data
-  
-
-  # st.write(df_t_d_financial_center['name'].to_list())
+  df_t_d_financial_center = ws_t_d_financial_center.read(dummy_time=truncate_time(freq='day'),ttl=3600).worksheet_data
+  df_t_d_cost_center = ws_t_d_cost_center.read(dummy_time=truncate_time(freq='day'),ttl=3600).worksheet_data
+  df_t_d_accounting_item = ws_t_d_accounting_item.read(dummy_time=truncate_time(freq='day'),ttl=3600).worksheet_data
 
   form_selector=st.selectbox(label='Выбор учета',options=['Факт','Бюджет'],index=None)
-  # form_selector2=st.multiselect(label='Выбор учета',options=['Факт','Бюджет','Бюджет2'],default=None)
  
   if form_selector=='Факт':
 
@@ -179,27 +184,12 @@ if st.session_state["authentication_status"]:
         
       value = st.number_input(label='Сумма*',min_value=0)
       comment = st.text_input(label='Комментарий')
-      
-      row_dict={
-            'Дата операции':[],
-            'Период':[],
-            'ЦФО':[],
-            'МВЗ':[],
-            'Операция':[],
-            'Счет':[],
-            'Статья':[],
-            'Номенклатура':[],
-            'Сумма':[],
-            'Комментарий':[],
-            'ИД':[],
-            'Тип':[],
-          }
         
       add_row = st.form_submit_button("Сохранить")
     
       if add_row and value>0 and cfo!=None or nomenclature!=None:
-        operation_dttm = pd.to_datetime(Delorean(datetime=datetime.datetime.now(), timezone='Etc/GMT+3').truncate('second').format_datetime(format='dd-MM-yyyy HH:mm:ss',locale='ru_RU'))
-        period_dttm = Delorean(datetime=datetime.datetime.now(), timezone='Etc/GMT+3').truncate('month').format_datetime(format='dd-MM-yyyy',locale='ru_RU')
+        operation_dttm =Delorean(datetime=datetime.datetime.now(), timezone='Etc/GMT+3').truncate('second').format_datetime(format='dd.MM.yyyy HH:mm:ss',locale='ru_RU')
+        period_dttm = Delorean(datetime=datetime.datetime.now(), timezone='Etc/GMT+3').truncate('second').format_datetime(format='dd.MM.yyyy',locale='ru_RU')
         new_row = DataFrame.from_dict({
             'Дата операции':[operation_dttm],
             'Период':[period_dttm],
@@ -213,6 +203,7 @@ if st.session_state["authentication_status"]:
             'Комментарий':[comment],
             'ИД':[secrets.token_hex(16)],
             'Тип':[form_selector],
+            'Пользователь':[username]
           },orient='columns').astype({
             'Дата операции':str,
             'Период':str,
@@ -226,16 +217,21 @@ if st.session_state["authentication_status"]:
             'Комментарий':str,
             'ИД':str,
             'Тип':str,
+            'Пользователь':str
             })
-        
+
         ws_t_f_trello.worksheet_object.append_rows(new_row.to_records(index=False).tolist())
-        st.info('Последняя запись:')
-        st.write(new_row)
+        st.info('Последние пять записей:')
+        st.write(ws_t_f_trello.read().query(f'select operation_dttm as "Период", period as "Дата операции", cfo as "ЦФО",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий", data_type as "Тип данных", username as "Пользователь" from t_f_trello order by row_num desc limit 5'))
+        # st.info('Последняя запись:')
+        # st.write(new_row)
       else:
         pass
-            
-      # st.write(ws_t_f_trello.read().query(query='select * from t_f_trello order by operation_dttm desc limit 5'))
         
+    # view_row = st.button(label='Показать последние 5 записей')
+    # if view_row:
+    #   st.write(ws_t_f_trello.read().query(f'select operation_dttm as "Период", period as "Дата операции", cfo as "ЦФО",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий" from t_f_trello where  data_type="Факт" and {username} order by row_num desc limit 5'))
+      
   else:
     st.stop()
   
