@@ -3,7 +3,6 @@ from gspread import Worksheet, Spreadsheet
 import pandas as pd
 import datetime
 from delorean import Delorean
-# import math
 from pandas import DataFrame
 import streamlit as st
 import duckdb
@@ -16,17 +15,10 @@ import yaml
 from yaml.loader import SafeLoader
 
 st.set_page_config(page_title='Домашний бюджет', page_icon=':book',initial_sidebar_state='collapsed', layout= "centered")
-# names = ["ilya",'oksana']
-# usernames = ["ilya",'oksana']
-# file_path = Path(__file__).parent / 'hashed_pw.pkl'
 file_path_config = Path(__file__).parent / 'config.yaml'
 
 with file_path_config.open('rb') as file2:
     config = yaml.load(file2, Loader=SafeLoader)
-
-# with file_path.open("rb") as file:
-#   hashed_passwords = pickle.load(file)
-  
   
 authenticator = stauth.Authenticate(
       config['credentials'],
