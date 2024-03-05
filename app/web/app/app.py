@@ -17,8 +17,8 @@ from yaml.loader import SafeLoader
 st.set_page_config(page_title='Домашний бюджет', page_icon=':book',initial_sidebar_state='collapsed', layout= "centered")
 file_path_config = Path(__file__).parent / 'config.yaml'
 
-with file_path_config.open('rb') as file2:
-    config = yaml.load(file2, Loader=SafeLoader)
+with file_path_config.open('rb') as file:
+    config = yaml.load(file, Loader=SafeLoader)
   
 authenticator = stauth.Authenticate(
       config['credentials'],
