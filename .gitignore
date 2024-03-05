@@ -217,4 +217,3 @@ dist
 app/portfolio/
 app/budget/
 app/analitics/
-app/web/app/.streamlit/**/*.*
