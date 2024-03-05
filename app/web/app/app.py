@@ -56,9 +56,6 @@ if st.session_state["authentication_status"]:
   def truncate_time(freq:str = 'second' ):
     d = Delorean(datetime.datetime.now(), timezone='US/Pacific')
     return d.truncate(freq).datetime
-
-  SPREADSHEET = os.getenv('GOOGLE_SPREADSHEET_ID')
-  CREDENTIAL=os.getenv('GOOGLE_CREDENTIAL_PATH')
   
   if 'key' not in st.session_state:
       st.session_state.key = secrets.token_hex(16)
@@ -135,7 +132,7 @@ if st.session_state["authentication_status"]:
       create_table_sql = f'CREATE TABLE "{worksheet_name}" AS SELECT * FROM dataframe'
       in_memory_db.sql(create_table_sql)
   
-  ss_budget = GoogleSpreadsheet(spreadsheet_id=SPREADSHEET,credential=CREDENTIAL).get_spreadsheet()
+  ss_budget = GoogleSpreadsheet(spreadsheet_id=os.getenv(GOOGLE_SPREADSHEET_ID),credential=os.getenv(GOOGLE_CREDENTIAL_PATH)).get_spreadsheet()
 
   ws_t_f_trello = GoogleWorksheet(spreadsheet=ss_budget, worksheet_name='t_f_trello').get_worksheet()
   ws_t_d_financial_center = GoogleWorksheet(spreadsheet=ss_budget,worksheet_name='t_d_financial_center').get_worksheet()
