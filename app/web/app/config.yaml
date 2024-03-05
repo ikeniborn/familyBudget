@@ -7,6 +7,6 @@ credentials:
       name: oksana
       password: oksana # To be replaced with hashed password
 cookie:
-  expiry_days: 30
+  expiry_days: 1
   key: K4mfHNkS9gxcF68dRELC # Must be string
   name: ikeniborn_cookie
