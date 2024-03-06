@@ -49,6 +49,7 @@ sudo docker images
 sudo docker system prune -a 
 
 sudo docker ps
+sudo docker restart web-streamlit-1
 
 . sync_app.sh
 
