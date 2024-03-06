@@ -1,6 +1,5 @@
 import gspread
 from gspread import Worksheet, Spreadsheet
-import pandas as pd
 import datetime
 from delorean import Delorean
 from pandas import DataFrame
@@ -31,15 +30,16 @@ name, authentication_status, username = authenticator.login(location='main',fiel
   
 if st.session_state["authentication_status"]:
   
-  authenticator.logout('Logout', "sidebar")
   st.sidebar.title(f'Привет {name}')
-  reset_password = st.sidebar.button(label='Сброс пароля')
-  if reset_password:
-    try:
-        if authenticator.reset_password(st.session_state["username"]):
-            st.success('Password modified successfully')
-    except Exception as e:
-        st.error(e)
+  authenticator.logout('Выход', "sidebar")
+ 
+  # reset_password = st.sidebar.button(label='Сброс пароля')
+  # if reset_password:
+  #   try:
+  #       if authenticator.reset_password(st.session_state["username"]):
+  #           st.success('Password modified successfully')
+  #   except Exception as e:
+  #       st.error(e)
         
   update_cache = st.sidebar.button(label='Обновить даннные')
   if update_cache:
@@ -159,10 +159,8 @@ if st.session_state["authentication_status"]:
 
   if form_selector=='Факт':
     
-
     with st.form(key='fact_form',clear_on_submit=True):
     
-      
       st.info('Поля с * обязательные для заполнения!')
       operation_dttm =datetime.datetime.now().strftime('%d.%m.%Y %H:%M:%S')
       period_dttm = st.date_input('Период',value=datetime.datetime.now().replace(day=1),format='DD.MM.YYYY') 
@@ -229,10 +227,72 @@ if st.session_state["authentication_status"]:
       else:
         update_session_key()
         
-    # view_row = st.button(label='Показать последние 5 записей')
-    # if view_row:
-    #   st.write(ws_t_f_trello.read().query(f'select operation_dttm as "Период", period as "Дата операции", cfo as "ЦФО",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий" from t_f_trello where  data_type="Факт" and {username} order by row_num desc limit 5'))
+  elif form_selector=='Бюджет':
+    
+    with st.form(key='budget_form',clear_on_submit=True):
+    
+      st.info('Поля с * обязательные для заполнения!')
+      operation_dttm =datetime.datetime.now().strftime('%d.%m.%Y %H:%M:%S')
+      period_dttm = st.date_input('Период',value=datetime.datetime.now().replace(day=1),format='DD.MM.YYYY') 
+      cfo = st.selectbox(label='ЦФО*',options=df_t_d_financial_center['name'].to_list(),index=None)
+      mvz = cfo
+      nomenclature = st.selectbox(label='Номенклатура*',options=df_t_d_accounting_item[df_t_d_accounting_item['budget']==1]['nomenclature'].drop_duplicates().to_list(),index=None)
+      if nomenclature:
+        operation = df_t_d_accounting_item[df_t_d_accounting_item['nomenclature']==nomenclature]['operation'].values[0]
+        bill = df_t_d_accounting_item[df_t_d_accounting_item['nomenclature']==nomenclature]['bill'].values[0]
+        account = df_t_d_accounting_item[df_t_d_accounting_item['nomenclature']==nomenclature]['account'].values[0]
+      else:
+        operation=''
+        bill = ''
+        account=''
+      value = st.number_input(label='Сумма*',min_value=0)
+      comment = st.text_input(label='Комментарий')
+      row_num = df_t_f_trello.query(f'select max(row_num) from t_f_trello').values[0]+1
       
+      new_row = DataFrame.from_dict({
+            'Дата операции':[operation_dttm],
+            'Период':[period_dttm.strftime('%d.%m.%Y')],
+            'ЦФО':[cfo],
+            'МВЗ':[mvz],
+            'Операция':[operation],
+            'Счет':[bill],
+            'Статья':[account],
+            'Номенклатура':[nomenclature],
+            'Сумма':[value],
+            'Комментарий':[comment],
+            'ИД':[st.session_state.key],
+            'Тип':[form_selector],
+            'Пользователь':[username],
+          },orient='columns').astype({
+            'Дата операции':str,
+            'Период':str,
+            'ЦФО':str,
+            'МВЗ':str,
+            'Операция':str,
+            'Счет':str,
+            'Статья':str,
+            'Номенклатура':str,
+            'Сумма':int,
+            'Комментарий':str,
+            'ИД':str,
+            'Тип':str,
+            'Пользователь':str,
+            })
+              
+      def submit_insert():
+          ws_t_f_trello.worksheet_object.append_rows(new_row.to_records(index=False).tolist())
+          new_row['row_num'] = row_num
+          ws_t_f_trello.insert(new_row)
+          st.info('Последние пять записей:')
+          st.dataframe(data=df_t_f_trello.query(f'select operation_dttm as "Период", period as "Дата операции", cfo as "ЦФО",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий", row_num from t_f_trello  t where t.username = \'{username}\' and t.data_type = \'{form_selector}\' order by row_num desc limit 5'),hide_index=True)
+            
+      add_row = st.form_submit_button("Сохранить")
+      
+      if add_row and value>0 and cfo!=None and nomenclature!=None:
+        submit_insert()
+      else:
+        update_session_key()  
+        
   else:
     st.stop()
   
