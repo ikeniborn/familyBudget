@@ -14,6 +14,24 @@ import yaml
 from yaml.loader import SafeLoader
 
 st.set_page_config(page_title='Домашний бюджет', page_icon=':book',initial_sidebar_state='collapsed', layout= "centered")
+
+def get_period(form:str=None)-> str:
+  dttm = datetime.datetime.now()
+  month = dttm.month
+  day = dttm.day
+  year = dttm.year
+  if form=='Бюджет':
+    if day>10:
+      dt = datetime.date(year=year,month=month+1,day=1)
+    else:
+      dt = datetime.date(year=year,month=month,day=1)
+  elif form=='Факт':
+    if day>10:
+      dt = datetime.date(year=year,month=month,day=1)
+    else:
+      dt = datetime.date(year=year,month=month-1,day=1)
+  return dt
+
 file_path_config = Path(__file__).parent / 'config.yaml'
 
 with file_path_config.open('rb') as file:
@@ -142,7 +160,6 @@ if st.session_state["authentication_status"]:
       insert_table_sql = f'insert into "{worksheet_name}" SELECT * FROM df'
       in_memory_db.sql(insert_table_sql)
 
-  
   ss_budget = GoogleSpreadsheet(spreadsheet_id=os.getenv('GOOGLE_SPREADSHEET_ID'),credential=os.getenv('GOOGLE_CREDENTIAL_PATH')).get_spreadsheet()
 
   ws_t_f_trello = GoogleWorksheet(spreadsheet=ss_budget, worksheet_name='t_f_trello').get_worksheet()
@@ -155,7 +172,7 @@ if st.session_state["authentication_status"]:
   df_t_d_accounting_item = ws_t_d_accounting_item.read(dummy_time=truncate_time(freq='day'),ttl=3600).worksheet_data
   df_t_f_trello = ws_t_f_trello.read(dummy_time=truncate_time(freq='hour'),ttl=3600)
 
-  form_selector=st.selectbox(label='Выбор учета',options=['Факт','Бюджет'],index=None)
+  form_selector=st.selectbox(label='Выбор учета',options=['Факт','Бюджет','Отчетность'],index=None)
 
   if form_selector=='Факт':
     
@@ -163,7 +180,7 @@ if st.session_state["authentication_status"]:
     
       st.info('Поля с * обязательные для заполнения!')
       operation_dttm =datetime.datetime.now().strftime('%d.%m.%Y %H:%M:%S')
-      period_dttm = st.date_input('Период',value=datetime.datetime.now().replace(day=1),format='DD.MM.YYYY') 
+      period_dttm = st.date_input('Период',value=get_period(form_selector),format='DD.MM.YYYY') 
       cfo = st.selectbox(label='ЦФО*',options=df_t_d_financial_center['name'].to_list(),index=None)
       mvz_select = st.selectbox(label='МВЗ',options=df_t_d_cost_center['name'].drop_duplicates().to_list(),index=None)
       if mvz_select==None:
@@ -227,13 +244,14 @@ if st.session_state["authentication_status"]:
       else:
         update_session_key()
         
+        
   elif form_selector=='Бюджет':
     
     with st.form(key='budget_form',clear_on_submit=True):
     
       st.info('Поля с * обязательные для заполнения!')
       operation_dttm =datetime.datetime.now().strftime('%d.%m.%Y %H:%M:%S')
-      period_dttm = st.date_input('Период',value=datetime.datetime.now().replace(day=1),format='DD.MM.YYYY') 
+      period_dttm = st.date_input('Период',value=get_period(form_selector).replace(day=1),format='DD.MM.YYYY') 
       cfo = st.selectbox(label='ЦФО*',options=df_t_d_financial_center['name'].to_list(),index=None)
       mvz = cfo
       nomenclature = st.selectbox(label='Номенклатура*',options=df_t_d_accounting_item[df_t_d_accounting_item['budget']==1]['nomenclature'].drop_duplicates().to_list(),index=None)
