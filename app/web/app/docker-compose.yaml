@@ -18,7 +18,7 @@ services:
       budget_network:
         ipv4_address: 10.5.0.2
     healthcheck:
-      test: ["CMD", "curl","--cacert","/usr/src/app/cert/budget.ikeniborn.ru.pem","--fail","https://10.5.0.2:443/_stcore/health"]
+      test: ["CMD", "curl","--cacert","/usr/src/app/cert/budget.ikeniborn.ru.pem","--fail","https://budget.ikeniborn.ru:443/_stcore/health"]
       interval: 30s
       timeout: 10s
       retries: 5
