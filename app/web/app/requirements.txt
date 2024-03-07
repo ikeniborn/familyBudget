@@ -9,3 +9,4 @@ cffi
 wheel
 setuptools
 sql_metadata
+pytz

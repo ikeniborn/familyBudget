@@ -1,10 +1,9 @@
-import gspread
-from gspread import Worksheet, Spreadsheet
+
+
 import datetime
 from delorean import Delorean
 from pandas import DataFrame
 import streamlit as st
-import duckdb
 from sql_metadata import Parser
 import secrets
 import os
@@ -12,6 +11,9 @@ from pathlib import Path
 import streamlit_authenticator as stauth
 import yaml
 from yaml.loader import SafeLoader
+import pytz
+from func.google import GoogleWorksheet,GoogleSpreadsheet
+
 
 st.set_page_config(page_title='Домашний бюджет', page_icon=':book',initial_sidebar_state='collapsed', layout= "centered")
 
@@ -66,101 +68,37 @@ if st.session_state["authentication_status"]:
     except Exception as e:
         st.error(e)
 
-  def truncate_time(freq:str = 'second' ):
-    d = Delorean(datetime.datetime.now(), timezone='US/Pacific')
-    return d.truncate(freq).datetime
+  def truncate_time(freq:str = 'second', period=1 ):
+    if freq=='second':
+      if period>59:
+        period=59
+      d = datetime.datetime.now().replace(second=period).strftime('%d.%m.%Y %H:%M:%S')
+    elif freq=='minute':
+      if period>59:
+        period=59
+      d = datetime.datetime.now().replace(minute=period,second=0).strftime('%d.%m.%Y %H:%M:%S')
+    elif freq=='hour':
+      if period>23:
+        period=0
+      d = datetime.datetime.now().replace(hour=period,minute=0,second=0).strftime('%d.%m.%Y %H:%M:%S')
+    elif freq=='day':
+      d = datetime.datetime.now().replace(day=period).strftime('%d.%m.%Y')
+    elif freq=='month':
+      if period>12:
+        period=12
+      d = datetime.datetime.now().replace(month=period,day=1).strftime('%d.%m.%Y')
+    return d
   
   def update_session_key():
     st.session_state.key = secrets.token_hex(16)
       
   if 'key' not in st.session_state:
       st.session_state.key = secrets.token_hex(16)
-  class GoogleSpreadsheet:
-    'Класс работы с табилцами гугл'
-    def __new__(cls, *args, **kwargs):
-      return super().__new__(cls)
-          
-    def __init__(self,spreadsheet_id,credential) -> None:
-      self.spreadsheet_id=spreadsheet_id
-      self.credential=credential
-      self.spreadsheet:Spreadsheet=None
-      # self.worksheet:Worksheet=None
-
-    def get_spreadsheet(self,ttl=3600):
-      @st.cache_resource(ttl=ttl,show_spinner="Open spreadsheet...")
-      def cached_get_spreadsheet(spreadsheet_id,credential) -> Spreadsheet:
-        return gspread.service_account(filename=credential).open_by_key(spreadsheet_id)
-      self.spreadsheet = cached_get_spreadsheet(self.spreadsheet_id,self.credential)
-      return self
-      
-  class GoogleWorksheet():
-    'Класс работы с листами гугл'
-    def __new__(cls, *args, **kwargs):
-      return super().__new__(cls)
-          
-    def __init__(self,spreadsheet,worksheet_name:str='') -> None:
-      self.spreadsheet:Spreadsheet=spreadsheet.spreadsheet
-      self.worksheet_name=worksheet_name
-      self.worksheet_object:Worksheet=None
-      self.worksheet_data:DataFrame=None
-
-    def get_worksheet(self,ttl=3600):
-      @st.cache_resource(ttl=ttl,show_spinner=f"Open worksheet {self.worksheet_name}...")
-      def cached_get_worksheet(worksheet_name) -> Worksheet:
-        return self.spreadsheet.worksheet(worksheet_name)
-      self.worksheet_object=cached_get_worksheet(self.worksheet_name)
-      return self
-
-    def read(self,key:str = None, ttl:int=0, dummy_time:str=truncate_time(freq='second')):
-      @st.cache_data(ttl=ttl,show_spinner=f"Load data from {self.worksheet_name}...")
-      def cached_read(_worksheet,key:str, dummy_time:str, worksheet_name) -> DataFrame:
-        if key!=None:
-          df = DataFrame(_worksheet.get_all_records()).dropna(how='all').set_index(keys=key)
-          df['row_num'] = df.index
-        else:
-          df= DataFrame(_worksheet.get_all_records()).dropna(how='all')
-          df['row_num'] = df.index
-        return df
-      self.worksheet_data = cached_read(self.worksheet_object, key, dummy_time, self.worksheet_name)
-      db_create_table(self.worksheet_data,self.worksheet_name)
-      return self
-
-    def query(self, query:str=None)-> DataFrame:
-      in_memory_db = db_connect()
-      _key = None
-      return in_memory_db.sql(query=query).to_df()
-    
-    def insert(self, dataframe):
-      db_insert_table(dataframe,self.worksheet_name)
-    
-  def db_connect(ttl:int=3600):
-    @st.cache_resource(ttl=ttl)
-    def cached_db_connect():
-      return duckdb.connect()
-    return cached_db_connect()
-  
-  def db_create_table(dataframe,worksheet_name):
-    in_memory_db = db_connect()
-    dfdb = in_memory_db.table('duckdb_tables').df()
-    df = dataframe
-    if len(dfdb[dfdb['table_name']==worksheet_name])==0:
-      create_table_sql = f'CREATE TABLE "{worksheet_name}" AS SELECT * FROM df'
-      in_memory_db.sql(create_table_sql)
-    else:
-      drop_table_sql = f'truncate TABLE "{worksheet_name}"'
-      in_memory_db.sql(drop_table_sql)
-      create_table_sql = f'insert into "{worksheet_name}" SELECT * FROM df'
-      in_memory_db.sql(create_table_sql)
-    
-  def db_insert_table(dataframe,worksheet_name):
-    in_memory_db = db_connect()
-    dfdb = in_memory_db.table('duckdb_tables').df()
-    df = dataframe
-    if len(dfdb[dfdb['table_name']==worksheet_name])>0:
-      insert_table_sql = f'insert into "{worksheet_name}" SELECT * FROM df'
-      in_memory_db.sql(insert_table_sql)
 
   ss_budget = GoogleSpreadsheet(spreadsheet_id=os.getenv('GOOGLE_SPREADSHEET_ID'),credential=os.getenv('GOOGLE_CREDENTIAL_PATH')).get_spreadsheet()
+  
+  # st.write(ss_budget)
+  # st.stop()
 
   ws_t_f_trello = GoogleWorksheet(spreadsheet=ss_budget, worksheet_name='t_f_trello').get_worksheet()
   ws_t_d_financial_center = GoogleWorksheet(spreadsheet=ss_budget,worksheet_name='t_d_financial_center').get_worksheet()
@@ -179,7 +117,7 @@ if st.session_state["authentication_status"]:
     with st.form(key='fact_form',clear_on_submit=True):
     
       st.info('Поля с * обязательные для заполнения!')
-      operation_dttm =datetime.datetime.now().strftime('%d.%m.%Y %H:%M:%S')
+      operation_dttm =datetime.datetime.now(tz=pytz.timezone('Etc/GMT+3')).strftime('%d.%m.%Y %H:%M:%S')
       period_dttm = st.date_input('Период',value=get_period(form_selector),format='DD.MM.YYYY') 
       cfo = st.selectbox(label='ЦФО*',options=df_t_d_financial_center['name'].to_list(),index=None)
       mvz_select = st.selectbox(label='МВЗ',options=df_t_d_cost_center['name'].drop_duplicates().to_list(),index=None)
@@ -235,7 +173,7 @@ if st.session_state["authentication_status"]:
           new_row['row_num'] = row_num
           ws_t_f_trello.insert(new_row)
           st.info('Последние пять записей:')
-          st.dataframe(data=df_t_f_trello.query(f'select operation_dttm as "Период", period as "Дата операции", cfo as "ЦФО",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий", row_num from t_f_trello  t where t.username = \'{username}\' and t.data_type = \'{form_selector}\' order by row_num desc limit 5'),hide_index=True)
+          st.dataframe(data=df_t_f_trello.query(f'select operation_dttm as "Период", period as "Дата операции", cfo as "ЦФО",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий" from t_f_trello  t where t.username = \'{username}\' and t.data_type = \'{form_selector}\' order by row_num desc limit 5'),hide_index=True)
             
       add_row = st.form_submit_button("Сохранить")
       
@@ -250,7 +188,7 @@ if st.session_state["authentication_status"]:
     with st.form(key='budget_form',clear_on_submit=True):
     
       st.info('Поля с * обязательные для заполнения!')
-      operation_dttm =datetime.datetime.now().strftime('%d.%m.%Y %H:%M:%S')
+      operation_dttm =datetime.datetime.now(tz=pytz.timezone('Etc/GMT+3')).strftime('%d.%m.%Y %H:%M:%S')
       period_dttm = st.date_input('Период',value=get_period(form_selector).replace(day=1),format='DD.MM.YYYY') 
       cfo = st.selectbox(label='ЦФО*',options=df_t_d_financial_center['name'].to_list(),index=None)
       mvz = cfo
@@ -302,7 +240,7 @@ if st.session_state["authentication_status"]:
           new_row['row_num'] = row_num
           ws_t_f_trello.insert(new_row)
           st.info('Последние пять записей:')
-          st.dataframe(data=df_t_f_trello.query(f'select operation_dttm as "Период", period as "Дата операции", cfo as "ЦФО",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий", row_num from t_f_trello  t where t.username = \'{username}\' and t.data_type = \'{form_selector}\' order by row_num desc limit 5'),hide_index=True)
+          st.dataframe(data=df_t_f_trello.query(f'select operation_dttm as "Период", period as "Дата операции", cfo as "ЦФО",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий", row_num from t_f_trello  t where t.data_type = \'{form_selector}\' order by row_num desc limit 5'),hide_index=True)
             
       add_row = st.form_submit_button("Сохранить")
       
@@ -311,11 +249,24 @@ if st.session_state["authentication_status"]:
       else:
         update_session_key()  
         
+  elif form_selector=='Отчетность':       
+    report_selector=st.selectbox(label='Выбор отчета',options=['План/Факт','Бюджет'],index=None)
+    if report_selector=='Бюджет':
+      period_dttm = st.date_input('Период',value=datetime.datetime.now().replace(day=1),format='DD.MM.YYYY').strftime('%d.%m.%Y')
+      cfo = st.selectbox(label='ЦФО*',options=df_t_d_financial_center['name'].to_list(),index=None)
+      
+      total = df_t_f_trello.query(f'select sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\' and t.data_type = \'Бюджет\'')['Сумма'].values[0]
+      st.write(f'Итого бюджет на {period_dttm} по цфо составляет {total}')
+      df= df_t_f_trello.query(f'select account as "Статья",sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\' and t.data_type = \'Бюджет\' group by account order by account')
+      st.bar_chart(data=df,x='Статья',y='Сумма')
+      
+      
+      
   else:
     st.stop()
   
 elif st.session_state["authentication_status"] is False:
-  st.error('Логин или парль не корректные')
+  st.error('Логин или пароль не корректный')
   
 elif st.session_state["authentication_status"] is None:
   st.warning('Введите ваш логин и пароль')
