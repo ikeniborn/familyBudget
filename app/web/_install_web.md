@@ -59,6 +59,8 @@ sudo telnet budget.ikeniborn.ru 443
 
 sudo docker exec -ti web-streamlit-1 bash
 
+curl --cacert /usr/src/app/cert/budget.ikeniborn.ru.pem --fail https://budget.ikeniborn.ru:443/_stcore/health
+
 export GOOGLE_SPREADSHEET_ID=12zOV6GkjmT2eUAQalQCTDP1OXOBCfLOhcBQaXQ4gbUQ && \
 export GOOGLE_CREDENTIAL_PATH=/home/ikeni/Documents/Git/familyBudget/app/web/app/secrets/familybudget-317019-797cf157b1ff.json && \
 printenv | grep 'GOOGLE'
