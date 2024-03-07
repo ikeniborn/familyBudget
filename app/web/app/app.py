@@ -250,17 +250,19 @@ if st.session_state["authentication_status"]:
         update_session_key()  
         
   elif form_selector=='Отчетность':       
-    report_selector=st.selectbox(label='Выбор отчета',options=['План/Факт','Бюджет'],index=None)
-    if report_selector=='Бюджет':
-      period_dttm = st.date_input('Период',value=datetime.datetime.now().replace(day=1),format='DD.MM.YYYY').strftime('%d.%m.%Y')
-      cfo = st.selectbox(label='ЦФО*',options=df_t_d_financial_center['name'].to_list(),index=None)
-      
-      total = df_t_f_trello.query(f'select sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\' and t.data_type = \'Бюджет\'')['Сумма'].values[0]
-      st.write(f'Итого бюджет на {period_dttm} по цфо составляет {total}')
-      df= df_t_f_trello.query(f'select account as "Статья",sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\' and t.data_type = \'Бюджет\' group by account order by account')
-      st.bar_chart(data=df,x='Статья',y='Сумма')
-      
-      
+    period_dttm = st.date_input('Период*',value=datetime.datetime.now().replace(day=1),format='DD.MM.YYYY').strftime('%d.%m.%Y')
+    cfo = st.selectbox(label='ЦФО*',options=df_t_d_financial_center['name'].to_list(),index=None)
+    if cfo:
+      report_selector=st.selectbox(label='Выбор отчета',options=['План/Факт','Бюджет'],index=None)
+      if report_selector=='Бюджет':
+          total = df_t_f_trello.query(f'select sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\' and t.data_type = \'Бюджет\'')['Сумма'].values[0]
+          st.write(f'Итого бюджет на {period_dttm} по цфо составляет {total} руб.')
+          df= df_t_f_trello.query(f'select account as "Статья",sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\' and t.data_type = \'Бюджет\' group by account order by account')
+          st.bar_chart(data=df,x='Статья',y='Сумма')
+      elif report_selector=='План/Факт':
+        if cfo:
+          df= df_t_f_trello.query(f'select data_type as "Тип", account as "Статья", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\'group by data_type, account order by account')
+          st.bar_chart(data=df,x='Статья',y='Сумма',color='Тип')
       
   else:
     st.stop()
