@@ -173,7 +173,7 @@ if st.session_state["authentication_status"]:
           new_row['row_num'] = row_num
           ws_t_f_trello.insert(new_row)
           st.info('Последние пять записей:')
-          st.dataframe(data=df_t_f_trello.query(f'select operation_dttm as "Период", period as "Дата операции", cfo as "ЦФО",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий" from t_f_trello  t where t.username = \'{username}\' and t.data_type = \'{form_selector}\' order by row_num desc limit 5'),hide_index=True)
+          st.dataframe(data=df_t_f_trello.query(f'select operation_dttm as "Дата операции", period as "Период", cfo as "ЦФО",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий" from t_f_trello  t where t.username = \'{username}\' and t.data_type = \'{form_selector}\' order by row_num desc limit 5'),hide_index=True)
             
       add_row = st.form_submit_button("Сохранить")
       
@@ -240,7 +240,7 @@ if st.session_state["authentication_status"]:
           new_row['row_num'] = row_num
           ws_t_f_trello.insert(new_row)
           st.info('Последние пять записей:')
-          st.dataframe(data=df_t_f_trello.query(f'select operation_dttm as "Период", period as "Дата операции", cfo as "ЦФО",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий", row_num from t_f_trello  t where t.data_type = \'{form_selector}\' order by row_num desc limit 5'),hide_index=True)
+          st.dataframe(data=df_t_f_trello.query(f'select operation_dttm as "Дата операции", period as "Период", cfo as "ЦФО",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий", row_num from t_f_trello  t where t.data_type = \'{form_selector}\' order by row_num desc limit 5'),hide_index=True)
             
       add_row = st.form_submit_button("Сохранить")
       
