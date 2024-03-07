@@ -249,11 +249,11 @@ if st.session_state["authentication_status"]:
       else:
         update_session_key()  
         
-  elif form_selector=='Отчетность':       
-    period_dttm = st.date_input('Период*',value=datetime.datetime.now().replace(day=1),format='DD.MM.YYYY').strftime('%d.%m.%Y')
+  elif form_selector=='Отчетность':      
+    report_selector=st.selectbox(label='Выбор отчета',options=['План/Факт','Бюджет'],index=None) 
     cfo = st.selectbox(label='ЦФО*',options=df_t_d_financial_center['name'].to_list(),index=None)
-    if cfo:
-      report_selector=st.selectbox(label='Выбор отчета',options=['План/Факт','Бюджет'],index=None)
+    period_dttm = st.date_input('Период*',value=datetime.datetime.now().replace(day=1),format='DD.MM.YYYY').strftime('%d.%m.%Y')
+    if cfo and report_selector:
       if report_selector=='Бюджет':
           total = df_t_f_trello.query(f'select sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\' and t.data_type = \'Бюджет\'')['Сумма'].values[0]
           st.write(f'Итого бюджет на {period_dttm} по цфо составляет {total} руб.')
