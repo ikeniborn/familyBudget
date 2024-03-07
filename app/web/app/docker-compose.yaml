@@ -14,10 +14,20 @@ services:
       - GROUP_ID=1000
       - GOOGLE_CREDENTIAL_PATH=/usr/src/app/secrets/familybudget-317019-797cf157b1ff.json
       - GOOGLE_SPREADSHEET_ID=12zOV6GkjmT2eUAQalQCTDP1OXOBCfLOhcBQaXQ4gbUQ
+    networks:
+      budget_network:
+        ipv4_address: 10.5.0.2
     healthcheck:
-      test: ["CMD", "curl","--cacert","/usr/src/app/cert/budget.ikeniborn.ru.pem","--fail","https://0.0.0.0:443/_stcore/health"]
+      test: ["CMD", "curl","--cacert","/usr/src/app/cert/budget.ikeniborn.ru.pem","--fail","https://10.5.0.2:443/_stcore/health"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 30s
     restart: always
+networks:
+  budget_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.0.0/16
+          gateway: 10.5.0.1
