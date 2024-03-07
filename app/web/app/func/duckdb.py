@@ -15,6 +15,8 @@ class DuckDb:
     def _connect(database_name:str):
       return duckdb.connect(database=database_name)
     self.client = _connect(database_name=self.database_name)
+    # conn.sql(f'FORCE CHECKPOINT')
+    self.client.sql(f'CHECKPOINT "{self.database_name}"')
     return self
 
   def create(self,dataframe,worksheet_name):
