@@ -13,7 +13,7 @@ class GoogleSpreadsheet:
       self.spreadsheet_id=spreadsheet_id
       self.credential=credential
       self.spreadsheet:Spreadsheet=None
-      self.db:DuckDb = DuckDb(database_name=spreadsheet_id)
+      self.db:DuckDb = DuckDb(database_name='data/'+spreadsheet_id)
 
     def get_spreadsheet(self,ttl=3600):
       @st.cache_resource(ttl=ttl,show_spinner="Open spreadsheet...")
