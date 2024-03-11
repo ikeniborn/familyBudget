@@ -252,19 +252,24 @@ if st.session_state["authentication_status"]:
         update_session_key()  
         
   elif form_selector=='Отчетность':      
-    report_selector=st.selectbox(label='Выбор отчета',options=['План/Факт','Бюджет'],index=None) 
-    cfo = st.selectbox(label='ЦФО*',options=db_budget.select('select * from t_d_financial_center')['name'].to_list(),index=None)
-    period_dttm = st.date_input('Период*',value=datetime.datetime.now().replace(day=1),format='DD.MM.YYYY').strftime('%d.%m.%Y')
-    if cfo and report_selector:
-      if report_selector=='Бюджет':
-          total = db_budget.select(f'select sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\' and t.data_type = \'Бюджет\'')['Сумма'].values[0]
-          st.write(f'Итого бюджет на {period_dttm} по цфо составляет {total} руб.')
-          df= db_budget.select(f'select account as "Статья",sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\' and t.data_type = \'Бюджет\' group by account order by account')
-          st.bar_chart(data=df,x='Статья',y='Сумма')
-      elif report_selector=='План/Факт':
-        if cfo:
-          df= db_budget.select(f'select data_type as "Тип", account as "Статья", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\'group by data_type, account order by account')
-          st.bar_chart(data=df,x='Статья',y='Сумма',color='Тип')
+    report_selector=st.selectbox(label='Выбор отчета',options=['План/Факт','Бюджет','Последние записи'],index=None) 
+    if report_selector in ['План/Факт','Бюджет']:
+      cfo = st.selectbox(label='ЦФО*',options=db_budget.select('select * from t_d_financial_center')['name'].to_list(),index=None)
+      period_dttm = st.date_input('Период*',value=datetime.datetime.now().replace(day=1),format='DD.MM.YYYY').strftime('%d.%m.%Y')
+      if cfo and report_selector:
+        if report_selector=='Бюджет':
+            total = db_budget.select(f'select sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\' and t.data_type = \'Бюджет\'')['Сумма'].values[0]
+            st.write(f'Итого бюджет на {period_dttm} по цфо составляет {total} руб.')
+            df= db_budget.select(f'select account as "Статья",sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\' and t.data_type = \'Бюджет\' group by account order by account')
+            st.bar_chart(data=df,x='Статья',y='Сумма')
+        elif report_selector=='План/Факт':
+          if cfo:
+            df= db_budget.select(f'select data_type as "Тип", account as "Статья", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\'group by data_type, account order by account')
+            st.bar_chart(data=df,x='Статья',y='Сумма',color='Тип')
+    elif report_selector=='Последние записи':
+      number_limit = st.number_input('Количество записей', min_value=5)
+      if number_limit:
+        st.dataframe(data=db_budget.select(f'select operation_dttm as "Дата операции", period as "Период", cfo as "ЦФО",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий" from t_f_trello  t order by row_num desc limit \'{number_limit}\''),hide_index=True)
       
   else:
     st.stop()
