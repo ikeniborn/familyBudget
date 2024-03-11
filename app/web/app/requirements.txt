@@ -1,7 +1,6 @@
 streamlit
 streamlit-authenticator
 gspread
-delorean
 duckdb
 pandas
 cryptography~=3.4

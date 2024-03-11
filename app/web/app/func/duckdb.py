@@ -16,27 +16,35 @@ class DuckDb:
       return duckdb.connect(database=database_name)
     self.client = _connect(database_name=self.database_name)
     # conn.sql(f'FORCE CHECKPOINT')
-    self.client.sql(f'CHECKPOINT "{self.database_name}"')
+    # self.client.sql(f'CHECKPOINT "{self.database_name}"')
     return self
+  
+  def check_table(self,table_name:str='')-> bool:
+    try:
+      self.client.table(table_name)
+      return True
+    except Exception as e:
+      return False
 
   def create(self,dataframe,worksheet_name):
-    dfdb = self.client.table('duckdb_tables').df()
     df = dataframe
-    if len(dfdb[dfdb['table_name']==worksheet_name])==0:
+    local_client = self.client.cursor()
+    if self.check_table(table_name=worksheet_name)==False:
       create_table_sql = f'CREATE TABLE "{worksheet_name}" AS SELECT * FROM df'
-      self.client.sql(create_table_sql)
+      local_client.sql(create_table_sql)
     else:
-      drop_table_sql = f'truncate TABLE "{worksheet_name}"'
-      self.client.sql(drop_table_sql)
-      create_table_sql = f'insert into "{worksheet_name}" SELECT * FROM df'
-      self.client.sql(create_table_sql)
+      truncate_table_sql = f'truncate TABLE "{worksheet_name}"'
+      local_client.sql(truncate_table_sql)
+      insert_table_sql = f'insert into "{worksheet_name}" SELECT * FROM df'
+      local_client.sql(insert_table_sql)
     
   def insert(self,dataframe,worksheet_name):
-    dfdb = self.client.table('duckdb_tables').df()
+    local_client = self.client.cursor()
     df = dataframe
-    if len(dfdb[dfdb['table_name']==worksheet_name])>0:
+    if self.check_table(table_name=worksheet_name):
       insert_table_sql = f'insert into "{worksheet_name}" SELECT * FROM df'
-      self.client.sql(insert_table_sql)
+      local_client.sql(insert_table_sql)
       
   def select(self,query):
-    return self.client.sql(query).to_df()
+    local_client = self.client.cursor()
+    return local_client.sql(query).to_df()
