@@ -264,8 +264,21 @@ if st.session_state["authentication_status"]:
             st.bar_chart(data=df,x='Статья',y='Сумма')
         elif report_selector=='План/Факт':
           if cfo:
-            df= db_budget.select(f'select data_type as "Тип", account as "Статья", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\'group by data_type, account order by account')
-            st.bar_chart(data=df,x='Статья',y='Сумма',color='Тип')
+            grouping = st.selectbox(label='Группировка',options=['Операция','Счет','Статья','Номенклатура'],index=None) 
+            if grouping=='Операция':
+              df= db_budget.select(f'select data_type as "Тип", operation as "Операция", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\'group by data_type, operation order by operation')
+              st.bar_chart(data=df,x='Операция',y='Сумма',color='Тип')
+            elif grouping=='Счет':
+              df= db_budget.select(f'select data_type as "Тип", bill as "Счет", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\'group by data_type, bill order by bill')
+              st.bar_chart(data=df,x='Счет',y='Сумма',color='Тип')
+            elif grouping=='Статья':
+              df= db_budget.select(f'select data_type as "Тип", account as "Статья", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\'group by data_type, account order by account')
+              st.bar_chart(data=df,x='Статья',y='Сумма',color='Тип')
+            elif grouping=='Номенклатура':
+              df= db_budget.select(f'select data_type as "Тип", nomenclature as "Номенклатура", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\'group by data_type, nomenclature order by nomenclature')
+              st.bar_chart(data=df,x='Номенклатура',y='Сумма',color='Тип')
+            else:
+              pass
     elif report_selector=='Последние записи':
       number_limit = st.number_input('Количество записей', min_value=5)
       if number_limit:
