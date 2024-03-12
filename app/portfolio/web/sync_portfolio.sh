@@ -2,7 +2,13 @@
 
 git_folder="/home/bagatocorp/git"
 git_branch="master"
-app_folder="/home/bagatocorp/web"
+app_folder="/home/bagatocorp/portfolio"
+
+if [ -d "$app_folder" ]; then
+  exit
+else
+  mkdir /home/bagatocorp/portfolio
+fi
 
 # Проверить, существует ли директория "$git_folder"
 if [ -d "$git_folder" ]; then
@@ -19,11 +25,9 @@ fi
 # Переключиться на ветку "dev"
 git checkout "$git_branch"
 
-sudo rsync -av --delete "$git_folder/app/web/app/" "$app_folder/"
+sudo rsync -av --delete "$git_folder/app/portfolio/web/app/" "$app_folder/"
 
-sudo chown root:root /home/bagatocorp/web/cert/budget.ikeniborn.ru.pem
-sudo chown root:root /home/bagatocorp/web/cert/budget.ikeniborn.ru.key
-
-# sudo chmod +x /home/rocky/chat-ai/project/app.py
+sudo chown root:root /home/bagatocorp/portfolio/cert/portfolio.ikeniborn.ru.pem
+sudo chown root:root /home/bagatocorp/portfolio/cert/portfolio.ikeniborn.ru.key
 
 cd ~/

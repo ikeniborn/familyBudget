@@ -120,14 +120,14 @@ if st.session_state["authentication_status"]:
         st.error(e)
 
   def update_session_key():
+    if 'key' not in st.session_state:
+      st.session_state.key = secrets.token_hex(16)
     if 'value' not in st.session_state:
       st.session_state.value = 0
-    else:
-      st.session_state.value = 0
-    if 'nomenclature' not in st.session_state:
-      st.session_state.nomenclature = None
-    else:
-      st.session_state.nomenclature = None
+    if 'cfo' not in st.session_state:
+      st.session_state.cfo = None
+    
+  update_session_key()
 
   # ss_budget = GoogleSpreadsheet(spreadsheet_id=os.getenv('GOOGLE_SPREADSHEET_ID'),credential=os.getenv('GOOGLE_CREDENTIAL_PATH')).get_spreadsheet()
   
@@ -153,18 +153,18 @@ if st.session_state["authentication_status"]:
       st.info('Поля с * обязательные для заполнения!')
       operation_dttm =datetime.datetime.now(tz=pytz.timezone('Europe/Moscow')).strftime('%d.%m.%Y %H:%M:%S')
       period_dttm = st.date_input('Период',value=get_period(),format='DD.MM.YYYY',min_value=get_period(), max_value=get_period()) 
-      st.session_state.cfo = st.selectbox(label='ЦФО*',options=db_budget.select('select * from t_d_financial_center')['name'].to_list(),index=None)
+      cfo = st.selectbox(label='ЦФО*',options=db_budget.select('select * from t_d_financial_center')['name'].to_list(),index=None)
       mvz_select = st.selectbox(label='МВЗ',options=db_budget.select('select * from t_d_cost_center')['name'].drop_duplicates().to_list(),index=None)
       if mvz_select==None:
-        mvz = st.session_state.cfo
+        mvz = cfo
       else:
         mvz = mvz_select
       df_nomenclature = db_budget.select('select * from t_d_accounting_item where fact=1')
-      st.session_state.nomenclature = st.selectbox(label='Номенклатура*',options=df_nomenclature['nomenclature'].drop_duplicates().to_list(),index=None)
-      if st.session_state.nomenclature:
-        operation = df_nomenclature[df_nomenclature['nomenclature']==st.session_state.nomenclature]['operation'].values[0]
-        bill = df_nomenclature[df_nomenclature['nomenclature']==st.session_state.nomenclature]['bill'].values[0]
-        account = df_nomenclature[df_nomenclature['nomenclature']==st.session_state.nomenclature]['account'].values[0]
+      nomenclature = st.selectbox(label='Номенклатура*',options=df_nomenclature['nomenclature'].drop_duplicates().to_list(),index=None)
+      if nomenclature:
+        operation = df_nomenclature[df_nomenclature['nomenclature']==nomenclature]['operation'].values[0]
+        bill = df_nomenclature[df_nomenclature['nomenclature']==nomenclature]['bill'].values[0]
+        account = df_nomenclature[df_nomenclature['nomenclature']==nomenclature]['account'].values[0]
       else:
         operation=''
         bill = ''
@@ -176,15 +176,15 @@ if st.session_state["authentication_status"]:
       new_row = DataFrame.from_dict({
             'Дата операции':[operation_dttm],
             'Период':[period_dttm.strftime('%d.%m.%Y')],
-            'ЦФО':[st.session_state.cfo],
+            'ЦФО':[cfo],
             'МВЗ':[mvz],
             'Операция':[operation],
             'Счет':[bill],
             'Статья':[account],
-            'Номенклатура':[st.session_state.nomenclature],
+            'Номенклатура':[nomenclature],
             'Сумма':[st.session_state.value],
             'Комментарий':[comment],
-            'ИД':[secrets.token_hex(16)],
+            'ИД':[st.session_state.key],
             'Тип':[form_selector],
             'Пользователь':[username],
           },orient='columns').astype({
@@ -211,18 +211,17 @@ if st.session_state["authentication_status"]:
           db_budget.insert(dataframe=new_row,worksheet_name='t_f_trello')
           st.info('Последние пять записей:')
           st.dataframe(data=db_budget.select(f'select operation_dttm as "Дата операции", period as "Период", cfo as "ЦФО", mvz as "МВЗ",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий" from t_f_trello  t where t.username = \'{username}\' and t.data_type = \'{form_selector}\' order by row_num desc limit 5'),hide_index=True)
-          update_session_key()
           
 
-      add_row = st.form_submit_button(label="Сохранить") 
+      add_row = st.form_submit_button("Добавить",type='primary') 
 
       if add_row:
-        if st.session_state.value>0 and st.session_state.cfo!=None and st.session_state.nomenclature!=None:
+        if st.session_state.value>0 and cfo!=None and nomenclature!=None:
           submit_add_row()
         else:
-          if st.session_state.cfo==None:
+          if cfo==None:
             st.error('Не указан ЦФО')
-          if st.session_state.nomenclature==None:
+          if nomenclature==None:
             st.error('Не указана Номенклатура')
           if st.session_state.value==0:
             st.error('Не указана Сумма')
@@ -231,37 +230,37 @@ if st.session_state["authentication_status"]:
     
     with st.form(key='budget_form',clear_on_submit=True):
     
-      st.info('Поля со * обязательные для заполнения!')
+      st.info('Поля с * обязательные для заполнения!')
       operation_dttm =datetime.datetime.now(tz=pytz.timezone('Europe/Moscow')).strftime('%d.%m.%Y %H:%M:%S')
       period_dttm = st.date_input('Период',value=get_period(shuffle=1),format='DD.MM.YYYY',min_value=get_period(shuffle=1), max_value=get_period(shuffle=1)) 
-      st.session_state.cfo = st.selectbox(label='ЦФО*',options=db_budget.select('select * from t_d_financial_center')['name'].to_list(),index=None)
-      mvz = st.session_state.cfo
+      cfo = st.selectbox(label='ЦФО*',options=db_budget.select('select * from t_d_financial_center')['name'].to_list(),index=None)
+      mvz = cfo
       df_nomenclature = db_budget.select('select * from t_d_accounting_item where budget=1')
-      st.session_state.nomenclature = st.selectbox(label='Номенклатура*',options=df_nomenclature['nomenclature'].drop_duplicates().to_list(),index=None)
-      if st.session_state.nomenclature:
-        operation = df_nomenclature[df_nomenclature['nomenclature']==st.session_state.nomenclature]['operation'].values[0]
-        bill = df_nomenclature[df_nomenclature['nomenclature']==st.session_state.nomenclature]['bill'].values[0]
-        account = df_nomenclature[df_nomenclature['nomenclature']==st.session_state.nomenclature]['account'].values[0]
+      nomenclature = st.selectbox(label='Номенклатура*',options=df_nomenclature['nomenclature'].drop_duplicates().to_list(),index=None)
+      if nomenclature:
+        operation = df_nomenclature[df_nomenclature['nomenclature']==nomenclature]['operation'].values[0]
+        bill = df_nomenclature[df_nomenclature['nomenclature']==nomenclature]['bill'].values[0]
+        account = df_nomenclature[df_nomenclature['nomenclature']==nomenclature]['account'].values[0]
       else:
         operation=''
         bill = ''
         account=''
-      value = st.number_input(label='Сумма*',min_value=0,value=0)
+      value = st.number_input(label='Сумма*',min_value=0)
       comment = st.text_input(label='Комментарий')
       row_num = db_budget.select(f'select max(row_num) from t_f_trello').values[0]+1
       
       new_row = DataFrame.from_dict({
             'Дата операции':[operation_dttm],
             'Период':[period_dttm.strftime('%d.%m.%Y')],
-            'ЦФО':[st.session_state.cfo],
+            'ЦФО':[cfo],
             'МВЗ':[mvz],
             'Операция':[operation],
             'Счет':[bill],
             'Статья':[account],
-            'Номенклатура':[st.session_state.nomenclature],
+            'Номенклатура':[nomenclature],
             'Сумма':[value],
             'Комментарий':[comment],
-            'ИД':[secrets.token_hex(16)],
+            'ИД':[st.session_state.key],
             'Тип':[form_selector],
             'Пользователь':[username],
           },orient='columns').astype({
@@ -280,26 +279,19 @@ if st.session_state["authentication_status"]:
             'Пользователь':str,
             })
               
-      def submit_add_row():
+      def submit_insert():
           # ws_t_f_trello.worksheet_object.append_rows(new_row.to_records(index=False).tolist())
           new_row['row_num'] = row_num
           db_budget.insert(dataframe=new_row,worksheet_name='t_f_trello')
           st.info('Последние пять записей:')
           st.dataframe(data=db_budget.select(f'select operation_dttm as "Дата операции", period as "Период", cfo as "ЦФО",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий", row_num from t_f_trello  t where t.data_type = \'{form_selector}\' order by row_num desc limit 5'),hide_index=True)
             
-      add_row = st.form_submit_button(label="Сохранить",on_click=update_session_key)
+      add_row = st.form_submit_button("Сохранить")
       
-      if add_row:
-        if st.session_state.value>0 and st.session_state.cfo!=None and st.session_state.nomenclature!=None:
-          submit_add_row()
-        else:
-          if st.session_state.cfo==None:
-            st.error('Не указан ЦФО')
-          if st.session_state.nomenclature==None:
-            st.error('Не указана Номенклатура')
-          if st.session_state.value==0:
-            st.error('Не указана Сумма')
-          update_session_key()
+      if add_row and value>0 and cfo!=None and nomenclature!=None:
+        submit_insert()
+      else:
+        update_session_key()  
         
   elif form_selector=='Отчетность':      
     report_selector=st.selectbox(label='Выбор отчета',options=['План/Факт','Бюджет','Последние записи'],index=None) 
@@ -314,7 +306,7 @@ if st.session_state["authentication_status"]:
             st.bar_chart(data=df,x='Статья',y='Сумма')
         elif report_selector=='План/Факт':
           if cfo:
-            grouping = st.selectbox(label='Группировка',options=['Операция','Счет','Статья','Номенклатура'],index=2) 
+            grouping = st.selectbox(label='Группировка',options=['Операция','Счет','Статья','Номенклатура'],index=None) 
             if grouping=='Операция':
               df= db_budget.select(f'select data_type as "Тип", operation as "Операция", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\'group by data_type, operation order by operation')
               st.bar_chart(data=df,x='Операция',y='Сумма',color='Тип')
