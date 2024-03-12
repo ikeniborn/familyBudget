@@ -2034,6 +2034,14 @@ class Portfolio {
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
         },
       },
+      blockchains: {
+        type: 'dim',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          name: { alias: 'Name', pk: true, idx: 1, notNull: true },
+        },
+      },
       portfolioStrategies: {
         type: 'dim',
         rowNum: 1,
