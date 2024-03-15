@@ -16,6 +16,7 @@ from func.google import GoogleWorksheet,GoogleSpreadsheet
 from func.duckdb import DuckDb
 # from dateutil import parser
 import uuid
+import hashlib
 import plotly.express as px
 
 st.set_page_config(page_title='Домашний бюджет', page_icon=':book',initial_sidebar_state='collapsed', layout= "centered")
@@ -46,10 +47,21 @@ def get_uuid(string:str='-1'):
 def get_period(shuffle:int=0)-> str:
   dttm = datetime.datetime.now()
   month = dttm.month
-  # day = dttm.day
   year = dttm.year
   dt = datetime.date(year=year,month=month+shuffle,day=1)
-  return dt
+  return dt.strftime('%d.%m.%Y')
+
+def budget_period()-> list:
+  periods = []
+  for num in range(0,2):
+    periods.append(get_period(num))
+  return periods
+
+def fact_period() -> list:
+  periods = []
+  for num in range(-1,1):
+    periods.append(get_period(num))
+  return periods
 
 file_path_config = Path(__file__).parent / 'config.yaml'
 
@@ -151,7 +163,7 @@ if st.session_state["authentication_status"]:
       st.info('Поля с * обязательные для заполнения!')
       
       operation_dttm =datetime.datetime.now(tz=pytz.timezone('Europe/Moscow')).strftime('%d.%m.%Y %H:%M:%S')
-      period_dttm = st.date_input('Период',value=get_period(shuffle=0),format='DD.MM.YYYY',min_value=get_period(shuffle=0), max_value=get_period(shuffle=0))
+      period_dttm = st.selectbox('Период',options=fact_period(),index=1)
       st.session_state.cfo = st.selectbox(label='ЦФО*',options=db_budget.select('select * from t_d_financial_center')['name'].to_list(),index=None)
       mvz_select = st.selectbox(label='МВЗ',options=db_budget.select('select * from t_d_cost_center')['name'].drop_duplicates().to_list(),index=None)
       if mvz_select==None:
@@ -174,7 +186,7 @@ if st.session_state["authentication_status"]:
       
       new_row = DataFrame.from_dict({
             'Дата операции':[operation_dttm],
-            'Период':[period_dttm.strftime('%d.%m.%Y')],
+            'Период':[period_dttm],
             'ЦФО':[st.session_state.cfo],
             'МВЗ':[mvz],
             'Операция':[operation],
@@ -231,7 +243,7 @@ if st.session_state["authentication_status"]:
     
       st.info('Поля со * обязательные для заполнения!')
       operation_dttm =datetime.datetime.now(tz=pytz.timezone('Europe/Moscow')).strftime('%d.%m.%Y %H:%M:%S')
-      period_dttm = st.date_input('Период',value=get_period(shuffle=1),format='DD.MM.YYYY',min_value=get_period(shuffle=1), max_value=get_period(shuffle=1)) 
+      period_dttm = st.selectbox('Период',options=budget_period(),index=1)
       st.session_state.cfo = st.selectbox(label='ЦФО*',options=db_budget.select('select * from t_d_financial_center')['name'].to_list(),index=None)
       mvz = st.session_state.cfo
       df_nomenclature = db_budget.select('select * from t_d_accounting_item where budget=1')
@@ -250,7 +262,7 @@ if st.session_state["authentication_status"]:
       
       new_row = DataFrame.from_dict({
             'Дата операции':[operation_dttm],
-            'Период':[period_dttm.strftime('%d.%m.%Y')],
+            'Период':[period_dttm],
             'ЦФО':[st.session_state.cfo],
             'МВЗ':[mvz],
             'Операция':[operation],
