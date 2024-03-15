@@ -1,6 +1,5 @@
 import duckdb
 import streamlit as st
-
 class DuckDb:
   'Класс работы с duckdb'
   def __new__(cls, *args, **kwargs):
@@ -15,8 +14,6 @@ class DuckDb:
     def _connect(database_name:str):
       return duckdb.connect(database=database_name)
     self.client = _connect(database_name=self.database_name)
-    # conn.sql(f'FORCE CHECKPOINT')
-    # self.client.sql(f'CHECKPOINT "{self.database_name}"')
     return self
   
   def check_table(self,table_name:str='')-> bool:
@@ -26,12 +23,15 @@ class DuckDb:
     except Exception as e:
       return False
 
-  def create(self,dataframe,worksheet_name):
+  def create(self,dataframe, worksheet_name, index_column:str=None):
     df = dataframe
     local_client = self.client.cursor()
     if self.check_table(table_name=worksheet_name)==False:
       create_table_sql = f'CREATE TABLE "{worksheet_name}" AS SELECT * FROM df'
       local_client.sql(create_table_sql)
+      if index_column:
+        create_table_index_sql = f'CREATE UNIQUE INDEX "{worksheet_name}"_"{index_column}"_idx on "{worksheet_name}"'
+        local_client.sql(create_table_index_sql)
     else:
       truncate_table_sql = f'truncate TABLE "{worksheet_name}"'
       local_client.sql(truncate_table_sql)
@@ -39,6 +39,13 @@ class DuckDb:
       local_client.sql(insert_table_sql)
     
   def insert(self,dataframe,worksheet_name):
+    local_client = self.client.cursor()
+    df = dataframe
+    if self.check_table(table_name=worksheet_name):
+      insert_table_sql = f'insert into "{worksheet_name}" SELECT * FROM df'
+      local_client.sql(insert_table_sql)
+  
+  def update(self,dataframe,worksheet_name):
     local_client = self.client.cursor()
     df = dataframe
     if self.check_table(table_name=worksheet_name):
