@@ -16,7 +16,6 @@ from func.google import GoogleWorksheet,GoogleSpreadsheet
 from func.duckdb import DuckDb
 # from dateutil import parser
 import uuid
-import streamlit as st
 import plotly.express as px
 
 st.set_page_config(page_title='Домашний бюджет', page_icon=':book',initial_sidebar_state='collapsed', layout= "centered")
