@@ -48,10 +48,8 @@ class GoogleWorksheet():
     def _read(_worksheet,key:str, dummy_time:str, worksheet_name) -> DataFrame:
       if key!=None:
         df = DataFrame(_worksheet.get_all_records()).dropna(how='all').set_index(keys=key)
-        df['row_num'] = df.index
       else:
         df= DataFrame(_worksheet.get_all_records()).dropna(how='all')
-        df['row_num'] = df.index
       return df
     self.worksheet_data = _read(self.worksheet_object, key, dummy_time, self.worksheet_name)
     self.db.create(dataframe=self.worksheet_data,worksheet_name=self.worksheet_name)

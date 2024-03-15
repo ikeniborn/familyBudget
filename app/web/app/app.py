@@ -14,40 +14,34 @@ from yaml.loader import SafeLoader
 import pytz
 from func.google import GoogleWorksheet,GoogleSpreadsheet
 from func.duckdb import DuckDb
-from dateutil import parser
+# from dateutil import parser
+import uuid
+import hashlib
 
 st.set_page_config(page_title='Домашний бюджет', page_icon=':book',initial_sidebar_state='collapsed', layout= "centered")
 
 # def df_on_change(df):
 #     state = st.session_state["df_editor"]
 #     for index, updates in state["edited_rows"].items():
-#         st.session_state["df"].loc[st.session_state["df"].index == index, "Изменено"] = True
+#         st.session_state["df"].loc[st.session_state["df"].index == index, "edited"] = True
 #         for key, value in updates.items():
 #             st.session_state["df"].loc[st.session_state["df"].index == index, key] = value
             
-
-# df1 = DataFrame.from_dict({
-#             'Номенклатура':['тут'],
-#             'Сумма':[55],
-#           },orient='columns').astype({
-#             'Номенклатура':str,
-#             'Сумма':int,
-#             }) 
+# db_budget = DuckDb('data/'+os.getenv('GOOGLE_SPREADSHEET_ID')).connect()
+# df1=db_budget.select('select try_strptime(operation_dttm, \'%d.%m.%Y %H:%M:%S\') as dttm, * from t_f_trello order by dttm desc limit 10')
+# df1["edited"]=False
           
-# df2 = DataFrame.from_dict({
-#             'Номенклатура':['ytn'],
-#             'Сумма':[99],
-#           },orient='columns').astype({
-#             'Номенклатура':str,
-#             'Сумма':int,
-#             }) 
-          
-# df3 = pd.concat([df1,df2])
-# df4 = df3
 # if "df" not in st.session_state:
-#     st.session_state["df"] = df4
-# st.data_editor(st.session_state["df"], key="df_editor", on_change=df_on_change, args=[df4], hide_index=True,)
+#     st.session_state["df"] = df1
+# df=st.data_editor(st.session_state["df"], key="df_editor", on_change=df_on_change, args=[df1], hide_index=True,disabled=['id','operation_dttm','cfo'])
+# df_fltr = df[df['edited']==True]
+# st.write(df_fltr)
+# st.write(df_fltr.to_records(index=False).tolist())
 # st.stop()
+
+def get_uuid(string:str='-1'):
+  hex_string = hashlib.md5(string.encode("UTF-8").lower()).hexdigest()
+  return (uuid.UUID(hex=hex_string))
 
 def get_period(shuffle:int=0)-> str:
   dttm = datetime.datetime.now()
@@ -128,6 +122,10 @@ if st.session_state["authentication_status"]:
       st.session_state.nomenclature = None
     else:
       st.session_state.nomenclature = None
+    if 'id' not in st.session_state:
+      st.session_state.id = None
+    else:
+      st.session_state.id = None
 
   # ss_budget = GoogleSpreadsheet(spreadsheet_id=os.getenv('GOOGLE_SPREADSHEET_ID'),credential=os.getenv('GOOGLE_CREDENTIAL_PATH')).get_spreadsheet()
   
@@ -151,8 +149,9 @@ if st.session_state["authentication_status"]:
     with st.form(key='fact_form',clear_on_submit=True):
     
       st.info('Поля с * обязательные для заполнения!')
+      
       operation_dttm =datetime.datetime.now(tz=pytz.timezone('Europe/Moscow')).strftime('%d.%m.%Y %H:%M:%S')
-      period_dttm = st.date_input('Период',value=get_period(),format='DD.MM.YYYY',min_value=get_period(), max_value=get_period()) 
+      period_dttm = st.date_input('Период',value=get_period(shuffle=0),format='DD.MM.YYYY',min_value=get_period(shuffle=0), max_value=get_period(shuffle=0))
       st.session_state.cfo = st.selectbox(label='ЦФО*',options=db_budget.select('select * from t_d_financial_center')['name'].to_list(),index=None)
       mvz_select = st.selectbox(label='МВЗ',options=db_budget.select('select * from t_d_cost_center')['name'].drop_duplicates().to_list(),index=None)
       if mvz_select==None:
@@ -171,7 +170,7 @@ if st.session_state["authentication_status"]:
         account=''
       st.session_state.value = st.number_input(label='Сумма*',min_value=0,value=0)
       comment = st.text_input(label='Комментарий')
-      row_num = db_budget.select(f'select max(row_num) from t_f_trello').values[0]+1
+      st.session_state.id = secrets.token_hex(16)
       
       new_row = DataFrame.from_dict({
             'Дата операции':[operation_dttm],
@@ -184,7 +183,7 @@ if st.session_state["authentication_status"]:
             'Номенклатура':[st.session_state.nomenclature],
             'Сумма':[st.session_state.value],
             'Комментарий':[comment],
-            'ИД':[secrets.token_hex(16)],
+            'ИД':[st.session_state.id],
             'Тип':[form_selector],
             'Пользователь':[username],
           },orient='columns').astype({
@@ -202,20 +201,19 @@ if st.session_state["authentication_status"]:
             'Тип':str,
             'Пользователь':str,
             })
-              
+       
       def submit_add_row():
           ss_budget = GoogleSpreadsheet(spreadsheet_id=os.getenv('GOOGLE_SPREADSHEET_ID'),credential=os.getenv('GOOGLE_CREDENTIAL_PATH')).get_spreadsheet()
           ws_t_f_trello = GoogleWorksheet(spreadsheet=ss_budget, worksheet_name='t_f_trello').get_worksheet()
           ws_t_f_trello.worksheet_object.append_rows(new_row.to_records(index=False).tolist())
-          new_row['row_num'] = row_num
           db_budget.insert(dataframe=new_row,worksheet_name='t_f_trello')
           st.info('Последние пять записей:')
-          st.dataframe(data=db_budget.select(f'select operation_dttm as "Дата операции", period as "Период", cfo as "ЦФО", mvz as "МВЗ",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий" from t_f_trello  t where t.username = \'{username}\' and t.data_type = \'{form_selector}\' order by row_num desc limit 5'),hide_index=True)
+          st.dataframe(data=db_budget.select(f'select operation_dttm as "Дата операции", period as "Период", cfo as "ЦФО", mvz as "МВЗ",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий" from t_f_trello  t where t.username = \'{username}\' and t.data_type = \'{form_selector}\' order by try_strptime(operation_dttm, \'%d.%m.%Y %H:%M:%S\') desc limit 5'),hide_index=True)
           update_session_key()
-          
-
-      add_row = st.form_submit_button(label="Сохранить") 
-
+              
+      add_row = st.form_submit_button(label="Сохранить",on_click=update_session_key,type='secondary')
+            
+      
       if add_row:
         if st.session_state.value>0 and st.session_state.cfo!=None and st.session_state.nomenclature!=None:
           submit_add_row()
@@ -246,9 +244,9 @@ if st.session_state["authentication_status"]:
         operation=''
         bill = ''
         account=''
-      value = st.number_input(label='Сумма*',min_value=0,value=0)
+      st.session_state.value = st.number_input(label='Сумма*',min_value=0,value=0)
       comment = st.text_input(label='Комментарий')
-      row_num = db_budget.select(f'select max(row_num) from t_f_trello').values[0]+1
+      st.session_state.id = secrets.token_hex(16)
       
       new_row = DataFrame.from_dict({
             'Дата операции':[operation_dttm],
@@ -259,9 +257,9 @@ if st.session_state["authentication_status"]:
             'Счет':[bill],
             'Статья':[account],
             'Номенклатура':[st.session_state.nomenclature],
-            'Сумма':[value],
+            'Сумма':[st.session_state.value],
             'Комментарий':[comment],
-            'ИД':[secrets.token_hex(16)],
+            'ИД':[st.session_state.id],
             'Тип':[form_selector],
             'Пользователь':[username],
           },orient='columns').astype({
@@ -279,15 +277,16 @@ if st.session_state["authentication_status"]:
             'Тип':str,
             'Пользователь':str,
             })
-              
+       
       def submit_add_row():
-          # ws_t_f_trello.worksheet_object.append_rows(new_row.to_records(index=False).tolist())
-          new_row['row_num'] = row_num
+          ss_budget = GoogleSpreadsheet(spreadsheet_id=os.getenv('GOOGLE_SPREADSHEET_ID'),credential=os.getenv('GOOGLE_CREDENTIAL_PATH')).get_spreadsheet()
+          ws_t_f_trello = GoogleWorksheet(spreadsheet=ss_budget, worksheet_name='t_f_trello').get_worksheet()
+          ws_t_f_trello.worksheet_object.append_rows(new_row.to_records(index=False).tolist())
           db_budget.insert(dataframe=new_row,worksheet_name='t_f_trello')
           st.info('Последние пять записей:')
-          st.dataframe(data=db_budget.select(f'select operation_dttm as "Дата операции", period as "Период", cfo as "ЦФО",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий", row_num from t_f_trello  t where t.data_type = \'{form_selector}\' order by row_num desc limit 5'),hide_index=True)
-            
-      add_row = st.form_submit_button(label="Сохранить",on_click=update_session_key)
+          st.dataframe(data=db_budget.select(f'select operation_dttm as "Дата операции", period as "Период", cfo as "ЦФО",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий" from t_f_trello  t where t.data_type = \'{form_selector}\' order by try_strptime(operation_dttm, \'%d.%m.%Y %H:%M:%S\') desc limit 5'),hide_index=True)
+     
+      add_row = st.form_submit_button(label="Сохранить",on_click=update_session_key,type='secondary')
       
       if add_row:
         if st.session_state.value>0 and st.session_state.cfo!=None and st.session_state.nomenclature!=None:
@@ -300,6 +299,8 @@ if st.session_state["authentication_status"]:
           if st.session_state.value==0:
             st.error('Не указана Сумма')
           update_session_key()
+          
+
         
   elif form_selector=='Отчетность':      
     report_selector=st.selectbox(label='Выбор отчета',options=['План/Факт','Бюджет','Последние записи'],index=None) 
@@ -332,7 +333,7 @@ if st.session_state["authentication_status"]:
     elif report_selector=='Последние записи':
       number_limit = st.number_input('Количество записей', min_value=5)
       if number_limit:
-        st.dataframe(data=db_budget.select(f'select operation_dttm as "Дата операции", period as "Период", cfo as "ЦФО",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий" from t_f_trello  t order by row_num desc limit \'{number_limit}\''),hide_index=True)
+        st.dataframe(data=db_budget.select(f'select try_strptime(operation_dttm, \'%d.%m.%Y %H:%M:%S\') as "Дата операции", period as "Период", cfo as "ЦФО",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий" from t_f_trello  t order by try_strptime(operation_dttm, \'%d.%m.%Y %H:%M:%S\') desc limit \'{number_limit}\''),hide_index=True)
       
   else:
     st.stop()
