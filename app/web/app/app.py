@@ -16,7 +16,8 @@ from func.google import GoogleWorksheet,GoogleSpreadsheet
 from func.duckdb import DuckDb
 # from dateutil import parser
 import uuid
-import hashlib
+import streamlit as st
+import plotly.express as px
 
 st.set_page_config(page_title='Домашний бюджет', page_icon=':book',initial_sidebar_state='collapsed', layout= "centered")
 
@@ -316,18 +317,45 @@ if st.session_state["authentication_status"]:
         elif report_selector=='План/Факт':
           if cfo:
             grouping = st.selectbox(label='Группировка',options=['Операция','Счет','Статья','Номенклатура'],index=2) 
+            ## Add a select box for choosing the chart type
+            # chart_type = st.selectbox('Choose a chart type', ['Bar', 'Line'])
+            chart_type = 'Bar'
             if grouping=='Операция':
               df= db_budget.select(f'select data_type as "Тип", operation as "Операция", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\'group by data_type, operation order by operation')
-              st.bar_chart(data=df,x='Операция',y='Сумма',color='Тип')
+              ## Create the chart
+              if chart_type == 'Bar':
+                  fig = px.bar(df, x='Операция', y='Сумма', color='Тип', barmode='group')
+              elif chart_type == 'Line':
+                  fig = px.line(df, x='Операция', y='Сумма', color='Тип')
+              ## Display the chart
+              st.plotly_chart(fig, use_container_width=True)
             elif grouping=='Счет':
               df= db_budget.select(f'select data_type as "Тип", bill as "Счет", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\'group by data_type, bill order by bill')
-              st.bar_chart(data=df,x='Счет',y='Сумма',color='Тип')
+              ## Create the chart
+              if chart_type == 'Bar':
+                  fig = px.bar(df, x='Счет', y='Сумма', color='Тип', barmode='group')
+              elif chart_type == 'Line':
+                  fig = px.line(df, x='Счет', y='Сумма', color='Тип')
+              ## Display the chart
+              st.plotly_chart(fig, use_container_width=True)
             elif grouping=='Статья':
               df= db_budget.select(f'select data_type as "Тип", account as "Статья", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\'group by data_type, account order by account')
-              st.bar_chart(data=df,x='Статья',y='Сумма',color='Тип')
+                            ## Create the chart
+              if chart_type == 'Bar':
+                  fig = px.bar(df, x='Статья', y='Сумма', color='Тип', barmode='group')
+              elif chart_type == 'Line':
+                  fig = px.line(df, x='Статья', y='Сумма', color='Тип')
+              ## Display the chart
+              st.plotly_chart(fig, use_container_width=True)
             elif grouping=='Номенклатура':
               df= db_budget.select(f'select data_type as "Тип", nomenclature as "Номенклатура", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\'group by data_type, nomenclature order by nomenclature')
-              st.bar_chart(data=df,x='Номенклатура',y='Сумма',color='Тип')
+              ## Create the chart
+              if chart_type == 'Bar':
+                  fig = px.bar(df, x='Номенклатура', y='Сумма', color='Тип', barmode='group')
+              elif chart_type == 'Line':
+                  fig = px.line(df, x='Номенклатура', y='Сумма', color='Тип')
+              ## Display the chart
+              st.plotly_chart(fig, use_container_width=True)
             else:
               pass
     elif report_selector=='Последние записи':
