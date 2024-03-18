@@ -230,7 +230,7 @@ if st.session_state["authentication_status"]:
           db_budget.insert(dataframe=new_row,worksheet_name='t_f_trello')
           st.info('Последние пять записей:')
           st.dataframe(data=db_budget.select(f'select operation_dttm as "Дата операции", period as "Период", cfo as "ЦФО", mvz as "МВЗ",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий" from t_f_trello  t where t.username = \'{username}\' and t.data_type = \'{form_selector}\' order by try_strptime(operation_dttm, \'%d.%m.%Y %H:%M:%S\') desc limit 5'),hide_index=True, use_container_width=True)
-          df= db_budget.select(f'select data_type as "Тип", account as "Статья", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{st.session_state.cfo}\' and t.period=\'{period_dttm}\' and t.account=\'{account}\' group by data_type, account')
+          df= db_budget.select(f'select data_type as "Тип", account as "Статья", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{st.session_state.cfo}\' and t.period=\'{period_dttm}\' and t.account=\'{account}\' group by data_type, account order by data_type')
           fig = px.bar(df, x='Статья', y='Сумма', color='Тип', barmode='group')
           st.plotly_chart(fig, use_container_width=True)
           update_session_key()
