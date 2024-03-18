@@ -63,6 +63,12 @@ def fact_period() -> list:
     periods.append(get_period(num))
   return periods
 
+def report_period() -> list:
+  periods = []
+  for num in range(-1,2):
+    periods.append(get_period(num))
+  return periods
+
 file_path_config = Path(__file__).parent / 'config.yaml'
 
 with file_path_config.open('rb') as file:
@@ -138,6 +144,8 @@ if st.session_state["authentication_status"]:
       st.session_state.id = None
     else:
       st.session_state.id = None
+    if 'cfo' not in st.session_state:
+      st.session_state.cfo = None
 
   # ss_budget = GoogleSpreadsheet(spreadsheet_id=os.getenv('GOOGLE_SPREADSHEET_ID'),credential=os.getenv('GOOGLE_CREDENTIAL_PATH')).get_spreadsheet()
   
@@ -162,6 +170,7 @@ if st.session_state["authentication_status"]:
     
       st.info('Поля с * обязательные для заполнения!')
       
+      update_session_key()
       operation_dttm =datetime.datetime.now(tz=pytz.timezone('Europe/Moscow')).strftime('%d.%m.%Y %H:%M:%S')
       period_dttm = st.selectbox('Период',options=fact_period(),index=1)
       st.session_state.cfo = st.selectbox(label='ЦФО*',options=db_budget.select('select * from t_d_financial_center')['name'].to_list(),index=None)
@@ -220,7 +229,10 @@ if st.session_state["authentication_status"]:
           ws_t_f_trello.worksheet_object.append_rows(new_row.to_records(index=False).tolist())
           db_budget.insert(dataframe=new_row,worksheet_name='t_f_trello')
           st.info('Последние пять записей:')
-          st.dataframe(data=db_budget.select(f'select operation_dttm as "Дата операции", period as "Период", cfo as "ЦФО", mvz as "МВЗ",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий" from t_f_trello  t where t.username = \'{username}\' and t.data_type = \'{form_selector}\' order by try_strptime(operation_dttm, \'%d.%m.%Y %H:%M:%S\') desc limit 5'),hide_index=True)
+          st.dataframe(data=db_budget.select(f'select operation_dttm as "Дата операции", period as "Период", cfo as "ЦФО", mvz as "МВЗ",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий" from t_f_trello  t where t.username = \'{username}\' and t.data_type = \'{form_selector}\' order by try_strptime(operation_dttm, \'%d.%m.%Y %H:%M:%S\') desc limit 5'),hide_index=True, use_container_width=True)
+          df= db_budget.select(f'select data_type as "Тип", account as "Статья", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{st.session_state.cfo}\' and t.period=\'{period_dttm}\' and t.account=\'{account}\' group by data_type, account')
+          fig = px.bar(df, x='Статья', y='Сумма', color='Тип', barmode='group')
+          st.plotly_chart(fig, use_container_width=True)
           update_session_key()
               
       add_row = st.form_submit_button(label="Сохранить",on_click=update_session_key,type='secondary')
@@ -296,7 +308,7 @@ if st.session_state["authentication_status"]:
           ws_t_f_trello.worksheet_object.append_rows(new_row.to_records(index=False).tolist())
           db_budget.insert(dataframe=new_row,worksheet_name='t_f_trello')
           st.info('Последние пять записей:')
-          st.dataframe(data=db_budget.select(f'select operation_dttm as "Дата операции", period as "Период", cfo as "ЦФО",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий" from t_f_trello  t where t.data_type = \'{form_selector}\' order by try_strptime(operation_dttm, \'%d.%m.%Y %H:%M:%S\') desc limit 5'),hide_index=True)
+          st.dataframe(data=db_budget.select(f'select operation_dttm as "Дата операции", period as "Период", cfo as "ЦФО",nomenclature as "Номенклатура",sum as "Сумма", comment as "Комментарий" from t_f_trello  t where t.data_type = \'{form_selector}\' order by try_strptime(operation_dttm, \'%d.%m.%Y %H:%M:%S\') desc limit 5'),hide_index=True, use_container_width=True)
      
       add_row = st.form_submit_button(label="Сохранить",on_click=update_session_key,type='secondary')
       
@@ -318,7 +330,7 @@ if st.session_state["authentication_status"]:
     report_selector=st.selectbox(label='Выбор отчета',options=['План/Факт','Бюджет','Последние записи'],index=None) 
     if report_selector in ['План/Факт','Бюджет']:
       cfo = st.selectbox(label='ЦФО*',options=db_budget.select('select * from t_d_financial_center')['name'].to_list(),index=None)
-      period_dttm = st.date_input('Период*',value=datetime.datetime.now().replace(day=1),format='DD.MM.YYYY').strftime('%d.%m.%Y')
+      period_dttm = st.selectbox('Период',options=report_period(),index=1)
       if cfo and report_selector:
         if report_selector=='Бюджет':
             total = db_budget.select(f'select sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\' and t.data_type = \'Бюджет\'')['Сумма'].values[0]
@@ -332,7 +344,7 @@ if st.session_state["authentication_status"]:
             # chart_type = st.selectbox('Choose a chart type', ['Bar', 'Line'])
             chart_type = 'Bar'
             if grouping=='Операция':
-              df= db_budget.select(f'select data_type as "Тип", operation as "Операция", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\'group by data_type, operation order by operation')
+              df= db_budget.select(f'select data_type as "Тип", operation as "Операция", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\'group by data_type, operation order by data_type, operation')
               ## Create the chart
               if chart_type == 'Bar':
                   fig = px.bar(df, x='Операция', y='Сумма', color='Тип', barmode='group')
@@ -341,7 +353,7 @@ if st.session_state["authentication_status"]:
               ## Display the chart
               st.plotly_chart(fig, use_container_width=True)
             elif grouping=='Счет':
-              df= db_budget.select(f'select data_type as "Тип", bill as "Счет", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\'group by data_type, bill order by bill')
+              df= db_budget.select(f'select data_type as "Тип", bill as "Счет", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\'group by data_type, bill order by data_type, bill')
               ## Create the chart
               if chart_type == 'Bar':
                   fig = px.bar(df, x='Счет', y='Сумма', color='Тип', barmode='group')
@@ -350,7 +362,7 @@ if st.session_state["authentication_status"]:
               ## Display the chart
               st.plotly_chart(fig, use_container_width=True)
             elif grouping=='Статья':
-              df= db_budget.select(f'select data_type as "Тип", account as "Статья", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\'group by data_type, account order by account')
+              df= db_budget.select(f'select data_type as "Тип", account as "Статья", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\'group by data_type, account order by data_type, account')
                             ## Create the chart
               if chart_type == 'Bar':
                   fig = px.bar(df, x='Статья', y='Сумма', color='Тип', barmode='group')
@@ -359,7 +371,7 @@ if st.session_state["authentication_status"]:
               ## Display the chart
               st.plotly_chart(fig, use_container_width=True)
             elif grouping=='Номенклатура':
-              df= db_budget.select(f'select data_type as "Тип", nomenclature as "Номенклатура", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\'group by data_type, nomenclature order by nomenclature')
+              df= db_budget.select(f'select data_type as "Тип", nomenclature as "Номенклатура", sum(sum) as "Сумма" from t_f_trello  t where t.cfo=\'{cfo}\' and t.period=\'{period_dttm}\'group by data_type, nomenclature order by data_type, nomenclature')
               ## Create the chart
               if chart_type == 'Bar':
                   fig = px.bar(df, x='Номенклатура', y='Сумма', color='Тип', barmode='group')
