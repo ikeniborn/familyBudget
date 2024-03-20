@@ -10,3 +10,4 @@ setuptools
 sql_metadata
 pytz
 plotly
+google-cloud-storage

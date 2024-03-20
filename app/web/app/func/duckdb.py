@@ -40,6 +40,7 @@ class DuckDb:
     
   def insert(self,sql):
     local_client = self.client.cursor()
+    local_client.sql(f'USE budget.main;')
     local_client.sql(sql)
   
   # def update(self,dataframe,worksheet_name):
@@ -51,4 +52,5 @@ class DuckDb:
       
   def select(self,query):
     local_client = self.client.cursor()
+    local_client.sql(f'USE budget.main;')
     return local_client.sql(query).to_df()
