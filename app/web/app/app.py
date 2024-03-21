@@ -69,13 +69,13 @@ if st.session_state["authentication_status"]:
         st.error(e)
 
   
-  db_budget = DuckDb('data/budget.db').connect(read_only=False)
-  t_d_financial_center =db_budget.select(query='select * from t_d_financial_center',ttl=3600)
-  t_d_cost_center = db_budget.select(query='select * from t_d_cost_center',ttl=3600)
-  t_d_nomenclature = db_budget.select(query='select * from t_d_nomenclature',ttl=3600)
-  t_d_period = db_budget.select(query='select * from t_d_period order by period_dt',ttl=3600)
-  t_d_row_type = db_budget.select(query='select * from t_d_row_type',ttl=3600)
-  t_d_user = db_budget.select(query='select * from t_d_user',ttl=3600)
+  db_budget = DuckDb('data/budget.db').connect(read_only=False,ttl=300)
+  t_d_financial_center =db_budget.select(query='select * from t_d_financial_center',ttl=300)
+  t_d_cost_center = db_budget.select(query='select * from t_d_cost_center',ttl=300)
+  t_d_nomenclature = db_budget.select(query='select * from t_d_nomenclature',ttl=300)
+  t_d_period = db_budget.select(query='select * from t_d_period order by period_dt',ttl=300)
+  t_d_row_type = db_budget.select(query='select * from t_d_row_type',ttl=300)
+  t_d_user = db_budget.select(query='select * from t_d_user',ttl=300)
 
   row_type_name=st.selectbox(label='Выбор операциии',options=['Факт','Бюджет','Отчетность','Последние записи','Корректировка данных'],index=None)
 
