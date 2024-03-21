@@ -17,6 +17,9 @@ class DuckDb:
     self.client = _connect(database_name=self.database_name,read_only=read_only)
     return self
   
+  def close(self):
+    return duckdb.close(connection=self.client)
+  
   def check_table(self,table_name:str='')-> bool:
     try:
       self.client.table(table_name)
