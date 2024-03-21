@@ -10,7 +10,7 @@ class DuckDb:
     self.database_name = database_name
     self.client = None
 
-  def connect(self,read_only:bool=False, ttl:int=3600):
+  def connect(self,read_only:bool=False, ttl:int=0):
     @st.cache_resource(ttl=ttl)
     def _connect(database_name:str,read_only:bool):
       return duckdb.connect(database=database_name, read_only=read_only)
