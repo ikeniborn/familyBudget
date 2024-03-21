@@ -1658,7 +1658,7 @@ class Portfolio {
             idx: 22,
             type: 'string',
           },
-          rowId: { alias: 'Row ID', idx: 23 },
+          rowId: { alias: 'Row ID', idx: 23, notNull: true },
         },
       },
       symbols: {
@@ -1819,23 +1819,23 @@ class Portfolio {
           symbol: { alias: 'Symbol name', idx: 6 },
           symbolFullName: { alias: 'Symbol full name', idx: 7 },
           symbolCategory: { alias: 'Symbol category', idx: 8 },
-          investType: { alias: 'Invest type', idx: 9 },
+          symbolType: { alias: 'Symbol type', idx: 9 },
           // quantityBuy: { alias: 'Quantity (buy)', idx: 12 },
           // quantitySell: { alias: 'Quantity (sell)', idx: 13 },
           // quantityTransfer: { alias: 'Quantity (transfer)', idx: 12 },
-          // quantityInvest: { alias: 'Quantity (invest)', idx: 13 },
-          quantityOverflow: { alias: 'Quantity (overflow)', idx: 10 },
+          quantityInvest: { alias: 'Quantity (invest)', idx: 10 },
+          quantityOverflow: { alias: 'Quantity (overflow)', idx: 11 },
           // quantityIn: { alias: 'Quantity (in)', idx: 12 },
           // quantityOut: { alias: 'Quantity (out)', idx: 13 },
-          quantityRest: { alias: 'Quantity (rest)', idx: 11 },
-          quantityLock: { alias: 'Quantity (lock)', idx: 12 },
-          quantityRebalance: { alias: 'Quantity (rebalance)', idx: 13 },
+          quantityRest: { alias: 'Quantity (rest)', idx: 12 },
+          quantityLock: { alias: 'Quantity (lock)', idx: 13 },
+          quantityRebalance: { alias: 'Quantity (rebalance)', idx: 14 },
           // quantityUnlock: { alias: 'Quantity (unlock)', idx: 14 },
           // priceIn: { alias: 'Price (in), $', idx: 19 },
           // priceOut: { alias: 'Price (out), $', idx: 19 },
           // priceInvest: { alias: 'Price (invest), $', idx: 19 },
-          priceRest: { alias: 'Price (rest), $', idx: 14 },
-          priceLast: { alias: 'Price (last), $', idx: 15 },
+          priceRest: { alias: 'Price (rest), $', idx: 15 },
+          priceLast: { alias: 'Price (last), $', idx: 16 },
           // costBuyIn: { alias: 'Cost (buy in), $', idx: 24 },
           // costBuyOut: { alias: 'Cost (buy out), $', idx: 25 },
           // costRefillIn: { alias: 'Cost (refill in), $', idx: 33 },    
@@ -1851,24 +1851,25 @@ class Portfolio {
           // costOverflow: { alias: 'Cost (overflow), $', idx: 32 },
           // costIn: { alias: 'Cost (in), $', idx: 21 },
           // costOut: { alias: 'Cost (out), $', idx: 21 },
-          costInvest: { alias: 'Cost (invest), $', idx: 16 },
-          costRest: { alias: 'Cost (rest), $', idx: 17 },
-          costLast: { alias: 'Cost (last), $', idx: 18 },
-          costLock: { alias: 'Cost (lock), $', idx: 19 },
-          costTotal: { alias: 'Cost (total), $', idx: 20 },
+          costInvest: { alias: 'Cost (invest), $', idx: 17 },
+          costRest: { alias: 'Cost (rest), $', idx: 18 },
+          costLast: { alias: 'Cost (last), $', idx: 19 },
+          costLock: { alias: 'Cost (lock), $', idx: 20 },
+          costTotal: { alias: 'Cost (total), $', idx: 21 },
+          costRealized: { alias: 'Cost (realized), $', idx: 22 },
           // costUnlock: { alias: 'Cost (unlock), $', idx: 38 },
-          pnlRealized: { alias: 'PnL (realized), $', idx: 21 },
-          pnlUnrealized: { alias: 'PnL (unrealized), $', idx: 22 },
-          pnlTotal: { alias: 'PnL (total), $', idx: 23 },
+          pnlRealized: { alias: 'PnL (realized), $', idx: 23 },
+          pnlUnrealized: { alias: 'PnL (unrealized), $', idx: 24 },
+          pnlTotal: { alias: 'PnL (total), $', idx: 25 },
           // dayInPortfolioAvg: {
           //   alias: 'Average day in portfolio',
           //   idx: 44,
           // },
-          isSell: { alias: 'Is sell', idx: 24, default: 0 },
-          useInReport: { alias: 'Use in report', idx: 25, default: 1 },
+          isSell: { alias: 'Is sell', idx: 26, default: 0 },
+          useInReport: { alias: 'Use in report', idx: 27, default: 1 },
           updateDate: {
             alias: 'Update date',
-            idx: 26,
+            idx: 28,
             type: 'date',
             default: new Date()
           }
@@ -5310,6 +5311,7 @@ class Flow {
               priceRestPrev: 0,
               quantityRestInvest: 0,
               costRestInvest: 0,
+              costTotal: 0,
               costRestInvestPrev: 0,
               priceRestInvest: 0,
               priceRestInvestPrev: 0,
@@ -5488,50 +5490,63 @@ class Flow {
                   (tx.quantity * -1);
                 agg[tx.account][tx.portfolio][tx.symbol].costRealized +=
                   (tx.cost * -1);
+                agg[tx.account][tx.portfolio][tx.symbol].costRestInvest -= 
+                  agg[tx.account][tx.portfolio][tx.symbol].costRealized;
+              }
+            }
+          }
+
+          //* расчет итоговой стоимости
+          if (operationKey === '0461ebd2b773878eac9f78a891912d65' /*buy*/) {
+            if (directionKey === inKey) {
+              if (tx.isOverflow === false && tx.isFee === false) {
+                agg[tx.account][tx.portfolio][tx.symbol].costTotal +=
+                  (tx.cost * 1);
               }
             }
           }
 
           agg[tx.account][tx.portfolio][tx.symbol].operationCount += 1;
 
-          if (
-            new Hash(tx.account).md5 === new Hash('ikeniborn').md5 &&
-            new Hash(tx.symbol).md5 === new Hash('rub').md5 &&
-            new Hash(tx.portfolio).md5 === new Hash('main').md5
-          ) {
-            console.log(
-              'account:', tx.account, '\n'
-              , 'dateTime', new FormatDate(tx.dateTime).getFormatDate('yyyy-MM-dd HH:mm'), '\n'
-              , 'operation:', tx.operation, '\n'
-              , 'portfolio:', tx.portfolio, '\n'
-              , 'contractor:', tx.contractor, '\n'
-              , 'symbol:', tx.symbol, '\n'
-              , 'direction:', tx.direction, '\n'
-              , '#############SIGN###############', '\n'
-              , 'isOverflow:', tx.isOverflow, '\n'
-              , 'isFee:', tx.isFee, '\n'
-              , '#############OPERATION###############', '\n'
-              , 'operationCount:', agg[tx.account][tx.portfolio][tx.symbol].operationCount, '\n'
-              , 'quantity:', tx.quantity, '\n'
-              , 'cost:', tx.cost, '\n'
-              , 'price:', tx.cost / tx.quantity, '\n'
-              , '#############RESTPORTFOLIO###############', '\n'
-              , 'quantityRest:', agg[tx.account][tx.portfolio][tx.symbol].quantityRest, '\n'
-              , 'priceRest:', agg[tx.account][tx.portfolio][tx.symbol].priceRest, '\n'
-              , 'costRest:', agg[tx.account][tx.portfolio][tx.symbol].costRest, '\n'
-              , 'priceRestPrev:', agg[tx.account][tx.portfolio][tx.symbol].priceRestPrev, '\n'
-              , 'costRestPrev:', agg[tx.account][tx.portfolio][tx.symbol].costRestPrev, '\n'
-              , '#############INVESTPORTFOLIO###############', '\n'
-              , 'quantityRestInvest:', agg[tx.account][tx.portfolio][tx.symbol].quantityRestInvest, '\n'
-              , 'priceRestInvest:', agg[tx.account][tx.portfolio][tx.symbol].priceRestInvest, '\n'
-              , 'costRestInvest:', agg[tx.account][tx.portfolio][tx.symbol].costRestInvest, '\n'
-              , 'priceRestInvestPrev:', agg[tx.account][tx.portfolio][tx.symbol].priceRestInvestPrev, '\n'
-              , 'costRestInvestPrev:', agg[tx.account][tx.portfolio][tx.symbol].costRestInvestPrev, '\n'
-              , '#############PNL###############', '\n'
-              , 'pnlRealized:', agg[tx.account][tx.portfolio][tx.symbol].pnlRealized, '\n'
-              , 'costRealized:', agg[tx.account][tx.portfolio][tx.symbol].costRealized, '\n'
-            );
-          }
+          // if (
+          //   new Hash(tx.account).md5 === new Hash('torrih').md5 &&
+          //   new Hash(tx.symbol).md5 === new Hash('usdt').md5 &&
+          //   new Hash(tx.portfolio).md5 === new Hash('main').md5
+          // ) {
+          //   console.log(
+          //     'account:', tx.account, '\n'
+          //     , 'dateTime', new FormatDate(tx.dateTime).getFormatDate('yyyy-MM-dd HH:mm'), '\n'
+          //     , 'operation:', tx.operation, '\n'
+          //     , 'portfolio:', tx.portfolio, '\n'
+          //     , 'contractor:', tx.contractor, '\n'
+          //     , 'symbol:', tx.symbol, '\n'
+          //     , 'direction:', tx.direction, '\n'
+          //     , '#############SIGN###############', '\n'
+          //     , 'isOverflow:', tx.isOverflow, '\n'
+          //     , 'isFee:', tx.isFee, '\n'
+          //     , '#############OPERATION###############', '\n'
+          //     , 'operationCount:', agg[tx.account][tx.portfolio][tx.symbol].operationCount, '\n'
+          //     , 'quantity:', tx.quantity, '\n'
+          //     , 'cost:', tx.cost, '\n'
+          //     , 'price:', tx.cost / tx.quantity, '\n'
+          //     , '#############RESTPORTFOLIO###############', '\n'
+          //     , 'quantityRest:', agg[tx.account][tx.portfolio][tx.symbol].quantityRest, '\n'
+          //     , 'priceRest:', agg[tx.account][tx.portfolio][tx.symbol].priceRest, '\n'
+          //     , 'costRest:', agg[tx.account][tx.portfolio][tx.symbol].costRest, '\n'
+          //     , 'priceRestPrev:', agg[tx.account][tx.portfolio][tx.symbol].priceRestPrev, '\n'
+          //     , 'costRestPrev:', agg[tx.account][tx.portfolio][tx.symbol].costRestPrev, '\n'
+          //     , '#############INVESTPORTFOLIO###############', '\n'
+          //     , 'quantityRestInvest:', agg[tx.account][tx.portfolio][tx.symbol].quantityRestInvest, '\n'
+          //     , 'priceRestInvest:', agg[tx.account][tx.portfolio][tx.symbol].priceRestInvest, '\n'
+          //     , 'costRestInvest:', agg[tx.account][tx.portfolio][tx.symbol].costRestInvest, '\n'
+          //     , 'priceRestInvestPrev:', agg[tx.account][tx.portfolio][tx.symbol].priceRestInvestPrev, '\n'
+          //     , 'costRestInvestPrev:', agg[tx.account][tx.portfolio][tx.symbol].costRestInvestPrev, '\n'
+          //     , '#############PNL###############', '\n'
+          //     , 'costTotal:', agg[tx.account][tx.portfolio][tx.symbol].costTotal, '\n'
+          //     , 'pnlRealized:', agg[tx.account][tx.portfolio][tx.symbol].pnlRealized, '\n'
+          //     , 'costRealized:', agg[tx.account][tx.portfolio][tx.symbol].costRealized, '\n'
+          //   )
+          // }
 
           return agg
         }, {});
@@ -5645,8 +5660,8 @@ class Flow {
           agg[tx.account][tx.portfolio][tx.contractor][tx.symbol].operationCount += 1;
 
           // if (
-          //   new Hash(tx.account).md5 === new Hash('ikeniborn').md5 &&
-          //   new Hash(tx.symbol).md5 === new Hash('btc').md5 &&
+          //   new Hash(tx.account).md5 === new Hash('torrih').md5 &&
+          //   new Hash(tx.symbol).md5 === new Hash('usdt').md5 &&
           //   new Hash(tx.portfolio).md5 === new Hash('main').md5
           // ) {
           //   console.log(
@@ -5737,11 +5752,13 @@ class Flow {
               let costTotal = 0;
               let costInvest = 0;
               let costRest = 0;
+              let costRealized = 0;
               let pnlRealized = 0;
               let pnlUnrealized = 0;
               let pnlTotal = 0;
               let quantityOverflow = 0;
               let quantityRebalance = 0;
+              let quantityInvest = 0;
 
 
               priceLast = symbols[symbolKey]?.price || 0;
@@ -5766,14 +5783,17 @@ class Flow {
                 //* общая стоимость
                 costTotal = Math.round(
                   (
-                    (
-                      aggFlowPortfolio[account][portfolio][symbol].costRealized
-                      + aggFlowPortfolio[account][portfolio][symbol].costRest
-                    )
+                    aggFlowPortfolio[account][portfolio][symbol].costTotal
                     * (quantityRest / aggFlowPortfolio[account][portfolio][symbol].quantityRest)
                   )
 
                 );
+
+                //* реализованная прибыль
+                costRealized =
+                  Math.round(
+                    (aggFlowPortfolio[account][portfolio][symbol].costRealized * (quantityRest / aggFlowPortfolio[account][portfolio][symbol].quantityRest))
+                  );
 
                 //* реализованная прибыль
                 pnlRealized =
@@ -5783,9 +5803,7 @@ class Flow {
 
                 //* не реализованная прибыль
                 pnlUnrealized =
-                  Math.round(
-                    (costLast - costRest)
-                  );
+                  Math.round((costLast - costRest));
 
                 //* прибыль итоговая
                 pnlTotal = pnlRealized + pnlUnrealized;
@@ -5811,6 +5829,10 @@ class Flow {
                 object.quantityOverflowIn -
                 object.quantityOverflowOut;
 
+              //* количество инвестированного
+
+              quantityInvest = costInvest / priceLast;
+
               //* Расчет среднего времени в портфеле
 
               // const dayInPortfolioAvg =
@@ -5834,34 +5856,34 @@ class Flow {
               //     0
               //   )
 
-              // if (
-              //   new Hash(account).md5 === new Hash('ikeniborn').md5 &&
-              //   new Hash(symbol).md5 === new Hash('usdt').md5 &&
-              //   new Hash(portfolio).md5 === new Hash('main').md5
-              // ) {
-              //   console.log(
-              //     'account:', account, '\n'
-              //     , 'portfolio:', portfolio, '\n'
-              //     , 'contractor:', contractor, '\n'
-              //     , 'symbol:', symbol, '\n'
-              //     , '###aggFlowPortfolio###', '\n'
-              //     , 'quantityRestInvest:', aggFlowPortfolio[account][portfolio][symbol].quantityRestInvest, '\n'
-              //     , 'costRestInvest:', aggFlowPortfolio[account][portfolio][symbol].costRestInvest, '\n'
-              //     , 'quantityRest:', aggFlowPortfolio[account][portfolio][symbol].quantityRest, '\n'
-              //     , 'costRestInvest:', aggFlowPortfolio[account][portfolio][symbol].costRestInvest, '\n'
-              //     , 'priceRest:', aggFlowPortfolio[account][portfolio][symbol].priceRest, '\n'
-              //     , '###aggFlowcontractor###', '\n'
-              //     , 'quantityRest:', quantityRest, '\n'
-              //     , 'costInvest:', costInvest, '\n'
-              //     , 'costRest:', costRest, '\n'
-              //     , 'costTotal:', costTotal, '\n'
-              //     , 'pnlRealized:', pnlRealized, '\n'
-              //     , 'pnlUnrealized:', pnlUnrealized, '\n'
-              //     , 'pnlTotal:', pnlTotal, '\n'
-              //   )
-              // }
+              if (
+                new Hash(account).md5 === new Hash('torrih').md5 &&
+                new Hash(symbol).md5 === new Hash('usdt').md5 &&
+                new Hash(portfolio).md5 === new Hash('main').md5
+              ) {
+                console.log(
+                  'account:', account, '\n'
+                  , 'portfolio:', portfolio, '\n'
+                  , 'contractor:', contractor, '\n'
+                  , 'symbol:', symbol, '\n'
+                  , '###aggFlowPortfolio###', '\n'
+                  , 'quantityRestInvest:', aggFlowPortfolio[account][portfolio][symbol].quantityRestInvest, '\n'
+                  , 'costRestInvest:', aggFlowPortfolio[account][portfolio][symbol].costRestInvest, '\n'
+                  , 'quantityRest:', aggFlowPortfolio[account][portfolio][symbol].quantityRest, '\n'
+                  , 'priceRest:', aggFlowPortfolio[account][portfolio][symbol].priceRest, '\n'
+                  , 'costTotal:', aggFlowPortfolio[account][portfolio][symbol].costTotal, '\n'
+                  , '###aggFlowContractor###', '\n'
+                  , 'quantityRest:', quantityRest, '\n'
+                  , 'costInvest:', costInvest, '\n'
+                  , 'costRest:', costRest, '\n'
+                  , 'costTotal:', costTotal, '\n'
+                  , 'pnlRealized:', pnlRealized, '\n'
+                  , 'pnlUnrealized:', pnlUnrealized, '\n'
+                  , 'pnlTotal:', pnlTotal, '\n'
+                );
+              }
 
-              let investType = 'na';
+              let symbolType = 'na';
 
               if (
                 [
@@ -5870,7 +5892,7 @@ class Flow {
                   new Hash(symbolCategory).md5
                 ) !== -1
               ) {
-                investType = 'STABLECOIN';
+                symbolType = 'STABLECOIN';
               }
               else if (
                 [
@@ -5879,10 +5901,10 @@ class Flow {
                   new Hash(symbolCategory).md5
                 ) !== -1
               ) {
-                investType = 'FIAT';
+                symbolType = 'FIAT';
               }
               else {
-                investType = 'TOKEN';
+                symbolType = 'TOKEN';
               }
 
               aggFlowArrayOfObject.push({
@@ -5897,8 +5919,8 @@ class Flow {
                 symbol: symbol.toUpperCase(),
                 symbolFullName: symbolFullName.toUpperCase(),
                 symbolCategory: symbolCategory.toUpperCase(),
-                investType: investType.toUpperCase(),
-                // quantityInvest: quantityInvest || 0,
+                symbolType: symbolType.toUpperCase(),
+                quantityInvest: quantityInvest || 0,
                 // quantityBuy: quantityBuy || 0,
                 // quantitySell: quantitySell || 0,
                 // quantityTransfer: quantityTransfer || 0,
@@ -5936,6 +5958,7 @@ class Flow {
                 costRest: costRest || 0,
                 costLast: costLast || 0,
                 costLock: costLock || 0,
+                costRealized: costRealized || 0,
                 // costUnlock: costUnlock || 0,
                 pnlRealized: pnlRealized || 0,
                 pnlUnrealized: pnlUnrealized || 0,

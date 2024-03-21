@@ -126,6 +126,8 @@ def init():
   client.create_table(sql=t_d_row_type)
   client.create_table(sql=t_d_cost_center)
   client.create_table(sql=t_d_nomenclature)
+  client.create_table(sql=t_d_period)
+  
 
 if __name__ == '__main__':
   init()
