@@ -14,7 +14,7 @@ import hashlib
 import plotly.express as px
 import locale
 
-locale.setlocale(locale.LC_ALL, "")
+locale.setlocale(locale.LC_ALL, ('ru_RU', 'UTF-8'))
 
 st.set_page_config(page_title='Домашний бюджет', page_icon=':book',initial_sidebar_state='collapsed', layout= "centered")
 
