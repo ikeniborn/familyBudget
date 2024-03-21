@@ -18,6 +18,7 @@ class DuckDb:
     return self
   
   def close(self):
+    st.cache_resource.clear()
     duckdb.close(connection=self.client)
     return self
   
