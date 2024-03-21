@@ -10,8 +10,8 @@ class BudgetDatabase:
   def __init__(self,) -> None:
     self.client = None
 
-  def connect(self,database_name:str=''):
-    self.client = duckdb.connect(database=database_name)
+  def connect(self,database_name:str='', read_only:bool=False):
+    self.client = duckdb.connect(database=database_name,read_only=read_only)
     return self
   
   def check_table(self,table_name:str='')-> bool:
@@ -21,81 +21,113 @@ class BudgetDatabase:
     except Exception as e:
       return False
     
-
   def create_schema(self,schema_name:str=''):
     local_client = self.client.cursor()
     local_client.sql(f'CREATE SCHEMA IF NOT EXISTS {schema_name};')
     
-  def create_table(self,schema_name:str='',table_name:str='', columns:dict={},indexes:list=[]):
+  def create_table(self,sql:str=None):
+    sql_object = Parser(sql=sql)
+    table = sql_object.tables[0]
     dttm = datetime.datetime.now().strftime('%Y%m%Y%H%M%S')
     local_client = self.client.cursor()
-    ddl = f'CREATE TABLE {schema_name}.{table_name} (\n'
-    column_list = ''
-    idx = 0
-    for  column, type in zip(columns.keys(), columns.values()):
-      ddl += f'{column} {type},\n'
-      if idx==0:
-        column_list += f'{column}'
-      else:
-        column_list += f',{column}'
-      idx+=1
-    ddl +=');'
-    if self.check_table(f'{schema_name}.{table_name}')==False:
-      local_client.sql(ddl)
-      for index in indexes:
-        local_client.sql(f'CREATE UNIQUE INDEX {table_name}_{index}_idx on {schema_name}.{table_name} ({index})')
+    local_client.sql(f'USE budget.main;')
+    if self.check_table(f'{table}'):
+      local_client.sql(f'ALTER TABLE {table} RENAME TO {table}_old_{dttm};')
+      local_client.sql(sql)
     else:
-      for index in indexes:
-        local_client.sql(f'drop INDEX {schema_name}.{table_name}_{index}_idx;')
-      local_client.sql(f'ALTER TABLE {schema_name}.{table_name} RENAME TO {table_name}_old_{dttm};')
-      local_client.sql(ddl)
-      for index in indexes:
-        local_client.sql(f'CREATE UNIQUE INDEX {table_name}_{index}_idx on {schema_name}.{table_name} ({index})')
-      local_client.sql(f'insert into {schema_name}.{table_name} ({column_list}) SELECT {column_list} FROM {schema_name}.{table_name}_old_{dttm}')
+      local_client.sql(sql)     
     return self
   
 def init():
   
-  columns_registry = {
-      'id': 'UUID PRIMARY KEY',
-      'dttm': 'TIMESTAMP',
-      'period': 'DATE',
-      'cfo': 'VARCHAR',
-      'mvz': 'VARCHAR',
-      'nomenclature' :'VARCHAR',
-      'value': 'DECIMAL(12, 2)',
-      'comment': 'VARCHAR',
-      'row_type': 'VARCHAR',
-      'username': 'VARCHAR',
-      'updated_dttm': 'TIMESTAMP',
-    }
+  t_f_registry = '''
+    CREATE TABLE t_f_registry (
+      registry_key UUID PRIMARY KEY,
+      operation_dttm TIMESTAMP NOT NULL,
+      period_key UUID NOT NULL,
+      financial_center_key UUID NOT NULL,
+      cost_center_key UUID NOT NULL,
+      nomenclature_key UUID NOT NULL,
+      cost_sum DECIMAL(12,2) NOT NULL ,
+      comment_description VARCHAR NOT NULL,
+      row_type_key UUID NOT NULL,
+      user_key UUID NOT NULL,
+      created_dttm TIMESTAMP NOT NULL DEFAULT now(),
+      updated_dttm TIMESTAMP NOT NULL DEFAULT now()
+    );
+  '''
+  
+  t_d_period = '''
+    CREATE TABLE t_d_period (
+      period_key UUID PRIMARY KEY,
+      period_dttm TIMESTAMP NOT NULL DEFAULT now(),
+      period_dt DATE NOT NULL,
+      perion_ru_name VARCHAR NOT NULL,
+      created_dttm TIMESTAMP NOT NULL DEFAULT now(),
+      updated_dttm TIMESTAMP NOT NULL DEFAULT now()
+    );
+  '''
+  
+  t_d_user= '''
+    CREATE TABLE t_d_user (
+      user_key UUID PRIMARY KEY,
+      user_name VARCHAR NOT NULL,
+      user_password VARCHAR NOT NULL,
+      user_email VARCHAR,
+      created_dttm TIMESTAMP NOT NULL DEFAULT now(),
+      updated_dttm TIMESTAMP NOT NULL DEFAULT now()
+    );
+  '''
 
-  columns_cfo = {
-      'id': 'UUID PRIMARY KEY',
-      'name': 'VARCHAR',
-      'updated_dttm': 'TIMESTAMP',
-    }
+  t_d_financial_center = '''
+    CREATE TABLE t_d_financial_center (
+      financial_center_key UUID PRIMARY KEY,
+      financial_center_name VARCHAR NOT NULL,
+      created_dttm TIMESTAMP NOT NULL DEFAULT now(),
+      updated_dttm TIMESTAMP NOT NULL DEFAULT now()
+    );
+  '''
   
-  columns_mvz = {
-      'id': 'UUID PRIMARY KEY',
-      'mvz': 'VARCHAR',
-      'updated_dttm': 'TIMESTAMP',
-    }
+  t_d_row_type = '''
+    CREATE TABLE t_d_row_type (
+      row_type_key UUID PRIMARY KEY,
+      row_type_name VARCHAR NOT NULL, 
+      created_dttm TIMESTAMP NOT NULL DEFAULT now(),
+      updated_dttm TIMESTAMP NOT NULL DEFAULT now()
+    );
+  '''
   
-  columns_nomenclature = {
-      'id': 'VARCHAR PRIMARY KEY',
-      'nomenclature': 'VARCHAR',
-      'account': 'VARCHAR',
-      'bill': 'VARCHAR',
-      'operation': 'VARCHAR',
-      'updated_dttm': 'TIMESTAMP',
-    }
+  t_d_cost_center = '''
+    CREATE TABLE t_d_cost_center (
+      cost_center_key UUID PRIMARY KEY,
+      cost_center_name VARCHAR NOT NULL,
+      created_dttm TIMESTAMP NOT NULL DEFAULT now(),
+      updated_dttm TIMESTAMP NOT NULL DEFAULT now()
+    );
+  '''
+  
+  t_d_nomenclature = '''
+    CREATE TABLE t_d_nomenclature (
+      nomenclature_key UUID PRIMARY KEY,
+      nomenclature_name VARCHAR NOT NULL,
+      account_name VARCHAR NOT NULL,
+      bill_name VARCHAR NOT NULL,
+      operation_name VARCHAR NOT NULL,
+      is_budget BOOLEAN NOT NULL DEFAULT False,
+      is_fact BOOLEAN NOT NULL DEFAULT False,
+      created_dttm TIMESTAMP NOT NULL DEFAULT now(),
+      updated_dttm TIMESTAMP NOT NULL DEFAULT now()
+    );
+  '''
         
   client = BudgetDatabase().connect(database_name='budget.db')
-  client.create_table(schema_name='main',table_name='t_d_cfo',columns=columns_cfo)
-  client.create_table(schema_name='main',table_name='t_d_mvz',columns=columns_mvz)
-  client.create_table(schema_name='main',table_name='t_d_nomenclature',columns=columns_nomenclature)
-  client.create_table(schema_name='main',table_name='t_f_registry',columns=columns_registry, indexes=['dttm'])
+  client.create_table(sql=t_f_registry)
+  client.create_table(sql=t_d_financial_center)
+  client.create_table(sql=t_d_row_type)
+  client.create_table(sql=t_d_cost_center)
+  client.create_table(sql=t_d_nomenclature)
+  client.create_table(sql=t_d_period)
+  
 
 if __name__ == '__main__':
   init()

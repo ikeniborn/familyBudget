@@ -3,8 +3,8 @@ from gspread import Worksheet, Spreadsheet
 import streamlit as st
 from func.duckdb import DuckDb
 from pandas import DataFrame
-# from gcloud import storage
-# from oauth2client.service_account import ServiceAccountCredentials
+from google.cloud import storage
+from oauth2client.service_account import ServiceAccountCredentials
 
 class GoogleSpreadsheet:
     'Класс работы с табилцами гугл'
@@ -63,26 +63,32 @@ class GoogleWorksheet():
   def insert(self, dataframe):
     self.db.insert(dataframe,self.worksheet_name)
     
-# class GoogleStorage:
-#     'Класс работы с табилцами гугл'
-#     def __new__(cls, *args, **kwargs):
-#       return super().__new__(cls)
+class GoogleStorage:
+    'Класс работы с хранением в облаке'
+    def __new__(cls, *args, **kwargs):
+      return super().__new__(cls)
           
-#     def __init__(self,bucket_name,credential) -> None:
-#       self.credential=credential
-#       self.storage=None
+    def __init__(self,credential_path) -> None:
+      self.credential_path=credential_path
+      self.client=None
 
-#     def get_storage(self,ttl=3600):
-#       @st.cache_resource(ttl=ttl)
-#       def _get_storage(credential) -> Spreadsheet:
-#         credentials = ServiceAccountCredentials.from_json_keyfile_dict(
-#             credential
-#         )
-#         client = storage.Client(credentials=credentials)
-#         return client
-#       self.client = _get_storage(self.bucket_name,self.credential)
-#       bucket = self.client.get_bucket('mybucket')
-#       blob = bucket.blob('myfile')
-#       blob.upload_from_filename('myfile')
-#       return self
+    def get_storage(self,ttl=60):
+      @st.cache_resource(ttl=ttl)
+      def _get_storage(credential_path):
+        return storage.Client.from_service_account_json(json_credentials_path=credential_path)
+      self.client = _get_storage(credential_path=self.credential_path)
+      return self
     
+    def upload_file(self):
+      bucket = storage.Bucket(self.client, 'budget-ikeniborn-ru')
+      # bucket = self.client.get_bucket('budget-ikeniborn-ru')
+      blob = bucket.blob('budget.db')
+      blob.upload_from_filename('data/budget.db')
+    
+    def download_file(self):
+      bucket = storage.Bucket(self.client, 'budget-ikeniborn-ru')
+      blob = bucket.blob('budget.db')
+      blob.download_to_filename('data/budget.db')
+      db_client= DuckDb('data/budget.db').connect()
+      local_client = db_client.client.cursor()
+      local_client.sql('FORCE CHECKPOINT;')
