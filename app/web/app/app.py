@@ -63,8 +63,8 @@ if st.session_state["authentication_status"]:
   load_db = st.sidebar.button(label='Загрузить резервную копию')
   if load_db:
     try:
+
         GoogleStorage(credential_path=os.getenv('GOOGLE_STORAGE_CREDENTIAL_PATH')).get_storage().download_file()
-        st.cache_data.clear()
     except Exception as e:
         st.error(e)
 
