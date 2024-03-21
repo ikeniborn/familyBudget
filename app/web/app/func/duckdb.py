@@ -1,5 +1,6 @@
 import duckdb
 import streamlit as st
+from pandas import DataFrame
 class DuckDb:
   'Класс работы с duckdb'
   def __new__(cls, *args, **kwargs):
@@ -50,7 +51,10 @@ class DuckDb:
   #     insert_table_sql = f'insert into "{worksheet_name}" SELECT * FROM df'
   #     local_client.sql(insert_table_sql)
       
-  def select(self,query):
+  def select(self, query:str=None, ttl:int=5) -> DataFrame:
     local_client = self.client.cursor()
     local_client.sql(f'USE budget.main;')
-    return local_client.sql(query).to_df()
+    @st.cache_data(ttl=ttl)    
+    def _select(query)-> DataFrame:
+      return local_client.sql(query).to_df()
+    return _select(query)

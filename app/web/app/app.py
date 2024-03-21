@@ -47,6 +47,10 @@ def get_uuid(string:str='-1'):
   hex_string = hashlib.md5(string.encode("UTF-8").lower()).hexdigest()
   return (uuid.UUID(hex=hex_string))
 
+def get_random_uuid():
+  hex_string = secrets.token_hex(16)
+  return (uuid.UUID(hex=hex_string))
+
 def get_period(shuffle:int=0)-> str:
   dttm = datetime.datetime.now()
   month = dttm.month
@@ -120,12 +124,14 @@ if st.session_state["authentication_status"]:
 
   
   db_budget = DuckDb('data/budget.db').connect(read_only=False)
-  t_d_financial_center =db_budget.select('select * from t_d_financial_center')['financial_center_name'].to_list()
-  t_d_cost_center = db_budget.select('select cost_center_name from t_d_cost_center')['cost_center_name'].drop_duplicates().to_list()
-  t_d_nomenclature = db_budget.select('select nomenclature_name,account_name,bill_name,operation_name,is_fact,is_budget from t_d_nomenclature')
-  t_d_period = db_budget.select('select period_key, period_dttm, perion_ru_name from t_d_period')
+  t_d_financial_center =db_budget.select(query='select * from t_d_financial_center',ttl=3600)
+  t_d_cost_center = db_budget.select(query='select * from t_d_cost_center',ttl=3600)
+  t_d_nomenclature = db_budget.select(query='select * from t_d_nomenclature',ttl=3600)
+  t_d_period = db_budget.select(query='select * from t_d_period',ttl=3600)
+  t_d_row_type = db_budget.select(query='select * from t_d_row_type',ttl=3600)
+  t_d_user = db_budget.select(query='select * from t_d_user',ttl=3600)
   
-  row_type_name=st.selectbox(label='Выбор учета',options=['Факт','Бюджет','Отчетность'],index=None)
+  row_type_name=st.selectbox(label='Выбор операциии',options=['Факт','Бюджет','Отчетность','Корректировка данных'],index=None)
 
   if row_type_name=='Факт':
     
@@ -134,46 +140,47 @@ if st.session_state["authentication_status"]:
       st.info('Поля с * обязательные для заполнения!')
       
       operation_dttm =datetime.datetime.now(tz=pytz.timezone('Europe/Moscow')).strftime('%Y-%m-%d %H:%M:%S.%f')
-      period = st.selectbox('Период',options=fact_period(),index=1)
-      financial_center_name = st.selectbox(label='ЦФО*',options=t_d_financial_center,index=None)
-      cost_center_name = st.selectbox(label='МВЗ',options=t_d_cost_center,index=None)
+      period_ru_name = st.selectbox('Период',options=fact_period(),index=1)
+      financial_center_name = st.selectbox(label='ЦФО*',options=t_d_financial_center['financial_center_name'].to_list(),index=None)
+      cost_center_name = st.selectbox(label='МВЗ',options=t_d_cost_center['cost_center_name'].to_list(),index=None)
       if cost_center_name==None:
         cost_center_name = financial_center_name
-      df_nomenclature = db_budget.select('select nomenclature_name,account_name,bill_name,operation_name from budget.main.t_d_nomenclature where is_fact=true')
-      nomenclature_name = st.selectbox(label='Номенклатура*',options=t_d_nomenclature[t_d_nomenclature['is_fact']==True]['nomenclature_name'].drop_duplicates().to_list(),index=None)
+      nomenclature_name = st.selectbox(label='Номенклатура*',options=t_d_nomenclature[t_d_nomenclature['is_fact']==True]['nomenclature_name'].to_list(),index=None)
       if nomenclature_name:
-        operation_name = df_nomenclature[t_d_nomenclature['nomenclature_name']==nomenclature_name]['operation_name'].values[0]
-        bill_name = df_nomenclature[t_d_nomenclature['nomenclature_name']==nomenclature_name]['bill_name'].values[0]
-        account_name = df_nomenclature[t_d_nomenclature['nomenclature_name']==nomenclature_name]['account_name'].values[0]
+        operation_name = t_d_nomenclature[t_d_nomenclature['nomenclature_name']==nomenclature_name]['operation_name'].values[0]
+        bill_name = t_d_nomenclature[t_d_nomenclature['nomenclature_name']==nomenclature_name]['bill_name'].values[0]
+        account_name = t_d_nomenclature[t_d_nomenclature['nomenclature_name']==nomenclature_name]['account_name'].values[0]
       else:
         operation_name=''
         bill_name = ''
         account_name=''
       cost_sum = st.number_input(label='Сумма*',min_value=0,value=0)
       comment_description = st.text_input(label='Комментарий')
-      created_dttm = datetime.datetime.now(tz=pytz.timezone('Europe/Moscow')).strftime('%Y-%m-%d %H:%M:%S.%f')
-      updated_dttm = datetime.datetime.now(tz=pytz.timezone('Europe/Moscow')).strftime('%Y-%m-%d %H:%M:%S.%f')
         
       add_row = st.form_submit_button(label="Сохранить",type='primary')
       
       if add_row:
         if cost_sum>0 and financial_center_name!=None and nomenclature_name!=None:
-          registry_nkey = f'{operation_dttm}#{period}#{financial_center_name}#{cost_center_name}#{nomenclature_name}#{row_type_name}#{user_name}'
-          registry_key = get_uuid(string=registry_nkey)
-          
+          registry_key = get_random_uuid()
+          period_key = t_d_period[t_d_period['period_ru_name']==period_ru_name]['period_key'].values[0]
+          financial_center_key = t_d_financial_center[t_d_financial_center['financial_center_name']==financial_center_name]['financial_center_key'].values[0]
+          cost_center_key = t_d_cost_center[t_d_cost_center['cost_center_name']==cost_center_name]['cost_center_key'].values[0]
+          nomenclature_key = t_d_nomenclature[t_d_nomenclature['nomenclature_name']==nomenclature_name]['nomenclature_key'].values[0]
+          row_type_key = t_d_row_type[t_d_row_type['row_type_name']==row_type_name]['row_type_key'].values[0]
+          user_key = t_d_user[t_d_user['user_name']==user_name]['user_key'].values[0]
           sql_row = f'''
-            INSERT INTO t_f_registry (registry_key,operation_dttm,period,financial_center_name,cost_center_name,nomenclature_name,cost_sum,comment_description,row_type_name,user_name) 
+            INSERT INTO t_f_registry (registry_key,operation_dttm,period_key,financial_center_key,cost_center_key,nomenclature_key,cost_sum,comment_description,row_type_key,user_key) 
             VALUES (
                 \'{registry_key}\',
                 \'{operation_dttm}\',
-                \'{period}\',
-                \'{financial_center_name}\',
-                \'{cost_center_name}\',
-                \'{nomenclature_name}\',
+                \'{period_key}\',
+                \'{financial_center_key}\',
+                \'{cost_center_key}\',
+                \'{nomenclature_key}\',
                 {cost_sum},
                 \'{comment_description}\',
-                \'{row_type_name}\',
-                \'{user_name}\'
+                \'{row_type_key}\',
+                \'{user_key}\'
               )
             '''
           db_budget.insert(sql=sql_row)
@@ -181,38 +188,45 @@ if st.session_state["authentication_status"]:
           st.dataframe(data=db_budget.select(
               f'''
               select 
-                operation_dttm as "Дата операции", 
-                period as "Период", 
-                financial_center_name as "ЦФО",
-                cost_center_name as "МВЗ",
-                nomenclature_name as "Номенклатура",
-                cost_sum as "Сумма", 
-                comment_description as "Комментарий" 
-              from t_f_registry t 
+                t0.operation_dttm as "Дата операции", 
+                t1.period_ru_name as "Период", 
+                t2.financial_center_name as "ЦФО",
+                t3.cost_center_name as "МВЗ",
+                t4.nomenclature_name as "Номенклатура",
+                t0.cost_sum as "Сумма", 
+                t0.comment_description as "Комментарий" 
+              from t_f_registry t0
+              join t_d_period t1 using(period_key) 
+              join t_d_financial_center t2 using(financial_center_key) 
+              join t_d_cost_center t3 using(cost_center_key) 
+              join t_d_nomenclature t4 using(nomenclature_key) 
               where 
-                t.user_name = \'{user_name}\' 
-                and t.row_type_name = \'{row_type_name}\' 
+                t0.user_key = \'{user_key}\' 
+                and t0.row_type_key = \'{row_type_key}\' 
               order by 
-                operation_dttm desc 
+                t0.operation_dttm desc 
               limit 5'''
             ),hide_index=True, use_container_width=True)
           df= db_budget.select(
             f'''
               select 
-                row_type_name as "Тип", 
-                nomenclature_name as "Статья", 
+                t4.row_type_name as "Тип", 
+                t3.nomenclature_name as "Статья", 
                 sum(cost_sum) as "Сумма" 
               from 
-                t_f_registry t 
+                t_f_registry t0 
+              join t_d_financial_center t2 using(financial_center_key) 
+              join t_d_nomenclature t3 using(nomenclature_key) 
+              join t_d_row_type t4 using(row_type_key) 
               where 
-                t.financial_center_name=\'{financial_center_name}\' 
-                and t.period=\'{period}\' 
-                and t.nomenclature_name=\'{nomenclature_name}\' 
+                t0.financial_center_key=\'{financial_center_key}\' 
+                and t0.period_key=\'{period_key}\' 
+                and t0.nomenclature_key=\'{nomenclature_key}\' 
               group by 
-                row_type_name, 
-                nomenclature_name 
+                t4.row_type_name, 
+                t3.nomenclature_name
               order by 
-                row_type_name
+                t4.row_type_name
               '''
             )
           fig = px.bar(df, x='Статья', y='Сумма', color='Тип', barmode='group')
@@ -230,11 +244,11 @@ if st.session_state["authentication_status"]:
     with st.form(key='budget_form',clear_on_submit=True):
     
       st.info('Поля со * обязательные для заполнения!')
-      operation_dttm =datetime.datetime.now(tz=pytz.timezone('Europe/Moscow')).strftime('%d.%m.%Y %H:%M:%S')
-      period_dttm = st.selectbox('Период',options=budget_period(),index=1)
-      financial_center_name = st.selectbox(label='ЦФО*',options=t_d_financial_center,index=None)
+      operation_dttm =datetime.datetime.now(tz=pytz.timezone('Europe/Moscow')).strftime('%Y-%m-%d %H:%M:%S.%f')
+      period_ru_name = st.selectbox('Период',options=fact_period(),index=1)
+      financial_center_name = st.selectbox(label='ЦФО*',options=t_d_financial_center['financial_center_name'].to_list(),index=None)
       cost_center_name = financial_center_name
-      nomenclature_name = st.selectbox(label='Номенклатура*',options=t_d_nomenclature[t_d_nomenclature['is_budget']]['nomenclature_name'].drop_duplicates().to_list(),index=None)
+      nomenclature_name = st.selectbox(label='Номенклатура*',options=t_d_nomenclature[t_d_nomenclature['is_fact']==True]['nomenclature_name'].to_list(),index=None)
       if nomenclature_name:
         operation_name = t_d_nomenclature[t_d_nomenclature['nomenclature_name']==nomenclature_name]['operation_name'].values[0]
         bill_name = t_d_nomenclature[t_d_nomenclature['nomenclature_name']==nomenclature_name]['bill_name'].values[0]
@@ -245,55 +259,58 @@ if st.session_state["authentication_status"]:
         account_name=''
       cost_sum = st.number_input(label='Сумма*',min_value=0,value=0)
       comment_description = st.text_input(label='Комментарий')
-      created_dttm = datetime.datetime.now()
-      updated_dttm = datetime.datetime.now()
       
-      def submit_add_row():
-          registry_nkey = f'{operation_dttm}#{period}#{financial_center_name}#{cost_center_name}#{nomenclature_name}#{row_type_name}#{user_name}'
-          registry_key = get_uuid(string=registry_nkey)
+      add_row = st.form_submit_button(label="Сохранить",type='primary')
+      
+      if add_row:
+        if cost_sum>0 and financial_center_name!=None and nomenclature_name!=None:
+          registry_key = get_random_uuid()
+          period_key = t_d_period[t_d_period['period_ru_name']==period_ru_name]['period_key'].values[0]
+          financial_center_key = t_d_financial_center[t_d_financial_center['financial_center_name']==financial_center_name]['financial_center_key'].values[0]
+          cost_center_key = t_d_cost_center[t_d_cost_center['cost_center_name']==cost_center_name]['cost_center_key'].values[0]
+          nomenclature_key = t_d_nomenclature[t_d_nomenclature['nomenclature_name']==nomenclature_name]['nomenclature_key'].values[0]
+          row_type_key = t_d_row_type[t_d_row_type['row_type_name']==row_type_name]['row_type_key'].values[0]
+          user_key = t_d_user[t_d_user['user_name']==user_name]['user_key'].values[0]
           sql_row = f'''
-            INSERT INTO t_f_registry (registry_key,operation_dttm,period,financial_center_name,cost_center_name,nomenclature_name,cost_sum,comment_description,row_type_name,user_name,created_dttm,updated_dttm) 
+            INSERT INTO t_f_registry (registry_key,operation_dttm,period_key,financial_center_key,cost_center_key,nomenclature_key,cost_sum,comment_description,row_type_key,user_key) 
             VALUES (
                 \'{registry_key}\',
                 \'{operation_dttm}\',
-                \'{period}\',
-                \'{financial_center_name}\',
-                \'{cost_center_name}\',
-                \'{nomenclature_name}\',
+                \'{period_key}\',
+                \'{financial_center_key}\',
+                \'{cost_center_key}\',
+                \'{nomenclature_key}\',
                 {cost_sum},
                 \'{comment_description}\',
-                \'{row_type_name}\',
-                \'{user_name}\',
-                \'{created_dttm}\',
-                \'{updated_dttm}\'
+                \'{row_type_key}\',
+                \'{user_key}\'
               )
             '''
-          db_budget.insert(sql=sql_row)
+          st.write(sql_row)
+          # db_budget.insert(sql=sql_row)
           st.info('Последние пять записей:')
           st.dataframe(data=db_budget.select(
               f'''
               select 
-                operation_dttm as "Дата операции", 
-                period as "Период", 
-                financial_center_name as "ЦФО",
-                cost_center_name as "МВЗ",
-                nomenclature_name as "Номенклатура",
-                cost_sum as "Сумма", 
-                comment_description as "Комментарий" 
-              from t_f_registry t 
+                t0.operation_dttm as "Дата операции", 
+                t1.period_ru_name as "Период", 
+                t2.financial_center_name as "ЦФО",
+                t3.cost_center_name as "МВЗ",
+                t4.nomenclature_name as "Номенклатура",
+                t0.cost_sum as "Сумма", 
+                t0.comment_description as "Комментарий" 
+              from t_f_registry t0
+              join t_d_period t1 using(period_key) 
+              join t_d_financial_center t2 using(financial_center_key) 
+              join t_d_cost_center t3 using(cost_center_key) 
+              join t_d_nomenclature t4 using(nomenclature_key) 
               where 
-                t.user_name = \'{user_name}\' 
-                and t.row_type_name = \'{row_type_name}\' 
+                t0.user_key = \'{user_key}\' 
+                and t0.row_type_key = \'{row_type_key}\' 
               order by 
-                operation_dttm desc 
+                t0.operation_dttm desc 
               limit 5'''
             ),hide_index=True, use_container_width=True)
-     
-      add_row = st.form_submit_button(label="Сохранить",type='secondary')
-      
-      if add_row:
-        if cost_sum>0 and financial_center_name!=None and nomenclature_name!=None:
-          submit_add_row()
         else:
           if financial_center_name==None:
             st.error('Не указан ЦФО')
@@ -305,13 +322,39 @@ if st.session_state["authentication_status"]:
   elif row_type_name=='Отчетность':      
     report_selector=st.selectbox(label='Выбор отчета',options=['План/Факт','Бюджет','Последние записи'],index=None) 
     if report_selector in ['План/Факт','Бюджет']:
-      financial_center_name = st.selectbox(label='ЦФО*',options=t_d_financial_center,index=None)
-      period = st.selectbox('Период',options=report_period(),index=1)
+      financial_center_name = st.selectbox(label='ЦФО*',options=t_d_financial_center['financial_center_name'].to_list(),index=None)
+      financial_center_key =  t_d_financial_center[t_d_financial_center['financial_center_name']==financial_center_name]['financial_center_key'].values[0]
+      period_ru_name = st.selectbox('Период',options=report_period(),index=1)
+      period_key = t_d_period[t_d_period['period_ru_name']==period_ru_name]['period_key'].values[0]
       if financial_center_name and report_selector:
         if report_selector=='Бюджет':
-            total = db_budget.select(f'select sum(sum) as "Сумма" from t_f_trello  t where t.financial_center_name=\'{financial_center_name}\' and t.period=\'{period}\' and t.data_type = \'Бюджет\'')['Сумма'].values[0]
-            st.write(f'Итого бюджет на {period} составляет {total} руб.')
-            df= db_budget.select(f'select account_name as "Статья",sum(sum) as "Сумма" from t_f_trello  t where t.financial_center_name=\'{financial_center_name}\' and t.period=\'{period_dttm}\' and t.data_type = \'Бюджет\' group by account_name order by account_name')
+            total = db_budget.select(f'''
+              SELECT
+                sum(cost_sum) AS "Сумма"
+              FROM
+                t_f_registry t
+              WHERE
+                t.financial_center_key = \'{financial_center_key}\'
+              AND t.period_key = \'{period_key}\'
+              AND t.row_type_key = \'f003e80f-57d7-6757-bd6a-24170e1f75a4\''''
+            )['Сумма'].values[0]
+            st.write(f'Итого бюджет на {period_ru_name} составляет {total} руб.')
+            df= db_budget.select(f'''
+              SELECT
+                t1.account_name AS "Статья",
+                sum(t0.cost_sum) AS "Сумма"
+              FROM
+                t_f_registry t0
+              join t_d_nomenclature t1 using(nomenclature_key) 
+              WHERE
+                t0.financial_center_key = \'{financial_center_key}\'
+                AND t0.period_key = \'{period_key}\'
+                AND t0.row_type_key = \'f003e80f-57d7-6757-bd6a-24170e1f75a4\'
+              GROUP BY
+                t1.account_name
+              ORDER BY
+                t1.account_name
+                ''')
             st.bar_chart(data=df,x='Статья',y='Сумма')
         elif report_selector=='План/Факт':
           if financial_center_name:
