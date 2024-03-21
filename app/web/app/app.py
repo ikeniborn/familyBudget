@@ -189,7 +189,7 @@ if st.session_state["authentication_status"]:
     
     with st.form(key='budget_form',clear_on_submit=True):
     
-      st.info('Поля со * обязательные для заполнения!')
+      st.info('Поля с * обязательные для заполнения!')
       operation_dttm =datetime.datetime.now(tz=pytz.timezone('Europe/Moscow')).strftime('%Y-%m-%d %H:%M:%S.%f')
       period_ru_name = st.selectbox('Период',options=t_d_period[(t_d_period['period_dt'] >= get_period(-1)) & (t_d_period['period_dt'] <= get_period(1))]['period_ru_name'].to_list(),index=1)
       financial_center_name = st.selectbox(label='ЦФО*',options=t_d_financial_center['financial_center_name'].to_list(),index=None)

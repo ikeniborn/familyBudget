@@ -86,12 +86,11 @@ class GoogleStorage:
       blob.upload_from_filename('data/budget.db')
     
     def download_file(self):
+      db=DuckDb('data/budget.db')
+      db.close()
       bucket = storage.Bucket(self.client, 'budget-ikeniborn-ru')
       blob = bucket.blob('budget.db')
       blob.download_to_filename('data/budget.db')
-      db_client= DuckDb('data/budget.db')
-      db_client.close()
-      st.cache_data.clear()
-      st.cache_resource.clear()
-      db_client.connect().client.sql('FORCE CHECKPOINT;')
+      db.connect()
       st.rerun()
+      
