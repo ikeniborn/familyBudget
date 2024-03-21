@@ -242,8 +242,7 @@ if st.session_state["authentication_status"]:
                 \'{user_key}\'
               )
             '''
-          st.write(sql_row)
-          # db_budget.insert(sql=sql_row)
+          db_budget.insert(sql=sql_row)
           st.info('Последние пять записей:')
           st.dataframe(data=db_budget.select(
               f'''
