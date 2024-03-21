@@ -1,5 +1,3 @@
-
-
 import datetime
 import streamlit as st
 import secrets
@@ -19,26 +17,6 @@ import locale
 locale.setlocale(locale.LC_ALL, "")
 
 st.set_page_config(page_title='Домашний бюджет', page_icon=':book',initial_sidebar_state='collapsed', layout= "centered")
-
-# def df_on_change(df):
-#     state = st.session_state["df_editor"]
-#     for index, updates in state["edited_rows"].items():
-#         st.session_state["df"].loc[st.session_state["df"].index == index, "edited"] = True
-#         for key, value in updates.items():
-#             st.session_state["df"].loc[st.session_state["df"].index == index, key] = value
-            
-# db_budget = DuckDb('data/'+os.getenv('GOOGLE_SPREADSHEET_ID')).connect()
-# df1=db_budget.select('select try_strptime(operation_dttm, \'%d.%m.%Y %H:%M:%S\') as dttm, * from t_f_trello order by dttm desc limit 10')
-# df1["edited"]=False
-          
-# if "df" not in st.session_state:
-#     st.session_state["df"] = df1
-# df=st.data_editor(st.session_state["df"], key="df_editor", on_change=df_on_change, args=[df1], hide_index=True,disabled=['id','operation_dttm','financial_center_name'])
-# df_fltr = df[df['edited']==True]
-# st.write(df_fltr)
-# st.write(df_fltr.to_records(index=False).tolist())
-
-# st.stop()
 
 def get_uuid(string:str='-1'):
   hex_string = hashlib.md5(string.encode("UTF-8").lower()).hexdigest()
@@ -94,15 +72,6 @@ if st.session_state["authentication_status"]:
   st.sidebar.title(f'Привет {name}')
   authenticator.logout('Выход', "sidebar")
  
-  # reset_password = st.sidebar.button(label='Сброс пароля')
-  # if reset_password:
-  #   try:
-  #       if authenticator.reset_password(st.session_state["user_name"]):
-  #           st.success('Password modified successfully')
-  #   except Exception as e:
-  #       st.error(e)
-  
-  
         
   backup_db = st.sidebar.button(label='Создать резервную копию')
   if backup_db:
@@ -548,20 +517,10 @@ if st.session_state["authentication_status"]:
             limit {number}'''
       return db_budget.select(query)
     if number_limit: 
-      # def df_on_change(df):
-      #   state = st.session_state["df_editor"]
-      #   for index, updates in state["edited_rows"].items():
-      #       st.session_state["df"].loc[st.session_state["df"].index == index, "Удалить"] = True
-      #       for key, value in updates.items():
-      #           st.session_state["df"].loc[st.session_state["df"].index == index, key] = value
       def state_table():
           return st.data_editor(data=last_row(number_limit),key=f'df_state_{st.session_state.state}', num_rows = "fixed", hide_index=True)
       table =state_table()
-      # if "df_editor" not in st.session_state:
-      #   st.session_state["df_editor"] = table
-      # edited_table = st.data_editor(data=st.session_state["df"], num_rows = "fixed", on_change=df_on_change, args=[table], hide_index=True)
       row_registry_keys = table[table['Удалить']==True]['Идентификатор записи'].to_list()
-
       delete_button = st.button(label='Удалить',type='primary')
       if row_registry_keys and delete_button:
         update_button = st.button(label='Обновить',type='secondary')
