@@ -51,10 +51,13 @@ class DuckDb:
   #     insert_table_sql = f'insert into "{worksheet_name}" SELECT * FROM df'
   #     local_client.sql(insert_table_sql)
       
-  def select(self, query:str=None, ttl:int=5) -> DataFrame:
+  def select(self, query:str=None, ttl:int=0) -> DataFrame:
     local_client = self.client.cursor()
     local_client.sql(f'USE budget.main;')
     @st.cache_data(ttl=ttl)    
     def _select(query)-> DataFrame:
       return local_client.sql(query).to_df()
-    return _select(query)
+    try:
+      return _select(query)
+    except Exception as e:
+      return None

@@ -1,10 +1,7 @@
 
 
 import datetime
-from pandas import DataFrame
-import pandas as pd
 import streamlit as st
-# from sql_metadata import Parser
 import secrets
 import os
 from pathlib import Path
@@ -12,13 +9,13 @@ import streamlit_authenticator as stauth
 import yaml
 from yaml.loader import SafeLoader
 import pytz
-from func.google import GoogleWorksheet,GoogleSpreadsheet,GoogleStorage
+from func.google import GoogleStorage
 from func.duckdb import DuckDb
-# from dateutil import parser
 import uuid
 import hashlib
 import plotly.express as px
 import locale
+
 locale.setlocale(locale.LC_ALL, "")
 
 st.set_page_config(page_title='Домашний бюджет', page_icon=':book',initial_sidebar_state='collapsed', layout= "centered")
@@ -131,7 +128,7 @@ if st.session_state["authentication_status"]:
   t_d_row_type = db_budget.select(query='select * from t_d_row_type',ttl=3600)
   t_d_user = db_budget.select(query='select * from t_d_user',ttl=3600)
   
-  row_type_name=st.selectbox(label='Выбор операциии',options=['Факт','Бюджет','Отчетность','Корректировка данных'],index=None)
+  row_type_name=st.selectbox(label='Выбор операциии',options=['Факт','Бюджет','Отчетность','Последние записи','Корректировка данных'],index=None)
 
   if row_type_name=='Факт':
     
@@ -272,7 +269,17 @@ if st.session_state["authentication_status"]:
           row_type_key = t_d_row_type[t_d_row_type['row_type_name']==row_type_name]['row_type_key'].values[0]
           user_key = t_d_user[t_d_user['user_name']==user_name]['user_key'].values[0]
           sql_row = f'''
-            INSERT INTO t_f_registry (registry_key,operation_dttm,period_key,financial_center_key,cost_center_key,nomenclature_key,cost_sum,comment_description,row_type_key,user_key) 
+            INSERT INTO t_f_registry (
+              registry_key,
+              operation_dttm,
+              period_key,
+              financial_center_key,
+              cost_center_key,
+              nomenclature_key,
+              cost_sum,
+              comment_description,
+              row_type_key,
+              user_key) 
             VALUES (
                 \'{registry_key}\',
                 \'{operation_dttm}\',
@@ -321,26 +328,31 @@ if st.session_state["authentication_status"]:
           
   elif row_type_name=='Отчетность':      
     report_selector=st.selectbox(label='Выбор отчета',options=['План/Факт','Бюджет','Последние записи'],index=None) 
+    user_key = t_d_user[t_d_user['user_name']==user_name]['user_key'].values[0]
     if report_selector in ['План/Факт','Бюджет']:
       financial_center_name = st.selectbox(label='ЦФО*',options=t_d_financial_center['financial_center_name'].to_list(),index=None)
-      financial_center_key =  t_d_financial_center[t_d_financial_center['financial_center_name']==financial_center_name]['financial_center_key'].values[0]
+      financial_center_key = None
+      if financial_center_name:
+        financial_center_key =  t_d_financial_center[t_d_financial_center['financial_center_name']==financial_center_name]['financial_center_key'].values[0]
       period_ru_name = st.selectbox('Период',options=report_period(),index=1)
       period_key = t_d_period[t_d_period['period_ru_name']==period_ru_name]['period_key'].values[0]
-      if financial_center_name and report_selector:
+      if financial_center_key and report_selector:
         if report_selector=='Бюджет':
             total = db_budget.select(f'''
               SELECT
-                sum(cost_sum) AS "Сумма"
+                sum(t0.cost_sum) AS "Сумма"
               FROM
-                t_f_registry t
+                t_f_registry t0
               WHERE
-                t.financial_center_key = \'{financial_center_key}\'
-              AND t.period_key = \'{period_key}\'
-              AND t.row_type_key = \'f003e80f-57d7-6757-bd6a-24170e1f75a4\''''
+                t0.financial_center_key = \'{financial_center_key}\'
+              AND t0.period_key = \'{period_key}\'
+              AND t0.row_type_key = \'f003e80f-57d7-6757-bd6a-24170e1f75a4\'
+              '''
             )['Сумма'].values[0]
             st.write(f'Итого бюджет на {period_ru_name} составляет {total} руб.')
             df= db_budget.select(f'''
               SELECT
+                t1.bill_name AS "Счет",
                 t1.account_name AS "Статья",
                 sum(t0.cost_sum) AS "Сумма"
               FROM
@@ -351,19 +363,40 @@ if st.session_state["authentication_status"]:
                 AND t0.period_key = \'{period_key}\'
                 AND t0.row_type_key = \'f003e80f-57d7-6757-bd6a-24170e1f75a4\'
               GROUP BY
+                t1.bill_name,
                 t1.account_name
               ORDER BY
+                t1.bill_name,
                 t1.account_name
                 ''')
-            st.bar_chart(data=df,x='Статья',y='Сумма')
+            fig = px.bar(df, x='Статья', y='Сумма', color='Счет', barmode='group')
+            st.plotly_chart(fig, use_container_width=True)
         elif report_selector=='План/Факт':
-          if financial_center_name:
+          if financial_center_key:
             grouping = st.selectbox(label='Группировка',options=['Операция','Счет','Статья','Номенклатура'],index=2) 
             ## Add a select box for choosing the chart type
             # chart_type = st.selectbox('Choose a chart type', ['Bar', 'Line'])
             chart_type = 'Bar'
             if grouping=='Операция':
-              df= db_budget.select(f'select row_type_name as "Тип", operation_name as "Операция", sum(sum) as "Сумма" from t_f_trello  t where t.financial_center_name=\'{financial_center_name}\' and t.period=\'{period_dttm}\'group by row_type_name, operation_name order by data_type, operation_name')
+              df= db_budget.select(f'''
+                SELECT
+                  t2.row_type_name AS "Тип",
+                  t1.operation_name AS "Операция",
+                  sum(t0.cost_sum) AS "Сумма"
+                FROM
+                  t_f_registry t0
+                join t_d_nomenclature t1 using(nomenclature_key)
+                join t_d_row_type t2 using(row_type_key)
+                WHERE
+                  t0.financial_center_key = \'{financial_center_key}\'
+                  AND t0.period_key = \'{period_key}\'
+                GROUP BY 
+                  t2.row_type_name,
+	                t1.operation_name
+                ORDER BY
+                  t2.row_type_name,
+	                t1.operation_name
+                  ''')
               ## Create the chart
               if chart_type == 'Bar':
                   fig = px.bar(df, x='Операция', y='Сумма', color='Тип', barmode='group')
@@ -372,7 +405,24 @@ if st.session_state["authentication_status"]:
               ## Display the chart
               st.plotly_chart(fig, use_container_width=True)
             elif grouping=='Счет':
-              df= db_budget.select(f'select data_type as "Тип", bill_name as "Счет", sum(sum) as "Сумма" from t_f_trello  t where t.financial_center_name=\'{financial_center_name}\' and t.period=\'{period_dttm}\'group by data_type, bill_name order by data_type, bill_name')
+              df= db_budget.select(f'''
+                SELECT
+                  t2.row_type_name AS "Тип",
+                  t1.bill_name AS "Счет",
+                  sum(t0.cost_sum) AS "Сумма"
+                FROM
+                  t_f_registry t0
+                join t_d_nomenclature t1 using(nomenclature_key)
+                join t_d_row_type t2 using(row_type_key)
+                WHERE
+                  t0.financial_center_key = \'{financial_center_key}\'
+                  AND t0.period_key = \'{period_key}\'
+                GROUP BY row_type_name,
+                  t1.bill_name
+                ORDER BY
+                  t2.row_type_name,
+	                t1.bill_name
+                  ''')
               ## Create the chart
               if chart_type == 'Bar':
                   fig = px.bar(df, x='Счет', y='Сумма', color='Тип', barmode='group')
@@ -381,8 +431,24 @@ if st.session_state["authentication_status"]:
               ## Display the chart
               st.plotly_chart(fig, use_container_width=True)
             elif grouping=='Статья':
-              df= db_budget.select(f'select data_type as "Тип", account_name as "Статья", sum(sum) as "Сумма" from t_f_trello  t where t.financial_center_name=\'{financial_center_name}\' and t.period=\'{period_dttm}\'group by data_type, account_name order by data_type, account_name')
-                            ## Create the chart
+              df= db_budget.select(f'''
+                SELECT
+                  t2.row_type_name AS "Тип",
+                  t1.account_name AS "Статья",
+                  sum(t0.cost_sum) AS "Сумма"
+                FROM
+                  t_f_registry t0
+                join t_d_nomenclature t1 using(nomenclature_key)
+                join t_d_row_type t2 using(row_type_key)
+                WHERE
+                  t0.financial_center_key = \'{financial_center_key}\'
+                  AND t0.period_key = \'{period_key}\'
+                GROUP BY row_type_name,
+                  t1.account_name
+                ORDER BY
+                  t2.row_type_name,
+	                t1.account_name
+                  ''')
               if chart_type == 'Bar':
                   fig = px.bar(df, x='Статья', y='Сумма', color='Тип', barmode='group')
               elif chart_type == 'Line':
@@ -390,7 +456,24 @@ if st.session_state["authentication_status"]:
               ## Display the chart
               st.plotly_chart(fig, use_container_width=True)
             elif grouping=='Номенклатура':
-              df= db_budget.select(f'select data_type as "Тип", nomenclature_name as "Номенклатура", sum(sum) as "Сумма" from t_f_trello  t where t.financial_center_name=\'{financial_center_name}\' and t.period=\'{period_dttm}\'group by data_type, nomenclature_name order by data_type, nomenclature_name')
+              df= db_budget.select(f'''
+                SELECT
+                  t2.row_type_name AS "Тип",
+                  t1.nomenclature_name AS "Номенклатура",
+                  sum(t0.cost_sum) AS "Сумма"
+                FROM
+                  t_f_registry t0
+                join t_d_nomenclature t1 using(nomenclature_key)
+                join t_d_row_type t2 using(row_type_key)
+                WHERE
+                  t0.financial_center_key = \'{financial_center_key}\'
+                  AND t0.period_key = \'{period_key}\'
+                GROUP BY row_type_name,
+                  t1.nomenclature_name
+                ORDER BY
+                  t2.row_type_name,
+	                t1.nomenclature_name
+                  ''')
               ## Create the chart
               if chart_type == 'Bar':
                   fig = px.bar(df, x='Номенклатура', y='Сумма', color='Тип', barmode='group')
@@ -400,28 +483,103 @@ if st.session_state["authentication_status"]:
               st.plotly_chart(fig, use_container_width=True)
             else:
               pass
-    elif report_selector=='Последние записи':
-      number_limit = st.number_input('Количество записей', min_value=5)
-      if number_limit:
-        st.dataframe(data=db_budget.select(
-              f'''
-              select 
-                operation_dttm as "Дата операции", 
-                period as "Период", 
-                financial_center_name as "ЦФО",
-                cost_center_name as "МВЗ",
-                nomenclature_name as "Номенклатура",
-                cost_sum as "Сумма", 
-                comment_description as "Комментарий" 
-              from t_f_registry t 
-              where 
-                t.user_name = \'{user_name}\' 
-                and t.row_type_name = \'{row_type_name}\' 
-              order by 
-                operation_dttm desc 
-              limit {number_limit}'''
-            ),hide_index=True, use_container_width=True)
-      
+  elif row_type_name=='Последние записи':
+    number_limit = st.number_input('Количество записей', min_value=5)
+    user_key = t_d_user[t_d_user['user_name']==user_name]['user_key'].values[0]
+    row_type_name = st.selectbox(label='Тип данных*',options=t_d_row_type['row_type_name'].to_list(),index=None)
+    row_type_filter = ''
+    row_type_column = ''
+    if row_type_name:
+      row_type_key = t_d_row_type[t_d_row_type['row_type_name']==row_type_name]['row_type_key'].values[0]
+      row_type_filter = f'''and t0.row_type_key = \'{row_type_key}\''''
+    else:
+      row_type_column = f'''t5.row_type_name as "Тип данных",'''
+    if number_limit:   
+      query = f'''
+            select 
+              {row_type_column} 
+              t0.operation_dttm as "Дата операции", 
+              t1.period_ru_name as "Период", 
+              t2.financial_center_name as "ЦФО",
+              t3.cost_center_name as "МВЗ",
+              t4.nomenclature_name as "Номенклатура",
+              t0.cost_sum as "Сумма", 
+              t0.comment_description as "Комментарий" 
+            from t_f_registry t0
+            join t_d_period t1 using(period_key) 
+            join t_d_financial_center t2 using(financial_center_key) 
+            join t_d_cost_center t3 using(cost_center_key) 
+            join t_d_nomenclature t4 using(nomenclature_key) 
+            join t_d_row_type t5 using(row_type_key)
+            where 
+              t0.user_key = \'{user_key}\'
+              {row_type_filter}
+            order by 
+              t0.operation_dttm desc 
+            limit {number_limit}'''
+      st.dataframe(data=db_budget.select(query),hide_index=True, use_container_width=True)
+  elif row_type_name=='Корректировка данных':
+    if "state" not in st.session_state:
+      st.session_state["state"] = 1
+    def increment_counter():
+      st.session_state.state += 1
+    number_limit = st.number_input('Количество записей', min_value=5)
+    user_key = t_d_user[t_d_user['user_name']==user_name]['user_key'].values[0]
+    def last_row(number):  
+      query = f'''
+            select 
+              cast('f' as BOOLEAN) as "Удалить", 
+              CAST(t0.registry_key as VARCHAR) as "Идентификатор записи", 
+              t0.operation_dttm as "Дата операции", 
+              t1.period_ru_name as "Период", 
+              t2.financial_center_name as "ЦФО",
+              t3.cost_center_name as "МВЗ",
+              t4.nomenclature_name as "Номенклатура",
+              t0.cost_sum as "Сумма", 
+              t0.comment_description as "Комментарий" 
+            from t_f_registry t0
+            join t_d_period t1 using(period_key) 
+            join t_d_financial_center t2 using(financial_center_key) 
+            join t_d_cost_center t3 using(cost_center_key) 
+            join t_d_nomenclature t4 using(nomenclature_key) 
+            join t_d_row_type t5 using(row_type_key)
+            order by 
+              t0.operation_dttm desc 
+            limit {number}'''
+      return db_budget.select(query)
+    if number_limit: 
+      # def df_on_change(df):
+      #   state = st.session_state["df_editor"]
+      #   for index, updates in state["edited_rows"].items():
+      #       st.session_state["df"].loc[st.session_state["df"].index == index, "Удалить"] = True
+      #       for key, value in updates.items():
+      #           st.session_state["df"].loc[st.session_state["df"].index == index, key] = value
+      def state_table():
+          return st.data_editor(data=last_row(number_limit),key=f'df_state_{st.session_state.state}', num_rows = "fixed", hide_index=True)
+      table =state_table()
+      # if "df_editor" not in st.session_state:
+      #   st.session_state["df_editor"] = table
+      # edited_table = st.data_editor(data=st.session_state["df"], num_rows = "fixed", on_change=df_on_change, args=[table], hide_index=True)
+      row_registry_keys = table[table['Удалить']==True]['Идентификатор записи'].to_list()
+
+      delete_button = st.button(label='Удалить',type='primary')
+      if row_registry_keys and delete_button:
+        update_button = st.button(label='Обновить',type='secondary')
+        for row_registry_key in row_registry_keys:
+          delete_query=f'''
+          delete from t_f_registry where registry_key=\'{row_registry_key}\';
+          '''
+          db_budget.select(query=delete_query)
+          select_query=f'''
+          select count(1) as count_row from t_f_registry where registry_key=\'{row_registry_key}\';
+          '''
+          count_row = db_budget.select(query=select_query)['count_row'].values[0]
+          if count_row==0:
+            st.info(f'Запись с идентифкатором {row_registry_key} удалена!')
+          increment_counter()
+        if update_button:
+          st.rerun()
+
   else:
     st.stop()
   
