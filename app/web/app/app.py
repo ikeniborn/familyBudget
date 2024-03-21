@@ -12,9 +12,6 @@ from func.duckdb import DuckDb
 import uuid
 import hashlib
 import plotly.express as px
-import locale
-
-locale.setlocale(locale.LC_ALL, ('ru_RU', 'UTF-8'))
 
 st.set_page_config(page_title='Домашний бюджет', page_icon=':book',initial_sidebar_state='collapsed', layout= "centered")
 
@@ -31,25 +28,8 @@ def get_period(shuffle:int=0)-> str:
   month = dttm.month
   year = dttm.year
   dt = datetime.date(year=year,month=month+shuffle,day=1)
-  return dt.strftime('%b %Y')
+  return dt.strftime('%Y-%m-%d')
 
-def budget_period()-> list:
-  periods = []
-  for num in range(0,2):
-    periods.append(get_period(num))
-  return periods
-
-def fact_period() -> list:
-  periods = []
-  for num in range(-1,1):
-    periods.append(get_period(num))
-  return periods
-
-def report_period() -> list:
-  periods = []
-  for num in range(-1,2):
-    periods.append(get_period(num))
-  return periods
 
 file_path_config = Path(__file__).parent / 'config.yaml'
 
@@ -93,10 +73,10 @@ if st.session_state["authentication_status"]:
   t_d_financial_center =db_budget.select(query='select * from t_d_financial_center',ttl=3600)
   t_d_cost_center = db_budget.select(query='select * from t_d_cost_center',ttl=3600)
   t_d_nomenclature = db_budget.select(query='select * from t_d_nomenclature',ttl=3600)
-  t_d_period = db_budget.select(query='select * from t_d_period',ttl=3600)
+  t_d_period = db_budget.select(query='select * from t_d_period order by period_dt',ttl=3600)
   t_d_row_type = db_budget.select(query='select * from t_d_row_type',ttl=3600)
   t_d_user = db_budget.select(query='select * from t_d_user',ttl=3600)
-  
+
   row_type_name=st.selectbox(label='Выбор операциии',options=['Факт','Бюджет','Отчетность','Последние записи','Корректировка данных'],index=None)
 
   if row_type_name=='Факт':
@@ -106,7 +86,7 @@ if st.session_state["authentication_status"]:
       st.info('Поля с * обязательные для заполнения!')
       
       operation_dttm =datetime.datetime.now(tz=pytz.timezone('Europe/Moscow')).strftime('%Y-%m-%d %H:%M:%S.%f')
-      period_ru_name = st.selectbox('Период',options=fact_period(),index=1)
+      period_ru_name = st.selectbox('Период',options=t_d_period[(t_d_period['period_dt'] >= get_period(-1)) & (t_d_period['period_dt'] <= get_period(0))]['period_ru_name'].to_list(),index=1)
       financial_center_name = st.selectbox(label='ЦФО*',options=t_d_financial_center['financial_center_name'].to_list(),index=None)
       cost_center_name = st.selectbox(label='МВЗ',options=t_d_cost_center['cost_center_name'].to_list(),index=None)
       if cost_center_name==None:
@@ -211,7 +191,7 @@ if st.session_state["authentication_status"]:
     
       st.info('Поля со * обязательные для заполнения!')
       operation_dttm =datetime.datetime.now(tz=pytz.timezone('Europe/Moscow')).strftime('%Y-%m-%d %H:%M:%S.%f')
-      period_ru_name = st.selectbox('Период',options=fact_period(),index=1)
+      period_ru_name = st.selectbox('Период',options=t_d_period[(t_d_period['period_dt'] >= get_period(-1)) & (t_d_period['period_dt'] <= get_period(1))]['period_ru_name'].to_list(),index=1)
       financial_center_name = st.selectbox(label='ЦФО*',options=t_d_financial_center['financial_center_name'].to_list(),index=None)
       cost_center_name = financial_center_name
       nomenclature_name = st.selectbox(label='Номенклатура*',options=t_d_nomenclature[t_d_nomenclature['is_fact']==True]['nomenclature_name'].to_list(),index=None)
@@ -303,7 +283,7 @@ if st.session_state["authentication_status"]:
       financial_center_key = None
       if financial_center_name:
         financial_center_key =  t_d_financial_center[t_d_financial_center['financial_center_name']==financial_center_name]['financial_center_key'].values[0]
-      period_ru_name = st.selectbox('Период',options=report_period(),index=1)
+      period_ru_name = st.selectbox('Период',options=t_d_period[(t_d_period['period_dt'] >= get_period(-1)) & (t_d_period['period_dt'] <= get_period(2))]['period_ru_name'].to_list(),index=1)
       period_key = t_d_period[t_d_period['period_ru_name']==period_ru_name]['period_key'].values[0]
       if financial_center_key and report_selector:
         if report_selector=='Бюджет':
