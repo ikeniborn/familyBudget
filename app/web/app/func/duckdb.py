@@ -18,7 +18,8 @@ class DuckDb:
     return self
   
   def close(self):
-    return duckdb.close(connection=self.client)
+    duckdb.close(connection=self.client)
+    return self
   
   def check_table(self,table_name:str='')-> bool:
     try:
