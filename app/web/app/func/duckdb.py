@@ -18,7 +18,6 @@ class DuckDb:
     return self
   
   def close(self):
-    st.cache_resource.clear()
     duckdb.close(connection=self.client)
     return self
   
@@ -47,15 +46,28 @@ class DuckDb:
   def insert(self,query:str=None):
     local_client = self.client.cursor()
     local_client.sql(f'USE budget.main;')
-    local_client.sql(query)
+    start = 'BEGIN TRANSACTION;'
+    end = 'COMMIT;'
+    main = f'''
+    {start}
+    {query}
+    {end}
+    '''
+    local_client.sql(main)
     
   def delete(self,query:str=None):
     local_client = self.client.cursor()
     local_client.sql(f'USE budget.main;')
-    local_client.sql(query)
+    start = 'BEGIN TRANSACTION;'
+    end = 'COMMIT;'
+    main = f'''
+    {start}
+    {query}
+    {end}
+    '''
+    local_client.sql(main)
     
-    
-  
+
   # def update(self,dataframe,worksheet_name):
   #   local_client = self.client.cursor()
   #   df = dataframe

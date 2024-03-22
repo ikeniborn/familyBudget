@@ -51,7 +51,6 @@ if st.session_state["authentication_status"]:
   
   st.sidebar.title(f'Привет {name}')
   authenticator.logout('Выход', "sidebar")
- 
         
   backup_db = st.sidebar.button(label='Создать резервную копию')
   if backup_db:
@@ -63,12 +62,10 @@ if st.session_state["authentication_status"]:
   load_db = st.sidebar.button(label='Загрузить резервную копию')
   if load_db:
     try:
-
         GoogleStorage(credential_path=os.getenv('GOOGLE_STORAGE_CREDENTIAL_PATH')).get_storage().download_file()
     except Exception as e:
         st.error(e)
 
-  
   db_budget = DuckDb('data/budget.db').connect(read_only=False,ttl=300)
   t_d_financial_center =db_budget.select(query='select * from t_d_financial_center',ttl=300)
   t_d_cost_center = db_budget.select(query='select * from t_d_cost_center',ttl=300)
@@ -115,7 +112,6 @@ if st.session_state["authentication_status"]:
           row_type_key = t_d_row_type[t_d_row_type['row_type_name']==row_type_name]['row_type_key'].values[0]
           user_key = t_d_user[t_d_user['user_name']==user_name]['user_key'].values[0]
           sql_row = f'''
-            BEGIN TRANSACTION;
             INSERT INTO t_f_registry (registry_key,operation_dttm,period_key,financial_center_key,cost_center_key,nomenclature_key,cost_sum,comment_description,row_type_key,user_key) 
             VALUES (
                 \'{registry_key}\',
@@ -129,7 +125,6 @@ if st.session_state["authentication_status"]:
                 \'{row_type_key}\',
                 \'{user_key}\'
               );
-              COMMIT;
             '''
           db_budget.insert(query=sql_row)
           st.info('Последние пять записей:')
@@ -220,7 +215,6 @@ if st.session_state["authentication_status"]:
           row_type_key = t_d_row_type[t_d_row_type['row_type_name']==row_type_name]['row_type_key'].values[0]
           user_key = t_d_user[t_d_user['user_name']==user_name]['user_key'].values[0]
           sql_row = f'''
-            BEGIN TRANSACTION;
             INSERT INTO t_f_registry (
               registry_key,
               operation_dttm,
@@ -244,7 +238,6 @@ if st.session_state["authentication_status"]:
                 \'{row_type_key}\',
                 \'{user_key}\'
               );
-              COMMIT;
             '''
           db_budget.insert(query=sql_row)
           st.info('Последние пять записей:')
@@ -509,9 +502,7 @@ if st.session_state["authentication_status"]:
         update_button = st.button(label='Обновить',type='secondary')
         for row_registry_key in row_registry_keys:
           delete_query=f'''
-          BEGIN TRANSACTION;
           delete from t_f_registry where registry_key=\'{row_registry_key}\';
-          COMMIT;
           '''
           db_budget.delete(query=delete_query)
           select_query=f'''
