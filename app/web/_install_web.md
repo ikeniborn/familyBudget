@@ -54,7 +54,9 @@ ss -ntlp | more
 
 sudo telnet budget.ikeniborn.ru 443 
 
-sudo docker exec -ti web-streamlit-1 bash
+sudo docker exec -ti app-streamlit-1 bash
+
+sudo docker exec app-streamlit-1 python /usr/src/data/db_upload.py
 
 curl --cacert /usr/src/app/cert/budget.ikeniborn.ru.pem --fail https://budget.ikeniborn.ru:443/_stcore/health
 
@@ -68,4 +70,4 @@ printenv | grep 'DATABASE'
 
 sudo crontab -u bagatocorp -e
 
-0 * * * * . /home/bagatocorp/web/app/backup.sh
+0 */4 * * * . /home/bagatocorp/web/data/backup.sh
