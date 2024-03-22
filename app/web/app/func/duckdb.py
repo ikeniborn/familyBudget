@@ -10,7 +10,7 @@ class DuckDb:
     self.database_name = database_name
     self.client = None
 
-  def connect(self,read_only:bool=False, ttl:int=0):
+  def connect(self,read_only:bool=False, ttl:int=300):
     @st.cache_resource(ttl=ttl)
     def _connect(database_name:str,read_only:bool):
       return duckdb.connect(database=database_name, read_only=read_only)
@@ -47,16 +47,12 @@ class DuckDb:
   def insert(self,query:str=None):
     local_client = self.client.cursor()
     local_client.sql(f'USE budget.main;')
-    local_client.sql('BEGIN TRANSACTION;')
     local_client.sql(query)
-    local_client.sql('COMMIT;')
     
   def delete(self,query:str=None):
     local_client = self.client.cursor()
     local_client.sql(f'USE budget.main;')
-    local_client.sql('BEGIN TRANSACTION;')
     local_client.sql(query)
-    local_client.sql('COMMIT;')
     
     
   
