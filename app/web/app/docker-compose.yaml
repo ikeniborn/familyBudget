@@ -15,6 +15,7 @@ services:
       # - GOOGLE_CREDENTIAL_PATH=/usr/src/app/secrets/familybudget-317019-797cf157b1ff.json
       # - GOOGLE_SPREADSHEET_ID=12zOV6GkjmT2eUAQalQCTDP1OXOBCfLOhcBQaXQ4gbUQ
       - GOOGLE_STORAGE_CREDENTIAL_PATH=/usr/src/app/secrets/bagato-403919-f547cd93bfb2.json
+      - DATABASE_PATH=/usr/src/app/data/budget.db
     networks:
       budget_network:
         ipv4_address: 10.5.0.2

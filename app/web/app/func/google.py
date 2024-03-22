@@ -3,6 +3,7 @@
 import streamlit as st
 from func.duckdb import DuckDb
 from google.cloud import storage
+import os
 
 # class GoogleSpreadsheet:
 #     'Класс работы с табилцами гугл'
@@ -78,14 +79,14 @@ class GoogleStorage:
       return self
     
     def upload_file(self):
-      db=DuckDb(database_name='data/budget.db').connect()
+      db=DuckDb(database_name=os.getenv('DATABASE_PATH')).connect()
       db.select('FORCE CHECKPOINT;')
       bucket = storage.Bucket(self.client, 'budget-ikeniborn-ru')
       blob = bucket.blob('budget.db')
-      blob.upload_from_filename('data/budget.db')
+      blob.upload_from_filename(os.getenv('DATABASE_PATH'))
     
     def download_file(self):
       bucket = storage.Bucket(self.client, 'budget-ikeniborn-ru')
       blob = bucket.blob('budget.db')
-      blob.download_to_filename('data/budget.db')
+      blob.download_to_filename(os.getenv('DATABASE_PATH'))
       
