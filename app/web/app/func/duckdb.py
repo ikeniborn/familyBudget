@@ -51,6 +51,14 @@ class DuckDb:
     local_client.sql(sql)
     local_client.sql('COMMIT;')
     
+  def delete(self,sql):
+    local_client = self.client.cursor()
+    local_client.sql(f'USE budget.main;')
+    local_client.sql('BEGIN TRANSACTION;')
+    local_client.sql(sql)
+    local_client.sql('COMMIT;')
+    
+    
   
   # def update(self,dataframe,worksheet_name):
   #   local_client = self.client.cursor()

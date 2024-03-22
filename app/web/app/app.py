@@ -507,7 +507,7 @@ if st.session_state["authentication_status"]:
           delete_query=f'''
           delete from t_f_registry where registry_key=\'{row_registry_key}\';
           '''
-          db_budget.select(query=delete_query)
+          db_budget.delete(query=delete_query)
           select_query=f'''
           select count(1) as count_row from t_f_registry where registry_key=\'{row_registry_key}\';
           '''
