@@ -56,7 +56,7 @@ sudo telnet budget.ikeniborn.ru 443
 
 sudo docker exec -ti app-streamlit-1 bash
 
-sudo docker exec app-streamlit-1 python /usr/src/data/db_upload.py
+<!-- sudo docker exec app-streamlit-1 python /usr/src/data/db_upload.py -->
 
 curl --cacert /usr/src/app/cert/budget.ikeniborn.ru.pem --fail https://budget.ikeniborn.ru:443/_stcore/health
 
@@ -66,7 +66,6 @@ export GOOGLE_STORAGE_CREDENTIAL_PATH=/home/ikeni/Documents/Git/familyBudget/app
 export DATABASE_PATH=/home/ikeni/Documents/Git/familyBudget/app/web/data/budget.db
 printenv | grep 'GOOGLE'
 printenv | grep 'DATABASE'
-
 
 sudo crontab -u bagatocorp -e
 
