@@ -51,11 +51,24 @@ if st.session_state["authentication_status"]:
   
   st.sidebar.title(f'Привет {name}')
   authenticator.logout('Выход', "sidebar")
+  
+  if "state" not in st.session_state:
+      st.session_state["state"] = 1
+  if "session" not in st.session_state:
+    st.session_state["session"] = secrets.token_hex(16)
+  def increment_counter():
+    st.session_state.state += 1
+    
+  def update_session():
+    st.session_state.session = secrets.token_hex(16)
+    
+  st.write(st.session_state["session"])
         
   backup_db = st.sidebar.button(label='Создать резервную копию')
   if backup_db:
     try:
         GoogleStorage(credential_path=os.getenv('GOOGLE_STORAGE_CREDENTIAL_PATH')).get_storage().upload_file()
+        update_session()
     except Exception as e:
         st.error(e)
         
@@ -66,7 +79,7 @@ if st.session_state["authentication_status"]:
   #   except Exception as e:
   #       st.error(e)
 
-  db_budget = DuckDb('data/budget.db').connect(read_only=False,ttl=300)
+  db_budget = DuckDb('data/budget.db').connect(read_only=False,ttl=300,session=st.session_state["session"])
   t_d_financial_center =db_budget.select(query='select * from t_d_financial_center',ttl=300)
   t_d_cost_center = db_budget.select(query='select * from t_d_cost_center',ttl=300)
   t_d_nomenclature = db_budget.select(query='select * from t_d_nomenclature',ttl=300)
@@ -434,19 +447,9 @@ if st.session_state["authentication_status"]:
               pass
   elif row_type_name=='Последние записи':
     number_limit = st.number_input('Количество записей', min_value=5)
-    user_key = t_d_user[t_d_user['user_name']==user_name]['user_key'].values[0]
-    row_type_name = st.selectbox(label='Тип данных*',options=t_d_row_type['row_type_name'].to_list(),index=None)
-    row_type_filter = ''
-    row_type_column = ''
-    if row_type_name:
-      row_type_key = t_d_row_type[t_d_row_type['row_type_name']==row_type_name]['row_type_key'].values[0]
-      row_type_filter = f'''and t0.row_type_key = \'{row_type_key}\''''
-    else:
-      row_type_column = f'''t5.row_type_name as "Тип данных",'''
     if number_limit:   
       query = f'''
             select 
-              {row_type_column} 
               t0.operation_dttm as "Дата операции", 
               t1.period_ru_name as "Период", 
               t2.financial_center_name as "ЦФО",
@@ -460,18 +463,11 @@ if st.session_state["authentication_status"]:
             join t_d_cost_center t3 using(cost_center_key) 
             join t_d_nomenclature t4 using(nomenclature_key) 
             join t_d_row_type t5 using(row_type_key)
-            where 
-              t0.user_key = \'{user_key}\'
-              {row_type_filter}
             order by 
               t0.operation_dttm desc 
             limit {number_limit}'''
       st.dataframe(data=db_budget.select(query),hide_index=True, use_container_width=True)
   elif row_type_name=='Корректировка данных':
-    if "state" not in st.session_state:
-      st.session_state["state"] = 1
-    def increment_counter():
-      st.session_state.state += 1
     number_limit = st.number_input('Количество записей', min_value=5)
     user_key = t_d_user[t_d_user['user_name']==user_name]['user_key'].values[0]
     def last_row(number):  
