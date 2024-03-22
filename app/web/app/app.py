@@ -69,7 +69,7 @@ if st.session_state["authentication_status"]:
         st.error(e)
 
   
-  db_budget = DuckDb('data/budget.db').connect(read_only=False,ttl=0)
+  db_budget = DuckDb('data/budget.db').connect(read_only=False,ttl=300)
   t_d_financial_center =db_budget.select(query='select * from t_d_financial_center',ttl=300)
   t_d_cost_center = db_budget.select(query='select * from t_d_cost_center',ttl=300)
   t_d_nomenclature = db_budget.select(query='select * from t_d_nomenclature',ttl=300)
