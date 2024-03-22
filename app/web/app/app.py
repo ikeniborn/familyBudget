@@ -51,7 +51,6 @@ if st.session_state["authentication_status"]:
   
   st.sidebar.title(f'Привет {name}')
   authenticator.logout('Выход', "sidebar")
- 
         
   backup_db = st.sidebar.button(label='Создать резервную копию')
   if backup_db:
@@ -60,15 +59,13 @@ if st.session_state["authentication_status"]:
     except Exception as e:
         st.error(e)
         
-  load_db = st.sidebar.button(label='Загрузить резервную копию')
-  if load_db:
-    try:
+  # load_db = st.sidebar.button(label='Загрузить резервную копию')
+  # if load_db:
+  #   try:
+  #       GoogleStorage(credential_path=os.getenv('GOOGLE_STORAGE_CREDENTIAL_PATH')).get_storage().download_file()
+  #   except Exception as e:
+  #       st.error(e)
 
-        GoogleStorage(credential_path=os.getenv('GOOGLE_STORAGE_CREDENTIAL_PATH')).get_storage().download_file()
-    except Exception as e:
-        st.error(e)
-
-  
   db_budget = DuckDb('data/budget.db').connect(read_only=False,ttl=300)
   t_d_financial_center =db_budget.select(query='select * from t_d_financial_center',ttl=300)
   t_d_cost_center = db_budget.select(query='select * from t_d_cost_center',ttl=300)
@@ -129,7 +126,7 @@ if st.session_state["authentication_status"]:
                 \'{row_type_key}\',
                 \'{user_key}\'
               );
-              COMMIT;
+            COMMIT;
             '''
           db_budget.insert(query=sql_row)
           st.info('Последние пять записей:')
@@ -244,7 +241,7 @@ if st.session_state["authentication_status"]:
                 \'{row_type_key}\',
                 \'{user_key}\'
               );
-              COMMIT;
+            COMMIT;
             '''
           db_budget.insert(query=sql_row)
           st.info('Последние пять записей:')

@@ -2,9 +2,7 @@
 # from gspread import Worksheet, Spreadsheet
 import streamlit as st
 from func.duckdb import DuckDb
-# from pandas import DataFrame
 from google.cloud import storage
-# from google.oauth2 import service_account
 
 # class GoogleSpreadsheet:
 #     'Класс работы с табилцами гугл'
@@ -80,6 +78,8 @@ class GoogleStorage:
       return self
     
     def upload_file(self):
+      db=DuckDb(database_name='data/budget.db').connect()
+      db.select('FORCE CHECKPOINT;')
       bucket = storage.Bucket(self.client, 'budget-ikeniborn-ru')
       blob = bucket.blob('budget.db')
       blob.upload_from_filename('data/budget.db')
