@@ -19,7 +19,12 @@ fi
 # Переключиться на ветку "dev"
 git checkout "$git_branch"
 
-sudo rsync -av --delete "$git_folder/app/web" "$app_folder"
+sudo rsync -av --delete "$git_folder/app/web/app" "$app_folder"
+
+if [ ! -d "$app_folder/data" ]; then
+    # Если директория не существует
+    sudo mkdir $app_folder/data
+fi
 
 sudo chown -R 1000:1000 $app_folder
 
