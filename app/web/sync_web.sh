@@ -21,7 +21,6 @@ git checkout "$git_branch"
 
 sudo rsync -av --delete "$git_folder/app/web/app/" "$app_folder/"
 
-sudo chown root:root /home/bagatocorp/web/cert/budget.ikeniborn.ru.pem
-sudo chown root:root /home/bagatocorp/web/cert/budget.ikeniborn.ru.key
+sudo chown -R 1000:1000 /home/bagatocorp/web
 
 cd ~/
