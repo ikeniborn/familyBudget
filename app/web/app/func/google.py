@@ -80,9 +80,6 @@ class GoogleStorage:
       return self
     
     def upload_file(self):
-      db=DuckDb('data/budget.db')
-      db.connect()
-      db.select('FORCE CHECKPOINT;')
       bucket = storage.Bucket(self.client, 'budget-ikeniborn-ru')
       blob = bucket.blob('budget.db')
       blob.upload_from_filename('data/budget.db')
@@ -91,9 +88,4 @@ class GoogleStorage:
       bucket = storage.Bucket(self.client, 'budget-ikeniborn-ru')
       blob = bucket.blob('budget.db')
       blob.download_to_filename('data/budget.db')
-      db=DuckDb('data/budget.db')
-      db.close()
-      db.connect()
-      db.select('FORCE CHECKPOINT;')
-      st.rerun()
       
