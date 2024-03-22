@@ -44,14 +44,14 @@ class DuckDb:
   #     insert_table_sql = f'insert into "{worksheet_name}" SELECT * FROM df'
   #     local_client.sql(insert_table_sql)
     
-  def insert(self,sql):
+  def insert(self,query:str=None):
     local_client = self.client.cursor()
     local_client.sql(f'USE budget.main;')
     local_client.sql('BEGIN TRANSACTION;')
     local_client.sql(sql)
     local_client.sql('COMMIT;')
     
-  def delete(self,sql):
+  def delete(self,query:str=None):
     local_client = self.client.cursor()
     local_client.sql(f'USE budget.main;')
     local_client.sql('BEGIN TRANSACTION;')
