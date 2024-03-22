@@ -61,9 +61,7 @@ if st.session_state["authentication_status"]:
     
   def update_session():
     st.session_state.session = secrets.token_hex(16)
-    
-  st.write(st.session_state["session"])
-        
+
   backup_db = st.sidebar.button(label='Создать резервную копию')
   if backup_db:
     try:
