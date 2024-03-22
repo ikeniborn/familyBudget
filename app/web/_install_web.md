@@ -64,3 +64,8 @@ export GOOGLE_STORAGE_CREDENTIAL_PATH=/home/ikeni/Documents/Git/familyBudget/app
 export DATABASE_PATH=/home/ikeni/Documents/Git/familyBudget/app/web/data/budget.db
 printenv | grep 'GOOGLE'
 printenv | grep 'DATABASE'
+
+
+sudo crontab -u bagatocorp -e
+
+0 * * * * . /home/bagatocorp/web/app/backup.sh
