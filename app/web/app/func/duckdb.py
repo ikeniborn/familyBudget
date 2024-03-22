@@ -48,14 +48,14 @@ class DuckDb:
     local_client = self.client.cursor()
     local_client.sql(f'USE budget.main;')
     local_client.sql('BEGIN TRANSACTION;')
-    local_client.sql(sql)
+    local_client.sql(query)
     local_client.sql('COMMIT;')
     
   def delete(self,query:str=None):
     local_client = self.client.cursor()
     local_client.sql(f'USE budget.main;')
     local_client.sql('BEGIN TRANSACTION;')
-    local_client.sql(sql)
+    local_client.sql(query)
     local_client.sql('COMMIT;')
     
     
