@@ -46,26 +46,12 @@ class DuckDb:
   def insert(self,query:str=None):
     local_client = self.client.cursor()
     local_client.sql(f'USE budget.main;')
-    start = 'BEGIN TRANSACTION;'
-    end = 'COMMIT;'
-    main = f'''
-    {start}
-    {query}
-    {end}
-    '''
-    local_client.sql(main)
+    local_client.sql(query)
     
   def delete(self,query:str=None):
     local_client = self.client.cursor()
     local_client.sql(f'USE budget.main;')
-    start = 'BEGIN TRANSACTION;'
-    end = 'COMMIT;'
-    main = f'''
-    {start}
-    {query}
-    {end}
-    '''
-    local_client.sql(main)
+    local_client.sql(query)
     
 
   # def update(self,dataframe,worksheet_name):

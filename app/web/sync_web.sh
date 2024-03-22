@@ -21,6 +21,6 @@ git checkout "$git_branch"
 
 sudo rsync -av --delete "$git_folder/app/web/app/" "$app_folder/"
 
-sudo chown -R 1000:1000 /home/bagatocorp/web
+sudo chown -R 1000:1000 $app_folder
 
 cd ~/
