@@ -3,8 +3,6 @@ from src.postgres import Postgres
 
 
 def form(connection_db:Postgres=None):
-  if 'state' not in st.session_state:
-      st.session_state['state'] = 1
   db_budget = connection_db.connect() 
   number_limit = st.number_input('Количество записей', min_value=5)
   def last_row(number):  

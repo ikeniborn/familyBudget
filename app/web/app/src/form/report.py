@@ -7,9 +7,8 @@ from src.postgres import Postgres
 def form(connection_db:Postgres=None):
   
   db_budget = connection_db.connect()
-  t_d_financial_center =db_budget.select(sql='select  financial_center_key, financial_center_name from t_d_financial_center')
-  t_d_period = db_budget.select(sql='select period_key,period_dt,period_ru_name from t_d_period order by period_dt')
-
+  t_d_period = db_budget.select(sql='select period_key,period_dt,period_ru_name from t_d_period order by period_dt',ttl=300)
+  t_d_financial_center = db_budget.select(sql='select  financial_center_key, financial_center_name from t_d_financial_center',ttl=300)
   report_selector=st.selectbox(label='Выбор отчета',options=['План/Факт','Бюджет'],index=None) 
   if report_selector:
     financial_center_name = st.selectbox(label='ЦФО*',options=t_d_financial_center['financial_center_name'].to_list(),index=None)

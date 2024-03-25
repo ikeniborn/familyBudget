@@ -8,12 +8,13 @@ from src.postgres import Postgres
 def form(connection_db:Postgres=None,user_name:str=None):
   
   db_budget = connection_db.connect()
-  t_d_financial_center =db_budget.select(sql='select  financial_center_key, financial_center_name from t_d_financial_center')
-  t_d_cost_center = db_budget.select(sql='select cost_center_key,cost_center_name from t_d_cost_center')
-  t_d_nomenclature = db_budget.select(sql='select nomenclature_key,nomenclature_name from t_d_nomenclature where is_fact=true')
-  t_d_period = db_budget.select(sql='select period_key,period_dt,period_ru_name from t_d_period order by period_dt')
-  t_d_row_type = db_budget.select(sql='select row_type_key,row_type_name from t_d_row_type')
-  t_d_user = db_budget.select(sql='select user_key, user_name from t_d_user')
+  
+  t_d_user = db_budget.select(sql='select user_key, user_name from t_d_user',ttl=300)
+  t_d_period = db_budget.select(sql='select period_key,period_dt,period_ru_name from t_d_period order by period_dt',ttl=300)
+  t_d_financial_center = db_budget.select(sql='select  financial_center_key, financial_center_name from t_d_financial_center',ttl=300)
+  t_d_cost_center = db_budget.select(sql='select cost_center_key,cost_center_name from t_d_cost_center',ttl=300)
+  t_d_row_type = db_budget.select(sql='select row_type_key,row_type_name from t_d_row_type',ttl=300)
+  t_d_nomenclature = db_budget.select(sql='select nomenclature_key,nomenclature_name from t_d_nomenclature where is_fact=true',ttl=300)
   user_key = t_d_user[t_d_user['user_name']==user_name]['user_key'].values[0]
 
   with st.form(key='fact_form',clear_on_submit=True):

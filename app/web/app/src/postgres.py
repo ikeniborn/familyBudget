@@ -1,4 +1,5 @@
 import pandas as pd
+import streamlit as st
 from pandas import DataFrame
 import psycopg2
 from psycopg2 import OperationalError,DatabaseError
@@ -44,20 +45,23 @@ class Postgres:
           print("Error: %s" % error)
           return 1
 
-    def select(self,sql:str=None)->DataFrame:
-      columns_names = Parser(sql=sql).columns_dict
-      columns_aliases = Parser(sql=sql).columns_aliases_dict
-      columns = None
-      if columns_aliases:
-        columns=columns_aliases
-      else:
-        columns=columns_names
-      try:
-        self._cursor.execute(sql)
-      except (Exception, DatabaseError) as error:
-          print("Error: %s" % error)
-      tuples = self._cursor.fetchall()
-      return pd.DataFrame(tuples, columns=columns['select'])
+    def select(self,sql:str=None,ttl:int=None)->DataFrame:
+      @st.cache_data(ttl=ttl)
+      def _select(sql:str=None)->DataFrame:
+        columns_names = Parser(sql=sql).columns_dict
+        columns_aliases = Parser(sql=sql).columns_aliases_dict
+        columns = None
+        if columns_aliases:
+          columns=columns_aliases
+        else:
+          columns=columns_names
+        try:
+          self._cursor.execute(sql)
+        except (Exception, DatabaseError) as error:
+            print("Error: %s" % error)
+        tuples = self._cursor.fetchall()
+        return pd.DataFrame(tuples, columns=columns['select'])
+      return _select(sql=sql)
     
     def close(self):
       try:
