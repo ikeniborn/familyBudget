@@ -44,18 +44,23 @@ def init():
       authenticator.logout('Выход', "sidebar")
       connection_db =  Postgres(host=os.getenv('BUDGET_POSTGRES_HOST'),port=os.getenv('BUDGET_POSTGRES_PORT') ,database=os.getenv('BUDGET_POSTGRES_DB'),user=os.getenv('BUDGET_POSTGRES_USER'),password=os.getenv('BUDGET_POSTGRES_PASSWORD'))
       
-      fact_tab, budget_tab, report_tab, edit_tab = st.tabs(["Факт", "Бюджет", "Отчетность","Просмотр"])
+      # fact_tab, budget_tab, report_tab, edit_tab = st.columns(["Факт", "Бюджет", "Отчетность","Просмотр"])
+      # fact_tab= st.button('Факт')
+      # budget_tab
+      # report_tab
+      # edit_tab
+      selector = st.selectbox('Выбор формы',options=["Факт", "Бюджет", "Отчетность","Просмотр"],index=None, placeholder='Выберите форму ввода')
       
-      with fact_tab:
+      if selector=='Факт':
         fact.form(connection_db=connection_db,user_name=result_auth[2])
 
-      with budget_tab:
+      if  selector=='Бюджет':
         budget.form(connection_db=connection_db,user_name=result_auth[2])
-        
-      with report_tab:
+      
+      if  selector=='Отчетность':
         report.form(connection_db=connection_db)
-        
-      with edit_tab:
+
+      if  selector=='Просмотр':
         edit.form(connection_db=connection_db)
 
     elif st.session_state["authentication_status"] is False:

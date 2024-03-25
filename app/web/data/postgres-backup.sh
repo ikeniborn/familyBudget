@@ -4,9 +4,7 @@ BACKUP_NAME=postgres-$(date -u +%Y%m%d).tar.gz
 CATALOG_LOCAL=~/$BACKUP_NAME 
 CATALOG_REMOTE_OLD=c-minio-s1-r1/c-superset-dev/$BACKUP_NAME_OLD
 
-sudo docker exec -t postres pg_dumpall -c -U budget | gzip > ~/postgres-$(date -u +%Y%m%d).sql.gz  2>&1
-
-docker exec -t postres -d budgetdb ~/postgres-20240324.sql.gz
+sudo docker exec -t postgres pg_dumpall -c -U budget | gzip > ~/postgres-$(date -u +%Y%m%d).gz  2>&1
 exit_code=$?
 if [[ $exit_code != 0 ]]; then
   echo "sudo docker exec -t superset_db pg_dumpall -c -U superset > $CATALOG_LOCAL"
