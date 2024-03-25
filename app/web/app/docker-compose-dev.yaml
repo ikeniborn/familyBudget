@@ -7,9 +7,9 @@ services:
       dockerfile: ./Dockerfile
       context: ./
     ports:
-      - '8501:443'
+      - '8501:8501'
     volumes:
-      - '/home/bagatocorp/web/app:/usr/src/app:delegated'
+      - '/home/ikeni/Documents/Git/familyBudget/app/web/app:/usr/src/app:delegated'
     environment:
       - USER_ID=1000
       - GROUP_ID=1000
@@ -25,8 +25,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 0.5G
+          cpus: '1'
+          memory: 1G
     healthcheck:
       test: ["CMD", "curl","--cacert","/usr/src/app/cert/budget.ikeniborn.ru.pem","--fail","https://budget.ikeniborn.ru:443/_stcore/health"]
       interval: 30s
@@ -66,6 +66,30 @@ services:
           cpus: '1'
           memory: 1G
 
+  pgadmin:
+    container_name: pgadmin
+    image: elestio/pgadmin:REL-8_4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "ikeniborn@gmail.com"
+      PGADMIN_DEFAULT_PASSWORD: "JxUdSobKjAVrB2Wm4Li5"
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_LISTEN_PORT: 80
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+    networks:
+      app_network:
+        ipv4_address: 10.5.0.4
+    depends_on:
+      - postgres
+
 networks:
   app_network:
     driver: bridge
@@ -76,5 +100,7 @@ networks:
 
 volumes:
   postgres-data:
+    driver: local
+  pgadmin-data:
     driver: local
 

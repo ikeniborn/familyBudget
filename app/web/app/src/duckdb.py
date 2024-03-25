@@ -1,6 +1,7 @@
 import duckdb
 import streamlit as st
 from pandas import DataFrame
+
 class DuckDb:
   'Класс работы с duckdb'
   def __new__(cls, *args, **kwargs):

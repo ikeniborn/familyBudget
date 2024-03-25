@@ -13,7 +13,7 @@ RUN apt-get update
 RUN apt-get install -y python3-pip gcc make jq openssl
 
 # add and install requirements
-RUN pip install wheel setuptools pip --upgrade
+RUN pip install pip --upgrade
 COPY ./requirements.txt .
 RUN pip install -r requirements.txt
 
@@ -50,5 +50,5 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Run streamlit
-CMD streamlit run app.py --server.port=443 --server.sslCertFile=cert/budget.ikeniborn.ru.pem --server.sslKeyFile=cert/budget.ikeniborn.ru.key
+CMD streamlit run app.py --server.port=8501 --server.sslCertFile=cert/budget.ikeniborn.ru.pem --server.sslKeyFile=cert/budget.ikeniborn.ru.key
 # CMD streamlit run project/app.py --logger.level=error 2> project/logs.log

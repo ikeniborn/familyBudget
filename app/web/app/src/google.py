@@ -1,7 +1,7 @@
 # import gspread
 # from gspread import Worksheet, Spreadsheet
 import streamlit as st
-from func.duckdb import DuckDb
+from duckdb import DuckDb
 from google.cloud import storage
 import os
 
