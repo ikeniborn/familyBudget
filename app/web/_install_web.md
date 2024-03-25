@@ -40,9 +40,17 @@ sudo docker compose -f /home/bagatocorp/web/app/docker-compose.yaml up --build -
 
 sudo docker compose -f /home/bagatocorp/web/app/docker-compose.yaml down --rmi all
 
-sudo docker images
+sudo docker images ls
 
->> очистка не используемых коонтейнеров и образов
+
+sudo docker compose -f ~/Documents/Git/familyBudget/app/web/app/docker-compose-dev.yaml up --build -d
+sudo docker compose -f ~/Documents/Git/familyBudget/app/web/app/docker-compose-dev.yaml down --rmi all
+
+sudo docker compose -f ~/web/app/docker-compose.yaml up --build -d
+sudo docker compose -f ~/web/app/docker-compose.yaml down --rmi all
+
+>> очистка не используемых контейнеров и образов
+sudo docker volume ls
 sudo docker system prune -a 
 
 sudo docker ps
@@ -63,10 +71,19 @@ curl --cacert /usr/src/app/cert/budget.ikeniborn.ru.pem --fail https://budget.ik
 <!-- export GOOGLE_SPREADSHEET_ID=12zOV6GkjmT2eUAQalQCTDP1OXOBCfLOhcBQaXQ4gbUQ && \ -->
 <!-- export GOOGLE_CREDENTIAL_PATH=/home/ikeni/Documents/Git/familyBudget/app/web/app/secrets/familybudget-317019-797cf157b1ff.json && \ -->
 export GOOGLE_STORAGE_CREDENTIAL_PATH=/home/ikeni/Documents/Git/familyBudget/app/web/app/secrets/bagato-403919-f547cd93bfb2.json && \
-export DATABASE_PATH=/home/ikeni/Documents/Git/familyBudget/app/web/data/budget.db
+export DATABASE_PATH=/home/ikeni/Documents/Git/familyBudget/app/web/data/budget.db && \
+export BUDGET_POSTGRES_HOST=10.5.0.3 && \
+export BUDGET_POSTGRES_PORT=5432 && \
+export BUDGET_POSTGRES_DB=budgetdb && \
+export BUDGET_POSTGRES_USER=budget && \
+export BUDGET_POSTGRES_PASSWORD=4phDukPGF7sUWSEvfycX && \
 printenv | grep 'GOOGLE'
+printenv | grep 'BUDGET'
 printenv | grep 'DATABASE'
 
 sudo crontab -u bagatocorp -e
 
 0 */4 * * * . /home/bagatocorp/web/data/backup.sh
+
+
+streamlit run app.py --server.port=4443 --server.sslCertFile=cert/budget.ikeniborn.ru.pem --server.sslKeyFile=cert/budget.ikeniborn.ru.key

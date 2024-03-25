@@ -62,7 +62,7 @@ def init():
       period_key UUID PRIMARY KEY,
       period_dttm TIMESTAMP NOT NULL DEFAULT now(),
       period_dt DATE NOT NULL,
-      perion_ru_name VARCHAR NOT NULL,
+      period_ru_name VARCHAR NOT NULL,
       created_dttm TIMESTAMP NOT NULL DEFAULT now(),
       updated_dttm TIMESTAMP NOT NULL DEFAULT now()
     );
@@ -127,6 +127,7 @@ def init():
   client.create_table(sql=t_d_cost_center)
   client.create_table(sql=t_d_nomenclature)
   client.create_table(sql=t_d_period)
+  client.create_table(sql=t_d_user)
   
 
 if __name__ == '__main__':
