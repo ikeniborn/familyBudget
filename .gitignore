@@ -216,5 +216,5 @@ dist
 # build toll-up
 *.db
 *.db.wal
-app/web/test/
+app/web/_test/
 **/__pycache__

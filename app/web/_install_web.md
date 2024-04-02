@@ -30,6 +30,8 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin 
 
 sudo apt-get -y install certbot
 
+sudo certbot certonly --manual --preferred-challenges dns
+
 # build Docker image in current directory
 sudo docker build -t 'chat-ai-latest' /home/rocky/chat-ai
 <!-- # Run docker image with port 8501 and volumes -->
@@ -43,8 +45,8 @@ sudo docker compose -f /home/bagatocorp/web/app/docker-compose.yaml down --rmi a
 sudo docker images ls
 
 
-sudo docker compose -f ~/Documents/Git/familyBudget/app/web/app/docker-compose-dev.yaml up --build -d
-sudo docker compose -f ~/Documents/Git/familyBudget/app/web/app/docker-compose-dev.yaml down --rmi all
+sudo docker compose -f ~/Documents/Git/familyBudget/app/web/docker-compose-dev.yaml up --build -d
+sudo docker compose -f ~/Documents/Git/familyBudget/app/web/docker-compose-dev.yaml down --rmi all
 
 sudo docker compose -f ~/web/app/docker-compose.yaml up --build -d
 sudo docker compose -f ~/web/app/docker-compose.yaml down --rmi all
@@ -62,7 +64,7 @@ ss -ntlp | more
 
 sudo telnet budget.ikeniborn.ru 443 
 
-sudo docker exec -ti app-streamlit-1 bash
+sudo docker exec -ti budget bash
 
 <!-- sudo docker exec app-streamlit-1 python /usr/src/data/db_upload.py -->
 
@@ -81,9 +83,19 @@ printenv | grep 'GOOGLE'
 printenv | grep 'BUDGET'
 printenv | grep 'DATABASE'
 
+
+
+# BACKUP
+nano /home/bagatocorp/web/data/postgres-backup.sh
+mkdir /home/bagatocorp/web/data/backup
+touch /home/bagatocorp/web/data/backup/postgres-backup.log
+sudo chmod +x /home/bagatocorp/web/data/postgres-backup.sh
+
+tail -100 /home/bagatocorp/web/data/backup/postgres-backup.log
+
 sudo crontab -u bagatocorp -e
 
-0 */4 * * * . /home/bagatocorp/web/data/backup.sh
+0 * * * * . /home/bagatocorp/web/data/postgres-backup.sh
 
+<!-- streamlit run app.py --server.port=4443 --server.sslCertFile=cert/budget.ikeniborn.ru.pem --server.sslKeyFile=cert/budget.ikeniborn.ru.key -->
 
-streamlit run app.py --server.port=4443 --server.sslCertFile=cert/budget.ikeniborn.ru.pem --server.sslKeyFile=cert/budget.ikeniborn.ru.key
