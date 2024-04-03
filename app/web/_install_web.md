@@ -33,17 +33,6 @@ sudo apt-get -y install certbot
 sudo certbot certonly --manual --preferred-challenges dns
 
 # build Docker image in current directory
-sudo docker build -t 'chat-ai-latest' /home/rocky/chat-ai
-<!-- # Run docker image with port 8501 and volumes -->
-
-sudo docker compose -f /home/bagatocorp/web/app/docker-compose.yaml up -d
-
-sudo docker compose -f /home/bagatocorp/web/app/docker-compose.yaml up --build -d
-
-sudo docker compose -f /home/bagatocorp/web/app/docker-compose.yaml down --rmi all
-
-sudo docker images ls
-
 
 sudo docker compose -f ~/Documents/Git/familyBudget/app/web/docker-compose-dev.yaml up --build -d
 sudo docker compose -f ~/Documents/Git/familyBudget/app/web/docker-compose-dev.yaml down --rmi all
@@ -51,28 +40,43 @@ sudo docker compose -f ~/Documents/Git/familyBudget/app/web/docker-compose-dev.y
 sudo docker compose -f ~/web/app/docker-compose.yaml up --build -d
 sudo docker compose -f ~/web/app/docker-compose.yaml down --rmi all
 
+>> перезагрузка докера
+sudo service docker stop
+sudo service docker status
+sudo service docker restart
+sudo service docker status
+
 >> очистка не используемых контейнеров и образов
+sudo docker images ls
 sudo docker volume ls
 sudo docker system prune -a 
 
 sudo docker ps
-sudo docker restart web-streamlit-1
+sudo docker restart api
+sudo docker restart ui
+sudo docker restart postgres
 
 . sync_app.sh
 
 ss -ntlp | more
 
-sudo telnet budget.ikeniborn.ru 443 
+sudo telnet localhost 443 
+sudo telnet localhost 80
+sudo telnet localhost 5432 
+sudo telnet localhost 5050 
 
-sudo docker exec -ti budget bash
+sudo docker exec -ti api bash
+sudo docker exec -ti ui bash
+sudo docker exec -ti postgres bash
+
 
 <!-- sudo docker exec app-streamlit-1 python /usr/src/data/db_upload.py -->
 
-curl --cacert /usr/src/app/cert/budget.ikeniborn.ru.pem --fail https://budget.ikeniborn.ru:443/_stcore/health
+curl --cacert /usr/src/app/cert/budget.ikeniborn.ru.pem --fail https://budget.ikeniborn.ru/_stcore/health
 
 <!-- export GOOGLE_SPREADSHEET_ID=12zOV6GkjmT2eUAQalQCTDP1OXOBCfLOhcBQaXQ4gbUQ && \ -->
 <!-- export GOOGLE_CREDENTIAL_PATH=/home/ikeni/Documents/Git/familyBudget/app/web/app/secrets/familybudget-317019-797cf157b1ff.json && \ -->
-export GOOGLE_STORAGE_CREDENTIAL_PATH=/home/ikeni/Documents/Git/familyBudget/app/web/app/secrets/bagato-403919-f547cd93bfb2.json && \
+<!-- export GOOGLE_STORAGE_CREDENTIAL_PATH=/home/ikeni/Documents/Git/familyBudget/app/web/app/secrets/bagato-403919-f547cd93bfb2.json && \
 export DATABASE_PATH=/home/ikeni/Documents/Git/familyBudget/app/web/data/budget.db && \
 export BUDGET_POSTGRES_HOST=10.5.0.3 && \
 export BUDGET_POSTGRES_PORT=5432 && \
@@ -81,7 +85,7 @@ export BUDGET_POSTGRES_USER=budget && \
 export BUDGET_POSTGRES_PASSWORD=4phDukPGF7sUWSEvfycX && \
 printenv | grep 'GOOGLE'
 printenv | grep 'BUDGET'
-printenv | grep 'DATABASE'
+printenv | grep 'DATABASE' -->
 
 
 

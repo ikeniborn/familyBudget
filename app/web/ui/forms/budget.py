@@ -1,25 +1,26 @@
 import datetime
 import streamlit as st
-import src.function as function
+from utils.functions import Functions
 import pytz
-from app.web.api.utils.postgres import Postgres
+from pandas import DataFrame
 
 
-def form(connection_db: Postgres = None, user_name: str = None):
+def form(
+    users: DataFrame = None,
+    periods: DataFrame = None,
+    financial_centers: DataFrame = None,
+    cost_centers: DataFrame = None,
+    row_types: DataFrame = None,
+    nomenclatures: DataFrame = None,
+):
 
-    db_budget = connection_db.connect()
-
-    t_d_user = db_budget.select(sql="select user_key, user_name from t_d_user", ttl=300)
-    t_d_period = db_budget.select(sql="select period_key,period_dt,period_ru_name from t_d_period order by period_dt", ttl=300)
-    t_d_financial_center = db_budget.select(
-        sql="select  financial_center_key, financial_center_name from t_d_financial_center", ttl=300
-    )
-    t_d_cost_center = db_budget.select(sql="select cost_center_key,cost_center_name from t_d_cost_center", ttl=300)
-    t_d_row_type = db_budget.select(sql="select row_type_key,row_type_name from t_d_row_type", ttl=300)
-    t_d_nomenclature = db_budget.select(
-        sql="select nomenclature_key,nomenclature_name from t_d_nomenclature where is_budget=true", ttl=300
-    )
-    user_key = t_d_user[t_d_user["user_name"] == user_name]["user_key"].values[0]
+    t_d_user = users
+    t_d_period = periods
+    t_d_financial_center = financial_centers
+    t_d_cost_center = cost_centers
+    t_d_row_type = row_types
+    t_d_nomenclature = nomenclatures
+    user_key = t_d_user[t_d_user["user_name"] == st.session_state.user_name]["user_key"].values[0]
 
     with st.form(key="budget_form", clear_on_submit=True):
 
@@ -30,7 +31,7 @@ def form(connection_db: Postgres = None, user_name: str = None):
         period_ru_name = st.selectbox(
             "Период",
             options=t_d_period[
-                (t_d_period["period_dt"] >= function.get_period(-1)) & (t_d_period["period_dt"] <= function.get_period(0))
+                (t_d_period["period_dt"] >= Functions.get_period(-1)) & (t_d_period["period_dt"] <= Functions.get_period(0))
             ]["period_ru_name"].to_list(),
             index=1,
         )
@@ -48,7 +49,7 @@ def form(connection_db: Postgres = None, user_name: str = None):
 
         if add_row:
             if cost_sum > 0 and financial_center_name != None and nomenclature_name != None:
-                registry_key = function.get_random_uuid()
+                registry_key = Functions.get_random_uuid()
                 period_key = t_d_period[t_d_period["period_ru_name"] == period_ru_name]["period_key"].values[0]
                 financial_center_key = t_d_financial_center[
                     t_d_financial_center["financial_center_name"] == financial_center_name

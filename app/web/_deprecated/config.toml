@@ -1,0 +1,7 @@
+[client]
+showSidebarNavigation = false
+
+[server]
+#sslCertFile = '/usr/src/app/cert/dev.ikeniborn.ru.pem'
+#sslKeyFile = '/usr/src/app/cert/dev.ikeniborn.ru.key'
+port = 443
