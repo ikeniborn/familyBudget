@@ -1,28 +1,31 @@
 import secrets
 import uuid
 import hashlib
-import datetime
+from datetime import datetime,date
+import pandas as pd
+from pandas import Timestamp
+import pytz
 
 
 class Functions:
 
-    def __new__(cls, *args, **kwargs):
-        return super().__new__(cls)
+    # def __new__(cls, *args, **kwargs):
+    #     return super().__new__(cls)
 
-    def __init__(self) -> None:
-        pass
+    # def __init__(self) -> None:
+    #     pass
 
-    def get_uuid(self, string: str = "-1"):
+    def get_uuid( string: str = "-1"):
         hex_string = hashlib.md5(string.encode("UTF-8").lower()).hexdigest()
         return uuid.UUID(hex=hex_string)
 
-    def get_random_uuid(self):
+    def get_random_uuid():
         hex_string = secrets.token_hex(16)
-        return uuid.UUID(hex=hex_string)
+        # return uuid.UUID(hex=hex_string)
+        return hex_string
 
-    def get_period(self, shuffle: int = 0) -> str:
-        dttm = datetime.datetime.now()
+    def get_period(shuffle: int = 0) -> str:
+        dttm = datetime.now(tz=pytz.timezone("Europe/Moscow"))
         month = dttm.month
         year = dttm.year
-        dt = datetime.date(year=year, month=month + shuffle, day=1)
-        return dt
+        return date(year=year, month=month + shuffle, day=1).strftime('%Y-%m-%d')

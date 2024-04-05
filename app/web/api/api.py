@@ -1,9 +1,7 @@
 from fastapi import FastAPI
-from pydantic import BaseModel, EmailStr
 from utils.postgres import Postgres
+from utils.models import Models
 import os
-from datetime import datetime
-import uuid
 
 app = FastAPI()
 
@@ -13,21 +11,6 @@ connection = Postgres(
     user=os.getenv("BUDGET_POSTGRES_USER"),
     password=os.getenv("BUDGET_POSTGRES_PASSWORD"),
 )
-
-
-class Row(BaseModel):
-    registry_key: uuid.UUID
-    operation_dttm: datetime
-    period_key: uuid.UUID
-    financial_center_key: uuid.UUID
-    cost_center_key: uuid.UUID
-    nomenclature_key: uuid.UUID
-    cost_sum: float
-    comment_description: uuid.UUID
-    row_type_key: uuid.UUID
-    key: uuid.UUID
-    created_dttm: datetime
-    updated_dttm: datetime
 
 
 @app.get("/budget")
@@ -85,24 +68,33 @@ async def get_user(key: str):
 
 
 @app.get("/periods")
-async def get_periods():
-    return await connection.select(
-        f"""
+async def get_periods(start_date: str = None, end_date: str = None):
+    sql = f"""
       select
         period_key,
         period_dt,
         period_ru_name
       from
         t_d_period
+      where 
+        1=1
+      """
+    if start_date and end_date:
+        sql += f"""and period_dt>='{start_date}'
+                  and period_dt<='{end_date}'
+              """
+    sql += f"""
       order by
         period_dt
       """
-    )
+    rows_array = await connection.select(sql)
+    rows_dict = [Models.Period(period_key=row[0], period_dt=row[1], period_ru_name=row[2]) for row in rows_array]
+    return rows_dict
 
 
 @app.get("/periods/{key}")
 async def get_period(key: str):
-    return await connection.select(
+    rows_array = await connection.select(
         f"""
         select
           period_key,
@@ -114,6 +106,8 @@ async def get_period(key: str):
           period_key in ('{key}')
       """
     )
+    rows_dict = [Models.Period(period_key=row[0], period_dt=row[1], period_ru_name=row[1]) for row in rows_array]
+    return rows_dict
 
 
 @app.get("/financial_centers")
@@ -242,3 +236,35 @@ async def get_row_type(key: str):
           row_type_key in ('{key}')
       """
     )
+
+
+@app.post("/registry")
+async def insert_to_registry(row: Models.Registry):
+    await connection.insert(
+        sql=f"""
+          INSERT INTO t_f_registry (
+          registry_key,
+          operation_dttm,
+          period_key,
+          financial_center_key,
+          cost_center_key,
+          nomenclature_key,
+          cost_sum,
+          comment_description,
+          row_type_key,
+          user_key)
+          VALUES (
+          \'{row.registry_key}\',
+          \'{row.operation_dttm}\',
+          \'{row.period_key}\',
+          \'{row.financial_center_key}\',
+          \'{row.cost_center_key}\',
+          \'{row.nomenclature_key}\',
+          {row.cost_sum},
+          \'{row.comment_description}\',
+          \'{row.row_type_key}\',
+          \'{row.user_key}\'
+          );
+      """
+    )
+    return row

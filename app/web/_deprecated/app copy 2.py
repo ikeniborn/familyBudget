@@ -115,7 +115,10 @@ if __name__ == "__main__":
         st.session_state.email = "ikeniborn@gmail.com"
 
     # login()
-    telegram_login = TelegramLoginWidgetComponent(bot_username="IkeniGoogleBot", secret_key="806168491:AAE5G1oPobTtfArA0vMOH88S9bqi1EfSrjs")
+    telegram_login = TelegramLoginWidgetComponent(
+        bot_username="IkeniGoogleBot", secret_key="806168491:AAE5G1oPobTtfArA0vMOH88S9bqi1EfSrjs"
+    )
+
     # value = telegram_login.button
     # st.write(value)
     def ff():
@@ -126,9 +129,7 @@ if __name__ == "__main__":
                     """
         )
 
-    st.button(
-        "dfdf",on_click=ff
-    )
+    st.button("dfdf", on_click=ff)
     # st.write(st.session_state)
     # with st.container():
     #     col1, col2 = st.columns(2)

@@ -37,14 +37,17 @@ sudo certbot certonly --manual --preferred-challenges dns
 sudo docker compose -f ~/Documents/Git/familyBudget/app/web/docker-compose-dev.yaml up --build -d
 sudo docker compose -f ~/Documents/Git/familyBudget/app/web/docker-compose-dev.yaml down --rmi all
 
+sudo docker compose -f ~/Documents/Git/familyBudget/app/web/docker-compose-dev.yaml up -d
+sudo docker compose -f ~/Documents/Git/familyBudget/app/web/docker-compose-dev.yaml down
+
 sudo docker compose -f ~/web/app/docker-compose.yaml up --build -d
 sudo docker compose -f ~/web/app/docker-compose.yaml down --rmi all
 
 >> перезагрузка докера
 sudo service docker stop
+sudo systemctl stop docker.socket
 sudo service docker status
 sudo service docker restart
-sudo service docker status
 
 >> очистка не используемых контейнеров и образов
 sudo docker images ls

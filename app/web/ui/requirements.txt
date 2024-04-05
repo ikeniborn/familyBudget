@@ -1,5 +1,5 @@
 streamlit
-# streamlit-authenticator==0.3.1
+streamlit-authenticator
 # streamlit_oauth==0.1.8
 # gspread==5.12.4
 # duckdb==0.10.0
@@ -21,3 +21,4 @@ plotly
 # google-auth-oauthlib
 requests
 pydantic
+pyyaml
