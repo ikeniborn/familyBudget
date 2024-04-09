@@ -63,7 +63,7 @@ services:
       - '443:443'
     volumes:
       - '/home/bagatocorp/web/ui:/usr/src/app:delegated'
-    command: "streamlit run ui.py --server.port=443 --server.sslCertFile=cert/dev.ikeniborn.ru.pem --server.sslKeyFile=cert/dev.ikeniborn.ru.key"
+    command: "streamlit run ui.py --server.port=443 --server.sslCertFile=cert/budget.ikeniborn.ru.pem --server.sslKeyFile=cert/budget.ikeniborn.ru.key"
     environment:
       - USER_ID=1000
       - GROUP_ID=1000
@@ -72,7 +72,7 @@ services:
       app_network:
         ipv4_address: 10.5.0.4
     healthcheck:
-      test: ["CMD", "curl","--cacert","/usr/src/app/cert/dev.ikeniborn.ru.pem","--fail","https://dev.ikeniborn.ru/_stcore/health"]
+      test: ["CMD", "curl","--cacert","/usr/src/app/cert/budget.ikeniborn.ru.pem","--fail","https://budget.ikeniborn.ru/_stcore/health"]
       interval: 30s
       timeout: 10s
       retries: 5
