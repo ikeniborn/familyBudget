@@ -43,6 +43,9 @@ sudo docker compose -f ~/Documents/Git/familyBudget/app/web/docker-compose-dev.y
 sudo docker compose -f ~/web/docker-compose.yaml up --build -d
 sudo docker compose -f ~/web/docker-compose.yaml down --rmi all
 
+sudo docker compose -f ~/web/docker-compose.yaml up -d
+sudo docker compose -f ~/web/docker-compose.yaml down
+
 >> перезагрузка докера
 sudo service docker stop
 sudo systemctl stop docker.socket
@@ -93,10 +96,10 @@ printenv | grep 'DATABASE' -->
 
 
 # BACKUP
-nano /home/bagatocorp/web/data/postgres-backup.sh
-mkdir /home/bagatocorp/web/data/backup
-touch /home/bagatocorp/web/data/backup/postgres-backup.log
-sudo chmod +x /home/bagatocorp/web/data/postgres-backup.sh
+<!-- nano /home/bagatocorp/web/data/postgres-backup.sh -->
+<!-- mkdir /home/bagatocorp/web/data/backup -->
+<!-- touch /home/bagatocorp/web/data/backup/postgres-backup.log -->
+<!-- sudo chmod +x /home/bagatocorp/web/data/postgres-backup.sh -->
 
 tail -100 /home/bagatocorp/web/data/backup/postgres-backup.log
 
