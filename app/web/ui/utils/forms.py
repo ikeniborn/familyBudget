@@ -42,7 +42,8 @@ class Forms:
             t_d_cost_center = self._cost_centers
             t_d_row_type = self._row_types
             t_d_nomenclature = self._nomenclatures
-            user_key = t_d_user[t_d_user["user_name"] == st.session_state.username].reset_index()["user_key"].values[0]
+            if st.session_state.username:
+                user_key = t_d_user[t_d_user["user_name"] == st.session_state.username].reset_index()["user_key"].values[0]
 
             st.info("Поля с * обязательные для заполнения!")
 
@@ -227,7 +228,8 @@ class Forms:
             t_d_cost_center = self._cost_centers
             t_d_row_type = self._row_types
             t_d_nomenclature = self._nomenclatures
-            user_key = t_d_user[t_d_user["user_name"] == st.session_state.username].reset_index()["user_key"].values[0]
+            if st.session_state.username:
+                user_key = t_d_user[t_d_user["user_name"] == st.session_state.username].reset_index()["user_key"].values[0]
 
             st.info("Поля с * обязательные для заполнения!")
 
@@ -259,7 +261,7 @@ class Forms:
                     st.session_state["fact_cost_center_toggle"] = False
                 if "fact_financial_center_name" not in st.session_state:
                     st.session_state["fact_financial_center_name"] = None
-                    
+
                 if "fact_cost_center_name" not in st.session_state:
                     st.session_state["fact_cost_center_name"] = st.session_state["fact_financial_center_name"]
                 elif st.session_state["fact_cost_center_toggle"] == False:
