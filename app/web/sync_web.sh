@@ -2,7 +2,7 @@
 
 git_folder="/home/bagatocorp/git"
 git_branch="master"
-app_folder="/home/bagatocorp/web"
+app_folder="/home/bagatocorp"
 
 # Проверить, существует ли директория "$git_folder"
 if [ -d "$git_folder" ]; then
@@ -19,15 +19,13 @@ fi
 # Переключиться на ветку "dev"
 git checkout "$git_branch"
 
-sudo rsync -av --delete "$git_folder/app/web/app" "$app_folder"
-sudo rsync -av "$git_folder/app/web/data" "$app_folder"
-
-if [ ! -d "$app_folder/data" ]; then
+if [ ! -d "$app_folder" ]; then
     # Если директория не существует
-    sudo mkdir $app_folder/data
+    sudo mkdir $app_folder
 fi
 
-sudo chmod +x /home/bagatocorp/web/data/backup.sh
+sudo rsync -av --delete "$git_folder/app/web" "$app_folder"
+
 sudo chown -R 1000:1000 $app_folder
 
 

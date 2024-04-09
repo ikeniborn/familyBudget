@@ -31,7 +31,7 @@ services:
       dockerfile: ./api/Dockerfile
       context: ./
     volumes:
-      - '/home/bagatocorp/web/app/api:/usr/src/app:delegated'
+      - '/home/bagatocorp/web/api:/usr/src/app:delegated'
     command: "uvicorn api:app --host 0.0.0.0 --port 8080 --reload"
     environment:
       - USER_ID=1000
@@ -62,7 +62,7 @@ services:
     ports:
       - '443:443'
     volumes:
-      - '/home/bagatocorp/web/app/ui:/usr/src/app:delegated'
+      - '/home/bagatocorp/web/ui:/usr/src/app:delegated'
     command: "streamlit run ui.py --server.port=443 --server.sslCertFile=cert/dev.ikeniborn.ru.pem --server.sslKeyFile=cert/dev.ikeniborn.ru.key"
     environment:
       - USER_ID=1000

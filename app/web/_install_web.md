@@ -40,8 +40,8 @@ sudo docker compose -f ~/Documents/Git/familyBudget/app/web/docker-compose-dev.y
 sudo docker compose -f ~/Documents/Git/familyBudget/app/web/docker-compose-dev.yaml up -d
 sudo docker compose -f ~/Documents/Git/familyBudget/app/web/docker-compose-dev.yaml down
 
-sudo docker compose -f ~/web/app/docker-compose.yaml up --build -d
-sudo docker compose -f ~/web/app/docker-compose.yaml down --rmi all
+sudo docker compose -f ~/web/docker-compose.yaml up --build -d
+sudo docker compose -f ~/web/docker-compose.yaml down --rmi all
 
 >> перезагрузка докера
 sudo service docker stop
