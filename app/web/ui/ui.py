@@ -27,7 +27,7 @@ def login() -> Authenticate:
     )
 
     authenticator.login(
-        location="main",
+        location="sidebar",
         fields={"Form name": "Авторизация", "Username": "Имя пользователя", "Password": "Пароль", "Login": "Вход"},
         max_concurrent_users=2,
     )
@@ -79,7 +79,7 @@ if __name__ == "__main__":
             ).report()
 
     elif st.session_state["authentication_status"] is False:
-        st.error("Логин или пароль не корректный")
+        st.sidebar.error("Логин или пароль не корректный")
 
     elif st.session_state["authentication_status"] is None:
-        st.warning("Введите ваш логин и пароль")
+        st.sidebar.warning("Введите ваш логин и пароль")
