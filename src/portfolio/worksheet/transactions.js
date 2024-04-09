@@ -556,8 +556,7 @@ class HistoricalPrice {
                   historicalAveragePriceKey === row.historicalAveragePriceKey &&
                   row.isAvgPrice &&
                   !row.isDelete &&
-                  !row.isFee &&
-                  !row.isOverflow
+                  !row.isFee
                 )
               })
               .sort((a, b) => {
@@ -709,25 +708,24 @@ class HistoricalPrice {
               operationKey
             ) !== -1
           ) {
-            historicalPriceRest = getHistoricalPriceRest()
-            if (historicalPriceRest > 0) {
-              historicalPrice = historicalPriceRest
-              isHistoricalAveragePrice = true
-              historicalSource = 'historyTransactions'
+            externalPricePriceRest = getExternalPriceRest()
+            if (externalPricePriceRest > 0) {
+              historicalPrice = externalPricePriceRest
+              isHistoricalAveragePrice = false
+              historicalSource = 'externalWeb3space'
             }
             else {
-              externalPricePriceRest = getExternalPriceRest()
-              if (externalPricePriceRest > 0) {
-                historicalPrice = externalPricePriceRest
+              if (coin.price > 0) {
+                historicalPrice = coin.price
                 isHistoricalAveragePrice = false
-                historicalSource = 'externalWeb3space'
-              }
-              else {
+                historicalSource = 'externalCurrent'
+              } else {
                 historicalPrice = 0
                 isHistoricalAveragePrice = false
                 historicalSource = 'na'
               }
             }
+
 
             //* цена валюты для перелива
             if (isCurrency === true && isOverflow === true) {
@@ -743,9 +741,15 @@ class HistoricalPrice {
                   historicalCurrencySource = 'externalCurrencyWeb3space'
                 }
                 else {
-                  historicalCurrencyPrice = 0
-                  isHistoricalCurrencyAveragePrice = false
-                  historicalSource = 'na'
+                  if (coin.price > 0) {
+                    historicalPrice = coin.price
+                    isHistoricalAveragePrice = false
+                    historicalSource = 'externalCurrent'
+                  } else {
+                    historicalPrice = 0
+                    isHistoricalAveragePrice = false
+                    historicalSource = 'na'
+                  }
                 }
               }
             }

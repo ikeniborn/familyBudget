@@ -1,0 +1,140 @@
+version: '2.4'
+
+services:
+  postgres:
+    container_name: postgres
+    image: "postgres:13"
+    networks:
+      app_network:
+        ipv4_address: 10.5.0.2
+    environment:
+      POSTGRES_DB: postgresdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 4phDukPGF7sUWSEvfycX
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    ports:
+      - "5432:5432"
+    volumes:
+      # - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgresdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  api:
+    container_name: api
+    build:
+      dockerfile: ./api/Dockerfile
+      context: ./
+    # ports:
+    #   - '80:8080'
+    volumes:
+      - '/home/ikeni/Documents/Git/familyBudget/app/web/api:/usr/src/app:delegated'
+    command: "uvicorn api:app --host 0.0.0.0 --port 8080 --reload"
+    environment:
+      - USER_ID=1000
+      - GROUP_ID=1000
+      - POSTGRES_HOST=10.5.0.2
+      - POSTGRES_PORT=5432
+      - BUDGET_POSTGRES_DB=budgetdb
+      - BUDGET_POSTGRES_USER=budget
+      - BUDGET_POSTGRES_PASSWORD=rEWbdYxog7azBce2fA4D
+      # - POLARS_SKIP_CPU_CHECK=false
+    networks:
+      app_network:
+        ipv4_address: 10.5.0.3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo -n '' > /dev/tcp/0.0.0.0/8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      - postgres
+
+  ui:
+    container_name: ui
+    build:
+      dockerfile: ./ui/Dockerfile
+      context: ./
+    ports:
+      - '443:443'
+    volumes:
+      - '/home/ikeni/Documents/Git/familyBudget/app/web/ui:/usr/src/app:delegated'
+    command: "streamlit run ui.py --server.port=443 --server.sslCertFile=cert/dev.ikeniborn.ru.pem --server.sslKeyFile=cert/dev.ikeniborn.ru.key"
+    environment:
+      - USER_ID=1000
+      - GROUP_ID=1000
+      - API_URL=http://10.5.0.3:8080
+      # - POLARS_SKIP_CPU_CHECK=false
+    networks:
+      app_network:
+        ipv4_address: 10.5.0.4
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl","--cacert","/usr/src/app/cert/dev.ikeniborn.ru.pem","--fail","https://dev.ikeniborn.ru/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      - api
+
+  pgadmin:
+    container_name: pgadmin
+    image: elestio/pgadmin:REL-8_4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ikeniborn@gmail.com
+      PGADMIN_DEFAULT_PASSWORD: JxUdSobKjAVrB2Wm4Li5
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_LISTEN_PORT: 80
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+    networks:
+      app_network:
+        ipv4_address: 10.5.0.5
+    depends_on:
+      - postgres
+
+networks:
+  app_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.0.0/16
+          gateway: 10.5.0.1
+
+volumes:
+  postgres-data:
+    driver: local
+  pgadmin-data:
+    driver: local
+

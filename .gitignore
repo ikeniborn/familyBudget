@@ -214,7 +214,4 @@ dist
 .clasprc.json
 
 # build toll-up
-*.db
-*.db.wal
-app/web/test/
 **/__pycache__
