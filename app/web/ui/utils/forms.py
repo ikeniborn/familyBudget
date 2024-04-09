@@ -487,17 +487,20 @@ class Forms:
 
                     with bill:
                         df = Report.getReportCompareRowTypeBill(period_key=period_key, financial_center_key=financial_center_key)
-                        fig = px.bar(df, x="Счет", y="Сумма", color="Тип", barmode="group", text_auto=True)
-                        st.plotly_chart(fig, use_container_width=True)
+                        if df.shape[0] > 0:
+                            fig = px.bar(df, x="Счет", y="Сумма", color="Тип", barmode="group", text_auto=True)
+                            st.plotly_chart(fig, use_container_width=True)
                     with account:
                         df = Report.getReportCompareRowTypeAccount(
                             period_key=period_key, financial_center_key=financial_center_key
                         )
-                        fig = px.bar(df, x="Статья", y="Сумма", color="Тип", barmode="group", text_auto=True)
-                        st.plotly_chart(fig, use_container_width=True)
+                        if df.shape[0] > 0:
+                            fig = px.bar(df, x="Статья", y="Сумма", color="Тип", barmode="group", text_auto=True)
+                            st.plotly_chart(fig, use_container_width=True)
                     with nomenclature:
                         df = Report.getReportCompareRowTypeNomenclature(
                             period_key=period_key, financial_center_key=financial_center_key
                         )
-                        fig = px.bar(df, x="Номенклатура", y="Сумма", color="Тип", barmode="group", text_auto=True)
-                        st.plotly_chart(fig, use_container_width=True)
+                        if df.shape[0] > 0:
+                            fig = px.bar(df, x="Номенклатура", y="Сумма", color="Тип", barmode="group", text_auto=True)
+                            st.plotly_chart(fig, use_container_width=True)
