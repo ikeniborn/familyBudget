@@ -5,12 +5,14 @@ from pathlib import Path
 import yaml
 from yaml.loader import SafeLoader
 
+# import hydralit_components as hc
+
 # import os
 # import pandas as pd
 # from pandas import DataFrame, Series
 # from datetime import datetime
-from utils.dimensions import Users, Periods, FinancialCenters, CostCenter, Nomenclatures, RowTypes
-from forms import budget
+from utils.api import Users, FinancialCenters, CostCenter, Nomenclatures, RowTypes
+from utils.forms import Forms
 
 
 def login() -> Authenticate:
@@ -45,8 +47,36 @@ if __name__ == "__main__":
         row_types = RowTypes().fetchAll(ttl=100)
 
         st.sidebar.title(f"Привет {st.session_state.name}")
-        budget.form(users, financial_centers, cost_centers, row_types, nomenclatures)
         authenticator.logout("Выход", "sidebar")
+
+        fact, budget, report = st.tabs(["Факт", "Бюджет", "Отчетность"])
+
+        with fact:
+            Forms.Fact(
+                users=users,
+                financial_centers=financial_centers,
+                cost_centers=cost_centers,
+                row_types=row_types,
+                nomenclatures=nomenclatures,
+            ).form()
+
+        with budget:
+            Forms.Budget(
+                users=users,
+                financial_centers=financial_centers,
+                cost_centers=cost_centers,
+                row_types=row_types,
+                nomenclatures=nomenclatures,
+            ).form()
+
+        with report:
+            Forms.Report(
+                users=users,
+                financial_centers=financial_centers,
+                cost_centers=cost_centers,
+                row_types=row_types,
+                nomenclatures=nomenclatures,
+            ).report()
 
     elif st.session_state["authentication_status"] is False:
         st.error("Логин или пароль не корректный")

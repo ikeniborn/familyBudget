@@ -22,3 +22,6 @@ plotly
 requests
 pydantic
 pyyaml
+# hydralit_components
+# polars
+# polars-lts-cpu

@@ -13,31 +13,6 @@ connection = Postgres(
 )
 
 
-@app.get("/budget")
-async def get_budget(financial_center_key: str = None, period_key: str = None):
-    return await connection.select(
-        f"""
-              SELECT
-                t2.row_type_name AS "Тип",
-                t1.operation_name AS "Операция",
-                sum(t0.cost_sum) AS "Сумма"
-              FROM
-                t_f_registry t0
-              join t_d_nomenclature t1 using(nomenclature_key)
-              join t_d_row_type t2 using(row_type_key)
-              WHERE
-                t0.financial_center_key = \'{financial_center_key}\'
-                AND t0.period_key = \'{period_key}\'
-              GROUP BY 
-                t2.row_type_name,
-                t1.operation_name
-              ORDER BY
-                t2.row_type_name,
-                t1.operation_name
-                """
-    )
-
-
 @app.get("/users")
 async def get_users():
     return await connection.select(
@@ -169,7 +144,7 @@ async def get_cost_center(key: str):
 @app.get("/nomenclatures")
 async def get_nomenclatures():
     return await connection.select(
-        f"""
+        """
         select
           nomenclature_key,
           nomenclature_name,
@@ -183,8 +158,7 @@ async def get_nomenclatures():
         where 
           is_budget or is_fact
         order by 
-          bill_name,
-          account_name,
+          operation_name,
           nomenclature_name
       """
     )
@@ -267,4 +241,223 @@ async def insert_to_registry(row: Models.Registry):
           );
       """
     )
-    return row
+
+
+@app.get("/registry/last_row")
+async def get_registry_last_row(row_type_key: str = None, limit_rows: int = 5):
+    return await connection.select(
+        sql=f"""
+        select
+          t0.operation_dttm as "Дата операции",
+          t1.period_ru_name as "Период",
+          t2.financial_center_name as "ЦФО",
+          t3.cost_center_name as "МВЗ",
+          t4.nomenclature_name as "Номенклатура",
+          t0.cost_sum as "Сумма",
+          t0.comment_description as "Комментарий"
+        from t_f_registry t0
+        join t_d_period t1 using(period_key)
+        join t_d_financial_center t2 using(financial_center_key)
+        join t_d_cost_center t3 using(cost_center_key)
+        join t_d_nomenclature t4 using(nomenclature_key)
+        where
+          t0.row_type_key = \'{row_type_key}\'
+        order by
+          t0.updated_dttm desc
+        limit {limit_rows}
+      """
+    )
+
+
+@app.get("/report/budget/row_type_nomenclature")
+async def get_report_budget_row_type_nomenclature(
+    financial_center_key: str = None, period_key: str = None, nomenclature_key: str = None
+):
+    sql = f"""
+          select
+            t4.row_type_name as "Тип",
+            t3.nomenclature_name as "Номенклатура",
+            sum(cost_sum) as "Сумма"
+          from
+            t_f_registry t0
+          join t_d_financial_center t2 using(financial_center_key)
+          join t_d_nomenclature t3 using(nomenclature_key)
+          join t_d_row_type t4 using(row_type_key)
+          where
+            t0.financial_center_key=\'{financial_center_key}\'
+            and t0.period_key=\'{period_key}\'
+            and t0.nomenclature_key='{nomenclature_key}'
+          group by
+            t4.row_type_name,
+            t3.nomenclature_name
+          order by
+            t4.row_type_name
+      """
+    return await connection.select(sql=sql)
+  
+@app.get("/report/perfomance/row_type_nomenclature")
+async def get_report_perfomance_row_type_nomenclature(
+    financial_center_key: str = None, period_key: str = None, nomenclature_key: str = None
+):
+    sql = f"""
+          select
+            t4.row_type_name as "Тип",
+            t3.nomenclature_name as "Номенклатура",
+            sum(cost_sum) as "Сумма"
+          from
+            t_f_registry t0
+          join t_d_financial_center t2 using(financial_center_key)
+          join t_d_nomenclature t3 using(nomenclature_key)
+          join t_d_row_type t4 using(row_type_key)
+          where
+            t0.financial_center_key=\'{financial_center_key}\'
+            and t0.period_key=\'{period_key}\'
+            and t0.nomenclature_key='{nomenclature_key}'
+          group by
+            t4.row_type_name,
+            t3.nomenclature_name
+          order by
+            t4.row_type_name
+      """
+    return await connection.select(sql=sql)
+
+
+@app.get("/report/compare/row_type_nomenclature")
+async def get_report_compare_row_type_nomenclature(
+    financial_center_key: str = None, period_key: str = None
+):
+    sql = f"""
+          select
+            t4.row_type_name as "Тип",
+            t3.nomenclature_name as "Номенклатура",
+            sum(cost_sum) as "Сумма"
+          from
+            t_f_registry t0
+          join t_d_financial_center t2 using(financial_center_key)
+          join t_d_nomenclature t3 using(nomenclature_key)
+          join t_d_row_type t4 using(row_type_key)
+          where
+            t0.financial_center_key=\'{financial_center_key}\'
+            and t0.period_key=\'{period_key}\'
+          group by
+            t4.row_type_name,
+            t3.nomenclature_name
+          order by
+            t4.row_type_name
+      """
+    return await connection.select(sql=sql)
+
+
+@app.get("/report/compare/row_type_operation")
+async def get_report_compare_row_type_operation(financial_center_key: str = None, period_key: str = None):
+    return await connection.select(
+        sql=f"""
+              SELECT
+                t2.row_type_name AS "Тип",
+                t1.operation_name AS "Операция",
+                sum(t0.cost_sum) AS "Сумма"
+              FROM
+                t_f_registry t0
+              join t_d_nomenclature t1 using(nomenclature_key)
+              join t_d_row_type t2 using(row_type_key)
+              WHERE
+                t0.financial_center_key = \'{financial_center_key}\'
+                AND t0.period_key = \'{period_key}\'
+              GROUP BY 
+                t2.row_type_name,
+                t1.operation_name
+              ORDER BY
+                t2.row_type_name,
+                t1.operation_name
+                """
+    )
+
+
+@app.get("/report/compare/row_type_bill")
+async def get_report_compare_row_type_bill(financial_center_key: str = None, period_key: str = None):
+    return await connection.select(
+        sql=f"""
+              SELECT
+                t2.row_type_name AS "Тип",
+                t1.bill_name AS "Счет",
+                sum(t0.cost_sum) AS "Сумма"
+              FROM
+                t_f_registry t0
+              join t_d_nomenclature t1 using(nomenclature_key)
+              join t_d_row_type t2 using(row_type_key)
+              WHERE
+                t0.financial_center_key = \'{financial_center_key}\'
+                AND t0.period_key = \'{period_key}\'
+              GROUP BY 
+                t2.row_type_name,
+                t1.bill_name
+              ORDER BY
+                t2.row_type_name,
+                t1.bill_name
+                """
+    )
+
+
+@app.get("/report/compare/row_type_account")
+async def get_report_compare_row_type_account(financial_center_key: str = None, period_key: str = None):
+    return await connection.select(
+        sql=f"""
+              SELECT
+                t2.row_type_name AS "Тип",
+                t1.account_name AS "Статья",
+                sum(t0.cost_sum) AS "Сумма"
+              FROM
+                t_f_registry t0
+              join t_d_nomenclature t1 using(nomenclature_key)
+              join t_d_row_type t2 using(row_type_key)
+              WHERE
+                t0.financial_center_key = \'{financial_center_key}\'
+                AND t0.period_key = \'{period_key}\'
+              GROUP BY row_type_name,
+                t1.account_name
+              ORDER BY
+                t2.row_type_name,
+                t1.account_name
+                """
+    )
+
+
+@app.get("/report/budget/total")
+async def get_report_budget_total(financial_center_key: str = None, period_key: str = None):
+    return await connection.select(
+        sql=f"""
+            SELECT
+              sum(t0.cost_sum) AS "Сумма"
+            FROM
+              t_f_registry t0
+            WHERE
+              t0.financial_center_key = \'{financial_center_key}\'
+            AND t0.period_key = \'{period_key}\'
+            AND t0.row_type_key = \'f003e80f-57d7-6757-bd6a-24170e1f75a4\'
+            """
+    )
+
+
+@app.get("/report/budget/bill_account")
+async def get_report_budget_bill_account(financial_center_key: str = None, period_key: str = None):
+    return await connection.select(
+        sql=f"""
+            SELECT
+              t1.bill_name AS "Счет",
+              t1.account_name AS "Статья",
+              sum(t0.cost_sum) AS "Сумма"
+            FROM
+              t_f_registry t0
+            join t_d_nomenclature t1 using(nomenclature_key) 
+            WHERE
+              t0.financial_center_key = \'{financial_center_key}\'
+              AND t0.period_key = \'{period_key}\'
+              AND t0.row_type_key = \'f003e80f-57d7-6757-bd6a-24170e1f75a4\'
+            GROUP BY
+              t1.bill_name,
+              t1.account_name
+            ORDER BY
+              t1.bill_name,
+              t1.account_name
+              """
+    )

@@ -1,9 +1,7 @@
 import secrets
 import uuid
 import hashlib
-from datetime import datetime,date
-import pandas as pd
-from pandas import Timestamp
+from datetime import datetime, date
 import pytz
 
 
@@ -15,7 +13,7 @@ class Functions:
     # def __init__(self) -> None:
     #     pass
 
-    def get_uuid( string: str = "-1"):
+    def get_uuid(string: str = "-1"):
         hex_string = hashlib.md5(string.encode("UTF-8").lower()).hexdigest()
         return uuid.UUID(hex=hex_string)
 
@@ -28,4 +26,4 @@ class Functions:
         dttm = datetime.now(tz=pytz.timezone("Europe/Moscow"))
         month = dttm.month
         year = dttm.year
-        return date(year=year, month=month + shuffle, day=1).strftime('%Y-%m-%d')
+        return date(year=year, month=month + shuffle, day=1).strftime("%Y-%m-%d")

@@ -234,8 +234,18 @@ class Flow {
                   (tx.quantity * -1)
                 agg[tx.account][tx.portfolio][tx.symbol].costRealized +=
                   (tx.cost * -1)
-                agg[tx.account][tx.portfolio][tx.symbol].costRestInvest -= 
+                agg[tx.account][tx.portfolio][tx.symbol].costRestInvest -=
                   agg[tx.account][tx.portfolio][tx.symbol].costRealized
+              }
+              if (tx.isOverflow === true && tx.isFee === false) {
+                agg[tx.account][tx.portfolio][tx.symbol].costTotal +=
+                  (tx.cost * 1)
+              }
+            }
+            if (directionKey === inKey) {
+              if (tx.isOverflow === true && tx.isFee === false) {
+                agg[tx.account][tx.portfolio][tx.symbol].costTotal +=
+                  (tx.cost * -1)
               }
             }
           }
@@ -243,12 +253,20 @@ class Flow {
           //* расчет итоговой стоимости
           if (operationKey === '0461ebd2b773878eac9f78a891912d65' /*buy*/) {
             if (directionKey === inKey) {
-              if (tx.isOverflow === false && tx.isFee === false) {
+              if (tx.isFee === false) {
+                agg[tx.account][tx.portfolio][tx.symbol].costTotal +=
+                  (tx.cost * 1)
+              }
+            }
+            if (directionKey === outKey) {
+              if (tx.isFee === false) {
                 agg[tx.account][tx.portfolio][tx.symbol].costTotal +=
                   (tx.cost * 1)
               }
             }
           }
+
+
 
           agg[tx.account][tx.portfolio][tx.symbol].operationCount += 1
 
@@ -454,6 +472,7 @@ class Flow {
 
       let aggFlowArrayOfObject = []
       Object.entries(aggFlowContractor).forEach(([account, level0]) => {
+        const portfolioCount = Object.keys(aggFlowPortfolio[account]).length
         Object.entries(level0).forEach(([portfolio, level1]) => {
           Object.entries(level1).forEach(([contractor, level2]) => {
             Object.entries(level2).forEach(([symbol, object]) => {
@@ -467,6 +486,7 @@ class Flow {
               const contractorKey = new Hash(contractor).md5
               const contractorType = contractors[contractorKey]?.type || ''
               const contractorCategory = contractors[contractorKey]?.category || ''
+
 
               //* коэффициент точности по количеству
               let precisionCoeff = '1'
@@ -513,41 +533,48 @@ class Flow {
 
                 priceRest = aggFlowPortfolio[account][portfolio][symbol].priceRest
 
+                let allocationCoefficient = 0
+
+                if (aggFlowPortfolio[account][portfolio][symbol].quantityRest > 0) {
+                  allocationCoefficient = quantityRest / aggFlowPortfolio[account][portfolio][symbol].quantityRest
+                } else {
+                  allocationCoefficient = 1 / portfolioCount
+                }
+
                 //* стоимость инвестиций
                 costInvest = Math.round(
-                  (aggFlowPortfolio[account][portfolio][symbol].costRestInvest * (quantityRest / aggFlowPortfolio[account][portfolio][symbol].quantityRest))
-                )
+                  (aggFlowPortfolio[account][portfolio][symbol].costRestInvest * allocationCoefficient)
+                ) || 0
 
                 //* стоимость остатка
                 costRest =
                   Math.round(
-                    (aggFlowPortfolio[account][portfolio][symbol].costRest * (quantityRest / aggFlowPortfolio[account][portfolio][symbol].quantityRest))
-                  )
+                    (aggFlowPortfolio[account][portfolio][symbol].costRest * allocationCoefficient)
+                  ) || 0
 
                 //* общая стоимость
                 costTotal = Math.round(
                   (
                     aggFlowPortfolio[account][portfolio][symbol].costTotal
-                    * (quantityRest / aggFlowPortfolio[account][portfolio][symbol].quantityRest)
+                    * allocationCoefficient
                   )
-
-                )
+                ) || 0
 
                 //* реализованная прибыль
                 costRealized =
                   Math.round(
-                    (aggFlowPortfolio[account][portfolio][symbol].costRealized * (quantityRest / aggFlowPortfolio[account][portfolio][symbol].quantityRest))
-                  )
+                    (aggFlowPortfolio[account][portfolio][symbol].costRealized * allocationCoefficient)
+                  ) || 0
 
                 //* реализованная прибыль
                 pnlRealized =
                   Math.round(
-                    (aggFlowPortfolio[account][portfolio][symbol].pnlRealized * (quantityRest / aggFlowPortfolio[account][portfolio][symbol].quantityRest))
-                  )
+                    (aggFlowPortfolio[account][portfolio][symbol].pnlRealized * allocationCoefficient)
+                  ) || 0
 
                 //* не реализованная прибыль
                 pnlUnrealized =
-                  Math.round((costLast - costRest))
+                  Math.round((costLast - costRest)) || 0
 
                 //* прибыль итоговая
                 pnlTotal = pnlRealized + pnlUnrealized
@@ -600,32 +627,32 @@ class Flow {
               //     0
               //   )
 
-              if (
-                new Hash(account).md5 === new Hash('torrih').md5 &&
-                new Hash(symbol).md5 === new Hash('usdt').md5 &&
-                new Hash(portfolio).md5 === new Hash('main').md5
-              ) {
-                console.log(
-                  'account:', account, '\n'
-                  , 'portfolio:', portfolio, '\n'
-                  , 'contractor:', contractor, '\n'
-                  , 'symbol:', symbol, '\n'
-                  , '###aggFlowPortfolio###', '\n'
-                  , 'quantityRestInvest:', aggFlowPortfolio[account][portfolio][symbol].quantityRestInvest, '\n'
-                  , 'costRestInvest:', aggFlowPortfolio[account][portfolio][symbol].costRestInvest, '\n'
-                  , 'quantityRest:', aggFlowPortfolio[account][portfolio][symbol].quantityRest, '\n'
-                  , 'priceRest:', aggFlowPortfolio[account][portfolio][symbol].priceRest, '\n'
-                  , 'costTotal:', aggFlowPortfolio[account][portfolio][symbol].costTotal, '\n'
-                  , '###aggFlowContractor###', '\n'
-                  , 'quantityRest:', quantityRest, '\n'
-                  , 'costInvest:', costInvest, '\n'
-                  , 'costRest:', costRest, '\n'
-                  , 'costTotal:', costTotal, '\n'
-                  , 'pnlRealized:', pnlRealized, '\n'
-                  , 'pnlUnrealized:', pnlUnrealized, '\n'
-                  , 'pnlTotal:', pnlTotal, '\n'
-                )
-              }
+              // if (
+              //   new Hash(account).md5 === new Hash('torrih').md5 &&
+              //   new Hash(symbol).md5 === new Hash('usdt').md5 &&
+              //   new Hash(portfolio).md5 === new Hash('main').md5
+              // ) {
+              //   console.log(
+              //     'account:', account, '\n'
+              //     , 'portfolio:', portfolio, '\n'
+              //     , 'contractor:', contractor, '\n'
+              //     , 'symbol:', symbol, '\n'
+              //     , '###aggFlowPortfolio###', '\n'
+              //     , 'quantityRestInvest:', aggFlowPortfolio[account][portfolio][symbol].quantityRestInvest, '\n'
+              //     , 'costRestInvest:', aggFlowPortfolio[account][portfolio][symbol].costRestInvest, '\n'
+              //     , 'quantityRest:', aggFlowPortfolio[account][portfolio][symbol].quantityRest, '\n'
+              //     , 'priceRest:', aggFlowPortfolio[account][portfolio][symbol].priceRest, '\n'
+              //     , 'costTotal:', aggFlowPortfolio[account][portfolio][symbol].costTotal, '\n'
+              //     , '###aggFlowContractor###', '\n'
+              //     , 'quantityRest:', quantityRest, '\n'
+              //     , 'costInvest:', costInvest, '\n'
+              //     , 'costRest:', costRest, '\n'
+              //     , 'costTotal:', costTotal, '\n'
+              //     , 'pnlRealized:', pnlRealized, '\n'
+              //     , 'pnlUnrealized:', pnlUnrealized, '\n'
+              //     , 'pnlTotal:', pnlTotal, '\n'
+              //   )
+              // }
 
               let symbolType = 'na'
 

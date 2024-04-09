@@ -46,15 +46,50 @@ class Postgres:
         except PostgresError as e:
             print(f"The error '{e}' occurred")
 
-    # def delete(self, sql: str = None):
-    #     try:
-    #         self.connect()
-    #         self._cursor.execute(sql)
-    #         self._connection.commit()
-    #         self.close()
-    #     except Exception as error:
-    #         print("Error: %s" % error)
-    #         return 1
+    async def delete(self, sql: str = None):
+        try:
+            connection = await asyncpg.connect(
+                host=self._host,
+                port=self._port,
+                user=self._user,
+                password=self._password,
+                database=self._database,
+            )
+            transaction = connection.transaction()
+            await transaction.start()
+            try:
+                await connection.execute(sql)
+            except:
+                await transaction.rollback()
+                raise
+            else:
+                await transaction.commit()
+            await connection.close()
+        except PostgresError as e:
+            print(f"The error '{e}' occurred")
+
+    async def update(self, sql: str = None):
+        try:
+            connection = await asyncpg.connect(
+                host=self._host,
+                port=self._port,
+                user=self._user,
+                password=self._password,
+                database=self._database,
+            )
+            print(sql)
+            transaction = connection.transaction()
+            await transaction.start()
+            try:
+                await connection.execute(sql)
+            except:
+                await transaction.rollback()
+                raise
+            else:
+                await transaction.commit()
+            await connection.close()
+        except PostgresError as e:
+            print(f"The error '{e}' occurred")
 
     async def select(self, sql: str = None):
         try:
@@ -65,6 +100,7 @@ class Postgres:
                 password=self._password,
                 database=self._database,
             )
+            print(sql)
             rows = await connection.fetch(query=sql)
             await connection.close()
             return rows

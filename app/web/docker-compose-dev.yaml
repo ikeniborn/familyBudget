@@ -48,6 +48,7 @@ services:
       - BUDGET_POSTGRES_DB=budgetdb
       - BUDGET_POSTGRES_USER=budget
       - BUDGET_POSTGRES_PASSWORD=rEWbdYxog7azBce2fA4D
+      # - POLARS_SKIP_CPU_CHECK=false
     networks:
       app_network:
         ipv4_address: 10.5.0.3
@@ -80,6 +81,7 @@ services:
       - USER_ID=1000
       - GROUP_ID=1000
       - API_URL=http://10.5.0.3:8080
+      # - POLARS_SKIP_CPU_CHECK=false
     networks:
       app_network:
         ipv4_address: 10.5.0.4

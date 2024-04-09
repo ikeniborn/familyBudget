@@ -8,3 +8,5 @@ fastapi
 pydantic
 uvicorn
 asyncpg
+# polars
+# polars-lts-cpu
