@@ -255,8 +255,11 @@ class Forms:
             st.selectbox("Период", options=t_d_period["period_ru_name"].to_list(), index=1, key="fact_period_ru_name")
 
             def update_cost_center_name():
+                if "fact_cost_center_toggle" not in st.session_state:
+                    st.session_state["fact_cost_center_toggle"] = False
                 if "fact_financial_center_name" not in st.session_state:
                     st.session_state["fact_financial_center_name"] = None
+                    
                 if "fact_cost_center_name" not in st.session_state:
                     st.session_state["fact_cost_center_name"] = st.session_state["fact_financial_center_name"]
                 elif st.session_state["fact_cost_center_toggle"] == False:
