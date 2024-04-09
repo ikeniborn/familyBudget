@@ -34,14 +34,6 @@ class Forms:
         @st.experimental_fragment
         def form(self):
 
-            # if "budget_cost_sum" not in st.session_state:
-            #     st.session_state["budget_cost_sum"] = 0
-
-            def update_state():
-                del st.session_state["budget_cost_sum"]
-                # st.session_state["budget_cost_sum"] = 0
-                st.rerun()
-
             t_d_user = self._users
             t_d_period = Periods().fetchMany(
                 start_date=Functions.get_period(shuffle=0), end_date=Functions.get_period(shuffle=1), ttl=360
@@ -263,6 +255,8 @@ class Forms:
             st.selectbox("Период", options=t_d_period["period_ru_name"].to_list(), index=1, key="fact_period_ru_name")
 
             def update_cost_center_name():
+                if "fact_financial_center_name" not in st.session_state:
+                    st.session_state["fact_financial_center_name"] = None
                 if "fact_cost_center_name" not in st.session_state:
                     st.session_state["fact_cost_center_name"] = st.session_state["fact_financial_center_name"]
                 elif st.session_state["fact_cost_center_toggle"] == False:

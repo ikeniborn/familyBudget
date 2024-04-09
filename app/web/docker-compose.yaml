@@ -23,11 +23,7 @@ services:
       retries: 5
       start_period: 10s
     restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
+
 
   api:
     container_name: api
@@ -35,7 +31,7 @@ services:
       dockerfile: ./api/Dockerfile
       context: ./
     volumes:
-      - '/home/ikeni/Documents/Git/familyBudget/app/web/api:/usr/src/app:delegated'
+      - '/home/bagatocorp/web/app/api:/usr/src/app:delegated'
     command: "uvicorn api:app --host 0.0.0.0 --port 8080 --reload"
     environment:
       - USER_ID=1000
@@ -48,11 +44,6 @@ services:
     networks:
       app_network:
         ipv4_address: 10.5.0.3
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
     healthcheck:
       test: ["CMD", "bash", "-c", "echo -n '' > /dev/tcp/0.0.0.0/8080"]
       interval: 30s
@@ -71,7 +62,7 @@ services:
     ports:
       - '443:443'
     volumes:
-      - '/home/ikeni/Documents/Git/familyBudget/app/web/ui:/usr/src/app:delegated'
+      - '/home/bagatocorp/web/app/ui:/usr/src/app:delegated'
     command: "streamlit run ui.py --server.port=443 --server.sslCertFile=cert/dev.ikeniborn.ru.pem --server.sslKeyFile=cert/dev.ikeniborn.ru.key"
     environment:
       - USER_ID=1000
@@ -80,11 +71,6 @@ services:
     networks:
       app_network:
         ipv4_address: 10.5.0.4
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
     healthcheck:
       test: ["CMD", "curl","--cacert","/usr/src/app/cert/dev.ikeniborn.ru.pem","--fail","https://dev.ikeniborn.ru/_stcore/health"]
       interval: 30s
@@ -94,7 +80,6 @@ services:
     restart: always
     depends_on:
       - api
-
 
 networks:
   app_network:
@@ -106,7 +91,5 @@ networks:
 
 volumes:
   postgres-data:
-    driver: local
-  pgadmin-data:
     driver: local
 
