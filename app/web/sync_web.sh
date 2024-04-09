@@ -26,7 +26,7 @@ fi
 
 sudo rsync -av --delete "$git_folder/app/web" "$app_folder"
 
-sudo chmod +x "$app_folder/app/web/data/postgres-backup.sh"
+sudo chmod +x "$app_folder/web/data/postgres-backup.sh"
 
 sudo chown -R 1000:1000 $app_folder
 
