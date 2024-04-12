@@ -37,8 +37,8 @@ services:
     volumes:
       - /home/ikeni/Documents/Git/familyBudget/web/app/api:/usr/src/app:delegated
     ports:
-      - "8080:8080"
-    command: "uvicorn api:app --host 0.0.0.0 --port 8080 --reload"
+      - "8888:8888"
+    command: "uvicorn api:app --host 0.0.0.0 --port 8888 --reload"
     environment:
       - USER_ID=1000
       - GROUP_ID=1000
@@ -82,7 +82,7 @@ services:
     environment:
       - USER_ID=1000
       - GROUP_ID=1000
-      - API_URL=http://10.5.0.3:8080
+      - API_URL=http://10.5.0.3:8888
       - POLARS_SKIP_CPU_CHECK=false
     networks:
       app_network:
@@ -115,7 +115,7 @@ services:
     environment:
       - USER_ID=1000
       - GROUP_ID=1000
-      - API_URL=http://10.5.0.3:8080
+      - API_URL=http://10.5.0.3:8888
       - POLARS_SKIP_CPU_CHECK=false
     networks:
       app_network:
