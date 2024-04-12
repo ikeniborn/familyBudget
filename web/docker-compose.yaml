@@ -120,6 +120,7 @@ services:
     image: "haproxy:2.2-alpine"
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - /home/bagatocorp/web/service/haproxy/haproxy-dev.cfg:/usr/local/etc/haproxy/haproxy.cfg:delegated
       - /home/bagatocorp/web/service/haproxy/certs:/etc/ssl/certs:delegated
