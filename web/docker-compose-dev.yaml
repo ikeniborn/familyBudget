@@ -60,7 +60,7 @@ services:
           cpus: '1'
           memory: 1G
     healthcheck:
-      test: ["CMD", "bash", "-c", "echo -n '' > /dev/tcp/0.0.0.0/80"]
+      test: ["CMD", "bash", "-c", "echo -n '' > /dev/tcp/0.0.0.0/8888"]
       interval: 30s
       timeout: 10s
       retries: 5
