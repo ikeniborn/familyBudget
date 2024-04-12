@@ -12,3 +12,5 @@ if [[ -f $BACKUP_NAME ]]; then
   sudo rm $BACKUP_NAME_OLD 
   fi
 fi
+
+cd ~/
