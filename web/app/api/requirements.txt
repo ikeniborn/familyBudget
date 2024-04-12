@@ -1,6 +1,6 @@
 streamlit
-pandas
-sql_metadata
+# pandas
+# sql_metadata
 pytz
 # psycopg2==2.9.9
 requests

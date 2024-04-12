@@ -3,7 +3,6 @@ import uuid
 import hashlib
 from datetime import datetime, date
 import pytz
-import streamlit as st
 
 
 class Functions:

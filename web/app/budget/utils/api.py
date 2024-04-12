@@ -2,7 +2,7 @@ import requests
 import streamlit as st
 import os
 import polars as pl
-from polars import DataFrame, DataFrame
+from polars import DataFrame
 
 
 API_URL = os.getenv("API_URL")
