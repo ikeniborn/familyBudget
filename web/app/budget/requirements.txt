@@ -3,7 +3,7 @@ streamlit-authenticator
 # streamlit_oauth==0.1.8
 # gspread==5.12.4
 # duckdb==0.10.0
-pandas
+# pandas
 # cryptography~=3.4
 # cffi==1.16.0
 # wheel==0.37.1
