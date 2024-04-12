@@ -2,7 +2,7 @@
 BACKUP_NAME_OLD=postres-$(date -d "2 days ago" +%Y%m%d).gz
 BACKUP_NAME=postres-$(date -u +%Y%m%d).gz
 
-cd $HOME/web/data/backup/
+cd /home/bagatocorp/database/postgresql/backup
 if [[ -f $BACKUP_NAME ]]; then
 sudo rm $BACKUP_NAME 
 fi

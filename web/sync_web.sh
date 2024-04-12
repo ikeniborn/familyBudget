@@ -1,8 +1,8 @@
 #!/bin/bash
 
 git_folder="/home/bagatocorp/git"
-git_branch="dev"
-app_folder="/home/bagatocorp/web"
+git_branch="master"
+app_folder="/home/bagatocorp"
 
 # Проверить, существует ли директория "$git_folder"
 if [ -d "$git_folder" ]; then
@@ -19,12 +19,12 @@ fi
 # Переключиться на ветку "dev"
 git checkout "$git_branch"
 
-if [ ! -d "$app_folder" ]; then
+if [ ! -d "$app_folder/web" ]; then
     # Если директория не существует
-    sudo mkdir $app_folder
+    sudo mkdir $app_folder/web
 else 
-    sudo rsync -av --delete "$git_folder/app/budget/web" "$app_folder"
-    sudo chmod +x "$app_folder/web/service/postgresql/backup/postgres-backup.sh"
+    sudo rsync -av --delete "$git_folder/web" "$app_folder"
+    sudo chmod +x "$app_folder/web/services/postgresql/backup/postgres-backup.sh"
     sudo chown -R 1000:1000 $app_folder
 fi
 

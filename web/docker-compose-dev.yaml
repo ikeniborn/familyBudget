@@ -141,8 +141,7 @@ services:
     ports:
       - "80:80"
     volumes:
-      - /home/ikeni/Documents/Git/familyBudget/web/service/haproxy/haproxy-dev.cfg:/usr/local/etc/haproxy/haproxy.cfg:delegated
-      # - /home/ikeni/Documents/Git/familyBudget/web/service/haproxy/cert:/etc/ssl/certs:delegated
+      - /home/ikeni/Documents/Git/familyBudget/web/services/haproxy/haproxy-dev.cfg:/usr/local/etc/haproxy/haproxy.cfg:delegated
     networks:
       app_network:
         ipv4_address: 10.5.0.10
