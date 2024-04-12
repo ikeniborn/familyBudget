@@ -102,38 +102,38 @@ services:
     depends_on:
       - api
 
-  portfolio-ui:
-    container_name: portfolio-ui
-    build:
-      dockerfile: ./app/budget/Dockerfile
-      context: ./
-    volumes:
-      - /home/ikeni/Documents/Git/familyBudget/web/app/portfolio:/usr/src/app:delegated
-    ports:
-      - "8502:8502"
-    command: "streamlit run ui.py --server.port=8502"
-    environment:
-      - USER_ID=1000
-      - GROUP_ID=1000
-      - API_URL=http://10.5.0.3:8888
-      - POLARS_SKIP_CPU_CHECK=false
-    networks:
-      app_network:
-        ipv4_address: 10.5.0.5
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
-    healthcheck:
-      test: ["CMD", "curl","--fail","http://0.0.0.0:8501/_stcore/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    restart: always
-    depends_on:
-      - api
+  # portfolio-ui:
+  #   container_name: portfolio-ui
+  #   build:
+  #     dockerfile: ./app/budget/Dockerfile
+  #     context: ./
+  #   volumes:
+  #     - /home/ikeni/Documents/Git/familyBudget/web/app/portfolio:/usr/src/app:delegated
+  #   ports:
+  #     - "8502:8502"
+  #   command: "streamlit run ui.py --server.port=8502"
+  #   environment:
+  #     - USER_ID=1000
+  #     - GROUP_ID=1000
+  #     - API_URL=http://10.5.0.3:8888
+  #     - POLARS_SKIP_CPU_CHECK=false
+  #   networks:
+  #     app_network:
+  #       ipv4_address: 10.5.0.5
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1'
+  #         memory: 1G
+  #   healthcheck:
+  #     test: ["CMD", "curl","--fail","http://0.0.0.0:8501/_stcore/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 30s
+  #   restart: always
+  #   depends_on:
+  #     - api
 
   haproxy:
     container_name: haproxy
@@ -147,7 +147,7 @@ services:
         ipv4_address: 10.5.0.10
     depends_on:
       - budget-ui
-      - portfolio-ui
+      # - portfolio-ui
 
   pgadmin:
     container_name: pgadmin
