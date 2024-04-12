@@ -126,7 +126,7 @@ services:
           cpus: '1'
           memory: 1G
     healthcheck:
-      test: ["CMD", "curl","--fail","http://0.0.0.0:8501/_stcore/health"]
+      test: ["CMD", "curl","--fail","http://0.0.0.0:8502/_stcore/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -141,8 +141,8 @@ services:
     ports:
       - "80:80"
     volumes:
-      - /home/bagatocorp/web/service/haproxy/haproxy-dev.cfg:/usr/local/etc/haproxy/haproxy.cfg:delegated
-      # - /home/ikeni/Documents/Git/familyBudget/web/service/haproxy/cert:/etc/ssl/certs:delegated
+      - /home/bagatocorp/web/services/haproxy/haproxy-dev.cfg:/usr/local/etc/haproxy/haproxy.cfg:delegated
+      - /home/bagatocorp/web/services/haproxy/cert:/etc/ssl/certs:delegated
     networks:
       app_network:
         ipv4_address: 10.5.0.10

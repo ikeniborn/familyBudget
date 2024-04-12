@@ -196,7 +196,7 @@ class Forms:
                         row_type_key = (
                             t_d_row_type.lazy()
                             .select("row_type_key", "row_type_name")
-                            .filter(pl.col("nomenclature_name") == row_type_name)
+                            .filter(pl.col("row_type_name") == row_type_name)
                             .collect()["row_type_key"][0]
                         )
 
@@ -433,7 +433,7 @@ class Forms:
                         row_type_key = (
                             t_d_row_type.lazy()
                             .select("row_type_key", "row_type_name")
-                            .filter(pl.col("nomenclature_name") == row_type_name)
+                            .filter(pl.col("row_type_name") == row_type_name)
                             .collect()["row_type_key"][0]
                         )
 
