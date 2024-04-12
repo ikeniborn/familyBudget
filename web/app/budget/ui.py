@@ -1,0 +1,106 @@
+import streamlit as st
+import streamlit_authenticator as stauth
+from streamlit_authenticator import Authenticate
+from pathlib import Path
+import yaml
+from yaml.loader import SafeLoader
+import polars as pl
+
+# from polars import DataFrame
+
+# import hydralit_components as hc
+
+# import os
+# import pandas as pd
+# from pandas import DataFrame, Series
+# from datetime import datetime
+from utils.api import Users, FinancialCenters, CostCenter, Nomenclatures, RowTypes
+from utils.forms import Forms
+
+# from pydantic import BaseModel, EmailStr, Field
+# from datetime import datetime, date
+# from uuid import UUID
+
+
+def login() -> Authenticate:
+
+    file_path_config = Path(__file__).parent / "secrets/authenticator_secrets.yaml"
+
+    with file_path_config.open("rb") as file:
+        config = yaml.load(file, Loader=SafeLoader)
+
+    authenticator = stauth.Authenticate(
+        config["credentials"], config["cookie"]["name"], config["cookie"]["key"], config["cookie"]["expiry_days"]
+    )
+
+    authenticator.login(
+        location="sidebar",
+        fields={"Form name": "Авторизация", "Username": "Имя пользователя", "Password": "Пароль", "Login": "Вход"},
+        max_concurrent_users=2,
+    )
+
+    return authenticator
+
+
+if __name__ == "__main__":
+    st.set_page_config(page_title="Домашний бюджет", page_icon=":book", initial_sidebar_state="auto", layout="wide")
+
+    # users = Users().fetchAll(ttl=1)
+    # st.write(users.select("user_name").filter(pl.col("user_name") == "ilya").unique().sort(by="user_name")["user_name"][0])
+    # st.stop()
+
+    # test = Test(a=[1, 3, 5], b=[2, 4, 6])
+    # st.write(test)
+    # df = pl.DataFrame(Test(a=[1, 3, 5], b=[2, 4, 6]))
+    # st.write(df.filter(pl.col("a")["a"] == 1))
+    # st.stop()
+
+    authenticator = login()
+
+    if st.session_state["authentication_status"]:
+
+        users = Users().fetchAll(ttl=300)
+        if st.session_state.username:
+            if "user_key" not in st.session_state:
+                st.session_state.user_key = (
+                    users.lazy().filter(pl.col(["user_name"]) == st.session_state.username).collect()["user_key"][0]
+                )
+        financial_centers = FinancialCenters().fetchAll(ttl=300)
+        cost_centers = CostCenter().fetchAll(ttl=300)
+        nomenclatures = Nomenclatures().fetchAll(ttl=300)
+        row_types = RowTypes().fetchAll(ttl=300)
+
+        st.sidebar.title(f"Привет {st.session_state.name}")
+        authenticator.logout("Выход", "sidebar")
+
+        fact, budget, report = st.tabs(["Факт", "Бюджет", "Отчетность"])
+
+        with fact:
+            Forms.Fact(
+                financial_centers=financial_centers,
+                cost_centers=cost_centers,
+                row_types=row_types,
+                nomenclatures=nomenclatures,
+            ).form()
+
+        with budget:
+            Forms.Budget(
+                financial_centers=financial_centers,
+                cost_centers=cost_centers,
+                row_types=row_types,
+                nomenclatures=nomenclatures,
+            ).form()
+
+        with report:
+            Forms.Report(
+                financial_centers=financial_centers,
+                cost_centers=cost_centers,
+                row_types=row_types,
+                nomenclatures=nomenclatures,
+            ).report()
+
+    elif st.session_state["authentication_status"] is False:
+        st.sidebar.error("Логин или пароль не корректный")
+
+    elif st.session_state["authentication_status"] is None:
+        st.info("Введите ваш логин и пароль")
