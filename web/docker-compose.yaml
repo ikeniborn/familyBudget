@@ -121,8 +121,8 @@ services:
     ports:
       - "80:80"
     volumes:
-      - /home/bagatocorp/web/services/haproxy/haproxy-dev.cfg:/usr/local/etc/haproxy/haproxy.cfg:delegated
-      - /home/bagatocorp/web/services/haproxy/certs:/etc/ssl/certs:delegated
+      - /home/bagatocorp/web/service/haproxy/haproxy-dev.cfg:/usr/local/etc/haproxy/haproxy.cfg:delegated
+      - /home/bagatocorp/web/service/haproxy/certs:/etc/ssl/certs:delegated
     networks:
       app_network:
         ipv4_address: 10.5.0.10
