@@ -1,5 +1,5 @@
-# streamlit
-# streamlit-authenticator
+streamlit
+streamlit-authenticator
 # streamlit_oauth==0.1.8
 # gspread==5.12.4
 # duckdb==0.10.0
@@ -9,8 +9,8 @@
 # wheel==0.37.1
 # setuptools==59.6.0
 # sql_metadata==2.10.0
-# pytz
-# plotly
+pytz
+plotly
 # google-cloud-storage==2.16.0
 # psycopg2==2.9.9
 # streamlit-on-Hover-tabs==1.0.1
@@ -19,26 +19,10 @@
 # google-auth
 # streamlit-telegram-login
 # google-auth-oauthlib
-# requests
-# pydantic
-# pyyaml
+requests
+pydantic
+pyyaml
 # hydralit_components
 # polars
 # polars-lts-cpu
-# nicegui
-# fastapi-users
-fastapi
-uvicorn
-# joserfc
-# urllib3
-# typing
-Jinja2
-# streamlit
-# pandas
-# pytz
-# hashlib
-# uuid
-# secrets
-# starlette
-# dataclasses
-# enum
+nicegui

@@ -20,6 +20,8 @@ drop TABLE if EXISTS public.t_d_symbol_types CASCADE;
 
 drop TABLE if EXISTS public.t_d_symbol_tags CASCADE;
 
+drop TABLE if EXISTS public.t_d_timeframes CASCADE;
+
 drop TABLE if EXISTS public.t_d_symbols CASCADE;
 
 drop TABLE if EXISTS public.t_d_contractors CASCADE;
@@ -48,8 +50,7 @@ drop TABLE if EXISTS public.t_f_transactions CASCADE;
 
 drop TABLE if EXISTS public.t_f_symbol_prices CASCADE;
 
-drop TABLE if EXISTS public.t_dm_flow CASCADE;
-
+--drop TABLE if EXISTS public.t_dm_flow CASCADE;
 CREATE TABLE if not EXISTS public.t_d_blockchains (
   blockchain_key UUID PRIMARY KEY,
   blockchain_id VARCHAR NOT NULL,
@@ -151,7 +152,8 @@ CREATE TABLE if not EXISTS public.t_d_symbols (
   symbol_slug VARCHAR,
   symbol_coinmarketcap_id BIGINT,
   symbol_web3space_key UUID,
-  is_active BOOLEAN DEFAULT False,
+  is_active BOOLEAN DEFAULT True,
+  is_delete BOOLEAN DEFAULT False,
   created_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
   updated_dttm TIMESTAMP without time zone NOT NULL DEFAULT now()
 );
@@ -165,17 +167,31 @@ CREATE TABLE if not EXISTS public.t_d_symbol_types (
   updated_dttm TIMESTAMP without time zone NOT NULL DEFAULT now()
 );
 
-CREATE TABLE if not EXISTS public.t_f_symbol_prices (
-  start_dttm TIMESTAMP without time zone NOT NULL,
-  end_dttm TIMESTAMP without time zone NOT NULL,
-  symbol_key UUID NOT NULL REFERENCES t_d_symbols (symbol_key),
-  high FLOAT,
-  low FLOAT,
-  max FLOAT,
-  min FLOAT,
+CREATE TABLE if not EXISTS public.t_d_timeframes (
+  timeframe_key UUID PRIMARY KEY,
+  timeframe_id VARCHAR NOT NULL,
+  timeframe_name VARCHAR,
+  timeframe_short_name VARCHAR,
   created_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
   updated_dttm TIMESTAMP without time zone NOT NULL DEFAULT now()
 );
+
+CREATE TABLE if not EXISTS public.t_f_symbol_prices (
+  symbol_price_dttm TIMESTAMP without time zone NOT NULL,
+  symbol_key UUID NOT NULL REFERENCES t_d_symbols (symbol_key),
+  timeframe_key UUID NOT NULL REFERENCES t_d_timeframes (timeframe_key),
+  symbol_price_high FLOAT,
+  symbol_price_open FLOAT,
+  symbol_price_close FLOAT,
+  symbol_price_low FLOAT,
+  created_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
+  updated_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
+  PRIMARY KEY (symbol_price_dttm, symbol_key, timeframe_key)
+);
+
+--PARTITION BY range (operation_dttm) ;
+create index idx_t_f_symbol_prices_symbol_price_dttm on public.t_f_symbol_prices using btree (symbol_price_dttm);
+create index idx_t_f_symbol_prices_symbol_key on public.t_f_symbol_prices using btree (symbol_key);
 
 CREATE TABLE if not EXISTS public.t_d_symbol_categories (
   symbol_category_key UUID PRIMARY KEY,
@@ -244,7 +260,7 @@ CREATE TABLE if not EXISTS public.t_d_symbols_l_symbol_categories (
 );
 
 CREATE TABLE if not EXISTS public.t_f_operations (
-  operation_key UUID DEFAULT gen_random_uuid(),
+  operation_key UUID PRIMARY key DEFAULT gen_random_uuid(),
   operation_dttm TIMESTAMP without time zone NOT NULL,
   operation_type_key UUID NOT NULL REFERENCES t_d_opetation_types (operation_type_key),
   account_out_key UUID NOT NULL REFERENCES t_d_accounts (account_key),
@@ -265,15 +281,54 @@ CREATE TABLE if not EXISTS public.t_f_operations (
   fee_currency_key UUID REFERENCES t_d_symbols (symbol_key),
   fee_qty FLOAT,
   comment VARCHAR,
+  md5 UUID NOT NULL,
   created_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
   updated_dttm TIMESTAMP without time zone NOT NULL DEFAULT now()
-  CONSTRAINT t_f_operations_pkey PRIMARY KEY (operation_key,account_out_key)
-)PARTITION BY LIST (account_out_key) ;
+);
 
-create index idx_t_f_operations_account_out_key on public.t_f_operations using btree (account_out_key);
+--PARTITION BY range (operation_dttm) ;
+create index idx_t_f_registry_operation_dttm on public.t_f_operations using btree (operation_dttm);
+create index idx_t_f_registry_account_out_key on public.t_f_operations using btree (account_out_key);
 
-
-
+--create index idx_t_f_registry_operation_dttm on public.t_f_operations using btree (operation_dttm);
+-- партиции/секции
+--create table t_f_operations_2020_and_earlier partition of public.t_f_operations for values from ('-infinity'::date) to ('2020-01-01'::date);
+--create table t_f_registry_2021 partition of public.t_f_operations for values from ('2020-01-01'::date) to ('2021-01-01'::date);
+--create table t_f_registry_2022 partition of public.t_f_operations for values from ('2021-01-01'::date) to ('2022-01-01'::date);
+--create table t_f_registry_2023 partition of public.t_f_operations for values from ('2022-01-01'::date) to ('2023-01-01'::date);
+--create table t_f_registry_2024 partition of public.t_f_operations for values from ('2023-01-01'::date) to ('2024-01-01'::date);
+--create table t_f_registry_2025 partition of public.t_f_operations for values from ('2024-01-01'::date) to ('2025-01-01'::date);
+--create table t_f_registry_2026 partition of public.t_f_operations for values from ('2025-01-01'::date) to ('2026-01-01'::date);
+--create table t_f_registry_2027 partition of public.t_f_operations for values from ('2026-01-01'::date) to ('2027-01-01'::date);
+--create table t_f_registry_2028 partition of public.t_f_operations for values from ('2027-01-01'::date) to ('2028-01-01'::date);
+--create table t_f_registry_2029 partition of public.t_f_operations for values from ('2028-01-01'::date) to ('2029-01-01'::date);
+--create table t_f_registry_2030 partition of public.t_f_operations for values from ('2029-01-01'::date) to ('2030-01-01'::date);
+--
+-- уникальный индекс по ключу операции 
+--create unique index idx_t_f_operations_2020_and_earlier_operation_key on public.t_f_operations_2020_and_earlier using btree (account_out_key);
+--create unique index idx_t_f_registry_2021_operation_key on public.t_f_registry_2021 using btree (account_out_key);
+--create unique index idx_t_f_registry_2022_operation_key on public.t_f_registry_2022 using btree (account_out_key);
+--create unique index idx_t_f_registry_2023_operation_key on public.t_f_registry_2023 using btree (account_out_key);
+--create unique index idx_t_f_registry_2024_operation_key on public.t_f_registry_2024 using btree (account_out_key);
+--create unique index idx_t_f_registry_2025_operation_key on public.t_f_registry_2025 using btree (account_out_key);
+--create unique index idx_t_f_registry_2026_operation_key on public.t_f_registry_2026 using btree (account_out_key);
+--create unique index idx_t_f_registry_2027_operation_key on public.t_f_registry_2027 using btree (account_out_key);
+--create unique index idx_t_f_registry_2028_operation_key on public.t_f_registry_2028 using btree (account_out_key);
+--create unique index idx_t_f_registry_2029_operation_key on public.t_f_registry_2029 using btree (account_out_key);
+--create unique index idx_t_f_registry_2030_operation_key on public.t_f_registry_2030 using btree (account_out_key);
+--
+-- индекс по акканту в партициях
+--create index idx_t_f_operations_2020_and_earlier_account_out_key on public.t_f_operations_2020_and_earlier using btree (account_out_key);
+--create index idx_t_f_registry_2021_account_out_key on public.t_f_registry_2021 using btree (account_out_key);
+--create index idx_t_f_registry_2022_account_out_key on public.t_f_registry_2022 using btree (account_out_key);
+--create index idx_t_f_registry_2023_account_out_key on public.t_f_registry_2023 using btree (account_out_key);
+--create index idx_t_f_registry_2024_account_out_key on public.t_f_registry_2024 using btree (account_out_key);
+--create index idx_t_f_registry_2025_account_out_key on public.t_f_registry_2025 using btree (account_out_key);
+--create index idx_t_f_registry_2026_account_out_key on public.t_f_registry_2026 using btree (account_out_key);
+--create index idx_t_f_registry_2027_account_out_key on public.t_f_registry_2027 using btree (account_out_key);
+--create index idx_t_f_registry_2028_account_out_key on public.t_f_registry_2028 using btree (account_out_key);
+--create index idx_t_f_registry_2029_account_out_key on public.t_f_registry_2029 using btree (account_out_key);
+--create index idx_t_f_registry_2030_account_out_key on public.t_f_registry_2030 using btree (account_out_key);
 CREATE TABLE if not EXISTS public.t_f_transactions (
   transaction_key UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   operation_key UUID NOT NULL REFERENCES t_f_operations (operation_key),
@@ -290,38 +345,45 @@ CREATE TABLE if not EXISTS public.t_f_transactions (
   is_lock BOOLEAN DEFAULT false,
   is_overflow BOOLEAN DEFAULT false,
   is_historical_price BOOLEAN DEFAULT false,
+  md5 UUID NOT NULL,
   created_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
   updated_dttm TIMESTAMP without time zone NOT NULL DEFAULT now()
 );
 
-CREATE TABLE if not EXISTS public.t_dm_flow (
-  account_key UUID NOT NULL REFERENCES t_d_accounts (account_key),
-  portfolio_key UUID NOT NULL REFERENCES t_d_portfolios (portfolio_key),
-  contractor_key UUID NOT NULL REFERENCES t_d_contractors (contractor_key),
-  symbol_key UUID NOT NULL REFERENCES t_d_symbols (symbol_key),
-  quantity_invest FLOAT,
-  quantity_overflow FLOAT,
-  quantity_rest FLOAT,
-  quantity_lock FLOAT,
-  quantity_rebalance FLOAT,
-  price_rest FLOAT,
-  price_last FLOAT,
-  cost_invest FLOAT,
-  cost_rest FLOAT,
-  cost_last FLOAT,
-  cost_lock FLOAT,
-  cost_total FLOAT,
-  cost_realized FLOAT,
-  cost_unrealized FLOAT,
-  pnl_realized FLOAT,
-  pnl_unrealized FLOAT,
-  pnl_total FLOAT,
-  created_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
-  updated_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
-  PRIMARY KEY (
-    account_key,
-    portfolio_key,
-    contractor_key,
-    symbol_key
-  )
-);
+--PARTITION BY range (operation_dttm) ;
+create index idx_t_f_transactions_operation_key on public.t_f_transactions using btree (operation_key);
+create index idx_t_f_transactions_account_key on public.t_f_transactions using btree (account_key);
+create index idx_t_f_transactions_portfolio_key on public.t_f_transactions using btree (portfolio_key);
+create index idx_t_f_transactions_symbol_key on public.t_f_transactions using btree (symbol_key);
+
+--CREATE TABLE if not EXISTS public.t_dm_flow (
+--  account_key UUID NOT NULL REFERENCES t_d_accounts (account_key),
+--  portfolio_key UUID NOT NULL REFERENCES t_d_portfolios (portfolio_key),
+--  contractor_key UUID NOT NULL REFERENCES t_d_contractors (contractor_key),
+--  symbol_key UUID NOT NULL REFERENCES t_d_symbols (symbol_key),
+--  quantity_invest FLOAT,
+--  quantity_overflow FLOAT,
+--  quantity_rest FLOAT,
+--  quantity_lock FLOAT,
+--  quantity_rebalance FLOAT,
+--  price_rest FLOAT,
+--  price_last FLOAT,
+--  cost_invest FLOAT,
+--  cost_rest FLOAT,
+--  cost_last FLOAT,
+--  cost_lock FLOAT,
+--  cost_total FLOAT,
+--  cost_realized FLOAT,
+--  cost_unrealized FLOAT,
+--  pnl_realized FLOAT,
+--  pnl_unrealized FLOAT,
+--  pnl_total FLOAT,
+--  created_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
+--  updated_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
+--  PRIMARY KEY (
+--    account_key,
+--    portfolio_key,
+--    contractor_key,
+--    symbol_key
+--  )
+--);
