@@ -57,6 +57,8 @@ sudo docker restart api
 sudo docker restart ui
 sudo docker restart postgres
 
+sudo docker logs -f portfolio-ui
+
 . sync_app.sh
 
 ss -ntlp | more

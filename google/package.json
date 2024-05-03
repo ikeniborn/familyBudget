@@ -7,7 +7,7 @@
     "budgetDev": "rollup --config && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/google/build/budget/dev/.clasp.json",
     "budgetProd": "rollup --config  && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/google/build/budget/prod/.clasp.json && clasp deploy -P /home/ikeni/Documents/Git/familyBudget/budget/budgetProd/.clasp.json -i AKfycbzsm8f8xSHDbjecfRdgd2PvsMTRB4n9LDyB1lCKnNnhKxSwp9PF3O4cmEYfRQCcqgnZ",
     "portfolioDev": "rollup --config && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/google/build/portfolio/dev/.clasp.json",
-    "portfolioProd": "rollup --config && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/google/build/portfolio/prod/.clasp.json && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/app/portfolio/dev/.clasp.json"
+    "portfolioProd": "rollup --config && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/google/build/portfolio/prod/.clasp.json && clasp push -f -P /home/ikeni/Documents/Git/familyBudget/google/build/portfolio/dev/.clasp.json"
   },
   "repository": {
     "type": "git",

@@ -33,7 +33,6 @@ uvicorn
 # urllib3
 # typing
 Jinja2
-joserfc
 # streamlit
 # pandas
 # pytz

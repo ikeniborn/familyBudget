@@ -155,27 +155,34 @@ class Transactions {
   }
 
   updateIsOverflow() {
-    const symbols = new Symbols().workSheet.object
+    // const symbols = new Symbols().workSheet.object
     const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
-      const overflowArray = rowObject.overflow.split('/')
-      const tokenA = overflowArray[0]
-      const tokenB = overflowArray[1]
-      const tokenAKey = new Hash(tokenA).md5
-      const tokenACategory = symbols[tokenAKey]?.symbolCategory || ''
-      const tokenBKey = new Hash(tokenB).md5
-      const tokenBCategory = symbols[tokenBKey]?.symbolCategory || ''
+      // const overflowArray = rowObject.overflow.split('/')
+      // const tokenA = overflowArray[0]
+      // const tokenB = overflowArray[1]
+      // const tokenAKey = new Hash(tokenA).md5
+      // const tokenACategory = symbols[tokenAKey]?.symbolCategory || ''
+      // const tokenBKey = new Hash(tokenB).md5
+      // const tokenBCategory = symbols[tokenBKey]?.symbolCategory || ''
       if (
         [
-          '04a714bd5aaab82a18da3bd93d7dcc4f' /*LP Token*/,
-          'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
-          '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
-        ].indexOf(new Hash(tokenACategory).md5) === -1 &&
-        [
-          '04a714bd5aaab82a18da3bd93d7dcc4f' /*LP Token*/,
-          'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
-          '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
-        ].indexOf(new Hash(tokenBCategory).md5) === -1 &&
-        tokenA !== tokenB
+          '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
+          , '63275978133392f666f8fcc20f502304' /*backflow*/
+        ].indexOf(
+          new Hash(rowObject.operation).md5
+        ) !== -1
+        // [
+        //   '04a714bd5aaab82a18da3bd93d7dcc4f' /*LP Token*/,
+        //   'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
+        //   '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
+        // ].indexOf(new Hash(tokenACategory).md5) === -1 &&
+        // [
+        //   '04a714bd5aaab82a18da3bd93d7dcc4f' /*LP Token*/,
+        //   'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
+        //   '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
+        // ].indexOf(new Hash(tokenBCategory).md5) === -1 &&
+        // tokenA !== tokenB
+
       ) {
         rowObject.isOverflow = true
       } else {
@@ -478,15 +485,12 @@ class HistoricalPrice {
     operationKey,
     account,
     portfolio,
-    contractor,
     symbol,
     symbolCategoryKey,
     symbolsObject,
     transactionsArrayOfObject,
     isRange = false,
-    convert = 'usd',
-    isOverflow = false,
-    isCurrency = false
+    convert = 'usd'
   ) {
     try {
       let historicalPrice = 0
@@ -677,13 +681,14 @@ class HistoricalPrice {
 
           let historicalPriceRest = 0
           let externalPricePriceRest = 0
-          let externalCurrencyPrice = 0
 
           if (
             [
               '84a0f3455dcca894ace136be62efa292' /*transfer*/
               , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
               , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
+              , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
+              , '63275978133392f666f8fcc20f502304' /*backflow*/
             ].indexOf(
               operationKey
             ) !== -1
@@ -726,33 +731,6 @@ class HistoricalPrice {
               }
             }
 
-
-            //* цена валюты для перелива
-            if (isCurrency === true && isOverflow === true) {
-              if (externalPricePriceRest > 0) {
-                historicalCurrencyPrice = externalPricePriceRest
-                isHistoricalCurrencyAveragePrice = false
-                historicalCurrencySource = 'externalWeb3space'
-              } else {
-                externalCurrencyPrice = getExternalPriceRest()
-                if (externalCurrencyPrice > 0) {
-                  historicalCurrencyPrice = externalCurrencyPrice
-                  isHistoricalCurrencyAveragePrice = false
-                  historicalCurrencySource = 'externalCurrencyWeb3space'
-                }
-                else {
-                  if (coin.price > 0) {
-                    historicalPrice = coin.price
-                    isHistoricalAveragePrice = false
-                    historicalSource = 'externalCurrent'
-                  } else {
-                    historicalPrice = 0
-                    isHistoricalAveragePrice = false
-                    historicalSource = 'na'
-                  }
-                }
-              }
-            }
           }
 
           // new Portfolio().log.addMessage(

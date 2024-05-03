@@ -113,7 +113,28 @@ class Overflows {
               dayInOverflow * tx.quantity
             //* Накопление остатков
             // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
-          } 
+          }
+          else if (directionKey === outKey) {
+            agg[tx.account][overflow][tx.symbol].quantityBuyOut +=
+              tx.quantity * -1
+            agg[tx.account][overflow][tx.symbol].priceCoefSumBuyOut +=
+              tx.priceCoef * tx.quantity * -1
+            agg[tx.account][overflow][tx.symbol].dayInOverflowBuyOutSum +=
+              dayInOverflow * tx.quantity * -1
+            // * Накопление остатков
+            // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
+          }
+        }
+        else if (operationKey === '0bd9f6dd716003f3818d15d2e211ee73' /*Overflow*/) {
+          if (directionKey === inKey) {
+            agg[tx.account][overflow][tx.symbol].quantityBuyIn += tx.quantity
+            agg[tx.account][overflow][tx.symbol].priceCoefSumBuyIn +=
+              tx.priceCoef * tx.quantity
+            agg[tx.account][overflow][tx.symbol].dayInOverflowBuyInSum +=
+              dayInOverflow * tx.quantity
+            //* Накопление остатков
+            // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
+          }
           else if (directionKey === outKey) {
             agg[tx.account][overflow][tx.symbol].quantityBuyOut +=
               tx.quantity * -1
@@ -136,7 +157,30 @@ class Overflows {
               dayInOverflow * tx.quantity
             //* Накопление остатков
             // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
-          } 
+          }
+          else if (directionKey === outKey) {
+            agg[tx.account][overflow][tx.symbol].quantitySellOut +=
+              tx.quantity * -1
+            agg[tx.account][overflow][tx.symbol].priceCoefSumSellOut +=
+              tx.priceCoef * tx.quantity * -1
+            agg[tx.account][overflow][tx.symbol].dayInOverflowSellOutSum +=
+              dayInOverflow * tx.quantity * -1
+            //* Накопление остатков
+            // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
+          }
+        }
+        else if (
+          operationKey === '63275978133392f666f8fcc20f502304' /*backflow*/
+        ) {
+          if (directionKey === inKey) {
+            agg[tx.account][overflow][tx.symbol].quantitySellIn += tx.quantity
+            agg[tx.account][overflow][tx.symbol].priceCoefSumSellIn +=
+              tx.priceCoef * tx.quantity
+            agg[tx.account][overflow][tx.symbol].dayInOverflowSellInSum +=
+              dayInOverflow * tx.quantity
+            //* Накопление остатков
+            // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
+          }
           else if (directionKey === outKey) {
             agg[tx.account][overflow][tx.symbol].quantitySellOut +=
               tx.quantity * -1
@@ -160,7 +204,7 @@ class Overflows {
             //* Накопление остатков
             // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
           }
-        } 
+        }
         else if (
           operationKey === '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
         ) {
@@ -176,7 +220,7 @@ class Overflows {
             //* Накопление остатков
             // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
           }
-        } 
+        }
         else if (
           operationKey === '84a0f3455dcca894ace136be62efa292' /*transfer*/
         ) {
@@ -189,7 +233,7 @@ class Overflows {
               dayInOverflow * tx.quantity
             //* Накопление остатков
             // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
-          } 
+          }
           else if (directionKey === outKey) {
             agg[tx.account][overflow][tx.symbol].quantityTransferOut +=
               tx.quantity * -1

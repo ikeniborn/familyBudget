@@ -1,4 +1,5 @@
 import os
+import nicegui as ui
 
 from fastapi import APIRouter, Depends, Request, status
 from starlette.responses import HTMLResponse, RedirectResponse
@@ -17,12 +18,12 @@ templates = Jinja2Templates(directory=os.path.join(os.path.dirname(os.path.dirna
 
 def create_jwt_token():
     # here your code
-    'e42e16806918d48eb122fb950030d75e0277ec313e40cdce8a282c200813b3b4929ca7ac8439b313e4c38b3ae4c1131ef7314d6a418e396557555365878e6b54'
+    "e42e16806918d48eb122fb950030d75e0277ec313e40cdce8a282c200813b3b4929ca7ac8439b313e4c38b3ae4c1131ef7314d6a418e396557555365878e6b54"
     pass
 
 
 def set_cookies():
-    'ikeniborn-060284fd989753149b6939cbd0f1a7c9fe60ea066fd9d19cc6dbc715d08b5d2b'
+    "ikeniborn-060284fd989753149b6939cbd0f1a7c9fe60ea066fd9d19cc6dbc715d08b5d2b"
     pass
 
 
@@ -32,6 +33,11 @@ async def index(request: Request):
     Index page just redirects to login page.
     """
     return RedirectResponse(url=request.url_for("login"))
+
+
+@router.get("/main", name="main")
+async def form():
+    ui.App()
 
 
 @router.get("/login", name="login")
