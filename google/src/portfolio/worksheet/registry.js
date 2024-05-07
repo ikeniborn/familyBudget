@@ -167,7 +167,9 @@ class Registry {
           isOverflow,
           isBetweenSymbol,
           coinSymbolKey,
-          currencySymbolKey
+          currencySymbolKey,
+          currencyPriceManual,
+          coinPriceManual
 
         const transactionRow = []
         const hhmm = new FormatNumber(
@@ -191,6 +193,7 @@ class Registry {
         lockStatusKey = new Hash(rowValues.lockStatus).md5
         coinQty =
           typeof rowValues.coinQty === 'number' ? rowValues.coinQty : void 0
+        coinPriceManual = typeof rowValues.coinPrice === 'number' ? rowValues.coinPrice : void 0
         currencyQty =
           typeof rowValues.currencyQty === 'number'
             ? rowValues.currencyQty
@@ -199,6 +202,9 @@ class Registry {
           typeof rowValues.currencyPerCoin === 'number'
             ? rowValues.currencyPerCoin
             : void 0
+        currencyPriceManual = typeof rowValues.currencyPrice === 'number'
+          ? rowValues.currencyPrice
+          : void 0
         coinSymbol = rowValues.coin
         coinSymbolKey = new Hash(coinSymbol).md5
         coinSymbolCategoryKey = this.getSymbolCategoryKey(
@@ -668,6 +674,7 @@ class Registry {
 
         //* Расчет текущей или исторической цены покупаемого токена
         let historicalPriceBuyCurrency
+
         historicalPriceBuyCurrency = historicalPrice.getHistoricalPrice(
           dateTime,
           operationKey,
@@ -685,17 +692,32 @@ class Registry {
           'usd'
         )
 
+
+
         //* цена валюты
-        currencyPrice = historicalPriceBuyCurrency?.historicalPrice
-        isHistoricalAveragePriceCurrency =
+        currencyPrice = currencyPriceManual ? currencyPriceManual : historicalPriceBuyCurrency?.historicalPrice
+        isHistoricalAveragePriceCurrency = currencyPriceManual ? false :
           historicalPriceBuyCurrency?.isHistoricalAveragePrice
 
-        symbolPrice = ['63275978133392f666f8fcc20f502304' /*backflow*/].indexOf(
+        if (['63275978133392f666f8fcc20f502304' /*backflow*/].indexOf(
           operationKey
-        ) !== -1 ? historicalPriceBuyCurrency?.historicalPrice / currencyPerCoin : historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin
-        isHistoricalAveragePriceSymbol =
-          historicalPriceBuyCurrency?.isHistoricalAveragePrice
+        ) !== -1) {
+          if (coinPriceManual) {
+            symbolPrice = coinPriceManual
+          } else {
+            symbolPrice = currencyPrice * currencyPerCoin
+          }
 
+        } else {
+          if (coinPriceManual) {
+            symbolPrice = coinPriceManual
+          } else {
+            symbolPrice = currencyPrice * currencyPerCoin
+          }
+        }
+
+        isHistoricalAveragePriceSymbol =
+          isHistoricalAveragePriceCurrency
 
         //* расчет коэффициентов пары
         symbolPriceCoef = symbolPrice / currencyPrice

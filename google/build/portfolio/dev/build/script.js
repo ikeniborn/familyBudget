@@ -1631,34 +1631,36 @@ class Portfolio {
           lockStatus: { alias: 'Lock status', idx: 8 },
           coin: { alias: 'Coin', idx: 9, notNull: true },
           coinQty: { alias: 'Coin, qty', idx: 10 },
-          currency: { alias: 'Currency', idx: 11 },
-          currencyQty: { alias: 'Currency, qty', idx: 12 },
-          currencyPerCoin: { alias: 'Currency per coin', idx: 13 },
-          feeSender: { alias: 'Fee sender (out)', idx: 14 },
-          feeCurrency: { alias: 'Fee currency', idx: 15 },
-          feeQty: { alias: 'Fee, qty', idx: 16 },
-          comment: { alias: 'Comment', idx: 17 },
+          coinPrice: { alias: 'Coin  price, $', idx: 11 },
+          currency: { alias: 'Currency', idx: 12 },
+          currencyQty: { alias: 'Currency, qty', idx: 13 },
+          currencyPerCoin: { alias: 'Currency per coin', idx: 14 },
+          currencyPrice: { alias: 'Currency  price, $', idx: 15 },
+          feeSender: { alias: 'Fee sender (out)', idx: 16 },
+          feeCurrency: { alias: 'Fee currency', idx: 17 },
+          feeQty: { alias: 'Fee, qty', idx: 18 },
+          comment: { alias: 'Comment', idx: 19 },
           date: {
             alias: 'Date (yyyy-MM-dd)',
-            idx: 18,
+            idx: 20,
             notNull: true,
             type: 'date',
             default: void 0,
           },
-          time: { alias: 'Time (HHmm)', idx: 19, notNull: true },
-          isDelete: { alias: 'Is delete', idx: 20 },
+          time: { alias: 'Time (HHmm)', idx: 21, notNull: true },
+          isDelete: { alias: 'Is delete', idx: 22 },
           dateSaved: {
             alias: 'Date saved',
-            idx: 21,
+            idx: 23,
             type: 'date',
             default: new Date(),
           },
           timeSpent: {
             alias: 'Time spent (hh:mm:ss)',
-            idx: 22,
+            idx: 24,
             type: 'string',
           },
-          rowId: { alias: 'Row ID', idx: 23, notNull: true },
+          rowId: { alias: 'Row ID', idx: 25, notNull: true },
         },
       },
       symbols: {
@@ -1834,6 +1836,8 @@ class Portfolio {
           // priceIn: { alias: 'Price (in), $', idx: 19 },
           // priceOut: { alias: 'Price (out), $', idx: 19 },
           // priceInvest: { alias: 'Price (invest), $', idx: 19 },
+          priceRestOverflow: { alias: 'Price (rest overflow), $', idx: 15 },
+          priceRestWoOverflow: { alias: 'Price (rest without overflow), $', idx: 15 },
           priceRest: { alias: 'Price (rest), $', idx: 15 },
           priceLast: { alias: 'Price (last), $', idx: 16 },
           // costBuyIn: { alias: 'Cost (buy in), $', idx: 24 },
@@ -4316,7 +4320,9 @@ class Registry {
           isOverflow,
           isBetweenSymbol,
           coinSymbolKey,
-          currencySymbolKey;
+          currencySymbolKey,
+          currencyPriceManual,
+          coinPriceManual;
 
         const transactionRow = [];
         const hhmm = new FormatNumber(
@@ -4340,6 +4346,7 @@ class Registry {
         lockStatusKey = new Hash(rowValues.lockStatus).md5;
         coinQty =
           typeof rowValues.coinQty === 'number' ? rowValues.coinQty : void 0;
+        coinPriceManual = typeof rowValues.coinPrice === 'number' ? rowValues.coinPrice : void 0;
         currencyQty =
           typeof rowValues.currencyQty === 'number'
             ? rowValues.currencyQty
@@ -4348,6 +4355,9 @@ class Registry {
           typeof rowValues.currencyPerCoin === 'number'
             ? rowValues.currencyPerCoin
             : void 0;
+        currencyPriceManual = typeof rowValues.currencyPrice === 'number'
+          ? rowValues.currencyPrice
+          : void 0;
         coinSymbol = rowValues.coin;
         coinSymbolKey = new Hash(coinSymbol).md5;
         coinSymbolCategoryKey = this.getSymbolCategoryKey(
@@ -4817,6 +4827,7 @@ class Registry {
 
         //* Расчет текущей или исторической цены покупаемого токена
         let historicalPriceBuyCurrency;
+
         historicalPriceBuyCurrency = historicalPrice.getHistoricalPrice(
           dateTime,
           operationKey,
@@ -4834,17 +4845,32 @@ class Registry {
           'usd'
         );
 
+
+
         //* цена валюты
-        currencyPrice = historicalPriceBuyCurrency?.historicalPrice;
-        isHistoricalAveragePriceCurrency =
+        currencyPrice = currencyPriceManual ? currencyPriceManual : historicalPriceBuyCurrency?.historicalPrice;
+        isHistoricalAveragePriceCurrency = currencyPriceManual ? false :
           historicalPriceBuyCurrency?.isHistoricalAveragePrice;
 
-        symbolPrice = ['63275978133392f666f8fcc20f502304' /*backflow*/].indexOf(
+        if (['63275978133392f666f8fcc20f502304' /*backflow*/].indexOf(
           operationKey
-        ) !== -1 ? historicalPriceBuyCurrency?.historicalPrice / currencyPerCoin : historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin;
-        isHistoricalAveragePriceSymbol =
-          historicalPriceBuyCurrency?.isHistoricalAveragePrice;
+        ) !== -1) {
+          if (coinPriceManual) {
+            symbolPrice = coinPriceManual;
+          } else {
+            symbolPrice = currencyPrice * currencyPerCoin;
+          }
 
+        } else {
+          if (coinPriceManual) {
+            symbolPrice = coinPriceManual;
+          } else {
+            symbolPrice = currencyPrice * currencyPerCoin;
+          }
+        }
+
+        isHistoricalAveragePriceSymbol =
+          isHistoricalAveragePriceCurrency;
 
         //* расчет коэффициентов пары
         symbolPriceCoef = symbolPrice / currencyPrice;
@@ -5379,6 +5405,16 @@ class Flow {
               costRestPrev: 0,
               priceRest: 0,
               priceRestPrev: 0,
+              quantityRestOverflow: 0,
+              costRestOverflow: 0,
+              costRestPrevOverflow: 0,
+              priceRestOverflow: 0,
+              priceRestPrevOverflow: 0,
+              quantityRestWoOverflow: 0,
+              costRestWoOverflow: 0,
+              costRestPrevWoOverflow: 0,
+              priceRestWoOverflow: 0,
+              priceRestPrevWoOverflow: 0,
               quantityRestInvest: 0,
               costRestInvest: 0,
               costTotal: 0,
@@ -5393,6 +5429,18 @@ class Flow {
 
           //* Накопление остатков
           agg[tx.account][tx.portfolio][tx.symbol].quantityRest += tx.quantity;
+
+          //* остаток по переливу
+          if (tx.isOverflow === true) {
+            agg[tx.account][tx.portfolio][tx.symbol].quantityRestOverflow +=
+              tx.quantity;
+
+          }
+          //* остаток без перелива
+          if (tx.isOverflow === false) {
+            agg[tx.account][tx.portfolio][tx.symbol].quantityRestWoOverflow +=
+              tx.quantity;
+          }
 
           if (
             tx.isOverflow === false
@@ -5448,6 +5496,7 @@ class Flow {
                 agg[tx.account][tx.portfolio][tx.symbol].priceRestInvest;
             }
 
+            //* общий остаток
             agg[tx.account][tx.portfolio][tx.symbol].costRest =
               tx.cost;
             agg[tx.account][tx.portfolio][tx.symbol].costRestPrev =
@@ -5456,7 +5505,32 @@ class Flow {
               tx.cost / tx.quantity;
             agg[tx.account][tx.portfolio][tx.symbol].priceRestPrev =
               agg[tx.account][tx.portfolio][tx.symbol].priceRest;
+
+            //* остаток по переливу
+            if (tx.isOverflow === true) {
+              agg[tx.account][tx.portfolio][tx.symbol].costRestOverflow =
+                tx.cost;
+              agg[tx.account][tx.portfolio][tx.symbol].costRestPrevOverflow =
+                agg[tx.account][tx.portfolio][tx.symbol].costRestOverflow;
+              agg[tx.account][tx.portfolio][tx.symbol].priceRestOverflow =
+                tx.cost / tx.quantity;
+              agg[tx.account][tx.portfolio][tx.symbol].priceRestPrevOverflow =
+                agg[tx.account][tx.portfolio][tx.symbol].priceRestOverflow;
+            }
+            //* остаток без перелива
+            if (tx.isOverflow === false) {
+              agg[tx.account][tx.portfolio][tx.symbol].costRestWoOverflow =
+                tx.cost;
+              agg[tx.account][tx.portfolio][tx.symbol].costRestPrevWoOverflow =
+                agg[tx.account][tx.portfolio][tx.symbol].costRestWoOverflow;
+              agg[tx.account][tx.portfolio][tx.symbol].priceRestWoOverflow =
+                tx.cost / tx.quantity;
+              agg[tx.account][tx.portfolio][tx.symbol].priceRestPrevWoOverflow =
+                agg[tx.account][tx.portfolio][tx.symbol].priceRestWoOverflow;
+            }
+
           }
+          //* не первая операция
           else {
             //*остаток инвестиций
             if (
@@ -5477,7 +5551,6 @@ class Flow {
                 ) !== -1
               )
             ) {
-
               if (
                 agg[tx.account][tx.portfolio][tx.symbol]
                   .quantityRestInvest > 0
@@ -5544,6 +5617,78 @@ class Flow {
               agg[tx.account][tx.portfolio][tx.symbol].priceRestPrev = 0;
               agg[tx.account][tx.portfolio][tx.symbol].costRestPrev = 0;
               agg[tx.account][tx.portfolio][tx.symbol].costRest = 0;
+            }
+
+            //* остаток перелива 
+            if (tx.isOverflow === true) {
+              if (
+                agg[tx.account][tx.portfolio][tx.symbol].quantityRestOverflow > 0
+              ) {
+                if (tx.quantity < 0) {
+                  agg[tx.account][tx.portfolio][tx.symbol].costRestOverflow =
+                    tx.quantity *
+                    agg[tx.account][tx.portfolio][tx.symbol].priceRestPrevOverflow +
+                    agg[tx.account][tx.portfolio][tx.symbol].costRestPrevOverflow;
+                }
+                else {
+                  agg[tx.account][tx.portfolio][tx.symbol].costRestOverflow =
+                    tx.cost +
+                    agg[tx.account][tx.portfolio][tx.symbol].costRestPrevOverflow;
+                }
+
+                agg[tx.account][tx.portfolio][tx.symbol].priceRestOverflow =
+                  agg[tx.account][tx.portfolio][tx.symbol].costRestOverflow /
+                  agg[tx.account][tx.portfolio][tx.symbol].quantityRestOverflow || 0;
+
+                agg[tx.account][tx.portfolio][tx.symbol].priceRestPrevOverflow =
+                  agg[tx.account][tx.portfolio][tx.symbol].priceRestOverflow || 0;
+
+                agg[tx.account][tx.portfolio][tx.symbol].costRestPrevOverflow =
+                  agg[tx.account][tx.portfolio][tx.symbol].costRestOverflow;
+              }
+              else {
+                agg[tx.account][tx.portfolio][tx.symbol].quantityRestOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.symbol].priceRestOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.symbol].priceRestPrevOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.symbol].costRestPrevOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.symbol].costRestOverflow = 0;
+              }
+            }
+
+            //* остаток без перелива
+            if (tx.isOverflow === false) {
+              if (
+                agg[tx.account][tx.portfolio][tx.symbol].quantityRestWoOverflow > 0
+              ) {
+                if (tx.quantity < 0) {
+                  agg[tx.account][tx.portfolio][tx.symbol].costRestWoOverflow =
+                    tx.quantity *
+                    agg[tx.account][tx.portfolio][tx.symbol].priceRestPrevWoOverflow +
+                    agg[tx.account][tx.portfolio][tx.symbol].costRestPrevWoOverflow;
+                }
+                else {
+                  agg[tx.account][tx.portfolio][tx.symbol].costRestWoOverflow =
+                    tx.cost +
+                    agg[tx.account][tx.portfolio][tx.symbol].costRestPrevWoOverflow;
+                }
+
+                agg[tx.account][tx.portfolio][tx.symbol].priceRestWoOverflow =
+                  agg[tx.account][tx.portfolio][tx.symbol].costRestWoOverflow /
+                  agg[tx.account][tx.portfolio][tx.symbol].quantityRestWoOverflow || 0;
+
+                agg[tx.account][tx.portfolio][tx.symbol].priceRestPrevWoOverflow =
+                  agg[tx.account][tx.portfolio][tx.symbol].priceRestWoOverflow || 0;
+
+                agg[tx.account][tx.portfolio][tx.symbol].costRestPrevWoOverflow =
+                  agg[tx.account][tx.portfolio][tx.symbol].costRestWoOverflow;
+              }
+              else {
+                agg[tx.account][tx.portfolio][tx.symbol].quantityRestWoOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.symbol].priceRestWoOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.symbol].priceRestPrevWoOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.symbol].costRestPrevWoOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.symbol].costRestWoOverflow = 0;
+              }
             }
 
           }
@@ -5669,7 +5814,7 @@ class Flow {
           }
           //* Распределение количества по потокам
 
-          if (operationKey === '0461ebd2b773878eac9f78a891912d65' /*buy*/) {
+          if (operationKey === '0bd9f6dd716003f3818d15d2e211ee73' /*Overflow*/) {
             if (directionKey === inKey) {
               if (tx.isOverflow === true) {
                 agg[tx.account][tx.portfolio][tx.contractor][
@@ -5685,7 +5830,7 @@ class Flow {
             }
           }
           else if (
-            operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
+            operationKey === '63275978133392f666f8fcc20f502304' /*Backflow*/
           ) {
             if (directionKey === inKey) {
               if (tx.isOverflow === true) {
@@ -5836,6 +5981,8 @@ class Flow {
               }
 
               let priceLast = 0;
+              let priceRestOverflow = 0;
+              let priceRestWoOverflow = 0;
               let priceRest = 0;
               let costLast = 0;
               let costLock = 0;
@@ -5858,6 +6005,8 @@ class Flow {
               if (aggFlowPortfolio[account][portfolio][symbol]) {
 
                 priceRest = aggFlowPortfolio[account][portfolio][symbol].priceRest;
+                priceRestOverflow = aggFlowPortfolio[account][portfolio][symbol].priceRestOverflow;
+                priceRestWoOverflow = aggFlowPortfolio[account][portfolio][symbol].priceRestWoOverflow;
 
                 let allocationCoefficient = 0;
 
@@ -6034,6 +6183,8 @@ class Flow {
                 // priceOut: priceOut || 0,
                 // priceInvest: priceInvest || 0,
                 priceRest: priceRest || 0,
+                priceRestOverflow: priceRestOverflow || 0,
+                priceRestWoOverflow: priceRestWoOverflow || 0,
                 priceLast: priceLast || 0,
                 costTotal: costTotal || 0,
                 // costSell: costSell || 0,
