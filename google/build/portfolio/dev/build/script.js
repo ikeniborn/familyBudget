@@ -4068,8 +4068,6 @@ class HistoricalPrice {
           if (
             [
               '84a0f3455dcca894ace136be62efa292' /*transfer*/
-              , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
-              , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
               , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
               , '63275978133392f666f8fcc20f502304' /*backflow*/
             ].indexOf(
@@ -4092,6 +4090,8 @@ class HistoricalPrice {
             [
               '0461ebd2b773878eac9f78a891912d65' /*buy*/
               , '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
+              , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
+              , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
             ].indexOf(
               operationKey
             ) !== -1
@@ -4113,7 +4113,6 @@ class HistoricalPrice {
                 historicalSource = 'na';
               }
             }
-
           }
 
           // new Portfolio().log.addMessage(
@@ -4464,7 +4463,6 @@ class Registry {
           ].indexOf(operationKey) !== -1
         ) {
           currencyPerCoin = 1;
-
           if (
             [
               /*transfer, write-off*/

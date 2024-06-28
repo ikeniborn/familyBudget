@@ -311,7 +311,6 @@ class Registry {
           ].indexOf(operationKey) !== -1
         ) {
           currencyPerCoin = 1
-
           if (
             [
               /*transfer, write-off*/
