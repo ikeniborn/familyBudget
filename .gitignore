@@ -217,4 +217,4 @@ dist
 **/__pycache__
 
 # build toll-up
-**/haproxy/certs/*.*
+**/haproxy/certs
