@@ -55,8 +55,9 @@ sudo docker system prune -a
 
 sudo docker ps
 sudo docker restart api
-sudo docker restart ui
+sudo docker restart budget-ui
 sudo docker restart postgres
+sudo docker restart haproxy
 
 sudo docker logs -f haproxy
 
