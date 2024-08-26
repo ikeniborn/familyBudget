@@ -40,6 +40,8 @@ sudo docker compose -f /home/bagatocorp/web/docker-compose.yaml down --rmi all
 sudo docker compose -f /home/bagatocorp/web/docker-compose.yaml up -d
 sudo docker compose -f /home/bagatocorp/web/docker-compose.yaml down
 
+
+
 >> перезагрузка докера
 sudo service docker stop
 sudo systemctl stop docker.socket
