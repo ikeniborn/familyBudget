@@ -18,6 +18,12 @@ sudo apt-get update
 sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 # Generate cert
+sudo mkdir /etc/haproxy && \
+sudo mkdir /etc/haproxy/certs
+
+sudo crontab -e
+0 0 1 * * /bin/sh /home/bagatocorp/web/service/haproxy/renewLetsEncryptCertificates.sh
+
 sudo apt-get -y install certbot
 
 sudo certbot certonly --manual --preferred-challenges dns
