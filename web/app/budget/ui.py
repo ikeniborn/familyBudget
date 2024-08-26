@@ -59,16 +59,16 @@ if __name__ == "__main__":
 
     if st.session_state["authentication_status"]:
 
-        users = Users().fetchAll(ttl=300)
+        users = Users().fetchAll(ttl=86400)
         if st.session_state.username:
             if "user_key" not in st.session_state:
                 st.session_state.user_key = (
                     users.lazy().filter(pl.col(["user_name"]) == st.session_state.username).collect()["user_key"][0]
                 )
-        financial_centers = FinancialCenters().fetchAll(ttl=300)
-        cost_centers = CostCenter().fetchAll(ttl=300)
-        nomenclatures = Nomenclatures().fetchAll(ttl=300)
-        row_types = RowTypes().fetchAll(ttl=300)
+        financial_centers = FinancialCenters().fetchAll(ttl=86400)
+        cost_centers = CostCenter().fetchAll(ttl=86400)
+        nomenclatures = Nomenclatures().fetchAll(ttl=86400)
+        row_types = RowTypes().fetchAll(ttl=86400)
 
         st.sidebar.title(f"Привет {st.session_state.name}")
         authenticator.logout("Выход", "sidebar")

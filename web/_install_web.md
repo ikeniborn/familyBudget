@@ -22,10 +22,9 @@ sudo apt-get -y install certbot
 
 sudo certbot certonly --manual --preferred-challenges dns
 
-sudo cat /etc/letsencrypt/live/budget.ikeniborn.ru/fullchain.pem /etc/letsencrypt/live/budget.ikeniborn.ru/privkey.pem >~/Documents/Git/familyBudget/web/servics/haproxy/cert/budget.ikeniborn.ru.pem 
-sudo cat /etc/letsencrypt/live/portfolio.ikeniborn.ru/fullchain.pem /etc/letsencrypt/live/portfolio.ikeniborn.ru/privkey.pem > ~/Documents/Git/familyBudget/web/services/haproxy/cert/portfolio.ikeniborn.ru.pem 
-sudo cat /etc/letsencrypt/live/api.ikeniborn.ru/fullchain.pem /etc/letsencrypt/live/api.ikeniborn.ru/privkey.pem > ~/Documents/Git/familyBudget/web/services/haproxy/cert/api.ikeniborn.ru.pem 
-sudo cat /etc/letsencrypt/live/haproxy.ikeniborn.ru/fullchain.pem /etc/letsencrypt/live/haproxy.ikeniborn.ru/privkey.pem > ~/Documents/Git/familyBudget/web/services/haproxy/cert/haproxy.ikeniborn.ru.pem 
+sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d haproxy.ikeniborn.ru --post-hook "/home/bagatocorp/web/service/haproxy/prepareLetsEncryptCertificates.sh && docker restart haproxy" --dry-run
+
+sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d haproxy.ikeniborn.ru --post-hook "/home/bagatocorp/web/service/haproxy/prepareLetsEncryptCertificates.sh && systemctl reload haproxy.service"
 
 # build Docker image in current directory
 
@@ -56,6 +55,8 @@ sudo docker ps
 sudo docker restart api
 sudo docker restart ui
 sudo docker restart postgres
+
+sudo docker logs -f portfolio-ui
 
 . sync_app.sh
 

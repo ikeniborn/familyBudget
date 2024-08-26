@@ -17,12 +17,12 @@ export default [
     output: [
       {
         dir:
-          '/home/ikeni/Documents/Git/familyBudget/google/build/dev/build',
+          '/home/ikeni/Documents/Git/familyBudget/google/build/portfolio/dev/build',
         format: 'es',
       },
       {
         dir:
-          '/home/ikeni/Documents/Git/familyBudget/google/build/prod/build',
+          '/home/ikeni/Documents/Git/familyBudget/google/build/portfolio/prod/build',
         format: 'es',
       },
     ],

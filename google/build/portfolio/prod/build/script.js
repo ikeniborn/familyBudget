@@ -1631,34 +1631,36 @@ class Portfolio {
           lockStatus: { alias: 'Lock status', idx: 8 },
           coin: { alias: 'Coin', idx: 9, notNull: true },
           coinQty: { alias: 'Coin, qty', idx: 10 },
-          currency: { alias: 'Currency', idx: 11 },
-          currencyQty: { alias: 'Currency, qty', idx: 12 },
-          currencyPerCoin: { alias: 'Currency per coin', idx: 13 },
-          feeSender: { alias: 'Fee sender (out)', idx: 14 },
-          feeCurrency: { alias: 'Fee currency', idx: 15 },
-          feeQty: { alias: 'Fee, qty', idx: 16 },
-          comment: { alias: 'Comment', idx: 17 },
+          coinPrice: { alias: 'Coin  price, $', idx: 11 },
+          currency: { alias: 'Currency', idx: 12 },
+          currencyQty: { alias: 'Currency, qty', idx: 13 },
+          currencyPerCoin: { alias: 'Currency per coin', idx: 14 },
+          currencyPrice: { alias: 'Currency  price, $', idx: 15 },
+          feeSender: { alias: 'Fee sender (out)', idx: 16 },
+          feeCurrency: { alias: 'Fee currency', idx: 17 },
+          feeQty: { alias: 'Fee, qty', idx: 18 },
+          comment: { alias: 'Comment', idx: 19 },
           date: {
             alias: 'Date (yyyy-MM-dd)',
-            idx: 18,
+            idx: 20,
             notNull: true,
             type: 'date',
             default: void 0,
           },
-          time: { alias: 'Time (HHmm)', idx: 19, notNull: true },
-          isDelete: { alias: 'Is delete', idx: 20 },
+          time: { alias: 'Time (HHmm)', idx: 21, notNull: true },
+          isDelete: { alias: 'Is delete', idx: 22 },
           dateSaved: {
             alias: 'Date saved',
-            idx: 21,
+            idx: 23,
             type: 'date',
             default: new Date(),
           },
           timeSpent: {
             alias: 'Time spent (hh:mm:ss)',
-            idx: 22,
+            idx: 24,
             type: 'string',
           },
-          rowId: { alias: 'Row ID', idx: 23, notNull: true },
+          rowId: { alias: 'Row ID', idx: 25, notNull: true },
         },
       },
       symbols: {
@@ -1834,6 +1836,8 @@ class Portfolio {
           // priceIn: { alias: 'Price (in), $', idx: 19 },
           // priceOut: { alias: 'Price (out), $', idx: 19 },
           // priceInvest: { alias: 'Price (invest), $', idx: 19 },
+          priceRestOverflow: { alias: 'Price (rest overflow), $', idx: 15 },
+          priceRestWoOverflow: { alias: 'Price (rest without overflow), $', idx: 15 },
           priceRest: { alias: 'Price (rest), $', idx: 15 },
           priceLast: { alias: 'Price (last), $', idx: 16 },
           // costBuyIn: { alias: 'Cost (buy in), $', idx: 24 },
@@ -3544,27 +3548,34 @@ class Transactions {
   }
 
   updateIsOverflow() {
-    const symbols = new Symbols().workSheet.object;
+    // const symbols = new Symbols().workSheet.object
     const newArrayOfObject = this.workSheet.arrayOfObject.map((rowObject) => {
-      const overflowArray = rowObject.overflow.split('/');
-      const tokenA = overflowArray[0];
-      const tokenB = overflowArray[1];
-      const tokenAKey = new Hash(tokenA).md5;
-      const tokenACategory = symbols[tokenAKey]?.symbolCategory || '';
-      const tokenBKey = new Hash(tokenB).md5;
-      const tokenBCategory = symbols[tokenBKey]?.symbolCategory || '';
+      // const overflowArray = rowObject.overflow.split('/')
+      // const tokenA = overflowArray[0]
+      // const tokenB = overflowArray[1]
+      // const tokenAKey = new Hash(tokenA).md5
+      // const tokenACategory = symbols[tokenAKey]?.symbolCategory || ''
+      // const tokenBKey = new Hash(tokenB).md5
+      // const tokenBCategory = symbols[tokenBKey]?.symbolCategory || ''
       if (
         [
-          '04a714bd5aaab82a18da3bd93d7dcc4f' /*LP Token*/,
-          'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
-          '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
-        ].indexOf(new Hash(tokenACategory).md5) === -1 &&
-        [
-          '04a714bd5aaab82a18da3bd93d7dcc4f' /*LP Token*/,
-          'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
-          '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
-        ].indexOf(new Hash(tokenBCategory).md5) === -1 &&
-        tokenA !== tokenB
+          '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
+          , '63275978133392f666f8fcc20f502304' /*backflow*/
+        ].indexOf(
+          new Hash(rowObject.operation).md5
+        ) !== -1
+        // [
+        //   '04a714bd5aaab82a18da3bd93d7dcc4f' /*LP Token*/,
+        //   'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
+        //   '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
+        // ].indexOf(new Hash(tokenACategory).md5) === -1 &&
+        // [
+        //   '04a714bd5aaab82a18da3bd93d7dcc4f' /*LP Token*/,
+        //   'e5e3fd01394b9a81296b75d5a7f4c1a2' /*Stablecoin*/,
+        //   '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
+        // ].indexOf(new Hash(tokenBCategory).md5) === -1 &&
+        // tokenA !== tokenB
+
       ) {
         rowObject.isOverflow = true;
       } else {
@@ -3857,15 +3868,12 @@ class HistoricalPrice {
     operationKey,
     account,
     portfolio,
-    contractor,
     symbol,
     symbolCategoryKey,
     symbolsObject,
     transactionsArrayOfObject,
     isRange = false,
-    convert = 'usd',
-    isOverflow = false,
-    isCurrency = false
+    convert = 'usd'
   ) {
     try {
       let historicalPrice = 0;
@@ -4056,13 +4064,12 @@ class HistoricalPrice {
 
           let historicalPriceRest = 0;
           let externalPricePriceRest = 0;
-          let externalCurrencyPrice = 0;
 
           if (
             [
               '84a0f3455dcca894ace136be62efa292' /*transfer*/
-              , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
-              , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
+              , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
+              , '63275978133392f666f8fcc20f502304' /*backflow*/
             ].indexOf(
               operationKey
             ) !== -1
@@ -4083,6 +4090,8 @@ class HistoricalPrice {
             [
               '0461ebd2b773878eac9f78a891912d65' /*buy*/
               , '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
+              , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
+              , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
             ].indexOf(
               operationKey
             ) !== -1
@@ -4102,34 +4111,6 @@ class HistoricalPrice {
                 historicalPrice = 0;
                 isHistoricalAveragePrice = false;
                 historicalSource = 'na';
-              }
-            }
-
-
-            //* цена валюты для перелива
-            if (isCurrency === true && isOverflow === true) {
-              if (externalPricePriceRest > 0) {
-                historicalCurrencyPrice = externalPricePriceRest;
-                isHistoricalCurrencyAveragePrice = false;
-                historicalCurrencySource = 'externalWeb3space';
-              } else {
-                externalCurrencyPrice = getExternalPriceRest();
-                if (externalCurrencyPrice > 0) {
-                  historicalCurrencyPrice = externalCurrencyPrice;
-                  isHistoricalCurrencyAveragePrice = false;
-                  historicalCurrencySource = 'externalCurrencyWeb3space';
-                }
-                else {
-                  if (coin.price > 0) {
-                    historicalPrice = coin.price;
-                    isHistoricalAveragePrice = false;
-                    historicalSource = 'externalCurrent';
-                  } else {
-                    historicalPrice = 0;
-                    isHistoricalAveragePrice = false;
-                    historicalSource = 'na';
-                  }
-                }
               }
             }
           }
@@ -4336,8 +4317,11 @@ class Registry {
           currencyPriceCoef,
           priceUSDBTC,
           isOverflow,
+          isBetweenSymbol,
           coinSymbolKey,
-          currencySymbolKey;
+          currencySymbolKey,
+          currencyPriceManual,
+          coinPriceManual;
 
         const transactionRow = [];
         const hhmm = new FormatNumber(
@@ -4361,6 +4345,7 @@ class Registry {
         lockStatusKey = new Hash(rowValues.lockStatus).md5;
         coinQty =
           typeof rowValues.coinQty === 'number' ? rowValues.coinQty : void 0;
+        coinPriceManual = typeof rowValues.coinPrice === 'number' ? rowValues.coinPrice : void 0;
         currencyQty =
           typeof rowValues.currencyQty === 'number'
             ? rowValues.currencyQty
@@ -4369,6 +4354,9 @@ class Registry {
           typeof rowValues.currencyPerCoin === 'number'
             ? rowValues.currencyPerCoin
             : void 0;
+        currencyPriceManual = typeof rowValues.currencyPrice === 'number'
+          ? rowValues.currencyPrice
+          : void 0;
         coinSymbol = rowValues.coin;
         coinSymbolKey = new Hash(coinSymbol).md5;
         coinSymbolCategoryKey = this.getSymbolCategoryKey(
@@ -4399,6 +4387,7 @@ class Registry {
         isHistoricalAveragePriceFeeCurrency = false;
         isHistoricalAveragePriceCurrency = false;
         isOverflow = false;
+        isBetweenSymbol = false;
 
         //* определение перелива
         if (
@@ -4413,6 +4402,16 @@ class Registry {
             '7d5f30a0d1641c0b6980aaf2556b32ce' /*Fiat*/,
           ].indexOf(currencySymbolCategoryKey) === -1 &&
           coinSymbolKey !== currencySymbolKey
+        ) {
+          isBetweenSymbol = true;
+        }
+        if (
+          [
+            '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
+            , '63275978133392f666f8fcc20f502304' /*backflow*/
+          ].indexOf(
+            operationKey
+          ) !== -1
         ) {
           isOverflow = true;
         }
@@ -4458,14 +4457,12 @@ class Registry {
         //* формирование транзакций
         if (
           [
-            /*transfer, write-off, refill*/
-            '84a0f3455dcca894ace136be62efa292',
-            '7b33b9f52598cd60f7aa6ca0082515c4',
-            'b4479040173a9f41eeb4e98339f2a21d',
+            '84a0f3455dcca894ace136be62efa292' /*transfer*/,
+            '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/,
+            'b4479040173a9f41eeb4e98339f2a21d' /*refill*/,
           ].indexOf(operationKey) !== -1
         ) {
           currencyPerCoin = 1;
-
           if (
             [
               /*transfer, write-off*/
@@ -4482,6 +4479,7 @@ class Registry {
             transactionRow.push({
               rowKey: rowKey1,
               account: accountSender,
+              operation: rowValues.operation.toLowerCase(),
               accountKey: accountSenderKey,
               direction: directionOut.stringLowerCase,
               portfolio: portfolioSender,
@@ -4496,7 +4494,7 @@ class Registry {
               isLiquidityPool,
               isAvgPrice: this.getIsAvgPrice(
                 directionOut.md5,
-                operationKey,
+                new Hash(rowValues.operation).md5,
                 coinSymbolCategoryKey
               ),
               isSymbolPrice: true,
@@ -4526,6 +4524,7 @@ class Registry {
               direction: 'in',
               account: accountRecipient,
               accountKey: accountRecipientKey,
+              operation: rowValues.operation.toLowerCase(),
               portfolio: portfolioRecipient,
               contractor: recipient,
               mainSymbol: void 0,
@@ -4538,7 +4537,7 @@ class Registry {
               isLiquidityPool,
               isAvgPrice: this.getIsAvgPrice(
                 directionIn.md5,
-                operationKey,
+                new Hash(rowValues.operation).md5,
                 coinSymbolCategoryKey
               ),
               isSymbolPrice: true,
@@ -4568,6 +4567,7 @@ class Registry {
             account: accountSender,
             accountKey: accountSenderKey,
             portfolio: portfolioSender,
+            operation: isBetweenSymbol ? 'sell' : rowValues.operation.toLowerCase(),
             contractor: sender,
             mainSymbol: mainSymbol,
             symbol: currencySymbol,
@@ -4579,13 +4579,13 @@ class Registry {
             isLiquidityPool,
             isAvgPrice: this.getIsAvgPrice(
               directionOut.md5,
-              operationKey,
+              isBetweenSymbol ? new Hash('sell').md5 : new Hash(rowValues.operation).md5,
               currencySymbolCategoryKey
             ),
             isCurencyPrice: true,
             isFeePrice,
             isSymbolPrice,
-            isOverflow,
+            isOverflow: false,
           });
           rowKey2 = new Hash(rowValues.rowKey + '#2').md5;
           transactionRow.push({
@@ -4594,6 +4594,7 @@ class Registry {
             isLock: rowValues.isLock,
             account: accountRecipient,
             accountKey: accountRecipientKey,
+            operation: isBetweenSymbol ? 'buy' : rowValues.operation.toLowerCase(),
             portfolio: portfolioRecipient,
             contractor: recipient,
             mainSymbol: mainSymbol,
@@ -4606,16 +4607,16 @@ class Registry {
             isLiquidityPool,
             isAvgPrice: this.getIsAvgPrice(
               directionIn.md5,
-              operationKey,
+              isBetweenSymbol ? new Hash('buy').md5 : new Hash(rowValues.operation).md5,
               coinSymbolCategoryKey
             ),
             isSymbolPrice: true,
             isFeePrice,
             isCurencyPrice,
-            isOverflow,
+            isOverflow: false,
           });
         } else if (
-          [/*sell*/ '8325324b47e1e62a1c2998a640cbdc72'].indexOf(
+          ['8325324b47e1e62a1c2998a640cbdc72' /*sell*/].indexOf(
             operationKey
           ) !== -1
         ) {
@@ -4635,6 +4636,7 @@ class Registry {
             accountKey: accountSenderKey,
             portfolio: portfolioSender,
             contractor: sender,
+            operation: isBetweenSymbol ? 'buy' : rowValues.operation.toLowerCase(),
             mainSymbol: mainSymbol,
             symbol: coinSymbol,
             overflow: coinSymbol + '/' + currencySymbol,
@@ -4645,13 +4647,13 @@ class Registry {
             isLiquidityPool,
             isAvgPrice: this.getIsAvgPrice(
               directionOut.md5,
-              operationKey,
+              isBetweenSymbol ? new Hash('buy').md5 : new Hash(rowValues.operation).md5,
               coinSymbolCategoryKey
             ),
             isSymbolPrice: true,
             isFeePrice,
             isCurencyPrice,
-            isOverflow,
+            isOverflow: false,
           });
           rowKey2 = new Hash(rowValues.rowKey + '#2').md5;
           transactionRow.push({
@@ -4661,6 +4663,7 @@ class Registry {
             account: accountRecipient,
             accountKey: accountRecipientKey,
             portfolio: portfolioRecipient,
+            operation: isBetweenSymbol ? 'sell' : rowValues.operation.toLowerCase(),
             contractor: recipient,
             mainSymbol: mainSymbol,
             symbol: currencySymbol,
@@ -4672,116 +4675,200 @@ class Registry {
             isLiquidityPool,
             isAvgPrice: this.getIsAvgPrice(
               directionIn.md5,
-              operationKey,
+              isBetweenSymbol ? new Hash('sell').md5 : new Hash(rowValues.operation).md5,
               currencySymbolCategoryKey
             ),
             isCurencyPrice: true,
             isFeePrice,
             isSymbolPrice,
-            isOverflow,
+            isOverflow: false,
+          });
+        } else if (
+          ['0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/].indexOf(
+            operationKey
+          ) !== -1
+        ) {
+          portfolioSender = this.getPortfolio(
+            rowValues.portfolioSender,
+            currencySymbolCategoryKey
+          );
+          portfolioRecipient = this.getPortfolio(
+            rowValues.portfolioRecipient || rowValues.portfolioSender,
+            coinSymbolCategoryKey
+          );
+          rowKey1 = new Hash(rowValues.rowKey + '#1').md5;
+          transactionRow.push({
+            rowKey: rowKey1,
+            direction: directionOut.stringLowerCase,
+            account: accountSender,
+            accountKey: accountSenderKey,
+            portfolio: portfolioSender,
+            operation: rowValues.operation.toLowerCase(),
+            contractor: sender,
+            mainSymbol: mainSymbol,
+            symbol: currencySymbol,
+            overflow: currencySymbol + '/' + coinSymbol,
+            overflowRev: coinSymbol + '/' + currencySymbol,
+            quantity: currencyQty * -1,
+            isFee,
+            isLock: isSenderLock,
+            isLiquidityPool,
+            isAvgPrice: this.getIsAvgPrice(
+              directionOut.md5,
+              new Hash(rowValues.operation).md5,
+              currencySymbolCategoryKey
+            ),
+            isCurencyPrice: true,
+            isFeePrice,
+            isSymbolPrice,
+            isOverflow: true,
+          });
+          rowKey2 = new Hash(rowValues.rowKey + '#2').md5;
+          transactionRow.push({
+            rowKey: rowKey2,
+            direction: directionIn.stringLowerCase,
+            isLock: rowValues.isLock,
+            account: accountRecipient,
+            accountKey: accountRecipientKey,
+            portfolio: portfolioRecipient,
+            operation: rowValues.operation.toLowerCase(),
+            contractor: recipient,
+            mainSymbol: mainSymbol,
+            symbol: coinSymbol,
+            overflow: coinSymbol + '/' + currencySymbol,
+            overflowRev: currencySymbol + '/' + coinSymbol,
+            quantity: coinQty,
+            isFee,
+            isLock: isRecipientLock,
+            isLiquidityPool,
+            isAvgPrice: this.getIsAvgPrice(
+              directionIn.md5,
+              new Hash(rowValues.operation).md5,
+              coinSymbolCategoryKey
+            ),
+            isSymbolPrice: true,
+            isFeePrice,
+            isCurencyPrice,
+            isOverflow: true,
+          });
+        } else if (
+          ['63275978133392f666f8fcc20f502304' /*backflow*/].indexOf(
+            operationKey
+          ) !== -1
+        ) {
+          portfolioSender = this.getPortfolio(
+            rowValues.portfolioSender,
+            coinSymbolCategoryKey
+          );
+          portfolioRecipient = this.getPortfolio(
+            rowValues.portfolioRecipient || rowValues.portfolioSender,
+            currencySymbolCategoryKey
+          );
+          rowKey1 = new Hash(rowValues.rowKey + '#1').md5;
+          transactionRow.push({
+            rowKey: rowKey1,
+            direction: directionOut.stringLowerCase,
+            account: accountSender,
+            accountKey: accountSenderKey,
+            portfolio: portfolioSender,
+            contractor: sender,
+            operation: rowValues.operation.toLowerCase(),
+            mainSymbol: mainSymbol,
+            symbol: currencySymbol,
+            overflow: currencySymbol + '/' + coinSymbol,
+            overflowRev: coinSymbol + '/' + currencySymbol,
+
+            quantity: currencyQty * -1,
+            isFee,
+            isLock: isSenderLock,
+            isLiquidityPool,
+            isAvgPrice: this.getIsAvgPrice(
+              directionOut.md5,
+              new Hash(rowValues.operation).md5,
+              coinSymbolCategoryKey
+            ),
+            isSymbolPrice: true,
+            isFeePrice,
+            isCurencyPrice,
+            isOverflow: false,
+          });
+          rowKey2 = new Hash(rowValues.rowKey + '#2').md5;
+          transactionRow.push({
+            rowKey: rowKey2,
+            direction: directionIn.stringLowerCase,
+            isLock: rowValues.isLock,
+            account: accountRecipient,
+            accountKey: accountRecipientKey,
+            portfolio: portfolioRecipient,
+            operation: rowValues.operation.toLowerCase(),
+            contractor: recipient,
+            mainSymbol: mainSymbol,
+            symbol: coinSymbol,
+            overflow: coinSymbol + '/' + currencySymbol,
+            overflowRev: currencySymbol + '/' + coinSymbol,
+
+            quantity: coinQty,
+            isFee,
+            isLock: isRecipientLock,
+            isLiquidityPool,
+            isAvgPrice: this.getIsAvgPrice(
+              directionIn.md5,
+              new Hash(rowValues.operation).md5,
+              currencySymbolCategoryKey
+            ),
+            isCurencyPrice: true,
+            isFeePrice,
+            isSymbolPrice,
+            isOverflow: false,
           });
         }
 
         //* Расчет текущей или исторической цены покупаемого токена
         let historicalPriceBuyCurrency;
+
         historicalPriceBuyCurrency = historicalPrice.getHistoricalPrice(
           dateTime,
           operationKey,
           accountSender,
           portfolioSender,
-          sender,
-          currencySymbol,
-          currencySymbolCategoryKey,
+          ['63275978133392f666f8fcc20f502304' /*backflow*/].indexOf(
+            operationKey
+          ) !== -1 ? coinSymbol : currencySymbol,
+          ['63275978133392f666f8fcc20f502304' /*backflow*/].indexOf(
+            operationKey
+          ) !== -1 ? coinSymbolCategoryKey : currencySymbolCategoryKey,
           symbols,
           Object.values(transactions.workSheet.object),
           isRange,
-          'usd',
-          isOverflow,
-          true
+          'usd'
         );
 
-        let historicalPriceBuyCoin;
-        let symbolPriceSource = 'na';
+
+
         //* цена валюты
-        currencyPrice = historicalPriceBuyCurrency?.historicalPrice;
-        isHistoricalAveragePriceCurrency =
+        currencyPrice = currencyPriceManual ? currencyPriceManual : historicalPriceBuyCurrency?.historicalPrice;
+        isHistoricalAveragePriceCurrency = currencyPriceManual ? false :
           historicalPriceBuyCurrency?.isHistoricalAveragePrice;
-        //* определение корректной цены токена
-        //* условие для продажи и покупки
-        if (
-          [
-            '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
-            , '0461ebd2b773878eac9f78a891912d65' /*buy*/
-            , 'b4479040173a9f41eeb4e98339f2a21d' /*refill*/
-            , '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
-          ].indexOf(
-            operationKey
-          ) !== -1
-        ) {
-          //* цена для покупки продажи через стейблкоин или фиат
-          if (
-            [
-              'e5e3fd01394b9a81296b75d5a7f4c1a2' /*stablecoin*/
-              , '7d5f30a0d1641c0b6980aaf2556b32ce' /*fiat*/
-            ].indexOf(
-              currencySymbolCategoryKey
-            ) !== -1
-          ) {
-            symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin;
-            symbolPriceSource = 'fromCurrency';
-            isHistoricalAveragePriceSymbol =
-              historicalPriceBuyCurrency?.isHistoricalAveragePrice;
+
+        if (['63275978133392f666f8fcc20f502304' /*backflow*/].indexOf(
+          operationKey
+        ) !== -1) {
+          if (coinPriceManual) {
+            symbolPrice = coinPriceManual;
+          } else {
+            symbolPrice = currencyPrice * currencyPerCoin;
           }
-          //* цена для покупки продажи через токен
-          else {
-            historicalPriceBuyCoin = historicalPrice.getHistoricalPrice(
-              dateTime,
-              operationKey,
-              accountSender,
-              portfolioSender,
-              sender,
-              coinSymbol,
-              coinSymbolCategoryKey,
-              symbols,
-              Object.values(transactions.workSheet.object),
-              isRange,
-              'usd',
-              isOverflow,
-              false
-            );
-            if (historicalPriceBuyCoin?.historicalPrice > 0) {
-              symbolPrice = historicalPriceBuyCoin?.historicalPrice;
-              symbolPriceSource = 'fromCoin';
-              isHistoricalAveragePriceSymbol =
-                historicalPriceBuyCoin?.isHistoricalAveragePrice;
-            } else {
-              if (historicalPriceBuyCurrency?.historicalCurrencyPrice > 0) {
-                symbolPrice = historicalPriceBuyCurrency?.historicalCurrencyPrice * currencyPerCoin;
-                isHistoricalAveragePriceSymbol =
-                  historicalPriceBuyCurrency?.isHistoricalCurrencyAveragePrice;
-              }
-              else {
-                symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin;
-                isHistoricalAveragePriceSymbol =
-                  historicalPriceBuyCurrency?.isHistoricalAveragePrice;
-              }
-              symbolPriceSource = 'fromCurrency';
-            }
+
+        } else {
+          if (coinPriceManual) {
+            symbolPrice = coinPriceManual;
+          } else {
+            symbolPrice = currencyPrice * currencyPerCoin;
           }
         }
-        //* условие для перевода пополнения, списания и перелива
-        else if (
-          [
-            '84a0f3455dcca894ace136be62efa292'  /*transfer*/
-          ].indexOf(
-            operationKey
-          ) !== -1
-        ) {
-          symbolPrice = historicalPriceBuyCurrency?.historicalPrice * currencyPerCoin;
-          symbolPriceSource = 'fromCurrency';
-          isHistoricalAveragePriceSymbol =
-            historicalPriceBuyCurrency?.isHistoricalAveragePrice;
-        }
+
+        isHistoricalAveragePriceSymbol =
+          isHistoricalAveragePriceCurrency;
 
         //* расчет коэффициентов пары
         symbolPriceCoef = symbolPrice / currencyPrice;
@@ -4803,7 +4890,6 @@ class Registry {
         //   , 'historicalPriceBuyCoin:', historicalPriceBuyCoin, '\n'
         //   , 'symbolPrice:', symbolPrice, '\n'
         //   , 'isHistoricalAveragePriceSymbol:', isHistoricalAveragePriceSymbol, '\n'
-        //   , 'symbolPriceSource:', symbolPriceSource, '\n'
         // )
 
         const priceUSDBTCObjectExternal = new Price().getHistoricalPrice(
@@ -4823,11 +4909,11 @@ class Registry {
           }
         };
 
-        if(priceUSDBTCObjectExternal['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close>0){
-          priceUSDBTC =  priceUSDBTCObjectExternal['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close;
-        } 
+        if (priceUSDBTCObjectExternal['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close > 0) {
+          priceUSDBTC = priceUSDBTCObjectExternal['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close;
+        }
         else {
-          priceUSDBTC =  priceUSDBTCObjectLast['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close;
+          priceUSDBTC = priceUSDBTCObjectLast['b460f578-b1ce-950c-287e-dc61d0728e51']?.price_close;
         }
 
         //* Комиссия
@@ -4847,6 +4933,7 @@ class Registry {
             direction: directionOut.stringLowerCase,
             account: accountSender,
             accountKey: accountSenderKey,
+            operation: 'write-off',
             portfolio: feePortfolio,
             contractor: feeSender,
             mainSymbol: void 0,
@@ -4875,7 +4962,6 @@ class Registry {
             '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/,
             accountSender,
             feePortfolio,
-            feeSender,
             feeCurrency,
             feeCurrencySymbolCategoryKey,
             symbols,
@@ -4911,6 +4997,8 @@ class Registry {
               [
                 '0461ebd2b773878eac9f78a891912d65'  /*buy*/
                 , '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
+                , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
+                , '63275978133392f666f8fcc20f502304' /*backflow*/
               ].indexOf(operationKey) !== -1
             ) {
               priceCoef = symbolPriceCoef;
@@ -4933,6 +5021,8 @@ class Registry {
               [
                 '0461ebd2b773878eac9f78a891912d65' /*buy*/
                 , '8325324b47e1e62a1c2998a640cbdc72'  /*sell*/
+                , '0bd9f6dd716003f3818d15d2e211ee73' /*overflow*/
+                , '63275978133392f666f8fcc20f502304' /*backflow*/
               ].indexOf(operationKey) !== -1
             ) {
               priceCoef = currencyPriceCoef;
@@ -4957,7 +5047,7 @@ class Registry {
             direction: tx.isFee ? 'out' : tx.direction.toLowerCase(),
             operation: tx.isFee
               ? 'write-off'
-              : rowValues.operation.toLowerCase(),
+              : tx.operation.toLowerCase(),
             portfolio: tx.portfolio.toLowerCase(),
             platform: rowValues.platform.toLowerCase(),
             service: rowValues.service.toLowerCase(),
@@ -5313,6 +5403,16 @@ class Flow {
               costRestPrev: 0,
               priceRest: 0,
               priceRestPrev: 0,
+              quantityRestOverflow: 0,
+              costRestOverflow: 0,
+              costRestPrevOverflow: 0,
+              priceRestOverflow: 0,
+              priceRestPrevOverflow: 0,
+              quantityRestWoOverflow: 0,
+              costRestWoOverflow: 0,
+              costRestPrevWoOverflow: 0,
+              priceRestWoOverflow: 0,
+              priceRestPrevWoOverflow: 0,
               quantityRestInvest: 0,
               costRestInvest: 0,
               costTotal: 0,
@@ -5327,6 +5427,18 @@ class Flow {
 
           //* Накопление остатков
           agg[tx.account][tx.portfolio][tx.symbol].quantityRest += tx.quantity;
+
+          //* остаток по переливу
+          if (tx.isOverflow === true) {
+            agg[tx.account][tx.portfolio][tx.symbol].quantityRestOverflow +=
+              tx.quantity;
+
+          }
+          //* остаток без перелива
+          if (tx.isOverflow === false) {
+            agg[tx.account][tx.portfolio][tx.symbol].quantityRestWoOverflow +=
+              tx.quantity;
+          }
 
           if (
             tx.isOverflow === false
@@ -5382,6 +5494,7 @@ class Flow {
                 agg[tx.account][tx.portfolio][tx.symbol].priceRestInvest;
             }
 
+            //* общий остаток
             agg[tx.account][tx.portfolio][tx.symbol].costRest =
               tx.cost;
             agg[tx.account][tx.portfolio][tx.symbol].costRestPrev =
@@ -5390,7 +5503,32 @@ class Flow {
               tx.cost / tx.quantity;
             agg[tx.account][tx.portfolio][tx.symbol].priceRestPrev =
               agg[tx.account][tx.portfolio][tx.symbol].priceRest;
+
+            //* остаток по переливу
+            if (tx.isOverflow === true) {
+              agg[tx.account][tx.portfolio][tx.symbol].costRestOverflow =
+                tx.cost;
+              agg[tx.account][tx.portfolio][tx.symbol].costRestPrevOverflow =
+                agg[tx.account][tx.portfolio][tx.symbol].costRestOverflow;
+              agg[tx.account][tx.portfolio][tx.symbol].priceRestOverflow =
+                tx.cost / tx.quantity;
+              agg[tx.account][tx.portfolio][tx.symbol].priceRestPrevOverflow =
+                agg[tx.account][tx.portfolio][tx.symbol].priceRestOverflow;
+            }
+            //* остаток без перелива
+            if (tx.isOverflow === false) {
+              agg[tx.account][tx.portfolio][tx.symbol].costRestWoOverflow =
+                tx.cost;
+              agg[tx.account][tx.portfolio][tx.symbol].costRestPrevWoOverflow =
+                agg[tx.account][tx.portfolio][tx.symbol].costRestWoOverflow;
+              agg[tx.account][tx.portfolio][tx.symbol].priceRestWoOverflow =
+                tx.cost / tx.quantity;
+              agg[tx.account][tx.portfolio][tx.symbol].priceRestPrevWoOverflow =
+                agg[tx.account][tx.portfolio][tx.symbol].priceRestWoOverflow;
+            }
+
           }
+          //* не первая операция
           else {
             //*остаток инвестиций
             if (
@@ -5411,7 +5549,6 @@ class Flow {
                 ) !== -1
               )
             ) {
-
               if (
                 agg[tx.account][tx.portfolio][tx.symbol]
                   .quantityRestInvest > 0
@@ -5478,6 +5615,78 @@ class Flow {
               agg[tx.account][tx.portfolio][tx.symbol].priceRestPrev = 0;
               agg[tx.account][tx.portfolio][tx.symbol].costRestPrev = 0;
               agg[tx.account][tx.portfolio][tx.symbol].costRest = 0;
+            }
+
+            //* остаток перелива 
+            if (tx.isOverflow === true) {
+              if (
+                agg[tx.account][tx.portfolio][tx.symbol].quantityRestOverflow > 0
+              ) {
+                if (tx.quantity < 0) {
+                  agg[tx.account][tx.portfolio][tx.symbol].costRestOverflow =
+                    tx.quantity *
+                    agg[tx.account][tx.portfolio][tx.symbol].priceRestPrevOverflow +
+                    agg[tx.account][tx.portfolio][tx.symbol].costRestPrevOverflow;
+                }
+                else {
+                  agg[tx.account][tx.portfolio][tx.symbol].costRestOverflow =
+                    tx.cost +
+                    agg[tx.account][tx.portfolio][tx.symbol].costRestPrevOverflow;
+                }
+
+                agg[tx.account][tx.portfolio][tx.symbol].priceRestOverflow =
+                  agg[tx.account][tx.portfolio][tx.symbol].costRestOverflow /
+                  agg[tx.account][tx.portfolio][tx.symbol].quantityRestOverflow || 0;
+
+                agg[tx.account][tx.portfolio][tx.symbol].priceRestPrevOverflow =
+                  agg[tx.account][tx.portfolio][tx.symbol].priceRestOverflow || 0;
+
+                agg[tx.account][tx.portfolio][tx.symbol].costRestPrevOverflow =
+                  agg[tx.account][tx.portfolio][tx.symbol].costRestOverflow;
+              }
+              else {
+                agg[tx.account][tx.portfolio][tx.symbol].quantityRestOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.symbol].priceRestOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.symbol].priceRestPrevOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.symbol].costRestPrevOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.symbol].costRestOverflow = 0;
+              }
+            }
+
+            //* остаток без перелива
+            if (tx.isOverflow === false) {
+              if (
+                agg[tx.account][tx.portfolio][tx.symbol].quantityRestWoOverflow > 0
+              ) {
+                if (tx.quantity < 0) {
+                  agg[tx.account][tx.portfolio][tx.symbol].costRestWoOverflow =
+                    tx.quantity *
+                    agg[tx.account][tx.portfolio][tx.symbol].priceRestPrevWoOverflow +
+                    agg[tx.account][tx.portfolio][tx.symbol].costRestPrevWoOverflow;
+                }
+                else {
+                  agg[tx.account][tx.portfolio][tx.symbol].costRestWoOverflow =
+                    tx.cost +
+                    agg[tx.account][tx.portfolio][tx.symbol].costRestPrevWoOverflow;
+                }
+
+                agg[tx.account][tx.portfolio][tx.symbol].priceRestWoOverflow =
+                  agg[tx.account][tx.portfolio][tx.symbol].costRestWoOverflow /
+                  agg[tx.account][tx.portfolio][tx.symbol].quantityRestWoOverflow || 0;
+
+                agg[tx.account][tx.portfolio][tx.symbol].priceRestPrevWoOverflow =
+                  agg[tx.account][tx.portfolio][tx.symbol].priceRestWoOverflow || 0;
+
+                agg[tx.account][tx.portfolio][tx.symbol].costRestPrevWoOverflow =
+                  agg[tx.account][tx.portfolio][tx.symbol].costRestWoOverflow;
+              }
+              else {
+                agg[tx.account][tx.portfolio][tx.symbol].quantityRestWoOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.symbol].priceRestWoOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.symbol].priceRestPrevWoOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.symbol].costRestPrevWoOverflow = 0;
+                agg[tx.account][tx.portfolio][tx.symbol].costRestWoOverflow = 0;
+              }
             }
 
           }
@@ -5603,7 +5812,7 @@ class Flow {
           }
           //* Распределение количества по потокам
 
-          if (operationKey === '0461ebd2b773878eac9f78a891912d65' /*buy*/) {
+          if (operationKey === '0bd9f6dd716003f3818d15d2e211ee73' /*Overflow*/) {
             if (directionKey === inKey) {
               if (tx.isOverflow === true) {
                 agg[tx.account][tx.portfolio][tx.contractor][
@@ -5619,7 +5828,7 @@ class Flow {
             }
           }
           else if (
-            operationKey === '8325324b47e1e62a1c2998a640cbdc72' /*sell*/
+            operationKey === '63275978133392f666f8fcc20f502304' /*Backflow*/
           ) {
             if (directionKey === inKey) {
               if (tx.isOverflow === true) {
@@ -5770,6 +5979,8 @@ class Flow {
               }
 
               let priceLast = 0;
+              let priceRestOverflow = 0;
+              let priceRestWoOverflow = 0;
               let priceRest = 0;
               let costLast = 0;
               let costLock = 0;
@@ -5792,6 +6003,8 @@ class Flow {
               if (aggFlowPortfolio[account][portfolio][symbol]) {
 
                 priceRest = aggFlowPortfolio[account][portfolio][symbol].priceRest;
+                priceRestOverflow = aggFlowPortfolio[account][portfolio][symbol].priceRestOverflow;
+                priceRestWoOverflow = aggFlowPortfolio[account][portfolio][symbol].priceRestWoOverflow;
 
                 let allocationCoefficient = 0;
 
@@ -5968,6 +6181,8 @@ class Flow {
                 // priceOut: priceOut || 0,
                 // priceInvest: priceInvest || 0,
                 priceRest: priceRest || 0,
+                priceRestOverflow: priceRestOverflow || 0,
+                priceRestWoOverflow: priceRestWoOverflow || 0,
                 priceLast: priceLast || 0,
                 costTotal: costTotal || 0,
                 // costSell: costSell || 0,
@@ -6210,7 +6425,28 @@ class Overflows {
               dayInOverflow * tx.quantity;
             //* Накопление остатков
             // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
-          } 
+          }
+          else if (directionKey === outKey) {
+            agg[tx.account][overflow][tx.symbol].quantityBuyOut +=
+              tx.quantity * -1;
+            agg[tx.account][overflow][tx.symbol].priceCoefSumBuyOut +=
+              tx.priceCoef * tx.quantity * -1;
+            agg[tx.account][overflow][tx.symbol].dayInOverflowBuyOutSum +=
+              dayInOverflow * tx.quantity * -1;
+            // * Накопление остатков
+            // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
+          }
+        }
+        else if (operationKey === '0bd9f6dd716003f3818d15d2e211ee73' /*Overflow*/) {
+          if (directionKey === inKey) {
+            agg[tx.account][overflow][tx.symbol].quantityBuyIn += tx.quantity;
+            agg[tx.account][overflow][tx.symbol].priceCoefSumBuyIn +=
+              tx.priceCoef * tx.quantity;
+            agg[tx.account][overflow][tx.symbol].dayInOverflowBuyInSum +=
+              dayInOverflow * tx.quantity;
+            //* Накопление остатков
+            // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
+          }
           else if (directionKey === outKey) {
             agg[tx.account][overflow][tx.symbol].quantityBuyOut +=
               tx.quantity * -1;
@@ -6233,7 +6469,30 @@ class Overflows {
               dayInOverflow * tx.quantity;
             //* Накопление остатков
             // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
-          } 
+          }
+          else if (directionKey === outKey) {
+            agg[tx.account][overflow][tx.symbol].quantitySellOut +=
+              tx.quantity * -1;
+            agg[tx.account][overflow][tx.symbol].priceCoefSumSellOut +=
+              tx.priceCoef * tx.quantity * -1;
+            agg[tx.account][overflow][tx.symbol].dayInOverflowSellOutSum +=
+              dayInOverflow * tx.quantity * -1;
+            //* Накопление остатков
+            // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
+          }
+        }
+        else if (
+          operationKey === '63275978133392f666f8fcc20f502304' /*backflow*/
+        ) {
+          if (directionKey === inKey) {
+            agg[tx.account][overflow][tx.symbol].quantitySellIn += tx.quantity;
+            agg[tx.account][overflow][tx.symbol].priceCoefSumSellIn +=
+              tx.priceCoef * tx.quantity;
+            agg[tx.account][overflow][tx.symbol].dayInOverflowSellInSum +=
+              dayInOverflow * tx.quantity;
+            //* Накопление остатков
+            // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
+          }
           else if (directionKey === outKey) {
             agg[tx.account][overflow][tx.symbol].quantitySellOut +=
               tx.quantity * -1;
@@ -6257,7 +6516,7 @@ class Overflows {
             //* Накопление остатков
             // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
           }
-        } 
+        }
         else if (
           operationKey === '7b33b9f52598cd60f7aa6ca0082515c4' /*write-off*/
         ) {
@@ -6273,7 +6532,7 @@ class Overflows {
             //* Накопление остатков
             // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
           }
-        } 
+        }
         else if (
           operationKey === '84a0f3455dcca894ace136be62efa292' /*transfer*/
         ) {
@@ -6286,7 +6545,7 @@ class Overflows {
               dayInOverflow * tx.quantity;
             //* Накопление остатков
             // agg[tx.account][overflow][tx.symbol].quantityRest += tx.quantity
-          } 
+          }
           else if (directionKey === outKey) {
             agg[tx.account][overflow][tx.symbol].quantityTransferOut +=
               tx.quantity * -1;

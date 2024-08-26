@@ -90,7 +90,7 @@ services:
   # portfolio-ui:
   #   container_name: portfolio-ui
   #   build:
-  #     dockerfile: ./app/budget/Dockerfile
+  #     dockerfile: ./app/portfolio/Dockerfile
   #     context: ./
   #   volumes:
   #     - /home/bagatocorp/web/app/portfolio:/usr/src/app:delegated

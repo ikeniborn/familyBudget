@@ -143,52 +143,36 @@ class Registry:
 class Report:
 
     def getReportCompareRowTypeNomenclature(financial_center_key: str = None, period_key: str = None) -> DataFrame:
-        rows = requests.get(
-            f"""{API_URL}/report/compare/row_type_nomenclature?financial_center_key={financial_center_key}&period_key={period_key}"""
-        ).json()
+        rows = requests.get(f"""{API_URL}/report/compare/row_type_nomenclature?financial_center_key={financial_center_key}&period_key={period_key}""").json()
         return DataFrame(data=rows)
 
     def getReportCompareRowTypeOperation(financial_center_key: str = None, period_key: str = None) -> DataFrame:
-        rows = requests.get(
-            f"""{API_URL}/report/compare/row_type_operation?financial_center_key={financial_center_key}&period_key={period_key}"""
-        ).json()
+        rows = requests.get(f"""{API_URL}/report/compare/row_type_operation?financial_center_key={financial_center_key}&period_key={period_key}""").json()
         return DataFrame(data=rows)
 
     def getReportCompareRowTypeBill(financial_center_key: str = None, period_key: str = None) -> DataFrame:
-        rows = requests.get(
-            f"""{API_URL}/report/compare/row_type_bill?financial_center_key={financial_center_key}&period_key={period_key}"""
-        ).json()
+        rows = requests.get(f"""{API_URL}/report/compare/row_type_bill?financial_center_key={financial_center_key}&period_key={period_key}""").json()
         return DataFrame(data=rows)
 
     def getReportCompareRowTypeAccount(financial_center_key: str = None, period_key: str = None) -> DataFrame:
-        rows = requests.get(
-            f"""{API_URL}/report/compare/row_type_account?financial_center_key={financial_center_key}&period_key={period_key}"""
-        ).json()
+        rows = requests.get(f"""{API_URL}/report/compare/row_type_account?financial_center_key={financial_center_key}&period_key={period_key}""").json()
         return DataFrame(data=rows)
 
     def getReportBudgetTotal(financial_center_key: str = None, period_key: str = None) -> DataFrame:
-        rows = requests.get(
-            f"""{API_URL}/report/budget/total?financial_center_key={financial_center_key}&period_key={period_key}"""
-        ).json()
+        rows = requests.get(f"""{API_URL}/report/budget/total?financial_center_key={financial_center_key}&period_key={period_key}""").json()
         return DataFrame(data=rows)
 
     def getReportBudgetBillAccount(financial_center_key: str = None, period_key: str = None) -> DataFrame:
-        rows = requests.get(
-            f"""{API_URL}/report/budget/bill_account?financial_center_key={financial_center_key}&period_key={period_key}"""
-        ).json()
+        rows = requests.get(f"""{API_URL}/report/budget/bill_account?financial_center_key={financial_center_key}&period_key={period_key}""").json()
         return DataFrame(data=rows)
 
-    def getReportBudgetRowTypeNomenclature(
-        financial_center_key: str = None, period_key: str = None, nomenclature_key: str = None
-    ) -> DataFrame:
+    def getReportBudgetRowTypeNomenclature(financial_center_key: str = None, period_key: str = None, nomenclature_key: str = None) -> DataFrame:
         rows = requests.get(
             f"""{API_URL}/report/budget/row_type_nomenclature?financial_center_key={financial_center_key}&period_key={period_key}&nomenclature_key={nomenclature_key}"""
         ).json()
         return DataFrame(data=rows)
 
-    def getReportPerfomancetRowTypeNomenclature(
-        financial_center_key: str = None, period_key: str = None, nomenclature_key: str = None
-    ) -> DataFrame:
+    def getReportPerfomancetRowTypeNomenclature(financial_center_key: str = None, period_key: str = None, nomenclature_key: str = None) -> DataFrame:
         rows = requests.get(
             f"""{API_URL}/report/perfomance/row_type_nomenclature?financial_center_key={financial_center_key}&period_key={period_key}&nomenclature_key={nomenclature_key}"""
         ).json()

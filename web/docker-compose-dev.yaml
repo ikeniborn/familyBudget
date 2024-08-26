@@ -50,7 +50,6 @@ services:
       - PORTFOLIO_POSTGRES_DB=portfoliodb
       - PORTFOLIO_POSTGRES_USER=portfolio
       - PORTFOLIO_POSTGRES_PASSWORD=WRHUT86xXzcghBmSPpFd
-      # - POLARS_SKIP_CPU_CHECK=false
     networks:
       app_network:
         ipv4_address: 10.5.0.3
@@ -102,52 +101,43 @@ services:
     depends_on:
       - api
 
-  # portfolio-ui:
-  #   container_name: portfolio-ui
-  #   build:
-  #     dockerfile: ./app/budget/Dockerfile
-  #     context: ./
-  #   volumes:
-  #     - /home/ikeni/Documents/Git/familyBudget/web/app/portfolio:/usr/src/app:delegated
-  #   ports:
-  #     - "8502:8502"
-  #   command: "streamlit run ui.py --server.port=8502"
-  #   environment:
-  #     - USER_ID=1000
-  #     - GROUP_ID=1000
-  #     - API_URL=http://10.5.0.3:8888
-  #     - POLARS_SKIP_CPU_CHECK=false
-  #   networks:
-  #     app_network:
-  #       ipv4_address: 10.5.0.5
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         cpus: '1'
-  #         memory: 1G
-  #   healthcheck:
-  #     test: ["CMD", "curl","--fail","http://0.0.0.0:8501/_stcore/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 5
-  #     start_period: 30s
-  #   restart: always
-  #   depends_on:
-  #     - api
-
-  haproxy:
-    container_name: haproxy
-    image: "haproxy:2.2-alpine"
+  portfolio-ui:
+    container_name: portfolio-ui
+    build:
+      dockerfile: ./app/portfolio/Dockerfile
+      context: ./
+    volumes:
+      - /home/ikeni/Documents/Git/familyBudget/web/app/portfolio:/usr/src/app:delegated
     ports:
       - "80:80"
-    volumes:
-      - /home/ikeni/Documents/Git/familyBudget/web/services/haproxy/haproxy-dev.cfg:/usr/local/etc/haproxy/haproxy.cfg:delegated
+    # command: "python3 main.py"
+    command: "uvicorn src:app  --host 0.0.0.0 --port 80 --reload"
+    environment:
+      - USER_ID=1000
+      - GROUP_ID=1000
+      - API_URL=http://10.5.0.3:8888
+      - POLARS_SKIP_CPU_CHECK=false
+      # - TELEGRAM_TOKEN=806168491:AAE5G1oPobTtfArA0vMOH88S9bqi1EfSrjs
+      # - TELEGRAM_LOGIN=IkeniGoogleBot
+      - BOT_TOKEN=806168491:AAE5G1oPobTtfArA0vMOH88S9bqi1EfSrjs
+      - JWT_SECRET_KEY=43e33e30ba8318df71935c77fd02af999ad77b81af16d9d1dc454a9af8ba44bd
     networks:
       app_network:
-        ipv4_address: 10.5.0.10
+        ipv4_address: 10.5.0.5
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl","--fail","http://0.0.0.0:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
     depends_on:
-      - budget-ui
-      # - portfolio-ui
+      - api
 
   pgadmin:
     container_name: pgadmin
