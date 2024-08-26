@@ -215,3 +215,6 @@ dist
 
 # build toll-up
 **/__pycache__
+
+# build toll-up
+**/haproxy/certs/*.*
