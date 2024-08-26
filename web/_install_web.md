@@ -24,7 +24,7 @@ sudo certbot certonly --manual --preferred-challenges dns
 
 sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d haproxy.ikeniborn.ru --post-hook "/home/bagatocorp/web/service/haproxy/prepareLetsEncryptCertificates.sh && docker restart haproxy" --dry-run
 
-sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d haproxy.ikeniborn.ru --post-hook "/home/bagatocorp/web/service/haproxy/prepareLetsEncryptCertificates.sh && systemctl reload haproxy.service"
+sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d haproxy.ikeniborn.ru --post-hook "/home/bagatocorp/web/service/haproxy/prepareLetsEncryptCertificates.sh && docker restart haproxy"
 
 # build Docker image in current directory
 

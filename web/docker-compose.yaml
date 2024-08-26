@@ -98,9 +98,10 @@ services:
     volumes:
       - /home/bagatocorp/web/service/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:delegated
       - /home/bagatocorp/web/service/haproxy/certs:/etc/ssl/certs:delegated
-    networks:
-      app_network:
-        ipv4_address: 10.5.0.10
+    network_mode: "host"
+    # networks:
+    #   app_network:
+    #     ipv4_address: 10.5.0.10
     depends_on:
       - budget-ui
 
