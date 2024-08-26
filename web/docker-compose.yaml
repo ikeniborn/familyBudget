@@ -1,8 +1,8 @@
-version: '2.4'
 
 services:
   postgres:
     container_name: postgres
+    hostname: postgres
     image: "postgres:13"
     networks:
       app_network:
@@ -26,6 +26,7 @@ services:
 
   api:
     container_name: api
+    hostname: api
     build:
       dockerfile: ./app/api/Dockerfile
       context: ./
@@ -45,7 +46,6 @@ services:
       - PORTFOLIO_POSTGRES_DB=portfoliodb
       - PORTFOLIO_POSTGRES_USER=portfolio
       - PORTFOLIO_POSTGRES_PASSWORD=ZC9eKnpEDvuWQgHUt8cx
-      # - POLARS_SKIP_CPU_CHECK=false
     networks:
       app_network:
         ipv4_address: 10.5.0.3
@@ -61,6 +61,7 @@ services:
 
   budget-ui:
     container_name: budget-ui
+    hostname: budget-ui
     build:
       dockerfile: ./app/budget/Dockerfile
       context: ./
@@ -87,36 +88,9 @@ services:
     depends_on:
       - api
 
-  # portfolio-ui:
-  #   container_name: portfolio-ui
-  #   build:
-  #     dockerfile: ./app/portfolio/Dockerfile
-  #     context: ./
-  #   volumes:
-  #     - /home/bagatocorp/web/app/portfolio:/usr/src/app:delegated
-  #   ports:
-  #     - "8502:8502"
-  #   command: "streamlit run ui.py --server.port=8502"
-  #   environment:
-  #     - USER_ID=1000
-  #     - GROUP_ID=1000
-  #     - API_URL=http://10.5.0.3:8888
-  #     - POLARS_SKIP_CPU_CHECK=false
-  #   networks:
-  #     app_network:
-  #       ipv4_address: 10.5.0.5
-  #   healthcheck:
-  #     test: ["CMD", "curl","--fail","http://0.0.0.0:8502/_stcore/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 5
-  #     start_period: 30s
-  #   restart: always
-  #   depends_on:
-  #     - api
-
   haproxy:
     container_name: haproxy
+    hostname: haproxy
     image: "haproxy:2.2-alpine"
     ports:
       - "80:80"
@@ -129,7 +103,6 @@ services:
         ipv4_address: 10.5.0.10
     depends_on:
       - budget-ui
-      # - portfolio-ui
 
 networks:
   app_network:

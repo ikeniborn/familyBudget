@@ -56,7 +56,7 @@ sudo docker restart api
 sudo docker restart ui
 sudo docker restart postgres
 
-sudo docker logs -f portfolio-ui
+sudo docker logs -f haproxy
 
 . sync_app.sh
 
