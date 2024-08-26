@@ -34,11 +34,11 @@ sudo docker compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml 
 sudo docker compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml up -d
 sudo docker compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml down
 
-sudo docker compose -f ~/web/docker-compose.yaml up --build -d
-sudo docker compose -f ~/web/docker-compose.yaml down --rmi all
+sudo docker compose -f /home/bagatocorp/web/docker-compose.yaml up --build -d
+sudo docker compose -f /home/bagatocorp/web/docker-compose.yaml down --rmi all
 
-sudo docker compose -f ~/web/docker-compose.yaml up -d
-sudo docker compose -f ~/web/docker-compose.yaml down
+sudo docker compose -f /home/bagatocorp/web/docker-compose.yaml up -d
+sudo docker compose -f /home/bagatocorp/web/docker-compose.yaml down
 
 >> перезагрузка докера
 sudo service docker stop
