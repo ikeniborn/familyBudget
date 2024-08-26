@@ -25,6 +25,8 @@ if [ ! -d "$app_folder/web" ]; then
 else 
     sudo rsync -av --delete "$git_folder/web" "$app_folder"
     sudo chmod +x "$app_folder/web/service/postgresql/backup/postgres-backup.sh"
+    sudo chmod +x "$app_folder/web/service/haproxy/prepareLetsEncryptCertificates.sh"
+    sudo chmod +x "$app_folder/web/service/haproxy/renewLetsEncryptCertificates.sh"
     sudo chown -R 1000:1000 $app_folder
 fi
 
