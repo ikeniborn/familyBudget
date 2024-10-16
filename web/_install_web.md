@@ -22,17 +22,18 @@ sudo mkdir /etc/haproxy && \
 sudo mkdir /etc/haproxy/certs
 
 sudo crontab -e
-0 0 1 * * /bin/sh /home/bagatocorp/web/service/haproxy/renewLetsEncryptCertificates.sh
+0 0 1 * * /bin/sh /app/web/service/haproxy/renewLetsEncryptCertificates.sh
 
 sudo apt-get -y install certbot
 
 sudo certbot certonly --manual --preferred-challenges dns
 
-sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d haproxy.ikeniborn.ru --post-hook "/home/bagatocorp/web/service/haproxy/prepareLetsEncryptCertificates.sh && docker restart haproxy" --dry-run
+sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d haproxy.ikeniborn.ru --post-hook "/app/web/service/haproxy/prepareLetsEncryptCertificates.sh && docker restart haproxy" --dry-run
 
-sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d haproxy.ikeniborn.ru --post-hook "/home/bagatocorp/web/service/haproxy/prepareLetsEncryptCertificates.sh && docker restart haproxy"
+sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d haproxy.ikeniborn.ru --post-hook "/app/web/service/haproxy/prepareLetsEncryptCertificates.sh && docker restart haproxy"
 
 # build Docker image in current directory
+sudo mkdir /app
 
 sudo docker compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml up --build -d
 sudo docker compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml down --rmi all
@@ -40,11 +41,11 @@ sudo docker compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml 
 sudo docker compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml up -d
 sudo docker compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml down
 
-sudo docker compose -f /home/bagatocorp/web/docker-compose.yaml up --build -d
-sudo docker compose -f /home/bagatocorp/web/docker-compose.yaml down --rmi all
+sudo docker compose -f /app/web/docker-compose.yaml up --build -d
+sudo docker compose -f /app/web/docker-compose.yaml down --rmi all
 
-sudo docker compose -f /home/bagatocorp/web/docker-compose.yaml up -d
-sudo docker compose -f /home/bagatocorp/web/docker-compose.yaml down
+sudo docker compose -f /app/web/docker-compose.yaml up -d
+sudo docker compose -f /app/web/docker-compose.yaml down
 
 
 
@@ -66,8 +67,6 @@ sudo docker restart postgres
 sudo docker restart haproxy
 
 sudo docker logs -f haproxy
-
-. sync_app.sh
 
 ss -ntlp | more
 
@@ -101,15 +100,15 @@ printenv | grep 'DATABASE' -->
 
 
 # BACKUP
-mkdir /home/bagatocorp/database/postgresql/backup
-touch /home/bagatocorp/database/postgresql/backuppostgres-backup.log
+mkdir -p /app/database/postgresql/backup 
+touch /app/database/postgresql/postgres-backup.log
 <!-- sudo chmod +x /home/bagatocorp/web/data/postgres-backup.sh -->
 
 <!-- tail -100 /home/bagatocorp/web/data/backup/postgres-backup.log -->
 
-sudo crontab -u bagatocorp -e
+sudo crontab -e
 
-0 * * * * . /home/bagatocorp/web/service/postgresql/backup/postgres-backup.sh
+0 * * * * . /app/web/service/postgresql/backup/postgres-backup.sh
 
 <!-- streamlit run app.py --server.port=4443 --server.sslCertFile=cert/budget.ikeniborn.ru.pem --server.sslKeyFile=cert/budget.ikeniborn.ru.key -->
 
