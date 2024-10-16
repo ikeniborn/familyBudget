@@ -1,8 +1,8 @@
 #!/bin/bash
 
-git_folder="/home/bagatocorp/git"
+git_folder="/git"
 git_branch="master"
-app_folder="/home/bagatocorp"
+app_folder="/app"
 
 # Проверить, существует ли директория "$git_folder"
 if [ -d "$git_folder" ]; then
@@ -30,4 +30,4 @@ else
     sudo chown -R 1000:1000 $app_folder
 fi
 
-cd ~/
+cd /app
