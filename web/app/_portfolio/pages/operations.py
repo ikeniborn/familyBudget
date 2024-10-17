@@ -30,7 +30,7 @@ class Forms:
             self._row_types = row_types
             self._nomenclatures = nomenclatures
 
-        @st.experimental_fragment
+        @st.fragment
         def form(self):
 
 

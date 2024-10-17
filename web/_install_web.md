@@ -21,6 +21,8 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin 
 sudo mkdir /etc/haproxy && \
 sudo mkdir /etc/haproxy/certs
 
+. /sync_web.sh
+
 sudo crontab -e
 0 0 1 * * /bin/sh /app/web/service/haproxy/renewLetsEncryptCertificates.sh
 

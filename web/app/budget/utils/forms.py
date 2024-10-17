@@ -30,7 +30,7 @@ class Forms:
             self._row_types = row_types
             self._nomenclatures = nomenclatures
 
-        @st.experimental_fragment
+        @st.fragment
         def form(self):
 
             t_d_period = Periods().fetchMany(
@@ -241,7 +241,7 @@ class Forms:
             self._row_types = row_types
             self._nomenclatures = nomenclatures
 
-        @st.experimental_fragment
+        @st.fragment
         def form(self):
 
             t_d_period = Periods().fetchMany(
@@ -486,7 +486,7 @@ class Forms:
             self._row_types = row_types
             self._nomenclatures = nomenclatures
 
-        @st.experimental_fragment
+        @st.fragment
         def report(self):
 
             t_d_period = Periods().fetchMany(
