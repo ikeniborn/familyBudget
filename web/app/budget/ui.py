@@ -45,10 +45,6 @@ def login() -> Authenticate:
 
 if __name__ == "__main__":
     st.set_page_config(page_title="Домашний бюджет", page_icon=":book", initial_sidebar_state="auto", layout="wide")
-    
-    telegram_login = TelegramLoginWidgetComponent(bot_username="@IkeniGoogleBot", secret_key="806168491:AAE5G1oPobTtfArA0vMOH88S9bqi1EfSrjs")
-    value = telegram_login.button
-    st.write(value)
 
     # users = Users().fetchAll(ttl=1)
     # st.write(users.select("user_name").filter(pl.col("user_name") == "ilya").unique().sort(by="user_name")["user_name"][0])
@@ -63,6 +59,10 @@ if __name__ == "__main__":
     authenticator = login()
 
     if st.session_state["authentication_status"]:
+        
+        telegram_login = TelegramLoginWidgetComponent(bot_username="@IkeniGoogleBot", secret_key="806168491:AAE5G1oPobTtfArA0vMOH88S9bqi1EfSrjs")
+        value = telegram_login.button
+        st.write(value)
 
         users = Users().fetchAll(ttl=86400)
         if st.session_state.username:
