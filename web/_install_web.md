@@ -30,6 +30,8 @@ sudo certbot certonly --manual --preferred-challenges dns
 
 sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d haproxy.ikeniborn.ru --post-hook "/app/web/service/haproxy/prepareLetsEncryptCertificates.sh && docker restart haproxy" --dry-run
 
+sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d budget.ikeniborn.ru --post-hook "/app/web/service/haproxy/prepareLetsEncryptCertificates.sh && docker restart haproxy"
+
 sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d haproxy.ikeniborn.ru --post-hook "/app/web/service/haproxy/prepareLetsEncryptCertificates.sh && docker restart haproxy"
 
 # build Docker image in current directory
@@ -56,7 +58,7 @@ sudo service docker status
 sudo service docker restart
 
 >> очистка не используемых контейнеров и образов
-sudo docker images ls
+sudo docker image ls
 sudo docker volume ls
 sudo docker system prune -a 
 
