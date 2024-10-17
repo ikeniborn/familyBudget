@@ -5,6 +5,7 @@ from pathlib import Path
 import yaml
 from yaml.loader import SafeLoader
 import polars as pl
+from streamlit_telegram_login import TelegramLoginWidgetComponent
 
 # from polars import DataFrame
 
@@ -44,6 +45,10 @@ def login() -> Authenticate:
 
 if __name__ == "__main__":
     st.set_page_config(page_title="Домашний бюджет", page_icon=":book", initial_sidebar_state="auto", layout="wide")
+    
+    telegram_login = TelegramLoginWidgetComponent(bot_username="@IkeniGoogleBot", secret_key="806168491:AAE5G1oPobTtfArA0vMOH88S9bqi1EfSrjs")
+    value = telegram_login.button
+    st.write(value)
 
     # users = Users().fetchAll(ttl=1)
     # st.write(users.select("user_name").filter(pl.col("user_name") == "ilya").unique().sort(by="user_name")["user_name"][0])
