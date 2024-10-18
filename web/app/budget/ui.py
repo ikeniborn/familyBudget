@@ -67,12 +67,52 @@ if __name__ == "__main__":
         if value:
             st.write(value)
     else:
-        st.write(telegram_login.get_session)
+        users = Users().fetchAll(ttl=86400)
+        if st.session_state.username:
+            if "user_key" not in st.session_state:
+                st.session_state.user_key = (
+                    users.lazy().filter(pl.col(["user_name"]) == st.session_state.username).collect()["user_key"][0]
+                )
+        financial_centers = FinancialCenters().fetchAll(ttl=86400)
+        cost_centers = CostCenter().fetchAll(ttl=86400)
+        nomenclatures = Nomenclatures().fetchAll(ttl=86400)
+        row_types = RowTypes().fetchAll(ttl=86400)
 
-        clicked = st.button("Clear cookies")
-        if clicked:
-            telegram_login.clear_session()
-            st.write("Cookies have been successfully cleared")
+        # st.sidebar.title(f"Привет {st.session_state.name}")
+        # authenticator.logout("Выход", "sidebar")
+
+        fact, budget, report = st.tabs(["Факт", "Бюджет", "Отчетность"])
+
+        with fact:
+            Forms.Fact(
+                financial_centers=financial_centers,
+                cost_centers=cost_centers,
+                row_types=row_types,
+                nomenclatures=nomenclatures,
+            ).form()
+
+        with budget:
+            Forms.Budget(
+                financial_centers=financial_centers,
+                cost_centers=cost_centers,
+                row_types=row_types,
+                nomenclatures=nomenclatures,
+            ).form()
+
+        with report:
+            Forms.Report(
+                financial_centers=financial_centers,
+                cost_centers=cost_centers,
+                row_types=row_types,
+                nomenclatures=nomenclatures,
+            ).report()
+
+        # st.write(telegram_login.get_session)
+
+        # clicked = st.button("Clear cookies")
+        # if clicked:
+            # telegram_login.clear_session()
+            # st.write("Cookies have been successfully cleared")
 
     # authenticator = login()
 
