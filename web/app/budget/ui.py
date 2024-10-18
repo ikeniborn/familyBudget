@@ -1,11 +1,13 @@
 import streamlit as st
-import streamlit_authenticator as stauth
-from streamlit_authenticator import Authenticate
+# import streamlit_authenticator as stauth
+# from streamlit_authenticator import Authenticate
 from pathlib import Path
 import yaml
 from yaml.loader import SafeLoader
 import polars as pl
+import os
 from streamlit_telegram_login import TelegramLoginWidgetComponent
+from streamlit_telegram_login.helpers import YamlConfig
 
 # from polars import DataFrame
 
@@ -23,24 +25,24 @@ from utils.forms import Forms
 # from uuid import UUID
 
 
-def login() -> Authenticate:
+# def login() -> Authenticate:
 
-    file_path_config = Path(__file__).parent / "secrets/authenticator_secrets.yaml"
+#     file_path_config = Path(__file__).parent / "secrets/authenticator_secrets.yaml"
 
-    with file_path_config.open("rb") as file:
-        config = yaml.load(file, Loader=SafeLoader)
+#     with file_path_config.open("rb") as file:
+#         config = yaml.load(file, Loader=SafeLoader)
 
-    authenticator = stauth.Authenticate(
-        config["credentials"], config["cookie"]["name"], config["cookie"]["key"], config["cookie"]["expiry_days"]
-    )
+#     authenticator = stauth.Authenticate(
+#         config["credentials"], config["cookie"]["name"], config["cookie"]["key"], config["cookie"]["expiry_days"]
+#     )
 
-    authenticator.login(
-        location="sidebar",
-        fields={"Form name": "Авторизация", "Username": "Имя пользователя", "Password": "Пароль", "Login": "Вход"},
-        max_concurrent_users=2,
-    )
+#     authenticator.login(
+#         location="sidebar",
+#         fields={"Form name": "Авторизация", "Username": "Имя пользователя", "Password": "Пароль", "Login": "Вход"},
+#         max_concurrent_users=2,
+#     )
 
-    return authenticator
+#     return authenticator
 
 
 if __name__ == "__main__":
@@ -55,57 +57,69 @@ if __name__ == "__main__":
     # df = pl.DataFrame(Test(a=[1, 3, 5], b=[2, 4, 6]))
     # st.write(df.filter(pl.col("a")["a"] == 1))
     # st.stop()
-
-    authenticator = login()
-
-    if st.session_state["authentication_status"]:
-        
-        telegram_login = TelegramLoginWidgetComponent(bot_username="@IkeniGoogleBot", secret_key="806168491:AAE5G1oPobTtfArA0vMOH88S9bqi1EfSrjs")
+    parent_dir = os.path.dirname(os.path.abspath(__file__))
+    config = YamlConfig(f"{parent_dir}/secrets/telegram_config.yaml")
+    
+    telegram_login = TelegramLoginWidgetComponent(**config.config)
+    
+    if not st.session_state["username"]:
         value = telegram_login.button
-        st.write(value)
+        if value:
+            st.write(value)
+    else:
+        st.write(telegram_login.get_session)
 
-        users = Users().fetchAll(ttl=86400)
-        if st.session_state.username:
-            if "user_key" not in st.session_state:
-                st.session_state.user_key = (
-                    users.lazy().filter(pl.col(["user_name"]) == st.session_state.username).collect()["user_key"][0]
-                )
-        financial_centers = FinancialCenters().fetchAll(ttl=86400)
-        cost_centers = CostCenter().fetchAll(ttl=86400)
-        nomenclatures = Nomenclatures().fetchAll(ttl=86400)
-        row_types = RowTypes().fetchAll(ttl=86400)
+        clicked = st.button("Clear cookies")
+        if clicked:
+            telegram_login.clear_session()
+            st.write("Cookies have been successfully cleared")
 
-        st.sidebar.title(f"Привет {st.session_state.name}")
-        authenticator.logout("Выход", "sidebar")
+    # authenticator = login()
 
-        fact, budget, report = st.tabs(["Факт", "Бюджет", "Отчетность"])
+    # if st.session_state["authentication_status"]:
+        
+    #     users = Users().fetchAll(ttl=86400)
+    #     if st.session_state.username:
+    #         if "user_key" not in st.session_state:
+    #             st.session_state.user_key = (
+    #                 users.lazy().filter(pl.col(["user_name"]) == st.session_state.username).collect()["user_key"][0]
+    #             )
+    #     financial_centers = FinancialCenters().fetchAll(ttl=86400)
+    #     cost_centers = CostCenter().fetchAll(ttl=86400)
+    #     nomenclatures = Nomenclatures().fetchAll(ttl=86400)
+    #     row_types = RowTypes().fetchAll(ttl=86400)
 
-        with fact:
-            Forms.Fact(
-                financial_centers=financial_centers,
-                cost_centers=cost_centers,
-                row_types=row_types,
-                nomenclatures=nomenclatures,
-            ).form()
+    #     st.sidebar.title(f"Привет {st.session_state.name}")
+    #     authenticator.logout("Выход", "sidebar")
 
-        with budget:
-            Forms.Budget(
-                financial_centers=financial_centers,
-                cost_centers=cost_centers,
-                row_types=row_types,
-                nomenclatures=nomenclatures,
-            ).form()
+    #     fact, budget, report = st.tabs(["Факт", "Бюджет", "Отчетность"])
 
-        with report:
-            Forms.Report(
-                financial_centers=financial_centers,
-                cost_centers=cost_centers,
-                row_types=row_types,
-                nomenclatures=nomenclatures,
-            ).report()
+    #     with fact:
+    #         Forms.Fact(
+    #             financial_centers=financial_centers,
+    #             cost_centers=cost_centers,
+    #             row_types=row_types,
+    #             nomenclatures=nomenclatures,
+    #         ).form()
 
-    elif st.session_state["authentication_status"] is False:
-        st.sidebar.error("Логин или пароль не корректный")
+    #     with budget:
+    #         Forms.Budget(
+    #             financial_centers=financial_centers,
+    #             cost_centers=cost_centers,
+    #             row_types=row_types,
+    #             nomenclatures=nomenclatures,
+    #         ).form()
 
-    elif st.session_state["authentication_status"] is None:
-        st.info("Введите ваш логин и пароль")
+    #     with report:
+    #         Forms.Report(
+    #             financial_centers=financial_centers,
+    #             cost_centers=cost_centers,
+    #             row_types=row_types,
+    #             nomenclatures=nomenclatures,
+    #         ).report()
+
+    # elif st.session_state["authentication_status"] is False:
+    #     st.sidebar.error("Логин или пароль не корректный")
+
+    # elif st.session_state["authentication_status"] is None:
+    #     st.info("Введите ваш логин и пароль")
