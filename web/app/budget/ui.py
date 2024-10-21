@@ -81,7 +81,7 @@ if __name__ == "__main__":
         clicked = st.sidebar.button("Выход")
         if clicked:
             telegram_login.clear_session()
-            st.sidebar.write("Сессия завершена")
+            st.rerun()
 
         fact, budget, report = st.tabs(["Факт", "Бюджет", "Отчетность"])
 
