@@ -77,8 +77,11 @@ if __name__ == "__main__":
         nomenclatures = Nomenclatures().fetchAll(ttl=86400)
         row_types = RowTypes().fetchAll(ttl=86400)
 
-        # st.sidebar.title(f"Привет {st.session_state.name}")
-        # authenticator.logout("Выход", "sidebar")
+        st.sidebar.title(f"Привет {st.session_state.username}")
+        clicked = st.sidebar.button("Выход")
+        if clicked:
+            telegram_login.clear_session()
+            st.sidebar.write("Сессия завершена")
 
         fact, budget, report = st.tabs(["Факт", "Бюджет", "Отчетность"])
 
