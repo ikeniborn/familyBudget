@@ -75,7 +75,6 @@ if __name__ == "__main__":
         cost_centers = CostCenter().fetchAll(ttl=86400)
         nomenclatures = Nomenclatures().fetchAll(ttl=86400)
         row_types = RowTypes().fetchAll(ttl=86400)
-        st.write(st.session_state)
 
         st.sidebar.title(f"Привет {st.session_state.first_name}")
         clicked = st.sidebar.button("Выход")
