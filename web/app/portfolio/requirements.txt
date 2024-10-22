@@ -1,4 +1,4 @@
-# streamlit
+streamlit
 # streamlit-authenticator
 # streamlit_oauth==0.1.8
 # gspread==5.12.4
@@ -24,16 +24,13 @@
 # pyyaml
 # hydralit_components
 # polars
-# polars-lts-cpu
+polars-lts-cpu
 # nicegui
 # fastapi-users
 fastapi
-uvicorn
 # joserfc
 # urllib3
 # typing
-Jinja2
-joserfc
 # streamlit
 # pandas
 # pytz

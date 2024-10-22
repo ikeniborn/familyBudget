@@ -218,3 +218,5 @@ dist
 
 # build toll-up
 **/haproxy/certs
+
+**/venv

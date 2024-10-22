@@ -329,6 +329,7 @@ create index idx_t_f_registry_account_out_key on public.t_f_operations using btr
 --create index idx_t_f_registry_2028_account_out_key on public.t_f_registry_2028 using btree (account_out_key);
 --create index idx_t_f_registry_2029_account_out_key on public.t_f_registry_2029 using btree (account_out_key);
 --create index idx_t_f_registry_2030_account_out_key on public.t_f_registry_2030 using btree (account_out_key);
+
 CREATE TABLE if not EXISTS public.t_f_transactions (
   transaction_key UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   operation_key UUID NOT NULL REFERENCES t_f_operations (operation_key),
