@@ -1,11 +1,11 @@
 import streamlit as st
 # import streamlit_authenticator as stauth
 # from streamlit_authenticator import Authenticate
-from pathlib import Path
-import yaml
-from yaml.loader import SafeLoader
-import polars as pl
-import os
+# from pathlib import Path
+# import yaml
+# from yaml.loader import SafeLoader
+# import polars as pl
+# import os
 # from streamlit_telegram_login import TelegramLoginWidgetComponent
 # from streamlit_telegram_login.helpers import YamlConfig
 

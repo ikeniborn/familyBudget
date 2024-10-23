@@ -10,7 +10,7 @@ streamlit
 # setuptools==59.6.0
 # sql_metadata==2.10.0
 # pytz
-# plotly
+plotly
 # google-cloud-storage==2.16.0
 # psycopg2==2.9.9
 # streamlit-on-Hover-tabs==1.0.1
@@ -19,7 +19,7 @@ streamlit
 # google-auth
 # streamlit-telegram-login
 # google-auth-oauthlib
-# requests
+requests
 # pydantic
 # pyyaml
 # hydralit_components
@@ -33,10 +33,10 @@ fastapi
 # typing
 # streamlit
 # pandas
-# pytz
+pytz
 # hashlib
-# uuid
-# secrets
+uuid
+secrets
 # starlette
 # dataclasses
 # enum

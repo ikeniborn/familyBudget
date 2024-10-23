@@ -14,7 +14,7 @@ RUN apt-get install -y python3-pip gcc make jq openssl
 
 # add and install requirements
 RUN pip install pip --upgrade
-COPY ./app/api/requirements.txt .
+COPY ./api/requirements.txt .
 RUN pip install -r requirements.txt
 
 #################

@@ -29,46 +29,46 @@ services:
           cpus: '1'
           memory: 1G
 
-  budget-api:
-    container_name: budget-api
-    build:
-      dockerfile: ./app/api/Dockerfile
-      context: ./
-    volumes:
-      - /home/ikeni/Documents/Git/familyBudget/web/api:/usr/src/app:delegated
-    ports:
-      - "8888:8888"
-    command: "uvicorn budget_api:app --host 0.0.0.0 --port 8888 --reload"
-    environment:
-      - USER_ID=1000
-      - GROUP_ID=1000
-      - POSTGRES_HOST=10.5.0.2
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=budgetdb
-      - POSTGRES_USER=budget
-      - POSTGRES_PASSWORD=rEWbdYxog7azBce2fA4D
-    networks:
-      app_network:
-        ipv4_address: 10.5.0.3
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
-    healthcheck:
-      test: ["CMD", "bash", "-c", "echo -n '' > /dev/tcp/0.0.0.0/8888"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    restart: always
-    depends_on:
-      - postgres
+  # budget-api:
+  #   container_name: budget-api
+  #   build:
+  #     dockerfile: ./api/Dockerfile
+  #     context: ./
+  #   volumes:
+  #     - /home/ikeni/Documents/Git/familyBudget/web/api:/usr/src/app:delegated
+  #   ports:
+  #     - "8888:8888"
+  #   command: "uvicorn budget_api:app --host 0.0.0.0 --port 8888 --reload"
+  #   environment:
+  #     - USER_ID=1000
+  #     - GROUP_ID=1000
+  #     - POSTGRES_HOST=10.5.0.2
+  #     - POSTGRES_PORT=5432
+  #     - POSTGRES_DB=budgetdb
+  #     - POSTGRES_USER=budget
+  #     - POSTGRES_PASSWORD=rEWbdYxog7azBce2fA4D
+  #   networks:
+  #     app_network:
+  #       ipv4_address: 10.5.0.3
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1'
+  #         memory: 1G
+  #   healthcheck:
+  #     test: ["CMD", "bash", "-c", "echo -n '' > /dev/tcp/0.0.0.0/8888"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 30s
+  #   restart: always
+  #   depends_on:
+  #     - postgres
 
   portfolio-api:
     container_name: portfolio-api
     build:
-      dockerfile: ./app/api/Dockerfile
+      dockerfile: ./api/Dockerfile
       context: ./
     volumes:
       - /home/ikeni/Documents/Git/familyBudget/web/api:/usr/src/app:delegated
@@ -165,7 +165,7 @@ services:
       start_period: 30s
     restart: always
     depends_on:
-      - api
+      - portfolio-api
 
   pgadmin:
     container_name: pgadmin
