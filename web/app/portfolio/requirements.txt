@@ -35,8 +35,8 @@ fastapi
 # pandas
 pytz
 # hashlib
-uuid
-secrets
+# uuid
+# secrets
 # starlette
 # dataclasses
 # enum
