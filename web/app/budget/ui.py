@@ -65,7 +65,8 @@ if __name__ == "__main__":
     if not st.session_state["username"]:
         value = telegram_login.button
         if value:
-            st.write(value)
+            if "telegramm_session" not in st.session_state.telegramm_session:
+                st.session_state.telegramm_session = value
     else:
         users = Users().fetchAll(ttl=86400)
         if st.session_state.username:
@@ -77,6 +78,7 @@ if __name__ == "__main__":
         row_types = RowTypes().fetchAll(ttl=86400)
 
         st.sidebar.title(f"Привет {st.session_state.first_name}")
+        st.write(st.session_state.telegramm_session)
         clicked = st.sidebar.button("Выход")
         if clicked:
             telegram_login.clear_session()
