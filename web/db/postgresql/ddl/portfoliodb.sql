@@ -107,7 +107,7 @@ CREATE TABLE if not EXISTS public.t_d_contractors (
   contractor_key UUID PRIMARY KEY,
   contractor_type_key UUID NOT NULL REFERENCES t_d_contractor_types (contractor_type_key),
   contractor_id VARCHAR NOT NULL,
-  portfolio_name VARCHAR,
+  contractor_name VARCHAR,
   created_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
   updated_dttm TIMESTAMP without time zone NOT NULL DEFAULT now()
 );
