@@ -77,7 +77,7 @@ if __name__ == "__main__":
             else:
                 telegram_login.clear_session()
                 st.session_state.clear()
-                st.rerun()
+                # st.rerun()
     # elif "user_key" not in st.session_state:
     #     telegram_login.clear_session()
     #     st.session_state.clear()
