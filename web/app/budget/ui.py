@@ -71,8 +71,10 @@ if __name__ == "__main__":
             users = Users().fetchAll(ttl=86400)
             if "user_key" not in st.session_state:
                 st.session_state.user_key = users.lazy().filter(pl.col(["user_name"]) == st.session_state.telegramm_session["username"]).collect()["user_key"][0]
-
-    if "user_key" in st.session_state:
+            else:
+                if st.session_state.user_key is None:
+                    st.rerun()
+    else:
         financial_centers = FinancialCenters().fetchAll(ttl=86400)
         cost_centers = CostCenter().fetchAll(ttl=86400)
         nomenclatures = Nomenclatures().fetchAll(ttl=86400)
@@ -82,7 +84,7 @@ if __name__ == "__main__":
         clicked = st.sidebar.button("Выход")
         if clicked:
             telegram_login.clear_session()
-            # st.rerun()
+            st.rerun()
 
         fact, budget, report = st.tabs(["Факт", "Бюджет", "Отчетность"])
 
@@ -110,15 +112,15 @@ if __name__ == "__main__":
                 nomenclatures=nomenclatures,
             ).report()
     # else:
-        # telegram_login.clear_session()
-        # st.rerun()
+    # telegram_login.clear_session()
+    # st.rerun()
 
-        # st.write(telegram_login.get_session)
+    # st.write(telegram_login.get_session)
 
-        # clicked = st.button("Clear cookies")
-        # if clicked:
-        # telegram_login.clear_session()
-        # st.write("Cookies have been successfully cleared")
+    # clicked = st.button("Clear cookies")
+    # if clicked:
+    # telegram_login.clear_session()
+    # st.write("Cookies have been successfully cleared")
 
     # authenticator = login()
 
