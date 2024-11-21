@@ -63,7 +63,6 @@ if __name__ == "__main__":
 
     telegram_login = TelegramLoginWidgetComponent(**config.config)
 
-
     # if not st.session_state["username"]:
     if "telegramm_session" not in st.session_state:
         value = telegram_login.button
