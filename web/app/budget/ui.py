@@ -64,6 +64,7 @@ if __name__ == "__main__":
     
     # if not st.session_state["username"]:
     value = telegram_login.button
+    st.write(st.session_state)
 
     if value:
         if "telegramm_session" not in st.session_state.telegramm_session:
