@@ -30,11 +30,11 @@
   },
   "dependencies": {
     "axios": "^1.6.8",
-    "cookie-parser": "^1.4.6",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "debug": "^4.3.3",
     "dotenv": "^16.4.5",
-    "express": "^4.19.2",
+    "express": "^4.21.1",
     "jsonwebtoken": "^9.0.2",
     "query-string": "^8.2.0"
   }
