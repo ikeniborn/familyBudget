@@ -71,13 +71,13 @@ if __name__ == "__main__":
             users = Users().fetchAll(ttl=1)
             user_key = users.lazy().filter(pl.col(["user_name"]) == st.session_state.telegramm_session["username"]).collect()["user_key"]
             st.write(user_key)
-            if user_key:
+            if user_key[0]:
                 if "user_key" not in st.session_state:
                     st.session_state.user_key = users.lazy().filter(pl.col(["user_name"]) == st.session_state.telegramm_session["username"]).collect()["user_key"][0]
-            # else:
-                # telegram_login.clear_session()
-                # st.session_state.clear()
-                # st.rerun()
+            else:
+                telegram_login.clear_session()
+                st.session_state.clear()
+                st.rerun()
     elif "user_key" not in st.session_state:
         telegram_login.clear_session()
         st.session_state.clear()
