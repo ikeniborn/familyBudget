@@ -83,7 +83,7 @@ services:
       start_period: 30s
     restart: always
     depends_on:
-      - api
+      - budget_api
 
   haproxy:
     container_name: haproxy
