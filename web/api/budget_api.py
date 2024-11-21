@@ -7,9 +7,9 @@ app = FastAPI()
 
 connection = Postgres(
     host=os.getenv("POSTGRES_HOST"),
-    database=os.getenv("POSTGRES_DB"),
-    user=os.getenv("POSTGRES_USER"),
-    password=os.getenv("POSTGRES_PASSWORD"),
+    database=os.getenv("BUDGET_POSTGRES_DB"),
+    user=os.getenv("BUDGET_POSTGRES_USER"),
+    password=os.getenv("BUDGET_POSTGRES_PASSWORD"),
 )
 
 
