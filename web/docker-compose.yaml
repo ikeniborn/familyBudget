@@ -24,9 +24,9 @@ services:
       start_period: 10s
     restart: always
 
-  api:
-    container_name: api
-    hostname: api
+  budget_api:
+    container_name: budget_api
+    hostname: budget_api
     build:
       dockerfile: ./api/Dockerfile
       context: ./
