@@ -64,6 +64,7 @@ if __name__ == "__main__":
     
     # if not st.session_state["username"]:
     value = telegram_login.button
+    st.write(st.session_state.telegramm_session)
 
     if value:
         if "telegramm_session" not in st.session_state:
@@ -72,7 +73,7 @@ if __name__ == "__main__":
         else:
             users = Users().fetchAll(ttl=86400)
             if "user_key" not in st.session_state:
-                st.session_state.user_key = users.lazy().filter(pl.col(["user_name"]) == st.session_state.telegramm_session.username).collect()["user_key"][0]               
+                st.session_state.user_key = users.lazy().filter(pl.col(["user_name"]) == st.session_state.telegramm_session['username']).collect()["user_key"][0]               
             financial_centers = FinancialCenters().fetchAll(ttl=86400)
             cost_centers = CostCenter().fetchAll(ttl=86400)
             nomenclatures = Nomenclatures().fetchAll(ttl=86400)
