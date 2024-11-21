@@ -70,9 +70,8 @@ if __name__ == "__main__":
             st.session_state.telegramm_session = value
             users = Users().fetchAll(ttl=1)
             user_key = users.lazy().filter(pl.col(["user_name"]) == st.session_state.telegramm_session["username"]).collect()["user_key"]
-            
-            user_key_count = user_key.with_row_count()
-            st.write(user_key_count)
+            if user_key:
+                st.write(user_key)
             # if user_key_count["user_key"][0] > 0:
             #     if "user_key" not in st.session_state:
             #         st.session_state.user_key = user_key[0]
@@ -80,48 +79,50 @@ if __name__ == "__main__":
             #     telegram_login.clear_session()
             #     st.session_state.clear()
             #     st.rerun()
-    elif "user_key" not in st.session_state:
-        telegram_login.clear_session()
-        st.session_state.clear()
-        st.rerun()
-    else:
-        financial_centers = FinancialCenters().fetchAll(ttl=86400)
-        cost_centers = CostCenter().fetchAll(ttl=86400)
-        nomenclatures = Nomenclatures().fetchAll(ttl=86400)
-        row_types = RowTypes().fetchAll(ttl=86400)
+    # elif "user_key" not in st.session_state:
+    #     telegram_login.clear_session()
+    #     st.session_state.clear()
+    #     st.rerun()
+    # else:
+    #     financial_centers = FinancialCenters().fetchAll(ttl=86400)
+    #     cost_centers = CostCenter().fetchAll(ttl=86400)
+    #     nomenclatures = Nomenclatures().fetchAll(ttl=86400)
+    #     row_types = RowTypes().fetchAll(ttl=86400)
 
-        st.sidebar.title(f"Привет {st.session_state.first_name}")
-        clicked = st.sidebar.button("Выход")
-        if clicked:
-            telegram_login.clear_session()
-            st.session_state.clear()
-            st.rerun()
+    #     st.sidebar.title(f"Привет {st.session_state.first_name}")
+    #     clicked = st.sidebar.button("Выход")
+    #     if clicked:
+    #         telegram_login.clear_session()
+    #         st.session_state.clear()
+    #         st.rerun()
 
-        fact, budget, report = st.tabs(["Факт", "Бюджет", "Отчетность"])
+    #     fact, budget, report = st.tabs(["Факт", "Бюджет", "Отчетность"])
 
-        with fact:
-            Forms.Fact(
-                financial_centers=financial_centers,
-                cost_centers=cost_centers,
-                row_types=row_types,
-                nomenclatures=nomenclatures,
-            ).form()
+    #     with fact:
+    #         Forms.Fact(
+    #             financial_centers=financial_centers,
+    #             cost_centers=cost_centers,
+    #             row_types=row_types,
+    #             nomenclatures=nomenclatures,
+    #         ).form()
 
-        with budget:
-            Forms.Budget(
-                financial_centers=financial_centers,
-                cost_centers=cost_centers,
-                row_types=row_types,
-                nomenclatures=nomenclatures,
-            ).form()
+    #     with budget:
+    #         Forms.Budget(
+    #             financial_centers=financial_centers,
+    #             cost_centers=cost_centers,
+    #             row_types=row_types,
+    #             nomenclatures=nomenclatures,
+    #         ).form()
 
-        with report:
-            Forms.Report(
-                financial_centers=financial_centers,
-                cost_centers=cost_centers,
-                row_types=row_types,
-                nomenclatures=nomenclatures,
-            ).report()
+    #     with report:
+    #         Forms.Report(
+    #             financial_centers=financial_centers,
+    #             cost_centers=cost_centers,
+    #             row_types=row_types,
+    #             nomenclatures=nomenclatures,
+    #         ).report()
+    
+    
     # else:
     # telegram_login.clear_session()
     # st.rerun()
