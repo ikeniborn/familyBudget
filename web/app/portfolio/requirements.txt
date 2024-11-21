@@ -1,4 +1,4 @@
-# streamlit
+streamlit
 # streamlit-authenticator
 # streamlit_oauth==0.1.8
 # gspread==5.12.4
@@ -10,7 +10,7 @@
 # setuptools==59.6.0
 # sql_metadata==2.10.0
 # pytz
-# plotly
+plotly
 # google-cloud-storage==2.16.0
 # psycopg2==2.9.9
 # streamlit-on-Hover-tabs==1.0.1
@@ -19,24 +19,21 @@
 # google-auth
 # streamlit-telegram-login
 # google-auth-oauthlib
-# requests
+requests
 # pydantic
 # pyyaml
 # hydralit_components
 # polars
-# polars-lts-cpu
+polars-lts-cpu
 # nicegui
 # fastapi-users
 fastapi
-uvicorn
 # joserfc
 # urllib3
 # typing
-Jinja2
-joserfc
 # streamlit
 # pandas
-# pytz
+pytz
 # hashlib
 # uuid
 # secrets

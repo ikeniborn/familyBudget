@@ -29,27 +29,60 @@ services:
           cpus: '1'
           memory: 1G
 
-  api:
-    container_name: api
+  # budget-api:
+  #   container_name: budget-api
+  #   build:
+  #     dockerfile: ./api/Dockerfile
+  #     context: ./
+  #   volumes:
+  #     - /home/ikeni/Documents/Git/familyBudget/web/api:/usr/src/app:delegated
+  #   ports:
+  #     - "8888:8888"
+  #   command: "uvicorn budget_api:app --host 0.0.0.0 --port 8888 --reload"
+  #   environment:
+  #     - USER_ID=1000
+  #     - GROUP_ID=1000
+  #     - POSTGRES_HOST=10.5.0.2
+  #     - POSTGRES_PORT=5432
+  #     - POSTGRES_DB=budgetdb
+  #     - POSTGRES_USER=budget
+  #     - POSTGRES_PASSWORD=rEWbdYxog7azBce2fA4D
+  #   networks:
+  #     app_network:
+  #       ipv4_address: 10.5.0.3
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1'
+  #         memory: 1G
+  #   healthcheck:
+  #     test: ["CMD", "bash", "-c", "echo -n '' > /dev/tcp/0.0.0.0/8888"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 30s
+  #   restart: always
+  #   depends_on:
+  #     - postgres
+
+  portfolio-api:
+    container_name: portfolio-api
     build:
-      dockerfile: ./app/api/Dockerfile
+      dockerfile: ./api/Dockerfile
       context: ./
     volumes:
-      - /home/ikeni/Documents/Git/familyBudget/web/app/api:/usr/src/app:delegated
+      - /home/ikeni/Documents/Git/familyBudget/web/api:/usr/src/app:delegated
     ports:
-      - "8888:8888"
-    command: "uvicorn api:app --host 0.0.0.0 --port 8888 --reload"
+      - "8899:8899"
+    command: "uvicorn portfolio_api:app --host 0.0.0.0 --port 8899 --reload"
     environment:
       - USER_ID=1000
       - GROUP_ID=1000
       - POSTGRES_HOST=10.5.0.2
       - POSTGRES_PORT=5432
-      - BUDGET_POSTGRES_DB=budgetdb
-      - BUDGET_POSTGRES_USER=budget
-      - BUDGET_POSTGRES_PASSWORD=rEWbdYxog7azBce2fA4D
-      - PORTFOLIO_POSTGRES_DB=portfoliodb
-      - PORTFOLIO_POSTGRES_USER=portfolio
-      - PORTFOLIO_POSTGRES_PASSWORD=WRHUT86xXzcghBmSPpFd
+      - POSTGRES_DB=portfoliodb
+      - POSTGRES_USER=portfolio
+      - POSTGRES_PASSWORD=WRHUT86xXzcghBmSPpFd
     networks:
       app_network:
         ipv4_address: 10.5.0.3
@@ -68,38 +101,38 @@ services:
     depends_on:
       - postgres
 
-  budget-ui:
-    container_name: budget-ui
-    build:
-      dockerfile: ./app/budget/Dockerfile
-      context: ./
-    volumes:
-      - /home/ikeni/Documents/Git/familyBudget/web/app/budget:/usr/src/app:delegated
-    ports:
-      - "8501:8501"
-    command: "streamlit run ui.py --server.port=8501"
-    environment:
-      - USER_ID=1000
-      - GROUP_ID=1000
-      - API_URL=http://10.5.0.3:8888
-      - POLARS_SKIP_CPU_CHECK=false
-    networks:
-      app_network:
-        ipv4_address: 10.5.0.4
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
-    healthcheck:
-      test: ["CMD", "curl","--fail","http://0.0.0.0:8501/_stcore/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    restart: always
-    depends_on:
-      - api
+  # budget-ui:
+  #   container_name: budget-ui
+  #   build:
+  #     dockerfile: ./app/budget/Dockerfile
+  #     context: ./
+  #   volumes:
+  #     - /home/ikeni/Documents/Git/familyBudget/web/app/budget:/usr/src/app:delegated
+  #   ports:
+  #     - "8501:8501"
+  #   command: "streamlit run ui.py --server.port=8501"
+  #   environment:
+  #     - USER_ID=1000
+  #     - GROUP_ID=1000
+  #     - API_URL=http://10.5.0.3:8888
+  #     - POLARS_SKIP_CPU_CHECK=false
+  #   networks:
+  #     app_network:
+  #       ipv4_address: 10.5.0.4
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1'
+  #         memory: 1G
+  #   healthcheck:
+  #     test: ["CMD", "curl","--fail","http://0.0.0.0:8501/_stcore/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 30s
+  #   restart: always
+  #   depends_on:
+  #     - api
 
   portfolio-ui:
     container_name: portfolio-ui
@@ -109,18 +142,13 @@ services:
     volumes:
       - /home/ikeni/Documents/Git/familyBudget/web/app/portfolio:/usr/src/app:delegated
     ports:
-      - "80:80"
-    # command: "python3 main.py"
-    command: "uvicorn src:app  --host 0.0.0.0 --port 80 --reload"
+      - "8502:8502"
+    command: "streamlit run ui.py --server.port=8502"
     environment:
       - USER_ID=1000
       - GROUP_ID=1000
-      - API_URL=http://10.5.0.3:8888
+      - API_URL=http://10.5.0.3:8899
       - POLARS_SKIP_CPU_CHECK=false
-      # - TELEGRAM_TOKEN=806168491:AAE5G1oPobTtfArA0vMOH88S9bqi1EfSrjs
-      # - TELEGRAM_LOGIN=IkeniGoogleBot
-      - BOT_TOKEN=806168491:AAE5G1oPobTtfArA0vMOH88S9bqi1EfSrjs
-      - JWT_SECRET_KEY=43e33e30ba8318df71935c77fd02af999ad77b81af16d9d1dc454a9af8ba44bd
     networks:
       app_network:
         ipv4_address: 10.5.0.5
@@ -130,14 +158,14 @@ services:
           cpus: '1'
           memory: 1G
     healthcheck:
-      test: ["CMD", "curl","--fail","http://0.0.0.0:80"]
+      test: ["CMD", "curl","--fail","http://0.0.0.0:8502/_stcore/health"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 30s
     restart: always
     depends_on:
-      - api
+      - portfolio-api
 
   pgadmin:
     container_name: pgadmin

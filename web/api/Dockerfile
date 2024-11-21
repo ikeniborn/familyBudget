@@ -14,7 +14,7 @@ RUN apt-get install -y python3-pip gcc make jq openssl
 
 # add and install requirements
 RUN pip install pip --upgrade
-COPY ./app/portfolio/requirements.txt .
+COPY ./api/requirements.txt .
 RUN pip install -r requirements.txt
 
 #################
@@ -49,7 +49,4 @@ ENV PYTHONDONTWRITEBYTECODE 1
 # Path
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Run streamlit
-# CMD streamlit run ui.py --server.port=8501 
-# --server.sslCertFile=cert/dev.ikeniborn.ru.pem --server.sslKeyFile=cert/dev.ikeniborn.ru.key
-# CMD streamlit run project/app.py --logger.level=error 2> project/logs.log
+# CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]

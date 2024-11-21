@@ -1,13 +1,13 @@
 import streamlit as st
 # import streamlit_authenticator as stauth
 # from streamlit_authenticator import Authenticate
-from pathlib import Path
-import yaml
-from yaml.loader import SafeLoader
-import polars as pl
-import os
-from streamlit_telegram_login import TelegramLoginWidgetComponent
-from streamlit_telegram_login.helpers import YamlConfig
+# from pathlib import Path
+# import yaml
+# from yaml.loader import SafeLoader
+# import polars as pl
+# import os
+# from streamlit_telegram_login import TelegramLoginWidgetComponent
+# from streamlit_telegram_login.helpers import YamlConfig
 
 # from polars import DataFrame
 
@@ -57,58 +57,56 @@ if __name__ == "__main__":
     # df = pl.DataFrame(Test(a=[1, 3, 5], b=[2, 4, 6]))
     # st.write(df.filter(pl.col("a")["a"] == 1))
     # st.stop()
-    parent_dir = os.path.dirname(os.path.abspath(__file__))
-    config = YamlConfig(f"{parent_dir}/secrets/telegram_config.yaml")
+    # parent_dir = os.path.dirname(os.path.abspath(__file__))
+    # config = YamlConfig(f"{parent_dir}/secrets/telegram_config.yaml")
     
-    telegram_login = TelegramLoginWidgetComponent(**config.config)
+    # telegram_login = TelegramLoginWidgetComponent(**config.config)
     
-    if not st.session_state["username"]:
-        value = telegram_login.button
-        if value:
-            if "telegramm_session" not in st.session_state.telegramm_session:
-                st.session_state.telegramm_session = value
-    else:
-        users = Users().fetchAll(ttl=86400)
-        if st.session_state.username:
-            if "user_key" not in st.session_state:
-                st.session_state.user_key = users.lazy().filter(pl.col(["user_name"]) == st.session_state.username).collect()["user_key"][0]               
-        financial_centers = FinancialCenters().fetchAll(ttl=86400)
-        cost_centers = CostCenter().fetchAll(ttl=86400)
-        nomenclatures = Nomenclatures().fetchAll(ttl=86400)
-        row_types = RowTypes().fetchAll(ttl=86400)
+    # if not st.session_state["username"]:
+    #     value = telegram_login.button
+    #     if value:
+    #         st.write(value)
+    # else:
+    users = Users().fetchAll(ttl=86400)
+    # if st.session_state.username:
+        # if "user_key" not in st.session_state:
+            # st.session_state.user_key = users.lazy().filter(pl.col(["user_name"]) == st.session_state.username).collect()["user_key"][0]               
+    financial_centers = FinancialCenters().fetchAll(ttl=86400)
+    cost_centers = CostCenter().fetchAll(ttl=86400)
+    nomenclatures = Nomenclatures().fetchAll(ttl=86400)
+    row_types = RowTypes().fetchAll(ttl=86400)
 
-        st.sidebar.title(f"Привет {st.session_state.first_name}")
-        st.write(st.session_state.telegramm_session)
-        clicked = st.sidebar.button("Выход")
-        if clicked:
-            telegram_login.clear_session()
-            st.rerun()
+    # st.sidebar.title(f"Привет {st.session_state.first_name}")
+    # clicked = st.sidebar.button("Выход")
+    # if clicked:
+        # telegram_login.clear_session()
+        # st.rerun()
 
-        fact, budget, report = st.tabs(["Факт", "Бюджет", "Отчетность"])
+    fact, budget, report = st.tabs(["Факт", "Бюджет", "Отчетность"])
 
-        with fact:
-            Forms.Fact(
-                financial_centers=financial_centers,
-                cost_centers=cost_centers,
-                row_types=row_types,
-                nomenclatures=nomenclatures,
-            ).form()
+    with fact:
+        Forms.Fact(
+            financial_centers=financial_centers,
+            cost_centers=cost_centers,
+            row_types=row_types,
+            nomenclatures=nomenclatures,
+        ).form()
 
-        with budget:
-            Forms.Budget(
-                financial_centers=financial_centers,
-                cost_centers=cost_centers,
-                row_types=row_types,
-                nomenclatures=nomenclatures,
-            ).form()
+    with budget:
+        Forms.Budget(
+            financial_centers=financial_centers,
+            cost_centers=cost_centers,
+            row_types=row_types,
+            nomenclatures=nomenclatures,
+        ).form()
 
-        with report:
-            Forms.Report(
-                financial_centers=financial_centers,
-                cost_centers=cost_centers,
-                row_types=row_types,
-                nomenclatures=nomenclatures,
-            ).report()
+    with report:
+        Forms.Report(
+            financial_centers=financial_centers,
+            cost_centers=cost_centers,
+            row_types=row_types,
+            nomenclatures=nomenclatures,
+        ).report()
 
         # st.write(telegram_login.get_session)
 

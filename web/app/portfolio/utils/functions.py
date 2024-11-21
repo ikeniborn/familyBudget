@@ -27,3 +27,4 @@ class Functions:
         month = dttm.month
         year = dttm.year
         return date(year=year, month=month + shuffle, day=1).strftime("%Y-%m-%d")
+

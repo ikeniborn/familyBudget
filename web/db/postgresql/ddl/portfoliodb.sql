@@ -1,18 +1,18 @@
-drop TABLE if EXISTS public.t_d_contractors_l_contractor_categories CASCADE;
+drop TABLE if EXISTS public.t_l_contractors_contractor_categories CASCADE;
 
-drop TABLE if EXISTS public.t_d_symbols_l_symbol_tags CASCADE;
+drop TABLE if EXISTS public.t_l_symbols_symbol_tags CASCADE;
 
-drop TABLE if EXISTS public.t_d_symbols_l_ecosystems CASCADE;
+drop TABLE if EXISTS public.t_l_symbols_ecosystems CASCADE;
 
-drop TABLE if EXISTS public.t_d_symbols_l_blockchains CASCADE;
+drop TABLE if EXISTS public.t_l_symbols_blockchains CASCADE;
 
-drop TABLE if EXISTS public.t_d_symbols_l_symbol_categories CASCADE;
+drop TABLE if EXISTS public.t_l_symbols_symbol_categories CASCADE;
 
-drop TABLE if EXISTS public.t_d_symbols_l_symbols_types CASCADE;
+drop TABLE if EXISTS public.t_l_symbols_symbols_types CASCADE;
 
-drop TABLE if EXISTS public.t_d_contractors_l_services CASCADE;
+drop TABLE if EXISTS public.t_l_contractors_services CASCADE;
 
-drop TABLE if EXISTS public.t_d_symbols_l_blockchains CASCADE;
+drop TABLE if EXISTS public.t_l_symbols_blockchains CASCADE;
 
 drop TABLE if EXISTS public.t_d_symbol_categories CASCADE;
 
@@ -51,6 +51,7 @@ drop TABLE if EXISTS public.t_f_transactions CASCADE;
 drop TABLE if EXISTS public.t_f_symbol_prices CASCADE;
 
 --drop TABLE if EXISTS public.t_dm_flow CASCADE;
+
 CREATE TABLE if not EXISTS public.t_d_blockchains (
   blockchain_key UUID PRIMARY KEY,
   blockchain_id VARCHAR NOT NULL,
@@ -106,7 +107,7 @@ CREATE TABLE if not EXISTS public.t_d_contractors (
   contractor_key UUID PRIMARY KEY,
   contractor_type_key UUID NOT NULL REFERENCES t_d_contractor_types (contractor_type_key),
   contractor_id VARCHAR NOT NULL,
-  portfolio_name VARCHAR,
+  contractor_name VARCHAR,
   created_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
   updated_dttm TIMESTAMP without time zone NOT NULL DEFAULT now()
 );
@@ -127,7 +128,7 @@ CREATE TABLE if not EXISTS public.t_d_contractor_categories (
   updated_dttm TIMESTAMP without time zone NOT NULL DEFAULT now()
 );
 
-CREATE TABLE if not EXISTS public.t_d_contractors_l_contractor_categories (
+CREATE TABLE if not EXISTS public.t_l_contractors_contractor_categories (
   contractor_key UUID NOT NULL REFERENCES t_d_contractors (contractor_key),
   contractor_category_key UUID NOT NULL REFERENCES t_d_contractor_categories (contractor_category_key),
   created_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
@@ -135,7 +136,7 @@ CREATE TABLE if not EXISTS public.t_d_contractors_l_contractor_categories (
   PRIMARY KEY (contractor_key, contractor_category_key)
 );
 
-CREATE TABLE if not EXISTS public.t_d_contractors_l_services (
+CREATE TABLE if not EXISTS public.t_l_contractors_services (
   service_key UUID NOT NULL REFERENCES t_d_services (service_key),
   contractor_key UUID NOT NULL REFERENCES t_d_contractors (contractor_key),
   created_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
@@ -151,6 +152,11 @@ CREATE TABLE if not EXISTS public.t_d_symbols (
   symbol_full_name VARCHAR,
   symbol_slug VARCHAR,
   symbol_coinmarketcap_id BIGINT,
+  symbol_cryptorank_slug VARCHAR,
+  symbol_coingecko_id VARCHAR,
+  symbol_cryptocompare_id BIGINT,
+  symbol_dropstab_id BIGINT,
+  symbol_token_twitterscore_slug VARCHAR,
   symbol_web3space_key UUID,
   is_active BOOLEAN DEFAULT True,
   is_delete BOOLEAN DEFAULT False,
@@ -187,11 +193,23 @@ CREATE TABLE if not EXISTS public.t_f_symbol_prices (
   created_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
   updated_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
   PRIMARY KEY (symbol_price_dttm, symbol_key, timeframe_key)
-);
+) PARTITION BY range (symbol_price_dttm) ;
 
---PARTITION BY range (operation_dttm) ;
 create index idx_t_f_symbol_prices_symbol_price_dttm on public.t_f_symbol_prices using btree (symbol_price_dttm);
 create index idx_t_f_symbol_prices_symbol_key on public.t_f_symbol_prices using btree (symbol_key);
+
+-- партиции/секции
+create table t_f_symbol_prices_2020_and_earlier partition of public.t_f_symbol_prices for values from ('-infinity'::date) to ('2020-01-01'::date);
+create table t_f_symbol_prices_2021 partition of public.t_f_symbol_prices for values from ('2020-01-01'::date) to ('2021-01-01'::date);
+create table t_f_symbol_prices_2022 partition of public.t_f_symbol_prices for values from ('2021-01-01'::date) to ('2022-01-01'::date);
+create table t_f_symbol_prices_2023 partition of public.t_f_symbol_prices for values from ('2022-01-01'::date) to ('2023-01-01'::date);
+create table t_f_symbol_prices_2024 partition of public.t_f_symbol_prices for values from ('2023-01-01'::date) to ('2024-01-01'::date);
+create table t_f_symbol_prices_2025 partition of public.t_f_symbol_prices for values from ('2024-01-01'::date) to ('2025-01-01'::date);
+create table t_f_symbol_prices_2026 partition of public.t_f_symbol_prices for values from ('2025-01-01'::date) to ('2026-01-01'::date);
+create table t_f_symbol_prices_2027 partition of public.t_f_symbol_prices for values from ('2026-01-01'::date) to ('2027-01-01'::date);
+create table t_f_symbol_prices_2028 partition of public.t_f_symbol_prices for values from ('2027-01-01'::date) to ('2028-01-01'::date);
+create table t_f_symbol_prices_2029 partition of public.t_f_symbol_prices for values from ('2028-01-01'::date) to ('2029-01-01'::date);
+create table t_f_symbol_prices_2030 partition of public.t_f_symbol_prices for values from ('2029-01-01'::date) to ('2030-01-01'::date);
 
 CREATE TABLE if not EXISTS public.t_d_symbol_categories (
   symbol_category_key UUID PRIMARY KEY,
@@ -219,7 +237,7 @@ CREATE TABLE if not EXISTS public.t_d_ecosystems(
   updated_dttm TIMESTAMP without time zone NOT NULL DEFAULT now()
 );
 
-CREATE TABLE if not EXISTS public.t_d_symbols_l_ecosystems (
+CREATE TABLE if not EXISTS public.t_l_symbols_ecosystems (
   symbol_key UUID NOT NULL REFERENCES t_d_symbols (symbol_key),
   ecosystem_key UUID NOT NULL REFERENCES t_d_ecosystems (ecosystem_key),
   created_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
@@ -227,7 +245,7 @@ CREATE TABLE if not EXISTS public.t_d_symbols_l_ecosystems (
   PRIMARY KEY (symbol_key, ecosystem_key)
 );
 
-CREATE TABLE if not EXISTS public.t_d_symbols_l_symbol_tags (
+CREATE TABLE if not EXISTS public.t_l_symbols_symbol_tags (
   symbol_key UUID NOT NULL REFERENCES t_d_symbols (symbol_key),
   symbol_tag_key UUID NOT NULL REFERENCES t_d_symbol_tags (symbol_tag_key),
   created_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
@@ -235,7 +253,7 @@ CREATE TABLE if not EXISTS public.t_d_symbols_l_symbol_tags (
   PRIMARY KEY (symbol_key, symbol_tag_key)
 );
 
-CREATE TABLE if not EXISTS public.t_d_symbols_l_symbols_types (
+CREATE TABLE if not EXISTS public.t_l_symbols_symbols_types (
   symbol_key UUID NOT NULL REFERENCES t_d_symbols (symbol_key),
   symbol_type_key UUID NOT NULL REFERENCES t_d_symbol_types (symbol_type_key),
   created_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
@@ -243,7 +261,7 @@ CREATE TABLE if not EXISTS public.t_d_symbols_l_symbols_types (
   PRIMARY KEY (symbol_key, symbol_type_key)
 );
 
-CREATE TABLE if not EXISTS public.t_d_symbols_l_blockchains (
+CREATE TABLE if not EXISTS public.t_l_symbols_blockchains (
   symbol_key UUID NOT NULL REFERENCES t_d_symbols (symbol_key),
   blockchain_key UUID NOT NULL REFERENCES t_d_blockchains (blockchain_key),
   created_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
@@ -251,7 +269,7 @@ CREATE TABLE if not EXISTS public.t_d_symbols_l_blockchains (
   PRIMARY KEY (symbol_key, blockchain_key)
 );
 
-CREATE TABLE if not EXISTS public.t_d_symbols_l_symbol_categories (
+CREATE TABLE if not EXISTS public.t_l_symbols_symbol_categories (
   symbol_key UUID NOT NULL REFERENCES t_d_symbols (symbol_key),
   symbol_category_key UUID NOT NULL REFERENCES t_d_symbol_categories (symbol_category_key),
   created_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
@@ -260,7 +278,7 @@ CREATE TABLE if not EXISTS public.t_d_symbols_l_symbol_categories (
 );
 
 CREATE TABLE if not EXISTS public.t_f_operations (
-  operation_key UUID PRIMARY key DEFAULT gen_random_uuid(),
+  operation_key UUID NOT NULL DEFAULT gen_random_uuid(),
   operation_dttm TIMESTAMP without time zone NOT NULL,
   operation_type_key UUID NOT NULL REFERENCES t_d_opetation_types (operation_type_key),
   account_out_key UUID NOT NULL REFERENCES t_d_accounts (account_key),
@@ -274,35 +292,37 @@ CREATE TABLE if not EXISTS public.t_f_operations (
   is_lock BOOLEAN DEFAULT false,
   coin_key UUID NOT NULL REFERENCES t_d_symbols (symbol_key),
   coin_qty FLOAT,
+  coin_price FLOAT,
   currency_key UUID REFERENCES t_d_symbols (symbol_key),
   currency_qty FLOAT,
   currency_per_coin FLOAT,
+  currency_price FLOAT,
   fee_sender_key UUID REFERENCES t_d_contractors (contractor_key),
   fee_currency_key UUID REFERENCES t_d_symbols (symbol_key),
   fee_qty FLOAT,
   comment VARCHAR,
   md5 UUID NOT NULL,
   created_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
-  updated_dttm TIMESTAMP without time zone NOT NULL DEFAULT now()
-);
+  updated_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT t_f_operations_pk PRIMARY KEY (operation_key,operation_dttm)
+) PARTITION BY range (operation_dttm);
 
---PARTITION BY range (operation_dttm) ;
-create index idx_t_f_registry_operation_dttm on public.t_f_operations using btree (operation_dttm);
-create index idx_t_f_registry_account_out_key on public.t_f_operations using btree (account_out_key);
+create index idx_t_f_operations_operation_key on public.t_f_operations using btree (operation_key);
+create index idx_t_f_operations_operation_dttm on public.t_f_operations using btree (operation_dttm);
+create index idx_t_f_operations_account_out_key on public.t_f_operations using btree (account_out_key);
 
---create index idx_t_f_registry_operation_dttm on public.t_f_operations using btree (operation_dttm);
 -- партиции/секции
---create table t_f_operations_2020_and_earlier partition of public.t_f_operations for values from ('-infinity'::date) to ('2020-01-01'::date);
---create table t_f_registry_2021 partition of public.t_f_operations for values from ('2020-01-01'::date) to ('2021-01-01'::date);
---create table t_f_registry_2022 partition of public.t_f_operations for values from ('2021-01-01'::date) to ('2022-01-01'::date);
---create table t_f_registry_2023 partition of public.t_f_operations for values from ('2022-01-01'::date) to ('2023-01-01'::date);
---create table t_f_registry_2024 partition of public.t_f_operations for values from ('2023-01-01'::date) to ('2024-01-01'::date);
---create table t_f_registry_2025 partition of public.t_f_operations for values from ('2024-01-01'::date) to ('2025-01-01'::date);
---create table t_f_registry_2026 partition of public.t_f_operations for values from ('2025-01-01'::date) to ('2026-01-01'::date);
---create table t_f_registry_2027 partition of public.t_f_operations for values from ('2026-01-01'::date) to ('2027-01-01'::date);
---create table t_f_registry_2028 partition of public.t_f_operations for values from ('2027-01-01'::date) to ('2028-01-01'::date);
---create table t_f_registry_2029 partition of public.t_f_operations for values from ('2028-01-01'::date) to ('2029-01-01'::date);
---create table t_f_registry_2030 partition of public.t_f_operations for values from ('2029-01-01'::date) to ('2030-01-01'::date);
+create table t_f_operations_2020_and_earlier partition of public.t_f_operations for values from ('-infinity'::date) to ('2020-01-01'::date);
+create table t_f_operations_2021 partition of public.t_f_operations for values from ('2020-01-01'::date) to ('2021-01-01'::date);
+create table t_f_operations_2022 partition of public.t_f_operations for values from ('2021-01-01'::date) to ('2022-01-01'::date);
+create table t_f_operations_2023 partition of public.t_f_operations for values from ('2022-01-01'::date) to ('2023-01-01'::date);
+create table t_f_operations_2024 partition of public.t_f_operations for values from ('2023-01-01'::date) to ('2024-01-01'::date);
+create table t_f_operations_2025 partition of public.t_f_operations for values from ('2024-01-01'::date) to ('2025-01-01'::date);
+create table t_f_operations_2026 partition of public.t_f_operations for values from ('2025-01-01'::date) to ('2026-01-01'::date);
+create table t_f_operations_2027 partition of public.t_f_operations for values from ('2026-01-01'::date) to ('2027-01-01'::date);
+create table t_f_operations_2028 partition of public.t_f_operations for values from ('2027-01-01'::date) to ('2028-01-01'::date);
+create table t_f_operations_2029 partition of public.t_f_operations for values from ('2028-01-01'::date) to ('2029-01-01'::date);
+create table t_f_operations_2030 partition of public.t_f_operations for values from ('2029-01-01'::date) to ('2030-01-01'::date);
 --
 -- уникальный индекс по ключу операции 
 --create unique index idx_t_f_operations_2020_and_earlier_operation_key on public.t_f_operations_2020_and_earlier using btree (account_out_key);
@@ -329,9 +349,12 @@ create index idx_t_f_registry_account_out_key on public.t_f_operations using btr
 --create index idx_t_f_registry_2028_account_out_key on public.t_f_registry_2028 using btree (account_out_key);
 --create index idx_t_f_registry_2029_account_out_key on public.t_f_registry_2029 using btree (account_out_key);
 --create index idx_t_f_registry_2030_account_out_key on public.t_f_registry_2030 using btree (account_out_key);
+
 CREATE TABLE if not EXISTS public.t_f_transactions (
-  transaction_key UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  operation_key UUID NOT NULL REFERENCES t_f_operations (operation_key),
+  transaction_key UUID DEFAULT gen_random_uuid(),
+  transaction_dttm TIMESTAMP without time zone NOT NULL,
+  operation_key UUID NOT NULL,
+  operation_dttm TIMESTAMP without time zone NOT NULL NOT NULL ,
   direction_key UUID NOT NULL REFERENCES t_d_directions (direction_key),
   account_key UUID NOT NULL REFERENCES t_d_accounts (account_key),
   portfolio_key UUID NOT NULL REFERENCES t_d_portfolios (portfolio_key),
@@ -347,14 +370,31 @@ CREATE TABLE if not EXISTS public.t_f_transactions (
   is_historical_price BOOLEAN DEFAULT false,
   md5 UUID NOT NULL,
   created_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
-  updated_dttm TIMESTAMP without time zone NOT NULL DEFAULT now()
-);
+  updated_dttm TIMESTAMP without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT t_f_transactions_pk PRIMARY KEY (transaction_key,transaction_dttm),
+  foreign key (operation_key, operation_dttm) references t_f_operations (operation_key, operation_dttm)
+        on update cascade
+) PARTITION BY range (transaction_dttm) ;
 
---PARTITION BY range (operation_dttm) ;
+create index idx_t_f_transactions_transaction_key on public.t_f_transactions using btree (transaction_key);
+create index idx_t_f_transactions_transaction_dttm on public.t_f_transactions using btree (transaction_dttm);
 create index idx_t_f_transactions_operation_key on public.t_f_transactions using btree (operation_key);
 create index idx_t_f_transactions_account_key on public.t_f_transactions using btree (account_key);
 create index idx_t_f_transactions_portfolio_key on public.t_f_transactions using btree (portfolio_key);
 create index idx_t_f_transactions_symbol_key on public.t_f_transactions using btree (symbol_key);
+
+-- партиции/секции
+create table t_f_transactions_2020_and_earlier partition of public.t_f_transactions for values from ('-infinity'::date) to ('2020-01-01'::date);
+create table t_f_transactions_2021 partition of public.t_f_transactions for values from ('2020-01-01'::date) to ('2021-01-01'::date);
+create table t_f_transactions_2022 partition of public.t_f_transactions for values from ('2021-01-01'::date) to ('2022-01-01'::date);
+create table t_f_transactions_2023 partition of public.t_f_transactions for values from ('2022-01-01'::date) to ('2023-01-01'::date);
+create table t_f_transactions_2024 partition of public.t_f_transactions for values from ('2023-01-01'::date) to ('2024-01-01'::date);
+create table t_f_transactions_2025 partition of public.t_f_transactions for values from ('2024-01-01'::date) to ('2025-01-01'::date);
+create table t_f_transactions_2026 partition of public.t_f_transactions for values from ('2025-01-01'::date) to ('2026-01-01'::date);
+create table t_f_transactions_2027 partition of public.t_f_transactions for values from ('2026-01-01'::date) to ('2027-01-01'::date);
+create table t_f_transactions_2028 partition of public.t_f_transactions for values from ('2027-01-01'::date) to ('2028-01-01'::date);
+create table t_f_transactions_2029 partition of public.t_f_transactions for values from ('2028-01-01'::date) to ('2029-01-01'::date);
+create table t_f_transactions_2030 partition of public.t_f_transactions for values from ('2029-01-01'::date) to ('2030-01-01'::date);
 
 --CREATE TABLE if not EXISTS public.t_dm_flow (
 --  account_key UUID NOT NULL REFERENCES t_d_accounts (account_key),
