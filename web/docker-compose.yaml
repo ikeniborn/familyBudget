@@ -40,12 +40,9 @@ services:
       - GROUP_ID=1000
       - POSTGRES_HOST=10.5.0.2
       - POSTGRES_PORT=5432
-      - BUDGET_POSTGRES_DB=budgetdb
-      - BUDGET_POSTGRES_USER=budget
-      - BUDGET_POSTGRES_PASSWORD=VZ7TcYGrb3jvJAFRQSsg
-      - PORTFOLIO_POSTGRES_DB=portfoliodb
-      - PORTFOLIO_POSTGRES_USER=portfolio
-      - PORTFOLIO_POSTGRES_PASSWORD=ZC9eKnpEDvuWQgHUt8cx
+      - POSTGRES_DB=budgetdb
+      - POSTGRES_USER=budget
+      - POSTGRES_PASSWORD=VZ7TcYGrb3jvJAFRQSsg
     networks:
       app_network:
         ipv4_address: 10.5.0.3
