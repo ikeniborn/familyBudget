@@ -67,7 +67,7 @@ if __name__ == "__main__":
     st.write(st.session_state)
 
     if value:
-        if "telegramm_session" not in st.session_state.telegramm_session:
+        if "telegramm_session" not in st.session_state:
             st.session_state.telegramm_session = value
                 
         else:
