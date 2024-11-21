@@ -70,7 +70,7 @@ if __name__ == "__main__":
             st.session_state.telegramm_session = value
             users = Users().fetchAll(ttl=1)
             user_key = users.lazy().filter(pl.col(["user_name"]) == st.session_state.telegramm_session["username"]).collect()["user_key"]
-            st.write(user_key)
+            st.write(user_key.with_row_count())
             if user_key.with_row_count() > 0:
                 if "user_key" not in st.session_state:
                     st.session_state.user_key = user_key[0]
