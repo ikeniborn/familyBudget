@@ -28,7 +28,7 @@ services:
     container_name: api
     hostname: api
     build:
-      dockerfile: ./app/api/Dockerfile
+      dockerfile: ./api/Dockerfile
       context: ./
     volumes:
       - /app/web/api:/usr/src/app:delegated
