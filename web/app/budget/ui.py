@@ -62,10 +62,11 @@ if __name__ == "__main__":
     config = YamlConfig(f"{parent_dir}/secrets/telegram_config.yaml")
 
     telegram_login = TelegramLoginWidgetComponent(**config.config)
-    value = telegram_login.button
+
 
     # if not st.session_state["username"]:
     if "telegramm_session" not in st.session_state:
+        value = telegram_login.button
         if value:
             st.session_state.telegramm_session = value
             users = Users().fetchAll(ttl=1)
