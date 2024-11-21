@@ -64,12 +64,13 @@ if __name__ == "__main__":
     
     # if not st.session_state["username"]:
     value = telegram_login.button
+    st.write(value)
     if value:
         if "telegramm_session" not in st.session_state.telegramm_session:
             st.session_state.telegramm_session = value
                 
-    else:
-        st.write(st.session_state.telegramm_session)
+    # else:
+        # st.write(st.session_state.telegramm_session)
     #     users = Users().fetchAll(ttl=86400)
     #     if "user_key" not in st.session_state:
     #         st.session_state.user_key = users.lazy().filter(pl.col(["user_name"]) == st.session_state.username).collect()["user_key"][0]               
