@@ -153,14 +153,14 @@ class Forms:
 
             with st.form("budget_data", clear_on_submit=True):
 
-                st.number_input(label="Сумма*", min_value=0, value=0, key="budget_cost_sum")
-                st.text_area(label="Комментарий", key="budget_comment_description")
+                _budget_cost_sum=st.number_input(label="Сумма*", min_value=0, value=0, key="budget_cost_sum")
+                _budget_comment_description=st.text_area(label="Комментарий", key="budget_comment_description")
 
                 add_row = st.form_submit_button(label="Сохранить", type="primary")
 
                 if add_row:
                     if (
-                        st.session_state.budget_cost_sum > 0
+                        _budget_cost_sum > 0
                         and st.session_state.budget_financial_center_name != None
                         and st.session_state.budget_nomenclature_name != None
                     ):
@@ -207,8 +207,8 @@ class Forms:
                             "financial_center_key": financial_center_key,
                             "cost_center_key": cost_center_key,
                             "nomenclature_key": nomenclature_key,
-                            "cost_sum": st.session_state.budget_cost_sum,
-                            "comment_description": st.session_state.budget_comment_description,
+                            "cost_sum": _budget_cost_sum,
+                            "comment_description": _budget_comment_description,
                             "row_type_key": row_type_key,
                             "user_key": st.session_state.user_key,
                         }
@@ -224,7 +224,7 @@ class Forms:
                             st.error("Не указан ЦФО")
                         if st.session_state.budget_nomenclature_name == None:
                             st.error("Не указана Номенклатура")
-                        if st.session_state.budget_cost_sum == 0:
+                        if _budget_cost_sum == 0:
                             st.error("Не указана Сумма")
 
     class Fact:
@@ -389,14 +389,14 @@ class Forms:
 
             with st.form("fact_data", clear_on_submit=True):
 
-                st.number_input(label="Сумма*", min_value=0, value=0, key="fact_cost_sum")
-                st.text_area(label="Комментарий", key="fact_comment_description")
+                _fact_cost_sum=st.number_input(label="Сумма*", min_value=0, value=0, key="fact_cost_sum")
+                _fact_comment_description=st.text_area(label="Комментарий", key="fact_comment_description")
 
                 add_row = st.form_submit_button(label="Сохранить", type="primary")
 
                 if add_row:
                     if (
-                        st.session_state.fact_cost_sum > 0
+                        _fact_cost_sum > 0
                         and st.session_state.fact_financial_center_name != None
                         and st.session_state.fact_nomenclature_name != None
                     ):
@@ -444,8 +444,8 @@ class Forms:
                             "financial_center_key": financial_center_key,
                             "cost_center_key": cost_center_key,
                             "nomenclature_key": nomenclature_key,
-                            "cost_sum": st.session_state.fact_cost_sum,
-                            "comment_description": st.session_state.fact_comment_description,
+                            "cost_sum": _fact_cost_sum,
+                            "comment_description": _fact_comment_description,
                             "row_type_key": row_type_key,
                             "user_key": st.session_state.user_key,
                         }
@@ -467,7 +467,7 @@ class Forms:
                             st.error("Не указан ЦФО")
                         if st.session_state.fact_nomenclature_name == None:
                             st.error("Не указана Номенклатура")
-                        if st.session_state.fact_cost_sum == 0:
+                        if _fact_cost_sum == 0:
                             st.error("Не указана Сумма")
 
     class Report:

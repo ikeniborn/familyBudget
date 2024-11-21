@@ -96,6 +96,7 @@ services:
       - /app/web/service/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:delegated
       - /etc/haproxy/certs:/etc/ssl/certs:delegated
     network_mode: "host"
+    restart: always
     depends_on:
       - budget-ui
 
