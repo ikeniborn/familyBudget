@@ -71,9 +71,9 @@ if __name__ == "__main__":
             users = Users().fetchAll(ttl=86400)
             if "user_key" not in st.session_state:
                 st.session_state.user_key = users.lazy().filter(pl.col(["user_name"]) == st.session_state.telegramm_session["username"]).collect()["user_key"][0]
-            else:
-                if st.session_state.user_key is None:
-                    st.rerun()
+    elif st.session_state.user_key is None:
+        telegram_login.clear_session()
+        st.rerun()
     else:
         financial_centers = FinancialCenters().fetchAll(ttl=86400)
         cost_centers = CostCenter().fetchAll(ttl=86400)
