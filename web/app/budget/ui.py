@@ -109,9 +109,9 @@ if __name__ == "__main__":
                 row_types=row_types,
                 nomenclatures=nomenclatures,
             ).report()
-    else:
-        telegram_login.clear_session()
-        st.rerun()
+    # else:
+        # telegram_login.clear_session()
+        # st.rerun()
 
         # st.write(telegram_login.get_session)
 
