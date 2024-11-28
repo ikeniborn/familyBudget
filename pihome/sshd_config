@@ -1,0 +1,15 @@
+
+PermitRootLogin no
+PubkeyAuthentication yes
+AuthorizedKeysFile ~/.ssh/authorized_keys
+GSSAPIAuthentication yes
+GSSAPICleanupCredentials no
+UsePAM yes
+TCPKeepAlive no
+ClientAliveInterval 300
+ClientAliveCountMax 3
+PasswordAuthentication yes
+ChallengeResponseAuthentication no
+UseDNS no
+AllowUsers pihome
+AuthenticationMethods publickey
