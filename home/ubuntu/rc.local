@@ -1,0 +1,10 @@
+
+
+#!/bin/sh -e
+export DBT_PROFILES_DIR=/home/ikeni/Documents/Git/dataset/clickhouse 
+if test -f /sys/block/sda/queue/scheduler; then
+   echo none > /sys/block/sda/queue/scheduler
+fi
+
+echo $((16*1024*1024)) > /proc/sys/vm/dirty_background_bytes
+echo $((48*1024*1024)) > /proc/sys/vm/dirty_bytes
