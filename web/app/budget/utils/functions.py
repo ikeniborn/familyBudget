@@ -1,7 +1,7 @@
 import secrets
 import uuid
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import pytz
 
 
@@ -24,4 +24,7 @@ class Functions:
 
     def get_period(shuffle: int = 0) -> str:
         current_dttm = datetime.now(tz=pytz.timezone("Europe/Moscow"))
-        return (current_dttm + timedelta(days=shuffle)).strftime("%Y-%m-%d")
+        shuffle_dttm = current_dttm + timedelta(days=shuffle)
+        year = shuffle_dttm.year
+        month = shuffle_dttm.month
+        return date(year=year, month=month, day=1).strftime("%Y-%m-%d")
