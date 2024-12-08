@@ -34,7 +34,7 @@ class Forms:
         def form(self):
 
             t_d_period = Periods().fetchMany(
-                start_date=Functions.get_period(shuffle=0), end_date=Functions.get_period(shuffle=1), ttl=360
+                start_date=Functions.get_period(shuffle=0), end_date=Functions.get_period(shuffle=1), ttl=60
             )
             t_d_financial_center = self._financial_centers
             t_d_cost_center = self._cost_centers
@@ -245,7 +245,7 @@ class Forms:
         def form(self):
 
             t_d_period = Periods().fetchMany(
-                start_date=Functions.get_period(shuffle=-1), end_date=Functions.get_period(shuffle=0), ttl=360
+                start_date=Functions.get_period(shuffle=-1), end_date=Functions.get_period(shuffle=0), ttl=60
             )
             t_d_financial_center = self._financial_centers
             t_d_cost_center = self._cost_centers
@@ -490,7 +490,7 @@ class Forms:
         def report(self):
 
             t_d_period = Periods().fetchMany(
-                start_date=Functions.get_period(shuffle=-1), end_date=Functions.get_period(shuffle=1), ttl=360
+                start_date=Functions.get_period(shuffle=-1), end_date=Functions.get_period(shuffle=1), ttl=60
             )
             t_d_financial_center = self._financial_centers
 
