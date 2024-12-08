@@ -68,7 +68,7 @@ if __name__ == "__main__":
         value = telegram_login.button
         if value:
             st.session_state.telegramm_session = value
-            users = Users().fetchAll(ttl=1)
+            users = Users().fetchAll(ttl=60)
             user_key_df = users.lazy().filter(pl.col(["user_name"]) == st.session_state.telegramm_session["username"]).collect()
             user_key_df_count = user_key_df.count()
             if user_key_df_count["user_key"][0] == 1:
@@ -79,10 +79,10 @@ if __name__ == "__main__":
                 st.session_state.clear()
                 st.write("Пользователя нет в базе! Обратитесь к администратору.")
     else:
-        financial_centers = FinancialCenters().fetchAll(ttl=86400)
-        cost_centers = CostCenter().fetchAll(ttl=86400)
-        nomenclatures = Nomenclatures().fetchAll(ttl=86400)
-        row_types = RowTypes().fetchAll(ttl=86400)
+        financial_centers = FinancialCenters().fetchAll(ttl=60)
+        cost_centers = CostCenter().fetchAll(ttl=60)
+        nomenclatures = Nomenclatures().fetchAll(ttl=60)
+        row_types = RowTypes().fetchAll(ttl=60)
 
         st.sidebar.title(f"Привет {st.session_state.first_name}")
         clicked = st.sidebar.button("Выход")
