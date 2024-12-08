@@ -24,10 +24,6 @@ class Functions:
 
     def get_period(shuffle: int = 0) -> str:
         dttm = datetime.now(tz=pytz.timezone("Europe/Moscow"))
-        if dttm.month == 12:
-            month = 1
-            year = dttm.year + 1
-        else:
-            month = dttm.month
-            year = dttm.year
+        month = dttm.month
+        year = dttm.year
         return date(year=year, month=month + shuffle, day=1).strftime("%Y-%m-%d")
