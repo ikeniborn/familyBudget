@@ -29,5 +29,5 @@ class Functions:
             year = dttm.year + 1
         else:
             month = dttm.month
-            year = dttm.year + 1
+            year = int(dttm.year + 1)
         return date(year=year, month=month + shuffle, day=1).strftime("%Y-%m-%d")
