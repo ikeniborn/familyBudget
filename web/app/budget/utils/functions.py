@@ -24,7 +24,7 @@ class Functions:
 
     def get_period(shuffle: int = 0) -> str:
         current_dttm = datetime.now(tz=pytz.timezone("Europe/Moscow"))
-        shuffle_dttm = current_dttm + timedelta(days=shuffle)
+        shuffle_dttm = current_dttm + timedelta(month=shuffle)
         year = shuffle_dttm.year
         month = shuffle_dttm.month
         return date(year=year, month=month, day=1).strftime("%Y-%m-%d")
