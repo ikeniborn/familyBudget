@@ -1,7 +1,7 @@
 import secrets
 import uuid
 import hashlib
-from datetime import datetime,date
+from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 import pytz
 
@@ -27,4 +27,4 @@ class Functions:
         shuffle_dttm = datetime.now(tz=pytz.timezone("Europe/Moscow")) + relativedelta(months=shuffle)
         year = shuffle_dttm.year
         month = shuffle_dttm.month
-        return date(year=year,month=month,day=1).strftime("%Y-%m-%d")
+        return date(year=year, month=month, day=1).strftime("%Y-%m-%d")
