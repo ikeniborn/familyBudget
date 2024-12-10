@@ -5761,45 +5761,45 @@ class Flow {
 
           agg[tx.account][tx.portfolio][tx.symbol].operationCount += 1;
 
-          if (
-            new Hash(tx.account).md5 === new Hash('ikeniborn').md5 &&
-            new Hash(tx.symbol).md5 === new Hash('link').md5 &&
-            new Hash(tx.portfolio).md5 === new Hash('main').md5
-          ) {
-            console.log(
-              'account:', tx.account, '\n'
-              , 'dateTime', new FormatDate(tx.dateTime).getFormatDate('yyyy-MM-dd HH:mm'), '\n'
-              , 'operation:', tx.operation, '\n'
-              , 'portfolio:', tx.portfolio, '\n'
-              , 'contractor:', tx.contractor, '\n'
-              , 'symbol:', tx.symbol, '\n'
-              , 'direction:', tx.direction, '\n'
-              , '#############SIGN###############', '\n'
-              , 'isOverflow:', tx.isOverflow, '\n'
-              , 'isFee:', tx.isFee, '\n'
-              , '#############OPERATION###############', '\n'
-              , 'operationCount:', agg[tx.account][tx.portfolio][tx.symbol].operationCount, '\n'
-              , 'quantity:', tx.quantity, '\n'
-              , 'cost:', tx.cost, '\n'
-              , 'price:', tx.cost / tx.quantity, '\n'
-              , '#############RESTPORTFOLIO###############', '\n'
-              , 'quantityRest:', agg[tx.account][tx.portfolio][tx.symbol].quantityRest, '\n'
-              , 'priceRest:', agg[tx.account][tx.portfolio][tx.symbol].priceRest, '\n'
-              , 'costRest:', agg[tx.account][tx.portfolio][tx.symbol].costRest, '\n'
-              , 'priceRestPrev:', agg[tx.account][tx.portfolio][tx.symbol].priceRestPrev, '\n'
-              , 'costRestPrev:', agg[tx.account][tx.portfolio][tx.symbol].costRestPrev, '\n'
-              , '#############INVESTPORTFOLIO###############', '\n'
-              , 'quantityRestInvest:', agg[tx.account][tx.portfolio][tx.symbol].quantityRestInvest, '\n'
-              , 'priceRestInvest:', agg[tx.account][tx.portfolio][tx.symbol].priceRestInvest, '\n'
-              , 'costRestInvest:', agg[tx.account][tx.portfolio][tx.symbol].costRestInvest, '\n'
-              , 'priceRestInvestPrev:', agg[tx.account][tx.portfolio][tx.symbol].priceRestInvestPrev, '\n'
-              , 'costRestInvestPrev:', agg[tx.account][tx.portfolio][tx.symbol].costRestInvestPrev, '\n'
-              , '#############PNL###############', '\n'
-              , 'costTotal:', agg[tx.account][tx.portfolio][tx.symbol].costTotal, '\n'
-              , 'pnlRealized:', agg[tx.account][tx.portfolio][tx.symbol].pnlRealized, '\n'
-              , 'costRealized:', agg[tx.account][tx.portfolio][tx.symbol].costRealized, '\n'
-            );
-          }
+          // if (
+          //   new Hash(tx.account).md5 === new Hash('ikeniborn').md5 &&
+          //   new Hash(tx.symbol).md5 === new Hash('link').md5 &&
+          //   new Hash(tx.portfolio).md5 === new Hash('main').md5
+          // ) {
+          //   console.log(
+          //     'account:', tx.account, '\n'
+          //     , 'dateTime', new FormatDate(tx.dateTime).getFormatDate('yyyy-MM-dd HH:mm'), '\n'
+          //     , 'operation:', tx.operation, '\n'
+          //     , 'portfolio:', tx.portfolio, '\n'
+          //     , 'contractor:', tx.contractor, '\n'
+          //     , 'symbol:', tx.symbol, '\n'
+          //     , 'direction:', tx.direction, '\n'
+          //     , '#############SIGN###############', '\n'
+          //     , 'isOverflow:', tx.isOverflow, '\n'
+          //     , 'isFee:', tx.isFee, '\n'
+          //     , '#############OPERATION###############', '\n'
+          //     , 'operationCount:', agg[tx.account][tx.portfolio][tx.symbol].operationCount, '\n'
+          //     , 'quantity:', tx.quantity, '\n'
+          //     , 'cost:', tx.cost, '\n'
+          //     , 'price:', tx.cost / tx.quantity, '\n'
+          //     , '#############RESTPORTFOLIO###############', '\n'
+          //     , 'quantityRest:', agg[tx.account][tx.portfolio][tx.symbol].quantityRest, '\n'
+          //     , 'priceRest:', agg[tx.account][tx.portfolio][tx.symbol].priceRest, '\n'
+          //     , 'costRest:', agg[tx.account][tx.portfolio][tx.symbol].costRest, '\n'
+          //     , 'priceRestPrev:', agg[tx.account][tx.portfolio][tx.symbol].priceRestPrev, '\n'
+          //     , 'costRestPrev:', agg[tx.account][tx.portfolio][tx.symbol].costRestPrev, '\n'
+          //     , '#############INVESTPORTFOLIO###############', '\n'
+          //     , 'quantityRestInvest:', agg[tx.account][tx.portfolio][tx.symbol].quantityRestInvest, '\n'
+          //     , 'priceRestInvest:', agg[tx.account][tx.portfolio][tx.symbol].priceRestInvest, '\n'
+          //     , 'costRestInvest:', agg[tx.account][tx.portfolio][tx.symbol].costRestInvest, '\n'
+          //     , 'priceRestInvestPrev:', agg[tx.account][tx.portfolio][tx.symbol].priceRestInvestPrev, '\n'
+          //     , 'costRestInvestPrev:', agg[tx.account][tx.portfolio][tx.symbol].costRestInvestPrev, '\n'
+          //     , '#############PNL###############', '\n'
+          //     , 'costTotal:', agg[tx.account][tx.portfolio][tx.symbol].costTotal, '\n'
+          //     , 'pnlRealized:', agg[tx.account][tx.portfolio][tx.symbol].pnlRealized, '\n'
+          //     , 'costRealized:', agg[tx.account][tx.portfolio][tx.symbol].costRealized, '\n'
+          //   )
+          // }
 
           return agg
         }, {});
@@ -6081,35 +6081,35 @@ class Flow {
 
                 quantityInvest = costInvest / priceLast;
 
-                if (
-                  new Hash(account).md5 === new Hash('ikeniborn').md5 &&
-                  new Hash(symbol).md5 === new Hash('link').md5 &&
-                  new Hash(portfolio).md5 === new Hash('main').md5
-                ) {
-                  console.log(
-                    'account:', account, '\n'
-                    , 'portfolio:', portfolio, '\n'
-                    , 'contractor:', contractor, '\n'
-                    , 'symbol:', symbol, '\n'
-                    , '###aggFlowPortfolio###', '\n'
-                    , 'quantityRestInvest:', aggFlowPortfolio[account][portfolio][symbol].quantityRestInvest, '\n'
-                    , 'costRestInvest:', aggFlowPortfolio[account][portfolio][symbol].costRestInvest, '\n'
-                    , 'quantityRest:', aggFlowPortfolio[account][portfolio][symbol].quantityRest, '\n'
-                    , 'priceRest:', aggFlowPortfolio[account][portfolio][symbol].priceRest, '\n'
-                    , 'costTotal:', aggFlowPortfolio[account][portfolio][symbol].costTotal, '\n'
-                    , '###aggFlowContractor###', '\n'
-                    , 'allocationCoefficient:', allocationCoefficient, '\n'
-                    , 'quantityRest:', quantityRest, '\n'
-                    , 'quantityInvest:', quantityInvest, '\n'
-                    , 'quantityOverflow:', quantityOverflow, '\n'
-                    , 'costInvest:', costInvest, '\n'
-                    , 'costRest:', costRest, '\n'
-                    , 'costTotal:', costTotal, '\n'
-                    , 'pnlRealized:', pnlRealized, '\n'
-                    , 'pnlUnrealized:', pnlUnrealized, '\n'
-                    , 'pnlTotal:', pnlTotal, '\n'
-                  );
-                }
+                // if (
+                //   new Hash(account).md5 === new Hash('ikeniborn').md5 &&
+                //   new Hash(symbol).md5 === new Hash('link').md5 &&
+                //   new Hash(portfolio).md5 === new Hash('main').md5
+                // ) {
+                //   console.log(
+                //     'account:', account, '\n'
+                //     , 'portfolio:', portfolio, '\n'
+                //     , 'contractor:', contractor, '\n'
+                //     , 'symbol:', symbol, '\n'
+                //     , '###aggFlowPortfolio###', '\n'
+                //     , 'quantityRestInvest:', aggFlowPortfolio[account][portfolio][symbol].quantityRestInvest, '\n'
+                //     , 'costRestInvest:', aggFlowPortfolio[account][portfolio][symbol].costRestInvest, '\n'
+                //     , 'quantityRest:', aggFlowPortfolio[account][portfolio][symbol].quantityRest, '\n'
+                //     , 'priceRest:', aggFlowPortfolio[account][portfolio][symbol].priceRest, '\n'
+                //     , 'costTotal:', aggFlowPortfolio[account][portfolio][symbol].costTotal, '\n'
+                //     , '###aggFlowContractor###', '\n'
+                //     , 'allocationCoefficient:', allocationCoefficient, '\n'
+                //     , 'quantityRest:', quantityRest, '\n'
+                //     , 'quantityInvest:', quantityInvest, '\n'
+                //     , 'quantityOverflow:', quantityOverflow, '\n'
+                //     , 'costInvest:', costInvest, '\n'
+                //     , 'costRest:', costRest, '\n'
+                //     , 'costTotal:', costTotal, '\n'
+                //     , 'pnlRealized:', pnlRealized, '\n'
+                //     , 'pnlUnrealized:', pnlUnrealized, '\n'
+                //     , 'pnlTotal:', pnlTotal, '\n'
+                //   )
+                // }
               }
 
 
