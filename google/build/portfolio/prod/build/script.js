@@ -1880,19 +1880,26 @@ class Portfolio {
         },
       },
       flowBalance: {
-        type: 'tx',
+        type: 'dim',
         rowNum: 1,
         columns: {
-          account: { alias: 'Account', idx: 0 },
-          symbolCategory: { alias: 'Symbol category', idx: 1 },
-          cost: { alias: 'Cost, $', idx: 2 },
-          updateDataMart: {
-            alias: 'Update data mart',
+          id: { alias: 'ID', idx: 0 },
+          account: { alias: 'Account', idx: 1 },
+          portfolio: { alias: 'Porfolio', idx: 2 },
+          target: {
+            alias: 'Target',
             idx: 3,
-            type: 'date',
           },
-          updateDataMartKey: {
-            alias: 'Update data mart key',
+          coin: {
+            alias: 'Coin',
+            idx: 4,
+          },
+          currency: {
+            alias: 'Currency',
+            idx: 4,
+          },
+          currency: {
+            alias: 'Currency',
             idx: 4,
           },
           updateDate: {
@@ -1900,6 +1907,23 @@ class Portfolio {
             idx: 5,
           },
           rowId: { alias: 'Row ID', idx: 6, default: 0 },
+        },
+      },
+      plan: {
+        type: 'dim',
+        rowNum: 1,
+        columns: {
+          planId: { alias: 'ID', idx: 0 },
+          account: { alias: 'Account', idx: 1 },
+          portfolio: { alias: 'Portfolio', idx: 2 },
+          target: { alias: 'Target', idx: 3 },
+          coin: { alias: 'Coin', idx: 4 },
+          currency: { alias: 'Currency', idx: 5 },
+          currencyPerCoin: { alias: 'Currency per coin', idx: 6 },
+          Comment: { alias: 'Comment', idx: 7 },
+          createDate: { alias: 'Create date', idx: 8,type: 'date', },
+          updateDate: { alias: 'Update date', idx: 9,type: 'date', },
+          isDelete: { alias: 'Is delete', idx: 10 },
         },
       },
       overflows: {
@@ -2004,13 +2028,20 @@ class Portfolio {
           description: { alias: 'Description', idx: 1 },
         },
       },
-      services: {
+      planType: {
         type: 'dim',
         rowNum: 1,
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
-          nameRu: { alias: 'Name (ru)', idx: 2 },
+        },
+      },
+      planTarget: {
+        type: 'dim',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          name: { alias: 'Name', pk: true, idx: 1, notNull: true },
         },
       },
       operations: {
@@ -2045,17 +2076,6 @@ class Portfolio {
         columns: {
           rowKey: { alias: 'Row key', idx: 0 },
           name: { alias: 'Name', pk: true, idx: 1, notNull: true },
-        },
-      },
-      portfolioStrategies: {
-        type: 'dim',
-        rowNum: 1,
-        columns: {
-          rowKey: { alias: 'Row key', idx: 0 },
-          account: { alias: 'Account', pk: true, idx: 1, notNull: true },
-          portfolio: { alias: 'portfolio', pk: true, idx: 2, notNull: true },
-          symbol: { alias: 'symbol', pk: true, idx: 3, notNull: true },
-          share: { alias: 'Share, %', idx: 4 },
         },
       },
       accounts: {
