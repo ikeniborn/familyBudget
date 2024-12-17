@@ -1,18 +1,17 @@
 import { Portfolio } from '../spreadsheet/portfolio'
 import { Hash, FormatDate } from '../../utils'
 import { Symbols } from './symbols'
-import { Transactions } from './transactions'
-export { Plan }
+export { PlanFlow }
 
-class Plan {
+class PlanFlow {
   constructor(workSheet = '') {
-    if (Plan.exists) {
+    if (PlanFlow.exists) {
       return Plan.instance
     }
-    Plan.instance = this
-    Plan.exists = true
+    PlanFlow.instance = this
+    PlanFlow.exists = true
     this.workSheet = workSheet
       ? workSheet
-      : new Portfolio().getWorkSheet('Plan')
+      : new Portfolio().getWorkSheet('PlanFlow')
   }
 }

@@ -1920,10 +1920,51 @@ class Portfolio {
           coin: { alias: 'Coin', idx: 4 },
           currency: { alias: 'Currency', idx: 5 },
           currencyPerCoin: { alias: 'Currency per coin', idx: 6 },
-          Comment: { alias: 'Comment', idx: 7 },
-          createDate: { alias: 'Create date', idx: 8,type: 'date', },
-          updateDate: { alias: 'Update date', idx: 9,type: 'date', },
-          isDelete: { alias: 'Is delete', idx: 10 },
+          comment: { alias: 'Comment', idx: 7 },
+          status: { alias: 'Status', idx: 8 },
+          planDate: { alias: 'Plan date', idx: 9, type: 'date', },
+          updateDate: { alias: 'Update date', idx: 10, type: 'date', },
+          isDelete: { alias: 'Is delete', idx: 11 },
+        },
+      },
+      planFlow: {
+        type: 'dim',
+        rowNum: 1,
+        columns: {
+          rowKey: {
+            alias: 'Row key', idx: 0,
+            notNull: true
+          },
+          planId: { alias: 'ID', pk: true, idx: 0 },
+          account: { alias: 'Account',idx: 1 },
+          portfolio: { alias: 'Portfolio',idx: 2 },
+          target: { alias: 'Target',idx: 3 },
+          coin: { alias: 'Coin', idx: 4 },
+          currency: { alias: 'Currency', idx: 5 },
+          currencyPerCoin: { alias: 'Currency per coin', idx: 6 },
+          status: { alias: 'Currency per coin', idx: 6 },
+          planDate: { alias: 'Plan date', idx: 9, type: 'date', },
+          quantityInvest: { alias: 'Quantity (invest)', idx: 10 },
+          quantityRest: { alias: 'Quantity (rest)', idx: 12 },
+          quantityLock: { alias: 'Quantity (lock)', idx: 13 },
+          priceRest: { alias: 'Price (rest), $', idx: 15 },
+          priceLast: { alias: 'Price (last), $', idx: 16 },
+          costInvest: { alias: 'Cost (invest), $', idx: 17 },
+          costRest: { alias: 'Cost (rest), $', idx: 18 },
+          costLast: { alias: 'Cost (last), $', idx: 19 },
+          costLock: { alias: 'Cost (lock), $', idx: 20 },
+          costTotal: { alias: 'Cost (total), $', idx: 21 },
+          costRealized: { alias: 'Cost (realized), $', idx: 22 },
+          pnlRealized: { alias: 'PnL (realized), $', idx: 23 },
+          pnlUnrealized: { alias: 'PnL (unrealized), $', idx: 24 },
+          pnlTotal: { alias: 'PnL (total), $', idx: 25 },
+          isDelete: { alias: 'Is delete', idx: 11 },
+          updateDate: {
+            alias: 'Update date',
+            idx: 28,
+            type: 'date',
+            default: new Date()
+          }
         },
       },
       overflows: {
@@ -2037,6 +2078,14 @@ class Portfolio {
         },
       },
       planTarget: {
+        type: 'dim',
+        rowNum: 1,
+        columns: {
+          rowKey: { alias: 'Row key', idx: 0 },
+          name: { alias: 'Name', pk: true, idx: 1, notNull: true },
+        },
+      },
+      planStatus: {
         type: 'dim',
         rowNum: 1,
         columns: {
