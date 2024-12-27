@@ -31,7 +31,7 @@ services:
       dockerfile: ./api/Dockerfile
       context: ./
     volumes:
-      - /app/web/api:/usr/src/app:delegated
+      - /home/ikeniborn/app/web/api:/usr/src/app:delegated
     ports:
       - "8888:8888"
     command: "uvicorn budget_api:app --host 0.0.0.0 --port 8888 --reload"
@@ -63,7 +63,7 @@ services:
       dockerfile: ./app/budget/Dockerfile
       context: ./
     volumes:
-      - /app/web/app/budget:/usr/src/app:delegated
+      - /home/ikeniborn/app/web/app/budget:/usr/src/app:delegated
     ports:
       - "8501:8501"
     command: "streamlit run ui.py --server.port=8501"
@@ -88,9 +88,9 @@ services:
   haproxy:
     container_name: haproxy
     hostname: haproxy
-    image: "haproxy:latest"
+    image: "haproxy:2.2-alpine"
     volumes:
-      - /app/web/service/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:delegated
+      - /home/ikeniborn/app/web/service/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:delegated
       - /etc/haproxy/certs:/etc/ssl/certs:delegated
     network_mode: "host"
     restart: always
