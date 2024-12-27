@@ -114,7 +114,7 @@ touch ~/app/database/postgresql/postgres-backup.log
 
 sudo crontab -u ikeniborn -e
 
-0 * * * * . /app/web/service/postgresql/backup/postgres-backup.sh
+0 * * * * . ~/app/web/db/postgresql/backup/postgres-backup.sh
 
 <!-- streamlit run app.py --server.port=4443 --server.sslCertFile=cert/budget.ikeniborn.ru.pem --server.sslKeyFile=cert/budget.ikeniborn.ru.key -->
 
