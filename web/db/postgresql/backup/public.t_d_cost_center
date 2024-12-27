@@ -1,0 +1,14 @@
+-- public.t_d_cost_center definition
+
+-- Drop table
+
+-- DROP TABLE public.t_d_cost_center;
+
+CREATE TABLE public.t_d_cost_center (
+	cost_center_key uuid NOT NULL,
+	cost_center_id varchar NOT NULL,
+	cost_center_name varchar NOT NULL,
+	created_dttm timestamp DEFAULT now() NOT NULL,
+	updated_dttm timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT t_d_cost_center_pkey PRIMARY KEY (cost_center_key)
+);

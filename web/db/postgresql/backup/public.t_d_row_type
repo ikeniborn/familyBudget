@@ -1,0 +1,14 @@
+-- public.t_d_row_type definition
+
+-- Drop table
+
+-- DROP TABLE public.t_d_row_type;
+
+CREATE TABLE public.t_d_row_type (
+	row_type_key uuid NOT NULL,
+	row_type_id varchar NOT NULL,
+	row_type_name varchar NOT NULL,
+	created_dttm timestamp DEFAULT now() NOT NULL,
+	updated_dttm timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT t_d_row_type_pkey PRIMARY KEY (row_type_key)
+);

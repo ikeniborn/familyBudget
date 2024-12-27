@@ -1,8 +1,8 @@
 #!/bin/bash
 
-git_folder="/git"
+git_folder="$HOME/git"
 git_branch="master"
-app_folder="/app"
+app_folder="$HOME/app"
 
 # Проверить, существует ли директория "$git_folder"
 if [ -d "$git_folder" ]; then
@@ -16,18 +16,19 @@ else
     cd "$git_folder" || exit
 fi
 
-# Переключиться на ветку "dev"
+# Переключиться на ветку "git_branch"
 git checkout "$git_branch"
 
 if [ ! -d "$app_folder/web" ]; then
     # Если директория не существует
-    sudo mkdir $app_folder/web
+    mkdir -p $app_folder/web
 else 
-    sudo rsync -av --delete "$git_folder/web" "$app_folder"
-    sudo chmod +x "$app_folder/web/db/postgresql/backup/postgres-backup.sh"
-    sudo chmod +x "$app_folder/web/service/haproxy/prepareLetsEncryptCertificates.sh"
-    sudo chmod +x "$app_folder/web/service/haproxy/renewLetsEncryptCertificates.sh"
-    sudo chown -R 1000:1000 $app_folder
+    rsync -av --delete "$git_folder/web" "$app_folder"
+    chmod +x "$app_folder/web/db/postgresql/backup/postgres-backup.sh"
+    chmod +x "$app_folder/web/service/haproxy/prepareLetsEncryptCertificates.sh"
+    chmod +x "$app_folder/web/service/haproxy/renewLetsEncryptCertificates.sh"
+    chown -R ikeniborn:ikeniborn $app_folder
+    # rm -rdf $git_folder
 fi
 
-cd /app
+cd $HOME

@@ -1,0 +1,16 @@
+-- public.t_d_period definition
+
+-- Drop table
+
+-- DROP TABLE public.t_d_period;
+
+CREATE TABLE public.t_d_period (
+	period_key uuid NOT NULL,
+	period_id varchar NOT NULL,
+	period_dttm timestamp DEFAULT now() NOT NULL,
+	period_dt date NOT NULL,
+	period_ru_name varchar NOT NULL,
+	created_dttm timestamp DEFAULT now() NOT NULL,
+	updated_dttm timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT t_d_period_pkey PRIMARY KEY (period_key)
+);

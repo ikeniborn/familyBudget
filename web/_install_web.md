@@ -21,35 +21,47 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin 
 sudo mkdir /etc/haproxy && \
 sudo mkdir /etc/haproxy/certs
 
-. /sync_web.sh
+nano sync_web.sh
+chown ikeniborn:ikeniborn sync_web.sh
+chmod +x sync_web.sh
+. sync_web.sh
 
-sudo crontab -e
+sudo crontab -u ikeniborn -e
 0 0 1 * * /bin/sh /app/web/service/haproxy/renewLetsEncryptCertificates.sh
 
 sudo apt-get -y install certbot
 
+sudo nano /etc/letsencrypt/cli.ini
+
+# Manage Firewall
+pre-hook = ufw allow http
+post-hook = ufw deny http
+
+# Restart Postfix & Dovecot
+renew-hook = systemctl restart dovecot.service postfix.service
+
 sudo certbot certonly --manual --preferred-challenges dns
 
-sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d haproxy.ikeniborn.ru --post-hook "/app/web/service/haproxy/prepareLetsEncryptCertificates.sh && docker restart haproxy" --dry-run
+sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d budget.ikeniborn.ru --dry-run
 
-sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d budget.ikeniborn.ru --post-hook "/app/web/service/haproxy/prepareLetsEncryptCertificates.sh && docker restart haproxy"
+sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d budget.ikeniborn.ru --post-hook "$HOME/app/web/service/haproxy/prepareLetsEncryptCertificates.sh && docker restart haproxy"
 
-sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d haproxy.ikeniborn.ru --post-hook "/app/web/service/haproxy/prepareLetsEncryptCertificates.sh && docker restart haproxy"
+sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d haproxy.ikeniborn.ru --post-hook "$HOME/app/web/service/haproxy/prepareLetsEncryptCertificates.sh && docker restart haproxy"
 
 # build Docker image in current directory
 sudo mkdir /app
 
-sudo docker compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml up --build -d
-sudo docker compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml down --rmi all
+sudo docker-compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml up --build -d
+sudo docker-compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml down --rmi all
 
-sudo docker compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml up -d
-sudo docker compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml down
+sudo docker-compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml up -d
+sudo docker-compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml down
 
-sudo docker compose -f /app/web/docker-compose.yaml up --build -d
-sudo docker compose -f /app/web/docker-compose.yaml down --rmi all
+sudo docker-compose -f ~/app/web/docker-compose.yaml up --build -d
+sudo docker-compose -f ~/app/web/docker-compose.yaml down --rmi all
 
-sudo docker compose -f /app/web/docker-compose.yaml up -d
-sudo docker compose -f /app/web/docker-compose.yaml down
+sudo docker-compose -f /app/web/docker-compose.yaml up -d
+sudo docker-compose -f /app/web/docker-compose.yaml down
 
 
 
@@ -104,13 +116,13 @@ printenv | grep 'DATABASE' -->
 
 
 # BACKUP
-mkdir -p /app/database/postgresql/backup 
-touch /app/database/postgresql/postgres-backup.log
+mkdir -p ~/app/database/postgresql/backup 
+touch ~/app/database/postgresql/postgres-backup.log
 <!-- sudo chmod +x /home/bagatocorp/web/data/postgres-backup.sh -->
 
 <!-- tail -100 /home/bagatocorp/web/data/backup/postgres-backup.log -->
 
-sudo crontab -e
+sudo crontab -u ikeniborn -e
 
 0 * * * * . /app/web/service/postgresql/backup/postgres-backup.sh
 
