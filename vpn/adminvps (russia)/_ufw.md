@@ -11,7 +11,6 @@ sudo ufw allow 443/tcp
 
 sudo ufw allow from 78.107.114.37
 
-
 sudo ufw enable
 
 sudo ufw status numbered

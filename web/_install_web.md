@@ -31,25 +31,15 @@ sudo crontab -u ikeniborn -e
 
 sudo apt-get -y install certbot
 
-sudo nano /etc/letsencrypt/cli.ini
-
-# Manage Firewall
-pre-hook = ufw allow http
-post-hook = ufw deny http
-
-# Restart Postfix & Dovecot
-renew-hook = systemctl restart dovecot.service postfix.service
-
 sudo certbot certonly --manual --preferred-challenges dns
 
 sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d budget.ikeniborn.ru --dry-run
 
-sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d budget.ikeniborn.ru --post-hook "$HOME/app/web/service/haproxy/prepareLetsEncryptCertificates.sh && docker restart haproxy"
+sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d budget.ikeniborn.ru --pre-hook "ufw allow http" --post-hook "$HOME/app/web/service/haproxy/prepareLetsEncryptCertificates.sh && docker restart haproxy && ufw deny http"
 
-sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d haproxy.ikeniborn.ru --post-hook "$HOME/app/web/service/haproxy/prepareLetsEncryptCertificates.sh && docker restart haproxy"
+sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 -d haproxy.ikeniborn.ru --pre-hook "ufw allow http" --post-hook "$HOME/app/web/service/haproxy/prepareLetsEncryptCertificates.sh && docker restart haproxy && ufw deny http"
 
 # build Docker image in current directory
-sudo mkdir /app
 
 sudo docker-compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml up --build -d
 sudo docker-compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml down --rmi all
