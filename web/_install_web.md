@@ -66,9 +66,9 @@ sudo docker-compose -f /app/web/docker-compose.yaml down
 
 
 >> перезагрузка докера
-sudo service docker stop
-sudo systemctl stop docker.socket
-sudo service docker status
+sudo service docker stop && \
+sudo systemctl stop docker.socket && \
+sudo service docker status && \
 sudo service docker restart
 
 >> очистка не используемых контейнеров и образов
