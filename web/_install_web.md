@@ -82,7 +82,7 @@ sudo docker restart budget-ui
 sudo docker restart postgres
 sudo docker restart haproxy
 
-sudo docker logs -f api
+sudo docker logs -f haproxy
 
 ss -ntlp | more
 

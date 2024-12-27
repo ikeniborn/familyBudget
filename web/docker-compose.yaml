@@ -88,7 +88,7 @@ services:
   haproxy:
     container_name: haproxy
     hostname: haproxy
-    image: "haproxy:2.2-alpine"
+    image: "haproxy:latest"
     volumes:
       - /app/web/service/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:delegated
       - /etc/haproxy/certs:/etc/ssl/certs:delegated
