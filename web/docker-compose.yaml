@@ -26,6 +26,9 @@ services:
     restart: always
     cpuset: "0-1"    
     cpus: 0.5   
+    depends_on:
+      - postgres
+      - haproxy
 
   budget_api:
     container_name: budget_api
@@ -60,6 +63,7 @@ services:
     cpus: 0.25 
     depends_on:
       - postgres
+      - haproxy
 
   budget-ui:
     container_name: budget-ui
@@ -91,6 +95,7 @@ services:
     cpus: 0.25 
     depends_on:
       - budget_api
+      - haproxy
 
   haproxy:
     container_name: haproxy
@@ -105,6 +110,7 @@ services:
     cpus: 0.1
     depends_on:
       - budget-ui
+      - haproxy
 
   crm:
     container_name: crm
@@ -146,6 +152,7 @@ services:
       - "13000:13000"
     depends_on:
       - postgres
+      - haproxy
     cpuset: "1"    
     cpus: 1
 
