@@ -24,7 +24,7 @@ services:
       retries: 5
       start_period: 10s
     restart: always
-    cpuset: "0-1"    
+    cpuset: "0"    
     cpus: 0.5   
     depends_on:
       - haproxy
@@ -137,7 +137,7 @@ services:
       - API_BASE_PATH=/api/
       - CACHE_DEFAULT_STORE=memory
       - CACHE_MEMORY_MAX=100
-      - INIT_ROOT_EMAIL=admin@nocobase.com
+      - INIT_ROOT_EMAIL=admin@ikeniborn.ru
       - INIT_ROOT_PASSWORD=XGjYnPcNKaz49qELdZrk
       - INIT_ROOT_NICKNAME=Admin
       - INIT_APP_LANG=en-US
@@ -149,8 +149,8 @@ services:
     depends_on:
       - postgres
       - haproxy
-    cpuset: "1"    
-    cpus: 1
+    cpuset: "0"    
+    cpus: 0.5
 
 networks:
   app_network:
