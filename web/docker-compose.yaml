@@ -25,7 +25,9 @@ services:
       start_period: 10s
     restart: always
     cpuset: "0"    
-    cpus: 0.5   
+    cpus: 0.5  
+    mem_reservation: "100M"
+    mem_limit: "250M" 
     depends_on:
       - haproxy
 
@@ -60,6 +62,8 @@ services:
     restart: always
     cpuset: "0"    
     cpus: 0.25 
+    mem_reservation: "100M"
+    mem_limit: "250M" 
     depends_on:
       - postgres
       - haproxy
@@ -92,6 +96,8 @@ services:
     restart: always
     cpuset: "0"    
     cpus: 0.25 
+    mem_reservation: "100M"
+    mem_limit: "250M" 
     depends_on:
       - budget_api
       - haproxy
@@ -106,6 +112,8 @@ services:
     network_mode: "host"
     restart: always
     cpuset: "0"    
+    mem_reservation: "50M"
+    mem_limit: "100M" 
     cpus: 0.1
 
   crm:
@@ -152,6 +160,8 @@ services:
       - haproxy
     cpuset: "0"    
     cpus: 0.5
+    mem_reservation: "500M"
+    mem_limit: "1000M" 
 
 networks:
   app_network:
