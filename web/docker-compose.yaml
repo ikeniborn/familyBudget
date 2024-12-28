@@ -142,6 +142,7 @@ services:
       - INIT_ROOT_NICKNAME=Admin
       - INIT_APP_LANG=en-US
       - APP_PUBLIC_PATH=
+      - API_KEY=yAKU9jsGotfQ423z
     volumes:
       - crm-data:/app/nocobase/storage
     ports:
