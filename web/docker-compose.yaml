@@ -167,6 +167,6 @@ networks:
 volumes:
   postgres-data:
     driver: local
-  nocobase-data:
+  crm-data:
     driver: local
 
