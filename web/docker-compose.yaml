@@ -1,3 +1,4 @@
+version: "3"
 
 services:
   postgres:
@@ -23,6 +24,8 @@ services:
       retries: 5
       start_period: 10s
     restart: always
+    cpuset: "0-1"    
+    cpus: 0.5   
 
   budget_api:
     container_name: budget_api
@@ -53,6 +56,8 @@ services:
       retries: 5
       start_period: 30s
     restart: always
+    cpuset: "0"    
+    cpus: 0.25 
     depends_on:
       - postgres
 
@@ -82,6 +87,8 @@ services:
       retries: 5
       start_period: 30s
     restart: always
+    cpuset: "0"    
+    cpus: 0.25 
     depends_on:
       - budget_api
 
@@ -94,8 +101,53 @@ services:
       - /etc/haproxy/certs:/etc/ssl/certs:delegated
     network_mode: "host"
     restart: always
+    cpuset: "0"    
+    cpus: 0.1
     depends_on:
       - budget-ui
+
+  crm:
+    container_name: crm
+    image: nocobase/nocobase:latest
+    networks:
+      app_network:
+        ipv4_address: 10.5.0.5
+    environment:
+      # The application's secret key, used to generate user tokens, etc.
+      # If APP_KEY is changed, old tokens will also become invalid.
+      # It can be any random string, and make sure it is not exposed.
+      - APP_KEY=4+/D+3FWCK2T+PbwSdtEYAhmPjBTVYYRGbNsK5ctDyND3XOlFuIYTk1P
+      # Database type, supports postgres, mysql, mariadb
+      - DB_DIALECT=postgres
+      # Database host, can be replaced with the IP of an existing database server
+      - DB_HOST=10.5.0.2
+      # Database name
+      - DB_DATABASE=crm
+      # Database user
+      - DB_USER=crm
+      # Database password
+      - DB_PASSWORD=Ke39GbrtjRoYhVpyXxkW
+      # Timezone
+      - TZ=Europe/Moscow
+      # Application environment
+      - APP_ENV=production
+      - APP_PORT=13000
+      - API_BASE_PATH=/api/
+      - CACHE_DEFAULT_STORE=memory
+      - CACHE_MEMORY_MAX=100
+      - INIT_ROOT_EMAIL=admin@nocobase.com
+      - INIT_ROOT_PASSWORD=XGjYnPcNKaz49qELdZrk
+      - INIT_ROOT_NICKNAME=Admin
+      - INIT_APP_LANG=en-US
+      - APP_PUBLIC_PATH=
+    volumes:
+      - crm-data:/app/nocobase/storage
+    ports:
+      - "13000:13000"
+    depends_on:
+      - postgres
+    cpuset: "1"    
+    cpus: 1
 
 networks:
   app_network:
@@ -107,5 +159,7 @@ networks:
 
 volumes:
   postgres-data:
+    driver: local
+  nocobase-data:
     driver: local
 
