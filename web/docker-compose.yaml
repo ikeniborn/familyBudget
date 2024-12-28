@@ -107,9 +107,6 @@ services:
     restart: always
     cpuset: "0"    
     cpus: 0.1
-    depends_on:
-      - budget-ui
-      - haproxy
 
   crm:
     container_name: crm
