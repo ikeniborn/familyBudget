@@ -27,7 +27,6 @@ services:
     cpuset: "0-1"    
     cpus: 0.5   
     depends_on:
-      - postgres
       - haproxy
 
   budget_api:
