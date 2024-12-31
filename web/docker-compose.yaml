@@ -166,6 +166,7 @@ services:
   couchdb:
       image: couchdb:latest
       hostname: couchdb
+      container_name: couchdb
       networks:
         app_network:
           ipv4_address: 10.5.0.6
