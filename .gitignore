@@ -221,4 +221,4 @@ dist
 
 **/venv
 
-.sync_web.sh
+**/sync_web.sh
