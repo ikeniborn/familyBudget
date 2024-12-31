@@ -19,12 +19,7 @@ sudo ufw status numbered
 sudo cp /etc/ufw/before.rules /etc/ufw/before.rules_backup
 
 nano /etc/ufw/before.rules
-# ok icmp codes for INPUT
--A ufw-before-input -p icmp --icmp-type destination-unreachable -j DROP
--A ufw-before-input -p icmp --icmp-type source-quench -j DROP
--A ufw-before-input -p icmp --icmp-type time-exceeded -j DROP
--A ufw-before-input -p icmp --icmp-type parameter-problem -j DROP
--A ufw-before-input -p icmp --icmp-type echo-request -j DROP
+# ok icmp codes for INPUT change to DROP
 
 sudo ufw reload
 

@@ -220,3 +220,5 @@ dist
 **/haproxy/certs
 
 **/venv
+
+.sync_web.sh
