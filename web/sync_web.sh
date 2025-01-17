@@ -25,6 +25,7 @@ if [ ! -d "$app_folder/web" ]; then
 else 
     rsync -av --delete "$git_folder/web" "$app_folder"
     chmod +x "$app_folder/web/db/postgresql/backup/postgres-backup.sh"
+    chmod +x "$app_folder/web/db/couchdb/backup/couchdb-backup.sh"
     chmod +x "$app_folder/web/service/haproxy/prepareLetsEncryptCertificates.sh"
     chmod +x "$app_folder/web/service/haproxy/renewLetsEncryptCertificates.sh"
     chown -R ikeniborn:ikeniborn $app_folder
