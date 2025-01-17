@@ -31,9 +31,9 @@ services:
     depends_on:
       - haproxy
 
-  budget_api:
-    container_name: budget_api
-    hostname: budget_api
+  budget-api:
+    container_name: budget-api
+    hostname: budget-api
     build:
       dockerfile: ./api/Dockerfile
       context: ./
@@ -99,7 +99,7 @@ services:
     mem_reservation: "100M"
     mem_limit: "250M" 
     depends_on:
-      - budget_api
+      - budget-api
       - haproxy
 
   haproxy:

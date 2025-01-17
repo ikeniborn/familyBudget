@@ -1,6 +1,24 @@
 
 # install docker
 
+###
+# install minio client for root
+###
+
+sudo su
+sudo curl https://dl.min.io/client/mc/release/linux-amd64/mc --create-dirs -o $HOME/minio-binaries/mc
+sudo chown -R ikeniborn:ikeniborn /root/minio-binaries && \
+sudo chmod +x /root/minio-binaries/mc && \
+sudo touch /etc/profile.d/mc.sh && \
+export PATH=$PATH:/root/minio-binaries/ && \
+sudo tee /etc/profile.d/mc.sh <<EOF
+export PATH=$PATH:/root/minio-binaries/
+EOF
+
+mc --help
+
+/root/minio-binaries/mc alias set yandex https://storage.yandexcloud.net YCAJEMDZzBncSAWDzx6KCPPVr YCPHePC8iLOVy0VCoCvSmrdwc-UPyg7mdzPWz_kA
+
 # Generate cert
 sudo mkdir /etc/haproxy && \
 sudo mkdir /etc/haproxy/certs
