@@ -164,58 +164,58 @@ class Forms:
                         and st.session_state.budget_financial_center_name != None
                         and st.session_state.budget_nomenclature_name != None
                     ):
-                        registry_key = Functions.get_random_uuid()
+                        registry_id = Functions.get_random_uuid()
 
-                        period_key = (
+                        period_id = (
                             t_d_period.lazy()
-                            .select("period_key", "period_ru_name")
+                            .select("period_id", "period_ru_name")
                             .filter(pl.col("period_ru_name") == st.session_state.budget_period_ru_name)
-                            .collect()["period_key"][0]
+                            .collect()["period_id"][0]
                         )
 
-                        financial_center_key = (
+                        financial_center_id = (
                             t_d_financial_center.lazy()
-                            .select("financial_center_key", "financial_center_name")
+                            .select("financial_center_id", "financial_center_name")
                             .filter(pl.col("financial_center_name") == st.session_state.budget_financial_center_name)
-                            .collect()["financial_center_key"][0]
+                            .collect()["financial_center_id"][0]
                         )
-                        cost_center_key = (
+                        cost_center_id = (
                             t_d_cost_center.lazy()
-                            .select("cost_center_key", "cost_center_name")
+                            .select("cost_center_id", "cost_center_name")
                             .filter(pl.col("cost_center_name") == cost_center_name)
-                            .collect()["cost_center_key"][0]
+                            .collect()["cost_center_id"][0]
                         )
 
-                        nomenclature_key = (
+                        nomenclature_id = (
                             t_d_nomenclature.lazy()
-                            .select("nomenclature_key", "nomenclature_name")
+                            .select("nomenclature_id", "nomenclature_name")
                             .filter(pl.col("nomenclature_name") == st.session_state.budget_nomenclature_name)
-                            .collect()["nomenclature_key"][0]
+                            .collect()["nomenclature_id"][0]
                         )
 
-                        row_type_key = (
+                        row_type_id = (
                             t_d_row_type.lazy()
-                            .select("row_type_key", "row_type_name")
+                            .select("row_type_id", "row_type_name")
                             .filter(pl.col("row_type_name") == row_type_name)
-                            .collect()["row_type_key"][0]
+                            .collect()["row_type_id"][0]
                         )
 
                         row = {
-                            "registry_key": registry_key,
+                            "registry_id": registry_id,
                             "operation_dttm": operation_dttm,
-                            "period_key": period_key,
-                            "financial_center_key": financial_center_key,
-                            "cost_center_key": cost_center_key,
-                            "nomenclature_key": nomenclature_key,
+                            "period_id": period_id,
+                            "financial_center_id": financial_center_id,
+                            "cost_center_id": cost_center_id,
+                            "nomenclature_id": nomenclature_id,
                             "cost_sum": _budget_cost_sum,
                             "comment_description": _budget_comment_description,
-                            "row_type_key": row_type_key,
-                            "user_key": st.session_state.user_key,
+                            "row_type_id": row_type_id,
+                            "user_id": st.session_state.user_id,
                         }
                         Registry.insertOne(row=row)
                         st.info("Последние пять записей:")
                         st.dataframe(
-                            data=Registry.getLastRows(row_type_key=row_type_key, limit_rows=5),
+                            data=Registry.getLastRows(row_type_id=row_type_id, limit_rows=5),
                             hide_index=True,
                             use_container_width=True,
                         )
@@ -400,65 +400,65 @@ class Forms:
                         and st.session_state.fact_financial_center_name != None
                         and st.session_state.fact_nomenclature_name != None
                     ):
-                        registry_key = Functions.get_random_uuid()
+                        registry_id = Functions.get_random_uuid()
 
-                        period_key = (
+                        period_id = (
                             t_d_period.lazy()
-                            .select("period_key", "period_ru_name")
+                            .select("period_id", "period_ru_name")
                             .filter(pl.col("period_ru_name") == st.session_state.fact_period_ru_name)
-                            .collect()["period_key"][0]
+                            .collect()["period_id"][0]
                         )
 
-                        financial_center_key = (
+                        financial_center_id = (
                             t_d_financial_center.lazy()
-                            .select("financial_center_key", "financial_center_name")
+                            .select("financial_center_id", "financial_center_name")
                             .filter(pl.col("financial_center_name") == st.session_state.fact_financial_center_name)
-                            .collect()["financial_center_key"][0]
+                            .collect()["financial_center_id"][0]
                         )
 
-                        cost_center_key = (
+                        cost_center_id = (
                             t_d_cost_center.lazy()
-                            .select("cost_center_key", "cost_center_name")
+                            .select("cost_center_id", "cost_center_name")
                             .filter(pl.col("cost_center_name") == st.session_state.fact_cost_center_name)
-                            .collect()["cost_center_key"][0]
+                            .collect()["cost_center_id"][0]
                         )
 
-                        nomenclature_key = (
+                        nomenclature_id = (
                             t_d_nomenclature.lazy()
-                            .select("nomenclature_key", "nomenclature_name")
+                            .select("nomenclature_id", "nomenclature_name")
                             .filter(pl.col("nomenclature_name") == st.session_state.fact_nomenclature_name)
-                            .collect()["nomenclature_key"][0]
+                            .collect()["nomenclature_id"][0]
                         )
 
-                        row_type_key = (
+                        row_type_id = (
                             t_d_row_type.lazy()
-                            .select("row_type_key", "row_type_name")
+                            .select("row_type_id", "row_type_name")
                             .filter(pl.col("row_type_name") == row_type_name)
-                            .collect()["row_type_key"][0]
+                            .collect()["row_type_id"][0]
                         )
 
                         row = {
-                            "registry_key": registry_key,
+                            "registry_id": registry_id,
                             "operation_dttm": operation_dttm,
-                            "period_key": period_key,
-                            "financial_center_key": financial_center_key,
-                            "cost_center_key": cost_center_key,
-                            "nomenclature_key": nomenclature_key,
+                            "period_id": period_id,
+                            "financial_center_id": financial_center_id,
+                            "cost_center_id": cost_center_id,
+                            "nomenclature_id": nomenclature_id,
                             "cost_sum": _fact_cost_sum,
                             "comment_description": _fact_comment_description,
-                            "row_type_key": row_type_key,
-                            "user_key": st.session_state.user_key,
+                            "row_type_id": row_type_id,
+                            "user_id": st.session_state.user_id,
                         }
                         Registry.insertOne(row=row)
                         st.info("Последние пять записей:")
                         st.dataframe(
-                            data=Registry.getLastRows(row_type_key=row_type_key, limit_rows=5),
+                            data=Registry.getLastRows(row_type_id=row_type_id, limit_rows=5),
                             hide_index=True,
                             use_container_width=True,
                         )
                         # График
                         df = Report.getReportPerfomancetRowTypeNomenclature(
-                            financial_center_key=financial_center_key, period_key=period_key, nomenclature_key=nomenclature_key
+                            financial_center_id=financial_center_id, period_id=period_id, nomenclature_id=nomenclature_id
                         )
                         fig = px.bar(df, x="Номенклатура", y="Сумма", color="Тип", barmode="group", text_auto=True)
                         st.plotly_chart(fig, use_container_width=True)
@@ -512,26 +512,26 @@ class Forms:
 
             if st.session_state.report_financial_center_name and st.session_state.report_period_ru_name:
 
-                financial_center_key = (
+                financial_center_id = (
                     t_d_financial_center.lazy()
-                    .select("financial_center_key", "financial_center_name")
+                    .select("financial_center_id", "financial_center_name")
                     .filter(pl.col("financial_center_name") == st.session_state.report_financial_center_name)
-                    .collect()["financial_center_key"][0]
+                    .collect()["financial_center_id"][0]
                 )
-                period_key = (
+                period_id = (
                     t_d_period.lazy()
-                    .select("period_key", "period_ru_name")
+                    .select("period_id", "period_ru_name")
                     .filter(pl.col("period_ru_name") == st.session_state.report_period_ru_name)
-                    .collect()["period_key"][0]
+                    .collect()["period_id"][0]
                 )
 
                 with report_budget:
-                    total = Report.getReportBudgetTotal(period_key=period_key, financial_center_key=financial_center_key)[
+                    total = Report.getReportBudgetTotal(period_id=period_id, financial_center_id=financial_center_id)[
                         "Сумма"
                     ][0]
                     if total:
                         st.write(f"Итого бюджет на {st.session_state.report_period_ru_name} составляет {total} руб.")
-                        df = Report.getReportBudgetBillAccount(period_key=period_key, financial_center_key=financial_center_key)
+                        df = Report.getReportBudgetBillAccount(period_id=period_id, financial_center_id=financial_center_id)
                         fig = px.bar(df, x="Статья", y="Сумма", color="Счет", barmode="group", text_auto=True)
                         st.plotly_chart(fig, use_container_width=True)
                     else:
@@ -541,20 +541,20 @@ class Forms:
                     bill, account, nomenclature = st.tabs(["Счет", "Статья", "Номенклатура"])
 
                     with bill:
-                        df = Report.getReportCompareRowTypeBill(period_key=period_key, financial_center_key=financial_center_key)
+                        df = Report.getReportCompareRowTypeBill(period_id=period_id, financial_center_id=financial_center_id)
                         if df.shape[0] > 0:
                             fig = px.bar(df, x="Счет", y="Сумма", color="Тип", barmode="group", text_auto=True)
                             st.plotly_chart(fig, use_container_width=True)
                     with account:
                         df = Report.getReportCompareRowTypeAccount(
-                            period_key=period_key, financial_center_key=financial_center_key
+                            period_id=period_id, financial_center_id=financial_center_id
                         )
                         if df.shape[0] > 0:
                             fig = px.bar(df, x="Статья", y="Сумма", color="Тип", barmode="group", text_auto=True)
                             st.plotly_chart(fig, use_container_width=True)
                     with nomenclature:
                         df = Report.getReportCompareRowTypeNomenclature(
-                            period_key=period_key, financial_center_key=financial_center_key
+                            period_id=period_id, financial_center_id=financial_center_id
                         )
                         if df.shape[0] > 0:
                             fig = px.bar(df, x="Номенклатура", y="Сумма", color="Тип", barmode="group", text_auto=True)

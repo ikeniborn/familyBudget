@@ -6,18 +6,18 @@ from uuid import UUID
 class Models:
 
     class Period(BaseModel):
-        period_key: UUID
+        period_id: UUID
         period_dt: date
         period_ru_name: str
 
     class Registry(BaseModel):
-        registry_key: UUID
+        registry_id: UUID
         operation_dttm: datetime
-        period_key: UUID
-        financial_center_key: UUID
-        cost_center_key: UUID
-        nomenclature_key: UUID
+        period_id: UUID
+        financial_center_id: UUID
+        cost_center_id: UUID
+        nomenclature_id: UUID
         cost_sum: float
         comment_description: str
-        row_type_key: UUID
-        user_key: UUID
+        row_type_id: UUID
+        user_id: UUID

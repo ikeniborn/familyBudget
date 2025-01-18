@@ -69,11 +69,11 @@ if __name__ == "__main__":
         if value:
             st.session_state.telegramm_session = value
             users = Users().fetchAll(ttl=60)
-            user_key_df = users.lazy().filter(pl.col(["user_name"]) == st.session_state.telegramm_session["username"]).collect()
-            user_key_df_count = user_key_df.count()
-            if user_key_df_count["user_key"][0] == 1:
-                if "user_key" not in st.session_state:
-                    st.session_state.user_key = user_key_df["user_key"][0]
+            user_id_df = users.lazy().filter(pl.col(["user_name"]) == st.session_state.telegramm_session["username"]).collect()
+            user_id_df_count = user_id_df.count()
+            if user_id_df_count["user_id"][0] == 1:
+                if "user_id" not in st.session_state:
+                    st.session_state.user_id = user_id_df["user_id"][0]
             else:
                 telegram_login.clear_session()
                 st.session_state.clear()
@@ -134,9 +134,9 @@ if __name__ == "__main__":
 
     #     users = Users().fetchAll(ttl=86400)
     #     if st.session_state.username:
-    #         if "user_key" not in st.session_state:
-    #             st.session_state.user_key = (
-    #                 users.lazy().filter(pl.col(["user_name"]) == st.session_state.username).collect()["user_key"][0]
+    #         if "user_id" not in st.session_state:
+    #             st.session_state.user_id = (
+    #                 users.lazy().filter(pl.col(["user_name"]) == st.session_state.username).collect()["user_id"][0]
     #             )
     #     financial_centers = FinancialCenters().fetchAll(ttl=86400)
     #     cost_centers = CostCenter().fetchAll(ttl=86400)
