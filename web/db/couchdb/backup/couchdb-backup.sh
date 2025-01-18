@@ -9,7 +9,7 @@ sudo rm $BACKUP_COUCHDB_NAME
 fi
 sudo docker run --rm --volume web_couchdb-data:/data --volume $BACKUP_COUCHDB_CATALOG:/backup couchdb tar cvf /backup/$BACKUP_COUCHDB_NAME data
 
-if [[ -f $BACKUP_NAME ]]; then
+if [[ -f $BACKUP_COUCHDB_NAME ]]; then
   sudo /opt/minio-binaries/mc cp $BACKUP_COUCHDB_NAME yandex/ikeniborn-obsidian-couchdb/
   if [[ -f $BACKUP_COUCHDB_NAME_OLD ]]; then
   sudo rm $BACKUP_COUCHDB_NAME_OLD 

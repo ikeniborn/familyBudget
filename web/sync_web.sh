@@ -1,8 +1,8 @@
 #!/bin/bash
 
-git_folder="$HOME/git"
+git_folder="/home/ikeniborn/git"
 git_branch="master"
-app_folder="$HOME/app"
+app_folder="/home/ikeniborn/app"
 
 # Проверить, существует ли директория "$git_folder"
 if [ -d "$git_folder" ]; then
@@ -29,7 +29,8 @@ else
     chmod +x "$app_folder/web/service/haproxy/prepareLetsEncryptCertificates.sh"
     chmod +x "$app_folder/web/service/haproxy/renewLetsEncryptCertificates.sh"
     chown -R ikeniborn:ikeniborn $app_folder
-    # rm -rdf $git_folder
+    rm -rdf $git_folder
+    sudo docker-compose --env-file $app_folder/app/web/web.env -f $app_folder/app/web/docker-compose.yaml restart
 fi
 
 cd $HOME

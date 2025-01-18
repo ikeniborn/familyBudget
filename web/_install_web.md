@@ -112,16 +112,26 @@ printenv | grep 'DATABASE' -->
 
 
 # BACKUP
+sudo apt-get install postfix
 mkdir -p ~/app/database/postgresql/backup 
 touch ~/app/database/postgresql/postgres-backup.log
 <!-- sudo chmod +x /home/bagatocorp/web/data/postgres-backup.sh -->
 
 <!-- tail -100 /home/bagatocorp/web/data/backup/postgres-backup.log -->
 
+sudo touch /etc/rsyslog.d/cron.log
+
+sudo nano /etc/rsyslog.d/50-default.conf
+> uncomment #cron
+sudo service rsyslog restart
+
 sudo crontab -u ikeniborn -e
 
-0 1 * * * . ~/app/web/db/postgresql/backup/postgres-backup.sh
-0 0 * * * . ~/app/web/db/couchdb/backup/couchdb-backup.sh
+0 0 1 * * /bin/sh /home/ikeniborn/app/web/service/haproxy/renewLetsEncryptCertificates.sh >/dev/null 2>&1
+0 1 * * * /bin/sh /home/ikeniborn/app/web/db/postgresql/backup/postgres-backup.sh >/dev/null 2>&1
+*/10 * * * * /bin/sh /home/ikeniborn/app/web/db/couchdb/backup/couchdb-backup.sh >/dev/null 2>&1
+
+sudo tail -10 /var/log/cron.log
 
 <!-- streamlit run app.py --server.port=4443 --server.sslCertFile=cert/budget.ikeniborn.ru.pem --server.sslKeyFile=cert/budget.ikeniborn.ru.key -->
 
