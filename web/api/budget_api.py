@@ -261,7 +261,7 @@ async def get_registry_last_row(row_type_id: int = None, limit_rows: int = 5):
         where
           t0.row_type_id = \'{row_type_id}\'
         order by
-          t0.updated_dttm desc
+          t0.registry_id desc
         limit {limit_rows}
       """
     )

@@ -78,6 +78,7 @@ sudo docker restart postgres
 sudo docker restart haproxy
 
 sudo docker logs -f budget-ui
+sudo docker logs -f budget-api
 
 ss -ntlp | more
 
@@ -91,35 +92,15 @@ sudo docker exec -ti ui bash
 sudo docker exec -ti postgres bash
 
 
-<!-- sudo docker exec app-streamlit-1 python /usr/src/data/db_upload.py -->
-
-<!-- curl --cacert /usr/src/app/cert/budget.ikeniborn.ru.pem --fail https://budget.ikeniborn.ru/_stcore/health -->
-
-<!-- export GOOGLE_SPREADSHEET_ID=12zOV6GkjmT2eUAQalQCTDP1OXOBCfLOhcBQaXQ4gbUQ && \ -->
-<!-- export GOOGLE_CREDENTIAL_PATH=/home/ikeni/Documents/Git/familyBudget/app/web/app/secrets/familybudget-317019-797cf157b1ff.json && \ -->
-<!-- export GOOGLE_STORAGE_CREDENTIAL_PATH=/home/ikeni/Documents/Git/familyBudget/app/web/app/secrets/bagato-403919-f547cd93bfb2.json && \
-export DATABASE_PATH=/home/ikeni/Documents/Git/familyBudget/app/web/data/budget.db && \
-export BUDGET_POSTGRES_HOST=10.5.0.3 && \
-export BUDGET_POSTGRES_PORT=5432 && \
-export BUDGET_POSTGRES_DB=budgetdb && \
-export BUDGET_POSTGRES_USER=budget && \
-export BUDGET_POSTGRES_PASSWORD=4phDukPGF7sUWSEvfycX && \
-printenv | grep 'GOOGLE'
-printenv | grep 'BUDGET'
-printenv | grep 'DATABASE' -->
-
-
 
 # BACKUP
 sudo apt-get install postfix
+
 sudo mkdir -p ~/app/database/postgresql/backup 
 sudo touch ~/app/database/postgresql/postgres-backup.log
 sudo touch /var/log/postgres-backup.log
 sudo touch /var/log/couchdb-backup.log
 sudo touch /var/log/certbot.log
-<!-- sudo chmod +x /home/bagatocorp/web/data/postgres-backup.sh -->
-
-<!-- tail -100 /home/bagatocorp/web/data/backup/postgres-backup.log -->
 
 sudo touch /etc/rsyslog.d/cron.log
 

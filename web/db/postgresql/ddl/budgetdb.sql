@@ -98,8 +98,9 @@ CREATE TABLE public.t_d_user (
 CREATE SEQUENCE t_d_user_user_id_seq as bigint INCREMENT BY 1 MINVALUE 1 START 1 CACHE 1 NO CYCLE OWNED BY t_d_user.user_id;
 
 -- public.t_f_registry definition
+CREATE SEQUENCE t_f_registry_registry_id_seq as bigint INCREMENT BY 1 MINVALUE 1 START 1 CACHE 5 NO CYCLE;
 CREATE TABLE if not EXISTS public.t_f_registry (
-  registry_id BIGINT NOT NULL,
+  registry_id BIGINT NOT NULL DEFAULT nextval('t_f_registry_registry_id_seq'),
   operation_dttm timestamp NOT NULL,
   period_id bigint NOT NULL REFERENCES t_d_period (period_id),
   financial_center_id bigint NOT NULL REFERENCES t_d_financial_center (financial_center_id),
@@ -114,7 +115,7 @@ CREATE TABLE if not EXISTS public.t_f_registry (
   CONSTRAINT t_f_registry_pk PRIMARY KEY (registry_id, operation_dttm)
 ) PARTITION BY range (operation_dttm);
 
-CREATE SEQUENCE t_f_registry_registry_id_seq as bigint INCREMENT BY 1 MINVALUE 1 START 1 CACHE 1 NO CYCLE OWNED BY t_d_user.user_id;
+CREATE SEQUENCE t_f_registry_registry_id_seq as bigint INCREMENT BY 1 MINVALUE 1 START 1 CACHE 5 NO CYCLE OWNED BY t_f_registry.registry_id;
 
 create index t_f_registry_operation_dttm_index on public.t_f_registry using btree (operation_dttm);
 
