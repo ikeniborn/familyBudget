@@ -4,11 +4,12 @@ import streamlit as st
 # from streamlit_authenticator import Authenticate
 from pathlib import Path
 import yaml
-from yaml.loader import SafeLoader
+# from yaml.loader import SafeLoader
 import polars as pl
 import os
 from streamlit_telegram_login import TelegramLoginWidgetComponent
 from streamlit_telegram_login.helpers import YamlConfig
+from utils.api import Periods, Registry, Report
 
 # from polars import DataFrame
 
@@ -48,6 +49,11 @@ from utils.forms import Forms
 
 if __name__ == "__main__":
     st.set_page_config(page_title="Домашний бюджет", page_icon=":book", initial_sidebar_state="auto", layout="wide")
+    
+    t_d_period = Periods().fetchMany(
+                start_date=Functions.get_period(shuffle=-1), end_date=Functions.get_period(shuffle=0), ttl=60
+            )
+    st.write(t_d_period)
 
     # users = Users().fetchAll(ttl=1)
     # st.write(users.select("user_name").filter(pl.col("user_name") == "ilya").unique().sort(by="user_name")["user_name"][0])

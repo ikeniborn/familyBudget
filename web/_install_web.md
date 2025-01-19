@@ -132,7 +132,9 @@ sudo crontab -e
 0 1 * * * . /home/ikeniborn/app/web/db/postgresql/backup/postgres-backup.sh >/dev/null 2>&1
 */10 * * * * . /home/ikeniborn/app/web/db/couchdb/backup/couchdb-backup.sh >/dev/null 2>&1
 
-sudo tail -10 /var/log/cron.log | grep backup
+sudo tail -100 /var/log/cron.log | grep backup
+
+sudo tail -100 /var/mail/root
 
 <!-- streamlit run app.py --server.port=4443 --server.sslCertFile=cert/budget.ikeniborn.ru.pem --server.sslKeyFile=cert/budget.ikeniborn.ru.key -->
 

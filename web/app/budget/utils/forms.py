@@ -33,9 +33,7 @@ class Forms:
         @st.fragment
         def form(self):
 
-            t_d_period = Periods().fetchMany(
-                start_date=Functions.get_period(shuffle=0), end_date=Functions.get_period(shuffle=1), ttl=60
-            )
+            t_d_period = Periods().fetchMany(start_date=Functions.get_period(shuffle=0), end_date=Functions.get_period(shuffle=1), ttl=60)
             t_d_financial_center = self._financial_centers
             t_d_cost_center = self._cost_centers
             t_d_row_type = self._row_types
@@ -54,9 +52,7 @@ class Forms:
             with col2:
                 tm = st.time_input(label="Время операции", value=start_dttm, step=60, key="budget_time_input")
 
-            operation_dttm = datetime(
-                year=dt.year, month=dt.month, day=dt.day, hour=tm.hour, minute=tm.minute, second=0, microsecond=0
-            ).strftime("%Y-%m-%d %H:%M:%S.%f")
+            operation_dttm = datetime(year=dt.year, month=dt.month, day=dt.day, hour=tm.hour, minute=tm.minute, second=0, microsecond=0).strftime("%Y-%m-%d %H:%M:%S.%f")
 
             st.selectbox(
                 "Период",
@@ -98,9 +94,7 @@ class Forms:
                         "Счет",
                         key="budget_bill_name",
                         options=t_d_nomenclature.lazy()
-                        .filter(
-                            (pl.col("is_budget") == True) & (pl.col("operation_name") == st.session_state.budget_operation_name)
-                        )
+                        .filter((pl.col("is_budget") == True) & (pl.col("operation_name") == st.session_state.budget_operation_name))
                         .select("bill_name")
                         .group_by("bill_name", maintain_order=True)
                         .n_unique()
@@ -153,17 +147,13 @@ class Forms:
 
             with st.form("budget_data", clear_on_submit=True):
 
-                _budget_cost_sum=st.number_input(label="Сумма*", min_value=0, value=0, key="budget_cost_sum")
-                _budget_comment_description=st.text_area(label="Комментарий", key="budget_comment_description")
+                _budget_cost_sum = st.number_input(label="Сумма*", min_value=0, value=0, key="budget_cost_sum")
+                _budget_comment_description = st.text_area(label="Комментарий", key="budget_comment_description")
 
                 add_row = st.form_submit_button(label="Сохранить", type="primary")
 
                 if add_row:
-                    if (
-                        _budget_cost_sum > 0
-                        and st.session_state.budget_financial_center_name != None
-                        and st.session_state.budget_nomenclature_name != None
-                    ):
+                    if _budget_cost_sum > 0 and st.session_state.budget_financial_center_name != None and st.session_state.budget_nomenclature_name != None:
 
                         period_id = (
                             t_d_period.lazy()
@@ -192,12 +182,7 @@ class Forms:
                             .collect()["nomenclature_id"][0]
                         )
 
-                        row_type_id = (
-                            t_d_row_type.lazy()
-                            .select("row_type_id", "row_type_name")
-                            .filter(pl.col("row_type_name") == row_type_name)
-                            .collect()["row_type_id"][0]
-                        )
+                        row_type_id = t_d_row_type.lazy().select("row_type_id", "row_type_name").filter(pl.col("row_type_name") == row_type_name).collect()["row_type_id"][0]
 
                         row = {
                             "operation_dttm": operation_dttm,
@@ -387,17 +372,13 @@ class Forms:
 
             with st.form("fact_data", clear_on_submit=True):
 
-                _fact_cost_sum=st.number_input(label="Сумма*", min_value=0, value=0, key="fact_cost_sum")
-                _fact_comment_description=st.text_area(label="Комментарий", key="fact_comment_description")
+                _fact_cost_sum = st.number_input(label="Сумма*", min_value=0, value=0, key="fact_cost_sum")
+                _fact_comment_description = st.text_area(label="Комментарий", key="fact_comment_description")
 
                 add_row = st.form_submit_button(label="Сохранить", type="primary")
 
                 if add_row:
-                    if (
-                        _fact_cost_sum > 0
-                        and st.session_state.fact_financial_center_name != None
-                        and st.session_state.fact_nomenclature_name != None
-                    ):
+                    if _fact_cost_sum > 0 and st.session_state.fact_financial_center_name != None and st.session_state.fact_nomenclature_name != None:
 
                         period_id = (
                             t_d_period.lazy()
@@ -427,12 +408,7 @@ class Forms:
                             .collect()["nomenclature_id"][0]
                         )
 
-                        row_type_id = (
-                            t_d_row_type.lazy()
-                            .select("row_type_id", "row_type_name")
-                            .filter(pl.col("row_type_name") == row_type_name)
-                            .collect()["row_type_id"][0]
-                        )
+                        row_type_id = t_d_row_type.lazy().select("row_type_id", "row_type_name").filter(pl.col("row_type_name") == row_type_name).collect()["row_type_id"][0]
 
                         row = {
                             "operation_dttm": operation_dttm,
@@ -453,9 +429,7 @@ class Forms:
                             use_container_width=True,
                         )
                         # График
-                        df = Report.getReportPerfomancetRowTypeNomenclature(
-                            financial_center_id=financial_center_id, period_id=period_id, nomenclature_id=nomenclature_id
-                        )
+                        df = Report.getReportPerfomancetRowTypeNomenclature(financial_center_id=financial_center_id, period_id=period_id, nomenclature_id=nomenclature_id)
                         fig = px.bar(df, x="Номенклатура", y="Сумма", color="Тип", barmode="group", text_auto=True)
                         st.plotly_chart(fig, use_container_width=True)
                     else:
@@ -485,9 +459,7 @@ class Forms:
         @st.fragment
         def report(self):
 
-            t_d_period = Periods().fetchMany(
-                start_date=Functions.get_period(shuffle=-1), end_date=Functions.get_period(shuffle=1), ttl=60
-            )
+            t_d_period = Periods().fetchMany(start_date=Functions.get_period(shuffle=-1), end_date=Functions.get_period(shuffle=1), ttl=60)
             t_d_financial_center = self._financial_centers
 
             st.selectbox(
@@ -515,16 +487,11 @@ class Forms:
                     .collect()["financial_center_id"][0]
                 )
                 period_id = (
-                    t_d_period.lazy()
-                    .select("period_id", "period_ru_name")
-                    .filter(pl.col("period_ru_name") == st.session_state.report_period_ru_name)
-                    .collect()["period_id"][0]
+                    t_d_period.lazy().select("period_id", "period_ru_name").filter(pl.col("period_ru_name") == st.session_state.report_period_ru_name).collect()["period_id"][0]
                 )
 
                 with report_budget:
-                    total = Report.getReportBudgetTotal(period_id=period_id, financial_center_id=financial_center_id)[
-                        "Сумма"
-                    ][0]
+                    total = Report.getReportBudgetTotal(period_id=period_id, financial_center_id=financial_center_id)["Сумма"][0]
                     if total:
                         st.write(f"Итого бюджет на {st.session_state.report_period_ru_name} составляет {total} руб.")
                         df = Report.getReportBudgetBillAccount(period_id=period_id, financial_center_id=financial_center_id)
@@ -542,16 +509,12 @@ class Forms:
                             fig = px.bar(df, x="Счет", y="Сумма", color="Тип", barmode="group", text_auto=True)
                             st.plotly_chart(fig, use_container_width=True)
                     with account:
-                        df = Report.getReportCompareRowTypeAccount(
-                            period_id=period_id, financial_center_id=financial_center_id
-                        )
+                        df = Report.getReportCompareRowTypeAccount(period_id=period_id, financial_center_id=financial_center_id)
                         if df.shape[0] > 0:
                             fig = px.bar(df, x="Статья", y="Сумма", color="Тип", barmode="group", text_auto=True)
                             st.plotly_chart(fig, use_container_width=True)
                     with nomenclature:
-                        df = Report.getReportCompareRowTypeNomenclature(
-                            period_id=period_id, financial_center_id=financial_center_id
-                        )
+                        df = Report.getReportCompareRowTypeNomenclature(period_id=period_id, financial_center_id=financial_center_id)
                         if df.shape[0] > 0:
                             fig = px.bar(df, x="Номенклатура", y="Сумма", color="Тип", barmode="group", text_auto=True)
                             st.plotly_chart(fig, use_container_width=True)
