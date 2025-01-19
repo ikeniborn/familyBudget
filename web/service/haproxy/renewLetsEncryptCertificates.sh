@@ -1,2 +1,2 @@
 #!/bin/bash
-certbot renew --standalone --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 --pre-hook "ufw allow http" --post-hook "/home/ikeniborn/app/web/service/haproxy/prepareLetsEncryptCertificates.sh && docker restart haproxy && ufw deny http" --quiet
+sudo certbot renew --standalone --preferred-challenges http  --non-interactive --agree-tos --email ikeniborn@gmail.com --http-01-address 127.0.0.1 --http-01-port=8899 --pre-hook "ufw allow http" --post-hook "/home/ikeniborn/app/web/service/haproxy/prepareLetsEncryptCertificates.sh && docker restart haproxy && ufw deny http"

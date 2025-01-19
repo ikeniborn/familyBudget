@@ -10,7 +10,6 @@ class Models:
         period_ru_name: str
 
     class Registry(BaseModel):
-        registry_id: int
         operation_dttm: datetime
         period_id: int
         financial_center_id: int

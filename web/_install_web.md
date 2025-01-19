@@ -28,8 +28,6 @@ chown ikeniborn:ikeniborn sync_web.sh
 chmod +x sync_web.sh
 . /home/ikeniborn/sync_web.sh
 
-sudo crontab -u ikeniborn -e
-0 0 1 * * /bin/sh /app/web/service/haproxy/renewLetsEncryptCertificates.sh
 
 sudo apt-get -y install certbot
 

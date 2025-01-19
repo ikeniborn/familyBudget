@@ -7,7 +7,7 @@ sudo nano /etc/ssh/sshd_config
 > PubkeyAuthentication yes
 > AuthorizedKeysFile      .ssh/authorized_keys   
 
-nano /home/ikeniborn/.ssh/authorized_keys
-chmod 0600 /home/ikeniborn/.ssh/authorized_keys
+sudo nano /home/ikeniborn/.ssh/authorized_keys
+sudo chmod 0600 /home/ikeniborn/.ssh/authorized_keys
 
 sudo systemctl restart sshd
