@@ -368,6 +368,15 @@ class Forms:
             if st.session_state.fact_account_name and st.session_state.fact_nomenclature_name:
                 st.info(f"Статья: {st.session_state.fact_account_name}, Номенлатура: {st.session_state.fact_nomenclature_name}")
 
+            
+            show_last_row = st.button(label="Последние записи")
+            if show_last_row:
+                st.dataframe(
+                    data=Registry.getLastRows(row_type_id=row_type_id, limit_rows=5),
+                    hide_index=True,
+                    use_container_width=True,
+                )
+            
             with st.form("fact_data", clear_on_submit=True):
 
                 _fact_cost_sum = st.number_input(label="Сумма*", min_value=0, value=0, key="fact_cost_sum")
@@ -437,14 +446,6 @@ class Forms:
                             st.error("Не указана Номенклатура")
                         if _fact_cost_sum == 0:
                             st.error("Не указана Сумма")
-
-                show_last_row = st.button(label="Последние записи")
-                if show_last_row:
-                    st.dataframe(
-                        data=Registry.getLastRows(row_type_id=row_type_id, limit_rows=5),
-                        hide_index=True,
-                        use_container_width=True,
-                    )
 
     class Report:
 
