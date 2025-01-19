@@ -18,13 +18,13 @@ class Users:
 
         return _fetchAll()
 
-    def fetchOne(self, key: str = None, ttl=None) -> DataFrame:
+    def fetchOne(self, id: int = None, ttl=None) -> DataFrame:
         @st.cache_data(ttl=ttl)
-        def _fetchOne(key):
-            rows = requests.get(f"""{API_URL}/users/{key}""").json()
-            return DataFrame(data=rows).filter(pl.col("user_id") == key)
+        def _fetchOne(id):
+            rows = requests.get(f"""{API_URL}/users/{id}""").json()
+            return DataFrame(data=rows).filter(pl.col("user_id") == id)
 
-        return _fetchOne(key=key)
+        return _fetchOne(id=id)
 
 
 class FinancialCenters:
@@ -37,13 +37,13 @@ class FinancialCenters:
 
         return _fetchAll()
 
-    def fetchOne(self, key: str = None, ttl=None) -> DataFrame:
+    def fetchOne(self, id: int = None, ttl=None) -> DataFrame:
         @st.cache_data(ttl=ttl)
-        def _fetchOne(key):
-            rows = requests.get(f"""{API_URL}/financial_centers/{key}""").json()
-            return DataFrame(data=rows).filter(pl.col("financial_center_id") == key)
+        def _fetchOne(id):
+            rows = requests.get(f"""{API_URL}/financial_centers/{id}""").json()
+            return DataFrame(data=rows).filter(pl.col("financial_center_id") == id)
 
-        return _fetchOne(key=key)
+        return _fetchOne(id=id)
 
 
 class Periods:
@@ -56,13 +56,13 @@ class Periods:
 
         return _fetchAll()
 
-    def fetchOne(self, key: str = None, ttl=None) -> DataFrame:
+    def fetchOne(self, id: int = None, ttl=None) -> DataFrame:
         @st.cache_data(ttl=ttl)
-        def _fetchOne(key):
-            rows = requests.get(f"""{API_URL}/periods/{key}""").json()
-            return DataFrame(data=rows).filter(pl.col("period_id") == key)
+        def _fetchOne(id):
+            rows = requests.get(f"""{API_URL}/periods/{id}""").json()
+            return DataFrame(data=rows).filter(pl.col("period_id") == id)
 
-        return _fetchOne(key=key)
+        return _fetchOne(id=id)
 
     def fetchMany(self, start_date: str = None, end_date: str = None, ttl=None) -> DataFrame:
         @st.cache_data(ttl=ttl)
@@ -83,13 +83,13 @@ class CostCenter:
 
         return _fetchAll()
 
-    def fetchOne(self, key: str = None, ttl=None) -> DataFrame:
+    def fetchOne(self, id: int = None, ttl=None) -> DataFrame:
         @st.cache_data(ttl=ttl)
-        def _fetchOne(key):
-            rows = requests.get(f"""{API_URL}/cost_centers/{key}""").json()
-            return DataFrame(data=rows).filter(pl.col("cost_center_id") == key)
+        def _fetchOne(id):
+            rows = requests.get(f"""{API_URL}/cost_centers/{id}""").json()
+            return DataFrame(data=rows).filter(pl.col("cost_center_id") == id)
 
-        return _fetchOne(key=key)
+        return _fetchOne(id=id)
 
 
 class Nomenclatures:
@@ -102,13 +102,13 @@ class Nomenclatures:
 
         return _fetchAll()
 
-    def fetchOne(self, key: str = None, ttl=None) -> DataFrame:
+    def fetchOne(self, id: int = None, ttl=None) -> DataFrame:
         @st.cache_data(ttl=ttl)
-        def _fetchOne(key):
-            rows = requests.get(f"""{API_URL}/nomenclatures/{key}""").json()
-            return DataFrame(data=rows).filter(pl.col("nomenclature_id") == key)
+        def _fetchOne(id):
+            rows = requests.get(f"""{API_URL}/nomenclatures/{id}""").json()
+            return DataFrame(data=rows).filter(pl.col("nomenclature_id") == id)
 
-        return _fetchOne(key=key)
+        return _fetchOne(id=id)
 
 
 class RowTypes:
@@ -121,13 +121,13 @@ class RowTypes:
 
         return _fetchAll()
 
-    def fetchOne(self, key: str = None, ttl=None) -> DataFrame:
+    def fetchOne(self, id: int = None, ttl=None) -> DataFrame:
         @st.cache_data(ttl=ttl)
-        def _fetchOne(key):
-            rows = requests.get(f"""{API_URL}/row_types/{key}""").json()
-            return DataFrame(data=rows).filter(pl.col("row_type_id") == key)
+        def _fetchOne(id):
+            rows = requests.get(f"""{API_URL}/row_types/{id}""").json()
+            return DataFrame(data=rows).filter(pl.col("row_type_id") == id)
 
-        return _fetchOne(key=key)
+        return _fetchOne(id=id)
 
 
 class Registry:
@@ -135,44 +135,44 @@ class Registry:
     def insertOne(row: str = None):
         requests.post(f"""{API_URL}/registry""", json=row)
 
-    def getLastRows(row_type_id: str = None, limit_rows: int = 5) -> DataFrame:
+    def getLastRows(row_type_id: id = None, limit_rows: int = 5) -> DataFrame:
         rows = requests.get(f"""{API_URL}/registry/last_row?row_type_id={row_type_id}&limit_rows={limit_rows}""").json()
         return DataFrame(data=rows)
 
 
 class Report:
 
-    def getReportCompareRowTypeNomenclature(financial_center_id: str = None, period_id: str = None) -> DataFrame:
+    def getReportCompareRowTypeNomenclature(financial_center_id: id = None, period_id: id = None) -> DataFrame:
         rows = requests.get(f"""{API_URL}/report/compare/row_type_nomenclature?financial_center_id={financial_center_id}&period_id={period_id}""").json()
         return DataFrame(data=rows)
 
-    def getReportCompareRowTypeOperation(financial_center_id: str = None, period_id: str = None) -> DataFrame:
+    def getReportCompareRowTypeOperation(financial_center_id: id = None, period_id: id = None) -> DataFrame:
         rows = requests.get(f"""{API_URL}/report/compare/row_type_operation?financial_center_id={financial_center_id}&period_id={period_id}""").json()
         return DataFrame(data=rows)
 
-    def getReportCompareRowTypeBill(financial_center_id: str = None, period_id: str = None) -> DataFrame:
+    def getReportCompareRowTypeBill(financial_center_id: id = None, period_id: id = None) -> DataFrame:
         rows = requests.get(f"""{API_URL}/report/compare/row_type_bill?financial_center_id={financial_center_id}&period_id={period_id}""").json()
         return DataFrame(data=rows)
 
-    def getReportCompareRowTypeAccount(financial_center_id: str = None, period_id: str = None) -> DataFrame:
+    def getReportCompareRowTypeAccount(financial_center_id: id = None, period_id: id = None) -> DataFrame:
         rows = requests.get(f"""{API_URL}/report/compare/row_type_account?financial_center_id={financial_center_id}&period_id={period_id}""").json()
         return DataFrame(data=rows)
 
-    def getReportBudgetTotal(financial_center_id: str = None, period_id: str = None) -> DataFrame:
+    def getReportBudgetTotal(financial_center_id: id = None, period_id: id = None) -> DataFrame:
         rows = requests.get(f"""{API_URL}/report/budget/total?financial_center_id={financial_center_id}&period_id={period_id}""").json()
         return DataFrame(data=rows)
 
-    def getReportBudgetBillAccount(financial_center_id: str = None, period_id: str = None) -> DataFrame:
+    def getReportBudgetBillAccount(financial_center_id: id = None, period_id: id = None) -> DataFrame:
         rows = requests.get(f"""{API_URL}/report/budget/bill_account?financial_center_id={financial_center_id}&period_id={period_id}""").json()
         return DataFrame(data=rows)
 
-    def getReportBudgetRowTypeNomenclature(financial_center_id: str = None, period_id: str = None, nomenclature_id: str = None) -> DataFrame:
+    def getReportBudgetRowTypeNomenclature(financial_center_id: id = None, period_id: id = None, nomenclature_id: id = None) -> DataFrame:
         rows = requests.get(
             f"""{API_URL}/report/budget/row_type_nomenclature?financial_center_id={financial_center_id}&period_id={period_id}&nomenclature_id={nomenclature_id}"""
         ).json()
         return DataFrame(data=rows)
 
-    def getReportPerfomancetRowTypeNomenclature(financial_center_id: str = None, period_id: str = None, nomenclature_id: str = None) -> DataFrame:
+    def getReportPerfomancetRowTypeNomenclature(financial_center_id: id = None, period_id: id = None, nomenclature_id: id = None) -> DataFrame:
         rows = requests.get(
             f"""{API_URL}/report/perfomance/row_type_nomenclature?financial_center_id={financial_center_id}&period_id={period_id}&nomenclature_id={nomenclature_id}"""
         ).json()

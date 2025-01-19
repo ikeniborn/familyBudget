@@ -26,8 +26,8 @@ async def get_users():
     )
 
 
-@app.get("/users/{key}")
-async def get_user(key: str):
+@app.get("/users/{id}")
+async def get_user(id: int):
     return await connection.select(
         f"""
         select
@@ -37,7 +37,7 @@ async def get_user(key: str):
         from
           t_d_user
         where
-          user_id in ('{key}')
+          user_id in ('{id}')
       """
     )
 
@@ -62,14 +62,13 @@ async def get_periods(start_date: str = None, end_date: str = None):
       order by
         period_dt
       """
-    # rows_array = await connection.select(sql)
-    # rows_dict = [Models.Period(period_id=row[0], period_dt=row[1], period_ru_name=row[2]) for row in rows_array]
-    # return rows_dict
-    return await connection.select(sql)
+    rows_array = await connection.select(sql)
+    rows_dict = [Models.Period(period_id=row[0], period_dt=row[1], period_ru_name=row[2]) for row in rows_array]
+    return rows_dict
 
 
-@app.get("/periods/{key}")
-async def get_period(key: str):
+@app.get("/periods/{id}")
+async def get_period(id: int):
     rows_array = await connection.select(
         f"""
         select
@@ -79,12 +78,11 @@ async def get_period(key: str):
         from
           t_d_period
         where
-          period_id in ('{key}')
+          period_id in ('{id}')
       """
     )
-    # rows_dict = [Models.Period(period_id=row[0], period_dt=row[1], period_ru_name=row[1]) for row in rows_array]
-    # return rows_dict
-    return rows_array
+    rows_dict = [Models.Period(period_id=row[0], period_dt=row[1], period_ru_name=row[1]) for row in rows_array]
+    return rows_dict
 
 
 @app.get("/financial_centers")
@@ -100,8 +98,8 @@ async def get_financial_centers():
     )
 
 
-@app.get("/financial_centers/{key}")
-async def get_financial_center(key: str):
+@app.get("/financial_centers/{id}")
+async def get_financial_center(id: int):
     return await connection.select(
         f"""
         select
@@ -110,7 +108,7 @@ async def get_financial_center(key: str):
         from
           t_d_financial_center
         where
-          financial_center_id in ('{key}')
+          financial_center_id in ('{id}')
       """
     )
 
@@ -128,8 +126,8 @@ async def get_cost_centers():
     )
 
 
-@app.get("/cost_centers/{key}")
-async def get_cost_center(key: str):
+@app.get("/cost_centers/{id}")
+async def get_cost_center(id: int):
     return await connection.select(
         f"""
         select
@@ -138,7 +136,7 @@ async def get_cost_center(key: str):
         from
           t_d_cost_center
         where
-          cost_center_id in ('{key}')
+          cost_center_id in ('{id}')
       """
     )
 
@@ -166,8 +164,8 @@ async def get_nomenclatures():
     )
 
 
-@app.get("/nomenclatures/{key}")
-async def get_nomenclature(key: str):
+@app.get("/nomenclatures/{id}")
+async def get_nomenclature(id: int):
     return await connection.select(
         f"""
         select
@@ -181,7 +179,7 @@ async def get_nomenclature(key: str):
         from
           t_d_nomenclature
         where
-          nomenclature_id in ('{key}')
+          nomenclature_id in ('{id}')
       """
     )
 
@@ -199,8 +197,8 @@ async def get_row_types():
     )
 
 
-@app.get("/row_types/{key}")
-async def get_row_type(key: str):
+@app.get("/row_types/{id}")
+async def get_row_type(id: int):
     return await connection.select(
         f"""
         select
@@ -209,7 +207,7 @@ async def get_row_type(key: str):
         from
           t_d_row_type
         where
-          row_type_id in ('{key}')
+          row_type_id in ('{id}')
       """
     )
 
@@ -219,7 +217,6 @@ async def insert_to_registry(row: Models.Registry):
     await connection.insert(
         sql=f"""
           INSERT INTO t_f_registry (
-          registry_id,
           operation_dttm,
           period_id,
           financial_center_id,
@@ -230,7 +227,6 @@ async def insert_to_registry(row: Models.Registry):
           row_type_id,
           user_id)
           VALUES (
-          \'{row.registry_id}\',
           \'{row.operation_dttm}\',
           \'{row.period_id}\',
           \'{row.financial_center_id}\',
@@ -246,7 +242,7 @@ async def insert_to_registry(row: Models.Registry):
 
 
 @app.get("/registry/last_row")
-async def get_registry_last_row(row_type_id: str = None, limit_rows: int = 5):
+async def get_registry_last_row(row_type_id: int = None, limit_rows: int = 5):
     return await connection.select(
         sql=f"""
         select
@@ -272,9 +268,7 @@ async def get_registry_last_row(row_type_id: str = None, limit_rows: int = 5):
 
 
 @app.get("/report/budget/row_type_nomenclature")
-async def get_report_budget_row_type_nomenclature(
-    financial_center_id: str = None, period_id: str = None, nomenclature_id: str = None
-):
+async def get_report_budget_row_type_nomenclature(financial_center_id: int = None, period_id: int = None, nomenclature_id: int = None):
     sql = f"""
           select
             t4.row_type_name as "Тип",
@@ -299,9 +293,7 @@ async def get_report_budget_row_type_nomenclature(
 
 
 @app.get("/report/perfomance/row_type_nomenclature")
-async def get_report_perfomance_row_type_nomenclature(
-    financial_center_id: str = None, period_id: str = None, nomenclature_id: str = None
-):
+async def get_report_perfomance_row_type_nomenclature(financial_center_id: int = None, period_id: int = None, nomenclature_id: int = None):
     sql = f"""
           select
             t4.row_type_name as "Тип",
@@ -326,7 +318,7 @@ async def get_report_perfomance_row_type_nomenclature(
 
 
 @app.get("/report/compare/row_type_nomenclature")
-async def get_report_compare_row_type_nomenclature(financial_center_id: str = None, period_id: str = None):
+async def get_report_compare_row_type_nomenclature(financial_center_id: int = None, period_id: int = None):
     sql = f"""
           select
             t4.row_type_name as "Тип",
@@ -350,7 +342,7 @@ async def get_report_compare_row_type_nomenclature(financial_center_id: str = No
 
 
 @app.get("/report/compare/row_type_operation")
-async def get_report_compare_row_type_operation(financial_center_id: str = None, period_id: str = None):
+async def get_report_compare_row_type_operation(financial_center_id: int = None, period_id: int = None):
     return await connection.select(
         sql=f"""
               SELECT
@@ -375,7 +367,7 @@ async def get_report_compare_row_type_operation(financial_center_id: str = None,
 
 
 @app.get("/report/compare/row_type_bill")
-async def get_report_compare_row_type_bill(financial_center_id: str = None, period_id: str = None):
+async def get_report_compare_row_type_bill(financial_center_id: int = None, period_id: int = None):
     return await connection.select(
         sql=f"""
               SELECT
@@ -400,7 +392,7 @@ async def get_report_compare_row_type_bill(financial_center_id: str = None, peri
 
 
 @app.get("/report/compare/row_type_account")
-async def get_report_compare_row_type_account(financial_center_id: str = None, period_id: str = None):
+async def get_report_compare_row_type_account(financial_center_id: int = None, period_id: int = None):
     return await connection.select(
         sql=f"""
               SELECT
@@ -424,7 +416,7 @@ async def get_report_compare_row_type_account(financial_center_id: str = None, p
 
 
 @app.get("/report/budget/total")
-async def get_report_budget_total(financial_center_id: str = None, period_id: str = None):
+async def get_report_budget_total(financial_center_id: int = None, period_id: int = None):
     return await connection.select(
         sql=f"""
             SELECT
@@ -434,13 +426,13 @@ async def get_report_budget_total(financial_center_id: str = None, period_id: st
             WHERE
               t0.financial_center_id = \'{financial_center_id}\'
             AND t0.period_id = \'{period_id}\'
-            AND t0.row_type_id = \'f003e80f-57d7-6757-bd6a-24170e1f75a4\'
+            AND t0.row_type_id = 1
             """
     )
 
 
 @app.get("/report/budget/bill_account")
-async def get_report_budget_bill_account(financial_center_id: str = None, period_id: str = None):
+async def get_report_budget_bill_account(financial_center_id: int = None, period_id: int = None):
     return await connection.select(
         sql=f"""
             SELECT
@@ -453,7 +445,7 @@ async def get_report_budget_bill_account(financial_center_id: str = None, period
             WHERE
               t0.financial_center_id = \'{financial_center_id}\'
               AND t0.period_id = \'{period_id}\'
-              AND t0.row_type_id = \'f003e80f-57d7-6757-bd6a-24170e1f75a4\'
+              AND t0.row_type_id = 1
             GROUP BY
               t1.bill_name,
               t1.account_name
