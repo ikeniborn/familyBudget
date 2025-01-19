@@ -5,15 +5,15 @@ BACKUP_POSTGRES_CATALOG=/home/ikeniborn/app/web/db/postgresql/backup
 
 cd $BACKUP_POSTGRES_CATALOG
 if [[ -f $BACKUP_POSTGRES_NAME ]]; then
-rm $BACKUP_POSTGRES_NAME 
+  sudo rm $BACKUP_POSTGRES_NAME 
 fi
-docker exec -t postgres pg_dumpall -c -U postres | gzip > $BACKUP_POSTGRES_NAME
+sudo docker exec -t postgres pg_dumpall -c -U postres | gzip > $BACKUP_POSTGRES_NAME
 
 if [[ -f $BACKUP_POSTGRES_NAME ]]; then
-  mc cp $BACKUP_POSTGRES_NAME yandex/ikeniborn-web-postgresql/
+  sudo mc cp $BACKUP_POSTGRES_NAME yandex/ikeniborn-web-postgresql/
   if [[ -f $BACKUP_POSTGRES_NAME_OLD ]]; then
-  rm $BACKUP_POSTGRES_NAME_OLD 
-  mc rm yandex/ikeniborn-web-postgresql/$BACKUP_POSTGRES_NAME_OLD
+    sudo rm $BACKUP_POSTGRES_NAME_OLD 
+    sudo mc rm yandex/ikeniborn-web-postgresql/$BACKUP_POSTGRES_NAME_OLD
   fi
 fi
 

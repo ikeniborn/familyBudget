@@ -5,15 +5,15 @@ BACKUP_COUCHDB_CATALOG=/home/ikeniborn/app/web/db/couchdb/backup
 
 cd $BACKUP_COUCHDB_CATALOG
 if [[ -f $BACKUP_COUCHDB_NAME ]]; then
-rm $BACKUP_COUCHDB_NAME 
+  sudo rm $BACKUP_COUCHDB_NAME 
 fi
-docker run --rm --volume web_couchdb-data:/data --volume $BACKUP_COUCHDB_CATALOG:/backup couchdb tar cvf /backup/$BACKUP_COUCHDB_NAME data
+sudo docker run --rm --volume web_couchdb-data:/data --volume $BACKUP_COUCHDB_CATALOG:/backup couchdb tar cvf /backup/$BACKUP_COUCHDB_NAME data
 
 if [[ -f $BACKUP_COUCHDB_NAME ]]; then
-  mc cp $BACKUP_COUCHDB_NAME yandex/ikeniborn-obsidian-couchdb/
+  sudo mc cp $BACKUP_COUCHDB_NAME yandex/ikeniborn-obsidian-couchdb/
   if [[ -f $BACKUP_COUCHDB_NAME_OLD ]]; then
-  rm $BACKUP_COUCHDB_NAME_OLD 
-  mc rm yandex/ikeniborn-obsidian-couchdb/$BACKUP_COUCHDB_NAME_OLD
+    sudo rm $BACKUP_COUCHDB_NAME_OLD 
+    sudo mc rm yandex/ikeniborn-obsidian-couchdb/$BACKUP_COUCHDB_NAME_OLD
   fi
 fi
 

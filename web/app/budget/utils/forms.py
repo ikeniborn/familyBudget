@@ -164,7 +164,6 @@ class Forms:
                         and st.session_state.budget_financial_center_name != None
                         and st.session_state.budget_nomenclature_name != None
                     ):
-                        registry_id = Functions.get_random_uuid()
 
                         period_id = (
                             t_d_period.lazy()
@@ -201,7 +200,6 @@ class Forms:
                         )
 
                         row = {
-                            "registry_id": registry_id,
                             "operation_dttm": operation_dttm,
                             "period_id": period_id,
                             "financial_center_id": financial_center_id,
@@ -400,7 +398,6 @@ class Forms:
                         and st.session_state.fact_financial_center_name != None
                         and st.session_state.fact_nomenclature_name != None
                     ):
-                        registry_id = Functions.get_random_uuid()
 
                         period_id = (
                             t_d_period.lazy()
@@ -438,7 +435,6 @@ class Forms:
                         )
 
                         row = {
-                            "registry_id": registry_id,
                             "operation_dttm": operation_dttm,
                             "period_id": period_id,
                             "financial_center_id": financial_center_id,
