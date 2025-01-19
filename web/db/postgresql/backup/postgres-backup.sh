@@ -10,10 +10,10 @@ fi
 sudo docker exec -t postgres pg_dumpall -c -U postres | gzip > $BACKUP_POSTGRES_NAME
 
 if [[ -f $BACKUP_POSTGRES_NAME ]]; then
-  sudo mc cp $BACKUP_POSTGRES_NAME yandex/ikeniborn-web-postgresql/
+  sudo /opt/minio-binaries/mc cp $BACKUP_POSTGRES_NAME yandex/ikeniborn-web-postgresql/
   if [[ -f $BACKUP_POSTGRES_NAME_OLD ]]; then
     sudo rm $BACKUP_POSTGRES_NAME_OLD 
-    sudo mc rm yandex/ikeniborn-web-postgresql/$BACKUP_POSTGRES_NAME_OLD
+    sudo /opt/minio-binaries/mc rm yandex/ikeniborn-web-postgresql/$BACKUP_POSTGRES_NAME_OLD
   fi
 fi
 
