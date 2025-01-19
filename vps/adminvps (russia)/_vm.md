@@ -1,6 +1,10 @@
 sudo adduser ikeniborn
 
 sudo usermod -aG sudo ikeniborn
+sudo usermod -aG docker ikeniborn
+
+<!-- deluser <username> <groupname> -->
+sudo deluser ikeniborn root
 
 sudo visudo
 

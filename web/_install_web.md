@@ -7,7 +7,7 @@
 
 sudo su
 sudo curl https://dl.min.io/client/mc/release/linux-amd64/mc --create-dirs -o /opt/minio-binaries/mc
-sudo chown -R ikeniborn:ikeniborn /opt/minio-binaries && \
+sudo chown -R root:root /opt/minio-binaries && \
 sudo chmod +x /opt/minio-binaries/mc && \
 sudo touch /etc/profile.d/mc.sh && \
 export PATH=$PATH:/opt/minio-binaries/ && \
@@ -129,9 +129,6 @@ sudo service rsyslog restart
 sudo crontab -e
 
 0 0 1 * * . /home/ikeniborn/app/web/service/haproxy/renewLetsEncryptCertificates.sh >/dev/null 2>&1
-
-sudo crontab -u ikeniborn -e
-
 0 1 * * * . /home/ikeniborn/app/web/db/postgresql/backup/postgres-backup.sh >/dev/null 2>&1
 */10 * * * * . /home/ikeniborn/app/web/db/couchdb/backup/couchdb-backup.sh >/dev/null 2>&1
 
