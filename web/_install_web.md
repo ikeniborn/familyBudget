@@ -17,7 +17,7 @@ EOF
 
 mc --help
 
-/opt/minio-binaries/mc alias set yandex https://storage.yandexcloud.net YCAJEMDZzBncSAWDzx6KCPPVr YCPHePC8iLOVy0VCoCvSmrdwc-UPyg7mdzPWz_kA
+mc alias set yandex https://storage.yandexcloud.net YCAJEMDZzBncSAWDzx6KCPPVr YCPHePC8iLOVy0VCoCvSmrdwc-UPyg7mdzPWz_kA
 
 # Generate cert
 sudo mkdir /etc/haproxy && \
