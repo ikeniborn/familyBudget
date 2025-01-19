@@ -372,7 +372,7 @@ class Forms:
             show_last_row = st.button(label="Последние записи")
             if show_last_row:
                 st.dataframe(
-                    data=Registry.getLastRows(row_type_id=row_type_id, limit_rows=5),
+                    data=Registry.getLastRows(row_type_id=2, limit_rows=5),
                     hide_index=True,
                     use_container_width=True,
                 )
