@@ -62,9 +62,10 @@ async def get_periods(start_date: str = None, end_date: str = None):
       order by
         period_dt
       """
-    rows_array = await connection.select(sql)
-    rows_dict = [Models.Period(period_id=row[0], period_dt=row[1], period_ru_name=row[2]) for row in rows_array]
-    return rows_dict
+    # rows_array = await connection.select(sql)
+    # rows_dict = [Models.Period(period_id=row[0], period_dt=row[1], period_ru_name=row[2]) for row in rows_array]
+    # return rows_dict
+    return await connection.select(sql)
 
 
 @app.get("/periods/{key}")
@@ -81,8 +82,9 @@ async def get_period(key: str):
           period_id in ('{key}')
       """
     )
-    rows_dict = [Models.Period(period_id=row[0], period_dt=row[1], period_ru_name=row[1]) for row in rows_array]
-    return rows_dict
+    # rows_dict = [Models.Period(period_id=row[0], period_dt=row[1], period_ru_name=row[1]) for row in rows_array]
+    # return rows_dict
+    return rows_array
 
 
 @app.get("/financial_centers")
