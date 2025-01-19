@@ -49,7 +49,6 @@ from utils.forms import Forms
 if __name__ == "__main__":
     st.set_page_config(page_title="Домашний бюджет", page_icon=":book", initial_sidebar_state="auto", layout="wide")
 
-
     # users = Users().fetchAll(ttl=1)
     # st.write(users.select("user_name").filter(pl.col("user_name") == "ilya").unique().sort(by="user_name")["user_name"][0])
     # st.stop()
@@ -94,13 +93,13 @@ if __name__ == "__main__":
 
         fact, budget, report = st.tabs(["Факт", "Бюджет", "Отчетность"])
 
-        # with fact:
-        #     Forms.Fact(
-        #         financial_centers=financial_centers,
-        #         cost_centers=cost_centers,
-        #         row_types=row_types,
-        #         nomenclatures=nomenclatures,
-        #     ).form()
+        with fact:
+            Forms.Fact(
+                financial_centers=financial_centers,
+                cost_centers=cost_centers,
+                row_types=row_types,
+                nomenclatures=nomenclatures,
+            ).form()
 
         with budget:
             Forms.Budget(
@@ -110,13 +109,13 @@ if __name__ == "__main__":
                 nomenclatures=nomenclatures,
             ).form()
 
-        # with report:
-        #     Forms.Report(
-        #         financial_centers=financial_centers,
-        #         cost_centers=cost_centers,
-        #         row_types=row_types,
-        #         nomenclatures=nomenclatures,
-        #     ).report()
+        with report:
+            Forms.Report(
+                financial_centers=financial_centers,
+                cost_centers=cost_centers,
+                row_types=row_types,
+                nomenclatures=nomenclatures,
+            ).report()
 
     # else:
     # telegram_login.clear_session()

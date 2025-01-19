@@ -21,15 +21,15 @@ git checkout "$git_branch"
 
 if [ ! -d "$app_folder/web" ]; then
     # Если директория не существует
-    mkdir -p $app_folder/web
+    sudo mkdir -p $app_folder/web
 else 
-    rsync -av --delete "$git_folder/web" "$app_folder"
-    chmod +x "$app_folder/web/db/postgresql/backup/postgres-backup.sh"
-    chmod +x "$app_folder/web/db/couchdb/backup/couchdb-backup.sh"
-    chmod +x "$app_folder/web/service/haproxy/prepareLetsEncryptCertificates.sh"
-    chmod +x "$app_folder/web/service/haproxy/renewLetsEncryptCertificates.sh"
-    chown -R ikeniborn:ikeniborn $app_folder
-    rm -rdf $git_folder
+    sudo rsync -av --delete "$git_folder/web" "$app_folder"
+    sudo chmod +x "$app_folder/web/db/postgresql/backup/postgres-backup.sh"
+    sudo chmod +x "$app_folder/web/db/couchdb/backup/couchdb-backup.sh"
+    sudo chmod +x "$app_folder/web/service/haproxy/prepareLetsEncryptCertificates.sh"
+    sudo chmod +x "$app_folder/web/service/haproxy/renewLetsEncryptCertificates.sh"
+    sudo chown -R ikeniborn:ikeniborn $app_folder
+    sudo rm -rdf $git_folder
 fi
 
 cd $HOME

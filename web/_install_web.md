@@ -58,7 +58,7 @@ sudo docker-compose --env-file ~/app/web/web.env -f ~/app/web/docker-compose.yam
 
 sudo docker-compose --env-file ~/app/web/web.env -f ~/app/web/docker-compose.yaml up -d
 sudo docker-compose --env-file ~/app/web/web.env -f ~/app/web/docker-compose.yaml down
-sudo docker-compose --env-file ~/app/web/web.env -f ~/app/web/docker-compose.yaml restart
+sudo docker-compose --env-file ~/app/web/web.env -f ~/app/web/docker-compose.yaml restart budget-api budget-ui
 
 
 
@@ -79,7 +79,7 @@ sudo docker restart budget-ui
 sudo docker restart postgres
 sudo docker restart haproxy
 
-sudo docker logs -f haproxy
+sudo docker logs -f budget-ui
 
 ss -ntlp | more
 
@@ -114,8 +114,11 @@ printenv | grep 'DATABASE' -->
 
 # BACKUP
 sudo apt-get install postfix
-mkdir -p ~/app/database/postgresql/backup 
-touch ~/app/database/postgresql/postgres-backup.log
+sudo mkdir -p ~/app/database/postgresql/backup 
+sudo touch ~/app/database/postgresql/postgres-backup.log
+sudo touch /var/log/postgres-backup.log
+sudo touch /var/log/couchdb-backup.log
+sudo touch /var/log/certbot.log
 <!-- sudo chmod +x /home/bagatocorp/web/data/postgres-backup.sh -->
 
 <!-- tail -100 /home/bagatocorp/web/data/backup/postgres-backup.log -->
@@ -128,13 +131,17 @@ sudo service rsyslog restart
 
 sudo crontab -e
 
-0 0 1 * * . /home/ikeniborn/app/web/service/haproxy/renewLetsEncryptCertificates.sh >/dev/null 2>&1
-0 1 * * * . /home/ikeniborn/app/web/db/postgresql/backup/postgres-backup.sh >/dev/null 2>&1
-*/10 * * * * . /home/ikeniborn/app/web/db/couchdb/backup/couchdb-backup.sh >/dev/null 2>&1
+0 0 1 * * . /home/ikeniborn/app/web/service/haproxy/renewLetsEncryptCertificates.sh >> /var/log/certbot.log 2>&1
+0 1 * * * . /home/ikeniborn/app/web/db/postgresql/backup/postgres-backup.sh >> /var/log/postgres-backup.log 2>&1
+*/10 * * * * . /home/ikeniborn/app/web/db/couchdb/backup/couchdb-backup.sh >> /var/log/couchdb-backup.log 2>&1
 
 sudo tail -100 /var/log/cron.log | grep backup
 
+sudo tail -100 /var/log/certbot.log
+sudo tail -100 /var/log/postgres-backup.log
+sudo tail -100 /var/log/couchdb-backup.log
+
 sudo tail -100 /var/mail/root
 
-<!-- streamlit run app.py --server.port=4443 --server.sslCertFile=cert/budget.ikeniborn.ru.pem --server.sslKeyFile=cert/budget.ikeniborn.ru.key -->
+
 
