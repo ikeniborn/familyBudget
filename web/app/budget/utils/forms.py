@@ -227,9 +227,7 @@ class Forms:
         @st.fragment
         def form(self):
 
-            t_d_period = Periods().fetchMany(
-                start_date=Functions.get_period(shuffle=-1), end_date=Functions.get_period(shuffle=0), ttl=60
-            )
+            t_d_period = Periods().fetchMany(start_date=Functions.get_period(shuffle=-1), end_date=Functions.get_period(shuffle=0), ttl=60)
             t_d_financial_center = self._financial_centers
             t_d_cost_center = self._cost_centers
             t_d_row_type = self._row_types
@@ -439,6 +437,14 @@ class Forms:
                             st.error("Не указана Номенклатура")
                         if _fact_cost_sum == 0:
                             st.error("Не указана Сумма")
+
+                show_last_row = st.button(label="Последние записи")
+                if show_last_row:
+                    st.dataframe(
+                        data=Registry.getLastRows(row_type_id=row_type_id, limit_rows=5),
+                        hide_index=True,
+                        use_container_width=True,
+                    )
 
     class Report:
 
