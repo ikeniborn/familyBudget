@@ -126,9 +126,12 @@ sudo nano /etc/rsyslog.d/50-default.conf
 > uncomment #cron
 sudo service rsyslog restart
 
-sudo crontab -u ikeniborn -e
+sudo crontab -e
 
 0 0 1 * * . /home/ikeniborn/app/web/service/haproxy/renewLetsEncryptCertificates.sh >/dev/null 2>&1
+
+sudo crontab -u ikeniborn -e
+
 0 1 * * * . /home/ikeniborn/app/web/db/postgresql/backup/postgres-backup.sh >/dev/null 2>&1
 */10 * * * * . /home/ikeniborn/app/web/db/couchdb/backup/couchdb-backup.sh >/dev/null 2>&1
 
