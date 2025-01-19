@@ -1,23 +1,22 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel
 from datetime import datetime, date
-from uuid import UUID
 
 
 class Models:
 
     class Period(BaseModel):
-        period_id: UUID
+        period_id: int
         period_dt: date
         period_ru_name: str
 
     class Registry(BaseModel):
-        registry_id: UUID
+        registry_id: int
         operation_dttm: datetime
-        period_id: UUID
-        financial_center_id: UUID
-        cost_center_id: UUID
-        nomenclature_id: UUID
+        period_id: int
+        financial_center_id: int
+        cost_center_id: int
+        nomenclature_id: int
         cost_sum: float
         comment_description: str
-        row_type_id: UUID
-        user_id: UUID
+        row_type_id: int
+        user_id: int
