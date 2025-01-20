@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 BACKUP_COUCHDB_NAME_OLD=couchdb-$(date -d "2 days ago" +%Y%m%d).tar
 BACKUP_COUCHDB_NAME=couchdb-$(date -u +%Y%m%d).tar
 BACKUP_COUCHDB_CATALOG=/home/ikeniborn/app/web/db/couchdb/backup

@@ -10,6 +10,8 @@ sudo visudo
 
 > Defaults timestamp_timeout=5
 > ikeniborn ALL=(ALL:ALL) NOPASSWD: ALL
+> %sudo   ALL=(ALL:ALL) NOPASSWD: ALL
+
 
 <!-- Use Fail2ban to Block Brute Force Attacks -->
 sudo apt install fail2ban

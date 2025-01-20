@@ -115,8 +115,6 @@ CREATE TABLE if not EXISTS public.t_f_registry (
   CONSTRAINT t_f_registry_pk PRIMARY KEY (registry_id, operation_dttm)
 ) PARTITION BY range (operation_dttm);
 
-CREATE SEQUENCE t_f_registry_registry_id_seq as bigint INCREMENT BY 1 MINVALUE 1 START 1 CACHE 5 NO CYCLE OWNED BY t_f_registry.registry_id;
-
 create index t_f_registry_operation_dttm_index on public.t_f_registry using btree (operation_dttm);
 
 -- партиции/секции

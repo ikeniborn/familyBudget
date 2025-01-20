@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 BACKUP_POSTGRES_NAME_OLD=postres-$(date -d "2 days ago" +%Y%m%d).gz
 BACKUP_POSTGRES_NAME=postres-$(date -u +%Y%m%d).gz
 BACKUP_POSTGRES_CATALOG=/home/ikeniborn/app/web/db/postgresql/backup

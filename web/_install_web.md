@@ -23,7 +23,7 @@ mc alias set yandex https://storage.yandexcloud.net YCAJEMDZzBncSAWDzx6KCPPVr YC
 sudo mkdir /etc/haproxy && \
 sudo mkdir /etc/haproxy/certs
 
-nano sync_web.sh
+nano /home/ikeniborn/sync_web.sh
 chown ikeniborn:ikeniborn sync_web.sh
 chmod +x sync_web.sh
 . /home/ikeniborn/sync_web.sh
@@ -56,7 +56,7 @@ sudo docker-compose --env-file ~/app/web/web.env -f ~/app/web/docker-compose.yam
 
 sudo docker-compose --env-file ~/app/web/web.env -f ~/app/web/docker-compose.yaml up -d
 sudo docker-compose --env-file ~/app/web/web.env -f ~/app/web/docker-compose.yaml down
-sudo docker-compose --env-file ~/app/web/web.env -f ~/app/web/docker-compose.yaml restart budget-api budget-ui
+sudo docker-compose --env-file /home/ikeniborn/app/web/web.env -f /home/ikeniborn/app/web/docker-compose.yaml restart budget-api budget-ui
 
 
 
@@ -98,8 +98,8 @@ sudo apt-get install postfix
 
 sudo mkdir -p ~/app/database/postgresql/backup 
 sudo touch ~/app/database/postgresql/postgres-backup.log
-sudo touch /var/log/postgres-backup.log
-sudo touch /var/log/couchdb-backup.log
+sudo touch /var/log/postgres-backup.log && \
+sudo touch /var/log/couchdb-backup.log && \
 sudo touch /var/log/certbot.log
 
 sudo touch /etc/rsyslog.d/cron.log
@@ -111,16 +111,16 @@ sudo service rsyslog restart
 sudo crontab -e
 
 0 0 1 * * . /home/ikeniborn/app/web/service/haproxy/renewLetsEncryptCertificates.sh >> /var/log/certbot.log 2>&1
-0 1 * * * . /home/ikeniborn/app/web/db/postgresql/backup/postgres-backup.sh >> /var/log/postgres-backup.log 2>&1
-*/10 * * * * . /home/ikeniborn/app/web/db/couchdb/backup/couchdb-backup.sh >> /var/log/couchdb-backup.log 2>&1
+*/10 * * * * . /home/ikeniborn/app/web/db/postgresql/backup/postgres-backup.sh >> /var/log/postgres-backup.log 2>&1
+0 0 * * * . /home/ikeniborn/app/web/db/couchdb/backup/couchdb-backup.sh >> /var/log/couchdb-backup.log 2>&1
 
 sudo tail -100 /var/log/cron.log | grep backup
+sudo tail -100 /var/mail/root
 
 sudo tail -100 /var/log/certbot.log
 sudo tail -100 /var/log/postgres-backup.log
 sudo tail -100 /var/log/couchdb-backup.log
 
-sudo tail -100 /var/mail/root
 
 
 
