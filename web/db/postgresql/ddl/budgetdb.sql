@@ -13,6 +13,7 @@ DROP TABLE if EXISTS public.t_d_row_type CASCADE;
 DROP TABLE if EXISTS public.t_d_user CASCADE;
 
 -- public.t_d_cost_center definition
+drop SEQUENCE t_d_cost_center_cost_center_id_seq;
 CREATE SEQUENCE t_d_cost_center_cost_center_id_seq as BIGINT INCREMENT BY 1 MINVALUE 1 START 100 CACHE 1 NO CYCLE;
 
 CREATE TABLE public.t_d_cost_center (
@@ -25,6 +26,7 @@ CREATE TABLE public.t_d_cost_center (
 );
 
 -- public.t_d_financial_center definition
+drop SEQUENCE t_d_financial_center_financial_center_id_seq;
 CREATE SEQUENCE t_d_financial_center_financial_center_id_seq as BIGINT INCREMENT BY 1 MINVALUE 1 START 100 CACHE 1 NO CYCLE;
 
 CREATE TABLE public.t_d_financial_center (
@@ -37,6 +39,7 @@ CREATE TABLE public.t_d_financial_center (
 );
 
 -- public.t_d_nomenclature definition
+drop SEQUENCE t_d_nomenclature_nomenclature_id_seq;
 CREATE SEQUENCE t_d_nomenclature_nomenclature_id_seq as bigint INCREMENT BY 1 MINVALUE 1 START 100 CACHE 1 NO CYCLE;
 
 CREATE TABLE public.t_d_nomenclature (
@@ -54,6 +57,7 @@ CREATE TABLE public.t_d_nomenclature (
 );
 
 -- public.t_d_period definition
+drop SEQUENCE t_d_period_period_id_seq;
 CREATE SEQUENCE t_d_period_period_id_seq as bigint INCREMENT BY 1 MINVALUE 1 START 100 CACHE 1 NO CYCLE;
 
 CREATE TABLE public.t_d_period (
@@ -67,10 +71,11 @@ CREATE TABLE public.t_d_period (
 );
 
 -- public.t_d_row_type definition
-CREATE SEQUENCE t_d_row_type_row_type_id_seq as bigint INCREMENT BY 1 MINVALUE 1 START 100 CACHE 1 NO CYCLE OWNED BY t_d_row_type.row_type_id;
+drop SEQUENCE t_d_row_type_row_type_id_seq;
+CREATE SEQUENCE t_d_row_type_row_type_id_seq as bigint INCREMENT BY 1 MINVALUE 1 START 100 CACHE 1 NO CYCLE;
 
 CREATE TABLE public.t_d_row_type (
-  row_type_id bigint NOT NULL nextval('t_d_row_type_row_type_id_seq'),
+  row_type_id bigint NOT NULL DEFAULT nextval('t_d_row_type_row_type_id_seq'),
   row_type_name varchar NOT NULL,
   created_dttm timestamp DEFAULT now() NOT NULL,
   updated_dttm timestamp DEFAULT now() NOT NULL,
@@ -79,16 +84,17 @@ CREATE TABLE public.t_d_row_type (
 );
 
 -- public.t_d_user definition
-CREATE SEQUENCE t_d_user_user_id_seq as bigint INCREMENT BY 1 MINVALUE 1 START 1 CACHE 1 NO CYCLE OWNED BY t_d_user.user_id;
+drop SEQUENCE t_d_user_user_id_seq;
+CREATE SEQUENCE t_d_user_user_id_seq as bigint INCREMENT BY 1 MINVALUE 1 START 1 CACHE 1 NO CYCLE;
 
 CREATE TABLE public.t_d_user (
-  user_id bigint NOT NULL nextval('t_d_user_user_id_seq'),
+  user_id bigint NOT NULL DEFAULT nextval('t_d_user_user_id_seq'),
   user_name varchar NOT NULL,
   user_login varchar NOT NULL,
   user_password varchar NOT NULL,
   user_email varchar NULL,
   user_google_email varchar NULL,
-  user_telegram_nickname varchar NULL,
+  user_telegram_username varchar NULL,
   user_telegram_id BIGINT NULL,
   created_dttm timestamp DEFAULT now() NOT NULL,
   updated_dttm timestamp DEFAULT now() NOT NULL,
@@ -97,6 +103,7 @@ CREATE TABLE public.t_d_user (
 );
 
 -- public.t_f_registry definition
+drop SEQUENCE t_f_registry_registry_id_seq;
 CREATE SEQUENCE t_f_registry_registry_id_seq as bigint INCREMENT BY 1 MINVALUE 1 START 1 CACHE 5 NO CYCLE;
 
 CREATE TABLE if not EXISTS public.t_f_registry (
