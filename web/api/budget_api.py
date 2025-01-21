@@ -246,7 +246,8 @@ async def get_registry_last_row(row_type_id: int = None, limit_rows: int = 5):
     return await connection.select(
         sql=f"""
         select
-          t0.operation_dttm as "Дата операции",
+          t0.operation_dttm::date as "Дата операции",
+          t0.operation_dttm::time as "Время операции",
           t1.period_ru_name as "Период",
           t2.financial_center_name as "ЦФО",
           t3.cost_center_name as "МВЗ",
