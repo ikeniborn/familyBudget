@@ -36,7 +36,7 @@ sudo nano /etc/fstab
 sudo nano /etc/sysctl.conf
 ```
 ==Swappiness. Определяет, как часто система будет использовать swap пространство.== 
-> vm.swappiness=10
+> vm.swappiness=5
 ==Vfs_cache_pressure. Этот параметр контролирует, как часто ядро будет освобождать память, которая используется для кэширования директорий и узлов. Чтобы настроить, нужно ввести команду== 
 Параметры vm.vfs_cache_pressure:
 
@@ -52,7 +52,7 @@ sudo nano /etc/sysctl.conf
 sudo sysctl -p
 ```
 
-== Очистка свапа 
+== Очистка свапа ==
 ```bash
 swapoff -a
 swapon -a
