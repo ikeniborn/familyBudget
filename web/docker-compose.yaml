@@ -17,7 +17,7 @@ services:
       PGDATA: "/var/lib/postgresql/data/pgdata"
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ${APP_PATH}/app/web/db/postgresql/postgresql.conf:/var/lib/postgresql/data/pgdata/postgresql.conf
+      - ${APP_PATH}/web/db/postgresql/postgresql.conf:/var/lib/postgresql/data/pgdata/postgresql.conf
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 10s
@@ -39,7 +39,7 @@ services:
       dockerfile: ./api/Dockerfile
       context: ./
     volumes:
-      - ${APP_PATH}/app/web/api:/usr/src/app:delegated
+      - ${APP_PATH}/web/api:/usr/src/app:delegated
     ports:
       - "8888:8888"
     command: "uvicorn budget_api:app --host 0.0.0.0 --port 8888 --reload"
@@ -76,7 +76,7 @@ services:
       dockerfile: ./app/budget/Dockerfile
       context: ./
     volumes:
-      - ${APP_PATH}/app/web/app/budget:/usr/src/app:delegated
+      - ${APP_PATH}/web/app/budget:/usr/src/app:delegated
     ports:
       - "8501:8501"
     command: "streamlit run ui.py --server.port=8501"
@@ -108,7 +108,7 @@ services:
     hostname: haproxy
     image: "haproxy:2.2-alpine"
     volumes:
-      - ${APP_PATH}/app/web/service/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:delegated
+      - ${APP_PATH}/web/service/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:delegated
       - /etc/haproxy/certs:/etc/ssl/certs:delegated
     network_mode: "host"
     restart: always
@@ -178,7 +178,7 @@ services:
           - COUCHDB_PASSWORD=2L6uEoNMjW9rVnPgy37t
       volumes:
           - couchdb-data:/opt/couchdb/data
-          - ${APP_PATH}/app/web/db/couchdb/local.ini:/opt/couchdb/etc/local.ini
+          - ${APP_PATH}/web/db/couchdb/local.ini:/opt/couchdb/etc/local.ini
       restart: always
       cpuset: "0"    
       cpus: 0.25
