@@ -71,7 +71,7 @@ if __name__ == "__main__":
             users = Users().fetchAll(ttl=60)
             user_id_df = users.lazy().filter(pl.col(["user_telegram_id"]) == st.session_state.telegramm_session["id"]).collect()
             user_id_df_count = user_id_df.count()
-            if user_id_df_count["user_id"][0] == 1:
+            if user_id_df_count["user_id"][0] > 0:
                 if "user_id" not in st.session_state:
                     st.session_state.user_id = user_id_df["user_id"][0]
             else:

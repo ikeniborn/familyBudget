@@ -19,7 +19,8 @@ async def get_users():
         f"""
         select 
           user_id, 
-          user_name 
+          user_name,
+          user_telegram_id 
         from 
           t_d_user
       """
