@@ -51,11 +51,11 @@ sudo docker-compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml 
 sudo docker-compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml up -d
 sudo docker-compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml down
 
-sudo docker-compose --env-file ~/app/web/web.env -f ~/app/web/docker-compose.yaml up --build -d
-sudo docker-compose --env-file ~/app/web/web.env -f ~/app/web/docker-compose.yaml down --rmi all
+sudo docker-compose --env-file /home/ikeniborn/app/web/web.env -f /home/ikeniborn/app/web/docker-compose.yaml up --build -d
+sudo docker-compose --env-file /home/ikeniborn/app/web/web.env -f /home/ikenibornapp/web/docker-compose.yaml down --rmi all
 
-sudo docker-compose --env-file ~/app/web/web.env -f ~/app/web/docker-compose.yaml up -d
-sudo docker-compose --env-file ~/app/web/web.env -f ~/app/web/docker-compose.yaml down
+sudo docker-compose --env-file /home/ikeniborn/app/web/web.env -f /home/ikeniborn/app/web/docker-compose.yaml up -d
+sudo docker-compose --env-file /home/ikeniborn/app/web/web.env -f /home/ikeniborn/app/web/docker-compose.yaml down
 sudo docker-compose --env-file /home/ikeniborn/app/web/web.env -f /home/ikeniborn/app/web/docker-compose.yaml restart budget-api budget-ui
 
 
