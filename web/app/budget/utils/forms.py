@@ -322,6 +322,7 @@ class Forms:
                     .select("bill_name")
                     .group_by("bill_name", maintain_order=True)
                     .n_unique()
+                    .sort(pl.col("bill_name"))
                     .collect()["bill_name"]
                     .to_list(),
                     horizontal=False,
@@ -360,6 +361,7 @@ class Forms:
                     .select("nomenclature_name")
                     .group_by("nomenclature_name", maintain_order=True)
                     .n_unique()
+                    .sort(pl.col("nomenclature_name"))
                     .collect()["nomenclature_name"]
                     .to_list(),
                     index=None,
