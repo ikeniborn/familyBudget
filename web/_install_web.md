@@ -61,10 +61,12 @@ sudo docker-compose --env-file /home/ikeniborn/app/web/web.env -f /home/ikenibor
 
 
 >> перезагрузка докера
-sudo service docker stop && \
 sudo systemctl stop docker.socket && \
+sudo service docker stop && \
 sudo service docker status && \
 sudo service docker restart
+
+sudo systemctl disable docker.service
 
 >> очистка не используемых контейнеров и образов
 sudo docker image ls

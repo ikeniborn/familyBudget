@@ -294,77 +294,75 @@ class Forms:
                     key="fact_cost_center_name",
                 )
 
-            with st.popover("Выбор номенлатуры", use_container_width=True):
+            # with st.popover("Выбор номенлатуры", use_container_width=True):
 
-                col3, col4 = st.columns(2)
+            col3, col4 = st.columns(2)
 
-                with col3:
-                    st.radio(
-                        "Операция",
-                        key="fact_operation_name",
-                        options=t_d_nomenclature.lazy()
-                        .filter(pl.col("is_fact") == True)
-                        .select("operation_name")
-                        .group_by("operation_name", maintain_order=True)
-                        .n_unique()
-                        .collect()["operation_name"]
-                        .to_list(),
-                        horizontal=False,
-                        index=None,
+            with col3:
+                st.radio(
+                    "Операция",
+                    key="fact_operation_name",
+                    options=t_d_nomenclature.lazy()
+                    .filter(pl.col("is_fact") == True)
+                    .select("operation_name")
+                    .group_by("operation_name", maintain_order=True)
+                    .n_unique()
+                    .collect()["operation_name"]
+                    .to_list(),
+                    horizontal=False,
+                    index=None,
+                )
+
+            with col4:
+                st.radio(
+                    "Счет",
+                    key="fact_bill_name",
+                    options=t_d_nomenclature.lazy()
+                    .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == st.session_state.fact_operation_name))
+                    .select("bill_name")
+                    .group_by("bill_name", maintain_order=True)
+                    .n_unique()
+                    .collect()["bill_name"]
+                    .to_list(),
+                    horizontal=False,
+                    index=None,
+                )
+
+            col5, col6 = st.columns(2)
+
+            with col5:
+                st.radio(
+                    label="Статья",
+                    key="fact_account_name",
+                    options=t_d_nomenclature.lazy()
+                    .filter(
+                        (pl.col("is_fact") == True) & (pl.col("operation_name") == st.session_state.fact_operation_name) & (pl.col("bill_name") == st.session_state.fact_bill_name)
                     )
-
-                with col4:
-                    st.radio(
-                        "Счет",
-                        key="fact_bill_name",
-                        options=t_d_nomenclature.lazy()
-                        .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == st.session_state.fact_operation_name))
-                        .select("bill_name")
-                        .group_by("bill_name", maintain_order=True)
-                        .n_unique()
-                        .collect()["bill_name"]
-                        .to_list(),
-                        horizontal=False,
-                        index=None,
+                    .select("account_name")
+                    .group_by("account_name", maintain_order=True)
+                    .n_unique()
+                    .collect()["account_name"]
+                    .to_list(),
+                    index=None,
+                )
+            with col6:
+                st.radio(
+                    label="Номенклатура*",
+                    key="fact_nomenclature_name",
+                    options=t_d_nomenclature.lazy()
+                    .filter(
+                        (pl.col("is_fact") == True)
+                        & (pl.col("operation_name") == st.session_state.fact_operation_name)
+                        & (pl.col("bill_name") == st.session_state.fact_bill_name)
+                        & (pl.col("account_name") == st.session_state.fact_account_name)
                     )
-
-                col5, col6 = st.columns(2)
-
-                with col5:
-                    st.radio(
-                        label="Статья",
-                        key="fact_account_name",
-                        options=t_d_nomenclature.lazy()
-                        .filter(
-                            (pl.col("is_fact") == True)
-                            & (pl.col("operation_name") == st.session_state.fact_operation_name)
-                            & (pl.col("bill_name") == st.session_state.fact_bill_name)
-                        )
-                        .select("account_name")
-                        .group_by("account_name", maintain_order=True)
-                        .n_unique()
-                        .collect()["account_name"]
-                        .to_list(),
-                        index=None,
-                    )
-                with col6:
-                    st.radio(
-                        label="Номенклатура*",
-                        key="fact_nomenclature_name",
-                        options=t_d_nomenclature.lazy()
-                        .filter(
-                            (pl.col("is_fact") == True)
-                            & (pl.col("operation_name") == st.session_state.fact_operation_name)
-                            & (pl.col("bill_name") == st.session_state.fact_bill_name)
-                            & (pl.col("account_name") == st.session_state.fact_account_name)
-                        )
-                        .select("nomenclature_name")
-                        .group_by("nomenclature_name", maintain_order=True)
-                        .n_unique()
-                        .collect()["nomenclature_name"]
-                        .to_list(),
-                        index=None,
-                    )
+                    .select("nomenclature_name")
+                    .group_by("nomenclature_name", maintain_order=True)
+                    .n_unique()
+                    .collect()["nomenclature_name"]
+                    .to_list(),
+                    index=None,
+                )
             if st.session_state.fact_account_name and st.session_state.fact_nomenclature_name:
                 st.info(f"Статья: {st.session_state.fact_account_name}, Номенлатура: {st.session_state.fact_nomenclature_name}")
 
