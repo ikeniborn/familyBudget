@@ -341,6 +341,7 @@ class Forms:
                     .select("account_name")
                     .group_by("account_name", maintain_order=True)
                     .n_unique()
+                    .sort(pl.col("account_name"))
                     .collect()["account_name"]
                     .to_list(),
                     index=None,
