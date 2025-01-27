@@ -32,11 +32,12 @@ class Forms:
             col1, col2 = st.columns(2)
 
             with col1:
+                # & (pl.col("operation_name") == [operation_name])
                 st.radio(
                     "Счет",
                     key="fact_bill_name",
                     options=t_d_nomenclature.lazy()
-                    .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == [operation_name]))
+                    .filter((pl.col("is_fact") == True) )
                     .select("bill_name")
                     .group_by("bill_name", maintain_order=True)
                     .n_unique()
