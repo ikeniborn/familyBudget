@@ -22,35 +22,21 @@ class Forms:
             operation: str = None,
             nomenclatures: DataFrame = None,
         ) -> None:
-            self._operation = (operation,)
+            self._operation = operation
             self._nomenclatures = nomenclatures
-        
+
         def form(self):
+            operation_name = self._operation
             t_d_nomenclature = self._nomenclatures
-            
-            col3, col4 = st.columns(2)
 
-            with col3:
-                st.radio(
-                    "Операция",
-                    key="fact_operation_name",
-                    options=t_d_nomenclature.lazy()
-                    .filter(pl.col("is_fact") == True)
-                    .select("operation_name")
-                    .group_by("operation_name", maintain_order=True)
-                    .n_unique()
-                    .collect()["operation_name"]
-                    .to_list(),
-                    horizontal=False,
-                    index=None,
-                )
+            col1, col2 = st.columns(2)
 
-            with col4:
+            with col1:
                 st.radio(
                     "Счет",
                     key="fact_bill_name",
                     options=t_d_nomenclature.lazy()
-                    .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == self._operation))
+                    .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == [operation_name]))
                     .select("bill_name")
                     .group_by("bill_name", maintain_order=True)
                     .n_unique()
@@ -61,14 +47,12 @@ class Forms:
                     index=None,
                 )
 
-            col5, col6 = st.columns(2)
-
-            with col5:
+            with col2:
                 st.radio(
                     label="Статья",
                     key="fact_account_name",
                     options=t_d_nomenclature.lazy()
-                    .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == self._operation) & (pl.col("bill_name") == st.session_state.fact_bill_name))
+                    .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == [operation_name]) & (pl.col("bill_name") == st.session_state.fact_bill_name))
                     .select("account_name")
                     .group_by("account_name", maintain_order=True)
                     .n_unique()
@@ -77,14 +61,16 @@ class Forms:
                     .to_list(),
                     index=None,
                 )
-            with col6:
+            col3 = st.columns(1)
+
+            with col3:
                 st.radio(
                     label="Номенклатура*",
                     key="fact_nomenclature_name",
                     options=t_d_nomenclature.lazy()
                     .filter(
                         (pl.col("is_fact") == True)
-                        & (pl.col("operation_name") == self._operation)
+                        & (pl.col("operation_name") == [operation_name])
                         & (pl.col("bill_name") == st.session_state.fact_bill_name)
                         & (pl.col("account_name") == st.session_state.fact_account_name)
                     )
@@ -382,7 +368,7 @@ class Forms:
 
             with write_off:
                 Forms.Nomenclatures("Списание", nomenclatures=t_d_nomenclature).form()
-                
+
             with refill:
                 Forms.Nomenclatures("Пополнение", nomenclatures=t_d_nomenclature).form()
 
