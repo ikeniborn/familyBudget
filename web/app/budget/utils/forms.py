@@ -37,7 +37,7 @@ class Forms:
                     "Счет",
                     key="fact_bill_name",
                     options=t_d_nomenclature.lazy()
-                    .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == 'Списание') )
+                    .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == operation_name) )
                     .select("bill_name")
                     .group_by("bill_name", maintain_order=True)
                     .n_unique()
@@ -53,7 +53,7 @@ class Forms:
                     label="Статья",
                     key="fact_account_name",
                     options=t_d_nomenclature.lazy()
-                    .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == [operation_name]) & (pl.col("bill_name") == st.session_state.fact_bill_name))
+                    .filter((pl.col("is_fact") == True) & (pl.col("operation_name") ==operation_name) & (pl.col("bill_name") == st.session_state.fact_bill_name))
                     .select("account_name")
                     .group_by("account_name", maintain_order=True)
                     .n_unique()
@@ -71,7 +71,7 @@ class Forms:
                     options=t_d_nomenclature.lazy()
                     .filter(
                         (pl.col("is_fact") == True)
-                        & (pl.col("operation_name") == [operation_name])
+                        & (pl.col("operation_name") == operation_name)
                         & (pl.col("bill_name") == st.session_state.fact_bill_name)
                         & (pl.col("account_name") == st.session_state.fact_account_name)
                     )
@@ -368,10 +368,10 @@ class Forms:
             write_off, refill = st.tabs(["Списание", "Пополнение"])
 
             with write_off:
-                Forms.Nomenclatures("Списание", nomenclatures=t_d_nomenclature).form()
+                Forms.Nomenclatures(operation="Списание", nomenclatures=t_d_nomenclature).form()
 
             with refill:
-                Forms.Nomenclatures("Пополнение", nomenclatures=t_d_nomenclature).form()
+                Forms.Nomenclatures(operation="Пополнение", nomenclatures=t_d_nomenclature).form()
 
             with st.form("fact_data", clear_on_submit=True):
 
