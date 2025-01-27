@@ -29,15 +29,15 @@ class Forms:
             operation_name = self._operation
             t_d_nomenclature = self._nomenclatures
 
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
 
             with col1:
-                
+
                 st.radio(
                     "Счет",
                     key="fact_bill_name",
                     options=t_d_nomenclature.lazy()
-                    .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == operation_name) )
+                    .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == operation_name))
                     .select("bill_name")
                     .group_by("bill_name", maintain_order=True)
                     .n_unique()
@@ -53,7 +53,7 @@ class Forms:
                     label="Статья",
                     key="fact_account_name",
                     options=t_d_nomenclature.lazy()
-                    .filter((pl.col("is_fact") == True) & (pl.col("operation_name") ==operation_name) & (pl.col("bill_name") == st.session_state.fact_bill_name))
+                    .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == operation_name) & (pl.col("bill_name") == st.session_state.fact_bill_name))
                     .select("account_name")
                     .group_by("account_name", maintain_order=True)
                     .n_unique()
@@ -62,7 +62,6 @@ class Forms:
                     .to_list(),
                     index=None,
                 )
-            col3 = st.columns(1)
 
             with col3:
                 st.radio(
