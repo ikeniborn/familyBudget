@@ -369,8 +369,8 @@ class Forms:
             with write_off:
                 Forms.Nomenclatures(operation="Списание", nomenclatures=t_d_nomenclature).form()
 
-            with refill:
-                Forms.Nomenclatures(operation="Пополнение", nomenclatures=t_d_nomenclature).form()
+            # with refill:
+                # Forms.Nomenclatures(operation="Пополнение", nomenclatures=t_d_nomenclature).form()
 
             with st.form("fact_data", clear_on_submit=True):
 
