@@ -25,8 +25,8 @@ class Forms:
             self._operation = (operation,)
             self._nomenclatures = nomenclatures
         
-        @st.fragment
         def form(self):
+            t_d_nomenclature = self._nomenclatures
             
             col3, col4 = st.columns(2)
 
@@ -34,7 +34,7 @@ class Forms:
                 st.radio(
                     "Операция",
                     key="fact_operation_name",
-                    options=self._nomenclatures.lazy()
+                    options=t_d_nomenclature.lazy()
                     .filter(pl.col("is_fact") == True)
                     .select("operation_name")
                     .group_by("operation_name", maintain_order=True)
@@ -49,7 +49,7 @@ class Forms:
                 st.radio(
                     "Счет",
                     key="fact_bill_name",
-                    options=self._nomenclatures.lazy()
+                    options=t_d_nomenclature.lazy()
                     .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == self._operation))
                     .select("bill_name")
                     .group_by("bill_name", maintain_order=True)
@@ -67,7 +67,7 @@ class Forms:
                 st.radio(
                     label="Статья",
                     key="fact_account_name",
-                    options=self._nomenclatures.lazy()
+                    options=t_d_nomenclature.lazy()
                     .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == self._operation) & (pl.col("bill_name") == st.session_state.fact_bill_name))
                     .select("account_name")
                     .group_by("account_name", maintain_order=True)
@@ -81,7 +81,7 @@ class Forms:
                 st.radio(
                     label="Номенклатура*",
                     key="fact_nomenclature_name",
-                    options=self._nomenclatures.lazy()
+                    options=t_d_nomenclature.lazy()
                     .filter(
                         (pl.col("is_fact") == True)
                         & (pl.col("operation_name") == self._operation)
