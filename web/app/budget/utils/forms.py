@@ -305,7 +305,8 @@ class Forms:
             with refill:
                 Dimension.Nomenclatures(operation="Пополнение", nomenclatures=t_d_nomenclature).form(operation_id=2, row_type_id=row_type_id)
                 
-            st.write(st.session_state.nomenclature_object)
+            st.write(st.session_state.nomenclature_key)
+            st.write(st.session_state.nomenclature_id)
 
             with st.form("fact_data", clear_on_submit=True):
 
@@ -315,7 +316,7 @@ class Forms:
                 add_row = st.form_submit_button(label="Сохранить", type="primary")
 
                 if add_row:
-                    if _fact_cost_sum > 0 and st.session_state.fact_financial_center_name != None and st.session_state.nomenclature_object.id != None:
+                    if _fact_cost_sum > 0 and st.session_state.fact_financial_center_name != None and st.session_state.nomenclature_id != None:
 
                         period_id = (
                             t_d_period.lazy()
@@ -343,7 +344,7 @@ class Forms:
                             "period_id": period_id,
                             "financial_center_id": financial_center_id,
                             "cost_center_id": cost_center_id,
-                            "nomenclature_id": st.session_state.nomenclature_object.id,
+                            "nomenclature_id": st.session_state.nomenclature_id,
                             "cost_sum": _fact_cost_sum,
                             "comment_description": _fact_comment_description,
                             "row_type_id": row_type_id,
@@ -357,13 +358,13 @@ class Forms:
                             use_container_width=True,
                         )
                         # График
-                        df = Report.getReportPerfomancetRowTypeNomenclature(financial_center_id=financial_center_id, period_id=period_id, nomenclature_id=st.session_state.nomenclature_object.id)
+                        df = Report.getReportPerfomancetRowTypeNomenclature(financial_center_id=financial_center_id, period_id=period_id, nomenclature_id=st.session_state.nomenclature_id)
                         fig = px.bar(df, x="Номенклатура", y="Сумма", color="Тип", barmode="group", text_auto=True)
                         st.plotly_chart(fig, use_container_width=True)
                     else:
                         if st.session_state.fact_financial_center_name == None:
                             st.error("Не указан ЦФО")
-                        if st.session_state.nomenclature_object.id == None:
+                        if st.session_state.nomenclature_id == None:
                             st.error("Не указана Номенклатура")
                         if _fact_cost_sum == 0:
                             st.error("Не указана Сумма")
