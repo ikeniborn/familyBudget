@@ -92,13 +92,13 @@ if __name__ == "__main__":
 
         fact, budget, report = st.tabs(["Факт", "Бюджет", "Отчетность"])
 
-        with fact:
-            Forms.Fact(
-                financial_centers=financial_centers,
-                cost_centers=cost_centers,
-                row_types=row_types,
-                nomenclatures=nomenclatures,
-            ).form()
+        # with fact:
+        #     Forms.Fact(
+        #         financial_centers=financial_centers,
+        #         cost_centers=cost_centers,
+        #         row_types=row_types,
+        #         nomenclatures=nomenclatures,
+        #     ).form()
 
         with budget:
             Forms.Budget(
