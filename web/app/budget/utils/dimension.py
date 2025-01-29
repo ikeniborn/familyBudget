@@ -80,7 +80,7 @@ class Dimension:
                     .to_list(),
                     index=None,
                 )
-            if st.session_state.fact_account_name and st.session_state[account_key]:
+            if st.session_state[account_key] and st.session_state[nomenclature_key]:
                 st.info(f"Статья: {st.session_state[account_key]}, Номенлатура: {st.session_state[nomenclature_key]}")
 
                 nomenclature_id = (
