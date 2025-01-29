@@ -90,6 +90,21 @@ class Dimension:
                     .collect()["nomenclature_id"][0]
                 )
 
-                nomenclature_object = {"id": nomenclature_id, "key": nomenclature_key}
-
-                return nomenclature_object
+                if "nomenclature_object" not in st.session_state:
+                    if "id" not in st.session_state.nomenclature_object:
+                        st.session_state.nomenclature_object.id = nomenclature_id
+                    else:
+                        st.session_state.nomenclature_object.id = nomenclature_id
+                    if "key" not in st.session_state.nomenclature_object:
+                        st.session_state.nomenclature_object.key = nomenclature_key
+                    else:
+                        st.session_state.nomenclature_object.key = nomenclature_key
+                else:
+                    if "id" not in st.session_state.nomenclature_object:
+                        st.session_state.nomenclature_object.id = nomenclature_id
+                    else:
+                        st.session_state.nomenclature_object.id = nomenclature_id
+                    if "key" not in st.session_state.nomenclature_object:
+                        st.session_state.nomenclature_object.key = nomenclature_key
+                    else:
+                        st.session_state.nomenclature_object.key = nomenclature_key
