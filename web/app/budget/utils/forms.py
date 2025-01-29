@@ -135,8 +135,8 @@ class Forms:
                             st.error("Не указана Номенклатура")
                         if _budget_cost_sum == 0:
                             st.error("Не указана Сумма")
-                        show_last_row = st.button(label="Последние записи")
-                        
+            
+            show_last_row = st.button(label="Последние записи")        
             if show_last_row:
                 st.dataframe(
                     data=Registry.getLastRows(row_type_id=1, limit_rows=5),
