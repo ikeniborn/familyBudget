@@ -88,16 +88,16 @@ class Forms:
             if st.session_state.fact_account_name and st.session_state[account_key]:
                 st.info(f"Статья: {st.session_state[account_key]}, Номенлатура: {st.session_state[nomenclature_key]}")
 
-            nomenclature_id = (
-                t_d_nomenclature.lazy()
-                .select("nomenclature_id", "nomenclature_name")
-                .filter(pl.col("nomenclature_name") == st.session_state[nomenclature_key])
-                .collect()["nomenclature_id"][0]
-            )
+                nomenclature_id = (
+                    t_d_nomenclature.lazy()
+                    .select("nomenclature_id", "nomenclature_name")
+                    .filter(pl.col("nomenclature_name") == st.session_state[nomenclature_key])
+                    .collect()["nomenclature_id"][0]
+                )
 
-            nomenclature_object = {"id": nomenclature_id, "key": nomenclature_key}
+                nomenclature_object = {"id": nomenclature_id, "key": nomenclature_key}
 
-            return nomenclature_object
+                return nomenclature_object
 
     class Budget:
 
