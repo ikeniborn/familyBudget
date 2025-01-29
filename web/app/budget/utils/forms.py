@@ -28,9 +28,9 @@ class Forms:
         def form(self, operation_id: int = None, row_type_id: int = None) -> object:
             operation_name = self._operation
             t_d_nomenclature = self._nomenclatures
-            bill_key = "_".join([row_type_id, operation_id, "bill_name"])
-            account_key = "_".join([row_type_id, operation_id, "account_name"])
-            nomenclature_key = "_".join([row_type_id, operation_id, "nomenclature_name"])
+            bill_key = "_".join([str(row_type_id), str(operation_id), "bill_name"])
+            account_key = "_".join([str(row_type_id), str(operation_id), "account_name"])
+            nomenclature_key = "_".join([str(row_type_id), str(operation_id), "nomenclature_name"])
 
             col1, col2, col3 = st.columns(3)
 
