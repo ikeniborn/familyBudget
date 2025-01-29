@@ -25,7 +25,7 @@ class Forms:
             self._operation = operation
             self._nomenclatures = nomenclatures
 
-        def form(self, operation_id: int = None, row_type_id: int = None) -> int:
+        def form(self, operation_id: int = None, row_type_id: int = None) -> object:
             operation_name = self._operation
             t_d_nomenclature = self._nomenclatures
             bill_key = row_type_id + "_" + operation_id + "_" + "bill_name"
@@ -88,12 +88,16 @@ class Forms:
             if st.session_state.fact_account_name and st.session_state[account_key]:
                 st.info(f"Статья: {st.session_state[account_key]}, Номенлатура: {st.session_state[nomenclature_key]}")
 
-            return (
+            nomenclature_id = (
                 t_d_nomenclature.lazy()
                 .select("nomenclature_id", "nomenclature_name")
                 .filter(pl.col("nomenclature_name") == st.session_state[nomenclature_key])
                 .collect()["nomenclature_id"][0]
             )
+
+            nomenclature_object = {"id": nomenclature_id, "key": nomenclature_key}
+
+            return nomenclature_object
 
     class Budget:
 
@@ -378,10 +382,10 @@ class Forms:
             write_off, refill = st.tabs(["Списание", "Пополнение"])
 
             with write_off:
-                nomenclature_id = Forms.Nomenclatures(operation="Списание", nomenclatures=t_d_nomenclature).form(operation_id=1, row_type_id=row_type_id)
+                nomenclature_object = Forms.Nomenclatures(operation="Списание", nomenclatures=t_d_nomenclature).form(operation_id=1, row_type_id=row_type_id)
 
             with refill:
-                nomenclature_id = Forms.Nomenclatures(operation="Пополнение", nomenclatures=t_d_nomenclature).form(operation_id=2, row_type_id=row_type_id)
+                nomenclature_object = Forms.Nomenclatures(operation="Пополнение", nomenclatures=t_d_nomenclature).form(operation_id=2, row_type_id=row_type_id)
 
             with st.form("fact_data", clear_on_submit=True):
 
@@ -391,7 +395,7 @@ class Forms:
                 add_row = st.form_submit_button(label="Сохранить", type="primary")
 
                 if add_row:
-                    if _fact_cost_sum > 0 and st.session_state.fact_financial_center_name != None and st.session_state.fact_nomenclature_name != None:
+                    if _fact_cost_sum > 0 and st.session_state.fact_financial_center_name != None and st.session_state[nomenclature_object.key] != None:
 
                         period_id = (
                             t_d_period.lazy()
@@ -419,7 +423,7 @@ class Forms:
                             "period_id": period_id,
                             "financial_center_id": financial_center_id,
                             "cost_center_id": cost_center_id,
-                            "nomenclature_id": nomenclature_id,
+                            "nomenclature_id": nomenclature_object.id,
                             "cost_sum": _fact_cost_sum,
                             "comment_description": _fact_comment_description,
                             "row_type_id": row_type_id,
@@ -433,13 +437,13 @@ class Forms:
                             use_container_width=True,
                         )
                         # График
-                        df = Report.getReportPerfomancetRowTypeNomenclature(financial_center_id=financial_center_id, period_id=period_id, nomenclature_id=nomenclature_id)
+                        df = Report.getReportPerfomancetRowTypeNomenclature(financial_center_id=financial_center_id, period_id=period_id, nomenclature_id=nomenclature_object.id)
                         fig = px.bar(df, x="Номенклатура", y="Сумма", color="Тип", barmode="group", text_auto=True)
                         st.plotly_chart(fig, use_container_width=True)
                     else:
                         if st.session_state.fact_financial_center_name == None:
                             st.error("Не указан ЦФО")
-                        if st.session_state.fact_nomenclature_name == None:
+                        if st.session_state[nomenclature_object.key] == None:
                             st.error("Не указана Номенклатура")
                         if _fact_cost_sum == 0:
                             st.error("Не указана Сумма")
