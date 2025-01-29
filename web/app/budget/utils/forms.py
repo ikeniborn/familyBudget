@@ -25,9 +25,12 @@ class Forms:
             self._operation = operation
             self._nomenclatures = nomenclatures
 
-        def form(self):
+        def form(self, operation_id: int = None, row_type_id: int = None) -> int:
             operation_name = self._operation
             t_d_nomenclature = self._nomenclatures
+            bill_key = row_type_id + "_" + operation_id + "_" + "bill_name"
+            account_key = row_type_id + "_" + operation_id + "_" + "account_name"
+            nomenclature_key = row_type_id + "_" + operation_id + "_" + "nomenclature_name"
 
             col1, col2, col3 = st.columns(3)
 
@@ -35,7 +38,7 @@ class Forms:
 
                 st.radio(
                     "Счет",
-                    key="fact_bill_name",
+                    key=bill_key,
                     options=t_d_nomenclature.lazy()
                     .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == operation_name))
                     .select("bill_name")
@@ -51,9 +54,9 @@ class Forms:
             with col2:
                 st.radio(
                     label="Статья",
-                    key="fact_account_name",
+                    key=account_key,
                     options=t_d_nomenclature.lazy()
-                    .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == operation_name) & (pl.col("bill_name") == st.session_state.fact_bill_name))
+                    .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == operation_name) & (pl.col("bill_name") == st.session_state[bill_key]))
                     .select("account_name")
                     .group_by("account_name", maintain_order=True)
                     .n_unique()
@@ -66,13 +69,13 @@ class Forms:
             with col3:
                 st.radio(
                     label="Номенклатура*",
-                    key="fact_nomenclature_name",
+                    key=nomenclature_key,
                     options=t_d_nomenclature.lazy()
                     .filter(
                         (pl.col("is_fact") == True)
                         & (pl.col("operation_name") == operation_name)
-                        & (pl.col("bill_name") == st.session_state.fact_bill_name)
-                        & (pl.col("account_name") == st.session_state.fact_account_name)
+                        & (pl.col("bill_name") == st.session_state[bill_key])
+                        & (pl.col("account_name") == st.session_state[account_key])
                     )
                     .select("nomenclature_name")
                     .group_by("nomenclature_name", maintain_order=True)
@@ -82,8 +85,15 @@ class Forms:
                     .to_list(),
                     index=None,
                 )
-            if st.session_state.fact_account_name and st.session_state.fact_nomenclature_name:
-                st.info(f"Статья: {st.session_state.fact_account_name}, Номенлатура: {st.session_state.fact_nomenclature_name}")
+            if st.session_state.fact_account_name and st.session_state[account_key]:
+                st.info(f"Статья: {st.session_state[account_key]}, Номенлатура: {st.session_state[nomenclature_key]}")
+
+            return (
+                t_d_nomenclature.lazy()
+                .select("nomenclature_id", "nomenclature_name")
+                .filter(pl.col("nomenclature_name") == st.session_state[nomenclature_key])
+                .collect()["nomenclature_id"][0]
+            )
 
     class Budget:
 
@@ -305,6 +315,7 @@ class Forms:
             st.info("Поля с * обязательные для заполнения!")
 
             row_type_name = "Факт"
+            row_type_id = t_d_row_type.lazy().select("row_type_id", "row_type_name").filter(pl.col("row_type_name") == row_type_name).collect()["row_type_id"][0]
 
             start_dttm = datetime.now(tz=pytz.timezone("Europe/Moscow"))
 
@@ -367,10 +378,10 @@ class Forms:
             write_off, refill = st.tabs(["Списание", "Пополнение"])
 
             with write_off:
-                Forms.Nomenclatures(operation="Списание", nomenclatures=t_d_nomenclature).form()
+                nomenclature_id = Forms.Nomenclatures(operation="Списание", nomenclatures=t_d_nomenclature).form(operation_id=1, row_type_id=row_type_id)
 
-            # with refill:
-                # Forms.Nomenclatures(operation="Пополнение", nomenclatures=t_d_nomenclature).form()
+            with refill:
+                nomenclature_id = Forms.Nomenclatures(operation="Пополнение", nomenclatures=t_d_nomenclature).form(operation_id=2, row_type_id=row_type_id)
 
             with st.form("fact_data", clear_on_submit=True):
 
@@ -402,15 +413,6 @@ class Forms:
                             .filter(pl.col("cost_center_name") == st.session_state.fact_cost_center_name)
                             .collect()["cost_center_id"][0]
                         )
-
-                        nomenclature_id = (
-                            t_d_nomenclature.lazy()
-                            .select("nomenclature_id", "nomenclature_name")
-                            .filter(pl.col("nomenclature_name") == st.session_state.fact_nomenclature_name)
-                            .collect()["nomenclature_id"][0]
-                        )
-
-                        row_type_id = t_d_row_type.lazy().select("row_type_id", "row_type_name").filter(pl.col("row_type_name") == row_type_name).collect()["row_type_id"][0]
 
                         row = {
                             "operation_dttm": operation_dttm,
