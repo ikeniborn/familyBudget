@@ -43,6 +43,7 @@ class Forms:
             st.info("Поля с * обязательные для заполнения!")
 
             row_type_name = "Бюджет"
+            row_type_id = t_d_row_type.lazy().select("row_type_id", "row_type_name").filter(pl.col("row_type_name") == row_type_name).collect()["row_type_id"][0]
 
             start_dttm = datetime.now(tz=pytz.timezone("Europe/Moscow"))
 
@@ -71,80 +72,13 @@ class Forms:
 
             cost_center_name = financial_center_name
 
-            with st.popover("Выбор номенлатуры", use_container_width=True):
+            write_off, refill = st.tabs(["Списание", "Пополнение"])
 
-                col3, col4 = st.columns(2)
+            with write_off:
+                Dimension.Nomenclatures(operation="Списание", nomenclatures=t_d_nomenclature).form(operation_id=1, row_type_id=row_type_id)
 
-                with col3:
-                    st.radio(
-                        "Операция",
-                        key="budget_operation_name",
-                        options=t_d_nomenclature.lazy()
-                        .filter(pl.col("is_budget") == True)
-                        .select("operation_name")
-                        .group_by("operation_name", maintain_order=True)
-                        .n_unique()
-                        .collect()["operation_name"]
-                        .to_list(),
-                        horizontal=False,
-                        index=None,
-                    )
-
-                with col4:
-                    st.radio(
-                        "Счет",
-                        key="budget_bill_name",
-                        options=t_d_nomenclature.lazy()
-                        .filter((pl.col("is_budget") == True) & (pl.col("operation_name") == st.session_state.budget_operation_name))
-                        .select("bill_name")
-                        .group_by("bill_name", maintain_order=True)
-                        .n_unique()
-                        .collect()["bill_name"]
-                        .to_list(),
-                        horizontal=False,
-                        index=None,
-                    )
-
-                col5, col6 = st.columns(2)
-
-                with col5:
-                    st.radio(
-                        label="Статья",
-                        key="budget_account_name",
-                        options=t_d_nomenclature.lazy()
-                        .filter(
-                            (pl.col("is_budget") == True)
-                            & (pl.col("operation_name") == st.session_state.budget_operation_name)
-                            & (pl.col("bill_name") == st.session_state.budget_bill_name)
-                        )
-                        .select("account_name")
-                        .group_by("account_name", maintain_order=True)
-                        .n_unique()
-                        .collect()["account_name"]
-                        .to_list(),
-                        index=None,
-                    )
-                with col6:
-                    st.radio(
-                        label="Номенклатура*",
-                        key="budget_nomenclature_name",
-                        options=t_d_nomenclature.lazy()
-                        .filter(
-                            (pl.col("is_budget") == True)
-                            & (pl.col("operation_name") == st.session_state.budget_operation_name)
-                            & (pl.col("bill_name") == st.session_state.budget_bill_name)
-                            & (pl.col("account_name") == st.session_state.budget_account_name)
-                        )
-                        .select("nomenclature_name")
-                        .group_by("nomenclature_name", maintain_order=True)
-                        .n_unique()
-                        .collect()["nomenclature_name"]
-                        .to_list(),
-                        index=None,
-                    )
-
-            if st.session_state.budget_account_name and st.session_state.budget_nomenclature_name:
-                st.info(f"Статья: {st.session_state.budget_account_name}, Номенлатура: {st.session_state.budget_nomenclature_name}")
+            with refill:
+                Dimension.Nomenclatures(operation="Пополнение", nomenclatures=t_d_nomenclature).form(operation_id=2, row_type_id=row_type_id)
 
             with st.form("budget_data", clear_on_submit=True):
 
@@ -176,21 +110,12 @@ class Forms:
                             .collect()["cost_center_id"][0]
                         )
 
-                        nomenclature_id = (
-                            t_d_nomenclature.lazy()
-                            .select("nomenclature_id", "nomenclature_name")
-                            .filter(pl.col("nomenclature_name") == st.session_state.budget_nomenclature_name)
-                            .collect()["nomenclature_id"][0]
-                        )
-
-                        row_type_id = t_d_row_type.lazy().select("row_type_id", "row_type_name").filter(pl.col("row_type_name") == row_type_name).collect()["row_type_id"][0]
-
                         row = {
                             "operation_dttm": operation_dttm,
                             "period_id": period_id,
                             "financial_center_id": financial_center_id,
                             "cost_center_id": cost_center_id,
-                            "nomenclature_id": nomenclature_id,
+                            "nomenclature_id": st.session_state.nomenclature_id,
                             "cost_sum": _budget_cost_sum,
                             "comment_description": _budget_comment_description,
                             "row_type_id": row_type_id,
@@ -206,10 +131,18 @@ class Forms:
                     else:
                         if st.session_state.budget_financial_center_name == None:
                             st.error("Не указан ЦФО")
-                        if st.session_state.budget_nomenclature_name == None:
+                        if st.session_state.nomenclature_id == None:
                             st.error("Не указана Номенклатура")
                         if _budget_cost_sum == 0:
                             st.error("Не указана Сумма")
+                        show_last_row = st.button(label="Последние записи")
+                        
+            if show_last_row:
+                st.dataframe(
+                    data=Registry.getLastRows(row_type_id=1, limit_rows=5),
+                    hide_index=True,
+                    use_container_width=True,
+                )
 
     class Fact:
 
@@ -304,7 +237,6 @@ class Forms:
 
             with refill:
                 Dimension.Nomenclatures(operation="Пополнение", nomenclatures=t_d_nomenclature).form(operation_id=2, row_type_id=row_type_id)
-                
 
             with st.form("fact_data", clear_on_submit=True):
 
@@ -356,7 +288,9 @@ class Forms:
                             use_container_width=True,
                         )
                         # График
-                        df = Report.getReportPerfomancetRowTypeNomenclature(financial_center_id=financial_center_id, period_id=period_id, nomenclature_id=st.session_state.nomenclature_id)
+                        df = Report.getReportPerfomancetRowTypeNomenclature(
+                            financial_center_id=financial_center_id, period_id=period_id, nomenclature_id=st.session_state.nomenclature_id
+                        )
                         fig = px.bar(df, x="Номенклатура", y="Сумма", color="Тип", barmode="group", text_auto=True)
                         st.plotly_chart(fig, use_container_width=True)
                     else:
