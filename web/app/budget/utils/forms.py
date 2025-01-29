@@ -304,6 +304,8 @@ class Forms:
 
             with refill:
                 nomenclature_object = Dimension.Nomenclatures(operation="Пополнение", nomenclatures=t_d_nomenclature).form(operation_id=2, row_type_id=row_type_id)
+                
+            st.write(nomenclature_object)
 
             with st.form("fact_data", clear_on_submit=True):
 
