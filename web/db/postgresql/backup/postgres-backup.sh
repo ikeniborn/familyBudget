@@ -14,8 +14,10 @@ if [ -f $BACKUP_POSTGRES_NAME ]; then
   sudo /opt/minio-binaries/mc cp $BACKUP_POSTGRES_NAME yandex/ikeniborn-web-postgresql/
   if [ -f $BACKUP_POSTGRES_NAME_OLD ]; then
     sudo rm $BACKUP_POSTGRES_NAME_OLD
-    sudo /opt/minio-binaries/mc rm yandex/ikeniborn-web-postgresql/$BACKUP_POSTGRES_NAME_OLD
+
   fi
 fi
+
+sudo /opt/minio-binaries/mc rm yandex/ikeniborn-web-postgresql/$BACKUP_POSTGRES_NAME_OLD
 
 cd ~/
