@@ -14,8 +14,9 @@ if [ -f $BACKUP_COUCHDB_NAME ]; then
   sudo /opt/minio-binaries/mc cp $BACKUP_COUCHDB_NAME yandex/ikeniborn-obsidian-couchdb/
   if [ -f $BACKUP_COUCHDB_NAME_OLD ]; then
     sudo rm $BACKUP_COUCHDB_NAME_OLD 
-    sudo /opt/minio-binaries/mc rm yandex/ikeniborn-obsidian-couchdb/$BACKUP_COUCHDB_NAME_OLD
   fi
 fi
+
+sudo /opt/minio-binaries/mc rm yandex/ikeniborn-obsidian-couchdb/$BACKUP_COUCHDB_NAME_OLD
 
 cd ~/
