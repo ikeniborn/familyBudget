@@ -162,7 +162,7 @@ services:
     cpuset: "0"    
     cpus: 0.5
     mem_reservation: "500M"
-    mem_limit: "1000M" 
+    mem_limit: "750M" 
 
   couchdb:
       image: couchdb:latest
@@ -182,8 +182,8 @@ services:
       restart: always
       cpuset: "0"    
       cpus: 0.25
-      mem_reservation: "25M"
-      mem_limit: "100M" 
+      mem_reservation: "100M"
+      mem_limit: "300M" 
 
 networks:
   app_network:
