@@ -62,7 +62,7 @@ services:
       start_period: 30s
     restart: always
     cpuset: "0"    
-    cpus: 0.25 
+    cpus: 0.15 
     mem_reservation: "100M"
     mem_limit: "250M" 
     depends_on:
@@ -96,7 +96,7 @@ services:
       start_period: 30s
     restart: always
     cpuset: "0"    
-    cpus: 0.25 
+    cpus: 0.15
     mem_reservation: "100M"
     mem_limit: "250M" 
     depends_on:
@@ -181,7 +181,7 @@ services:
           - ${APP_PATH}/web/db/couchdb/local.ini:/opt/couchdb/etc/local.ini
       restart: always
       cpuset: "0"    
-      cpus: 0.25
+      cpus: 0.50
       mem_reservation: "100M"
       mem_limit: "300M" 
 
