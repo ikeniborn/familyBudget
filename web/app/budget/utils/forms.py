@@ -255,7 +255,7 @@ class Forms:
                 add_row = st.form_submit_button(label="Сохранить", type="primary")
 
                 if add_row:
-                    if _fact_cost_sum > 0 and st.session_state.fact_financial_center_name != None and st.session_state.nomenclature_id != None and st.session_state.nomenclature_id:
+                    if _fact_cost_sum > 0 and st.session_state.fact_financial_center_name != None and st.session_state.nomenclature_id != None:
 
                         period_id = (
                             t_d_period.lazy()
