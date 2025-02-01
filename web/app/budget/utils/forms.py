@@ -52,16 +52,16 @@ class Forms:
             with col1:
                 dt = st.date_input(label="Дата операции", value=start_dttm, format="YYYY-MM-DD", key="budget_date_input")
             with col2:
-                tm = st.time_input(label="Время операции", value=start_dttm, step=60, key="budget_time_input")
+                # tm = st.time_input(label="Время операции", value=start_dttm, step=60, key="budget_time_input")
+                st.selectbox(
+                    "Период",
+                    options=t_d_period.lazy().select("period_ru_name").collect()["period_ru_name"].to_list(),
+                    index=1,
+                    key="budget_period_ru_name",
+                )
 
-            operation_dttm = datetime(year=dt.year, month=dt.month, day=dt.day, hour=tm.hour, minute=tm.minute, second=0, microsecond=0).strftime("%Y-%m-%d %H:%M:%S.%f")
-
-            st.selectbox(
-                "Период",
-                options=t_d_period.lazy().select("period_ru_name").collect()["period_ru_name"].to_list(),
-                index=1,
-                key="budget_period_ru_name",
-            )
+            # operation_dttm = datetime(year=dt.year, month=dt.month, day=dt.day, hour=tm.hour, minute=tm.minute, second=0, microsecond=0).strftime("%Y-%m-%d %H:%M:%S.%f")
+            operation_dttm = datetime(year=dt.year, month=dt.month, day=dt.day, hour=0, minute=0, second=0, microsecond=0).strftime("%Y-%m-%d %H:%M:%S.%f")
 
             financial_center_name = st.selectbox(
                 label="ЦФО*",
@@ -179,24 +179,33 @@ class Forms:
             with col1:
                 dt = st.date_input(label="Дата операции", value=start_dttm, format="YYYY-MM-DD", key="fact_date_input")
             with col2:
-                tm = st.time_input(label="Время операции", value=start_dttm, step=60, key="fact_time_input")
+                # tm = st.time_input(label="Время операции", value=start_dttm, step=60, key="fact_time_input")
+                st.selectbox(
+                    "Период",
+                    options=t_d_period.lazy().select("period_ru_name").collect()["period_ru_name"].to_list(),
+                    index=1,
+                    key="fact_period_ru_name",
+                )
+
+            # operation_dttm = datetime(
+            #     year=dt.year,
+            #     month=dt.month,
+            #     day=dt.day,
+            #     hour=tm.hour,
+            #     minute=tm.minute,
+            #     second=0,
+            #     microsecond=0,
+            # ).strftime("%Y-%m-%d %H:%M:%S.%f")
 
             operation_dttm = datetime(
                 year=dt.year,
                 month=dt.month,
                 day=dt.day,
-                hour=tm.hour,
-                minute=tm.minute,
+                hour=0,
+                minute=0,
                 second=0,
                 microsecond=0,
             ).strftime("%Y-%m-%d %H:%M:%S.%f")
-
-            st.selectbox(
-                "Период",
-                options=t_d_period.lazy().select("period_ru_name").collect()["period_ru_name"].to_list(),
-                index=1,
-                key="fact_period_ru_name",
-            )
 
             def update_cost_center_name():
                 if "fact_cost_center_toggle" not in st.session_state:
