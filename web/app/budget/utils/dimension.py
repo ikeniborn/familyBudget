@@ -96,6 +96,7 @@ class Dimension:
                     st.session_state[nomenclature_key] = nomenclature_df.select("nomenclature_name")
                 else:
                     st.session_state[nomenclature_key] = nomenclature_df.select("nomenclature_name")
+            st.write(st.session_state[nomenclature_key])
 
             if st.session_state[account_key] and st.session_state[nomenclature_key]:
                 st.info(f"Статья: {st.session_state[account_key]}, Номенлатура: {st.session_state[nomenclature_key]}")
