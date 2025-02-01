@@ -65,8 +65,7 @@ class Dimension:
                     .to_list(),
                     index=None,
                 )
-            st.write(st.session_state[account_key])
-            st.write(st.session_state[nomenclature_key])
+            
             if st.session_state[account_key]:
                 nomenclature_list = (
                     t_d_nomenclature.lazy()
@@ -93,12 +92,14 @@ class Dimension:
                     with col3:
                         st.radio(
                             label="Номенклатура",
-                            on_change=clear_nomenclature_key(),
+                            # on_change=clear_nomenclature_key(),
                             key=nomenclature_key,
                             options=nomenclature_list,
                             index=None,
                         )
 
+            st.write(st.session_state[account_key])
+            st.write(st.session_state[nomenclature_key])
             if st.session_state[account_key] and st.session_state[nomenclature_key]:
                 st.info(f"Статья: {st.session_state[account_key]}, Номенлатура: {st.session_state[nomenclature_key]}")
 
