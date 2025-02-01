@@ -20,7 +20,7 @@ class Dimension:
             self._operation = operation
             self._nomenclatures = nomenclatures
 
-        def form(self, operation_id: int = None, row_type_id: int = None) -> object:
+        def form(self, row_type_id: int = None) -> object:
             operation_name = self._operation
             t_d_nomenclature = self._nomenclatures
             bill_key = "_".join([str(row_type_id), "bill_name"])
@@ -30,11 +30,8 @@ class Dimension:
             def clear_nomenclature_key():
                 if nomenclature_key in st.session_state:
                     del st.session_state[nomenclature_key]
-                    # st.session_state.nomenclature_key = None
                 if "nomenclature_id" in st.session_state:
                     st.session_state.nomenclature_id = None
-                else:
-                    del st.session_state.nomenclature_id
 
             col1, col2, col3 = st.columns(3)
 

@@ -45,11 +45,18 @@ sudo certbot certonly --standalone --debug-challenges -v --preferred-challenges 
 
 # build Docker image in current directory
 
-sudo docker-compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml up --build -d
-sudo docker-compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml down --rmi all
+/usr/bin/python3 -m venv venv
+Запуск среды
+source venv/bin/activate
+выход 
+deactivate
 
-sudo docker-compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml up -d
-sudo docker-compose -f ~/Documents/Git/familyBudget/web/docker-compose-dev.yaml down
+sudo docker-compose --env-file /home/ikeni/Documents/Git/familyBudget/web/web_dev.env -f /home/ikeni/Documents/Git/familyBudget/web/docker-compose-dev.yaml up --build -d
+sudo docker-compose --env-file /home/ikeni/Documents/Git/familyBudget/web/web_dev.env -f /home/ikeni/Documents/Git/familyBudget/web/docker-compose-dev.yaml down --rmi all
+
+sudo docker-compose --env-file /home/ikeni/Documents/Git/familyBudget/web/web_dev.env -f /home/ikeni/Documents/Git/familyBudget/web/docker-compose-dev.yaml up -d
+sudo docker-compose --env-file /home/ikeni/Documents/Git/familyBudget/web/web_dev.env -f /home/ikeni/Documents/Git/familyBudget/web/docker-compose-dev.yaml down
+sudo docker-compose --env-file /home/ikeni/Documents/Git/familyBudget/web/web_dev.env -f /home/ikeni/Documents/Git/familyBudget/web/docker-compose-dev.yaml restart budget-ui
 
 sudo docker-compose --env-file /home/ikeniborn/app/web/web.env -f /home/ikeniborn/app/web/docker-compose.yaml up --build -d
 sudo docker-compose --env-file /home/ikeniborn/app/web/web.env -f /home/ikenibornapp/web/docker-compose.yaml down --rmi all
@@ -66,7 +73,7 @@ sudo service docker stop && \
 sudo service docker status && \
 sudo service docker restart
 
-sudo systemctl disable docker.service
+sudo systemctl enable docker.service
 
 >> очистка не используемых контейнеров и образов
 sudo docker image ls
@@ -74,13 +81,13 @@ sudo docker volume ls
 sudo docker system prune -a 
 
 sudo docker ps
-sudo docker restart api
 sudo docker restart budget-ui
 sudo docker restart postgres
 sudo docker restart haproxy
 
 sudo docker logs -f budget-ui
 sudo docker logs -f budget-api
+sudo docker logs -f postgres
 
 ss -ntlp | more
 

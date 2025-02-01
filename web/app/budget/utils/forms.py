@@ -43,25 +43,18 @@ class Forms:
             st.info("Поля с * обязательные для заполнения!")
 
             row_type_name = "Бюджет"
+
             row_type_id = t_d_row_type.lazy().select("row_type_id", "row_type_name").filter(pl.col("row_type_name") == row_type_name).collect()["row_type_id"][0]
 
-            start_dttm = datetime.now(tz=pytz.timezone("Europe/Moscow"))
+            st.selectbox(
+                "Период",
+                options=t_d_period.lazy().select("period_ru_name").collect()["period_ru_name"].to_list(),
+                index=1,
+                key="budget_period_ru_name",
+            )
 
-            col1, col2 = st.columns(2)
-
-            with col1:
-                dt = st.date_input(label="Дата операции", value=start_dttm, format="YYYY-MM-DD", key="budget_date_input")
-            with col2:
-                # tm = st.time_input(label="Время операции", value=start_dttm, step=60, key="budget_time_input")
-                st.selectbox(
-                    "Период",
-                    options=t_d_period.lazy().select("period_ru_name").collect()["period_ru_name"].to_list(),
-                    index=1,
-                    key="budget_period_ru_name",
-                )
-
-            # operation_dttm = datetime(year=dt.year, month=dt.month, day=dt.day, hour=tm.hour, minute=tm.minute, second=0, microsecond=0).strftime("%Y-%m-%d %H:%M:%S.%f")
-            operation_dttm = datetime(year=dt.year, month=dt.month, day=dt.day, hour=0, minute=0, second=0, microsecond=0).strftime("%Y-%m-%d %H:%M:%S.%f")
+            period_dt = datetime.strptime(t_d_period.lazy().select("period_ru_name", "period_dt").filter(pl.col("period_ru_name") == st.session_state.budget_period_ru_name).collect()["period_dt"][0],"%Y-%m-%d")
+            operation_dttm = datetime(year=period_dt.year, month=period_dt.month, day=1, hour=0, minute=0, second=0, microsecond=0).strftime("%Y-%m-%d %H:%M:%S.%f")
 
             financial_center_name = st.selectbox(
                 label="ЦФО*",
@@ -72,13 +65,12 @@ class Forms:
 
             cost_center_name = financial_center_name
 
-            write_off, refill = st.tabs(["Списание", "Пополнение"])
-
-            with write_off:
-                Dimension.Nomenclatures(operation="Списание", nomenclatures=t_d_nomenclature).form(operation_id=1, row_type_id=row_type_id)
-
-            with refill:
-                Dimension.Nomenclatures(operation="Пополнение", nomenclatures=t_d_nomenclature).form(operation_id=2, row_type_id=row_type_id)
+            options = ["Списание", "Пополнение"]
+            selection = st.segmented_control("Операция", options, selection_mode="single", key=1)
+            if selection == "Списание":
+                Dimension.Nomenclatures(operation="Списание", nomenclatures=t_d_nomenclature).form(row_type_id=row_type_id)
+            elif selection == "Пополнение":
+                Dimension.Nomenclatures(operation="Пополнение", nomenclatures=t_d_nomenclature).form(row_type_id=row_type_id)
 
             with st.form("budget_data", clear_on_submit=True):
 
@@ -88,7 +80,7 @@ class Forms:
                 add_row = st.form_submit_button(label="Сохранить", type="primary")
 
                 if add_row:
-                    if _budget_cost_sum > 0 and st.session_state.budget_financial_center_name != None and st.session_state.budget_nomenclature_name != None:
+                    if _budget_cost_sum > 0 and st.session_state.budget_financial_center_name != None and st.session_state.nomenclature_id != None:
 
                         period_id = (
                             t_d_period.lazy()
@@ -174,28 +166,7 @@ class Forms:
 
             start_dttm = datetime.now(tz=pytz.timezone("Europe/Moscow"))
 
-            col1, col2 = st.columns(2)
-
-            with col1:
-                dt = st.date_input(label="Дата операции", value=start_dttm, format="YYYY-MM-DD", key="fact_date_input")
-            with col2:
-                # tm = st.time_input(label="Время операции", value=start_dttm, step=60, key="fact_time_input")
-                st.selectbox(
-                    "Период",
-                    options=t_d_period.lazy().select("period_ru_name").collect()["period_ru_name"].to_list(),
-                    index=1,
-                    key="fact_period_ru_name",
-                )
-
-            # operation_dttm = datetime(
-            #     year=dt.year,
-            #     month=dt.month,
-            #     day=dt.day,
-            #     hour=tm.hour,
-            #     minute=tm.minute,
-            #     second=0,
-            #     microsecond=0,
-            # ).strftime("%Y-%m-%d %H:%M:%S.%f")
+            dt = st.date_input(label="Дата операции", value=start_dttm, format="YYYY-MM-DD", key="fact_date_input")
 
             operation_dttm = datetime(
                 year=dt.year,
@@ -206,6 +177,16 @@ class Forms:
                 second=0,
                 microsecond=0,
             ).strftime("%Y-%m-%d %H:%M:%S.%f")
+
+            period_dt = datetime(
+                year=dt.year,
+                month=dt.month,
+                day=1,
+                hour=0,
+                minute=0,
+                second=0,
+                microsecond=0,
+            ).strftime("%Y-%m-%d")
 
             def update_cost_center_name():
                 if "fact_cost_center_toggle" not in st.session_state:
@@ -238,23 +219,12 @@ class Forms:
                     key="fact_cost_center_name",
                 )
 
-            # with st.popover("Выбор номенлатуры", use_container_width=True):
-            button_1, button_2 = st.columns(2)
-            with button_1:
-                write_off = st.button("Списание")
-            if write_off:
-                Dimension.Nomenclatures(operation="Списание", nomenclatures=t_d_nomenclature).form(operation_id=1, row_type_id=row_type_id)
-            with button_2:
-                refill = st.button("Пополнение")
-            if refill:
-                Dimension.Nomenclatures(operation="Пополнение", nomenclatures=t_d_nomenclature).form(operation_id=2, row_type_id=row_type_id)
-            # write_off, refill = st.tabs(["Списание", "Пополнение"])
-
-            # with write_off:
-            #     Dimension.Nomenclatures(operation="Списание", nomenclatures=t_d_nomenclature).form(operation_id=1, row_type_id=row_type_id)
-
-            # with refill:
-            #     Dimension.Nomenclatures(operation="Пополнение", nomenclatures=t_d_nomenclature).form(operation_id=2, row_type_id=row_type_id)
+            options = ["Списание", "Пополнение"]
+            selection = st.segmented_control("Операция", options, selection_mode="single", key=2)
+            if selection == "Списание":
+                Dimension.Nomenclatures(operation="Списание", nomenclatures=t_d_nomenclature).form(row_type_id=row_type_id)
+            elif selection == "Пополнение":
+                Dimension.Nomenclatures(operation="Пополнение", nomenclatures=t_d_nomenclature).form(row_type_id=row_type_id)
 
             with st.form("fact_data", clear_on_submit=True):
 
@@ -266,12 +236,7 @@ class Forms:
                 if add_row:
                     if _fact_cost_sum > 0 and st.session_state.fact_financial_center_name != None and st.session_state.nomenclature_id != None:
 
-                        period_id = (
-                            t_d_period.lazy()
-                            .select("period_id", "period_ru_name")
-                            .filter(pl.col("period_ru_name") == st.session_state.fact_period_ru_name)
-                            .collect()["period_id"][0]
-                        )
+                        period_id = t_d_period.lazy().select("period_id", "period_dt").filter(pl.col("period_dt") == period_dt).collect()["period_id"][0]
 
                         financial_center_id = (
                             t_d_financial_center.lazy()
