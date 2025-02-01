@@ -66,7 +66,7 @@ class Dimension:
                 & (pl.col("operation_name") == operation_name)
                 & (pl.col("bill_name") == st.session_state[bill_key])
                 & (pl.col("account_name") == st.session_state[account_key])
-            ).select("nomenclature_name").collect()["nomenclature_name"]
+            ).select("nomenclature_name")
             
             st.write(nomenclature_df)
 
