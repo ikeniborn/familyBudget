@@ -29,7 +29,7 @@ class Dimension:
             
             def clear_nomenclature_key():
                 if nomenclature_key in st.session_state:
-                    st.session_state[nomenclature_key]=None
+                    del st.session_state[nomenclature_key]
 
             col1, col2, col3 = st.columns(3)
 
@@ -38,6 +38,7 @@ class Dimension:
                 st.radio(
                     "Счет",
                     key=bill_key,
+                    on_change=clear_nomenclature_key,
                     options=t_d_nomenclature.lazy()
                     .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == operation_name))
                     .select("bill_name")
@@ -54,6 +55,7 @@ class Dimension:
                 st.radio(
                     label="Статья",
                     key=account_key,
+                    on_change=clear_nomenclature_key,
                     options=t_d_nomenclature.lazy()
                     .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == operation_name) & (pl.col("bill_name") == st.session_state[bill_key]))
                     .select("account_name")
@@ -88,16 +90,13 @@ class Dimension:
                     else:
                         st.session_state[nomenclature_key] = nomenclature_list[0]
                 else:
-                    if st.session_state[nomenclature_key]:
-                        clear_nomenclature_key()
-                    else: 
-                        with col3:
-                            st.radio(
-                                label="Номенклатура",
-                                key=nomenclature_key,
-                                options=nomenclature_list,
-                                index=None,
-                            )
+                    with col3:
+                        st.radio(
+                            label="Номенклатура",
+                            key=nomenclature_key,
+                            options=nomenclature_list,
+                            index=None,
+                        )
 
             st.write(st.session_state[account_key])
             st.write(st.session_state[nomenclature_key])
