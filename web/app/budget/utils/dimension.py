@@ -84,8 +84,8 @@ class Dimension:
                     else:
                         st.session_state[nomenclature_key] = nomenclature_list[0]
                 else:
-                    del st.session_state[nomenclature_key]
                     with col3:
+                        del st.session_state[nomenclature_key]
                         st.radio(
                             label="Номенклатура*",
                             key=nomenclature_key,
