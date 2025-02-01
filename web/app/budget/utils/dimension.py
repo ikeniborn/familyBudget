@@ -26,6 +26,9 @@ class Dimension:
             bill_key = "_".join([str(row_type_id), str(operation_id), "bill_name"])
             account_key = "_".join([str(row_type_id), str(operation_id), "account_name"])
             nomenclature_key = "_".join([str(row_type_id), str(operation_id), "nomenclature_name"])
+            
+            def clear_nomenclature_key():
+                del st.session_state[nomenclature_key]
 
             col1, col2, col3 = st.columns(3)
 
@@ -47,10 +50,10 @@ class Dimension:
                 )
 
             with col2:
-                st.session_state[nomenclature_key] = None
                 st.radio(
                     label="Статья",
                     key=account_key,
+                    on_change=clear_nomenclature_key(),
                     options=t_d_nomenclature.lazy()
                     .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == operation_name) & (pl.col("bill_name") == st.session_state[bill_key]))
                     .select("account_name")
