@@ -26,7 +26,7 @@ class Dimension:
             bill_key = "_".join([str(row_type_id), str(operation_id), "bill_name"])
             account_key = "_".join([str(row_type_id), str(operation_id), "account_name"])
             nomenclature_key = "_".join([str(row_type_id), str(operation_id), "nomenclature_name"])
-            
+
             def clear_nomenclature_key():
                 if nomenclature_key in st.session_state:
                     del st.session_state[nomenclature_key]
@@ -68,7 +68,7 @@ class Dimension:
                     .to_list(),
                     index=None,
                 )
-            
+
             if st.session_state[account_key]:
                 nomenclature_list = (
                     t_d_nomenclature.lazy()
@@ -118,4 +118,3 @@ class Dimension:
                     st.session_state.nomenclature_key = nomenclature_key
                 else:
                     st.session_state.nomenclature_key = nomenclature_key
-                
