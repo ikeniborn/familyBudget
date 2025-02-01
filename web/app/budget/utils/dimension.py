@@ -61,15 +61,23 @@ class Dimension:
                     index=None,
                 )
 
-            nomenclature_df = t_d_nomenclature.filter(
-                (pl.col("is_fact") == True)
-                & (pl.col("operation_name") == operation_name)
-                & (pl.col("bill_name") == st.session_state[bill_key])
-                & (pl.col("account_name") == st.session_state[account_key])
-            ).select("nomenclature_name")
+            nomenclature_list = (
+                t_d_nomenclature.lazy()
+                .filter(
+                    (pl.col("is_fact") == True)
+                    & (pl.col("operation_name") == operation_name)
+                    & (pl.col("bill_name") == st.session_state[bill_key])
+                    & (pl.col("account_name") == st.session_state[account_key])
+                )
+                .select("nomenclature_name")
+                .group_by("nomenclature_name", maintain_order=True)
+                .n_unique()
+                .sort(pl.col("nomenclature_name"))
+                .collect()["nomenclature_name"]
+                .to_list()
+            )
 
-            _nomenclature_name = nomenclature_df.lazy().collect()["nomenclature_name"]
-            st.write(_nomenclature_name)
+            st.write(nomenclature_list)
             nomenclature_df_count = nomenclature_df.count()
 
             if nomenclature_df_count["nomenclature_name"][0] > 1:
