@@ -242,12 +242,12 @@ class Forms:
             button_1, button_2 = st.columns(2)
             with button_1:
                 write_off = st.button("Списание")
-                if write_off:
-                    Dimension.Nomenclatures(operation="Списание", nomenclatures=t_d_nomenclature).form(operation_id=1, row_type_id=row_type_id)
+            if write_off:
+                Dimension.Nomenclatures(operation="Списание", nomenclatures=t_d_nomenclature).form(operation_id=1, row_type_id=row_type_id)
             with button_2:
                 refill = st.button("Пополнение")
-                if refill:
-                    Dimension.Nomenclatures(operation="Пополнение", nomenclatures=t_d_nomenclature).form(operation_id=2, row_type_id=row_type_id)
+            if refill:
+                Dimension.Nomenclatures(operation="Пополнение", nomenclatures=t_d_nomenclature).form(operation_id=2, row_type_id=row_type_id)
             # write_off, refill = st.tabs(["Списание", "Пополнение"])
 
             # with write_off:
