@@ -61,7 +61,7 @@ class Dimension:
                     index=None,
                 )
 
-            nomenclature_df = t_d_nomenclature.lazy().filter(
+            nomenclature_df = t_d_nomenclature.filter(
                 (pl.col("is_fact") == True)
                 & (pl.col("operation_name") == operation_name)
                 & (pl.col("bill_name") == st.session_state[bill_key])
