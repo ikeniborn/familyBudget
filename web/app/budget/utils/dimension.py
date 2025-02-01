@@ -78,19 +78,19 @@ class Dimension:
                     .to_list()
                 )
 
-            if len(nomenclature_list) == 1:
-                if nomenclature_key not in st.session_state:
-                    st.session_state[nomenclature_key] = nomenclature_list[0]
+                if len(nomenclature_list) == 1:
+                    if nomenclature_key not in st.session_state:
+                        st.session_state[nomenclature_key] = nomenclature_list[0]
+                    else:
+                        st.session_state[nomenclature_key] = nomenclature_list[0]
                 else:
-                    st.session_state[nomenclature_key] = nomenclature_list[0]
-            else:
-                with col3:
-                    st.radio(
-                        label="Номенклатура*",
-                        key=nomenclature_key,
-                        options=nomenclature_list,
-                        index=None,
-                    )
+                    with col3:
+                        st.radio(
+                            label="Номенклатура*",
+                            key=nomenclature_key,
+                            options=nomenclature_list,
+                            index=None,
+                        )
 
             if st.session_state[account_key] and st.session_state[nomenclature_key]:
                 st.info(f"Статья: {st.session_state[account_key]}, Номенлатура: {st.session_state[nomenclature_key]}")
