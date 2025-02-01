@@ -100,8 +100,6 @@ class Dimension:
                             index=None,
                         )
 
-            st.write(st.session_state[account_key])
-            st.write(st.session_state[nomenclature_key])
             if st.session_state[account_key] and st.session_state[nomenclature_key]:
                 st.info(f"Статья: {st.session_state[account_key]}, Номенлатура: {st.session_state[nomenclature_key]}")
 
@@ -114,7 +112,6 @@ class Dimension:
 
                 if "nomenclature_id" not in st.session_state:
                     st.session_state.nomenclature_id = nomenclature_id
-                    st.write(st.session_state[nomenclature_id])
                 else:
                     st.session_state.nomenclature_id = nomenclature_id
                 if "nomenclature_key" not in st.session_state:
