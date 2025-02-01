@@ -76,12 +76,14 @@ class Dimension:
                 .collect()["nomenclature_name"]
                 .to_list()
             )
-            st.write(nomenclature_list)
-            st.write(nomenclature_list[0])
+
+            _nomenclature_first = nomenclature_list[0]
 
             if len(nomenclature_list) == 1:
                 if nomenclature_key not in st.session_state:
-                    st.session_state[nomenclature_key] = nomenclature_list[0]
+                    st.session_state[nomenclature_key] = _nomenclature_first
+                else:
+                    st.session_state[nomenclature_key] = _nomenclature_first
             else:
                 with col3:
                     st.radio(
