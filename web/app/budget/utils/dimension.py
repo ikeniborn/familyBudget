@@ -28,7 +28,8 @@ class Dimension:
             nomenclature_key = "_".join([str(row_type_id), str(operation_id), "nomenclature_name"])
             
             def clear_nomenclature_key():
-                del st.session_state[nomenclature_key]
+                if nomenclature_key in st.session_state:
+                    del st.session_state[nomenclature_key]
 
             col1, col2, col3 = st.columns(3)
 
