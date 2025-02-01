@@ -29,7 +29,7 @@ class Dimension:
             
             def clear_nomenclature_key():
                 if nomenclature_key in st.session_state:
-                    del st.session_state[nomenclature_key]
+                    st.session_state[nomenclature_key]=None
 
             col1, col2, col3 = st.columns(3)
 
