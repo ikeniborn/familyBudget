@@ -77,7 +77,7 @@ class Dimension:
                 .to_list()
             )
 
-            st.write(nomenclature_list)
+            st.write(nomenclature_list[0])
             nomenclature_df_count = nomenclature_df.count()
 
             if nomenclature_df_count["nomenclature_name"][0] > 1:
