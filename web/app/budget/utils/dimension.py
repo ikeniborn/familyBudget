@@ -60,30 +60,29 @@ class Dimension:
                     .to_list(),
                     index=None,
                 )
-
-            nomenclature_list = (
-                t_d_nomenclature.lazy()
-                .filter(
-                    (pl.col("is_fact") == True)
-                    & (pl.col("operation_name") == operation_name)
-                    & (pl.col("bill_name") == st.session_state[bill_key])
-                    & (pl.col("account_name") == st.session_state[account_key])
+            
+            if st.session_state[account_key]:
+                nomenclature_list = (
+                    t_d_nomenclature.lazy()
+                    .filter(
+                        (pl.col("is_fact") == True)
+                        & (pl.col("operation_name") == operation_name)
+                        & (pl.col("bill_name") == st.session_state[bill_key])
+                        & (pl.col("account_name") == st.session_state[account_key])
+                    )
+                    .select("nomenclature_name")
+                    .group_by("nomenclature_name", maintain_order=True)
+                    .n_unique()
+                    .sort(pl.col("nomenclature_name"))
+                    .collect()["nomenclature_name"]
+                    .to_list()
                 )
-                .select("nomenclature_name")
-                .group_by("nomenclature_name", maintain_order=True)
-                .n_unique()
-                .sort(pl.col("nomenclature_name"))
-                .collect()["nomenclature_name"]
-                .to_list()
-            )
-
-            _nomenclature_first = nomenclature_list[0]
 
             if len(nomenclature_list) == 1:
                 if nomenclature_key not in st.session_state:
-                    st.session_state[nomenclature_key] = _nomenclature_first
+                    st.session_state[nomenclature_key] = nomenclature_list[0]
                 else:
-                    st.session_state[nomenclature_key] = _nomenclature_first
+                    st.session_state[nomenclature_key] = nomenclature_list[0]
             else:
                 with col3:
                     st.radio(
