@@ -68,6 +68,7 @@ class Dimension:
                 & (pl.col("account_name") == st.session_state[account_key])
             ).select("nomenclature_name")
 
+            _nomenclature_name = nomenclature_df["nomenclature_name"][0]
             nomenclature_df_count = nomenclature_df.count()
 
             if nomenclature_df_count["nomenclature_name"][0] > 1:
@@ -92,7 +93,6 @@ class Dimension:
                         index=None,
                     )
             else:
-                _nomenclature_name = nomenclature_df["nomenclature_name"][0]
                 st.session_state[nomenclature_key] = _nomenclature_name
             st.write(st.session_state[nomenclature_key])
 
