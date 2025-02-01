@@ -78,20 +78,17 @@ class Dimension:
                     .to_list()
                 )
 
-                def clear_nomenclature_key():
-                    st.session_state[nomenclature_key] = None
-
                 if len(nomenclature_list) == 1:
                     if nomenclature_key not in st.session_state:
                         st.session_state[nomenclature_key] = nomenclature_list[0]
                     else:
                         st.session_state[nomenclature_key] = nomenclature_list[0]
                 else:
+                    st.session_state[nomenclature_key] = None
                     with col3:
                         st.radio(
                             label="Номенклатура*",
                             key=nomenclature_key,
-                            on_change=clear_nomenclature_key(),
                             options=nomenclature_list,
                             index=None,
                         )
