@@ -89,10 +89,11 @@ class Dimension:
                     else:
                         st.session_state[nomenclature_key] = nomenclature_list[0]
                 else:
+                    if st.session_state[nomenclature_key]:
+                        clear_nomenclature_key()
                     with col3:
                         st.radio(
                             label="Номенклатура",
-                            # on_change=clear_nomenclature_key(),
                             key=nomenclature_key,
                             options=nomenclature_list,
                             index=None,
