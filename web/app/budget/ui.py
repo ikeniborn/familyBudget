@@ -78,10 +78,10 @@ if __name__ == "__main__":
                 st.session_state.clear()
                 st.write("Пользователя нет в базе! Обратитесь к администратору.")
     else:
-        financial_centers = FinancialCenters().fetchAll(ttl=60)
-        cost_centers = CostCenter().fetchAll(ttl=60)
-        nomenclatures = Nomenclatures().fetchAll(ttl=60)
-        row_types = RowTypes().fetchAll(ttl=60)
+        financial_centers = FinancialCenters().fetchAll(ttl=3600)
+        cost_centers = CostCenter().fetchAll(ttl=3600)
+        nomenclatures = Nomenclatures().fetchAll(ttl=3600)
+        row_types = RowTypes().fetchAll(ttl=3600)
 
         st.sidebar.title(f"Привет {st.session_state.first_name}")
         clicked = st.sidebar.button("Выход")

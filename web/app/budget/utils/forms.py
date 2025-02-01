@@ -255,7 +255,7 @@ class Forms:
                 add_row = st.form_submit_button(label="Сохранить", type="primary")
 
                 if add_row:
-                    if _fact_cost_sum > 0 and st.session_state.fact_financial_center_name != None and st.session_state.nomenclature_id != None:
+                    if _fact_cost_sum > 0 and st.session_state.fact_financial_center_name != None and st.session_state.nomenclature_id != None and st.session_state.nomenclature_id:
 
                         period_id = (
                             t_d_period.lazy()
@@ -305,7 +305,7 @@ class Forms:
                     else:
                         if st.session_state.fact_financial_center_name == None:
                             st.error("Не указан ЦФО")
-                        if st.session_state.nomenclature_id == None:
+                        if st.session_state.nomenclature_id == None :
                             st.error("Не указана Номенклатура")
                         if _fact_cost_sum == 0:
                             st.error("Не указана Сумма")
