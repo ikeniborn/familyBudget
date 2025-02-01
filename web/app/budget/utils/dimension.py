@@ -60,26 +60,43 @@ class Dimension:
                     .to_list(),
                     index=None,
                 )
-            # TODO Реализовать проверку на количество записей и автоматический выбор если значение равно 1
-            with col3:
-                st.radio(
-                    label="Номенклатура*",
-                    key=nomenclature_key,
-                    options=t_d_nomenclature.lazy()
-                    .filter(
-                        (pl.col("is_fact") == True)
-                        & (pl.col("operation_name") == operation_name)
-                        & (pl.col("bill_name") == st.session_state[bill_key])
-                        & (pl.col("account_name") == st.session_state[account_key])
+
+            nomenclature_df = t_d_nomenclature.lazy().filter(
+                (pl.col("is_fact") == True)
+                & (pl.col("operation_name") == operation_name)
+                & (pl.col("bill_name") == st.session_state[bill_key])
+                & (pl.col("account_name") == st.session_state[account_key])
+            )
+
+            nomenclature_df_count = nomenclature_df.count()
+
+            if nomenclature_df_count["nomenclature_name"][0] > 1:
+                # TODO Реализовать проверку на количество записей и автоматический выбор если значение равно 1
+                with col3:
+                    st.radio(
+                        label="Номенклатура*",
+                        key=nomenclature_key,
+                        options=t_d_nomenclature.lazy()
+                        .filter(
+                            (pl.col("is_fact") == True)
+                            & (pl.col("operation_name") == operation_name)
+                            & (pl.col("bill_name") == st.session_state[bill_key])
+                            & (pl.col("account_name") == st.session_state[account_key])
+                        )
+                        .select("nomenclature_name")
+                        .group_by("nomenclature_name", maintain_order=True)
+                        .n_unique()
+                        .sort(pl.col("nomenclature_name"))
+                        .collect()["nomenclature_name"]
+                        .to_list(),
+                        index=None,
                     )
-                    .select("nomenclature_name")
-                    .group_by("nomenclature_name", maintain_order=True)
-                    .n_unique()
-                    .sort(pl.col("nomenclature_name"))
-                    .collect()["nomenclature_name"]
-                    .to_list(),
-                    index=None,
-                )
+            else:
+                if nomenclature_key not in st.session_state:
+                    st.session_state[nomenclature_key] = nomenclature_df.select("nomenclature_name")
+                else:
+                    st.session_state[nomenclature_key] = nomenclature_df.select("nomenclature_name")s
+
             if st.session_state[account_key] and st.session_state[nomenclature_key]:
                 st.info(f"Статья: {st.session_state[account_key]}, Номенлатура: {st.session_state[nomenclature_key]}")
 
