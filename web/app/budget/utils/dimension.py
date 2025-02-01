@@ -54,7 +54,6 @@ class Dimension:
                 st.radio(
                     label="Статья",
                     key=account_key,
-                    # on_change=clear_nomenclature_key(),
                     options=t_d_nomenclature.lazy()
                     .filter((pl.col("is_fact") == True) & (pl.col("operation_name") == operation_name) & (pl.col("bill_name") == st.session_state[bill_key]))
                     .select("account_name")
@@ -91,13 +90,14 @@ class Dimension:
                 else:
                     if st.session_state[nomenclature_key]:
                         clear_nomenclature_key()
-                    with col3:
-                        st.radio(
-                            label="Номенклатура",
-                            key=nomenclature_key,
-                            options=nomenclature_list,
-                            index=None,
-                        )
+                    else: 
+                        with col3:
+                            st.radio(
+                                label="Номенклатура",
+                                key=nomenclature_key,
+                                options=nomenclature_list,
+                                index=None,
+                            )
 
             st.write(st.session_state[account_key])
             st.write(st.session_state[nomenclature_key])
