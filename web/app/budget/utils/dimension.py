@@ -77,7 +77,7 @@ class Dimension:
                 .to_list()
             )
             st.write(nomenclature_list)
-            st.write(nomenclature_list[0][0])
+            st.write(nomenclature_list[0])
 
             if len(nomenclature_list) == 1:
                 if nomenclature_key not in st.session_state:
