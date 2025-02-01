@@ -92,8 +92,8 @@ class Dimension:
                         index=None,
                     )
             else:
-                st.write(nomenclature_df["nomenclature_name"][0])
-                st.session_state[nomenclature_key] = nomenclature_df["nomenclature_name"][0]
+                _nomenclature_name = nomenclature_df["nomenclature_name"][0]
+                st.session_state[nomenclature_key] = _nomenclature_name
             st.write(st.session_state[nomenclature_key])
 
             if st.session_state[account_key] and st.session_state[nomenclature_key]:
