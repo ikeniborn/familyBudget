@@ -47,6 +47,7 @@ class Dimension:
                 )
 
             with col2:
+                st.session_state[nomenclature_key] = None
                 st.radio(
                     label="Статья",
                     key=account_key,
@@ -86,7 +87,7 @@ class Dimension:
                 else:
                     with col3:
                         st.radio(
-                            label="Номенклатура*",
+                            label="Номенклатура",
                             key=nomenclature_key,
                             options=nomenclature_list,
                             index=None,
