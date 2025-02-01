@@ -102,7 +102,6 @@ class Dimension:
 
             st.write(st.session_state[account_key])
             st.write(st.session_state[nomenclature_key])
-            st.write(st.session_state[nomenclature_id])
             if st.session_state[account_key] and st.session_state[nomenclature_key]:
                 st.info(f"Статья: {st.session_state[account_key]}, Номенлатура: {st.session_state[nomenclature_key]}")
 
@@ -121,3 +120,4 @@ class Dimension:
                     st.session_state.nomenclature_key = nomenclature_key
                 else:
                     st.session_state.nomenclature_key = nomenclature_key
+                st.write(st.session_state[nomenclature_id])
