@@ -114,10 +114,11 @@ class Dimension:
 
                 if "nomenclature_id" not in st.session_state:
                     st.session_state.nomenclature_id = nomenclature_id
+                    st.write(st.session_state[nomenclature_id])
                 else:
                     st.session_state.nomenclature_id = nomenclature_id
                 if "nomenclature_key" not in st.session_state:
                     st.session_state.nomenclature_key = nomenclature_key
                 else:
                     st.session_state.nomenclature_key = nomenclature_key
-                st.write(st.session_state[nomenclature_id])
+                
