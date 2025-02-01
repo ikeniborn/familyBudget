@@ -77,9 +77,6 @@ class Dimension:
                 .to_list()
             )
 
-            st.write(nomenclature_list[0])
-            st.write(len(nomenclature_list))
-
             if len(nomenclature_list) > 1:
                 # TODO Реализовать проверку на количество записей и автоматический выбор если значение равно 1
                 with col3:
@@ -104,7 +101,6 @@ class Dimension:
             else:
                 if nomenclature_key not in st.session_state:
                     st.session_state[nomenclature_key] = nomenclature_list[0]
-            st.write(st.session_state[nomenclature_key])
 
             if st.session_state[account_key] and st.session_state[nomenclature_key]:
                 st.info(f"Статья: {st.session_state[account_key]}, Номенлатура: {st.session_state[nomenclature_key]}")
