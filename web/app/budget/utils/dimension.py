@@ -29,8 +29,8 @@ class Dimension:
 
             def clear_nomenclature_key():
                 if nomenclature_key in st.session_state:
-                    # del st.session_state[nomenclature_key]
-                    st.session_state.nomenclature_key = None
+                    del st.session_state[nomenclature_key]
+                    # st.session_state.nomenclature_key = None
                 if "nomenclature_id" in st.session_state:
                     st.session_state.nomenclature_id = None
 
