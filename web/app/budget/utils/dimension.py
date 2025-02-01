@@ -92,6 +92,7 @@ class Dimension:
                         index=None,
                     )
             else:
+                st.write(nomenclature_df["nomenclature_name"][0])
                 st.session_state[nomenclature_key] = nomenclature_df["nomenclature_name"][0]
             st.write(st.session_state[nomenclature_key])
 
