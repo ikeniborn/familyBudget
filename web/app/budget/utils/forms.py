@@ -239,13 +239,22 @@ class Forms:
                 )
 
             # with st.popover("Выбор номенлатуры", use_container_width=True):
-            write_off, refill = st.tabs(["Списание", "Пополнение"])
+            button_1, button_2 = st.columns(2)
+            with button_1:
+                write_off = st.button("Списание")
+                if write_off:
+                    Dimension.Nomenclatures(operation="Списание", nomenclatures=t_d_nomenclature).form(operation_id=1, row_type_id=row_type_id)
+            with button_2:
+                refill = st.button("Пополнение")
+                if refill:
+                    Dimension.Nomenclatures(operation="Пополнение", nomenclatures=t_d_nomenclature).form(operation_id=2, row_type_id=row_type_id)
+            # write_off, refill = st.tabs(["Списание", "Пополнение"])
 
-            with write_off:
-                Dimension.Nomenclatures(operation="Списание", nomenclatures=t_d_nomenclature).form(operation_id=1, row_type_id=row_type_id)
+            # with write_off:
+            #     Dimension.Nomenclatures(operation="Списание", nomenclatures=t_d_nomenclature).form(operation_id=1, row_type_id=row_type_id)
 
-            with refill:
-                Dimension.Nomenclatures(operation="Пополнение", nomenclatures=t_d_nomenclature).form(operation_id=2, row_type_id=row_type_id)
+            # with refill:
+            #     Dimension.Nomenclatures(operation="Пополнение", nomenclatures=t_d_nomenclature).form(operation_id=2, row_type_id=row_type_id)
 
             with st.form("fact_data", clear_on_submit=True):
 
@@ -305,7 +314,7 @@ class Forms:
                     else:
                         if st.session_state.fact_financial_center_name == None:
                             st.error("Не указан ЦФО")
-                        if st.session_state.nomenclature_id == None :
+                        if st.session_state.nomenclature_id == None:
                             st.error("Не указана Номенклатура")
                         if _fact_cost_sum == 0:
                             st.error("Не указана Сумма")
