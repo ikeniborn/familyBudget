@@ -66,7 +66,7 @@ class Dimension:
                 & (pl.col("operation_name") == operation_name)
                 & (pl.col("bill_name") == st.session_state[bill_key])
                 & (pl.col("account_name") == st.session_state[account_key])
-            )
+            ).select("nomenclature_name")
 
             nomenclature_df_count = nomenclature_df.count()
 
@@ -93,9 +93,9 @@ class Dimension:
                     )
             else:
                 if nomenclature_key not in st.session_state:
-                    st.session_state[nomenclature_key] = nomenclature_df.select("nomenclature_name")[0][0]
+                    st.session_state[nomenclature_key] = nomenclature_df["nomenclature_name"][0]
                 else:
-                    st.session_state[nomenclature_key] = nomenclature_df.select("nomenclature_name")[0][0]
+                    st.session_state[nomenclature_key] = nomenclature_df["nomenclature_name"][0]
             st.write(st.session_state[nomenclature_key])
 
             # if st.session_state[account_key] and st.session_state[nomenclature_key]:
