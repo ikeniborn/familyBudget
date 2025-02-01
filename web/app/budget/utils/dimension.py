@@ -68,7 +68,7 @@ class Dimension:
                 & (pl.col("account_name") == st.session_state[account_key])
             ).select("nomenclature_name")
 
-            _nomenclature_name = nomenclature_df["nomenclature_name"]
+            _nomenclature_name = nomenclature_df.lazy().collect()["nomenclature_name"]
             st.write(_nomenclature_name)
             nomenclature_df_count = nomenclature_df.count()
 
