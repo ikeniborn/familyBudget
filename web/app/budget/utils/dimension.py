@@ -81,7 +81,7 @@ class Dimension:
 
             if len(nomenclature_list) == 1:
                 if nomenclature_key not in st.session_state:
-                    st.session_state[nomenclature_key] = nomenclature_list.index("0")
+                    st.session_state[nomenclature_key] = nomenclature_list[0]
             else:
                 with col3:
                     st.radio(
