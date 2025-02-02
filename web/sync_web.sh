@@ -29,7 +29,7 @@ else
     sudo chmod +x "$app_folder/web/service/haproxy/prepareLetsEncryptCertificates.sh"
     sudo chmod +x "$app_folder/web/service/haproxy/renewLetsEncryptCertificates.sh"
     sudo chown -R ikeniborn:ikeniborn $app_folder
-    sudo rm -rdf $git_folder
+    # sudo rm -rdf $git_folder
 fi
 
 cd $HOME
