@@ -53,7 +53,10 @@ class Forms:
                 key="budget_period_ru_name",
             )
 
-            period_dt = datetime.strptime(t_d_period.lazy().select("period_ru_name", "period_dt").filter(pl.col("period_ru_name") == st.session_state.budget_period_ru_name).collect()["period_dt"][0],"%Y-%m-%d")
+            period_dt = datetime.strptime(
+                t_d_period.lazy().select("period_ru_name", "period_dt").filter(pl.col("period_ru_name") == st.session_state.budget_period_ru_name).collect()["period_dt"][0],
+                "%Y-%m-%d",
+            )
             operation_dttm = datetime(year=period_dt.year, month=period_dt.month, day=1, hour=0, minute=0, second=0, microsecond=0).strftime("%Y-%m-%d %H:%M:%S.%f")
 
             financial_center_name = st.selectbox(
@@ -127,14 +130,13 @@ class Forms:
                             st.error("Не указана Номенклатура")
                         if _budget_cost_sum == 0:
                             st.error("Не указана Сумма")
-            num_col, button_col = st.columns(2, gap='small')   
-            with num_col:            
-                st.number_input(min_value=5, value=5, key="budget_input_row")
-            with button_col:
-                show_last_row = st.button(label="Последние записи", key=st.session_state.budget_input_row)
+            last_row_col = st.columns(1)
+            with last_row_col:
+                st.number_input(label="Количество строк", min_value=5, value=5, key="budget_input_row")
+                show_last_row = st.button(label="Последние записи", key="budget_last_row")
             if show_last_row:
                 st.dataframe(
-                    data=Registry.getLastRows(row_type_id=1, limit_rows=5),
+                    data=Registry.getLastRows(row_type_id=1, limit_rows=st.session_state.budget_input_row),
                     hide_index=True,
                     use_container_width=True,
                 )
@@ -286,11 +288,10 @@ class Forms:
                             st.error("Не указана Номенклатура")
                         if _fact_cost_sum == 0:
                             st.error("Не указана Сумма")
-                            
-            num_col, button_col = st.columns(2, gap='small')  
-            with num_col:                
-                st.number_input( min_value=5, value=5, key="fact_input_row")
-            with button_col:
+
+            last_row_col = st.columns(1)
+            with last_row_col:
+                st.number_input(label="Количество строк", min_value=5, value=5, key="fact_input_row")
                 show_last_row = st.button(label="Последние записи", key="fact_last_row")
             if show_last_row:
                 st.dataframe(
