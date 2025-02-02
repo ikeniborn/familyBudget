@@ -129,15 +129,15 @@ class Forms:
                             st.error("Не указана Сумма")
             num_col, button_col = st.columns(2, gap='small')   
             with num_col:            
-                st.number_input(label="Количество строк", min_value=5, value=5, key="budget_input_row")
+                st.number_input(min_value=5, value=5, key="budget_input_row")
             with button_col:
                 show_last_row = st.button(label="Последние записи", key=st.session_state.budget_input_row)
-                if show_last_row:
-                    st.dataframe(
-                        data=Registry.getLastRows(row_type_id=1, limit_rows=5),
-                        hide_index=True,
-                        use_container_width=True,
-                    )
+            if show_last_row:
+                st.dataframe(
+                    data=Registry.getLastRows(row_type_id=1, limit_rows=5),
+                    hide_index=True,
+                    use_container_width=True,
+                )
 
     class Fact:
 
@@ -289,15 +289,15 @@ class Forms:
                             
             num_col, button_col = st.columns(2, gap='small')  
             with num_col:                
-                st.number_input(label="Количество строк", min_value=5, value=5, key="fact_input_row")
+                st.number_input( min_value=5, value=5, key="fact_input_row")
             with button_col:
                 show_last_row = st.button(label="Последние записи", key="fact_last_row")
-                if show_last_row:
-                    st.dataframe(
-                        data=Registry.getLastRows(row_type_id=2, limit_rows=st.session_state.fact_input_row),
-                        hide_index=True,
-                        use_container_width=True,
-                    )
+            if show_last_row:
+                st.dataframe(
+                    data=Registry.getLastRows(row_type_id=2, limit_rows=st.session_state.fact_input_row),
+                    hide_index=True,
+                    use_container_width=True,
+                )
 
     class Report:
 
