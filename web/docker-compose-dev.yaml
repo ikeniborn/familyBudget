@@ -1,102 +1,102 @@
 
 services:
-  postgres:
-    container_name: postgres
-    image: "postgres:13"
-    networks:
-      app_network:
-        ipv4_address: 10.5.0.2
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_DB: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 4phDukPGF7sUWSEvfycX
-      PGDATA: "/var/lib/postgresql/data/pgdata"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ${APP_PATH}/web/db/postgresql/postgresql.conf:/var/lib/postgresql/data/pgdata/postgresql.conf
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
+  # postgres:
+  #   container_name: postgres
+  #   image: "postgres:13"
+  #   networks:
+  #     app_network:
+  #       ipv4_address: 10.5.0.2
+  #   ports:
+  #     - "5432:5432"
+  #   environment:
+  #     POSTGRES_DB: postgres
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: 4phDukPGF7sUWSEvfycX
+  #     PGDATA: "/var/lib/postgresql/data/pgdata"
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+  #     - ${APP_PATH}/web/db/postgresql/postgresql.conf:/var/lib/postgresql/data/pgdata/postgresql.conf
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 10s
+  #   restart: always
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1'
+  #         memory: 1G
 
-  budget-api:
-    container_name: budget-api
-    build:
-      dockerfile: ./api/Dockerfile
-      context: ./
-    volumes:
-      - ${APP_PATH}/web/api:/usr/src/app:delegated
-    ports:
-      - "8888:8888"
-    command: "uvicorn budget_api:app --host 0.0.0.0 --port 8888 --reload"
-    environment:
-      - USER_ID=1000
-      - GROUP_ID=1000
-      - POSTGRES_HOST=10.5.0.2
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=budgetdb
-      - POSTGRES_USER=budget
-      - POSTGRES_PASSWORD=rEWbdYxog7azBce2fA4D
-    networks:
-      app_network:
-        ipv4_address: 10.5.0.3
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
-    healthcheck:
-      test: ["CMD", "bash", "-c", "echo -n '' > /dev/tcp/0.0.0.0/8888"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    restart: always
-    depends_on:
-      - postgres
+  # budget-api:
+  #   container_name: budget-api
+  #   build:
+  #     dockerfile: ./api/Dockerfile
+  #     context: ./
+  #   volumes:
+  #     - ${APP_PATH}/web/api:/usr/src/app:delegated
+  #   ports:
+  #     - "8888:8888"
+  #   command: "uvicorn budget_api:app --host 0.0.0.0 --port 8888 --reload"
+  #   environment:
+  #     - USER_ID=1000
+  #     - GROUP_ID=1000
+  #     - POSTGRES_HOST=10.5.0.2
+  #     - POSTGRES_PORT=5432
+  #     - POSTGRES_DB=budgetdb
+  #     - POSTGRES_USER=budget
+  #     - POSTGRES_PASSWORD=rEWbdYxog7azBce2fA4D
+  #   networks:
+  #     app_network:
+  #       ipv4_address: 10.5.0.3
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1'
+  #         memory: 1G
+  #   healthcheck:
+  #     test: ["CMD", "bash", "-c", "echo -n '' > /dev/tcp/0.0.0.0/8888"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 30s
+  #   restart: always
+  #   depends_on:
+  #     - postgres
 
-  budget-ui:
-    container_name: budget-ui
-    build:
-      dockerfile: ./app/budget/Dockerfile
-      context: ./
-    volumes:
-      - ${APP_PATH}/web/app/budget:/usr/src/app:delegated
-    ports:
-      - "8501:8501"
-    command: "streamlit run ui.py --server.port=8501 --server.address=0.0.0.0"
-    environment:
-      - USER_ID=1000
-      - GROUP_ID=1000
-      - API_URL=http://10.5.0.3:8888
-      - POLARS_SKIP_CPU_CHECK=false
-    networks:
-      app_network:
-        ipv4_address: 10.5.0.4
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
-    healthcheck:
-      test: ["CMD", "curl","--fail","http://0.0.0.0:8501/_stcore/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    restart: always
-    depends_on:
-      - budget-api
+  # budget-ui:
+  #   container_name: budget-ui
+  #   build:
+  #     dockerfile: ./app/budget/Dockerfile
+  #     context: ./
+  #   volumes:
+  #     - ${APP_PATH}/web/app/budget:/usr/src/app:delegated
+  #   ports:
+  #     - "8501:8501"
+  #   command: "streamlit run ui.py --server.port=8501 --server.address=0.0.0.0"
+  #   environment:
+  #     - USER_ID=1000
+  #     - GROUP_ID=1000
+  #     - API_URL=http://10.5.0.3:8888
+  #     - POLARS_SKIP_CPU_CHECK=false
+  #   networks:
+  #     app_network:
+  #       ipv4_address: 10.5.0.4
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1'
+  #         memory: 1G
+  #   healthcheck:
+  #     test: ["CMD", "curl","--fail","http://0.0.0.0:8501/_stcore/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 30s
+  #   restart: always
+  #   depends_on:
+  #     - budget-api
 
     # portfolio-api:
   #   container_name: portfolio-api
@@ -169,7 +169,7 @@ services:
 
   pgadmin:
     container_name: pgadmin
-    image: elestio/pgadmin:REL-8_5
+    image: elestio/pgadmin:latest
     environment:
       PGADMIN_DEFAULT_EMAIL: ikeniborn@gmail.com
       PGADMIN_DEFAULT_PASSWORD: JxUdSobKjAVrB2Wm4Li5
@@ -187,8 +187,8 @@ services:
     networks:
       app_network:
         ipv4_address: 10.5.0.7
-    depends_on:
-      - postgres
+    # depends_on:
+      # - postgres
 
 networks:
   app_network:

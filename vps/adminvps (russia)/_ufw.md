@@ -24,10 +24,10 @@ sudo cp /etc/ufw/before.rules /etc/ufw/before.rules_backup
 
 nano /etc/ufw/before.rules
 # ok icmp codes for INPUT change to DROP
+# ok icmp code for FORWARD change to DROP
 
 sudo ufw reload
 
-<!-- sudo ufw allow ssh -->
-
-<!-- sudo ufw allow from 123.45.67.89 to any port 22 -->
-
+nano /etc/sysctl.conf
+net.ipv4.icmp_echo_ignore_all=1
+sudo sysctl -p

@@ -3,13 +3,11 @@ sudo apt-get install cpufrequtils
 sudo /etc/init.d/loadcpufreq restart
 sudo /etc/init.d/cpufrequtils restart
 
+sudo nano /etc/default/loadcpufreq
 sudo nano /etc/default/cpufrequtils
-
 /usr/bin/cpufreq-info
 
-nano /etc/default/cpufrequtils
-
-update-rc.d -f ondemand remove
+sudo /usr/bin/cpufreq-set -g performance
 
 
 <!-- sudo cpufreq-set -c 0 -g performance && \
