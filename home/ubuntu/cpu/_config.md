@@ -62,3 +62,6 @@ watch -n.1 sensors
 stress --cpu 8
 
 chmod 0774 root:root -R /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq
+
+
+watch -n.1 "iostat | grep sda"
