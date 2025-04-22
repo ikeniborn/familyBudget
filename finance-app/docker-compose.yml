@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine # Using PostgreSQL 15
+    container_name: finance_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-user} # Use environment variables or defaults
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: ${DB_NAME:-finance_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432" # Expose DB port (optional, for external access/debugging)
+    networks:
+      - finance_network
+    restart: unless-stopped
+
+  backend:
+    container_name: finance_backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile # We will create this later
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      - db
+    env_file:
+      - ./backend/.env # We will create this later
+    volumes:
+      - ./backend:/app # Mount code for development (adjust for production)
+    networks:
+      - finance_network
+    restart: unless-stopped
+
+  frontend:
+    container_name: finance_frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile # We will create this later
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173" # Default Vite port
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app # Mount code for development
+      - /app/node_modules # Avoid overwriting node_modules in container
+    networks:
+      - finance_network
+    restart: unless-stopped
+
+networks:
+  finance_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
