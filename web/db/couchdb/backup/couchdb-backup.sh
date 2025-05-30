@@ -1,22 +1,92 @@
 #!/bin/bash
-BACKUP_COUCHDB_NAME_OLD=couchdb-$(date -d "8 days ago" +%Y%m%d).tar
-BACKUP_COUCHDB_NAME=couchdb-$(date -u +%Y%m%d).tar
-BACKUP_COUCHDB_CATALOG=/home/ikeniborn/app/web/db/couchdb/backup
+set -euo pipefail
 
-cd $BACKUP_COUCHDB_CATALOG
-if [ -f $BACKUP_COUCHDB_NAME ]; then
-  sudo rm $BACKUP_COUCHDB_NAME 
+# Configuration
+BACKUP_DIR="/home/ikeniborn/app/web/db/couchdb/backup"
+LOG_FILE="${BACKUP_DIR}/backup.log"
+RETENTION_DAYS=7
+DATE_FORMAT="+%Y%m%d"
+BACKUP_NAME="couchdb-$(date -u ${DATE_FORMAT}).tar"
+OLD_BACKUP_NAME="couchdb-$(date -d "${RETENTION_DAYS} days ago" ${DATE_FORMAT}).tar"
+DOCKER_VOLUME="web_couchdb-data"
+S3_BUCKET="yandex/ikeniborn-obsidian-couchdb"
+MC_BIN="/opt/minio-binaries/mc"
+
+# Logging function
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "${LOG_FILE}"
+}
+
+# Error handling
+error_exit() {
+    log "ERROR: $1"
+    exit 1
+}
+
+# Check prerequisites
+if [[ ! -d "${BACKUP_DIR}" ]]; then
+    error_exit "Backup directory ${BACKUP_DIR} does not exist"
 fi
 
-sudo docker run --rm --volume web_couchdb-data:/data --volume $BACKUP_COUCHDB_CATALOG:/backup couchdb tar cvf /backup/$BACKUP_COUCHDB_NAME data
-
-if [ -f $BACKUP_COUCHDB_NAME ]; then
-  sudo /opt/minio-binaries/mc cp $BACKUP_COUCHDB_NAME yandex/ikeniborn-obsidian-couchdb/
-  if [ -f $BACKUP_COUCHDB_NAME_OLD ]; then
-    sudo rm $BACKUP_COUCHDB_NAME_OLD 
-  fi
+if [[ ! -x "${MC_BIN}" ]]; then
+    error_exit "MinIO client not found at ${MC_BIN}"
 fi
 
-sudo /opt/minio-binaries/mc rm yandex/ikeniborn-obsidian-couchdb/$BACKUP_COUCHDB_NAME_OLD
+# Change to backup directory
+cd "${BACKUP_DIR}" || error_exit "Failed to change to backup directory"
 
-cd ~/
+log "Starting CouchDB backup process"
+
+# Remove existing backup if present
+if [[ -f "${BACKUP_NAME}" ]]; then
+    log "Removing existing backup: ${BACKUP_NAME}"
+    rm -f "${BACKUP_NAME}" || error_exit "Failed to remove existing backup"
+fi
+
+# Create backup
+log "Creating backup: ${BACKUP_NAME}"
+if docker run --rm \
+    --volume "${DOCKER_VOLUME}:/data" \
+    --volume "${BACKUP_DIR}:/backup" \
+    couchdb tar cf "/backup/${BACKUP_NAME}" -C / data; then
+    log "Backup created successfully"
+else
+    error_exit "Failed to create backup"
+fi
+
+# Verify backup was created
+if [[ ! -f "${BACKUP_NAME}" ]]; then
+    error_exit "Backup file was not created"
+fi
+
+# Upload to S3
+log "Uploading backup to S3: ${S3_BUCKET}"
+if "${MC_BIN}" cp "${BACKUP_NAME}" "${S3_BUCKET}/"; then
+    log "Backup uploaded successfully"
+else
+    error_exit "Failed to upload backup to S3"
+fi
+
+# Clean up local old backups
+if [[ -f "${OLD_BACKUP_NAME}" ]]; then
+    log "Removing old local backup: ${OLD_BACKUP_NAME}"
+    rm -f "${OLD_BACKUP_NAME}" || log "WARNING: Failed to remove old local backup"
+fi
+
+# Clean up S3 old backups
+log "Checking for old backup in S3: ${OLD_BACKUP_NAME}"
+if "${MC_BIN}" ls "${S3_BUCKET}/${OLD_BACKUP_NAME}" &>/dev/null; then
+    log "Removing old S3 backup: ${OLD_BACKUP_NAME}"
+    "${MC_BIN}" rm "${S3_BUCKET}/${OLD_BACKUP_NAME}" || log "WARNING: Failed to remove old S3 backup"
+else
+    log "No old backup found in S3"
+fi
+
+# Clean up any backups older than retention period
+log "Cleaning up backups older than ${RETENTION_DAYS} days"
+find "${BACKUP_DIR}" -name "couchdb-*.tar" -type f -mtime +${RETENTION_DAYS} -delete
+
+log "Backup process completed successfully"
+
+# Return to home directory
+cd ~ || true/
