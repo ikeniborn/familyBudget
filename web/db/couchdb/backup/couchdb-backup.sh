@@ -128,8 +128,9 @@ log "Upload bandwidth limit: ${UPLOAD_BANDWIDTH}"
 
 # Use mc with progress output
 if "${MC_BIN}" cp --limit-upload "${UPLOAD_BANDWIDTH}" "${BACKUP_NAME}" "${S3_BUCKET}/" 2>&1 | while IFS= read -r line; do
-    if echo "${line}" | grep -q "Total:\|Uploaded:\|Speed:"; then
-        log "Upload progress: ${line}"
+    # Log all non-empty lines from mc output for debugging
+    if [[ -n "${line}" ]]; then
+        log "Upload: ${line}"
     fi
 done; then
     log "Backup uploaded successfully"
