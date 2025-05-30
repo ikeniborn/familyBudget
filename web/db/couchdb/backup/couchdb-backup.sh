@@ -53,6 +53,29 @@ fi
 
 # Create backup with resource limits
 log "Creating backup: ${BACKUP_NAME}"
+log "Preparing Docker container..."
+
+# Create progress monitoring script
+cat > "${BACKUP_DIR}/monitor.sh" << 'EOF'
+#!/bin/sh
+BACKUP_FILE="$1"
+while true; do
+    if [ -f "${BACKUP_FILE}" ]; then
+        SIZE=$(du -h "${BACKUP_FILE}" 2>/dev/null | cut -f1)
+        if [ -n "${SIZE}" ]; then
+            echo "Progress: ${SIZE}"
+        fi
+    fi
+    sleep 5
+done
+EOF
+chmod +x "${BACKUP_DIR}/monitor.sh"
+
+# Start progress monitor in background
+"${BACKUP_DIR}/monitor.sh" "${BACKUP_NAME}" &
+MONITOR_PID=$!
+
+log "Starting archive creation..."
 if nice -n ${NICE_LEVEL} ionice -c ${IONICE_CLASS} \
     docker run --rm \
     --cpus="${CPU_LIMIT}" \
@@ -60,10 +83,29 @@ if nice -n ${NICE_LEVEL} ionice -c ${IONICE_CLASS} \
     --memory-swap="${MEMORY_LIMIT}" \
     --volume "${DOCKER_VOLUME}:/data:ro" \
     --volume "${BACKUP_DIR}:/backup" \
-    alpine:latest sh -c "apk add --no-cache pigz && tar cf - -C / data | pigz -${COMPRESSION_LEVEL} > /backup/${BACKUP_NAME}"; then
+    alpine:latest sh -c "
+        echo 'Installing compression tools...' && \
+        apk add --no-cache pigz pv && \
+        echo 'Calculating data size...' && \
+        SIZE=\$(du -sb /data | cut -f1) && \
+        echo \"Data size: \$(du -sh /data | cut -f1)\" && \
+        echo 'Creating compressed archive...' && \
+        tar cf - -C / data | pv -s \${SIZE} -p -t -e | pigz -${COMPRESSION_LEVEL} > /backup/${BACKUP_NAME}
+    "; then
+    
+    # Stop progress monitor
+    kill ${MONITOR_PID} 2>/dev/null || true
+    wait ${MONITOR_PID} 2>/dev/null || true
+    rm -f "${BACKUP_DIR}/monitor.sh"
+    
     log "Backup created successfully"
     log "Backup size: $(du -h "${BACKUP_NAME}" | cut -f1)"
 else
+    # Stop progress monitor
+    kill ${MONITOR_PID} 2>/dev/null || true
+    wait ${MONITOR_PID} 2>/dev/null || true
+    rm -f "${BACKUP_DIR}/monitor.sh"
+    
     error_exit "Failed to create backup"
 fi
 
@@ -72,9 +114,24 @@ if [[ ! -f "${BACKUP_NAME}" ]]; then
     error_exit "Backup file was not created"
 fi
 
-# Upload to S3 with bandwidth limit
+# Check backup integrity
+log "Verifying backup integrity..."
+if gzip -t "${BACKUP_NAME}" 2>/dev/null; then
+    log "Backup integrity check passed"
+else
+    error_exit "Backup file is corrupted"
+fi
+
+# Upload to S3 with bandwidth limit and progress
 log "Uploading backup to S3: ${S3_BUCKET}"
-if "${MC_BIN}" cp --limit-upload "${UPLOAD_BANDWIDTH}" "${BACKUP_NAME}" "${S3_BUCKET}/"; then
+log "Upload bandwidth limit: ${UPLOAD_BANDWIDTH}"
+
+# Use mc with progress output
+if "${MC_BIN}" cp --limit-upload "${UPLOAD_BANDWIDTH}" "${BACKUP_NAME}" "${S3_BUCKET}/" 2>&1 | while IFS= read -r line; do
+    if echo "${line}" | grep -q "Total:\|Uploaded:\|Speed:"; then
+        log "Upload progress: ${line}"
+    fi
+done; then
     log "Backup uploaded successfully"
 else
     error_exit "Failed to upload backup to S3"
