@@ -6,11 +6,19 @@ BACKUP_DIR="/home/ikeniborn/app/web/db/couchdb/backup"
 LOG_FILE="${BACKUP_DIR}/backup.log"
 RETENTION_DAYS=7
 DATE_FORMAT="+%Y%m%d"
-BACKUP_NAME="couchdb-$(date -u ${DATE_FORMAT}).tar"
-OLD_BACKUP_NAME="couchdb-$(date -d "${RETENTION_DAYS} days ago" ${DATE_FORMAT}).tar"
+BACKUP_NAME="couchdb-$(date -u ${DATE_FORMAT}).tar.gz"
+OLD_BACKUP_NAME="couchdb-$(date -d "${RETENTION_DAYS} days ago" ${DATE_FORMAT}).tar.gz"
 DOCKER_VOLUME="web_couchdb-data"
 S3_BUCKET="yandex/ikeniborn-obsidian-couchdb"
 MC_BIN="/opt/minio-binaries/mc"
+
+# Resource limits
+CPU_LIMIT="0.5"  # 50% of one CPU
+MEMORY_LIMIT="512m"  # 512MB RAM
+COMPRESSION_LEVEL="6"  # gzip compression level (1-9)
+UPLOAD_BANDWIDTH="1MB"  # Bandwidth limit for S3 upload
+NICE_LEVEL="19"  # Lowest priority
+IONICE_CLASS="3"  # Idle I/O priority
 
 # Logging function
 log() {
@@ -43,13 +51,18 @@ if [[ -f "${BACKUP_NAME}" ]]; then
     rm -f "${BACKUP_NAME}" || error_exit "Failed to remove existing backup"
 fi
 
-# Create backup
+# Create backup with resource limits
 log "Creating backup: ${BACKUP_NAME}"
-if docker run --rm \
-    --volume "${DOCKER_VOLUME}:/data" \
+if nice -n ${NICE_LEVEL} ionice -c ${IONICE_CLASS} \
+    docker run --rm \
+    --cpus="${CPU_LIMIT}" \
+    --memory="${MEMORY_LIMIT}" \
+    --memory-swap="${MEMORY_LIMIT}" \
+    --volume "${DOCKER_VOLUME}:/data:ro" \
     --volume "${BACKUP_DIR}:/backup" \
-    couchdb tar cf "/backup/${BACKUP_NAME}" -C / data; then
+    alpine:latest sh -c "apk add --no-cache pigz && tar cf - -C / data | pigz -${COMPRESSION_LEVEL} > /backup/${BACKUP_NAME}"; then
     log "Backup created successfully"
+    log "Backup size: $(du -h "${BACKUP_NAME}" | cut -f1)"
 else
     error_exit "Failed to create backup"
 fi
@@ -59,9 +72,9 @@ if [[ ! -f "${BACKUP_NAME}" ]]; then
     error_exit "Backup file was not created"
 fi
 
-# Upload to S3
+# Upload to S3 with bandwidth limit
 log "Uploading backup to S3: ${S3_BUCKET}"
-if "${MC_BIN}" cp "${BACKUP_NAME}" "${S3_BUCKET}/"; then
+if "${MC_BIN}" cp --limit-upload "${UPLOAD_BANDWIDTH}" "${BACKUP_NAME}" "${S3_BUCKET}/"; then
     log "Backup uploaded successfully"
 else
     error_exit "Failed to upload backup to S3"
@@ -84,7 +97,7 @@ fi
 
 # Clean up any backups older than retention period
 log "Cleaning up backups older than ${RETENTION_DAYS} days"
-find "${BACKUP_DIR}" -name "couchdb-*.tar" -type f -mtime +${RETENTION_DAYS} -delete
+find "${BACKUP_DIR}" -name "couchdb-*.tar.gz" -type f -mtime +${RETENTION_DAYS} -delete
 
 log "Backup process completed successfully"
 
