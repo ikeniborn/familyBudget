@@ -1,1 +1,0 @@
-sudo docker-compose -f /home/ikeni/Documents/Git/familyBudget/finance-app/docker-compose.yml up --build -d
