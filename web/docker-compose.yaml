@@ -111,6 +111,12 @@ services:
       - ${APP_PATH}/web/service/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:delegated
       - /etc/haproxy/certs:/etc/ssl/certs:delegated
     network_mode: "host"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/stats" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     restart: always
     cpuset: "0"    
     mem_reservation: "50M"
