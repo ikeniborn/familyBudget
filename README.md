@@ -12,10 +12,11 @@
 
 ## Технологический стек
 
-- **Backend**: FastAPI (Python 3.x)
-- **Frontend**: Streamlit
+- **Backend**: FastAPI (Python 3.x) с JWT аутентификацией
+- **Frontend**: Streamlit с Telegram OAuth
 - **Базы данных**: PostgreSQL, CouchDB
-- **Инфраструктура**: Docker, Docker Compose, HAProxy
+- **Инфраструктура**: Docker, Docker Compose, Traefik
+- **SSL/TLS**: Let's Encrypt (автоматическое обновление)
 - **Интеграции**: Google Apps Script, Telegram API, Trello API
 
 ## Быстрый старт
@@ -35,8 +36,9 @@ cd familyBudget
 
 2. Создайте файл окружения:
 ```bash
-cp web/web.env.example web/web.env
-# Отредактируйте web/web.env с вашими настройками
+cp .env.example .env
+# Отредактируйте .env с вашими настройками
+# Обязательно укажите TRAEFIK_DOMAIN и ACME_EMAIL
 ```
 
 3. Запустите приложение:
@@ -54,20 +56,21 @@ docker-compose logs -f
 ### Доступ к сервисам
 
 - **UI**: https://budget.yourdomain.com
-- **API**: https://budget.yourdomain.com:8888/docs
+- **API**: https://api.yourdomain.com/docs
 - **CouchDB**: https://notes.yourdomain.com
-- **HAProxy Stats**: https://haproxy.yourdomain.com/stats
+- **Traefik Dashboard**: https://traefik.yourdomain.com
 
 ## Архитектура
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   HAProxy   │────▶│ Streamlit UI│────▶│ FastAPI API │
-│   (SSL)     │     │   (:8501)   │     │   (:8888)   │
-└─────────────┘     └─────────────┘     └─────────────┘
-                                               │
-                    ┌─────────────┐            │
-                    │  PostgreSQL  │◀───────────┘
+│   Traefik   │────▶│ Streamlit UI│────▶│ FastAPI API │
+│  (SSL/TLS)  │     │   (:8501)   │     │   (:8888)   │
+│ Let's Encrypt│     └─────────────┘     └─────────────┘
+└─────────────┘                                │
+       │                                       │
+       │            ┌─────────────┐            │
+       └───────────▶│  PostgreSQL  │◀───────────┘
                     │   (:5432)    │
                     └─────────────┘
 ```
@@ -76,12 +79,12 @@ docker-compose logs -f
 
 ```
 familyBudget/
-├── web/                    # Основное веб-приложение
-│   ├── api/               # FastAPI backend
-│   ├── app/budget/        # Streamlit frontend
-│   ├── db/                # Конфигурации БД
-│   ├── service/           # HAProxy и сервисы
-│   └── docker-compose.yaml
+├── api/                   # FastAPI backend
+├── app/budget/            # Streamlit frontend
+├── db/                    # Конфигурации БД
+├── service/               # Traefik и сервисы
+├── docker-compose.yaml    # Основная конфигурация
+├── .env.example           # Пример переменных окружения
 ├── google/                 # Google Apps Script
 │   └── src/               # Исходники GAS
 ├── home/                   # Домашние скрипты
@@ -93,15 +96,18 @@ familyBudget/
 ### Локальная разработка
 ```bash
 # Запуск в режиме разработки
-cd web
 docker-compose -f docker-compose-dev.yaml up -d
 
 # Просмотр логов
 docker-compose logs -f budget-api
 docker-compose logs -f budget-ui
+docker-compose logs -f traefik
 
 # Форматирование кода
 black . --line-length=180
+
+# Генерация пароля для Traefik dashboard
+./service/traefik/generate-password.sh admin yourpassword
 ```
 
 ### База данных
@@ -124,8 +130,13 @@ POSTGRES_DB=budgetdb
 POSTGRES_USER=budget
 POSTGRES_PASSWORD=your_password
 
+# Traefik
+TRAEFIK_DOMAIN=yourdomain.com
+ACME_EMAIL=your-email@example.com
+
 # API
-API_URL=http://10.5.0.3:8888
+API_URL=https://api.yourdomain.com
+JWT_SECRET_KEY=your-secret-key
 
 # Telegram
 TELEGRAM_BOT_TOKEN=your_token
@@ -134,14 +145,18 @@ TELEGRAM_BOT_TOKEN=your_token
 ## Безопасность
 
 - Все сервисы работают в изолированной Docker сети
-- SSL/TLS через HAProxy с Let's Encrypt
-- Авторизация через Telegram OAuth
+- Автоматический SSL/TLS через Traefik с Let's Encrypt
+- Двухфакторная аутентификация: Telegram OAuth + JWT токены
+- Rate limiting для защиты API
+- Security headers для всех сервисов
 - Ограничения ресурсов для каждого контейнера
+- Все секреты вынесены в единый .env файл
 
 ## Мониторинг
 
 - Healthcheck для всех сервисов
-- HAProxy statistics dashboard
+- Traefik dashboard с метриками
+- Структурированные логи для всех сервисов
 - Docker logs централизованы
 
 ## Лицензия
