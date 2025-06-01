@@ -29,7 +29,6 @@ _Все критические задачи выполнены!_
 
 - [ ] **Настроить централизованное логирование**
   - Structured logging в JSON формате
-  - ELK stack для сбора и анализа логов
   - Log rotation и архивирование
 
 - [ ] **Добавить мониторинг и метрики**
@@ -50,12 +49,6 @@ _Все критические задачи выполнены!_
   - Improve mobile responsiveness
   - Add loading states
   - Progress indicators для длительных операций
-
-- [ ] **Расширить интеграцию с Google Sheets**
-  - Автоматический импорт данных
-  - Двусторонняя синхронизация
-  - Шаблоны отчетов
-  - Scheduled exports
 
 - [ ] **Добавить дополнительные функции**
   - Экспорт в PDF/Excel
@@ -131,32 +124,6 @@ _Все критические задачи выполнены!_
   - Создана подробная документация README.md
   - Добавлен сервис backup в docker-compose.yaml
 
-## Backlog (Будущие улучшения)
-
-### Инфраструктура
-- Kubernetes deployment
-- Auto-scaling
-- Multi-region deployment
-- CDN для статики
-
-### Функциональность
-- Мобильное приложение
-- Экспорт в различные форматы
-- Интеграция с банками
-- ML для прогнозирования расходов
-- Семейные группы и права доступа
-
-### Интеграции
-- Интеграция с бухгалтерскими системами
-- Webhook notifications
-- Email уведомления
-- SMS alerts
-
-### DevOps
-- Blue-green deployments
-- Canary releases
-- A/B testing infrastructure
-- Disaster recovery plan
 
 ## Недавно выполненные улучшения
 
