@@ -117,53 +117,6 @@ services:
     mem_limit: "100M" 
     cpus: 0.1
 
-  crm:
-    container_name: crm
-    image: nocobase/nocobase:latest
-    networks:
-      app_network:
-        ipv4_address: 10.5.0.5
-    environment:
-      # The application's secret key, used to generate user tokens, etc.
-      # If APP_KEY is changed, old tokens will also become invalid.
-      # It can be any random string, and make sure it is not exposed.
-      - APP_KEY=4+/D+3FWCK2T+PbwSdtEYAhmPjBTVYYRGbNsK5ctDyND3XOlFuIYTk1P
-      # Database type, supports postgres, mysql, mariadb
-      - DB_DIALECT=postgres
-      # Database host, can be replaced with the IP of an existing database server
-      - DB_HOST=10.5.0.2
-      # Database name
-      - DB_DATABASE=crm
-      # Database user
-      - DB_USER=crm
-      # Database password
-      - DB_PASSWORD=Ke39GbrtjRoYhVpyXxkW
-      # Timezone
-      - TZ=Europe/Moscow
-      # Application environment
-      - APP_ENV=production
-      - APP_PORT=13000
-      - API_BASE_PATH=/api/
-      - CACHE_DEFAULT_STORE=memory
-      - CACHE_MEMORY_MAX=100
-      - INIT_ROOT_EMAIL=admin@ikeniborn.ru
-      - INIT_ROOT_PASSWORD=XGjYnPcNKaz49qELdZrk
-      - INIT_ROOT_NICKNAME=Admin
-      - INIT_APP_LANG=en-US
-      - APP_PUBLIC_PATH=
-      - API_KEY=yAKU9jsGotfQ423z
-    volumes:
-      - crm-data:/app/nocobase/storage
-    ports:
-      - "13000:13000"
-    depends_on:
-      - postgres
-      - haproxy
-    cpuset: "0"    
-    cpus: 0.5
-    mem_reservation: "500M"
-    mem_limit: "750M" 
-
   couchdb:
       image: couchdb:latest
       hostname: couchdb
@@ -180,7 +133,7 @@ services:
           - couchdb-data:/opt/couchdb/data
           - ${APP_PATH}/web/db/couchdb/local.ini:/opt/couchdb/etc/local.ini
       healthcheck:
-        test: ["CMD", "curl", "-f", "http://localhost:5984/_up"]
+        test: ["CMD", "curl", "-f", "http://admin:2L6uEoNMjW9rVnPgy37t@localhost:5984/_up"]
         interval: 30s
         timeout: 10s
         retries: 5
