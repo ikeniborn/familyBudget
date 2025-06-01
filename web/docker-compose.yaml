@@ -112,7 +112,7 @@ services:
       - /etc/haproxy/certs:/etc/ssl/certs:delegated
     network_mode: "host"
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/stats" ]
+      test: ["CMD", "nc", "-z", "localhost", "80"]
       interval: 30s
       timeout: 10s
       retries: 5
