@@ -11,19 +11,25 @@ Family Budget Management System - a microservices-based application for tracking
 ### Core Services (Docker Compose)
 - **budget-api** (port 8888): FastAPI backend with JWT authentication and Redis caching
 - **budget-ui** (port 8501): Streamlit frontend with Telegram OAuth
-- **postgres** (port 5432): Main database with Russian schema (budgetdb)
-- **redis** (port 6379): In-memory cache for API responses
+- **postgres** (port 5432): Main database with Russian schema (budgetdb) - optimized with indexes and connection pooling
+- **redis** (port 6379): In-memory cache for API responses with configurable TTL
 - **couchdb** (port 5984): Document database for additional storage
-- **traefik**: Reverse proxy with automatic SSL/TLS from Let's Encrypt
+- **traefik**: Reverse proxy with automatic SSL/TLS from Let's Encrypt Production
+- **backup**: Automated daily backups for PostgreSQL (2 AM) and CouchDB (3 AM) with 7-day retention
 
 ### Project Structure
 ```
-/api/            # FastAPI backend with JWT auth
-/app/budget/     # Streamlit UI with Telegram OAuth
-/db/             # Database configurations and backups
-/service/        # Traefik and other services
-/google/         # Google Apps Script integration
-  /src/          # GAS source files for Sheets automation
+/api/                # FastAPI backend with JWT auth
+  /utils/            # Auth, models, Redis client, optimized DB
+/app/budget/         # Streamlit UI with Telegram OAuth
+/db/                 # Database configurations and backups
+  /postgresql/       # PostgreSQL configs, DDL, backups
+  /couchdb/          # CouchDB configs and backups
+  /backup/           # Backup service with cron jobs
+/service/            # Infrastructure services
+  /traefik/          # Reverse proxy with Production SSL
+/google/             # Google Apps Script integration
+  /src/              # GAS source files for Sheets automation
 ```
 
 ## Common Commands
@@ -44,6 +50,19 @@ docker-compose restart [service-name]
 
 # Generate Traefik dashboard password
 ./service/traefik/generate-password.sh admin yourpassword
+
+# Switch to Production SSL certificates
+./apply_production_ssl.sh
+
+# Manual backup
+docker-compose exec backup /scripts/backup-postgres.sh
+docker-compose exec backup /scripts/backup-couchdb.sh
+
+# Restore from backup
+docker-compose exec backup /scripts/restore-postgres.sh /backups/postgres_budgetdb_YYYYMMDD_HHMMSS.sql.gz
+
+# Apply database optimizations
+docker-compose exec postgres psql -U budget -d budgetdb -f /docker-entrypoint-initdb.d/add_indexes.sql
 ```
 
 ### Code Formatting
@@ -56,11 +75,11 @@ black . --line-length=180
 ```bash
 # PostgreSQL
 psql -h localhost -p 5432 -U budget -d budgetdb
-# Password: VZ7TcYGrb3jvJAFRQSsg
+# Password: Check .env file for POSTGRES_PASSWORD_BUDGET
 
 # CouchDB Admin
 # URL: http://localhost:5984/_utils
-# User: admin, Password: 2L6uEoNMjW9rVnPgy37t
+# User: admin, Password: Check .env file for COUCHDB_PASSWORD
 ```
 
 ## Key Implementation Details
@@ -70,16 +89,27 @@ psql -h localhost -p 5432 -U budget -d budgetdb
 - Main fact table: `t_f_registry` - stores all financial transactions
 - Dimension tables: users, periods, cost_centers, financial_centers, nomenclatures
 - Use `id_` prefix for ID columns, `nm_` for names, `dt_` for dates
+- **Optimizations Applied**:
+  - Indexes on all foreign keys for faster JOINs
+  - Composite indexes for common query patterns
+  - Connection pooling (10-20 connections)
+  - Parameterized queries to prevent SQL injection
 
 ### API Endpoints (FastAPI)
 - Base URL: `https://api.${TRAEFIK_DOMAIN}`
 - Authentication: JWT tokens via `/token` endpoint
 - All endpoints protected with authentication middleware
-- Caching: Redis with configurable TTL
-- Uses async PostgreSQL connections via asyncpg
-- Models defined in `/api/utils/models.py`
-- Auth module in `/api/utils/auth.py`
-- Cache module in `/api/utils/redis_client.py`
+- **Performance Features**:
+  - Redis caching with @cache_result decorator (5min default, 1hr for static data)
+  - Cache invalidation on POST/PUT/DELETE operations
+  - Connection pooling with asyncpg (10-20 connections)
+  - Parameterized queries via queries.py module
+- **Key Modules**:
+  - Models: `/api/utils/models.py`
+  - Auth: `/api/utils/auth.py`
+  - Cache: `/api/utils/redis_client.py`
+  - Optimized DB: `/api/utils/postgres_optimized.py`
+  - SQL queries: `/api/utils/queries.py`
 
 ### UI (Streamlit)
 - Telegram OAuth authentication required
@@ -114,8 +144,19 @@ psql -h localhost -p 5432 -U budget -d budgetdb
 1. **Network**: All services use `app_network` (10.5.0.0/16)
 2. **Healthchecks**: Configured for all services in docker-compose.yaml
 3. **Resource Limits**: Services have CPU and memory constraints
-4. **Backups**: Automated scripts in `/db/*/backup/`
-5. **SSL**: Automatic certificates via Traefik + Let's Encrypt
-6. **Security**: JWT auth for API, Telegram OAuth for UI
+4. **Backups**: 
+   - Automated daily backups (PostgreSQL 2 AM, CouchDB 3 AM)
+   - 7-day retention with automatic cleanup
+   - Backup service runs in dedicated container with cron
+5. **SSL**: Production Let's Encrypt certificates via Traefik
+6. **Security**: 
+   - JWT auth for API, Telegram OAuth for UI
+   - Rate limiting and security headers via Traefik
+   - SQL injection protection through parameterized queries
+   - Connection pooling for database security
 7. **Configuration**: All secrets in single `.env` file
-8. **Caching**: Redis caching for API with TTL (5min default, 1hr for static data)
+8. **Performance**:
+   - Redis caching with configurable TTL (5min default, 1hr for static)
+   - Database indexes on all foreign keys
+   - Connection pooling (10-20 connections)
+   - Optimized SQL queries in queries.py module

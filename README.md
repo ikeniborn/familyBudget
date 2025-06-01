@@ -14,10 +14,11 @@
 
 - **Backend**: FastAPI (Python 3.x) с JWT аутентификацией
 - **Frontend**: Streamlit с Telegram OAuth
-- **Базы данных**: PostgreSQL, CouchDB
+- **Базы данных**: PostgreSQL (с оптимизацией запросов), CouchDB
 - **Кэширование**: Redis с настраиваемым TTL
 - **Инфраструктура**: Docker, Docker Compose, Traefik
-- **SSL/TLS**: Let's Encrypt (автоматическое обновление)
+- **SSL/TLS**: Let's Encrypt Production (автоматическое обновление)
+- **Бэкапы**: Автоматические ежедневные бэкапы с ротацией
 - **Интеграции**: Google Apps Script, Telegram API, Trello API
 
 ## Быстрый старт
@@ -73,8 +74,12 @@ docker-compose logs -f
        │            ┌─────────────┐            │             │
        └───────────▶│  PostgreSQL  │◀───────────┘     ┌──────▼──────┐
                     │   (:5432)    │                   │    Redis    │
-                    └─────────────┘                   │   (:6379)   │
-                                                      └─────────────┘
+                    └──────┬──────┘                   │   (:6379)   │
+                           │                          └─────────────┘
+                    ┌──────▼──────┐     ┌─────────────┐
+                    │   Backup    │────▶│   CouchDB   │
+                    │  Service    │     │   (:5984)   │
+                    └─────────────┘     └─────────────┘
 ```
 
 ## Структура проекта
@@ -117,9 +122,20 @@ black . --line-length=180
 # Подключение к PostgreSQL
 psql -h localhost -p 5432 -U budget -d budgetdb
 
-# Бэкап базы данных
-cd web/db/postgresql/backup
-./postgres-backup.sh
+# Применение оптимизаций
+docker-compose exec postgres psql -U budget -d budgetdb -f /docker-entrypoint-initdb.d/add_indexes.sql
+
+# Ручной бэкап
+docker-compose exec backup /scripts/backup-postgres.sh
+
+# Восстановление из бэкапа
+docker-compose exec backup /scripts/restore-postgres.sh /backups/postgres_budgetdb_20250106_020000.sql.gz
+```
+
+### Переключение на Production SSL
+```bash
+# Применить production Let's Encrypt сертификаты
+./apply_production_ssl.sh
 ```
 
 ## Конфигурация
@@ -147,19 +163,31 @@ TELEGRAM_BOT_TOKEN=your_token
 ## Безопасность
 
 - Все сервисы работают в изолированной Docker сети
-- Автоматический SSL/TLS через Traefik с Let's Encrypt
+- Production SSL/TLS через Traefik с Let's Encrypt
 - Двухфакторная аутентификация: Telegram OAuth + JWT токены
 - Rate limiting для защиты API
 - Security headers для всех сервисов
 - Ограничения ресурсов для каждого контейнера
 - Все секреты вынесены в единый .env файл
+- Защита от SQL injection через параметризованные запросы
+- Connection pooling для оптимизации БД
 
-## Мониторинг
+## Мониторинг и обслуживание
 
 - Healthcheck для всех сервисов
 - Traefik dashboard с метриками
 - Структурированные логи для всех сервисов
 - Docker logs централизованы
+- Автоматические бэкапы БД с ротацией (7 дней)
+- Мониторинг бэкапов через логи
+
+## Производительность
+
+- Redis кэширование для всех GET запросов
+- Оптимизированные индексы PostgreSQL
+- Connection pooling (10-20 соединений)
+- Параметризованные SQL запросы
+- Настраиваемый TTL для разных типов данных
 
 ## Лицензия
 
