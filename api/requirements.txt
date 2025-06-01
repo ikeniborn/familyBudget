@@ -8,3 +8,5 @@ asyncpg
 python-jose[cryptography]
 passlib[bcrypt]
 python-multipart
+redis
+aioredis

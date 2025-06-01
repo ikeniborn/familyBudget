@@ -56,6 +56,9 @@ services:
       - POSTGRES_USER=${POSTGRES_USER_BUDGET}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_BUDGET}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_DB=${REDIS_DB}
     networks:
       app_network:
         ipv4_address: 10.5.0.3
@@ -163,6 +166,30 @@ services:
     mem_limit: "100M" 
     cpus: 0.1
 
+  redis:
+    container_name: redis
+    hostname: redis
+    image: "redis:7-alpine"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      app_network:
+        ipv4_address: 10.5.0.5
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: always
+    cpuset: "0"
+    cpus: 0.2
+    mem_reservation: "100M"
+    mem_limit: "300M"
+
   couchdb:
       image: couchdb:latest
       hostname: couchdb
@@ -211,6 +238,8 @@ volumes:
   postgres-data:
     driver: local
   couchdb-data:
+    driver: local
+  redis-data:
     driver: local
   traefik-certificates:
     driver: local

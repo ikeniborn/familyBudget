@@ -10,6 +10,7 @@ from utils.auth import (
     create_access_token,
     ACCESS_TOKEN_EXPIRE_MINUTES,
 )
+from utils.redis_client import redis_client, cache_result, invalidate_cache, LONG_TTL, SHORT_TTL
 import os
 
 app = FastAPI(title="Budget API", version="1.0.0")
@@ -20,6 +21,18 @@ connection = Postgres(
     user=os.getenv("POSTGRES_USER"),
     password=os.getenv("POSTGRES_PASSWORD"),
 )
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize Redis connection on startup."""
+    await redis_client.connect()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Close Redis connection on shutdown."""
+    await redis_client.close()
 
 
 @app.post("/token")
@@ -67,6 +80,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 
 @app.get("/users", dependencies=[Depends(get_current_user)])
+@cache_result("users", ttl=LONG_TTL)
 async def get_users():
     return await connection.select(
         f"""
@@ -140,6 +154,7 @@ async def get_period(id: int):
 
 
 @app.get("/financial_centers", dependencies=[Depends(get_current_user)])
+@cache_result("financial_centers", ttl=LONG_TTL)
 async def get_financial_centers():
     return await connection.select(
         f"""
@@ -168,6 +183,7 @@ async def get_financial_center(id: int):
 
 
 @app.get("/cost_centers", dependencies=[Depends(get_current_user)])
+@cache_result("cost_centers", ttl=LONG_TTL)
 async def get_cost_centers():
     return await connection.select(
         f"""
@@ -196,6 +212,7 @@ async def get_cost_center(id: int):
 
 
 @app.get("/nomenclatures", dependencies=[Depends(get_current_user)])
+@cache_result("nomenclatures", ttl=LONG_TTL)
 async def get_nomenclatures():
     return await connection.select(
         """
@@ -239,6 +256,7 @@ async def get_nomenclature(id: int):
 
 
 @app.get("/row_types")
+@cache_result("row_types", ttl=LONG_TTL)
 async def get_row_types():
     return await connection.select(
         f"""
@@ -267,6 +285,7 @@ async def get_row_type(id: int):
 
 
 @app.post("/registry", dependencies=[Depends(get_current_user)])
+@invalidate_cache("registry:*")
 async def insert_to_registry(row: Models.Registry):
     await connection.insert(
         sql=f"""
@@ -296,6 +315,7 @@ async def insert_to_registry(row: Models.Registry):
 
 
 @app.get("/registry/last_row")
+@cache_result("registry:last_row", ttl=SHORT_TTL)
 async def get_registry_last_row(row_type_id: int = None, limit_rows: int = 5):
     return await connection.select(
         sql=f"""

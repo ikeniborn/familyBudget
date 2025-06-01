@@ -9,9 +9,10 @@ Family Budget Management System - a microservices-based application for tracking
 ## Architecture
 
 ### Core Services (Docker Compose)
-- **budget-api** (port 8888): FastAPI backend with JWT authentication
+- **budget-api** (port 8888): FastAPI backend with JWT authentication and Redis caching
 - **budget-ui** (port 8501): Streamlit frontend with Telegram OAuth
 - **postgres** (port 5432): Main database with Russian schema (budgetdb)
+- **redis** (port 6379): In-memory cache for API responses
 - **couchdb** (port 5984): Document database for additional storage
 - **traefik**: Reverse proxy with automatic SSL/TLS from Let's Encrypt
 
@@ -74,9 +75,11 @@ psql -h localhost -p 5432 -U budget -d budgetdb
 - Base URL: `https://api.${TRAEFIK_DOMAIN}`
 - Authentication: JWT tokens via `/token` endpoint
 - All endpoints protected with authentication middleware
+- Caching: Redis with configurable TTL
 - Uses async PostgreSQL connections via asyncpg
 - Models defined in `/api/utils/models.py`
 - Auth module in `/api/utils/auth.py`
+- Cache module in `/api/utils/redis_client.py`
 
 ### UI (Streamlit)
 - Telegram OAuth authentication required
@@ -115,3 +118,4 @@ psql -h localhost -p 5432 -U budget -d budgetdb
 5. **SSL**: Automatic certificates via Traefik + Let's Encrypt
 6. **Security**: JWT auth for API, Telegram OAuth for UI
 7. **Configuration**: All secrets in single `.env` file
+8. **Caching**: Redis caching for API with TTL (5min default, 1hr for static data)

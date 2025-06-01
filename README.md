@@ -15,6 +15,7 @@
 - **Backend**: FastAPI (Python 3.x) с JWT аутентификацией
 - **Frontend**: Streamlit с Telegram OAuth
 - **Базы данных**: PostgreSQL, CouchDB
+- **Кэширование**: Redis с настраиваемым TTL
 - **Инфраструктура**: Docker, Docker Compose, Traefik
 - **SSL/TLS**: Let's Encrypt (автоматическое обновление)
 - **Интеграции**: Google Apps Script, Telegram API, Trello API
@@ -68,11 +69,12 @@ docker-compose logs -f
 │  (SSL/TLS)  │     │   (:8501)   │     │   (:8888)   │
 │ Let's Encrypt│     └─────────────┘     └─────────────┘
 └─────────────┘                                │
-       │                                       │
-       │            ┌─────────────┐            │
-       └───────────▶│  PostgreSQL  │◀───────────┘
-                    │   (:5432)    │
-                    └─────────────┘
+       │                                       ├─────────────┐
+       │            ┌─────────────┐            │             │
+       └───────────▶│  PostgreSQL  │◀───────────┘     ┌──────▼──────┐
+                    │   (:5432)    │                   │    Redis    │
+                    └─────────────┘                   │   (:6379)   │
+                                                      └─────────────┘
 ```
 
 ## Структура проекта
