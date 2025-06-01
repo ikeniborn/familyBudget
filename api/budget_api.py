@@ -1,9 +1,18 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+from datetime import timedelta
 from utils.postgres import Postgres
 from utils.models import Models
+from utils.auth import (
+    get_current_user,
+    verify_password,
+    get_password_hash,
+    create_access_token,
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+)
 import os
 
-app = FastAPI()
+app = FastAPI(title="Budget API", version="1.0.0")
 
 connection = Postgres(
     host=os.getenv("POSTGRES_HOST"),
@@ -13,7 +22,51 @@ connection = Postgres(
 )
 
 
-@app.get("/users")
+@app.post("/token")
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    """Authenticate user and return JWT token."""
+    # Get user from database
+    user_data = await connection.select(
+        f"""
+        SELECT 
+            user_id,
+            user_name,
+            user_password_hash
+        FROM t_d_user
+        WHERE user_name = '{form_data.username}'
+        LIMIT 1
+        """
+    )
+    
+    if not user_data:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    user = user_data[0]
+    user_id, username, password_hash = user[0], user[1], user[2]
+    
+    # Verify password
+    if not password_hash or not verify_password(form_data.password, password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": username, "user_id": user_id}, 
+        expires_delta=access_token_expires
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.get("/users", dependencies=[Depends(get_current_user)])
 async def get_users():
     return await connection.select(
         f"""
@@ -27,7 +80,7 @@ async def get_users():
     )
 
 
-@app.get("/users/{id}")
+@app.get("/users/{id}", dependencies=[Depends(get_current_user)])
 async def get_user(id: int):
     return await connection.select(
         f"""
@@ -43,7 +96,7 @@ async def get_user(id: int):
     )
 
 
-@app.get("/periods")
+@app.get("/periods", dependencies=[Depends(get_current_user)])
 async def get_periods(start_date: str = None, end_date: str = None):
     sql = f"""
       select
@@ -86,7 +139,7 @@ async def get_period(id: int):
     return rows_dict
 
 
-@app.get("/financial_centers")
+@app.get("/financial_centers", dependencies=[Depends(get_current_user)])
 async def get_financial_centers():
     return await connection.select(
         f"""
@@ -114,7 +167,7 @@ async def get_financial_center(id: int):
     )
 
 
-@app.get("/cost_centers")
+@app.get("/cost_centers", dependencies=[Depends(get_current_user)])
 async def get_cost_centers():
     return await connection.select(
         f"""
@@ -142,7 +195,7 @@ async def get_cost_center(id: int):
     )
 
 
-@app.get("/nomenclatures")
+@app.get("/nomenclatures", dependencies=[Depends(get_current_user)])
 async def get_nomenclatures():
     return await connection.select(
         """
@@ -213,7 +266,7 @@ async def get_row_type(id: int):
     )
 
 
-@app.post("/registry")
+@app.post("/registry", dependencies=[Depends(get_current_user)])
 async def insert_to_registry(row: Models.Registry):
     await connection.insert(
         sql=f"""

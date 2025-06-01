@@ -3,6 +3,7 @@ import streamlit as st
 import os
 import polars as pl
 from polars import DataFrame
+from .auth_client import AuthClient
 
 
 API_URL = os.getenv("API_URL")
@@ -13,7 +14,8 @@ class Users:
     def fetchAll(self, ttl=None) -> DataFrame:
         @st.cache_data(ttl=ttl)
         def _fetchAll():
-            rows = requests.get(f"""{API_URL}/users""").json()
+            response = AuthClient.make_authenticated_request("GET", f"""{API_URL}/users""")
+            rows = response.json()
             return DataFrame(data=rows)
 
         return _fetchAll()
@@ -21,7 +23,8 @@ class Users:
     def fetchOne(self, id: int = None, ttl=None) -> DataFrame:
         @st.cache_data(ttl=ttl)
         def _fetchOne(id):
-            rows = requests.get(f"""{API_URL}/users/{id}""").json()
+            response = AuthClient.make_authenticated_request("GET", f"""{API_URL}/users/{id}""")
+            rows = response.json()
             return DataFrame(data=rows).filter(pl.col("user_id") == id)
 
         return _fetchOne(id=id)
@@ -32,7 +35,8 @@ class FinancialCenters:
     def fetchAll(self, ttl=None) -> DataFrame:
         @st.cache_data(ttl=ttl)
         def _fetchAll():
-            rows = requests.get(f"""{API_URL}/financial_centers""").json()
+            response = AuthClient.make_authenticated_request("GET", f"""{API_URL}/financial_centers""")
+            rows = response.json()
             return DataFrame(data=rows)
 
         return _fetchAll()
@@ -133,7 +137,7 @@ class RowTypes:
 class Registry:
 
     def insertOne(row: str = None):
-        requests.post(f"""{API_URL}/registry""", json=row)
+        AuthClient.make_authenticated_request("POST", f"""{API_URL}/registry""", json=row)
 
     def getLastRows(row_type_id: id = None, limit_rows: int = 5) -> DataFrame:
         rows = requests.get(f"""{API_URL}/registry/last_row?row_type_id={row_type_id}&limit_rows={limit_rows}""").json()

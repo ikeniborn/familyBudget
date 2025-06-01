@@ -10,11 +10,13 @@ services:
         ipv4_address: 10.5.0.2
     ports:
       - "5432:5432"
+    env_file:
+      - .env
     environment:
-      POSTGRES_DB: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 2PoMNcdzxkbVjJerquRQ
-      PGDATA: "/var/lib/postgresql/data/pgdata"
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: ${PGDATA}
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ${APP_PATH}/web/db/postgresql/postgresql.conf:/var/lib/postgresql/data/pgdata/postgresql.conf
@@ -43,14 +45,17 @@ services:
     ports:
       - "8888:8888"
     command: "uvicorn budget_api:app --host 0.0.0.0 --port 8888 --reload"
+    env_file:
+      - .env
     environment:
-      - USER_ID=1000
-      - GROUP_ID=1000
-      - POSTGRES_HOST=10.5.0.2
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=budgetdb
-      - POSTGRES_USER=budget
-      - POSTGRES_PASSWORD=VZ7TcYGrb3jvJAFRQSsg
+      - USER_ID=${USER_ID}
+      - GROUP_ID=${GROUP_ID}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB_BUDGET}
+      - POSTGRES_USER=${POSTGRES_USER_BUDGET}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_BUDGET}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     networks:
       app_network:
         ipv4_address: 10.5.0.3
@@ -80,11 +85,13 @@ services:
     ports:
       - "8501:8501"
     command: "streamlit run ui.py --server.port=8501"
+    env_file:
+      - .env
     environment:
-      - USER_ID=1000
-      - GROUP_ID=1000
-      - API_URL=http://10.5.0.3:8888
-      - POLARS_SKIP_CPU_CHECK=false
+      - USER_ID=${USER_ID}
+      - GROUP_ID=${GROUP_ID}
+      - API_URL=${API_URL}
+      - POLARS_SKIP_CPU_CHECK=${POLARS_SKIP_CPU_CHECK}
     networks:
       app_network:
         ipv4_address: 10.5.0.4
@@ -132,14 +139,16 @@ services:
           ipv4_address: 10.5.0.6
       ports:
           - "5984:5984"
+      env_file:
+          - .env
       environment:
-          - COUCHDB_USER=admin
-          - COUCHDB_PASSWORD=2L6uEoNMjW9rVnPgy37t
+          - COUCHDB_USER=${COUCHDB_USER}
+          - COUCHDB_PASSWORD=${COUCHDB_PASSWORD}
       volumes:
           - couchdb-data:/opt/couchdb/data
           - ${APP_PATH}/web/db/couchdb/local.ini:/opt/couchdb/etc/local.ini
       healthcheck:
-        test: ["CMD", "curl", "-f", "http://admin:2L6uEoNMjW9rVnPgy37t@localhost:5984/_up"]
+        test: ["CMD", "sh", "-c", "curl -f http://$${COUCHDB_USER}:$${COUCHDB_PASSWORD}@localhost:5984/_up"]
         interval: 30s
         timeout: 10s
         retries: 5
