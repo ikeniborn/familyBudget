@@ -22,10 +22,10 @@ certificatesResolvers:
       storage: /letsencrypt/acme.json
       httpChallenge:
         entryPoint: web
-      # Uncomment for production
-      # caServer: https://acme-v02.api.letsencrypt.org/directory
-      # Comment out for production (this is staging)
-      caServer: https://acme-staging-v02.api.letsencrypt.org/directory
+      # Production Let's Encrypt
+      caServer: https://acme-v02.api.letsencrypt.org/directory
+      # Staging Let's Encrypt (commented out)
+      # caServer: https://acme-staging-v02.api.letsencrypt.org/directory
 
 providers:
   docker:

@@ -226,6 +226,42 @@ services:
       mem_reservation: "100M"
       mem_limit: "300M" 
 
+  backup:
+    container_name: backup
+    hostname: backup
+    build:
+      dockerfile: ./db/backup/Dockerfile
+      context: ./web
+    networks:
+      app_network:
+        ipv4_address: 10.5.0.10
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - COUCHDB_HOST=couchdb
+      - COUCHDB_PORT=5984
+      - COUCHDB_USER=${COUCHDB_USER}
+      - COUCHDB_PASSWORD=${COUCHDB_PASSWORD}
+      - BACKUP_DIR=/backups
+      - RETENTION_DAYS=7
+      - RUN_INITIAL_BACKUP=false
+    volumes:
+      - backup-data:/backups
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - postgres
+      - couchdb
+    restart: always
+    cpuset: "0"
+    cpus: 0.1
+    mem_reservation: "50M"
+    mem_limit: "100M"
+
 networks:
   app_network:
     driver: bridge
@@ -242,5 +278,7 @@ volumes:
   redis-data:
     driver: local
   traefik-certificates:
+    driver: local
+  backup-data:
     driver: local
 
