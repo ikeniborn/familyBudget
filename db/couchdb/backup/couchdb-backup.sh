@@ -11,6 +11,8 @@ OLD_BACKUP_NAME="couchdb-$(date -d "${RETENTION_DAYS} days ago" ${DATE_FORMAT}).
 DOCKER_VOLUME="web_couchdb-data"
 S3_BUCKET="yandex/ikeniborn-obsidian-couchdb"
 MC_BIN="/opt/minio-binaries/mc"
+COUCHDB_CONTAINER="couchdb"
+COUCHDB_DATA_PATH="/opt/couchdb/data"
 
 # Resource limits
 CPU_LIMIT="0.5"  # 50% of one CPU
@@ -55,57 +57,32 @@ fi
 log "Creating backup: ${BACKUP_NAME}"
 log "Preparing Docker container..."
 
-# Create progress monitoring script
-cat > "${BACKUP_DIR}/monitor.sh" << 'EOF'
-#!/bin/sh
-BACKUP_FILE="$1"
-while true; do
-    if [ -f "${BACKUP_FILE}" ]; then
-        SIZE=$(du -h "${BACKUP_FILE}" 2>/dev/null | cut -f1)
-        if [ -n "${SIZE}" ]; then
-            echo "Progress: ${SIZE}"
-        fi
-    fi
-    sleep 5
-done
-EOF
-chmod +x "${BACKUP_DIR}/monitor.sh"
+# Optional: Check CouchDB health before backup
+log "Checking CouchDB health..."
+if docker exec ${COUCHDB_CONTAINER} curl -s -f http://localhost:5984/_up > /dev/null; then
+    log "CouchDB is healthy"
+else
+    log "WARNING: CouchDB health check failed, but continuing with backup"
+fi
 
-# Start progress monitor in background
-"${BACKUP_DIR}/monitor.sh" "${BACKUP_NAME}" &
-MONITOR_PID=$!
+# Check if CouchDB container is running
+if ! docker ps --format '{{.Names}}' | grep -q "^${COUCHDB_CONTAINER}$"; then
+    error_exit "CouchDB container is not running"
+fi
 
 log "Starting archive creation..."
+log "Creating backup from running CouchDB container..."
+
+# Create backup directly from running container
 if nice -n ${NICE_LEVEL} ionice -c ${IONICE_CLASS} \
-    docker run --rm \
-    --cpus="${CPU_LIMIT}" \
-    --memory="${MEMORY_LIMIT}" \
-    --memory-swap="${MEMORY_LIMIT}" \
-    --volume "${DOCKER_VOLUME}:/data:ro" \
-    --volume "${BACKUP_DIR}:/backup" \
-    alpine:latest sh -c "
-        echo 'Installing compression tools...' && \
-        apk add --no-cache pigz pv && \
-        echo 'Calculating data size...' && \
-        SIZE=\$(du -sb /data | cut -f1) && \
-        echo \"Data size: \$(du -sh /data | cut -f1)\" && \
-        echo 'Creating compressed archive...' && \
-        tar cf - -C / data | pv -s \${SIZE} -p -t -e | pigz -${COMPRESSION_LEVEL} > /backup/${BACKUP_NAME}
-    "; then
-    
-    # Stop progress monitor
-    kill ${MONITOR_PID} 2>/dev/null || true
-    wait ${MONITOR_PID} 2>/dev/null || true
-    rm -f "${BACKUP_DIR}/monitor.sh"
+    docker exec ${COUCHDB_CONTAINER} sh -c "
+        cd ${COUCHDB_DATA_PATH} && \
+        tar cf - .
+    " | pv -p -t -e | pigz -${COMPRESSION_LEVEL} > "${BACKUP_NAME}"; then
     
     log "Backup created successfully"
     log "Backup size: $(du -h "${BACKUP_NAME}" | cut -f1)"
 else
-    # Stop progress monitor
-    kill ${MONITOR_PID} 2>/dev/null || true
-    wait ${MONITOR_PID} 2>/dev/null || true
-    rm -f "${BACKUP_DIR}/monitor.sh"
-    
     error_exit "Failed to create backup"
 fi
 
