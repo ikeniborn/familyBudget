@@ -6,7 +6,7 @@ set -euo pipefail
 readonly GIT_FOLDER="/home/ikeniborn/git"
 readonly GIT_BRANCH="master"
 readonly APP_FOLDER="/home/ikeniborn/app"
-readonly REPO_URL="https://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@github.com/ikeniborn/familyBudget.git"
+readonly REPO_URL="https://ikeniborn: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@github.com/ikeniborn/familyBudget.git"
 
 # Color output for better readability
 readonly RED='\033[0;31m'
