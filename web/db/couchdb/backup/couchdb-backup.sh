@@ -11,6 +11,8 @@ OLD_BACKUP_NAME="couchdb-$(date -d "${RETENTION_DAYS} days ago" ${DATE_FORMAT}).
 DOCKER_VOLUME="web_couchdb-data"
 S3_BUCKET="yandex/ikeniborn-obsidian-couchdb"
 MC_BIN="/opt/minio-binaries/mc"
+COUCHDB_CONTAINER="couchdb"
+COUCHDB_URL="http://admin:2L6uEoNMjW9rVnPgy37t@localhost:5984"
 
 # Resource limits
 CPU_LIMIT="0.5"  # 50% of one CPU
@@ -51,62 +53,63 @@ if [[ -f "${BACKUP_NAME}" ]]; then
     rm -f "${BACKUP_NAME}" || error_exit "Failed to remove existing backup"
 fi
 
-# Create backup with resource limits
+# Check if CouchDB is running
+if ! docker ps --format "table {{.Names}}" | grep -q "^${COUCHDB_CONTAINER}$"; then
+    error_exit "CouchDB container '${COUCHDB_CONTAINER}' is not running"
+fi
+
+# Create backup using CouchDB replication API
 log "Creating backup: ${BACKUP_NAME}"
-log "Preparing Docker container..."
+log "Using CouchDB replication API for safe backup"
 
-# Create progress monitoring script
-cat > "${BACKUP_DIR}/monitor.sh" << 'EOF'
-#!/bin/sh
-BACKUP_FILE="$1"
-while true; do
-    if [ -f "${BACKUP_FILE}" ]; then
-        SIZE=$(du -h "${BACKUP_FILE}" 2>/dev/null | cut -f1)
-        if [ -n "${SIZE}" ]; then
-            echo "Progress: ${SIZE}"
-        fi
-    fi
-    sleep 5
-done
-EOF
-chmod +x "${BACKUP_DIR}/monitor.sh"
+# Create temporary directory for backup
+TEMP_BACKUP_DIR="${BACKUP_DIR}/temp_$(date +%s)"
+mkdir -p "${TEMP_BACKUP_DIR}"
 
-# Start progress monitor in background
-"${BACKUP_DIR}/monitor.sh" "${BACKUP_NAME}" &
-MONITOR_PID=$!
+# Get list of all databases (excluding system databases)
+log "Fetching database list..."
+DBS=$(docker exec "${COUCHDB_CONTAINER}" curl -s "${COUCHDB_URL}/_all_dbs" | \
+    sed 's/\[//;s/\]//;s/"//g' | \
+    tr ',' '\n' | \
+    grep -v '^_')
 
-log "Starting archive creation..."
-if nice -n ${NICE_LEVEL} ionice -c ${IONICE_CLASS} \
-    docker run --rm \
-    --cpus="${CPU_LIMIT}" \
-    --memory="${MEMORY_LIMIT}" \
-    --memory-swap="${MEMORY_LIMIT}" \
-    --volume "${DOCKER_VOLUME}:/data:ro" \
-    --volume "${BACKUP_DIR}:/backup" \
-    alpine:latest sh -c "
-        echo 'Installing compression tools...' && \
-        apk add --no-cache pigz pv && \
-        echo 'Calculating data size...' && \
-        SIZE=\$(du -sb /data | cut -f1) && \
-        echo \"Data size: \$(du -sh /data | cut -f1)\" && \
-        echo 'Creating compressed archive...' && \
-        tar cf - -C / data | pv -s \${SIZE} -p -t -e | pigz -${COMPRESSION_LEVEL} > /backup/${BACKUP_NAME}
-    "; then
-    
-    # Stop progress monitor
-    kill ${MONITOR_PID} 2>/dev/null || true
-    wait ${MONITOR_PID} 2>/dev/null || true
-    rm -f "${BACKUP_DIR}/monitor.sh"
-    
-    log "Backup created successfully"
-    log "Backup size: $(du -h "${BACKUP_NAME}" | cut -f1)"
+if [[ -z "${DBS}" ]]; then
+    log "No user databases found to backup"
+    rmdir "${TEMP_BACKUP_DIR}"
 else
-    # Stop progress monitor
-    kill ${MONITOR_PID} 2>/dev/null || true
-    wait ${MONITOR_PID} 2>/dev/null || true
-    rm -f "${BACKUP_DIR}/monitor.sh"
+    # Export each database
+    for db in ${DBS}; do
+        log "Backing up database: ${db}"
+        docker exec "${COUCHDB_CONTAINER}" curl -s "${COUCHDB_URL}/${db}/_all_docs?include_docs=true" \
+            > "${TEMP_BACKUP_DIR}/${db}.json"
+        
+        if [[ ! -s "${TEMP_BACKUP_DIR}/${db}.json" ]]; then
+            log "WARNING: Database ${db} appears to be empty or failed to export"
+        fi
+    done
     
-    error_exit "Failed to create backup"
+    # Also backup global configuration
+    log "Backing up CouchDB configuration..."
+    docker exec "${COUCHDB_CONTAINER}" curl -s "${COUCHDB_URL}/_node/_local/_config" \
+        > "${TEMP_BACKUP_DIR}/_config.json"
+    
+    # Create compressed archive
+    log "Creating compressed archive..."
+    cd "${BACKUP_DIR}"
+    if nice -n ${NICE_LEVEL} ionice -c ${IONICE_CLASS} \
+        tar czf "${BACKUP_NAME}" \
+        --transform "s|^temp_[0-9]*|couchdb|" \
+        "$(basename "${TEMP_BACKUP_DIR}")"; then
+        
+        log "Backup created successfully"
+        log "Backup size: $(du -h "${BACKUP_NAME}" | cut -f1)"
+        
+        # Clean up temporary directory
+        rm -rf "${TEMP_BACKUP_DIR}"
+    else
+        rm -rf "${TEMP_BACKUP_DIR}"
+        error_exit "Failed to create backup archive"
+    fi
 fi
 
 # Verify backup was created
