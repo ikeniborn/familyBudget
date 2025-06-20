@@ -93,8 +93,10 @@ show_progress() {
     # Log to file as well
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] PROGRESS: ${percent}% - ${description}" >> "${LOG_FILE}"
     
-    # Add newline if completed
-    if [[ $step -eq $TOTAL_STEPS ]]; then
+    # Add newline for intermediate steps to avoid conflicts with other output
+    if [[ $step -lt $TOTAL_STEPS ]]; then
+        echo ""
+    else
         echo ""
     fi
 }
@@ -103,6 +105,10 @@ show_progress() {
 update_progress() {
     CURRENT_STEP=$((CURRENT_STEP + 1))
     show_progress $CURRENT_STEP "$1"
+    
+    # Also show simplified progress line for better visibility
+    local percent=$((CURRENT_STEP * 100 / TOTAL_STEPS))
+    log "🔄 Progress: Step ${CURRENT_STEP}/${TOTAL_STEPS} (${percent}%) - $1"
 }
 
 # Logging function
@@ -357,21 +363,20 @@ fi
 log "Uploading backup to S3: ${S3_BUCKET}"
 log "Upload bandwidth limit: ${UPLOAD_BANDWIDTH}"
 
-# Use mc with progress output
-if "${MC_BIN}" cp --limit-upload "${UPLOAD_BANDWIDTH}" "${BACKUP_NAME}" "${S3_BUCKET}/" 2>&1 | while IFS= read -r line; do
-    # Log all non-empty lines from mc output for debugging
-    if [[ -n "${line}" ]]; then
-        log "Upload: ${line}"
-        # Show upload progress if line contains progress info
-        if [[ "${line}" =~ [0-9]+% ]]; then
-            printf "\r\033[K  └── Upload: %s" "${line}"
-        fi
-    fi
-done; then
-    echo "" # New line after upload progress
-    log "Backup uploaded successfully"
+# Show upload progress indicator
+upload_start_time=$(date +%s)
+log "📤 Starting upload... (this may take several minutes)"
+
+# Use mc with progress output - capture exit code properly
+upload_output=""
+if upload_output=$("${MC_BIN}" cp --limit-upload "${UPLOAD_BANDWIDTH}" "${BACKUP_NAME}" "${S3_BUCKET}/" 2>&1); then
+    upload_end_time=$(date +%s)
+    upload_duration=$((upload_end_time - upload_start_time))
+    log "✅ Upload completed in ${upload_duration} seconds"
+    log "Upload details: ${upload_output}"
     update_progress "Backup uploaded to S3"
 else
+    log "❌ Upload failed. Output: ${upload_output}"
     error_exit "Failed to upload backup to S3"
 fi
 
