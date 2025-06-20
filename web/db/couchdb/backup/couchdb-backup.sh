@@ -24,6 +24,83 @@ NICE_LEVEL="19"  # Lowest priority
 IONICE_CLASS="3"  # Idle I/O priority
 BACKUP_BATCH_SIZE="10"  # Number of databases to backup before checking container health
 
+# Timeout settings
+BASE_TIMEOUT=60       # Base timeout for small databases (seconds)
+MAX_TIMEOUT=1800      # Maximum timeout for very large databases (30 minutes)
+TIMEOUT_PER_MB=2      # Additional seconds per MB of database size
+
+# Progress tracking variables
+TOTAL_STEPS=8
+CURRENT_STEP=0
+PROGRESS_WIDTH=50
+
+# Function to calculate timeout based on database size
+calculate_timeout() {
+    local db_name="$1"
+    local db_info
+    local db_size_mb
+    local timeout
+    
+    # Get database info to determine size
+    if [[ "${USE_HOST_API}" == "true" ]]; then
+        db_info=$(curl -s --connect-timeout 10 "${COUCHDB_HOST_URL}/${db_name}" 2>/dev/null)
+    else
+        db_info=$(docker exec "${COUCHDB_CONTAINER}" curl -s "${COUCHDB_URL}/${db_name}" 2>/dev/null)
+    fi
+    
+    if [[ -n "$db_info" ]]; then
+        # Extract file size in bytes and convert to MB
+        db_size_bytes=$(echo "$db_info" | grep -o '"file":[0-9]*' | cut -d':' -f2)
+        if [[ -n "$db_size_bytes" && "$db_size_bytes" -gt 0 ]]; then
+            db_size_mb=$((db_size_bytes / 1024 / 1024))
+            timeout=$((BASE_TIMEOUT + db_size_mb * TIMEOUT_PER_MB))
+            
+            # Cap at maximum timeout
+            if [[ $timeout -gt $MAX_TIMEOUT ]]; then
+                timeout=$MAX_TIMEOUT
+            fi
+            
+            log "Database ${db_name}: ${db_size_mb}MB, timeout: ${timeout}s"
+            echo $timeout
+        else
+            echo $BASE_TIMEOUT
+        fi
+    else
+        echo $BASE_TIMEOUT
+    fi
+}
+
+# Progress bar function
+show_progress() {
+    local step=$1
+    local description="$2"
+    local percent=$((step * 100 / TOTAL_STEPS))
+    local filled=$((percent * PROGRESS_WIDTH / 100))
+    local empty=$((PROGRESS_WIDTH - filled))
+    
+    # Create progress bar
+    local bar=""
+    for ((i=0; i<filled; i++)); do bar+="█"; done
+    for ((i=0; i<empty; i++)); do bar+="░"; done
+    
+    # Clear current line and show progress
+    printf "\r\033[K[%s] %3d%% - %s" "$bar" "$percent" "$description"
+    
+    # Log to file as well
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] PROGRESS: ${percent}% - ${description}" >> "${LOG_FILE}"
+    
+    # Add newline if completed
+    if [[ $step -eq $TOTAL_STEPS ]]; then
+        echo ""
+    fi
+}
+
+# Update progress function
+update_progress() {
+    CURRENT_STEP=$((CURRENT_STEP + 1))
+    show_progress $CURRENT_STEP "$1"
+}
+
 # Logging function
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "${LOG_FILE}"
@@ -44,10 +121,13 @@ if [[ ! -x "${MC_BIN}" ]]; then
     error_exit "MinIO client not found at ${MC_BIN}"
 fi
 
+update_progress "Prerequisites checked"
+
 # Change to backup directory
 cd "${BACKUP_DIR}" || error_exit "Failed to change to backup directory"
 
 log "Starting CouchDB backup process"
+update_progress "Initializing backup process"
 
 # Remove existing backup if present
 if [[ -f "${BACKUP_NAME}" ]]; then
@@ -63,6 +143,7 @@ if ! docker ps --format "{{.Names}}" | grep -q "^${COUCHDB_CONTAINER}$" && \
     error_exit "CouchDB container '${COUCHDB_CONTAINER}' is not running"
 fi
 log "CouchDB container is running"
+update_progress "Container status verified"
 
 # Create backup using CouchDB replication API
 log "Creating backup: ${BACKUP_NAME}"
@@ -107,6 +188,7 @@ check_container_health() {
 # Get list of all databases (excluding system databases)
 log "Fetching database list..."
 check_container_health
+update_progress "Fetching database list"
 
 # Try to use direct host access first, fall back to docker exec if needed
 if curl -s --connect-timeout 5 "${COUCHDB_HOST_URL}/_all_dbs" >/dev/null 2>&1; then
@@ -131,6 +213,9 @@ if [[ -z "${DBS}" ]]; then
 else
     # Export each database with health checks and delays
     DB_COUNT=0
+    TOTAL_DBS=$(echo "${DBS}" | wc -w)
+    log "Found ${TOTAL_DBS} databases to backup"
+    
     for db in ${DBS}; do
         log "Backing up database: ${db}"
         
@@ -142,37 +227,62 @@ else
         # Add small delay to reduce load
         sleep 0.5
         
+        # Calculate adaptive timeout for this database
+        DB_TIMEOUT=$(calculate_timeout "${db}")
+        
         # Use direct API or docker exec based on availability
         if [[ "${USE_HOST_API}" == "true" ]]; then
             # Direct API access
-            if timeout 60 curl -s "${COUCHDB_HOST_URL}/${db}/_all_docs?include_docs=true" \
-                > "${TEMP_BACKUP_DIR}/${db}.json"; then
+            log "Starting backup of ${db} (timeout: ${DB_TIMEOUT}s)..."
+            if timeout "${DB_TIMEOUT}" curl -s "${COUCHDB_HOST_URL}/${db}/_all_docs?include_docs=true" \
+                > "${TEMP_BACKUP_DIR}/${db}.json" 2>/dev/null; then
                 
                 if [[ ! -s "${TEMP_BACKUP_DIR}/${db}.json" ]]; then
                     log "WARNING: Database ${db} appears to be empty"
                 else
-                    log "Database ${db} backed up successfully ($(du -h "${TEMP_BACKUP_DIR}/${db}.json" | cut -f1))"
+                    local file_size=$(du -h "${TEMP_BACKUP_DIR}/${db}.json" | cut -f1)
+                    log "✓ Database ${db} backed up successfully (${file_size})"
                 fi
             else
-                log "ERROR: Failed to backup database ${db}, but continuing with other databases"
+                local exit_code=$?
+                if [[ $exit_code -eq 124 ]]; then
+                    log "ERROR: Database ${db} backup timed out after ${DB_TIMEOUT}s"
+                else
+                    log "ERROR: Database ${db} backup failed (exit code: $exit_code)"
+                fi
+                log "Continuing with other databases..."
             fi
         else
             # Docker exec method
-            if timeout 60 docker exec "${COUCHDB_CONTAINER}" curl -s "${COUCHDB_URL}/${db}/_all_docs?include_docs=true" \
-                > "${TEMP_BACKUP_DIR}/${db}.json"; then
+            log "Starting backup of ${db} via docker exec (timeout: ${DB_TIMEOUT}s)..."
+            if timeout "${DB_TIMEOUT}" docker exec "${COUCHDB_CONTAINER}" curl -s "${COUCHDB_URL}/${db}/_all_docs?include_docs=true" \
+                > "${TEMP_BACKUP_DIR}/${db}.json" 2>/dev/null; then
                 
                 if [[ ! -s "${TEMP_BACKUP_DIR}/${db}.json" ]]; then
                     log "WARNING: Database ${db} appears to be empty"
                 else
-                    log "Database ${db} backed up successfully ($(du -h "${TEMP_BACKUP_DIR}/${db}.json" | cut -f1))"
+                    local file_size=$(du -h "${TEMP_BACKUP_DIR}/${db}.json" | cut -f1)
+                    log "✓ Database ${db} backed up successfully (${file_size})"
                 fi
             else
-                log "ERROR: Failed to backup database ${db}, but continuing with other databases"
+                local exit_code=$?
+                if [[ $exit_code -eq 124 ]]; then
+                    log "ERROR: Database ${db} backup timed out after ${DB_TIMEOUT}s"
+                else
+                    log "ERROR: Database ${db} backup failed (exit code: $exit_code)"
+                fi
+                log "Continuing with other databases..."
             fi
         fi
         
+        # Show database backup progress
+        local db_progress=$((DB_COUNT * 100 / TOTAL_DBS))
+        printf "\r\033[K  └── Database progress: %d/%d (%d%%) - %s\n" "$((DB_COUNT + 1))" "$TOTAL_DBS" "$db_progress" "$db"
+        
         ((DB_COUNT++))
     done
+    
+    update_progress "Database export completed (${TOTAL_DBS} databases)"
     
     # Also backup global configuration
     log "Backing up CouchDB configuration..."
@@ -197,6 +307,8 @@ else
         fi
     fi
     
+    update_progress "Configuration backup completed"
+    
     # Create compressed archive
     log "Creating compressed archive..."
     cd "${BACKUP_DIR}"
@@ -207,6 +319,8 @@ else
         
         log "Backup created successfully"
         log "Backup size: $(du -h "${BACKUP_NAME}" | cut -f1)"
+        
+        update_progress "Archive created ($(du -h "${BACKUP_NAME}" | cut -f1))"
         
         # Clean up temporary directory
         rm -rf "${TEMP_BACKUP_DIR}"
@@ -238,9 +352,15 @@ if "${MC_BIN}" cp --limit-upload "${UPLOAD_BANDWIDTH}" "${BACKUP_NAME}" "${S3_BU
     # Log all non-empty lines from mc output for debugging
     if [[ -n "${line}" ]]; then
         log "Upload: ${line}"
+        # Show upload progress if line contains progress info
+        if [[ "${line}" =~ [0-9]+% ]]; then
+            printf "\r\033[K  └── Upload: %s" "${line}"
+        fi
     fi
 done; then
+    echo "" # New line after upload progress
     log "Backup uploaded successfully"
+    update_progress "Backup uploaded to S3"
 else
     error_exit "Failed to upload backup to S3"
 fi
@@ -263,6 +383,8 @@ fi
 # Clean up any backups older than retention period
 log "Cleaning up backups older than ${RETENTION_DAYS} days"
 find "${BACKUP_DIR}" -name "couchdb-*.tar.gz" -type f -mtime +${RETENTION_DAYS} -delete
+
+update_progress "Cleanup completed - Backup process finished"
 
 log "Backup process completed successfully"
 
