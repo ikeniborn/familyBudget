@@ -55,10 +55,14 @@ if [[ -f "${BACKUP_NAME}" ]]; then
     rm -f "${BACKUP_NAME}" || error_exit "Failed to remove existing backup"
 fi
 
-# Check if CouchDB is running
-if ! docker ps --format "table {{.Names}}" | grep -q "^${COUCHDB_CONTAINER}$"; then
+# Check if CouchDB is running (initial check)
+log "Checking if CouchDB container is running..."
+if ! docker ps --format "{{.Names}}" | grep -q "^${COUCHDB_CONTAINER}$" && \
+   ! [[ "$(docker inspect -f '{{.State.Running}}' "${COUCHDB_CONTAINER}" 2>/dev/null)" == "true" ]] && \
+   ! curl -s --connect-timeout 2 "${COUCHDB_HOST_URL}/_up" >/dev/null 2>&1; then
     error_exit "CouchDB container '${COUCHDB_CONTAINER}' is not running"
 fi
+log "CouchDB container is running"
 
 # Create backup using CouchDB replication API
 log "Creating backup: ${BACKUP_NAME}"
@@ -70,10 +74,31 @@ mkdir -p "${TEMP_BACKUP_DIR}"
 
 # Function to check if container is running
 check_container_health() {
-    if ! docker ps --format "table {{.Names}}" | grep -q "^${COUCHDB_CONTAINER}$"; then
+    # Try multiple methods to check container status
+    local container_running=false
+    
+    # Method 1: Check by name format
+    if docker ps --format "{{.Names}}" | grep -q "^${COUCHDB_CONTAINER}$"; then
+        container_running=true
+    # Method 2: Check by container inspection
+    elif docker inspect "${COUCHDB_CONTAINER}" >/dev/null 2>&1 && \
+         [[ "$(docker inspect -f '{{.State.Running}}' "${COUCHDB_CONTAINER}" 2>/dev/null)" == "true" ]]; then
+        container_running=true
+    # Method 3: Try to connect to CouchDB API
+    elif curl -s --connect-timeout 2 "${COUCHDB_HOST_URL}/_up" >/dev/null 2>&1; then
+        container_running=true
+    fi
+    
+    if [[ "${container_running}" == "false" ]]; then
         log "WARNING: CouchDB container is not running, waiting for restart..."
         sleep 10
-        if ! docker ps --format "table {{.Names}}" | grep -q "^${COUCHDB_CONTAINER}$"; then
+        
+        # Retry check after waiting
+        if docker ps --format "{{.Names}}" | grep -q "^${COUCHDB_CONTAINER}$" || \
+           [[ "$(docker inspect -f '{{.State.Running}}' "${COUCHDB_CONTAINER}" 2>/dev/null)" == "true" ]] || \
+           curl -s --connect-timeout 2 "${COUCHDB_HOST_URL}/_up" >/dev/null 2>&1; then
+            log "CouchDB container is now running"
+        else
             error_exit "CouchDB container failed to restart"
         fi
     fi
