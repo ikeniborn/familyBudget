@@ -240,11 +240,11 @@ else
                 if [[ ! -s "${TEMP_BACKUP_DIR}/${db}.json" ]]; then
                     log "WARNING: Database ${db} appears to be empty"
                 else
-                    local file_size=$(du -h "${TEMP_BACKUP_DIR}/${db}.json" | cut -f1)
+                    file_size=$(du -h "${TEMP_BACKUP_DIR}/${db}.json" | cut -f1)
                     log "✓ Database ${db} backed up successfully (${file_size})"
                 fi
             else
-                local exit_code=$?
+                exit_code=$?
                 if [[ $exit_code -eq 124 ]]; then
                     log "ERROR: Database ${db} backup timed out after ${DB_TIMEOUT}s"
                 else
@@ -261,11 +261,11 @@ else
                 if [[ ! -s "${TEMP_BACKUP_DIR}/${db}.json" ]]; then
                     log "WARNING: Database ${db} appears to be empty"
                 else
-                    local file_size=$(du -h "${TEMP_BACKUP_DIR}/${db}.json" | cut -f1)
+                    file_size=$(du -h "${TEMP_BACKUP_DIR}/${db}.json" | cut -f1)
                     log "✓ Database ${db} backed up successfully (${file_size})"
                 fi
             else
-                local exit_code=$?
+                exit_code=$?
                 if [[ $exit_code -eq 124 ]]; then
                     log "ERROR: Database ${db} backup timed out after ${DB_TIMEOUT}s"
                 else
@@ -276,7 +276,7 @@ else
         fi
         
         # Show database backup progress
-        local db_progress=$((DB_COUNT * 100 / TOTAL_DBS))
+        db_progress=$((DB_COUNT * 100 / TOTAL_DBS))
         printf "\r\033[K  └── Database progress: %d/%d (%d%%) - %s\n" "$((DB_COUNT + 1))" "$TOTAL_DBS" "$db_progress" "$db"
         
         ((DB_COUNT++))
