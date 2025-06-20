@@ -44,10 +44,14 @@ calculate_timeout() {
     
     # Get database info to determine size
     if [[ "${use_host_api}" == "true" ]]; then
+        log "DEBUG: Getting DB info via host API for ${db_name}"
         db_info=$(curl -s --connect-timeout 10 "${COUCHDB_HOST_URL}/${db_name}" 2>/dev/null)
     else
+        log "DEBUG: Getting DB info via docker exec for ${db_name}"
         db_info=$(docker exec "${COUCHDB_CONTAINER}" curl -s "${COUCHDB_URL}/${db_name}" 2>/dev/null)
     fi
+    
+    log "DEBUG: DB info length: ${#db_info} characters"
     
     if [[ -n "$db_info" ]]; then
         # Extract file size in bytes and convert to MB
@@ -231,11 +235,12 @@ else
         sleep 0.5
         
         # Calculate adaptive timeout for this database
+        log "Calculating timeout for database: ${db}, USE_HOST_API=${USE_HOST_API}"
         DB_TIMEOUT=$(calculate_timeout "${db}" "${USE_HOST_API}")
         
         # Ensure timeout is a valid number
         if ! [[ "$DB_TIMEOUT" =~ ^[0-9]+$ ]]; then
-            log "WARNING: Invalid timeout calculated for ${db}, using default"
+            log "WARNING: Invalid timeout calculated for ${db} (got: '$DB_TIMEOUT'), using default"
             DB_TIMEOUT=$BASE_TIMEOUT
         fi
         
@@ -285,8 +290,8 @@ else
         fi
         
         # Show database backup progress
-        db_progress=$((DB_COUNT * 100 / TOTAL_DBS))
-        printf "\r\033[K  └── Database progress: %d/%d (%d%%) - %s\n" "$((DB_COUNT + 1))" "$TOTAL_DBS" "$db_progress" "$db"
+        db_progress=$(((DB_COUNT + 1) * 100 / TOTAL_DBS))
+        log "  └── Database progress: $((DB_COUNT + 1))/$TOTAL_DBS ($db_progress%) - $db"
         
         ((DB_COUNT++))
     done
@@ -395,7 +400,13 @@ find "${BACKUP_DIR}" -name "couchdb-*.tar.gz" -type f -mtime +${RETENTION_DAYS} 
 
 update_progress "Cleanup completed - Backup process finished"
 
-log "Backup process completed successfully"
+echo ""
+echo "=========================================="
+log "🎉 BACKUP PROCESS COMPLETED SUCCESSFULLY 🎉"
+log "Backup file: ${BACKUP_NAME}"
+log "Backup size: $(du -h "${BACKUP_NAME}" | cut -f1)"
+log "Uploaded to S3: ${S3_BUCKET}/${BACKUP_NAME}"
+echo "=========================================="
 
 # Final container health check
 check_container_health
