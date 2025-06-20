@@ -37,12 +37,13 @@ PROGRESS_WIDTH=50
 # Function to calculate timeout based on database size
 calculate_timeout() {
     local db_name="$1"
+    local use_host_api="$2"  # Pass as parameter instead of relying on global variable
     local db_info
     local db_size_mb
     local timeout
     
     # Get database info to determine size
-    if [[ "${USE_HOST_API}" == "true" ]]; then
+    if [[ "${use_host_api}" == "true" ]]; then
         db_info=$(curl -s --connect-timeout 10 "${COUCHDB_HOST_URL}/${db_name}" 2>/dev/null)
     else
         db_info=$(docker exec "${COUCHDB_CONTAINER}" curl -s "${COUCHDB_URL}/${db_name}" 2>/dev/null)
@@ -63,9 +64,11 @@ calculate_timeout() {
             log "Database ${db_name}: ${db_size_mb}MB, timeout: ${timeout}s"
             echo $timeout
         else
+            log "Database ${db_name}: size not found, using base timeout ${BASE_TIMEOUT}s"
             echo $BASE_TIMEOUT
         fi
     else
+        log "Database ${db_name}: info not available, using base timeout ${BASE_TIMEOUT}s"
         echo $BASE_TIMEOUT
     fi
 }
@@ -228,7 +231,7 @@ else
         sleep 0.5
         
         # Calculate adaptive timeout for this database
-        DB_TIMEOUT=$(calculate_timeout "${db}")
+        DB_TIMEOUT=$(calculate_timeout "${db}" "${USE_HOST_API}")
         
         # Ensure timeout is a valid number
         if ! [[ "$DB_TIMEOUT" =~ ^[0-9]+$ ]]; then
