@@ -230,11 +230,17 @@ else
         # Calculate adaptive timeout for this database
         DB_TIMEOUT=$(calculate_timeout "${db}")
         
+        # Ensure timeout is a valid number
+        if ! [[ "$DB_TIMEOUT" =~ ^[0-9]+$ ]]; then
+            log "WARNING: Invalid timeout calculated for ${db}, using default"
+            DB_TIMEOUT=$BASE_TIMEOUT
+        fi
+        
         # Use direct API or docker exec based on availability
         if [[ "${USE_HOST_API}" == "true" ]]; then
             # Direct API access
             log "Starting backup of ${db} (timeout: ${DB_TIMEOUT}s)..."
-            if timeout "${DB_TIMEOUT}" curl -s "${COUCHDB_HOST_URL}/${db}/_all_docs?include_docs=true" \
+            if timeout ${DB_TIMEOUT} curl -s "${COUCHDB_HOST_URL}/${db}/_all_docs?include_docs=true" \
                 > "${TEMP_BACKUP_DIR}/${db}.json" 2>/dev/null; then
                 
                 if [[ ! -s "${TEMP_BACKUP_DIR}/${db}.json" ]]; then
@@ -255,7 +261,7 @@ else
         else
             # Docker exec method
             log "Starting backup of ${db} via docker exec (timeout: ${DB_TIMEOUT}s)..."
-            if timeout "${DB_TIMEOUT}" docker exec "${COUCHDB_CONTAINER}" curl -s "${COUCHDB_URL}/${db}/_all_docs?include_docs=true" \
+            if timeout ${DB_TIMEOUT} docker exec "${COUCHDB_CONTAINER}" curl -s "${COUCHDB_URL}/${db}/_all_docs?include_docs=true" \
                 > "${TEMP_BACKUP_DIR}/${db}.json" 2>/dev/null; then
                 
                 if [[ ! -s "${TEMP_BACKUP_DIR}/${db}.json" ]]; then
