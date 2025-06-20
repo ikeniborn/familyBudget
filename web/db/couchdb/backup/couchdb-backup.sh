@@ -13,6 +13,7 @@ S3_BUCKET="yandex/ikeniborn-obsidian-couchdb"
 MC_BIN="/opt/minio-binaries/mc"
 COUCHDB_CONTAINER="couchdb"
 COUCHDB_URL="http://admin:2L6uEoNMjW9rVnPgy37t@localhost:5984"
+COUCHDB_HOST_URL="http://admin:2L6uEoNMjW9rVnPgy37t@localhost:5984"  # Direct access from host
 
 # Resource limits
 CPU_LIMIT="0.5"  # 50% of one CPU
@@ -21,6 +22,7 @@ COMPRESSION_LEVEL="6"  # gzip compression level (1-9)
 UPLOAD_BANDWIDTH="1MB"  # Bandwidth limit for S3 upload
 NICE_LEVEL="19"  # Lowest priority
 IONICE_CLASS="3"  # Idle I/O priority
+BACKUP_BATCH_SIZE="10"  # Number of databases to backup before checking container health
 
 # Logging function
 log() {
@@ -66,32 +68,109 @@ log "Using CouchDB replication API for safe backup"
 TEMP_BACKUP_DIR="${BACKUP_DIR}/temp_$(date +%s)"
 mkdir -p "${TEMP_BACKUP_DIR}"
 
+# Function to check if container is running
+check_container_health() {
+    if ! docker ps --format "table {{.Names}}" | grep -q "^${COUCHDB_CONTAINER}$"; then
+        log "WARNING: CouchDB container is not running, waiting for restart..."
+        sleep 10
+        if ! docker ps --format "table {{.Names}}" | grep -q "^${COUCHDB_CONTAINER}$"; then
+            error_exit "CouchDB container failed to restart"
+        fi
+    fi
+}
+
 # Get list of all databases (excluding system databases)
 log "Fetching database list..."
-DBS=$(docker exec "${COUCHDB_CONTAINER}" curl -s "${COUCHDB_URL}/_all_dbs" | \
-    sed 's/\[//;s/\]//;s/"//g' | \
-    tr ',' '\n' | \
-    grep -v '^_')
+check_container_health
+
+# Try to use direct host access first, fall back to docker exec if needed
+if curl -s --connect-timeout 5 "${COUCHDB_HOST_URL}/_all_dbs" >/dev/null 2>&1; then
+    log "Using direct host access to CouchDB API"
+    DBS=$(curl -s "${COUCHDB_HOST_URL}/_all_dbs" | \
+        sed 's/\[//;s/\]//;s/"//g' | \
+        tr ',' '\n' | \
+        grep -v '^_')
+    USE_HOST_API=true
+else
+    log "Using docker exec to access CouchDB API"
+    DBS=$(docker exec "${COUCHDB_CONTAINER}" curl -s "${COUCHDB_URL}/_all_dbs" | \
+        sed 's/\[//;s/\]//;s/"//g' | \
+        tr ',' '\n' | \
+        grep -v '^_')
+    USE_HOST_API=false
+fi
 
 if [[ -z "${DBS}" ]]; then
     log "No user databases found to backup"
     rmdir "${TEMP_BACKUP_DIR}"
 else
-    # Export each database
+    # Export each database with health checks and delays
+    DB_COUNT=0
     for db in ${DBS}; do
         log "Backing up database: ${db}"
-        docker exec "${COUCHDB_CONTAINER}" curl -s "${COUCHDB_URL}/${db}/_all_docs?include_docs=true" \
-            > "${TEMP_BACKUP_DIR}/${db}.json"
         
-        if [[ ! -s "${TEMP_BACKUP_DIR}/${db}.json" ]]; then
-            log "WARNING: Database ${db} appears to be empty or failed to export"
+        # Check container health periodically
+        if (( DB_COUNT % BACKUP_BATCH_SIZE == 0 )); then
+            check_container_health
         fi
+        
+        # Add small delay to reduce load
+        sleep 0.5
+        
+        # Use direct API or docker exec based on availability
+        if [[ "${USE_HOST_API}" == "true" ]]; then
+            # Direct API access
+            if timeout 60 curl -s "${COUCHDB_HOST_URL}/${db}/_all_docs?include_docs=true" \
+                > "${TEMP_BACKUP_DIR}/${db}.json"; then
+                
+                if [[ ! -s "${TEMP_BACKUP_DIR}/${db}.json" ]]; then
+                    log "WARNING: Database ${db} appears to be empty"
+                else
+                    log "Database ${db} backed up successfully ($(du -h "${TEMP_BACKUP_DIR}/${db}.json" | cut -f1))"
+                fi
+            else
+                log "ERROR: Failed to backup database ${db}, but continuing with other databases"
+            fi
+        else
+            # Docker exec method
+            if timeout 60 docker exec "${COUCHDB_CONTAINER}" curl -s "${COUCHDB_URL}/${db}/_all_docs?include_docs=true" \
+                > "${TEMP_BACKUP_DIR}/${db}.json"; then
+                
+                if [[ ! -s "${TEMP_BACKUP_DIR}/${db}.json" ]]; then
+                    log "WARNING: Database ${db} appears to be empty"
+                else
+                    log "Database ${db} backed up successfully ($(du -h "${TEMP_BACKUP_DIR}/${db}.json" | cut -f1))"
+                fi
+            else
+                log "ERROR: Failed to backup database ${db}, but continuing with other databases"
+            fi
+        fi
+        
+        ((DB_COUNT++))
     done
     
     # Also backup global configuration
     log "Backing up CouchDB configuration..."
-    docker exec "${COUCHDB_CONTAINER}" curl -s "${COUCHDB_URL}/_node/_local/_config" \
-        > "${TEMP_BACKUP_DIR}/_config.json"
+    check_container_health
+    sleep 0.5
+    
+    if [[ "${USE_HOST_API}" == "true" ]]; then
+        # Direct API access
+        if timeout 30 curl -s "${COUCHDB_HOST_URL}/_node/_local/_config" \
+            > "${TEMP_BACKUP_DIR}/_config.json"; then
+            log "Configuration backed up successfully"
+        else
+            log "WARNING: Failed to backup configuration, but continuing"
+        fi
+    else
+        # Docker exec method
+        if timeout 30 docker exec "${COUCHDB_CONTAINER}" curl -s "${COUCHDB_URL}/_node/_local/_config" \
+            > "${TEMP_BACKUP_DIR}/_config.json"; then
+            log "Configuration backed up successfully"
+        else
+            log "WARNING: Failed to backup configuration, but continuing"
+        fi
+    fi
     
     # Create compressed archive
     log "Creating compressed archive..."
@@ -161,6 +240,10 @@ log "Cleaning up backups older than ${RETENTION_DAYS} days"
 find "${BACKUP_DIR}" -name "couchdb-*.tar.gz" -type f -mtime +${RETENTION_DAYS} -delete
 
 log "Backup process completed successfully"
+
+# Final container health check
+check_container_health
+log "CouchDB container is running normally after backup"
 
 # Return to home directory
 cd ~ || true/
