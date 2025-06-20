@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -uo pipefail
 
 # Configuration
 BACKUP_DIR="/home/ikeniborn/app/web/db/couchdb/backup"
@@ -44,14 +44,10 @@ calculate_timeout() {
     
     # Get database info to determine size
     if [[ "${use_host_api}" == "true" ]]; then
-        log "DEBUG: Getting DB info via host API for ${db_name}"
         db_info=$(curl -s --connect-timeout 10 "${COUCHDB_HOST_URL}/${db_name}" 2>/dev/null)
     else
-        log "DEBUG: Getting DB info via docker exec for ${db_name}"
         db_info=$(docker exec "${COUCHDB_CONTAINER}" curl -s "${COUCHDB_URL}/${db_name}" 2>/dev/null)
     fi
-    
-    log "DEBUG: DB info length: ${#db_info} characters"
     
     if [[ -n "$db_info" ]]; then
         # Extract file size in bytes and convert to MB
@@ -65,14 +61,15 @@ calculate_timeout() {
                 timeout=$MAX_TIMEOUT
             fi
             
-            log "Database ${db_name}: ${db_size_mb}MB, timeout: ${timeout}s"
+            # Log to stderr to avoid interfering with return value
+            echo "Database ${db_name}: ${db_size_mb}MB, timeout: ${timeout}s" >&2
             echo $timeout
         else
-            log "Database ${db_name}: size not found, using base timeout ${BASE_TIMEOUT}s"
+            echo "Database ${db_name}: size not found, using base timeout ${BASE_TIMEOUT}s" >&2
             echo $BASE_TIMEOUT
         fi
     else
-        log "Database ${db_name}: info not available, using base timeout ${BASE_TIMEOUT}s"
+        echo "Database ${db_name}: info not available, using base timeout ${BASE_TIMEOUT}s" >&2
         echo $BASE_TIMEOUT
     fi
 }
@@ -235,7 +232,6 @@ else
         sleep 0.5
         
         # Calculate adaptive timeout for this database
-        log "Calculating timeout for database: ${db}, USE_HOST_API=${USE_HOST_API}"
         DB_TIMEOUT=$(calculate_timeout "${db}" "${USE_HOST_API}")
         
         # Ensure timeout is a valid number
