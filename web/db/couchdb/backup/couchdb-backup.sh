@@ -30,7 +30,7 @@ MAX_TIMEOUT=1800      # Maximum timeout for very large databases (30 minutes)
 TIMEOUT_PER_MB=2      # Additional seconds per MB of database size
 
 # Progress tracking variables
-TOTAL_STEPS=8
+TOTAL_STEPS=9
 CURRENT_STEP=0
 PROGRESS_WIDTH=50
 
@@ -365,17 +365,52 @@ log "Upload bandwidth limit: ${UPLOAD_BANDWIDTH}"
 
 # Show upload progress indicator
 upload_start_time=$(date +%s)
-log "📤 Starting upload... (this may take several minutes)"
+file_size_mb=$(du -m "${BACKUP_NAME}" | cut -f1)
+log "📤 Starting upload of ${file_size_mb}MB file... (this may take several minutes)"
+
+# Function to show upload progress
+show_upload_progress() {
+    local start_time=$1
+    local file_size_mb=$2
+    while true; do
+        current_time=$(date +%s)
+        elapsed=$((current_time - start_time))
+        
+        # Estimate progress based on time (rough estimation)
+        if [[ $elapsed -gt 0 ]]; then
+            # Rough estimate: 1MB per 10 seconds at 1MB bandwidth limit
+            estimated_progress=$((elapsed * 100 / (file_size_mb * 10)))
+            if [[ $estimated_progress -gt 100 ]]; then
+                estimated_progress=100
+            fi
+            printf "\r  🔄 Upload progress: ~%d%% (%ds elapsed)" "$estimated_progress" "$elapsed"
+        fi
+        sleep 2
+    done
+}
+
+# Start background progress indicator
+show_upload_progress "$upload_start_time" "$file_size_mb" &
+progress_pid=$!
 
 # Use mc with progress output - capture exit code properly
 upload_output=""
 if upload_output=$("${MC_BIN}" cp --limit-upload "${UPLOAD_BANDWIDTH}" "${BACKUP_NAME}" "${S3_BUCKET}/" 2>&1); then
+    # Kill progress indicator
+    kill $progress_pid 2>/dev/null
+    wait $progress_pid 2>/dev/null
+    
     upload_end_time=$(date +%s)
     upload_duration=$((upload_end_time - upload_start_time))
+    printf "\r\033[K"  # Clear progress line
     log "✅ Upload completed in ${upload_duration} seconds"
     log "Upload details: ${upload_output}"
     update_progress "Backup uploaded to S3"
 else
+    # Kill progress indicator
+    kill $progress_pid 2>/dev/null
+    wait $progress_pid 2>/dev/null
+    printf "\r\033[K"  # Clear progress line
     log "❌ Upload failed. Output: ${upload_output}"
     error_exit "Failed to upload backup to S3"
 fi
