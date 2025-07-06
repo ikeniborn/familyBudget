@@ -1,0 +1,198 @@
+version: "3.8"
+
+services:
+  postgres:
+    container_name: postgres
+    hostname: postgres
+    image: "postgres:13"
+    networks:
+      app_network:
+        ipv4_address: 10.5.0.2
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-2PoMNcdzxkbVjJerquRQ}
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ${APP_PATH}/postgresql/postgresql.conf:/var/lib/postgresql/data/pgdata/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: always
+    cpuset: "0"    
+    cpus: 0.5  
+    mem_reservation: "100M"
+    mem_limit: "250M"
+
+  budget-api:
+    container_name: budget-api
+    hostname: budget-api
+    build:
+      dockerfile: ./api/Dockerfile
+      context: ./
+    volumes:
+      - ${APP_PATH}/api:/usr/src/app:delegated
+    command: "uvicorn budget_api:app --host 0.0.0.0 --port 8888 --reload"
+    environment:
+      - USER_ID=1000
+      - GROUP_ID=1000
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=budgetdb
+      - POSTGRES_USER=budget
+      - POSTGRES_PASSWORD=${BUDGET_DB_PASSWORD:-VZ7TcYGrb3jvJAFRQSsg}
+    networks:
+      app_network:
+        ipv4_address: 10.5.0.3
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo -n '' > /dev/tcp/0.0.0.0/8888"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    cpuset: "0"    
+    cpus: 0.15 
+    mem_reservation: "100M"
+    mem_limit: "250M" 
+    depends_on:
+      - postgres
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=app_network"
+      - "traefik.http.routers.budget-api.rule=Host(`${BUDGET_API_SUBDOMAIN}.${DOMAIN}`)"
+      - "traefik.http.routers.budget-api.entrypoints=websecure"
+      - "traefik.http.routers.budget-api.tls=true"
+      - "traefik.http.services.budget-api.loadbalancer.server.port=8888"
+
+  budget-ui:
+    container_name: budget-ui
+    hostname: budget-ui
+    build:
+      dockerfile: ./budget/Dockerfile
+      context: ./
+    volumes:
+      - ${APP_PATH}/budget:/usr/src/app:delegated
+    command: "streamlit run ui.py --server.port=8501"
+    environment:
+      - USER_ID=1000
+      - GROUP_ID=1000
+      - API_URL=http://budget-api:8888
+      - POLARS_SKIP_CPU_CHECK=false
+    networks:
+      app_network:
+        ipv4_address: 10.5.0.4
+    healthcheck:
+      test: ["CMD", "curl","--fail","http://0.0.0.0:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    cpuset: "0"    
+    cpus: 0.15
+    mem_reservation: "100M"
+    mem_limit: "250M" 
+    depends_on:
+      - budget-api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=app_network"
+      - "traefik.http.routers.budget-ui.rule=Host(`${BUDGET_UI_SUBDOMAIN}.${DOMAIN}`)"
+      - "traefik.http.routers.budget-ui.entrypoints=websecure"
+      - "traefik.http.routers.budget-ui.tls=true"
+      - "traefik.http.services.budget-ui.loadbalancer.server.port=8501"
+
+  frontend:
+    container_name: frontend
+    build:
+      context: ./frontend
+      dockerfile: ${FRONTEND_DOCKERFILE:-Dockerfile}
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - VITE_API_URL=${FRONTEND_API_URL:-http://frontend-api:4000}
+    networks:
+      app_network:
+        ipv4_address: 10.5.0.7
+    restart: always
+    cpuset: "0"
+    cpus: 0.15
+    mem_reservation: "100M"
+    mem_limit: "200M"
+    depends_on:
+      - frontend-api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=app_network"
+      - "traefik.http.routers.frontend.rule=Host(`${FRONTEND_SUBDOMAIN}.${DOMAIN}`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+
+  frontend-api:
+    container_name: frontend-api
+    build:
+      context: ./frontend-api
+      dockerfile: ${FRONTEND_API_DOCKERFILE:-Dockerfile}
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=4000
+      - BACKEND_API_URL=http://budget-api:8888
+      - SESSION_SECRET=${SESSION_SECRET}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+    networks:
+      app_network:
+        ipv4_address: 10.5.0.8
+    restart: always
+    cpuset: "0"
+    cpus: 0.15
+    mem_reservation: "100M"
+    mem_limit: "200M"
+    depends_on:
+      - budget-api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=app_network"
+      - "traefik.http.routers.frontend-api.rule=Host(`${FRONTEND_API_SUBDOMAIN}.${DOMAIN}`)"
+      - "traefik.http.routers.frontend-api.entrypoints=websecure"
+      - "traefik.http.routers.frontend-api.tls=true"
+      - "traefik.http.services.frontend-api.loadbalancer.server.port=4000"
+
+  couchdb:
+    image: couchdb:latest
+    hostname: couchdb
+    container_name: couchdb
+    networks:
+      app_network:
+        ipv4_address: 10.5.0.6
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=${COUCHDB_PASSWORD:-2L6uEoNMjW9rVnPgy37t}
+    volumes:
+      - couchdb-data:/opt/couchdb/data
+      - ${APP_PATH}/couchdb/local.ini:/opt/couchdb/etc/local.ini
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://admin:${COUCHDB_PASSWORD:-2L6uEoNMjW9rVnPgy37t}@localhost:5984/_up"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    cpuset: "0"    
+    cpus: 0.50
+    mem_reservation: "100M"
+    mem_limit: "300M"
+
+networks:
+  app_network:
+    external: true
+
+volumes:
+  postgres-data:
+    driver: local
+  couchdb-data:
+    driver: local

@@ -1,0 +1,55 @@
+version: "3.8"
+
+services:
+  frontend:
+    container_name: frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:4000
+    networks:
+      - app_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=app_network"
+      - "traefik.http.routers.frontend.rule=Host(`${FRONTEND_SUBDOMAIN}.${DOMAIN}`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+    depends_on:
+      - frontend-api
+
+  frontend-api:
+    container_name: frontend-api
+    build:
+      context: ./frontend-api
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend-api:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - PORT=4000
+      - BACKEND_API_URL=http://budget-api:8888
+      - FRONTEND_URL=http://localhost:3000
+      - SESSION_SECRET=dev-session-secret
+    networks:
+      - app_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=app_network"
+      - "traefik.http.routers.frontend-api.rule=Host(`${FRONTEND_API_SUBDOMAIN}.${DOMAIN}`)"
+      - "traefik.http.routers.frontend-api.entrypoints=websecure"
+      - "traefik.http.routers.frontend-api.tls=true"
+      - "traefik.http.services.frontend-api.loadbalancer.server.port=4000"
+    depends_on:
+      - postgres
+
+networks:
+  app_network:
+    external: true
