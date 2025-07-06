@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthGuard } from './components/auth/AuthGuard';
+import { ToastContainer } from './components/common/ToastContainer';
 import LoginPage from './pages/Login';
 import DashboardPage from './pages/Dashboard';
 
@@ -13,6 +14,7 @@ const ProductsPage = React.lazy(() => import('./pages/Products'));
 function App() {
   return (
     <Router>
+      <ToastContainer />
       <React.Suspense 
         fallback={
           <div className="min-h-screen flex items-center justify-center">

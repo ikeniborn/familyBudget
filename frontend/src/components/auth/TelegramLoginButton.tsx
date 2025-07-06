@@ -71,7 +71,7 @@ export const TelegramLoginButton: React.FC<TelegramLoginButtonProps> = ({
       if (ref.current && script.parentNode) {
         script.parentNode.removeChild(script);
       }
-      delete window.onTelegramAuth;
+      (window as any).onTelegramAuth = undefined;
     };
   }, [botName, buttonSize, cornerRadius, showAvatar, dataAuthUrl, login, navigate]);
 

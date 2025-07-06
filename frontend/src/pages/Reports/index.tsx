@@ -1,13 +1,29 @@
 import React from 'react';
+import { Layout } from '../../components/common/Layout';
+import { Card } from '../../components/common/Card';
+import { Button } from '../../components/common/form/Button';
 
 const ReportsPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-bold text-gray-900">Отчетность</h1>
-        <p className="mt-4 text-gray-600">Аналитика и отчеты по бюджету</p>
+    <Layout>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">Отчетность</h1>
+            <p className="mt-1 text-sm text-gray-600">
+              Аналитика и отчеты по бюджету
+            </p>
+          </div>
+          <Button variant="primary">
+            Создать отчет
+          </Button>
+        </div>
+
+        <Card>
+          <p className="text-gray-500">Функционал будет реализован в следующих фазах</p>
+        </Card>
       </div>
-    </div>
+    </Layout>
   );
 };
 

@@ -1,44 +1,20 @@
 import React from 'react';
-import { useAuthStore } from '../../stores/authStore';
 import { Link } from 'react-router-dom';
+import { Layout } from '../../components/common/Layout';
 
 const DashboardPage: React.FC = () => {
-  const user = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
-
-  const handleLogout = async () => {
-    await logout();
-  };
-
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex">
-              <div className="flex-shrink-0 flex items-center">
-                <h1 className="text-xl font-semibold">Домашний бюджет</h1>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-gray-700">
-                Привет, {user?.first_name || user?.username || 'Пользователь'}!
-              </span>
-              <button
-                onClick={handleLogout}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
-              >
-                Выход
-              </button>
-            </div>
-          </div>
+    <Layout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Главная</h1>
+          <p className="mt-1 text-sm text-gray-600">
+            Добро пожаловать в систему управления семейным бюджетом
+          </p>
         </div>
-      </nav>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <Link
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <Link
               to="/fact"
               className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow"
             >
@@ -123,8 +99,7 @@ const DashboardPage: React.FC = () => {
             </Link>
           </div>
         </div>
-      </main>
-    </div>
+    </Layout>
   );
 };
 
