@@ -20,6 +20,7 @@ services:
       - ./postgresql/postgresql.conf:/var/lib/postgresql/data/pgdata/postgresql.conf
       - ./postgresql/init:/docker-entrypoint-initdb.d
       - ./postgresql/ddl/budgetdb.sql:/docker-entrypoint-initdb.d/02-schema.sql
+      - ./postgresql/ddl/products.sql:/docker-entrypoint-initdb.d/products.sql
     ports:
       - "5432:5432"
     networks:
@@ -48,11 +49,14 @@ services:
       - POSTGRES_USER=budget
       - POSTGRES_PASSWORD=${BUDGET_DB_PASSWORD:-devpassword}
       - SECURE_API=${SECURE_API:-true}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - PYTHONPATH=/usr/src/app
     networks:
       - app_network
     depends_on:
       - postgres
+      - redis
     healthcheck:
       test: ["CMD", "bash", "-c", "echo -n '' > /dev/tcp/0.0.0.0/8888"]
       interval: 30s
@@ -78,6 +82,22 @@ services:
     depends_on:
       - frontend-api
       - budget-api
+
+  redis:
+    container_name: redis-dev
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-dev-data:/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   frontend-api:
     container_name: frontend-api-dev
@@ -108,3 +128,4 @@ networks:
 
 volumes:
   postgres-dev-data:
+  redis-dev-data:

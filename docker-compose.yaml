@@ -24,6 +24,7 @@ services:
       - ./postgresql/postgresql.conf:/var/lib/postgresql/data/pgdata/postgresql.conf
       - ./postgresql/init:/docker-entrypoint-initdb.d
       - ./postgresql/ddl/budgetdb.sql:/docker-entrypoint-initdb.d/02-schema.sql
+      - ./postgresql/ddl/products.sql:/docker-entrypoint-initdb.d/products.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 10s
@@ -35,6 +36,28 @@ services:
     cpus: 0.5  
     mem_reservation: "100M"
     mem_limit: "250M"
+    labels:
+      - "traefik.enable=false"
+
+  redis:
+    container_name: redis
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      app_network:
+        ipv4_address: 10.5.0.7
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+    cpuset: "1"
+    cpus: 0.3
+    mem_reservation: "50M"
+    mem_limit: "100M"
     labels:
       - "traefik.enable=false"
 
@@ -52,6 +75,9 @@ services:
       - POSTGRES_DB=budgetdb
       - POSTGRES_USER=budget
       - POSTGRES_PASSWORD=${BUDGET_DB_PASSWORD}
+      - SECURE_API=${SECURE_API:-true}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     networks:
       - app_network
     healthcheck:
@@ -67,6 +93,7 @@ services:
     mem_limit: "250M"
     depends_on:
       - postgres
+      - redis
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=app_network"
@@ -153,4 +180,6 @@ networks:
 
 volumes:
   postgres-data:
+    driver: local
+  redis-data:
     driver: local

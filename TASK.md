@@ -402,10 +402,10 @@ _Место для добавления заметок в процессе ра�
 - [x] Реализовать аутентификацию в Backend API ✅
 
 ### Оптимизация текущей архитектуры
-- [ ] Реализовать endpoints для Products в Backend API
-- [ ] Добавить Redis кеширование между Frontend и Backend API
-- [ ] Оптимизировать производительность запросов
-- [ ] Добавить connection pooling в Backend API
+- [x] Реализовать endpoints для Products в Backend API ✅
+- [x] Добавить Redis кеширование между Frontend и Backend API ✅
+- [x] Оптимизировать производительность запросов ✅ (connection pooling реализован)
+- [x] Добавить connection pooling в Backend API ✅ (уже было в PostgresSecure)
 
 ### План миграции на единый API
 - [ ] Создать детальный план миграции на единый Node.js API

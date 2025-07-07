@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional, List
 from utils.postgres_secure import PostgresSecure
 from utils.models import Models
+from utils.redis_client import redis_client, cache_result
 import os
 import logging
 
@@ -33,15 +34,17 @@ db = PostgresSecure(
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database connection pool on startup"""
+    """Initialize database connection pool and Redis on startup"""
     await db.init_pool()
+    await redis_client.init_pool()
     logger.info("Application started")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Close database connection pool on shutdown"""
+    """Close database connection pool and Redis on shutdown"""
     await db.close_pool()
+    await redis_client.close_pool()
     logger.info("Application shutdown")
 
 
@@ -176,7 +179,15 @@ async def get_period(id: int, user_id: str = Depends(get_user_id)):
 @app.get("/financial_centers")
 async def get_financial_centers(user_id: str = Depends(get_user_id)):
     """Get all financial centers"""
-    return await db.fetchall(
+    # Try to get from cache first
+    cache_key = "financial_centers"
+    cached_result = await redis_client.get(cache_key)
+    
+    if cached_result is not None:
+        return cached_result
+    
+    # Fetch from database
+    result = await db.fetchall(
         """
         SELECT
             financial_center_id,
@@ -187,6 +198,10 @@ async def get_financial_centers(user_id: str = Depends(get_user_id)):
             financial_center_name
         """
     )
+    
+    # Cache for 2 hours
+    await redis_client.set(cache_key, result, ttl=7200)
+    return result
 
 
 @app.get("/financial_centers/{id}")
@@ -215,7 +230,15 @@ async def get_financial_center(id: int, user_id: str = Depends(get_user_id)):
 @app.get("/cost_centers")
 async def get_cost_centers(user_id: str = Depends(get_user_id)):
     """Get all cost centers"""
-    return await db.fetchall(
+    # Try to get from cache first
+    cache_key = "cost_centers"
+    cached_result = await redis_client.get(cache_key)
+    
+    if cached_result is not None:
+        return cached_result
+    
+    # Fetch from database
+    result = await db.fetchall(
         """
         SELECT
             cost_center_id,
@@ -226,6 +249,10 @@ async def get_cost_centers(user_id: str = Depends(get_user_id)):
             cost_center_name
         """
     )
+    
+    # Cache for 2 hours
+    await redis_client.set(cache_key, result, ttl=7200)
+    return result
 
 
 @app.get("/cost_centers/{id}")
@@ -254,7 +281,15 @@ async def get_cost_center(id: int, user_id: str = Depends(get_user_id)):
 @app.get("/nomenclatures")
 async def get_nomenclatures(user_id: str = Depends(get_user_id)):
     """Get all nomenclatures"""
-    return await db.fetchall(
+    # Try to get from cache first
+    cache_key = "nomenclatures"
+    cached_result = await redis_client.get(cache_key)
+    
+    if cached_result is not None:
+        return cached_result
+    
+    # Fetch from database
+    result = await db.fetchall(
         """
         SELECT
             nomenclature_id,
@@ -273,6 +308,10 @@ async def get_nomenclatures(user_id: str = Depends(get_user_id)):
             nomenclature_name
         """
     )
+    
+    # Cache for 2 hours
+    await redis_client.set(cache_key, result, ttl=7200)
+    return result
 
 
 @app.get("/nomenclatures/{id}")
@@ -374,6 +413,10 @@ async def insert_to_registry(row: Models.Registry, user_id: str = Depends(get_us
         row.user_id
     )
     
+    # Invalidate user-specific caches after creating new registry entry
+    await redis_client.invalidate_pattern("registry_last_*", user_id)
+    await redis_client.invalidate_pattern("report_*", user_id)
+    
     return {"status": "success", "message": "Registry entry created"}
 
 
@@ -384,8 +427,15 @@ async def get_registry_last_row(
     user_id: str = Depends(get_user_id)
 ):
     """Get last registry entries for current user"""
+    # Create cache key with parameters
+    cache_key = f"registry_last_{row_type_id}_{limit_rows}"
+    cached_result = await redis_client.get(cache_key, user_id)
+    
+    if cached_result is not None:
+        return cached_result
+    # Execute query based on parameters
     if row_type_id:
-        return await db.fetchall(
+        result = await db.fetchall(
             """
             SELECT
                 t0.operation_dttm::date as "Дата операции",
@@ -411,7 +461,7 @@ async def get_registry_last_row(
             limit_rows
         )
     else:
-        return await db.fetchall(
+        result = await db.fetchall(
             """
             SELECT
                 t0.operation_dttm::date as "Дата операции",
@@ -435,6 +485,10 @@ async def get_registry_last_row(
             int(user_id),
             limit_rows
         )
+    
+    # Cache the result for 5 minutes
+    await redis_client.set(cache_key, result, ttl=300, user_id=user_id)
+    return result
 
 
 # Report endpoints
@@ -710,3 +764,8 @@ async def health_check():
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         raise HTTPException(status_code=503, detail="Service unavailable")
+
+
+# Include products router
+from budget_api_products import router as products_router
+app.include_router(products_router, prefix="/api")
