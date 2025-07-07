@@ -1,10 +1,10 @@
 #!/bin/bash
 # Development environment startup script
 
-# Check if .env exists, if not copy from .env.development
+# Check if .env exists, if not copy from .env.dev
 if [ ! -f .env ]; then
-    echo "Creating .env from .env.development..."
-    cp .env.development .env
+    echo "Creating .env from .env.dev..."
+    cp .env.dev .env
 fi
 
 # Start development environment

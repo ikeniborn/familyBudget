@@ -15,14 +15,13 @@ This guide covers the deployment process for migrating from Streamlit to React f
 
 ### Required Environment Variables
 
-Create a `web.env` file with:
+Create a `.env` file with:
 
 ```bash
 # Domain Configuration
 DOMAIN=example.com
-BUDGET_API_SUBDOMAIN=api
 FRONTEND_SUBDOMAIN=app
-FRONTEND_API_SUBDOMAIN=api-app
+FRONTEND_API_SUBDOMAIN=api
 
 # Database
 # POSTGRES_PASSWORD - PostgreSQL superuser password (postgres user)
@@ -33,6 +32,10 @@ BUDGET_DB_PASSWORD=<secure_password>
 # Frontend API
 SESSION_SECRET=<secure_secret>
 TELEGRAM_BOT_TOKEN=<bot_token>
+
+# Environment
+NODE_ENV=production
+USE_UNIFIED_API=true
 ```
 
 ## Deployment Steps
@@ -43,8 +46,8 @@ TELEGRAM_BOT_TOKEN=<bot_token>
 # Using production script (recommended)
 ./scripts/prod.sh
 
-# Or manually with env file
-docker-compose --env-file web.env up -d --build
+# Or manually
+docker-compose up -d --build
 ```
 
 This will:

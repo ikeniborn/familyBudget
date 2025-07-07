@@ -1,8 +1,6 @@
-# Environment Variables Guide
+# Environment Variables Documentation
 
-## Overview
-
-This document describes all environment variables used in the Family Budget application.
+This document describes all environment variables used in the Family Budget application with the unified Node.js API architecture.
 
 ## Docker Compose Behavior
 
@@ -15,62 +13,116 @@ Docker Compose automatically loads environment variables in the following order:
 
 ## Environment Files
 
-### Production: `web.env`
+### Production: `.env`
 Used for production deployment. Copy from `.env.example` and set production values.
+Docker Compose loads this file automatically.
 
-### Development: `.env.development`
-Default values for local development. Automatically used by `./scripts/dev.sh`.
+### Development: `.env.dev`
+Default values for local development. Copy to `.env` for development or use `./scripts/dev.sh`.
 
-### Default: `.env`
-Docker Compose loads this file automatically if present. Created from `.env.development` or `.env.example`.
+### Example: `.env.example`
+Template with all available variables. Use as a starting point for creating your `.env` file.
 
-## Variable Reference
+## Required Variables
 
 ### Domain Configuration
-- `DOMAIN` - Base domain for the application (e.g., example.com)
-- `BUDGET_API_SUBDOMAIN` - Subdomain for backend API (default: api)
-- `FRONTEND_SUBDOMAIN` - Subdomain for React frontend (default: app)
-- `FRONTEND_API_SUBDOMAIN` - Subdomain for Node.js BFF (default: api-app)
 
-### Database
-- `POSTGRES_PASSWORD` - PostgreSQL superuser password (for postgres user)
-  - Used for database administration tasks
-  - Required for initial database setup
-- `BUDGET_DB_PASSWORD` - Application database password (for budget user)
-  - Used by application to connect to database
-  - Should be different from POSTGRES_PASSWORD in production
+- **DOMAIN** - Your domain name (e.g., `example.com`)
+  - Required for production
+  - Used for SSL certificates and routing
 
-### Frontend API (Node.js BFF)
-- `SESSION_SECRET` - Secret key for session encryption
-  - Must be a long, random string in production
-  - Used to sign session cookies
-- `TELEGRAM_BOT_TOKEN` - Token for Telegram bot authentication
+- **FRONTEND_SUBDOMAIN** - Subdomain for the React frontend (default: `app`)
+  - Example: `app.example.com`
+
+- **FRONTEND_API_SUBDOMAIN** - Subdomain for the unified API (default: `api`)
+  - Example: `api.example.com`
+
+### Database Configuration
+
+- **POSTGRES_PASSWORD** - PostgreSQL superuser password
+  - Used for database administration
+  - Should be strong and secure in production
+
+- **BUDGET_DB_PASSWORD** - Application database user password
+  - Used by the application to connect to PostgreSQL
+  - Should be different from POSTGRES_PASSWORD
+
+### Security
+
+- **SESSION_SECRET** - Secret key for session encryption
+  - Should be a long, random string
+  - Used for securing user sessions
+  - Example: Generate with `openssl rand -hex 32`
+
+- **TELEGRAM_BOT_TOKEN** - Token for Telegram authentication
   - Obtained from @BotFather on Telegram
-  - Required for Telegram login functionality
+  - Format: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`
 
-### Development URLs
-- `VITE_API_URL` - Frontend API URL for React app (default: http://localhost:4000)
-- `BACKEND_API_URL` - Backend API URL for BFF (default: http://localhost:8888)
+## Optional Variables
 
-### Security Settings
-- `SECURE_API` - Enable secure API with parameterized queries (default: true)
-  - Set to `false` to use legacy API (NOT RECOMMENDED)
-  - When true, all SQL queries use parameterized statements
-  - Requires X-User-Id header for all API requests
+### Environment
+
+- **NODE_ENV** - Node.js environment (default: `production`)
+  - Values: `production`, `development`, `test`
+  - Affects optimization and error reporting
+
+### Feature Flags
+
+- **USE_UNIFIED_API** - Enable unified Node.js API (default: `true`)
+  - Should always be `true` after migration
+  - Legacy flag for backward compatibility
+
+### Redis Configuration
+
+- **REDIS_HOST** - Redis server hostname (default: `redis`)
+  - For Docker: use container name
+  - For local development: use `localhost`
+
+- **REDIS_PORT** - Redis server port (default: `6379`)
+
+- **REDIS_PASSWORD** - Redis password (optional)
+  - Only needed if Redis authentication is enabled
+
+### URLs (Development)
+
+- **DATABASE_URL** - Full PostgreSQL connection string
+  - Format: `postgresql://user:password@host:port/database`
+  - Example: `postgresql://budget:devpassword@localhost:5432/budgetdb`
+  - Automatically constructed in production
+
+- **VITE_API_URL** - API URL for frontend development
+  - Example: `http://localhost:4000`
+  - Used in development mode
+
+- **FRONTEND_URL** - Frontend URL for CORS configuration
+  - Example: `http://localhost:3000`
+  - Used for development
+
+### Legacy Variables (Deprecated)
+
+- **BUDGET_API_SUBDOMAIN** - Legacy Python API subdomain
+  - Can be removed after full migration
+  - Only used for backward compatibility
+
+- **SECURE_API** - Enable secure API mode
+  - Deprecated: security is now built-in
+
+- **BACKEND_API_URL** - Python backend API URL
+  - Deprecated: replaced by unified API
 
 ## Usage Examples
 
 ### Production
 ```bash
 # Create production env file
-cp .env.example web.env
-vim web.env  # Edit with production values
+cp .env.example .env
+vim .env  # Edit with production values
 
 # Start with production env
 ./scripts/prod.sh
 
 # Or manually
-docker-compose --env-file web.env up -d
+docker-compose up -d
 ```
 
 ### Development
@@ -79,7 +131,7 @@ docker-compose --env-file web.env up -d
 ./scripts/dev.sh
 
 # Or manually
-cp .env.development .env
+cp .env.dev .env
 docker-compose -f docker-compose.dev.yaml up
 ```
 
@@ -93,11 +145,64 @@ vim custom.env
 docker-compose --env-file custom.env up -d
 ```
 
+## Example Configuration Files
+
+### Production (.env)
+
+```bash
+# Domain
+DOMAIN=yourdomain.com
+FRONTEND_SUBDOMAIN=app
+FRONTEND_API_SUBDOMAIN=api
+
+# Database
+POSTGRES_PASSWORD=strong_postgres_password
+BUDGET_DB_PASSWORD=strong_budget_password
+
+# Security
+SESSION_SECRET=your_very_long_random_session_secret
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+
+# Environment
+NODE_ENV=production
+USE_UNIFIED_API=true
+```
+
+### Development (.env.dev)
+
+```bash
+# Domain
+DOMAIN=localhost
+FRONTEND_SUBDOMAIN=app
+FRONTEND_API_SUBDOMAIN=api
+
+# Database
+POSTGRES_PASSWORD=devpassword
+BUDGET_DB_PASSWORD=devpassword
+DATABASE_URL=postgresql://budget:devpassword@localhost:5432/budgetdb
+
+# Security
+SESSION_SECRET=dev-session-secret-change-in-production
+TELEGRAM_BOT_TOKEN=your_dev_telegram_bot_token
+
+# Environment
+NODE_ENV=development
+USE_UNIFIED_API=true
+
+# Development URLs
+VITE_API_URL=http://localhost:4000
+FRONTEND_URL=http://localhost:3000
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+```
+
 ## Security Best Practices
 
 1. **Never commit env files with real values**
-   - Add `*.env`, `web.env` to `.gitignore`
-   - Only commit `.env.example` and `.env.development`
+   - Add `.env` to `.gitignore` (production values)
+   - Only commit `.env.example` and `.env.dev`
 
 2. **Use strong passwords in production**
    - Generate with: `openssl rand -base64 32`
@@ -109,7 +214,7 @@ docker-compose --env-file custom.env up -d
 
 4. **Restrict file permissions**
    ```bash
-   chmod 600 web.env
+   chmod 600 .env
    ```
 
 5. **Use environment-specific values**
@@ -124,7 +229,7 @@ docker-compose --env-file custom.env up -d
 docker-compose config
 
 # Verify env file is being used
-docker-compose --env-file web.env config
+docker-compose config
 ```
 
 ### Override precedence
@@ -134,3 +239,23 @@ Environment variables are resolved in this order (highest to lowest priority):
 3. Docker Compose `environment:` section
 4. `.env` file in project root
 5. Default values in docker-compose.yaml (e.g., `${VAR:-default}`)
+
+### Missing Variables
+
+If a required variable is missing, you'll see errors like:
+- `Error: SESSION_SECRET is required`
+- `UnhandledPromiseRejectionWarning: TELEGRAM_BOT_TOKEN not found`
+
+### Invalid Database URL
+
+If DATABASE_URL is incorrect:
+- Check format: `postgresql://user:password@host:port/database`
+- Ensure all parts are URL-encoded if they contain special characters
+- Verify the database exists and user has permissions
+
+### Connection Issues
+
+For Redis/PostgreSQL connection issues:
+- In Docker: use container names (e.g., `redis`, `postgres`)
+- Locally: use `localhost` or `127.0.0.1`
+- Check if services are running: `docker ps`

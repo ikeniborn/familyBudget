@@ -24,7 +24,7 @@ This guide explains how to set up the complete Family Budget application for loc
    ./scripts/dev.sh
    
    # Option 2: Manual setup
-   cp .env.development .env
+   cp .env.dev .env
    docker-compose -f docker-compose.dev.yaml up -d
    ```
 
@@ -42,9 +42,9 @@ This guide explains how to set up the complete Family Budget application for loc
 After starting, services will be available at:
 
 - **Frontend (React)**: http://localhost:3000
-- **Frontend API (Node.js BFF)**: http://localhost:4000
-- **Backend API (FastAPI)**: http://localhost:8888
+- **Frontend API (Unified Node.js)**: http://localhost:4000
 - **PostgreSQL**: localhost:5432
+- **Redis**: localhost:6379
 
 ## Development Workflow
 

@@ -1,6 +1,6 @@
-# Development Docker Compose configuration
+# Development Docker Compose configuration - Unified API
 # This file automatically uses .env file if present in the project root
-# For development, copy .env.development to .env or use: ./scripts/dev.sh
+# For development, copy .env.dev to .env or use: ./scripts/dev.sh
 # All services include hot-reload for rapid development
 
 version: "3.8"
@@ -32,37 +32,21 @@ services:
       retries: 5
       start_period: 10s
 
-  budget-api:
-    container_name: budget-api-dev
-    build:
-      dockerfile: ./api/Dockerfile
-      context: ./
-    volumes:
-      - ./api:/usr/src/app
+  redis:
+    container_name: redis-dev
+    image: redis:7-alpine
     ports:
-      - "8888:8888"
-    command: sh -c 'if [ "$SECURE_API" = "true" ]; then uvicorn budget_api_secure:app --host 0.0.0.0 --port 8888 --reload; else uvicorn budget_api:app --host 0.0.0.0 --port 8888 --reload; fi'
-    environment:
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=budgetdb
-      - POSTGRES_USER=budget
-      - POSTGRES_PASSWORD=${BUDGET_DB_PASSWORD:-devpassword}
-      - SECURE_API=${SECURE_API:-true}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - PYTHONPATH=/usr/src/app
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-dev-data:/data
     networks:
       - app_network
-    depends_on:
-      - postgres
-      - redis
     healthcheck:
-      test: ["CMD", "bash", "-c", "echo -n '' > /dev/tcp/0.0.0.0/8888"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
       retries: 5
-      start_period: 30s
 
   frontend:
     container_name: frontend-dev
@@ -81,23 +65,6 @@ services:
       - app_network
     depends_on:
       - frontend-api
-      - budget-api
-
-  redis:
-    container_name: redis-dev
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes
-    volumes:
-      - redis-dev-data:/data
-    networks:
-      - app_network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   frontend-api:
     container_name: frontend-api-dev
@@ -107,19 +74,24 @@ services:
     volumes:
       - ./frontend-api:/app
       - /app/node_modules
+      - ./frontend-api/prisma:/app/prisma
     ports:
       - "4000:4000"
     environment:
       - NODE_ENV=development
       - PORT=4000
-      - BACKEND_API_URL=http://budget-api:8888
+      - DATABASE_URL=postgresql://budget:${BUDGET_DB_PASSWORD:-devpassword}@postgres:5432/budgetdb
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - USE_UNIFIED_API=true
       - FRONTEND_URL=http://localhost:3000
-      - SESSION_SECRET=dev-session-secret
+      - SESSION_SECRET=${SESSION_SECRET:-dev-session-secret}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-dev_bot_token}
     networks:
       - app_network
     depends_on:
-      - budget-api
+      - postgres
+      - redis
     command: "npm run dev"
 
 networks:
