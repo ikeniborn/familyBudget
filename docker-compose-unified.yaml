@@ -1,0 +1,153 @@
+# Unified Node.js API Docker Compose configuration
+# This configuration removes Python backend API and uses only Node.js unified API
+# For production deployment after Python API decommission
+
+version: "3.8"
+
+services:
+  postgres:
+    container_name: postgres
+    hostname: postgres
+    image: "postgres:13"
+    networks:
+      app_network:
+        ipv4_address: 10.5.0.2
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      BUDGET_DB_PASSWORD: ${BUDGET_DB_PASSWORD}
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgresql/postgresql.conf:/var/lib/postgresql/data/pgdata/postgresql.conf
+      - ./postgresql/init:/docker-entrypoint-initdb.d
+      - ./postgresql/ddl/budgetdb.sql:/docker-entrypoint-initdb.d/02-schema.sql
+      - ./postgresql/ddl/products.sql:/docker-entrypoint-initdb.d/products.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: always
+    cpuset: "0"    
+    cpus: 0.5  
+    mem_reservation: "100M"
+    mem_limit: "250M"
+    labels:
+      - "traefik.enable=false"
+
+  redis:
+    container_name: redis
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      app_network:
+        ipv4_address: 10.5.0.7
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+    cpuset: "1"
+    cpus: 0.3
+    mem_reservation: "50M"
+    mem_limit: "100M"
+    labels:
+      - "traefik.enable=false"
+
+  # Python budget-api service REMOVED - replaced by unified frontend-api
+
+  frontend:
+    container_name: frontend
+    hostname: frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NODE_ENV=production
+    environment:
+      - NODE_ENV=production
+      - VITE_API_URL=https://${FRONTEND_API_SUBDOMAIN}.${DOMAIN}
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    cpuset: "0"
+    cpus: 0.1
+    mem_reservation: "50M"
+    mem_limit: "100M"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=app_network"
+      - "traefik.http.routers.frontend.rule=Host(`${FRONTEND_SUBDOMAIN}.${DOMAIN}`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+
+  frontend-api:
+    container_name: frontend-api
+    hostname: frontend-api
+    build:
+      context: ./frontend-api
+      dockerfile: Dockerfile
+      args:
+        - NODE_ENV=production
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      # BACKEND_API_URL removed - using unified Prisma API now
+      - DATABASE_URL=postgresql://budget:${BUDGET_DB_PASSWORD}@postgres:5432/budgetdb
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - USE_UNIFIED_API=true
+      - FRONTEND_URL=https://${FRONTEND_SUBDOMAIN}.${DOMAIN}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    cpuset: "0,1"  # Can use more CPU now that Python API is removed
+    cpus: 0.3      # Increased from 0.15 to handle all API load
+    mem_reservation: "150M"  # Increased from 100M
+    mem_limit: "300M"        # Increased from 200M
+    depends_on:
+      - postgres
+      - redis
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=app_network"
+      - "traefik.http.routers.frontend-api.rule=Host(`${FRONTEND_API_SUBDOMAIN}.${DOMAIN}`)"
+      - "traefik.http.routers.frontend-api.entrypoints=websecure"
+      - "traefik.http.routers.frontend-api.tls=true"
+      - "traefik.http.services.frontend-api.loadbalancer.server.port=4000"
+      # Add legacy API route for backward compatibility during transition
+      - "traefik.http.routers.legacy-api.rule=Host(`${BUDGET_API_SUBDOMAIN}.${DOMAIN}`)"
+      - "traefik.http.routers.legacy-api.entrypoints=websecure"
+      - "traefik.http.routers.legacy-api.tls=true"
+      - "traefik.http.routers.legacy-api.service=frontend-api"
+
+networks:
+  app_network:
+    external: true
+
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local

@@ -6,9 +6,7 @@ import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import dotenv from 'dotenv';
-import authRoutes from './routes/auth';
-import apiRoutes from './routes/api';
-import apiSecureRoutes from './routes/apiSecure';
+import unifiedApiRoutes from './routes/api/index';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -43,17 +41,8 @@ app.use(
 );
 
 // Routes
-app.use('/api/auth', authRoutes);
-
-// Use secure API routes if SECURE_API is true
-const useSecureApi = process.env.SECURE_API !== 'false';
-if (useSecureApi) {
-  console.log('Using secure API routes with user context validation');
-  app.use('/api', apiSecureRoutes);
-} else {
-  console.log('WARNING: Using legacy API routes without security checks');
-  app.use('/api', apiRoutes);
-}
+console.log('Using unified Prisma-based API routes for testing');
+app.use('/api', unifiedApiRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {
