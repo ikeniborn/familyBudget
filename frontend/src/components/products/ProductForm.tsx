@@ -7,6 +7,7 @@ import { Button } from '../common/form/Button';
 import { TextArea } from '../common/form/TextArea';
 import { useToast } from '../common/ToastContainer';
 import type { Product } from '../../types';
+import { productService, type CreateProductData, type UpdateProductData } from '../../services';
 
 interface ProductFormProps {
   onSuccess?: () => void;
@@ -53,31 +54,34 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     setIsSubmitting(true);
     
     try {
-      const url = product 
-        ? `/api/products/${product.product_id}` 
-        : '/api/products';
-      
-      const method = product ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (response.ok) {
-        toast.success('Успешно', product ? 'Продукт обновлен' : 'Продукт добавлен');
-        reset();
-        onSuccess?.();
+      if (product) {
+        const updateData: UpdateProductData = {
+          product_name: data.product_name,
+          category_name: data.category_name,
+          unit_measure: data.unit_measure,
+          barcode: data.barcode,
+          description: data.description,
+          is_active: data.is_active,
+        };
+        await productService.update(product.product_id!, updateData);
+        toast.success('Успешно', 'Продукт обновлен');
       } else {
-        const error = await response.json();
-        toast.error('Ошибка', error.message || 'Не удалось сохранить продукт');
+        const createData: CreateProductData = {
+          product_name: data.product_name,
+          category_name: data.category_name,
+          unit_measure: data.unit_measure,
+          barcode: data.barcode,
+          description: data.description,
+          is_active: data.is_active,
+        };
+        await productService.create(createData);
+        toast.success('Успешно', 'Продукт добавлен');
       }
-    } catch (error) {
+      reset();
+      onSuccess?.();
+    } catch (error: any) {
       console.error('Ошибка при сохранении продукта:', error);
-      toast.error('Ошибка', 'Не удалось сохранить продукт');
+      toast.error('Ошибка', error.message || 'Не удалось сохранить продукт');
     } finally {
       setIsSubmitting(false);
     }

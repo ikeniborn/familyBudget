@@ -3,6 +3,7 @@ import { Card } from '../common/Card';
 import { Select } from '../common/form/Select';
 import { Button } from '../common/form/Button';
 import type { Period, FinancialCenter } from '../../types';
+import { periodService, financialCenterService } from '../../services';
 
 interface ReportFiltersProps {
   onApplyFilters: (filters: ReportFilters) => void;
@@ -31,21 +32,14 @@ export const ReportFilters: React.FC<ReportFiltersProps> = ({
 
   const loadFiltersData = async () => {
     try {
-      const [periodsRes, fcRes] = await Promise.all([
-        fetch('/api/periods'),
-        fetch('/api/financial-centers'),
+      const [periodsData, fcData] = await Promise.all([
+        periodService.getAll(),
+        financialCenterService.getAll(),
       ]);
 
-      if (periodsRes.ok) {
-        const periodsData = await periodsRes.json();
-        setPeriods(periodsData);
-      }
-
-      if (fcRes.ok) {
-        const fcData = await fcRes.json();
-        setFinancialCenters(fcData);
-      }
-    } catch (error) {
+      setPeriods(periodsData);
+      setFinancialCenters(fcData);
+    } catch (error: any) {
       console.error('Ошибка загрузки данных фильтров:', error);
     }
   };

@@ -6,6 +6,7 @@ import { Loading } from '../common/Loading';
 import { useToast } from '../common/ToastContainer';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { Product } from '../../types';
+import { productService } from '../../services';
 
 interface ProductListProps {
   onEdit?: (product: Product) => void;
@@ -27,17 +28,11 @@ export const ProductList: React.FC<ProductListProps> = ({
   const loadProducts = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/products');
-      
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data);
-      } else {
-        toast.error('Ошибка', 'Не удалось загрузить список продуктов');
-      }
-    } catch (error) {
+      const data = await productService.getAll();
+      setProducts(data);
+    } catch (error: any) {
       console.error('Ошибка загрузки продуктов:', error);
-      toast.error('Ошибка', 'Не удалось загрузить список продуктов');
+      toast.error('Ошибка', error.message || 'Не удалось загрузить список продуктов');
     } finally {
       setIsLoading(false);
     }
@@ -49,19 +44,12 @@ export const ProductList: React.FC<ProductListProps> = ({
     }
 
     try {
-      const response = await fetch(`/api/products/${productId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        toast.success('Успешно', 'Продукт удален');
-        loadProducts();
-      } else {
-        toast.error('Ошибка', 'Не удалось удалить продукт');
-      }
-    } catch (error) {
+      await productService.delete(productId);
+      toast.success('Успешно', 'Продукт удален');
+      loadProducts();
+    } catch (error: any) {
       console.error('Ошибка при удалении продукта:', error);
-      toast.error('Ошибка', 'Не удалось удалить продукт');
+      toast.error('Ошибка', error.message || 'Не удалось удалить продукт');
     }
   };
 

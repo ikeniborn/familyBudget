@@ -7,6 +7,14 @@ import { Button } from '../common/form/Button';
 import { TextArea } from '../common/form/TextArea';
 import { useToast } from '../common/ToastContainer';
 import type { Period, FinancialCenter, CostCenter, Nomenclature } from '../../types';
+import { 
+  periodService, 
+  financialCenterService, 
+  costCenterService, 
+  nomenclatureService, 
+  registryService,
+  type CreateRegistryData 
+} from '../../services';
 
 interface BudgetFormProps {
   onSuccess?: () => void;
@@ -54,35 +62,20 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({ onSuccess }) => {
 
   const loadInitialData = async () => {
     try {
-      const [periodsRes, fcRes, ccRes, nomenclatureRes] = await Promise.all([
-        fetch('/api/periods'),
-        fetch('/api/financial-centers'),
-        fetch('/api/cost-centers'),
-        fetch('/api/nomenclatures'),
+      const [periodsData, fcData, ccData, nomenclatureData] = await Promise.all([
+        periodService.getAll(),
+        financialCenterService.getAll(),
+        costCenterService.getAll(),
+        nomenclatureService.getAll(),
       ]);
 
-      if (periodsRes.ok) {
-        const periodsData = await periodsRes.json();
-        setPeriods(periodsData);
-      }
-
-      if (fcRes.ok) {
-        const fcData = await fcRes.json();
-        setFinancialCenters(fcData);
-      }
-
-      if (ccRes.ok) {
-        const ccData = await ccRes.json();
-        setCostCenters(ccData);
-      }
-
-      if (nomenclatureRes.ok) {
-        const nomenclatureData = await nomenclatureRes.json();
-        setNomenclatures(nomenclatureData);
-      }
-    } catch (error) {
+      setPeriods(periodsData);
+      setFinancialCenters(fcData);
+      setCostCenters(ccData);
+      setNomenclatures(nomenclatureData);
+    } catch (error: any) {
       console.error('Ошибка загрузки данных:', error);
-      toast.error('Ошибка', 'Не удалось загрузить справочники');
+      toast.error('Ошибка', error.message || 'Не удалось загрузить справочники');
     }
   };
 
@@ -90,8 +83,8 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({ onSuccess }) => {
     setIsSubmitting(true);
     
     try {
-      const payload = {
-        ...data,
+      const payload: CreateRegistryData = {
+        operation_dttm: data.operation_dttm,
         period_id: parseInt(data.period_id),
         financial_center_id: parseInt(data.financial_center_id),
         cost_center_id: showCostCenter ? parseInt(data.cost_center_id) : undefined,
@@ -99,28 +92,17 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({ onSuccess }) => {
         cost_sum: data.operation_type === 'expense' 
           ? parseFloat(data.cost_sum) 
           : -parseFloat(data.cost_sum), // Доходы отрицательные в системе
+        comment_description: data.comment_description,
         row_type_id: 2, // Бюджет/План
       };
 
-      const response = await fetch('/api/registry', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        toast.success('Успешно', `${data.operation_type === 'expense' ? 'Расход' : 'Доход'} запланирован`);
-        reset();
-        onSuccess?.();
-      } else {
-        const error = await response.json();
-        toast.error('Ошибка', error.message || 'Не удалось добавить запись');
-      }
-    } catch (error) {
+      await registryService.create(payload);
+      toast.success('Успешно', `${data.operation_type === 'expense' ? 'Расход' : 'Доход'} запланирован`);
+      reset();
+      onSuccess?.();
+    } catch (error: any) {
       console.error('Ошибка при добавлении записи:', error);
-      toast.error('Ошибка', 'Не удалось добавить запись');
+      toast.error('Ошибка', error.message || 'Не удалось добавить запись');
     } finally {
       setIsSubmitting(false);
     }

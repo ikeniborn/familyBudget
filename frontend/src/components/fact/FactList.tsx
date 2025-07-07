@@ -3,6 +3,7 @@ import { DataTable } from '../common/DataTable';
 import { Card } from '../common/Card';
 import { Loading } from '../common/Loading';
 import { useToast } from '../common/ToastContainer';
+import { registryService } from '../../services';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { Registry } from '../../types';
 
@@ -25,17 +26,11 @@ export const FactList: React.FC = () => {
   const loadFacts = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/registry?row_type_id=1&limit=50');
-      
-      if (response.ok) {
-        const data = await response.json();
-        setFacts(data);
-      } else {
-        toast.error('Ошибка', 'Не удалось загрузить список расходов');
-      }
+      const data = await registryService.getFacts({ limit: 50 });
+      setFacts(data);
     } catch (error) {
       console.error('Ошибка загрузки расходов:', error);
-      toast.error('Ошибка', 'Не удалось загрузить список расходов');
+      toast.error('Ошибка', error instanceof Error ? error.message : 'Не удалось загрузить список расходов');
     } finally {
       setIsLoading(false);
     }

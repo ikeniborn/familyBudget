@@ -49,4 +49,15 @@ ENV PYTHONDONTWRITEBYTECODE 1
 # Path
 ENV PATH="/opt/venv/bin:$PATH"
 
-# CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
+# Default to secure API, can be overridden with SECURE_API=false
+ENV SECURE_API=true
+
+# Copy application files
+COPY --chown=user:user ./api .
+
+# Start command - uses environment variable to select API version
+CMD sh -c 'if [ "$SECURE_API" = "true" ]; then \
+    uvicorn budget_api_secure:app --host 0.0.0.0 --port 8888; \
+  else \
+    uvicorn budget_api:app --host 0.0.0.0 --port 8888; \
+  fi'

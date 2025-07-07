@@ -6,6 +6,14 @@ import { Select } from '../common/form/Select';
 import { Button } from '../common/form/Button';
 import { TextArea } from '../common/form/TextArea';
 import { useToast } from '../common/ToastContainer';
+import { 
+  periodService, 
+  financialCenterService, 
+  costCenterService, 
+  nomenclatureService,
+  registryService,
+  type CreateRegistryData 
+} from '../../services';
 import type { Period, FinancialCenter, CostCenter, Nomenclature } from '../../types';
 
 interface FactFormProps {
@@ -52,33 +60,18 @@ export const FactForm: React.FC<FactFormProps> = ({ onSuccess }) => {
 
   const loadInitialData = async () => {
     try {
-      // Загрузка справочников
-      const [periodsRes, fcRes, ccRes, nomenclatureRes] = await Promise.all([
-        fetch('/api/periods'),
-        fetch('/api/financial-centers'),
-        fetch('/api/cost-centers'),
-        fetch('/api/nomenclatures'),
+      // Загрузка справочников через сервисы
+      const [periodsData, fcData, ccData, nomenclatureData] = await Promise.all([
+        periodService.getAll(),
+        financialCenterService.getAll(),
+        costCenterService.getAll(),
+        nomenclatureService.getAll(),
       ]);
 
-      if (periodsRes.ok) {
-        const periodsData = await periodsRes.json();
-        setPeriods(periodsData);
-      }
-
-      if (fcRes.ok) {
-        const fcData = await fcRes.json();
-        setFinancialCenters(fcData);
-      }
-
-      if (ccRes.ok) {
-        const ccData = await ccRes.json();
-        setCostCenters(ccData);
-      }
-
-      if (nomenclatureRes.ok) {
-        const nomenclatureData = await nomenclatureRes.json();
-        setNomenclatures(nomenclatureData);
-      }
+      setPeriods(periodsData);
+      setFinancialCenters(fcData);
+      setCostCenters(ccData);
+      setNomenclatures(nomenclatureData);
     } catch (error) {
       console.error('Ошибка загрузки данных:', error);
       toast.error('Ошибка', 'Не удалось загрузить справочники');
@@ -89,35 +82,24 @@ export const FactForm: React.FC<FactFormProps> = ({ onSuccess }) => {
     setIsSubmitting(true);
     
     try {
-      const payload = {
-        ...data,
+      const payload: CreateRegistryData = {
+        operation_dttm: data.operation_dttm,
         period_id: parseInt(data.period_id),
         financial_center_id: parseInt(data.financial_center_id),
         cost_center_id: showCostCenter ? parseInt(data.cost_center_id) : undefined,
         nomenclature_id: parseInt(data.nomenclature_id),
         cost_sum: parseFloat(data.cost_sum),
+        comment_description: data.comment_description,
         row_type_id: 1, // Факт
       };
 
-      const response = await fetch('/api/registry', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        toast.success('Успешно', 'Расход добавлен');
-        reset();
-        onSuccess?.();
-      } else {
-        const error = await response.json();
-        toast.error('Ошибка', error.message || 'Не удалось добавить расход');
-      }
+      await registryService.create(payload);
+      toast.success('Успешно', 'Расход добавлен');
+      reset();
+      onSuccess?.();
     } catch (error) {
       console.error('Ошибка при добавлении расхода:', error);
-      toast.error('Ошибка', 'Не удалось добавить расход');
+      toast.error('Ошибка', error instanceof Error ? error.message : 'Не удалось добавить расход');
     } finally {
       setIsSubmitting(false);
     }

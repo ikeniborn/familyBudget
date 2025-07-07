@@ -18,9 +18,14 @@
 
 ```
 ┌─────────────────┐     ┌─────────────────┐
-│   HAProxy       │────▶│   Budget UI     │
-│  (SSL/Routing)  │     │  (Streamlit)    │
+│    Traefik      │────▶│   Frontend      │
+│  (SSL/Routing)  │     │    (React)      │
 └────────┬────────┘     └────────┬────────┘
+         │                       │
+         │              ┌────────▼────────┐
+         │              │  Frontend API   │
+         │              │   (Node.js)     │
+         │              └────────┬────────┘
          │                       │
          │              ┌────────▼────────┐
          └─────────────▶│   Budget API    │
@@ -29,17 +34,29 @@
                                  │
                         ┌────────▼────────┐
                         │   PostgreSQL    │
-                        │   + CouchDB     │
+                        │  (Partitioned)  │
                         └─────────────────┘
 ```
 
 ### Технологический стек
 
-- **Backend**: Python 3.9, FastAPI, asyncpg
-- **Frontend**: Streamlit, Plotly, Polars
-- **Базы данных**: PostgreSQL 13 (партиционированные таблицы), CouchDB
+#### Backend
+- **API**: Python 3.9, FastAPI, asyncpg
+- **BFF**: Node.js, Express, TypeScript
+
+#### Frontend
+- **UI**: React 18, TypeScript, Tailwind CSS
+- **State**: Zustand
+- **Forms**: React Hook Form
+- **Charts**: Recharts
+- **Tables**: TanStack Table
+- **Testing**: Jest, React Testing Library, Playwright
+
+#### Инфраструктура
+- **База данных**: PostgreSQL 13 (партиционированные таблицы)
 - **Контейнеризация**: Docker, Docker Compose
-- **Прокси**: HAProxy с Let's Encrypt SSL
+- **Прокси**: Traefik с Let's Encrypt SSL
+- **CI/CD**: GitHub Actions
 - **Резервное копирование**: MinIO клиент для Yandex Object Storage
 
 ## 📋 Требования
@@ -95,47 +112,70 @@ bot_username: "YOUR_BOT_USERNAME"
 redirect_url: "https://yourdomain.com/telegram_auth"
 ```
 
-### 4. Запуск в режиме разработки
+### 4. Запуск
 
+#### Полный стек (Production/Staging)
 ```bash
-# Сборка и запуск контейнеров
-sudo docker-compose --env-file web_dev.env -f docker-compose-dev.yaml up --build -d
+# Копировать и настроить переменные окружения
+cp .env.example web.env
+# Отредактировать web.env файл с вашими production значениями
+
+# Запуск production окружения (рекомендуется)
+./scripts/prod.sh
+
+# Или вручную:
+docker-compose --env-file web.env up -d --build
 
 # Проверка статуса
-sudo docker ps
+docker ps
 
 # Просмотр логов
-sudo docker logs -f budget-ui
+docker logs -f frontend
+docker logs -f frontend-api
+docker logs -f budget-api
 ```
+
+#### Разработка (все компоненты)
+```bash
+# Быстрый старт (рекомендуется)
+./scripts/dev.sh -d
+
+# Или вручную:
+cp .env.development .env
+docker-compose -f docker-compose.dev.yaml up -d
+
+# Доступные URL:
+# Frontend: http://localhost:3000
+# Frontend API: http://localhost:4000
+# Backend API: http://localhost:8888
+# PostgreSQL: localhost:5432
+```
+
+Подробная инструкция по разработке: [Development Setup Guide](docs/DEVELOPMENT_SETUP.md)
 
 ### 5. Инициализация базы данных
 
+База данных инициализируется автоматически при первом запуске контейнера PostgreSQL:
+- Создается пользователь `budget` с паролем из `BUDGET_DB_PASSWORD`
+- Создается база данных `budgetdb`
+- Применяется схема из `postgresql/ddl/budgetdb.sql`
+
+Для ручной инициализации:
 ```bash
 # Подключение к контейнеру PostgreSQL
-sudo docker exec -it postgres bash
-
-# Применение схемы
-psql -U budget -d budgetdb -f /docker-entrypoint-initdb.d/budgetdb.sql
+docker exec -it postgres psql -U postgres -d budgetdb -f /docker-entrypoint-initdb.d/02-schema.sql
 ```
 
 ### 6. Настройка SSL (для production)
 
-```bash
-# Подготовка сертификатов Let's Encrypt
-sudo ./haproxy/prepareLetsEncryptCertificates.sh
-
-# Добавление в cron для автообновления
-crontab -e
-# Добавить строку:
-0 0 1 * * /путь/к/проекту/haproxy/renewLetsEncryptCertificates.sh
-```
+SSL сертификаты автоматически управляются через Traefik с Let's Encrypt. Дополнительная настройка не требуется.
 
 ## 🖥️ Использование
 
 ### Доступ к приложению
 
-- **Development**: http://localhost:8501
-- **Production**: https://yourdomain.com
+- **Development**: http://localhost:3000
+- **Production**: https://app.yourdomain.com
 
 ### Первый вход
 
@@ -164,6 +204,16 @@ crontab -e
 
 ## 🔧 Разработка
 
+### Docker Compose конфигурации
+
+- **docker-compose.yaml** - Основная конфигурация для production/staging. Включает все сервисы с оптимизированными сборками и настройками безопасности.
+
+- **docker-compose.dev.yaml** - Конфигурация для разработки frontend. Использует:
+  - Hot-reload для React и Node.js
+  - Development сборки с source maps
+  - Монтирование исходного кода
+  - Упрощенная конфигурация без всех сервисов
+
 ### Структура проекта
 
 ```
@@ -172,17 +222,29 @@ familyBudget/
 │   ├── budget_api.py      # Основное приложение
 │   ├── utils/             # Вспомогательные модули
 │   └── requirements.txt   # Зависимости
-├── budget/                 # Streamlit frontend
-│   ├── ui.py             # Основное приложение
-│   ├── utils/            # Вспомогательные модули
-│   ├── secrets/          # Конфигурация (не в git)
-│   └── requirements.txt  # Зависимости
+├── frontend/              # React frontend (new)
+│   ├── src/              # Исходный код
+│   │   ├── components/   # UI компоненты
+│   │   ├── pages/       # Страницы приложения
+│   │   ├── services/    # API сервисы
+│   │   └── stores/      # State management
+│   ├── e2e/             # E2E тесты
+│   └── package.json     # Зависимости
+├── frontend-api/         # Node.js BFF
+│   ├── src/             # Исходный код
+│   └── package.json     # Зависимости
 ├── postgresql/            # База данных
 │   ├── ddl/             # Схема БД
 │   └── backup/          # Скрипты резервного копирования
-├── haproxy/              # Reverse proxy
-│   └── haproxy.cfg      # Конфигурация
-└── docker-compose.yaml   # Production конфигурация
+├── scripts/              # Скрипты миграции
+│   └── migration/       # Скрипты развертывания
+├── docs/                # Документация
+│   ├── UI_MIGRATION_GUIDE.md
+│   └── DEPLOYMENT_GUIDE.md
+├── .env.example         # Пример переменных окружения
+├── .env.development     # Переменные для разработки
+├── docker-compose.yaml  # Production конфигурация
+└── docker-compose.dev.yaml  # Frontend разработка
 ```
 
 ### Форматирование кода
@@ -277,8 +339,6 @@ sudo docker-compose --env-file web.env -f docker-compose.yaml up -d
 crontab -e
 # Добавить:
 0 0 * * * /path/to/project/postgresql/backup/postgres-backup.sh
-0 1 * * * /path/to/project/couchdb/backup/couchdb-backup.sh
-0 0 1 * * /path/to/project/haproxy/renewLetsEncryptCertificates.sh
 ```
 
 ## 🔒 Безопасность
@@ -321,6 +381,15 @@ sudo certbot certificates
 # Ручное обновление
 sudo certbot renew --force-renewal
 ```
+
+## 📚 Документация
+
+- [Development Setup Guide](docs/DEVELOPMENT_SETUP.md) - Настройка окружения разработки
+- [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) - Руководство по развертыванию
+- [Environment Variables](docs/ENVIRONMENT_VARIABLES.md) - Описание переменных окружения
+- [API Optimization Plan](docs/API_OPTIMIZATION_PLAN.md) - План оптимизации API архитектуры
+- [Secure API Guide](api/README_SECURE_API.md) - Безопасная версия API
+- [UI Migration Guide](docs/UI_MIGRATION_GUIDE.md) - Миграция со Streamlit на React
 
 ## 📝 Лицензия
 

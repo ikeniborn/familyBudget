@@ -9,29 +9,30 @@ Family Budget is a web-based budget management system built with a microservices
 ## Architecture
 
 - **Backend**: FastAPI (Python) at `api/` - REST API service
-- **Frontend**: Streamlit at `budget/` - Web UI with Telegram auth
-- **Database**: PostgreSQL (partitioned tables) + CouchDB
-- **Reverse Proxy**: HAProxy for SSL/routing
+- **Frontend**: React + TypeScript at `frontend/` - Modern SPA with Telegram auth
+- **BFF**: Node.js/Express at `frontend-api/` - Backend for Frontend
+- **Database**: PostgreSQL (partitioned tables)
+- **Reverse Proxy**: Traefik for SSL/routing
 - **Deployment**: Docker Compose orchestration
 
-Services run on Docker network 10.5.0.0/24:
+Services run on Docker network:
 - postgres: 10.5.0.2:5432
-- budget-api: 10.5.0.3:8888
-- budget-ui: 10.5.0.4:8501
-- couchdb: 10.5.0.6:5984
+- budget-api: Internal network
+- frontend: Internal network
+- frontend-api: Internal network
 
 ## Common Development Commands
 
 ### Start Development Environment
 ```bash
-# With rebuild
-sudo docker-compose --env-file web_dev.env -f docker-compose-dev.yaml up --build -d
+# Full stack
+docker-compose up -d --build
 
-# Without rebuild
-sudo docker-compose --env-file web_dev.env -f docker-compose-dev.yaml up -d
+# Frontend only development (with hot reload)
+docker-compose -f docker-compose.dev.yaml up
 
-# Stop
-sudo docker-compose --env-file web_dev.env -f docker-compose-dev.yaml down
+# Stop services
+docker-compose down
 ```
 
 ### Code Quality
@@ -46,14 +47,15 @@ flake8 . --max-line-length=180
 ### Container Management
 ```bash
 # View logs
-sudo docker logs -f budget-ui
-sudo docker logs -f budget-api
+docker logs -f frontend
+docker logs -f frontend-api
+docker logs -f budget-api
 
 # Access container
-sudo docker exec -ti budget-api bash
+docker exec -ti budget-api bash
 
 # Restart service
-sudo docker restart budget-ui
+docker restart frontend
 ```
 
 ### Database Operations
@@ -80,6 +82,11 @@ PostgreSQL database `budgetdb` with partitioned tables:
 **Fact Table:**
 - `t_f_registry` - Main transactions (partitioned by year 2023-2030)
 
+**Product Tables (New):**
+- `t_d_product` - Product catalog
+- `t_f_product_price` - Price history
+- `t_l_product_nomenclature` - Product-category mapping
+
 ## API Structure
 
 FastAPI endpoints at `/api/`:
@@ -95,26 +102,26 @@ All endpoints require user context for data isolation.
 ## Key Project Files
 
 - `api/budget_api.py` - Main API application
-- `budget/ui.py` - Streamlit UI application
+- `frontend/src/App.tsx` - React application entry
+- `frontend-api/src/index.ts` - Node.js BFF entry
 - `postgresql/ddl/budgetdb.sql` - Database schema
 - `docker-compose.yaml` - Production config
-- `docker-compose-dev.yaml` - Development config
-- `web.env` / `web_dev.env` - Environment variables
+- `docker-compose.dev.yaml` - Frontend development config
+- `.env.example` - Environment template
 
 ## Security & Authentication
 
 - Telegram OAuth for user authentication
 - User-based data isolation in all queries
-- Secrets in `budget/secrets/`:
-  - `telegram_config.yaml` - Telegram bot config
-  - `client_secret.json` - Google client credentials
-  - `service_secret.json` - Google service account
+- Environment-based secrets management
+- Session-based authentication in frontend-api
 
 ## Development Guidelines
 
-1. **Python Dependencies**:
+1. **Dependencies**:
    - API: See `api/requirements.txt`
-   - UI: See `budget/requirements.txt`
+   - Frontend: See `frontend/package.json`
+   - Frontend-API: See `frontend-api/package.json`
 
 2. **Code Style**:
    - Black formatter: 180 char line length
@@ -133,23 +140,33 @@ All endpoints require user context for data isolation.
 
 Automated daily backups to Yandex Cloud:
 - PostgreSQL: midnight (postgres-backup.sh)
-- CouchDB: 1 AM (couchdb-backup.sh)
-- SSL renewal: 1st of month (renewLetsEncryptCertificates.sh)
+- SSL certificates managed automatically by Traefik
 
 Backups use MinIO client (`mc`) configured for Yandex Object Storage.
 
 ## Testing
 
-Currently no test suite exists. When adding tests:
-- Create `/tests` directory mirroring app structure
-- Use pytest for Python tests
-- Test database operations with isolated transactions
+- **Frontend**: Jest unit tests, Playwright E2E tests
+- **API**: pytest for Python tests
+- **Frontend-API**: Jest for Node.js tests
+
+Run tests:
+```bash
+# Frontend tests
+cd frontend && npm test
+
+# E2E tests
+cd frontend && npm run test:e2e
+
+# API tests
+cd api && pytest
+```
 
 ## Deployment
 
 Production deployment:
-1. Update code in Git repository
-2. Run `./sync_web.sh` on production server
-3. Restart services: `sudo docker-compose restart budget-api budget-ui`
+1. Push code to main branch
+2. CI/CD automatically deploys via GitHub Actions
+3. Or manually: `docker-compose pull && docker-compose up -d`
 
-SSL certificates managed by Let's Encrypt via HAProxy.
+SSL certificates managed by Let's Encrypt via Traefik.

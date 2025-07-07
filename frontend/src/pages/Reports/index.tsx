@@ -4,6 +4,7 @@ import { ReportFilters, type ReportFilters as ReportFiltersType } from '../../co
 import { PlanFactChart } from '../../components/reports/PlanFactChart';
 import { BudgetTable } from '../../components/reports/BudgetTable';
 import { useToast } from '../../components/common/ToastContainer';
+import { reportService } from '../../services';
 
 interface ReportData {
   nomenclature_name: string;
@@ -24,22 +25,11 @@ const ReportsPage: React.FC = () => {
     setCurrentFilters(filters);
     
     try {
-      const params = new URLSearchParams();
-      if (filters.period_id) params.append('period_id', filters.period_id.toString());
-      if (filters.financial_center_id) params.append('financial_center_id', filters.financial_center_id.toString());
-      params.append('report_type', filters.report_type);
-
-      const response = await fetch(`/api/reports/plan-fact?${params}`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        setReportData(data);
-      } else {
-        toast.error('Ошибка', 'Не удалось загрузить данные отчета');
-      }
-    } catch (error) {
+      const data = await reportService.getPlanFactReport(filters);
+      setReportData(data);
+    } catch (error: any) {
       console.error('Ошибка загрузки отчета:', error);
-      toast.error('Ошибка', 'Не удалось загрузить данные отчета');
+      toast.error('Ошибка', error.message || 'Не удалось загрузить данные отчета');
     } finally {
       setIsLoading(false);
     }
@@ -52,32 +42,20 @@ const ReportsPage: React.FC = () => {
     }
 
     try {
-      const params = new URLSearchParams();
-      if (currentFilters.period_id) params.append('period_id', currentFilters.period_id.toString());
-      if (currentFilters.financial_center_id) params.append('financial_center_id', currentFilters.financial_center_id.toString());
-      params.append('report_type', currentFilters.report_type);
-      params.append('format', 'excel');
-
-      const response = await fetch(`/api/reports/plan-fact/export?${params}`);
+      const blob = await reportService.exportPlanFactToExcel(currentFilters);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `plan-fact-report-${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
       
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `plan-fact-report-${new Date().toISOString().split('T')[0]}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        toast.success('Успешно', 'Отчет экспортирован');
-      } else {
-        toast.error('Ошибка', 'Не удалось экспортировать отчет');
-      }
-    } catch (error) {
+      toast.success('Успешно', 'Отчет экспортирован');
+    } catch (error: any) {
       console.error('Ошибка экспорта:', error);
-      toast.error('Ошибка', 'Не удалось экспортировать отчет');
+      toast.error('Ошибка', error.message || 'Не удалось экспортировать отчет');
     }
   };
 

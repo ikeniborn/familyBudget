@@ -5,6 +5,7 @@ import { Loading } from '../common/Loading';
 import { useToast } from '../common/ToastContainer';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { Registry } from '../../types';
+import { registryService } from '../../services';
 
 interface ExtendedRegistry extends Registry {
   period_name?: string;
@@ -25,17 +26,11 @@ export const BudgetList: React.FC = () => {
   const loadBudget = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/registry?row_type_id=2&limit=50');
-      
-      if (response.ok) {
-        const data = await response.json();
-        setBudget(data);
-      } else {
-        toast.error('Ошибка', 'Не удалось загрузить планы бюджета');
-      }
-    } catch (error) {
+      const data = await registryService.getBudget({ limit: 50 });
+      setBudget(data);
+    } catch (error: any) {
       console.error('Ошибка загрузки бюджета:', error);
-      toast.error('Ошибка', 'Не удалось загрузить планы бюджета');
+      toast.error('Ошибка', error.message || 'Не удалось загрузить планы бюджета');
     } finally {
       setIsLoading(false);
     }

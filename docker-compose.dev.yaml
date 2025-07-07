@@ -1,0 +1,110 @@
+# Development Docker Compose configuration
+# This file automatically uses .env file if present in the project root
+# For development, copy .env.development to .env or use: ./scripts/dev.sh
+# All services include hot-reload for rapid development
+
+version: "3.8"
+
+services:
+  postgres:
+    container_name: postgres-dev
+    image: "postgres:13"
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
+      BUDGET_DB_PASSWORD: ${BUDGET_DB_PASSWORD:-devpassword}
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+      - ./postgresql/postgresql.conf:/var/lib/postgresql/data/pgdata/postgresql.conf
+      - ./postgresql/init:/docker-entrypoint-initdb.d
+      - ./postgresql/ddl/budgetdb.sql:/docker-entrypoint-initdb.d/02-schema.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  budget-api:
+    container_name: budget-api-dev
+    build:
+      dockerfile: ./api/Dockerfile
+      context: ./
+    volumes:
+      - ./api:/usr/src/app
+    ports:
+      - "8888:8888"
+    command: sh -c 'if [ "$SECURE_API" = "true" ]; then uvicorn budget_api_secure:app --host 0.0.0.0 --port 8888 --reload; else uvicorn budget_api:app --host 0.0.0.0 --port 8888 --reload; fi'
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=budgetdb
+      - POSTGRES_USER=budget
+      - POSTGRES_PASSWORD=${BUDGET_DB_PASSWORD:-devpassword}
+      - SECURE_API=${SECURE_API:-true}
+      - PYTHONPATH=/usr/src/app
+    networks:
+      - app_network
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo -n '' > /dev/tcp/0.0.0.0/8888"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  frontend:
+    container_name: frontend-dev
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:4000
+    networks:
+      - app_network
+    depends_on:
+      - frontend-api
+      - budget-api
+
+  frontend-api:
+    container_name: frontend-api-dev
+    build:
+      context: ./frontend-api
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend-api:/app
+      - /app/node_modules
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=development
+      - PORT=4000
+      - BACKEND_API_URL=http://budget-api:8888
+      - FRONTEND_URL=http://localhost:3000
+      - SESSION_SECRET=dev-session-secret
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-dev_bot_token}
+    networks:
+      - app_network
+    depends_on:
+      - budget-api
+    command: "npm run dev"
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  postgres-dev-data:
