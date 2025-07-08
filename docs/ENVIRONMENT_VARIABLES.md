@@ -58,6 +58,22 @@ Template with all available variables. Use as a starting point for creating your
   - Obtained from @BotFather on Telegram
   - Format: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`
 
+### Admin Authentication
+
+- **ADMIN_USERNAME** - Administrator username for password login
+  - Default: `admin`
+  - Used when password authentication is enabled
+
+- **ADMIN_PASSWORD** - Administrator password
+  - Should be strong and secure in production
+  - Example for dev: `admin123`
+  - Example for prod: use a strong password generator
+
+- **ENABLE_PASSWORD_AUTH** - Enable username/password authentication
+  - Values: `true`, `false`
+  - Default: `false`
+  - When enabled, shows password login option alongside Telegram
+
 ## Optional Variables
 
 ### Environment

@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthGuard } from './components/auth/AuthGuard';
 import { ToastContainer } from './components/common/ToastContainer';
+import { PasswordLogin } from './components/auth/PasswordLogin';
 import LoginPage from './pages/Login';
 import DashboardPage from './pages/Dashboard';
 
@@ -24,6 +25,7 @@ function App() {
       >
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/login/password" element={<PasswordLogin />} />
           
           <Route
             path="/dashboard"

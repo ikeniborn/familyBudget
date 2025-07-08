@@ -86,6 +86,9 @@ services:
       - FRONTEND_URL=http://localhost:3000
       - SESSION_SECRET=${SESSION_SECRET:-dev-session-secret}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-dev_bot_token}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - ENABLE_PASSWORD_AUTH=${ENABLE_PASSWORD_AUTH:-true}
     networks:
       - app_network
     depends_on:

@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
+import session from 'express-session';
 import dotenv from 'dotenv';
+import authPasswordRoutes from './routes/auth-password';
 
 dotenv.config();
 
@@ -14,17 +16,36 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Session configuration
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || 'dev-session-secret',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      sameSite: 'lax'
+    },
+  })
+);
+
+// Routes
+app.use('/auth', authPasswordRoutes);
+
 // Health check
 app.get('/health', (_req, res) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
-    message: 'API is running (simplified mode)'
+    message: 'API is running (simplified mode with auth)'
   });
 });
 
 // Start server
 app.listen(PORT, () => {
   console.log(`Frontend API server running on http://localhost:${PORT}`);
-  console.log('Running in simplified mode for development');
+  console.log('Running in simplified mode with password authentication');
+  console.log(`Password auth enabled: ${process.env.ENABLE_PASSWORD_AUTH === 'true'}`);
 });

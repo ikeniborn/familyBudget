@@ -111,6 +111,9 @@ services:
       - FRONTEND_URL=https://${FRONTEND_SUBDOMAIN}.${DOMAIN}
       - SESSION_SECRET=${SESSION_SECRET}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - ADMIN_USERNAME=${ADMIN_USERNAME}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - ENABLE_PASSWORD_AUTH=${ENABLE_PASSWORD_AUTH}
     networks:
       - app_network
     healthcheck:

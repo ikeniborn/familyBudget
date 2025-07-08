@@ -3,14 +3,19 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type { User } from '../types';
 import { apiClient } from '../services/api';
 
+interface AuthUser extends User {
+  authMethod?: 'telegram' | 'password';
+}
+
 interface AuthState {
-  user: User | null;
+  user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
   login: (telegramData: any) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
+  setUser: (user: AuthUser) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -82,6 +87,15 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false 
           });
         }
+      },
+
+      setUser: (user: AuthUser) => {
+        set({ 
+          user, 
+          isAuthenticated: true, 
+          isLoading: false,
+          error: null 
+        });
       },
     }),
     {
