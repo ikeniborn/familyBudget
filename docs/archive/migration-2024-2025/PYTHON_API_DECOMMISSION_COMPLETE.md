@@ -24,7 +24,7 @@
 
 #### Unified Docker Configuration
 ```yaml
-# docker-compose-unified.yaml
+# docker-compose.yaml
 # Removed: budget-api service (Python FastAPI)
 # Enhanced: frontend-api with direct database access
 # Optimized: Resource allocation for single API
@@ -74,7 +74,7 @@ services:
 ### 4. Safety Measures Implemented
 
 #### Backup Strategy
-- **Configuration backup**: docker-compose-with-python-backup.yaml
+- **Configuration backup**: Git history preserves previous configurations
 - **Code archival**: Python API code archived before removal
 - **Environment backup**: .env settings preserved
 - **Git integration**: Version control rollback capability
@@ -221,7 +221,7 @@ Monitoring Points       | Multiple   | Single      | Consolidated
 ./scripts/rollback-to-python.sh  # Option 1: Quick restore
 
 # Manual rollback  
-cp docker-compose-with-python-backup.yaml docker-compose.yaml
+git checkout <previous-commit> docker-compose.yaml
 docker-compose up -d
 
 # Environment rollback

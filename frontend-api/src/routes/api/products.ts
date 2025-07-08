@@ -6,11 +6,12 @@ const router = express.Router();
 const productService = new ProductService(prisma);
 
 // Middleware to get user ID from session or header
-const getUserId = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const userId = req.session?.user?.id || req.headers['x-user-id'];
+const getUserId = (req: express.Request, res: express.Response, next: express.NextFunction): void => {
+  const userId = req.session?.user?.user_id || req.headers['x-user-id'];
   
   if (!userId) {
-    return res.status(401).json({ error: 'User not authenticated' });
+    res.status(401).json({ error: 'User not authenticated' });
+    return;
   }
   
   req.userId = userId.toString();
@@ -18,7 +19,7 @@ const getUserId = (req: express.Request, res: express.Response, next: express.Ne
 };
 
 // GET /api/products - Get products with pagination and filters
-router.get('/', async (req, res) => {
+router.get('/', async (req: express.Request, res: express.Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
@@ -34,7 +35,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/products/categories - Get all categories
-router.get('/categories', async (req, res) => {
+router.get('/categories', async (_req: express.Request, res: express.Response) => {
   try {
     const categories = await productService.getCategories();
     res.json(categories);
@@ -45,7 +46,7 @@ router.get('/categories', async (req, res) => {
 });
 
 // GET /api/products/:id - Get product by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req: express.Request<{ id: string }>, res: express.Response) => {
   try {
     const productId = parseInt(req.params.id);
     if (isNaN(productId)) {
@@ -65,7 +66,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/products - Create new product
-router.post('/', async (req, res) => {
+router.post('/', async (req: express.Request, res: express.Response) => {
   try {
     const { name, category, unit, barcode, description } = req.body;
 
@@ -89,7 +90,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/products/:id - Update product
-router.put('/:id', async (req, res) => {
+router.put('/:id', async (req: express.Request<{ id: string }>, res: express.Response) => {
   try {
     const productId = parseInt(req.params.id);
     if (isNaN(productId)) {
@@ -114,7 +115,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/products/:id - Delete product (soft delete)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req: express.Request<{ id: string }>, res: express.Response) => {
   try {
     const productId = parseInt(req.params.id);
     if (isNaN(productId)) {
@@ -130,7 +131,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // GET /api/products/:id/prices - Get price history for product
-router.get('/:id/prices', async (req, res) => {
+router.get('/:id/prices', async (req: express.Request<{ id: string }>, res: express.Response) => {
   try {
     const productId = parseInt(req.params.id);
     if (isNaN(productId)) {
@@ -146,7 +147,7 @@ router.get('/:id/prices', async (req, res) => {
 });
 
 // POST /api/products/:id/prices - Add new price for product
-router.post('/:id/prices', getUserId, async (req, res) => {
+router.post('/:id/prices', getUserId, async (req: express.Request<{ id: string }>, res: express.Response) => {
   try {
     const productId = parseInt(req.params.id);
     if (isNaN(productId)) {
@@ -174,7 +175,7 @@ router.post('/:id/prices', getUserId, async (req, res) => {
 });
 
 // POST /api/products/:id/nomenclatures/:nomenclatureId - Link product to nomenclature
-router.post('/:id/nomenclatures/:nomenclatureId', async (req, res) => {
+router.post('/:id/nomenclatures/:nomenclatureId', async (req: express.Request<{ id: string; nomenclatureId: string }>, res: express.Response) => {
   try {
     const productId = parseInt(req.params.id);
     const nomenclatureId = parseInt(req.params.nomenclatureId);
@@ -192,7 +193,7 @@ router.post('/:id/nomenclatures/:nomenclatureId', async (req, res) => {
 });
 
 // DELETE /api/products/:id/nomenclatures/:nomenclatureId - Unlink product from nomenclature
-router.delete('/:id/nomenclatures/:nomenclatureId', async (req, res) => {
+router.delete('/:id/nomenclatures/:nomenclatureId', async (req: express.Request<{ id: string; nomenclatureId: string }>, res: express.Response) => {
   try {
     const productId = parseInt(req.params.id);
     const nomenclatureId = parseInt(req.params.nomenclatureId);
@@ -210,7 +211,7 @@ router.delete('/:id/nomenclatures/:nomenclatureId', async (req, res) => {
 });
 
 // POST /api/products/bulk - Bulk create products
-router.post('/bulk', async (req, res) => {
+router.post('/bulk', async (req: express.Request, res: express.Response) => {
   try {
     const { products } = req.body;
 

@@ -96,7 +96,7 @@ cp .env.dev .env
 
 Для production:
 ```bash
-cp .env.example .env
+cp .env.prod .env
 # Отредактируйте .env с production значениями
 ```
 
@@ -132,7 +132,7 @@ redirect_url: "https://yourdomain.com/telegram_auth"
 #### Полный стек (Production/Staging)
 ```bash
 # Копировать и настроить переменные окружения
-cp .env.example .env
+cp .env.prod .env
 # Отредактировать .env файл с вашими production значениями
 
 # Запуск production окружения (рекомендуется)
@@ -252,17 +252,19 @@ familyBudget/
 │   └── backup/          # Скрипты резервного копирования
 ├── scripts/              # Утилиты и автоматизация
 │   ├── dev.sh           # Скрипт разработки
-│   ├── prod.sh          # Production скрипт
-│   └── decommission-*   # Скрипты миграции
+│   └── prod.sh          # Production скрипт
 ├── docs/                 # Документация
-│   ├── UNIFIED_API_MIGRATION_PLAN.md
-│   └── PYTHON_API_DECOMMISSION_COMPLETE.md
-├── .env.example          # Пример переменных окружения
+│   ├── DEVELOPMENT_SETUP.md
+│   ├── DEPLOYMENT_GUIDE.md
+│   ├── ENVIRONMENT_VARIABLES.md
+│   ├── ENV_FILE_CONVENTIONS.md
+│   ├── UI_MIGRATION_GUIDE.md
+│   └── archive/          # Архивная документация
+├── .env.prod             # Пример переменных окружения
 ├── .env.dev              # Переменные для разработки
 ├── .env                  # Production переменные (не коммитится)
 ├── docker-compose.yaml   # Production конфигурация
-├── docker-compose.dev.yaml    # Разработка
-└── docker-compose-unified.yaml # Унифицированная конфигурация
+└── docker-compose.dev.yaml    # Разработка
 ```
 
 ### Форматирование кода
@@ -416,13 +418,15 @@ sudo certbot renew --force-renewal
 
 ## 📚 Документация
 
+### Активная документация
 - [Development Setup Guide](docs/DEVELOPMENT_SETUP.md) - Настройка окружения разработки
 - [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) - Руководство по развертыванию
 - [Environment Variables](docs/ENVIRONMENT_VARIABLES.md) - Описание переменных окружения
-- [Unified API Migration](docs/UNIFIED_API_MIGRATION_PLAN.md) - План миграции на единый API
-- [Python API Decommission](docs/PYTHON_API_DECOMMISSION_COMPLETE.md) - Отчет о миграции с Python
-- [Prisma Setup Guide](docs/PRISMA_SETUP_COMPLETE.md) - Настройка Prisma ORM
+- [Environment File Conventions](docs/ENV_FILE_CONVENTIONS.md) - Соглашения по файлам окружения
 - [UI Migration Guide](docs/UI_MIGRATION_GUIDE.md) - Миграция со Streamlit на React
+
+### Архивная документация
+- [Migration Archive](docs/archive/migration-2024-2025/) - Исторические документы миграции API
 
 ## 📝 Лицензия
 

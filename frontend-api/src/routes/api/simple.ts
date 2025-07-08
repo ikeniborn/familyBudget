@@ -17,7 +17,7 @@ const reportService = new ReportService(prisma);
 
 // Simple middleware to get user ID
 const getUserId = (req: express.Request): string | null => {
-  return req.session?.user?.id?.toString() || req.headers['x-user-id']?.toString() || null;
+  return req.session?.user?.user_id?.toString() || req.headers['x-user-id']?.toString() || null;
 };
 
 // Health check
