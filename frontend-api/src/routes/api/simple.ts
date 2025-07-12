@@ -21,7 +21,7 @@ const getUserId = (req: express.Request): string | null => {
 };
 
 // Health check
-router.get('/health', (_req, res) => {
+router.get('/health', (_req, res): void => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
@@ -30,7 +30,7 @@ router.get('/health', (_req, res) => {
 });
 
 // Reference data endpoints
-router.get('/periods', async (_req, res) => {
+router.get('/periods', async (_req, res): Promise<void> => {
   try {
     const periods = await referenceService.getPeriods();
     res.json(periods);
@@ -40,7 +40,7 @@ router.get('/periods', async (_req, res) => {
   }
 });
 
-router.get('/financial_centers', async (_req, res) => {
+router.get('/financial_centers', async (_req, res): Promise<void> => {
   try {
     const centers = await referenceService.getFinancialCenters();
     res.json(centers);
@@ -50,7 +50,7 @@ router.get('/financial_centers', async (_req, res) => {
   }
 });
 
-router.get('/cost_centers', async (_req, res) => {
+router.get('/cost_centers', async (_req, res): Promise<void> => {
   try {
     const centers = await referenceService.getCostCenters();
     res.json(centers);
@@ -60,7 +60,7 @@ router.get('/cost_centers', async (_req, res) => {
   }
 });
 
-router.get('/nomenclatures', async (_req, res) => {
+router.get('/nomenclatures', async (_req, res): Promise<void> => {
   try {
     const nomenclatures = await referenceService.getNomenclatures();
     res.json(nomenclatures);
@@ -70,7 +70,7 @@ router.get('/nomenclatures', async (_req, res) => {
   }
 });
 
-router.get('/row_types', async (_req, res) => {
+router.get('/row_types', async (_req, res): Promise<void> => {
   try {
     const rowTypes = await referenceService.getRowTypes();
     res.json(rowTypes);
@@ -81,7 +81,7 @@ router.get('/row_types', async (_req, res) => {
 });
 
 // User endpoints
-router.get('/users', async (_req, res) => {
+router.get('/users', async (_req, res): Promise<void> => {
   try {
     const users = await userService.getAll();
     res.json(users);
@@ -92,11 +92,12 @@ router.get('/users', async (_req, res) => {
 });
 
 // Registry endpoints (with user authentication)
-router.get('/registry/last', async (req, res) => {
+router.get('/registry/last', async (req, res): Promise<void> => {
   try {
     const userId = getUserId(req);
     if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
     }
 
     const rowTypeId = req.query.row_type_id ? parseInt(req.query.row_type_id as string) : undefined;
@@ -110,11 +111,12 @@ router.get('/registry/last', async (req, res) => {
   }
 });
 
-router.post('/registry', async (req, res) => {
+router.post('/registry', async (req, res): Promise<void> => {
   try {
     const userId = getUserId(req);
     if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
     }
 
     const {
@@ -147,7 +149,7 @@ router.post('/registry', async (req, res) => {
 });
 
 // Products endpoints
-router.get('/products', async (req, res) => {
+router.get('/products', async (req, res): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
@@ -162,7 +164,7 @@ router.get('/products', async (req, res) => {
   }
 });
 
-router.get('/products/categories', async (_req, res) => {
+router.get('/products/categories', async (_req, res): Promise<void> => {
   try {
     const categories = await productService.getCategories();
     res.json(categories);
@@ -172,12 +174,13 @@ router.get('/products/categories', async (_req, res) => {
   }
 });
 
-router.post('/products', async (req, res) => {
+router.post('/products', async (req, res): Promise<void> => {
   try {
     const { name, category, unit, barcode, description } = req.body;
 
     if (!name) {
-      return res.status(400).json({ error: 'Product name is required' });
+      res.status(400).json({ error: 'Product name is required' });
+      return;
     }
 
     const product = await productService.createProduct({
@@ -196,11 +199,12 @@ router.post('/products', async (req, res) => {
 });
 
 // Reports endpoints
-router.get('/reports/budget-vs-actual', async (req, res) => {
+router.get('/reports/budget-vs-actual', async (req, res): Promise<void> => {
   try {
     const userId = getUserId(req);
     if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
     }
 
     const filters = {
@@ -216,11 +220,12 @@ router.get('/reports/budget-vs-actual', async (req, res) => {
   }
 });
 
-router.get('/reports/period-summary', async (req, res) => {
+router.get('/reports/period-summary', async (req, res): Promise<void> => {
   try {
     const userId = getUserId(req);
     if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
     }
 
     const filters = {

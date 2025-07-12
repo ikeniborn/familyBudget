@@ -6,7 +6,7 @@ const router = express.Router();
 const userService = new UserService(prisma);
 
 // GET /api/users - Get all users
-router.get('/', async (req, res) => {
+router.get('/', async (_req, res): Promise<void> => {
   try {
     const users = await userService.getAll();
     res.json(users);
@@ -17,16 +17,18 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/users/:id - Get user by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req, res): Promise<void> => {
   try {
     const userId = parseInt(req.params.id);
     if (isNaN(userId)) {
-      return res.status(400).json({ error: 'Invalid user ID' });
+      res.status(400).json({ error: 'Invalid user ID' });
+      return;
     }
 
     const user = await userService.findById(userId);
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      res.status(404).json({ error: 'User not found' });
+      return;
     }
 
     res.json(user);
@@ -37,13 +39,14 @@ router.get('/:id', async (req, res) => {
 });
 
 // GET /api/users/telegram/:telegramId - Get user by Telegram ID
-router.get('/telegram/:telegramId', async (req, res) => {
+router.get('/telegram/:telegramId', async (req, res): Promise<void> => {
   try {
     const { telegramId } = req.params;
     const user = await userService.findByTelegramId(telegramId);
     
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      res.status(404).json({ error: 'User not found' });
+      return;
     }
 
     res.json(user);
@@ -54,12 +57,13 @@ router.get('/telegram/:telegramId', async (req, res) => {
 });
 
 // POST /api/users - Create new user
-router.post('/', async (req, res) => {
+router.post('/', async (req, res): Promise<void> => {
   try {
     const { userName, userEmail, telegramId } = req.body;
 
     if (!userName || !telegramId) {
-      return res.status(400).json({ error: 'userName and telegramId are required' });
+      res.status(400).json({ error: 'userName and telegramId are required' });
+      return;
     }
 
     const user = await userService.create({
@@ -76,11 +80,12 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/users/:id - Update user
-router.put('/:id', async (req, res) => {
+router.put('/:id', async (req, res): Promise<void> => {
   try {
     const userId = parseInt(req.params.id);
     if (isNaN(userId)) {
-      return res.status(400).json({ error: 'Invalid user ID' });
+      res.status(400).json({ error: 'Invalid user ID' });
+      return;
     }
 
     const { userName, userEmail, isActive } = req.body;

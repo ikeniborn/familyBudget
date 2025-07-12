@@ -5,7 +5,7 @@ import { verifyTelegramAuth } from '../utils/telegramAuth';
 const router = Router();
 
 // Telegram auth callback
-router.post('/telegram', async (req, res, next) => {
+router.post('/telegram', async (req, res, next): Promise<void> => {
   try {
     const authData = req.body;
     const { id, first_name, last_name, username } = authData;
@@ -13,12 +13,14 @@ router.post('/telegram', async (req, res, next) => {
     // Verify telegram auth data
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     if (!botToken) {
-      return res.status(500).json({ error: 'Bot token not configured' });
+      res.status(500).json({ error: 'Bot token not configured' });
+      return;
     }
 
     const isValid = verifyTelegramAuth(authData, botToken);
     if (!isValid) {
-      return res.status(401).json({ error: 'Invalid authentication data' });
+      res.status(401).json({ error: 'Invalid authentication data' });
+      return;
     }
 
     // Check if user exists in database
@@ -26,11 +28,15 @@ router.post('/telegram', async (req, res, next) => {
     const user = users.find((u: any) => u.user_telegram_id === id);
 
     if (!user) {
-      return res.status(403).json({ error: 'User not found in database' });
+      res.status(403).json({ error: 'User not found in database' });
+      return;
     }
 
     // Create session
-    req.session = req.session || {};
+    if (!req.session) {
+      res.status(500).json({ error: 'Session not initialized' });
+      return;
+    }
     req.session.user = {
       user_id: user.user_id,
       user_telegram_id: id,
@@ -49,7 +55,7 @@ router.post('/telegram', async (req, res, next) => {
 });
 
 // Logout
-router.post('/logout', (req, res) => {
+router.post('/logout', (req, res): void => {
   if (req.session) {
     req.session.destroy(() => {
       res.clearCookie('connect.sid');
@@ -61,9 +67,10 @@ router.post('/logout', (req, res) => {
 });
 
 // Get current user
-router.get('/me', (req, res) => {
+router.get('/me', (req, res): void => {
   if (!req.session?.user) {
-    return res.status(401).json({ error: 'Not authenticated' });
+    res.status(401).json({ error: 'Not authenticated' });
+    return;
   }
   res.json({ user: req.session.user });
 });

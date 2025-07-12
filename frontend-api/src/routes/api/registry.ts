@@ -6,11 +6,12 @@ const router = express.Router();
 const registryService = new RegistryService(prisma);
 
 // Middleware to get user ID from session or header
-const getUserId = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const userId = req.session?.user?.id || req.headers['x-user-id'];
+const getUserId = (req: express.Request, res: express.Response, next: express.NextFunction): void => {
+  const userId = req.session?.user?.user_id || req.headers['x-user-id'];
   
   if (!userId) {
-    return res.status(401).json({ error: 'User not authenticated' });
+    res.status(401).json({ error: 'User not authenticated' });
+    return;
   }
   
   req.userId = userId.toString();
@@ -18,7 +19,7 @@ const getUserId = (req: express.Request, res: express.Response, next: express.Ne
 };
 
 // GET /api/registry/last - Get last registry entries
-router.get('/last', getUserId, async (req, res) => {
+router.get('/last', getUserId, async (req, res): Promise<void> => {
   try {
     const { row_type_id, limit } = req.query;
     const rowTypeId = row_type_id ? parseInt(row_type_id as string) : undefined;
@@ -38,11 +39,12 @@ router.get('/last', getUserId, async (req, res) => {
 });
 
 // GET /api/registry/period/:periodId - Get registries by period
-router.get('/period/:periodId', getUserId, async (req, res) => {
+router.get('/period/:periodId', getUserId, async (req, res): Promise<void> => {
   try {
     const periodId = parseInt(req.params.periodId);
     if (isNaN(periodId)) {
-      return res.status(400).json({ error: 'Invalid period ID' });
+      res.status(400).json({ error: 'Invalid period ID' });
+      return;
     }
 
     const { row_type_id } = req.query;
@@ -62,7 +64,7 @@ router.get('/period/:periodId', getUserId, async (req, res) => {
 });
 
 // POST /api/registry - Create new registry entry
-router.post('/', getUserId, async (req, res) => {
+router.post('/', getUserId, async (req, res): Promise<void> => {
   try {
     const {
       operationDate,
@@ -78,7 +80,8 @@ router.post('/', getUserId, async (req, res) => {
     // Validate required fields
     if (!operationDate || !periodId || !financialCenterId || !costCenterId || 
         !nomenclatureId || !rowTypeId || costSum === undefined) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      res.status(400).json({ error: 'Missing required fields' });
+      return;
     }
 
     const registry = await registryService.create({
@@ -100,11 +103,12 @@ router.post('/', getUserId, async (req, res) => {
 });
 
 // PUT /api/registry/:id - Update registry entry
-router.put('/:id', getUserId, async (req, res) => {
+router.put('/:id', getUserId, async (req, res): Promise<void> => {
   try {
     const registryId = parseInt(req.params.id);
     if (isNaN(registryId)) {
-      return res.status(400).json({ error: 'Invalid registry ID' });
+      res.status(400).json({ error: 'Invalid registry ID' });
+      return;
     }
 
     const updateData = { ...req.body };
@@ -124,11 +128,12 @@ router.put('/:id', getUserId, async (req, res) => {
 });
 
 // DELETE /api/registry/:id - Delete registry entry
-router.delete('/:id', getUserId, async (req, res) => {
+router.delete('/:id', getUserId, async (req, res): Promise<void> => {
   try {
     const registryId = parseInt(req.params.id);
     if (isNaN(registryId)) {
-      return res.status(400).json({ error: 'Invalid registry ID' });
+      res.status(400).json({ error: 'Invalid registry ID' });
+      return;
     }
 
     await registryService.delete(registryId, req.userId!);

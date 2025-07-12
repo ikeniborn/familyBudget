@@ -21,18 +21,20 @@ interface LoginRequest {
 }
 
 // Login with username/password
-router.post('/login', async (req: Request<{}, {}, LoginRequest>, res: Response) => {
+router.post('/login', async (req: Request<{}, {}, LoginRequest>, res: Response): Promise<void> => {
   try {
     const { username, password } = req.body;
 
     // Validate input
     if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password are required' });
+      res.status(400).json({ error: 'Username and password are required' });
+      return;
     }
 
     // Check if password auth is enabled
     if (process.env.ENABLE_PASSWORD_AUTH !== 'true') {
-      return res.status(403).json({ error: 'Password authentication is disabled' });
+      res.status(403).json({ error: 'Password authentication is disabled' });
+      return;
     }
 
     // Check admin credentials
@@ -51,7 +53,7 @@ router.post('/login', async (req: Request<{}, {}, LoginRequest>, res: Response) 
           username: 'admin'
         };
         
-        return res.json({
+        res.json({
           success: true,
           user: {
             id: 1,
@@ -61,6 +63,7 @@ router.post('/login', async (req: Request<{}, {}, LoginRequest>, res: Response) 
             isAdmin: true
           }
         });
+        return;
       }
     }
 
@@ -72,7 +75,7 @@ router.post('/login', async (req: Request<{}, {}, LoginRequest>, res: Response) 
     //   // Create session
     // }
 
-    return res.status(401).json({ error: 'Invalid username or password' });
+    res.status(401).json({ error: 'Invalid username or password' });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -80,26 +83,28 @@ router.post('/login', async (req: Request<{}, {}, LoginRequest>, res: Response) 
 });
 
 // Check if password auth is enabled
-router.get('/password-auth-enabled', (_req: Request, res: Response) => {
+router.get('/password-auth-enabled', (_req: Request, res: Response): void => {
   res.json({
     enabled: process.env.ENABLE_PASSWORD_AUTH === 'true'
   });
 });
 
 // Logout
-router.post('/logout', (req: Request, res: Response) => {
+router.post('/logout', (req: Request, res: Response): void => {
   req.session.destroy((err) => {
     if (err) {
-      return res.status(500).json({ error: 'Could not logout' });
+      res.status(500).json({ error: 'Could not logout' });
+      return;
     }
     res.json({ success: true });
   });
 });
 
 // Get current user
-router.get('/me', (req: Request, res: Response) => {
+router.get('/me', (req: Request, res: Response): void => {
   if (!req.session.user) {
-    return res.status(401).json({ error: 'Not authenticated' });
+    res.status(401).json({ error: 'Not authenticated' });
+    return;
   }
   
   res.json({

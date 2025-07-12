@@ -19,7 +19,7 @@ const getUserId = (req: express.Request, res: express.Response, next: express.Ne
 };
 
 // GET /api/products - Get products with pagination and filters
-router.get('/', async (req: express.Request, res: express.Response) => {
+router.get('/', async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
@@ -35,7 +35,7 @@ router.get('/', async (req: express.Request, res: express.Response) => {
 });
 
 // GET /api/products/categories - Get all categories
-router.get('/categories', async (_req: express.Request, res: express.Response) => {
+router.get('/categories', async (_req: express.Request, res: express.Response): Promise<void> => {
   try {
     const categories = await productService.getCategories();
     res.json(categories);
@@ -46,16 +46,18 @@ router.get('/categories', async (_req: express.Request, res: express.Response) =
 });
 
 // GET /api/products/:id - Get product by ID
-router.get('/:id', async (req: express.Request<{ id: string }>, res: express.Response) => {
+router.get('/:id', async (req: express.Request<{ id: string }>, res: express.Response): Promise<void> => {
   try {
     const productId = parseInt(req.params.id);
     if (isNaN(productId)) {
-      return res.status(400).json({ error: 'Invalid product ID' });
+      res.status(400).json({ error: 'Invalid product ID' });
+      return;
     }
 
     const product = await productService.getProductById(productId);
     if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
+      res.status(404).json({ error: 'Product not found' });
+      return;
     }
 
     res.json(product);
@@ -66,12 +68,13 @@ router.get('/:id', async (req: express.Request<{ id: string }>, res: express.Res
 });
 
 // POST /api/products - Create new product
-router.post('/', async (req: express.Request, res: express.Response) => {
+router.post('/', async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const { name, category, unit, barcode, description } = req.body;
 
     if (!name) {
-      return res.status(400).json({ error: 'Product name is required' });
+      res.status(400).json({ error: 'Product name is required' });
+      return;
     }
 
     const product = await productService.createProduct({
@@ -90,11 +93,12 @@ router.post('/', async (req: express.Request, res: express.Response) => {
 });
 
 // PUT /api/products/:id - Update product
-router.put('/:id', async (req: express.Request<{ id: string }>, res: express.Response) => {
+router.put('/:id', async (req: express.Request<{ id: string }>, res: express.Response): Promise<void> => {
   try {
     const productId = parseInt(req.params.id);
     if (isNaN(productId)) {
-      return res.status(400).json({ error: 'Invalid product ID' });
+      res.status(400).json({ error: 'Invalid product ID' });
+      return;
     }
 
     const { name, category, unit, barcode, description } = req.body;
@@ -115,11 +119,12 @@ router.put('/:id', async (req: express.Request<{ id: string }>, res: express.Res
 });
 
 // DELETE /api/products/:id - Delete product (soft delete)
-router.delete('/:id', async (req: express.Request<{ id: string }>, res: express.Response) => {
+router.delete('/:id', async (req: express.Request<{ id: string }>, res: express.Response): Promise<void> => {
   try {
     const productId = parseInt(req.params.id);
     if (isNaN(productId)) {
-      return res.status(400).json({ error: 'Invalid product ID' });
+      res.status(400).json({ error: 'Invalid product ID' });
+      return;
     }
 
     await productService.deleteProduct(productId);
@@ -131,11 +136,12 @@ router.delete('/:id', async (req: express.Request<{ id: string }>, res: express.
 });
 
 // GET /api/products/:id/prices - Get price history for product
-router.get('/:id/prices', async (req: express.Request<{ id: string }>, res: express.Response) => {
+router.get('/:id/prices', async (req: express.Request<{ id: string }>, res: express.Response): Promise<void> => {
   try {
     const productId = parseInt(req.params.id);
     if (isNaN(productId)) {
-      return res.status(400).json({ error: 'Invalid product ID' });
+      res.status(400).json({ error: 'Invalid product ID' });
+      return;
     }
 
     const prices = await productService.getPriceHistory(productId);
@@ -147,17 +153,19 @@ router.get('/:id/prices', async (req: express.Request<{ id: string }>, res: expr
 });
 
 // POST /api/products/:id/prices - Add new price for product
-router.post('/:id/prices', getUserId, async (req: express.Request<{ id: string }>, res: express.Response) => {
+router.post('/:id/prices', getUserId, async (req: express.Request<{ id: string }>, res: express.Response): Promise<void> => {
   try {
     const productId = parseInt(req.params.id);
     if (isNaN(productId)) {
-      return res.status(400).json({ error: 'Invalid product ID' });
+      res.status(400).json({ error: 'Invalid product ID' });
+      return;
     }
 
     const { supplierName, priceValue, priceDate } = req.body;
 
     if (priceValue === undefined || !priceDate) {
-      return res.status(400).json({ error: 'priceValue and priceDate are required' });
+      res.status(400).json({ error: 'priceValue and priceDate are required' });
+      return;
     }
 
     const price = await productService.addPrice({
@@ -175,13 +183,14 @@ router.post('/:id/prices', getUserId, async (req: express.Request<{ id: string }
 });
 
 // POST /api/products/:id/nomenclatures/:nomenclatureId - Link product to nomenclature
-router.post('/:id/nomenclatures/:nomenclatureId', async (req: express.Request<{ id: string; nomenclatureId: string }>, res: express.Response) => {
+router.post('/:id/nomenclatures/:nomenclatureId', async (req: express.Request<{ id: string; nomenclatureId: string }>, res: express.Response): Promise<void> => {
   try {
     const productId = parseInt(req.params.id);
     const nomenclatureId = parseInt(req.params.nomenclatureId);
 
     if (isNaN(productId) || isNaN(nomenclatureId)) {
-      return res.status(400).json({ error: 'Invalid product or nomenclature ID' });
+      res.status(400).json({ error: 'Invalid product or nomenclature ID' });
+      return;
     }
 
     const link = await productService.linkToNomenclature(productId, nomenclatureId);
@@ -193,13 +202,14 @@ router.post('/:id/nomenclatures/:nomenclatureId', async (req: express.Request<{ 
 });
 
 // DELETE /api/products/:id/nomenclatures/:nomenclatureId - Unlink product from nomenclature
-router.delete('/:id/nomenclatures/:nomenclatureId', async (req: express.Request<{ id: string; nomenclatureId: string }>, res: express.Response) => {
+router.delete('/:id/nomenclatures/:nomenclatureId', async (req: express.Request<{ id: string; nomenclatureId: string }>, res: express.Response): Promise<void> => {
   try {
     const productId = parseInt(req.params.id);
     const nomenclatureId = parseInt(req.params.nomenclatureId);
 
     if (isNaN(productId) || isNaN(nomenclatureId)) {
-      return res.status(400).json({ error: 'Invalid product or nomenclature ID' });
+      res.status(400).json({ error: 'Invalid product or nomenclature ID' });
+      return;
     }
 
     await productService.unlinkFromNomenclature(productId, nomenclatureId);
@@ -211,12 +221,13 @@ router.delete('/:id/nomenclatures/:nomenclatureId', async (req: express.Request<
 });
 
 // POST /api/products/bulk - Bulk create products
-router.post('/bulk', async (req: express.Request, res: express.Response) => {
+router.post('/bulk', async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const { products } = req.body;
 
     if (!Array.isArray(products) || products.length === 0) {
-      return res.status(400).json({ error: 'Products array is required' });
+      res.status(400).json({ error: 'Products array is required' });
+      return;
     }
 
     const count = await productService.createManyProducts(products);
