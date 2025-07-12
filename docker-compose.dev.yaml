@@ -3,8 +3,6 @@
 # For development, copy .env.dev to .env or use: ./scripts/dev.sh
 # All services include hot-reload for rapid development
 
-version: "3.8"
-
 services:
   postgres:
     container_name: postgres-dev

@@ -3,8 +3,6 @@
 # For production, use: docker-compose up -d
 # Or use the helper script: ./scripts/prod.sh
 
-version: "3.8"
-
 services:
   postgres:
     container_name: postgres
