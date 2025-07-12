@@ -12,6 +12,7 @@ const BudgetPage = React.lazy(() => import('./pages/Budget'));
 const ReportsPage = React.lazy(() => import('./pages/Reports'));
 const ProductsPage = React.lazy(() => import('./pages/Products'));
 const UIShowcasePage = React.lazy(() => import('./pages/UIShowcase'));
+const FormValidationPage = React.lazy(() => import('./pages/FormValidation'));
 
 function App() {
   return (
@@ -78,6 +79,15 @@ function App() {
             element={
               <AuthGuard>
                 <UIShowcasePage />
+              </AuthGuard>
+            }
+          />
+          
+          <Route
+            path="/form-validation"
+            element={
+              <AuthGuard>
+                <FormValidationPage />
               </AuthGuard>
             }
           />

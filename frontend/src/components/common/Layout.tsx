@@ -9,6 +9,7 @@ import {
   CreditCard, 
   BarChart3, 
   Package,
+  FileText,
   LogOut,
   User,
   Bell,
@@ -35,6 +36,7 @@ const navItems: NavItem[] = [
   { name: 'Бюджет', path: '/budget', icon: Calculator },
   { name: 'Отчеты', path: '/reports', icon: BarChart3 },
   { name: 'Продукты', path: '/products', icon: Package },
+  { name: 'Валидация форм', path: '/form-validation', icon: FileText },
 ];
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
