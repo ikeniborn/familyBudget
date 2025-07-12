@@ -1,5 +1,10 @@
+// Re-export the shadcn/ui Input component
+export { Input as BaseInput, type InputProps as BaseInputProps } from '@/components/ui/input';
+
 import React, { forwardRef } from 'react';
-import { clsx } from 'clsx';
+import { Input as ShadcnInput } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -8,34 +13,31 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, helperText, className, ...props }, ref) => {
+  ({ label, error, helperText, className, id, required, ...props }, ref) => {
+    const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
+    
     return (
-      <div className="w-full">
+      <div className="w-full space-y-2">
         {label && (
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <Label htmlFor={inputId}>
             {label}
-            {props.required && <span className="text-red-500 ml-1">*</span>}
-          </label>
+            {required && <span className="text-destructive ml-1">*</span>}
+          </Label>
         )}
-        <input
+        <ShadcnInput
           ref={ref}
-          className={clsx(
-            'block w-full rounded-md shadow-sm',
-            'px-3 py-2',
-            'border',
-            'focus:outline-none focus:ring-2',
-            error
-              ? 'border-red-300 text-red-900 placeholder-red-300 focus:border-red-500 focus:ring-red-500'
-              : 'border-gray-300 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500',
-            props.disabled && 'bg-gray-50 text-gray-500 cursor-not-allowed',
+          id={inputId}
+          className={cn(
+            error && 'border-destructive focus-visible:ring-destructive',
             className
           )}
+          required={required}
           {...props}
         />
         {(error || helperText) && (
-          <p className={clsx(
-            'mt-1 text-sm',
-            error ? 'text-red-600' : 'text-gray-500'
+          <p className={cn(
+            'text-sm',
+            error ? 'text-destructive' : 'text-muted-foreground'
           )}>
             {error || helperText}
           </p>

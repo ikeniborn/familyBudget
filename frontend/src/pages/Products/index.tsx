@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
 import { Layout } from '../../components/common/Layout';
+import { Card } from '../../components/common/Card';
+import { Button } from '../../components/common/form/Button';
 import { ProductForm } from '../../components/products/ProductForm';
 import { ProductList } from '../../components/products/ProductList';
-import { Button } from '../../components/common/form/Button';
+import { ProductNomenclatureLink } from '../../components/products/ProductNomenclatureLink';
+import { ProductAnalytics } from '../../components/products/ProductAnalytics';
+import { Plus, Link, BarChart3, Settings } from 'lucide-react';
 import type { Product } from '../../types';
 
 const ProductsPage: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>();
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showNomenclatureLink, setShowNomenclatureLink] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   const handleAddProduct = () => {
     setEditingProduct(undefined);
@@ -31,23 +37,113 @@ const ProductsPage: React.FC = () => {
     setEditingProduct(undefined);
   };
 
+  const handleNomenclatureLinkSuccess = () => {
+    setShowNomenclatureLink(false);
+    setRefreshKey(prev => prev + 1);
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        {/* Заголовок и действия */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Список продуктов</h1>
-            <p className="mt-1 text-sm text-gray-600">
-              Справочник товаров и цен
+            <h1 className="text-2xl font-semibold text-gray-900">Управление продуктами</h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Справочник продуктов с возможностью импорта и аналитики цен
             </p>
           </div>
+          
           {!showForm && (
-            <Button variant="primary" onClick={handleAddProduct}>
-              Добавить продукт
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button 
+                variant="secondary" 
+                size="sm"
+                onClick={() => setShowAnalytics(true)}
+              >
+                <BarChart3 className="h-4 w-4 mr-1" />
+                Аналитика
+              </Button>
+              
+              <Button 
+                variant="secondary" 
+                size="sm"
+                onClick={() => setShowNomenclatureLink(true)}
+              >
+                <Link className="h-4 w-4 mr-1" />
+                Привязка к номенклатуре
+              </Button>
+              
+              <Button onClick={handleAddProduct}>
+                <Plus className="h-4 w-4 mr-1" />
+                Добавить продукт
+              </Button>
+            </div>
           )}
         </div>
 
+        {/* Быстрая статистика */}
+        {!showForm && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <div className="p-4">
+                <div className="flex items-center">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Settings className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div className="ml-4">
+                    <div className="text-sm font-medium text-gray-500">Всего продуктов</div>
+                    <div className="text-2xl font-bold text-gray-900">0</div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+            
+            <Card>
+              <div className="p-4">
+                <div className="flex items-center">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <Link className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div className="ml-4">
+                    <div className="text-sm font-medium text-gray-500">Привязано к номенклатуре</div>
+                    <div className="text-2xl font-bold text-gray-900">0</div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+            
+            <Card>
+              <div className="p-4">
+                <div className="flex items-center">
+                  <div className="p-2 bg-yellow-100 rounded-lg">
+                    <BarChart3 className="h-6 w-6 text-yellow-600" />
+                  </div>
+                  <div className="ml-4">
+                    <div className="text-sm font-medium text-gray-500">С ценами</div>
+                    <div className="text-2xl font-bold text-gray-900">0</div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+            
+            <Card>
+              <div className="p-4">
+                <div className="flex items-center">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Settings className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div className="ml-4">
+                    <div className="text-sm font-medium text-gray-500">Активных</div>
+                    <div className="text-2xl font-bold text-gray-900">0</div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* Контент */}
         {showForm ? (
           <div className="max-w-2xl">
             <ProductForm
@@ -60,6 +156,20 @@ const ProductsPage: React.FC = () => {
           <ProductList 
             onEdit={handleEditProduct}
             refreshKey={refreshKey}
+          />
+        )}
+
+        {/* Диалоги */}
+        {showNomenclatureLink && (
+          <ProductNomenclatureLink
+            onClose={() => setShowNomenclatureLink(false)}
+            onSuccess={handleNomenclatureLinkSuccess}
+          />
+        )}
+
+        {showAnalytics && (
+          <ProductAnalytics
+            onClose={() => setShowAnalytics(false)}
           />
         )}
       </div>

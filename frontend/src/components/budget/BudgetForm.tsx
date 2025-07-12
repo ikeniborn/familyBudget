@@ -229,7 +229,7 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({ onSuccess }) => {
         <div className="flex gap-3">
           <Button
             type="submit"
-            variant="primary"
+            variant="default"
             disabled={isSubmitting}
             className="flex-1"
           >

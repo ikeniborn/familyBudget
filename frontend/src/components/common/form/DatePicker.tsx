@@ -1,49 +1,66 @@
-import React, { forwardRef } from 'react';
-import { clsx } from 'clsx';
+// Re-export shadcn/ui DatePicker component
+export { DatePicker as BaseDatePicker } from '@/components/ui/date-picker';
 
-export interface DatePickerProps extends React.InputHTMLAttributes<HTMLInputElement> {
+import React from 'react';
+import { DatePicker as ShadcnDatePicker } from '@/components/ui/date-picker';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+
+export interface DatePickerProps {
   label?: string;
   error?: string;
   helperText?: string;
+  value?: Date | string;
+  onChange?: (date: Date | undefined) => void;
+  placeholder?: string;
+  className?: string;
+  required?: boolean;
+  disabled?: boolean;
 }
 
-export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(
-  ({ label, error, helperText, className, ...props }, ref) => {
-    return (
-      <div className="w-full">
-        {label && (
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {label}
-            {props.required && <span className="text-red-500 ml-1">*</span>}
-          </label>
+export const DatePicker: React.FC<DatePickerProps> = ({
+  label,
+  error,
+  helperText,
+  value,
+  onChange,
+  placeholder = "Pick a date",
+  className,
+  required,
+  disabled,
+}) => {
+  // Convert string date to Date object if needed
+  const dateValue = value ? (typeof value === 'string' ? new Date(value) : value) : undefined;
+
+  return (
+    <div className="w-full space-y-2">
+      {label && (
+        <Label>
+          {label}
+          {required && <span className="text-destructive ml-1">*</span>}
+        </Label>
+      )}
+      <ShadcnDatePicker
+        date={dateValue}
+        onDateChange={onChange}
+        placeholder={placeholder}
+        className={cn(
+          'w-full',
+          error && '[&>button]:border-destructive [&>button]:focus:ring-destructive',
+          disabled && '[&>button]:cursor-not-allowed [&>button]:opacity-50',
+          className
         )}
-        <input
-          ref={ref}
-          type="date"
-          className={clsx(
-            'block w-full rounded-md shadow-sm',
-            'px-3 py-2',
-            'border',
-            'focus:outline-none focus:ring-2',
-            error
-              ? 'border-red-300 text-red-900 placeholder-red-300 focus:border-red-500 focus:ring-red-500'
-              : 'border-gray-300 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500',
-            props.disabled && 'bg-gray-50 text-gray-500 cursor-not-allowed',
-            className
-          )}
-          {...props}
-        />
-        {(error || helperText) && (
-          <p className={clsx(
-            'mt-1 text-sm',
-            error ? 'text-red-600' : 'text-gray-500'
-          )}>
-            {error || helperText}
-          </p>
-        )}
-      </div>
-    );
-  }
-);
+      />
+      {(error || helperText) && (
+        <p className={cn(
+          'text-sm',
+          error ? 'text-destructive' : 'text-muted-foreground'
+        )}>
+          {error || helperText}
+        </p>
+      )}
+    </div>
+  );
+};
 
 DatePicker.displayName = 'DatePicker';

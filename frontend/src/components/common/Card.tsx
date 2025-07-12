@@ -1,5 +1,22 @@
+// Re-export shadcn/ui Card components
+export { 
+  Card as BaseCard, 
+  CardHeader as BaseCardHeader,
+  CardTitle as BaseCardTitle,
+  CardDescription as BaseCardDescription,
+  CardContent as BaseCardContent,
+  CardFooter as BaseCardFooter
+} from '@/components/ui/card';
+
 import React from 'react';
-import { clsx } from 'clsx';
+import { 
+  Card as ShadcnCard, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription, 
+  CardContent 
+} from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 interface CardProps {
   children: React.ReactNode;
@@ -23,19 +40,19 @@ export const Card: React.FC<CardProps> = ({
     large: 'p-8',
   };
 
+  const contentPadding = padding === 'none' ? 'p-0' : paddingClasses[padding];
+
   return (
-    <div className={clsx('bg-white shadow rounded-lg', className)}>
+    <ShadcnCard className={className}>
       {(title || description) && (
-        <div className="px-6 py-4 border-b border-gray-200">
-          {title && (
-            <h3 className="text-lg leading-6 font-medium text-gray-900">{title}</h3>
-          )}
-          {description && (
-            <p className="mt-1 text-sm text-gray-500">{description}</p>
-          )}
-        </div>
+        <CardHeader>
+          {title && <CardTitle>{title}</CardTitle>}
+          {description && <CardDescription>{description}</CardDescription>}
+        </CardHeader>
       )}
-      <div className={clsx(paddingClasses[padding])}>{children}</div>
-    </div>
+      <CardContent className={cn(contentPadding, !title && !description && 'pt-6')}>
+        {children}
+      </CardContent>
+    </ShadcnCard>
   );
 };

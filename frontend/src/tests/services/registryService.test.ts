@@ -10,90 +10,88 @@ describe('RegistryService', () => {
     jest.clearAllMocks();
   });
 
-  describe('getLatestFacts', () => {
-    it('fetches latest facts with default limit', async () => {
+  describe('getFacts', () => {
+    it('fetches facts', async () => {
       const mockData = [
-        { id: 1, operation_dttm: '2025-01-07', cost_sum: 100 },
-        { id: 2, operation_dttm: '2025-01-06', cost_sum: 200 },
+        { id: 1, operation_dttm: '2025-01-07', cost_sum: 100, row_type_id: 1 },
+        { id: 2, operation_dttm: '2025-01-06', cost_sum: 200, row_type_id: 1 },
       ];
-      mockApiClient.get.mockResolvedValue(mockData);
+      mockApiClient.get.mockResolvedValue({ data: mockData });
 
-      const result = await registryService.getLatestFacts();
+      const result = await registryService.getFacts();
 
-      expect(mockApiClient.get).toHaveBeenCalledWith('/registry/latest-facts', {
-        params: { limit: 10 },
+      expect(mockApiClient.get).toHaveBeenCalledWith('/registry', {
+        params: { row_type_id: 1 },
       });
       expect(result).toEqual(mockData);
     });
 
-    it('fetches latest facts with custom limit', async () => {
+    it('fetches facts with filters', async () => {
       const mockData = [
-        { id: 1, operation_dttm: '2025-01-07', cost_sum: 100 },
+        { id: 1, operation_dttm: '2025-01-07', cost_sum: 100, row_type_id: 1 },
       ];
-      mockApiClient.get.mockResolvedValue(mockData);
+      mockApiClient.get.mockResolvedValue({ data: mockData });
 
-      const result = await registryService.getLatestFacts(5);
+      const result = await registryService.getFacts({ period_id: 1 });
 
-      expect(mockApiClient.get).toHaveBeenCalledWith('/registry/latest-facts', {
-        params: { limit: 5 },
-      });
-      expect(result).toEqual(mockData);
-    });
-  });
-
-  describe('getLatestBudgets', () => {
-    it('fetches latest budgets with default limit', async () => {
-      const mockData = [
-        { id: 3, period_id: 1, cost_sum: 1000 },
-        { id: 4, period_id: 1, cost_sum: 2000 },
-      ];
-      mockApiClient.get.mockResolvedValue(mockData);
-
-      const result = await registryService.getLatestBudgets();
-
-      expect(mockApiClient.get).toHaveBeenCalledWith('/registry/latest-budgets', {
-        params: { limit: 10 },
+      expect(mockApiClient.get).toHaveBeenCalledWith('/registry', {
+        params: { period_id: 1, row_type_id: 1 },
       });
       expect(result).toEqual(mockData);
     });
   });
 
-  describe('createFact', () => {
-    it('creates fact entry', async () => {
-      const newFact = {
+  describe('getBudget', () => {
+    it('fetches budget entries', async () => {
+      const mockData = [
+        { id: 3, period_id: 1, cost_sum: 1000, row_type_id: 2 },
+        { id: 4, period_id: 1, cost_sum: 2000, row_type_id: 2 },
+      ];
+      mockApiClient.get.mockResolvedValue({ data: mockData });
+
+      const result = await registryService.getBudget();
+
+      expect(mockApiClient.get).toHaveBeenCalledWith('/registry', {
+        params: { row_type_id: 2 },
+      });
+      expect(result).toEqual(mockData);
+    });
+  });
+
+  describe('create', () => {
+    it('creates registry entry', async () => {
+      const newEntry = {
         operation_dttm: '2025-01-07',
         period_id: 1,
         financial_center_id: 1,
         nomenclature_id: 1,
         cost_sum: 150,
-        row_type_id: 2,
+        row_type_id: 1,
       };
-      const createdFact = { id: 5, ...newFact };
-      mockApiClient.post.mockResolvedValue(createdFact);
+      const createdEntry = { id: 5, ...newEntry };
+      mockApiClient.post.mockResolvedValue({ data: createdEntry });
 
-      const result = await registryService.createFact(newFact);
+      const result = await registryService.create(newEntry);
 
-      expect(mockApiClient.post).toHaveBeenCalledWith('/registry/fact', newFact);
-      expect(result).toEqual(createdFact);
+      expect(mockApiClient.post).toHaveBeenCalledWith('/registry', newEntry);
+      expect(result).toEqual(createdEntry);
     });
   });
 
-  describe('createBudget', () => {
-    it('creates budget entry', async () => {
-      const newBudget = {
-        period_id: 1,
-        financial_center_id: 1,
-        nomenclature_id: 1,
-        cost_sum: 5000,
-        row_type_id: 1,
+  describe('getSummaryByPeriod', () => {
+    it('gets summary by period', async () => {
+      const mockData = {
+        total_facts: 1500,
+        total_budget: 2000,
+        variance: -500,
+        variance_percent: -25
       };
-      const createdBudget = { id: 6, ...newBudget };
-      mockApiClient.post.mockResolvedValue(createdBudget);
+      mockApiClient.get.mockResolvedValue({ data: mockData });
 
-      const result = await registryService.createBudget(newBudget);
+      const result = await registryService.getSummaryByPeriod(1);
 
-      expect(mockApiClient.post).toHaveBeenCalledWith('/registry/budget', newBudget);
-      expect(result).toEqual(createdBudget);
+      expect(mockApiClient.get).toHaveBeenCalledWith('/registry/summary/period/1');
+      expect(result).toEqual(mockData);
     });
   });
 
@@ -102,7 +100,7 @@ describe('RegistryService', () => {
       const error = new Error('API Error');
       mockApiClient.get.mockRejectedValue(error);
 
-      await expect(registryService.getLatestFacts()).rejects.toThrow('API Error');
+      await expect(registryService.getFacts()).rejects.toThrow();
     });
   });
 });

@@ -1,11 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { DataTable } from '../common/DataTable';
-import { Card } from '../common/Card';
-import { Loading } from '../common/Loading';
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle,
+  CardDescription 
+} from '../ui/card';
+import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../ui/table';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import { Skeleton } from '../ui/skeleton';
 import { useToast } from '../common/ToastContainer';
 import { registryService } from '../../services';
-import type { ColumnDef } from '@tanstack/react-table';
 import type { Registry } from '../../types';
+import { 
+  Calendar,
+  Building,
+  Tag,
+  DollarSign,
+  MessageSquare,
+  Trash2,
+  Edit,
+  Eye,
+  RefreshCw
+} from 'lucide-react';
 
 interface ExtendedRegistry extends Registry {
   period_name?: string;
@@ -17,6 +42,7 @@ interface ExtendedRegistry extends Registry {
 export const FactList: React.FC = () => {
   const [facts, setFacts] = useState<ExtendedRegistry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -36,74 +62,188 @@ export const FactList: React.FC = () => {
     }
   };
 
-  const columns: ColumnDef<ExtendedRegistry>[] = [
-    {
-      header: 'Дата',
-      accessorKey: 'operation_dttm',
-      cell: ({ row }) => {
-        const date = new Date(row.original.operation_dttm);
-        return date.toLocaleDateString('ru-RU');
-      },
-    },
-    {
-      header: 'Период',
-      accessorKey: 'period_name',
-    },
-    {
-      header: 'ФЦ',
-      accessorKey: 'financial_center_name',
-    },
-    {
-      header: 'МВЗ',
-      accessorKey: 'cost_center_name',
-    },
-    {
-      header: 'Номенклатура',
-      accessorKey: 'nomenclature_name',
-    },
-    {
-      header: 'Сумма',
-      accessorKey: 'cost_sum',
-      cell: ({ row }) => {
-        const amount = row.original.cost_sum;
-        return new Intl.NumberFormat('ru-RU', {
-          style: 'currency',
-          currency: 'RUB',
-        }).format(amount);
-      },
-    },
-    {
-      header: 'Комментарий',
-      accessorKey: 'comment_description',
-      cell: ({ row }) => {
-        const comment = row.original.comment_description;
-        return comment ? (
-          <span className="text-sm text-gray-600" title={comment}>
-            {comment.length > 50 ? `${comment.substring(0, 50)}...` : comment}
-          </span>
-        ) : (
-          <span className="text-gray-400">—</span>
-        );
-      },
-    },
-  ];
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadFacts();
+    setIsRefreshing(false);
+  };
 
-  if (isLoading) {
-    return (
-      <Card title="Последние расходы">
-        <Loading />
-      </Card>
-    );
-  }
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('ru-RU', {
+      style: 'currency',
+      currency: 'RUB',
+    }).format(amount);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('ru-RU');
+  };
+
+  const LoadingSkeleton = () => (
+    <div className="space-y-3">
+      {[...Array(5)].map((_, i) => (
+        <div key={i} className="flex space-x-4">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+      ))}
+    </div>
+  );
 
   return (
-    <Card title="Последние расходы">
-      <DataTable
-        data={facts}
-        columns={columns}
-        searchPlaceholder="Поиск по расходам..."
-        pageSize={10}
-      />
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-red-600" />
+              Последние расходы
+            </CardTitle>
+            <CardDescription>
+              История фактических операций по расходам
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Обновить
+          </Button>
+        </div>
+      </CardHeader>
+      
+      <CardContent>
+        {isLoading ? (
+          <LoadingSkeleton />
+        ) : facts.length === 0 ? (
+          <div className="text-center py-8">
+            <DollarSign className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+            <p className="text-slate-500 mb-2">Расходы не найдены</p>
+            <p className="text-sm text-slate-400">
+              Добавьте первую операцию, чтобы увидеть ее здесь
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Badge variant="secondary" className="text-sm">
+                Всего операций: {facts.length}
+              </Badge>
+              <Badge variant="outline" className="text-sm">
+                Сумма: {formatCurrency(facts.reduce((sum, fact) => sum + fact.cost_sum, 0))}
+              </Badge>
+            </div>
+            
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-24">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4" />
+                        Дата
+                      </div>
+                    </TableHead>
+                    <TableHead>Период</TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-1">
+                        <Building className="h-4 w-4" />
+                        ФЦ
+                      </div>
+                    </TableHead>
+                    <TableHead>МВЗ</TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-1">
+                        <Tag className="h-4 w-4" />
+                        Номенклатура
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <DollarSign className="h-4 w-4" />
+                        Сумма
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-1">
+                        <MessageSquare className="h-4 w-4" />
+                        Комментарий
+                      </div>
+                    </TableHead>
+                    <TableHead className="w-20">Действия</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {facts.map((fact, index) => (
+                    <TableRow key={fact.registry_id || index} className="hover:bg-slate-50">
+                      <TableCell className="font-medium">
+                        {formatDate(fact.operation_dttm)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">
+                          {fact.period_name || 'Не указан'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-slate-600">
+                          {fact.financial_center_name || '—'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-slate-600">
+                          {fact.cost_center_name || '—'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="text-xs">
+                          {fact.nomenclature_name || 'Не указано'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-semibold text-red-600">
+                        {formatCurrency(fact.cost_sum)}
+                      </TableCell>
+                      <TableCell>
+                        {fact.comment_description ? (
+                          <span 
+                            className="text-sm text-slate-600 cursor-help" 
+                            title={fact.comment_description}
+                          >
+                            {fact.comment_description.length > 30 
+                              ? `${fact.comment_description.substring(0, 30)}...` 
+                              : fact.comment_description}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <Eye className="h-3 w-3" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:text-red-700">
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        )}
+      </CardContent>
     </Card>
   );
 };

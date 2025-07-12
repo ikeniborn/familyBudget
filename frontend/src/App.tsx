@@ -11,6 +11,7 @@ const FactPage = React.lazy(() => import('./pages/Fact'));
 const BudgetPage = React.lazy(() => import('./pages/Budget'));
 const ReportsPage = React.lazy(() => import('./pages/Reports'));
 const ProductsPage = React.lazy(() => import('./pages/Products'));
+const UIShowcasePage = React.lazy(() => import('./pages/UIShowcase'));
 
 function App() {
   return (
@@ -68,6 +69,15 @@ function App() {
             element={
               <AuthGuard>
                 <ProductsPage />
+              </AuthGuard>
+            }
+          />
+          
+          <Route
+            path="/ui-showcase"
+            element={
+              <AuthGuard>
+                <UIShowcasePage />
               </AuthGuard>
             }
           />

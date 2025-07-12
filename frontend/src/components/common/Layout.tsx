@@ -10,9 +10,14 @@ import {
   BarChart3, 
   Package,
   LogOut,
-  User
+  User,
+  Bell,
+  Settings
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { Button } from '../ui/button';
+import { Card, CardContent } from '../ui/card';
+import { Badge } from '../ui/badge';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -44,113 +49,141 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-30 bg-gray-600 bg-opacity-75 lg:hidden"
+          className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
-      <div
+      <Card
         className={clsx(
-          'fixed inset-y-0 left-0 z-40 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0',
+          'fixed inset-y-0 left-0 z-40 w-64 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 border-r-2 rounded-none',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
         <div className="flex h-full flex-col">
           {/* Logo */}
-          <div className="flex h-16 items-center justify-between px-4 border-b">
-            <h1 className="text-xl font-semibold text-gray-800">Семейный бюджет</h1>
-            <button
+          <div className="flex h-16 items-center justify-between px-6 border-b bg-gradient-to-r from-blue-600 to-purple-600">
+            <h1 className="text-xl font-bold text-white">💰 FamilyBudget</h1>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden text-gray-500 hover:text-gray-700"
+              className="lg:hidden text-white hover:bg-white/20"
             >
-              <X className="h-6 w-6" />
-            </button>
+              <X className="h-5 w-5" />
+            </Button>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 space-y-1 px-2 py-4">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.path;
-              
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={clsx(
-                    'group flex items-center px-2 py-2 text-sm font-medium rounded-md',
-                    isActive
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  )}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <Icon
+          <CardContent className="flex-1 p-4">
+            <nav className="space-y-2">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                
+                return (
+                  <Button
+                    key={item.path}
+                    asChild
+                    variant={isActive ? "default" : "ghost"}
                     className={clsx(
-                      'mr-3 h-5 w-5 flex-shrink-0',
+                      'w-full justify-start h-12 text-left font-medium',
                       isActive
-                        ? 'text-blue-700'
-                        : 'text-gray-400 group-hover:text-gray-500'
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'text-slate-700 hover:bg-slate-100'
                     )}
-                  />
-                  {item.name}
-                </Link>
-              );
-            })}
-          </nav>
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <Link to={item.path}>
+                      <Icon className="mr-3 h-5 w-5" />
+                      {item.name}
+                    </Link>
+                  </Button>
+                );
+              })}
+            </nav>
+          </CardContent>
 
           {/* User info */}
-          <div className="border-t p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <User className="h-8 w-8 rounded-full bg-gray-200 p-1" />
+          <div className="border-t bg-slate-50/50 p-4">
+            <Card className="p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="flex-shrink-0">
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+                      <User className="h-5 w-5 text-white" />
+                    </div>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-slate-700 truncate">
+                      {user?.first_name || user?.username || 'Пользователь'}
+                    </p>
+                    <p className="text-xs text-slate-500">ID: {user?.user_id}</p>
+                  </div>
                 </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-700">
-                    {user?.first_name || user?.username || 'Пользователь'}
-                  </p>
-                  <p className="text-xs text-gray-500">ID: {user?.user_id}</p>
-                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleLogout}
+                  className="text-slate-400 hover:text-red-500"
+                  title="Выйти"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
               </div>
-              <button
-                onClick={handleLogout}
-                className="text-gray-400 hover:text-gray-500"
-                title="Выйти"
-              >
-                <LogOut className="h-5 w-5" />
-              </button>
-            </div>
+            </Card>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Top bar */}
-        <div className="sticky top-0 z-10 flex h-16 bg-white shadow">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="px-4 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 lg:hidden"
-          >
-            <Menu className="h-6 w-6" />
-          </button>
-          <div className="flex flex-1 items-center justify-between px-4">
-            <h2 className="text-lg font-semibold text-gray-800">
-              {navItems.find(item => item.path === location.pathname)?.name || 'Страница'}
-            </h2>
-          </div>
-        </div>
+        <Card className="sticky top-0 z-10 rounded-none border-b-2 shadow-sm">
+          <CardContent className="flex h-16 items-center p-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarOpen(true)}
+              className="mr-2 lg:hidden"
+            >
+              <Menu className="h-6 w-6" />
+            </Button>
+            
+            <div className="flex flex-1 items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-800">
+                  {navItems.find(item => item.path === location.pathname)?.name || 'Страница'}
+                </h2>
+                <p className="text-sm text-slate-500">
+                  Управление семейным бюджетом
+                </p>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="h-5 w-5" />
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                    3
+                  </Badge>
+                </Button>
+                <Button variant="ghost" size="icon">
+                  <Settings className="h-5 w-5" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Page content */}
         <main className="flex-1">
-          <div className="py-6">
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="p-6">
+            <div className="mx-auto max-w-7xl">
               {children}
             </div>
           </div>

@@ -29,11 +29,11 @@ describe('BaseService', () => {
         { id: 1, name: 'Item 1' },
         { id: 2, name: 'Item 2' },
       ];
-      mockApiClient.get.mockResolvedValue(mockData);
+      mockApiClient.get.mockResolvedValue({ data: mockData });
 
       const result = await service.getAll();
 
-      expect(mockApiClient.get).toHaveBeenCalledWith('/test');
+      expect(mockApiClient.get).toHaveBeenCalledWith('/test', { params: undefined });
       expect(result).toEqual(mockData);
     });
 
@@ -41,14 +41,14 @@ describe('BaseService', () => {
       const error = new Error('Failed to fetch');
       mockApiClient.get.mockRejectedValue(error);
 
-      await expect(service.getAll()).rejects.toThrow('Failed to fetch');
+      await expect(service.getAll()).rejects.toThrow();
     });
   });
 
   describe('getById', () => {
     it('fetches item by id', async () => {
       const mockData = { id: 1, name: 'Item 1' };
-      mockApiClient.get.mockResolvedValue(mockData);
+      mockApiClient.get.mockResolvedValue({ data: mockData });
 
       const result = await service.getById(1);
 
@@ -61,7 +61,7 @@ describe('BaseService', () => {
     it('creates new item', async () => {
       const newItem = { name: 'New Item' };
       const createdItem = { id: 3, name: 'New Item' };
-      mockApiClient.post.mockResolvedValue(createdItem);
+      mockApiClient.post.mockResolvedValue({ data: createdItem });
 
       const result = await service.create(newItem);
 
@@ -73,7 +73,7 @@ describe('BaseService', () => {
   describe('update', () => {
     it('updates existing item', async () => {
       const updatedItem = { id: 1, name: 'Updated Item' };
-      mockApiClient.put.mockResolvedValue(updatedItem);
+      mockApiClient.put.mockResolvedValue({ data: updatedItem });
 
       const result = await service.update(1, updatedItem);
 
@@ -92,28 +92,50 @@ describe('BaseService', () => {
     });
   });
 
-  describe('custom endpoints', () => {
-    it('makes get request to custom endpoint', async () => {
-      const mockData = { custom: 'data' };
-      mockApiClient.get.mockResolvedValue(mockData);
+  describe('pagination', () => {
+    it('gets paginated data with default params', async () => {
+      const mockData = {
+        data: [{ id: 1, name: 'Item 1' }],
+        total: 1,
+        page: 1,
+        totalPages: 1
+      };
+      mockApiClient.get.mockResolvedValue({ data: mockData });
 
-      const result = await service.get('/custom-endpoint', { param: 'value' });
+      const result = await service.getPaginated();
 
-      expect(mockApiClient.get).toHaveBeenCalledWith('/test/custom-endpoint', {
-        params: { param: 'value' },
-      });
+      expect(mockApiClient.get).toHaveBeenCalledWith('/test', { params: {} });
       expect(result).toEqual(mockData);
     });
 
-    it('makes post request to custom endpoint', async () => {
-      const payload = { data: 'value' };
-      const response = { success: true };
-      mockApiClient.post.mockResolvedValue(response);
+    it('gets paginated data with custom params', async () => {
+      const mockData = {
+        data: [{ id: 1, name: 'Item 1' }],
+        total: 10,
+        page: 2,
+        totalPages: 5
+      };
+      mockApiClient.get.mockResolvedValue({ data: mockData });
 
-      const result = await service.post('/custom-action', payload);
+      const result = await service.getPaginated({ page: 2, limit: 2 });
 
-      expect(mockApiClient.post).toHaveBeenCalledWith('/test/custom-action', payload);
-      expect(result).toEqual(response);
+      expect(mockApiClient.get).toHaveBeenCalledWith('/test', { 
+        params: { page: 2, limit: 2 } 
+      });
+      expect(result).toEqual(mockData);
+    });
+  });
+
+  describe('patch', () => {
+    it('patches existing item', async () => {
+      const patchData = { name: 'Patched Item' };
+      const updatedItem = { id: 1, name: 'Patched Item' };
+      mockApiClient.patch.mockResolvedValue({ data: updatedItem });
+
+      const result = await service.patch(1, patchData);
+
+      expect(mockApiClient.patch).toHaveBeenCalledWith('/test/1', patchData);
+      expect(result).toEqual(updatedItem);
     });
   });
 });

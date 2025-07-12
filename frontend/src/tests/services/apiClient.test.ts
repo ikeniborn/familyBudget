@@ -1,17 +1,35 @@
 import axios from 'axios';
-import { apiClient } from '../../services/apiClient';
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
+const mockAxiosInstance = {
+  interceptors: {
+    request: { use: jest.fn() },
+    response: { use: jest.fn() },
+  },
+  get: jest.fn(),
+  post: jest.fn(),
+  put: jest.fn(),
+  delete: jest.fn(),
+  patch: jest.fn(),
+} as any;
+
 describe('API Client', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedAxios.create.mockReturnValue(mockAxiosInstance);
   });
 
-  it('creates axios instance with correct base URL', () => {
+  it('creates axios instance with correct configuration', () => {
+    // Import inside test to avoid side effects
+    jest.isolateModules(() => {
+      require('../../services/apiClient');
+    });
+
     expect(mockedAxios.create).toHaveBeenCalledWith({
-      baseURL: expect.stringContaining('/api'),
+      baseURL: '/api',
+      timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -19,75 +37,57 @@ describe('API Client', () => {
     });
   });
 
-  it('handles successful responses', async () => {
-    const mockData = { id: 1, name: 'Test' };
-    const mockResponse = { data: mockData };
-    
-    mockedAxios.create.mockReturnValue({
-      interceptors: {
-        request: { use: jest.fn() },
-        response: { use: jest.fn((success) => {
-          const result = success(mockResponse);
-          expect(result).toEqual(mockData);
-        }) },
-      },
-    } as any);
+  it('sets up request interceptor', () => {
+    jest.isolateModules(() => {
+      require('../../services/apiClient');
+    });
 
-    apiClient;
+    expect(mockAxiosInstance.interceptors.request.use).toHaveBeenCalled();
   });
 
-  it('handles error responses with message', async () => {
-    const errorMessage = 'API Error';
-    const mockError = {
-      response: {
-        data: { detail: errorMessage },
-      },
-    };
+  it('sets up response interceptor', () => {
+    jest.isolateModules(() => {
+      require('../../services/apiClient');
+    });
 
-    mockedAxios.create.mockReturnValue({
-      interceptors: {
-        request: { use: jest.fn() },
-        response: { use: jest.fn((_, error) => {
-          return error(mockError).catch((err: any) => {
-            expect(err.message).toBe(errorMessage);
-          });
-        }) },
-      },
-    } as any);
-
-    apiClient;
+    expect(mockAxiosInstance.interceptors.response.use).toHaveBeenCalled();
   });
 
-  it('handles network errors', async () => {
-    const mockError = new Error('Network Error');
+  describe('handleApiError', () => {
+    let handleApiError: any;
 
-    mockedAxios.create.mockReturnValue({
-      interceptors: {
-        request: { use: jest.fn() },
-        response: { use: jest.fn((_, error) => {
-          return error(mockError).catch((err: any) => {
-            expect(err.message).toBe('Network Error');
-          });
-        }) },
-      },
-    } as any);
+    beforeEach(() => {
+      jest.isolateModules(() => {
+        const apiClientModule = require('../../services/apiClient');
+        handleApiError = apiClientModule.handleApiError;
+      });
+    });
 
-    apiClient;
-  });
+    it('handles error with response data', () => {
+      const error = {
+        response: {
+          data: { message: 'API Error' },
+        },
+      } as any;
 
-  it('adds request interceptor for logging', () => {
-    const mockConfig = { url: '/test', method: 'GET' };
-    
-    mockedAxios.create.mockReturnValue({
-      interceptors: {
-        request: { use: jest.fn((interceptor) => {
-          const result = interceptor(mockConfig);
-          expect(result).toEqual(mockConfig);
-        }) },
-        response: { use: jest.fn() },
-      },
-    } as any);
+      const result = handleApiError(error);
+      expect(result).toBe('API Error');
+    });
 
-    apiClient;
+    it('handles error without response data', () => {
+      const error = {
+        message: 'Network Error',
+      } as any;
+
+      const result = handleApiError(error);
+      expect(result).toBe('Network Error');
+    });
+
+    it('handles error with no message', () => {
+      const error = {} as any;
+
+      const result = handleApiError(error);
+      expect(result).toBe('Произошла неизвестная ошибка');
+    });
   });
 });

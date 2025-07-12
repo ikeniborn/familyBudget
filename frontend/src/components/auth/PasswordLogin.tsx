@@ -22,11 +22,12 @@ export const PasswordLogin: React.FC = () => {
       
       if (response.success && response.user) {
         setUser({
-          id: response.user.id,
+          user_id: response.user.id,
+          user_name: response.user.username || '',
+          user_telegram_id: 0,
+          first_name: response.user.firstName || '',
+          last_name: response.user.lastName || '',
           username: response.user.username || '',
-          firstName: response.user.firstName || '',
-          lastName: response.user.lastName || '',
-          telegramId: 0,
           authMethod: 'password'
         });
         navigate('/');

@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { Input } from '../../../components/common/form/Input';
 
@@ -68,6 +68,6 @@ describe('Input Component', () => {
     const input = screen.getByLabelText('Field');
     
     fireEvent.focus(input);
-    expect(input).toHaveClass('focus:ring-indigo-500');
+    expect(input).toHaveClass('focus:ring-blue-500');
   });
 });

@@ -1,3 +1,228 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    /* Finance-focused color palette */
+    --background: 210 20% 98%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 214 84% 56%; /* Professional blue */
+    --primary-foreground: 0 0% 98%;
+    --secondary: 210 40% 94%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 94%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 147 86% 83%; /* Success green accent */
+    --accent-foreground: 155 84% 44%;
+    --destructive: 0 84.2% 60.2%; /* Error red */
+    --destructive-foreground: 210 40% 98%;
+    --warning: 25 95% 53%; /* Warning orange */
+    --warning-foreground: 0 0% 98%;
+    --success: 142 71% 45%; /* Success green */
+    --success-foreground: 0 0% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 214 84% 56%;
+    --radius: 0.75rem;
+    
+    /* Finance-specific colors */
+    --income: 142 71% 45%; /* Green for income */
+    --expense: 0 84.2% 60.2%; /* Red for expenses */
+    --budget: 214 84% 56%; /* Blue for budget */
+    --neutral: 215.4 16.3% 46.9%; /* Gray for neutral items */
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 48%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  /* Finance-specific utility classes */
+  .amount-positive {
+    @apply text-green-600 font-semibold;
+  }
+  
+  .amount-negative {
+    @apply text-red-600 font-semibold;
+  }
+  
+  .amount-neutral {
+    @apply text-slate-600 font-medium;
+  }
+  
+  .card-finance {
+    @apply bg-white border-l-4 shadow-sm hover:shadow-md transition-shadow duration-200;
+  }
+  
+  .card-income {
+    @apply card-finance border-l-green-500;
+  }
+  
+  .card-expense {
+    @apply card-finance border-l-red-500;
+  }
+  
+  .card-budget {
+    @apply card-finance border-l-blue-500;
+  }
+  
+  .card-neutral {
+    @apply card-finance border-l-slate-300;
+  }
+  
+  /* Progress bars for budget tracking */
+  .progress-bar {
+    @apply w-full bg-slate-200 rounded-full h-2 overflow-hidden;
+  }
+  
+  .progress-fill {
+    @apply h-full rounded-full transition-all duration-300 ease-out;
+  }
+  
+  .progress-success {
+    @apply bg-green-500;
+  }
+  
+  .progress-warning {
+    @apply bg-yellow-500;
+  }
+  
+  .progress-danger {
+    @apply bg-red-500;
+  }
+  
+  /* Custom scrollbar for better UX */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(203 213 225) transparent;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgb(203 213 225);
+    border-radius: 3px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(156 163 175);
+  }
+  
+  /* Enhanced form inputs for finance app */
+  .input-finance {
+    @apply transition-all duration-200 ease-in-out;
+    @apply focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500;
+    @apply hover:border-slate-400;
+  }
+  
+  /* Table enhancements */
+  .table-finance {
+    @apply divide-y divide-slate-200;
+  }
+  
+  .table-finance tbody tr:hover {
+    @apply bg-slate-50/80 transition-colors duration-150;
+  }
+  
+  /* Loading states */
+  .loading-shimmer {
+    background: linear-gradient(110deg, #f1f5f9 8%, #e2e8f0 18%, #f1f5f9 33%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+  
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+  
+  /* Typography improvements */
+  .text-finance-heading {
+    @apply text-slate-900 font-semibold tracking-tight;
+  }
+  
+  .text-finance-body {
+    @apply text-slate-600 leading-relaxed;
+  }
+  
+  .text-finance-caption {
+    @apply text-slate-500 text-sm;
+  }
+  
+  /* Animation utilities */
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Status indicators */
+  .status-active {
+    @apply bg-green-100 text-green-800 border border-green-200;
+  }
+  
+  .status-inactive {
+    @apply bg-slate-100 text-slate-800 border border-slate-200;
+  }
+  
+  .status-warning {
+    @apply bg-yellow-100 text-yellow-800 border border-yellow-200;
+  }
+  
+  .status-danger {
+    @apply bg-red-100 text-red-800 border border-red-200;
+  }
+}

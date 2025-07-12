@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { Card } from '../../../components/common/Card';
 
@@ -17,34 +16,28 @@ describe('Card Component', () => {
     expect(screen.getByText('Child content')).toBeInTheDocument();
   });
 
-  it('applies hover effect by default', () => {
+  it('renders card with shadow', () => {
     render(<Card title="Card">Content</Card>);
-    const card = screen.getByText('Card').closest('div');
-    expect(card).toHaveClass('hover:shadow-lg');
-  });
-
-  it('can disable hover effect', () => {
-    render(<Card title="Card" noHover>Content</Card>);
-    const card = screen.getByText('Card').closest('div');
-    expect(card).not.toHaveClass('hover:shadow-lg');
+    const card = screen.getByText('Content').closest('div')?.parentElement;
+    expect(card).toHaveClass('shadow');
   });
 
   it('applies additional className', () => {
     render(<Card title="Card" className="custom-class">Content</Card>);
-    const card = screen.getByText('Card').closest('div');
+    const card = screen.getByText('Content').closest('div')?.parentElement;
     expect(card).toHaveClass('custom-class');
   });
 
-  it('renders header action when provided', () => {
+  it('renders with description', () => {
     render(
       <Card 
         title="Card" 
-        headerAction={<button>Action</button>}
+        description="This is a description"
       >
         Content
       </Card>
     );
-    expect(screen.getByText('Action')).toBeInTheDocument();
+    expect(screen.getByText('This is a description')).toBeInTheDocument();
   });
 
   it('renders without title', () => {

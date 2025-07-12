@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Card } from '../common/Card';
 import { Input } from '../common/form/Input';
-import { Select } from '../common/form/Select';
 import { Button } from '../common/form/Button';
 import { TextArea } from '../common/form/TextArea';
 import { useToast } from '../common/ToastContainer';
@@ -122,23 +121,43 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Select
-            label="Категория"
-            options={categoryOptions}
-            {...register('category_name', {
-              required: 'Выберите категорию',
-            })}
-            error={errors.category_name?.message}
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Категория <span className="text-red-500">*</span>
+            </label>
+            <select
+              {...register('category_name', {
+                required: 'Выберите категорию',
+              })}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            >
+              {categoryOptions.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            {errors.category_name && (
+              <p className="mt-1 text-sm text-red-600">{errors.category_name.message}</p>
+            )}
+          </div>
 
-          <Select
-            label="Единица измерения"
-            options={unitOptions}
-            {...register('unit_measure', {
-              required: 'Выберите единицу измерения',
-            })}
-            error={errors.unit_measure?.message}
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Единица измерения <span className="text-red-500">*</span>
+            </label>
+            <select
+              {...register('unit_measure', {
+                required: 'Выберите единицу измерения',
+              })}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            >
+              {unitOptions.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            {errors.unit_measure && (
+              <p className="mt-1 text-sm text-red-600">{errors.unit_measure.message}</p>
+            )}
+          </div>
         </div>
 
         <Input
@@ -169,7 +188,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         <div className="flex gap-3">
           <Button
             type="submit"
-            variant="primary"
+            variant="default"
             disabled={isSubmitting}
             className="flex-1"
           >

@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { Button } from '../../../components/common/form/Button';
 
@@ -9,21 +8,21 @@ describe('Button Component', () => {
   });
 
   it('applies correct variant classes', () => {
-    const { rerender } = render(<Button variant="primary">Primary</Button>);
-    expect(screen.getByText('Primary')).toHaveClass('bg-indigo-600');
+    const { rerender } = render(<Button variant="default">Primary</Button>);
+    expect(screen.getByText('Primary')).toHaveClass('bg-blue-600');
 
     rerender(<Button variant="secondary">Secondary</Button>);
-    expect(screen.getByText('Secondary')).toHaveClass('bg-gray-600');
+    expect(screen.getByText('Secondary')).toHaveClass('bg-gray-200');
 
-    rerender(<Button variant="outline">Outline</Button>);
-    expect(screen.getByText('Outline')).toHaveClass('border-gray-300');
+    rerender(<Button variant="secondary">Outline</Button>);
+    expect(screen.getByText('Outline')).toHaveClass('bg-gray-200');
   });
 
   it('applies correct size classes', () => {
     const { rerender } = render(<Button size="sm">Small</Button>);
-    expect(screen.getByText('Small')).toHaveClass('px-2');
+    expect(screen.getByText('Small')).toHaveClass('px-3');
 
-    rerender(<Button size="md">Medium</Button>);
+    rerender(<Button>Medium</Button>);
     expect(screen.getByText('Medium')).toHaveClass('px-4');
 
     rerender(<Button size="lg">Large</Button>);

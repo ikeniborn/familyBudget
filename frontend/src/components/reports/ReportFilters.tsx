@@ -83,25 +83,25 @@ export const ReportFilters: React.FC<ReportFiltersProps> = ({
           label="Тип отчета"
           options={reportTypeOptions}
           value={filters.report_type}
-          onChange={(e) => handleFilterChange('report_type', e.target.value)}
+          onValueChange={(value) => handleFilterChange('report_type', value)}
         />
 
         <Select
           label="Период"
           options={periodOptions}
           value={filters.period_id?.toString() || ''}
-          onChange={(e) => handleFilterChange('period_id', e.target.value)}
+          onValueChange={(value) => handleFilterChange('period_id', value)}
         />
 
         <Select
           label="Финансовый центр"
           options={financialCenterOptions}
           value={filters.financial_center_id?.toString() || ''}
-          onChange={(e) => handleFilterChange('financial_center_id', e.target.value)}
+          onValueChange={(value) => handleFilterChange('financial_center_id', value)}
         />
 
         <Button
-          variant="primary"
+          variant="default"
           onClick={handleApplyFilters}
           disabled={isLoading}
           className="w-full"

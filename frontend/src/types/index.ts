@@ -59,6 +59,11 @@ export interface Product {
   barcode?: string;
   description?: string;
   is_active: boolean;
+  average_price?: number;
+  last_supplier?: string;
+  last_price_date?: string;
+  created_dttm?: string;
+  updated_dttm?: string;
 }
 
 export interface ProductPrice {
@@ -68,4 +73,26 @@ export interface ProductPrice {
   price_value: number;
   price_date: string;
   user_id: number;
+  created_dttm?: string;
+}
+
+export interface ProductWithPrices extends Product {
+  prices?: ProductPrice[];
+}
+
+export interface ProductImportData {
+  product_name: string;
+  category_name?: string;
+  unit_measure?: string;
+  barcode?: string;
+  description?: string;
+  price_value?: number;
+  supplier_name?: string;
+}
+
+export interface ImportResult {
+  success: boolean;
+  imported: number;
+  failed: number;
+  errors?: string[];
 }
