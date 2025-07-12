@@ -127,12 +127,27 @@ All endpoints require user context for data isolation.
    - Black formatter: 180 char line length
    - Flake8 linter configuration in `.flake8`
 
-3. **Database Changes**:
+3. **UI/UX Design Preferences (APPROVED by user)**:
+   - **Dashboard style at http://localhost:3000/dashboard is the reference design**
+   - Use gradient backgrounds: `bg-gradient-to-br from-slate-50 to-slate-100`
+   - Card-based layouts with colored left borders (border-l-4)
+   - Color coding:
+     - Blue (border-l-blue-500): Budget/primary metrics
+     - Red (border-l-red-500): Expenses/warnings
+     - Green (border-l-green-500): Income/positive metrics
+     - Purple (border-l-purple-500): Savings/secondary metrics
+   - Icons in colored circles (e.g., `bg-blue-100` with `text-blue-600`)
+   - Consistent spacing: gap-6 for grids, space-y-6 for vertical layouts
+   - Card shadows and hover effects for interactivity
+   - Typography: Bold numbers for metrics, subtle text for labels
+   - Use Lucide React icons consistently
+
+4. **Database Changes**:
    - Update `postgresql/ddl/budgetdb.sql`
    - Partitions exist for years 2023-2030
    - All queries must filter by user_id
 
-4. **Container Resources**:
+5. **Container Resources**:
    - Each service has defined memory/CPU limits
    - Check `docker-compose.yaml` for production limits
 

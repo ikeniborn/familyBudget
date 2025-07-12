@@ -51,7 +51,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
@@ -63,7 +63,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Sidebar */}
       <Card
         className={clsx(
-          'fixed inset-y-0 left-0 z-40 w-64 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 border-r-2 rounded-none',
+          'fixed inset-y-0 left-0 z-40 w-64 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 border-r-2 rounded-none flex-shrink-0',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
@@ -144,7 +144,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       </Card>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="flex-1 flex flex-col w-full">
         {/* Top bar */}
         <Card className="sticky top-0 z-10 rounded-none border-b-2 shadow-sm">
           <CardContent className="flex h-16 items-center p-4">
