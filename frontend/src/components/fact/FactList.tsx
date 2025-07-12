@@ -95,16 +95,18 @@ export const FactList: React.FC = () => {
   );
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="border-l-4 border-l-red-500">
+      <CardHeader className="bg-gradient-to-r from-red-50 to-orange-50">
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-red-600" />
-              Последние расходы
+              <div className="h-10 w-10 bg-red-100 rounded-full flex items-center justify-center">
+                <DollarSign className="h-5 w-5 text-red-600" />
+              </div>
+              История операций
             </CardTitle>
             <CardDescription>
-              История фактических операций по расходам
+              Последние фактические расходы и доходы
             </CardDescription>
           </div>
           <Button

@@ -140,14 +140,16 @@ export const FactForm: React.FC<FactFormProps> = ({ onSuccess }) => {
   const useCostCenter = form.watch("use_cost_center");
 
   return (
-    <Card className="max-w-2xl">
-      <CardHeader>
+    <Card className="border-l-4 border-l-blue-500">
+      <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50">
         <CardTitle className="flex items-center gap-2">
-          <CreditCard className="h-5 w-5 text-blue-600" />
-          Добавить расход
+          <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+            <CreditCard className="h-5 w-5 text-blue-600" />
+          </div>
+          Добавить операцию
         </CardTitle>
         <CardDescription>
-          Внесите информацию о фактическом расходе в семейном бюджете
+          Внесите информацию о расходе или доходе
         </CardDescription>
       </CardHeader>
       
