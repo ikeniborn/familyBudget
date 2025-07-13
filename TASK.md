@@ -107,6 +107,18 @@ Streamlit полностью заменен на React + Node.js + TypeScript st
 
 ## Текущие задачи
 
+### 📋 Фаза 11: Reference Data Management - В ПРОЦЕССЕ
+
+Реализация полноценного управления справочниками через веб-интерфейс с CRUD операциями для всех справочных таблиц базы данных.
+
+**Основные компоненты:**
+- 🏗️ **Infrastructure** - создание страницы настроек и универсальных CRUD компонентов
+- 📝 **Forms** - формы для управления периодами, ЦФО, МВЗ, номенклатурами и продуктами
+- 🔄 **CRUD Operations** - полная реализация Create, Read, Update, Delete операций
+- ⚡ **Advanced Features** - массовые операции, история изменений, поиск и фильтрация
+- 🎨 **UI/UX** - улучшения пользовательского опыта и производительности
+- 🧪 **Testing** - комплексное тестирование и документация
+
 ### 🧪 Фаза 9: Comprehensive Testing Strategy (13.07.2025) - В ПРОЦЕССЕ
 
 #### 9.1 Unit Testing Coverage ✅ (ЗАВЕРШЕНО)
@@ -466,6 +478,140 @@ Streamlit полностью заменен на React + Node.js + TypeScript st
 - `docs/charts/Examples.md` - примеры использования
 - `docs/charts/Performance.md` - руководство по производительности
 - `docs/charts/Troubleshooting.md` - руководство по устранению неполадок
+
+### Фаза 11: Reference Data Management (Управление справочниками)
+
+#### 11.1 Reference Data UI Infrastructure
+- [ ] **Settings Page Setup**
+  - [ ] Создать основную страницу настроек `/settings`
+  - [ ] Добавить навигационное меню для справочников
+  - [ ] Реализовать layout с tabs для разных справочников
+  - [ ] Добавить breadcrumbs навигацию
+
+- [ ] **Common Components**
+  - [ ] Создать универсальный CRUD компонент для справочников
+  - [ ] Реализовать DataGrid с inline editing
+  - [ ] Добавить компонент подтверждения удаления
+  - [ ] Создать компонент bulk operations (массовые операции)
+
+#### 11.2 Reference Data Forms
+- [ ] **Periods Management (Периоды)**
+  - [ ] Форма создания/редактирования периода
+  - [ ] Валидация дат (начало < конец)
+  - [ ] Проверка пересечения периодов
+  - [ ] Активация/деактивация периодов
+  - [ ] Отображение связанных транзакций
+
+- [ ] **Financial Centers (ЦФО)**
+  - [ ] Форма управления финансовыми центрами
+  - [ ] Поля: название, описание, активность
+  - [ ] Иерархическая структура (parent-child)
+  - [ ] Drag & drop для изменения иерархии
+  - [ ] Статистика использования
+
+- [ ] **Cost Centers (МВЗ)**
+  - [ ] Форма управления местами возникновения затрат
+  - [ ] Привязка к финансовым центрам
+  - [ ] Бюджетные лимиты по МВЗ
+  - [ ] История изменений
+  - [ ] Массовое копирование/перенос
+
+- [ ] **Nomenclatures (Номенклатуры)**
+  - [ ] Иерархическое дерево категорий
+  - [ ] Форма создания/редактирования категорий
+  - [ ] Цветовая кодировка категорий
+  - [ ] Иконки для категорий
+  - [ ] Правила автоматической категоризации
+  - [ ] Import/Export категорий (CSV, JSON)
+
+- [ ] **Products Management**
+  - [ ] Каталог продуктов с поиском и фильтрацией
+  - [ ] Форма добавления продуктов с автозаполнением
+  - [ ] История цен продуктов
+  - [ ] Привязка продуктов к категориям
+  - [ ] Барcode scanner integration (опционально)
+  - [ ] Изображения продуктов
+
+#### 11.3 CRUD Operations Implementation
+- [ ] **API Integration**
+  - [ ] Создать services для каждого справочника
+  - [ ] Реализовать error handling и retry logic
+  - [ ] Добавить optimistic updates
+  - [ ] Кеширование справочных данных
+  - [ ] Real-time sync между вкладками
+
+- [ ] **State Management**
+  - [ ] Zustand stores для каждого справочника
+  - [ ] Persist изменений в localStorage
+  - [ ] Undo/Redo функциональность
+  - [ ] Dirty state tracking
+  - [ ] Conflict resolution
+
+- [ ] **Validation & Business Rules**
+  - [ ] Client-side валидация форм
+  - [ ] Async validation (уникальность)
+  - [ ] Business rules enforcement
+  - [ ] Cascade operations handling
+  - [ ] Referential integrity checks
+
+#### 11.4 Advanced Features
+- [ ] **Bulk Operations**
+  - [ ] Массовое создание записей
+  - [ ] Import из Excel/CSV
+  - [ ] Export в различные форматы
+  - [ ] Batch update operations
+  - [ ] Архивирование старых записей
+
+- [ ] **Audit & History**
+  - [ ] Логирование всех изменений
+  - [ ] История изменений с diff view
+  - [ ] Восстановление удаленных записей
+  - [ ] Audit trail отчеты
+  - [ ] Change approval workflow
+
+- [ ] **Search & Filter**
+  - [ ] Полнотекстовый поиск по справочникам
+  - [ ] Расширенные фильтры
+  - [ ] Сохранение фильтров
+  - [ ] Quick filters presets
+  - [ ] Cross-reference search
+
+#### 11.5 UI/UX Enhancements
+- [ ] **User Experience**
+  - [ ] Keyboard shortcuts для быстрого доступа
+  - [ ] Drag & drop для реорганизации
+  - [ ] Context menus
+  - [ ] Inline help и tooltips
+  - [ ] Guided tours для новых пользователей
+
+- [ ] **Performance**
+  - [ ] Virtual scrolling для больших списков
+  - [ ] Lazy loading справочников
+  - [ ] Debounced search
+  - [ ] Optimistic UI updates
+  - [ ] Background sync
+
+- [ ] **Accessibility**
+  - [ ] ARIA labels для всех элементов
+  - [ ] Keyboard navigation
+  - [ ] Screen reader support
+  - [ ] High contrast mode
+  - [ ] Focus management
+
+#### 11.6 Testing & Documentation
+- [ ] **Testing**
+  - [ ] Unit tests для CRUD operations
+  - [ ] Integration tests для API
+  - [ ] E2E tests для user workflows
+  - [ ] Performance tests
+  - [ ] Accessibility tests
+
+- [ ] **Documentation**
+  - [ ] User guide для управления справочниками
+  - [ ] API documentation
+  - [ ] Business rules documentation
+  - [ ] Video tutorials
+  - [ ] FAQ section
 
 ### Фаза 7: Production Ready (будущие задачи)
 
