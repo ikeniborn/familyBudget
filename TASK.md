@@ -6,28 +6,40 @@
 Streamlit полностью заменен на React + Node.js + TypeScript stack.
 Все основные функции мигрированы и оптимизированы.
 
+## Завершенные задачи (последние)
+
+### ✅ Фаза 10.3: Core Chart Components (13.07.2025) - ЗАВЕРШЕНО
+
+Реализованы базовые бизнес-компоненты графиков:
+- 📊 **PlanFactBarChart** - сравнение плана и факта с интерактивными тултипами
+- 🌡️ **BudgetGauge** - круговой индикатор использования бюджета с анимацией
+- 🥧 **CategoryPieChart** - интерактивная круговая диаграмма с фильтрацией
+- 📱 Полная поддержка мобильных устройств и адаптивный дизайн
+- 🎯 Click handlers для drill-down функциональности
+- 🎨 Консистентная цветовая схема и анимации
+
+### ✅ Фаза 10.2: Charts Infrastructure Setup (13.07.2025) - ЗАВЕРШЕНО
+
+Создана полная инфраструктура для системы графиков:
+- 📦 Установлены зависимости: recharts, @types/recharts, html2canvas
+- 🏗️ Создана структура директорий для компонентов графиков
+- 🎨 Реализована система тем с цветами и форматтерами
+- 📊 Созданы базовые контейнеры с экспортом и адаптивностью
+- 🔧 Добавлены утилиты трансформации данных и хуки
+- 🖼️ Реализован экспорт в PNG/SVG/CSV/Print/Clipboard
+
+### ✅ Фаза 9.1: Unit Testing Coverage (13.07.2025) - ЗАВЕРШЕНО
+
+Создано **396+ unit тестов** для всех компонентов приложения:
+- Frontend (React): 188 тестов
+- Frontend-API (Node.js): 118 тестов  
+- Backend API (FastAPI): 90+ тестов
+
+Покрытие включает endpoints, валидацию, авторизацию, обработку ошибок и интеграционные сценарии.
+
 ## Текущие задачи
 
-### ✅ Фаза 6: Деплой и тестирование 🚀 (ЗАВЕРШЕНО)
-
-#### 6.1 Development Environment ✅
-- [x] Развернуть в dev окружении ✅ (12.07.2025)
-  - ✅ Проверить Docker Compose конфигурацию
-  - ✅ Настроить environment variables
-  - ✅ Проверить SSL сертификаты Traefik
-  - ✅ Валидировать все сервисы (frontend, frontend-api, postgres, redis)
-
-#### 6.2 User Acceptance Testing (UAT) ✅
-- [x] Провести UAT тестирование ✅ (12.07.2025)
-  - ✅ Функциональное тестирование всех модулей
-  - ✅ Тестирование производительности
-  - ✅ Проверка responsive design на мобильных устройствах
-  - ✅ Тестирование безопасности и аутентификации
-  - ✅ Интеграционное тестирование с реальными данными
-
-**📋 UAT Report**: [UAT_REPORT.md](./UAT_REPORT.md) - Все тесты пройдены успешно, готово к продакшену
-
-### 🧪 Фаза 9: Comprehensive Testing Strategy (13.07.2025) - ЧАСТИЧНО ЗАВЕРШЕНО
+### 🧪 Фаза 9: Comprehensive Testing Strategy (13.07.2025) - В ПРОЦЕССЕ
 
 #### 9.1 Unit Testing Coverage ✅ (ЗАВЕРШЕНО)
 
@@ -149,7 +161,7 @@ Streamlit полностью заменен на React + Node.js + TypeScript st
 - [ ] Document test data setup
 - [ ] Create test case templates
 
-### 📊 Фаза 10: Charts and Data Visualization (13.07.2025)
+### 📊 Фаза 10: Charts and Data Visualization (13.07.2025) - В ПРОЦЕССЕ
 
 #### 10.1 Framework Selection ✅ (13.07.2025)
 - [x] Analyze and compare charting libraries ✅
@@ -164,38 +176,55 @@ Streamlit полностью заменен на React + Node.js + TypeScript st
 - [x] Document Recharts as official charting library ✅
   - Updated CLAUDE.md and README.md
 
-#### 10.2 Infrastructure Setup (Week 1: 15-19.07.2025)
-- [ ] Install Recharts and @types/recharts dependencies
-- [ ] Create chart components directory structure
-  - [ ] `frontend/src/components/charts/core/` - базовые компоненты
-  - [ ] `frontend/src/components/charts/business/` - бизнес-графики
-  - [ ] `frontend/src/components/charts/hooks/` - хуки для графиков
-  - [ ] `frontend/src/components/charts/utils/` - утилиты
-- [ ] Setup chart theme configuration (ChartTheme.ts)
-- [ ] Create base chart container component (ChartContainer.tsx)
-- [ ] Implement chart export functionality (PNG/SVG)
-- [ ] Create data transformation utilities
-- [ ] Setup responsive container components
+#### 10.2 Infrastructure Setup (Week 1: 15-19.07.2025) ✅ ЗАВЕРШЕНО
+- [x] Install Recharts and @types/recharts dependencies ✅
+- [x] Create chart components directory structure ✅
+  - [x] `frontend/src/components/charts/core/` - базовые компоненты ✅
+  - [x] `frontend/src/components/charts/business/` - бизнес-графики ✅
+  - [x] `frontend/src/components/charts/hooks/` - хуки для графиков ✅
+  - [x] `frontend/src/components/charts/utils/` - утилиты ✅
+- [x] Setup chart theme configuration (ChartTheme.ts) ✅
+- [x] Create base chart container component (ChartContainer.tsx) ✅
+- [x] Implement chart export functionality (PNG/SVG) ✅
+- [x] Create data transformation utilities ✅
+- [x] Setup responsive container components ✅
 
-#### 10.3 Core Chart Components (Week 2: 22-26.07.2025)
-- [ ] **Plan vs Fact Bar Chart** (PlanFactBarChart.tsx)
-  - [ ] Grouped bar chart component
-  - [ ] Interactive tooltips with exact values
-  - [ ] Color coding: Blue (Plan), Green (Fact)
-  - [ ] Click handlers for drill-down
-  - [ ] Mobile responsive design
-- [ ] **Budget Utilization Gauge** (BudgetGauge.tsx)
-  - [ ] Radial bar/gauge component
-  - [ ] Color transitions (green → yellow → red)
-  - [ ] Animated transitions
-  - [ ] Threshold indicators
-  - [ ] KPI card wrapper
-- [ ] **Category Distribution Pie Chart** (CategoryPieChart.tsx)
-  - [ ] Interactive pie/donut chart
-  - [ ] Clickable legend
-  - [ ] Percentage labels
-  - [ ] Filter capability
-  - [ ] Touch-friendly for mobile
+**Созданы файлы инфраструктуры графиков:**
+- `ChartTheme.ts` - комплексная тема с цветами, форматтерами, стилями
+- `ChartContainer.tsx` - базовый контейнер с экспортом и полноэкранным режимом  
+- `ResponsiveChartContainer.tsx` - адаптивные контейнеры для разных экранов
+- `chartExport.ts` - экспорт в PNG/SVG/CSV, копирование в буфер, печать
+- `dataTransform.ts` - утилиты трансформации данных для всех типов графиков
+- `useChartData.ts` - хук для загрузки и валидации данных графиков
+- `useChartFilters.ts` - хук для фильтрации и сортировки данных
+- `useChartExport.ts` - хук для экспорта графиков
+- `index.ts` - централизованный экспорт всех компонентов и утилит
+
+#### 10.3 Core Chart Components (Week 2: 22-26.07.2025) ✅ ЗАВЕРШЕНО
+- [x] **Plan vs Fact Bar Chart** (PlanFactBarChart.tsx) ✅
+  - [x] Grouped bar chart component ✅
+  - [x] Interactive tooltips with exact values ✅
+  - [x] Color coding: Blue (Plan), Green (Fact) ✅
+  - [x] Click handlers for drill-down ✅
+  - [x] Mobile responsive design ✅
+- [x] **Budget Utilization Gauge** (BudgetGauge.tsx) ✅
+  - [x] Radial bar/gauge component ✅
+  - [x] Color transitions (green → yellow → red) ✅
+  - [x] Animated transitions ✅
+  - [x] Threshold indicators ✅
+  - [x] KPI card wrapper ✅
+- [x] **Category Distribution Pie Chart** (CategoryPieChart.tsx) ✅
+  - [x] Interactive pie/donut chart ✅
+  - [x] Clickable legend ✅
+  - [x] Percentage labels ✅
+  - [x] Filter capability ✅
+  - [x] Touch-friendly for mobile ✅
+
+**Созданы базовые бизнес-компоненты графиков:**
+- `PlanFactBarChart.tsx` - сравнение плана и факта с детальными тултипами
+- `BudgetGauge.tsx` - круговой индикатор использования бюджета с анимацией
+- `CategoryPieChart.tsx` - интерактивная круговая диаграмма с фильтрацией
+- Все компоненты поддерживают экспорт, адаптивный дизайн и кастомизацию
 
 #### 10.4 Advanced Charts (Week 3: 29.07-02.08.2025)
 - [ ] **Expense Trend Line Chart** (TrendLineChart.tsx)
@@ -308,6 +337,9 @@ Streamlit полностью заменен на React + Node.js + TypeScript st
 ✅ **Фаза 4**: Функциональные модули (06-12.07.2025)
 ✅ **Фаза 5**: API интеграция (06-07.01.2025)
 ✅ **Фаза 6**: Деплой и тестирование (12.07.2025)
+✅ **Фаза 9.1**: Unit Testing Coverage (13.07.2025) - 396+ тестов
+✅ **Фаза 10.2**: Charts Infrastructure Setup (13.07.2025) - полная инфраструктура графиков
+✅ **Фаза 10.3**: Core Chart Components (13.07.2025) - базовые бизнес-компоненты графиков
 
 *Подробная история изменений доступна в [CHANGELOG.md](./CHANGELOG.md)*
 
@@ -319,18 +351,19 @@ Streamlit полностью заменен на React + Node.js + TypeScript st
 - **Backend**: FastAPI + Python (существующий)
 - **Database**: PostgreSQL с партицированием
 - **Infrastructure**: Docker + Traefik + Let's Encrypt
-- **Testing**: Jest + React Testing Library + Supertest
+- **Testing**: Jest + React Testing Library + Supertest + pytest
 
 ### Ключевые возможности
 - 🔐 Multi-auth (Telegram + Password)
 - 📱 Responsive design
 - ⚡ Modern performance optimizations
-- 🧪 Comprehensive testing suite (306+ unit tests)
+- 🧪 Comprehensive testing suite (396+ unit tests)
 - 🐳 Production-ready Docker setup
 - 📊 Advanced analytics with Recharts
 - 🛒 Product catalog management
 - 📝 Advanced form validation
 - 📈 80% test coverage requirement
+- 🔧 Full-stack testing (Frontend + Backend + API)
 
 ### Development
 ```bash
@@ -338,8 +371,10 @@ Streamlit полностью заменен на React + Node.js + TypeScript st
 ./scripts/dev.sh
 
 # Тестирование
-cd frontend && npm test
-cd frontend && npm run test:e2e
+cd frontend && npm test                # Frontend tests
+cd frontend-api && npm test            # Frontend-API tests  
+cd api && ./run_tests.sh              # Backend API tests
+cd frontend && npm run test:e2e       # E2E tests
 
 # Сборка production
 docker-compose build --no-cache

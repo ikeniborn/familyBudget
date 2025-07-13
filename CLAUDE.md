@@ -206,8 +206,14 @@ SSL certificates managed by Let's Encrypt via Traefik.
 
 - **Task Management**:
   - Псоле завершения задачи обновляй статус в TASK.md
+  - После завершения задачи всегда обновляй статус задач в TASK.md и CHANGELOG.md
 
 ## Context Guidance
 
 - **Context Management**:
   - Используй инструмент context7 для получения актуальной документации
+  - Reminder: Use context7 tool to retrieve the most up-to-date documentation
+
+## Project Documentation Guidelines
+
+- В корне проекта храниться только документация README, TASK, CHANGELOG. Дпоплнительная документция сохранаятся в каталоге docs
