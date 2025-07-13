@@ -6,3 +6,9 @@ pydantic
 uvicorn
 asyncpg
 aioredis
+pytest
+pytest-asyncio
+pytest-cov
+httpx
+pytest-mock
+faker
