@@ -13,6 +13,7 @@ const ReportsPage = React.lazy(() => import('./pages/Reports'));
 const ProductsPage = React.lazy(() => import('./pages/Products'));
 const UIShowcasePage = React.lazy(() => import('./pages/UIShowcase'));
 const FormValidationPage = React.lazy(() => import('./pages/FormValidation'));
+const SettingsPage = React.lazy(() => import('./pages/Settings'));
 
 function App() {
   console.log('App component rendering...');
@@ -86,6 +87,15 @@ function App() {
             element={
               <AuthGuard>
                 <FormValidationPage />
+              </AuthGuard>
+            }
+          />
+          
+          <Route
+            path="/settings/*"
+            element={
+              <AuthGuard>
+                <SettingsPage />
               </AuthGuard>
             }
           />

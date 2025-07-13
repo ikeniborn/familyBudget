@@ -36,6 +36,7 @@ const navItems: NavItem[] = [
   { name: 'Бюджет', path: '/budget', icon: Calculator },
   { name: 'Отчеты', path: '/reports', icon: BarChart3 },
   { name: 'Продукты', path: '/products', icon: Package },
+  { name: 'Настройки', path: '/settings', icon: Settings },
   { name: 'Валидация форм', path: '/form-validation', icon: FileText },
 ];
 
@@ -86,7 +87,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             <nav className="space-y-2">
               {navItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = location.pathname === item.path;
+                const isActive = location.pathname === item.path || 
+                  (item.path === '/settings' && location.pathname.startsWith('/settings'));
                 
                 return (
                   <Button
@@ -160,7 +162,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="flex flex-1 items-center justify-between">
               <div>
                 <h2 className="text-xl font-semibold text-slate-800">
-                  {navItems.find(item => item.path === location.pathname)?.name || 'Страница'}
+                  {navItems.find(item => item.path === location.pathname || 
+                    (item.path === '/settings' && location.pathname.startsWith('/settings')))?.name || 'Страница'}
                 </h2>
                 <p className="text-sm text-slate-500">
                   Управление семейным бюджетом
@@ -174,7 +177,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     3
                   </Badge>
                 </Button>
-                <Button variant="ghost" size="icon">
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => navigate('/settings')}
+                  title="Настройки"
+                >
                   <Settings className="h-5 w-5" />
                 </Button>
               </div>

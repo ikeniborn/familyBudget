@@ -481,18 +481,28 @@ Streamlit полностью заменен на React + Node.js + TypeScript st
 
 ### Фаза 11: Reference Data Management (Управление справочниками)
 
-#### 11.1 Reference Data UI Infrastructure
-- [ ] **Settings Page Setup**
-  - [ ] Создать основную страницу настроек `/settings`
-  - [ ] Добавить навигационное меню для справочников
-  - [ ] Реализовать layout с tabs для разных справочников
-  - [ ] Добавить breadcrumbs навигацию
+#### 11.1 Reference Data UI Infrastructure ✅ (13.07.2025)
+- [x] **Settings Page Setup** ✅
+  - [x] Создать основную страницу настроек `/settings` ✅
+  - [x] Добавить навигационное меню для справочников ✅
+  - [x] Реализовать layout с tabs для разных справочников ✅
+  - [x] Добавить breadcrumbs навигацию ✅
 
-- [ ] **Common Components**
-  - [ ] Создать универсальный CRUD компонент для справочников
-  - [ ] Реализовать DataGrid с inline editing
-  - [ ] Добавить компонент подтверждения удаления
-  - [ ] Создать компонент bulk operations (массовые операции)
+- [x] **Common Components** ✅
+  - [x] Создать универсальный CRUD компонент для справочников ✅
+  - [x] Реализовать DataGrid с inline editing ✅
+  - [x] Добавить компонент подтверждения удаления ✅
+  - [x] Создать компонент bulk operations (массовые операции) ✅
+
+**Созданные компоненты:**
+- `Settings/index.tsx` - страница настроек с tabs навигацией и карточками
+- `Breadcrumbs.tsx` - компонент хлебных крошек с авто-генерацией из URL
+- `CRUDTable.tsx` - универсальный CRUD с поиском, фильтрацией, экспортом
+- `PeriodManager.tsx` - управление периодами с валидацией
+- `FinancialCenterManager.tsx` - управление финансовыми центрами
+- `CostCenterManager.tsx` - управление центрами затрат
+- `NomenclatureManager.tsx` - управление номенклатурами с иерархией
+- UI компоненты: alert-dialog, dialog, checkbox для Radix UI
 
 #### 11.2 Reference Data Forms
 - [ ] **Periods Management (Периоды)**
@@ -677,6 +687,7 @@ Streamlit полностью заменен на React + Node.js + TypeScript st
 ✅ **Фаза 10.4**: Advanced Charts (13.07.2025) - продвинутые графики с прогнозами и фильтрацией
 ✅ **Фаза 10.6**: Testing and Documentation (13.07.2025) - тесты графиков и полная документация
 ✅ **Фаза 10.5**: Reports Page Integration (13.07.2025) - интеграция графиков в отчеты
+✅ **Фаза 11.1**: Reference Data UI Infrastructure (13.07.2025) - UI для управления справочниками
 
 *Подробная история изменений доступна в [CHANGELOG.md](./CHANGELOG.md)*
 
