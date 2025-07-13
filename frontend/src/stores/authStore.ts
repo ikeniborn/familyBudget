@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { User } from '../types';
-import { apiClient } from '../services/api';
+import apiClient from '../services/apiClient';
 
 interface AuthUser extends User {
   authMethod?: 'telegram' | 'password';
@@ -29,14 +29,12 @@ export const useAuthStore = create<AuthState>()(
       login: async (telegramData) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await apiClient.post<{ success: boolean; user: User }>(
-            '/auth/telegram',
-            telegramData
-          );
+          const response = await apiClient.post('/auth/telegram', telegramData);
+          const data = response.data;
           
-          if (response.success) {
+          if (data.success && data.user) {
             set({ 
-              user: response.user, 
+              user: data.user, 
               isAuthenticated: true, 
               isLoading: false 
             });
@@ -74,12 +72,20 @@ export const useAuthStore = create<AuthState>()(
       checkAuth: async () => {
         set({ isLoading: true });
         try {
-          const response = await apiClient.get<{ user: User }>('/auth/me');
-          set({ 
-            user: response.user, 
-            isAuthenticated: true, 
-            isLoading: false 
-          });
+          const response = await apiClient.get('/auth/me');
+          if (response.data && response.data.user) {
+            set({ 
+              user: response.data.user, 
+              isAuthenticated: true, 
+              isLoading: false 
+            });
+          } else {
+            set({ 
+              user: null, 
+              isAuthenticated: false, 
+              isLoading: false 
+            });
+          }
         } catch (error) {
           set({ 
             user: null, 

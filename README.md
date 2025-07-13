@@ -55,7 +55,7 @@
 - **UI**: React 18, TypeScript, Tailwind CSS
 - **State**: Zustand
 - **Forms**: React Hook Form
-- **Charts**: Recharts
+- **Charts**: Recharts (официально принятая библиотека визуализации данных)
 - **Tables**: TanStack Table
 - **Testing**: Jest, React Testing Library, Playwright
 

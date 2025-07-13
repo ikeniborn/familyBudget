@@ -5,7 +5,7 @@ import { ToastContainer } from './components/common/ToastContainer';
 import { PasswordLogin } from './components/auth/PasswordLogin';
 import LoginPage from './pages/Login';
 import DashboardPage from './pages/Dashboard';
-
+import TestPage from './pages/Test';
 // Lazy load other pages
 const FactPage = React.lazy(() => import('./pages/Fact'));
 const BudgetPage = React.lazy(() => import('./pages/Budget'));
@@ -15,6 +15,7 @@ const UIShowcasePage = React.lazy(() => import('./pages/UIShowcase'));
 const FormValidationPage = React.lazy(() => import('./pages/FormValidation'));
 
 function App() {
+  console.log('App component rendering...');
   return (
     <Router>
       <ToastContainer />
@@ -26,6 +27,7 @@ function App() {
         }
       >
         <Routes>
+          <Route path="/test" element={<TestPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/login/password" element={<PasswordLogin />} />
           

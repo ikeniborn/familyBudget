@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Card } from '../common/Card';
-import { Select } from '../common/form/Select';
-import { Button } from '../common/form/Button';
+import { Button } from '../ui/button';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
+import { Label } from '../ui/label';
 import type { Period, FinancialCenter } from '../../types';
 import { periodService, financialCenterService } from '../../services';
 
@@ -77,38 +83,62 @@ export const ReportFilters: React.FC<ReportFiltersProps> = ({
   ];
 
   return (
-    <Card title="Фильтры отчета">
-      <div className="space-y-4">
-        <Select
-          label="Тип отчета"
-          options={reportTypeOptions}
-          value={filters.report_type}
-          onValueChange={(value) => handleFilterChange('report_type', value)}
-        />
-
-        <Select
-          label="Период"
-          options={periodOptions}
-          value={filters.period_id?.toString() || ''}
-          onValueChange={(value) => handleFilterChange('period_id', value)}
-        />
-
-        <Select
-          label="Финансовый центр"
-          options={financialCenterOptions}
-          value={filters.financial_center_id?.toString() || ''}
-          onValueChange={(value) => handleFilterChange('financial_center_id', value)}
-        />
-
-        <Button
-          variant="default"
-          onClick={handleApplyFilters}
-          disabled={isLoading}
-          className="w-full"
-        >
-          {isLoading ? 'Загрузка...' : 'Применить фильтры'}
-        </Button>
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="report-type">Тип отчета</Label>
+        <Select onValueChange={(value) => handleFilterChange('report_type', value)} defaultValue={filters.report_type}>
+          <SelectTrigger>
+            <SelectValue placeholder="Выберите тип отчета" />
+          </SelectTrigger>
+          <SelectContent>
+            {reportTypeOptions.map(option => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
-    </Card>
+
+      <div className="space-y-2">
+        <Label htmlFor="period">Период</Label>
+        <Select onValueChange={(value) => handleFilterChange('period_id', value)} defaultValue={filters.period_id?.toString() || ''}>
+          <SelectTrigger>
+            <SelectValue placeholder="Выберите период" />
+          </SelectTrigger>
+          <SelectContent>
+            {periodOptions.map(option => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="financial-center">Финансовый центр</Label>
+        <Select onValueChange={(value) => handleFilterChange('financial_center_id', value)} defaultValue={filters.financial_center_id?.toString() || ''}>
+          <SelectTrigger>
+            <SelectValue placeholder="Выберите ФЦ" />
+          </SelectTrigger>
+          <SelectContent>
+            {financialCenterOptions.map(option => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Button
+        onClick={handleApplyFilters}
+        disabled={isLoading}
+        className="w-full"
+      >
+        {isLoading ? 'Загрузка...' : 'Применить фильтры'}
+      </Button>
+    </div>
   );
 };

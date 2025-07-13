@@ -142,12 +142,28 @@ All endpoints require user context for data isolation.
    - Typography: Bold numbers for metrics, subtle text for labels
    - Use Lucide React icons consistently
 
-4. **Database Changes**:
+4. **Data Visualization (APPROVED by user)**:
+   - **Charting Library**: Recharts (officially adopted 13.07.2025)
+   - Chart types for Reports page:
+     - Bar charts for Plan vs Fact comparisons
+     - Line charts for trend analysis
+     - Pie/Donut charts for category distribution
+     - Gauge charts for budget utilization
+     - Waterfall charts for variance analysis
+   - Chart design principles:
+     - Consistent with UI color scheme
+     - Interactive tooltips and legends
+     - Responsive design for all screen sizes
+     - Export functionality (PNG/SVG)
+   - See [CHARTING_FRAMEWORKS_ANALYSIS.md](./frontend/CHARTING_FRAMEWORKS_ANALYSIS.md) for framework comparison
+   - See [REPORTS_CHARTS_IMPLEMENTATION_PLAN.md](./frontend/REPORTS_CHARTS_IMPLEMENTATION_PLAN.md) for implementation details
+
+5. **Database Changes**:
    - Update `postgresql/ddl/budgetdb.sql`
    - Partitions exist for years 2023-2030
    - All queries must filter by user_id
 
-5. **Container Resources**:
+6. **Container Resources**:
    - Each service has defined memory/CPU limits
    - Check `docker-compose.yaml` for production limits
 

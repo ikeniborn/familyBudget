@@ -2,9 +2,7 @@ import React, { useState } from 'react';
 import { Layout } from '../../components/common/Layout';
 import { FactForm } from '../../components/fact/FactForm';
 import { FactList } from '../../components/fact/FactList';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
+import { Card, CardContent } from '../../components/ui/card';
 import { 
   TrendingUp, 
   TrendingDown, 
