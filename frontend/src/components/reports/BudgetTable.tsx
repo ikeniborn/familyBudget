@@ -1,7 +1,7 @@
 import React from 'react';
 import { DataTable } from '../common/DataTable';
-import { Card } from '../common/Card';
-import { Button } from '../common/form/Button';
+import { Card } from '../ui/card';
+import { Button } from '../ui/button';
 import type { ColumnDef } from '@tanstack/react-table';
 
 interface BudgetTableData {

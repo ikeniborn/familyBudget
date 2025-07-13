@@ -2,7 +2,11 @@
  * Chart export utilities for PNG and SVG formats
  */
 
-import html2canvas from 'html2canvas';
+// Lazy import html2canvas to avoid build issues
+const getHtml2Canvas = async () => {
+  const { default: html2canvas } = await import('html2canvas');
+  return html2canvas;
+};
 
 /**
  * Export chart as PNG image
@@ -12,6 +16,8 @@ export async function exportChartAsPNG(
   filename: string = 'chart'
 ): Promise<void> {
   try {
+    const html2canvas = await getHtml2Canvas();
+    
     // Create canvas from element
     const canvas = await html2canvas(element, {
       backgroundColor: '#ffffff',

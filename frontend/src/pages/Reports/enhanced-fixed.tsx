@@ -4,9 +4,6 @@ import { Card, CardContent } from '../../components/ui/card';
 import { useToast } from '../../components/common/ToastContainer';
 import { ReportFilters, type ReportFilters as ReportFiltersType } from '../../components/reports/ReportFilters';
 import { ViewModeToggle, type ViewMode } from '../../components/reports/ViewModeToggle';
-import { ChartSelector } from '../../components/reports/ChartSelector';
-import type { ChartType } from '../../components/reports/ChartSelector';
-import DynamicChartRenderer from '../../components/reports/DynamicChartRenderer';
 import { BudgetTable } from '../../components/reports/BudgetTable';
 import { useUserPreferences } from '../../hooks/useUserPreferences';
 import { reportDataTransformer } from '../../services/reportDataTransformer';
@@ -22,6 +19,26 @@ import {
   RefreshCw,
   Settings,
 } from 'lucide-react';
+
+// Type for chart types
+type ChartType = 
+  | 'plan_fact_bar' 
+  | 'category_pie' 
+  | 'budget_gauge' 
+  | 'trend_line' 
+  | 'variance_waterfall' 
+  | 'composed';
+
+// Lazy load components to avoid static import issues
+const ChartSelector = React.lazy(() => 
+  import('../../components/reports/ChartSelector').then(module => ({ 
+    default: module.ChartSelector 
+  }))
+);
+
+const DynamicChartRenderer = React.lazy(() => 
+  import('../../components/reports/DynamicChartRenderer')
+);
 
 // Custom hook for debounced values
 function useDebounce<T>(value: T, delay: number): T {
@@ -40,7 +57,7 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-const EnhancedReportsPage: React.FC = () => {
+const EnhancedReportsPageFixed: React.FC = () => {
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [isLoadingReportData, setIsLoadingReportData] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
@@ -289,12 +306,18 @@ const EnhancedReportsPage: React.FC = () => {
                 />
                 
                 {viewMode === 'chart' && (
-                  <ChartSelector
-                    selectedType={chartType}
-                    onTypeChange={handleChartTypeChange}
-                    reportType={filters.report_type}
-                    disabled={isLoadingReportData}
-                  />
+                  <React.Suspense 
+                    fallback={
+                      <div className="animate-pulse bg-gray-200 h-10 rounded-lg"></div>
+                    }
+                  >
+                    <ChartSelector
+                      selectedType={chartType}
+                      onTypeChange={handleChartTypeChange}
+                      reportType={filters.report_type}
+                      disabled={isLoadingReportData}
+                    />
+                  </React.Suspense>
                 )}
               </div>
             </CardContent>
@@ -317,14 +340,25 @@ const EnhancedReportsPage: React.FC = () => {
               {/* Content with smooth transitions */}
               <div className="transition-all duration-300 ease-in-out">
                 {viewMode === 'chart' ? (
-                  <DynamicChartRenderer
-                    chartType={chartType}
-                    data={reportData || {}}
-                    filters={filters}
-                    loading={isLoadingReportData}
-                    error={reportError}
-                    onChartClick={handleChartClick}
-                  />
+                  <React.Suspense 
+                    fallback={
+                      <div className="flex items-center justify-center h-64">
+                        <div className="text-center">
+                          <RefreshCw className="h-8 w-8 animate-spin mx-auto text-gray-400 mb-2" />
+                          <p className="text-gray-500">Загрузка графика...</p>
+                        </div>
+                      </div>
+                    }
+                  >
+                    <DynamicChartRenderer
+                      chartType={chartType}
+                      data={reportData || {}}
+                      filters={filters}
+                      loading={isLoadingReportData}
+                      error={reportError}
+                      onChartClick={handleChartClick}
+                    />
+                  </React.Suspense>
                 ) : (
                   <div className="space-y-4">
                     {isLoadingReportData ? (
@@ -403,4 +437,4 @@ const EnhancedReportsPage: React.FC = () => {
   );
 };
 
-export default EnhancedReportsPage;
+export default EnhancedReportsPageFixed;

@@ -18,7 +18,7 @@ export const ViewModeToggle: React.FC<ViewModeToggleProps> = memo(({
   className = '',
 }) => {
   return (
-    <div className={`flex items-center bg-gray-100 rounded-lg p-1 ${className}`}>
+    <div className={`flex items-center bg-gray-100 rounded-lg p-1 ${className}`} data-testid="view-mode-toggle">
       <Button
         variant={currentMode === 'table' ? 'default' : 'ghost'}
         size="sm"

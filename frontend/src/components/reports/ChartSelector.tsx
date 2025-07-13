@@ -107,7 +107,7 @@ export const ChartSelector: React.FC<ChartSelectorProps> = memo(({
   }, [reportType, selectedType, onTypeChange, availableOptions]);
 
   return (
-    <div className={`space-y-2 ${className}`}>
+    <div className={`space-y-2 ${className}`} data-testid="chart-selector">
       <label className="text-sm font-medium text-gray-700">
         Тип графика
       </label>

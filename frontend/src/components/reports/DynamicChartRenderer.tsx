@@ -1,7 +1,7 @@
 import React, { Suspense, memo, useMemo } from 'react';
 import { ChartSkeleton } from '../charts/core/ChartContainer';
-import OptimizedChartWrapper from '../charts/performance/OptimizedChartWrapper';
-import { ChartType } from './ChartSelector';
+import { OptimizedChartWrapper } from '../charts/performance/OptimizedChartWrapper';
+import type { ChartType } from './ChartSelector';
 import { ReportFilters } from './ReportFilters';
 
 // Lazy load chart components for better performance
@@ -277,7 +277,7 @@ export const DynamicChartRenderer: React.FC<DynamicChartRendererProps> = memo(({
   }, [chartType, data]);
 
   return (
-    <div className={`space-y-4 ${className}`}>
+    <div className={`space-y-4 ${className}`} data-testid="chart-container">
       <OptimizedChartWrapper
         data={chartData}
         loading={loading}

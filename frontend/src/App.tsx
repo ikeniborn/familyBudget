@@ -60,11 +60,7 @@ function App() {
           
           <Route
             path="/reports"
-            element={
-              <AuthGuard>
-                <ReportsPage />
-              </AuthGuard>
-            }
+            element={<ReportsPage />}
           />
           
           <Route
