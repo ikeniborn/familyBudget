@@ -3,10 +3,11 @@ import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Layout } from '../../components/common/Layout';
 import { Breadcrumbs } from '../../components/common/Breadcrumbs';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
-import { PeriodManager } from '../../components/reference/PeriodManager';
-import { FinancialCenterManager } from '../../components/reference/FinancialCenterManager';
-import { CostCenterManager } from '../../components/reference/CostCenterManager';
-import { NomenclatureManager } from '../../components/reference/NomenclatureManager';
+import { EnhancedPeriodManager } from '../../components/reference/EnhancedPeriodManager';
+import { EnhancedFinancialCenterManager } from '../../components/reference/EnhancedFinancialCenterManager';
+import { EnhancedCostCenterManager } from '../../components/reference/EnhancedCostCenterManager';
+import { EnhancedNomenclatureManager } from '../../components/reference/EnhancedNomenclatureManager';
+import { ProductManager } from '../../components/reference/ProductManager';
 import {
   Calendar,
   Building2,
@@ -183,43 +184,23 @@ const SettingsPage: React.FC = () => {
 
           {/* Content for each tab */}
           <TabsContent value="periods" className="space-y-4">
-            <PeriodManager />
+            <EnhancedPeriodManager />
           </TabsContent>
 
           <TabsContent value="financial-centers" className="space-y-4">
-            <FinancialCenterManager />
+            <EnhancedFinancialCenterManager />
           </TabsContent>
 
           <TabsContent value="cost-centers" className="space-y-4">
-            <CostCenterManager />
+            <EnhancedCostCenterManager />
           </TabsContent>
 
           <TabsContent value="nomenclatures" className="space-y-4">
-            <NomenclatureManager />
+            <EnhancedNomenclatureManager />
           </TabsContent>
 
           <TabsContent value="products" className="space-y-4">
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-pink-100 rounded-lg">
-                    <Package className="h-6 w-6 text-pink-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-900">Каталог продуктов</h2>
-                    <p className="text-sm text-gray-600">Продукты и услуги с историей цен</p>
-                  </div>
-                </div>
-                <button className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors">
-                  Добавить продукт
-                </button>
-              </div>
-              {/* Products component will go here */}
-              <div className="text-center py-12 text-gray-500">
-                <Database className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                <p>Компонент управления продуктами будет здесь</p>
-              </div>
-            </div>
+            <ProductManager />
           </TabsContent>
 
           <TabsContent value="users" className="space-y-4">
