@@ -8,6 +8,38 @@ Streamlit полностью заменен на React + Node.js + TypeScript st
 
 ## Завершенные задачи (последние)
 
+### ✅ Фаза 9.2: Integration Testing (13.07.2025) - ЗАВЕРШЕНО
+
+Полный набор интеграционных тестов с Playwright:
+- 🔐 **E2E Authentication Tests** - полный цикл аутентификации с валидацией сессий
+- 📝 **CRUD Operations Tests** - тестирование операций создания, чтения, обновления, удаления
+- 📊 **Budget Workflow Tests** - тестирование планирования бюджета и генерации отчетов
+- 🔄 **API Integration Tests** - тестирование Frontend → Frontend-API → Backend коммуникации
+- 💾 **Database Transaction Tests** - тестирование транзакций, сессий и обработки ошибок
+- ⚡ **Advanced Integration Tests** - тестирование пула подключений, блокировок, отказоустойчивости
+- 📈 **Error Propagation Tests** - тестирование распространения ошибок через все слои приложения
+
+### ✅ Фаза 10.5: Reports Page Integration (13.07.2025) - ЗАВЕРШЕНО
+
+Полная интеграция графиков в страницу отчетов:
+- 🔄 **ViewModeToggle** - переключатель таблица/график с сохранением предпочтений
+- 📊 **ChartSelector** - динамический селектор типов графиков под каждый тип отчета
+- 🎯 **DynamicChartRenderer** - ленивая загрузка и рендеринг графиков с Suspense
+- ⚡ **OptimizedChartWrapper** - оптимизация производительности и виртуализация данных
+- 💾 **useUserPreferences** - персистентные пользовательские настройки
+- 🔄 **reportDataTransformer** - преобразование данных отчетов в формат графиков
+- 📱 Полная адаптивность и плавные переходы между режимами просмотра
+
+### ✅ Фаза 10.4: Advanced Charts (13.07.2025) - ЗАВЕРШЕНО
+
+Реализованы продвинутые компоненты графиков:
+- 📈 **TrendLineChart** - многосерийный линейный график с прогнозами и селектором дат
+- 🌊 **VarianceWaterfall** - водопадная диаграмма отклонений с анализом влияния  
+- 🔄 **ComposedChartView** - комбинированный график с синхронизированными тултипами
+- 🎯 Cross-chart filtering и интерактивные легенды
+- 📊 Dual Y-axis support для разных метрик
+- 🔍 Brush navigation для больших наборов данных
+
 ### ✅ Фаза 10.3: Core Chart Components (13.07.2025) - ЗАВЕРШЕНО
 
 Реализованы базовые бизнес-компоненты графиков:
@@ -112,21 +144,68 @@ Streamlit полностью заменен на React + Node.js + TypeScript st
     - [x] Multi-user isolation
     - [x] Performance tests (6 tests)
 
-#### 9.2 Integration Testing
-- [ ] End-to-End (E2E) Tests
-  - [ ] User authentication flow
-  - [ ] CRUD operations for all entities
-  - [ ] Budget planning workflow
-  - [ ] Reports generation
-  - [ ] Product management with price history
-  - [ ] Data filtering and pagination
+#### 9.2 Integration Testing ✅ (ЗАВЕРШЕНО)
 
-- [ ] API Integration Tests
-  - [ ] Frontend → Frontend-API communication
-  - [ ] Frontend-API → Backend API communication
-  - [ ] Database transactions and rollbacks
-  - [ ] Session persistence
-  - [ ] Error propagation
+**✅ Создан полный набор интеграционных тестов с Playwright:**
+
+- [x] End-to-End (E2E) Tests ✅ (13.07.2025)
+  - [x] User authentication flow ✅
+    - [x] Password authentication with validation
+    - [x] Session persistence across browser tabs
+    - [x] Logout functionality and session cleanup
+    - [x] Protected route access and redirects
+    - [x] Authentication error handling
+  - [x] CRUD operations for all entities ✅
+    - [x] Product management (create, read, update, delete)
+    - [x] Budget entry operations with validation
+    - [x] Form validation and error handling
+    - [x] Search and filtering functionality
+    - [x] Bulk operations and pagination
+  - [x] Budget planning workflow ✅
+    - [x] Complete budget planning workflow
+    - [x] Variance analysis calculations
+    - [x] Business rules validation
+    - [x] Multi-step form navigation
+  - [x] Reports generation ✅
+    - [x] Plan-fact analysis reports
+    - [x] Chart/table view switching
+    - [x] Report filtering and pagination
+    - [x] Data export functionality
+    - [x] Empty state and error handling
+
+- [x] API Integration Tests ✅ (13.07.2025)
+  - [x] Frontend → Frontend-API → Backend communication ✅
+    - [x] Full authentication flow through all layers
+    - [x] Budget data flow with validation
+    - [x] Report generation through API layers
+    - [x] Error propagation and handling
+    - [x] Session validation across services
+    - [x] Data consistency verification
+  - [x] Database transactions and rollbacks ✅
+    - [x] Transaction rollback on failure
+    - [x] Concurrent access and optimistic locking
+    - [x] Connection pool exhaustion handling
+    - [x] Deadlock detection and resolution
+  - [x] Session persistence and management ✅
+    - [x] Session persistence across browser tabs
+    - [x] Token refresh and renewal
+    - [x] Cross-service session validation
+    - [x] Session cleanup on logout
+  - [x] Advanced error propagation ✅
+    - [x] Validation errors from backend through all layers
+    - [x] Infrastructure errors with proper fallbacks
+    - [x] Cascading service failures handling
+    - [x] Data integrity during partial failures
+    - [x] Rate limiting across API layers
+
+**Созданные тестовые файлы:**
+- `auth.spec.ts` - тестирование аутентификации (240 строк)
+- `crud-operations.spec.ts` - тестирование CRUD операций (458 строк)
+- `budget-workflow.spec.ts` - тестирование workflow бюджета (465 строк)
+- `api-integration.spec.ts` - тестирование API интеграции (500+ строк)
+- `advanced-integration.spec.ts` - продвинутые интеграционные тесты (600+ строк)
+- `fixtures/test-data.ts` - фикстуры и утилиты для тестов (197 строк)
+- `fixtures/auth.setup.ts` - настройка аутентификации для тестов (32 строки)
 
 #### 9.3 Performance Testing
 - [ ] Load Testing
@@ -226,44 +305,58 @@ Streamlit полностью заменен на React + Node.js + TypeScript st
 - `CategoryPieChart.tsx` - интерактивная круговая диаграмма с фильтрацией
 - Все компоненты поддерживают экспорт, адаптивный дизайн и кастомизацию
 
-#### 10.4 Advanced Charts (Week 3: 29.07-02.08.2025)
-- [ ] **Expense Trend Line Chart** (TrendLineChart.tsx)
-  - [ ] Multi-series line chart
-  - [ ] Date range selector integration
-  - [ ] Smooth animations
-  - [ ] Forecast projections (dotted lines)
-  - [ ] Area fill option
-- [ ] **Variance Waterfall Chart** (VarianceWaterfall.tsx)
-  - [ ] Positive/negative variance bars
-  - [ ] Running total line
-  - [ ] Sortable by variance amount
-  - [ ] Color coding for impact
-  - [ ] Drill-down capability
-- [ ] **Composed Chart View** (ComposedChart.tsx)
-  - [ ] Combined bar + line charts
-  - [ ] Synchronized tooltips
-  - [ ] Cross-chart filtering
-  - [ ] Dashboard layout
+#### 10.4 Advanced Charts (Week 3: 29.07-02.08.2025) ✅ ЗАВЕРШЕНО
+- [x] **Expense Trend Line Chart** (TrendLineChart.tsx) ✅
+  - [x] Multi-series line chart ✅
+  - [x] Date range selector integration ✅
+  - [x] Smooth animations ✅
+  - [x] Forecast projections (dotted lines) ✅
+  - [x] Area fill option ✅
+- [x] **Variance Waterfall Chart** (VarianceWaterfall.tsx) ✅
+  - [x] Positive/negative variance bars ✅
+  - [x] Running total line ✅
+  - [x] Sortable by variance amount ✅
+  - [x] Color coding for impact ✅
+  - [x] Drill-down capability ✅
+- [x] **Composed Chart View** (ComposedChartView.tsx) ✅
+  - [x] Combined bar + line charts ✅
+  - [x] Synchronized tooltips ✅
+  - [x] Cross-chart filtering ✅
+  - [x] Dashboard layout ✅
 
-#### 10.5 Reports Page Integration (Week 4: 05-09.08.2025)
-- [ ] **View Mode Toggle**
-  - [ ] Add table/chart toggle to Reports page
-  - [ ] Persist user preference
-  - [ ] Smooth transitions between views
-- [ ] **Chart Type Selector**
-  - [ ] Dropdown for chart type selection
-  - [ ] Dynamic chart rendering
-  - [ ] Appropriate chart for each report type
-- [ ] **Data Integration**
-  - [ ] Connect charts to existing report data
-  - [ ] Implement loading states
-  - [ ] Error handling for chart rendering
-  - [ ] Empty state handling
-- [ ] **Performance Optimization**
-  - [ ] Lazy loading for chart library
-  - [ ] Data virtualization for large datasets
-  - [ ] Memoization of chart components
-  - [ ] Debounced updates
+**Созданы продвинутые компоненты графиков:**
+- `TrendLineChart.tsx` - многосерийный линейный график с прогнозами и селектором дат
+- `VarianceWaterfall.tsx` - водопадная диаграмма отклонений с анализом влияния
+- `ComposedChartView.tsx` - комбинированный график с синхронизированными тултипами
+- Все компоненты поддерживают интерактивность, фильтрацию и адаптивный дизайн
+
+#### 10.5 Reports Page Integration (Week 4: 05-09.08.2025) ✅ ЗАВЕРШЕНО
+- [x] **View Mode Toggle** ✅
+  - [x] Add table/chart toggle to Reports page ✅
+  - [x] Persist user preference ✅
+  - [x] Smooth transitions between views ✅
+- [x] **Chart Type Selector** ✅
+  - [x] Dropdown for chart type selection ✅
+  - [x] Dynamic chart rendering ✅
+  - [x] Appropriate chart for each report type ✅
+- [x] **Data Integration** ✅
+  - [x] Connect charts to existing report data ✅
+  - [x] Implement loading states ✅
+  - [x] Error handling for chart rendering ✅
+  - [x] Empty state handling ✅
+- [x] **Performance Optimization** ✅
+  - [x] Lazy loading for chart library ✅
+  - [x] Data virtualization for large datasets ✅
+  - [x] Memoization of chart components ✅
+  - [x] Debounced updates ✅
+
+**Полная интеграция графиков в Reports page:**
+- `ViewModeToggle.tsx` - переключатель таблица/график с сохранением предпочтений
+- `ChartSelector.tsx` - динамический селектор типов графиков под каждый отчет
+- `DynamicChartRenderer.tsx` - ленивая загрузка и рендеринг графиков
+- `OptimizedChartWrapper.tsx` - оптимизация производительности и виртуализация
+- `useUserPreferences.ts` - хук для сохранения пользовательских настроек
+- `reportDataTransformer.ts` - преобразование данных отчетов в формат графиков
 
 #### 10.6 Testing and Documentation
 - [ ] **Unit Tests**
@@ -338,8 +431,11 @@ Streamlit полностью заменен на React + Node.js + TypeScript st
 ✅ **Фаза 5**: API интеграция (06-07.01.2025)
 ✅ **Фаза 6**: Деплой и тестирование (12.07.2025)
 ✅ **Фаза 9.1**: Unit Testing Coverage (13.07.2025) - 396+ тестов
+✅ **Фаза 9.2**: Integration Testing (13.07.2025) - полный набор E2E и API интеграционных тестов
 ✅ **Фаза 10.2**: Charts Infrastructure Setup (13.07.2025) - полная инфраструктура графиков
 ✅ **Фаза 10.3**: Core Chart Components (13.07.2025) - базовые бизнес-компоненты графиков
+✅ **Фаза 10.4**: Advanced Charts (13.07.2025) - продвинутые графики с прогнозами и фильтрацией
+✅ **Фаза 10.5**: Reports Page Integration (13.07.2025) - интеграция графиков в отчеты
 
 *Подробная история изменений доступна в [CHANGELOG.md](./CHANGELOG.md)*
 

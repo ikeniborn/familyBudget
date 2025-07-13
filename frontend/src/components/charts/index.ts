@@ -26,6 +26,18 @@ export {
   default as CategoryPieChart, 
   CategoryPieChartCompact 
 } from './business/CategoryPieChart';
+export { 
+  default as TrendLineChart, 
+  TrendLineChartCompact 
+} from './business/TrendLineChart';
+export { 
+  default as VarianceWaterfall, 
+  VarianceWaterfallCompact 
+} from './business/VarianceWaterfall';
+export { 
+  default as ComposedChartView, 
+  ComposedChartDashboard 
+} from './business/ComposedChartView';
 
 // Utilities
 export { default as ChartTheme, ChartColors, ChartDefaults, ChartFormatters } from './utils/ChartTheme';
