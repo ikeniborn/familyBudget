@@ -1,4 +1,9 @@
 import '@testing-library/jest-dom';
+import { cleanup } from '@testing-library/react';
+import { afterEach } from 'vitest';
+
+// Import MSW server
+import './test/mocks/server';
 
 // Ensure types are available globally
 declare global {
@@ -11,6 +16,11 @@ declare global {
     }
   }
 }
+
+// Cleanup after each test
+afterEach(() => {
+  cleanup();
+});
 
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
@@ -37,3 +47,55 @@ global.IntersectionObserver = class IntersectionObserver {
     return [];
   }
 } as any;
+
+// Mock ResizeObserver
+global.ResizeObserver = class ResizeObserver {
+  constructor() {}
+  disconnect() {}
+  observe() {}
+  unobserve() {}
+} as any;
+
+// Mock scrollTo
+window.scrollTo = jest.fn();
+
+// Mock console methods to reduce noise in tests
+const originalError = console.error;
+const originalWarn = console.warn;
+
+beforeAll(() => {
+  console.error = (...args: any[]) => {
+    // Filter out known React warnings
+    if (
+      typeof args[0] === 'string' &&
+      args[0].includes('Warning: ReactDOM.render is no longer supported')
+    ) {
+      return;
+    }
+    originalError.call(console, ...args);
+  };
+  
+  console.warn = (...args: any[]) => {
+    // Filter out known warnings
+    if (
+      typeof args[0] === 'string' &&
+      (args[0].includes('componentWillReceiveProps') ||
+       args[0].includes('componentWillUpdate'))
+    ) {
+      return;
+    }
+    originalWarn.call(console, ...args);
+  };
+});
+
+afterAll(() => {
+  console.error = originalError;
+  console.warn = originalWarn;
+});
+
+// Set up global test timeout
+jest.setTimeout(30000);
+
+// Mock environment variables
+process.env.VITE_API_URL = 'http://localhost:5000/api';
+process.env.NODE_ENV = 'test';

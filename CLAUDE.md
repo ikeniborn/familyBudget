@@ -201,3 +201,13 @@ Production deployment:
 3. Or manually: `docker-compose pull && docker-compose up -d`
 
 SSL certificates managed by Let's Encrypt via Traefik.
+
+## Workflow Guidance
+
+- **Task Management**:
+  - Псоле завершения задачи обновляй статус в TASK.md
+
+## Context Guidance
+
+- **Context Management**:
+  - Используй инструмент context7 для получения актуальной документации
