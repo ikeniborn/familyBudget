@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Layout } from '../../components/common/Layout';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/form/Button';
 import { ProductForm } from '../../components/products/ProductForm';
 import { ProductList } from '../../components/products/ProductList';
 import { ProductNomenclatureLink } from '../../components/products/ProductNomenclatureLink';
 import { ProductAnalytics } from '../../components/products/ProductAnalytics';
-import { Plus, Link, BarChart3, Settings } from 'lucide-react';
+import { ProductImport } from '../../components/products/ProductImport';
+import { Plus, Link, BarChart3, Settings, Upload } from 'lucide-react';
 import type { Product } from '../../types';
 
 const ProductsPage: React.FC = () => {
@@ -15,6 +15,7 @@ const ProductsPage: React.FC = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [showNomenclatureLink, setShowNomenclatureLink] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const handleAddProduct = () => {
     setEditingProduct(undefined);
@@ -42,8 +43,12 @@ const ProductsPage: React.FC = () => {
     setRefreshKey(prev => prev + 1);
   };
 
+  const handleImportSuccess = () => {
+    setShowImport(false);
+    setRefreshKey(prev => prev + 1);
+  };
+
   return (
-    <Layout>
       <div className="space-y-6">
         {/* Заголовок и действия */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -56,6 +61,20 @@ const ProductsPage: React.FC = () => {
           
           {!showForm && (
             <div className="flex flex-wrap gap-2">
+              <Button 
+                variant="secondary" 
+                size="sm"
+                onClick={() => setShowImport(true)}
+              >
+                <Upload className="h-4 w-4 mr-1" />
+                Импорт данных
+              </Button>
+              
+              <Button onClick={handleAddProduct}>
+                <Plus className="h-4 w-4 mr-1" />
+                Добавить продукт
+              </Button>
+              
               <Button 
                 variant="secondary" 
                 size="sm"
@@ -72,11 +91,6 @@ const ProductsPage: React.FC = () => {
               >
                 <Link className="h-4 w-4 mr-1" />
                 Привязка к номенклатуре
-              </Button>
-              
-              <Button onClick={handleAddProduct}>
-                <Plus className="h-4 w-4 mr-1" />
-                Добавить продукт
               </Button>
             </div>
           )}
@@ -172,8 +186,14 @@ const ProductsPage: React.FC = () => {
             onClose={() => setShowAnalytics(false)}
           />
         )}
+
+        {showImport && (
+          <ProductImport
+            onClose={() => setShowImport(false)}
+            onSuccess={handleImportSuccess}
+          />
+        )}
       </div>
-    </Layout>
   );
 };
 

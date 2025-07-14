@@ -5,8 +5,7 @@ import { Button } from '../common/form/Button';
 import { Loading } from '../common/Loading';
 import { useToast } from '../common/ToastContainer';
 import { Input } from '../common/form/Input';
-import { ProductImport } from './ProductImport';
-import { Search, Filter, Trash2, Upload } from 'lucide-react';
+import { Search, Filter, Trash2 } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { Product } from '../../types';
 import { productService } from '../../services';
@@ -22,7 +21,6 @@ export const ProductList: React.FC<ProductListProps> = ({
 }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [showImport, setShowImport] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
   const [filters, setFilters] = useState({
     search: '',
@@ -276,30 +274,19 @@ export const ProductList: React.FC<ProductListProps> = ({
           </div>
 
           {/* Действия */}
-          <div className="flex justify-between items-center">
+          {selectedProducts.size > 0 && (
             <div className="flex gap-2">
-              {selectedProducts.size > 0 && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleBulkDelete}
-                  className="text-red-600 hover:text-red-700"
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Удалить выбранные ({selectedProducts.size})
-                </Button>
-              )}
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleBulkDelete}
+                className="text-red-600 hover:text-red-700"
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Удалить выбранные ({selectedProducts.size})
+              </Button>
             </div>
-            
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowImport(true)}
-            >
-              <Upload className="h-4 w-4 mr-1" />
-              Импорт данных
-            </Button>
-          </div>
+          )}
         </div>
       </Card>
 
@@ -316,16 +303,6 @@ export const ProductList: React.FC<ProductListProps> = ({
         )}
       </Card>
 
-      {/* Диалог импорта */}
-      {showImport && (
-        <ProductImport
-          onClose={() => setShowImport(false)}
-          onSuccess={() => {
-            setShowImport(false);
-            loadProducts();
-          }}
-        />
-      )}
     </div>
   );
 };
