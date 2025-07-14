@@ -228,3 +228,11 @@ dist
 **/venv
 
 **/sync_web.sh
+
+# Screenshots and images
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.svg
