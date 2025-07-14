@@ -8,40 +8,56 @@ Family Budget is a web-based budget management system built with a microservices
 
 ## Architecture
 
-- **Backend**: FastAPI (Python) at `api/` - REST API service
-- **Frontend**: React + TypeScript at `frontend/` - Modern SPA with Telegram auth
-- **BFF**: Node.js/Express at `frontend-api/` - Backend for Frontend
-- **Database**: PostgreSQL (partitioned tables)
+- **Frontend**: React 19 + TypeScript + Vite at `frontend/` - Modern SPA with Telegram auth
+- **Frontend-API**: Node.js/Express + Prisma at `frontend-api/` - Unified API (migrated from dual-stack)
+- **Database**: PostgreSQL 13 (partitioned tables)
+- **Cache**: Redis for performance optimization
 - **Reverse Proxy**: Traefik for SSL/routing
 - **Deployment**: Docker Compose orchestration
 
 Services run on Docker network:
 - postgres: 10.5.0.2:5432
-- budget-api: Internal network
-- frontend: Internal network
+- redis: Internal network
+- frontend: Internal network  
 - frontend-api: Internal network
+- traefik: Public-facing
 
 ## Common Development Commands
 
 ### Start Development Environment
 ```bash
-# Full stack
-docker-compose up -d --build
+# Full stack development (recommended)
+./scripts/dev.sh -d
 
-# Frontend only development (with hot reload)
-docker-compose -f docker-compose.dev.yaml up
+# Or manually:
+docker-compose -f docker-compose.dev.yaml up -d
+
+# Frontend only with hot reload
+cd frontend && npm run dev
 
 # Stop services
 docker-compose down
 ```
 
-### Code Quality
+### Frontend Commands
 ```bash
-# Format code (Black configured for 180 chars)
-black . --line-length=180
+cd frontend
 
-# Lint code
-flake8 . --max-line-length=180
+# Development
+npm run dev              # Start Vite dev server
+npm run build           # Production build
+npm run preview         # Preview production build
+
+# Testing
+npm run test            # Run unit tests
+npm run test:watch      # Watch mode
+npm run test:coverage   # Coverage report
+npm run test:e2e        # Playwright E2E tests
+npm run test:all        # All tests
+
+# Code Quality
+npm run lint            # ESLint check
+npm run type-check      # TypeScript check
 ```
 
 ### Container Management
@@ -49,22 +65,34 @@ flake8 . --max-line-length=180
 # View logs
 docker logs -f frontend
 docker logs -f frontend-api
-docker logs -f budget-api
+docker logs -f postgres
 
 # Access container
-docker exec -ti budget-api bash
+docker exec -it frontend-api bash
+docker exec -it postgres psql -U budget -d budgetdb
 
 # Restart service
 docker restart frontend
+docker restart frontend-api
+
+# Rebuild specific service
+docker-compose -f docker-compose.dev.yaml build frontend-api
 ```
 
 ### Database Operations
 ```bash
+# Connect to database
+docker exec -it postgres psql -U budget -d budgetdb
+
 # Manual backup
 ./postgresql/backup/postgres-backup.sh
 
-# Apply schema
-psql -U budget -d budgetdb -f ./postgresql/ddl/budgetdb.sql
+# Apply schema changes
+docker exec -it postgres psql -U budget -d budgetdb -f /docker-entrypoint-initdb.d/02-schema.sql
+
+# Prisma operations
+docker exec -it frontend-api npm run prisma:generate
+docker exec -it frontend-api npm run prisma:migrate
 ```
 
 ## Database Schema
@@ -82,136 +110,187 @@ PostgreSQL database `budgetdb` with partitioned tables:
 **Fact Table:**
 - `t_f_registry` - Main transactions (partitioned by year 2023-2030)
 
-**Product Tables (New):**
+**Product Tables:**
 - `t_d_product` - Product catalog
 - `t_f_product_price` - Price history
 - `t_l_product_nomenclature` - Product-category mapping
 
+## Frontend Architecture
+
+### Component Structure
+```
+frontend/src/
+├── components/
+│   ├── common/         # Shared UI components (Layout, ErrorBoundary, DataTable)
+│   ├── ui/            # shadcn/ui components
+│   ├── budget/        # Budget-specific components
+│   ├── fact/          # Fact-specific components
+│   ├── products/      # Product management components
+│   ├── reports/       # Reports and analytics components
+│   └── reference/     # Reference data management (Enhanced*Manager)
+├── pages/             # Route components (centralized Layout in App.tsx)
+├── services/          # API services and data transformers
+├── stores/           # Zustand state management
+├── hooks/            # Custom React hooks
+└── types/            # TypeScript type definitions
+```
+
+### State Management
+- **Zustand** for global state (authStore, toastStore, referenceDataStore)
+- **React Hook Form** for form state
+- **TanStack Table** for table state
+- **Custom hooks** for local state patterns
+
+### Routing
+- React Router v7 with centralized Layout in App.tsx
+- AuthGuard wrapper for protected routes
+- Lazy loading for code splitting
+
 ## API Structure
 
-FastAPI endpoints at `/api/`:
+Frontend-API endpoints at `/api/`:
+- `/auth/*` - Telegram authentication
 - `/users` - User management
 - `/periods` - Period operations
 - `/financial_centers` - ЦФО management
 - `/cost_centers` - МВЗ management
 - `/nomenclatures` - Category management
 - `/registry` - Transaction operations
+- `/products` - Product management
+- `/reports/*` - Analytics and reporting
 
 All endpoints require user context for data isolation.
 
 ## Key Project Files
 
-- `api/budget_api.py` - Main API application
-- `frontend/src/App.tsx` - React application entry
-- `frontend-api/src/index.ts` - Node.js BFF entry
-- `postgresql/ddl/budgetdb.sql` - Database schema
+- `frontend/src/App.tsx` - Main React app with routing
+- `frontend/src/main.tsx` - Entry point
+- `frontend/vite.config.ts` - Vite configuration
+- `frontend-api/src/index.ts` - Express server entry
+- `frontend-api/prisma/schema.prisma` - Database schema
+- `postgresql/ddl/budgetdb.sql` - SQL schema definition
 - `docker-compose.yaml` - Production config
-- `docker-compose.dev.yaml` - Frontend development config
-- `.env.example` - Environment template
-
-## Security & Authentication
-
-- Telegram OAuth for user authentication
-- User-based data isolation in all queries
-- Environment-based secrets management
-- Session-based authentication in frontend-api
+- `docker-compose.dev.yaml` - Development config
+- `.env.dev` / `.env.prod` - Environment templates
 
 ## Development Guidelines
 
-1. **Dependencies**:
-   - API: See `api/requirements.txt`
-   - Frontend: See `frontend/package.json`
-   - Frontend-API: See `frontend-api/package.json`
+### UI/UX Design System (APPROVED)
+- **Reference Design**: Dashboard page (`/dashboard`)
+- **Layout**: Gradient backgrounds `bg-gradient-to-br from-slate-50 to-slate-100`
+- **Cards**: Colored left borders (border-l-4)
+  - Blue (border-l-blue-500): Budget/primary metrics
+  - Red (border-l-red-500): Expenses/warnings
+  - Green (border-l-green-500): Income/positive metrics
+  - Purple (border-l-purple-500): Savings/secondary metrics
+- **Icons**: Lucide React in colored circles
+- **Spacing**: gap-6 for grids, space-y-6 for vertical
+- **Typography**: Bold numbers for metrics, subtle labels
 
-2. **Code Style**:
-   - Black formatter: 180 char line length
-   - Flake8 linter configuration in `.flake8`
+### Data Visualization
+- **Library**: Recharts (adopted 13.07.2025)
+- **Chart Types**: Bar, Line, Pie/Donut, Gauge, Waterfall
+- **Design**: Consistent colors, interactive tooltips, responsive
+- **Export**: PNG/SVG functionality
 
-3. **UI/UX Design Preferences (APPROVED by user)**:
-   - **Dashboard style at http://localhost:3000/dashboard is the reference design**
-   - Use gradient backgrounds: `bg-gradient-to-br from-slate-50 to-slate-100`
-   - Card-based layouts with colored left borders (border-l-4)
-   - Color coding:
-     - Blue (border-l-blue-500): Budget/primary metrics
-     - Red (border-l-red-500): Expenses/warnings
-     - Green (border-l-green-500): Income/positive metrics
-     - Purple (border-l-purple-500): Savings/secondary metrics
-   - Icons in colored circles (e.g., `bg-blue-100` with `text-blue-600`)
-   - Consistent spacing: gap-6 for grids, space-y-6 for vertical layouts
-   - Card shadows and hover effects for interactivity
-   - Typography: Bold numbers for metrics, subtle text for labels
-   - Use Lucide React icons consistently
+### Code Style
+- **Frontend**: ESLint + Prettier (see `.eslintrc`)
+- **Backend**: ESLint for TypeScript
+- **Python**: Black (180 chars) + Flake8 (legacy API)
 
-4. **Data Visualization (APPROVED by user)**:
-   - **Charting Library**: Recharts (officially adopted 13.07.2025)
-   - Chart types for Reports page:
-     - Bar charts for Plan vs Fact comparisons
-     - Line charts for trend analysis
-     - Pie/Donut charts for category distribution
-     - Gauge charts for budget utilization
-     - Waterfall charts for variance analysis
-   - Chart design principles:
-     - Consistent with UI color scheme
-     - Interactive tooltips and legends
-     - Responsive design for all screen sizes
-     - Export functionality (PNG/SVG)
-   - See [CHARTING_FRAMEWORKS_ANALYSIS.md](./frontend/CHARTING_FRAMEWORKS_ANALYSIS.md) for framework comparison
-   - See [REPORTS_CHARTS_IMPLEMENTATION_PLAN.md](./frontend/REPORTS_CHARTS_IMPLEMENTATION_PLAN.md) for implementation details
+### Testing Strategy
+- **Unit Tests**: Jest + React Testing Library
+- **E2E Tests**: Playwright
+- **Performance**: Playwright performance tests
+- **Accessibility**: axe-playwright for a11y
 
-5. **Database Changes**:
-   - Update `postgresql/ddl/budgetdb.sql`
-   - Partitions exist for years 2023-2030
-   - All queries must filter by user_id
+### Performance Optimizations
+- React.lazy() for code splitting
+- Virtualized scrolling for large lists
+- Debounced search and API calls
+- Optimistic UI updates
+- Redis caching layer
+- Prisma query optimization
 
-6. **Container Resources**:
-   - Each service has defined memory/CPU limits
-   - Check `docker-compose.yaml` for production limits
+### Security Practices
+- Telegram OAuth authentication
+- User data isolation via user_id
+- Prisma ORM (SQL injection protection)
+- Environment-based secrets
+- Session management with express-session
 
-## Backup & Maintenance
+## Recent Architectural Changes
 
-Automated daily backups to Yandex Cloud:
-- PostgreSQL: midnight (postgres-backup.sh)
-- SSL certificates managed automatically by Traefik
+### UI/UX Improvements (13.07.2025)
+- Centralized Layout management in App.tsx routing
+- Fixed double Layout rendering issues
+- Implemented consistent card-based UI design
+- Added keyboard shortcuts system
+- Enhanced accessibility with ARIA support
 
-Backups use MinIO client (`mc`) configured for Yandex Object Storage.
+### Advanced Features (13.07.2025)
+- Bulk operations with Excel/CSV import/export
+- Audit trail with version history
+- Advanced search with saved filters
+- Real-time cross-tab synchronization
+- Undo/Redo functionality
 
-## Testing
-
-- **Frontend**: Jest unit tests, Playwright E2E tests
-- **API**: pytest for Python tests
-- **Frontend-API**: Jest for Node.js tests
-
-Run tests:
-```bash
-# Frontend tests
-cd frontend && npm test
-
-# E2E tests
-cd frontend && npm run test:e2e
-
-# API tests
-cd api && pytest
-```
+### Migration from Dual-Stack (January 2025)
+- Unified API: Python + Node.js → Node.js only
+- ORM: Raw SQL → Prisma
+- Performance: 20-40% faster response times
+- Memory: 30-50% reduction
+- Services: 4 → 3 (simplified architecture)
 
 ## Deployment
 
-Production deployment:
-1. Push code to main branch
-2. CI/CD automatically deploys via GitHub Actions
-3. Or manually: `docker-compose pull && docker-compose up -d`
+### Production
+```bash
+# Use production script
+./scripts/prod.sh
 
-SSL certificates managed by Let's Encrypt via Traefik.
+# Or manually
+cp .env.prod .env
+docker-compose up -d --build
+```
 
-## Workflow Guidance
+### Environment Variables
+Key variables in `.env`:
+- `POSTGRES_PASSWORD` - PostgreSQL root password
+- `BUDGET_DB_PASSWORD` - Application database password
+- `SESSION_SECRET` - Express session secret
+- `TELEGRAM_BOT_TOKEN` - Telegram bot token
+- `DOMAIN` - Domain for SSL certificates
+- `REDIS_URL` - Redis connection string
 
-- **Task Management**:
-  - После завершения задачи всегда обновляй статус задач в TASK.md и CHANGELOG.md
+### Backup Strategy
+- PostgreSQL: Daily at midnight via cron
+- Destination: Yandex Object Storage via MinIO
+- Script: `postgresql/backup/postgres-backup.sh`
 
-## Context Guidance
+## Troubleshooting
 
-- **Context Management**:
-  - Используй инструмент context7 для получения актуальной документации
+### Common Issues
+1. **Container startup**: Check `docker logs <container>`
+2. **Database connection**: Verify credentials in `.env`
+3. **Frontend blank page**: Check browser console, verify API connection
+4. **SSL issues**: Check Traefik logs, domain DNS
+5. **Memory issues**: `docker system prune -a`
 
-## Project Documentation Guidelines
+### Debug Commands
+```bash
+# Check container status
+docker ps -a
 
-- В корне проекта храниться только документация README, TASK, CHANGELOG. Дпоплнительная документция сохранаятся в каталоге docs
+# View detailed logs
+docker logs --tail 100 -f <container>
+
+# Database connectivity
+docker exec -it postgres psql -U budget -d budgetdb -c "SELECT 1"
+
+# API health check
+curl http://localhost:4000/health
+
+# Clear all containers and volumes (CAUTION)
+docker-compose down -v
+```
