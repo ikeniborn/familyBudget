@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Layout } from '../../components/common/Layout';
-import { Card } from '../../components/common/Card';
+import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
 import { ValidatedForm } from '../../components/common/form/ValidatedForm';
-import { Button } from '../../components/common/form/Button';
 import { CheckCircle, AlertCircle, Code, FileText } from 'lucide-react';
 
 interface FormInputs {
@@ -177,8 +177,12 @@ const schema = yup.object({
         {/* Features Overview */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Validation Features */}
-          <Card title="Функции валидации">
-            <div className="space-y-3">
+          <Card>
+            <CardHeader>
+              <CardTitle>Функции валидации</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
               {validationFeatures.map((feature, index) => (
                 <div key={index} className="flex items-start gap-3">
                   {feature.icon}
@@ -196,8 +200,12 @@ const schema = yup.object({
           </Card>
 
           {/* Technical Features */}
-          <Card title="Технические особенности">
-            <div className="space-y-3">
+          <Card>
+            <CardHeader>
+              <CardTitle>Технические особенности</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
               {technicalFeatures.map((feature, index) => (
                 <div key={index} className="flex items-start gap-3">
                   {feature.icon}
@@ -211,16 +219,22 @@ const schema = yup.object({
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            </CardContent>
           </Card>
         </div>
 
         {/* Code Example */}
         {showFormCode && (
-          <Card title="Пример использования">
-            <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm">
-              <code>{formExampleCode}</code>
-            </pre>
+          <Card>
+            <CardHeader>
+              <CardTitle>Пример использования</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm">
+                <code>{formExampleCode}</code>
+              </pre>
+            </CardContent>
           </Card>
         )}
 
@@ -232,8 +246,12 @@ const schema = yup.object({
 
         {/* Submitted Data Display */}
         {submittedData && (
-          <Card title="Отправленные данные" className="bg-green-50 border-green-200">
-            <div className="space-y-4">
+          <Card className="bg-green-50 border-green-200">
+            <CardHeader>
+              <CardTitle>Отправленные данные</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
               <div className="flex items-center gap-2 text-green-700">
                 <CheckCircle className="h-5 w-5" />
                 <span className="font-medium">Форма успешно отправлена!</span>
@@ -288,12 +306,17 @@ const schema = yup.object({
                 )}
               </div>
             </div>
+            </CardContent>
           </Card>
         )}
 
         {/* Test Scenarios */}
-        <Card title="Сценарии для тестирования">
-          <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Сценарии для тестирования</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
             <p className="text-sm text-gray-600">
               Попробуйте следующие сценарии для проверки валидации:
             </p>
@@ -327,6 +350,7 @@ const schema = yup.object({
               </div>
             </div>
           </div>
+          </CardContent>
         </Card>
       </div>
     </Layout>

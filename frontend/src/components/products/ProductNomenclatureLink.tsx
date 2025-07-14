@@ -3,7 +3,7 @@ import { Card } from '../common/Card';
 import { Button } from '../common/form/Button';
 import { Input } from '../common/form/Input';
 import { useToast } from '../common/ToastContainer';
-import { Link, Unlink, Plus, Search } from 'lucide-react';
+import { Link, Unlink, Plus, Search, X } from 'lucide-react';
 import type { Nomenclature } from '../../types';
 import { productService, nomenclatureService } from '../../services';
 
@@ -232,8 +232,30 @@ export const ProductNomenclatureLink: React.FC<ProductNomenclatureLinkProps> = (
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <Card title="Привязка продуктов к номенклатуре" className="w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <Card 
+        title={
+          <div className="flex items-center justify-between">
+            <span>Привязка продуктов к номенклатуре</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="ml-auto -mr-2"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+        }
+        className="w-full max-w-6xl max-h-[90vh] overflow-y-auto"
+      >
         <div className="space-y-6">
           {/* Фильтры */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthGuard } from './components/auth/AuthGuard';
 import { ToastContainer } from './components/common/ToastContainer';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { PasswordLogin } from './components/auth/PasswordLogin';
 import LoginPage from './pages/Login';
 import DashboardPage from './pages/Dashboard';
@@ -15,19 +16,24 @@ const UIShowcasePage = React.lazy(() => import('./pages/UIShowcase'));
 const FormValidationPage = React.lazy(() => import('./pages/FormValidation'));
 const SettingsPage = React.lazy(() => import('./pages/Settings'));
 
+// Компонент загрузки
+const LoadingFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+      <p className="mt-4 text-gray-600">Загрузка...</p>
+    </div>
+  </div>
+);
+
 function App() {
   console.log('App component rendering...');
   return (
-    <Router>
-      <ToastContainer />
-      <React.Suspense 
-        fallback={
-          <div className="min-h-screen flex items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
-        }
-      >
-        <Routes>
+    <ErrorBoundary>
+      <Router>
+        <ToastContainer />
+        <React.Suspense fallback={<LoadingFallback />}>
+          <Routes>
           <Route path="/test" element={<TestPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/login/password" element={<PasswordLogin />} />
@@ -104,6 +110,7 @@ function App() {
         </Routes>
       </React.Suspense>
     </Router>
+    </ErrorBoundary>
   );
 }
 

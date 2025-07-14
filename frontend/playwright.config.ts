@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
-  testDir: './e2e',
+  testDir: './tests',
   timeout: 30 * 1000,
   expect: {
     timeout: 5000
@@ -10,11 +10,16 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  reporter: [
+    ['html'],
+    ['list'],
+    ['junit', { outputFile: 'test-results/junit.xml' }]
+  ],
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    video: 'retain-on-failure'
   },
 
   projects: [
@@ -29,6 +34,24 @@ export default defineConfig({
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
+    },
+    // Test against mobile viewports
+    {
+      name: 'Mobile Chrome',
+      use: { ...devices['Pixel 5'] },
+    },
+    {
+      name: 'Mobile Safari',
+      use: { ...devices['iPhone 12'] },
+    },
+    // Test accessibility in high contrast mode
+    {
+      name: 'chromium-high-contrast',
+      use: {
+        ...devices['Desktop Chrome'],
+        colorScheme: 'dark',
+        forcedColors: 'active'
+      },
     },
   ],
 

@@ -11,8 +11,11 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e": "playwright test tests/e2e",
+    "test:e2e:ui": "playwright test --ui",
+    "test:performance": "playwright test tests/performance",
+    "test:a11y": "playwright test tests/accessibility",
+    "test:all": "npm run test && npm run test:e2e && npm run test:performance && npm run test:a11y"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",
@@ -54,6 +57,7 @@
     "@playwright/test": "^1.53.2",
     "@tanstack/react-query": "^5.83.0",
     "@testing-library/jest-dom": "^6.6.3",
+    "axe-playwright": "^1.2.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/jest": "^30.0.0",
