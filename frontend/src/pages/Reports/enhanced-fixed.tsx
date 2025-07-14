@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Layout } from '../../components/common/Layout';
 import { Card, CardContent } from '../../components/ui/card';
 import { useToast } from '../../components/common/ToastContainer';
 import { ReportFilters, type ReportFilters as ReportFiltersType } from '../../components/reports/ReportFilters';
@@ -166,20 +165,17 @@ const EnhancedReportsPageFixed: React.FC = () => {
 
   if (preferencesLoading) {
     return (
-      <Layout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <RefreshCw className="h-8 w-8 animate-spin mx-auto text-gray-400 mb-2" />
-            <p className="text-gray-500">Загрузка настроек...</p>
-          </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto text-gray-400 mb-2" />
+          <p className="text-gray-500">Загрузка настроек...</p>
         </div>
-      </Layout>
+      </div>
     );
   }
 
   return (
-    <Layout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -432,8 +428,7 @@ const EnhancedReportsPageFixed: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-      </div>
-    </Layout>
+    </div>
   );
 };
 

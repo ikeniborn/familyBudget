@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Layout } from '../../components/common/Layout';
 import { BudgetForm } from '../../components/budget/BudgetForm';
 import { BudgetList } from '../../components/budget/BudgetList';
 
@@ -11,7 +10,6 @@ const BudgetPage: React.FC = () => {
   };
 
   return (
-    <Layout>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Бюджет</h1>
@@ -30,7 +28,6 @@ const BudgetPage: React.FC = () => {
           </div>
         </div>
       </div>
-    </Layout>
   );
 };
 

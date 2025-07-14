@@ -1,5 +1,4 @@
 import React from 'react';
-import { Layout } from '../../components/common/Layout';
 import { ChartSelector } from '../../components/reports/ChartSelector';
 import type { ChartType } from '../../components/reports/ChartSelector';
 
@@ -7,8 +6,7 @@ const TestChartSelectorPage: React.FC = () => {
   const [chartType, setChartType] = React.useState<ChartType>('plan_fact_bar');
 
   return (
-    <Layout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Test Chart Selector</h1>
           <p className="text-slate-600">
@@ -25,8 +23,7 @@ const TestChartSelectorPage: React.FC = () => {
             reportType="plan_fact"
           />
         </div>
-      </div>
-    </Layout>
+    </div>
   );
 };
 

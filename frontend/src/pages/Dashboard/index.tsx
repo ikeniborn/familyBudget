@@ -1,6 +1,5 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Layout } from '../../components/common/Layout';
 import { 
   Card, 
   CardContent, 
@@ -47,7 +46,6 @@ const DashboardPage: React.FC = () => {
   ];
 
   return (
-    <Layout>
       <div className="space-y-6">
         {/* Welcome Section */}
         <div className="mb-8">
@@ -253,7 +251,6 @@ const DashboardPage: React.FC = () => {
           </Card>
         </div>
       </div>
-    </Layout>
   );
 };
 

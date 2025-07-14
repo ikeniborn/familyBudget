@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Layout } from '../../components/common/Layout';
 import { ReportFilters, type ReportFilters as ReportFiltersType } from '../../components/reports/ReportFilters';
 import { PlanFactChart } from '../../components/reports/PlanFactChart';
 import { BudgetTable } from '../../components/reports/BudgetTable';
@@ -111,8 +110,7 @@ const ReportsPage: React.FC = () => {
   };
 
   return (
-    <Layout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header Section */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Отчеты и аналитика</h1>
@@ -337,8 +335,7 @@ const ReportsPage: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
-    </Layout>
+    </div>
   );
 };
 

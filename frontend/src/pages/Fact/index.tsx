@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Layout } from '../../components/common/Layout';
 import { FactForm } from '../../components/fact/FactForm';
 import { FactList } from '../../components/fact/FactList';
 import { Card, CardContent } from '../../components/ui/card';
@@ -28,7 +27,6 @@ const FactPage: React.FC = () => {
   };
 
   return (
-    <Layout>
       <div className="space-y-6">
         {/* Header Section */}
         <div className="mb-8">
@@ -134,7 +132,6 @@ const FactPage: React.FC = () => {
           </div>
         </div>
       </div>
-    </Layout>
   );
 };
 

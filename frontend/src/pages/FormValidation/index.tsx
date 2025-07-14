@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Layout } from '../../components/common/Layout';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { ValidatedForm } from '../../components/common/form/ValidatedForm';
@@ -149,7 +148,6 @@ const schema = yup.object({
 `;
 
   return (
-    <Layout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -354,7 +352,6 @@ const schema = yup.object({
             </CardContent>
           </Card>
       </div>
-    </Layout>
   );
 };
 

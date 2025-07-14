@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Layout } from '../../components/common/Layout';
 
 const DynamicImportTestPage: React.FC = () => {
   const [ChartSelector, setChartSelector] = useState<any>(null);
@@ -25,8 +24,7 @@ const DynamicImportTestPage: React.FC = () => {
   }, []);
 
   return (
-    <Layout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Dynamic Import Test</h1>
           <p className="text-slate-600">
@@ -50,8 +48,7 @@ const DynamicImportTestPage: React.FC = () => {
             </div>
           )}
         </div>
-      </div>
-    </Layout>
+    </div>
   );
 };
 

@@ -1,10 +1,8 @@
 import React from 'react';
-import { Layout } from '../../components/common/Layout';
 
 const CleanReportsPage: React.FC = () => {
   return (
-    <Layout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Clean Reports Page</h1>
           <p className="text-slate-600">
@@ -16,8 +14,7 @@ const CleanReportsPage: React.FC = () => {
           <h2 className="text-xl font-semibold mb-4">Test Section</h2>
           <p>If you can see this, React routing and Layout are working correctly.</p>
         </div>
-      </div>
-    </Layout>
+    </div>
   );
 };
 

@@ -44,7 +44,9 @@ function AppContent() {
             path="/dashboard"
             element={
               <AuthGuard>
-                <DashboardPage />
+                <Layout>
+                  <DashboardPage />
+                </Layout>
               </AuthGuard>
             }
           />
@@ -53,7 +55,9 @@ function AppContent() {
             path="/fact"
             element={
               <AuthGuard>
-                <FactPage />
+                <Layout>
+                  <FactPage />
+                </Layout>
               </AuthGuard>
             }
           />
@@ -62,21 +66,31 @@ function AppContent() {
             path="/budget"
             element={
               <AuthGuard>
-                <BudgetPage />
+                <Layout>
+                  <BudgetPage />
+                </Layout>
               </AuthGuard>
             }
           />
           
           <Route
             path="/reports"
-            element={<ReportsPage />}
+            element={
+              <AuthGuard>
+                <Layout>
+                  <ReportsPage />
+                </Layout>
+              </AuthGuard>
+            }
           />
           
           <Route
             path="/products"
             element={
               <AuthGuard>
-                <ProductsPage />
+                <Layout>
+                  <ProductsPage />
+                </Layout>
               </AuthGuard>
             }
           />
