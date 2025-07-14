@@ -76,10 +76,13 @@ function generateBreadcrumbsFromPath(pathname: string): BreadcrumbItem[] {
     nomenclatures: 'Номенклатуры',
     products: 'Продукты',
     users: 'Пользователи',
+    security: 'Безопасность',
+    'import-export': 'Импорт/Экспорт',
     reports: 'Отчеты',
     dashboard: 'Панель управления',
     fact: 'Факт',
     budget: 'Бюджет',
+    'form-validation': 'Валидация форм',
   };
 
   let currentPath = '';
