@@ -116,7 +116,6 @@ interface ValidatedFormProps {
 }
 
 const countryOptions = [
-  { value: '', label: 'Выберите страну' },
   { value: 'RU', label: 'Россия' },
   { value: 'US', label: 'США' },
   { value: 'DE', label: 'Германия' },
@@ -127,7 +126,6 @@ const countryOptions = [
 ];
 
 const categoryOptions = [
-  { value: '', label: 'Выберите категорию' },
   { value: 'developer', label: 'Разработчик' },
   { value: 'designer', label: 'Дизайнер' },
   { value: 'manager', label: 'Менеджер' },
@@ -339,6 +337,7 @@ export const ValidatedForm: React.FC<ValidatedFormProps> = ({
             <Select
               label="Страна"
               options={countryOptions}
+              placeholder="Выберите страну"
               {...register('country')}
               error={errors.country?.message}
             />
@@ -397,6 +396,7 @@ export const ValidatedForm: React.FC<ValidatedFormProps> = ({
             <Select
               label="Категория"
               options={categoryOptions}
+              placeholder="Выберите категорию"
               {...register('category')}
               error={errors.category?.message}
             />

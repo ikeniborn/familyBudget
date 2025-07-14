@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthGuard } from './components/auth/AuthGuard';
+import { Layout } from './components/common/Layout';
 import { ToastContainer } from './components/common/ToastContainer';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { PasswordLogin } from './components/auth/PasswordLogin';
@@ -26,12 +27,13 @@ const LoadingFallback = () => (
   </div>
 );
 
-function App() {
+// Компонент-обертка для использования хуков роутера
+function AppContent() {
   console.log('App component rendering...');
+  
   return (
-    <ErrorBoundary>
-      <Router>
-        <ToastContainer />
+    <>
+      <ToastContainer />
         <React.Suspense fallback={<LoadingFallback />}>
           <Routes>
           <Route path="/test" element={<TestPage />} />
@@ -92,7 +94,9 @@ function App() {
             path="/form-validation"
             element={
               <AuthGuard>
-                <FormValidationPage />
+                <Layout>
+                  <FormValidationPage />
+                </Layout>
               </AuthGuard>
             }
           />
@@ -101,7 +105,9 @@ function App() {
             path="/settings/*"
             element={
               <AuthGuard>
-                <SettingsPage />
+                <Layout>
+                  <SettingsPage />
+                </Layout>
               </AuthGuard>
             }
           />
@@ -109,7 +115,16 @@ function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </React.Suspense>
-    </Router>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <Router>
+        <AppContent />
+      </Router>
     </ErrorBoundary>
   );
 }

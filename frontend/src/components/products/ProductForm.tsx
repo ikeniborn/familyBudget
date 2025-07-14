@@ -87,7 +87,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   };
 
   const categoryOptions = [
-    { value: '', label: 'Выберите категорию' },
     { value: 'Продукты питания', label: 'Продукты питания' },
     { value: 'Напитки', label: 'Напитки' },
     { value: 'Бытовая химия', label: 'Бытовая химия' },
@@ -98,7 +97,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   ];
 
   const unitOptions = [
-    { value: '', label: 'Выберите единицу' },
     { value: 'шт', label: 'штуки' },
     { value: 'кг', label: 'килограммы' },
     { value: 'г', label: 'граммы' },
@@ -131,6 +129,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               })}
               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
             >
+              <option value="">Выберите категорию</option>
               {categoryOptions.map(option => (
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
@@ -150,6 +149,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               })}
               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
             >
+              <option value="">Выберите единицу</option>
               {unitOptions.map(option => (
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}

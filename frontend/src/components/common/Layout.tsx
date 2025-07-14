@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
+import { NotificationDropdown } from './NotificationDropdown';
 import { 
   Menu, 
   X, 
@@ -12,7 +13,7 @@ import {
   FileText,
   LogOut,
   User,
-  Bell,
+  ClipboardList,
   Settings
 } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -36,8 +37,6 @@ const navItems: NavItem[] = [
   { name: 'Бюджет', path: '/budget', icon: Calculator },
   { name: 'Отчеты', path: '/reports', icon: BarChart3 },
   { name: 'Продукты', path: '/products', icon: Package },
-  { name: 'Настройки', path: '/settings', icon: Settings },
-  { name: 'Валидация форм', path: '/form-validation', icon: FileText },
 ];
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
@@ -93,7 +92,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 return (
                   <Button
                     key={item.path}
-                    asChild
                     variant={isActive ? "default" : "ghost"}
                     className={clsx(
                       'w-full justify-start h-12 text-left font-medium',
@@ -101,12 +99,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                         ? 'bg-blue-600 text-white shadow-md'
                         : 'text-slate-700 hover:bg-slate-100'
                     )}
-                    onClick={() => setSidebarOpen(false)}
+                    onClick={() => {
+                      setSidebarOpen(false);
+                      if (!isActive) {
+                        navigate(item.path);
+                      }
+                    }}
                   >
-                    <Link to={item.path}>
-                      <Icon className="mr-3 h-5 w-5" />
-                      {item.name}
-                    </Link>
+                    <Icon className="mr-3 h-5 w-5" />
+                    {item.name}
                   </Button>
                 );
               })}
@@ -171,16 +172,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               </div>
               
               <div className="flex items-center space-x-2">
-                <Button variant="ghost" size="icon" className="relative">
-                  <Bell className="h-5 w-5" />
-                  <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                    3
-                  </Badge>
+                <NotificationDropdown />
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => navigate('/form-validation')}
+                  title="Валидация форм"
+                >
+                  <ClipboardList className="h-5 w-5" />
                 </Button>
                 <Button 
                   variant="ghost" 
                   size="icon"
-                  onClick={() => navigate('/settings')}
+                  onClick={() => navigate('/settings', { replace: true })}
                   title="Настройки"
                 >
                   <Settings className="h-5 w-5" />

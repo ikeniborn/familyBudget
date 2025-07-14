@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { CRUDTable, CRUDField } from './CRUDTable';
+import { CRUDTable, type CRUDField } from './CRUDTable';
 import { Badge } from '../ui/badge';
 import { toast } from '../ui/use-toast';
 import { useAuthStore } from '../../stores/authStore';
-import { apiClient } from '../../api/client';
+import { productService, nomenclatureService } from '../../services';
 import {
   Package,
   Search,
@@ -73,9 +73,9 @@ export const ProductManager: React.FC = () => {
     if (!user?.user_id) return;
     
     try {
-      const response = await apiClient.get(`/nomenclatures?user_id=${user.user_id}`);
+      const allNomenclatures = await nomenclatureService.getAll();
       // Filter only expense categories for products
-      const expenseCategories = response.data.filter((n: any) => n.nomenclature_type === 'EXPENSE');
+      const expenseCategories = allNomenclatures.filter((n: any) => n.nomenclature_type === 'EXPENSE');
       setNomenclatures(expenseCategories);
     } catch (error) {
       console.error('Failed to fetch nomenclatures:', error);
@@ -476,7 +476,7 @@ export const ProductManager: React.FC = () => {
     };
 
     try {
-      // In real implementation: await apiClient.post('/products', newProduct);
+      await productService.create(newProduct);
       const tempProduct: Product = {
         ...newProduct,
         id: Date.now(),
@@ -499,7 +499,7 @@ export const ProductManager: React.FC = () => {
   // Update product
   const handleUpdate = async (id: number, data: Partial<Product>) => {
     try {
-      // In real implementation: await apiClient.put(`/products/${id}`, data);
+      await productService.update(id, data);
       setProducts(products.map(p => 
         p.product_id === id ? { ...p, ...data } : p
       ));
@@ -528,7 +528,7 @@ export const ProductManager: React.FC = () => {
     }
 
     try {
-      // In real implementation: await apiClient.delete(`/products/${id}`);
+      await productService.delete(id);
       setProducts(products.filter(p => p.product_id !== id));
       
       toast({
@@ -543,7 +543,7 @@ export const ProductManager: React.FC = () => {
   // Bulk delete
   const handleBulkDelete = async (ids: number[]) => {
     try {
-      // In real implementation: await Promise.all(ids.map(id => apiClient.delete(`/products/${id}`)));
+      await Promise.all(ids.map(id => productService.delete(id)));
       setProducts(products.filter(p => !ids.includes(p.product_id)));
       
       toast({

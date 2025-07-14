@@ -196,7 +196,8 @@ const schema = yup.object({
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            </CardContent>
           </Card>
 
           {/* Technical Features */}
@@ -252,7 +253,7 @@ const schema = yup.object({
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-              <div className="flex items-center gap-2 text-green-700">
+                <div className="flex items-center gap-2 text-green-700">
                 <CheckCircle className="h-5 w-5" />
                 <span className="font-medium">Форма успешно отправлена!</span>
               </div>
@@ -349,9 +350,9 @@ const schema = yup.object({
                 </ul>
               </div>
             </div>
-          </div>
-          </CardContent>
-        </Card>
+              </div>
+            </CardContent>
+          </Card>
       </div>
     </Layout>
   );

@@ -62,7 +62,7 @@ export const ReportFilters: React.FC<ReportFiltersProps> = ({
   };
 
   const periodOptions = [
-    { value: '', label: 'Все периоды' },
+    { value: 'all', label: 'Все периоды' },
     ...periods.map(period => ({
       value: period.period_id.toString(),
       label: period.period_ru_name,
@@ -70,7 +70,7 @@ export const ReportFilters: React.FC<ReportFiltersProps> = ({
   ];
 
   const financialCenterOptions = [
-    { value: '', label: 'Все ФЦ' },
+    { value: 'all', label: 'Все ФЦ' },
     ...financialCenters.map(fc => ({
       value: fc.financial_center_id.toString(),
       label: fc.financial_center_name,

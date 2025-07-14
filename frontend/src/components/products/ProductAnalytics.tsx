@@ -3,7 +3,7 @@ import { Card } from '../common/Card';
 import { Button } from '../common/form/Button';
 import { Input } from '../common/form/Input';
 import { useToast } from '../common/ToastContainer';
-import { TrendingUp, TrendingDown, Store, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Store, BarChart3, X } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { Product } from '../../types';
 import { productService } from '../../services';
@@ -110,8 +110,31 @@ export const ProductAnalytics: React.FC<ProductAnalyticsProps> = ({ onClose }) =
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <Card title="Аналитика по продуктам" className="w-full max-w-7xl max-h-[90vh] overflow-y-auto">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <Card 
+        title={
+          <div className="flex items-center justify-between">
+            <span>Аналитика по продуктам</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="ml-auto -mr-2"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+        }
+        className="w-full max-w-7xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="md:col-span-2">

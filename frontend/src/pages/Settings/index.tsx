@@ -34,8 +34,8 @@ const SettingsPage: React.FC = () => {
           <Route path="security" element={<SecurityPage />} />
           <Route path="import-export" element={<ImportExportPage />} />
           
-          {/* Default redirect */}
-          <Route path="*" element={<Navigate to="/settings" replace />} />
+          {/* Default redirect to home */}
+          <Route path="*" element={<Navigate to="." replace />} />
         </Routes>
     </div>
   );

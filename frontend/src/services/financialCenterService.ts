@@ -11,7 +11,7 @@ export interface UpdateFinancialCenterData {
 
 class FinancialCenterService extends BaseService<FinancialCenter, CreateFinancialCenterData, UpdateFinancialCenterData> {
   constructor() {
-    super('/financial-centers');
+    super('/financial_centers');
   }
 }
 

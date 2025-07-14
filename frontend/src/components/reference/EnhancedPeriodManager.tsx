@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { CRUDTable, CRUDField } from './CRUDTable';
+import { CRUDTable, type CRUDField } from './CRUDTable';
 import { Badge } from '../ui/badge';
 import { toast } from '../ui/use-toast';
 import { useAuthStore } from '../../stores/authStore';
-import { apiClient } from '../../api/client';
+import { periodService } from '../../services/periodService';
+import { registryService } from '../../services/registryService';
 import { Calendar, AlertCircle, Activity } from 'lucide-react';
 
 interface Period {
@@ -211,8 +212,8 @@ export const EnhancedPeriodManager: React.FC = () => {
     
     try {
       setLoading(true);
-      const response = await apiClient.get(`/periods?user_id=${user.user_id}`);
-      const periodsData = response.data.map((p: any) => {
+      const periods = await periodService.getAll({ user_id: user.user_id });
+      const periodsData = periods.map((p: any) => {
         const dates = generatePeriodDates(p.period_year, p.period_month);
         return {
           ...p,
@@ -245,10 +246,11 @@ export const EnhancedPeriodManager: React.FC = () => {
       // For now, we'll simulate with individual calls or use registry endpoint
       for (const period of periodsData) {
         try {
-          const response = await apiClient.get(
-            `/registry?user_id=${user?.user_id}&period_id=${period.period_id}`
-          );
-          counts[period.period_id] = response.data.length || 0;
+          const registryData = await registryService.getAll({
+            user_id: user?.user_id,
+            period_id: period.period_id
+          });
+          counts[period.period_id] = registryData.length || 0;
         } catch (error) {
           counts[period.period_id] = 0;
         }
@@ -303,7 +305,7 @@ export const EnhancedPeriodManager: React.FC = () => {
     };
 
     try {
-      await apiClient.post('/periods', newPeriod);
+      await periodService.create(newPeriod);
       await fetchPeriods();
       
       toast({
@@ -355,7 +357,7 @@ export const EnhancedPeriodManager: React.FC = () => {
     }
 
     try {
-      await apiClient.put(`/periods/${id}`, updateData);
+      await periodService.update(id, updateData);
       await fetchPeriods();
       
       toast({
@@ -382,7 +384,7 @@ export const EnhancedPeriodManager: React.FC = () => {
     }
 
     try {
-      await apiClient.delete(`/periods/${id}`);
+      await periodService.delete(id);
       await fetchPeriods();
       
       toast({
@@ -415,7 +417,7 @@ export const EnhancedPeriodManager: React.FC = () => {
     }
 
     try {
-      await Promise.all(ids.map(id => apiClient.delete(`/periods/${id}`)));
+      await Promise.all(ids.map(id => periodService.delete(id)));
       await fetchPeriods();
       
       toast({

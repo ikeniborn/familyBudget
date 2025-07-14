@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { CRUDTable, CRUDField } from './CRUDTable';
+import { CRUDTable, type CRUDField } from './CRUDTable';
 import { Badge } from '../ui/badge';
 import { toast } from '../ui/use-toast';
 import { useAuthStore } from '../../stores/authStore';
-import { apiClient } from '../../api/client';
+import { nomenclatureService } from '../../services';
 import {
   Tags,
   ChevronRight,
@@ -424,8 +424,8 @@ export const EnhancedNomenclatureManager: React.FC = () => {
     
     try {
       setLoading(true);
-      const response = await apiClient.get(`/nomenclatures?user_id=${user.user_id}`);
-      const data = response.data.map((n: any) => ({
+      const responseData = await nomenclatureService.getAll();
+      const data = responseData.map((n: any) => ({
         ...n,
         id: n.nomenclature_id, // Map nomenclature_id to id for CRUD table
       }));
@@ -468,7 +468,7 @@ export const EnhancedNomenclatureManager: React.FC = () => {
     };
 
     try {
-      await apiClient.post('/nomenclatures', newNomenclature);
+      await nomenclatureService.create(newNomenclature);
       await fetchNomenclatures();
       
       toast({
@@ -493,7 +493,7 @@ export const EnhancedNomenclatureManager: React.FC = () => {
     }
 
     try {
-      await apiClient.put(`/nomenclatures/${id}`, data);
+      await nomenclatureService.update(id, data);
       await fetchNomenclatures();
       
       toast({
@@ -531,7 +531,7 @@ export const EnhancedNomenclatureManager: React.FC = () => {
     }
 
     try {
-      await apiClient.delete(`/nomenclatures/${id}`);
+      await nomenclatureService.delete(id);
       await fetchNomenclatures();
       
       toast({
@@ -560,7 +560,7 @@ export const EnhancedNomenclatureManager: React.FC = () => {
     }
 
     try {
-      await Promise.all(ids.map(id => apiClient.delete(`/nomenclatures/${id}`)));
+      await Promise.all(ids.map(id => nomenclatureService.delete(id)));
       await fetchNomenclatures();
       
       toast({
@@ -684,7 +684,7 @@ export const EnhancedNomenclatureManager: React.FC = () => {
           user_id: user!.user_id,
         };
         
-        const response = await apiClient.post('/nomenclatures', newNom);
+        const newItem = await nomenclatureService.create(newNom);
         const createdId = response.data.nomenclature_id;
         
         // Import children

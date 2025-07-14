@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../../components/ui/card';
 import {
   Calendar,
@@ -147,6 +147,7 @@ const getColorClasses = (color: string) => {
 
 export const SettingsNavigation: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -175,11 +176,15 @@ export const SettingsNavigation: React.FC = () => {
                   const isActive = location.pathname === item.path;
                   
                   return (
-                    <Link
+                    <button
                       key={item.id}
-                      to={item.path}
+                      onClick={() => {
+                        if (!isActive) {
+                          navigate(item.path, { replace: true });
+                        }
+                      }}
                       className={`
-                        block px-4 py-3 transition-colors
+                        w-full text-left block px-4 py-3 transition-colors
                         ${isActive 
                           ? `${colors.bg} ${colors.border} border-l-4` 
                           : `hover:bg-gray-50`
@@ -200,7 +205,7 @@ export const SettingsNavigation: React.FC = () => {
                         </div>
                         <ChevronRight className={`h-4 w-4 ${isActive ? colors.text : 'text-gray-400'}`} />
                       </div>
-                    </Link>
+                    </button>
                   );
                 })}
               </div>

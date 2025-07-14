@@ -11,7 +11,7 @@ export interface UpdateCostCenterData {
 
 class CostCenterService extends BaseService<CostCenter, CreateCostCenterData, UpdateCostCenterData> {
   constructor() {
-    super('/cost-centers');
+    super('/cost_centers');
   }
 }
 

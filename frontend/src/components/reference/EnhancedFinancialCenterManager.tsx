@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { CRUDTable, CRUDField } from './CRUDTable';
+import { CRUDTable, type CRUDField } from './CRUDTable';
 import { Badge } from '../ui/badge';
 import { toast } from '../ui/use-toast';
 import { useAuthStore } from '../../stores/authStore';
-import { apiClient } from '../../api/client';
+import { financialCenterService } from '../../services/financialCenterService';
+import { costCenterService } from '../../services/costCenterService';
+import { registryService } from '../../services/registryService';
 import { Building2, ChevronRight, BarChart3, Users, Activity } from 'lucide-react';
 
 interface FinancialCenter {
@@ -241,8 +243,8 @@ export const EnhancedFinancialCenterManager: React.FC = () => {
     
     try {
       setLoading(true);
-      const response = await apiClient.get(`/financial_centers?user_id=${user.user_id}`);
-      const data = response.data.map((fc: any) => ({
+      const financialCenters = await financialCenterService.getAll({ user_id: user.user_id });
+      const data = financialCenters.map((fc: any) => ({
         ...fc,
         id: fc.financial_center_id, // Map financial_center_id to id for CRUD table
       }));
@@ -278,19 +280,21 @@ export const EnhancedFinancialCenterManager: React.FC = () => {
       for (const center of centers) {
         try {
           // Fetch cost centers count
-          const ccResponse = await apiClient.get(
-            `/cost_centers?user_id=${user?.user_id}&financial_center_id=${center.financial_center_id}`
-          );
+          const costCenters = await costCenterService.getAll({
+            user_id: user?.user_id,
+            financial_center_id: center.financial_center_id
+          });
           
           // Fetch transactions count and amount
-          const txResponse = await apiClient.get(
-            `/registry?user_id=${user?.user_id}&financial_center_id=${center.financial_center_id}`
-          );
+          const transactions = await registryService.getAll({
+            user_id: user?.user_id,
+            financial_center_id: center.financial_center_id
+          });
           
           statsMap[center.financial_center_id] = {
-            cost_centers_count: ccResponse.data.length || 0,
-            transactions_count: txResponse.data.length || 0,
-            total_amount: txResponse.data.reduce((sum: number, tx: any) => sum + (tx.amount || 0), 0),
+            cost_centers_count: costCenters.length || 0,
+            transactions_count: transactions.length || 0,
+            total_amount: transactions.reduce((sum: number, tx: any) => sum + (tx.amount || 0), 0),
           };
         } catch (error) {
           statsMap[center.financial_center_id] = {
@@ -331,7 +335,7 @@ export const EnhancedFinancialCenterManager: React.FC = () => {
     };
 
     try {
-      await apiClient.post('/financial_centers', newFinancialCenter);
+      await financialCenterService.create(newFinancialCenter);
       await fetchFinancialCenters();
       
       toast({
@@ -356,7 +360,7 @@ export const EnhancedFinancialCenterManager: React.FC = () => {
     }
 
     try {
-      await apiClient.put(`/financial_centers/${id}`, data);
+      await financialCenterService.update(id, data);
       await fetchFinancialCenters();
       
       toast({
@@ -394,7 +398,7 @@ export const EnhancedFinancialCenterManager: React.FC = () => {
     }
 
     try {
-      await apiClient.delete(`/financial_centers/${id}`);
+      await financialCenterService.delete(id);
       await fetchFinancialCenters();
       
       toast({
@@ -423,7 +427,7 @@ export const EnhancedFinancialCenterManager: React.FC = () => {
     }
 
     try {
-      await Promise.all(ids.map(id => apiClient.delete(`/financial_centers/${id}`)));
+      await Promise.all(ids.map(id => financialCenterService.delete(id)));
       await fetchFinancialCenters();
       
       toast({

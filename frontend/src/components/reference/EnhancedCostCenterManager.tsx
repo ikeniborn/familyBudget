@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { CRUDTable, CRUDField } from './CRUDTable';
+import { CRUDTable, type CRUDField } from './CRUDTable';
 import { Badge } from '../ui/badge';
 import { toast } from '../ui/use-toast';
 import { useAuthStore } from '../../stores/authStore';
-import { apiClient } from '../../api/client';
+import { costCenterService } from '../../services/costCenterService';
+import { financialCenterService } from '../../services/financialCenterService';
+import { registryService } from '../../services/registryService';
 import { Briefcase, Building2, DollarSign, History, Copy, AlertCircle } from 'lucide-react';
 
 interface CostCenter {
@@ -52,8 +54,8 @@ export const EnhancedCostCenterManager: React.FC = () => {
     if (!user?.user_id) return;
     
     try {
-      const response = await apiClient.get(`/financial_centers?user_id=${user.user_id}`);
-      setFinancialCenters(response.data);
+      const financialCenters = await financialCenterService.getAll({ user_id: user.user_id });
+      setFinancialCenters(financialCenters);
     } catch (error) {
       console.error('Failed to fetch financial centers:', error);
     }
@@ -248,8 +250,8 @@ export const EnhancedCostCenterManager: React.FC = () => {
       // Fetch financial centers first
       await fetchFinancialCenters();
       
-      const response = await apiClient.get(`/cost_centers?user_id=${user.user_id}`);
-      const costCentersData = response.data.map((cc: any) => ({
+      const costCentersResponse = await costCenterService.getAll({ user_id: user.user_id });
+      const costCentersData = costCentersResponse.map((cc: any) => ({
         ...cc,
         id: cc.cost_center_id, // Map cost_center_id to id for CRUD table
       }));
@@ -277,11 +279,12 @@ export const EnhancedCostCenterManager: React.FC = () => {
       
       for (const center of centers) {
         try {
-          const response = await apiClient.get(
-            `/registry?user_id=${user?.user_id}&cost_center_id=${center.cost_center_id}`
-          );
+          const registryData = await registryService.getAll({
+            user_id: user?.user_id,
+            cost_center_id: center.cost_center_id
+          });
           
-          const totalUsage = response.data.reduce((sum: number, tx: any) => 
+          const totalUsage = registryData.reduce((sum: number, tx: any) => 
             sum + (tx.amount || 0), 0
           );
           
@@ -324,7 +327,7 @@ export const EnhancedCostCenterManager: React.FC = () => {
     };
 
     try {
-      await apiClient.post('/cost_centers', newCostCenter);
+      await costCenterService.create(newCostCenter);
       await fetchCostCenters();
       
       toast({
@@ -347,7 +350,7 @@ export const EnhancedCostCenterManager: React.FC = () => {
     };
 
     try {
-      await apiClient.put(`/cost_centers/${id}`, updateData);
+      await costCenterService.update(id, updateData);
       await fetchCostCenters();
       
       toast({
@@ -374,7 +377,7 @@ export const EnhancedCostCenterManager: React.FC = () => {
     }
 
     try {
-      await apiClient.delete(`/cost_centers/${id}`);
+      await costCenterService.delete(id);
       await fetchCostCenters();
       
       toast({
@@ -407,7 +410,7 @@ export const EnhancedCostCenterManager: React.FC = () => {
     }
 
     try {
-      await Promise.all(ids.map(id => apiClient.delete(`/cost_centers/${id}`)));
+      await Promise.all(ids.map(id => costCenterService.delete(id)));
       await fetchCostCenters();
       
       toast({

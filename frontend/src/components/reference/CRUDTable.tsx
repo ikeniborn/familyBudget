@@ -48,7 +48,7 @@ import {
 import { clsx } from 'clsx';
 
 // Generic types for CRUD operations
-export interface CRUDField<T = any> {
+export type CRUDField<T = any> = {
   key: keyof T;
   label: string;
   type: 'text' | 'number' | 'date' | 'boolean' | 'select' | 'custom';
@@ -60,7 +60,7 @@ export interface CRUDField<T = any> {
   width?: string;
   sortable?: boolean;
   filterable?: boolean;
-}
+};
 
 export interface CRUDTableProps<T extends { id: number | string }> {
   title: string;
@@ -695,3 +695,4 @@ export function CRUDTable<T extends { id: number | string }>({
     </Card>
   );
 }
+
