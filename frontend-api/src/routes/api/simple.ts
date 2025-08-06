@@ -55,7 +55,6 @@ router.get('/periods', async (_req, res): Promise<void> => {
 router.post('/periods', async (req, res): Promise<void> => {
   try {
     const { 
-      period_name, 
       period_year, 
       period_month,
       period_dt,
@@ -66,10 +65,15 @@ router.post('/periods', async (req, res): Promise<void> => {
     let date: Date;
     let ruName: string;
     
+    const monthNames = [
+      'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+      'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+    ];
+    
     if (period_year && period_month) {
-      // Old format from frontend
+      // Old format from frontend - auto-generate name
       date = new Date(period_year, period_month - 1, 1);
-      ruName = period_name || `${period_month}/${period_year}`;
+      ruName = `${monthNames[period_month - 1]} ${period_year}`;
     } else if (period_dt && period_ru_name) {
       // New format
       date = new Date(period_dt);
@@ -112,7 +116,6 @@ router.put('/periods/:id', async (req, res): Promise<void> => {
   try {
     const periodId = parseInt(req.params.id);
     const { 
-      period_name, 
       period_year, 
       period_month,
       period_dt,
@@ -122,10 +125,15 @@ router.put('/periods/:id', async (req, res): Promise<void> => {
     // Build update data
     const updateData: { date?: Date; ruName?: string } = {};
     
+    const monthNames = [
+      'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+      'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+    ];
+    
     if (period_year && period_month) {
-      // Old format from frontend
+      // Old format from frontend - auto-generate name
       updateData.date = new Date(period_year, period_month - 1, 1);
-      updateData.ruName = period_name || `${period_month}/${period_year}`;
+      updateData.ruName = `${monthNames[period_month - 1]} ${period_year}`;
     } else if (period_dt && period_ru_name) {
       // New format
       updateData.date = new Date(period_dt);

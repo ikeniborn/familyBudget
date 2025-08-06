@@ -15,9 +15,7 @@ interface Period {
   period_month: number;
   period_start_date?: string;
   period_end_date?: string;
-  period_order: number;
   user_id: number;
-  is_active?: boolean;
   transaction_count?: number;
   created_at?: string;
   updated_at?: string;
@@ -65,26 +63,15 @@ export const EnhancedPeriodManager: React.FC = () => {
       key: 'period_name',
       label: 'Название периода',
       type: 'text',
-      required: true,
+      required: false,
       width: 'w-64',
-      renderCell: (value, item) => (
+      renderCell: (value) => (
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-gray-500" />
           <span>{value}</span>
-          {item.is_active && (
-            <Badge variant="default" className="ml-2">
-              <Activity className="h-3 w-3 mr-1" />
-              Активный
-            </Badge>
-          )}
         </div>
       ),
-      validation: (value) => {
-        if (!value || value.trim().length < 3) {
-          return 'Название должно содержать минимум 3 символа';
-        }
-        return null;
-      },
+      renderEdit: () => null, // Auto-generated, read-only
     },
     {
       key: 'period_year',
@@ -162,30 +149,6 @@ export const EnhancedPeriodManager: React.FC = () => {
         );
       },
       renderEdit: () => null, // Read-only
-    },
-    {
-      key: 'period_order',
-      label: 'Порядок',
-      type: 'number',
-      required: true,
-      width: 'w-24',
-      validation: (value) => {
-        if (Number(value) < 1) {
-          return 'Порядок должен быть больше 0';
-        }
-        return null;
-      },
-    },
-    {
-      key: 'is_active',
-      label: 'Статус',
-      type: 'boolean',
-      width: 'w-32',
-      renderCell: (value) => value ? (
-        <Badge variant="default">Активен</Badge>
-      ) : (
-        <Badge variant="secondary">Неактивен</Badge>
-      ),
     },
     {
       key: 'created_at',
@@ -289,8 +252,8 @@ export const EnhancedPeriodManager: React.FC = () => {
       throw new Error('Период уже существует');
     }
     
-    // Auto-generate period name if not provided
-    const periodName = data.period_name || generatePeriodName(year, month);
+    // Auto-generate period name
+    const periodName = generatePeriodName(year, month);
     const dates = generatePeriodDates(year, month);
     
     const newPeriod = {
@@ -301,11 +264,12 @@ export const EnhancedPeriodManager: React.FC = () => {
       period_start_date: dates.start,
       period_end_date: dates.end,
       user_id: user.user_id,
-      is_active: data.is_active !== false, // Default to true
     };
 
     try {
-      await periodService.create(newPeriod);
+      // Remove fields that don't exist in API
+      const { period_order, is_active, ...periodData } = newPeriod as any;
+      await periodService.create(periodData);
       await fetchPeriods();
       
       toast({
@@ -432,7 +396,7 @@ export const EnhancedPeriodManager: React.FC = () => {
   // Enhanced export with additional fields
   const handleExport = () => {
     const csvContent = [
-      ['ID', 'Название', 'Год', 'Месяц', 'Начало', 'Конец', 'Транзакций', 'Порядок', 'Активен', 'Создан'].join(','),
+      ['ID', 'Название', 'Год', 'Месяц', 'Начало', 'Конец', 'Транзакций', 'Создан'].join(','),
       ...periods.map(p => [
         p.period_id,
         `"${p.period_name}"`,
@@ -441,8 +405,6 @@ export const EnhancedPeriodManager: React.FC = () => {
         p.period_start_date || '',
         p.period_end_date || '',
         p.transaction_count || 0,
-        p.period_order,
-        p.is_active ? 'Да' : 'Нет',
         p.created_at ? new Date(p.created_at).toLocaleDateString('ru-RU') : '',
       ].join(','))
     ].join('\n');
@@ -466,7 +428,7 @@ export const EnhancedPeriodManager: React.FC = () => {
       const line = lines[i];
       if (!line.trim()) continue;
       
-      const [, name, year, month, , , , order, isActive] = line.split(',').map(v => v.replace(/"/g, '').trim());
+      const [, name, year, month] = line.split(',').map(v => v.replace(/"/g, '').trim());
       
       const periodYear = Number(year);
       const periodMonth = Number(month);
@@ -478,11 +440,9 @@ export const EnhancedPeriodManager: React.FC = () => {
       }
       
       newPeriods.push({
-        period_name: name || generatePeriodName(periodYear, periodMonth),
+        period_name: generatePeriodName(periodYear, periodMonth),
         period_year: periodYear,
         period_month: periodMonth,
-        period_order: Number(order),
-        is_active: isActive === 'Да',
         user_id: user!.user_id,
       } as Omit<Period, 'id'>);
     }
