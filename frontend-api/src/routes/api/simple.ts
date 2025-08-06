@@ -33,10 +33,158 @@ router.get('/health', (_req, res): void => {
 router.get('/periods', async (_req, res): Promise<void> => {
   try {
     const periods = await referenceService.getPeriods();
-    res.json(periods);
+    
+    // Transform periods to match frontend expectations
+    const transformedPeriods = periods.map(period => ({
+      ...period,
+      period_id: period.id,
+      period_dt: period.date,
+      period_ru_name: period.ruName,
+      period_name: period.ruName,
+      period_year: period.date.getFullYear(),
+      period_month: period.date.getMonth() + 1
+    }));
+    
+    res.json(transformedPeriods);
   } catch (error) {
     console.error('Error fetching periods:', error);
     res.status(500).json({ error: 'Failed to fetch periods' });
+  }
+});
+
+router.post('/periods', async (req, res): Promise<void> => {
+  try {
+    const { 
+      period_name, 
+      period_year, 
+      period_month,
+      period_dt,
+      period_ru_name 
+    } = req.body;
+    
+    // Support both old format (from frontend) and new format
+    let date: Date;
+    let ruName: string;
+    
+    if (period_year && period_month) {
+      // Old format from frontend
+      date = new Date(period_year, period_month - 1, 1);
+      ruName = period_name || `${period_month}/${period_year}`;
+    } else if (period_dt && period_ru_name) {
+      // New format
+      date = new Date(period_dt);
+      ruName = period_ru_name;
+    } else if (req.body.date && req.body.ruName) {
+      // Direct format
+      date = new Date(req.body.date);
+      ruName = req.body.ruName;
+    } else {
+      res.status(400).json({ 
+        error: 'Either (period_year and period_month) or (period_dt and period_ru_name) or (date and ruName) are required' 
+      });
+      return;
+    }
+
+    const period = await referenceService.createPeriod({
+      date,
+      ruName
+    });
+
+    // Transform response to match frontend expectations
+    const response = {
+      ...period,
+      period_id: period.id,
+      period_dt: period.date,
+      period_ru_name: period.ruName,
+      period_name: period.ruName,
+      period_year: period.date.getFullYear(),
+      period_month: period.date.getMonth() + 1
+    };
+
+    res.status(201).json(response);
+  } catch (error) {
+    console.error('Error creating period:', error);
+    res.status(500).json({ error: 'Failed to create period' });
+  }
+});
+
+router.put('/periods/:id', async (req, res): Promise<void> => {
+  try {
+    const periodId = parseInt(req.params.id);
+    const { 
+      period_name, 
+      period_year, 
+      period_month,
+      period_dt,
+      period_ru_name 
+    } = req.body;
+    
+    // Build update data
+    const updateData: { date?: Date; ruName?: string } = {};
+    
+    if (period_year && period_month) {
+      // Old format from frontend
+      updateData.date = new Date(period_year, period_month - 1, 1);
+      updateData.ruName = period_name || `${period_month}/${period_year}`;
+    } else if (period_dt && period_ru_name) {
+      // New format
+      updateData.date = new Date(period_dt);
+      updateData.ruName = period_ru_name;
+    } else if (req.body.date && req.body.ruName) {
+      // Direct format
+      updateData.date = new Date(req.body.date);
+      updateData.ruName = req.body.ruName;
+    }
+
+    const period = await referenceService.updatePeriod(periodId, updateData);
+
+    // Transform response to match frontend expectations
+    const response = {
+      ...period,
+      period_id: period.id,
+      period_dt: period.date,
+      period_ru_name: period.ruName,
+      period_name: period.ruName,
+      period_year: period.date.getFullYear(),
+      period_month: period.date.getMonth() + 1
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error updating period:', error);
+    res.status(500).json({ error: 'Failed to update period' });
+  }
+});
+
+router.delete('/periods/:id', async (req, res): Promise<void> => {
+  try {
+    const periodId = parseInt(req.params.id);
+    
+    // Check if period exists
+    const period = await referenceService.getPeriodById(periodId);
+    if (!period) {
+      res.status(404).json({ error: 'Period not found' });
+      return;
+    }
+
+    // Try to delete the period (will check for related transactions)
+    try {
+      await referenceService.deletePeriod(periodId);
+      res.status(204).send();
+    } catch (deleteError: any) {
+      // If deletion fails due to related transactions, return appropriate error
+      if (deleteError.message?.includes('related transactions')) {
+        res.status(400).json({ 
+          error: deleteError.message,
+          detail: 'Period has related transactions and cannot be deleted'
+        });
+      } else {
+        throw deleteError;
+      }
+    }
+  } catch (error) {
+    console.error('Error deleting period:', error);
+    res.status(500).json({ error: 'Failed to delete period' });
   }
 });
 

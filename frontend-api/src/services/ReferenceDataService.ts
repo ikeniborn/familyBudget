@@ -19,6 +19,35 @@ export class ReferenceDataService extends BaseService {
     });
   }
 
+  async updatePeriod(id: number, data: { date?: Date; ruName?: string }): Promise<Period> {
+    return this.prisma.period.update({
+      where: { id },
+      data
+    });
+  }
+
+  async deletePeriod(id: number): Promise<Period> {
+    // TODO: Uncomment when t_f_registry table is created
+    // Check if period has related registry entries
+    // const registryCount = await this.prisma.registry.count({
+    //   where: { periodId: id }
+    // });
+
+    // if (registryCount > 0) {
+    //   throw new Error(`Cannot delete period: ${registryCount} related transactions exist`);
+    // }
+
+    return this.prisma.period.delete({
+      where: { id }
+    });
+  }
+
+  async getPeriodById(id: number): Promise<Period | null> {
+    return this.prisma.period.findUnique({
+      where: { id }
+    });
+  }
+
   // Financial Centers
   async getFinancialCenters(): Promise<FinancialCenter[]> {
     return this.prisma.financialCenter.findMany({
