@@ -9,7 +9,19 @@ const referenceService = new ReferenceDataService(prisma);
 router.get('/periods', async (_req: express.Request, res: express.Response): Promise<void> => {
   try {
     const periods = await referenceService.getPeriods();
-    res.json(periods);
+    
+    // Transform periods to match frontend expectations
+    const transformedPeriods = periods.map(period => ({
+      ...period,
+      period_id: period.id,
+      period_dt: period.date,
+      period_ru_name: period.ruName,
+      period_name: period.ruName,
+      period_year: period.date.getFullYear(),
+      period_month: period.date.getMonth() + 1
+    }));
+    
+    res.json(transformedPeriods);
   } catch (error) {
     console.error('Error fetching periods:', error);
     res.status(500).json({ error: 'Failed to fetch periods' });
@@ -18,19 +30,54 @@ router.get('/periods', async (_req: express.Request, res: express.Response): Pro
 
 router.post('/periods', async (req: express.Request, res: express.Response): Promise<void> => {
   try {
-    const { date, ruName } = req.body;
+    const { 
+      period_name, 
+      period_year, 
+      period_month,
+      period_dt,
+      period_ru_name 
+    } = req.body;
     
-    if (!date || !ruName) {
-      res.status(400).json({ error: 'date and ruName are required' });
+    // Support both old format (from frontend) and new format
+    let date: Date;
+    let ruName: string;
+    
+    if (period_year && period_month) {
+      // Old format from frontend
+      date = new Date(period_year, period_month - 1, 1);
+      ruName = period_name || `${period_month}/${period_year}`;
+    } else if (period_dt && period_ru_name) {
+      // New format
+      date = new Date(period_dt);
+      ruName = period_ru_name;
+    } else if (req.body.date && req.body.ruName) {
+      // Direct format
+      date = new Date(req.body.date);
+      ruName = req.body.ruName;
+    } else {
+      res.status(400).json({ 
+        error: 'Either (period_year and period_month) or (period_dt and period_ru_name) or (date and ruName) are required' 
+      });
       return;
     }
 
     const period = await referenceService.createPeriod({
-      date: new Date(date),
+      date,
       ruName
     });
 
-    res.status(201).json(period);
+    // Transform response to match frontend expectations
+    const response = {
+      ...period,
+      period_id: period.id,
+      period_dt: period.date,
+      period_ru_name: period.ruName,
+      period_name: period.ruName,
+      period_year: period.date.getFullYear(),
+      period_month: period.date.getMonth() + 1
+    };
+
+    res.status(201).json(response);
   } catch (error) {
     console.error('Error creating period:', error);
     res.status(500).json({ error: 'Failed to create period' });

@@ -29,6 +29,8 @@ model Period {
   id         Int      @id @default(autoincrement()) @map("period_id")
   date       DateTime @map("period_dt")
   ruName     String   @map("period_ru_name")
+  startDate  DateTime? @map("period_start_date")
+  endDate    DateTime? @map("period_end_date")
   
   registries Registry[]
   

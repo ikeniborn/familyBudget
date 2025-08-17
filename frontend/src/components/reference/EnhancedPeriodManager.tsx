@@ -5,7 +5,18 @@ import { toast } from '../ui/use-toast';
 import { useAuthStore } from '../../stores/authStore';
 import { periodService } from '../../services/periodService';
 import { registryService } from '../../services/registryService';
-import { Calendar, AlertCircle, Activity } from 'lucide-react';
+import { Calendar, AlertCircle, Activity, Plus } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../ui/dialog';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 interface Period {
   id: number;
@@ -30,7 +41,27 @@ export const EnhancedPeriodManager: React.FC = () => {
   const [periods, setPeriods] = useState<Period[]>([]);
   const [loading, setLoading] = useState(true);
   const [transactionCounts, setTransactionCounts] = useState<Record<number, number>>({});
+  const [customAddDialogOpen, setCustomAddDialogOpen] = useState(false);
+  const [newPeriodData, setNewPeriodData] = useState<{
+    period_year: number;
+    period_month: number;
+    period_start_date: string;
+    period_end_date: string;
+  }>({
+    period_year: new Date().getFullYear(),
+    period_month: new Date().getMonth() + 1,
+    period_start_date: '',
+    period_end_date: ''
+  });
   const { user } = useAuthStore();
+
+  // Динамически генерируем название периода
+  const dynamicPeriodName = useMemo(() => {
+    if (newPeriodData.period_year && newPeriodData.period_month) {
+      return generatePeriodName(newPeriodData.period_year, newPeriodData.period_month);
+    }
+    return '';
+  }, [newPeriodData.period_year, newPeriodData.period_month]);
 
   // Check for period overlap
   const checkPeriodOverlap = (year: number, month: number, excludeId?: number): boolean => {
@@ -62,7 +93,7 @@ export const EnhancedPeriodManager: React.FC = () => {
     {
       key: 'period_name',
       label: 'Название периода',
-      type: 'text',
+      type: 'custom' as const,
       required: false,
       width: 'w-64',
       renderCell: (value) => (
@@ -71,22 +102,37 @@ export const EnhancedPeriodManager: React.FC = () => {
           <span>{value}</span>
         </div>
       ),
-      renderEdit: () => null, // Auto-generated, read-only
+      renderEdit: (_value, _onChange, item) => {
+        // For editing mode, show the existing name
+        if (item && item.id) {
+          return (
+            <div className="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200">
+              <Calendar className="h-4 w-4 text-gray-400" />
+              <span className="text-gray-600">{item.period_name || ''}</span>
+              <span className="text-xs text-gray-400 ml-auto">(не редактируется)</span>
+            </div>
+          );
+        }
+        // For new period - this won't be shown as we'll override it in the dialog
+        return (
+          <div className="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200">
+            <Calendar className="h-4 w-4 text-gray-400" />
+            <span className="text-gray-500 italic">Будет сгенерировано автоматически</span>
+          </div>
+        );
+      },
     },
     {
       key: 'period_year',
       label: 'Год',
-      type: 'number',
+      type: 'select',
       required: true,
       width: 'w-24',
-      validation: (value) => {
-        const year = Number(value);
-        const currentYear = new Date().getFullYear();
-        if (year < currentYear - 5 || year > currentYear + 5) {
-          return `Год должен быть между ${currentYear - 5} и ${currentYear + 5}`;
-        }
-        return null;
-      },
+      options: Array.from({length: 11}, (_, i) => ({
+        value: String(2020 + i),
+        label: String(2020 + i)
+      })),
+      renderCell: (value) => value || '-',
     },
     {
       key: 'period_month',
@@ -109,6 +155,7 @@ export const EnhancedPeriodManager: React.FC = () => {
       label: 'Начало',
       type: 'date',
       width: 'w-32',
+      required: true,
       renderCell: (value) => {
         if (!value) return '-';
         return new Date(value).toLocaleDateString('ru-RU', {
@@ -117,13 +164,13 @@ export const EnhancedPeriodManager: React.FC = () => {
           year: 'numeric',
         });
       },
-      renderEdit: () => null, // Auto-generated, read-only
     },
     {
       key: 'period_end_date',
       label: 'Конец',
       type: 'date',
       width: 'w-32',
+      required: true,
       renderCell: (value) => {
         if (!value) return '-';
         return new Date(value).toLocaleDateString('ru-RU', {
@@ -132,40 +179,16 @@ export const EnhancedPeriodManager: React.FC = () => {
           year: 'numeric',
         });
       },
-      renderEdit: () => null, // Auto-generated, read-only
-    },
-    {
-      key: 'transaction_count',
-      label: 'Транзакций',
-      type: 'number',
-      width: 'w-28',
-      sortable: true,
-      renderCell: (value) => {
-        if (value === undefined || value === null) return '-';
-        return (
-          <Badge variant={value > 0 ? "default" : "secondary"}>
-            {value}
-          </Badge>
-        );
+      validation: (value, formData) => {
+        if (formData?.period_start_date && value) {
+          const startDate = new Date(formData.period_start_date);
+          const endDate = new Date(value);
+          if (endDate < startDate) {
+            return 'Дата окончания должна быть позже даты начала';
+          }
+        }
+        return null;
       },
-      renderEdit: () => null, // Read-only
-    },
-    {
-      key: 'created_at',
-      label: 'Создан',
-      type: 'date',
-      width: 'w-32',
-      sortable: true,
-      filterable: false,
-      renderCell: (value) => {
-        if (!value) return '-';
-        return new Date(value).toLocaleDateString('ru-RU', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-        });
-      },
-      renderEdit: () => null, // Read-only in edit mode
     },
   ];
 
@@ -177,12 +200,13 @@ export const EnhancedPeriodManager: React.FC = () => {
       setLoading(true);
       const periods = await periodService.getAll({ user_id: user.user_id });
       const periodsData = periods.map((p: any) => {
+        // Use existing dates if available, otherwise generate defaults
         const dates = generatePeriodDates(p.period_year, p.period_month);
         return {
           ...p,
           id: p.period_id, // Map period_id to id for CRUD table
-          period_start_date: dates.start,
-          period_end_date: dates.end,
+          period_start_date: p.period_start_date || dates.start,
+          period_end_date: p.period_end_date || dates.end,
         };
       });
       setPeriods(periodsData);
@@ -254,15 +278,18 @@ export const EnhancedPeriodManager: React.FC = () => {
     
     // Auto-generate period name
     const periodName = generatePeriodName(year, month);
-    const dates = generatePeriodDates(year, month);
+    
+    // Use provided dates or generate defaults
+    const startDate = data.period_start_date || generatePeriodDates(year, month).start;
+    const endDate = data.period_end_date || generatePeriodDates(year, month).end;
     
     const newPeriod = {
       ...data,
       period_name: periodName,
       period_year: year,
       period_month: month,
-      period_start_date: dates.start,
-      period_end_date: dates.end,
+      period_start_date: startDate,
+      period_end_date: endDate,
       user_id: user.user_id,
     };
 
@@ -304,13 +331,16 @@ export const EnhancedPeriodManager: React.FC = () => {
       period_year: year,
     };
     
-    // Update dates if year or month changed
+    // Keep the dates from the form if provided
+    if (data.period_start_date) {
+      updateData.period_start_date = data.period_start_date;
+    }
+    if (data.period_end_date) {
+      updateData.period_end_date = data.period_end_date;
+    }
+    
+    // Update name if year or month changed
     if (year && month) {
-      const dates = generatePeriodDates(year, month);
-      updateData.period_start_date = dates.start;
-      updateData.period_end_date = dates.end;
-      
-      // Update name if year or month changed and name matches auto-generated pattern
       const currentPeriod = periods.find(p => p.period_id === id);
       if (currentPeriod) {
         const expectedName = generatePeriodName(currentPeriod.period_year, currentPeriod.period_month);
@@ -480,6 +510,37 @@ export const EnhancedPeriodManager: React.FC = () => {
     return null;
   };
 
+  // Handle custom add button click
+  const handleCustomAddClick = () => {
+    // Reset form data with defaults
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const dates = generatePeriodDates(year, month);
+    
+    setNewPeriodData({
+      period_year: year,
+      period_month: month,
+      period_start_date: dates.start,
+      period_end_date: dates.end
+    });
+    setCustomAddDialogOpen(true);
+  };
+
+  // Handle custom add submit
+  const handleCustomAddSubmit = async () => {
+    try {
+      await handleAdd({
+        ...newPeriodData,
+        period_name: dynamicPeriodName,
+        user_id: user?.user_id || 0
+      } as Omit<Period, 'id'>);
+      setCustomAddDialogOpen(false);
+    } catch (error) {
+      // Error is already handled in handleAdd
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Warning about overlapping periods */}
@@ -500,7 +561,10 @@ export const EnhancedPeriodManager: React.FC = () => {
         title="Управление периодами"
         data={periods}
         fields={fields}
-        onAdd={handleAdd}
+        onAdd={async () => {
+          // Override with custom dialog
+          handleCustomAddClick();
+        }}
         onUpdate={handleUpdate}
         onDelete={handleDelete}
         onBulkDelete={handleBulkDelete}
@@ -514,6 +578,132 @@ export const EnhancedPeriodManager: React.FC = () => {
         addButtonText="Добавить период"
         customActions={customActions}
       />
+
+      {/* Custom Add Dialog */}
+      <Dialog open={customAddDialogOpen} onOpenChange={setCustomAddDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Добавить период</DialogTitle>
+            <DialogDescription>
+              Заполните поля для создания нового периода
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* Dynamic Period Name */}
+            <div>
+              <label className="text-sm font-medium">Название периода</label>
+              <div className="mt-1 flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200">
+                <Calendar className="h-4 w-4 text-gray-400" />
+                <span className="text-gray-600 font-medium">
+                  {dynamicPeriodName || 'Выберите год и месяц'}
+                </span>
+              </div>
+            </div>
+
+            {/* Year */}
+            <div>
+              <label className="text-sm font-medium">
+                Год <span className="text-red-500">*</span>
+              </label>
+              <Select
+                value={String(newPeriodData.period_year)}
+                onValueChange={(value) => {
+                  const year = Number(value);
+                  const dates = generatePeriodDates(year, newPeriodData.period_month);
+                  setNewPeriodData({
+                    ...newPeriodData,
+                    period_year: year,
+                    period_start_date: dates.start,
+                    period_end_date: dates.end
+                  });
+                }}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 11 }, (_, i) => 2020 + i).map(year => (
+                    <SelectItem key={year} value={String(year)}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Month */}
+            <div>
+              <label className="text-sm font-medium">
+                Месяц <span className="text-red-500">*</span>
+              </label>
+              <Select
+                value={String(newPeriodData.period_month)}
+                onValueChange={(value) => {
+                  const month = Number(value);
+                  const dates = generatePeriodDates(newPeriodData.period_year, month);
+                  setNewPeriodData({
+                    ...newPeriodData,
+                    period_month: month,
+                    period_start_date: dates.start,
+                    period_end_date: dates.end
+                  });
+                }}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {monthNames.map((name, index) => (
+                    <SelectItem key={index + 1} value={String(index + 1)}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Start Date */}
+            <div>
+              <label className="text-sm font-medium">
+                Начало <span className="text-red-500">*</span>
+              </label>
+              <Input
+                type="date"
+                value={newPeriodData.period_start_date}
+                onChange={(e) => setNewPeriodData({
+                  ...newPeriodData,
+                  period_start_date: e.target.value
+                })}
+                className="mt-1"
+              />
+            </div>
+
+            {/* End Date */}
+            <div>
+              <label className="text-sm font-medium">
+                Конец <span className="text-red-500">*</span>
+              </label>
+              <Input
+                type="date"
+                value={newPeriodData.period_end_date}
+                onChange={(e) => setNewPeriodData({
+                  ...newPeriodData,
+                  period_end_date: e.target.value
+                })}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCustomAddDialogOpen(false)}>
+              Отмена
+            </Button>
+            <Button onClick={handleCustomAddSubmit}>
+              Добавить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

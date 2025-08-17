@@ -42,7 +42,9 @@ router.get('/periods', async (_req, res): Promise<void> => {
       period_ru_name: period.ruName,
       period_name: period.ruName,
       period_year: period.date.getFullYear(),
-      period_month: period.date.getMonth() + 1
+      period_month: period.date.getMonth() + 1,
+      period_start_date: period.startDate,
+      period_end_date: period.endDate
     }));
     
     res.json(transformedPeriods);
@@ -58,7 +60,9 @@ router.post('/periods', async (req, res): Promise<void> => {
       period_year, 
       period_month,
       period_dt,
-      period_ru_name 
+      period_ru_name,
+      period_start_date,
+      period_end_date
     } = req.body;
     
     // Support both old format (from frontend) and new format
@@ -89,10 +93,20 @@ router.post('/periods', async (req, res): Promise<void> => {
       return;
     }
 
-    const period = await referenceService.createPeriod({
+    const periodData: any = {
       date,
       ruName
-    });
+    };
+
+    // Add start and end dates if provided
+    if (period_start_date) {
+      periodData.startDate = new Date(period_start_date);
+    }
+    if (period_end_date) {
+      periodData.endDate = new Date(period_end_date);
+    }
+
+    const period = await referenceService.createPeriod(periodData);
 
     // Transform response to match frontend expectations
     const response = {
@@ -102,7 +116,9 @@ router.post('/periods', async (req, res): Promise<void> => {
       period_ru_name: period.ruName,
       period_name: period.ruName,
       period_year: period.date.getFullYear(),
-      period_month: period.date.getMonth() + 1
+      period_month: period.date.getMonth() + 1,
+      period_start_date: period.startDate,
+      period_end_date: period.endDate
     };
 
     res.status(201).json(response);
@@ -119,11 +135,13 @@ router.put('/periods/:id', async (req, res): Promise<void> => {
       period_year, 
       period_month,
       period_dt,
-      period_ru_name 
+      period_ru_name,
+      period_start_date,
+      period_end_date
     } = req.body;
     
     // Build update data
-    const updateData: { date?: Date; ruName?: string } = {};
+    const updateData: { date?: Date; ruName?: string; startDate?: Date; endDate?: Date } = {};
     
     const monthNames = [
       'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
@@ -144,6 +162,14 @@ router.put('/periods/:id', async (req, res): Promise<void> => {
       updateData.ruName = req.body.ruName;
     }
 
+    // Add start and end dates if provided
+    if (period_start_date) {
+      updateData.startDate = new Date(period_start_date);
+    }
+    if (period_end_date) {
+      updateData.endDate = new Date(period_end_date);
+    }
+
     const period = await referenceService.updatePeriod(periodId, updateData);
 
     // Transform response to match frontend expectations
@@ -154,7 +180,9 @@ router.put('/periods/:id', async (req, res): Promise<void> => {
       period_ru_name: period.ruName,
       period_name: period.ruName,
       period_year: period.date.getFullYear(),
-      period_month: period.date.getMonth() + 1
+      period_month: period.date.getMonth() + 1,
+      period_start_date: period.startDate,
+      period_end_date: period.endDate
     };
 
     res.json(response);
