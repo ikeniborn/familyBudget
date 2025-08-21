@@ -4,13 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Family Budget is a web-based budget management system built with a microservices architecture using Docker. It provides multi-user budget tracking with Telegram authentication, separating planned vs actual expenses.
+Family Budget is a web-based budget management system built with SvelteKit and Node.js using Docker. It provides multi-user budget tracking with Telegram authentication, separating planned vs actual expenses.
 
 ## Architecture
 
-- **Frontend (React)**: React 19 + TypeScript + Vite at `frontend/` - Stable SPA with Telegram auth  
-- **Frontend (SvelteKit)**: SvelteKit 2 + Svelte 5 + TypeScript + Vite at `frontend-svelte/` - New version in migration
-- **Frontend-API**: Node.js/Express + Prisma at `frontend-api/` - Unified API (shared by both frontends)
+- **Frontend**: SvelteKit 2 + Svelte 5 + TypeScript + Vite at `frontend-svelte/` - Modern SPA with SSR support
+- **Backend API**: Node.js/Express + Prisma at `frontend-api/` - Unified API with type safety
 - **Database**: PostgreSQL 13 (partitioned tables)
 - **Cache**: Redis for performance optimization
 - **Reverse Proxy**: Traefik for SSL/routing
@@ -19,7 +18,6 @@ Family Budget is a web-based budget management system built with a microservices
 Services run on Docker network:
 - postgres: 10.5.0.2:5432
 - redis: Internal network
-- frontend (React): Internal network
 - frontend-svelte: Internal network  
 - frontend-api: Internal network
 - traefik: Public-facing
@@ -28,72 +26,26 @@ Services run on Docker network:
 
 ### Start Development Environment
 
-#### React Frontend (Stable)
 ```bash
-# Full stack development (recommended)
-./scripts/dev.sh -d
-
-# Or manually:
-docker-compose -f docker-compose.dev.yaml up -d
-
-# Frontend only with hot reload
-cd frontend && npm run dev
-
-# Stop services
-docker-compose down
-```
-
-#### SvelteKit Frontend (New Version)
-```bash
-# SvelteKit development
+# SvelteKit development (recommended)
 ./scripts/dev-svelte.sh
 
 # Or via Docker:
-docker-compose -f docker-compose.svelte-dev.yaml up -d
+docker-compose -f docker-compose.dev.yaml up -d
 
 # Frontend only with hot reload
 cd frontend-svelte && npm run dev
 
 # Stop services  
-docker-compose -f docker-compose.svelte-dev.yaml down
-```
-
-#### Both Frontends Simultaneously
-```bash
-# Run both for comparison/testing
-./scripts/dev.sh -d
-./scripts/dev-svelte.sh
+docker-compose -f docker-compose.dev.yaml down
 
 # Access points:
-# React: http://localhost:3000
-# Svelte: http://localhost:5173
+# Frontend: http://localhost:5173 (dev) or http://localhost:3000 (production)
 # API: http://localhost:4000
 ```
 
 ### Frontend Commands
 
-#### React Frontend
-```bash
-cd frontend
-
-# Development
-npm run dev              # Start Vite dev server
-npm run build           # Production build
-npm run preview         # Preview production build
-
-# Testing
-npm run test            # Run unit tests
-npm run test:watch      # Watch mode
-npm run test:coverage   # Coverage report
-npm run test:e2e        # Playwright E2E tests
-npm run test:all        # All tests
-
-# Code Quality
-npm run lint            # ESLint check
-npm run type-check      # TypeScript check
-```
-
-#### SvelteKit Frontend
 ```bash
 cd frontend-svelte
 
@@ -176,36 +128,7 @@ PostgreSQL database `budgetdb` with partitioned tables:
 
 ## Frontend Architecture
 
-### React Frontend Structure (Stable)
-```
-frontend/src/
-├── components/
-│   ├── common/         # Shared UI components (Layout, ErrorBoundary, DataTable)
-│   ├── ui/            # shadcn/ui components
-│   ├── budget/        # Budget-specific components
-│   ├── fact/          # Fact-specific components
-│   ├── products/      # Product management components
-│   ├── reports/       # Reports and analytics components
-│   └── reference/     # Reference data management (Enhanced*Manager)
-├── pages/             # Route components (centralized Layout in App.tsx)
-├── services/          # API services and data transformers
-├── stores/           # Zustand state management
-├── hooks/            # Custom React hooks
-└── types/            # TypeScript type definitions
-```
-
-#### React State Management
-- **Zustand** for global state (authStore, toastStore, referenceDataStore)
-- **React Hook Form** for form state
-- **TanStack Table** for table state
-- **Custom hooks** for local state patterns
-
-#### React Routing
-- React Router v7 with centralized Layout in App.tsx
-- AuthGuard wrapper for protected routes
-- Lazy loading for code splitting
-
-### SvelteKit Frontend Structure (New Version)
+### SvelteKit Frontend Structure
 ```
 frontend-svelte/src/
 ├── lib/
@@ -274,34 +197,25 @@ All endpoints require user context for data isolation.
 
 ## Key Project Files
 
-### React Frontend (Stable)
-- `frontend/src/App.tsx` - Main React app with routing
-- `frontend/src/main.tsx` - Entry point
-- `frontend/vite.config.ts` - Vite configuration
-- `frontend/package.json` - Dependencies and scripts
-
-### SvelteKit Frontend (New Version)
+### SvelteKit Frontend
 - `frontend-svelte/src/routes/+layout.svelte` - Root layout
 - `frontend-svelte/src/app.html` - HTML template
 - `frontend-svelte/svelte.config.js` - SvelteKit configuration
 - `frontend-svelte/vite.config.ts` - Vite configuration
 - `frontend-svelte/package.json` - Dependencies and scripts
 
-### Shared Backend
+### Backend API
 - `frontend-api/src/index.ts` - Express server entry
 - `frontend-api/prisma/schema.prisma` - Database schema
 - `postgresql/ddl/budgetdb.sql` - SQL schema definition
 
 ### Docker Configurations
-- `docker-compose.yaml` - Production config (React)
-- `docker-compose.dev.yaml` - React development config
-- `docker-compose.svelte.yaml` - Production config (SvelteKit)
-- `docker-compose.svelte-dev.yaml` - SvelteKit development config
+- `docker-compose.yaml` - Production config
+- `docker-compose.dev.yaml` - Development config
 
 ### Environment & Scripts
 - `.env.dev` / `.env.prod` - Environment templates
-- `scripts/dev.sh` - React development script
-- `scripts/dev-svelte.sh` - SvelteKit development script
+- `scripts/dev-svelte.sh` - Development script
 - `scripts/prod.sh` - Production deployment script
 
 ## Development Guidelines
@@ -325,10 +239,8 @@ All endpoints require user context for data isolation.
 - **Export**: PNG/SVG functionality
 
 ### Code Style
-- **React Frontend**: ESLint + Prettier (see `.eslintrc`)
 - **SvelteKit Frontend**: ESLint + Prettier + Svelte plugin
 - **Backend**: ESLint for TypeScript
-- **Python**: Black (180 chars) + Flake8 (legacy API)
 
 ### SvelteKit Specific Guidelines
 - **Components**: Use .svelte extension with TypeScript lang="ts"
@@ -340,26 +252,21 @@ All endpoints require user context for data isolation.
 
 ### Testing Strategy
 
-#### React Testing
-- **Unit Tests**: Jest + React Testing Library
-- **E2E Tests**: Playwright
-- **Performance**: Playwright performance tests
-- **Accessibility**: axe-playwright for a11y
-
-#### SvelteKit Testing  
+#### Testing Strategy
 - **Unit Tests**: Vitest + @testing-library/svelte
-- **E2E Tests**: Playwright (shared with React)
+- **E2E Tests**: Playwright
 - **Performance**: Playwright performance tests
 - **Accessibility**: axe-playwright for a11y
 - **Component Tests**: @testing-library/svelte for isolated component testing
 
 ### Performance Optimizations
-- React.lazy() for code splitting
-- Virtualized scrolling for large lists
+- SvelteKit code splitting and lazy loading
+- Virtualized scrolling for large lists  
 - Debounced search and API calls
 - Optimistic UI updates
 - Redis caching layer
 - Prisma query optimization
+- Server-side rendering (SSR) support
 
 ### Security Practices
 - Telegram OAuth authentication
@@ -384,12 +291,11 @@ All endpoints require user context for data isolation.
 - Real-time cross-tab synchronization
 - Undo/Redo functionality
 
-### Migration from Dual-Stack (January 2025)
-- Unified API: Python + Node.js → Node.js only
-- ORM: Raw SQL → Prisma
-- Performance: 20-40% faster response times
-- Memory: 30-50% reduction
-- Services: 4 → 3 (simplified architecture)
+### Completed Migration (August 2025)
+- Frontend: React → SvelteKit for better performance and developer experience
+- Unified API: Python + Node.js → Node.js only with Prisma ORM
+- Performance: 20-40% faster response times, 30-50% memory reduction
+- Architecture: Simplified from dual-stack to unified SvelteKit + Node.js
 
 ## Deployment
 

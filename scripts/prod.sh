@@ -1,5 +1,6 @@
 #!/bin/bash
 # Production environment startup script
+# Now supports SvelteKit frontend only (React frontend removed)
 
 set -e  # Exit on error
 
@@ -32,16 +33,11 @@ if [ ! -f .env ]; then
 fi
 
 # Parse command line arguments
-INCLUDE_SVELTE=false
 BUILD_IMAGES=false
 EXTRA_ARGS=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --svelte)
-            INCLUDE_SVELTE=true
-            shift
-            ;;
         --build)
             BUILD_IMAGES=true
             EXTRA_ARGS="--build"
@@ -50,14 +46,12 @@ while [[ $# -gt 0 ]]; do
         --help)
             echo "Usage: $0 [options]"
             echo "Options:"
-            echo "  --svelte    Include Svelte frontend (accessible at /svelte)"
             echo "  --build     Force rebuild of Docker images"
             echo "  --help      Show this help message"
             echo ""
             echo "Production URLs (assuming DOMAIN=example.com):"
-            echo "  React Frontend:  https://app.example.com"
-            echo "  Svelte Frontend: https://app.example.com/svelte (if --svelte enabled)"
-            echo "  API:            https://api.example.com"
+            echo "  SvelteKit Frontend: https://app.example.com"
+            echo "  API:               https://api.example.com"
             exit 0
             ;;
         *)
@@ -89,22 +83,12 @@ source .env
 set +a
 
 # Start services
-if [ "$INCLUDE_SVELTE" = true ]; then
-    print_status "Starting all services including Svelte frontend..."
-    docker-compose up -d $EXTRA_ARGS
-    
-    print_status "Production environment is running!"
-    print_status "React Frontend:  https://${FRONTEND_SUBDOMAIN}.${DOMAIN}"
-    print_status "Svelte Frontend: https://${FRONTEND_SUBDOMAIN}.${DOMAIN}/svelte"
-    print_status "API:            https://${FRONTEND_API_SUBDOMAIN}.${DOMAIN}"
-else
-    print_status "Starting services without Svelte frontend..."
-    docker-compose up -d $EXTRA_ARGS postgres redis frontend frontend-api
-    
-    print_status "Production environment is running!"
-    print_status "React Frontend: https://${FRONTEND_SUBDOMAIN}.${DOMAIN}"
-    print_status "API:           https://${FRONTEND_API_SUBDOMAIN}.${DOMAIN}"
-fi
+print_status "Starting production services with SvelteKit frontend..."
+docker-compose up -d $EXTRA_ARGS
+
+print_status "Production environment is running!"
+print_status "SvelteKit Frontend: https://${FRONTEND_SUBDOMAIN}.${DOMAIN}"
+print_status "API:               https://${FRONTEND_API_SUBDOMAIN}.${DOMAIN}"
 
 echo ""
 print_status "To view logs: docker-compose logs -f"

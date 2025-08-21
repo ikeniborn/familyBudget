@@ -10,4 +10,5 @@ export * from './product.service';
 export * from './registry.service';
 export * from './reportService';
 export * from './reportDataTransformer';
+export * from './searchService';
 export * from './userService';

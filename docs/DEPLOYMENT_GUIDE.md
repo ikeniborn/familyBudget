@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide covers the deployment process for migrating from Streamlit to React frontend.
+This guide covers the deployment process for the SvelteKit-based Family Budget application.
 
 ## Prerequisites
 

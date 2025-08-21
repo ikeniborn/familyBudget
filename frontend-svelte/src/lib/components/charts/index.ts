@@ -1,6 +1,9 @@
 // Chart components exports
 // Core components
-export { default as ChartContainer } from './core/ChartContainer.svelte';
+export * from './core';
+
+// Performance components
+export * from './performance';
 
 // Business chart components
 export { default as BudgetGauge } from './business/BudgetGauge.svelte';
@@ -10,9 +13,10 @@ export { default as CategoryPieChart } from './business/CategoryPieChart.svelte'
 export { default as ComposedChartView } from './business/ComposedChartView.svelte';
 
 // Utilities
-export * from '$lib/utils/charts/formatters';
-export * from '$lib/utils/charts/export';
-export * from '$lib/utils/charts/dataTransform';
+export * from '$lib/utils/charts';
+
+// Hooks/Stores
+export * from '$lib/hooks/charts';
 
 // Types
 export type { ChartSeries } from './business/ComposedChartView.svelte';

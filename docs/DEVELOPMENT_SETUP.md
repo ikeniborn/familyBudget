@@ -21,7 +21,7 @@ This guide explains how to set up the complete Family Budget application for loc
 2. **Setup environment**
    ```bash
    # Option 1: Use the development script (recommended)
-   ./scripts/dev.sh
+   ./scripts/dev-svelte.sh
    
    # Option 2: Manual setup
    cp .env.dev .env
@@ -41,23 +41,23 @@ This guide explains how to set up the complete Family Budget application for loc
 
 After starting, services will be available at:
 
-- **Frontend (React)**: http://localhost:3000
+- **Frontend (SvelteKit)**: http://localhost:5173
 - **Frontend API (Unified Node.js)**: http://localhost:4000
 - **PostgreSQL**: localhost:5432
 - **Redis**: localhost:6379
 
 ## Development Workflow
 
-### Working on Frontend (React)
+### Working on Frontend (SvelteKit)
 
-The frontend uses Vite with hot module replacement:
+The frontend uses SvelteKit with Vite and hot module replacement:
 
 ```bash
 # Frontend logs
-docker-compose -f docker-compose.dev.yaml logs -f frontend-dev
+docker-compose -f docker-compose.dev.yaml logs -f frontend-svelte
 
 # Restart frontend only
-docker-compose -f docker-compose.dev.yaml restart frontend-dev
+docker-compose -f docker-compose.dev.yaml restart frontend-svelte
 ```
 
 Changes to frontend code will automatically reload in the browser.

@@ -1,4 +1,4 @@
-# Development Docker Compose configuration - Unified API with SvelteKit Frontend
+# Development Docker Compose configuration - Unified API
 # This file automatically uses .env file if present in the project root
 # For development, copy .env.dev to .env or use: ./scripts/dev.sh
 # All services include hot-reload for rapid development
@@ -48,6 +48,24 @@ services:
   frontend:
     container_name: frontend-dev
     build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:4000
+    networks:
+      - app_network
+    depends_on:
+      - frontend-api
+
+  frontend-svelte:
+    container_name: frontend-svelte-dev
+    build:
       context: ./frontend-svelte
       dockerfile: Dockerfile.dev
     volumes:
@@ -83,7 +101,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - USE_UNIFIED_API=true
-      - FRONTEND_URL=http://localhost:5173
+      - FRONTEND_URL=http://localhost:3000
       - SESSION_SECRET=${SESSION_SECRET:-dev-session-secret}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-dev_bot_token}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}

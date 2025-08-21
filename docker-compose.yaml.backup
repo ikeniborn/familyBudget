@@ -1,4 +1,4 @@
-# Production Docker Compose configuration - Unified API with SvelteKit Frontend
+# Production Docker Compose configuration - Unified API
 # This file automatically uses .env file if present in the project root
 # For production, use: docker-compose up -d
 # Or use the helper script: ./scripts/prod.sh
@@ -63,6 +63,39 @@ services:
     container_name: frontend
     hostname: frontend
     build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NODE_ENV=production
+    environment:
+      - NODE_ENV=production
+      - VITE_API_URL=https://${FRONTEND_API_SUBDOMAIN}.${DOMAIN}
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    cpuset: "0"
+    cpus: 0.1
+    mem_reservation: "50M"
+    mem_limit: "100M"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=app_network"
+      # Main domain - React frontend (default)
+      - "traefik.http.routers.frontend-main.rule=Host(`${FRONTEND_SUBDOMAIN}.${DOMAIN}`) && !PathPrefix(`/svelte`)"
+      - "traefik.http.routers.frontend-main.entrypoints=websecure"
+      - "traefik.http.routers.frontend-main.tls=true"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+
+  frontend-svelte:
+    container_name: frontend-svelte
+    hostname: frontend-svelte
+    build:
       context: ./frontend-svelte
       dockerfile: Dockerfile
       args:
@@ -80,18 +113,21 @@ services:
       retries: 5
       start_period: 30s
     restart: always
-    cpuset: "0"
-    cpus: 0.2
-    mem_reservation: "75M"
-    mem_limit: "150M"
+    cpuset: "1"
+    cpus: 0.1
+    mem_reservation: "50M"
+    mem_limit: "100M"
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=app_network"
-      # Main domain - SvelteKit frontend (now primary)
-      - "traefik.http.routers.frontend.rule=Host(`${FRONTEND_SUBDOMAIN}.${DOMAIN}`)"
-      - "traefik.http.routers.frontend.entrypoints=websecure"
-      - "traefik.http.routers.frontend.tls=true"
-      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+      # Svelte frontend at /svelte path
+      - "traefik.http.routers.frontend-svelte.rule=Host(`${FRONTEND_SUBDOMAIN}.${DOMAIN}`) && PathPrefix(`/svelte`)"
+      - "traefik.http.routers.frontend-svelte.entrypoints=websecure"
+      - "traefik.http.routers.frontend-svelte.tls=true"
+      # Strip /svelte prefix when forwarding to Svelte container
+      - "traefik.http.middlewares.svelte-stripprefix.stripPrefix.prefixes=/svelte"
+      - "traefik.http.routers.frontend-svelte.middlewares=svelte-stripprefix"
+      - "traefik.http.services.frontend-svelte.loadbalancer.server.port=3000"
 
   frontend-api:
     container_name: frontend-api
@@ -123,10 +159,10 @@ services:
       retries: 5
       start_period: 30s
     restart: always
-    cpuset: "0,1"  # Can use more CPU now that only one frontend exists
-    cpus: 0.4      # Increased to handle all API load
-    mem_reservation: "200M"  # Increased to handle more load
-    mem_limit: "400M"        # Increased memory limit
+    cpuset: "0,1"  # Can use more CPU now that Python API is removed
+    cpus: 0.3      # Increased from 0.15 to handle all API load
+    mem_reservation: "150M"  # Increased from 100M
+    mem_limit: "300M"        # Increased from 200M
     depends_on:
       - postgres
       - redis
