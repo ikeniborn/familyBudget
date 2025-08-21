@@ -4,7 +4,7 @@
   import { useToast } from '$lib/stores/toast.store';
   import { reportService, type ReportFilters } from '$lib/services/reportService';
   import { reportDataTransformer, type TransformedReportData } from '$lib/services/reportDataTransformer';
-  import ReportFilters from '$lib/components/reports/ReportFilters.svelte';
+  import ReportFiltersComponent from '$lib/components/reports/ReportFilters.svelte';
   import { 
     ComposedChartView, 
     CategoryPieChart, 
@@ -219,7 +219,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
       <!-- Enhanced Filters Sidebar -->
       <div class="lg:col-span-1 space-y-6">
-        <ReportFilters 
+        <ReportFiltersComponent 
           onApplyFilters={handleApplyFilters}
           isLoading={loading}
         />

@@ -52,14 +52,12 @@
     "workbox-window": "^7.3.0"
   },
   "dependencies": {
-    "@tanstack/svelte-table": "^8.20.6",
     "axios": "^1.7.9",
     "chart.js": "^4.4.7",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "html2canvas": "^1.4.1",
     "lucide-svelte": "^0.468.0",
-    "svelte-chartjs": "^3.1.5",
     "svelte-forms-lib": "^2.0.1",
     "tailwind-merge": "^2.6.0",
     "xlsx": "^0.18.5",

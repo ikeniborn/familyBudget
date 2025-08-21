@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, createEventDispatcher } from 'svelte';
-  import { Doughnut } from 'svelte-chartjs';
+  import { Doughnut } from '../core';
   import {
     Chart as ChartJS,
     Title,

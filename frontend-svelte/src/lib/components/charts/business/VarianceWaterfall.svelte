@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, createEventDispatcher } from 'svelte';
-  import { Bar } from 'svelte-chartjs';
+  import { Bar } from '../core';
   import {
     Chart as ChartJS,
     Title,

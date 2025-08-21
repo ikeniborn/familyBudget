@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { createColumnHelper, type ColumnDef } from '@tanstack/svelte-table';
+  // TODO: Replace with SimpleDataTable when needed
+  // import { createColumnHelper, type ColumnDef } from '@tanstack/svelte-table';
   import { currentUser } from '$lib/stores/auth.store';
   import { useToast } from '$lib/stores/toast.store';
   import { periodsService, type CreatePeriodData, type UpdatePeriodData } from '$lib/services/periods.service';
@@ -36,51 +37,47 @@
     'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
   ];
 
-  // Column helper
-  const columnHelper = createColumnHelper<Period>();
-
-  // Define table columns
-  const columns: ColumnDef<Period>[] = [
-    columnHelper.accessor('period_name', {
+  // Define table columns for CRUDTable
+  const columns = [
+    {
+      key: 'period_name',
       header: 'Название периода',
-      cell: (info) => info.getValue(),
-    }),
-    columnHelper.accessor('period_year', {
+      sortable: true
+    },
+    {
+      key: 'period_year',
       header: 'Год',
-      cell: (info) => info.getValue(),
-    }),
-    columnHelper.accessor('period_month', {
+      sortable: true
+    },
+    {
+      key: 'period_month',
       header: 'Месяц',
-      cell: (info) => {
-        const month = info.getValue();
-        return monthNames[month - 1] || '-';
-      },
-    }),
-    columnHelper.accessor('period_order', {
+      sortable: true,
+      render: (item: Period) => monthNames[item.period_month - 1] || '-'
+    },
+    {
+      key: 'period_order',
       header: 'Порядок',
-      cell: (info) => info.getValue(),
-    }),
-    columnHelper.accessor('is_active', {
+      sortable: true
+    },
+    {
+      key: 'is_active',
       header: 'Статус',
-      cell: (info) => {
-        const isActive = info.getValue();
-        return isActive 
-          ? { component: Badge, props: { variant: 'default', text: 'Активен' }}
-          : { component: Badge, props: { variant: 'secondary', text: 'Неактивен' }};
-      },
-    }),
-    columnHelper.accessor('created_at', {
+      render: (item: Period) => item.is_active ? 'Активен' : 'Неактивен'
+    },
+    {
+      key: 'created_at',
       header: 'Создан',
-      cell: (info) => {
-        const date = info.getValue();
-        if (!date) return '-';
-        return new Date(date).toLocaleDateString('ru-RU', {
+      sortable: true,
+      render: (item: Period) => {
+        if (!item.created_at) return '-';
+        return new Date(item.created_at).toLocaleDateString('ru-RU', {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
         });
-      },
-    }),
+      }
+    }
   ];
 
   // Load periods

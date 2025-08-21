@@ -27,11 +27,9 @@ Services run on Docker network:
 ### Start Development Environment
 
 ```bash
-# SvelteKit development (recommended)
-./scripts/dev-svelte.sh
-
-# Or via Docker:
-docker-compose -f docker-compose.dev.yaml up -d
+# Quick start with Docker (includes DB initialization)
+./scripts/dev.sh -d          # Detached mode
+./scripts/dev.sh --init-db    # Force DB reinitialization
 
 # Frontend only with hot reload
 cd frontend-svelte && npm run dev
@@ -56,37 +54,64 @@ npm run preview         # Preview production build
 
 # Testing
 npm run test            # Run Vitest unit tests
+npm run test:run        # Single test run (CI mode)
 npm run test:watch      # Watch mode  
-npm run test:e2e        # Playwright E2E tests
+npm run test:coverage   # Generate coverage report
+npm run test:ui         # Interactive UI for tests
 
 # Code Quality & Type Checking
 npm run lint            # ESLint check
 npm run check           # Svelte type checking
+npm run check:watch     # Type checking in watch mode
 npm run format          # Prettier formatting
+
+# Performance
+npm run lighthouse      # Run Lighthouse audit
+npm run perf:analyze    # Build + Lighthouse analysis
+```
+
+### Backend API Commands
+
+```bash
+cd frontend-api
+
+# Development
+npm run dev             # Run with nodemon (index-simple.ts)
+npm run dev:full        # Run full version with nodemon
+npm run build           # TypeScript build
+npm run start           # Production start
+
+# Testing  
+npm run test            # Run Jest tests
+npm run test:watch      # Jest watch mode
+npm run test:coverage   # Generate coverage report
+
+# Type Checking & Database
+npm run type-check      # TypeScript type checking
+npm run prisma:generate # Generate Prisma client
+npm run prisma:migrate  # Run Prisma migrations
+npm run prisma:studio   # Open Prisma Studio GUI
 ```
 
 ### Container Management
 ```bash
 # View logs
-docker logs -f frontend          # React frontend
 docker logs -f frontend-svelte   # SvelteKit frontend  
 docker logs -f frontend-api
 docker logs -f postgres
+docker logs -f redis
 
 # Access container
 docker exec -it frontend-api bash
-docker exec -it frontend bash
 docker exec -it frontend-svelte bash
 docker exec -it postgres psql -U budget -d budgetdb
 
 # Restart service
-docker restart frontend          # React
 docker restart frontend-svelte   # SvelteKit
 docker restart frontend-api
 
 # Rebuild specific service
-docker-compose -f docker-compose.dev.yaml build frontend
-docker-compose -f docker-compose.svelte-dev.yaml build frontend-svelte
+docker-compose -f docker-compose.dev.yaml build frontend-svelte
 docker-compose -f docker-compose.dev.yaml build frontend-api
 ```
 
@@ -112,7 +137,7 @@ PostgreSQL database `budgetdb` with partitioned tables:
 
 **Dimensions (Reference Data):**
 - `t_d_user` - Users with Telegram integration
-- `t_d_period` - Time periods
+- `t_d_period` - Time periods (format: YYYY.MM for monthly)
 - `t_d_financial_center` - Financial responsibility centers (ЦФО)
 - `t_d_cost_center` - Cost centers (МВЗ)
 - `t_d_nomenclature` - Budget categories
@@ -125,6 +150,11 @@ PostgreSQL database `budgetdb` with partitioned tables:
 - `t_d_product` - Product catalog
 - `t_f_product_price` - Price history
 - `t_l_product_nomenclature` - Product-category mapping
+
+**Key Relationships:**
+- All fact data is isolated by `user_id`
+- Registry entries link to period, financial_center, cost_center, nomenclature
+- Row type 1 = Plan, Row type 2 = Fact
 
 ## Frontend Architecture
 
@@ -183,17 +213,26 @@ frontend-svelte/src/
 ## API Structure
 
 Frontend-API endpoints at `/api/`:
-- `/auth/*` - Telegram authentication
-- `/users` - User management
-- `/periods` - Period operations
-- `/financial_centers` - ЦФО management
-- `/cost_centers` - МВЗ management
-- `/nomenclatures` - Category management
-- `/registry` - Transaction operations
-- `/products` - Product management
-- `/reports/*` - Analytics and reporting
+- `/auth/*` - Telegram authentication (POST /telegram for OAuth)
+- `/users` - User management (GET/POST/PUT/DELETE)
+- `/periods` - Period operations (CRUD + GET /current)
+- `/financial_centers` - ЦФО management (CRUD)
+- `/cost_centers` - МВЗ management (CRUD + GET by financial_center)
+- `/nomenclatures` - Category management (CRUD)
+- `/registry` - Transaction operations (CRUD + bulk operations)
+- `/products` - Product management (CRUD + price history)
+- `/reports/*` - Analytics and reporting (various aggregations)
 
-All endpoints require user context for data isolation.
+**Authentication Flow:**
+1. Frontend calls `/api/auth/telegram` with Telegram data
+2. Backend validates hash and creates/updates user
+3. Session is established via express-session
+4. All subsequent requests use session cookie
+
+**Data Isolation:**
+- All endpoints automatically filter by authenticated `user_id`
+- No cross-user data access possible
+- User context extracted from session middleware
 
 ## Key Project Files
 
@@ -215,8 +254,31 @@ All endpoints require user context for data isolation.
 
 ### Environment & Scripts
 - `.env.dev` / `.env.prod` - Environment templates
-- `scripts/dev-svelte.sh` - Development script
+- `scripts/dev.sh` - Development script with DB initialization
 - `scripts/prod.sh` - Production deployment script
+
+## Key Architectural Patterns
+
+### Frontend State Management
+- **Auth State**: Managed in `$lib/stores/auth.ts` with user session
+- **Toast Notifications**: Global toast store for user feedback
+- **API Client**: Axios instance with interceptors in `$lib/services/api.ts`
+- **Error Handling**: Centralized error handling with toast notifications
+
+### API Patterns
+- **Middleware Stack**: cors → helmet → compression → session → auth → routes
+- **Prisma Client**: Singleton pattern in `frontend-api/src/database/client.ts`
+- **Error Responses**: Standardized format `{ error: string, details?: any }`
+- **Session Management**: Redis-backed sessions with 24h TTL
+
+### Data Flow
+1. User action in Svelte component
+2. Call service function (`$lib/services/*.ts`)
+3. Service makes API call via axios
+4. API validates session and user context
+5. Prisma query with automatic user_id filtering
+6. Response transformation and return to frontend
+7. Update Svelte stores and UI reactively
 
 ## Development Guidelines
 
@@ -251,12 +313,10 @@ All endpoints require user context for data isolation.
 - **SSR**: Design components to work with server-side rendering
 
 ### Testing Strategy
-
-#### Testing Strategy
-- **Unit Tests**: Vitest + @testing-library/svelte
-- **E2E Tests**: Playwright
-- **Performance**: Playwright performance tests
-- **Accessibility**: axe-playwright for a11y
+- **Frontend (SvelteKit)**: Vitest + @testing-library/svelte, 50% coverage threshold
+- **Backend (Node.js)**: Jest + ts-jest, 70-80% coverage threshold  
+- **E2E Tests**: Playwright (configuration needed)
+- **Performance**: Lighthouse CI for performance audits
 - **Component Tests**: @testing-library/svelte for isolated component testing
 
 ### Performance Optimizations
@@ -297,6 +357,20 @@ All endpoints require user context for data isolation.
 - Performance: 20-40% faster response times, 30-50% memory reduction
 - Architecture: Simplified from dual-stack to unified SvelteKit + Node.js
 
+## CI/CD Pipeline
+
+GitHub Actions workflow (`.github/workflows/ci-cd.yml`) runs on:
+- Push to `master` or `develop` branches
+- Pull requests to `master`
+
+**Pipeline Steps:**
+1. Frontend tests (lint, test, build)
+2. Backend API tests (lint, test, build)
+3. Docker image build and push to GitHub Container Registry
+4. Coverage reports upload
+
+**Note**: CI/CD configuration needs updating for SvelteKit migration (currently references old React frontend paths)
+
 ## Deployment
 
 ### Production
@@ -322,6 +396,27 @@ Key variables in `.env`:
 - PostgreSQL: Daily at midnight via cron
 - Destination: Yandex Object Storage via MinIO
 - Script: `postgresql/backup/postgres-backup.sh`
+
+## Important Conventions
+
+### Data Formatting
+- **Periods**: Format as "YYYY.MM" (e.g., "2025.01")
+- **Money Values**: Store as decimal(10,2) in database
+- **User IDs**: Always use authenticated user_id from session
+- **Row Types**: 1 = Plan (budget), 2 = Fact (actual)
+
+### Frontend Conventions
+- **Component Imports**: Use `$lib/` aliases for absolute imports
+- **API Calls**: Always use service layer, never direct axios in components
+- **Forms**: Use Yup or Zod for validation schemas
+- **Tables**: Use @tanstack/svelte-table for data grids
+- **Charts**: Use Chart.js via svelte-chartjs wrapper
+
+### Backend Conventions  
+- **Route Handlers**: Always check `req.session.userId` first
+- **Prisma Queries**: Include `where: { user_id }` in all queries
+- **Error Handling**: Use try-catch with standardized error responses
+- **Transactions**: Use Prisma transactions for multi-table operations
 
 ## Troubleshooting
 

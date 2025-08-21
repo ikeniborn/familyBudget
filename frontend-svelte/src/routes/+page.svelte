@@ -42,7 +42,7 @@
           <h2 class="font-semibold text-green-900 mb-2">Установленные пакеты</h2>
           <ul class="space-y-1 text-sm text-green-700">
             <li>✓ svelte-forms-lib</li>
-            <li>✓ @tanstack/svelte-table</li>
+            <li>✓ SimpleDataTable (собственный компонент)</li>
             <li>✓ chart.js</li>
             <li>✓ axios</li>
           </ul>

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { createColumnHelper, type ColumnDef } from '@tanstack/svelte-table';
+  import { createColumns, type ColumnDef } from '$lib/utils/tableCompatibility';
   import { currentUser } from '$lib/stores/auth.store';
   import { useToast } from '$lib/stores/toast.store';
   import { nomenclaturesService, type CreateNomenclatureData, type UpdateNomenclatureData } from '$lib/services/nomenclatures.service';
@@ -32,60 +32,27 @@
 
   const toast = useToast();
 
-  // Column helper
-  const columnHelper = createColumnHelper<Nomenclature>();
-
-  // Define table columns
-  const columns: ColumnDef<Nomenclature>[] = [
-    columnHelper.accessor('nomenclature_name', {
-      header: 'Номенклатура',
-      cell: (info) => info.getValue(),
-    }),
-    columnHelper.accessor('bill_name', {
-      header: 'Статья бюджета',
-      cell: (info) => info.getValue(),
-    }),
-    columnHelper.accessor('account_name', {
-      header: 'Название счета',
-      cell: (info) => info.getValue(),
-    }),
-    columnHelper.accessor('operation_name', {
-      header: 'Название операции',
-      cell: (info) => info.getValue(),
-    }),
-    columnHelper.accessor('is_fact', {
-      header: 'Факт',
-      cell: (info) => {
-        const isFact = info.getValue();
-        return isFact 
-          ? { component: Badge, props: { variant: 'default', text: 'Да' }}
-          : { component: Badge, props: { variant: 'secondary', text: 'Нет' }};
-      },
-    }),
-    columnHelper.accessor('is_active', {
-      header: 'Статус',
-      cell: (info) => {
-        const isActive = info.getValue();
-        return isActive 
-          ? { component: Badge, props: { variant: 'default', text: 'Активен' }}
-          : { component: Badge, props: { variant: 'secondary', text: 'Неактивен' }};
-      },
-    }),
-    columnHelper.accessor('created_at', {
-      header: 'Дата создания',
-      cell: (info) => {
-        const date = info.getValue();
-        if (!date) return '-';
-        return new Date(date).toLocaleDateString('ru-RU', {
+  // Define table columns using the new system
+  const columns = createColumns<Nomenclature>([
+    ['nomenclature_name', 'Номенклатура'],
+    ['bill_name', 'Статья бюджета'],
+    ['account_name', 'Название счета'],
+    ['operation_name', 'Название операции'],
+    ['is_fact', 'Факт', { render: (item) => item.is_fact ? 'Да' : 'Нет' }],
+    ['is_active', 'Статус', { render: (item) => item.is_active ? 'Активен' : 'Неактивен' }],
+    ['created_at', 'Дата создания', { 
+      render: (item) => {
+        if (!item.created_at) return '-';
+        return new Date(item.created_at).toLocaleDateString('ru-RU', {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
           hour: '2-digit',
           minute: '2-digit',
         });
-      },
-    }),
-  ];
+      }
+    }]
+  ]);
 
   // Load nomenclatures
   async function fetchNomenclatures() {

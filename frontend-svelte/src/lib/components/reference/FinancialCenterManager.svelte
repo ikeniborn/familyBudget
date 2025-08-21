@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { createColumnHelper, type ColumnDef } from '@tanstack/svelte-table';
+  // TODO: Replace with SimpleDataTable when needed
+  // import { createColumnHelper, type ColumnDef } from '@tanstack/svelte-table';
   import { currentUser } from '$lib/stores/auth.store';
   import { useToast } from '$lib/stores/toast.store';
   import { financialCentersService, type CreateFinancialCenterData, type UpdateFinancialCenterData } from '$lib/services/financialCenters.service';
@@ -29,42 +30,38 @@
 
   const toast = useToast();
 
-  // Column helper
-  const columnHelper = createColumnHelper<FinancialCenter>();
-
-  // Define table columns
-  const columns: ColumnDef<FinancialCenter>[] = [
-    columnHelper.accessor('financial_center_name', {
+  // Define table columns for CRUDTable
+  const columns = [
+    {
+      key: 'financial_center_name',
       header: 'Название ЦФО',
-      cell: (info) => info.getValue(),
-    }),
-    columnHelper.accessor('financial_center_order', {
+      sortable: true
+    },
+    {
+      key: 'financial_center_order',
       header: 'Порядок',
-      cell: (info) => info.getValue(),
-    }),
-    columnHelper.accessor('is_active', {
+      sortable: true
+    },
+    {
+      key: 'is_active',
       header: 'Статус',
-      cell: (info) => {
-        const isActive = info.getValue();
-        return isActive 
-          ? { component: Badge, props: { variant: 'default', text: 'Активен' }}
-          : { component: Badge, props: { variant: 'secondary', text: 'Неактивен' }};
-      },
-    }),
-    columnHelper.accessor('created_at', {
+      render: (item: FinancialCenter) => item.is_active ? 'Активен' : 'Неактивен'
+    },
+    {
+      key: 'created_at',
       header: 'Дата создания',
-      cell: (info) => {
-        const date = info.getValue();
-        if (!date) return '-';
-        return new Date(date).toLocaleDateString('ru-RU', {
+      sortable: true,
+      render: (item: FinancialCenter) => {
+        if (!item.created_at) return '-';
+        return new Date(item.created_at).toLocaleDateString('ru-RU', {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
           hour: '2-digit',
           minute: '2-digit',
         });
-      },
-    }),
+      }
+    }
   ];
 
   // Load financial centers
