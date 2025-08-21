@@ -265,7 +265,7 @@
         backgroundColor: chartTheme.tooltip.backgroundColor,
         titleColor: chartTheme.tooltip.color,
         bodyColor: chartTheme.tooltip.color,
-        borderColor: '#475569',
+        borderColor: chartTheme.colors.neutral,
         borderWidth: 1,
         cornerRadius: 8,
         callbacks: {
@@ -398,7 +398,7 @@
   {loading}
   {error}
   exportable={true}
-  borderColor="border-l-green-500"
+  variant="sky"
   on:export={handleExport}
   let:setChartRef
 >

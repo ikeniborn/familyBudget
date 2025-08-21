@@ -78,7 +78,7 @@
         name: 'Прочее',
         value: otherSum,
         percentage: (otherSum / total) * 100,
-        color: '#9CA3AF',
+        color: chartTheme.colors.neutral,
         isOther: true,
       });
     }
@@ -128,7 +128,7 @@
           font: {
             size: 12,
           },
-          color: chartTheme.colors.gray,
+          color: chartTheme.colors.neutral,
           usePointStyle: true,
           padding: 20,
           generateLabels: (chart) => {
@@ -160,7 +160,7 @@
         backgroundColor: chartTheme.tooltip.backgroundColor,
         titleColor: chartTheme.tooltip.color,
         bodyColor: chartTheme.tooltip.color,
-        borderColor: '#475569',
+        borderColor: chartTheme.colors.neutral,
         borderWidth: 1,
         cornerRadius: 8,
         callbacks: {
@@ -266,7 +266,7 @@
   {loading}
   {error}
   exportable={true}
-  borderColor="border-l-purple-500"
+  variant="beige"
   on:export={handleExport}
   let:setChartRef
 >
@@ -277,7 +277,7 @@
         type="text"
         placeholder="Поиск категорий..."
         bind:value={searchTerm}
-        class="text-xs border border-gray-300 rounded pl-7 pr-2 py-1 w-32"
+        class="text-xs border border-steel/30 rounded pl-7 pr-2 py-1 w-32 focus:border-navy/50 focus:outline-none"
       />
     </div>
   </div>
@@ -298,10 +298,10 @@
         {#if showDonut}
           <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div class="text-center">
-              <div class="text-lg font-bold text-gray-900">
+              <div class="text-lg font-bold text-navy-dark">
                 {formatters.currency(visibleTotal)}
               </div>
-              <div class="text-xs text-gray-500">Всего</div>
+              <div class="text-xs text-steel">Всего</div>
             </div>
           </div>
         {/if}
@@ -314,18 +314,18 @@
             <button
               on:click={() => handleLegendClick(item.name)}
               class="flex items-center gap-2 px-2 py-1 rounded transition-all {
-                hiddenCategories.has(item.name) ? 'opacity-50 line-through' : 'hover:bg-gray-100'
+                hiddenCategories.has(item.name) ? 'opacity-50 line-through' : 'hover:bg-navy/5'
               }"
             >
               <div
                 class="w-3 h-3 rounded"
-                style="background-color: {hiddenCategories.has(item.name) ? '#D1D5DB' : item.color}"
+                style="background-color: {hiddenCategories.has(item.name) ? chartTheme.colors.neutral : item.color}"
               />
-              <span class="text-sm text-gray-600">{item.name}</span>
+              <span class="text-sm text-steel-dark">{item.name}</span>
               {#if hiddenCategories.has(item.name)}
-                <EyeOff class="h-3 w-3 text-gray-400" />
+                <EyeOff class="h-3 w-3 text-steel" />
               {:else}
-                <Eye class="h-3 w-3 text-gray-400" />
+                <Eye class="h-3 w-3 text-steel" />
               {/if}
             </button>
           {/each}
@@ -333,14 +333,14 @@
       {/if}
     {:else}
       <div class="flex flex-col justify-center items-center py-12 text-center h-full">
-        <div class="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-          <svg class="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div class="h-16 w-16 bg-steel/20 rounded-full flex items-center justify-center mb-4">
+          <svg class="h-8 w-8 text-steel" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
           </svg>
         </div>
-        <h3 class="text-lg font-medium text-gray-900 mb-2">Нет данных</h3>
-        <p class="text-gray-600">Добавьте категории для отображения распределения</p>
+        <h3 class="text-lg font-medium text-navy-dark mb-2">Нет данных</h3>
+        <p class="text-steel-dark">Добавьте категории для отображения распределения</p>
       </div>
     {/if}
   </div>
@@ -350,14 +350,14 @@
       <!-- Other categories details -->
       {#if otherData.length > 0}
         <details class="mt-4">
-          <summary class="text-sm text-gray-600 cursor-pointer hover:text-gray-800">
+          <summary class="text-sm text-steel-dark cursor-pointer hover:text-navy-dark">
             Показать детали категории "Прочее" ({otherData.length} категорий)
           </summary>
           <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
             {#each otherData as item}
-              <div class="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
-                <span class="text-gray-600 truncate">{item.name}</span>
-                <span class="font-medium text-gray-900 ml-2">
+              <div class="flex items-center justify-between p-2 bg-navy/5 rounded text-sm">
+                <span class="text-steel-dark truncate">{item.name}</span>
+                <span class="font-medium text-navy-dark ml-2">
                   {formatters.currency(item.value)}
                 </span>
               </div>
@@ -368,21 +368,21 @@
 
       <!-- Summary stats -->
       <div class="mt-4 grid grid-cols-3 gap-4 text-center text-sm">
-        <div class="bg-gray-50 rounded-lg p-2">
-          <div class="text-gray-500 text-xs">Категорий</div>
-          <div class="font-medium text-gray-900">
+        <div class="bg-navy/5 rounded-lg p-2">
+          <div class="text-steel text-xs">Категорий</div>
+          <div class="font-medium text-navy-dark">
             {summaryStats.categoryCount}
           </div>
         </div>
-        <div class="bg-gray-50 rounded-lg p-2">
-          <div class="text-gray-500 text-xs">Крупнейшая</div>
-          <div class="font-medium text-gray-900">
+        <div class="bg-navy/5 rounded-lg p-2">
+          <div class="text-steel text-xs">Крупнейшая</div>
+          <div class="font-medium text-navy-dark">
             {summaryStats.largestPercentage.toFixed(1)}%
           </div>
         </div>
-        <div class="bg-gray-50 rounded-lg p-2">
-          <div class="text-gray-500 text-xs">Средняя</div>
-          <div class="font-medium text-gray-900">
+        <div class="bg-navy/5 rounded-lg p-2">
+          <div class="text-steel text-xs">Средняя</div>
+          <div class="font-medium text-navy-dark">
             {summaryStats.averagePercentage.toFixed(1)}%
           </div>
         </div>

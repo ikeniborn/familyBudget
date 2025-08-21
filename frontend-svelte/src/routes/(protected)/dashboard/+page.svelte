@@ -19,7 +19,11 @@
     ArrowRight,
     Target,
     PiggyBank,
-    AlertTriangle
+    AlertTriangle,
+    Wallet,
+    TrendingUpIcon as LineChart,
+    PieChart,
+    Banknote
   } from 'lucide-svelte';
   
   let loading = true;
@@ -73,87 +77,89 @@
   </div>
 {:else}
   <div class="space-y-6">
-    <!-- Welcome Section -->
-    <div class="mb-8">
-      <h1 class="text-3xl font-bold text-slate-900 mb-2">Добро пожаловать! 👋</h1>
-      <p class="text-slate-600">
+    <!-- Welcome Section with Geometric Accent -->
+    <div class="mb-8 relative">
+      <div class="absolute top-0 left-0 w-16 h-16 bg-gradient-to-br from-navy/10 to-sky/10 rounded-full opacity-50"></div>
+      <div class="absolute top-4 left-4 w-8 h-8 bg-navy/20 rotate-45 rounded-sm"></div>
+      <h1 class="text-3xl font-bold text-navy-dark mb-2 relative z-10">Добро пожаловать в Family Budget</h1>
+      <p class="text-steel-dark relative z-10">
         Вот краткий обзор вашего финансового состояния на сегодня
       </p>
     </div>
 
     <!-- Budget Overview Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <Card class="border-l-4 border-l-blue-500">
+      <Card variant="navy">
         <div class="p-6">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm font-medium text-slate-600">Общий бюджет</p>
-              <p class="text-2xl font-bold text-slate-900">
+              <p class="text-sm font-medium text-steel-dark">Общий бюджет</p>
+              <p class="text-2xl font-bold text-navy-dark">
                 {budgetSummary.totalBudget.toLocaleString()} ₽
               </p>
             </div>
-            <div class="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
-              <Target class="h-6 w-6 text-blue-600" />
+            <div class="financial-icon navy sm">
+              <Target class="h-6 w-6" />
             </div>
           </div>
         </div>
       </Card>
 
-      <Card class="border-l-4 border-l-red-500">
+      <Card variant="steel">
         <div class="p-6">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm font-medium text-slate-600">Потрачено</p>
-              <p class="text-2xl font-bold text-slate-900">
+              <p class="text-sm font-medium text-steel-dark">Потрачено</p>
+              <p class="text-2xl font-bold text-navy-dark">
                 {budgetSummary.totalSpent.toLocaleString()} ₽
               </p>
-              <p class="text-xs text-red-600 flex items-center mt-1">
+              <p class="text-xs text-steel flex items-center mt-1">
                 <TrendingDown class="h-3 w-3 mr-1" />
                 58% от бюджета
               </p>
             </div>
-            <div class="h-12 w-12 bg-red-100 rounded-full flex items-center justify-center">
-              <CreditCard class="h-6 w-6 text-red-600" />
+            <div class="financial-icon steel sm">
+              <CreditCard class="h-6 w-6" />
             </div>
           </div>
         </div>
       </Card>
 
-      <Card class="border-l-4 border-l-green-500">
+      <Card variant="sky">
         <div class="p-6">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm font-medium text-slate-600">Остаток</p>
-              <p class="text-2xl font-bold text-slate-900">
+              <p class="text-sm font-medium text-steel-dark">Остаток</p>
+              <p class="text-2xl font-bold text-navy-dark">
                 {budgetSummary.remaining.toLocaleString()} ₽
               </p>
-              <p class="text-xs text-green-600 flex items-center mt-1">
+              <p class="text-xs text-sky flex items-center mt-1">
                 <TrendingUp class="h-3 w-3 mr-1" />
                 42% доступно
               </p>
             </div>
-            <div class="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
-              <PiggyBank class="h-6 w-6 text-green-600" />
+            <div class="financial-icon sky sm">
+              <PiggyBank class="h-6 w-6" />
             </div>
           </div>
         </div>
       </Card>
 
-      <Card class="border-l-4 border-l-purple-500">
+      <Card variant="beige">
         <div class="p-6">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm font-medium text-slate-600">Экономия</p>
-              <p class="text-2xl font-bold text-slate-900">
+              <p class="text-sm font-medium text-steel-dark">Экономия</p>
+              <p class="text-2xl font-bold text-navy-dark">
                 {(budgetSummary.totalBudget - budgetSummary.totalSpent).toLocaleString()} ₽
               </p>
-              <p class="text-xs text-purple-600 flex items-center mt-1">
+              <p class="text-xs text-beige flex items-center mt-1">
                 <DollarSign class="h-3 w-3 mr-1" />
                 К концу месяца
               </p>
             </div>
-            <div class="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center">
-              <TrendingUp class="h-6 w-6 text-purple-600" />
+            <div class="financial-icon beige sm">
+              <Wallet class="h-6 w-6" />
             </div>
           </div>
         </div>
@@ -162,13 +168,15 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Quick Actions -->
-      <Card>
+      <Card variant="elevated">
         <div class="p-6">
-          <h3 class="text-lg font-semibold mb-2 flex items-center">
-            <Plus class="h-5 w-5 mr-2" />
+          <h3 class="text-lg font-semibold mb-2 flex items-center text-navy-dark">
+            <div class="financial-icon navy sm mr-3">
+              <Plus class="h-4 w-4" />
+            </div>
             Быстрые действия
           </h3>
-          <p class="text-sm text-slate-600 mb-4">
+          <p class="text-sm text-steel-dark mb-4">
             Управляйте вашим бюджетом одним кликом
           </p>
           <div class="space-y-3">
@@ -193,10 +201,15 @@
       </Card>
 
       <!-- Category Budget Progress -->
-      <Card>
+      <Card variant="elevated">
         <div class="p-6">
-          <h3 class="text-lg font-semibold mb-2">Прогресс по категориям</h3>
-          <p class="text-sm text-slate-600 mb-4">
+          <h3 class="text-lg font-semibold mb-2 flex items-center text-navy-dark">
+            <div class="financial-icon sky sm mr-3">
+              <PieChart class="h-4 w-4" />
+            </div>
+            Прогресс по категориям
+          </h3>
+          <p class="text-sm text-steel-dark mb-4">
             Использование бюджета по основным категориям
           </p>
           <div class="space-y-4">
@@ -206,7 +219,7 @@
               
               <div class="space-y-2">
                 <div class="flex items-center justify-between">
-                  <span class="text-sm font-medium">{category.name}</span>
+                  <span class="text-sm font-medium text-navy-dark">{category.name}</span>
                   <div class="flex items-center space-x-2">
                     {#if isOverBudget}
                       <AlertTriangle class="h-4 w-4 text-red-500" />
@@ -216,13 +229,13 @@
                     </Badge>
                   </div>
                 </div>
-                <div class="w-full bg-slate-200 rounded-full h-2">
+                <div class="w-full bg-steel/20 rounded-full h-2">
                   <div
-                    class="h-2 rounded-full {isOverBudget ? 'bg-red-500' : category.color}"
+                    class="h-2 rounded-full {isOverBudget ? 'bg-steel' : 'bg-sky'}"
                     style="width: {Math.min(percentage, 100)}%"
                   ></div>
                 </div>
-                <div class="flex justify-between text-xs text-slate-600">
+                <div class="flex justify-between text-xs text-steel">
                   <span>{category.spent.toLocaleString()} ₽</span>
                   <span>{category.budget.toLocaleString()} ₽</span>
                 </div>
@@ -233,24 +246,29 @@
       </Card>
 
       <!-- Recent Transactions -->
-      <Card>
+      <Card variant="elevated">
         <div class="p-6">
-          <h3 class="text-lg font-semibold mb-2">Последние операции</h3>
-          <p class="text-sm text-slate-600 mb-4">
+          <h3 class="text-lg font-semibold mb-2 flex items-center text-navy-dark">
+            <div class="financial-icon beige sm mr-3">
+              <LineChart class="h-4 w-4" />
+            </div>
+            Последние операции
+          </h3>
+          <p class="text-sm text-steel-dark mb-4">
             Недавние доходы и расходы
           </p>
           <div class="space-y-3">
             {#each recentTransactions as transaction}
-              <div class="flex items-center justify-between p-3 border rounded-lg">
+              <div class="flex items-center justify-between p-3 border border-steel/20 rounded-lg hover:border-navy/30 transition-colors">
                 <div class="flex-1">
-                  <p class="font-medium text-sm">{transaction.description}</p>
-                  <p class="text-xs text-slate-500">{transaction.category}</p>
+                  <p class="font-medium text-sm text-navy-dark">{transaction.description}</p>
+                  <p class="text-xs text-steel">{transaction.category}</p>
                 </div>
                 <div class="text-right">
-                  <p class="font-semibold {transaction.amount > 0 ? 'text-green-600' : 'text-red-600'}">
+                  <p class="font-semibold {transaction.amount > 0 ? 'text-sky' : 'text-steel'}">
                     {transaction.amount > 0 ? '+' : ''}{transaction.amount.toLocaleString()} ₽
                   </p>
-                  <p class="text-xs text-slate-500">{transaction.date}</p>
+                  <p class="text-xs text-steel">{transaction.date}</p>
                 </div>
               </div>
             {/each}

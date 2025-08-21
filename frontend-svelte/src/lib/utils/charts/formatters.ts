@@ -66,44 +66,46 @@ export const formatters = {
 
 // Chart theme constants
 export const chartTheme = {
-  // Color palette
+  // New design system color palette
   colors: {
-    primary: '#3B82F6', // blue-500
-    secondary: '#8B5CF6', // violet-500
-    success: '#10B981', // emerald-500
-    warning: '#F59E0B', // amber-500
-    danger: '#EF4444', // red-500
-    info: '#06B6D4', // cyan-500
-    gray: '#6B7280', // gray-500
-    lightGray: '#F3F4F6', // gray-100
-    darkGray: '#1F2937', // gray-800
+    primary: '#1e3a5f', // navy-dark
+    secondary: '#7fb3d5', // sky-light
+    accent: '#d4b896', // beige
+    neutral: '#a8c0d0', // steel
+    success: '#7fb3d5', // sky-light
+    warning: '#d4b896', // beige
+    danger: '#a8c0d0', // steel
+    info: '#7fb3d5', // sky-light
+    gray: '#a8c0d0', // steel
+    lightGray: '#f8fafc', // slate-50
+    darkGray: '#1e3a5f', // navy-dark
     
-    // Extended palette for multiple series
+    // Extended palette for multiple series - new design system
     palette: [
-      '#3B82F6', // blue-500
-      '#EF4444', // red-500  
-      '#10B981', // emerald-500
-      '#F59E0B', // amber-500
-      '#8B5CF6', // violet-500
-      '#06B6D4', // cyan-500
-      '#EC4899', // pink-500
-      '#84CC16', // lime-500
-      '#F97316', // orange-500
-      '#6366F1', // indigo-500
+      '#1e3a5f', // navy-dark (primary)
+      '#7fb3d5', // sky-light (secondary)
+      '#d4b896', // beige (accent)
+      '#a8c0d0', // steel (neutral)
+      '#2a4a6b', // navy variant
+      '#6ba3c7', // sky variant
+      '#c8a582', // beige variant
+      '#9bb5c4', // steel variant
+      '#345a7f', // navy-light
+      '#8bbdd9', // sky-lighter
     ],
 
-    // Variance analysis colors
+    // Variance analysis colors - new design system
     variance: {
-      positive: '#10B981',
-      negative: '#EF4444',
-      neutral: '#6B7280',
+      positive: '#7fb3d5', // sky-light
+      negative: '#a8c0d0', // steel
+      neutral: '#d4b896', // beige
     },
 
-    // Budget gauge colors
+    // Budget gauge colors - new design system
     gauge: {
-      good: '#10B981',
-      warning: '#F59E0B', 
-      danger: '#EF4444',
+      good: '#7fb3d5', // sky-light
+      warning: '#d4b896', // beige
+      danger: '#a8c0d0', // steel
     },
   },
 
@@ -156,7 +158,7 @@ export const chartTheme = {
 
   // Grid and axis styling
   grid: {
-    color: '#F1F5F9', // slate-100
+    color: '#e2e8f0', // slate-200
     strokeDasharray: '2 2',
     strokeWidth: 1,
   },
@@ -169,9 +171,9 @@ export const chartTheme = {
 
   // Tooltip styling
   tooltip: {
-    backgroundColor: '#1E293B', // slate-800
+    backgroundColor: '#1e3a5f', // navy-dark
     color: '#FFFFFF',
-    border: '1px solid #475569', // slate-600
+    border: '1px solid #a8c0d0', // steel
     borderRadius: 8,
     padding: 12,
     fontSize: 12,

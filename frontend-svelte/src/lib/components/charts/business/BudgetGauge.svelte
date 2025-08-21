@@ -54,25 +54,25 @@
   $: remainingValue = Math.max(0, actualMaxValue - actualCurrentValue);
   $: overageValue = Math.max(0, actualCurrentValue - actualMaxValue);
 
-  // Status configuration
+  // Status configuration with new design system colors
   const statusConfig = {
     good: {
       message: 'В пределах нормы',
       icon: '✅',
-      bgColor: 'bg-green-50',
-      textColor: 'text-green-700',
+      bgColor: 'bg-sky/10',
+      textColor: 'text-sky',
     },
     warning: {
       message: 'Приближается к лимиту',
       icon: '⚠️',
-      bgColor: 'bg-yellow-50',
-      textColor: 'text-yellow-700',
+      bgColor: 'bg-beige/20',
+      textColor: 'text-beige',
     },
     danger: {
       message: 'Превышен лимит',
       icon: '🚨',
-      bgColor: 'bg-red-50',
-      textColor: 'text-red-700',
+      bgColor: 'bg-steel/20',
+      textColor: 'text-steel',
     },
   };
 
@@ -85,7 +85,7 @@
       data: [percentage, Math.max(0, 100 - percentage)],
       backgroundColor: [
         color,
-        '#E5E7EB', // gray-200
+        chartTheme.colors.neutral + '40', // steel with opacity
       ],
       borderWidth: 0,
       cutout: '60%',
@@ -112,7 +112,7 @@
         backgroundColor: chartTheme.tooltip.backgroundColor,
         titleColor: chartTheme.tooltip.color,
         bodyColor: chartTheme.tooltip.color,
-        borderColor: '#475569',
+        borderColor: chartTheme.colors.neutral,
         borderWidth: 1,
         cornerRadius: 8,
         callbacks: {
@@ -151,7 +151,7 @@
   {loading}
   {error}
   exportable={true}
-  borderColor="border-l-blue-500"
+  variant="navy"
   on:export={handleExport}
   let:setChartRef
 >
@@ -172,14 +172,14 @@
         <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <div class="text-center mt-8">
             {#if showPercentage}
-              <div class="text-3xl font-bold text-gray-900 mb-1">
+              <div class="text-3xl font-bold text-navy-dark mb-1">
                 {percentage.toFixed(1)}%
               </div>
             {/if}
-            <div class="text-sm text-gray-600">
+            <div class="text-sm text-steel-dark">
               {formatters.currency(actualCurrentValue)}
             </div>
-            <div class="text-xs text-gray-500">
+            <div class="text-xs text-steel">
               из {formatters.currency(actualMaxValue)}
             </div>
           </div>
@@ -197,31 +197,31 @@
 
     <!-- Threshold Indicators -->
     <div class="mt-4 w-full max-w-xs">
-      <div class="flex justify-between text-xs text-gray-500 mb-1">
+      <div class="flex justify-between text-xs text-steel mb-1">
         <span>0%</span>
         <span>{thresholds.good}%</span>
         <span>{thresholds.warning}%</span>
         <span>100%</span>
       </div>
-      <div class="relative h-2 bg-gray-200 rounded-full overflow-hidden">
+      <div class="relative h-2 bg-steel/20 rounded-full overflow-hidden">
         <!-- Good zone -->
         <div
-          class="absolute top-0 left-0 h-full bg-green-500"
+          class="absolute top-0 left-0 h-full bg-sky"
           style="width: {thresholds.good}%"
         />
         <!-- Warning zone -->
         <div
-          class="absolute top-0 h-full bg-yellow-500"
+          class="absolute top-0 h-full bg-beige"
           style="left: {thresholds.good}%; width: {thresholds.warning - thresholds.good}%"
         />
         <!-- Danger zone -->
         <div
-          class="absolute top-0 h-full bg-red-500"
+          class="absolute top-0 h-full bg-steel"
           style="left: {thresholds.warning}%; width: {100 - thresholds.warning}%"
         />
         <!-- Current position indicator -->
         <div
-          class="absolute top-0 w-1 h-full bg-gray-900 transition-all duration-1000"
+          class="absolute top-0 w-1 h-full bg-navy-dark transition-all duration-1000"
           style="left: {Math.min(percentage, 100)}%"
         />
       </div>
@@ -229,17 +229,17 @@
 
     <!-- Additional Metrics -->
     <div class="mt-4 grid grid-cols-2 gap-4 w-full max-w-xs text-center">
-      <div class="bg-gray-50 rounded-lg p-2">
-        <div class="text-xs text-gray-500">Остаток</div>
-        <div class="text-sm font-medium text-gray-900">
+      <div class="bg-navy/5 rounded-lg p-2">
+        <div class="text-xs text-steel">Остаток</div>
+        <div class="text-sm font-medium text-navy-dark">
           {formatters.currency(remainingValue)}
         </div>
       </div>
-      <div class="bg-gray-50 rounded-lg p-2">
-        <div class="text-xs text-gray-500">
+      <div class="bg-navy/5 rounded-lg p-2">
+        <div class="text-xs text-steel">
           {percentage > 100 ? 'Превышение' : 'До лимита'}
         </div>
-        <div class="text-sm font-medium text-gray-900">
+        <div class="text-sm font-medium text-navy-dark">
           {percentage > 100 
             ? formatters.currency(overageValue)
             : `${(100 - percentage).toFixed(1)}%`}
