@@ -5,9 +5,14 @@
   import Button from '$lib/components/ui/Button.svelte';
   import { AlertTriangle, RefreshCw } from 'lucide-svelte';
 
-  export let fallback: any = undefined;
+  interface Props {
+    children?: import('svelte').Snippet;
+    fallback?: import('svelte').Snippet<[any]>;
+  }
+  
+  let { children, fallback }: Props = $props();
 
-  let showDetails = false;
+  let showDetails = $state(false);
 
   function handleReset() {
     errorStore.clearError();
@@ -24,15 +29,18 @@
 
   // Auto-clear errors after 30 seconds
   let timer: number | undefined;
-  $: if ($errorStore && !timer) {
-    timer = setTimeout(() => {
-      errorStore.clearError();
+  
+  $effect(() => {
+    if ($errorStore && !timer) {
+      timer = setTimeout(() => {
+        errorStore.clearError();
+        timer = undefined;
+      }, 30000);
+    } else if (!$errorStore && timer) {
+      clearTimeout(timer);
       timer = undefined;
-    }, 30000);
-  } else if (!$errorStore && timer) {
-    clearTimeout(timer);
-    timer = undefined;
-  }
+    }
+  });
 </script>
 
 {#if $errorStore}
@@ -108,5 +116,5 @@
     </div>
   {/if}
 {:else}
-  <slot />
+  {@render children?.()}
 {/if}

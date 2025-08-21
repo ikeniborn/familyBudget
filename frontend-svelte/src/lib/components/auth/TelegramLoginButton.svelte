@@ -68,4 +68,4 @@
   });
 </script>
 
-<div bind:this={containerRef} class="telegram-login-button" />
+<div bind:this={containerRef} class="telegram-login-button"></div>
