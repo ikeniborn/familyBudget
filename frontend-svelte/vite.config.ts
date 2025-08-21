@@ -177,11 +177,11 @@ export default defineConfig({
     chunkSizeWarningLimit: 500
   },
   server: {
-    port: 5173,
+    port: parseInt(process.env.PORT || '5177'),
     host: true,
     proxy: {
       '/api': {
-        target: process.env.VITE_API_URL || 'http://localhost:4000',
+        target: process.env.VITE_API_URL || 'http://localhost:4001',
         changeOrigin: true
       }
     }
