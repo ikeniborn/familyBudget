@@ -1,0 +1,14 @@
+# This is a placeholder for icon-152x152.png
+# In a real project, you would use an image conversion tool like:
+# - sharp (npm package)
+# - ImageMagick
+# - Or an online converter to convert the SVG to PNG
+
+# For now, copy the SVG content and convert manually:
+
+<svg width="152" height="152" viewBox="0 0 152 152" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="152" height="152" rx="30" fill="#1e293b"/>
+  <rect x="30" y="45" width="91" height="60" rx="7" fill="#3b82f6"/>
+  <circle cx="76" cy="76" r="22" fill="white"/>
+  <path d="M76 60v30m-15-15h30" stroke="#1e293b" stroke-width="3" stroke-linecap="round"/>
+</svg>

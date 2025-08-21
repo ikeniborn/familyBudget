@@ -23,12 +23,15 @@
   }
 
   // Auto-clear errors after 30 seconds
-  $: if ($errorStore) {
-    const timer = setTimeout(() => {
+  let timer: number | undefined;
+  $: if ($errorStore && !timer) {
+    timer = setTimeout(() => {
       errorStore.clearError();
+      timer = undefined;
     }, 30000);
-    
-    return () => clearTimeout(timer);
+  } else if (!$errorStore && timer) {
+    clearTimeout(timer);
+    timer = undefined;
   }
 </script>
 

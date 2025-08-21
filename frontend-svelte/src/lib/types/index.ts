@@ -16,9 +16,10 @@ export interface Period {
   period_name: string;
   period_year: number;
   period_month: number;
-  period_order: number;
+  period_start_date?: string;
+  period_end_date?: string;
   user_id: number;
-  is_active?: boolean;
+  transaction_count?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -28,9 +29,18 @@ export interface FinancialCenter {
   id: number;
   financial_center_id: number;
   financial_center_name: string;
+  financial_center_description?: string;
+  parent_id?: number | null;
   financial_center_order: number;
   user_id: number;
   is_active?: boolean;
+  usage_stats?: {
+    cost_centers_count: number;
+    transactions_count: number;
+    total_amount: number;
+  };
+  children?: FinancialCenter[];
+  level?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -40,11 +50,28 @@ export interface CostCenter {
   id: number;
   cost_center_id: number;
   cost_center_name: string;
+  cost_center_description?: string;
+  financial_center_id?: number | null;
+  budget_limit?: number;
+  budget_period?: 'monthly' | 'quarterly' | 'yearly';
   cost_center_order: number;
   user_id: number;
   is_active?: boolean;
+  current_usage?: number;
+  usage_percentage?: number;
+  history?: CostCenterHistory[];
   created_at?: string;
   updated_at?: string;
+}
+
+export interface CostCenterHistory {
+  id: number;
+  action: 'created' | 'updated' | 'budget_changed' | 'activated' | 'deactivated';
+  old_value?: any;
+  new_value?: any;
+  changed_by: number;
+  changed_at: string;
+  description?: string;
 }
 
 // Nomenclature types - matches backend API
@@ -52,14 +79,29 @@ export interface Nomenclature {
   id: number;
   nomenclature_id: number;
   nomenclature_name: string;
-  bill_name: string;
-  account_name: string;
-  operation_name: string;
-  is_fact: boolean;
+  nomenclature_type: 'INCOME' | 'EXPENSE';
+  parent_id?: number | null;
+  nomenclature_order: number;
+  color?: string;
+  icon?: string;
+  auto_rules?: AutoCategorizationRule[];
   user_id: number;
   is_active?: boolean;
+  is_expanded?: boolean;
+  level?: number;
+  children?: Nomenclature[];
+  transaction_count?: number;
+  total_amount?: number;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface AutoCategorizationRule {
+  id?: number;
+  rule_type: 'contains' | 'starts_with' | 'ends_with' | 'equals' | 'regex';
+  pattern: string;
+  case_sensitive: boolean;
+  priority: number;
 }
 
 // Registry types

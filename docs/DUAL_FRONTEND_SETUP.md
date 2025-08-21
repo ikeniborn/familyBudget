@@ -46,64 +46,73 @@ The Family Budget application now supports running both React and Svelte fronten
 
 ### Development Setup
 
+#### React Development (standard)
 - React Frontend: `http://localhost:3000`
-- Svelte Frontend: `http://localhost:5173`
 - API: `http://localhost:4000`
 - PostgreSQL: `localhost:5432`
+- Redis: `localhost:6379`
+
+#### SvelteKit Development (separate network)  
+- Svelte Frontend: `http://localhost:5173`
+- API: `http://localhost:4001`
+- PostgreSQL: `localhost:5433` 
 - Redis: `localhost:6379`
 
 ## Usage
 
 ### Development Environment
 
-#### 1. Start Both Frontends (Recommended for migration work)
-
-```bash
-# Start all services including both frontends
-./scripts/dev.sh -d --svelte
-
-# This starts:
-# - PostgreSQL and Redis
-# - Frontend API
-# - React frontend at localhost:3000
-# - Svelte frontend at localhost:5173
-```
-
-#### 2. Start Only React Frontend (Default behavior)
+#### 1. Start React Frontend (Default behavior)
 
 ```bash
 # Traditional development setup
 ./scripts/dev.sh -d
 
 # This starts:
-# - PostgreSQL and Redis
-# - Frontend API
+# - PostgreSQL and Redis on standard ports
+# - Frontend API at localhost:4000
 # - React frontend at localhost:3000
 ```
 
-#### 3. Start Only Svelte Frontend
+#### 2. Start SvelteKit Frontend
 
 ```bash
-# For pure Svelte development
-./scripts/dev.sh -d --svelte-only
+# SvelteKit development (separate network)
+./scripts/dev-svelte.sh
+
+# Or via Docker:
+docker-compose -f docker-compose.svelte-dev.yaml up -d
 
 # This starts:
-# - PostgreSQL and Redis
-# - Frontend API
+# - PostgreSQL and Redis on separate network
+# - Frontend API at localhost:4001
 # - Svelte frontend at localhost:5173
+```
+
+#### 3. Start Both Frontends Simultaneously
+
+```bash
+# Run both for comparison/testing
+./scripts/dev.sh -d        # Start React stack
+./scripts/dev-svelte.sh    # Start Svelte stack in parallel
+
+# Access points:
+# - React:  http://localhost:3000 (API: 4000)
+# - Svelte: http://localhost:5173 (API: 4001)
 ```
 
 #### 4. Advanced Development Options
 
 ```bash
-# Force database initialization
-./scripts/dev.sh -d --svelte --init-db
+# Run React services in foreground (with logs)
+./scripts/dev.sh
 
-# Run in foreground (with logs)
-./scripts/dev.sh --svelte
+# Run SvelteKit directly (without Docker)
+cd frontend-svelte && npm run dev
 
-# Show help
-./scripts/dev.sh --help
+# Stop services
+docker-compose -f docker-compose.dev.yaml down      # React stack
+docker-compose -f docker-compose.svelte-dev.yaml down  # Svelte stack
 ```
 
 ### Production Environment
@@ -187,13 +196,19 @@ traefik.http.middlewares.svelte-stripprefix.stripPrefix.prefixes=/svelte
 
 ## Docker Services
 
-### Development (docker-compose.dev.yaml)
+### React Development (docker-compose.dev.yaml)
 
-- `postgres-dev`: PostgreSQL database
-- `redis-dev`: Redis cache
-- `frontend-dev`: React frontend with hot reload (port 3000)
-- `frontend-svelte-dev`: Svelte frontend with hot reload (port 5173)
-- `frontend-api-dev`: Node.js API with hot reload (port 4000)
+- `postgres`: PostgreSQL database (port 5432)
+- `redis`: Redis cache
+- `frontend`: React frontend with hot reload (port 3000)
+- `frontend-api`: Node.js API with hot reload (port 4000)
+
+### SvelteKit Development (docker-compose.svelte-dev.yaml)
+
+- `postgres`: PostgreSQL database (port 5433, separate network)
+- `redis`: Redis cache (separate network) 
+- `frontend-svelte`: Svelte frontend with hot reload (port 5173)
+- `frontend-api`: Node.js API with hot reload (port 4001)
 
 ### Production (docker-compose.yaml)
 
@@ -261,17 +276,25 @@ docker-compose logs traefik
 ### Debug Commands
 
 ```bash
-# View logs for specific service
-docker-compose -f docker-compose.dev.yaml logs -f frontend-svelte
+# React stack logs
+docker-compose -f docker-compose.dev.yaml logs -f frontend
+docker-compose -f docker-compose.dev.yaml logs -f frontend-api
+
+# SvelteKit stack logs
+docker-compose -f docker-compose.svelte-dev.yaml logs -f frontend-svelte
+docker-compose -f docker-compose.svelte-dev.yaml logs -f frontend-api
 
 # Check service health
-docker-compose -f docker-compose.dev.yaml ps
+docker-compose -f docker-compose.dev.yaml ps         # React services
+docker-compose -f docker-compose.svelte-dev.yaml ps  # Svelte services
 
-# Connect to database
-docker exec -it postgres-dev psql -U budget -d budgetdb
+# Connect to databases
+docker exec -it postgres psql -U budget -d budgetdb        # React stack
+docker exec -it postgres-svelte psql -U budget -d budgetdb # Svelte stack
 
 # Check API connectivity
-curl http://localhost:4000/health
+curl http://localhost:4000/health  # React API
+curl http://localhost:4001/health  # Svelte API
 ```
 
 ### Performance Considerations
@@ -292,8 +315,11 @@ curl http://localhost:3000
 # Test Svelte frontend
 curl http://localhost:5173
 
-# Test API
+# Test React API
 curl http://localhost:4000/health
+
+# Test Svelte API
+curl http://localhost:4001/health
 ```
 
 ### Production Testing
@@ -352,13 +378,26 @@ docker stats
 
 ## File Locations
 
-- Development compose: `docker-compose.dev.yaml`
-- Production compose: `docker-compose.yaml`
-- Development script: `scripts/dev.sh`
-- Production script: `scripts/prod.sh`
+### Docker Configurations
+- React development: `docker-compose.dev.yaml`
+- SvelteKit development: `docker-compose.svelte-dev.yaml`
+- React production: `docker-compose.yaml`
+- SvelteKit production: `docker-compose.svelte.yaml`
+
+### Scripts
+- React development: `scripts/dev.sh`
+- SvelteKit development: `scripts/dev-svelte.sh`
+- Production deployment: `scripts/prod.sh`
+
+### Environment & Configuration
 - Environment templates: `.env.dev`, `.env.prod`
-- Svelte Dockerfile: `frontend-svelte/Dockerfile`
-- Svelte Dev Dockerfile: `frontend-svelte/Dockerfile.dev`
-- Svelte Config: `frontend-svelte/svelte.config.js`
+- SvelteKit config: `frontend-svelte/svelte.config.js`
+- SvelteKit Dockerfile: `frontend-svelte/Dockerfile`
+- SvelteKit Dev Dockerfile: `frontend-svelte/Dockerfile.dev`
+
+### Documentation
+- Migration status: `docs/MIGRATION-STATUS.md`
+- Development guide: `docs/DEVELOPMENT_SETUP.md`
+- Architecture guide: `CLAUDE.md`
 
 This setup provides maximum flexibility during the migration period while maintaining production stability.

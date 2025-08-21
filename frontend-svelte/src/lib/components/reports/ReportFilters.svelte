@@ -3,21 +3,17 @@
   import { currentUser } from '$lib/stores/auth.store';
   import { 
     periodStore, 
-    financialCenterStore 
+    financialCenterStore,
+    costCenterStore 
   } from '$lib/stores/referenceData.store';
   import { useToast } from '$lib/stores/toast.store';
+  import { type ReportFilters } from '$lib/services/reportService';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
-  import { Filter, BarChart3 } from 'lucide-svelte';
+  import { Filter, BarChart3, Calendar, Building } from 'lucide-svelte';
 
   export let onApplyFilters: (filters: ReportFilters) => void;
   export let isLoading = false;
-
-  export interface ReportFilters {
-    period_id?: number;
-    financial_center_id?: number;
-    report_type: 'budget' | 'plan_fact';
-  }
 
   let loading = true;
   let filters: ReportFilters = {
@@ -34,12 +30,19 @@
   onMount(async () => {
     try {
       // Load reference data if not already loaded
+      const loadPromises = [];
+      
       if ($periodStore.length === 0) {
-        await periodStore.load($currentUser?.user_id || 0);
+        loadPromises.push(periodStore.load($currentUser?.user_id || 0));
       }
       if ($financialCenterStore.length === 0) {
-        await financialCenterStore.load($currentUser?.user_id || 0);
+        loadPromises.push(financialCenterStore.load($currentUser?.user_id || 0));
       }
+      if ($costCenterStore.length === 0) {
+        loadPromises.push(costCenterStore.load($currentUser?.user_id || 0));
+      }
+      
+      await Promise.all(loadPromises);
     } catch (error: any) {
       console.error('Ошибка загрузки данных фильтров:', error);
       toast.error('Ошибка', 'Не удалось загрузить данные для фильтров');
@@ -80,6 +83,14 @@
     ...$financialCenterStore.map(fc => ({
       value: fc.financial_center_id.toString(),
       label: fc.financial_center_name,
+    })),
+  ];
+
+  $: costCenterOptions = [
+    { value: 'all', label: 'Все МВЗ' },
+    ...$costCenterStore.map(cc => ({
+      value: cc.cost_center_id.toString(),
+      label: cc.cost_center_name,
     })),
   ];
 </script>
@@ -124,7 +135,10 @@
 
       <!-- Period Filter -->
       <div class="space-y-2">
-        <label for="period" class="text-sm font-medium text-slate-700">Период</label>
+        <label for="period" class="flex items-center gap-2 text-sm font-medium text-slate-700">
+          <Calendar class="h-4 w-4" />
+          Период
+        </label>
         <select
           id="period"
           value={filters.period_id?.toString() || 'all'}
@@ -139,7 +153,10 @@
 
       <!-- Financial Center Filter -->
       <div class="space-y-2">
-        <label for="financial-center" class="text-sm font-medium text-slate-700">Финансовый центр</label>
+        <label for="financial-center" class="flex items-center gap-2 text-sm font-medium text-slate-700">
+          <Building class="h-4 w-4" />
+          Финансовый центр
+        </label>
         <select
           id="financial-center"
           value={filters.financial_center_id?.toString() || 'all'}
@@ -150,6 +167,52 @@
             <option value={option.value}>{option.label}</option>
           {/each}
         </select>
+      </div>
+
+      <!-- Cost Center Filter -->
+      <div class="space-y-2">
+        <label for="cost-center" class="flex items-center gap-2 text-sm font-medium text-slate-700">
+          <Building class="h-4 w-4" />
+          Центр затрат
+        </label>
+        <select
+          id="cost-center"
+          value={filters.cost_center_id?.toString() || 'all'}
+          on:change={(e) => handleFilterChange('cost_center_id', e.currentTarget.value)}
+          class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+        >
+          {#each costCenterOptions as option}
+            <option value={option.value}>{option.label}</option>
+          {/each}
+        </select>
+      </div>
+
+      <!-- Date Range Filter -->
+      <div class="space-y-3">
+        <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
+          <Calendar class="h-4 w-4" />
+          Диапазон дат
+        </label>
+        <div class="grid grid-cols-1 gap-2">
+          <div>
+            <label for="date-from" class="text-xs text-slate-600">С</label>
+            <input
+              id="date-from"
+              type="date"
+              bind:value={filters.date_from}
+              class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+            />
+          </div>
+          <div>
+            <label for="date-to" class="text-xs text-slate-600">По</label>
+            <input
+              id="date-to"
+              type="date"
+              bind:value={filters.date_to}
+              class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+            />
+          </div>
+        </div>
       </div>
 
       <!-- Apply Button -->

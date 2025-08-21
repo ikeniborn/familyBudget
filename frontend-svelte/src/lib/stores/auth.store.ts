@@ -189,3 +189,6 @@ export const authError = derived(
   authStore,
   $authStore => $authStore.error
 );
+
+// Export alias for compatibility  
+export const setCurrentUser = authStore.setUser;

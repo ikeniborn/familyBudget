@@ -8,8 +8,9 @@ Family Budget is a web-based budget management system built with a microservices
 
 ## Architecture
 
-- **Frontend**: React 19 + TypeScript + Vite at `frontend/` - Modern SPA with Telegram auth
-- **Frontend-API**: Node.js/Express + Prisma at `frontend-api/` - Unified API (migrated from dual-stack)
+- **Frontend (React)**: React 19 + TypeScript + Vite at `frontend/` - Stable SPA with Telegram auth  
+- **Frontend (SvelteKit)**: SvelteKit 2 + Svelte 5 + TypeScript + Vite at `frontend-svelte/` - New version in migration
+- **Frontend-API**: Node.js/Express + Prisma at `frontend-api/` - Unified API (shared by both frontends)
 - **Database**: PostgreSQL 13 (partitioned tables)
 - **Cache**: Redis for performance optimization
 - **Reverse Proxy**: Traefik for SSL/routing
@@ -18,13 +19,16 @@ Family Budget is a web-based budget management system built with a microservices
 Services run on Docker network:
 - postgres: 10.5.0.2:5432
 - redis: Internal network
-- frontend: Internal network  
+- frontend (React): Internal network
+- frontend-svelte: Internal network  
 - frontend-api: Internal network
 - traefik: Public-facing
 
 ## Common Development Commands
 
 ### Start Development Environment
+
+#### React Frontend (Stable)
 ```bash
 # Full stack development (recommended)
 ./scripts/dev.sh -d
@@ -39,7 +43,36 @@ cd frontend && npm run dev
 docker-compose down
 ```
 
+#### SvelteKit Frontend (New Version)
+```bash
+# SvelteKit development
+./scripts/dev-svelte.sh
+
+# Or via Docker:
+docker-compose -f docker-compose.svelte-dev.yaml up -d
+
+# Frontend only with hot reload
+cd frontend-svelte && npm run dev
+
+# Stop services  
+docker-compose -f docker-compose.svelte-dev.yaml down
+```
+
+#### Both Frontends Simultaneously
+```bash
+# Run both for comparison/testing
+./scripts/dev.sh -d
+./scripts/dev-svelte.sh
+
+# Access points:
+# React: http://localhost:3000
+# Svelte: http://localhost:5173
+# API: http://localhost:4000
+```
+
 ### Frontend Commands
+
+#### React Frontend
 ```bash
 cd frontend
 
@@ -60,22 +93,48 @@ npm run lint            # ESLint check
 npm run type-check      # TypeScript check
 ```
 
+#### SvelteKit Frontend
+```bash
+cd frontend-svelte
+
+# Development
+npm run dev              # Start SvelteKit dev server (port 5173)
+npm run build           # Production build
+npm run preview         # Preview production build
+
+# Testing
+npm run test            # Run Vitest unit tests
+npm run test:watch      # Watch mode  
+npm run test:e2e        # Playwright E2E tests
+
+# Code Quality & Type Checking
+npm run lint            # ESLint check
+npm run check           # Svelte type checking
+npm run format          # Prettier formatting
+```
+
 ### Container Management
 ```bash
 # View logs
-docker logs -f frontend
+docker logs -f frontend          # React frontend
+docker logs -f frontend-svelte   # SvelteKit frontend  
 docker logs -f frontend-api
 docker logs -f postgres
 
 # Access container
 docker exec -it frontend-api bash
+docker exec -it frontend bash
+docker exec -it frontend-svelte bash
 docker exec -it postgres psql -U budget -d budgetdb
 
 # Restart service
-docker restart frontend
+docker restart frontend          # React
+docker restart frontend-svelte   # SvelteKit
 docker restart frontend-api
 
 # Rebuild specific service
+docker-compose -f docker-compose.dev.yaml build frontend
+docker-compose -f docker-compose.svelte-dev.yaml build frontend-svelte
 docker-compose -f docker-compose.dev.yaml build frontend-api
 ```
 
@@ -117,7 +176,7 @@ PostgreSQL database `budgetdb` with partitioned tables:
 
 ## Frontend Architecture
 
-### Component Structure
+### React Frontend Structure (Stable)
 ```
 frontend/src/
 ├── components/
@@ -135,16 +194,68 @@ frontend/src/
 └── types/            # TypeScript type definitions
 ```
 
-### State Management
+#### React State Management
 - **Zustand** for global state (authStore, toastStore, referenceDataStore)
 - **React Hook Form** for form state
 - **TanStack Table** for table state
 - **Custom hooks** for local state patterns
 
-### Routing
+#### React Routing
 - React Router v7 with centralized Layout in App.tsx
 - AuthGuard wrapper for protected routes
 - Lazy loading for code splitting
+
+### SvelteKit Frontend Structure (New Version)
+```
+frontend-svelte/src/
+├── lib/
+│   ├── components/
+│   │   ├── auth/       # Authentication components
+│   │   ├── common/     # Shared UI components (Layout, Toast, DataTable)
+│   │   ├── ui/         # Base UI components (Button, Card, Input, Table)
+│   │   ├── budget/     # Budget-specific components
+│   │   ├── fact/       # Fact-specific components
+│   │   ├── reference/  # Reference data management
+│   │   └── reports/    # Reports and analytics
+│   ├── stores/         # Svelte stores for state management
+│   ├── services/       # API services and data transformers
+│   ├── types/          # TypeScript type definitions
+│   └── utils/          # Utility functions
+├── routes/
+│   ├── (protected)/    # Protected route group
+│   │   ├── dashboard/  # Dashboard page
+│   │   ├── budget/     # Budget management
+│   │   ├── fact/       # Fact management
+│   │   ├── reports/    # Reports and analytics
+│   │   ├── products/   # Product management
+│   │   ├── reference/  # Reference data pages
+│   │   └── settings/   # Settings
+│   ├── login/          # Login page
+│   ├── +layout.svelte  # Root layout
+│   └── +page.svelte    # Home/redirect page
+├── app.html            # HTML template
+└── app.css             # Global styles
+```
+
+#### SvelteKit State Management
+- **Svelte stores** for reactive global state
+- **authStore** - user authentication and session
+- **toastStore** - notification system
+- **errorStore** - global error handling
+- **referenceDataStore** - CRUD operations for reference data
+
+#### SvelteKit Routing
+- File-based routing with route groups
+- `(protected)` group with AuthGuard via +layout.svelte
+- SSR-ready page components
+- Automatic code splitting and lazy loading
+
+#### SvelteKit Features
+- **Type Safety**: Full TypeScript integration with Svelte
+- **Reactivity**: Built-in reactive statements and stores
+- **Performance**: Compilation-based approach, smaller bundles
+- **SSR/SSG**: Server-side rendering and static generation support
+- **Hot Reload**: Fast development experience with Vite
 
 ## API Structure
 
@@ -163,15 +274,35 @@ All endpoints require user context for data isolation.
 
 ## Key Project Files
 
+### React Frontend (Stable)
 - `frontend/src/App.tsx` - Main React app with routing
 - `frontend/src/main.tsx` - Entry point
 - `frontend/vite.config.ts` - Vite configuration
+- `frontend/package.json` - Dependencies and scripts
+
+### SvelteKit Frontend (New Version)
+- `frontend-svelte/src/routes/+layout.svelte` - Root layout
+- `frontend-svelte/src/app.html` - HTML template
+- `frontend-svelte/svelte.config.js` - SvelteKit configuration
+- `frontend-svelte/vite.config.ts` - Vite configuration
+- `frontend-svelte/package.json` - Dependencies and scripts
+
+### Shared Backend
 - `frontend-api/src/index.ts` - Express server entry
 - `frontend-api/prisma/schema.prisma` - Database schema
 - `postgresql/ddl/budgetdb.sql` - SQL schema definition
-- `docker-compose.yaml` - Production config
-- `docker-compose.dev.yaml` - Development config
+
+### Docker Configurations
+- `docker-compose.yaml` - Production config (React)
+- `docker-compose.dev.yaml` - React development config
+- `docker-compose.svelte.yaml` - Production config (SvelteKit)
+- `docker-compose.svelte-dev.yaml` - SvelteKit development config
+
+### Environment & Scripts
 - `.env.dev` / `.env.prod` - Environment templates
+- `scripts/dev.sh` - React development script
+- `scripts/dev-svelte.sh` - SvelteKit development script
+- `scripts/prod.sh` - Production deployment script
 
 ## Development Guidelines
 
@@ -194,15 +325,33 @@ All endpoints require user context for data isolation.
 - **Export**: PNG/SVG functionality
 
 ### Code Style
-- **Frontend**: ESLint + Prettier (see `.eslintrc`)
+- **React Frontend**: ESLint + Prettier (see `.eslintrc`)
+- **SvelteKit Frontend**: ESLint + Prettier + Svelte plugin
 - **Backend**: ESLint for TypeScript
 - **Python**: Black (180 chars) + Flake8 (legacy API)
 
+### SvelteKit Specific Guidelines
+- **Components**: Use .svelte extension with TypeScript lang="ts"
+- **Stores**: Prefer Svelte stores over complex state management
+- **Reactivity**: Use $: reactive statements for derived data
+- **Forms**: Integrate with svelte-forms-lib for validation
+- **Routing**: Leverage file-based routing with proper +page.svelte structure
+- **SSR**: Design components to work with server-side rendering
+
 ### Testing Strategy
+
+#### React Testing
 - **Unit Tests**: Jest + React Testing Library
 - **E2E Tests**: Playwright
 - **Performance**: Playwright performance tests
 - **Accessibility**: axe-playwright for a11y
+
+#### SvelteKit Testing  
+- **Unit Tests**: Vitest + @testing-library/svelte
+- **E2E Tests**: Playwright (shared with React)
+- **Performance**: Playwright performance tests
+- **Accessibility**: axe-playwright for a11y
+- **Component Tests**: @testing-library/svelte for isolated component testing
 
 ### Performance Optimizations
 - React.lazy() for code splitting

@@ -1,0 +1,24 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://familybudget.ru/sitemap.xml
+
+# Specific rules for the family budget app
+Allow: /dashboard
+Allow: /budget
+Allow: /fact
+Allow: /reports
+Allow: /products
+Allow: /reference
+
+# Disallow sensitive areas
+Disallow: /api/
+Disallow: /_app/
+Disallow: /admin/
+
+# PWA files
+Allow: /manifest.json
+Allow: /sw.js
+Allow: /favicon.svg
+Allow: /icons/

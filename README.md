@@ -22,25 +22,36 @@
 
 ## 🏗️ Архитектура
 
-Проект построен на современной унифицированной архитектуре с использованием Docker:
+Проект построен на современной унифицированной архитектуре с использованием Docker. Поддерживает два frontend решения: React и SvelteKit (в процессе миграции):
 
 ```
-┌─────────────────┐     ┌─────────────────┐
-│    Traefik      │────▶│   Frontend      │
-│  (SSL/Routing)  │     │    (React)      │
-└─────────────────┘     └────────┬────────┘
-                                 │
-                        ┌────────▼────────┐
-                        │  Frontend API   │
-                        │ (Node.js/Prisma)│
-                        └────────┬────────┘
-                                 │
-                        ┌────────┴────────┐
-                        │                 │
-                ┌───────▼──┐         ┌───▼───┐
-                │PostgreSQL│         │ Redis │
-                │(Главная) │         │ (Кеш) │
-                └──────────┘         └───────┘
+                ┌─────────────────┐
+                │    Traefik      │
+                │  (SSL/Routing)  │
+                └────────┬────────┘
+                         │
+        ┌────────────────┴────────────────┐
+        │                                 │
+┌───────▼──────┐                ┌────────▼────────┐
+│   Frontend   │                │ Frontend-Svelte │
+│   (React)    │                │  (SvelteKit)    │
+│  :3000/3001  │                │   :5173/3002    │
+└──────┬───────┘                └─────────┬───────┘
+       │                                  │
+       └─────────────┬────────────────────┘
+                     │
+            ┌────────▼────────┐
+            │  Frontend API   │
+            │ (Node.js/Prisma)│
+            │     :4000       │
+            └────────┬────────┘
+                     │
+            ┌────────┴────────┐
+            │                 │
+    ┌───────▼──┐         ┌───▼───┐
+    │PostgreSQL│         │ Redis │
+    │(Главная) │         │ (Кеш) │
+    └──────────┘         └───────┘
 ```
 
 ### Технологический стек
@@ -51,13 +62,21 @@
 - **Кеширование**: Redis с интеллектуальной инвалидацией
 - **Безопасность**: Type-safe queries, JWT, express-session
 
-#### Frontend
+#### Frontend (React - стабильная версия)
 - **UI**: React 18, TypeScript, Tailwind CSS
 - **State**: Zustand
 - **Forms**: React Hook Form
 - **Charts**: Recharts (официально принятая библиотека визуализации данных)
 - **Tables**: TanStack Table
 - **Testing**: Jest, React Testing Library, Playwright
+
+#### Frontend-Svelte (Новая версия в разработке)
+- **UI**: SvelteKit 2, Svelte 5, TypeScript, Tailwind CSS
+- **State**: Svelte stores
+- **Forms**: svelte-forms-lib
+- **Charts**: Chart.js + svelte-chartjs
+- **Tables**: @tanstack/svelte-table
+- **Testing**: Vitest, Playwright
 
 #### Инфраструктура
 - **База данных**: PostgreSQL 13 (партиционированные таблицы)
@@ -150,6 +169,8 @@ docker logs -f frontend-api
 ```
 
 #### Разработка (все компоненты)
+
+##### React Frontend (стабильная версия)
 ```bash
 # Быстрый старт (рекомендуется)
 ./scripts/dev.sh -d
@@ -163,6 +184,33 @@ docker-compose -f docker-compose.dev.yaml up -d
 # Frontend API: http://localhost:4000
 # PostgreSQL: localhost:5432
 # Redis: localhost:6379
+```
+
+##### SvelteKit Frontend (новая версия)
+```bash
+# Быстрый старт SvelteKit
+./scripts/dev-svelte.sh
+
+# Или через Docker
+docker-compose -f docker-compose.svelte-dev.yaml up -d
+
+# Доступные URL:
+# Svelte Frontend: http://localhost:5173
+# Frontend API: http://localhost:4000
+# PostgreSQL: localhost:5432
+# Redis: localhost:6379
+```
+
+##### Параллельное развертывание (оба frontend)
+```bash
+# Запустить React и SvelteKit одновременно
+./scripts/dev.sh -d
+./scripts/dev-svelte.sh
+
+# Тестирование обеих версий:
+# React: http://localhost:3000
+# Svelte: http://localhost:5173
+# API: http://localhost:4000
 ```
 
 Подробная инструкция по разработке: [Development Setup Guide](docs/DEVELOPMENT_SETUP.md)
@@ -232,7 +280,7 @@ SSL сертификаты автоматически управляются ч�
 
 ```
 familyBudget/
-├── frontend/              # React frontend
+├── frontend/              # React frontend (стабильная версия)
 │   ├── src/              # Исходный код
 │   │   ├── components/   # UI компоненты
 │   │   ├── pages/       # Страницы приложения
@@ -240,7 +288,16 @@ familyBudget/
 │   │   └── stores/      # State management
 │   ├── e2e/             # E2E тесты
 │   └── package.json     # Зависимости
-├── frontend-api/         # Node.js Unified API
+├── frontend-svelte/      # SvelteKit frontend (новая версия)
+│   ├── src/             # Исходный код
+│   │   ├── lib/         # Библиотеки и компоненты
+│   │   │   ├── components/  # UI компоненты
+│   │   │   ├── stores/      # Svelte stores
+│   │   │   └── services/    # API сервисы
+│   │   ├── routes/      # Файл-роутинг SvelteKit
+│   │   └── app.html     # HTML шаблон
+│   └── package.json     # Зависимости
+├── frontend-api/         # Node.js Unified API (общий для обеих версий)
 │   ├── src/             # Исходный код
 │   │   ├── routes/      # API маршруты
 │   │   ├── services/    # Бизнес-логика
@@ -251,11 +308,14 @@ familyBudget/
 │   ├── ddl/             # Схема БД
 │   └── backup/          # Скрипты резервного копирования
 ├── scripts/              # Утилиты и автоматизация
-│   ├── dev.sh           # Скрипт разработки
+│   ├── dev.sh           # Скрипт разработки React
+│   ├── dev-svelte.sh    # Скрипт разработки SvelteKit
 │   └── prod.sh          # Production скрипт
 ├── docs/                 # Документация
 │   ├── DEVELOPMENT_SETUP.md
 │   ├── DEPLOYMENT_GUIDE.md
+│   ├── DUAL_FRONTEND_SETUP.md  # Настройка двух frontend
+│   ├── MIGRATION-STATUS.md     # Статус миграции на Svelte
 │   ├── ENVIRONMENT_VARIABLES.md
 │   ├── ENV_FILE_CONVENTIONS.md
 │   ├── UI_MIGRATION_GUIDE.md
@@ -263,42 +323,86 @@ familyBudget/
 ├── .env.prod             # Пример переменных окружения
 ├── .env.dev              # Переменные для разработки
 ├── .env                  # Production переменные (не коммитится)
-├── docker-compose.yaml   # Production конфигурация
-└── docker-compose.dev.yaml    # Разработка
+├── docker-compose.yaml         # Production конфигурация
+├── docker-compose.dev.yaml     # React разработка
+├── docker-compose.svelte.yaml  # Svelte production
+└── docker-compose.svelte-dev.yaml  # Svelte разработка
 ```
+
+## 🔄 Статус миграции React → SvelteKit
+
+### ✅ Завершенные компоненты
+- **Система авторизации**: TelegramLoginButton, AuthGuard, AuthStore
+- **Layout и навигация**: Layout, NotificationDropdown, Navigation
+- **UI система**: Toast, Loading, ErrorBoundary, DataTable
+- **State management**: AuthStore, ToastStore, ReferenceDataStore, ErrorStore
+- **Маршрутизация**: Защищенные роуты, публичные роуты, группы роутов
+- **Базовые страницы**: Dashboard, Login, основная структура
+
+### 🚧 В процессе разработки
+- **Управление справочниками**: PeriodManager, NomenclatureManager
+- **Формы**: Интеграция с svelte-forms-lib
+- **Графики**: Chart.js + svelte-chartjs
+- **Тестирование**: Настройка Vitest и Playwright
+
+### 📋 Планируется
+- **Продвинутые компоненты**: Все оставшиеся React компоненты
+- **Отчеты и аналитика**: Графики, экспорт, фильтры
+- **Импорт/экспорт**: Bulk operations, CSV/Excel
+- **Оптимизация**: SSR, кеширование, lazy loading
+
+### 📊 Прогресс миграции
+- **UI компоненты**: 70% завершено
+- **Бизнес-логика**: 60% завершено  
+- **Страницы**: 40% завершено
+- **Тестирование**: 30% завершено
+- **Общий прогресс**: 55% завершено
+
+Подробную информацию о статусе миграции см. в [docs/MIGRATION-STATUS.md](docs/MIGRATION-STATUS.md)
 
 ### Форматирование кода
 
 ```bash
-# Frontend (React + TypeScript)
+# Frontend React (TypeScript)
 cd frontend
 npm run lint
 npm run format
+
+# Frontend SvelteKit (TypeScript)  
+cd frontend-svelte
+npm run lint
+npm run format
+npm run check    # Проверка типов Svelte
 
 # Backend (Node.js + TypeScript)
 cd frontend-api
 npm run lint
 npm run format
-
-# Проверка типов
 npm run type-check
 ```
 
 ### Работа с контейнерами
 
 ```bash
-# Перезапуск сервиса
-sudo docker restart frontend
-sudo docker restart frontend-api
+# Перезапуск сервисов
+sudo docker restart frontend          # React frontend
+sudo docker restart frontend-svelte   # SvelteKit frontend
+sudo docker restart frontend-api      # Unified API
 
 # Просмотр логов
 sudo docker logs -f frontend-api
+sudo docker logs -f frontend          # React logs
+sudo docker logs -f frontend-svelte   # Svelte logs
 
-# Вход в контейнер
+# Вход в контейнеры
 sudo docker exec -it frontend-api bash
+sudo docker exec -it frontend bash
+sudo docker exec -it frontend-svelte bash
 
 # Пересборка конкретного сервиса
-sudo docker-compose -f docker-compose-dev.yaml build frontend-api
+sudo docker-compose -f docker-compose.dev.yaml build frontend
+sudo docker-compose -f docker-compose.svelte-dev.yaml build frontend-svelte
+sudo docker-compose -f docker-compose.dev.yaml build frontend-api
 
 # Работа с Prisma
 docker exec -it frontend-api npm run prisma:generate

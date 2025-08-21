@@ -87,7 +87,13 @@ class ApiClient {
 // Export singleton instance
 export const api = new ApiClient();
 
+// Default export for easier import in existing code
+export default api;
+
 // Export specific service modules
 export * from './auth.service';
 export * from './periods.service';
 export * from './registry.service';
+export * from './reportService';
+export * from './reportDataTransformer';
+export * from './userService';

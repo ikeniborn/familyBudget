@@ -78,3 +78,8 @@ function createToastStore() {
 }
 
 export const toastStore = createToastStore();
+
+// Hook-style function for easier use in components
+export function useToast() {
+  return toastStore;
+}

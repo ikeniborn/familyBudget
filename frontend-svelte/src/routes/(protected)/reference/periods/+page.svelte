@@ -1,5 +1,5 @@
 <script lang="ts">
-  import PeriodManager from '$lib/components/reference/PeriodManager.svelte';
+  import EnhancedPeriodManager from '$lib/components/reference/EnhancedPeriodManager.svelte';
 </script>
 
 <svelte:head>
@@ -10,9 +10,9 @@
   <div class="mb-8">
     <h1 class="text-3xl font-bold text-slate-900 mb-2">Управление периодами</h1>
     <p class="text-slate-600">
-      Создание и управление периодами для бюджетного планирования
+      Создание и управление периодами для бюджетного планирования с расширенными возможностями
     </p>
   </div>
 
-  <PeriodManager />
+  <EnhancedPeriodManager />
 </div>

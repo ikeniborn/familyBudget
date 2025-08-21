@@ -2,156 +2,155 @@
   import { onMount } from 'svelte';
   import { currentUser } from '$lib/stores/auth.store';
   import { useToast } from '$lib/stores/toast.store';
-  import { registryService } from '$lib/services/registry.service';
-  import ReportFilters, { type ReportFilters as ReportFiltersType } from '$lib/components/reports/ReportFilters.svelte';
-  import PlanFactChart from '$lib/components/reports/PlanFactChart.svelte';
+  import { reportService, type ReportFilters } from '$lib/services/reportService';
+  import { reportDataTransformer, type TransformedReportData } from '$lib/services/reportDataTransformer';
+  import ReportFilters from '$lib/components/reports/ReportFilters.svelte';
+  import { 
+    ComposedChartView, 
+    CategoryPieChart, 
+    TrendLineChart, 
+    VarianceWaterfall,
+    BudgetGauge,
+    type ChartSeries 
+  } from '$lib/components/charts';
   import BudgetTable from '$lib/components/reports/BudgetTable.svelte';
   import Button from '$lib/components/ui/Button.svelte';
+  import ChartSelector from '$lib/components/reports/ChartSelector.svelte';
+  import ViewModeToggle from '$lib/components/reports/ViewModeToggle.svelte';
+  import DynamicChartRenderer from '$lib/components/reports/DynamicChartRenderer.svelte';
   import { 
     BarChart3, 
     Download, 
     TrendingUp, 
     Calculator, 
     CreditCard,
-    FileSpreadsheet
+    FileSpreadsheet,
+    PieChart,
+    Activity,
+    Settings
   } from 'lucide-svelte';
 
+  // State
   let loading = false;
-  let currentFilters: ReportFiltersType = { report_type: 'plan_fact' };
-  
-  // Mock data - in real app would come from API
-  let planFactData: any[] = [];
-  let budgetTableData: any[] = [];
+  let currentFilters: ReportFilters = { report_type: 'plan_fact' };
+  let transformedData: TransformedReportData = {};
+  let selectedChartType: 'composed' | 'pie' | 'trend' | 'waterfall' | 'gauge' = 'composed';
+  let viewMode: 'chart' | 'table' = 'chart';
+  let availableReportTypes = [
+    { value: 'plan_fact', label: 'План-факт анализ', icon: BarChart3 },
+    { value: 'budget', label: 'Бюджетный анализ', icon: PieChart },
+    { value: 'categories', label: 'Анализ по категориям', icon: Activity },
+    { value: 'trends', label: 'Временные ряды', icon: TrendingUp },
+    { value: 'analytics', label: 'Расширенная аналитика', icon: Settings }
+  ] as const;
 
   const toast = useToast();
 
-  async function handleApplyFilters(filters: ReportFiltersType) {
+  async function handleApplyFilters(filters: ReportFilters) {
     loading = true;
     currentFilters = filters;
     
     try {
-      // In a real implementation, you would call the API with these filters
-      if (filters.report_type === 'plan_fact') {
-        await loadPlanFactData(filters);
-      } else {
-        await loadBudgetTableData(filters);
+      let rawData;
+      
+      // Load data based on report type
+      switch (filters.report_type) {
+        case 'plan_fact':
+          rawData = await reportService.getPlanFactReport(filters);
+          break;
+        case 'budget':
+          rawData = await reportService.getBudgetReport(filters);
+          break;
+        case 'categories':
+        case 'trends':
+        case 'analytics':
+          rawData = await reportService.getAnalyticsData(filters);
+          break;
+        default:
+          // Use mock data for development
+          rawData = reportDataTransformer.generateMockData(filters);
       }
+      
+      // Transform data for visualization
+      transformedData = reportDataTransformer.transform(rawData, filters);
+      
     } catch (error: any) {
       console.error('Ошибка загрузки отчета:', error);
-      toast.error('Ошибка', error.message || 'Не удалось загрузить отчет');
+      
+      // Fallback to mock data in case of API error
+      try {
+        const mockRawData = reportDataTransformer.generateMockData(filters);
+        transformedData = reportDataTransformer.transform(mockRawData, filters);
+        toast.info('Информация', 'Используются тестовые данные');
+      } catch (mockError) {
+        toast.error('Ошибка', error.message || 'Не удалось загрузить отчет');
+      }
     } finally {
       loading = false;
     }
   }
 
-  async function loadPlanFactData(filters: ReportFiltersType) {
-    // Mock implementation - replace with real API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    planFactData = [
-      {
-        category: 'Продукты питания',
-        plan: 50000,
-        fact: 47500,
-        variance: -2500,
-        variance_percent: -5.0
-      },
-      {
-        category: 'Транспорт',
-        plan: 25000,
-        fact: 28000,
-        variance: 3000,
-        variance_percent: 12.0
-      },
-      {
-        category: 'Развлечения',
-        plan: 15000,
-        fact: 18500,
-        variance: 3500,
-        variance_percent: 23.3
-      },
-      {
-        category: 'Коммунальные услуги',
-        plan: 20000,
-        fact: 19800,
-        variance: -200,
-        variance_percent: -1.0
-      },
-      {
-        category: 'Одежда',
-        plan: 12000,
-        fact: 8500,
-        variance: -3500,
-        variance_percent: -29.2
-      }
-    ];
+  // Handle chart type selection
+  function handleChartTypeChange(type: typeof selectedChartType) {
+    selectedChartType = type;
   }
 
-  async function loadBudgetTableData(filters: ReportFiltersType) {
-    // Mock implementation - replace with real API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    budgetTableData = [
-      {
-        category: 'Продукты питания',
-        period: 'Январь 2025',
-        planned_income: 0,
-        planned_expense: 50000,
-        actual_income: 0,
-        actual_expense: 47500,
-        income_variance: 0,
-        expense_variance: -2500,
-        execution_rate: 95.0
-      },
-      {
-        category: 'Зарплата',
-        period: 'Январь 2025',
-        planned_income: 120000,
-        planned_expense: 0,
-        actual_income: 120000,
-        actual_expense: 0,
-        income_variance: 0,
-        expense_variance: 0,
-        execution_rate: 100.0
-      },
-      {
-        category: 'Транспорт',
-        period: 'Январь 2025',
-        planned_income: 0,
-        planned_expense: 25000,
-        actual_income: 0,
-        actual_expense: 28000,
-        income_variance: 0,
-        expense_variance: 3000,
-        execution_rate: 112.0
-      }
-    ];
+  // Handle view mode toggle
+  function handleViewModeChange(mode: typeof viewMode) {
+    viewMode = mode;
   }
 
-  async function handleExport(format: 'csv' | 'excel') {
+  // Handle report type change
+  function handleReportTypeChange(reportType: ReportFilters['report_type']) {
+    currentFilters = { ...currentFilters, report_type: reportType };
+    handleApplyFilters(currentFilters);
+  }
+
+  // Handle export functionality
+  async function handleExport(format: 'excel' | 'pdf') {
     try {
-      toast.success('Экспорт', `Начинается экспорт в формате ${format.toUpperCase()}`);
+      toast.info('Экспорт', `Начинается экспорт в формате ${format.toUpperCase()}`);
       
-      // In real implementation, call the API export endpoint
+      let exportBlob: Blob;
+      
       if (currentFilters.report_type === 'plan_fact') {
-        // await registryService.export(format, currentFilters);
-        console.log('Exporting plan-fact data as', format);
+        exportBlob = await reportService.exportPlanFactToExcel(currentFilters);
       } else {
-        // await registryService.export(format, currentFilters);
-        console.log('Exporting budget table as', format);
+        exportBlob = await reportService.exportBudgetToExcel(currentFilters);
       }
       
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate export
-      toast.success('Успешно', `Данные экспортированы в формате ${format.toUpperCase()}`);
+      // Create download link
+      const url = window.URL.createObjectURL(exportBlob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `report_${currentFilters.report_type}_${new Date().toISOString().split('T')[0]}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success('Успешно', `Отчет экспортирован в формате ${format.toUpperCase()}`);
     } catch (error: any) {
       console.error('Ошибка экспорта:', error);
-      toast.error('Ошибка', error.message || 'Не удалось экспортировать данные');
+      toast.error('Ошибка', error.message || 'Не удалось экспортировать отчет');
     }
   }
 
+  // Get chart series configuration based on selected data
+  $: chartSeries = transformedData.composedSeries || [];
+  
+  // Check if data is available for current view
+  $: hasData = transformedData && (
+    transformedData.planFactData?.length ||
+    transformedData.categoryData?.length ||
+    transformedData.timeSeriesData?.length ||
+    transformedData.composedData?.length
+  );
+
   onMount(() => {
-    // Load initial data
-    handleApplyFilters({ report_type: 'plan_fact' });
+    // Load initial data with plan_fact report type
+    handleApplyFilters(currentFilters);
   });
 </script>
 
@@ -162,7 +161,7 @@
 <div class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
   <div class="space-y-6">
     <!-- Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
       <div>
         <h1 class="text-3xl font-bold text-slate-900 flex items-center gap-3">
           <div class="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center">
@@ -170,76 +169,167 @@
           </div>
           Отчеты и аналитика
         </h1>
-        <p class="text-slate-600 mt-2 ml-15">Анализ планов и фактических данных</p>
+        <p class="text-slate-600 mt-2 ml-15">Комплексный анализ бюджетных данных</p>
       </div>
-      <div class="flex items-center gap-3">
-        <Button
-          href="/budget"
-          variant="outline"
-          class="flex items-center gap-2"
-        >
-          <Calculator class="h-4 w-4" />
-          План
-        </Button>
-        <Button
-          href="/fact"
-          variant="outline"
-          class="flex items-center gap-2"
-        >
-          <CreditCard class="h-4 w-4" />
-          Факт
-        </Button>
+      
+      <!-- Header Controls -->
+      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <!-- Report Type Selector -->
+        <div class="flex flex-wrap gap-2">
+          {#each availableReportTypes as reportType}
+            <button
+              on:click={() => handleReportTypeChange(reportType.value)}
+              class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all {
+                currentFilters.report_type === reportType.value
+                  ? 'bg-purple-600 text-white shadow-lg'
+                  : 'bg-white text-slate-700 hover:bg-purple-50 border border-slate-200'
+              }"
+            >
+              <svelte:component this={reportType.icon} class="h-4 w-4" />
+              {reportType.label}
+            </button>
+          {/each}
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="flex items-center gap-2">
+          <Button
+            href="/budget"
+            variant="outline"
+            size="sm"
+            class="flex items-center gap-2"
+          >
+            <Calculator class="h-4 w-4" />
+            План
+          </Button>
+          <Button
+            href="/fact"
+            variant="outline"
+            size="sm"
+            class="flex items-center gap-2"
+          >
+            <CreditCard class="h-4 w-4" />
+            Факт
+          </Button>
+        </div>
       </div>
     </div>
 
     <!-- Layout: Filters + Content -->
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-      <!-- Filters Sidebar -->
-      <div class="lg:col-span-1">
+      <!-- Enhanced Filters Sidebar -->
+      <div class="lg:col-span-1 space-y-6">
         <ReportFilters 
           onApplyFilters={handleApplyFilters}
           isLoading={loading}
         />
+        
+        <!-- View Controls -->
+        <div class="bg-white rounded-lg shadow-sm border border-l-4 border-l-purple-500 p-4">
+          <h3 class="text-sm font-medium text-slate-900 mb-3 flex items-center gap-2">
+            <Settings class="h-4 w-4" />
+            Настройки отображения
+          </h3>
+          
+          <!-- View Mode Toggle -->
+          <ViewModeToggle 
+            currentMode={viewMode}
+            onModeChange={handleViewModeChange}
+          />
+          
+          <!-- Chart Type Selector (only in chart mode) -->
+          {#if viewMode === 'chart'}
+            <div class="mt-4">
+              <ChartSelector 
+                currentType={selectedChartType}
+                onTypeChange={handleChartTypeChange}
+                reportType={currentFilters.report_type}
+              />
+            </div>
+          {/if}
+        </div>
       </div>
 
-      <!-- Main Content -->
+      <!-- Main Content Area -->
       <div class="lg:col-span-3 space-y-6">
-        {#if currentFilters.report_type === 'plan_fact'}
-          <PlanFactChart 
-            data={planFactData}
-            title="Анализ план-факт по категориям"
-            loading={loading}
-          />
-        {:else}
-          <BudgetTable 
-            data={budgetTableData}
-            title="Детальный анализ бюджета"
-            loading={loading}
-            onExport={handleExport}
-          />
-        {/if}
+        {#if loading}
+          <div class="bg-white rounded-lg shadow-sm p-8 border border-l-4 border-l-blue-500">
+            <div class="flex items-center justify-center">
+              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+              <span class="ml-3 text-gray-600">Загрузка отчета...</span>
+            </div>
+          </div>
+        {:else if hasData}
+          <!-- Dynamic Content Rendering -->
+          {#if viewMode === 'chart'}
+            <DynamicChartRenderer 
+              {transformedData}
+              chartType={selectedChartType}
+              reportType={currentFilters.report_type}
+              {loading}
+            />
+          {:else}
+            <!-- Table View -->
+            <div class="bg-white rounded-lg shadow-sm border border-l-4 border-l-green-500">
+              <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-900 flex items-center gap-2">
+                  <BarChart3 class="h-5 w-5" />
+                  Табличное представление
+                </h2>
+              </div>
+              <div class="p-6">
+                <BudgetTable 
+                  data={transformedData.planFactData || []}
+                  title="Детальные данные"
+                  loading={false}
+                  onExport={handleExport}
+                />
+              </div>
+            </div>
+          {/if}
 
-        <!-- Quick Actions -->
-        {#if !loading && (planFactData.length > 0 || budgetTableData.length > 0)}
-          <div class="flex justify-center">
+          <!-- Export Actions -->
+          <div class="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white rounded-lg shadow-sm p-4 border border-l-4 border-l-amber-500">
+            <div class="flex items-center gap-2 text-sm text-gray-600">
+              <FileSpreadsheet class="h-4 w-4" />
+              Экспорт данных в различных форматах
+            </div>
             <div class="flex items-center gap-3">
-              <Button
-                on:click={() => handleExport('csv')}
-                variant="outline"
-                class="flex items-center gap-2"
-              >
-                <Download class="h-4 w-4" />
-                Экспорт CSV
-              </Button>
               <Button
                 on:click={() => handleExport('excel')}
                 variant="outline"
+                size="sm"
                 class="flex items-center gap-2"
               >
-                <FileSpreadsheet class="h-4 w-4" />
-                Экспорт Excel
+                <Download class="h-4 w-4" />
+                Excel
+              </Button>
+              <Button
+                on:click={() => handleExport('pdf')}
+                variant="outline"
+                size="sm"
+                class="flex items-center gap-2"
+              >
+                <Download class="h-4 w-4" />
+                PDF
               </Button>
             </div>
+          </div>
+        {:else}
+          <!-- Empty State -->
+          <div class="bg-white rounded-lg shadow-sm p-12 text-center border border-l-4 border-l-gray-400">
+            <div class="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <BarChart3 class="h-8 w-8 text-gray-400" />
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Данные не найдены</h3>
+            <p class="text-gray-600 mb-4">Измените параметры фильтра или выберите другой тип отчета</p>
+            <Button 
+              on:click={() => handleApplyFilters(currentFilters)}
+              variant="outline"
+              size="sm"
+            >
+              Обновить
+            </Button>
           </div>
         {/if}
       </div>
