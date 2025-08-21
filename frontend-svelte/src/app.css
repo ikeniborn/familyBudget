@@ -2,28 +2,47 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Design System Styles */
+@import './lib/styles/design-system.css';
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Base colors from design */
+    --navy-dark: 210 69% 25%;        /* #1e3a5f */
+    --sky-light: 203 46% 66%;        /* #7fb3d5 */
+    --beige: 40 33% 70%;             /* #d4b896 */
+    --steel: 205 24% 73%;            /* #a8c0d0 */
+    
+    /* Theme variables using new colors */
+    --background: 0 0% 98%;           /* Very light gray background */
+    --foreground: var(--navy-dark);   /* Dark navy for text */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: var(--navy-dark);
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
+    --popover-foreground: var(--navy-dark);
+    --primary: var(--navy-dark);      /* Main brand color - navy */
+    --primary-foreground: 0 0% 100%;
+    --secondary: var(--steel);        /* Steel gray for secondary elements */
+    --secondary-foreground: var(--navy-dark);
+    --muted: var(--steel);
+    --muted-foreground: var(--navy-dark);
+    --accent: var(--sky-light);       /* Sky blue for accents */
+    --accent-foreground: var(--navy-dark);
+    --destructive: 0 70% 60%;         /* Keep red for errors */
+    --destructive-foreground: 0 0% 100%;
+    --border: var(--steel);
+    --input: var(--steel);
+    --ring: var(--sky-light);
+    --radius: 0.75rem;                /* Slightly more rounded */
+    
+    /* Additional design system colors */
+    --warm-accent: var(--beige);      /* Beige for warm touches */
+    --warm-accent-foreground: var(--navy-dark);
+    --surface-elevated: 0 0% 100%;
+    --surface-subtle: 0 0% 96%;
+    --gradient-primary: linear-gradient(135deg, hsl(var(--sky-light)) 0%, hsl(var(--steel)) 100%);
+    --gradient-warm: linear-gradient(135deg, hsl(var(--beige)) 0%, hsl(var(--steel)) 100%);
+    --shadow-geometric: 0 4px 20px rgba(30, 58, 95, 0.1);
   }
 
   * {
@@ -32,5 +51,107 @@
   
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
+  
+  /* Typography improvements */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight;
+    color: hsl(var(--navy-dark));
+  }
+  
+  h1 {
+    @apply text-3xl md:text-4xl lg:text-5xl;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+  }
+  
+  h2 {
+    @apply text-2xl md:text-3xl;
+    font-weight: 700;
+  }
+  
+  h3 {
+    @apply text-xl md:text-2xl;
+    font-weight: 600;
+  }
+}
+
+@layer components {
+  /* Geometric shapes for abstract design */
+  .geometric-circle {
+    @apply rounded-full;
+    background: var(--gradient-primary);
+    box-shadow: var(--shadow-geometric);
+  }
+  
+  .geometric-circle-beige {
+    @apply rounded-full;
+    background: hsl(var(--beige));
+    box-shadow: var(--shadow-geometric);
+  }
+  
+  .geometric-triangle {
+    width: 0;
+    height: 0;
+    border-style: solid;
+  }
+  
+  .geometric-triangle-up {
+    border-left: 20px solid transparent;
+    border-right: 20px solid transparent;
+    border-bottom: 35px solid hsl(var(--navy-dark));
+  }
+  
+  .geometric-triangle-down {
+    border-left: 20px solid transparent;
+    border-right: 20px solid transparent;
+    border-top: 35px solid hsl(var(--sky-light));
+  }
+  
+  .geometric-rectangle {
+    @apply rounded-lg;
+    background: hsl(var(--beige));
+    box-shadow: var(--shadow-geometric);
+  }
+  
+  /* Icon containers for financial symbols */
+  .icon-container {
+    @apply w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl;
+    background: hsl(var(--sky-light));
+    box-shadow: var(--shadow-geometric);
+  }
+  
+  .icon-container-navy {
+    background: hsl(var(--navy-dark));
+  }
+  
+  .icon-container-beige {
+    background: hsl(var(--beige));
+    color: hsl(var(--navy-dark));
+  }
+  
+  /* Gradient backgrounds */
+  .bg-gradient-primary {
+    background: var(--gradient-primary);
+  }
+  
+  .bg-gradient-warm {
+    background: var(--gradient-warm);
+  }
+  
+  /* Abstract decoration elements */
+  .abstract-decoration {
+    position: absolute;
+    pointer-events: none;
+    z-index: -1;
+  }
+  
+  .abstract-decoration::before {
+    content: '';
+    position: absolute;
+    @apply geometric-circle;
+    opacity: 0.1;
+  }
+}
 }

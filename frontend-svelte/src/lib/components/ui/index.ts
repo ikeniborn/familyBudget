@@ -33,6 +33,9 @@ export { default as Label } from './Label.svelte';
 export { default as Skeleton } from './Skeleton.svelte';
 export { default as TextArea } from './TextArea.svelte';
 
+// Design System components
+export { default as FinancialIcon } from './FinancialIcon.svelte';
+
 // Tabs components
 export { default as Tabs } from './Tabs.svelte';
 export { default as TabsList } from './TabsList.svelte';

@@ -8,6 +8,7 @@
   import PasswordLogin from '$lib/components/auth/PasswordLogin.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import Button from '$lib/components/ui/Button.svelte';
+  import FinancialIcon from '$lib/components/ui/FinancialIcon.svelte';
   
   let returnUrl: string | null = null;
   let passwordAuthEnabled = false;
@@ -56,67 +57,86 @@
   <title>Вход - Family Budget</title>
 </svelte:head>
 
-<div class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+<div class="abstract-layout flex items-center justify-center p-4">
+  <!-- Geometric Decorations -->
+  <div class="geometric-decoration circle-1"></div>
+  <div class="geometric-decoration circle-2"></div>
+  <div class="geometric-decoration rectangle-1"></div>
+  <div class="geometric-decoration triangle-1"></div>
+
   {#if showPasswordLogin}
     <PasswordLogin onSwitchToTelegram={handleSwitchToTelegram} />
   {:else}
-    <Card class="max-w-md w-full p-8 space-y-6">
-      <div class="text-center">
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">
-          💰 Family Budget
-        </h1>
-        <p class="text-gray-600">
-          Управление семейным бюджетом
-        </p>
-      </div>
-
-      <div class="space-y-4">
-        <h2 class="text-xl font-semibold text-center text-gray-800">
-          Войти в систему
-        </h2>
-        
-        <p class="text-sm text-gray-600 text-center">
-          Используйте Telegram для быстрого и безопасного входа
-        </p>
-        
-        <div class="flex justify-center">
-          <TelegramLoginButton
-            botName="familybudget_test_bot"
-            buttonSize="large"
-            showAvatar={true}
-          />
+    <div class="design-card elevated max-w-lg w-full">
+      <div class="design-card-body space-y-8">
+        <!-- Header with Financial Icons -->
+        <div class="text-center space-y-6">
+          <!-- Financial Icons Display -->
+          <div class="flex justify-center space-x-6 mb-8">
+            <FinancialIcon icon="$" variant="navy" size="lg" />
+            <FinancialIcon icon="📊" variant="beige" size="lg" />
+            <FinancialIcon icon="%" variant="steel" size="lg" />
+          </div>
+          
+          <div>
+            <h1 class="display-heading text-center">
+              ДОМАШНИЙ<br>БУХГАЛТЕР
+            </h1>
+            <p class="subtitle text-center">
+              Сохраняем и приумножаем вместе!
+            </p>
+          </div>
         </div>
 
-        {#if passwordAuthEnabled && !loading}
-          <div class="mt-6">
-            <div class="relative">
-              <div class="absolute inset-0 flex items-center">
-                <div class="w-full border-t border-gray-300"></div>
+        <!-- Login Section -->
+        <div class="space-y-6">
+          <div class="text-center space-y-2">
+            <h2 class="text-xl font-semibold">
+              Войти в систему
+            </h2>
+            <p class="text-muted-foreground">
+              Используйте Telegram для быстрого и безопасного входа
+            </p>
+          </div>
+          
+          <div class="flex justify-center">
+            <TelegramLoginButton
+              botName="familybudget_test_bot"
+              buttonSize="large"
+              showAvatar={true}
+            />
+          </div>
+
+          {#if passwordAuthEnabled && !loading}
+            <div class="space-y-4">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center">
+                  <div class="w-full border-t border-border"></div>
+                </div>
+                <div class="relative flex justify-center text-sm">
+                  <span class="px-3 bg-card text-muted-foreground">Или</span>
+                </div>
               </div>
-              <div class="relative flex justify-center text-sm">
-                <span class="px-2 bg-white text-gray-500">Или</span>
-              </div>
-            </div>
-            
-            <div class="mt-6">
+              
               <Button
                 variant="outline"
+                size="lg"
                 class="w-full"
                 on:click={handleSwitchToPassword}
               >
                 Войти с логином и паролем
               </Button>
             </div>
-          </div>
-        {/if}
+          {/if}
+        </div>
       </div>
       
-      <div class="text-xs text-gray-500 text-center">
-        <p>
+      <div class="design-card-footer">
+        <p class="text-xs text-muted-foreground text-center">
           Нажимая кнопку входа, вы соглашаетесь с использованием данных Telegram
           для аутентификации в системе Family Budget.
         </p>
       </div>
-    </Card>
+    </div>
   {/if}
 </div>

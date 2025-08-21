@@ -1,0 +1,234 @@
+/* Design System CSS Module */
+
+/* Financial Icons Components */
+.financial-icon-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.financial-icon {
+  @apply w-16 h-16 rounded-full flex items-center justify-center;
+  background: hsl(var(--sky-light));
+  color: white;
+  font-size: 1.5rem;
+  font-weight: bold;
+  box-shadow: var(--shadow-geometric);
+  transition: transform 0.2s ease;
+}
+
+.financial-icon:hover {
+  transform: scale(1.05);
+}
+
+.financial-icon.navy {
+  background: hsl(var(--navy-dark));
+}
+
+.financial-icon.beige {
+  background: hsl(var(--beige));
+  color: hsl(var(--navy-dark));
+}
+
+.financial-icon.steel {
+  background: hsl(var(--steel));
+  color: hsl(var(--navy-dark));
+}
+
+/* Abstract Layout Components */
+.abstract-layout {
+  position: relative;
+  min-height: 100vh;
+  background: linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--surface-subtle)) 100%);
+  overflow: hidden;
+}
+
+.abstract-layout::before {
+  content: '';
+  position: absolute;
+  top: -10%;
+  left: -10%;
+  width: 120%;
+  height: 120%;
+  background: 
+    radial-gradient(circle at 20% 30%, hsla(var(--sky-light), 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, hsla(var(--beige), 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 60% 20%, hsla(var(--navy-dark), 0.05) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.abstract-layout > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Geometric Decorations */
+.geometric-decoration {
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.geometric-decoration.circle-1 {
+  top: 10%;
+  right: 15%;
+  width: 120px;
+  height: 120px;
+  @apply geometric-circle;
+  opacity: 0.15;
+}
+
+.geometric-decoration.circle-2 {
+  bottom: 20%;
+  left: 10%;
+  width: 80px;
+  height: 80px;
+  @apply geometric-circle-beige;
+  opacity: 0.2;
+}
+
+.geometric-decoration.rectangle-1 {
+  top: 30%;
+  left: 5%;
+  width: 60px;
+  height: 100px;
+  @apply geometric-rectangle;
+  opacity: 0.1;
+}
+
+.geometric-decoration.triangle-1 {
+  bottom: 15%;
+  right: 20%;
+  @apply geometric-triangle geometric-triangle-up;
+  opacity: 0.15;
+}
+
+/* Card Components with New Design */
+.design-card {
+  @apply bg-card rounded-lg shadow-lg border border-border;
+  box-shadow: var(--shadow-geometric);
+  backdrop-filter: blur(10px);
+  background: hsla(var(--card), 0.95);
+}
+
+.design-card.elevated {
+  box-shadow: 
+    0 10px 40px rgba(30, 58, 95, 0.1),
+    0 2px 8px rgba(30, 58, 95, 0.05);
+}
+
+.design-card-header {
+  @apply p-6 border-b border-border;
+}
+
+.design-card-body {
+  @apply p-6;
+}
+
+.design-card-footer {
+  @apply p-6 border-t border-border bg-surface-subtle rounded-b-lg;
+}
+
+/* Enhanced Typography */
+.display-heading {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  color: hsl(var(--navy-dark));
+  margin-bottom: 1rem;
+}
+
+.subtitle {
+  font-size: 1.125rem;
+  color: hsl(var(--muted-foreground));
+  font-weight: 500;
+  margin-bottom: 1.5rem;
+}
+
+/* Interactive Elements */
+.interactive-hover {
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.interactive-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-geometric);
+}
+
+/* Badge Components */
+.design-badge {
+  @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold;
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+.design-badge.navy {
+  background: hsl(var(--navy-dark));
+  color: white;
+}
+
+.design-badge.beige {
+  background: hsl(var(--beige));
+  color: hsl(var(--navy-dark));
+}
+
+.design-badge.steel {
+  background: hsl(var(--steel));
+  color: hsl(var(--navy-dark));
+}
+
+/* Form Components */
+.design-input {
+  @apply w-full px-4 py-3 rounded-lg border-2 border-input;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.design-input:focus {
+  outline: none;
+  border-color: hsl(var(--accent));
+  box-shadow: 0 0 0 3px hsla(var(--accent), 0.1);
+}
+
+/* Loading States */
+.geometric-spinner {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  border: 3px solid hsl(var(--steel));
+  border-radius: 50%;
+  border-top-color: hsl(var(--accent));
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 640px) {
+  .financial-icon {
+    @apply w-12 h-12;
+    font-size: 1.25rem;
+  }
+  
+  .geometric-decoration.circle-1 {
+    width: 80px;
+    height: 80px;
+  }
+  
+  .geometric-decoration.circle-2 {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .display-heading {
+    font-size: clamp(1.75rem, 8vw, 2.5rem);
+  }
+}

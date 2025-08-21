@@ -2,7 +2,7 @@
   import { clsx } from 'clsx';
   import { twMerge } from 'tailwind-merge';
   
-  export let variant: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link' = 'default';
+  export let variant: 'default' | 'destructive' | 'outline' | 'secondary' | 'accent' | 'warm' | 'ghost' | 'link' = 'default';
   export let size: 'default' | 'sm' | 'lg' | 'icon' = 'default';
   export let disabled = false;
   export let loading = false;
@@ -13,19 +13,21 @@
   export { className as class };
   
   const variants = {
-    default: 'bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-600 shadow-md',
-    destructive: 'bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-600 shadow-md',
-    outline: 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700',
-    secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200',
-    ghost: 'hover:bg-slate-100 hover:text-slate-900',
-    link: 'text-blue-600 underline-offset-4 hover:underline'
+    default: 'bg-primary text-primary-foreground hover:opacity-90 focus-visible:ring-accent shadow-lg font-semibold',
+    destructive: 'bg-destructive text-destructive-foreground hover:opacity-90 focus-visible:ring-destructive shadow-lg font-semibold',
+    outline: 'border-2 border-primary bg-transparent hover:bg-primary hover:text-primary-foreground text-primary font-semibold',
+    secondary: 'bg-secondary text-secondary-foreground hover:opacity-80 focus-visible:ring-accent shadow-md font-medium',
+    accent: 'bg-accent text-accent-foreground hover:opacity-90 focus-visible:ring-primary shadow-lg font-semibold',
+    warm: 'bg-warm-accent text-warm-accent-foreground hover:opacity-80 focus-visible:ring-accent shadow-md font-medium',
+    ghost: 'hover:bg-secondary hover:text-secondary-foreground font-medium',
+    link: 'text-accent underline-offset-4 hover:underline font-medium'
   };
   
   const sizes = {
-    default: 'h-10 px-4 py-2',
-    sm: 'h-9 rounded-md px-3',
-    lg: 'h-11 rounded-md px-8',
-    icon: 'h-10 w-10'
+    default: 'h-12 px-6 py-3',
+    sm: 'h-10 px-4 py-2',
+    lg: 'h-14 px-8 py-4',
+    icon: 'h-12 w-12'
   };
   
   $: buttonClass = twMerge(
