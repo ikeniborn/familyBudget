@@ -101,6 +101,8 @@ EOSQL
 # Parse command line arguments
 INIT_DB=false
 DETACH=""
+INCLUDE_SVELTE=false
+SERVICES="frontend frontend-api"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -112,12 +114,24 @@ while [[ $# -gt 0 ]]; do
             DETACH="-d"
             shift
             ;;
+        --svelte)
+            INCLUDE_SVELTE=true
+            SERVICES="frontend frontend-api frontend-svelte"
+            shift
+            ;;
+        --svelte-only)
+            INCLUDE_SVELTE=true
+            SERVICES="frontend-svelte frontend-api"
+            shift
+            ;;
         --help)
             echo "Usage: $0 [options]"
             echo "Options:"
-            echo "  --init-db    Initialize database with schema"
-            echo "  -d, --detach Run in detached mode"
-            echo "  --help       Show this help message"
+            echo "  --init-db      Initialize database with schema"
+            echo "  -d, --detach   Run in detached mode"
+            echo "  --svelte       Include Svelte frontend alongside React"
+            echo "  --svelte-only  Run only Svelte frontend (and API)"
+            echo "  --help         Show this help message"
             exit 0
             ;;
         *)
@@ -152,16 +166,27 @@ else
 fi
 
 # Start remaining services
-print_status "Starting application services..."
-docker-compose -f docker-compose.dev.yaml up $DETACH frontend frontend-api
+print_status "Starting application services: $SERVICES"
+docker-compose -f docker-compose.dev.yaml up $DETACH $SERVICES
 
 if [ -n "$DETACH" ]; then
     print_status "Development environment is running in detached mode"
-    print_status "Frontend: http://localhost:3000"
+    if echo "$SERVICES" | grep -q "frontend"; then
+        print_status "React Frontend: http://localhost:3000"
+    fi
+    if echo "$SERVICES" | grep -q "frontend-svelte"; then
+        print_status "Svelte Frontend: http://localhost:5173"
+    fi
     print_status "API: http://localhost:4000"
     print_status "PostgreSQL: localhost:5432"
     print_status "Redis: localhost:6379"
     echo ""
+    if [ "$INCLUDE_SVELTE" = true ]; then
+        print_status "Both frontends are running:"
+        print_status "  • React (default): http://localhost:3000"
+        print_status "  • Svelte (new): http://localhost:5173"
+        echo ""
+    fi
     print_status "To view logs: docker-compose -f docker-compose.dev.yaml logs -f"
     print_status "To stop: docker-compose -f docker-compose.dev.yaml down"
 fi

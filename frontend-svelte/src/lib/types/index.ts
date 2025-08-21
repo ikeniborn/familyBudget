@@ -1,52 +1,65 @@
-// User types
+// User types - matches backend API
 export interface User {
-  id: number;
-  telegram_id: string;
-  username: string;
-  first_name: string;
-  last_name?: string | null;
-  created_at: string;
-  updated_at: string;
+  user_id: number;
+  user_name: string;
+  user_telegram_id: number;
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+  authMethod?: 'telegram' | 'password';
 }
 
-// Period types
+// Period types - matches backend API
 export interface Period {
   id: number;
-  name: string;
-  start_date: string;
-  end_date: string;
-  is_closed: boolean;
-  created_at: string;
-  updated_at: string;
+  period_id: number;
+  period_name: string;
+  period_year: number;
+  period_month: number;
+  period_order: number;
+  user_id: number;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
-// Financial Center types
+// Financial Center types - matches backend API
 export interface FinancialCenter {
   id: number;
-  name: string;
-  description?: string | null;
-  created_at: string;
-  updated_at: string;
+  financial_center_id: number;
+  financial_center_name: string;
+  financial_center_order: number;
+  user_id: number;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
-// Cost Center types
+// Cost Center types - matches backend API
 export interface CostCenter {
   id: number;
-  name: string;
-  description?: string | null;
-  financial_center_id: number;
-  created_at: string;
-  updated_at: string;
+  cost_center_id: number;
+  cost_center_name: string;
+  cost_center_order: number;
+  user_id: number;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
-// Nomenclature types
+// Nomenclature types - matches backend API
 export interface Nomenclature {
   id: number;
-  name: string;
-  description?: string | null;
-  parent_id?: number | null;
-  created_at: string;
-  updated_at: string;
+  nomenclature_id: number;
+  nomenclature_name: string;
+  bill_name: string;
+  account_name: string;
+  operation_name: string;
+  is_fact: boolean;
+  user_id: number;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 // Registry types

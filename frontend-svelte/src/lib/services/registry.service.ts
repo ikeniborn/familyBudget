@@ -1,26 +1,38 @@
 import { api } from './api';
 import type { Registry, PaginatedResponse } from '$types';
 
-export interface CreateRegistryDto {
+export interface CreateRegistryData {
+  operation_dttm: string;
   period_id: number;
   financial_center_id: number;
-  cost_center_id: number;
+  cost_center_id?: number;
   nomenclature_id: number;
-  row_type: 'plan' | 'fact';
-  amount: number;
-  description?: string;
+  cost_sum: number;
+  comment_description?: string;
+  row_type_id: number;
 }
 
-export interface UpdateRegistryDto extends Partial<CreateRegistryDto> {}
+export interface UpdateRegistryData {
+  operation_dttm?: string;
+  period_id?: number;
+  financial_center_id?: number;
+  cost_center_id?: number;
+  nomenclature_id?: number;
+  cost_sum?: number;
+  comment_description?: string;
+  row_type_id?: number;
+}
 
 export interface RegistryFilters {
   period_id?: number;
   financial_center_id?: number;
   cost_center_id?: number;
   nomenclature_id?: number;
-  row_type?: 'plan' | 'fact';
+  row_type_id?: number;
   date_from?: string;
   date_to?: string;
+  limit?: number;
+  offset?: number;
 }
 
 class RegistryService {
@@ -36,15 +48,15 @@ class RegistryService {
     return api.get<Registry>(`/registry/${id}`);
   }
 
-  async create(data: CreateRegistryDto): Promise<Registry> {
+  async create(data: CreateRegistryData): Promise<Registry> {
     return api.post<Registry>('/registry', data);
   }
 
-  async createBulk(data: CreateRegistryDto[]): Promise<Registry[]> {
+  async createBulk(data: CreateRegistryData[]): Promise<Registry[]> {
     return api.post<Registry[]>('/registry/bulk', data);
   }
 
-  async update(id: number, data: UpdateRegistryDto): Promise<Registry> {
+  async update(id: number, data: UpdateRegistryData): Promise<Registry> {
     return api.put<Registry>(`/registry/${id}`, data);
   }
 
@@ -54,6 +66,47 @@ class RegistryService {
 
   async deleteBulk(ids: number[]): Promise<void> {
     await api.post('/registry/bulk-delete', { ids });
+  }
+
+  // Get records with filters
+  async getWithFilters(filters: RegistryFilters): Promise<Registry[]> {
+    const response = await api.get<Registry[]>('/registry', { params: filters });
+    return response;
+  }
+
+  // Get facts (row_type_id = 1)
+  async getFacts(filters?: Omit<RegistryFilters, 'row_type_id'>): Promise<Registry[]> {
+    return this.getWithFilters({ ...filters, row_type_id: 1 });
+  }
+
+  // Get plans/budget (row_type_id = 2)
+  async getBudget(filters?: Omit<RegistryFilters, 'row_type_id'>): Promise<Registry[]> {
+    return this.getWithFilters({ ...filters, row_type_id: 2 });
+  }
+
+  // Get summary by period
+  async getSummaryByPeriod(periodId: number): Promise<{
+    total_facts: number;
+    total_budget: number;
+    variance: number;
+    variance_percent: number;
+  }> {
+    return api.get(`/registry/summary/period/${periodId}`);
+  }
+
+  // Get stats by nomenclature
+  async getStatsByNomenclature(params: {
+    period_id?: number;
+    financial_center_id?: number;
+  }): Promise<Array<{
+    nomenclature_id: number;
+    nomenclature_name: string;
+    total_facts: number;
+    total_budget: number;
+    variance: number;
+    variance_percent: number;
+  }>> {
+    return api.get('/registry/stats/nomenclature', { params });
   }
 
   async getSummary(filters?: RegistryFilters): Promise<{

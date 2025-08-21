@@ -1,29 +1,21 @@
 <script lang="ts">
-  import { clsx } from 'clsx';
-  import { twMerge } from 'tailwind-merge';
+  import { cn } from '$lib/utils/cn';
   
   export let variant: 'default' | 'secondary' | 'destructive' | 'outline' = 'default';
+  export let className: string = '';
   
-  let className = '';
-  export { className as class };
-  
-  const variants = {
-    default: 'bg-blue-600 text-white hover:bg-blue-700',
-    secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200',
-    destructive: 'bg-red-600 text-white hover:bg-red-700',
-    outline: 'text-foreground border border-gray-300'
-  };
-  
-  $: badgeClass = twMerge(
-    clsx(
-      'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors',
-      'focus:outline-none focus:ring-2 focus:ring-offset-2',
-      variants[variant],
-      className
-    )
+  $: badgeClasses = cn(
+    'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+    {
+      'bg-primary text-primary-foreground hover:bg-primary/80': variant === 'default',
+      'bg-secondary text-secondary-foreground hover:bg-secondary/80': variant === 'secondary', 
+      'bg-destructive text-destructive-foreground hover:bg-destructive/80': variant === 'destructive',
+      'text-foreground': variant === 'outline'
+    },
+    className
   );
 </script>
 
-<div class={badgeClass} {...$$restProps}>
+<div class={badgeClasses}>
   <slot />
 </div>

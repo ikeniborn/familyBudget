@@ -86,10 +86,48 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=app_network"
-      - "traefik.http.routers.frontend.rule=Host(`${FRONTEND_SUBDOMAIN}.${DOMAIN}`)"
-      - "traefik.http.routers.frontend.entrypoints=websecure"
-      - "traefik.http.routers.frontend.tls=true"
+      # Main domain - React frontend (default)
+      - "traefik.http.routers.frontend-main.rule=Host(`${FRONTEND_SUBDOMAIN}.${DOMAIN}`) && !PathPrefix(`/svelte`)"
+      - "traefik.http.routers.frontend-main.entrypoints=websecure"
+      - "traefik.http.routers.frontend-main.tls=true"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
+
+  frontend-svelte:
+    container_name: frontend-svelte
+    hostname: frontend-svelte
+    build:
+      context: ./frontend-svelte
+      dockerfile: Dockerfile
+      args:
+        - NODE_ENV=production
+    environment:
+      - NODE_ENV=production
+      - ORIGIN=https://${FRONTEND_SUBDOMAIN}.${DOMAIN}
+      - PUBLIC_API_URL=https://${FRONTEND_API_SUBDOMAIN}.${DOMAIN}
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    cpuset: "1"
+    cpus: 0.1
+    mem_reservation: "50M"
+    mem_limit: "100M"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=app_network"
+      # Svelte frontend at /svelte path
+      - "traefik.http.routers.frontend-svelte.rule=Host(`${FRONTEND_SUBDOMAIN}.${DOMAIN}`) && PathPrefix(`/svelte`)"
+      - "traefik.http.routers.frontend-svelte.entrypoints=websecure"
+      - "traefik.http.routers.frontend-svelte.tls=true"
+      # Strip /svelte prefix when forwarding to Svelte container
+      - "traefik.http.middlewares.svelte-stripprefix.stripPrefix.prefixes=/svelte"
+      - "traefik.http.routers.frontend-svelte.middlewares=svelte-stripprefix"
+      - "traefik.http.services.frontend-svelte.loadbalancer.server.port=3000"
 
   frontend-api:
     container_name: frontend-api

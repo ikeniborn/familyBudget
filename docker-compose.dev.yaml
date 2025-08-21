@@ -63,6 +63,26 @@ services:
     depends_on:
       - frontend-api
 
+  frontend-svelte:
+    container_name: frontend-svelte-dev
+    build:
+      context: ./frontend-svelte
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend-svelte:/app
+      - /app/node_modules
+      - /app/.svelte-kit
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+      - PUBLIC_API_URL=http://localhost:4000
+      - ORIGIN=http://localhost:5173
+    networks:
+      - app_network
+    depends_on:
+      - frontend-api
+
   frontend-api:
     container_name: frontend-api-dev
     build:

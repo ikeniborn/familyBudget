@@ -16,6 +16,18 @@ export interface AuthResponse {
   token: string;
 }
 
+export interface PasswordAuthResponse {
+  success: boolean;
+  user?: {
+    id: number;
+    username: string;
+    firstName?: string;
+    lastName?: string;
+  };
+  token?: string;
+  error?: string;
+}
+
 class AuthService {
   async login(data: LoginData): Promise<AuthResponse> {
     const response = await api.post<AuthResponse>('/auth/telegram', data);
@@ -23,6 +35,21 @@ class AuthService {
       this.saveToken(response.token);
     }
     return response;
+  }
+
+  async loginWithPassword(username: string, password: string): Promise<PasswordAuthResponse> {
+    const response = await api.post<PasswordAuthResponse>('/auth/password', {
+      username,
+      password
+    });
+    if (response.token) {
+      this.saveToken(response.token);
+    }
+    return response;
+  }
+
+  async checkPasswordAuthEnabled(): Promise<{ enabled: boolean }> {
+    return api.get<{ enabled: boolean }>('/auth/password-enabled');
   }
 
   async logout(): Promise<void> {

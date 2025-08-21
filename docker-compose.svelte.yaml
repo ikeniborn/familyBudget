@@ -1,0 +1,116 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:13
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgresql/ddl:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      budget_network:
+        ipv4_address: 10.5.0.2
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - budget_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Frontend API (Node.js)
+  frontend-api:
+    build:
+      context: ./frontend-api
+      dockerfile: Dockerfile
+    container_name: frontend-api
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://budget:${BUDGET_DB_PASSWORD}@postgres:5432/budgetdb
+      REDIS_URL: redis://redis:6379
+      SESSION_SECRET: ${SESSION_SECRET}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      PORT: 4000
+    volumes:
+      - ./frontend-api:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - budget_network
+    ports:
+      - "4000:4000"
+
+  # SvelteKit Frontend
+  frontend-svelte:
+    build:
+      context: ./frontend-svelte
+      dockerfile: Dockerfile
+    container_name: frontend-svelte
+    environment:
+      NODE_ENV: production
+      VITE_API_URL: http://frontend-api:4000
+      VITE_TELEGRAM_BOT_NAME: ${TELEGRAM_BOT_NAME}
+    depends_on:
+      - frontend-api
+    networks:
+      - budget_network
+    ports:
+      - "3001:3000"
+
+  # Traefik Reverse Proxy
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    command:
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/traefik.yml:ro
+      - ./traefik/acme.json:/acme.json
+    networks:
+      - budget_network
+    labels:
+      - "traefik.enable=true"
+
+networks:
+  budget_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.0.0/16
+
+volumes:
+  postgres_data:
+  redis_data:

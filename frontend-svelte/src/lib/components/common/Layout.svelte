@@ -19,7 +19,8 @@
     LogOut,
     User,
     ClipboardList,
-    Settings
+    Settings,
+    Database
   } from 'lucide-svelte';
 
   let sidebarOpen = false;
@@ -36,6 +37,7 @@
     { name: 'Бюджет', path: '/budget', icon: Calculator },
     { name: 'Отчеты', path: '/reports', icon: BarChart3 },
     { name: 'Продукты', path: '/products', icon: Package },
+    { name: 'Справочники', path: '/reference', icon: Database },
   ];
 
   async function handleLogout() {
@@ -58,10 +60,26 @@
   $: $page && (sidebarOpen = false);
 
   // Get current page name
-  $: currentPageName = navItems.find(item => 
-    item.path === $page.url.pathname || 
-    (item.path === '/settings' && $page.url.pathname.startsWith('/settings'))
-  )?.name || 'Страница';
+  $: currentPageName = (() => {
+    const pathname = $page.url.pathname;
+    
+    // Check for exact matches first
+    const exactMatch = navItems.find(item => item.path === pathname);
+    if (exactMatch) return exactMatch.name;
+    
+    // Check for prefix matches
+    if (pathname.startsWith('/settings')) return 'Настройки';
+    if (pathname.startsWith('/reference')) {
+      if (pathname === '/reference') return 'Справочники';
+      if (pathname.includes('/periods')) return 'Управление периодами';
+      if (pathname.includes('/financial-centers')) return 'Управление ЦФО';
+      if (pathname.includes('/cost-centers')) return 'Управление МВЗ';
+      if (pathname.includes('/nomenclatures')) return 'Управление номенклатурами';
+      return 'Справочники';
+    }
+    
+    return 'Страница';
+  })();
 </script>
 
 <div class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex">
@@ -103,7 +121,8 @@
           {#each navItems as item (item.path)}
             {@const Icon = item.icon}
             {@const isActive = $page.url.pathname === item.path || 
-              (item.path === '/settings' && $page.url.pathname.startsWith('/settings'))}
+              (item.path === '/settings' && $page.url.pathname.startsWith('/settings')) ||
+              (item.path === '/reference' && $page.url.pathname.startsWith('/reference'))}
             
             <Button
               variant={isActive ? "default" : "ghost"}
