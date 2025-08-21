@@ -2,56 +2,84 @@ import { api } from './api';
 import type { PaginatedResponse } from '$types';
 
 export interface Product {
-  product_id: number;
+  product_id?: number;
   product_name: string;
-  product_description?: string;
-  category?: string;
-  unit?: string;
-  current_price?: number;
-  created_at: string;
-  updated_at: string;
+  category_name?: string;
+  unit_measure?: string;
+  barcode?: string;
+  description?: string;
+  is_active: boolean;
+  average_price?: number;
+  last_supplier?: string;
+  last_price_date?: string;
+  created_dttm?: string;
+  updated_dttm?: string;
 }
 
 export interface ProductPrice {
-  price_id: number;
+  price_id?: number;
   product_id: number;
-  price: number;
-  valid_from: string;
-  valid_to?: string;
-  created_at: string;
+  supplier_name?: string;
+  price_value: number;
+  price_date: string;
+  user_id: number;
+  created_dttm?: string;
 }
 
 export interface CreateProductData {
   product_name: string;
-  product_description?: string;
-  category?: string;
-  unit?: string;
-  current_price?: number;
+  category_name?: string;
+  unit_measure?: string;
+  barcode?: string;
+  description?: string;
+  is_active: boolean;
 }
 
 export interface UpdateProductData {
   product_name?: string;
-  product_description?: string;
-  category?: string;
-  unit?: string;
-  current_price?: number;
+  category_name?: string;
+  unit_measure?: string;
+  barcode?: string;
+  description?: string;
+  is_active?: boolean;
 }
 
 export interface ProductFilters {
-  product_name?: string;
-  category?: string;
-  price_min?: number;
-  price_max?: number;
+  category_name?: string;
+  is_active?: boolean;
+  search?: string;
 }
 
-export interface ProductImportResult {
+export interface ProductImportData {
+  product_name: string;
+  category_name?: string;
+  unit_measure?: string;
+  barcode?: string;
+  description?: string;
+  price_value?: number;
+  supplier_name?: string;
+}
+
+export interface ImportResult {
+  success: boolean;
   imported: number;
-  updated: number;
-  errors: string[];
+  failed: number;
+  errors?: string[];
 }
 
 class ProductService {
-  async getAll(params?: {
+  // Получить все продукты
+  async getAll(): Promise<Product[]> {
+    return api.get<Product[]>('/products');
+  }
+
+  // Получить продукты с фильтрами
+  async getWithFilters(filters: ProductFilters): Promise<Product[]> {
+    return api.get<Product[]>('/products', { params: filters });
+  }
+
+  // Получить продукты с пагинацией
+  async getPaginated(params?: {
     page?: number;
     pageSize?: number;
     filters?: ProductFilters;
@@ -79,13 +107,34 @@ class ProductService {
     await api.post('/products/bulk-delete', { ids });
   }
 
-  // Price history
-  async getPriceHistory(productId: number): Promise<ProductPrice[]> {
+  // Получить активные продукты
+  async getActiveProducts(): Promise<Product[]> {
+    return this.getWithFilters({ is_active: true });
+  }
+
+  // Поиск продуктов
+  async searchProducts(query: string): Promise<Product[]> {
+    return this.getWithFilters({ search: query });
+  }
+
+  // Получить категории
+  async getCategories(): Promise<string[]> {
+    return api.get<string[]>('/products/categories');
+  }
+
+  // Получить цены продукта
+  async getProductPrices(productId: number): Promise<ProductPrice[]> {
     return api.get<ProductPrice[]>(`/products/${productId}/prices`);
   }
 
-  async updatePrice(productId: number, price: number): Promise<ProductPrice> {
-    return api.post<ProductPrice>(`/products/${productId}/prices`, { price });
+  // Добавить цену продукта
+  async addProductPrice(data: {
+    product_id: number;
+    supplier_name?: string;
+    price_value: number;
+    price_date: string;
+  }): Promise<ProductPrice> {
+    return api.post<ProductPrice>(`/products/${data.product_id}/prices`, data);
   }
 
   // Product-nomenclature linking
@@ -130,11 +179,22 @@ class ProductService {
     return api.get('/products/analytics', { params });
   }
 
-  // Import/Export
-  async import(file: File, format: 'csv' | 'excel'): Promise<ProductImportResult> {
+  // Импорт продуктов из CSV
+  async importFromCsv(file: File): Promise<{ imported: number; errors: string[] }> {
     const formData = new FormData();
     formData.append('file', file);
-    return api.post(`/products/import/${format}`, formData, {
+    return api.post('/products/import/csv', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+  }
+
+  // Импорт продуктов из Excel
+  async importFromExcel(file: File): Promise<{ imported: number; errors: string[] }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/products/import/excel', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
