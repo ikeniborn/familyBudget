@@ -122,28 +122,40 @@ CREATE SEQUENCE t_d_user_user_id_seq as bigint INCREMENT BY 1 MINVALUE 1 START 1
 CREATE TABLE public.t_d_user (
   user_id bigint NOT NULL DEFAULT nextval('t_d_user_user_id_seq'),
   user_name varchar NOT NULL,
-  user_login varchar NOT NULL,
-  user_password varchar NOT NULL,
+  user_login varchar NULL,
+  user_password varchar NULL,
   user_email varchar NULL,
   user_google_email varchar NULL,
   user_telegram_username varchar NULL,
   user_telegram_id BIGINT NULL,
+  refresh_token varchar NULL,
+  auth_method varchar NOT NULL DEFAULT 'telegram',
+  is_active boolean DEFAULT true NOT NULL,
   created_dttm timestamp DEFAULT now() NOT NULL,
   updated_dttm timestamp DEFAULT now() NOT NULL,
   CONSTRAINT t_d_user_user_login_unique UNIQUE (user_login),
+  CONSTRAINT t_d_user_user_telegram_id_unique UNIQUE (user_telegram_id),
   CONSTRAINT t_d_user_pk PRIMARY KEY (user_id)
 );
 comment on column t_d_user.user_id is 'Идентификатор пользователя';
 comment on column t_d_user.user_name is 'Имя пользователя';
-comment on column t_d_user.user_login is 'Логин пользователя';
-comment on column t_d_user.user_password is 'Пароль пользователя';
+comment on column t_d_user.user_login is 'Логин пользователя (опциональный)';
+comment on column t_d_user.user_password is 'Хеш пароля пользователя (опциональный)';
 comment on column t_d_user.user_email is 'Электронная почта пользователя';
 comment on column t_d_user.user_google_email is 'Электронная почта Google пользователя';
-comment on column t_d_user.user_telegram_username is 'Имя пользователя telegtam';
-comment on column t_d_user.user_telegram_id is 'Идентификатор пользователя telegtam';
+comment on column t_d_user.user_telegram_username is 'Имя пользователя Telegram';
+comment on column t_d_user.user_telegram_id is 'Идентификатор пользователя Telegram (опциональный)';
+comment on column t_d_user.refresh_token is 'Токен обновления для авторизации';
+comment on column t_d_user.auth_method is 'Метод авторизации: password, telegram, both';
+comment on column t_d_user.is_active is 'Признак активности пользователя';
 comment on column t_d_user.created_dttm is 'Дата создания';
 comment on column t_d_user.updated_dttm is 'Дата обновления';
-comment on table t_d_user is 'Справочник пользователей';
+comment on table t_d_user is 'Справочник пользователей с поддержкой двойной авторизации';
+
+-- Добавление комментариев для новых полей авторизации
+comment on column t_d_user.refresh_token is 'Токен обновления для авторизации';
+comment on column t_d_user.auth_method is 'Метод авторизации: password, telegram, both';
+comment on column t_d_user.is_active is 'Признак активности пользователя';
 
 -- public.t_f_registry definition
 drop SEQUENCE if EXISTS t_f_registry_registry_id_seq;

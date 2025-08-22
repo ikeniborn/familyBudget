@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -15,9 +12,14 @@ model User {
   id           Int      @id @default(autoincrement()) @map("user_id")
   userName     String   @map("user_name")
   userEmail    String?  @map("user_email")
-  telegramId   String   @unique @map("user_telegram_id")
+  username     String?  @unique @map("user_login")
+  passwordHash String?  @map("user_password")
+  telegramId   String?  @unique @map("user_telegram_id")
+  refreshToken String?  @map("refresh_token")
+  authMethod   String   @default("telegram") @map("auth_method")
   isActive     Boolean  @default(true) @map("is_active")
   createdAt    DateTime @default(now()) @map("created_dttm")
+  updatedAt    DateTime @updatedAt @map("updated_dttm")
   
   registries   Registry[]
   productPrices ProductPrice[]
@@ -46,15 +48,6 @@ model FinancialCenter {
   @@map("t_d_financial_center")
 }
 
-model CostCenter {
-  id   Int    @id @default(autoincrement()) @map("cost_center_id")
-  name String @map("cost_center_name")
-  
-  registries Registry[]
-  
-  @@map("t_d_cost_center")
-}
-
 model Nomenclature {
   id          Int     @id @default(autoincrement()) @map("nomenclature_id")
   name        String  @map("nomenclature_name")
@@ -77,6 +70,15 @@ model RowType {
   registries Registry[]
   
   @@map("t_d_row_type")
+}
+
+model CostCenter {
+  id   Int    @id @default(autoincrement()) @map("cost_center_id")
+  name String @map("cost_center_name")
+  
+  registries Registry[]
+  
+  @@map("t_d_cost_center")
 }
 
 model Registry {
@@ -102,44 +104,52 @@ model Registry {
 }
 
 model Product {
-  id          Int       @id @default(autoincrement()) @map("product_id")
-  name        String    @map("product_name")
-  category    String?   @map("category_name")
-  unit        String?   @map("unit_measure")
-  barcode     String?   @map("barcode")
-  description String?
-  isActive    Boolean   @default(true) @map("is_active")
-  createdAt   DateTime  @default(now()) @map("created_dttm")
-  updatedAt   DateTime  @updatedAt @map("updated_dttm")
-  
+  id            Int                   @id @default(autoincrement()) @map("product_id")
+  name          String                @map("product_name") @db.VarChar(255)
+  category      String?               @map("category_name") @db.VarChar(100)
+  unit          String?               @map("unit_measure") @db.VarChar(50)
+  barcode       String?               @map("barcode") @db.VarChar(50)
+  description   String?
+  isActive      Boolean?              @default(true) @map("is_active")
+  createdAt     DateTime?             @default(now()) @map("created_dttm") @db.Timestamp(6)
+  updatedAt     DateTime?             @default(now()) @updatedAt @map("updated_dttm") @db.Timestamp(6)
   prices        ProductPrice[]
   nomenclatures ProductNomenclature[]
-  
+
+  @@index([isActive], map: "idx_product_active")
+  @@index([barcode], map: "idx_product_barcode")
+  @@index([category], map: "idx_product_category")
+  @@index([name], map: "idx_product_name")
   @@map("t_d_product")
 }
 
 model ProductPrice {
-  id           Int      @id @default(autoincrement()) @map("price_id")
-  productId    Int      @map("product_id")
-  supplierName String?  @map("supplier_name")
-  priceValue   Decimal  @map("price_value")
-  priceDate    DateTime @map("price_date")
-  userId       Int      @map("user_id")
-  createdAt    DateTime @default(now()) @map("created_dttm")
-  
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id])
-  
+  id           Int       @id @default(autoincrement()) @map("price_id")
+  productId    Int       @map("product_id")
+  supplierName String?   @map("supplier_name") @db.VarChar(255)
+  priceValue   Decimal   @map("price_value") @db.Decimal(10, 2)
+  priceDate    DateTime  @default(dbgenerated("CURRENT_DATE")) @map("price_date") @db.Date
+  userId       Int       @map("user_id")
+  createdAt    DateTime? @default(now()) @map("created_dttm") @db.Timestamp(6)
+  product      Product   @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user         User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([priceDate(sort: Desc)], map: "idx_product_price_date")
+  @@index([productId], map: "idx_product_price_product")
+  @@index([supplierName], map: "idx_product_price_supplier")
+  @@index([userId], map: "idx_product_price_user")
   @@map("t_f_product_price")
 }
 
 model ProductNomenclature {
-  productId      Int @map("product_id")
-  nomenclatureId Int @map("nomenclature_id")
-  
-  product      Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
-  nomenclature Nomenclature @relation(fields: [nomenclatureId], references: [id], onDelete: Cascade)
-  
+  productId      Int          @map("product_id")
+  nomenclatureId Int          @map("nomenclature_id")
+  created_dttm   DateTime?    @default(now()) @db.Timestamp(6)
+  nomenclature   Nomenclature @relation(fields: [nomenclatureId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
   @@id([productId, nomenclatureId])
+  @@index([nomenclatureId], map: "idx_product_nomenclature_nom")
+  @@index([productId], map: "idx_product_nomenclature_product")
   @@map("t_l_product_nomenclature")
 }

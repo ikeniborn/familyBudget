@@ -3,6 +3,7 @@ import cors from 'cors';
 import session from 'express-session';
 import dotenv from 'dotenv';
 import authPasswordRoutes from './routes/auth-password';
+import authRoutes from './routes/auth';
 import simpleApiRoutes from './routes/api/simple';
 
 dotenv.config();
@@ -34,6 +35,7 @@ app.use(
 
 // Routes
 app.use('/auth', authPasswordRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api', simpleApiRoutes);
 
 // Health check
