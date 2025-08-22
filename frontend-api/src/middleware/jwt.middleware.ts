@@ -1,29 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { JWTService, TokenPayload } from '../services/jwt.service';
-
-// Расширяем типы сессии
-declare module 'express-session' {
-  interface SessionData {
-    user?: {
-      user_id: number;
-      user_telegram_id?: number;
-      first_name?: string;
-      last_name?: string;
-      username?: string;
-    };
-  }
-}
-
-// Расширяем интерфейс Request для добавления информации о пользователе
-declare global {
-  namespace Express {
-    interface Request {
-      userId?: number;
-      user?: TokenPayload;
-      authMethod?: 'jwt' | 'session';
-    }
-  }
-}
+import { JWTService } from '../services/jwt.service';
 
 export interface JWTMiddlewareOptions {
   /**
@@ -82,7 +58,7 @@ export const jwtAuth = (options: JWTMiddlewareOptions = {}) => {
       req.userId = req.session.user.user_id;
       req.authMethod = 'session';
       
-      // Создаем объект user в формате TokenPayload для совместимости
+      // Создаем объект user для совместимости
       req.user = {
         userId: req.session.user.user_id,
         telegramId: req.session.user.user_telegram_id?.toString(),

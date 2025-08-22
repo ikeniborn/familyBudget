@@ -12,8 +12,8 @@
   import { dev } from '$app/environment';
   
   let returnUrl: string | null = null;
-  let passwordAuthEnabled = false;
-  let showPasswordLogin = false;
+  let passwordAuthEnabled = true; // Включена по умолчанию
+  let showPasswordLogin = true;   // По умолчанию показывать логин/пароль
   let loading = false;
   
   let authCheckCompleted = false;
@@ -32,7 +32,7 @@
     returnUrl = $page.url.searchParams.get('returnUrl');
     console.log('[LOGIN] Return URL:', returnUrl);
     
-    // Check if password auth is enabled
+    // Check if password auth is enabled (опционально)
     try {
       loading = true;
       const response = await authService.checkPasswordAuthEnabled();
@@ -40,6 +40,8 @@
       console.log('[LOGIN] Password auth enabled:', passwordAuthEnabled);
     } catch (error) {
       console.error('[LOGIN] Error checking password auth:', error);
+      // Если проверка не удалась, оставляем включенной
+      passwordAuthEnabled = true;
     } finally {
       loading = false;
       authCheckCompleted = true;
@@ -61,65 +63,94 @@
 </svelte:head>
 
 <div class="login-page">
-  {#if showPasswordLogin}
-    <div class="password-login-container">
-      <PasswordLogin onSwitchToTelegram={handleSwitchToTelegram} />
+  <div class="login-container">
+    <!-- Abstract Graphics Section -->
+    <div class="graphics-section">
+      <AbstractGraphics />
     </div>
-  {:else}
-    <div class="login-container">
-      <!-- Abstract Graphics Section -->
-      <div class="graphics-section">
-        <AbstractGraphics />
+    
+    <!-- Main Login Content -->
+    <div class="content-section">
+      <!-- Header Section -->
+      <div class="header-section">
+        <h1 class="main-title">
+          ДОМАШНИЙ<br />БУХГАЛТЕР
+        </h1>
+        <p class="subtitle">
+          Сохраняем и приумножаем вместе!
+        </p>
       </div>
-      
-      <!-- Main Login Content -->
-      <div class="content-section">
-        <!-- Header Section -->
-        <div class="header-section">
-          <h1 class="main-title">
-            ДОМАШНИЙ<br />БУХГАЛТЕР
-          </h1>
-          <p class="subtitle">
-            Сохраняем и приумножаем вместе!
-          </p>
-        </div>
 
-        <!-- Login Button Section -->
-        <div class="button-section">
-          <Button
-            variant="default"
-            size="lg"
-            class="login-button"
-            disabled={loading}
-            on:click={() => {
-              console.log('[LOGIN] Кнопка входа нажата!');
-              console.log('[LOGIN] State:', { browser, dev, loading, authCheckCompleted });
-              console.log('[LOGIN] shouldUseMockAuth():', shouldUseMockAuth());
-              
-              if (loading || !authCheckCompleted) {
-                console.log('[LOGIN] Выход - приложение еще загружается');
-                return;
-              }
-              
-              if ($isAuthenticated) {
-                console.log('[LOGIN] Выход - уже авторизован');
-                goto('/dashboard');
-                return;
-              }
-              
-              console.log('[LOGIN] Запуск Telegram OAuth с botName:', getEffectiveBotName());
-              console.log('[LOGIN] returnUrl:', returnUrl || undefined);
-              
-              // Start Telegram OAuth redirect flow
-              authService.startTelegramOAuth(getEffectiveBotName(), returnUrl || undefined);
-            }}
+      <!-- Auth Method Toggle -->
+      <div class="auth-toggle">
+        <div class="toggle-container">
+          <button 
+            class="toggle-button" 
+            class:active={showPasswordLogin}
+            on:click={() => showPasswordLogin = true}
           >
-            {loading ? 'Загрузка...' : (dev ? 'Войти (Тест)' : 'Войти')}
-          </Button>
+            Логин / Пароль
+          </button>
+          <button 
+            class="toggle-button" 
+            class:active={!showPasswordLogin}
+            on:click={() => showPasswordLogin = false}
+          >
+            Telegram
+          </button>
         </div>
       </div>
+
+      <!-- Auth Forms Section -->
+      <div class="auth-forms-section">
+        {#if showPasswordLogin}
+          <div class="password-login-wrapper">
+            <PasswordLogin onSwitchToTelegram={handleSwitchToTelegram} />
+          </div>
+        {:else}
+          <!-- Telegram Login Button Section -->
+          <div class="button-section">
+            <Button
+              variant="default"
+              size="lg"
+              class="login-button"
+              disabled={loading}
+              on:click={() => {
+                console.log('[LOGIN] Кнопка входа нажата!');
+                console.log('[LOGIN] State:', { browser, dev, loading, authCheckCompleted });
+                console.log('[LOGIN] shouldUseMockAuth():', shouldUseMockAuth());
+                
+                if (loading || !authCheckCompleted) {
+                  console.log('[LOGIN] Выход - приложение еще загружается');
+                  return;
+                }
+                
+                if ($isAuthenticated) {
+                  console.log('[LOGIN] Выход - уже авторизован');
+                  goto('/dashboard');
+                  return;
+                }
+                
+                console.log('[LOGIN] Запуск Telegram OAuth с botName:', getEffectiveBotName());
+                console.log('[LOGIN] returnUrl:', returnUrl || undefined);
+                
+                // Start Telegram OAuth redirect flow
+                authService.startTelegramOAuth(getEffectiveBotName(), returnUrl || undefined);
+              }}
+            >
+              {loading ? 'Загрузка...' : (dev ? 'Войти (Тест)' : 'Войти')}
+            </Button>
+            
+            <div class="telegram-info">
+              <p class="telegram-description">
+                Нажмите кнопку выше для входа через Telegram
+              </p>
+            </div>
+          </div>
+        {/if}
+      </div>
     </div>
-  {/if}
+  </div>
 </div>
 
 <style>
@@ -132,14 +163,9 @@
     padding: 1rem;
   }
 
-  .password-login-container {
-    width: 100%;
-    max-width: 28rem;
-  }
-
   .login-container {
     width: 100%;
-    max-width: 400px;
+    max-width: 450px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -156,7 +182,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4rem;
+    gap: 2.5rem;
   }
 
   .header-section {
@@ -182,9 +208,72 @@
     margin: 0;
   }
 
+  .auth-toggle {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  .toggle-container {
+    display: flex;
+    background: #f3f4f6;
+    border-radius: 0.75rem;
+    padding: 0.25rem;
+    gap: 0.25rem;
+  }
+
+  .toggle-button {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    border: none;
+    background: transparent;
+    color: #6b7280;
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    white-space: nowrap;
+  }
+
+  .toggle-button.active {
+    background: #1e3a5f;
+    color: white;
+    box-shadow: 0 2px 4px rgba(30, 58, 95, 0.1);
+  }
+
+  .toggle-button:hover:not(.active) {
+    background: #e5e7eb;
+    color: #374151;
+  }
+
+  .auth-forms-section {
+    width: 100%;
+  }
+
+  .password-login-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
   .button-section {
     width: 100%;
     position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+  }
+
+  .telegram-info {
+    text-align: center;
+  }
+
+  .telegram-description {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin: 0;
+    line-height: 1.4;
   }
 
   :global(.login-button) {

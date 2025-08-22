@@ -27,7 +27,29 @@ export interface PasswordAuthResponse {
     firstName?: string;
     lastName?: string;
   };
-  token?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  token?: string; // Обратная совместимость
+  error?: string;
+}
+
+export interface RegisterResponse {
+  success: boolean;
+  user?: {
+    id: number;
+    username: string;
+    firstName?: string;
+    lastName?: string;
+  };
+  accessToken?: string;
+  refreshToken?: string;
+  error?: string;
+}
+
+export interface RefreshTokenResponse {
+  success: boolean;
+  accessToken?: string;
+  refreshToken?: string;
   error?: string;
 }
 
@@ -80,14 +102,66 @@ class AuthService {
   }
 
   async loginWithPassword(username: string, password: string): Promise<PasswordAuthResponse> {
-    const response = await api.post<PasswordAuthResponse>('/auth/password', {
+    const response = await api.post<PasswordAuthResponse>('/auth/login', {
       username,
       password
     });
-    if (response.token) {
-      this.saveToken(response.token);
+    
+    if (response.success) {
+      // Поддержка и JWT токенов, и обычных токенов
+      const accessToken = response.accessToken || response.token;
+      const refreshToken = response.refreshToken;
+      
+      if (accessToken) {
+        this.saveTokens(accessToken, refreshToken);
+      }
     }
+    
     return response;
+  }
+
+  async register(username: string, password: string, firstName?: string, lastName?: string): Promise<RegisterResponse> {
+    const response = await api.post<RegisterResponse>('/auth/register', {
+      username,
+      password,
+      firstName,
+      lastName
+    });
+    
+    if (response.success) {
+      const accessToken = response.accessToken;
+      const refreshToken = response.refreshToken;
+      
+      if (accessToken) {
+        this.saveTokens(accessToken, refreshToken);
+      }
+    }
+    
+    return response;
+  }
+  
+  async refreshAccessToken(): Promise<string | null> {
+    const refreshToken = this.getRefreshToken();
+    
+    if (!refreshToken) {
+      return null;
+    }
+    
+    try {
+      const response = await api.post<RefreshTokenResponse>('/auth/refresh', {
+        refreshToken
+      });
+      
+      if (response.success && response.accessToken) {
+        this.saveTokens(response.accessToken, response.refreshToken || refreshToken);
+        return response.accessToken;
+      }
+    } catch (error) {
+      console.error('Failed to refresh token:', error);
+      this.clearTokens();
+    }
+    
+    return null;
   }
 
   async checkPasswordAuthEnabled(): Promise<{ enabled: boolean }> {
@@ -98,7 +172,7 @@ class AuthService {
     try {
       await api.post('/auth/logout');
     } finally {
-      this.clearToken();
+      this.clearTokens();
     }
   }
 
@@ -121,15 +195,40 @@ class AuthService {
     }
   }
 
-  private clearToken(): void {
+  private saveTokens(accessToken: string, refreshToken?: string): void {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('auth_token');
+      localStorage.setItem('access_token', accessToken);
+      localStorage.setItem('auth_token', accessToken); // Обратная совместимость
+      
+      if (refreshToken) {
+        localStorage.setItem('refresh_token', refreshToken);
+      }
+    }
+  }
+
+  
+  private clearTokens(): void {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('auth_token'); // Обратная совместимость
     }
   }
 
   getToken(): string | null {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('auth_token');
+      return localStorage.getItem('access_token') || localStorage.getItem('auth_token');
+    }
+    return null;
+  }
+  
+  getAccessToken(): string | null {
+    return this.getToken();
+  }
+  
+  getRefreshToken(): string | null {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('refresh_token');
     }
     return null;
   }
