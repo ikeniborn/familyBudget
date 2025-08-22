@@ -216,10 +216,6 @@ class ProductService {
     });
   }
 
-  async getCategories(): Promise<string[]> {
-    return api.get<string[]>('/products/categories');
-  }
-
   async getUnits(): Promise<string[]> {
     return api.get<string[]>('/products/units');
   }

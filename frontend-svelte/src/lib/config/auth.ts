@@ -15,11 +15,29 @@ export interface AuthConfig {
 }
 
 /**
+ * Bot name configuration - keep this separate to avoid circular dependencies
+ */
+const BOT_NAME = 'familybudget_test_bot';
+
+/**
+ * Gets the configured bot name from environment or default
+ */
+function getConfiguredBotName(): string | null {
+  // In a real environment, this would come from environment variables
+  // For now, we check if the bot name looks like a real bot name
+  if (BOT_NAME && BOT_NAME.endsWith('_bot') && BOT_NAME.length > 4) {
+    return BOT_NAME;
+  }
+  
+  return null;
+}
+
+/**
  * Authentication configuration
  */
 export const authConfig: AuthConfig = {
   // Bot name - in production this should be configured properly
-  botName: 'familybudget_test_bot',
+  botName: BOT_NAME,
   
   // Development mode detection
   isDevelopmentMode: dev,
@@ -38,21 +56,6 @@ export const authConfig: AuthConfig = {
 };
 
 /**
- * Gets the configured bot name from environment or default
- */
-function getConfiguredBotName(): string | null {
-  // In a real environment, this would come from environment variables
-  // For now, we check if the bot name looks like a real bot name
-  const botName = authConfig.botName;
-  
-  if (botName && botName.endsWith('_bot') && botName.length > 4) {
-    return botName;
-  }
-  
-  return null;
-}
-
-/**
  * Checks if we should use mock authentication
  */
 export function shouldUseMockAuth(): boolean {
@@ -63,7 +66,7 @@ export function shouldUseMockAuth(): boolean {
  * Gets the effective bot name for OAuth
  */
 export function getEffectiveBotName(): string {
-  return getConfiguredBotName() || authConfig.botName;
+  return getConfiguredBotName() || BOT_NAME;
 }
 
 /**

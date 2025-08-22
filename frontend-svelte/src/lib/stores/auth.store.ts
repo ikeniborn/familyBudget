@@ -1,8 +1,8 @@
 import { writable, derived } from 'svelte/store';
 import { browser } from '$app/environment';
 import type { User } from '$types';
-import { authService } from '$services/auth.service';
-import api from '$services/api';
+import { authService } from '$lib/services/auth.service';
+import api from '$lib/services/api';
 import type { TelegramAuthData } from '$lib/utils/telegram-oauth';
 
 interface AuthUser extends User {
