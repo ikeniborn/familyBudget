@@ -1,5 +1,8 @@
 import { api } from './api';
 import type { User } from '$types';
+import { startTelegramOAuth } from '$lib/utils/telegram-oauth';
+import type { TelegramAuthData } from '$lib/utils/telegram-oauth';
+import { browser } from '$app/environment';
 
 export interface LoginData {
   id: string;
@@ -35,6 +38,35 @@ class AuthService {
       this.saveToken(response.token);
     }
     return response;
+  }
+
+  /**
+   * Initiates Telegram OAuth redirect flow
+   * @param botName - Telegram bot username
+   * @param returnUrl - URL to return to after authentication
+   */
+  startTelegramOAuth(botName: string, returnUrl?: string): void {
+    if (!browser) return;
+    startTelegramOAuth(botName, returnUrl);
+  }
+
+  /**
+   * Login with Telegram OAuth data (from redirect callback)
+   * @param authData - Telegram auth data from OAuth callback
+   */
+  async loginWithTelegramOAuth(authData: TelegramAuthData): Promise<AuthResponse> {
+    // Convert TelegramAuthData to LoginData format
+    const loginData: LoginData = {
+      id: authData.id,
+      first_name: authData.first_name,
+      last_name: authData.last_name,
+      username: authData.username,
+      photo_url: authData.photo_url,
+      auth_date: authData.auth_date,
+      hash: authData.hash
+    };
+    
+    return this.login(loginData);
   }
 
   async loginWithPassword(username: string, password: string): Promise<PasswordAuthResponse> {

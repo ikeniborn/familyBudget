@@ -4,10 +4,10 @@
   import { page } from '$app/stores';
   import { isAuthenticated } from '$lib/stores/auth.store';
   import { authService } from '$lib/services/auth.service';
-  import TelegramLoginButton from '$lib/components/auth/TelegramLoginButton.svelte';
   import PasswordLogin from '$lib/components/auth/PasswordLogin.svelte';
   import AbstractGraphics from '$lib/components/auth/AbstractGraphics.svelte';
   import Button from '$lib/components/ui/Button.svelte';
+  import { getEffectiveBotName, shouldUseMockAuth } from '$lib/config/auth';
   
   let returnUrl: string | null = null;
   let passwordAuthEnabled = false;
@@ -83,28 +83,23 @@
         <!-- Login Button Section -->
         <div class="button-section">
           <Button
-            variant="primary"
+            variant="default"
             size="lg"
             class="login-button"
+            disabled={loading}
             on:click={() => {
-              // Handle login - for now just show Telegram login
-              const telegramButton = document.querySelector('iframe[src*="telegram"]');
-              if (telegramButton) {
-                telegramButton.click();
-              }
+              // Start Telegram OAuth redirect flow
+              authService.startTelegramOAuth(getEffectiveBotName(), returnUrl || undefined);
             }}
           >
-            Войти
+            {loading ? 'Загрузка...' : shouldUseMockAuth() ? 'Войти (Тест)' : 'Войти через Telegram'}
           </Button>
           
-          <!-- Hidden Telegram button for functionality -->
-          <div class="hidden-telegram">
-            <TelegramLoginButton
-              botName="familybudget_test_bot"
-              buttonSize="large"
-              showAvatar={false}
-            />
-          </div>
+          {#if shouldUseMockAuth()}
+            <p class="dev-notice">
+              Режим разработки - используется тестовый вход
+            </p>
+          {/if}
         </div>
       </div>
     </div>
@@ -195,15 +190,22 @@
     box-shadow: 0 6px 20px rgba(30, 58, 95, 0.3) !important;
   }
 
-  .hidden-telegram {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0;
-    pointer-events: none;
-    z-index: -1;
+  :global(.login-button:disabled) {
+    background: #9ca3af !important;
+    transform: none !important;
+    box-shadow: none !important;
+    cursor: not-allowed !important;
+  }
+
+  .dev-notice {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    background: #fef3c7;
+    border: 1px solid #f59e0b;
+    border-radius: 0.5rem;
+    color: #92400e;
+    font-size: 0.875rem;
+    text-align: center;
   }
 
   /* Mobile responsive adjustments */

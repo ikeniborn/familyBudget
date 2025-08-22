@@ -3,6 +3,7 @@ import { browser } from '$app/environment';
 import type { User } from '$types';
 import { authService } from '$services/auth.service';
 import api from '$services/api';
+import type { TelegramAuthData } from '$lib/utils/telegram-oauth';
 
 interface AuthUser extends User {
   authMethod?: 'telegram' | 'password';
@@ -91,6 +92,29 @@ function createAuthStore() {
         }
       } catch (error: any) {
         const errorMessage = error.message || 'Login failed';
+        update(state => ({
+          ...state,
+          isLoading: false,
+          error: errorMessage,
+          isAuthenticated: false
+        }));
+        throw error;
+      }
+    },
+
+    async loginWithTelegramOAuth(authData: TelegramAuthData): Promise<void> {
+      update(state => ({ ...state, isLoading: true, error: null }));
+      try {
+        const response = await authService.loginWithTelegramOAuth(authData);
+        const newState: AuthState = {
+          user: { ...response.user, authMethod: 'telegram' as const },
+          isAuthenticated: true,
+          isLoading: false,
+          error: null
+        };
+        set(newState);
+      } catch (error: any) {
+        const errorMessage = error.message || 'OAuth login failed';
         update(state => ({
           ...state,
           isLoading: false,

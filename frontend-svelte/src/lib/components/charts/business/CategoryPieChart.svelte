@@ -48,7 +48,7 @@
   let activeIndex: number | null = null;
   let searchTerm = '';
 
-  // Process data
+  // Process data - step by step to avoid circular dependencies
   $: transformedData = transformToCategoryPie(data);
   
   $: filteredBySearch = searchTerm 
@@ -57,16 +57,17 @@
       )
     : transformedData;
 
-  // Separate reactive statements to avoid circular dependencies
-  $: visibleData = filteredBySearch.filter(item => !hiddenCategories.has(item.name));
-  
+  // Calculate base visible data (without hiddenCategories dependency here)
+  $: baseVisibleData = filteredBySearch;
+
+  // Process data into main and "other" categories
   $: processedDataAndOthers = (() => {
     // Separate small slices into "Other" category
     const mainData: ChartDataPoint[] = [];
     let otherSum = 0;
     const otherItems: ChartDataPoint[] = [];
     
-    visibleData.forEach((item) => {
+    baseVisibleData.forEach((item) => {
       if (item.percentage >= minSlicePercentage) {
         mainData.push(item);
       } else {
@@ -77,7 +78,7 @@
     
     // Add "Other" category if there are small slices
     if (otherSum > 0) {
-      const total = visibleData.reduce((sum, item) => sum + item.value, 0);
+      const total = baseVisibleData.reduce((sum, item) => sum + item.value, 0);
       mainData.push({
         name: 'Прочее',
         value: otherSum,
@@ -100,8 +101,13 @@
     };
   })();
 
-  $: processedData = processedDataAndOthers.chartData;
+  // Extract values
+  $: allProcessedData = processedDataAndOthers.chartData;
   $: otherData = processedDataAndOthers.otherData;
+  
+  // Apply hidden categories filter at the very end for display
+  $: processedData = allProcessedData.filter(item => !hiddenCategories.has(item.name));
+  $: visibleData = baseVisibleData.filter(item => !hiddenCategories.has(item.name));
 
   // Chart data
   $: chartData = {
@@ -126,39 +132,7 @@
         display: false,
       },
       legend: {
-        display: showLegend,
-        position: 'bottom' as const,
-        labels: {
-          font: {
-            size: 12,
-          },
-          color: chartTheme.colors.neutral,
-          usePointStyle: true,
-          padding: 20,
-          generateLabels: (chart) => {
-            const data = chart.data;
-            if (data.labels?.length && data.datasets.length) {
-              return data.labels.map((label, i) => ({
-                text: String(label),
-                fillStyle: data.datasets[0].backgroundColor?.[i] as string,
-                strokeStyle: data.datasets[0].borderColor as string,
-                lineWidth: 1,
-                hidden: hiddenCategories.has(String(label)),
-                index: i,
-              }));
-            }
-            return [];
-          },
-        },
-        onClick: (event, legendItem, legend) => {
-          const label = String(legendItem.text);
-          if (hiddenCategories.has(label)) {
-            hiddenCategories.delete(label);
-          } else {
-            hiddenCategories.add(label);
-          }
-          hiddenCategories = new Set(hiddenCategories); // Trigger reactivity
-        },
+        display: false, // Use custom legend instead to avoid circular dependency
       },
       tooltip: {
         backgroundColor: chartTheme.tooltip.backgroundColor,
@@ -238,14 +212,11 @@
     hiddenCategories = new Set(hiddenCategories);
   }
 
-  // Calculate total for visible slices
-  $: visibleTotal = processedData
-    .filter(item => !hiddenCategories.has(item.name))
-    .reduce((sum, item) => sum + item.value, 0);
+  // Calculate total for visible slices - use visibleData directly since it's now properly computed
+  $: visibleTotal = visibleData.reduce((sum, item) => sum + item.value, 0);
 
-  // Summary statistics
+  // Summary statistics - use the computed visibleData
   $: summaryStats = (() => {
-    const visibleData = processedData.filter(item => !hiddenCategories.has(item.name));
     const categoryCount = visibleData.filter(item => !item.isOther).length;
     const largestPercentage = visibleData.length > 0 ? visibleData[0].percentage : 0;
     const averagePercentage = visibleData.length > 0 ? 100 / visibleData.length : 0;
@@ -311,10 +282,10 @@
         {/if}
       </div>
 
-      <!-- Custom Legend (if built-in legend is disabled) -->
-      {#if !showLegend && processedData.length > 0}
+      <!-- Custom Legend -->
+      {#if allProcessedData.length > 0}
         <div class="flex flex-wrap justify-center gap-3 mt-4">
-          {#each processedData as item, index}
+          {#each allProcessedData as item, index}
             <button
               on:click={() => handleLegendClick(item.name)}
               class="flex items-center gap-2 px-2 py-1 rounded transition-all {
