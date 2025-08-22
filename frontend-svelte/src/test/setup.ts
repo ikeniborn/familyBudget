@@ -1,9 +1,9 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
-// Mock SvelteKit environment
+// Mock SvelteKit environment - set browser to true for testing
 vi.mock('$app/environment', () => ({
-  browser: false,
+  browser: true,
   dev: true,
   building: false,
   version: 'test'
@@ -69,4 +69,57 @@ global.IntersectionObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   unobserve: vi.fn(),
   disconnect: vi.fn(),
+}));
+
+// Ensure DOM environment is properly set up for Svelte 5
+Object.defineProperty(global, 'window', {
+  value: globalThis.window,
+  writable: true,
+});
+
+Object.defineProperty(global, 'document', {
+  value: globalThis.document,
+  writable: true,
+});
+
+// Force client-side environment for Svelte 5
+Object.defineProperty(globalThis, 'import', {
+  value: {
+    meta: {
+      env: {
+        SSR: false,
+        MODE: 'test'
+      }
+    }
+  },
+  writable: true,
+});
+
+// Ensure we're not in server environment for Svelte components
+globalThis.process = globalThis.process || {};
+globalThis.process.env = globalThis.process.env || {};
+globalThis.process.env.NODE_ENV = 'test';
+
+// Mock CSS computedStyle for tests
+Object.defineProperty(window, 'getComputedStyle', {
+  value: () => ({
+    position: 'absolute',
+    pointerEvents: 'none',
+    fontWeight: '800',
+    borderRadius: '1rem'
+  }),
+  writable: true,
+});
+
+// Mock getBoundingClientRect for tests
+Element.prototype.getBoundingClientRect = vi.fn(() => ({
+  left: 0,
+  top: 0,
+  width: 400,
+  height: 300,
+  right: 400,
+  bottom: 300,
+  x: 0,
+  y: 0,
+  toJSON: () => {}
 }));

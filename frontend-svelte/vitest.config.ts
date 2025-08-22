@@ -7,7 +7,7 @@ export default defineConfig({
   
   test: {
     // Test environment
-    environment: 'happy-dom',
+    environment: 'jsdom',
     
     // Setup files
     setupFiles: ['./src/test/setup.ts'],
@@ -17,6 +17,19 @@ export default defineConfig({
     
     // Global test configuration
     globals: true,
+    
+    // Browser environment simulation
+    environmentOptions: {
+      jsdom: {
+        resources: 'usable',
+        runScripts: 'dangerously'
+      }
+    },
+    
+    // Force client-side compilation
+    define: {
+      'import.meta.env.SSR': false
+    },
     
     // Coverage configuration
     coverage: {
