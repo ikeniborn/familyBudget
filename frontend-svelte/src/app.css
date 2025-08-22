@@ -1,9 +1,9 @@
+/* Design System Styles */
+@import './lib/styles/design-system.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Design System Styles */
-@import './lib/styles/design-system.css';
 
 @layer base {
   :root {
@@ -40,8 +40,6 @@
     --warm-accent-foreground: var(--navy-dark);
     --surface-elevated: 0 0% 100%;
     --surface-subtle: 0 0% 96%;
-    --gradient-primary: linear-gradient(135deg, hsl(var(--sky-light)) 0%, hsl(var(--steel)) 100%);
-    --gradient-warm: linear-gradient(135deg, hsl(var(--beige)) 0%, hsl(var(--steel)) 100%);
     --shadow-geometric: 0 4px 20px rgba(30, 58, 95, 0.1);
   }
 
@@ -80,14 +78,12 @@
 @layer components {
   /* Geometric shapes for abstract design */
   .geometric-circle {
-    @apply rounded-full;
-    background: var(--gradient-primary);
+    @apply rounded-full bg-blue-400;
     box-shadow: var(--shadow-geometric);
   }
   
   .geometric-circle-beige {
-    @apply rounded-full;
-    background: hsl(var(--beige));
+    @apply rounded-full bg-yellow-300;
     box-shadow: var(--shadow-geometric);
   }
   
@@ -110,35 +106,24 @@
   }
   
   .geometric-rectangle {
-    @apply rounded-lg;
-    background: hsl(var(--beige));
+    @apply rounded-lg bg-yellow-300;
     box-shadow: var(--shadow-geometric);
   }
   
   /* Icon containers for financial symbols */
   .icon-container {
-    @apply w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl;
-    background: hsl(var(--sky-light));
+    @apply w-16 h-16 rounded-full flex items-center justify-center bg-blue-400 text-white font-bold text-xl;
     box-shadow: var(--shadow-geometric);
   }
   
   .icon-container-navy {
-    background: hsl(var(--navy-dark));
+    @apply bg-slate-700;
   }
   
   .icon-container-beige {
-    background: hsl(var(--beige));
-    color: hsl(var(--navy-dark));
+    @apply bg-yellow-300 text-slate-700;
   }
   
-  /* Gradient backgrounds */
-  .bg-gradient-primary {
-    background: var(--gradient-primary);
-  }
-  
-  .bg-gradient-warm {
-    background: var(--gradient-warm);
-  }
   
   /* Abstract decoration elements */
   .abstract-decoration {

@@ -88,11 +88,12 @@
             class="login-button"
             disabled={loading}
             on:click={() => {
+              if (loading) return;
               // Start Telegram OAuth redirect flow
               authService.startTelegramOAuth(getEffectiveBotName(), returnUrl || undefined);
             }}
           >
-            {loading ? 'Загрузка...' : shouldUseMockAuth() ? 'Войти (Тест)' : 'Войти через Telegram'}
+            {loading ? 'Загрузка...' : 'Войти'}
           </Button>
           
           {#if shouldUseMockAuth()}

@@ -9,9 +9,7 @@
 }
 
 .financial-icon {
-  @apply w-16 h-16 rounded-full flex items-center justify-center;
-  background: hsl(var(--sky-light));
-  color: white;
+  @apply w-16 h-16 rounded-full flex items-center justify-center bg-blue-400 text-white;
   font-size: 1.5rem;
   font-weight: bold;
   box-shadow: var(--shadow-geometric);
@@ -23,24 +21,22 @@
 }
 
 .financial-icon.navy {
-  background: hsl(var(--navy-dark));
+  @apply bg-slate-700;
 }
 
 .financial-icon.beige {
-  background: hsl(var(--beige));
-  color: hsl(var(--navy-dark));
+  @apply bg-yellow-300 text-slate-700;
 }
 
 .financial-icon.steel {
-  background: hsl(var(--steel));
-  color: hsl(var(--navy-dark));
+  @apply bg-gray-400 text-slate-700;
 }
 
 /* Abstract Layout Components */
 .abstract-layout {
   position: relative;
   min-height: 100vh;
-  background: linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--surface-subtle)) 100%);
+  @apply bg-gradient-to-br from-slate-50 to-slate-100;
   overflow: hidden;
 }
 
@@ -52,9 +48,9 @@
   width: 120%;
   height: 120%;
   background: 
-    radial-gradient(circle at 20% 30%, hsla(var(--sky-light), 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 80% 70%, hsla(var(--beige), 0.08) 0%, transparent 50%),
-    radial-gradient(circle at 60% 20%, hsla(var(--navy-dark), 0.05) 0%, transparent 50%);
+    radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(253, 224, 71, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 60% 20%, rgba(51, 65, 85, 0.05) 0%, transparent 50%);
   pointer-events: none;
   z-index: 0;
 }
@@ -128,7 +124,7 @@
 }
 
 .design-card-footer {
-  @apply p-6 border-t border-border bg-surface-subtle rounded-b-lg;
+  @apply p-6 border-t border-border bg-gray-50 rounded-b-lg;
 }
 
 /* Enhanced Typography */
@@ -137,13 +133,13 @@
   font-weight: 800;
   line-height: 1.1;
   letter-spacing: -0.025em;
-  color: hsl(var(--navy-dark));
+  @apply text-slate-700;
   margin-bottom: 1rem;
 }
 
 .subtitle {
   font-size: 1.125rem;
-  color: hsl(var(--muted-foreground));
+  @apply text-gray-600;
   font-weight: 500;
   margin-bottom: 1.5rem;
 }
@@ -161,39 +157,32 @@
 
 /* Badge Components */
 .design-badge {
-  @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold;
-  background: hsl(var(--accent));
-  color: hsl(var(--accent-foreground));
+  @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-400 text-white;
 }
 
 .design-badge.navy {
-  background: hsl(var(--navy-dark));
-  color: white;
+  @apply bg-slate-700 text-white;
 }
 
 .design-badge.beige {
-  background: hsl(var(--beige));
-  color: hsl(var(--navy-dark));
+  @apply bg-yellow-300 text-slate-700;
 }
 
 .design-badge.steel {
-  background: hsl(var(--steel));
-  color: hsl(var(--navy-dark));
+  @apply bg-gray-400 text-slate-700;
 }
 
 /* Form Components */
 .design-input {
-  @apply w-full px-4 py-3 rounded-lg border-2 border-input;
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
+  @apply w-full px-4 py-3 rounded-lg border-2 border-gray-300 bg-white text-slate-700;
   font-size: 1rem;
   transition: all 0.2s ease;
 }
 
 .design-input:focus {
   outline: none;
-  border-color: hsl(var(--accent));
-  box-shadow: 0 0 0 3px hsla(var(--accent), 0.1);
+  @apply border-blue-400 shadow-lg;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 /* Loading States */
@@ -201,9 +190,7 @@
   display: inline-block;
   width: 40px;
   height: 40px;
-  border: 3px solid hsl(var(--steel));
-  border-radius: 50%;
-  border-top-color: hsl(var(--accent));
+  @apply border-4 border-gray-300 rounded-full border-t-blue-400;
   animation: spin 1s ease-in-out infinite;
 }
 
