@@ -153,7 +153,8 @@ class ApiClient {
     // Clear auth and redirect to login
     this.clearTokens();
     
-    if (typeof window !== 'undefined') {
+    // Не редиректим, если уже на странице логина
+    if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
       window.location.href = '/login';
     }
   }

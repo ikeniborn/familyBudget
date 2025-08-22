@@ -195,6 +195,18 @@ router.post('/refresh', async (req, res, next): Promise<void> => {
 });
 
 // Проверка доступности авторизации по паролю
+router.get('/password-enabled', async (_req, res, next): Promise<void> => {
+  try {
+    const enabled = await AuthService.isPasswordAuthEnabled();
+    res.json({ 
+      enabled: enabled 
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Старый endpoint для обратной совместимости
 router.get('/check-password-enabled', async (_req, res, next): Promise<void> => {
   try {
     const enabled = await AuthService.isPasswordAuthEnabled();
