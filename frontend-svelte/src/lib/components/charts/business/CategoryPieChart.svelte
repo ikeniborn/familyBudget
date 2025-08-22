@@ -57,14 +57,17 @@
       )
     : transformedData;
 
+  // Separate reactive statements to avoid circular dependencies
+  $: visibleData = filteredBySearch.filter(item => !hiddenCategories.has(item.name));
+  
   $: processedDataAndOthers = (() => {
     // Separate small slices into "Other" category
     const mainData: ChartDataPoint[] = [];
     let otherSum = 0;
     const otherItems: ChartDataPoint[] = [];
     
-    filteredBySearch.forEach((item) => {
-      if (item.percentage >= minSlicePercentage && !hiddenCategories.has(item.name)) {
+    visibleData.forEach((item) => {
+      if (item.percentage >= minSlicePercentage) {
         mainData.push(item);
       } else {
         otherSum += item.value;
@@ -74,7 +77,7 @@
     
     // Add "Other" category if there are small slices
     if (otherSum > 0) {
-      const total = filteredBySearch.reduce((sum, item) => sum + item.value, 0);
+      const total = visibleData.reduce((sum, item) => sum + item.value, 0);
       mainData.push({
         name: 'Прочее',
         value: otherSum,

@@ -64,10 +64,12 @@
   {:else}
     <div class="login-container">
       <!-- Abstract Graphics Section -->
-      <AbstractGraphics />
+      <div class="graphics-section">
+        <AbstractGraphics />
+      </div>
       
       <!-- Main Login Content -->
-      <div class="login-content">
+      <div class="content-section">
         <!-- Header Section -->
         <div class="header-section">
           <h1 class="main-title">
@@ -79,41 +81,30 @@
         </div>
 
         <!-- Login Button Section -->
-        <div class="login-section">
-          <div class="login-button-container">
+        <div class="button-section">
+          <Button
+            variant="primary"
+            size="lg"
+            class="login-button"
+            on:click={() => {
+              // Handle login - for now just show Telegram login
+              const telegramButton = document.querySelector('iframe[src*="telegram"]');
+              if (telegramButton) {
+                telegramButton.click();
+              }
+            }}
+          >
+            Войти
+          </Button>
+          
+          <!-- Hidden Telegram button for functionality -->
+          <div class="hidden-telegram">
             <TelegramLoginButton
               botName="familybudget_test_bot"
               buttonSize="large"
-              showAvatar={true}
+              showAvatar={false}
             />
           </div>
-
-          {#if passwordAuthEnabled && !loading}
-            <div class="alternative-login">
-              <div class="divider">
-                <div class="divider-line"></div>
-                <span class="divider-text">Или</span>
-                <div class="divider-line"></div>
-              </div>
-              
-              <Button
-                variant="outline"
-                size="lg"
-                class="alternative-button"
-                on:click={handleSwitchToPassword}
-              >
-                Войти с логином и паролем
-              </Button>
-            </div>
-          {/if}
-        </div>
-
-        <!-- Footer Notice -->
-        <div class="footer-notice">
-          <p>
-            Нажимая кнопку входа, вы соглашаетесь с использованием данных Telegram
-            для аутентификации в системе Family Budget.
-          </p>
         </div>
       </div>
     </div>
@@ -123,240 +114,145 @@
 <style>
   .login-page {
     min-height: 100vh;
-    background: linear-gradient(135deg, hsl(0, 0%, 98%) 0%, hsl(0, 0%, 94%) 100%);
+    background: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 1rem;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .login-page::before {
-    content: '';
-    position: absolute;
-    top: -10%;
-    left: -10%;
-    width: 120%;
-    height: 120%;
-    background: 
-      radial-gradient(circle at 20% 30%, hsla(203, 46%, 66%, 0.08) 0%, transparent 50%),
-      radial-gradient(circle at 80% 70%, hsla(40, 33%, 70%, 0.06) 0%, transparent 50%),
-      radial-gradient(circle at 60% 20%, hsla(210, 69%, 25%, 0.04) 0%, transparent 50%);
-    pointer-events: none;
-    z-index: 0;
   }
 
   .password-login-container {
-    position: relative;
-    z-index: 1;
     width: 100%;
     max-width: 28rem;
   }
 
   .login-container {
-    position: relative;
-    z-index: 1;
     width: 100%;
-    max-width: 28rem;
-    background: hsla(0, 0%, 100%, 0.95);
-    border-radius: 1rem;
-    padding: 2rem;
-    box-shadow: 
-      0 20px 60px rgba(30, 58, 95, 0.1),
-      0 8px 25px rgba(30, 58, 95, 0.05);
-    backdrop-filter: blur(10px);
-    border: 1px solid hsla(205, 24%, 73%, 0.2);
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .graphics-section {
+    width: 100%;
+    margin-bottom: 3rem;
+  }
+
+  .content-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4rem;
   }
 
   .header-section {
-    text-align: center;
-    margin-bottom: 2rem;
-  }
-
-  .main-title {
-    font-size: clamp(2.25rem, 6vw, 3rem);
-    font-weight: 800;
-    line-height: 1;
-    letter-spacing: -0.025em;
-    color: hsl(210, 69%, 25%);
-    margin-bottom: 1rem;
-    text-shadow: 0 2px 4px rgba(30, 58, 95, 0.1);
-  }
-
-  .subtitle {
-    font-size: 1.125rem;
-    color: hsl(205, 24%, 45%);
-    font-weight: 500;
-    margin-bottom: 0;
-  }
-
-  .login-section {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-  }
-
-  .login-button-container {
-    display: flex;
-    justify-content: center;
-  }
-
-  /* Custom styling for Telegram login button */
-  :global(.telegram-login-button iframe) {
-    border-radius: 0.75rem !important;
-    box-shadow: 0 4px 20px rgba(30, 58, 95, 0.15) !important;
-    transition: all 0.2s ease-in-out !important;
-    border: none !important;
-  }
-
-  :global(.telegram-login-button iframe:hover) {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 8px 30px rgba(30, 58, 95, 0.2) !important;
-  }
-
-  .alternative-login {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .divider {
-    display: flex;
     align-items: center;
     gap: 1rem;
   }
 
-  .divider-line {
-    flex: 1;
-    height: 1px;
-    background: hsl(205, 24%, 73%);
-  }
-
-  .divider-text {
-    font-size: 0.875rem;
-    color: hsl(205, 24%, 45%);
-    padding: 0 0.5rem;
-    background: hsl(0, 0%, 100%);
-  }
-
-  :global(.alternative-button) {
-    width: 100%;
-    border-color: hsl(205, 24%, 73%);
-    color: hsl(210, 69%, 25%);
-    background: hsl(0, 0%, 100%);
-    transition: all 0.2s ease-in-out;
-  }
-
-  :global(.alternative-button:hover) {
-    background: hsl(203, 46%, 96%);
-    border-color: hsl(203, 46%, 66%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(30, 58, 95, 0.1);
-  }
-
-  .footer-notice {
-    text-align: center;
-    padding-top: 1.5rem;
-    border-top: 1px solid hsl(205, 24%, 90%);
-  }
-
-  .footer-notice p {
-    font-size: 0.75rem;
-    color: hsl(205, 24%, 55%);
-    line-height: 1.4;
+  .main-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: #000000;
     margin: 0;
+  }
+
+  .subtitle {
+    font-size: 1rem;
+    color: #6b7280;
+    font-weight: 400;
+    margin: 0;
+  }
+
+  .button-section {
+    width: 100%;
+    position: relative;
+  }
+
+  :global(.login-button) {
+    width: 100%;
+    background: #1e3a5f !important;
+    border: none !important;
+    border-radius: 0.75rem !important;
+    padding: 1rem 2rem !important;
+    font-size: 1.125rem !important;
+    font-weight: 600 !important;
+    color: white !important;
+    transition: all 0.2s ease-in-out !important;
+    box-shadow: 0 4px 12px rgba(30, 58, 95, 0.2) !important;
+  }
+
+  :global(.login-button:hover) {
+    background: #2d4a6d !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 20px rgba(30, 58, 95, 0.3) !important;
+  }
+
+  .hidden-telegram {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    pointer-events: none;
+    z-index: -1;
   }
 
   /* Mobile responsive adjustments */
   @media (max-width: 640px) {
     .login-page {
-      padding: 0.75rem;
+      padding: 1rem;
     }
 
     .login-container {
-      padding: 1.5rem;
-      border-radius: 0.75rem;
+      max-width: 100%;
+    }
+
+    .graphics-section {
+      margin-bottom: 2rem;
+    }
+
+    .content-section {
+      gap: 3rem;
     }
 
     .main-title {
-      font-size: clamp(1.875rem, 8vw, 2.5rem);
-    }
-
-    .subtitle {
-      font-size: 1rem;
-    }
-
-    .header-section {
-      margin-bottom: 1.5rem;
-    }
-
-    .login-section {
-      margin-bottom: 1.5rem;
-    }
-  }
-
-  @media (max-width: 480px) {
-    .main-title {
-      font-size: clamp(1.625rem, 10vw, 2rem);
+      font-size: 2rem;
     }
 
     .subtitle {
       font-size: 0.9375rem;
     }
 
-    .footer-notice p {
-      font-size: 0.6875rem;
+    :global(.login-button) {
+      padding: 0.875rem 1.5rem !important;
+      font-size: 1rem !important;
     }
   }
 
-  /* Enhanced hover effects for the login container */
-  .login-container {
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-  }
-
-  .login-container:hover {
-    transform: translateY(-2px);
-    box-shadow: 
-      0 25px 70px rgba(30, 58, 95, 0.12),
-      0 10px 30px rgba(30, 58, 95, 0.08);
-  }
-
-  /* Dark mode support */
-  @media (prefers-color-scheme: dark) {
-    .login-page {
-      background: linear-gradient(135deg, hsl(210, 11%, 15%) 0%, hsl(210, 11%, 11%) 100%);
+  @media (max-width: 480px) {
+    .graphics-section {
+      margin-bottom: 1.5rem;
     }
 
-    .login-container {
-      background: hsla(210, 11%, 20%, 0.95);
-      border-color: hsla(205, 24%, 73%, 0.1);
+    .content-section {
+      gap: 2.5rem;
     }
 
     .main-title {
-      color: hsl(203, 46%, 80%);
+      font-size: 1.75rem;
     }
 
     .subtitle {
-      color: hsl(205, 24%, 65%);
-    }
-
-    .divider-line {
-      background: hsl(205, 24%, 40%);
-    }
-
-    .divider-text {
-      color: hsl(205, 24%, 65%);
-      background: hsl(210, 11%, 20%);
-    }
-
-    .footer-notice {
-      border-color: hsl(205, 24%, 30%);
-    }
-
-    .footer-notice p {
-      color: hsl(205, 24%, 65%);
+      font-size: 0.875rem;
     }
   }
 </style>
