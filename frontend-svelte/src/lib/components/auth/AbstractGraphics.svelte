@@ -30,29 +30,33 @@
   class="abstract-graphics"
   style="--mouse-x: {mouseX}; --mouse-y: {mouseY}"
 >
-  <!-- Main large dark navy semicircle on the left -->
-  <div class="shape main-semicircle"></div>
-
-  <!-- Beige triangle overlapping -->
-  <div class="shape beige-triangle"></div>
-
-  <!-- Blue rounded rectangle -->
-  <div class="shape blue-rectangle">
-    <div class="financial-symbol">$</div>
+  <!-- Left side: Dark navy semicircle with beige triangle -->
+  <div class="left-composition">
+    <div class="shape navy-semicircle"></div>
+    <div class="shape beige-triangle"></div>
   </div>
 
-  <!-- Gray rounded rectangle -->
-  <div class="shape gray-rectangle">
-    <div class="financial-symbol">%</div>
-  </div>
-
-  <!-- Small financial icons in colored circles -->
-  <div class="shape icon-circle chart-circle">
-    <div class="financial-symbol">📊</div>
-  </div>
-
-  <div class="shape icon-circle coin-circle">
-    <div class="financial-symbol">💰</div>
+  <!-- Right side: Financial elements -->
+  <div class="right-composition">
+    <!-- Blue circle with chart icon at top -->
+    <div class="shape icon-circle blue-chart">
+      <span class="icon">📊</span>
+    </div>
+    
+    <!-- Blue rectangle with dollar -->
+    <div class="shape blue-rect">
+      <span class="dollar">$</span>
+    </div>
+    
+    <!-- Yellow/beige circle with dollar -->
+    <div class="shape icon-circle yellow-dollar">
+      <span class="dollar-icon">$</span>
+    </div>
+    
+    <!-- Gray rectangle with percent -->
+    <div class="shape gray-rect">
+      <span class="percent">%</span>
+    </div>
   </div>
 </div>
 
@@ -60,187 +64,212 @@
   .abstract-graphics {
     position: relative;
     width: 100%;
-    height: 240px;
+    height: 200px;
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
+    margin: 0 auto 2rem;
+  }
+
+  .left-composition {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 300px;
+    height: 150px;
+  }
+
+  .right-composition {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 300px;
+    height: 150px;
   }
 
   .shape {
     position: absolute;
-    pointer-events: none;
     transition: transform 0.3s ease-out;
   }
 
-  /* Main large dark navy semicircle on the left */
-  .main-semicircle {
-    left: -20px;
+  /* Left side - Navy semicircle */
+  .navy-semicircle {
+    left: 0;
     top: 50%;
     transform: translateY(-50%);
-    width: 160px;
-    height: 160px;
-    background: #1e3a5f;
-    border-radius: 0 160px 160px 0;
-    z-index: 1;
+    width: 120px;
+    height: 120px;
+    background: #2d4a7c;
+    border-radius: 120px 0 0 120px;
   }
 
-  .main-semicircle:hover {
-    transform: translateY(-50%) translate(calc(var(--mouse-x) * 3px), calc(var(--mouse-y) * 3px));
+  .navy-semicircle:hover {
+    transform: translateY(-50%) translate(calc(var(--mouse-x) * 2px), calc(var(--mouse-y) * 2px));
   }
 
-  /* Beige triangle overlapping */
+  /* Beige triangle */
   .beige-triangle {
-    left: 80px;
+    left: 60px;
     top: 50%;
     transform: translateY(-50%);
     width: 0;
     height: 0;
-    border-left: 60px solid transparent;
-    border-right: 60px solid transparent;
-    border-bottom: 100px solid #d4b896;
-    z-index: 2;
+    border-style: solid;
+    border-width: 0 0 80px 80px;
+    border-color: transparent transparent #c8a882 transparent;
   }
 
   .beige-triangle:hover {
     transform: translateY(-50%) translate(calc(var(--mouse-x) * -2px), calc(var(--mouse-y) * -2px));
   }
 
-  /* Blue rounded rectangle */
-  .blue-rectangle {
-    right: 60px;
-    top: 30%;
-    width: 80px;
-    height: 50px;
+  /* Right side elements */
+  
+  /* Blue circle with chart at top */
+  .blue-chart {
+    right: 80px;
+    top: 10px;
+    width: 36px;
+    height: 36px;
     background: #7bb3e0;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 3;
-  }
-
-  .blue-rectangle:hover {
-    transform: translate(calc(var(--mouse-x) * 4px), calc(var(--mouse-y) * 4px));
-  }
-
-  /* Gray rounded rectangle */
-  .gray-rectangle {
-    right: 20px;
-    top: 60%;
-    width: 70px;
-    height: 40px;
-    background: #a8c0d0;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 3;
-  }
-
-  .gray-rectangle:hover {
-    transform: translate(calc(var(--mouse-x) * -3px), calc(var(--mouse-y) * -3px));
-  }
-
-  /* Small financial icons in colored circles */
-  .icon-circle {
-    width: 40px;
-    height: 40px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 4;
   }
 
-  .chart-circle {
-    right: 140px;
-    top: 20%;
+  .blue-chart:hover {
+    transform: translate(calc(var(--mouse-x) * 3px), calc(var(--mouse-y) * 3px));
+  }
+
+  /* Blue rectangle with dollar */
+  .blue-rect {
+    right: 20px;
+    top: 30px;
+    width: 60px;
+    height: 36px;
     background: #7bb3e0;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
-  .chart-circle:hover {
+  .blue-rect:hover {
+    transform: translate(calc(var(--mouse-x) * -3px), calc(var(--mouse-y) * -3px));
+  }
+
+  /* Yellow circle with dollar */
+  .yellow-dollar {
+    right: 90px;
+    bottom: 30px;
+    width: 32px;
+    height: 32px;
+    background: #c8a882;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .yellow-dollar:hover {
     transform: translate(calc(var(--mouse-x) * 2px), calc(var(--mouse-y) * 2px));
   }
 
-  .coin-circle {
-    right: 120px;
-    bottom: 15%;
-    background: #d4b896;
+  /* Gray rectangle with percent */
+  .gray-rect {
+    right: 30px;
+    bottom: 25px;
+    width: 50px;
+    height: 32px;
+    background: #9db3c8;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
-  .coin-circle:hover {
+  .gray-rect:hover {
     transform: translate(calc(var(--mouse-x) * -2px), calc(var(--mouse-y) * -2px));
   }
 
-  /* Financial symbols */
-  .financial-symbol {
-    font-size: 1.25rem;
-    font-weight: bold;
+  /* Icons and text */
+  .icon {
+    font-size: 16px;
+    filter: grayscale(100%);
+  }
+
+  .dollar, .dollar-icon {
     color: white;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    font-size: 20px;
+    font-weight: bold;
   }
 
-  .gray-rectangle .financial-symbol,
-  .coin-circle .financial-symbol {
-    color: #1e3a5f;
-    text-shadow: none;
-  }
-
-  .icon-circle .financial-symbol {
-    font-size: 1rem;
+  .percent {
+    color: #2d4a7c;
+    font-size: 18px;
+    font-weight: bold;
   }
 
   /* Responsive adjustments */
   @media (max-width: 768px) {
     .abstract-graphics {
-      height: 180px;
+      height: 160px;
     }
 
-    .main-semicircle {
-      width: 120px;
+    .left-composition,
+    .right-composition {
+      width: 250px;
       height: 120px;
-      border-radius: 0 120px 120px 0;
+    }
+
+    .navy-semicircle {
+      width: 100px;
+      height: 100px;
+      border-radius: 100px 0 0 100px;
     }
 
     .beige-triangle {
-      border-left: 45px solid transparent;
-      border-right: 45px solid transparent;
-      border-bottom: 75px solid #d4b896;
-      left: 60px;
+      left: 50px;
+      border-width: 0 0 65px 65px;
     }
 
-    .blue-rectangle {
-      width: 60px;
-      height: 40px;
-      right: 40px;
+    .blue-chart {
+      width: 30px;
+      height: 30px;
+      right: 70px;
     }
 
-    .gray-rectangle {
-      width: 55px;
+    .blue-rect {
+      width: 50px;
       height: 30px;
       right: 15px;
     }
 
-    .icon-circle {
-      width: 32px;
-      height: 32px;
+    .yellow-dollar {
+      width: 28px;
+      height: 28px;
+      right: 75px;
     }
 
-    .chart-circle {
-      right: 100px;
+    .gray-rect {
+      width: 42px;
+      height: 28px;
+      right: 25px;
     }
 
-    .coin-circle {
-      right: 90px;
+    .icon {
+      font-size: 14px;
     }
 
-    .financial-symbol {
-      font-size: 1rem;
+    .dollar, .dollar-icon {
+      font-size: 16px;
     }
 
-    .icon-circle .financial-symbol {
-      font-size: 0.875rem;
+    .percent {
+      font-size: 14px;
     }
   }
 
@@ -249,50 +278,61 @@
       height: 140px;
     }
 
-    .main-semicircle {
-      width: 100px;
+    .left-composition,
+    .right-composition {
+      width: 220px;
       height: 100px;
-      border-radius: 0 100px 100px 0;
+    }
+
+    .navy-semicircle {
+      width: 80px;
+      height: 80px;
+      border-radius: 80px 0 0 80px;
     }
 
     .beige-triangle {
-      border-left: 35px solid transparent;
-      border-right: 35px solid transparent;
-      border-bottom: 60px solid #d4b896;
-      left: 50px;
+      left: 40px;
+      border-width: 0 0 50px 50px;
     }
 
-    .blue-rectangle {
-      width: 50px;
-      height: 30px;
-      right: 30px;
+    .blue-chart {
+      width: 26px;
+      height: 26px;
+      right: 60px;
+      top: 15px;
     }
 
-    .gray-rectangle {
-      width: 45px;
-      height: 25px;
-      right: 10px;
+    .blue-rect {
+      width: 42px;
+      height: 26px;
+      right: 12px;
+      top: 25px;
     }
 
-    .icon-circle {
-      width: 28px;
-      height: 28px;
+    .yellow-dollar {
+      width: 24px;
+      height: 24px;
+      right: 65px;
+      bottom: 25px;
     }
 
-    .chart-circle {
-      right: 80px;
+    .gray-rect {
+      width: 36px;
+      height: 24px;
+      right: 20px;
+      bottom: 20px;
     }
 
-    .coin-circle {
-      right: 75px;
+    .icon {
+      font-size: 12px;
     }
 
-    .financial-symbol {
-      font-size: 0.875rem;
+    .dollar, .dollar-icon {
+      font-size: 14px;
     }
 
-    .icon-circle .financial-symbol {
-      font-size: 0.75rem;
+    .percent {
+      font-size: 12px;
     }
   }
 </style>
