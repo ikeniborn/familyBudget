@@ -10,17 +10,34 @@
   let loading = true;
   let error: string | null = null;
   let authData: any = null;
+  let authProcessed = false; // Flag to prevent double processing
 
   onMount(async () => {
-    // Check if already authenticated
+    console.log('[CALLBACK] onMount started', { 
+      isAuthenticated: $isAuthenticated, 
+      authProcessed,
+      url: $page.url.href 
+    });
+    
+    // Prevent double processing
+    if (authProcessed) {
+      console.log('[CALLBACK] Auth already processed, skipping');
+      return;
+    }
+    
+    // Check if already authenticated - but allow processing to complete
     if ($isAuthenticated) {
+      console.log('[CALLBACK] Already authenticated, redirecting to dashboard');
+      authProcessed = true;
       goto('/dashboard');
       return;
     }
 
     try {
+      console.log('[CALLBACK] Parsing auth data from URL');
       // Try to parse auth data from URL (both hash and query parameters)
       authData = parseTelegramAuthFromUrl() || parseTelegramAuthFromQuery();
+      console.log('[CALLBACK] Parsed auth data:', authData);
       
       if (!authData) {
         throw new Error('Отсутствуют данные авторизации Telegram');
@@ -36,37 +53,54 @@
       if (!dev) {
         // In production, we still do basic client validation
         // but the server will do the real validation with bot token
-        console.log('Validating Telegram auth data...');
+        console.log('[CALLBACK] Validating Telegram auth data...');
       }
 
+      console.log('[CALLBACK] Logging in with Telegram OAuth');
+      // Mark as processed before making the request to prevent race conditions
+      authProcessed = true;
+      
       // Attempt to log in using the auth data
       await authStore.loginWithTelegramOAuth(authData);
+      console.log('[CALLBACK] Login successful');
       
       // Get return URL from state parameter or default to dashboard
       const returnUrl = $page.url.searchParams.get('state') || '/dashboard';
+      console.log('[CALLBACK] Return URL:', returnUrl);
       
       // Clear the URL hash to remove auth data
       if (typeof window !== 'undefined') {
         window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+        console.log('[CALLBACK] Cleared URL hash');
       }
       
+      // Small delay to ensure state is properly updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       // Redirect to intended destination
+      console.log('[CALLBACK] Redirecting to:', returnUrl);
       goto(returnUrl);
       
     } catch (err: any) {
-      console.error('OAuth callback error:', err);
+      console.error('[CALLBACK] OAuth callback error:', err);
       error = err.message || 'Ошибка при авторизации через Telegram';
       loading = false;
+      authProcessed = false; // Reset flag on error to allow retry
     }
   });
 
   function handleRetryLogin() {
+    console.log('[CALLBACK] Retry login clicked');
+    authProcessed = false; // Reset processing flag
+    error = null;
     goto('/login');
   }
 
   function handleManualLogin() {
+    console.log('[CALLBACK] Manual login clicked');
     // Clear any existing auth state
     authStore.logout();
+    authProcessed = false; // Reset processing flag
     goto('/login');
   }
 </script>

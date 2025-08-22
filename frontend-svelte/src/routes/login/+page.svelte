@@ -16,34 +16,36 @@
   let showPasswordLogin = false;
   let loading = false;
   
+  let authCheckCompleted = false;
+  
   onMount(async () => {
-    // Redirect if already authenticated
-    if ($isAuthenticated) {
+    console.log('[LOGIN] onMount started', { isAuthenticated: $isAuthenticated });
+    
+    // Only redirect if already authenticated and this is initial check
+    if ($isAuthenticated && !authCheckCompleted) {
+      console.log('[LOGIN] Already authenticated, redirecting to dashboard');
       goto('/dashboard');
       return;
     }
     
     // Get return URL from query parameters
     returnUrl = $page.url.searchParams.get('returnUrl');
+    console.log('[LOGIN] Return URL:', returnUrl);
     
     // Check if password auth is enabled
     try {
       loading = true;
       const response = await authService.checkPasswordAuthEnabled();
       passwordAuthEnabled = response.enabled;
+      console.log('[LOGIN] Password auth enabled:', passwordAuthEnabled);
     } catch (error) {
-      console.error('Error checking password auth:', error);
+      console.error('[LOGIN] Error checking password auth:', error);
     } finally {
       loading = false;
+      authCheckCompleted = true;
+      console.log('[LOGIN] Mount completed', { loading, authCheckCompleted });
     }
   });
-  
-  // Watch for authentication changes
-  $: if ($isAuthenticated && returnUrl) {
-    goto(returnUrl);
-  } else if ($isAuthenticated) {
-    goto('/dashboard');
-  }
   
   function handleSwitchToTelegram() {
     showPasswordLogin = false;
@@ -90,19 +92,23 @@
             class="login-button"
             disabled={loading}
             on:click={() => {
-              console.log('Кнопка входа нажата!');
-              console.log('browser:', browser);
-              console.log('dev:', dev);
-              console.log('loading:', loading);
-              console.log('shouldUseMockAuth():', shouldUseMockAuth());
+              console.log('[LOGIN] Кнопка входа нажата!');
+              console.log('[LOGIN] State:', { browser, dev, loading, authCheckCompleted });
+              console.log('[LOGIN] shouldUseMockAuth():', shouldUseMockAuth());
               
-              if (loading) {
-                console.log('Выход из обработчика - приложение загружается');
+              if (loading || !authCheckCompleted) {
+                console.log('[LOGIN] Выход - приложение еще загружается');
                 return;
               }
               
-              console.log('Запуск Telegram OAuth с botName:', getEffectiveBotName());
-              console.log('returnUrl:', returnUrl || undefined);
+              if ($isAuthenticated) {
+                console.log('[LOGIN] Выход - уже авторизован');
+                goto('/dashboard');
+                return;
+              }
+              
+              console.log('[LOGIN] Запуск Telegram OAuth с botName:', getEffectiveBotName());
+              console.log('[LOGIN] returnUrl:', returnUrl || undefined);
               
               // Start Telegram OAuth redirect flow
               authService.startTelegramOAuth(getEffectiveBotName(), returnUrl || undefined);
