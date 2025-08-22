@@ -181,8 +181,10 @@ export function startTelegramOAuth(botName: string, returnUrl?: string): void {
       callbackUrl.searchParams.set('state', returnUrl);
     }
     
-    callbackUrl.hash = `#tgAuthResult=${encodeURIComponent(JSON.stringify(mockData))}`;
-    window.location.href = callbackUrl.toString();
+    // Construct the complete URL with hash fragment manually
+    // Note: URL.toString() doesn't include the hash, so we need to add it manually
+    const hashFragment = `#tgAuthResult=${encodeURIComponent(JSON.stringify(mockData))}`;
+    window.location.href = callbackUrl.toString() + hashFragment;
     return;
   }
   
