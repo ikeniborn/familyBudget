@@ -7,7 +7,7 @@
   import PasswordLogin from '$lib/components/auth/PasswordLogin.svelte';
   import AbstractGraphics from '$lib/components/auth/AbstractGraphics.svelte';
   import Button from '$lib/components/ui/Button.svelte';
-  import { getEffectiveBotName, shouldUseMockAuth } from '$lib/config/auth';
+  import { getEffectiveBotName } from '$lib/config/auth';
   
   let returnUrl: string | null = null;
   let passwordAuthEnabled = false;
@@ -95,12 +95,6 @@
           >
             {loading ? 'Загрузка...' : 'Войти'}
           </Button>
-          
-          {#if shouldUseMockAuth()}
-            <p class="dev-notice">
-              Режим разработки - используется тестовый вход
-            </p>
-          {/if}
         </div>
       </div>
     </div>
@@ -198,16 +192,6 @@
     cursor: not-allowed !important;
   }
 
-  .dev-notice {
-    margin-top: 1rem;
-    padding: 0.75rem 1rem;
-    background: #fef3c7;
-    border: 1px solid #f59e0b;
-    border-radius: 0.5rem;
-    color: #92400e;
-    font-size: 0.875rem;
-    text-align: center;
-  }
 
   /* Mobile responsive adjustments */
   @media (max-width: 640px) {
