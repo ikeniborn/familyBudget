@@ -3,8 +3,7 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install dependencies for development
-RUN apk add --no-cache git
+# Skip git installation (not essential for development)
 
 # Copy package files
 COPY package*.json ./
@@ -16,15 +15,8 @@ RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 # Copy source code
 COPY . .
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
-
-# Change ownership of app directory
-RUN chown -R nodejs:nodejs /app
-
-# Switch to non-root user
-USER nodejs
+# Give write permissions for Vite (run as root in dev mode)
+RUN chmod -R 777 /app
 
 # Expose development port
 EXPOSE 5173

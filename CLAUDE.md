@@ -6,6 +6,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Family Budget is a web-based budget management system built with SvelteKit and Node.js using Docker. It provides multi-user budget tracking with Telegram authentication, separating planned vs actual expenses.
 
+## ⚠️ CRITICAL DEVELOPMENT RULES
+
+**ALL DEVELOPMENT AND TESTING MUST BE DONE THROUGH DOCKER CONTAINERS ONLY**
+
+- ❌ **NEVER** run `npm`, `node`, or any package manager commands directly on the host machine
+- ❌ **NEVER** install Node.js or npm packages outside of Docker containers
+- ✅ **ALWAYS** use `docker exec` commands to run development tasks
+- ✅ **ALWAYS** use the development containers for all operations
+
+**Why this is critical:**
+- Ensures consistent environment across all developers
+- Prevents version conflicts and "works on my machine" issues
+- Maintains dependency isolation and reproducible builds
+- Matches production environment exactly
+
+**Container names for development:**
+- Frontend: `frontend-svelte-dev` or `frontend-svelte`
+- Backend API: `frontend-api-dev` or `frontend-api`
+
 ## Architecture
 
 - **Frontend**: SvelteKit 2 + Svelte 5 + TypeScript + Vite at `frontend-svelte/` - Modern SPA with SSR support
@@ -31,8 +50,8 @@ Services run on Docker network:
 ./scripts/dev.sh -d          # Detached mode
 ./scripts/dev.sh --init-db    # Force DB reinitialization
 
-# Frontend only with hot reload
-cd frontend-svelte && npm run dev
+# ⚠️ DEPRECATED: Do not use direct npm commands
+# Use Docker containers only (see Critical Development Rules above)
 
 # Stop services  
 docker-compose -f docker-compose.dev.yaml down
@@ -44,53 +63,63 @@ docker-compose -f docker-compose.dev.yaml down
 
 ### Frontend Commands
 
-```bash
-cd frontend-svelte
+**⚠️ WARNING: ALL commands must run through Docker containers - NEVER use npm directly on host**
 
-# Development
-npm run dev              # Start SvelteKit dev server (port 5173)
-npm run build           # Production build
-npm run preview         # Preview production build
+```bash
+# Development (containers must be running via ./scripts/dev.sh)
+docker exec -it frontend-svelte-dev npm run dev     # Start SvelteKit dev server (port 5173)
+docker exec -it frontend-svelte-dev npm run build   # Production build
+docker exec -it frontend-svelte-dev npm run preview # Preview production build
 
 # Testing
-npm run test            # Run Vitest unit tests
-npm run test:run        # Single test run (CI mode)
-npm run test:watch      # Watch mode  
-npm run test:coverage   # Generate coverage report
-npm run test:ui         # Interactive UI for tests
+docker exec -it frontend-svelte-dev npm run test            # Run Vitest unit tests
+docker exec -it frontend-svelte-dev npm run test:run        # Single test run (CI mode)
+docker exec -it frontend-svelte-dev npm run test:watch      # Watch mode  
+docker exec -it frontend-svelte-dev npm run test:coverage   # Generate coverage report
+docker exec -it frontend-svelte-dev npm run test:ui         # Interactive UI for tests
 
 # Code Quality & Type Checking
-npm run lint            # ESLint check
-npm run check           # Svelte type checking
-npm run check:watch     # Type checking in watch mode
-npm run format          # Prettier formatting
+docker exec -it frontend-svelte-dev npm run lint            # ESLint check
+docker exec -it frontend-svelte-dev npm run check           # Svelte type checking
+docker exec -it frontend-svelte-dev npm run check:watch     # Type checking in watch mode
+docker exec -it frontend-svelte-dev npm run format          # Prettier formatting
 
 # Performance
-npm run lighthouse      # Run Lighthouse audit
-npm run perf:analyze    # Build + Lighthouse analysis
+docker exec -it frontend-svelte-dev npm run lighthouse      # Run Lighthouse audit
+docker exec -it frontend-svelte-dev npm run perf:analyze    # Build + Lighthouse analysis
+
+# Package Management (when needed)
+docker exec -it frontend-svelte-dev npm install             # Install dependencies
+docker exec -it frontend-svelte-dev npm install <package>   # Add new package
+docker exec -it frontend-svelte-dev npm uninstall <package> # Remove package
 ```
 
 ### Backend API Commands
 
-```bash
-cd frontend-api
+**⚠️ WARNING: ALL commands must run through Docker containers - NEVER use npm directly on host**
 
-# Development
-npm run dev             # Run with nodemon (index-simple.ts)
-npm run dev:full        # Run full version with nodemon
-npm run build           # TypeScript build
-npm run start           # Production start
+```bash
+# Development (containers must be running via ./scripts/dev.sh)
+docker exec -it frontend-api-dev npm run dev             # Run with nodemon (index-simple.ts)
+docker exec -it frontend-api-dev npm run dev:full        # Run full version with nodemon
+docker exec -it frontend-api-dev npm run build           # TypeScript build
+docker exec -it frontend-api-dev npm run start           # Production start
 
 # Testing  
-npm run test            # Run Jest tests
-npm run test:watch      # Jest watch mode
-npm run test:coverage   # Generate coverage report
+docker exec -it frontend-api-dev npm run test            # Run Jest tests
+docker exec -it frontend-api-dev npm run test:watch      # Jest watch mode
+docker exec -it frontend-api-dev npm run test:coverage   # Generate coverage report
 
 # Type Checking & Database
-npm run type-check      # TypeScript type checking
-npm run prisma:generate # Generate Prisma client
-npm run prisma:migrate  # Run Prisma migrations
-npm run prisma:studio   # Open Prisma Studio GUI
+docker exec -it frontend-api-dev npm run type-check      # TypeScript type checking
+docker exec -it frontend-api-dev npm run prisma:generate # Generate Prisma client
+docker exec -it frontend-api-dev npm run prisma:migrate  # Run Prisma migrations
+docker exec -it frontend-api-dev npm run prisma:studio   # Open Prisma Studio GUI
+
+# Package Management (when needed)
+docker exec -it frontend-api-dev npm install             # Install dependencies
+docker exec -it frontend-api-dev npm install <package>   # Add new package
+docker exec -it frontend-api-dev npm uninstall <package> # Remove package
 ```
 
 ### Container Management
@@ -113,6 +142,37 @@ docker restart frontend-api
 # Rebuild specific service
 docker-compose -f docker-compose.dev.yaml build frontend-svelte
 docker-compose -f docker-compose.dev.yaml build frontend-api
+```
+
+### Testing in Containers
+
+**All testing must be performed through Docker containers to ensure environment consistency**
+
+```bash
+# Frontend Testing
+docker exec -it frontend-svelte-dev npm run test                    # Run all tests
+docker exec -it frontend-svelte-dev npm run test:coverage           # Generate coverage report
+docker exec -it frontend-svelte-dev npm run test:watch              # Watch mode for development
+docker exec -it frontend-svelte-dev npm run test:ui                 # Interactive test UI
+docker exec -it frontend-svelte-dev npm test -- --reporter=verbose  # Verbose test output
+
+# Backend Testing
+docker exec -it frontend-api-dev npm run test                       # Run Jest tests
+docker exec -it frontend-api-dev npm run test:coverage              # Generate coverage report
+docker exec -it frontend-api-dev npm run test:watch                 # Watch mode for development
+docker exec -it frontend-api-dev npm test -- --detectOpenHandles    # Debug hanging tests
+
+# Debug Tests in Container
+docker exec -it frontend-svelte-dev bash    # Access container shell for debugging
+docker exec -it frontend-api-dev bash       # Access container shell for debugging
+
+# View Test Results
+docker exec -it frontend-svelte-dev cat coverage/lcov-report/index.html  # Coverage report
+docker exec -it frontend-api-dev cat coverage/lcov-report/index.html     # Coverage report
+
+# Run Specific Test Files
+docker exec -it frontend-svelte-dev npm test -- src/lib/components/Button.test.ts
+docker exec -it frontend-api-dev npm test -- src/routes/auth.test.ts
 ```
 
 ### Database Operations
@@ -313,11 +373,40 @@ Frontend-API endpoints at `/api/`:
 - **SSR**: Design components to work with server-side rendering
 
 ### Testing Strategy
+
+**⚠️ CRITICAL: All testing must be performed in Docker containers only**
+
 - **Frontend (SvelteKit)**: Vitest + @testing-library/svelte, 50% coverage threshold
-- **Backend (Node.js)**: Jest + ts-jest, 70-80% coverage threshold  
+  ```bash
+  # Run via container only
+  docker exec -it frontend-svelte-dev npm run test:coverage
+  ```
+- **Backend (Node.js)**: Jest + ts-jest, 70-80% coverage threshold
+  ```bash
+  # Run via container only
+  docker exec -it frontend-api-dev npm run test:coverage
+  ```
 - **E2E Tests**: Playwright (configuration needed)
+  ```bash
+  # Will run via container when configured
+  docker exec -it frontend-svelte-dev npm run test:e2e
+  ```
 - **Performance**: Lighthouse CI for performance audits
+  ```bash
+  # Run via container only
+  docker exec -it frontend-svelte-dev npm run lighthouse
+  ```
 - **Component Tests**: @testing-library/svelte for isolated component testing
+  ```bash
+  # Run via container only
+  docker exec -it frontend-svelte-dev npm run test -- --ui
+  ```
+
+**Testing Environment Requirements:**
+- Tests must pass in containerized environment
+- No host-machine dependencies allowed
+- Use container networking for API tests
+- Coverage reports generated inside containers
 
 ### Performance Optimizations
 - SvelteKit code splitting and lazy loading
