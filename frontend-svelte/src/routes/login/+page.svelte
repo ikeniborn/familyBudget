@@ -49,13 +49,6 @@
     }
   });
   
-  function handleSwitchToTelegram() {
-    showPasswordLogin = false;
-  }
-  
-  function handleSwitchToPassword() {
-    showPasswordLogin = true;
-  }
 </script>
 
 <svelte:head>
@@ -105,7 +98,7 @@
       <div class="auth-forms-section">
         {#if showPasswordLogin}
           <div class="password-login-wrapper">
-            <PasswordLogin onSwitchToTelegram={handleSwitchToTelegram} />
+            <PasswordLogin />
           </div>
         {:else}
           <!-- Telegram Login Button Section -->

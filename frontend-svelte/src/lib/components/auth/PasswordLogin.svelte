@@ -7,7 +7,6 @@
   import Input from '$lib/components/ui/Input.svelte';
   import type { User } from '$types';
 
-  export let onSwitchToTelegram: () => void = () => {};
 
   let username = '';
   let password = '';

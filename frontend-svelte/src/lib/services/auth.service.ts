@@ -165,7 +165,7 @@ class AuthService {
   }
 
   async checkPasswordAuthEnabled(): Promise<{ enabled: boolean }> {
-    return api.get<{ enabled: boolean }>('/auth/password-enabled');
+    return api.get<{ enabled: boolean }>('/auth/password-auth-enabled');
   }
 
   async logout(): Promise<void> {

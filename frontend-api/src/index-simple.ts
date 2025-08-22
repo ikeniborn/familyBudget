@@ -34,7 +34,7 @@ app.use(
 );
 
 // Routes
-app.use('/auth', authPasswordRoutes);
+app.use('/api/auth', authPasswordRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api', simpleApiRoutes);
 
