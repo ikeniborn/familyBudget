@@ -7,7 +7,9 @@
   import PasswordLogin from '$lib/components/auth/PasswordLogin.svelte';
   import AbstractGraphics from '$lib/components/auth/AbstractGraphics.svelte';
   import Button from '$lib/components/ui/Button.svelte';
-  import { getEffectiveBotName } from '$lib/config/auth';
+  import { getEffectiveBotName, shouldUseMockAuth } from '$lib/config/auth';
+  import { browser } from '$app/environment';
+  import { dev } from '$app/environment';
   
   let returnUrl: string | null = null;
   let passwordAuthEnabled = false;
@@ -88,12 +90,25 @@
             class="login-button"
             disabled={loading}
             on:click={() => {
-              if (loading) return;
+              console.log('Кнопка входа нажата!');
+              console.log('browser:', browser);
+              console.log('dev:', dev);
+              console.log('loading:', loading);
+              console.log('shouldUseMockAuth():', shouldUseMockAuth());
+              
+              if (loading) {
+                console.log('Выход из обработчика - приложение загружается');
+                return;
+              }
+              
+              console.log('Запуск Telegram OAuth с botName:', getEffectiveBotName());
+              console.log('returnUrl:', returnUrl || undefined);
+              
               // Start Telegram OAuth redirect flow
               authService.startTelegramOAuth(getEffectiveBotName(), returnUrl || undefined);
             }}
           >
-            {loading ? 'Загрузка...' : 'Войти'}
+            {loading ? 'Загрузка...' : (dev ? 'Войти (Тест)' : 'Войти')}
           </Button>
         </div>
       </div>

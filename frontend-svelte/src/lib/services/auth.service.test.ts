@@ -398,5 +398,410 @@ describe('AuthService', () => {
       vi.mocked(localStorage.getItem).mockReturnValue(null);
       expect(authService.isAuthenticated()).toBe(false);
     });
+
+    it('should handle session expiration during API calls', async () => {
+      // Setup: user is initially authenticated
+      vi.mocked(localStorage.getItem).mockReturnValue('expired-token');
+      expect(authService.isAuthenticated()).toBe(true);
+
+      // Mock API returning 401 Unauthorized
+      const unauthorizedError = new Error('Unauthorized');
+      unauthorizedError.name = 'ApiError';
+      (unauthorizedError as any).status = 401;
+      mockApi.get.mockRejectedValue(unauthorizedError);
+
+      // Validate token should fail
+      const isValid = await authService.validateToken();
+      expect(isValid).toBe(false);
+
+      // Token should still exist in localStorage (service doesn't auto-clear on 401)
+      expect(authService.getToken()).toBe('expired-token');
+    });
+
+    it('should handle network errors during authentication', async () => {
+      const networkError = new Error('Network Error');
+      networkError.name = 'NetworkError';
+      mockApi.post.mockRejectedValue(networkError);
+
+      const loginData: LoginData = {
+        id: '123456789',
+        first_name: 'John',
+        auth_date: Math.floor(Date.now() / 1000),
+        hash: 'valid-hash'
+      };
+
+      await expect(authService.login(loginData)).rejects.toThrow('Network Error');
+      
+      // Token should not be saved on network error
+      expect(localStorage.setItem).not.toHaveBeenCalled();
+      expect(authService.isAuthenticated()).toBe(false);
+    });
+  });
+
+  describe('Edge Cases and Error Handling', () => {
+    it('should handle malformed API responses', async () => {
+      const malformedResponse = { 
+        // Missing required fields
+        someField: 'value' 
+      };
+      mockApi.post.mockResolvedValue(malformedResponse);
+
+      const loginData: LoginData = {
+        id: '123456789',
+        first_name: 'John',
+        auth_date: Math.floor(Date.now() / 1000),
+        hash: 'valid-hash'
+      };
+
+      const result = await authService.login(loginData);
+      
+      // Should handle gracefully even with malformed response
+      expect(result).toEqual(malformedResponse);
+      // Token should not be saved if not present in response
+      expect(localStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it('should handle empty string token in response', async () => {
+      const responseWithEmptyToken = {
+        user: {
+          user_id: 1,
+          user_name: 'John',
+          authMethod: 'telegram' as const
+        },
+        token: '' // Empty string token
+      };
+      mockApi.post.mockResolvedValue(responseWithEmptyToken);
+
+      const loginData: LoginData = {
+        id: '123456789',
+        first_name: 'John',
+        auth_date: Math.floor(Date.now() / 1000),
+        hash: 'valid-hash'
+      };
+
+      await authService.login(loginData);
+      
+      // Should save empty token (let the calling code decide validity)
+      expect(localStorage.setItem).toHaveBeenCalledWith('auth_token', '');
+    });
+
+    it('should handle null token in response', async () => {
+      const responseWithNullToken = {
+        user: {
+          user_id: 1,
+          user_name: 'John',
+          authMethod: 'telegram' as const
+        },
+        token: null as any // null token
+      };
+      mockApi.post.mockResolvedValue(responseWithNullToken);
+
+      const loginData: LoginData = {
+        id: '123456789',
+        first_name: 'John',
+        auth_date: Math.floor(Date.now() / 1000),
+        hash: 'valid-hash'
+      };
+
+      await authService.login(loginData);
+      
+      // Should not save null token
+      expect(localStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it('should handle localStorage errors gracefully', async () => {
+      // Mock localStorage.setItem to throw
+      vi.mocked(localStorage.setItem).mockImplementation(() => {
+        throw new Error('LocalStorage quota exceeded');
+      });
+
+      const mockResponse: AuthResponse = {
+        user: {
+          user_id: 1,
+          user_name: 'John',
+          authMethod: 'telegram'
+        },
+        token: 'valid-token'
+      };
+      mockApi.post.mockResolvedValue(mockResponse);
+
+      const loginData: LoginData = {
+        id: '123456789',
+        first_name: 'John',
+        auth_date: Math.floor(Date.now() / 1000),
+        hash: 'valid-hash'
+      };
+
+      // Should not throw error even if localStorage fails
+      expect(async () => await authService.login(loginData)).not.toThrow();
+      
+      const result = await authService.login(loginData);
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should handle concurrent login attempts', async () => {
+      let resolveLogin1: (value: AuthResponse) => void;
+      let resolveLogin2: (value: AuthResponse) => void;
+
+      const loginPromise1 = new Promise<AuthResponse>(resolve => {
+        resolveLogin1 = resolve;
+      });
+      const loginPromise2 = new Promise<AuthResponse>(resolve => {
+        resolveLogin2 = resolve;
+      });
+
+      mockApi.post
+        .mockImplementationOnce(() => loginPromise1)
+        .mockImplementationOnce(() => loginPromise2);
+
+      const loginData1: LoginData = {
+        id: '123456789',
+        first_name: 'John',
+        auth_date: Math.floor(Date.now() / 1000),
+        hash: 'hash1'
+      };
+
+      const loginData2: LoginData = {
+        id: '987654321',
+        first_name: 'Jane',
+        auth_date: Math.floor(Date.now() / 1000),
+        hash: 'hash2'
+      };
+
+      const login1 = authService.login(loginData1);
+      const login2 = authService.login(loginData2);
+
+      const response1: AuthResponse = {
+        user: { user_id: 1, user_name: 'John', authMethod: 'telegram' },
+        token: 'token1'
+      };
+      const response2: AuthResponse = {
+        user: { user_id: 2, user_name: 'Jane', authMethod: 'telegram' },
+        token: 'token2'
+      };
+
+      // Resolve in different order
+      resolveLogin2!(response2);
+      resolveLogin1!(response1);
+
+      const [result1, result2] = await Promise.all([login1, login2]);
+
+      expect(result1).toEqual(response1);
+      expect(result2).toEqual(response2);
+      
+      // Last token should be saved (race condition)
+      expect(localStorage.setItem).toHaveBeenCalledWith('auth_token', 'token1');
+      expect(localStorage.setItem).toHaveBeenCalledWith('auth_token', 'token2');
+    });
+
+    it('should handle very long tokens', async () => {
+      const longToken = 'a'.repeat(10000); // 10KB token
+      const response: AuthResponse = {
+        user: { user_id: 1, user_name: 'John', authMethod: 'telegram' },
+        token: longToken
+      };
+      mockApi.post.mockResolvedValue(response);
+
+      const loginData: LoginData = {
+        id: '123456789',
+        first_name: 'John',
+        auth_date: Math.floor(Date.now() / 1000),
+        hash: 'valid-hash'
+      };
+
+      await authService.login(loginData);
+      
+      expect(localStorage.setItem).toHaveBeenCalledWith('auth_token', longToken);
+    });
+  });
+
+  describe('Browser Environment Edge Cases', () => {
+    it('should handle SSR environment (no window)', async () => {
+      // Mock window as undefined
+      Object.defineProperty(globalThis, 'window', {
+        value: undefined,
+        writable: true,
+      });
+
+      // Token operations should not crash
+      expect(() => authService.getToken()).not.toThrow();
+      expect(() => authService.isAuthenticated()).not.toThrow();
+      expect(authService.getToken()).toBeNull();
+      expect(authService.isAuthenticated()).toBe(false);
+
+      // Should not try to save token in SSR
+      const response: AuthResponse = {
+        user: { user_id: 1, user_name: 'John', authMethod: 'telegram' },
+        token: 'test-token'
+      };
+      mockApi.post.mockResolvedValue(response);
+
+      const loginData: LoginData = {
+        id: '123456789',
+        first_name: 'John',
+        auth_date: Math.floor(Date.now() / 1000),
+        hash: 'valid-hash'
+      };
+
+      await expect(authService.login(loginData)).resolves.not.toThrow();
+      
+      // Restore window for other tests
+      Object.defineProperty(globalThis, 'window', {
+        value: global.window,
+        writable: true,
+      });
+    });
+
+    it('should not call startTelegramOAuth when browser is false', () => {
+      // Mock browser environment
+      vi.doMock('$app/environment', () => ({
+        browser: false
+      }));
+
+      // Should exit early without calling OAuth function
+      authService.startTelegramOAuth('test_bot', '/dashboard');
+      
+      expect(mockStartTelegramOAuth).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Password Authentication Edge Cases', () => {
+    it('should handle password login with minimal user data', async () => {
+      const minimalResponse: PasswordAuthResponse = {
+        success: true,
+        user: {
+          id: 1,
+          username: 'testuser'
+          // firstName and lastName are optional
+        },
+        token: 'password-token'
+      };
+      mockApi.post.mockResolvedValue(minimalResponse);
+
+      const result = await authService.loginWithPassword('testuser', 'password');
+      
+      expect(result).toEqual(minimalResponse);
+      expect(localStorage.setItem).toHaveBeenCalledWith('auth_token', 'password-token');
+    });
+
+    it('should handle password auth disabled response format variations', async () => {
+      const testCases = [
+        { enabled: false },
+        { enabled: 0 }, // Falsy number
+        { enabled: null }, // Null
+        { enabled: undefined }, // Undefined
+        { } // Missing enabled field
+      ];
+
+      for (const testCase of testCases) {
+        vi.clearAllMocks();
+        mockApi.get.mockResolvedValue(testCase);
+        
+        const result = await authService.checkPasswordAuthEnabled();
+        
+        expect(mockApi.get).toHaveBeenCalledWith('/auth/password-enabled');
+        expect(result).toEqual(testCase);
+      }
+    });
+
+    it('should handle special characters in username and password', async () => {
+      const specialUsername = 'user@domain.com';
+      const specialPassword = 'p@$$w0rd!#$%^&*()';
+      
+      const response: PasswordAuthResponse = {
+        success: true,
+        user: {
+          id: 1,
+          username: specialUsername,
+          firstName: 'Test',
+          lastName: 'User'
+        },
+        token: 'special-token'
+      };
+      mockApi.post.mockResolvedValue(response);
+
+      await authService.loginWithPassword(specialUsername, specialPassword);
+      
+      expect(mockApi.post).toHaveBeenCalledWith('/auth/password', {
+        username: specialUsername,
+        password: specialPassword
+      });
+      expect(localStorage.setItem).toHaveBeenCalledWith('auth_token', 'special-token');
+    });
+
+    it('should handle empty username and password', async () => {
+      const response: PasswordAuthResponse = {
+        success: false,
+        error: 'Username and password are required'
+      };
+      mockApi.post.mockResolvedValue(response);
+
+      const result = await authService.loginWithPassword('', '');
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('required');
+      expect(localStorage.setItem).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Token Validation Edge Cases', () => {
+    it('should handle validate token with different error types', async () => {
+      const errorTypes = [
+        new Error('Network error'),
+        { status: 401, message: 'Unauthorized' },
+        { status: 403, message: 'Forbidden' },
+        { status: 500, message: 'Internal Server Error' },
+        null, // Unexpected null response
+        undefined // Unexpected undefined response
+      ];
+
+      for (const error of errorTypes) {
+        vi.clearAllMocks();
+        mockApi.get.mockRejectedValue(error);
+        
+        const result = await authService.validateToken();
+        
+        expect(result).toBe(false);
+        expect(mockApi.get).toHaveBeenCalledWith('/auth/validate');
+      }
+    });
+
+    it('should handle getCurrentUser with different user data formats', async () => {
+      const userFormats = [
+        {
+          user_id: 1,
+          user_name: 'John Doe',
+          user_telegram_id: 123456789,
+          first_name: 'John',
+          last_name: 'Doe',
+          username: 'johndoe',
+          authMethod: 'telegram' as const
+        },
+        {
+          user_id: 2,
+          user_name: 'Jane',
+          authMethod: 'password' as const
+          // Missing optional fields
+        },
+        {
+          user_id: 3,
+          user_name: '',
+          authMethod: 'telegram' as const,
+          first_name: '',
+          last_name: ''
+          // Empty strings
+        }
+      ];
+
+      for (const userFormat of userFormats) {
+        vi.clearAllMocks();
+        mockApi.get.mockResolvedValue(userFormat);
+        
+        const result = await authService.getCurrentUser();
+        
+        expect(result).toEqual(userFormat);
+        expect(mockApi.get).toHaveBeenCalledWith('/auth/me');
+      }
+    });
   });
 });

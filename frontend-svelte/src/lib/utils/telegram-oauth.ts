@@ -168,27 +168,45 @@ export function isAuthDataExpired(authDate: number): boolean {
  * Redirects to Telegram OAuth or handles development mode
  */
 export function startTelegramOAuth(botName: string, returnUrl?: string): void {
-  if (!browser) return;
+  console.log('startTelegramOAuth вызвана!');
+  console.log('browser:', browser);
+  console.log('botName:', botName);
+  console.log('returnUrl:', returnUrl);
+  console.log('shouldUseMockAuth():', shouldUseMockAuth());
+  
+  if (!browser) {
+    console.log('Выход из startTelegramOAuth - browser = false');
+    return;
+  }
   
   if (shouldUseMockAuth()) {
     // Development mode - redirect to callback with mock data
     console.log('Development mode: Using mock Telegram auth');
     const mockData = createMockTelegramAuth();
+    console.log('Mock data:', mockData);
+    
     const callbackUrl = new URL('/auth/callback', window.location.origin);
+    console.log('Callback URL:', callbackUrl.toString());
     
     // Add return URL as state parameter if provided
     if (returnUrl) {
       callbackUrl.searchParams.set('state', returnUrl);
+      console.log('Added state parameter:', returnUrl);
     }
     
     // Construct the complete URL with hash fragment manually
     // Note: URL.toString() doesn't include the hash, so we need to add it manually
     const hashFragment = `#tgAuthResult=${encodeURIComponent(JSON.stringify(mockData))}`;
-    window.location.href = callbackUrl.toString() + hashFragment;
+    const fullUrl = callbackUrl.toString() + hashFragment;
+    console.log('Redirecting to:', fullUrl);
+    
+    window.location.href = fullUrl;
     return;
   }
   
   // Production mode - redirect to actual Telegram OAuth
+  console.log('Production mode: Redirecting to actual Telegram OAuth');
   const oauthUrl = generateTelegramOAuthUrl(botName, returnUrl);
+  console.log('OAuth URL:', oauthUrl);
   window.location.href = oauthUrl;
 }
