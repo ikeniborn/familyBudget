@@ -85,12 +85,12 @@ router.post('/telegram', async (req, res, next): Promise<void> => {
 // Регистрация нового пользователя
 router.post('/register', async (req, res, next): Promise<void> => {
   try {
-    const { userName, userEmail, username, password } = req.body;
+    const { username, password, userName, userEmail } = req.body;
 
     // Валидация входных данных
-    if (!userName || !username || !password) {
+    if (!username || !password || !userName) {
       res.status(400).json({ 
-        error: 'Обязательные поля: userName, username, password' 
+        error: 'Обязательные поля: username, password, userName' 
       });
       return;
     }
