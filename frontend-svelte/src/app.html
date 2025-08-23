@@ -3,6 +3,28 @@
   <head>
     <meta charset="utf-8" />
     
+    <!-- Prevent browser extension conflicts -->
+    <script>
+      // Защита от ошибок переопределения свойств расширениями браузера (TronLink, MetaMask и др.)
+      (function() {
+        const protectedProps = ['sunWeb', 'tronWeb', 'ethereum', 'web3'];
+        protectedProps.forEach(prop => {
+          if (typeof window !== 'undefined' && window.hasOwnProperty(prop)) {
+            try {
+              Object.defineProperty(window, prop, {
+                configurable: true,
+                writable: true,
+                value: window[prop]
+              });
+            } catch (e) {
+              // Игнорируем ошибки, если свойство уже определено
+              console.warn(`Предотвращена ошибка переопределения свойства: ${prop}`);
+            }
+          }
+        });
+      })();
+    </script>
+    
     <!-- Basic meta tags -->
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover" />
     <meta name="description" content="Управление семейным бюджетом с планированием и контролем расходов" />
