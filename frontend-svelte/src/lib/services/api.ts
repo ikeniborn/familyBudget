@@ -8,11 +8,12 @@ class ApiClient {
 
   constructor() {
     this.client = axios.create({
-      baseURL: import.meta.env.VITE_API_URL || '/api',
+      baseURL: '/api',
       timeout: Number(import.meta.env.VITE_API_TIMEOUT) || 30000,
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      withCredentials: true // Enable cookies for session authentication
     });
 
     // Request interceptor
@@ -102,6 +103,8 @@ class ApiClient {
       // Обращаемся к authService для обновления токена
       const response = await axios.post('/api/auth/refresh', {
         refreshToken
+      }, {
+        withCredentials: true
       });
       
       if (response.data.success && response.data.accessToken) {

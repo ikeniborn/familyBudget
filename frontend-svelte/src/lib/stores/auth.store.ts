@@ -164,7 +164,12 @@ function createAuthStore() {
           };
           set(newState);
         }
-      } catch (error) {
+      } catch (error: any) {
+        // 401 errors are expected when user is not authenticated - don't log or show errors
+        if (error?.response?.status !== 401) {
+          console.warn('Unexpected error during auth check:', error);
+        }
+        
         const newState: AuthState = {
           user: null,
           isAuthenticated: false,

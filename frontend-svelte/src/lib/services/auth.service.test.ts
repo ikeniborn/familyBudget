@@ -78,7 +78,7 @@ describe('AuthService', () => {
 
       const result = await authService.login(mockLoginData);
 
-      expect(mockApi.post).toHaveBeenCalledWith('/auth/telegram', mockLoginData);
+      expect(mockApi.post).toHaveBeenCalledWith('/api/auth/telegram', mockLoginData);
       expect(result).toEqual(mockAuthResponse);
       expect(localStorage.setItem).toHaveBeenCalledWith('auth_token', 'mock-jwt-token');
     });
@@ -149,7 +149,7 @@ describe('AuthService', () => {
 
       const result = await authService.loginWithTelegramOAuth(mockTelegramAuthData);
 
-      expect(mockApi.post).toHaveBeenCalledWith('/auth/telegram', {
+      expect(mockApi.post).toHaveBeenCalledWith('/api/auth/telegram', {
         id: '123456789',
         first_name: 'John',
         last_name: 'Doe',
@@ -174,7 +174,7 @@ describe('AuthService', () => {
 
       await authService.loginWithTelegramOAuth(minimalAuthData);
 
-      expect(mockApi.post).toHaveBeenCalledWith('/auth/telegram', {
+      expect(mockApi.post).toHaveBeenCalledWith('/api/auth/telegram', {
         id: '123456789',
         first_name: 'John',
         last_name: undefined,
@@ -203,7 +203,7 @@ describe('AuthService', () => {
 
       const result = await authService.loginWithPassword('testuser', 'password123');
 
-      expect(mockApi.post).toHaveBeenCalledWith('/auth/password', {
+      expect(mockApi.post).toHaveBeenCalledWith('/api/auth/login', {
         username: 'testuser',
         password: 'password123'
       });
@@ -232,7 +232,7 @@ describe('AuthService', () => {
 
       const result = await authService.checkPasswordAuthEnabled();
 
-      expect(mockApi.get).toHaveBeenCalledWith('/auth/password-enabled');
+      expect(mockApi.get).toHaveBeenCalledWith('/api/auth/password-auth-enabled');
       expect(result).toEqual(mockResponse);
     });
   });
@@ -243,7 +243,7 @@ describe('AuthService', () => {
 
       await authService.logout();
 
-      expect(mockApi.post).toHaveBeenCalledWith('/auth/logout');
+      expect(mockApi.post).toHaveBeenCalledWith('/api/auth/logout');
       expect(localStorage.removeItem).toHaveBeenCalledWith('auth_token');
     });
 
@@ -258,7 +258,7 @@ describe('AuthService', () => {
         // Expected to throw, but should still clear token
       }
 
-      expect(mockApi.post).toHaveBeenCalledWith('/auth/logout');
+      expect(mockApi.post).toHaveBeenCalledWith('/api/auth/logout');
       expect(localStorage.removeItem).toHaveBeenCalledWith('auth_token');
     });
   });
@@ -279,7 +279,7 @@ describe('AuthService', () => {
 
       const result = await authService.getCurrentUser();
 
-      expect(mockApi.get).toHaveBeenCalledWith('/auth/me');
+      expect(mockApi.get).toHaveBeenCalledWith('/api/auth/me');
       expect(result).toEqual(mockUser);
     });
   });
@@ -290,7 +290,7 @@ describe('AuthService', () => {
 
       const result = await authService.validateToken();
 
-      expect(mockApi.get).toHaveBeenCalledWith('/auth/validate');
+      expect(mockApi.get).toHaveBeenCalledWith('/api/auth/validate');
       expect(result).toBe(true);
     });
 
@@ -312,7 +312,7 @@ describe('AuthService', () => {
 
         const result = authService.getToken();
 
-        expect(localStorage.getItem).toHaveBeenCalledWith('auth_token');
+        expect(localStorage.getItem).toHaveBeenCalledWith('access_token');
         expect(result).toBe(mockToken);
       });
 
@@ -699,7 +699,7 @@ describe('AuthService', () => {
         
         const result = await authService.checkPasswordAuthEnabled();
         
-        expect(mockApi.get).toHaveBeenCalledWith('/auth/password-enabled');
+        expect(mockApi.get).toHaveBeenCalledWith('/api/auth/password-auth-enabled');
         expect(result).toEqual(testCase);
       }
     });
@@ -722,7 +722,7 @@ describe('AuthService', () => {
 
       await authService.loginWithPassword(specialUsername, specialPassword);
       
-      expect(mockApi.post).toHaveBeenCalledWith('/auth/password', {
+      expect(mockApi.post).toHaveBeenCalledWith('/api/auth/login', {
         username: specialUsername,
         password: specialPassword
       });
@@ -762,7 +762,7 @@ describe('AuthService', () => {
         const result = await authService.validateToken();
         
         expect(result).toBe(false);
-        expect(mockApi.get).toHaveBeenCalledWith('/auth/validate');
+        expect(mockApi.get).toHaveBeenCalledWith('/api/auth/validate');
       }
     });
 
@@ -800,7 +800,7 @@ describe('AuthService', () => {
         const result = await authService.getCurrentUser();
         
         expect(result).toEqual(userFormat);
-        expect(mockApi.get).toHaveBeenCalledWith('/auth/me');
+        expect(mockApi.get).toHaveBeenCalledWith('/api/auth/me');
       }
     });
   });

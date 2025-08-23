@@ -177,12 +177,20 @@ export default defineConfig({
     chunkSizeWarningLimit: 500
   },
   server: {
-    port: parseInt(process.env.PORT || '5177'),
+    port: parseInt(process.env.PORT || '5173'),
     host: true,
+    strictPort: false,
+    hmr: {
+      port: parseInt(process.env.HMR_PORT || '5173'),
+      host: 'localhost'
+    },
     proxy: {
       '/api': {
-        target: process.env.VITE_API_URL || 'http://localhost:4001',
-        changeOrigin: true
+        target: 'http://frontend-api-dev:4000',
+        changeOrigin: true,
+        secure: false,
+        ws: true, // Enable WebSocket proxying
+        rewrite: (path) => path // Keep the /api prefix
       }
     }
   }
