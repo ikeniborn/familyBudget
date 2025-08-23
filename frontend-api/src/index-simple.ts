@@ -13,7 +13,11 @@ const PORT = process.env.PORT || 4000;
 
 // Basic middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: [
+    'http://localhost:3000',  // Production SvelteKit build
+    'http://localhost:5173',  // SvelteKit dev server
+    process.env.FRONTEND_URL || 'http://localhost:3000'
+  ],
   credentials: true,
 }));
 app.use(express.json());

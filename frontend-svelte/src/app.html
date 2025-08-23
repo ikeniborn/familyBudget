@@ -7,21 +7,61 @@
     <script>
       // Защита от ошибок переопределения свойств расширениями браузера (TronLink, MetaMask и др.)
       (function() {
+        // Предварительно резервируем свойства до загрузки расширений
         const protectedProps = ['sunWeb', 'tronWeb', 'ethereum', 'web3'];
+        
         protectedProps.forEach(prop => {
-          if (typeof window !== 'undefined' && window.hasOwnProperty(prop)) {
-            try {
+          try {
+            // Проверяем, не определено ли уже свойство
+            const descriptor = Object.getOwnPropertyDescriptor(window, prop);
+            
+            if (!descriptor) {
+              // Если свойство не существует, создаем его как configurable
               Object.defineProperty(window, prop, {
                 configurable: true,
                 writable: true,
-                value: window[prop]
+                value: undefined
               });
-            } catch (e) {
-              // Игнорируем ошибки, если свойство уже определено
-              console.warn(`Предотвращена ошибка переопределения свойства: ${prop}`);
+            } else if (!descriptor.configurable && descriptor.value !== undefined) {
+              // Если свойство существует и не configurable, пробуем переопределить
+              try {
+                delete window[prop];
+                Object.defineProperty(window, prop, {
+                  configurable: true,
+                  writable: true,
+                  value: descriptor.value
+                });
+              } catch (e) {
+                // Игнорируем, если не можем переопределить
+              }
             }
+          } catch (e) {
+            // Игнорируем ошибки определения свойств
+            console.debug(`Обработка свойства ${prop}:`, e.message);
           }
         });
+        
+        // Перехватываем попытки переопределения свойств
+        const originalDefineProperty = Object.defineProperty;
+        Object.defineProperty = function(obj, prop, descriptor) {
+          if (obj === window && protectedProps.includes(prop)) {
+            try {
+              // Делаем свойство configurable, если это возможно
+              descriptor.configurable = true;
+            } catch (e) {
+              // Игнорируем если descriptor заморожен
+            }
+          }
+          try {
+            return originalDefineProperty.call(this, obj, prop, descriptor);
+          } catch (e) {
+            if (obj === window && protectedProps.includes(prop)) {
+              console.debug(`Предотвращена ошибка переопределения ${prop}`);
+              return obj;
+            }
+            throw e;
+          }
+        };
       })();
     </script>
     
