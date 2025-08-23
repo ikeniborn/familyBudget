@@ -110,15 +110,6 @@
 </script>
 
 <div class="auth-card">
-  <div class="auth-header">
-    <h1 class="auth-title">
-      ДОМАШНИЙ БУХГАЛТЕР
-    </h1>
-    <p class="auth-subtitle">
-      Управление семейным бюджетом
-    </p>
-  </div>
-
   <div class="auth-toggle-mini">
     <button 
       class="toggle-mini-button" 
@@ -252,27 +243,7 @@
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
     display: flex;
     flex-direction: column;
-    gap: 2rem;
-  }
-
-  .auth-header {
-    text-align: center;
-  }
-
-  .auth-title {
-    font-size: 1.75rem;
-    font-weight: 800;
-    line-height: 1.1;
-    letter-spacing: -0.02em;
-    color: #000000;
-    margin: 0 0 0.5rem 0;
-  }
-
-  .auth-subtitle {
-    font-size: 0.875rem;
-    color: #6b7280;
-    font-weight: 400;
-    margin: 0;
+    gap: 1.5rem;
   }
 
   .auth-toggle-mini {
@@ -389,14 +360,6 @@
   @media (max-width: 640px) {
     .auth-card {
       padding: 1.5rem;
-    }
-
-    .auth-title {
-      font-size: 1.5rem;
-    }
-
-    .auth-subtitle {
-      font-size: 0.8125rem;
     }
 
     :global(.form-input) {
