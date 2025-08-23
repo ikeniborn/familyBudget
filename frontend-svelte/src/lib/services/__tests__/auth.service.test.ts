@@ -65,7 +65,7 @@ describe('AuthService', () => {
 
       const result = await authService.loginWithPassword(username, password);
 
-      expect(mockApi.post).toHaveBeenCalledWith('/auth/login', {
+      expect(mockApi.post).toHaveBeenCalledWith('/api/auth/login', {
         username,
         password
       });
@@ -141,11 +141,10 @@ describe('AuthService', () => {
 
       const result = await authService.register(username, password, firstName, lastName);
 
-      expect(mockApi.post).toHaveBeenCalledWith('/auth/register', {
+      expect(mockApi.post).toHaveBeenCalledWith('/api/auth/register', {
         username,
         password,
-        firstName,
-        lastName
+        userName: 'New User'
       });
 
       expect(result).toEqual(mockResponse);
@@ -171,11 +170,10 @@ describe('AuthService', () => {
 
       const result = await authService.register(username, password);
 
-      expect(mockApi.post).toHaveBeenCalledWith('/auth/register', {
+      expect(mockApi.post).toHaveBeenCalledWith('/api/auth/register', {
         username,
         password,
-        firstName: undefined,
-        lastName: undefined
+        userName: 'newuser'
       });
 
       expect(result).toEqual(mockResponse);
@@ -213,7 +211,7 @@ describe('AuthService', () => {
 
       const result = await authService.refreshAccessToken();
 
-      expect(mockApi.post).toHaveBeenCalledWith('/auth/refresh', {
+      expect(mockApi.post).toHaveBeenCalledWith('/api/auth/refresh', {
         refreshToken: 'existing_refresh_token'
       });
 
@@ -283,7 +281,7 @@ describe('AuthService', () => {
 
       const result = await authService.checkPasswordAuthEnabled();
 
-      expect(mockApi.get).toHaveBeenCalledWith('/auth/password-enabled');
+      expect(mockApi.get).toHaveBeenCalledWith('/api/auth/password-auth-enabled');
       expect(result).toEqual(mockResponse);
     });
   });
@@ -297,7 +295,7 @@ describe('AuthService', () => {
 
       await authService.logout();
 
-      expect(mockApi.post).toHaveBeenCalledWith('/auth/logout');
+      expect(mockApi.post).toHaveBeenCalledWith('/api/auth/logout');
       expect(localStorageMock.getItem('access_token')).toBeNull();
       expect(localStorageMock.getItem('refresh_token')).toBeNull();
       expect(localStorageMock.getItem('auth_token')).toBeNull();
@@ -332,7 +330,7 @@ describe('AuthService', () => {
 
       const result = await authService.getCurrentUser();
 
-      expect(mockApi.get).toHaveBeenCalledWith('/auth/me');
+      expect(mockApi.get).toHaveBeenCalledWith('/api/auth/me');
       expect(result).toEqual(mockUser);
     });
   });
@@ -343,7 +341,7 @@ describe('AuthService', () => {
 
       const result = await authService.validateToken();
 
-      expect(mockApi.get).toHaveBeenCalledWith('/auth/validate');
+      expect(mockApi.get).toHaveBeenCalledWith('/api/auth/validate');
       expect(result).toBe(true);
     });
 

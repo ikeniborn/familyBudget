@@ -55,7 +55,7 @@ export interface RefreshTokenResponse {
 
 class AuthService {
   async login(data: LoginData): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>('/auth/telegram', data);
+    const response = await api.post<AuthResponse>('/api/auth/telegram', data);
     if (response.token) {
       this.saveToken(response.token);
     }
@@ -102,7 +102,7 @@ class AuthService {
   }
 
   async loginWithPassword(username: string, password: string): Promise<PasswordAuthResponse> {
-    const response = await api.post<PasswordAuthResponse>('/auth/login', {
+    const response = await api.post<PasswordAuthResponse>('/api/auth/login', {
       username,
       password
     });
@@ -121,11 +121,13 @@ class AuthService {
   }
 
   async register(username: string, password: string, firstName?: string, lastName?: string): Promise<RegisterResponse> {
-    const response = await api.post<RegisterResponse>('/auth/register', {
+    // Объединяем firstName и lastName в userName
+    const userName = [firstName, lastName].filter(Boolean).join(' ').trim() || username;
+    
+    const response = await api.post<RegisterResponse>('/api/auth/register', {
       username,
       password,
-      firstName,
-      lastName
+      userName
     });
     
     if (response.success) {
@@ -148,7 +150,7 @@ class AuthService {
     }
     
     try {
-      const response = await api.post<RefreshTokenResponse>('/auth/refresh', {
+      const response = await api.post<RefreshTokenResponse>('/api/auth/refresh', {
         refreshToken
       });
       
@@ -165,24 +167,24 @@ class AuthService {
   }
 
   async checkPasswordAuthEnabled(): Promise<{ enabled: boolean }> {
-    return api.get<{ enabled: boolean }>('/auth/password-auth-enabled');
+    return api.get<{ enabled: boolean }>('/api/auth/password-auth-enabled');
   }
 
   async logout(): Promise<void> {
     try {
-      await api.post('/auth/logout');
+      await api.post('/api/auth/logout');
     } finally {
       this.clearTokens();
     }
   }
 
   async getCurrentUser(): Promise<User> {
-    return api.get<User>('/auth/me');
+    return api.get<User>('/api/auth/me');
   }
 
   async validateToken(): Promise<boolean> {
     try {
-      await api.get('/auth/validate');
+      await api.get('/api/auth/validate');
       return true;
     } catch {
       return false;
