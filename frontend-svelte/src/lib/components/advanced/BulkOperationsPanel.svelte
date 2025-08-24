@@ -12,27 +12,19 @@
   } from '../../services/bulkOperations.service';
   import { toastStore } from '../../stores/toast.store';
   import Button from '../ui/Button.svelte';
-  import Badge from '../ui/Badge.svelte';
   import Modal from '../ui/Modal.svelte';
   
   // Icons (using lucide-svelte equivalent or inline SVG)
   import {
     Upload,
     Download,
-    FileSpreadsheet,
-    FileJson,
-    FileText,
     Archive,
     Edit,
     Trash2,
     AlertCircle,
     CheckCircle,
     Clock,
-    Play,
-    Pause,
-    Settings,
-    Eye,
-    EyeOff
+    Settings
   } from 'lucide-svelte';
 
   export let entityType: 'periods' | 'financial_centers' | 'cost_centers' | 'nomenclatures' | 'products';
@@ -123,7 +115,7 @@
       };
       
       lastResult = result;
-      showBulkOperationResult(result);
+      showBulkOperationResult(result as BulkOperationResult<any>);
       dispatch('dataChange');
       
     } catch (error: any) {
@@ -186,7 +178,7 @@
       };
       
       lastResult = result;
-      showBulkOperationResult(result);
+      showBulkOperationResult(result as BulkOperationResult<any>);
       dispatch('dataChange');
       batchOperations = [];
       
@@ -218,7 +210,7 @@
       };
       
       lastResult = result;
-      showBulkOperationResult(result);
+      showBulkOperationResult(result as BulkOperationResult<any>);
       dispatch('dataChange');
       
     } catch (error: any) {
@@ -265,7 +257,7 @@
     Массовые операции
   </Button>
 {:else}
-  <Modal bind:open={showPanel} title="Массовые операции" size="xl">
+  <Modal bind:open={showPanel} title="Массовые операции">
     <div class="space-y-6">
       <!-- Progress Indicator -->
       {#if progress.status !== 'idle'}

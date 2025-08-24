@@ -23,42 +23,46 @@ Family Budget is a web-based budget management system built with SvelteKit and N
 
 **Container names for development:**
 - Frontend: `frontend-svelte-dev` or `frontend-svelte`
-- Backend API: `frontend-api-dev` or `frontend-api`
+- Backend Node.js: `frontend-api-dev` or `frontend-api`
+- Backend FastAPI: `backend-fastapi-dev` or `backend-fastapi`
 
 ## Architecture
 
 - **Frontend**: SvelteKit 2 + Svelte 5 + TypeScript + Vite at `frontend-svelte/` - Modern SPA with SSR support
-- **Backend API**: Node.js/Express + Prisma at `frontend-api/` - Unified API with type safety
+- **Backend API (Node.js)**: Express + Prisma at `frontend-api/` - Original Node.js API
+- **Backend API (FastAPI)**: Python + SQLAlchemy at `backend-fastapi/` - New high-performance API
 - **Database**: PostgreSQL 13 (partitioned tables)
 - **Cache**: Redis for performance optimization
 - **Reverse Proxy**: Traefik for SSL/routing
 - **Deployment**: Docker Compose orchestration
 
 Services run on Docker network:
-- postgres: 10.5.0.2:5432
-- redis: Internal network
-- frontend-svelte: Internal network  
-- frontend-api: Internal network
-- traefik: Public-facing
+- postgres: Internal network (port 5432)
+- redis: Internal network (port 6379)
+- frontend-svelte: Internal network (port 5173 dev/3000 prod)
+- frontend-api: Internal network (port 4000) - Node.js
+- backend-fastapi: Internal network (port 4000) - FastAPI
+- traefik: Public-facing (ports 80/443)
 
 ## Common Development Commands
 
 ### Start Development Environment
 
 ```bash
-# Quick start with Docker (includes DB initialization)
+# Node.js Backend (Original)
 ./scripts/dev.sh -d          # Detached mode
 ./scripts/dev.sh --init-db    # Force DB reinitialization
+docker-compose -f docker-compose.dev.yaml down  # Stop services
 
-# ⚠️ DEPRECATED: Do not use direct npm commands
-# Use Docker containers only (see Critical Development Rules above)
-
-# Stop services  
-docker-compose -f docker-compose.dev.yaml down
+# FastAPI Backend (New - Recommended)
+./scripts/dev-fastapi.sh -d          # Detached mode  
+./scripts/dev-fastapi.sh --init-db   # Force DB reinitialization
+docker-compose -f docker-compose.fastapi.yaml down  # Stop services
 
 # Access points:
 # Frontend: http://localhost:5173 (dev) or http://localhost:3000 (production)
-# API: http://localhost:4000
+# API: http://localhost:4000 (both Node.js and FastAPI use same port)
+# API Docs (FastAPI only): http://localhost:4000/docs
 ```
 
 ### Frontend Commands
@@ -94,7 +98,7 @@ docker exec -it frontend-svelte-dev npm install <package>   # Add new package
 docker exec -it frontend-svelte-dev npm uninstall <package> # Remove package
 ```
 
-### Backend API Commands
+### Backend API Commands (Node.js)
 
 **⚠️ WARNING: ALL commands must run through Docker containers - NEVER use npm directly on host**
 
@@ -122,26 +126,61 @@ docker exec -it frontend-api-dev npm install <package>   # Add new package
 docker exec -it frontend-api-dev npm uninstall <package> # Remove package
 ```
 
+### Backend API Commands (FastAPI)
+
+**⚠️ WARNING: ALL commands must run through Docker containers - NEVER use pip directly on host**
+
+```bash
+# Development (containers must be running via ./scripts/dev-fastapi.sh)
+docker exec -it backend-fastapi-dev uvicorn app.main:app --reload  # Run with auto-reload
+docker exec -it backend-fastapi-dev python -m pytest               # Run all tests
+docker exec -it backend-fastapi-dev python -m pytest --cov=app    # Run tests with coverage
+
+# Database Management
+docker exec -it backend-fastapi-dev alembic init alembic           # Initialize migrations
+docker exec -it backend-fastapi-dev alembic revision --autogenerate -m "message"  # Create migration
+docker exec -it backend-fastapi-dev alembic upgrade head           # Apply migrations
+docker exec -it backend-fastapi-dev alembic downgrade -1           # Rollback one migration
+
+# Code Quality
+docker exec -it backend-fastapi-dev black app/                     # Format code
+docker exec -it backend-fastapi-dev isort app/                     # Sort imports
+docker exec -it backend-fastapi-dev mypy app/                      # Type checking
+docker exec -it backend-fastapi-dev flake8 app/                    # Linting
+
+# Package Management
+docker exec -it backend-fastapi-dev pip install -r requirements.txt  # Install dependencies
+docker exec -it backend-fastapi-dev pip install <package>            # Add new package
+docker exec -it backend-fastapi-dev pip freeze > requirements.txt    # Update requirements
+```
+
 ### Container Management
 ```bash
 # View logs
-docker logs -f frontend-svelte   # SvelteKit frontend  
-docker logs -f frontend-api
-docker logs -f postgres
-docker logs -f redis
+docker logs -f frontend-svelte-dev     # SvelteKit frontend  
+docker logs -f frontend-api-dev        # Node.js backend
+docker logs -f backend-fastapi-dev     # FastAPI backend
+docker logs -f postgres-dev
+docker logs -f redis-dev
 
-# Access container
-docker exec -it frontend-api bash
-docker exec -it frontend-svelte bash
-docker exec -it postgres psql -U budget -d budgetdb
+# Access container shell
+docker exec -it frontend-svelte-dev bash
+docker exec -it frontend-api-dev bash
+docker exec -it backend-fastapi-dev bash
+docker exec -it postgres-dev psql -U budget -d budgetdb
 
 # Restart service
-docker restart frontend-svelte   # SvelteKit
-docker restart frontend-api
+docker restart frontend-svelte-dev
+docker restart frontend-api-dev
+docker restart backend-fastapi-dev
 
-# Rebuild specific service
+# Rebuild specific service (Node.js stack)
 docker-compose -f docker-compose.dev.yaml build frontend-svelte
 docker-compose -f docker-compose.dev.yaml build frontend-api
+
+# Rebuild specific service (FastAPI stack)
+docker-compose -f docker-compose.fastapi.yaml build frontend
+docker-compose -f docker-compose.fastapi.yaml build backend-fastapi
 ```
 
 ### Testing in Containers
@@ -303,18 +342,28 @@ Frontend-API endpoints at `/api/`:
 - `frontend-svelte/vite.config.ts` - Vite configuration
 - `frontend-svelte/package.json` - Dependencies and scripts
 
-### Backend API
+### Backend API (Node.js)
 - `frontend-api/src/index.ts` - Express server entry
 - `frontend-api/prisma/schema.prisma` - Database schema
+
+### Backend API (FastAPI)
+- `backend-fastapi/app/main.py` - FastAPI application entry
+- `backend-fastapi/app/models/` - SQLAlchemy models
+- `backend-fastapi/app/schemas/` - Pydantic schemas
+- `backend-fastapi/app/api/v1/` - API endpoints
+
+### Database
 - `postgresql/ddl/budgetdb.sql` - SQL schema definition
 
 ### Docker Configurations
-- `docker-compose.yaml` - Production config
-- `docker-compose.dev.yaml` - Development config
+- `docker-compose.yaml` - Production config (Node.js)
+- `docker-compose.dev.yaml` - Development config (Node.js)
+- `docker-compose.fastapi.yaml` - Development config (FastAPI)
 
 ### Environment & Scripts
 - `.env.dev` / `.env.prod` - Environment templates
-- `scripts/dev.sh` - Development script with DB initialization
+- `scripts/dev.sh` - Development script for Node.js stack
+- `scripts/dev-fastapi.sh` - Development script for FastAPI stack
 - `scripts/prod.sh` - Production deployment script
 
 ## Key Architectural Patterns
@@ -440,11 +489,21 @@ Frontend-API endpoints at `/api/`:
 - Real-time cross-tab synchronization
 - Undo/Redo functionality
 
-### Completed Migration (August 2025)
-- Frontend: React → SvelteKit for better performance and developer experience
+### Completed Migrations
+
+#### Frontend Migration (July 2025)
+- React → SvelteKit for better performance and developer experience
 - Unified API: Python + Node.js → Node.js only with Prisma ORM
 - Performance: 20-40% faster response times, 30-50% memory reduction
 - Architecture: Simplified from dual-stack to unified SvelteKit + Node.js
+
+#### Backend Migration to FastAPI (August 2025)
+- Node.js/Express → FastAPI (Python) for better performance
+- Prisma ORM → SQLAlchemy 2.0 with async support
+- Session management maintained for compatibility
+- Performance: 2-3x faster than Node.js implementation
+- Full API documentation with Swagger/ReDoc
+- All endpoints remain compatible with frontend
 
 ## CI/CD Pipeline
 

@@ -16,18 +16,14 @@
   // Icons
   import {
     History,
-    Eye,
     RotateCcw,
     Download,
-    Calendar,
-    User,
     FileText,
     CheckCircle,
     XCircle,
     Clock,
     AlertTriangle,
     RefreshCw,
-    Filter,
     Search,
     ChevronDown,
     ChevronRight,
@@ -309,7 +305,7 @@
     >
       История изменений
       {#if auditLogs.length > 0}
-        <Badge variant="secondary" class="ml-1">
+        <Badge variant="secondary" className="ml-1">
           {auditLogs.length}
         </Badge>
       {/if}
@@ -324,7 +320,7 @@
     >
       Удаленные записи
       {#if deletedRecords.length > 0}
-        <Badge variant="secondary" class="ml-1">
+        <Badge variant="secondary" className="ml-1">
           {deletedRecords.length}
         </Badge>
       {/if}
@@ -339,7 +335,7 @@
     >
       Ожидают одобрения
       {#if pendingApprovals.length > 0}
-        <Badge variant="secondary" class="ml-1">
+        <Badge variant="secondary" className="ml-1">
           {pendingApprovals.length}
         </Badge>
       {/if}
@@ -547,7 +543,7 @@
                     </div>
                   </div>
                   
-                  <Badge class="{getStatusColor(approval.status)}">
+                  <Badge className="{getStatusColor(approval.status)}">
                     {approval.status}
                   </Badge>
                 </div>

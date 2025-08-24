@@ -1,8 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
-  import { writable, type Writable } from 'svelte/stores';
+  import { writable, type Writable } from 'svelte/store';
   
-  import Badge from '../ui/Badge.svelte';
   import Button from '../ui/Button.svelte';
   import Card from '../ui/Card.svelte';
   import Input from '../ui/Input.svelte';

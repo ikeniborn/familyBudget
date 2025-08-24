@@ -338,7 +338,7 @@ class SearchService {
     return results;
   }
 
-  private calculateRelevanceScore(item: any, query: string, boost: number): number {
+  private calculateRelevanceScore(item: any, _query: string, boost: number): number {
     return (item._score || 0) * boost;
   }
 
@@ -384,7 +384,7 @@ class SearchService {
     
     // Add common field values that partially match the query
     for (const item of results.slice(0, 10)) {
-      for (const [field, value] of Object.entries(item)) {
+      for (const [, value] of Object.entries(item)) {
         const stringValue = String(value);
         if (stringValue.toLowerCase().includes(query.toLowerCase()) && 
             stringValue.length > query.length) {
@@ -538,7 +538,7 @@ class SearchService {
     return matrix[str2.length][str1.length];
   }
 
-  private async loadEntityData(entityType: string): Promise<any[]> {
+  private async loadEntityData(_entityType: string): Promise<any[]> {
     // This would typically load from a service
     // For now, return empty array - services would be called in real implementation
     return [];

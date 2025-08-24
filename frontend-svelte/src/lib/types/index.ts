@@ -14,6 +14,7 @@ export interface Period {
   id: number;
   period_id: number;
   period_name: string;
+  period_ru_name?: string;
   period_year: number;
   period_month: number;
   period_start_date?: string;
@@ -158,4 +159,93 @@ export interface PaginatedResponse<T> {
 // Form types
 export interface FormErrors {
   [key: string]: string | undefined;
+}
+
+// Union type for all reference entities
+export type ReferenceEntity = Period | FinancialCenter | CostCenter | Nomenclature;
+
+// Base interface for reference data state
+export interface BaseReferenceDataState<T> {
+  items: T[];
+  loading: boolean;
+  error: string | null;
+  lastSync: number | null;
+  isDirty: boolean;
+  selectedItems: number[];
+  searchTerm: string;
+  sortBy: string | null;
+  sortOrder: 'asc' | 'desc';
+  length?: number;
+}
+
+// Report types
+export interface PlanFactReportData {
+  [key: string]: any;
+  name: string;
+  planned_amount: number;
+  actual_amount: number;
+  category?: string;
+  period_name?: string;
+}
+
+export interface BudgetReportData {
+  period: string;
+  planned_income: number;
+  planned_expense: number;
+  actual_income: number;
+  actual_expense: number;
+  variance_income: number;
+  variance_expense: number;
+  efficiency: number;
+}
+
+export interface BudgetTableData {
+  category: string;
+  period: string;
+  planned_income: number;
+  planned_expense: number;
+  actual_income: number;
+  actual_expense: number;
+  income_variance: number;
+  expense_variance: number;
+  execution_rate: number;
+}
+
+export interface RawReportData {
+  categories: { name: string; value: number }[];
+  trends: { date: string; plan: number; fact: number }[];
+  variance: { name: string; planned: number; actual: number; variance: number }[];
+  planFactData?: PlanFactReportData[];
+}
+
+// Bulk operation types
+export interface BulkOperationProgress {
+  processed: number;
+  total: number;
+  status: 'running' | 'completed' | 'error';
+  errors?: string[];
+}
+
+export interface BulkOperationResult<T> {
+  success: T[];
+  errors: BulkOperationError[];
+  warnings: BulkOperationWarning[];
+  totalProcessed: number;
+  successCount: number;
+  errorCount: number;
+  warningCount: number;
+}
+
+export interface BulkOperationError {
+  row: number;
+  data: any;
+  error: string;
+  code: string;
+}
+
+export interface BulkOperationWarning {
+  row: number;
+  data: any;
+  warning: string;
+  code: string;
 }

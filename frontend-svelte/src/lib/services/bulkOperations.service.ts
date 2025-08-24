@@ -1,16 +1,10 @@
 import { 
   periodsService as periodService,
-  financialCentersService as financialCenterService,
-  costCentersService as costCenterService,
-  nomenclaturesService as nomenclatureService,
-  productService
+  financialCentersService as financialCenterService
 } from './index';
 import type { 
   Period, 
-  FinancialCenter, 
-  CostCenter, 
-  Nomenclature, 
-  Product
+  FinancialCenter
 } from '../types';
 import { toastStore } from '../stores/toast.store';
 import * as XLSX from 'xlsx';
@@ -511,28 +505,27 @@ class PeriodBulkOperationsService extends BaseBulkOperationsService<Period> {
   protected idField: keyof Period = 'period_id';
 
   protected async findExisting(data: any, userId: number): Promise<Period | null> {
-    const periods = await this.service.getAll(userId);
+    const periods = await this.service.getAll({ user_id: userId });
     return periods.find((p: Period) => 
       p.period_year === data.period_year && p.period_month === data.period_month
     ) || null;
   }
 
   protected async transformImportData(data: any[], userId: number): Promise<Omit<Period, 'period_id'>[]> {
-    return data.map(row => ({
+    return data.map((row, index) => ({
+      id: index + 1, // Временный ID для новых записей
       period_name: row['Название'] || row['period_name'] || row['name'],
       period_year: parseInt(row['Год'] || row['period_year'] || row['year']),
       period_month: parseInt(row['Месяц'] || row['period_month'] || row['month']),
-      period_order: parseInt(row['Порядок'] || row['period_order'] || row['order'] || '1'),
-      is_active: (row['Активен'] || row['is_active'] || row['active'] || 'true').toLowerCase() === 'true',
       user_id: userId
     }));
   }
 
   protected async validateItem(
     data: any, 
-    userId: number, 
-    isUpdate: boolean, 
-    id?: number
+    _userId: number, 
+    _isUpdate: boolean, 
+    _id?: number
   ): Promise<{ isValid: boolean; errors: string[]; warnings: string[] }> {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -564,28 +557,28 @@ class FinancialCenterBulkOperationsService extends BaseBulkOperationsService<Fin
   protected idField: keyof FinancialCenter = 'financial_center_id';
 
   protected async findExisting(data: any, userId: number): Promise<FinancialCenter | null> {
-    const centers = await this.service.getAll(userId);
+    const centers = await this.service.getAll({ user_id: userId });
     return centers.find((fc: FinancialCenter) => 
       fc.financial_center_name === data.financial_center_name
     ) || null;
   }
 
   protected async transformImportData(data: any[], userId: number): Promise<Omit<FinancialCenter, 'financial_center_id'>[]> {
-    return data.map(row => ({
+    return data.map((row, index) => ({
+      id: index + 1, // Временный ID для новых записей
       financial_center_name: row['Название'] || row['financial_center_name'] || row['name'],
       financial_center_description: row['Описание'] || row['financial_center_description'] || row['description'],
       financial_center_order: parseInt(row['Порядок'] || row['financial_center_order'] || row['order'] || '1'),
       parent_id: row['Родитель ID'] || row['parent_id'] || null,
-      is_active: (row['Активен'] || row['is_active'] || row['active'] || 'true').toLowerCase() === 'true',
       user_id: userId
     }));
   }
 
   protected async validateItem(
     data: any, 
-    userId: number, 
-    isUpdate: boolean, 
-    id?: number
+    _userId: number, 
+    _isUpdate: boolean, 
+    _id?: number
   ): Promise<{ isValid: boolean; errors: string[]; warnings: string[] }> {
     const errors: string[] = [];
     const warnings: string[] = [];

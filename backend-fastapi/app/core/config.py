@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     
     # Authentication
     TELEGRAM_BOT_TOKEN: str = Field(default="", env="TELEGRAM_BOT_TOKEN")
+    PASSWORD_AUTH_ENABLED: bool = Field(default=True, env="PASSWORD_AUTH_ENABLED")
     
     # Security
     SECRET_KEY: str = Field(

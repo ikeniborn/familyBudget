@@ -13,33 +13,35 @@
     CheckCircle
   } from 'lucide-svelte';
 
-  export let data: BudgetTableData[] = [];
+  import type { BudgetTableData, PlanFactReportData } from '$lib/types';
+
+  export let data: BudgetTableData[] | PlanFactReportData[] = [];
   export let title = 'Бюджетная таблица';
   export let loading = false;
-  export let onExport: ((format: 'csv' | 'excel') => Promise<void>) | undefined = undefined;
-
-  interface BudgetTableData {
-    category: string;
-    period: string;
-    planned_income: number;
-    planned_expense: number;
-    actual_income: number;
-    actual_expense: number;
-    income_variance: number;
-    expense_variance: number;
-    execution_rate: number;
-  }
+  export let onExport: ((format: 'csv' | 'excel' | 'pdf') => Promise<void>) | undefined = undefined;
 
   let sortColumn: keyof BudgetTableData | null = null;
   let sortDirection: 'asc' | 'desc' = 'asc';
   let searchTerm = '';
   let isExporting = false;
 
-  // Filter data based on search term
-  $: filteredData = data.filter(item =>
-    item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.period.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter data based on search term - make it flexible for different data types
+  $: filteredData = data.filter(item => {
+    const searchLower = searchTerm.toLowerCase();
+    // Check if item has expected fields
+    if ('category' in item && 'period' in item) {
+      return item.category.toLowerCase().includes(searchLower) ||
+             item.period.toLowerCase().includes(searchLower);
+    }
+    // For PlanFactReportData and other types, check available string fields
+    if ('name' in item) {
+      return item.name.toLowerCase().includes(searchLower);
+    }
+    if ('period_name' in item) {
+      return item.period_name.toLowerCase().includes(searchLower);
+    }
+    return true;
+  });
 
   // Sort data
   $: sortedData = sortColumn 

@@ -1,7 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { type Product } from '$lib/services/product.service';
-  import { toastStore } from '$lib/stores/toast.store';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import ProductForm from '$lib/components/products/ProductForm.svelte';

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { currentUser } from '$lib/stores/auth.store';
-  import { periodStore, syncAllReferenceData } from '$lib/stores/referenceData.store';
+  import { syncAllReferenceData } from '$lib/stores/referenceData.store';
   import { useToast } from '$lib/stores/toast.store';
   import Card from '$lib/components/ui/Card.svelte';
   import Button from '$lib/components/ui/Button.svelte';
@@ -22,8 +22,7 @@
     AlertTriangle,
     Wallet,
     TrendingUpIcon as LineChart,
-    PieChart,
-    Banknote
+    PieChart
   } from 'lucide-svelte';
   
   let loading = true;
@@ -63,8 +62,6 @@
       loading = false;
     }
   });
-  
-  $: progressPercentage = budgetSummary.totalBudget > 0 ? (budgetSummary.totalSpent / budgetSummary.totalBudget) * 100 : 0;
 </script>
 
 <svelte:head>

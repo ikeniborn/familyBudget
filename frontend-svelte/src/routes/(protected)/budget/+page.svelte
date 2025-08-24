@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import BudgetForm from '$lib/components/budget/BudgetForm.svelte';
   import BudgetList from '$lib/components/budget/BudgetList.svelte';
   import Button from '$lib/components/ui/Button.svelte';
-  import { Calculator, Plus, List, BarChart3 } from 'lucide-svelte';
+  import { Calculator, Plus, BarChart3 } from 'lucide-svelte';
 
   let showForm = false;
   let refreshList = 0;
@@ -63,7 +62,9 @@
 
     <!-- List Section -->
     <div class="transition-all duration-300 ease-in-out">
-      <BudgetList key={refreshList} />
+      {#key refreshList}
+        <BudgetList />
+      {/key}
     </div>
   </div>
 </div>

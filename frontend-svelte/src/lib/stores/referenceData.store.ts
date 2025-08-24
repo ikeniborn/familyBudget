@@ -1,21 +1,10 @@
 import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
 import { toastStore } from './toast.store';
-import type { Period, FinancialCenter, CostCenter, Nomenclature } from '$lib/types';
+import type { Period, FinancialCenter, CostCenter, Nomenclature, BaseReferenceDataState } from '$lib/types';
 import api from '$lib/services/api';
 
-// Base interface for reference data items
-interface BaseReferenceDataState<T> {
-  items: T[];
-  loading: boolean;
-  error: string | null;
-  lastSync: number | null;
-  isDirty: boolean;
-  selectedItems: number[];
-  searchTerm: string;
-  sortBy: string | null;
-  sortOrder: 'asc' | 'desc';
-}
+// Remove duplicate interface since it's now imported from types
 
 // Create persistent storage helpers
 function getStoredData<T>(key: string): T | null {
@@ -318,6 +307,23 @@ function createReferenceDataStore<T extends Record<string, any>>(
         items: [],
         lastSync: null
       });
+    },
+
+    // Additional methods to match expected API
+    async load(userId: number): Promise<void> {
+      return this.fetchAll(userId);
+    },
+
+    // Map method for array operations
+    map<U>(callback: (item: T, index: number, array: T[]) => U): U[] {
+      const currentState = get({ subscribe });
+      return currentState.items.map(callback);
+    },
+
+    // Length getter
+    get length(): number {
+      const currentState = get({ subscribe });
+      return currentState.items.length;
     }
   };
 }
@@ -346,6 +352,45 @@ export const nomenclatureStore = createReferenceDataStore<Nomenclature>(
   'nomenclature_id',
   '/api/nomenclatures'
 );
+
+// Create enhanced stores with array methods
+function createEnhancedStore<T>(baseStore: any) {
+  return derived([baseStore], ([$baseStore]) => {
+    const items = $baseStore.items || [];
+    return {
+      ...$baseStore,
+      // Array methods
+      map: <U>(callback: (item: T, index: number, array: T[]) => U): U[] => items.map(callback),
+      filter: (callback: (item: T, index: number, array: T[]) => boolean): T[] => items.filter(callback),
+      find: (callback: (item: T, index: number, array: T[]) => boolean): T | undefined => items.find(callback),
+      length: items.length,
+      
+      // Store methods
+      load: (userId: number) => baseStore.load(userId),
+      fetchAll: (userId: number, force?: boolean) => baseStore.fetchAll(userId, force),
+      create: (data: Partial<T>) => baseStore.create(data),
+      update: (id: number, data: Partial<T>) => baseStore.update(id, data),
+      delete: (id: number) => baseStore.delete(id),
+      bulkDelete: (ids: number[]) => baseStore.bulkDelete(ids),
+      selectItem: (id: number) => baseStore.selectItem(id),
+      deselectItem: (id: number) => baseStore.deselectItem(id),
+      selectAll: () => baseStore.selectAll(),
+      deselectAll: () => baseStore.deselectAll(),
+      setSearchTerm: (term: string) => baseStore.setSearchTerm(term),
+      setSortBy: (field: string | null) => baseStore.setSortBy(field),
+      toggleSortOrder: () => baseStore.toggleSortOrder(),
+      setError: (error: string | null) => baseStore.setError(error),
+      clearError: () => baseStore.clearError(),
+      reset: () => baseStore.reset()
+    };
+  });
+}
+
+// Enhanced stores with array methods
+export const enhancedPeriodStore = createEnhancedStore<Period>(periodStore);
+export const enhancedFinancialCenterStore = createEnhancedStore<FinancialCenter>(financialCenterStore);
+export const enhancedCostCenterStore = createEnhancedStore<CostCenter>(costCenterStore);
+export const enhancedNomenclatureStore = createEnhancedStore<Nomenclature>(nomenclatureStore);
 
 // Derived stores for filtered and sorted data
 export const filteredPeriods = derived(

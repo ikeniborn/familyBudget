@@ -5,7 +5,7 @@
     periodStore, 
     financialCenterStore,
     costCenterStore 
-  } from '$lib/stores/referenceData.store';
+  } from '$lib/stores';
   import { useToast } from '$lib/stores/toast.store';
   import { type ReportFilters } from '$lib/services/reportService';
   import Button from '$lib/components/ui/Button.svelte';
@@ -33,13 +33,13 @@
       const loadPromises = [];
       
       if ($periodStore.length === 0) {
-        loadPromises.push(periodStore.load($currentUser?.user_id || 0));
+        loadPromises.push($periodStore.load($currentUser?.user_id || 0));
       }
       if ($financialCenterStore.length === 0) {
-        loadPromises.push(financialCenterStore.load($currentUser?.user_id || 0));
+        loadPromises.push($financialCenterStore.load($currentUser?.user_id || 0));
       }
       if ($costCenterStore.length === 0) {
-        loadPromises.push(costCenterStore.load($currentUser?.user_id || 0));
+        loadPromises.push($costCenterStore.load($currentUser?.user_id || 0));
       }
       
       await Promise.all(loadPromises);
@@ -72,15 +72,15 @@
   // Create options with "All" option
   $: periodOptions = [
     { value: 'all', label: 'Все периоды' },
-    ...$periodStore.map(period => ({
+    ...$periodStore.map((period: any) => ({
       value: period.period_id.toString(),
-      label: period.period_ru_name,
+      label: period.period_ru_name || period.period_name,
     })),
   ];
 
   $: financialCenterOptions = [
     { value: 'all', label: 'Все ФЦ' },
-    ...$financialCenterStore.map(fc => ({
+    ...$financialCenterStore.map((fc: any) => ({
       value: fc.financial_center_id.toString(),
       label: fc.financial_center_name,
     })),
@@ -88,7 +88,7 @@
 
   $: costCenterOptions = [
     { value: 'all', label: 'Все МВЗ' },
-    ...$costCenterStore.map(cc => ({
+    ...$costCenterStore.map((cc: any) => ({
       value: cc.cost_center_id.toString(),
       label: cc.cost_center_name,
     })),

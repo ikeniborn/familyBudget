@@ -235,7 +235,7 @@ class AuditService {
         'DELETE',
         userId,
         entityData,
-        null,
+        undefined,
         reason ? `Удалено: ${reason}` : 'Запись удалена'
       );
 
@@ -305,7 +305,7 @@ class AuditService {
         record.entity_id,
         'RESTORE',
         userId,
-        null,
+        undefined,
         record.entity_data,
         'Запись восстановлена из корзины'
       );

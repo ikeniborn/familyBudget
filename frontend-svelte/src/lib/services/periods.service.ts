@@ -5,17 +5,13 @@ export interface CreatePeriodData {
   period_name: string;
   period_year: number;
   period_month: number;
-  period_order: number;
   user_id: number;
-  is_active?: boolean;
 }
 
 export interface UpdatePeriodData {
   period_name?: string;
   period_year?: number;
   period_month?: number;
-  period_order?: number;
-  is_active?: boolean;
 }
 
 class PeriodsService extends BaseService<Period, CreatePeriodData, UpdatePeriodData> {
@@ -39,20 +35,13 @@ class PeriodsService extends BaseService<Period, CreatePeriodData, UpdatePeriodD
 
   // Export to CSV
   async exportToCsv(data: Period[]): Promise<string> {
-    const monthNames = [
-      'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-      'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
-    ];
-
     const csvContent = [
-      ['ID', 'Название', 'Год', 'Месяц', 'Порядок', 'Активен', 'Дата создания'].join(','),
+      ['ID', 'Название', 'Год', 'Месяц', 'Дата создания'].join(','),
       ...data.map(p => [
         p.period_id,
         `"${p.period_name}"`,
         p.period_year,
         p.period_month,
-        p.period_order,
-        p.is_active ? 'Да' : 'Нет',
         p.created_at ? new Date(p.created_at).toLocaleDateString('ru-RU') : '',
       ].join(','))
     ].join('\n');
@@ -68,14 +57,12 @@ class PeriodsService extends BaseService<Period, CreatePeriodData, UpdatePeriodD
     for (const line of lines) {
       if (!line.trim()) continue;
       
-      const [, name, year, month, order, isActive] = line.split(',').map(v => v.replace(/"/g, '').trim());
+      const [, name, year, month] = line.split(',').map(v => v.replace(/"/g, '').trim());
       
       newPeriods.push({
         period_name: name,
         period_year: Number(year),
         period_month: Number(month),
-        period_order: Number(order),
-        is_active: isActive === 'Да',
         user_id: userId,
       });
     }

@@ -70,7 +70,9 @@
 
     <!-- List Section -->
     <div class="transition-all duration-300 ease-in-out">
-      <FactList key={refreshList} />
+      {#key refreshList}
+        <FactList />
+      {/key}
     </div>
   </div>
 </div>

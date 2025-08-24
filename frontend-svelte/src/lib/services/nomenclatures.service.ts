@@ -3,20 +3,22 @@ import type { Nomenclature } from '$types';
 
 export interface CreateNomenclatureData {
   nomenclature_name: string;
-  bill_name: string;
-  account_name: string;
-  operation_name: string;
-  is_fact: boolean;
+  nomenclature_type: 'INCOME' | 'EXPENSE';
+  parent_id?: number | null;
+  nomenclature_order: number;
+  color?: string;
+  icon?: string;
   user_id: number;
   is_active?: boolean;
 }
 
 export interface UpdateNomenclatureData {
   nomenclature_name?: string;
-  bill_name?: string;
-  account_name?: string;
-  operation_name?: string;
-  is_fact?: boolean;
+  nomenclature_type?: 'INCOME' | 'EXPENSE';
+  parent_id?: number | null;
+  nomenclature_order?: number;
+  color?: string;
+  icon?: string;
   is_active?: boolean;
 }
 
@@ -42,14 +44,13 @@ class NomenclaturesService extends BaseService<Nomenclature, CreateNomenclatureD
   // Export to CSV
   async exportToCsv(data: Nomenclature[]): Promise<string> {
     const csvContent = [
-      ['ID', 'Номенклатура', 'Статья бюджета', 'Название счета', 'Название операции', 'Факт', 'Статус', 'Дата создания'].join(','),
+      ['ID', 'Номенклатура', 'Тип', 'Порядок', 'Цвет', 'Статус', 'Дата создания'].join(','),
       ...data.map(n => [
         n.nomenclature_id,
         `"${n.nomenclature_name}"`,
-        `"${n.bill_name}"`,
-        `"${n.account_name}"`,
-        `"${n.operation_name}"`,
-        n.is_fact ? 'Да' : 'Нет',
+        n.nomenclature_type,
+        n.nomenclature_order,
+        n.color || '',
         n.is_active ? 'Активен' : 'Неактивен',
         n.created_at ? new Date(n.created_at).toLocaleDateString('ru-RU') : '',
       ].join(','))
@@ -66,14 +67,13 @@ class NomenclaturesService extends BaseService<Nomenclature, CreateNomenclatureD
     for (const line of lines) {
       if (!line.trim()) continue;
       
-      const [, name, billName, accountName, operationName, isFact, status] = line.split(',').map(v => v.replace(/"/g, '').trim());
+      const [, name, type, order, color, status] = line.split(',').map(v => v.replace(/"/g, '').trim());
       
       newNomenclatures.push({
         nomenclature_name: name,
-        bill_name: billName,
-        account_name: accountName,
-        operation_name: operationName,
-        is_fact: isFact === 'Да',
+        nomenclature_type: (type as 'INCOME' | 'EXPENSE') || 'EXPENSE',
+        nomenclature_order: Number(order) || 0,
+        color: color || undefined,
         is_active: status === 'Активен',
         user_id: userId,
       });

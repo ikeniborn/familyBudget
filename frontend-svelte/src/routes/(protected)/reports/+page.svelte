@@ -1,18 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { currentUser } from '$lib/stores/auth.store';
   import { useToast } from '$lib/stores/toast.store';
   import { reportService, type ReportFilters } from '$lib/services/reportService';
   import { reportDataTransformer, type TransformedReportData } from '$lib/services/reportDataTransformer';
   import ReportFiltersComponent from '$lib/components/reports/ReportFilters.svelte';
-  import { 
-    ComposedChartView, 
-    CategoryPieChart, 
-    TrendLineChart, 
-    VarianceWaterfall,
-    BudgetGauge,
-    type ChartSeries 
-  } from '$lib/components/charts';
   import BudgetTable from '$lib/components/reports/BudgetTable.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import ChartSelector from '$lib/components/reports/ChartSelector.svelte';
@@ -107,7 +98,7 @@
   }
 
   // Handle export functionality
-  async function handleExport(format: 'excel' | 'pdf') {
+  async function handleExport(format: 'csv' | 'excel' | 'pdf') {
     try {
       toast.info('Экспорт', `Начинается экспорт в формате ${format.toUpperCase()}`);
       
@@ -137,8 +128,6 @@
     }
   }
 
-  // Get chart series configuration based on selected data
-  $: chartSeries = transformedData.composedSeries || [];
   
   // Check if data is available for current view
   $: hasData = transformedData && (

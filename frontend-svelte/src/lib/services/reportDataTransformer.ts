@@ -90,7 +90,7 @@ export interface TransformedReportData {
 export interface ChartSeries {
   dataKey: string;
   name: string;
-  type: 'bar' | 'line' | 'area';
+  type: 'bar' | 'line';
   color: string;
   yAxisId?: 'left' | 'right';
 }
@@ -382,7 +382,7 @@ class ReportDataTransformer {
   /**
    * Generate mock data for development/testing
    */
-  generateMockData(filters: ReportFilters): RawReportData {
+  generateMockData(_filters: ReportFilters): RawReportData {
     const currentYear = new Date().getFullYear();
     const periods = [
       {

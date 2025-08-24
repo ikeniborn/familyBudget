@@ -110,8 +110,6 @@
           borderColor: 'rgb(168, 85, 247)', // violet-500
           backgroundColor: 'transparent',
           borderWidth: 2,
-          pointRadius: 4,
-          pointBackgroundColor: 'rgb(168, 85, 247)',
           yAxisID: 'y1',
           fill: false,
         }] : [])
@@ -215,7 +213,7 @@
           }
         }
       },
-      onClick: (event, elements) => {
+      onClick: (_event, elements) => {
         if (elements.length > 0 && elements[0].datasetIndex < 2) {
           const index = elements[0].index;
           const dataPoint = sortedData[index];
@@ -272,7 +270,6 @@
   {loading}
   {error}
   exportable={true}
-  borderColor="border-l-blue-500"
   on:export={handleExport}
   let:setChartRef
 >
@@ -368,7 +365,7 @@
       <div class="mb-6">
         <h4 class="text-sm font-medium text-gray-900 mb-3">Наибольшие отклонения</h4>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {#each topVariance as item, index}
+          {#each topVariance as item}
             <div class="bg-gray-50 rounded-lg p-3">
               <div class="flex items-center justify-between">
                 <span class="text-sm text-gray-600 truncate">{item.category}</span>

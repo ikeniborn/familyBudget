@@ -1,5 +1,4 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
-import type { ApiResponse } from '$types';
 
 class ApiClient {
   private client: AxiosInstance;
@@ -107,9 +106,10 @@ class ApiClient {
         withCredentials: true
       });
       
-      if (response.data.success && response.data.accessToken) {
-        this.saveTokens(response.data.accessToken, response.data.refreshToken || refreshToken);
-        return response.data.accessToken;
+      // Обрабатываем новую структуру ответа от сервера
+      if (response.data.success && response.data.tokens?.accessToken) {
+        this.saveTokens(response.data.tokens.accessToken, response.data.tokens.refreshToken || refreshToken);
+        return response.data.tokens.accessToken;
       }
     } catch (error) {
       console.error('Token refresh failed:', error);

@@ -10,7 +10,7 @@ export abstract class BaseService<T, CreateT = Partial<T>, UpdateT = Partial<T>>
   // Get all records
   async getAll(params?: Record<string, any>): Promise<T[]> {
     try {
-      const response = await api.get<T[]>(this.endpoint, params);
+      const response = await api.get<T[]>(this.endpoint, { params });
       return response;
     } catch (error: any) {
       throw new Error(error.message || `Failed to fetch ${this.endpoint}`);
@@ -96,7 +96,7 @@ export abstract class BaseService<T, CreateT = Partial<T>, UpdateT = Partial<T>>
         total: number;
         page: number;
         totalPages: number;
-      }>(this.endpoint, params);
+      }>(this.endpoint, { params });
       
       return response;
     } catch (error: any) {

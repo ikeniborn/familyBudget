@@ -102,44 +102,50 @@ class AuthService {
   }
 
   async loginWithPassword(username: string, password: string): Promise<PasswordAuthResponse> {
-    const response = await api.post<PasswordAuthResponse>('/auth/login', {
+    const response = await api.post<any>('/auth/login', {
       username,
       password
     });
     
-    if (response.success) {
-      // Поддержка и JWT токенов, и обычных токенов
-      const accessToken = response.accessToken || response.token;
-      const refreshToken = response.refreshToken;
-      
-      if (accessToken) {
-        this.saveTokens(accessToken, refreshToken);
-      }
+    // Преобразуем ответ от сервера в ожидаемый формат
+    const result: PasswordAuthResponse = {
+      success: response.success,
+      user: response.user,
+      accessToken: response.tokens?.accessToken,
+      refreshToken: response.tokens?.refreshToken,
+      token: response.tokens?.accessToken // Обратная совместимость
+    };
+    
+    if (result.success && result.accessToken) {
+      this.saveTokens(result.accessToken, result.refreshToken);
     }
     
-    return response;
+    return result;
   }
 
   async register(username: string, password: string, firstName?: string, lastName?: string): Promise<RegisterResponse> {
     // Объединяем firstName и lastName в userName
     const userName = [firstName, lastName].filter(Boolean).join(' ').trim() || username;
     
-    const response = await api.post<RegisterResponse>('/auth/register', {
+    const response = await api.post<any>('/auth/register', {
       username,
       password,
       userName
     });
     
-    if (response.success) {
-      const accessToken = response.accessToken;
-      const refreshToken = response.refreshToken;
-      
-      if (accessToken) {
-        this.saveTokens(accessToken, refreshToken);
-      }
+    // Преобразуем ответ от сервера в ожидаемый формат
+    const result: RegisterResponse = {
+      success: response.success,
+      user: response.user,
+      accessToken: response.tokens?.accessToken,
+      refreshToken: response.tokens?.refreshToken
+    };
+    
+    if (result.success && result.accessToken) {
+      this.saveTokens(result.accessToken, result.refreshToken);
     }
     
-    return response;
+    return result;
   }
   
   async refreshAccessToken(): Promise<string | null> {
@@ -150,13 +156,14 @@ class AuthService {
     }
     
     try {
-      const response = await api.post<RefreshTokenResponse>('/auth/refresh', {
+      const response = await api.post<any>('/auth/refresh', {
         refreshToken
       });
       
-      if (response.success && response.accessToken) {
-        this.saveTokens(response.accessToken, response.refreshToken || refreshToken);
-        return response.accessToken;
+      // Обрабатываем новую структуру ответа от сервера
+      if (response.success && response.tokens?.accessToken) {
+        this.saveTokens(response.tokens.accessToken, response.tokens.refreshToken || refreshToken);
+        return response.tokens.accessToken;
       }
     } catch (error) {
       console.error('Failed to refresh token:', error);
