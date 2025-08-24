@@ -1,195 +1,222 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/svelte';
+import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
+import LoginPage from '../+page.svelte';
+import { authService } from '$lib/services/auth.service';
+import { isAuthenticated } from '$lib/stores/auth.store';
+import * as authConfig from '$lib/config/auth';
+import { goto } from '$app/navigation';
+import { page } from '$app/stores';
 
-// Mock SvelteKit modules
-vi.mock('$app/navigation', () => ({
-  goto: vi.fn()
+// Mock dependencies
+vi.mock('$lib/services/auth.service');
+vi.mock('$lib/config/auth');
+vi.mock('$app/navigation');
+vi.mock('$app/environment', () => ({
+  browser: true,
+  dev: false
 }));
 
-vi.mock('$app/stores', () => ({
-  page: {
+// Mock components
+vi.mock('$lib/components/auth/PasswordLogin.svelte', () => ({
+  default: 'div'
+}));
+vi.mock('$lib/components/auth/AbstractGraphics.svelte', () => ({
+  default: 'div'
+}));
+vi.mock('$lib/components/ui/Button.svelte', () => ({
+  default: 'button'
+}));
+
+const mockAuthService = vi.mocked(authService);
+const mockAuthConfig = vi.mocked(authConfig);
+const mockGoto = vi.mocked(goto);
+
+// Mock page store
+const createMockPageStore = (searchParams: Record<string, string> = {}) => {
+  const url = new URL('http://localhost:3000/login');
+  Object.entries(searchParams).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
+
+  return {
     subscribe: vi.fn((callback) => {
       callback({
-        url: new URL('http://localhost:3000/login?returnUrl=/dashboard')
+        url,
+        params: {},
+        route: { id: '/login' },
+        data: {}
       });
       return () => {};
     })
-  }
-}));
+  };
+};
 
-vi.mock('$app/environment', () => ({
-  browser: true,
-  dev: true
-}));
-
-// Mock auth store
-vi.mock('$lib/stores/auth.store', () => ({
-  isAuthenticated: {
-    subscribe: vi.fn((callback) => {
-      callback(false);
-      return () => {};
-    })
-  }
-}));
-
-// Mock auth service
-vi.mock('$lib/services/auth.service', () => ({
-  authService: {
-    checkPasswordAuthEnabled: vi.fn().mockResolvedValue({ enabled: true }),
-    startTelegramOAuth: vi.fn()
-  }
-}));
-
-// Mock child components
-vi.mock('$lib/components/auth/PasswordLogin.svelte', () => ({
-  default: vi.fn(() => ({ 
-    render: () => ({ html: '<div>Password Login Component</div>' }),
-    $$: { fragment: null }
-  }))
-}));
-
-vi.mock('$lib/components/auth/AbstractGraphics.svelte', () => ({
-  default: vi.fn(() => ({ 
-    render: () => ({ html: '<div>Abstract Graphics Component</div>' }),
-    $$: { fragment: null }
-  }))
-}));
-
-vi.mock('$lib/components/ui/Button.svelte', () => ({
-  default: vi.fn(() => ({ 
-    render: () => ({ html: '<button>Login Button</button>' }),
-    $$: { fragment: null }
-  }))
-}));
-
-// Mock auth config
-vi.mock('$lib/config/auth', () => ({
-  getEffectiveBotName: vi.fn(() => 'familybudget_test_bot'),
-  shouldUseMockAuth: vi.fn(() => true)
-}));
-
-// Import the component and mocked dependencies
-import LoginPage from '../+page.svelte';
-import { goto } from '$app/navigation';
-import { authService } from '$lib/services/auth.service';
-
-const mockGoto = vi.mocked(goto);
-const mockAuthService = vi.mocked(authService);
-
-describe('Login Page Component', () => {
+describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     
-    // Setup DOM mock
-    Object.defineProperty(window, 'location', {
-      value: {
-        origin: 'http://localhost:3000',
-        href: 'http://localhost:3000/login'
-      },
-      writable: true
-    });
+    // Default mocks
+    mockIsAuthenticated.mockReturnValue({
+      subscribe: vi.fn((callback) => {
+        callback(false);
+        return () => {};
+      })
+    } as any);
+    
+    mockPage.mockReturnValue(createMockPageStore() as any);
+    
+    mockAuthConfig.getEffectiveBotName.mockReturnValue('test_bot');
+    mockAuthConfig.shouldUseMockAuth.mockReturnValue(false);
+    
+    mockAuthService.checkPasswordAuthEnabled.mockResolvedValue({ enabled: true });
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  describe('Component Structure and Rendering', () => {
+  describe('Rendering', () => {
+    it('should render login page with correct title', async () => {
+      render(LoginPage);
+
+      expect(document.title).toContain('Вход - Family Budget');
+    });
+
     it('should render main title and subtitle', async () => {
       render(LoginPage);
-      
+
       await waitFor(() => {
-        expect(screen.getByText(/ДОМАШНИЙ/)).toBeInTheDocument();
-        expect(screen.getByText(/БУХГАЛТЕР/)).toBeInTheDocument();
-        expect(screen.getByText(/Сохраняем и приумножаем вместе/)).toBeInTheDocument();
+        expect(screen.getByText('ДОМАШНИЙ')).toBeInTheDocument();
+        expect(screen.getByText('БУХГАЛТЕР')).toBeInTheDocument();
+        expect(screen.getByText('Сохраняем и приумножаем вместе!')).toBeInTheDocument();
       });
     });
 
-    it('should set correct page title', async () => {
+    it('should render auth method toggle buttons', async () => {
       render(LoginPage);
-      
+
       await waitFor(() => {
-        expect(document.title).toBe('Вход - Family Budget');
+        expect(screen.getByText('Логин / Пароль')).toBeInTheDocument();
+        expect(screen.getByText('Telegram')).toBeInTheDocument();
       });
     });
 
-    it('should render login button with correct text in dev mode', async () => {
+    it('should show password login by default', async () => {
       render(LoginPage);
-      
+
       await waitFor(() => {
-        const button = screen.getByText(/Войти \(Тест\)/i);
-        expect(button).toBeInTheDocument();
+        const passwordButton = screen.getByText('Логин / Пароль');
+        expect(passwordButton).toHaveClass('active');
       });
     });
 
-    it('should show loading state when loading is true', async () => {
-      // Mock checkPasswordAuthEnabled to be slow
-      mockAuthService.checkPasswordAuthEnabled.mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve({ enabled: true }), 100))
-      );
-      
+    it('should render telegram login button in telegram mode', async () => {
       render(LoginPage);
-      
-      // Button should show loading state initially
+
+      const telegramButton = screen.getByText('Telegram');
+      await fireEvent.click(telegramButton);
+
       await waitFor(() => {
-        const button = screen.getByText(/Загрузка\.\.\./i);
-        expect(button).toBeInTheDocument();
+        expect(screen.getByText('Войти')).toBeInTheDocument();
+        expect(screen.getByText('Нажмите кнопку выше для входа через Telegram')).toBeInTheDocument();
       });
     });
 
-    it('should render AbstractGraphics component', async () => {
+    it('should show test mode button text in development', async () => {
+      // Mock development environment
+      vi.doMock('$app/environment', () => ({
+        browser: true,
+        dev: true
+      }));
+
       render(LoginPage);
-      
+
+      const telegramButton = screen.getByText('Telegram');
+      await fireEvent.click(telegramButton);
+
       await waitFor(() => {
-        expect(screen.getByText('Abstract Graphics Component')).toBeInTheDocument();
+        expect(screen.getByText('Войти (Тест)')).toBeInTheDocument();
       });
     });
   });
 
-  describe('Authentication Logic', () => {
-    it('should redirect to dashboard when authenticated without return URL', async () => {
-      // Mock authenticated state
-      vi.doMock('$lib/stores/auth.store', () => ({
-        isAuthenticated: {
-          subscribe: vi.fn((callback) => {
-            callback(true);
-            return () => {};
-          })
-        }
-      }));
+  describe('Authentication Check', () => {
+    it('should redirect to dashboard if already authenticated', async () => {
+      mockIsAuthenticated.mockReturnValue({
+        subscribe: vi.fn((callback) => {
+          callback(true);
+          return () => {};
+        })
+      } as any);
 
       render(LoginPage);
-      
+
       await waitFor(() => {
         expect(mockGoto).toHaveBeenCalledWith('/dashboard');
       });
     });
 
-    it('should handle return URL from query parameters', async () => {
-      // Mock page store with return URL
-      vi.doMock('$app/stores', () => ({
-        page: {
-          subscribe: vi.fn((callback) => {
-            callback({
-              url: new URL('http://localhost:3000/login?returnUrl=%2Fdashboard%2Freports')
-            });
-            return () => {};
-          })
-        }
-      }));
+    it('should not redirect if not authenticated', async () => {
+      mockIsAuthenticated.mockReturnValue({
+        subscribe: vi.fn((callback) => {
+          callback(false);
+          return () => {};
+        })
+      } as any);
 
       render(LoginPage);
-      
+
       await waitFor(() => {
-        // Component should have extracted return URL from query params
-        expect(true).toBe(true); // Return URL is handled in onMount
+        expect(mockGoto).not.toHaveBeenCalled();
       });
     });
+  });
 
-    it('should check password authentication on mount', async () => {
+  describe('Return URL Handling', () => {
+    it('should extract return URL from query parameters', async () => {
+      mockPage.mockReturnValue(createMockPageStore({ 
+        returnUrl: '/dashboard/reports' 
+      }) as any);
+
       render(LoginPage);
-      
+
+      const telegramButton = screen.getByText('Telegram');
+      await fireEvent.click(telegramButton);
+
+      const loginButton = screen.getByText('Войти');
+      await fireEvent.click(loginButton);
+
+      expect(mockAuthService.startTelegramOAuth).toHaveBeenCalledWith(
+        'test_bot',
+        '/dashboard/reports'
+      );
+    });
+
+    it('should handle missing return URL', async () => {
+      mockPage.mockReturnValue(createMockPageStore() as any);
+
+      render(LoginPage);
+
+      const telegramButton = screen.getByText('Telegram');
+      await fireEvent.click(telegramButton);
+
+      const loginButton = screen.getByText('Войти');
+      await fireEvent.click(loginButton);
+
+      expect(mockAuthService.startTelegramOAuth).toHaveBeenCalledWith(
+        'test_bot',
+        undefined
+      );
+    });
+  });
+
+  describe('Password Auth Configuration', () => {
+    it('should check password auth enabled on mount', async () => {
+      mockAuthService.checkPasswordAuthEnabled.mockResolvedValue({ enabled: true });
+
+      render(LoginPage);
+
       await waitFor(() => {
         expect(mockAuthService.checkPasswordAuthEnabled).toHaveBeenCalled();
       });
@@ -197,356 +224,359 @@ describe('Login Page Component', () => {
 
     it('should handle password auth check failure gracefully', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockAuthService.checkPasswordAuthEnabled.mockRejectedValue(new Error('Network error'));
-      
+      mockAuthService.checkPasswordAuthEnabled.mockRejectedValue(new Error('API Error'));
+
       render(LoginPage);
-      
+
       await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith('Error checking password auth:', expect.any(Error));
+        expect(consoleSpy).toHaveBeenCalledWith(
+          '[LOGIN] Error checking password auth:',
+          expect.any(Error)
+        );
       });
-      
+
+      // Should still show password login as fallback
+      await waitFor(() => {
+        expect(screen.getByText('Логин / Пароль')).toBeInTheDocument();
+      });
+
       consoleSpy.mockRestore();
     });
-  });
 
-  describe('Telegram Login Functionality', () => {
-    it('should call startTelegramOAuth when login button is clicked', async () => {
-      render(LoginPage);
-      
-      await waitFor(async () => {
-        const loginButton = screen.getByText(/Войти \(Тест\)/i);
-        expect(loginButton).toBeInTheDocument();
-        
-        await fireEvent.click(loginButton);
-        
-        expect(mockAuthService.startTelegramOAuth).toHaveBeenCalledWith(
-          'familybudget_test_bot',
-          undefined
-        );
-      });
-    });
+    it('should handle password auth disabled', async () => {
+      mockAuthService.checkPasswordAuthEnabled.mockResolvedValue({ enabled: false });
 
-    it('should pass return URL to startTelegramOAuth when available', async () => {
-      // Mock page store with return URL
-      vi.doMock('$app/stores', () => ({
-        page: {
-          subscribe: vi.fn((callback) => {
-            callback({
-              url: new URL('http://localhost:3000/login?returnUrl=%2Fdashboard%2Freports')
-            });
-            return () => {};
-          })
-        }
-      }));
-      
       render(LoginPage);
-      
-      await waitFor(async () => {
-        const loginButton = screen.getByText(/Войти \(Тест\)/i);
-        await fireEvent.click(loginButton);
-        
-        expect(mockAuthService.startTelegramOAuth).toHaveBeenCalledWith(
-          'familybudget_test_bot',
-          '/dashboard/reports'
-        );
-      });
-    });
 
-    it('should not call startTelegramOAuth when button is disabled (loading)', async () => {
-      // Mock slow auth check
-      mockAuthService.checkPasswordAuthEnabled.mockImplementation(
-        () => new Promise(() => {}) // Never resolves
-      );
-      
-      render(LoginPage);
-      
-      await waitFor(async () => {
-        const loadingButton = screen.getByText(/Загрузка\.\.\./i);
-        expect(loadingButton).toBeInTheDocument();
-        
-        await fireEvent.click(loadingButton);
-        
-        expect(mockAuthService.startTelegramOAuth).not.toHaveBeenCalled();
-      });
-    });
-
-    it('should show correct button text in development mode', async () => {
-      render(LoginPage);
-      
       await waitFor(() => {
-        expect(screen.getByText(/Войти \(Тест\)/i)).toBeInTheDocument();
-      });
-    });
-
-    it('should show correct button text in production mode', async () => {
-      // Mock production environment
-      vi.doMock('$app/environment', () => ({
-        browser: true,
-        dev: false
-      }));
-      
-      render(LoginPage);
-      
-      await waitFor(() => {
-        expect(screen.getByText(/^Войти$/i)).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('Password Login Toggle', () => {
-    it('should show PasswordLogin component when switched', async () => {
-      mockAuthService.checkPasswordAuthEnabled.mockResolvedValue({ enabled: true });
-      
-      render(LoginPage);
-      
-      // Wait for component to load and then simulate switching to password login
-      await waitFor(() => {
-        // In real scenario, this would be triggered by user interaction
-        // For now, we test the logic exists
         expect(mockAuthService.checkPasswordAuthEnabled).toHaveBeenCalled();
       });
     });
+  });
 
-    it('should handle switching back to Telegram login', async () => {
+  describe('Auth Method Toggle', () => {
+    it('should toggle between password and telegram login', async () => {
       render(LoginPage);
-      
+
+      // Initially password login should be active
       await waitFor(() => {
-        // Test that the switch logic exists
-        expect(screen.getByText(/ДОМАШНИЙ/)).toBeInTheDocument();
+        expect(screen.getByText('Логин / Пароль')).toHaveClass('active');
+        expect(screen.getByText('Telegram')).not.toHaveClass('active');
+      });
+
+      // Click telegram button
+      const telegramButton = screen.getByText('Telegram');
+      await fireEvent.click(telegramButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Telegram')).toHaveClass('active');
+        expect(screen.getByText('Логин / Пароль')).not.toHaveClass('active');
+      });
+
+      // Click password button again
+      const passwordButton = screen.getByText('Логин / Пароль');
+      await fireEvent.click(passwordButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Логин / Пароль')).toHaveClass('active');
+        expect(screen.getByText('Telegram')).not.toHaveClass('active');
+      });
+    });
+
+    it('should show password login form when password mode is active', async () => {
+      render(LoginPage);
+
+      // Should show password login by default
+      await waitFor(() => {
+        // Mock PasswordLogin component should be rendered
+        const passwordLoginElements = document.querySelector('.password-login-wrapper');
+        expect(passwordLoginElements).toBeInTheDocument();
+      });
+    });
+
+    it('should show telegram login button when telegram mode is active', async () => {
+      render(LoginPage);
+
+      const telegramButton = screen.getByText('Telegram');
+      await fireEvent.click(telegramButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Войти')).toBeInTheDocument();
+        expect(screen.getByText('Нажмите кнопку выше для входа через Telegram')).toBeInTheDocument();
       });
     });
   });
 
-  describe('UI State and Interactions', () => {
-    it('should render login container with proper CSS classes', async () => {
+  describe('Telegram Login Button', () => {
+    beforeEach(async () => {
       render(LoginPage);
-      
-      await waitFor(() => {
-        const loginPage = document.querySelector('.login-page');
-        const loginContainer = document.querySelector('.login-container');
-        
-        expect(loginPage).toBeInTheDocument();
-        expect(loginContainer).toBeInTheDocument();
-      });
+
+      // Switch to Telegram mode
+      const telegramButton = screen.getByText('Telegram');
+      await fireEvent.click(telegramButton);
     });
 
-    it('should handle loading states properly', async () => {
-      let resolveAuth: (value: any) => void;
-      mockAuthService.checkPasswordAuthEnabled.mockImplementation(
-        () => new Promise(resolve => {
-          resolveAuth = resolve;
-        })
+    it('should call startTelegramOAuth when login button is clicked', async () => {
+      const loginButton = screen.getByText('Войти');
+      await fireEvent.click(loginButton);
+
+      expect(mockAuthService.startTelegramOAuth).toHaveBeenCalledWith(
+        'test_bot',
+        undefined
       );
-      
+    });
+
+    it('should not call OAuth if still loading', async () => {
+      // Mock loading state
+      mockAuthService.checkPasswordAuthEnabled.mockImplementation(
+        () => new Promise(() => {}) // Never resolves
+      );
+
       render(LoginPage);
-      
-      // Should show loading initially
-      await waitFor(() => {
-        expect(screen.getByText(/Загрузка\.\.\./i)).toBeInTheDocument();
+      const telegramButton = screen.getByText('Telegram');
+      await fireEvent.click(telegramButton);
+
+      const loginButton = screen.getByText('Загрузка...');
+      await fireEvent.click(loginButton);
+
+      expect(mockAuthService.startTelegramOAuth).not.toHaveBeenCalled();
+    });
+
+    it('should redirect to dashboard if already authenticated', async () => {
+      mockIsAuthenticated.mockReturnValue({
+        subscribe: vi.fn((callback) => {
+          callback(true);
+          return () => {};
+        })
+      } as any);
+
+      const loginButton = screen.getByText('Войти');
+      await fireEvent.click(loginButton);
+
+      expect(mockGoto).toHaveBeenCalledWith('/dashboard');
+      expect(mockAuthService.startTelegramOAuth).not.toHaveBeenCalled();
+    });
+
+    it('should show loading state', async () => {
+      // Create a promise that we control
+      let resolvePromise: (value: any) => void;
+      const loadingPromise = new Promise(resolve => {
+        resolvePromise = resolve;
       });
+
+      mockAuthService.checkPasswordAuthEnabled.mockReturnValue(loadingPromise);
+
+      render(LoginPage);
+      const telegramButton = screen.getByText('Telegram');
+      await fireEvent.click(telegramButton);
+
+      // Should show loading button
+      expect(screen.getByText('Загрузка...')).toBeInTheDocument();
+
+      // Resolve the promise
+      resolvePromise!({ enabled: true });
       
-      // Resolve the auth check
-      resolveAuth!({ enabled: true });
-      
-      // Should show normal button after loading
       await waitFor(() => {
-        expect(screen.getByText(/Войти \(Тест\)/i)).toBeInTheDocument();
+        expect(screen.getByText('Войти')).toBeInTheDocument();
       });
     });
 
-    it('should have proper responsive structure', async () => {
+    it('should be disabled during loading', async () => {
+      // Create unresolved promise for loading state
+      mockAuthService.checkPasswordAuthEnabled.mockReturnValue(
+        new Promise(() => {}) // Never resolves
+      );
+
       render(LoginPage);
-      
-      await waitFor(() => {
-        const headerSection = document.querySelector('.header-section');
-        const buttonSection = document.querySelector('.button-section');
-        const graphicsSection = document.querySelector('.graphics-section');
-        
-        expect(headerSection).toBeInTheDocument();
-        expect(buttonSection).toBeInTheDocument();
-        expect(graphicsSection).toBeInTheDocument();
-      });
+      const telegramButton = screen.getByText('Telegram');
+      await fireEvent.click(telegramButton);
+
+      const loginButton = screen.getByText('Загрузка...');
+      expect(loginButton).toBeDisabled();
+    });
+  });
+
+  describe('Bot Configuration', () => {
+    it('should use effective bot name from config', async () => {
+      mockAuthConfig.getEffectiveBotName.mockReturnValue('production_bot');
+
+      render(LoginPage);
+
+      const telegramButton = screen.getByText('Telegram');
+      await fireEvent.click(telegramButton);
+
+      const loginButton = screen.getByText('Войти');
+      await fireEvent.click(loginButton);
+
+      expect(mockAuthService.startTelegramOAuth).toHaveBeenCalledWith(
+        'production_bot',
+        undefined
+      );
     });
 
-    it('should handle console logging on button click', async () => {
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    it('should handle bot name configuration error', async () => {
+      mockAuthConfig.getEffectiveBotName.mockImplementation(() => {
+        throw new Error('Config error');
+      });
+
+      render(LoginPage);
+
+      const telegramButton = screen.getByText('Telegram');
+      await fireEvent.click(telegramButton);
+
+      const loginButton = screen.getByText('Войти');
       
+      // Should not crash when clicking
+      expect(async () => await fireEvent.click(loginButton)).not.toThrow();
+    });
+  });
+
+  describe('Mock Auth Configuration', () => {
+    it('should use mock auth when configured', async () => {
+      mockAuthConfig.shouldUseMockAuth.mockReturnValue(true);
+
+      render(LoginPage);
+
+      const telegramButton = screen.getByText('Telegram');
+      await fireEvent.click(telegramButton);
+
+      // Implementation would depend on mock auth behavior
+      const loginButton = screen.getByText('Войти');
+      expect(loginButton).toBeInTheDocument();
+    });
+  });
+
+  describe('Accessibility', () => {
+    it('should have proper heading structure', async () => {
+      render(LoginPage);
+
+      const heading = screen.getByRole('heading', { level: 1 });
+      expect(heading).toBeInTheDocument();
+      expect(heading).toHaveTextContent('ДОМАШНИЙБУХГАЛТЕР');
+    });
+
+    it('should have clickable toggle buttons', async () => {
+      render(LoginPage);
+
+      const passwordButton = screen.getByRole('button', { name: 'Логин / Пароль' });
+      const telegramButton = screen.getByRole('button', { name: 'Telegram' });
+
+      expect(passwordButton).toBeInTheDocument();
+      expect(telegramButton).toBeInTheDocument();
+    });
+
+    it('should have clickable login button when in telegram mode', async () => {
+      render(LoginPage);
+
+      const telegramButton = screen.getByText('Telegram');
+      await fireEvent.click(telegramButton);
+
+      const loginButton = screen.getByRole('button', { name: 'Войти' });
+      expect(loginButton).toBeInTheDocument();
+    });
+
+    it('should have proper button states', async () => {
+      render(LoginPage);
+
+      const telegramButton = screen.getByText('Telegram');
+      await fireEvent.click(telegramButton);
+
+      // Create loading state
+      mockAuthService.checkPasswordAuthEnabled.mockReturnValue(
+        new Promise(() => {}) // Never resolves
+      );
+
       render(LoginPage);
       
-      await waitFor(async () => {
-        const loginButton = screen.getByText(/Войти \(Тест\)/i);
-        await fireEvent.click(loginButton);
-        
-        expect(consoleSpy).toHaveBeenCalledWith('Кнопка входа нажата!');
-        expect(consoleSpy).toHaveBeenCalledWith('browser:', true);
-        expect(consoleSpy).toHaveBeenCalledWith('dev:', true);
+      await fireEvent.click(telegramButton);
+
+      const loginButton = screen.getByText('Загрузка...');
+      expect(loginButton).toBeDisabled();
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('should handle auth service errors gracefully', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockAuthService.startTelegramOAuth.mockImplementation(() => {
+        throw new Error('OAuth error');
       });
+
+      render(LoginPage);
+
+      const telegramButton = screen.getByText('Telegram');
+      await fireEvent.click(telegramButton);
+
+      const loginButton = screen.getByText('Войти');
       
+      // Should not crash the component
+      expect(() => fireEvent.click(loginButton)).not.toThrow();
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle navigation errors gracefully', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockGoto.mockImplementation(() => {
+        throw new Error('Navigation error');
+      });
+
+      mockIsAuthenticated.mockReturnValue({
+        subscribe: vi.fn((callback) => {
+          callback(true);
+          return () => {};
+        })
+      } as any);
+
+      // Should not crash during render
+      expect(() => render(LoginPage)).not.toThrow();
+
       consoleSpy.mockRestore();
     });
   });
 
-  describe('UI Text and Content', () => {
-    it('should have correct main title text', () => {
-      const expectedTitle = 'ДОМАШНИЙ\nБУХГАЛТЕР';
-      const titleParts = expectedTitle.split('\n');
-      
-      expect(titleParts).toHaveLength(2);
-      expect(titleParts[0]).toBe('ДОМАШНИЙ');
-      expect(titleParts[1]).toBe('БУХГАЛТЕР');
+  describe('Component Lifecycle', () => {
+    it('should cleanup properly on unmount', async () => {
+      const { unmount } = render(LoginPage);
+
+      // Should not throw during unmount
+      expect(() => unmount()).not.toThrow();
     });
 
-    it('should have correct subtitle text', () => {
-      const expectedSubtitle = 'Сохраняем и приумножаем вместе!';
-      
-      expect(expectedSubtitle).toBeTruthy();
-      expect(expectedSubtitle).toContain('Сохраняем');
-      expect(expectedSubtitle).toContain('приумножаем');
-    });
+    it('should handle multiple rapid state changes', async () => {
+      render(LoginPage);
 
-    it('should have correct footer notice text', () => {
-      const footerText = 'Нажимая кнопку входа, вы соглашаетесь с использованием данных Telegram для аутентификации в системе Family Budget.';
-      
-      expect(footerText).toContain('Telegram');
-      expect(footerText).toContain('Family Budget');
-      expect(footerText).toContain('соглашаетесь');
-    });
+      const passwordButton = screen.getByText('Логин / Пароль');
+      const telegramButton = screen.getByText('Telegram');
 
-    it('should have correct alternative login divider text', () => {
-      const dividerText = 'Или';
-      
-      expect(dividerText).toBe('Или');
-      expect(typeof dividerText).toBe('string');
-    });
+      // Rapid toggling should not cause issues
+      await fireEvent.click(telegramButton);
+      await fireEvent.click(passwordButton);
+      await fireEvent.click(telegramButton);
+      await fireEvent.click(passwordButton);
 
-    it('should have correct alternative login button text', () => {
-      const buttonText = 'Войти с логином и паролем';
-      
-      expect(buttonText).toContain('Войти');
-      expect(buttonText).toContain('логином');
-      expect(buttonText).toContain('паролем');
-    });
-  });
-
-  describe('Telegram Login Configuration', () => {
-    it('should have correct Telegram bot configuration', () => {
-      const botName = 'familybudget_test_bot';
-      const buttonSize = 'large';
-      const showAvatar = true;
-
-      expect(botName).toBe('familybudget_test_bot');
-      expect(buttonSize).toBe('large');
-      expect(showAvatar).toBe(true);
-    });
-
-    it('should validate bot name format', () => {
-      const botName = 'familybudget_test_bot';
-      
-      expect(botName).toMatch(/^[a-zA-Z0-9_]+$/);
-      expect(botName).toContain('familybudget');
-      expect(botName).toContain('_test_');
-      expect(botName.endsWith('_bot')).toBe(true);
-    });
-
-    it('should handle button size options', () => {
-      const validSizes = ['large', 'medium', 'small'];
-      const selectedSize = 'large';
-
-      expect(validSizes).toContain(selectedSize);
-      expect(validSizes).toHaveLength(3);
-    });
-  });
-
-  describe('Page Meta Information', () => {
-    it('should have correct page title', () => {
-      const pageTitle = 'Вход - Family Budget';
-      
-      expect(pageTitle).toContain('Вход');
-      expect(pageTitle).toContain('Family Budget');
-      expect(pageTitle).toMatch(/^Вход - /);
-    });
-
-    it('should format page title correctly', () => {
-      const titleParts = 'Вход - Family Budget'.split(' - ');
-      
-      expect(titleParts).toHaveLength(2);
-      expect(titleParts[0]).toBe('Вход');
-      expect(titleParts[1]).toBe('Family Budget');
-    });
-  });
-
-  describe('CSS Classes and Styling', () => {
-    it('should define proper CSS class structure', () => {
-      const expectedClasses = [
-        'login-page',
-        'login-container',
-        'password-login-container',
-        'header-section',
-        'main-title',
-        'subtitle',
-        'login-section',
-        'login-button-container',
-        'alternative-login',
-        'divider',
-        'divider-line',
-        'divider-text',
-        'alternative-button',
-        'footer-notice'
-      ];
-
-      expectedClasses.forEach(className => {
-        expect(className).toBeTruthy();
-        expect(typeof className).toBe('string');
-        expect(className.length).toBeGreaterThan(0);
-      });
-    });
-
-    it('should have proper responsive class naming', () => {
-      const responsiveClasses = [
-        'login-page',
-        'login-container',
-        'main-title',
-        'subtitle'
-      ];
-
-      responsiveClasses.forEach(className => {
-        expect(className).toMatch(/^[a-z-]+$/);
-        expect(className).not.toContain('_');
-        expect(className).not.toContain(' ');
+      await waitFor(() => {
+        expect(screen.getByText('Логин / Пароль')).toHaveClass('active');
       });
     });
   });
 
-  describe('Component Dependencies', () => {
-    it('should import required child components', () => {
-      // Test that we know what components should be imported
-      const expectedComponents = [
-        'TelegramLoginButton',
-        'PasswordLogin',
-        'AbstractGraphics',
-        'Button'
-      ];
+  describe('Console Logging', () => {
+    it('should log appropriate debug information', async () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-      expectedComponents.forEach(componentName => {
-        expect(componentName).toBeTruthy();
-        expect(typeof componentName).toBe('string');
-        expect(componentName.length).toBeGreaterThan(0);
-      });
-    });
+      render(LoginPage);
 
-    it('should import required services and stores', () => {
-      const expectedImports = [
-        'goto',
-        'page',
-        'isAuthenticated',
-        'authService'
-      ];
+      const telegramButton = screen.getByText('Telegram');
+      await fireEvent.click(telegramButton);
 
-      expectedImports.forEach(importName => {
-        expect(importName).toBeTruthy();
-        expect(typeof importName).toBe('string');
-      });
+      const loginButton = screen.getByText('Войти');
+      await fireEvent.click(loginButton);
+
+      expect(consoleSpy).toHaveBeenCalledWith('[LOGIN] Кнопка входа нажата!');
+      expect(consoleSpy).toHaveBeenCalledWith('[LOGIN] State:', expect.any(Object));
+
+      consoleSpy.mockRestore();
     });
   });
-
 });
