@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
-# Hook script for adding fixed context to user prompts and logging requests
-# This script adds role, rules and tasks context to every user prompt
+# Hook script implementing Schema-Guided Reasoning (SGR) pattern
+# This script adds structured reasoning schema to guide Claude through predefined steps
+# Based on: https://abdullin.com/schema-guided-reasoning/
 
 # Get the project directory (Claude Code sets $CLAUDE_PROJECT_DIR)
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
@@ -17,42 +18,152 @@ USER_PROMPT=$(cat)
 TIMESTAMP=$(date +"%Y%m%d%H%M%S")
 LOG_FILE="${REQUESTS_DIR}/${TIMESTAMP}_request.md"
 
-# Create the enhanced prompt with fixed context
-ENHANCED_PROMPT="---
-role: Ты профессиональный разработчик фронтенд и бэкенд занимающийся разработкой приложения для домашнего учета и списка продуктов.
-rule:
-  - Используй субагентов
+# Create the SGR-enhanced prompt with structured reasoning schema
+ENHANCED_PROMPT="# Schema-Guided Reasoning (SGR) Framework
+
+## 🎯 Context Definition
 ---
-# request
+role: Ты профессиональный разработчик фронтенд и бэкенд занимающийся разработкой приложения для домашнего учета и списка продуктов.
+domain_expertise:
+  - Modern web development (SvelteKit, Node.js, TypeScript)
+  - Database design and optimization (PostgreSQL, Prisma)
+  - Docker containerization and microservices
+  - Testing strategies and CI/CD pipelines
+  - User experience and interface design
+operational_rules:
+  - Используй субагентов для специализированных задач
+  - Всегда проверяй существующий код перед изменениями
+  - Следуй архитектурным паттернам проекта
+  - Поддерживай консистентность кодовой базы
+  - Документируй важные решения
+---
+
+## 📋 User Request
 ${USER_PROMPT}
-# tasks
-## task 1
-Проанализируй задачу и хорошо подумай над ее решением шаг за шагом. Используй инструмент sequential-thinking, context7, memory.
-Задай уточняющие вопросы.
-## task 2
-Сформируй план для реализации поставленной задачи.      
-Хорошо обдумай и проверь этот план повторно. Используй инструмент sequential-thinking.
-## task 3
-Декомпозируй задачу и определи для каждой задачи лучшего субагента. 
-## task 4
-Проведи тестирование. Если нужно создай новые тесты.
-## task 5
-Обнови память. Используй инструмент memory.
-## task 6
-Сделай коммит и пуш"
 
-# Save the request to log file
+## 🔄 SGR Execution Schema
+
+### Phase 1: Analysis & Understanding
+**Objective**: Полное понимание задачи и контекста
+**Required Outputs**:
+- [ ] Problem statement clarification
+- [ ] Success criteria definition
+- [ ] Constraints and dependencies identification
+- [ ] Risk assessment
+
+**Actions**:
+1. Проанализируй запрос пользователя используя sequential-thinking
+2. Изучи связанный контекст через memory и context7
+3. Определи область воздействия изменений
+4. Сформулируй уточняющие вопросы если необходимо
+
+### Phase 2: Planning & Design
+**Objective**: Создание детального плана решения
+**Required Outputs**:
+- [ ] Solution architecture
+- [ ] Implementation steps breakdown
+- [ ] Resource allocation plan
+- [ ] Timeline estimation
+
+**Actions**:
+1. Разработай архитектуру решения
+2. Декомпозируй задачу на подзадачи
+3. Определи необходимые инструменты и субагентов
+4. Создай последовательность выполнения
+
+### Phase 3: Implementation
+**Objective**: Пошаговая реализация решения
+**Required Outputs**:
+- [ ] Code implementation
+- [ ] Configuration updates
+- [ ] Documentation updates
+- [ ] Progress tracking
+
+**Actions**:
+1. Выполни реализацию согласно плану
+2. Используй TodoWrite для отслеживания прогресса
+3. Применяй соответствующих субагентов для специализированных задач
+4. Валидируй каждый шаг перед переходом к следующему
+
+### Phase 4: Verification & Testing
+**Objective**: Обеспечение качества решения
+**Required Outputs**:
+- [ ] Test coverage report
+- [ ] Integration verification
+- [ ] Performance validation
+- [ ] Security check
+
+**Actions**:
+1. Создай или обнови тесты
+2. Выполни тестирование через Docker контейнеры
+3. Проверь интеграцию с существующим кодом
+4. Валидируй соответствие требованиям
+
+### Phase 5: Knowledge Management
+**Objective**: Сохранение знаний и контекста
+**Required Outputs**:
+- [ ] Memory graph update
+- [ ] Documentation update
+- [ ] Lessons learned
+
+**Actions**:
+1. Обнови память проекта через memory tool
+2. Задокументируй важные решения
+3. Сохрани паттерны для будущего использования
+
+### Phase 6: Deployment & Closure
+**Objective**: Финализация и деплой изменений
+**Required Outputs**:
+- [ ] Git commit with descriptive message
+- [ ] Push to repository
+- [ ] Task completion report
+
+**Actions**:
+1. Создай осмысленный commit message
+2. Выполни git commit и push
+3. Подготовь summary выполненной работы
+
+## 🎬 Execution Instructions
+1. Следуй схеме последовательно, фаза за фазой
+2. Отмечай выполнение каждого Required Output
+3. Используй контрольные точки для валидации
+4. При блокировках или проблемах - эскалируй пользователю
+5. Поддерживай прозрачность процесса через TodoWrite
+
+## 📊 Progress Tracking Template
+\`\`\`
+Current Phase: [PHASE_NAME]
+Status: [IN_PROGRESS/COMPLETED/BLOCKED]
+Completed Outputs: [X/Y]
+Next Action: [DESCRIPTION]
+Blockers: [IF_ANY]
+\`\`\`
+
+---
+*This prompt uses Schema-Guided Reasoning (SGR) to ensure structured, predictable, and auditable AI reasoning process.*"
+
+# Save the request to log file with SGR tracking
 cat > "$LOG_FILE" << EOF
-# Request Log - ${TIMESTAMP}
+# SGR Request Log - ${TIMESTAMP}
 
-## Timestamp
-$(date +"%Y-%m-%d %H:%M:%S")
+## Metadata
+- Timestamp: $(date +"%Y-%m-%d %H:%M:%S")
+- Session ID: ${CLAUDE_SESSION_ID:-"N/A"}
+- Project: ${PROJECT_DIR}
 
 ## Original User Prompt
 ${USER_PROMPT}
 
-## Enhanced Prompt Sent to Claude
+## SGR-Enhanced Prompt
 ${ENHANCED_PROMPT}
+
+## Execution Tracking
+- [ ] Phase 1: Analysis & Understanding
+- [ ] Phase 2: Planning & Design  
+- [ ] Phase 3: Implementation
+- [ ] Phase 4: Verification & Testing
+- [ ] Phase 5: Knowledge Management
+- [ ] Phase 6: Deployment & Closure
 
 ---
 EOF
