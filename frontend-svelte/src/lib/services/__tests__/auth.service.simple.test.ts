@@ -65,7 +65,7 @@ describe('AuthService - Simple Tests', () => {
 
       const result = await authService.loginWithPassword('testuser', 'password123');
 
-      expect(mockApi.post).toHaveBeenCalledWith('/api/auth/login', {
+      expect(mockApi.post).toHaveBeenCalledWith('/auth/login', {
         username: 'testuser',
         password: 'password123'
       });
@@ -108,7 +108,7 @@ describe('AuthService - Simple Tests', () => {
 
       const result = await authService.register('newuser', 'password123', 'New', 'User');
 
-      expect(mockApi.post).toHaveBeenCalledWith('/api/auth/register', {
+      expect(mockApi.post).toHaveBeenCalledWith('/auth/register', {
         username: 'newuser',
         password: 'password123',
         userName: 'New User'
@@ -129,7 +129,7 @@ describe('AuthService - Simple Tests', () => {
 
       await authService.logout();
 
-      expect(mockApi.post).toHaveBeenCalledWith('/api/auth/logout');
+      expect(mockApi.post).toHaveBeenCalledWith('/auth/logout');
       expect(localStorage.getItem('access_token')).toBeNull();
       expect(localStorage.getItem('refresh_token')).toBeNull();
     });
@@ -149,7 +149,7 @@ describe('AuthService - Simple Tests', () => {
 
       const result = await authService.refreshAccessToken();
 
-      expect(mockApi.post).toHaveBeenCalledWith('/api/auth/refresh', {
+      expect(mockApi.post).toHaveBeenCalledWith('/auth/refresh', {
         refreshToken: 'existing_refresh_token'
       });
 

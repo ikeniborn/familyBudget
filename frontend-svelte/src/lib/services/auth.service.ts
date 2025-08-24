@@ -55,7 +55,7 @@ export interface RefreshTokenResponse {
 
 class AuthService {
   async login(data: LoginData): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>('/api/auth/telegram', data);
+    const response = await api.post<AuthResponse>('/auth/telegram', data);
     if (response.token) {
       this.saveToken(response.token);
     }
@@ -102,7 +102,7 @@ class AuthService {
   }
 
   async loginWithPassword(username: string, password: string): Promise<PasswordAuthResponse> {
-    const response = await api.post<PasswordAuthResponse>('/api/auth/login', {
+    const response = await api.post<PasswordAuthResponse>('/auth/login', {
       username,
       password
     });
@@ -124,7 +124,7 @@ class AuthService {
     // Объединяем firstName и lastName в userName
     const userName = [firstName, lastName].filter(Boolean).join(' ').trim() || username;
     
-    const response = await api.post<RegisterResponse>('/api/auth/register', {
+    const response = await api.post<RegisterResponse>('/auth/register', {
       username,
       password,
       userName
@@ -150,7 +150,7 @@ class AuthService {
     }
     
     try {
-      const response = await api.post<RefreshTokenResponse>('/api/auth/refresh', {
+      const response = await api.post<RefreshTokenResponse>('/auth/refresh', {
         refreshToken
       });
       
@@ -167,24 +167,24 @@ class AuthService {
   }
 
   async checkPasswordAuthEnabled(): Promise<{ enabled: boolean }> {
-    return api.get<{ enabled: boolean }>('/api/auth/password-auth-enabled');
+    return api.get<{ enabled: boolean }>('/auth/password-auth-enabled');
   }
 
   async logout(): Promise<void> {
     try {
-      await api.post('/api/auth/logout');
+      await api.post('/auth/logout');
     } finally {
       this.clearTokens();
     }
   }
 
   async getCurrentUser(): Promise<User> {
-    return api.get<User>('/api/auth/me');
+    return api.get<User>('/auth/me');
   }
 
   async validateToken(): Promise<boolean> {
     try {
-      await api.get('/api/auth/validate');
+      await api.get('/auth/validate');
       return true;
     } catch {
       return false;

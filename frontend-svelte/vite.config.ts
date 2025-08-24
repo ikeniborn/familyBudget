@@ -194,8 +194,26 @@ export default defineConfig({
         target: 'http://frontend-api-dev:4000',
         changeOrigin: true,
         secure: false,
-        ws: true, // Enable WebSocket proxying
-        rewrite: (path) => path // Keep the /api prefix
+        ws: true,
+        timeout: 30000,
+        proxyTimeout: 30000,
+        configure: (proxy, options) => {
+          proxy.on('proxyReq', (proxyReq, req, res) => {
+            console.log(`[PROXY] ${req.method} ${req.url} -> ${options.target}${req.url}`);
+          });
+          proxy.on('proxyRes', (proxyRes, req, res) => {
+            console.log(`[PROXY] ${req.method} ${req.url} <- ${proxyRes.statusCode}`);
+          });
+          proxy.on('error', (err, req, res) => {
+            console.error(`[PROXY ERROR] ${req.method} ${req.url}:`, err.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ 
+              error: 'Proxy Error', 
+              message: err.message,
+              target: options.target 
+            }));
+          });
+        }
       }
     }
   }
