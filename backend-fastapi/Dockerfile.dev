@@ -1,0 +1,48 @@
+# Development Dockerfile for FastAPI Backend
+FROM python:3.12-slim
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONHASHSEED=random
+
+# Set work directory
+WORKDIR /app
+
+# Install system dependencies including development tools
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
+        curl \
+        git \
+        vim \
+        postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better Docker layer caching
+COPY requirements.txt .
+
+# Install Python dependencies including development tools
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir \
+        pytest \
+        pytest-asyncio \
+        pytest-cov \
+        black \
+        isort \
+        mypy \
+        pre-commit
+
+# Copy application code
+COPY . .
+
+# Expose port
+EXPOSE 4000
+
+# Health check for development
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:4000/health || exit 1
+
+# Run the application in development mode with reload
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "4000", "--reload", "--log-level", "debug"]
