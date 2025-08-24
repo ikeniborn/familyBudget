@@ -1,7 +1,7 @@
 """
 User model.
 """
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, BigInteger, func
 from sqlalchemy.orm import relationship
 
 from app.db.database import Base
@@ -17,7 +17,7 @@ class User(Base):
     user_email = Column(String, nullable=True)
     username = Column("user_login", String, unique=True, nullable=True)
     password_hash = Column("user_password", String, nullable=True)
-    telegram_id = Column("user_telegram_id", String, unique=True, nullable=True)
+    telegram_id = Column("user_telegram_id", BigInteger, unique=True, nullable=True)
     refresh_token = Column(String, nullable=True)
     auth_method = Column(String, nullable=False, default="telegram")
     is_active = Column(Boolean, nullable=False, default=True)
@@ -37,7 +37,7 @@ class User(Base):
             "user_name": self.user_name,
             "user_email": self.user_email,
             "username": self.username,
-            "telegram_id": self.telegram_id,
+            "telegram_id": str(self.telegram_id) if self.telegram_id else None,
             "auth_method": self.auth_method,
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,

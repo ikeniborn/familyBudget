@@ -22,6 +22,14 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegisterRequest(BaseModel):
+    """User registration request."""
+    username: str
+    password: str
+    user_name: str
+    email: Optional[str] = None
+
+
 class TelegramAuthRequest(BaseModel):
     """Telegram authentication request."""
     id: int
@@ -37,6 +45,53 @@ class AuthResponse(BaseModel):
     """Authentication response."""
     user: dict
     message: str
+
+
+@router.post("/register", response_model=AuthResponse)
+async def register_user(
+    request: Request,
+    register_data: RegisterRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Register a new user with username/password."""
+    
+    # Check if user already exists
+    stmt = select(User).where(User.username == register_data.username)
+    result = await db.execute(stmt)
+    existing_user = result.scalar_one_or_none()
+    
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already exists"
+        )
+    
+    # Create new user
+    password_hash = SecurityUtils.get_password_hash(register_data.password)
+    user = User(
+        username=register_data.username,
+        user_name=register_data.user_name,
+        user_email=register_data.email,
+        password_hash=password_hash,
+        auth_method="password",
+        is_active=True
+    )
+    
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    
+    # Create session
+    session = request.state.session
+    session.set("user_id", user.id)
+    session.set("username", user.username)
+    session.set("user_name", user.user_name)
+    session.set("auth_method", "password")
+    
+    return AuthResponse(
+        user=user.to_dict(),
+        message="User registered successfully"
+    )
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -100,7 +155,7 @@ async def login_with_telegram(
             detail="Invalid Telegram authentication"
         )
     
-    telegram_id = str(auth_data.id)
+    telegram_id = auth_data.id
     
     # Find or create user
     stmt = select(User).where(User.telegram_id == telegram_id)
@@ -143,7 +198,7 @@ async def login_with_telegram(
     session.set("username", user.username)
     session.set("user_name", user.user_name)
     session.set("auth_method", "telegram")
-    session.set("telegram_id", user.telegram_id)
+    session.set("telegram_id", str(user.telegram_id) if user.telegram_id else None)
     
     return AuthResponse(
         user=user.to_dict(),
@@ -180,3 +235,9 @@ async def auth_status(request: Request):
         "authenticated": user is not None,
         "user": user
     }
+
+
+@router.get("/password-auth-enabled")
+async def password_auth_enabled():
+    """Check if password authentication is enabled."""
+    return {"enabled": settings.PASSWORD_AUTH_ENABLED}
