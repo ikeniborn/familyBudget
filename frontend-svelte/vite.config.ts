@@ -182,7 +182,12 @@ export default defineConfig({
     strictPort: false,
     hmr: {
       port: parseInt(process.env.HMR_PORT || '5173'),
-      host: 'localhost'
+      host: 'localhost',
+      overlay: false
+    },
+    fs: {
+      // Запретить доступ к тестовым файлам
+      deny: ['**/*.test.ts', '**/*.test.js', '**/*.spec.ts', '**/*.spec.js', '**/__tests__/**']
     },
     proxy: {
       '/api': {
