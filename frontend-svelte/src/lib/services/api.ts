@@ -2,8 +2,6 @@ import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
 
 class ApiClient {
   private client: AxiosInstance;
-  private isRefreshing = false;
-  private failedQueue: Array<{ resolve: Function; reject: Function }> = [];
 
   constructor() {
     this.client = axios.create({
@@ -18,11 +16,8 @@ class ApiClient {
     // Request interceptor
     this.client.interceptors.request.use(
       (config) => {
-        // Add auth token if available
-        const token = this.getAuthToken();
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
+        // FastAPI uses session cookies, no need to manually add tokens
+        // withCredentials: true already ensures cookies are sent
         return config;
       },
       (error) => {
@@ -30,48 +25,15 @@ class ApiClient {
       }
     );
 
-    // Response interceptor with token refresh
+    // Response interceptor for session handling
     this.client.interceptors.response.use(
       (response) => response,
       async (error) => {
         const originalRequest = error.config;
         
         if (error.response?.status === 401 && !originalRequest._retry) {
-          if (this.isRefreshing) {
-            // Если токен уже обновляется, добавляем в очередь
-            return new Promise((resolve, reject) => {
-              this.failedQueue.push({ resolve, reject });
-            }).then(token => {
-              originalRequest.headers.Authorization = `Bearer ${token}`;
-              return this.client(originalRequest);
-            }).catch(err => {
-              return Promise.reject(err);
-            });
-          }
-
-          originalRequest._retry = true;
-          this.isRefreshing = true;
-
-          try {
-            const newToken = await this.refreshToken();
-            
-            if (newToken) {
-              // Обновляем все ожидающие запросы
-              this.processQueue(null, newToken);
-              
-              // Повторяем оригинальный запрос
-              originalRequest.headers.Authorization = `Bearer ${newToken}`;
-              return this.client(originalRequest);
-            } else {
-              throw new Error('Failed to refresh token');
-            }
-          } catch (refreshError) {
-            this.processQueue(refreshError, null);
-            this.handleUnauthorized();
-            return Promise.reject(refreshError);
-          } finally {
-            this.isRefreshing = false;
-          }
+          // Session expired, redirect to login
+          this.handleUnauthorized();
         }
         
         return Promise.reject(error);
@@ -79,83 +41,9 @@ class ApiClient {
     );
   }
 
-  private processQueue(error: any, token: string | null = null) {
-    this.failedQueue.forEach(({ resolve, reject }) => {
-      if (error) {
-        reject(error);
-      } else {
-        resolve(token);
-      }
-    });
-    
-    this.failedQueue = [];
-  }
-  
-  private async refreshToken(): Promise<string | null> {
-    const refreshToken = this.getRefreshToken();
-    
-    if (!refreshToken) {
-      return null;
-    }
-    
-    try {
-      // Обращаемся к authService для обновления токена
-      const response = await axios.post('/api/auth/refresh', {
-        refreshToken
-      }, {
-        withCredentials: true
-      });
-      
-      // Обрабатываем новую структуру ответа от сервера
-      if (response.data.success && response.data.tokens?.accessToken) {
-        this.saveTokens(response.data.tokens.accessToken, response.data.tokens.refreshToken || refreshToken);
-        return response.data.tokens.accessToken;
-      }
-    } catch (error) {
-      console.error('Token refresh failed:', error);
-    }
-    
-    return null;
-  }
-
-  private getAuthToken(): string | null {
-    // Get token from localStorage (JWT access token or legacy auth token)
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('access_token') || localStorage.getItem('auth_token');
-    }
-    return null;
-  }
-  
-  private getRefreshToken(): string | null {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('refresh_token');
-    }
-    return null;
-  }
-  
-  private saveTokens(accessToken: string, refreshToken?: string): void {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('access_token', accessToken);
-      localStorage.setItem('auth_token', accessToken); // Обратная совместимость
-      
-      if (refreshToken) {
-        localStorage.setItem('refresh_token', refreshToken);
-      }
-    }
-  }
-  
-  private clearTokens(): void {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('auth_token'); // Обратная совместимость
-    }
-  }
 
   private handleUnauthorized(): void {
-    // Clear auth and redirect to login
-    this.clearTokens();
-    
+    // Session expired, redirect to login
     // Не редиректим, если уже на странице логина
     if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
       window.location.href = '/login';

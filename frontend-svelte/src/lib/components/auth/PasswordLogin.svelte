@@ -29,7 +29,7 @@
       if (response.success && response.user) {
         const user: User = {
           user_id: response.user.id,
-          user_name: response.user.username || '',
+          user_name: [response.user.firstName, response.user.lastName].filter(Boolean).join(' ').trim() || response.user.username || '',
           user_telegram_id: 0,
           first_name: response.user.firstName || '',
           last_name: response.user.lastName || '',
@@ -72,7 +72,7 @@
       if (response.success && response.user) {
         const user: User = {
           user_id: response.user.id,
-          user_name: response.user.username || '',
+          user_name: [response.user.firstName, response.user.lastName].filter(Boolean).join(' ').trim() || response.user.username || '',
           user_telegram_id: 0,
           first_name: response.user.firstName || '',
           last_name: response.user.lastName || '',

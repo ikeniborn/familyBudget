@@ -4,7 +4,8 @@ export abstract class BaseService<T, CreateT = Partial<T>, UpdateT = Partial<T>>
   protected endpoint: string;
 
   constructor(endpoint: string) {
-    this.endpoint = endpoint;
+    // Ensure endpoint has trailing slash for FastAPI compatibility
+    this.endpoint = endpoint.endsWith('/') ? endpoint : `${endpoint}/`;
   }
 
   // Get all records

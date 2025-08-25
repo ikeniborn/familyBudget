@@ -78,7 +78,8 @@ function createReferenceDataStore<T extends Record<string, any>>(
 
       try {
         const response = await api.get(`${apiEndpoint}?user_id=${userId}`);
-        const items = response.data;
+        // FastAPI returns array directly, not wrapped in { data: ... }
+        const items = Array.isArray(response) ? response : response.data || [];
         
         update(state => ({
           ...state,
@@ -105,7 +106,8 @@ function createReferenceDataStore<T extends Record<string, any>>(
 
       try {
         const response = await api.post(apiEndpoint, data);
-        const newItem = response.data;
+        // FastAPI returns object directly, not wrapped in { data: ... }
+        const newItem = response.data || response;
         
         update(state => ({
           ...state,
@@ -149,7 +151,8 @@ function createReferenceDataStore<T extends Record<string, any>>(
 
       try {
         const response = await api.put(`${apiEndpoint}/${id}`, data);
-        const updatedItem = response.data;
+        // FastAPI returns object directly, not wrapped in { data: ... }
+        const updatedItem = response.data || response;
         
         update(state => ({
           ...state,
@@ -332,25 +335,25 @@ function createReferenceDataStore<T extends Record<string, any>>(
 export const periodStore = createReferenceDataStore<Period>(
   'periods',
   'period_id',
-  '/api/periods'
+  '/periods/'
 );
 
 export const financialCenterStore = createReferenceDataStore<FinancialCenter>(
   'financial-centers',
   'financial_center_id',
-  '/api/financial_centers'
+  '/financial_centers/'
 );
 
 export const costCenterStore = createReferenceDataStore<CostCenter>(
   'cost-centers',
   'cost_center_id',
-  '/api/cost_centers'
+  '/cost_centers/'
 );
 
 export const nomenclatureStore = createReferenceDataStore<Nomenclature>(
   'nomenclatures',
   'nomenclature_id',
-  '/api/nomenclatures'
+  '/nomenclatures/'
 );
 
 // Create enhanced stores with array methods

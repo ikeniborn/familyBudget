@@ -102,50 +102,64 @@ class AuthService {
   }
 
   async loginWithPassword(username: string, password: string): Promise<PasswordAuthResponse> {
-    const response = await api.post<any>('/auth/login', {
-      username,
-      password
-    });
-    
-    // Преобразуем ответ от сервера в ожидаемый формат
-    const result: PasswordAuthResponse = {
-      success: response.success,
-      user: response.user,
-      accessToken: response.tokens?.accessToken,
-      refreshToken: response.tokens?.refreshToken,
-      token: response.tokens?.accessToken // Обратная совместимость
-    };
-    
-    if (result.success && result.accessToken) {
-      this.saveTokens(result.accessToken, result.refreshToken);
+    try {
+      const response = await api.post<any>('/auth/login', {
+        username,
+        password
+      });
+      
+      // Backend возвращает {user: {...}, message: "..."}
+      // Преобразуем в ожидаемый формат
+      const result: PasswordAuthResponse = {
+        success: true,
+        user: {
+          id: response.user.id,
+          username: response.user.username,
+          firstName: response.user.user_name?.split(' ')[0],
+          lastName: response.user.user_name?.split(' ')[1]
+        }
+      };
+      
+      return result;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Login failed'
+      };
     }
-    
-    return result;
   }
 
   async register(username: string, password: string, firstName?: string, lastName?: string): Promise<RegisterResponse> {
-    // Объединяем firstName и lastName в userName
-    const userName = [firstName, lastName].filter(Boolean).join(' ').trim() || username;
-    
-    const response = await api.post<any>('/auth/register', {
-      username,
-      password,
-      userName
-    });
-    
-    // Преобразуем ответ от сервера в ожидаемый формат
-    const result: RegisterResponse = {
-      success: response.success,
-      user: response.user,
-      accessToken: response.tokens?.accessToken,
-      refreshToken: response.tokens?.refreshToken
-    };
-    
-    if (result.success && result.accessToken) {
-      this.saveTokens(result.accessToken, result.refreshToken);
+    try {
+      // Объединяем firstName и lastName в user_name
+      const user_name = [firstName, lastName].filter(Boolean).join(' ').trim() || username;
+      
+      const response = await api.post<any>('/auth/register', {
+        username,
+        password,
+        user_name,
+        email: null // Optional field
+      });
+      
+      // Backend возвращает {user: {...}, message: "..."}
+      // Преобразуем в ожидаемый формат
+      const result: RegisterResponse = {
+        success: true,
+        user: {
+          id: response.user.id,
+          username: response.user.username,
+          firstName: response.user.user_name?.split(' ')[0],
+          lastName: response.user.user_name?.split(' ')[1]
+        }
+      };
+      
+      return result;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Registration failed'
+      };
     }
-    
-    return result;
   }
   
   async refreshAccessToken(): Promise<string | null> {
@@ -186,7 +200,13 @@ class AuthService {
   }
 
   async getCurrentUser(): Promise<User> {
-    return api.get<User>('/auth/me');
+    const response = await api.get<any>('/auth/me');
+    // Backend возвращает {user: {...}}
+    if (response && response.user) {
+      return response.user;
+    }
+    // FastAPI возвращает user напрямую
+    return response;
   }
 
   async validateToken(): Promise<boolean> {

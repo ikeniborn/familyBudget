@@ -30,7 +30,8 @@ TIMESTAMP=$(date +"%Y%m%d%H%M%S")
 LOG_FILE="${REQUESTS_DIR}/${TIMESTAMP}_request.md"
 
 # Create the SGR-enhanced prompt with structured reasoning schema
-ENHANCED_PROMPT="# Schema-Guided Reasoning (SGR) Framework
+ENHANCED_PROMPT="
+# Schema-Guided Reasoning (SGR) Framework
 
 ## 🎯 Context Definition
 ---
@@ -46,11 +47,8 @@ operational_rules:
   - Всегда проверяй существующий код перед изменениями
   - Следуй архитектурным паттернам проекта
   - Поддерживай консистентность кодовой базы
-  - Документируй важные решения
+  - Документируй важные решения в каталоге /docs
 ---
-
-## 📋 User Request
-${USER_PROMPT}
 
 ## 🔄 SGR Execution Schema
 
@@ -105,7 +103,7 @@ ${USER_PROMPT}
 - [ ] Security check
 
 **Actions**:
-1. Создай или обнови тесты
+1. Создай или обнови тесты в каталоге /tests
 2. Выполни тестирование через Docker контейнеры
 3. Проверь интеграцию с существующим кодом
 4. Валидируй соответствие требованиям
@@ -141,17 +139,8 @@ ${USER_PROMPT}
 4. При блокировках или проблемах - эскалируй пользователю
 5. Поддерживай прозрачность процесса через TodoWrite
 
-## 📊 Progress Tracking Template
-\`\`\`
-Current Phase: [PHASE_NAME]
-Status: [IN_PROGRESS/COMPLETED/BLOCKED]
-Completed Outputs: [X/Y]
-Next Action: [DESCRIPTION]
-Blockers: [IF_ANY]
-\`\`\`
-
 ---
-*This prompt uses Schema-Guided Reasoning (SGR) to ensure structured, predictable, and auditable AI reasoning process.*"
+"
 
 # Save the request to log file with SGR tracking
 cat > "$LOG_FILE" << EOF
@@ -165,16 +154,7 @@ cat > "$LOG_FILE" << EOF
 ## Original User Prompt
 ${USER_PROMPT}
 
-## SGR-Enhanced Prompt
 ${ENHANCED_PROMPT}
-
-## Execution Tracking
-- [ ] Phase 1: Analysis & Understanding
-- [ ] Phase 2: Planning & Design  
-- [ ] Phase 3: Implementation
-- [ ] Phase 4: Verification & Testing
-- [ ] Phase 5: Knowledge Management
-- [ ] Phase 6: Deployment & Closure
 
 ---
 EOF
