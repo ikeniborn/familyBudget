@@ -1,6 +1,6 @@
 #!/bin/bash
-# Development environment startup script with database initialization
-# Now supports SvelteKit frontend only (React frontend removed)
+# Development environment startup script with FastAPI backend
+# Uses unified docker-compose.yaml with FastAPI backend
 
 set -e  # Exit on error
 
@@ -36,18 +36,18 @@ set +a
 
 # Function to check if database is initialized
 check_db_initialized() {
-    docker-compose -f docker-compose.dev.yaml exec -T postgres psql -U postgres -d budgetdb -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE 't_%';" 2>/dev/null | grep -q "[1-9][0-9]*" || return 1
+    docker-compose exec -T postgres psql -U postgres -d budgetdb -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE 't_%';" 2>/dev/null | grep -q "[1-9][0-9]*" || return 1
 }
 
 # Function to initialize database
-Init_database() {
+init_database() {
     print_status "Initializing database schema..."
     
     # Wait for PostgreSQL to be ready
     print_status "Waiting for PostgreSQL to be ready..."
     local retries=30
     while [ $retries -gt 0 ]; do
-        if docker-compose -f docker-compose.dev.yaml exec -T postgres pg_isready -U postgres >/dev/null 2>&1; then
+        if docker-compose exec -T postgres pg_isready -U postgres >/dev/null 2>&1; then
             break
         fi
         retries=$((retries - 1))
@@ -63,7 +63,7 @@ Init_database() {
     
     # Create database and user if not exists
     print_status "Creating database and user..."
-    docker-compose -f docker-compose.dev.yaml exec -T postgres psql -U postgres <<-EOSQL
+    docker-compose exec -T postgres psql -U postgres <<-EOSQL
         -- Create budget user if not exists
         DO
         \$do\$
@@ -86,15 +86,13 @@ EOSQL
     
     # Apply schema
     print_status "Applying database schema..."
-    docker-compose -f docker-compose.dev.yaml exec -T postgres psql -U budget -d budgetdb < postgresql/ddl/budgetdb.sql
+    docker-compose exec -T postgres psql -U budget -d budgetdb < postgresql/ddl/budgetdb.sql
     
     # Apply products schema
-    print_status "Applying products schema..."
-    docker-compose -f docker-compose.dev.yaml exec -T postgres psql -U budget -d budgetdb < postgresql/ddl/products.sql
-    
-    # Run Prisma migrations
-    print_status "Running Prisma migrations..."
-    docker-compose -f docker-compose.dev.yaml exec -T frontend-api npm run prisma:generate
+    if [ -f postgresql/ddl/products.sql ]; then
+        print_status "Applying products schema..."
+        docker-compose exec -T postgres psql -U budget -d budgetdb < postgresql/ddl/products.sql
+    fi
     
     print_status "Database initialization completed!"
 }
@@ -102,7 +100,7 @@ EOSQL
 # Parse command line arguments
 INIT_DB=false
 DETACH=""
-SERVICES="frontend frontend-api"
+SERVICES="frontend backend-fastapi"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -121,8 +119,9 @@ while [[ $# -gt 0 ]]; do
             echo "  -d, --detach   Run in detached mode"
             echo "  --help         Show this help message"
             echo ""
-            echo "SvelteKit Frontend: http://localhost:5173"
+            echo "Frontend: http://localhost:5173"
             echo "API: http://localhost:4000"
+            echo "API Docs: http://localhost:4000/docs"
             exit 0
             ;;
         *)
@@ -132,8 +131,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Start development environment
-print_status "Starting development environment..."
-docker-compose -f docker-compose.dev.yaml up $DETACH postgres redis
+print_status "Starting development environment with FastAPI backend..."
+docker-compose up $DETACH postgres redis
 
 # Wait for services to be ready
 if [ -z "$DETACH" ]; then
@@ -146,11 +145,11 @@ sleep 5  # Give services time to start
 
 # Initialize database if requested or if not initialized
 if [ "$INIT_DB" = true ]; then
-    Init_database
+    init_database
 else
     if ! check_db_initialized; then
         print_warning "Database appears to be empty. Initializing..."
-        Init_database
+        init_database
     else
         print_status "Database already initialized, skipping..."
     fi
@@ -158,15 +157,16 @@ fi
 
 # Start remaining services
 print_status "Starting application services: $SERVICES"
-docker-compose -f docker-compose.dev.yaml up $DETACH $SERVICES
+docker-compose up $DETACH $SERVICES
 
 if [ -n "$DETACH" ]; then
     print_status "Development environment is running in detached mode"
-    print_status "SvelteKit Frontend: http://localhost:5173"
-    print_status "API: http://localhost:4000"
+    print_status "Frontend: http://localhost:5173"
+    print_status "FastAPI Backend: http://localhost:4000"
+    print_status "API Documentation: http://localhost:4000/docs"
     print_status "PostgreSQL: localhost:5432"
     print_status "Redis: localhost:6379"
     echo ""
-    print_status "To view logs: docker-compose -f docker-compose.dev.yaml logs -f"
-    print_status "To stop: docker-compose -f docker-compose.dev.yaml down"
+    print_status "To view logs: docker-compose logs -f"
+    print_status "To stop: docker-compose down"
 fi

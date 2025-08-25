@@ -4,591 +4,278 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Family Budget is a web-based budget management system built with SvelteKit and Node.js using Docker. It provides multi-user budget tracking with Telegram authentication, separating planned vs actual expenses.
+Family Budget is a web-based budget management system with multi-user support, Telegram authentication, and comprehensive financial tracking capabilities. The system separates planned vs actual expenses and provides detailed analytics.
 
-## ⚠️ CRITICAL DEVELOPMENT RULES
+## ⚠️ CRITICAL: Docker-Only Development
 
-**ALL DEVELOPMENT AND TESTING MUST BE DONE THROUGH DOCKER CONTAINERS ONLY**
+**ALL operations MUST be performed through Docker containers:**
+- ❌ **NEVER** run `npm`, `node`, `pip`, or package managers on host
+- ❌ **NEVER** install dependencies outside Docker
+- ✅ **ALWAYS** use `docker exec` for all commands
+- ✅ **ALWAYS** use development containers
 
-- ❌ **NEVER** run `npm`, `node`, or any package manager commands directly on the host machine
-- ❌ **NEVER** install Node.js or npm packages outside of Docker containers
-- ✅ **ALWAYS** use `docker exec` commands to run development tasks
-- ✅ **ALWAYS** use the development containers for all operations
+**Container names:**
+- Frontend: `frontend-svelte-dev`
+- Backend: `backend-fastapi-dev`
+- Database: `postgres-dev`
+- Cache: `redis-dev`
 
-**Why this is critical:**
-- Ensures consistent environment across all developers
-- Prevents version conflicts and "works on my machine" issues
-- Maintains dependency isolation and reproducible builds
-- Matches production environment exactly
+## Architecture Overview
 
-**Container names for development:**
-- Frontend: `frontend-svelte-dev` or `frontend-svelte`
-- Backend Node.js: `frontend-api-dev` or `frontend-api`
-- Backend FastAPI: `backend-fastapi-dev` or `backend-fastapi`
-
-## Architecture
-
-- **Frontend**: SvelteKit 2 + Svelte 5 + TypeScript + Vite at `frontend-svelte/` - Modern SPA with SSR support
-- **Backend API (Node.js)**: Express + Prisma at `frontend-api/` - Original Node.js API
-- **Backend API (FastAPI)**: Python + SQLAlchemy at `backend-fastapi/` - New high-performance API
-- **Database**: PostgreSQL 13 (partitioned tables)
-- **Cache**: Redis for performance optimization
-- **Reverse Proxy**: Traefik for SSL/routing
-- **Deployment**: Docker Compose orchestration
-
-Services run on Docker network:
-- postgres: Internal network (port 5432)
-- redis: Internal network (port 6379)
-- frontend-svelte: Internal network (port 5173 dev/3000 prod)
-- frontend-api: Internal network (port 4000) - Node.js
-- backend-fastapi: Internal network (port 4000) - FastAPI
-- traefik: Public-facing (ports 80/443)
-
-## Common Development Commands
-
-### Start Development Environment
-
-```bash
-# Node.js Backend (Original)
-./scripts/dev.sh -d          # Detached mode
-./scripts/dev.sh --init-db    # Force DB reinitialization
-docker-compose -f docker-compose.dev.yaml down  # Stop services
-
-# FastAPI Backend (New - Recommended)
-./scripts/dev-fastapi.sh -d          # Detached mode  
-./scripts/dev-fastapi.sh --init-db   # Force DB reinitialization
-docker-compose -f docker-compose.fastapi.yaml down  # Stop services
-
-# Access points:
-# Frontend: http://localhost:5173 (dev) or http://localhost:3000 (production)
-# API: http://localhost:4000 (both Node.js and FastAPI use same port)
-# API Docs (FastAPI only): http://localhost:4000/docs
+### Current Stack
+```
+Traefik (80/443) → Frontend (5173) → FastAPI (4000) → PostgreSQL/Redis
 ```
 
-### Frontend Commands
+### Services & Ports
+- **Frontend**: SvelteKit 2 + Svelte 5 (port 5173 dev / 3000 prod)
+- **Backend**: FastAPI + SQLAlchemy (port 4000)
+- **Database**: PostgreSQL 13 with partitioned tables
+- **Cache**: Redis for session and data caching
+- **Proxy**: Traefik for SSL termination and routing
 
-**⚠️ WARNING: ALL commands must run through Docker containers - NEVER use npm directly on host**
+## Quick Start Commands
+
+### Development Environment
 
 ```bash
-# Development (containers must be running via ./scripts/dev.sh)
-docker exec -it frontend-svelte-dev npm run dev     # Start SvelteKit dev server (port 5173)
-docker exec -it frontend-svelte-dev npm run build   # Production build
-docker exec -it frontend-svelte-dev npm run preview # Preview production build
+# Start development environment
+./scripts/dev.sh -d          # Start in detached mode
+./scripts/dev.sh --init-db   # Reinitialize database
 
-# Testing
-docker exec -it frontend-svelte-dev npm run test            # Run Vitest unit tests
-docker exec -it frontend-svelte-dev npm run test:run        # Single test run (CI mode)
-docker exec -it frontend-svelte-dev npm run test:watch      # Watch mode  
-docker exec -it frontend-svelte-dev npm run test:coverage   # Generate coverage report
-docker exec -it frontend-svelte-dev npm run test:ui         # Interactive UI for tests
+# Stop services
+docker-compose down
 
-# Code Quality & Type Checking
-docker exec -it frontend-svelte-dev npm run lint            # ESLint check
-docker exec -it frontend-svelte-dev npm run check           # Svelte type checking
-docker exec -it frontend-svelte-dev npm run check:watch     # Type checking in watch mode
-docker exec -it frontend-svelte-dev npm run format          # Prettier formatting
-
-# Performance
-docker exec -it frontend-svelte-dev npm run lighthouse      # Run Lighthouse audit
-docker exec -it frontend-svelte-dev npm run perf:analyze    # Build + Lighthouse analysis
-
-# Package Management (when needed)
-docker exec -it frontend-svelte-dev npm install             # Install dependencies
-docker exec -it frontend-svelte-dev npm install <package>   # Add new package
-docker exec -it frontend-svelte-dev npm uninstall <package> # Remove package
+# Access points
+http://localhost:5173   # Frontend
+http://localhost:4000   # API
+http://localhost:4000/docs  # API Documentation (Swagger)
 ```
 
-### Backend API Commands (Node.js)
-
-**⚠️ WARNING: ALL commands must run through Docker containers - NEVER use npm directly on host**
+### Common Development Tasks
 
 ```bash
-# Development (containers must be running via ./scripts/dev.sh)
-docker exec -it frontend-api-dev npm run dev             # Run with nodemon (index-simple.ts)
-docker exec -it frontend-api-dev npm run dev:full        # Run full version with nodemon
-docker exec -it frontend-api-dev npm run build           # TypeScript build
-docker exec -it frontend-api-dev npm run start           # Production start
+# Frontend development
+docker exec -it frontend-svelte-dev npm run dev        # Start dev server
+docker exec -it frontend-svelte-dev npm run build      # Production build
+docker exec -it frontend-svelte-dev npm run test       # Run tests
+docker exec -it frontend-svelte-dev npm run lint       # Lint code
+docker exec -it frontend-svelte-dev npm run check      # Type checking
 
-# Testing  
-docker exec -it frontend-api-dev npm run test            # Run Jest tests
-docker exec -it frontend-api-dev npm run test:watch      # Jest watch mode
-docker exec -it frontend-api-dev npm run test:coverage   # Generate coverage report
+# Backend development (FastAPI)
+docker exec -it backend-fastapi-dev uvicorn app.main:app --reload  # Dev server
+docker exec -it backend-fastapi-dev python -m pytest              # Run tests
+docker exec -it backend-fastapi-dev black app/                    # Format code
+docker exec -it backend-fastapi-dev mypy app/                     # Type check
 
-# Type Checking & Database
-docker exec -it frontend-api-dev npm run type-check      # TypeScript type checking
-docker exec -it frontend-api-dev npm run prisma:generate # Generate Prisma client
-docker exec -it frontend-api-dev npm run prisma:migrate  # Run Prisma migrations
-docker exec -it frontend-api-dev npm run prisma:studio   # Open Prisma Studio GUI
+# Database operations
+docker exec -it postgres-dev psql -U budget -d budgetdb           # DB console
+docker exec -it backend-fastapi-dev alembic upgrade head          # Run migrations
+./postgresql/backup/postgres-backup.sh                            # Manual backup
 
-# Package Management (when needed)
-docker exec -it frontend-api-dev npm install             # Install dependencies
-docker exec -it frontend-api-dev npm install <package>   # Add new package
-docker exec -it frontend-api-dev npm uninstall <package> # Remove package
-```
-
-### Backend API Commands (FastAPI)
-
-**⚠️ WARNING: ALL commands must run through Docker containers - NEVER use pip directly on host**
-
-```bash
-# Development (containers must be running via ./scripts/dev-fastapi.sh)
-docker exec -it backend-fastapi-dev uvicorn app.main:app --reload  # Run with auto-reload
-docker exec -it backend-fastapi-dev python -m pytest               # Run all tests
-docker exec -it backend-fastapi-dev python -m pytest --cov=app    # Run tests with coverage
-
-# Database Management
-docker exec -it backend-fastapi-dev alembic init alembic           # Initialize migrations
-docker exec -it backend-fastapi-dev alembic revision --autogenerate -m "message"  # Create migration
-docker exec -it backend-fastapi-dev alembic upgrade head           # Apply migrations
-docker exec -it backend-fastapi-dev alembic downgrade -1           # Rollback one migration
-
-# Code Quality
-docker exec -it backend-fastapi-dev black app/                     # Format code
-docker exec -it backend-fastapi-dev isort app/                     # Sort imports
-docker exec -it backend-fastapi-dev mypy app/                      # Type checking
-docker exec -it backend-fastapi-dev flake8 app/                    # Linting
-
-# Package Management
-docker exec -it backend-fastapi-dev pip install -r requirements.txt  # Install dependencies
-docker exec -it backend-fastapi-dev pip install <package>            # Add new package
-docker exec -it backend-fastapi-dev pip freeze > requirements.txt    # Update requirements
-```
-
-### Container Management
-```bash
-# View logs
-docker logs -f frontend-svelte-dev     # SvelteKit frontend  
-docker logs -f frontend-api-dev        # Node.js backend
-docker logs -f backend-fastapi-dev     # FastAPI backend
-docker logs -f postgres-dev
-docker logs -f redis-dev
-
-# Access container shell
-docker exec -it frontend-svelte-dev bash
-docker exec -it frontend-api-dev bash
-docker exec -it backend-fastapi-dev bash
-docker exec -it postgres-dev psql -U budget -d budgetdb
-
-# Restart service
-docker restart frontend-svelte-dev
-docker restart frontend-api-dev
-docker restart backend-fastapi-dev
-
-# Rebuild specific service (Node.js stack)
-docker-compose -f docker-compose.dev.yaml build frontend-svelte
-docker-compose -f docker-compose.dev.yaml build frontend-api
-
-# Rebuild specific service (FastAPI stack)
-docker-compose -f docker-compose.fastapi.yaml build frontend
-docker-compose -f docker-compose.fastapi.yaml build backend-fastapi
-```
-
-### Testing in Containers
-
-**All testing must be performed through Docker containers to ensure environment consistency**
-
-```bash
-# Frontend Testing
-docker exec -it frontend-svelte-dev npm run test                    # Run all tests
-docker exec -it frontend-svelte-dev npm run test:coverage           # Generate coverage report
-docker exec -it frontend-svelte-dev npm run test:watch              # Watch mode for development
-docker exec -it frontend-svelte-dev npm run test:ui                 # Interactive test UI
-docker exec -it frontend-svelte-dev npm test -- --reporter=verbose  # Verbose test output
-
-# Backend Testing
-docker exec -it frontend-api-dev npm run test                       # Run Jest tests
-docker exec -it frontend-api-dev npm run test:coverage              # Generate coverage report
-docker exec -it frontend-api-dev npm run test:watch                 # Watch mode for development
-docker exec -it frontend-api-dev npm test -- --detectOpenHandles    # Debug hanging tests
-
-# Debug Tests in Container
-docker exec -it frontend-svelte-dev bash    # Access container shell for debugging
-docker exec -it frontend-api-dev bash       # Access container shell for debugging
-
-# View Test Results
-docker exec -it frontend-svelte-dev cat coverage/lcov-report/index.html  # Coverage report
-docker exec -it frontend-api-dev cat coverage/lcov-report/index.html     # Coverage report
-
-# Run Specific Test Files
-docker exec -it frontend-svelte-dev npm test -- src/lib/components/Button.test.ts
-docker exec -it frontend-api-dev npm test -- src/routes/auth.test.ts
-```
-
-### Database Operations
-```bash
-# Connect to database
-docker exec -it postgres psql -U budget -d budgetdb
-
-# Manual backup
-./postgresql/backup/postgres-backup.sh
-
-# Apply schema changes
-docker exec -it postgres psql -U budget -d budgetdb -f /docker-entrypoint-initdb.d/02-schema.sql
-
-# Prisma operations
-docker exec -it frontend-api npm run prisma:generate
-docker exec -it frontend-api npm run prisma:migrate
+# Container management
+docker logs -f backend-fastapi-dev     # View logs
+docker restart backend-fastapi-dev     # Restart service
+docker exec -it backend-fastapi-dev bash  # Shell access
 ```
 
 ## Database Schema
 
-PostgreSQL database `budgetdb` with partitioned tables:
+### Core Tables
+- **t_d_user**: Users with Telegram integration (BigInt telegram_id)
+- **t_d_period**: Budget periods (YYYY.MM format)
+- **t_d_financial_center**: Financial centers (ЦФО)
+- **t_d_cost_center**: Cost centers (МВЗ)
+- **t_d_nomenclature**: Budget categories
+- **t_f_registry**: Main transactions (partitioned 2023-2030)
+- **t_d_product**: Product catalog
+- **t_f_product_price**: Price history
 
-**Dimensions (Reference Data):**
-- `t_d_user` - Users with Telegram integration
-- `t_d_period` - Time periods (format: YYYY.MM for monthly)
-- `t_d_financial_center` - Financial responsibility centers (ЦФО)
-- `t_d_cost_center` - Cost centers (МВЗ)
-- `t_d_nomenclature` - Budget categories
-- `t_d_row_type` - Operation types (plan/fact)
+### Key Relationships
+- All data isolated by `user_id`
+- Row types: 1=Plan, 2=Fact
+- Registry links to period, financial_center, cost_center, nomenclature
 
-**Fact Table:**
-- `t_f_registry` - Main transactions (partitioned by year 2023-2030)
+## API Endpoints
 
-**Product Tables:**
-- `t_d_product` - Product catalog
-- `t_f_product_price` - Price history
-- `t_l_product_nomenclature` - Product-category mapping
+### Authentication (`/api/auth/`)
+- `POST /register` - User registration (username, password, user_name, email)
+- `POST /login` - Password authentication
+- `POST /telegram` - Telegram OAuth
+- `POST /logout` - End session
+- `GET /me` - Current user info
+- `GET /password-auth-enabled` - Check if password auth enabled
 
-**Key Relationships:**
-- All fact data is isolated by `user_id`
-- Registry entries link to period, financial_center, cost_center, nomenclature
-- Row type 1 = Plan, Row type 2 = Fact
+### Data Management (`/api/`)
+- `/users` - User CRUD operations
+- `/periods` - Period management
+- `/financial_centers` - ЦФО management
+- `/cost_centers` - МВЗ management
+- `/nomenclatures` - Category management
+- `/registry` - Transaction operations
+- `/products` - Product catalog
+- `/reports/*` - Analytics endpoints
 
 ## Frontend Architecture
 
-### SvelteKit Frontend Structure
+### Directory Structure
 ```
 frontend-svelte/src/
 ├── lib/
-│   ├── components/
-│   │   ├── auth/       # Authentication components
-│   │   ├── common/     # Shared UI components (Layout, Toast, DataTable)
-│   │   ├── ui/         # Base UI components (Button, Card, Input, Table)
-│   │   ├── budget/     # Budget-specific components
-│   │   ├── fact/       # Fact-specific components
-│   │   ├── reference/  # Reference data management
-│   │   └── reports/    # Reports and analytics
-│   ├── stores/         # Svelte stores for state management
-│   ├── services/       # API services and data transformers
-│   ├── types/          # TypeScript type definitions
-│   └── utils/          # Utility functions
-├── routes/
-│   ├── (protected)/    # Protected route group
-│   │   ├── dashboard/  # Dashboard page
-│   │   ├── budget/     # Budget management
-│   │   ├── fact/       # Fact management
-│   │   ├── reports/    # Reports and analytics
-│   │   ├── products/   # Product management
-│   │   ├── reference/  # Reference data pages
-│   │   └── settings/   # Settings
-│   ├── login/          # Login page
-│   ├── +layout.svelte  # Root layout
-│   └── +page.svelte    # Home/redirect page
-├── app.html            # HTML template
-└── app.css             # Global styles
+│   ├── components/     # UI components
+│   ├── stores/         # Svelte stores (auth, toast, referenceData)
+│   ├── services/       # API services
+│   └── types/          # TypeScript definitions
+└── routes/
+    ├── (protected)/    # Auth-required pages
+    └── login/          # Public pages
 ```
 
-#### SvelteKit State Management
-- **Svelte stores** for reactive global state
-- **authStore** - user authentication and session
-- **toastStore** - notification system
-- **errorStore** - global error handling
-- **referenceDataStore** - CRUD operations for reference data
+### Key State Management
+- **authStore**: User session and authentication
+- **toastStore**: Global notifications
+- **referenceDataStore**: Reference data CRUD with caching
 
-#### SvelteKit Routing
-- File-based routing with route groups
-- `(protected)` group with AuthGuard via +layout.svelte
-- SSR-ready page components
-- Automatic code splitting and lazy loading
+### Service Layer Pattern
+All API calls go through service layer:
+```typescript
+Component → Service → API → Backend → Database
+```
 
-#### SvelteKit Features
-- **Type Safety**: Full TypeScript integration with Svelte
-- **Reactivity**: Built-in reactive statements and stores
-- **Performance**: Compilation-based approach, smaller bundles
-- **SSR/SSG**: Server-side rendering and static generation support
-- **Hot Reload**: Fast development experience with Vite
+## Backend Architecture (FastAPI)
 
-## API Structure
+### Directory Structure
+```
+backend-fastapi/
+├── app/
+│   ├── api/v1/endpoints/  # API routes
+│   ├── models/            # SQLAlchemy models
+│   ├── schemas/           # Pydantic schemas
+│   ├── core/              # Security, config, session
+│   └── db/                # Database connection
+```
 
-Frontend-API endpoints at `/api/`:
-- `/auth/*` - Telegram authentication (POST /telegram for OAuth)
-- `/users` - User management (GET/POST/PUT/DELETE)
-- `/periods` - Period operations (CRUD + GET /current)
-- `/financial_centers` - ЦФО management (CRUD)
-- `/cost_centers` - МВЗ management (CRUD + GET by financial_center)
-- `/nomenclatures` - Category management (CRUD)
-- `/registry` - Transaction operations (CRUD + bulk operations)
-- `/products` - Product management (CRUD + price history)
-- `/reports/*` - Analytics and reporting (various aggregations)
+### Key Patterns
+- Async SQLAlchemy 2.0 for database operations
+- Session-based authentication (compatible with frontend)
+- Pydantic for request/response validation
+- Dependency injection for database sessions
 
-**Authentication Flow:**
-1. Frontend calls `/api/auth/telegram` with Telegram data
-2. Backend validates hash and creates/updates user
-3. Session is established via express-session
-4. All subsequent requests use session cookie
+## Testing Strategy
 
-**Data Isolation:**
-- All endpoints automatically filter by authenticated `user_id`
-- No cross-user data access possible
-- User context extracted from session middleware
+### Frontend Testing
+```bash
+docker exec -it frontend-svelte-dev npm run test            # Unit tests
+docker exec -it frontend-svelte-dev npm run test:coverage   # Coverage report
+docker exec -it frontend-svelte-dev npm run test:ui         # Interactive UI
+```
 
-## Key Project Files
+### Backend Testing
+```bash
+docker exec -it backend-fastapi-dev python -m pytest        # All tests
+docker exec -it backend-fastapi-dev python -m pytest --cov=app  # Coverage
+```
 
-### SvelteKit Frontend
-- `frontend-svelte/src/routes/+layout.svelte` - Root layout
-- `frontend-svelte/src/app.html` - HTML template
-- `frontend-svelte/svelte.config.js` - SvelteKit configuration
-- `frontend-svelte/vite.config.ts` - Vite configuration
-- `frontend-svelte/package.json` - Dependencies and scripts
+## Code Quality Tools
 
-### Backend API (Node.js)
-- `frontend-api/src/index.ts` - Express server entry
-- `frontend-api/prisma/schema.prisma` - Database schema
+### Frontend
+- **Linting**: ESLint with Svelte plugin
+- **Formatting**: Prettier
+- **Type Checking**: TypeScript strict mode
 
-### Backend API (FastAPI)
-- `backend-fastapi/app/main.py` - FastAPI application entry
-- `backend-fastapi/app/models/` - SQLAlchemy models
-- `backend-fastapi/app/schemas/` - Pydantic schemas
-- `backend-fastapi/app/api/v1/` - API endpoints
+### Backend (FastAPI)
+- **Formatting**: Black
+- **Import Sorting**: isort
+- **Type Checking**: mypy
+- **Linting**: flake8
 
-### Database
-- `postgresql/ddl/budgetdb.sql` - SQL schema definition
+## Important Conventions
 
-### Docker Configurations
-- `docker-compose.yaml` - Production config (Node.js)
-- `docker-compose.dev.yaml` - Development config (Node.js)
-- `docker-compose.fastapi.yaml` - Development config (FastAPI)
+### Data Formats
+- **Periods**: "YYYY.MM" format (e.g., "2025.01")
+- **Money**: decimal(10,2) in database
+- **User IDs**: Always filter by session user_id
+- **Row Types**: 1=Plan, 2=Fact
 
-### Environment & Scripts
-- `.env.dev` / `.env.prod` - Environment templates
-- `scripts/dev.sh` - Development script for Node.js stack
-- `scripts/dev-fastapi.sh` - Development script for FastAPI stack
-- `scripts/prod.sh` - Production deployment script
+### Frontend Patterns
+- Use `$lib/` imports for absolute paths
+- API calls through service layer only
+- Svelte stores for global state
+- Form validation with Yup/Zod
 
-## Key Architectural Patterns
+### Backend Patterns
+- Check session authentication first
+- All queries filtered by user_id
+- Standardized error responses
+- Use database transactions for multi-table operations
 
-### Frontend State Management
-- **Auth State**: Managed in `$lib/stores/auth.ts` with user session
-- **Toast Notifications**: Global toast store for user feedback
-- **API Client**: Axios instance with interceptors in `$lib/services/api.ts`
-- **Error Handling**: Centralized error handling with toast notifications
+## Environment Variables
 
-### API Patterns
-- **Middleware Stack**: cors → helmet → compression → session → auth → routes
-- **Prisma Client**: Singleton pattern in `frontend-api/src/database/client.ts`
-- **Error Responses**: Standardized format `{ error: string, details?: any }`
-- **Session Management**: Redis-backed sessions with 24h TTL
-
-### Data Flow
-1. User action in Svelte component
-2. Call service function (`$lib/services/*.ts`)
-3. Service makes API call via axios
-4. API validates session and user context
-5. Prisma query with automatic user_id filtering
-6. Response transformation and return to frontend
-7. Update Svelte stores and UI reactively
-
-## Development Guidelines
-
-### UI/UX Design System (APPROVED)
-- **Reference Design**: Dashboard page (`/dashboard`)
-- **Layout**: Gradient backgrounds `bg-gradient-to-br from-slate-50 to-slate-100`
-- **Cards**: Colored left borders (border-l-4)
-  - Blue (border-l-blue-500): Budget/primary metrics
-  - Red (border-l-red-500): Expenses/warnings
-  - Green (border-l-green-500): Income/positive metrics
-  - Purple (border-l-purple-500): Savings/secondary metrics
-- **Icons**: Lucide React in colored circles
-- **Spacing**: gap-6 for grids, space-y-6 for vertical
-- **Typography**: Bold numbers for metrics, subtle labels
-
-### Data Visualization
-- **Library**: Recharts (adopted 13.07.2025)
-- **Chart Types**: Bar, Line, Pie/Donut, Gauge, Waterfall
-- **Design**: Consistent colors, interactive tooltips, responsive
-- **Export**: PNG/SVG functionality
-
-### Code Style
-- **SvelteKit Frontend**: ESLint + Prettier + Svelte plugin
-- **Backend**: ESLint for TypeScript
-
-### SvelteKit Specific Guidelines
-- **Components**: Use .svelte extension with TypeScript lang="ts"
-- **Stores**: Prefer Svelte stores over complex state management
-- **Reactivity**: Use $: reactive statements for derived data
-- **Forms**: Integrate with svelte-forms-lib for validation
-- **Routing**: Leverage file-based routing with proper +page.svelte structure
-- **SSR**: Design components to work with server-side rendering
-
-### Testing Strategy
-
-**⚠️ CRITICAL: All testing must be performed in Docker containers only**
-
-- **Frontend (SvelteKit)**: Vitest + @testing-library/svelte, 50% coverage threshold
-  ```bash
-  # Run via container only
-  docker exec -it frontend-svelte-dev npm run test:coverage
-  ```
-- **Backend (Node.js)**: Jest + ts-jest, 70-80% coverage threshold
-  ```bash
-  # Run via container only
-  docker exec -it frontend-api-dev npm run test:coverage
-  ```
-- **E2E Tests**: Playwright (configuration needed)
-  ```bash
-  # Will run via container when configured
-  docker exec -it frontend-svelte-dev npm run test:e2e
-  ```
-- **Performance**: Lighthouse CI for performance audits
-  ```bash
-  # Run via container only
-  docker exec -it frontend-svelte-dev npm run lighthouse
-  ```
-- **Component Tests**: @testing-library/svelte for isolated component testing
-  ```bash
-  # Run via container only
-  docker exec -it frontend-svelte-dev npm run test -- --ui
-  ```
-
-**Testing Environment Requirements:**
-- Tests must pass in containerized environment
-- No host-machine dependencies allowed
-- Use container networking for API tests
-- Coverage reports generated inside containers
-
-### Performance Optimizations
-- SvelteKit code splitting and lazy loading
-- Virtualized scrolling for large lists  
-- Debounced search and API calls
-- Optimistic UI updates
-- Redis caching layer
-- Prisma query optimization
-- Server-side rendering (SSR) support
-
-### Security Practices
-- Telegram OAuth authentication
-- User data isolation via user_id
-- Prisma ORM (SQL injection protection)
-- Environment-based secrets
-- Session management with express-session
-
-## Recent Architectural Changes
-
-### UI/UX Improvements (13.07.2025)
-- Centralized Layout management in App.tsx routing
-- Fixed double Layout rendering issues
-- Implemented consistent card-based UI design
-- Added keyboard shortcuts system
-- Enhanced accessibility with ARIA support
-
-### Advanced Features (13.07.2025)
-- Bulk operations with Excel/CSV import/export
-- Audit trail with version history
-- Advanced search with saved filters
-- Real-time cross-tab synchronization
-- Undo/Redo functionality
-
-### Completed Migrations
-
-#### Frontend Migration (July 2025)
-- React → SvelteKit for better performance and developer experience
-- Unified API: Python + Node.js → Node.js only with Prisma ORM
-- Performance: 20-40% faster response times, 30-50% memory reduction
-- Architecture: Simplified from dual-stack to unified SvelteKit + Node.js
-
-#### Backend Migration to FastAPI (August 2025)
-- Node.js/Express → FastAPI (Python) for better performance
-- Prisma ORM → SQLAlchemy 2.0 with async support
-- Session management maintained for compatibility
-- Performance: 2-3x faster than Node.js implementation
-- Full API documentation with Swagger/ReDoc
-- All endpoints remain compatible with frontend
-
-## CI/CD Pipeline
-
-GitHub Actions workflow (`.github/workflows/ci-cd.yml`) runs on:
-- Push to `master` or `develop` branches
-- Pull requests to `master`
-
-**Pipeline Steps:**
-1. Frontend tests (lint, test, build)
-2. Backend API tests (lint, test, build)
-3. Docker image build and push to GitHub Container Registry
-4. Coverage reports upload
-
-**Note**: CI/CD configuration needs updating for SvelteKit migration (currently references old React frontend paths)
+Key variables in `.env`:
+- `POSTGRES_PASSWORD` - Database root password
+- `BUDGET_DB_PASSWORD` - App database password
+- `SESSION_SECRET` - Session encryption key
+- `TELEGRAM_BOT_TOKEN` - Telegram bot token
+- `REDIS_URL` - Redis connection string
+- `PASSWORD_AUTH_ENABLED` - Enable password authentication
 
 ## Deployment
 
 ### Production
 ```bash
-# Use production script
-./scripts/prod.sh
-
-# Or manually
-cp .env.prod .env
-docker-compose up -d --build
+./scripts/prod.sh  # Automated production deployment
 ```
 
-### Environment Variables
-Key variables in `.env`:
-- `POSTGRES_PASSWORD` - PostgreSQL root password
-- `BUDGET_DB_PASSWORD` - Application database password
-- `SESSION_SECRET` - Express session secret
-- `TELEGRAM_BOT_TOKEN` - Telegram bot token
-- `DOMAIN` - Domain for SSL certificates
-- `REDIS_URL` - Redis connection string
-
 ### Backup Strategy
-- PostgreSQL: Daily at midnight via cron
-- Destination: Yandex Object Storage via MinIO
+- Daily PostgreSQL backups at midnight
+- Stored in Yandex Object Storage
 - Script: `postgresql/backup/postgres-backup.sh`
 
-## Important Conventions
+## Recent Updates
 
-### Data Formatting
-- **Periods**: Format as "YYYY.MM" (e.g., "2025.01")
-- **Money Values**: Store as decimal(10,2) in database
-- **User IDs**: Always use authenticated user_id from session
-- **Row Types**: 1 = Plan (budget), 2 = Fact (actual)
+### August 2025 - Complete FastAPI Migration
+- **Node.js API Removal**: Completely removed frontend-api (Node.js/Express) in favor of FastAPI
+- **Single Backend**: FastAPI is now the only backend, eliminating dual-API complexity
+- **Unified Docker Configuration**: Single docker-compose.yaml file for all environments
+- **Simplified Development**: Single dev.sh script instead of multiple deployment scripts
+- **SQLAlchemy Migration**: Full migration from Prisma ORM to SQLAlchemy 2.0 with async support
+- **Performance Improvements**: 2-3x faster API responses compared to Node.js implementation
+- **Enhanced Documentation**: Comprehensive Swagger/OpenAPI documentation at `/docs`
 
-### Frontend Conventions
-- **Component Imports**: Use `$lib/` aliases for absolute imports
-- **API Calls**: Always use service layer, never direct axios in components
-- **Forms**: Use Yup or Zod for validation schemas
-- **Tables**: Use @tanstack/svelte-table for data grids
-- **Charts**: Use Chart.js via svelte-chartjs wrapper
-
-### Backend Conventions  
-- **Route Handlers**: Always check `req.session.userId` first
-- **Prisma Queries**: Include `where: { user_id }` in all queries
-- **Error Handling**: Use try-catch with standardized error responses
-- **Transactions**: Use Prisma transactions for multi-table operations
+### Architecture Improvements
+- **Single Stack**: SvelteKit frontend + FastAPI backend only
+- **Unified TypeScript types**: Shared between frontend and backend schemas
+- **Centralized store exports**: Enhanced referenceData store functionality
+- **Optimized imports**: Streamlined module structure
 
 ## Troubleshooting
 
-### Common Issues
-1. **Container startup**: Check `docker logs <container>`
-2. **Database connection**: Verify credentials in `.env`
-3. **Frontend blank page**: Check browser console, verify API connection
-4. **SSL issues**: Check Traefik logs, domain DNS
-5. **Memory issues**: `docker system prune -a`
+### Common Issues & Solutions
+
+1. **404 on user registration**: Ensure `/api/auth/register` endpoint exists
+2. **Type mismatch errors**: Check SQLAlchemy model types match database schema
+3. **Container not starting**: Check logs with `docker logs <container>`
+4. **Database connection failed**: Verify credentials in `.env`
+5. **Frontend blank page**: Check browser console and API connectivity
 
 ### Debug Commands
 ```bash
-# Check container status
-docker ps -a
-
-# View detailed logs
-docker logs --tail 100 -f <container>
-
-# Database connectivity
-docker exec -it postgres psql -U budget -d budgetdb -c "SELECT 1"
-
-# API health check
-curl http://localhost:4000/health
-
-# Clear all containers and volumes (CAUTION)
-docker-compose down -v
+docker ps -a                          # Check container status
+docker logs --tail 100 -f <container> # View recent logs
+docker exec -it postgres-dev psql -U budget -d budgetdb -c "SELECT 1"  # Test DB
+curl http://localhost:4000/health     # API health check
 ```
+
+## CI/CD Pipeline
+
+GitHub Actions workflow runs on:
+- Push to `master` or `develop`
+- Pull requests to `master`
+
+Pipeline includes:
+1. Frontend tests and build
+2. Backend tests and type checking
+3. Docker image build
+4. Coverage reports
+
+Note: CI/CD configuration updated for SvelteKit + FastAPI stack

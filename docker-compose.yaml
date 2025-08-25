@@ -1,149 +1,105 @@
-# Production Docker Compose configuration - Unified API with SvelteKit Frontend
+# Development Docker Compose configuration with FastAPI Backend
 # This file automatically uses .env file if present in the project root
-# For production, use: docker-compose up -d
-# Or use the helper script: ./scripts/prod.sh
+# For development, copy .env.dev to .env or use: ./scripts/dev-fastapi.sh
+# All services include hot-reload for rapid development
 
 services:
   postgres:
-    container_name: postgres
-    hostname: postgres
+    container_name: postgres-dev
     image: "postgres:13"
-    networks:
-      app_network:
-        ipv4_address: 10.5.0.2
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      BUDGET_DB_PASSWORD: ${BUDGET_DB_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
+      BUDGET_DB_PASSWORD: ${BUDGET_DB_PASSWORD:-devpassword}
       PGDATA: "/var/lib/postgresql/data/pgdata"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./postgresql/postgresql.conf:/var/lib/postgresql/data/pgdata/postgresql.conf
+      - postgres-dev-data:/var/lib/postgresql/data
       - ./postgresql/init:/docker-entrypoint-initdb.d
       - ./postgresql/ddl/budgetdb.sql:/docker-entrypoint-initdb.d/02-schema.sql
       - ./postgresql/ddl/products.sql:/docker-entrypoint-initdb.d/products.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - app_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
-    restart: always
-    cpuset: "0"    
-    cpus: 0.5  
-    mem_reservation: "100M"
-    mem_limit: "250M"
-    labels:
-      - "traefik.enable=false"
 
   redis:
-    container_name: redis
+    container_name: redis-dev
     image: redis:7-alpine
+    ports:
+      - "6379:6379"
     command: redis-server --appendonly yes
     volumes:
-      - redis-data:/data
+      - redis-dev-data:/data
     networks:
-      app_network:
-        ipv4_address: 10.5.0.7
+      - app_network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: always
-    cpuset: "1"
-    cpus: 0.3
-    mem_reservation: "50M"
-    mem_limit: "100M"
-    labels:
-      - "traefik.enable=false"
 
   frontend:
-    container_name: frontend
-    hostname: frontend
+    container_name: frontend-svelte-dev
     build:
       context: ./frontend-svelte
-      dockerfile: Dockerfile
-      args:
-        - NODE_ENV=production
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend-svelte:/app
+      - /app/node_modules
+      - /app/.svelte-kit
+    ports:
+      - "5173:5173"
     environment:
-      - NODE_ENV=production
-      - ORIGIN=https://${FRONTEND_SUBDOMAIN}.${DOMAIN}
-      - PUBLIC_API_URL=https://${FRONTEND_API_SUBDOMAIN}.${DOMAIN}
+      - NODE_ENV=development
+      - PUBLIC_API_URL=http://localhost:4000
+      - ORIGIN=http://localhost:5173
     networks:
       - app_network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    restart: always
-    cpuset: "0"
-    cpus: 0.2
-    mem_reservation: "75M"
-    mem_limit: "150M"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=app_network"
-      # Main domain - SvelteKit frontend (now primary)
-      - "traefik.http.routers.frontend.rule=Host(`${FRONTEND_SUBDOMAIN}.${DOMAIN}`)"
-      - "traefik.http.routers.frontend.entrypoints=websecure"
-      - "traefik.http.routers.frontend.tls=true"
-      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
-
-  frontend-api:
-    container_name: frontend-api
-    hostname: frontend-api
-    build:
-      context: ./frontend-api
-      dockerfile: Dockerfile
-      args:
-        - NODE_ENV=production
-    environment:
-      - NODE_ENV=production
-      - PORT=4000
-      - DATABASE_URL=postgresql://budget:${BUDGET_DB_PASSWORD}@postgres:5432/budgetdb
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - USE_UNIFIED_API=true
-      - FRONTEND_URL=https://${FRONTEND_SUBDOMAIN}.${DOMAIN}
-      - SESSION_SECRET=${SESSION_SECRET}
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - ADMIN_USERNAME=${ADMIN_USERNAME}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - ENABLE_PASSWORD_AUTH=${ENABLE_PASSWORD_AUTH}
-    networks:
-      - app_network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    restart: always
-    cpuset: "0,1"  # Can use more CPU now that only one frontend exists
-    cpus: 0.4      # Increased to handle all API load
-    mem_reservation: "200M"  # Increased to handle more load
-    mem_limit: "400M"        # Increased memory limit
     depends_on:
-      - postgres
-      - redis
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=app_network"
-      - "traefik.http.routers.frontend-api.rule=Host(`${FRONTEND_API_SUBDOMAIN}.${DOMAIN}`)"
-      - "traefik.http.routers.frontend-api.entrypoints=websecure"
-      - "traefik.http.routers.frontend-api.tls=true"
-      - "traefik.http.services.frontend-api.loadbalancer.server.port=4000"
+      - backend-fastapi
+
+  backend-fastapi:
+    container_name: backend-fastapi-dev
+    build:
+      context: ./backend-fastapi
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./backend-fastapi:/app
+      - /app/__pycache__
+    ports:
+      - "4000:4000"
+    environment:
+      - ENVIRONMENT=development
+      - PORT=4000
+      - DATABASE_URL=postgresql+asyncpg://budget:${BUDGET_DB_PASSWORD:-devpassword}@postgres:5432/budgetdb
+      - REDIS_URL=redis://redis:6379/0
+      - SESSION_SECRET=${SESSION_SECRET:-dev-session-secret}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-dev_bot_token}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - ENABLE_PASSWORD_AUTH=${ENABLE_PASSWORD_AUTH:-true}
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+      - LOG_LEVEL=DEBUG
+    networks:
+      - app_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: "uvicorn app.main:app --host 0.0.0.0 --port 4000 --reload"
 
 networks:
   app_network:
-    external: true
+    driver: bridge
 
 volumes:
-  postgres-data:
-    driver: local
-  redis-data:
-    driver: local
+  postgres-dev-data:
+  redis-dev-data:
