@@ -15,10 +15,10 @@ Family Budget is a web-based budget management system with multi-user support, T
 - ✅ **ALWAYS** use development containers
 
 **Container names:**
-- Frontend: `frontend-svelte-dev`
-- Backend: `backend-fastapi-dev`
-- Database: `postgres-dev`
-- Cache: `redis-dev`
+- Frontend: `budget-frontend`
+- Backend: `budget-backend`
+- Database: `budget-postgres`
+- Cache: `budget-redis`
 
 ## Architecture Overview
 
@@ -56,27 +56,27 @@ http://localhost:4000/docs  # API Documentation (Swagger)
 
 ```bash
 # Frontend development
-docker exec -it frontend-svelte-dev npm run dev        # Start dev server
-docker exec -it frontend-svelte-dev npm run build      # Production build
-docker exec -it frontend-svelte-dev npm run test       # Run tests
-docker exec -it frontend-svelte-dev npm run lint       # Lint code
-docker exec -it frontend-svelte-dev npm run check      # Type checking
+docker exec -it budget-frontend npm run dev        # Start dev server
+docker exec -it budget-frontend npm run build      # Production build
+docker exec -it budget-frontend npm run test       # Run tests
+docker exec -it budget-frontend npm run lint       # Lint code
+docker exec -it budget-frontend npm run check      # Type checking
 
 # Backend development (FastAPI)
-docker exec -it backend-fastapi-dev uvicorn app.main:app --reload  # Dev server
-docker exec -it backend-fastapi-dev python -m pytest              # Run tests
-docker exec -it backend-fastapi-dev black app/                    # Format code
-docker exec -it backend-fastapi-dev mypy app/                     # Type check
+docker exec -it budget-backend uvicorn app.main:app --reload  # Dev server
+docker exec -it budget-backend python -m pytest              # Run tests
+docker exec -it budget-backend black app/                    # Format code
+docker exec -it budget-backend mypy app/                     # Type check
 
 # Database operations
-docker exec -it postgres-dev psql -U budget -d budgetdb           # DB console
-docker exec -it backend-fastapi-dev alembic upgrade head          # Run migrations
+docker exec -it budget-postgres psql -U budget -d budgetdb           # DB console
+docker exec -it budget-backend alembic upgrade head          # Run migrations
 ./postgresql/backup/postgres-backup.sh                            # Manual backup
 
 # Container management
-docker logs -f backend-fastapi-dev     # View logs
-docker restart backend-fastapi-dev     # Restart service
-docker exec -it backend-fastapi-dev bash  # Shell access
+docker logs -f budget-backend     # View logs
+docker restart budget-backend     # Restart service
+docker exec -it budget-backend bash  # Shell access
 ```
 
 ## Database Schema
@@ -165,15 +165,15 @@ backend-fastapi/
 
 ### Frontend Testing
 ```bash
-docker exec -it frontend-svelte-dev npm run test            # Unit tests
-docker exec -it frontend-svelte-dev npm run test:coverage   # Coverage report
-docker exec -it frontend-svelte-dev npm run test:ui         # Interactive UI
+docker exec -it budget-frontend npm run test            # Unit tests
+docker exec -it budget-frontend npm run test:coverage   # Coverage report
+docker exec -it budget-frontend npm run test:ui         # Interactive UI
 ```
 
 ### Backend Testing
 ```bash
-docker exec -it backend-fastapi-dev python -m pytest        # All tests
-docker exec -it backend-fastapi-dev python -m pytest --cov=app  # Coverage
+docker exec -it budget-backend python -m pytest        # All tests
+docker exec -it budget-backend python -m pytest --cov=app  # Coverage
 ```
 
 ## Code Quality Tools
@@ -262,7 +262,7 @@ Key variables in `.env`:
 ```bash
 docker ps -a                          # Check container status
 docker logs --tail 100 -f <container> # View recent logs
-docker exec -it postgres-dev psql -U budget -d budgetdb -c "SELECT 1"  # Test DB
+docker exec -it budget-postgres psql -U budget -d budgetdb -c "SELECT 1"  # Test DB
 curl http://localhost:4000/health     # API health check
 ```
 

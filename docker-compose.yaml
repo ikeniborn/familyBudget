@@ -1,27 +1,28 @@
-# Development Docker Compose configuration with FastAPI Backend
+# Docker Compose configuration with FastAPI Backend
 # This file automatically uses .env file if present in the project root
-# For development, copy .env.dev to .env or use: ./scripts/dev-fastapi.sh
-# All services include hot-reload for rapid development
+# For development: ./scripts/dev.sh
+# For production: ./scripts/prod.sh
 
 services:
   postgres:
-    container_name: postgres-dev
-    image: "postgres:13"
+    container_name: budget-postgres
+    image: postgres:13-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
       BUDGET_DB_PASSWORD: ${BUDGET_DB_PASSWORD:-devpassword}
-      PGDATA: "/var/lib/postgresql/data/pgdata"
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
-      - postgres-dev-data:/var/lib/postgresql/data
-      - ./postgresql/init:/docker-entrypoint-initdb.d
-      - ./postgresql/ddl/budgetdb.sql:/docker-entrypoint-initdb.d/02-schema.sql
-      - ./postgresql/ddl/products.sql:/docker-entrypoint-initdb.d/products.sql
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgresql/init:/docker-entrypoint-initdb.d:ro
+      - ./postgresql/ddl/budgetdb.sql:/docker-entrypoint-initdb.d/02-schema.sql:ro
+      - ./postgresql/ddl/products.sql:/docker-entrypoint-initdb.d/03-products.sql:ro
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     networks:
-      - app_network
+      - budget-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 10s
@@ -30,15 +31,16 @@ services:
       start_period: 10s
 
   redis:
-    container_name: redis-dev
+    container_name: budget-redis
     image: redis:7-alpine
+    restart: unless-stopped
     ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes
+      - "${REDIS_PORT:-6379}:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
-      - redis-dev-data:/data
+      - redis-data:/data
     networks:
-      - app_network
+      - budget-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -46,60 +48,87 @@ services:
       retries: 5
 
   frontend:
-    container_name: frontend-svelte-dev
+    container_name: budget-frontend
     build:
       context: ./frontend-svelte
-      dockerfile: Dockerfile.dev
+      dockerfile: ${FRONTEND_DOCKERFILE:-Dockerfile.dev}
+      args:
+        - NODE_VERSION=18-alpine
+    restart: unless-stopped
     volumes:
       - ./frontend-svelte:/app
       - /app/node_modules
       - /app/.svelte-kit
     ports:
-      - "5173:5173"
+      - "${FRONTEND_PORT:-5173}:5173"
     environment:
-      - NODE_ENV=development
-      - PUBLIC_API_URL=http://localhost:4000
-      - ORIGIN=http://localhost:5173
+      NODE_ENV: ${NODE_ENV:-development}
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:4000}
+      ORIGIN: ${ORIGIN:-http://localhost:5173}
+      PORT: 5173
+      HOST: 0.0.0.0
     networks:
-      - app_network
+      - budget-network
     depends_on:
-      - backend-fastapi
+      backend:
+        condition: service_healthy
 
-  backend-fastapi:
-    container_name: backend-fastapi-dev
+  backend:
+    container_name: budget-backend
     build:
       context: ./backend-fastapi
-      dockerfile: Dockerfile.dev
+      dockerfile: ${BACKEND_DOCKERFILE:-Dockerfile.dev}
+      args:
+        - PYTHON_VERSION=3.11-slim
+    restart: unless-stopped
     volumes:
       - ./backend-fastapi:/app
       - /app/__pycache__
+      - /app/.pytest_cache
     ports:
-      - "4000:4000"
+      - "${API_PORT:-4000}:4000"
     environment:
-      - ENVIRONMENT=development
-      - PORT=4000
-      - DATABASE_URL=postgresql+asyncpg://budget:${BUDGET_DB_PASSWORD:-devpassword}@postgres:5432/budgetdb
-      - REDIS_URL=redis://redis:6379/0
-      - SESSION_SECRET=${SESSION_SECRET:-dev-session-secret}
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-dev_bot_token}
-      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
-      - ENABLE_PASSWORD_AUTH=${ENABLE_PASSWORD_AUTH:-true}
-      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000
-      - LOG_LEVEL=DEBUG
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      PORT: 4000
+      DATABASE_URL: postgresql+asyncpg://budget:${BUDGET_DB_PASSWORD:-devpassword}@postgres:5432/budgetdb
+      REDIS_URL: redis://redis:6379/0
+      SESSION_SECRET: ${SESSION_SECRET:-dev-session-secret}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-dev_bot_token}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      PASSWORD_AUTH_ENABLED: ${PASSWORD_AUTH_ENABLED:-true}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      WORKERS: ${WORKERS:-1}
     networks:
-      - app_network
+      - budget-network
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: "uvicorn app.main:app --host 0.0.0.0 --port 4000 --reload"
+    command: >
+      sh -c "
+        if [ '${ENVIRONMENT}' = 'production' ]; then
+          uvicorn app.main:app --host 0.0.0.0 --port 4000 --workers ${WORKERS:-4} --log-level ${LOG_LEVEL:-info}
+        else
+          uvicorn app.main:app --host 0.0.0.0 --port 4000 --reload --log-level ${LOG_LEVEL:-debug}
+        fi
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 networks:
-  app_network:
+  budget-network:
     driver: bridge
+    name: budget-network
 
 volumes:
-  postgres-dev-data:
-  redis-dev-data:
+  postgres-data:
+    name: budget-postgres-data
+  redis-data:
+    name: budget-redis-data

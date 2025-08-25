@@ -100,7 +100,7 @@ EOSQL
 # Parse command line arguments
 INIT_DB=false
 DETACH=""
-SERVICES="frontend backend-fastapi"
+SERVICES="frontend backend"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
