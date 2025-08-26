@@ -1,10 +1,10 @@
 <script lang="ts">
   import AuthGuard from '$lib/components/auth/AuthGuard.svelte';
-  import Layout from '$lib/components/common/Layout.svelte';
+  import AdaptiveLayout from '$lib/components/common/AdaptiveLayout.svelte';
 </script>
 
 <AuthGuard>
-  <Layout>
+  <AdaptiveLayout>
     <slot />
-  </Layout>
+  </AdaptiveLayout>
 </AuthGuard>

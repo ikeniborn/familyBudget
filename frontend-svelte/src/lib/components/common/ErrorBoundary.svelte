@@ -44,9 +44,6 @@
 </script>
 
 {#if $errorStore}
-  {#if $$slots.fallback}
-    <slot name="fallback" error={$errorStore}></slot>
-  {:else}
     <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
       <Card class="max-w-md w-full p-6">
         <div class="text-center space-y-4">
@@ -114,7 +111,6 @@
         </div>
       </Card>
     </div>
-  {/if}
 {:else}
   <slot></slot>
 {/if}

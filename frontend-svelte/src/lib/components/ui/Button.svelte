@@ -1,15 +1,17 @@
 <script lang="ts">
   import { clsx } from 'clsx';
   import { twMerge } from 'tailwind-merge';
+  import { isTouch } from '$lib/stores/device.store';
   
   interface Props {
     variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'accent' | 'warm' | 'ghost' | 'link';
-    size?: 'default' | 'sm' | 'lg' | 'icon';
+    size?: 'default' | 'sm' | 'lg' | 'icon' | 'touch';
     disabled?: boolean;
     loading?: boolean;
     type?: 'button' | 'submit' | 'reset';
     href?: string;
     class?: string;
+    hapticFeedback?: boolean;
     children?: import('svelte').Snippet;
     [key: string]: any; // For additional props passed via {...$$restProps}
   }
@@ -20,8 +22,12 @@
   export let loading: boolean = false;
   export let type: Props['type'] = 'button';
   export let href: string | undefined = undefined;
+  export let hapticFeedback: boolean = true;
   let className: string = '';
   export { className as class };
+  
+  // Auto-adjust size for touch devices
+  $: effectiveSize = $isTouch && size === 'default' ? 'touch' : size;
   
   const variants = {
     default: 'bg-primary text-primary-foreground hover:opacity-90 focus-visible:ring-accent shadow-lg font-semibold',
@@ -38,23 +44,33 @@
     default: 'h-12 px-6 py-3',
     sm: 'h-10 px-4 py-2',
     lg: 'h-14 px-8 py-4',
-    icon: 'h-12 w-12'
+    icon: 'h-12 w-12',
+    touch: 'min-h-[44px] px-6 py-3' // iOS HIG recommended touch target
   };
+  
+  // Handle haptic feedback on touch devices
+  function handleClick(_e: Event) {
+    if (hapticFeedback && $isTouch && 'vibrate' in navigator) {
+      navigator.vibrate(10);
+    }
+  }
   
   $: buttonClass = twMerge(
     clsx(
-      'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-white transition-colors',
+      'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-white transition-all',
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
       'disabled:pointer-events-none disabled:opacity-50',
+      'active:scale-95 active:transition-transform', // Touch feedback
+      $isTouch && 'touch-manipulation', // Optimize for touch
       variants[variant!],
-      sizes[size!],
+      sizes[effectiveSize!],
       className
     )
   );
 </script>
 
 {#if href && !disabled}
-  <a {href} class={buttonClass} {...$$restProps}>
+  <a {href} class={buttonClass} on:click={handleClick} {...$$restProps}>
     {#if loading}
       <svg class="mr-2 h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -64,7 +80,7 @@
     <slot></slot>
   </a>
 {:else}
-  <button {type} {disabled} class={buttonClass} {...$$restProps}>
+  <button {type} {disabled} class={buttonClass} on:click={handleClick} {...$$restProps}>
     {#if loading}
       <svg class="mr-2 h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>

@@ -138,4 +138,105 @@
     @apply geometric-circle;
     opacity: 0.1;
   }
+  
+  /* Mobile and touch optimizations */
+  @media (hover: none) and (pointer: coarse) {
+    /* Touch device optimizations */
+    button, a, input, select, textarea {
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    
+    /* Ensure minimum touch target size (44x44px iOS HIG) */
+    button, a[role="button"], input[type="checkbox"], input[type="radio"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+  
+  /* Device-specific classes */
+  .device-mobile {
+    /* Mobile-specific overrides */
+    --radius: 0.5rem;
+  }
+  
+  .device-tablet {
+    /* Tablet-specific overrides */
+    --radius: 0.625rem;
+  }
+  
+  .touch-device {
+    /* Touch-specific optimizations */
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  .touch-device input,
+  .touch-device textarea {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  
+  /* PWA mode optimizations */
+  .pwa-mode {
+    /* Adjust for standalone mode */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* Responsive utilities */
+  @media (max-width: 640px) {
+    /* Hide on mobile */
+    .hide-mobile {
+      display: none !important;
+    }
+    
+    /* Stack on mobile */
+    .stack-mobile {
+      flex-direction: column !important;
+    }
+    
+    /* Full width on mobile */
+    .full-mobile {
+      width: 100% !important;
+    }
+  }
+  
+  @media (min-width: 641px) and (max-width: 1024px) {
+    /* Hide on tablet */
+    .hide-tablet {
+      display: none !important;
+    }
+  }
+  
+  @media (min-width: 1025px) {
+    /* Hide on desktop */
+    .hide-desktop {
+      display: none !important;
+    }
+  }
+  
+  /* Smooth scrolling for mobile */
+  .smooth-scroll {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+  
+  /* Prevent text selection on buttons and navigation */
+  .no-select {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Touch feedback */
+  .touch-feedback {
+    transition: transform 0.1s ease-out;
+  }
+  
+  .touch-feedback:active {
+    transform: scale(0.95);
+  }
 }

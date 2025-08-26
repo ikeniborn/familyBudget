@@ -125,7 +125,7 @@ export default defineConfig({
               return 'data-processing';
             }
             // Form and validation
-            if (id.includes('yup') || id.includes('zod') || id.includes('svelte-forms-lib')) {
+            if (id.includes('yup') || id.includes('zod')) {
               return 'forms';
             }
             // Date utilities

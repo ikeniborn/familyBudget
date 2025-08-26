@@ -12,7 +12,7 @@
 
   $: bodyClass = twMerge(
     clsx('[&_tr:last-child]:border-0', className)
-  ));
+  );
 </script>
 
 <tbody class={bodyClass} {...$$restProps}>
