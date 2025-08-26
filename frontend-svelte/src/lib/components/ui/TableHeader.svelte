@@ -2,7 +2,12 @@
   import { clsx } from 'clsx';
   import { twMerge } from 'tailwind-merge';
 
-  let className = '';
+  interface Props {
+    class?: string;
+    [key: string]: any;
+  }
+
+  let className: string = '';
   export { className as class };
 
   $: headerClass = twMerge(
@@ -11,5 +16,5 @@
 </script>
 
 <thead class={headerClass} {...$$restProps}>
-  <slot />
+  <slot></slot>
 </thead>

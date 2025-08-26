@@ -6,15 +6,16 @@ import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 import redis.asyncio as redis
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.db.database import engine, Base
-from app.core.session import SessionMiddleware
+from app.db.database import engine, Base, get_db
+from app.core.session import SessionMiddleware, get_current_user_from_session
 from app.api.v1.router import api_router
 
 
@@ -124,6 +125,28 @@ async def health_check():
                 "error": str(e)
             }
         )
+
+
+@app.get("/api/dashboard")
+async def dashboard_endpoint(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """Dashboard endpoint - proxies to /api/reports/dashboard-stats."""
+    from app.api.v1.endpoints.reports import get_dashboard_statistics
+    
+    # Get current user from session
+    user = await get_current_user_from_session(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    # Call the actual dashboard statistics function
+    return await get_dashboard_statistics(
+        request=request,
+        period_id=None,
+        db=db,
+        current_user=user
+    )
 
 
 # Global exception handler

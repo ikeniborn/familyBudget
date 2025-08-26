@@ -6,6 +6,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Family Budget is a web-based budget management system with multi-user support, Telegram authentication, and comprehensive financial tracking capabilities. The system separates planned vs actual expenses and provides detailed analytics.
 
+## Quick Command Reference
+
+```bash
+# Start development
+./scripts/dev.sh -d
+
+# Run frontend dev server (if already started)
+docker exec budget-frontend npm run dev
+
+# Check types before commit
+docker exec budget-frontend npm run check
+
+# View backend logs
+docker logs -f budget-backend --tail=100
+
+# Access database
+docker exec -it budget-postgres psql -U budget -d budgetdb
+
+# Full restart
+docker-compose down && docker-compose up -d
+```
+
 ## ⚠️ CRITICAL: Docker-Only Development
 
 **ALL operations MUST be performed through Docker containers:**
@@ -56,27 +78,32 @@ http://localhost:4000/docs  # API Documentation (Swagger)
 
 ```bash
 # Frontend development
-docker exec -it budget-frontend npm run dev        # Start dev server
-docker exec -it budget-frontend npm run build      # Production build
-docker exec -it budget-frontend npm run test       # Run tests
-docker exec -it budget-frontend npm run lint       # Lint code
-docker exec -it budget-frontend npm run check      # Type checking
+docker exec budget-frontend npm run dev           # Start dev server (port 5173)
+docker exec budget-frontend npm run build         # Production build
+docker exec budget-frontend npm run check         # Type checking (run this before commits)
+docker exec budget-frontend npm run test          # Run Vitest tests
+docker exec budget-frontend npm run test:ui       # Run tests with UI
+docker exec budget-frontend npm run test:coverage # Generate coverage report
 
 # Backend development (FastAPI)
-docker exec -it budget-backend uvicorn app.main:app --reload  # Dev server
-docker exec -it budget-backend python -m pytest              # Run tests
-docker exec -it budget-backend black app/                    # Format code
-docker exec -it budget-backend mypy app/                     # Type check
+docker exec budget-backend uvicorn app.main:app --reload --host 0.0.0.0 --port 4000
+docker exec budget-backend python -m pytest       # Run all tests
+docker exec budget-backend python -m pytest tests/test_auth.py  # Run specific test
+docker exec budget-backend black app/             # Format code
+docker exec budget-backend mypy app/              # Type check
+docker exec budget-backend alembic upgrade head   # Run migrations
+docker exec budget-backend alembic revision --autogenerate -m "Description"  # Create migration
 
 # Database operations
-docker exec -it budget-postgres psql -U budget -d budgetdb           # DB console
-docker exec -it budget-backend alembic upgrade head          # Run migrations
-./postgresql/backup/postgres-backup.sh                            # Manual backup
+docker exec -it budget-postgres psql -U budget -d budgetdb  # DB console
+docker exec budget-postgres pg_dump -U budget budgetdb > backup.sql  # Backup
+docker exec -i budget-postgres psql -U budget budgetdb < backup.sql  # Restore
 
 # Container management
-docker logs -f budget-backend     # View logs
-docker restart budget-backend     # Restart service
-docker exec -it budget-backend bash  # Shell access
+docker logs -f budget-backend --tail=100  # View recent logs
+docker-compose restart frontend backend   # Restart services
+docker exec -it budget-backend bash       # Shell access
+docker-compose down && docker-compose up -d  # Full restart
 ```
 
 ## Database Schema
@@ -157,9 +184,11 @@ backend-fastapi/
 
 ### Key Patterns
 - Async SQLAlchemy 2.0 for database operations
-- Session-based authentication (compatible with frontend)
+- Session-based authentication using Redis (express-session compatible)
 - Pydantic for request/response validation
 - Dependency injection for database sessions
+- All endpoints require user_id from session (except /auth routes)
+- Session cookies: `connect.sid` with httpOnly, sameSite='lax'
 
 ## Testing Strategy
 
@@ -233,30 +262,72 @@ Key variables in `.env`:
 
 ## Recent Updates
 
+### August 2025 - Svelte 5 Migration
+- **Svelte 5 Upgrade**: Migrated to Svelte 5.0.0 with partial runes syntax support
+- **Component Migration**: Core UI components updated to use `$props()`, `$state()`, `$derived()`
+- **Store Modernization**: All stores rewritten using classes with `$state()` for better reactivity
+- **Backward Compatibility**: Maintained full compatibility for gradual migration
+- **Known Issue**: Runes mode temporarily disabled due to lucide-svelte incompatibility
+
 ### August 2025 - Complete FastAPI Migration
 - **Node.js API Removal**: Completely removed frontend-api (Node.js/Express) in favor of FastAPI
 - **Single Backend**: FastAPI is now the only backend, eliminating dual-API complexity
-- **Unified Docker Configuration**: Single docker-compose.yaml file for all environments
-- **Simplified Development**: Single dev.sh script instead of multiple deployment scripts
 - **SQLAlchemy Migration**: Full migration from Prisma ORM to SQLAlchemy 2.0 with async support
 - **Performance Improvements**: 2-3x faster API responses compared to Node.js implementation
-- **Enhanced Documentation**: Comprehensive Swagger/OpenAPI documentation at `/docs`
 
-### Architecture Improvements
-- **Single Stack**: SvelteKit frontend + FastAPI backend only
-- **Unified TypeScript types**: Shared between frontend and backend schemas
-- **Centralized store exports**: Enhanced referenceData store functionality
-- **Optimized imports**: Streamlined module structure
+## Svelte 5 Migration Status
+
+### Migrated Components (Using Runes Syntax)
+- UI Components: Button, Input, Card, Badge, Modal, Alert - use `$props()` and `$derived()`
+- Auth Components: PasswordLogin - uses `$state()` for reactive variables
+- Stores: auth.store, toast.store, referenceData.store - class-based with `$state()`
+
+### Migration Patterns
+```typescript
+// Old: export let prop
+interface Props { value: string; }
+let { value }: Props = $props();
+
+// Old: let variable = value
+let count = $state(0);
+
+// Old: $: derived = value * 2  
+let doubled = $derived(count * 2);
+
+// Old: on:click={handler}
+<button onclick={handler}>
+
+// Old: <slot />
+{@render children?.()}
+```
+
+## Critical Architecture Decisions
+
+### Session Management
+- Redis stores sessions with express-session format for compatibility
+- Session ID in `connect.sid` cookie, data in Redis key `sess:{sessionId}`
+- User ID stored in `session.user.id` (number), not `session.userId`
+- Session secret must match between frontend and backend
+
+### Data Isolation
+- **CRITICAL**: All database queries MUST filter by `user_id`
+- Never expose data from other users
+- Use SQLAlchemy filters: `.filter(Model.user_id == current_user.id)`
+
+### API Response Format
+- Success: `{ success: true, data: {...} }`
+- Error: `{ success: false, error: "message" }`
+- Lists: `{ success: true, data: [...], total: number }`
 
 ## Troubleshooting
 
 ### Common Issues & Solutions
 
-1. **404 on user registration**: Ensure `/api/auth/register` endpoint exists
-2. **Type mismatch errors**: Check SQLAlchemy model types match database schema
-3. **Container not starting**: Check logs with `docker logs <container>`
-4. **Database connection failed**: Verify credentials in `.env`
-5. **Frontend blank page**: Check browser console and API connectivity
+1. **Session not persisting**: Check Redis connection and SESSION_SECRET match
+2. **404 on API calls**: Ensure `/api` prefix and check CORS_ORIGINS
+3. **Type mismatch errors**: SQLAlchemy BigInteger for telegram_id, Integer for user_id
+4. **Svelte component errors**: Check if using old syntax with runes mode
+5. **Docker port conflicts**: Stop other services or change ports in .env
 
 ### Debug Commands
 ```bash

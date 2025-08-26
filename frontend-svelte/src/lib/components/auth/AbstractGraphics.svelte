@@ -61,8 +61,8 @@
       <div
         class="icon-area {hoveredIcon === area.id ? 'hovered' : ''}"
         style="left: {area.x}%; top: {area.y}%; width: {area.width}%; height: {area.height}%;"
-        on:mouseenter={() => handleIconHover(area.id)}
-        on:mouseleave={handleIconLeave}
+        onmouseenter={() => handleIconHover(area.id)}
+        onmouseleave={handleIconLeave}
         title={area.title}
         role="button"
         tabindex="0"

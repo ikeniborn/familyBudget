@@ -1,8 +1,15 @@
 <script lang="ts">
   import { clsx } from 'clsx';
 
-  export let size: 'small' | 'medium' | 'large' = 'medium';
-  export let color: 'primary' | 'white' = 'primary';
+  interface Props {
+    size?: 'small' | 'medium' | 'large';
+    color?: 'primary' | 'white';
+    fullScreen?: boolean;
+    text?: string;
+  }
+
+  export let size: Props['size'] = 'medium';
+  export let color: Props['color'] = 'primary';
   export let fullScreen: boolean = false;
   export let text: string | undefined = undefined;
 

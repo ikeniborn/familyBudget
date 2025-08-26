@@ -70,12 +70,12 @@ export interface ImportResult {
 class ProductService {
   // Получить все продукты
   async getAll(): Promise<Product[]> {
-    return api.get<Product[]>('/products');
+    return api.get<Product[]>('/products/');
   }
 
   // Получить продукты с фильтрами
   async getWithFilters(filters: ProductFilters): Promise<Product[]> {
-    return api.get<Product[]>('/products', { params: filters });
+    return api.get<Product[]>('/products/', { params: filters });
   }
 
   // Получить продукты с пагинацией
@@ -84,7 +84,7 @@ class ProductService {
     pageSize?: number;
     filters?: ProductFilters;
   }): Promise<PaginatedResponse<Product>> {
-    return api.get<PaginatedResponse<Product>>('/products', { params });
+    return api.get<PaginatedResponse<Product>>('/products/', { params });
   }
 
   async getById(id: number): Promise<Product> {
@@ -92,7 +92,7 @@ class ProductService {
   }
 
   async create(data: CreateProductData): Promise<Product> {
-    return api.post<Product>('/products', data);
+    return api.post<Product>('/products/', data);
   }
 
   async update(id: number, data: UpdateProductData): Promise<Product> {
@@ -104,7 +104,7 @@ class ProductService {
   }
 
   async deleteBulk(ids: number[]): Promise<void> {
-    await api.post('/products/bulk-delete', { ids });
+    await api.post('/products/bulk-delete/', { ids });
   }
 
   // Получить активные продукты
@@ -119,7 +119,7 @@ class ProductService {
 
   // Получить категории
   async getCategories(): Promise<string[]> {
-    return api.get<string[]>('/products/categories');
+    return api.get<string[]>('/products/categories/');
   }
 
   // Получить цены продукта
@@ -139,14 +139,14 @@ class ProductService {
 
   // Product-nomenclature linking
   async linkToNomenclature(productId: number, nomenclatureId: number): Promise<void> {
-    await api.post('/products/link-nomenclature', {
+    await api.post('/products/link-nomenclature/', {
       product_id: productId,
       nomenclature_id: nomenclatureId
     });
   }
 
   async unlinkFromNomenclature(productId: number, nomenclatureId: number): Promise<void> {
-    await api.delete('/products/unlink-nomenclature', {
+    await api.delete('/products/unlink-nomenclature/', {
       data: {
         product_id: productId,
         nomenclature_id: nomenclatureId
@@ -155,7 +155,7 @@ class ProductService {
   }
 
   async getLinkedNomenclatures(productId: number): Promise<any[]> {
-    return api.get(`/products/${productId}/nomenclatures`);
+    return api.get(`/products/${productId}/nomenclatures/`);
   }
 
   // Analytics
@@ -176,14 +176,14 @@ class ProductService {
       percentage: number;
     }>;
   }> {
-    return api.get('/products/analytics', { params });
+    return api.get('/products/analytics/', { params });
   }
 
   // Импорт продуктов из CSV
   async importFromCsv(file: File): Promise<{ imported: number; errors: string[] }> {
     const formData = new FormData();
     formData.append('file', file);
-    return api.post('/products/import/csv', formData, {
+    return api.post('/products/import/csv/', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -194,7 +194,7 @@ class ProductService {
   async importFromExcel(file: File): Promise<{ imported: number; errors: string[] }> {
     const formData = new FormData();
     formData.append('file', file);
-    return api.post('/products/import/excel', formData, {
+    return api.post('/products/import/excel/', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -211,13 +211,13 @@ class ProductService {
 
   // Search and categorization
   async search(query: string): Promise<Product[]> {
-    return api.get<Product[]>('/products/search', {
+    return api.get<Product[]>('/products/search/', {
       params: { q: query }
     });
   }
 
   async getUnits(): Promise<string[]> {
-    return api.get<string[]>('/products/units');
+    return api.get<string[]>('/products/units/');
   }
 
   // Bulk operations
@@ -225,7 +225,7 @@ class ProductService {
     product_id: number;
     data: UpdateProductData;
   }>): Promise<Product[]> {
-    return api.post<Product[]>('/products/bulk-update', { updates });
+    return api.post<Product[]>('/products/bulk-update/', { updates });
   }
 }
 

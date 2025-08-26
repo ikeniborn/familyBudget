@@ -1,7 +1,5 @@
 <script lang="ts">
   import SimpleDataTable from '$lib/components/ui/SimpleDataTable.svelte';
-  import { createEventDispatcher } from 'svelte';
-
   type T = $$Generic;
 
   interface Column<T> {
@@ -12,25 +10,34 @@
     width?: string;
   }
 
-  const dispatch = createEventDispatcher<{
-    rowClick: T;
-    cellClick: { item: T; column: Column<T> };
-  }>();
-  
-  export let data: T[];
-  export let columns: Column<T>[];
-  export let searchPlaceholder = 'Поиск...';
-  export let pageSize = 10;
-  export let showPagination = true;
-  export let showSearch = true;
-  export let searchKeys: (keyof T)[] = [];
-
-  function handleRowClick(event: CustomEvent<T>) {
-    dispatch('rowClick', event.detail);
+  interface Props<T> {
+    data: T[];
+    columns: Column<T>[];
+    searchPlaceholder?: string;
+    pageSize?: number;
+    showPagination?: boolean;
+    showSearch?: boolean;
+    searchKeys?: (keyof T)[];
+    onrowclick?: (item: T) => void;
+    oncellclick?: (event: { item: T; column: Column<T> }) => void;
   }
 
-  function handleCellClick(event: CustomEvent<{ item: T; column: Column<T> }>) {
-    dispatch('cellClick', event.detail);
+  export let data: T[];
+  export let columns: Column<T>[];
+  export let searchPlaceholder: string = 'Поиск...';
+  export let pageSize: number = 10;
+  export let showPagination: boolean = true;
+  export let showSearch: boolean = true;
+  export let searchKeys: (keyof T)[] = [];
+  export let onrowclick: ((item: T) => void) | undefined = undefined;
+  export let oncellclick: ((event: { item: T; column: Column<T> }) => void) | undefined = undefined;
+
+  function handleRowClick(item: T) {
+    onrowclick?.(item);
+  }
+
+  function handleCellClick(event: { item: T; column: Column<T> }) {
+    oncellclick?.(event);
   }
 </script>
 
@@ -42,6 +49,6 @@
   {showPagination}
   {showSearch}
   {searchKeys}
-  on:rowClick={handleRowClick}
-  on:cellClick={handleCellClick}
+  onrowclick={(event) => handleRowClick(event.detail)}
+  oncellclick={(event) => handleCellClick(event.detail)}
 />

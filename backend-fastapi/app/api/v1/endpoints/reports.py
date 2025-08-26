@@ -346,6 +346,181 @@ async def get_dashboard_statistics(
     }
 
 
+@router.get("/plan-fact")
+async def get_plan_fact_report(
+    request: Request,
+    report_type: str = "plan_fact",
+    period_id: Optional[int] = None,
+    financial_center_id: Optional[int] = None,
+    cost_center_id: Optional[int] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_auth)
+):
+    """Get plan vs fact report (alias for budget-vs-actual)."""
+    # This is an alias endpoint for compatibility
+    return await get_budget_vs_actual_report(
+        request=request,
+        period_id=period_id,
+        financial_center_id=financial_center_id,
+        cost_center_id=cost_center_id,
+        db=db,
+        current_user=current_user
+    )
+
+
+@router.get("/budget")
+async def get_budget_report(
+    request: Request,
+    report_type: str = "budget",
+    period_id: Optional[int] = None,
+    financial_center_id: Optional[int] = None,
+    cost_center_id: Optional[int] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_auth)
+):
+    """Get budget report (alias for budget-vs-actual)."""
+    # This is an alias endpoint for compatibility
+    return await get_budget_vs_actual_report(
+        request=request,
+        period_id=period_id,
+        financial_center_id=financial_center_id,
+        cost_center_id=cost_center_id,
+        db=db,
+        current_user=current_user
+    )
+
+
+@router.get("/analytics")
+async def get_analytics_data(
+    request: Request,
+    report_type: str = "analytics",
+    period_id: Optional[int] = None,
+    financial_center_id: Optional[int] = None,
+    cost_center_id: Optional[int] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_auth)
+):
+    """Get analytics data for charts."""
+    
+    # Get category analysis
+    categories_data = await get_category_analysis_report(
+        request=request,
+        period_id=period_id,
+        financial_center_id=financial_center_id,
+        cost_center_id=cost_center_id,
+        db=db,
+        current_user=current_user
+    )
+    
+    # Get spending trends
+    trends_data = await get_spending_trends(
+        request=request,
+        months=6,
+        db=db,
+        current_user=current_user
+    )
+    
+    # Format response
+    categories = [
+        {"name": cat.nomenclature_name, "value": cat.actual_amount}
+        for cat in categories_data
+    ]
+    
+    trends = [
+        {
+            "date": trend["period_name"],
+            "plan": trend["budget_amount"],
+            "fact": trend["actual_amount"]
+        }
+        for trend in trends_data["trends"]
+    ]
+    
+    variance = [
+        {
+            "category": cat.nomenclature_name,
+            "value": cat.variance,
+            "percent": cat.variance_percent or 0
+        }
+        for cat in categories_data
+    ]
+    
+    return {
+        "categories": categories,
+        "trends": trends,
+        "variance": variance
+    }
+
+
+@router.get("/dashboard")
+async def get_dashboard_data(
+    request: Request,
+    period_id: Optional[int] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_auth)
+):
+    """Get dashboard data for current user."""
+    
+    # Get dashboard statistics
+    stats = await get_dashboard_statistics(
+        request=request,
+        period_id=period_id,
+        db=db,
+        current_user=current_user
+    )
+    
+    # Get top categories
+    category_analysis = await get_category_analysis_report(
+        request=request,
+        period_id=period_id,
+        db=db,
+        current_user=current_user
+    )
+    
+    # Sort by actual amount and take top 5
+    top_categories = sorted(category_analysis, key=lambda x: x.actual_amount, reverse=True)[:5]
+    
+    total_top_amount = sum(cat.actual_amount for cat in top_categories)
+    
+    return {
+        "total_income": stats["total_budget"],
+        "total_expense": stats["total_actual"],
+        "budget_utilization": (stats["total_actual"] / stats["total_budget"] * 100) if stats["total_budget"] > 0 else 0,
+        "top_categories": [
+            {
+                "category": cat.nomenclature_name,
+                "amount": cat.actual_amount,
+                "percentage": (cat.actual_amount / total_top_amount * 100) if total_top_amount > 0 else 0
+            }
+            for cat in top_categories
+        ]
+    }
+
+
+@router.get("/period-stats")
+async def get_period_stats(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_auth)
+):
+    """Get period statistics for current user."""
+    
+    summary_data = await get_period_summary_report(
+        request=request,
+        db=db,
+        current_user=current_user
+    )
+    
+    return [
+        {
+            "period_name": period.period_name,
+            "total_budget": period.total_budget,
+            "total_fact": period.total_actual,
+            "utilization_percent": (period.total_actual / period.total_budget * 100) if period.total_budget > 0 else 0
+        }
+        for period in summary_data
+    ]
+
+
 @router.get("/spending-trends")
 async def get_spending_trends(
     request: Request,

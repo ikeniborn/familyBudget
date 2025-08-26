@@ -2,7 +2,12 @@
   import { clsx } from 'clsx';
   import { twMerge } from 'tailwind-merge';
 
-  let className = '';
+  interface Props {
+    class?: string;
+    [key: string]: any;
+  }
+
+  let className: string = '';
   export { className as class };
 
   $: headClass = twMerge(
@@ -10,9 +15,9 @@
       'h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0',
       className
     )
-  );
+  ));
 </script>
 
 <th class={headClass} {...$$restProps}>
-  <slot />
+  <slot></slot>
 </th>

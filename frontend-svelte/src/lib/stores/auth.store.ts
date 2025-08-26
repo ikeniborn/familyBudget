@@ -1,5 +1,5 @@
-import { writable, derived } from 'svelte/store';
 import { browser } from '$app/environment';
+import { writable, derived } from 'svelte/store';
 import type { User } from '$types';
 import { authService } from '$lib/services/auth.service';
 import api from '$lib/services/api';
@@ -52,172 +52,208 @@ function storeAuth(state: AuthState) {
   }
 }
 
-function createAuthStore() {
+function getInitialState(): AuthState {
   const storedState = getStoredAuth();
-  const initialState: AuthState = storedState || {
+  return storedState || {
     user: null,
     isAuthenticated: false,
     isLoading: false,
     error: null
   };
+}
 
-  const { subscribe, set, update } = writable<AuthState>(initialState);
+// Create the main writable store
+const { subscribe, set, update } = writable<AuthState>(getInitialState());
 
-  // Store changes to localStorage
-  let currentState = initialState;
-  subscribe(state => {
-    currentState = state;
+// Auto-save to localStorage when state changes
+let initialized = false;
+subscribe((state) => {
+  if (initialized) {
     storeAuth(state);
-  });
+  } else {
+    initialized = true;
+  }
+});
 
-  return {
-    subscribe,
-    
-    async login(telegramData: any): Promise<void> {
-      update(state => ({ ...state, isLoading: true, error: null }));
-      try {
-        const response = await api.post('/auth/telegram', telegramData);
-        const data = response.data;
-        
-        if (data.success && data.user) {
-          const newState: AuthState = {
-            user: { ...data.user, authMethod: 'telegram' as const },
-            isAuthenticated: true,
-            isLoading: false,
-            error: null
-          };
-          set(newState);
-        } else {
-          throw new Error('Authentication failed');
-        }
-      } catch (error: any) {
-        const errorMessage = error.message || 'Login failed';
+// Authentication methods
+const authStore = {
+  subscribe,
+  
+  // Get current user
+  getUser(): AuthUser | null {
+    let currentUser: AuthUser | null = null;
+    const unsubscribe = subscribe(state => {
+      currentUser = state.user;
+    });
+    unsubscribe();
+    return currentUser;
+  },
+  
+  // Authentication methods
+  async login(telegramData: any): Promise<void> {
+    update(state => ({ ...state, isLoading: true, error: null }));
+    try {
+      const response = await api.post('/auth/telegram', telegramData);
+      const data = response.data;
+      
+      if (data.success && data.user) {
         update(state => ({
           ...state,
-          isLoading: false,
-          error: errorMessage,
-          isAuthenticated: false
-        }));
-        throw error;
-      }
-    },
-
-    async loginWithTelegramOAuth(authData: TelegramAuthData): Promise<void> {
-      update(state => ({ ...state, isLoading: true, error: null }));
-      try {
-        const response = await authService.loginWithTelegramOAuth(authData);
-        const newState: AuthState = {
-          user: { ...response.user, authMethod: 'telegram' as const },
+          user: { ...data.user, authMethod: 'telegram' as const },
           isAuthenticated: true,
           isLoading: false,
           error: null
-        };
-        set(newState);
-      } catch (error: any) {
-        const errorMessage = error.message || 'OAuth login failed';
-        update(state => ({
-          ...state,
-          isLoading: false,
-          error: errorMessage,
-          isAuthenticated: false
         }));
-        throw error;
+      } else {
+        throw new Error('Authentication failed');
       }
-    },
+    } catch (error: any) {
+      const errorMessage = error.message || 'Login failed';
+      update(state => ({
+        ...state,
+        isLoading: false,
+        error: errorMessage,
+        isAuthenticated: false
+      }));
+      throw error;
+    }
+  },
 
-    async logout(): Promise<void> {
-      update(state => ({ ...state, isLoading: true }));
-      try {
-        await api.post('/auth/logout');
-      } catch (error) {
-        console.error('Logout error:', error);
-        // Even if logout fails, clear local state
-      } finally {
-        const newState: AuthState = {
-          user: null,
-          isAuthenticated: false,
-          isLoading: false,
-          error: null
-        };
-        set(newState);
-      }
-    },
-
-    async checkAuth(): Promise<void> {
-      update(state => ({ ...state, isLoading: true }));
-      try {
-        const response = await api.get('/auth/me');
-        if (response.data && response.data.user) {
-          const newState: AuthState = {
-            user: response.data.user,
-            isAuthenticated: true,
-            isLoading: false,
-            error: null
-          };
-          set(newState);
-        } else {
-          const newState: AuthState = {
-            user: null,
-            isAuthenticated: false,
-            isLoading: false,
-            error: null
-          };
-          set(newState);
-        }
-      } catch (error: any) {
-        // 401 errors are expected when user is not authenticated - don't log or show errors
-        if (error?.response?.status !== 401) {
-          console.warn('Unexpected error during auth check:', error);
-        }
-        
-        const newState: AuthState = {
-          user: null,
-          isAuthenticated: false,
-          isLoading: false,
-          error: null
-        };
-        set(newState);
-      }
-    },
-
-    setUser(user: AuthUser): void {
-      const newState: AuthState = {
-        user,
+  async loginWithTelegramOAuth(authData: TelegramAuthData): Promise<void> {
+    update(state => ({ ...state, isLoading: true, error: null }));
+    try {
+      const response = await authService.loginWithTelegramOAuth(authData);
+      update(state => ({
+        ...state,
+        user: { ...response.user, authMethod: 'telegram' as const },
         isAuthenticated: true,
         isLoading: false,
         error: null
-      };
-      set(newState);
-    },
-
-    clearError(): void {
-      update(state => ({ ...state, error: null }));
+      }));
+    } catch (error: any) {
+      const errorMessage = error.message || 'OAuth login failed';
+      update(state => ({
+        ...state,
+        isLoading: false,
+        error: errorMessage,
+        isAuthenticated: false
+      }));
+      throw error;
     }
+  },
+
+  async logout(): Promise<void> {
+    update(state => ({ ...state, isLoading: true }));
+    try {
+      await api.post('/auth/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Even if logout fails, clear local state
+    } finally {
+      set({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: null
+      });
+    }
+  },
+
+  async checkAuth(): Promise<void> {
+    update(state => ({ ...state, isLoading: true }));
+    try {
+      const response = await api.get('/auth/me');
+      if (response.data && response.data.user) {
+        update(state => ({
+          ...state,
+          user: response.data.user,
+          isAuthenticated: true,
+          isLoading: false,
+          error: null
+        }));
+      } else {
+        update(state => ({
+          ...state,
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: null
+        }));
+      }
+    } catch (error: any) {
+      // 401 errors are expected when user is not authenticated - don't log or show errors
+      if (error?.response?.status !== 401) {
+        console.warn('Unexpected error during auth check:', error);
+      }
+      
+      update(state => ({
+        ...state,
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: null
+      }));
+    }
+  },
+
+  setUser(user: AuthUser): void {
+    update(state => ({
+      ...state,
+      user,
+      isAuthenticated: true,
+      isLoading: false,
+      error: null
+    }));
+  },
+
+  clearError(): void {
+    update(state => ({ ...state, error: null }));
+  }
+};
+
+// Export individual derived stores for convenience
+export const currentUser = derived(authStore, ($auth) => $auth.user);
+export const isAuthenticated = derived(authStore, ($auth) => $auth.isAuthenticated);
+export const isAuthLoading = derived(authStore, ($auth) => $auth.isLoading);
+export const authError = derived(authStore, ($auth) => $auth.error);
+
+// Export alias for compatibility  
+export const setCurrentUser = (user: AuthUser) => authStore.setUser(user);
+
+// Additional helper functions for components
+export function useAuth() {
+  let currentState: AuthState;
+  const unsubscribe = authStore.subscribe(state => {
+    currentState = state;
+  });
+  
+  return {
+    get user() { return currentState.user; },
+    get isAuthenticated() { return currentState.isAuthenticated; },
+    get isLoading() { return currentState.isLoading; },
+    get error() { return currentState.error; },
+    login: (telegramData: any) => authStore.login(telegramData),
+    loginWithTelegramOAuth: (authData: TelegramAuthData) => authStore.loginWithTelegramOAuth(authData),
+    logout: () => authStore.logout(),
+    checkAuth: () => authStore.checkAuth(),
+    setUser: (user: AuthUser) => authStore.setUser(user),
+    clearError: () => authStore.clearError(),
+    destroy: () => unsubscribe()
   };
 }
 
-export const authStore = createAuthStore();
+// Legacy exports for backward compatibility with existing components
+export { authStore as default };
 
-// Derived stores for easy access
-export const currentUser = derived(
-  authStore,
-  $authStore => $authStore.user
-);
+// Export the store instance with legacy methods for gradual migration
+export const authStoreCompat = {
+  subscribe: authStore.subscribe,
+  login: authStore.login,
+  loginWithTelegramOAuth: authStore.loginWithTelegramOAuth,
+  logout: authStore.logout,
+  checkAuth: authStore.checkAuth,
+  setUser: authStore.setUser,
+  clearError: authStore.clearError
+};
 
-export const isAuthenticated = derived(
-  authStore,
-  $authStore => $authStore.isAuthenticated
-);
-
-export const isAuthLoading = derived(
-  authStore,
-  $authStore => $authStore.isLoading
-);
-
-export const authError = derived(
-  authStore,
-  $authStore => $authStore.error
-);
-
-// Export alias for compatibility  
-export const setCurrentUser = authStore.setUser;
+export { authStore };

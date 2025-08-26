@@ -1,19 +1,18 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { onDestroy } from 'svelte';
   import { X } from 'lucide-svelte';
   import Button from './Button.svelte';
 
-  export let open = false;
-  export let title = '';
-  export let description = '';
-  export let showCloseButton = true;
 
-  const dispatch = createEventDispatcher<{
-    close: void;
-  }>();
+  export let open: boolean = false;
+  export let title: string = '';
+  export let description: string = '';
+  export let showCloseButton: boolean = true;
+  export let onclose: (() => void) | undefined = undefined;
 
   let modalElement: HTMLDialogElement;
 
+  // Reactive statement to handle modal open/close
   $: if (modalElement) {
     if (open) {
       modalElement.showModal();
@@ -24,8 +23,14 @@
     }
   }
 
+  // Cleanup on destroy
+  onDestroy(() => {
+    document.body.style.overflow = 'auto';
+  });
+
   function handleClose() {
-    dispatch('close');
+    open = false;
+    onclose?.();
   }
 
   function handleBackdropClick(event: MouseEvent) {
@@ -39,20 +44,15 @@
       handleClose();
     }
   }
-
-  onMount(() => {
-    return () => {
-      document.body.style.overflow = 'auto';
-    };
-  });
 </script>
 
-<!-- svelte-ignore a11y-click-events-have-key-events -->
+<!-- svelte-ignore a11y_click_events_have_key_events -->
 <dialog
   bind:this={modalElement}
   class="modal backdrop:bg-black/50 backdrop:backdrop-blur-sm"
-  on:click={handleBackdropClick}
-  on:keydown={handleKeydown}
+  onclick={handleBackdropClick}
+  onkeydown={handleKeydown}
+  {...$$restProps}
 >
   <div class="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-hidden">
     <!-- Header -->
@@ -67,7 +67,7 @@
           {/if}
         </div>
         {#if showCloseButton}
-          <Button variant="ghost" size="sm" on:click={handleClose}>
+          <Button variant="ghost" size="sm" onclick={handleClose}>
             <X class="h-4 w-4" />
           </Button>
         {/if}
@@ -76,15 +76,13 @@
 
     <!-- Content -->
     <div class="p-6 overflow-y-auto">
-      <slot />
+      <slot></slot>
     </div>
 
     <!-- Footer -->
-    {#if $$slots.footer}
-      <div class="flex justify-end gap-2 p-6 border-t bg-gray-50">
-        <slot name="footer" />
-      </div>
-    {/if}
+    <div class="flex justify-end gap-2 p-6 border-t bg-gray-50">
+      <slot name="footer"></slot>
+    </div>
   </div>
 </dialog>
 

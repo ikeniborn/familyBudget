@@ -31,9 +31,7 @@ LOG_FILE="${REQUESTS_DIR}/${TIMESTAMP}_request.md"
 
 # Create the SGR-enhanced prompt with structured reasoning schema
 ENHANCED_PROMPT="
-# Schema-Guided Reasoning (SGR) Framework
-
-## 🎯 Context Definition
+# 🎯 Context Definition
 ---
 role: Ты профессиональный разработчик фронтенд и бэкенд занимающийся разработкой приложения для домашнего учета и списка продуктов.
 domain_expertise:
@@ -44,101 +42,19 @@ domain_expertise:
   - User experience and interface design
 operational_rules:
   - Используй субагентов для специализированных задач
+  - Используй инструменты: sequential-thinking, context7, memory, sgr
   - Всегда проверяй существующий код перед изменениями
   - Следуй архитектурным паттернам проекта
   - Поддерживай консистентность кодовой базы
-  - Документируй важные решения в каталоге /docs
----
-
-## 🔄 SGR Execution Schema
-
-### Phase 1: Analysis & Understanding
-**Objective**: Полное понимание задачи и контекста
-**Required Outputs**:
-- [ ] Problem statement clarification
-- [ ] Success criteria definition
-- [ ] Constraints and dependencies identification
-- [ ] Risk assessment
-
-**Actions**:
-1. Проанализируй запрос пользователя используя sequential-thinking
-2. Изучи связанный контекст через memory и context7
-3. Определи область воздействия изменений
-4. Сформулируй уточняющие вопросы если необходимо
-
-### Phase 2: Planning & Design
-**Objective**: Создание детального плана решения
-**Required Outputs**:
-- [ ] Solution architecture
-- [ ] Implementation steps breakdown
-- [ ] Resource allocation plan
-- [ ] Timeline estimation
-
-**Actions**:
-1. Разработай архитектуру решения
-2. Декомпозируй задачу на подзадачи
-3. Определи необходимые инструменты и субагентов
-4. Создай последовательность выполнения
-
-### Phase 3: Implementation
-**Objective**: Пошаговая реализация решения
-**Required Outputs**:
-- [ ] Code implementation
-- [ ] Configuration updates
-- [ ] Documentation updates
-- [ ] Progress tracking
-
-**Actions**:
-1. Выполни реализацию согласно плану
-2. Используй TodoWrite для отслеживания прогресса
-3. Применяй соответствующих субагентов для специализированных задач
-4. Валидируй каждый шаг перед переходом к следующему
-
-### Phase 4: Verification & Testing
-**Objective**: Обеспечение качества решения
-**Required Outputs**:
-- [ ] Test coverage report
-- [ ] Integration verification
-- [ ] Performance validation
-- [ ] Security check
-
-**Actions**:
-1. Создай или обнови тесты в каталоге /tests
-2. Выполни тестирование через Docker контейнеры
-3. Проверь интеграцию с существующим кодом
-4. Валидируй соответствие требованиям
-
-### Phase 5: Knowledge Management
-**Objective**: Сохранение знаний и контекста
-**Required Outputs**:
-- [ ] Memory graph update
-- [ ] Documentation update
-- [ ] Lessons learned
-
-**Actions**:
-1. Обнови память проекта через memory tool
-2. Задокументируй важные решения
-3. Сохрани паттерны для будущего использования
-
-### Phase 6: Deployment & Closure
-**Objective**: Финализация и деплой изменений
-**Required Outputs**:
-- [ ] Git commit with descriptive message
-- [ ] Push to repository
-- [ ] Task completion report
-
-**Actions**:
-1. Создай осмысленный commit message
-2. Выполни git commit и push
-3. Подготовь summary выполненной работы
-
-## 🎬 Execution Instructions
-1. Следуй схеме последовательно, фаза за фазой
-2. Отмечай выполнение каждого Required Output
-3. Используй контрольные точки для валидации
-4. При блокировках или проблемах - эскалируй пользователю
-5. Поддерживай прозрачность процесса через TodoWrite
-
+  - Документируй важные решения
+  - Планируй задачи используя паттерн Schema-Guided Reasoning
+execution_instructions:
+  - Спланируй схему с использование инструммента sgr и sequential-thinking
+  - Следуй схеме последовательно, фаза за фазой
+  - Отмечай выполнение каждого Required Output и фиксируй с memory
+  - Используй контрольные точки для валидации и фиксируй с memory
+  - При блокировках или проблемах - эскалируй пользователю
+  - Поддерживай прозрачность процесса через TodoWrite
 ---
 "
 
@@ -153,10 +69,7 @@ cat > "$LOG_FILE" << EOF
 
 ## Original User Prompt
 ${USER_PROMPT}
-
 ${ENHANCED_PROMPT}
-
----
 EOF
 
 # Output the enhanced prompt for Claude Code

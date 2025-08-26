@@ -4,6 +4,15 @@
   import { clsx } from 'clsx';
   import type { ToastType } from '$lib/stores/toast.store';
 
+  interface Props {
+    id: string;
+    type: ToastType;
+    title: string;
+    message?: string;
+    duration?: number;
+    onClose: (id: string) => void;
+  }
+
   export let id: string;
   export let type: ToastType;
   export let title: string;
@@ -87,7 +96,7 @@
             'inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 hover:bg-black hover:bg-opacity-5',
             style.title
           )}
-          on:click={handleClose}
+          onclick={handleClose}
         >
           <span class="sr-only">Закрыть</span>
           <X class="h-5 w-5" />

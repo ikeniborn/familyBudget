@@ -4,7 +4,7 @@
   import { page } from '$app/stores';
   import { isAuthenticated, isAuthLoading, authStore } from '$lib/stores/auth.store';
 
-  export let redirectTo = '/login';
+  export let redirectTo: string = '/login';
 
   let mounted = false;
 
@@ -17,12 +17,10 @@
   });
 
   // Reactive statement to handle authentication redirects
-  $: {
-    if (mounted && !$isAuthLoading && !$isAuthenticated) {
-      // Save the attempted location and redirect to login
-      const returnUrl = $page.url.pathname + $page.url.search;
-      goto(`${redirectTo}?returnUrl=${encodeURIComponent(returnUrl)}`);
-    }
+  $: if (mounted && !$isAuthLoading && !$isAuthenticated) {
+    // Save the attempted location and redirect to login
+    const returnUrl = $page.url.pathname + $page.url.search;
+    goto(`${redirectTo}?returnUrl=${encodeURIComponent(returnUrl)}`);
   }
 </script>
 

@@ -1,18 +1,11 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { errorStore } from '$lib/stores/error.store';
   import Card from '$lib/components/ui/Card.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import { AlertTriangle, RefreshCw } from 'lucide-svelte';
 
-  interface Props {
-    children?: import('svelte').Snippet;
-    fallback?: import('svelte').Snippet<[any]>;
-  }
-  
-  let { children, fallback }: Props = $props();
-
-  let showDetails = $state(false);
+  let showDetails = false;
 
   function handleReset() {
     errorStore.clearError();
@@ -30,13 +23,20 @@
   // Auto-clear errors after 30 seconds
   let timer: number | undefined;
   
-  $effect(() => {
-    if ($errorStore && !timer) {
-      timer = setTimeout(() => {
-        errorStore.clearError();
-        timer = undefined;
-      }, 30000);
-    } else if (!$errorStore && timer) {
+  // Reactive statement to handle timer management
+  $: if ($errorStore && !timer) {
+    timer = setTimeout(() => {
+      errorStore.clearError();
+      timer = undefined;
+    }, 30000);
+  } else if (!$errorStore && timer) {
+    clearTimeout(timer);
+    timer = undefined;
+  }
+
+  // Cleanup timer on destroy
+  onDestroy(() => {
+    if (timer) {
       clearTimeout(timer);
       timer = undefined;
     }
@@ -44,8 +44,8 @@
 </script>
 
 {#if $errorStore}
-  {#if fallback}
-    {@render fallback($errorStore)}
+  {#if $$slots.fallback}
+    <slot name="fallback" error={$errorStore}></slot>
   {:else}
     <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
       <Card class="max-w-md w-full p-6">
@@ -78,7 +78,7 @@
               <Button
                 variant="outline"
                 size="sm"
-                on:click={toggleDetails}
+                onclick={toggleDetails}
                 class="w-full mb-2"
               >
                 {showDetails ? 'Скрыть' : 'Показать'} подробности
@@ -97,14 +97,14 @@
           <div class="flex space-x-2">
             <Button
               variant="outline"
-              on:click={handleRetry}
+              onclick={handleRetry}
               class="flex-1"
             >
               Повторить
             </Button>
             
             <Button
-              on:click={handleReset}
+              onclick={handleReset}
               class="flex-1"
             >
               <RefreshCw class="h-4 w-4 mr-2" />
@@ -116,5 +116,5 @@
     </div>
   {/if}
 {:else}
-  {@render children?.()}
+  <slot></slot>
 {/if}

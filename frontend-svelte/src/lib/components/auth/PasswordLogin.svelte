@@ -7,7 +7,6 @@
   import Input from '$lib/components/ui/Input.svelte';
   import type { User } from '$types';
 
-
   let username = '';
   let password = '';
   let confirmPassword = '';
@@ -94,7 +93,8 @@
     }
   }
   
-  function handleSubmit() {
+  function handleSubmit(event: SubmitEvent) {
+    event.preventDefault();
     if (showRegister) {
       handleRegister();
     } else {
@@ -104,7 +104,12 @@
 
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Enter' && username && password && !isLoading) {
-      handleSubmit();
+      event.preventDefault();
+      if (showRegister) {
+        handleRegister();
+      } else {
+        handleLogin();
+      }
     }
   }
 </script>
@@ -114,20 +119,20 @@
     <button 
       class="toggle-mini-button" 
       class:active={!showRegister}
-      on:click={() => { showRegister = false; error = ''; }}
+      onclick={() => { showRegister = false; error = ''; }}
     >
       Вход
     </button>
     <button 
       class="toggle-mini-button" 
       class:active={showRegister}
-      on:click={() => { showRegister = true; error = ''; }}
+      onclick={() => { showRegister = true; error = ''; }}
     >
       Регистрация
     </button>
   </div>
 
-  <form on:submit|preventDefault={handleSubmit} class="auth-form">
+  <form onsubmit={handleSubmit} class="auth-form">
     <div class="form-fields">
       {#if showRegister}
         <div class="form-group">
@@ -141,7 +146,7 @@
             placeholder="Введите имя"
             required
             disabled={isLoading}
-            on:keydown={handleKeydown}
+            onkeydown={handleKeydown}
             class="form-input"
           />
         </div>
@@ -156,7 +161,7 @@
             bind:value={lastName}
             placeholder="Введите фамилию"
             disabled={isLoading}
-            on:keydown={handleKeydown}
+            onkeydown={handleKeydown}
             class="form-input"
           />
         </div>
@@ -173,7 +178,7 @@
           placeholder="Введите имя пользователя"
           required
           disabled={isLoading}
-          on:keydown={handleKeydown}
+          onkeydown={handleKeydown}
           class="form-input"
         />
       </div>
@@ -189,7 +194,7 @@
           placeholder="Введите пароль"
           required
           disabled={isLoading}
-          on:keydown={handleKeydown}
+          onkeydown={handleKeydown}
           class="form-input"
         />
       </div>
@@ -206,7 +211,7 @@
             placeholder="Повторите пароль"
             required
             disabled={isLoading}
-            on:keydown={handleKeydown}
+            onkeydown={handleKeydown}
             class="form-input"
           />
         </div>

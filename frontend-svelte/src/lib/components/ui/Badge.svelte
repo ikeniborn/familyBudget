@@ -1,8 +1,16 @@
 <script lang="ts">
   import { cn } from '$lib/utils/cn';
   
-  export let variant: 'default' | 'secondary' | 'destructive' | 'outline' = 'default';
-  export let className: string = '';
+  interface Props {
+    variant?: 'default' | 'secondary' | 'destructive' | 'outline';
+    class?: string;
+    children?: import('svelte').Snippet;
+    [key: string]: any; // For rest props
+  }
+
+  export let variant: Props['variant'] = 'default';
+  let className: string = '';
+  export { className as class };
   
   $: badgeClasses = cn(
     'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
@@ -16,6 +24,6 @@
   );
 </script>
 
-<div class={badgeClasses}>
-  <slot />
+<div class={badgeClasses} {...$$restProps}>
+  <slot></slot>
 </div>

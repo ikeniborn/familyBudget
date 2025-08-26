@@ -1,10 +1,8 @@
-import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
+import { writable, derived } from 'svelte/store';
 import { toastStore } from './toast.store';
 import type { Period, FinancialCenter, CostCenter, Nomenclature, BaseReferenceDataState } from '$lib/types';
 import api from '$lib/services/api';
-
-// Remove duplicate interface since it's now imported from types
 
 // Create persistent storage helpers
 function getStoredData<T>(key: string): T | null {
@@ -26,379 +24,409 @@ function storeData<T>(key: string, data: T): void {
   }
 }
 
-// Base store factory function
-function createReferenceDataStore<T extends Record<string, any>>(
-  name: string,
-  idField: keyof T,
-  apiEndpoint: string
-) {
-  const storageKey = `reference-data-${name}`;
+// Traditional Svelte Store-based Reference Data Store Class
+class ReferenceDataStore<T extends Record<string, any>> {
+  private store;
+  private storageKey: string;
   
-  // Initialize with stored data
-  const storedState = getStoredData<Partial<BaseReferenceDataState<T>>>(storageKey);
-  const initialState: BaseReferenceDataState<T> = {
-    items: storedState?.items || [],
-    loading: false,
-    error: null,
-    lastSync: storedState?.lastSync || null,
-    isDirty: false,
-    selectedItems: [],
-    searchTerm: storedState?.searchTerm || '',
-    sortBy: storedState?.sortBy || null,
-    sortOrder: storedState?.sortOrder || 'asc',
-  };
+  constructor(
+    private name: string,
+    private idField: keyof T,
+    private apiEndpoint: string
+  ) {
+    this.storageKey = `reference-data-${name}`;
+    this.store = writable<BaseReferenceDataState<T>>(this.getInitialState());
 
-  const { subscribe, set, update } = writable<BaseReferenceDataState<T>>(initialState);
-
-  // Store changes to localStorage
-  subscribe(state => {
-    storeData(storageKey, {
-      items: state.items,
-      lastSync: state.lastSync,
-      searchTerm: state.searchTerm,
-      sortBy: state.sortBy,
-      sortOrder: state.sortOrder
-    });
-  });
-
-  return {
-    subscribe,
-
-    // CRUD operations
-    async fetchAll(userId: number, force = false): Promise<void> {
-      const currentState = get({ subscribe });
-      
-      // Skip if already loaded and not forcing
-      if (!force && currentState.items.length > 0 && currentState.lastSync) {
-        const timeSinceSync = Date.now() - currentState.lastSync;
-        if (timeSinceSync < 60000) return; // 1 minute cache
-      }
-
-      update(state => ({ ...state, loading: true, error: null }));
-
-      try {
-        const response = await api.get(`${apiEndpoint}?user_id=${userId}`);
-        // FastAPI returns array directly, not wrapped in { data: ... }
-        const items = Array.isArray(response) ? response : response.data || [];
-        
-        update(state => ({
-          ...state,
-          items,
-          lastSync: Date.now(),
-          loading: false,
-          isDirty: false
-        }));
-      } catch (error: any) {
-        const errorMessage = error.response?.data?.message || error.message || 'Ошибка загрузки данных';
-        
-        update(state => ({
-          ...state,
-          error: errorMessage,
-          loading: false
-        }));
-        
-        toastStore.error('Ошибка', errorMessage);
-      }
-    },
-
-    async create(data: Partial<T>): Promise<T> {
-      update(state => ({ ...state, loading: true, error: null }));
-
-      try {
-        const response = await api.post(apiEndpoint, data);
-        // FastAPI returns object directly, not wrapped in { data: ... }
-        const newItem = response.data || response;
-        
-        update(state => ({
-          ...state,
-          items: [...state.items, newItem],
-          loading: false,
-          isDirty: true
-        }));
-        
-        toastStore.success('Успех', 'Запись создана');
-        return newItem;
-      } catch (error: any) {
-        const errorMessage = error.response?.data?.message || error.message || 'Ошибка создания';
-        
-        update(state => ({
-          ...state,
-          error: errorMessage,
-          loading: false
-        }));
-        
-        toastStore.error('Ошибка', errorMessage);
-        throw error;
-      }
-    },
-
-    async update(id: number, data: Partial<T>): Promise<T> {
-      const currentState = get({ subscribe });
-      const previousItem = currentState.items.find(item => item[idField] === id);
-      
-      if (!previousItem) {
-        throw new Error('Запись не найдена');
-      }
-
-      // Optimistic update
-      update(state => ({
-        ...state,
-        items: state.items.map(item =>
-          item[idField] === id ? { ...item, ...data } : item
-        ),
-        isDirty: true
-      }));
-
-      try {
-        const response = await api.put(`${apiEndpoint}/${id}`, data);
-        // FastAPI returns object directly, not wrapped in { data: ... }
-        const updatedItem = response.data || response;
-        
-        update(state => ({
-          ...state,
-          items: state.items.map(item =>
-            item[idField] === id ? updatedItem : item
-          ),
-          loading: false
-        }));
-        
-        toastStore.success('Успех', 'Запись обновлена');
-        return updatedItem;
-      } catch (error: any) {
-        // Revert optimistic update
-        update(state => ({
-          ...state,
-          items: state.items.map(item =>
-            item[idField] === id ? previousItem : item
-          ),
-          error: error.response?.data?.message || error.message
-        }));
-        
-        const errorMessage = error.response?.data?.message || error.message || 'Ошибка обновления';
-        toastStore.error('Ошибка', errorMessage);
-        throw error;
-      }
-    },
-
-    async delete(id: number): Promise<void> {
-      const currentState = get({ subscribe });
-      const deletedItem = currentState.items.find(item => item[idField] === id);
-      
-      if (!deletedItem) {
-        throw new Error('Запись не найдена');
-      }
-
-      // Optimistic delete
-      update(state => ({
-        ...state,
-        items: state.items.filter(item => item[idField] !== id),
-        selectedItems: state.selectedItems.filter(itemId => itemId !== id),
-        isDirty: true
-      }));
-
-      try {
-        await api.delete(`${apiEndpoint}/${id}`);
-        toastStore.success('Успех', 'Запись удалена');
-      } catch (error: any) {
-        // Revert optimistic delete
-        update(state => ({
-          ...state,
-          items: [...state.items, deletedItem],
-          error: error.response?.data?.message || error.message
-        }));
-        
-        const errorMessage = error.response?.data?.message || error.message || 'Ошибка удаления';
-        toastStore.error('Ошибка', errorMessage);
-        throw error;
-      }
-    },
-
-    async bulkDelete(ids: number[]): Promise<void> {
-      const currentState = get({ subscribe });
-      const deletedItems = currentState.items.filter(item => ids.includes(item[idField] as number));
-
-      // Optimistic bulk delete
-      update(state => ({
-        ...state,
-        items: state.items.filter(item => !ids.includes(item[idField] as number)),
-        selectedItems: [],
-        isDirty: true
-      }));
-
-      try {
-        await api.post(`${apiEndpoint}/bulk-delete`, { ids });
-        toastStore.success('Успех', `Удалено записей: ${ids.length}`);
-      } catch (error: any) {
-        // Revert optimistic delete
-        update(state => ({
-          ...state,
-          items: [...state.items, ...deletedItems],
-          error: error.response?.data?.message || error.message
-        }));
-        
-        const errorMessage = error.response?.data?.message || error.message || 'Ошибка массового удаления';
-        toastStore.error('Ошибка', errorMessage);
-        throw error;
-      }
-    },
-
-    // Selection methods
-    selectItem(id: number): void {
-      update(state => ({
-        ...state,
-        selectedItems: state.selectedItems.includes(id) 
-          ? state.selectedItems 
-          : [...state.selectedItems, id]
-      }));
-    },
-
-    deselectItem(id: number): void {
-      update(state => ({
-        ...state,
-        selectedItems: state.selectedItems.filter(itemId => itemId !== id)
-      }));
-    },
-
-    selectAll(): void {
-      update(state => ({
-        ...state,
-        selectedItems: state.items.map(item => item[idField] as number)
-      }));
-    },
-
-    deselectAll(): void {
-      update(state => ({
-        ...state,
-        selectedItems: []
-      }));
-    },
-
-    // Search and sort
-    setSearchTerm(term: string): void {
-      update(state => ({
-        ...state,
-        searchTerm: term
-      }));
-    },
-
-    setSortBy(field: string | null): void {
-      update(state => ({
-        ...state,
-        sortBy: field
-      }));
-    },
-
-    toggleSortOrder(): void {
-      update(state => ({
-        ...state,
-        sortOrder: state.sortOrder === 'asc' ? 'desc' : 'asc'
-      }));
-    },
-
-    // Utility methods
-    setError(error: string | null): void {
-      update(state => ({ ...state, error }));
-    },
-
-    clearError(): void {
-      update(state => ({ ...state, error: null }));
-    },
-
-    reset(): void {
-      set({
-        ...initialState,
-        items: [],
-        lastSync: null
+    // Auto-save to localStorage on state changes
+    this.store.subscribe(state => {
+      storeData(this.storageKey, {
+        items: state.items,
+        lastSync: state.lastSync,
+        searchTerm: state.searchTerm,
+        sortBy: state.sortBy,
+        sortOrder: state.sortOrder
       });
-    },
+    });
+  }
 
-    // Additional methods to match expected API
-    async load(userId: number): Promise<void> {
-      return this.fetchAll(userId);
-    },
+  private getInitialState(): BaseReferenceDataState<T> {
+    const storedState = getStoredData<Partial<BaseReferenceDataState<T>>>(this.storageKey);
+    return {
+      items: storedState?.items || [],
+      loading: false,
+      error: null,
+      lastSync: storedState?.lastSync || null,
+      isDirty: false,
+      selectedItems: [],
+      searchTerm: storedState?.searchTerm || '',
+      sortBy: storedState?.sortBy || null,
+      sortOrder: storedState?.sortOrder || 'asc',
+    };
+  }
 
-    // Map method for array operations
-    map<U>(callback: (item: T, index: number, array: T[]) => U): U[] {
-      const currentState = get({ subscribe });
-      return currentState.items.map(callback);
-    },
+  // Store subscription method
+  subscribe(run: (value: BaseReferenceDataState<T>) => void) {
+    return this.store.subscribe(run);
+  }
 
-    // Length getter
-    get length(): number {
-      const currentState = get({ subscribe });
-      return currentState.items.length;
+  // Private state update method
+  private updateState(updates: Partial<BaseReferenceDataState<T>>): void {
+    this.store.update(state => ({ ...state, ...updates }));
+  }
+
+  // Getters that work with current store state
+  private getState(): BaseReferenceDataState<T> {
+    let currentState: BaseReferenceDataState<T>;
+    this.store.subscribe(state => currentState = state)();
+    return currentState!;
+  }
+
+  get items(): T[] {
+    return this.getState().items;
+  }
+
+  get loading(): boolean {
+    return this.getState().loading;
+  }
+
+  get error(): string | null {
+    return this.getState().error;
+  }
+
+  get lastSync(): number | null {
+    return this.getState().lastSync;
+  }
+
+  get isDirty(): boolean {
+    return this.getState().isDirty;
+  }
+
+  get selectedItems(): number[] {
+    return this.getState().selectedItems;
+  }
+
+  get searchTerm(): string {
+    return this.getState().searchTerm;
+  }
+
+  get sortBy(): string | null {
+    return this.getState().sortBy;
+  }
+
+  get sortOrder(): 'asc' | 'desc' {
+    return this.getState().sortOrder;
+  }
+
+  get state(): BaseReferenceDataState<T> {
+    return this.getState();
+  }
+
+  get length(): number {
+    return this.getState().items.length;
+  }
+
+  // CRUD operations
+  async fetchAll(userId: number, force = false): Promise<void> {
+    const currentState = this.getState();
+    
+    // Skip if already loaded and not forcing
+    if (!force && currentState.items.length > 0 && currentState.lastSync) {
+      const timeSinceSync = Date.now() - currentState.lastSync;
+      if (timeSinceSync < 60000) return; // 1 minute cache
     }
-  };
+
+    this.updateState({ loading: true, error: null });
+
+    try {
+      const response = await api.get(`${this.apiEndpoint}?user_id=${userId}`);
+      // FastAPI returns array directly, not wrapped in { data: ... }
+      const items = Array.isArray(response) ? response : response.data || [];
+      
+      this.updateState({
+        items,
+        lastSync: Date.now(),
+        loading: false,
+        isDirty: false
+      });
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Ошибка загрузки данных';
+      
+      this.updateState({
+        error: errorMessage,
+        loading: false
+      });
+      
+      toastStore.error('Ошибка', errorMessage);
+    }
+  }
+
+  async create(data: Partial<T>): Promise<T> {
+    this.updateState({ loading: true, error: null });
+
+    try {
+      const response = await api.post(this.apiEndpoint, data);
+      // FastAPI returns object directly, not wrapped in { data: ... }
+      const newItem = response.data || response;
+      
+      this.updateState({
+        items: [...this.getState().items, newItem],
+        loading: false,
+        isDirty: true
+      });
+      
+      toastStore.success('Успех', 'Запись создана');
+      return newItem;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Ошибка создания';
+      
+      this.updateState({
+        error: errorMessage,
+        loading: false
+      });
+      
+      toastStore.error('Ошибка', errorMessage);
+      throw error;
+    }
+  }
+
+  async update(id: number, data: Partial<T>): Promise<T> {
+    const currentState = this.getState();
+    const previousItem = currentState.items.find(item => item[this.idField] === id);
+    
+    if (!previousItem) {
+      throw new Error('Запись не найдена');
+    }
+
+    // Optimistic update
+    this.updateState({
+      items: currentState.items.map(item =>
+        item[this.idField] === id ? { ...item, ...data } : item
+      ),
+      isDirty: true
+    });
+
+    try {
+      const response = await api.put(`${this.apiEndpoint}/${id}`, data);
+      // FastAPI returns object directly, not wrapped in { data: ... }
+      const updatedItem = response.data || response;
+      
+      this.updateState({
+        items: this.getState().items.map(item =>
+          item[this.idField] === id ? updatedItem : item
+        ),
+        loading: false
+      });
+      
+      toastStore.success('Успех', 'Запись обновлена');
+      return updatedItem;
+    } catch (error: any) {
+      // Revert optimistic update
+      this.updateState({
+        items: this.getState().items.map(item =>
+          item[this.idField] === id ? previousItem : item
+        ),
+        error: error.response?.data?.message || error.message
+      });
+      
+      const errorMessage = error.response?.data?.message || error.message || 'Ошибка обновления';
+      toastStore.error('Ошибка', errorMessage);
+      throw error;
+    }
+  }
+
+  async delete(id: number): Promise<void> {
+    const currentState = this.getState();
+    const deletedItem = currentState.items.find(item => item[this.idField] === id);
+    
+    if (!deletedItem) {
+      throw new Error('Запись не найдена');
+    }
+
+    // Optimistic delete
+    this.updateState({
+      items: currentState.items.filter(item => item[this.idField] !== id),
+      selectedItems: currentState.selectedItems.filter(itemId => itemId !== id),
+      isDirty: true
+    });
+
+    try {
+      await api.delete(`${this.apiEndpoint}/${id}`);
+      toastStore.success('Успех', 'Запись удалена');
+    } catch (error: any) {
+      // Revert optimistic delete
+      this.updateState({
+        items: [...this.getState().items, deletedItem],
+        error: error.response?.data?.message || error.message
+      });
+      
+      const errorMessage = error.response?.data?.message || error.message || 'Ошибка удаления';
+      toastStore.error('Ошибка', errorMessage);
+      throw error;
+    }
+  }
+
+  async bulkDelete(ids: number[]): Promise<void> {
+    const currentState = this.getState();
+    const deletedItems = currentState.items.filter(item => ids.includes(item[this.idField] as number));
+
+    // Optimistic bulk delete
+    this.updateState({
+      items: currentState.items.filter(item => !ids.includes(item[this.idField] as number)),
+      selectedItems: [],
+      isDirty: true
+    });
+
+    try {
+      await api.post(`${this.apiEndpoint}/bulk-delete`, { ids });
+      toastStore.success('Успех', `Удалено записей: ${ids.length}`);
+    } catch (error: any) {
+      // Revert optimistic delete
+      this.updateState({
+        items: [...this.getState().items, ...deletedItems],
+        error: error.response?.data?.message || error.message
+      });
+      
+      const errorMessage = error.response?.data?.message || error.message || 'Ошибка массового удаления';
+      toastStore.error('Ошибка', errorMessage);
+      throw error;
+    }
+  }
+
+  // Selection methods
+  selectItem(id: number): void {
+    const currentState = this.getState();
+    this.updateState({
+      selectedItems: currentState.selectedItems.includes(id) 
+        ? currentState.selectedItems 
+        : [...currentState.selectedItems, id]
+    });
+  }
+
+  deselectItem(id: number): void {
+    this.updateState({
+      selectedItems: this.getState().selectedItems.filter(itemId => itemId !== id)
+    });
+  }
+
+  selectAll(): void {
+    this.updateState({
+      selectedItems: this.getState().items.map(item => item[this.idField] as number)
+    });
+  }
+
+  deselectAll(): void {
+    this.updateState({ selectedItems: [] });
+  }
+
+  // Search and sort
+  setSearchTerm(term: string): void {
+    this.updateState({ searchTerm: term });
+  }
+
+  setSortBy(field: string | null): void {
+    this.updateState({ sortBy: field });
+  }
+
+  toggleSortOrder(): void {
+    const currentState = this.getState();
+    this.updateState({
+      sortOrder: currentState.sortOrder === 'asc' ? 'desc' : 'asc'
+    });
+  }
+
+  // Utility methods
+  setError(error: string | null): void {
+    this.updateState({ error });
+  }
+
+  clearError(): void {
+    this.updateState({ error: null });
+  }
+
+  reset(): void {
+    this.store.set({
+      ...this.getInitialState(),
+      items: [],
+      lastSync: null
+    });
+  }
+
+  // Additional methods to match expected API
+  async load(userId: number): Promise<void> {
+    return this.fetchAll(userId);
+  }
+
+  // Map method for array operations
+  map<U>(callback: (item: T, index: number, array: T[]) => U): U[] {
+    return this.getState().items.map(callback);
+  }
+
+  // Array methods
+  filter(callback: (item: T, index: number, array: T[]) => boolean): T[] {
+    return this.getState().items.filter(callback);
+  }
+
+  find(callback: (item: T, index: number, array: T[]) => boolean): T | undefined {
+    return this.getState().items.find(callback);
+  }
 }
 
 // Create specific stores
-export const periodStore = createReferenceDataStore<Period>(
+export const periodStore = new ReferenceDataStore<Period>(
   'periods',
   'period_id',
   '/periods/'
 );
 
-export const financialCenterStore = createReferenceDataStore<FinancialCenter>(
+export const financialCenterStore = new ReferenceDataStore<FinancialCenter>(
   'financial-centers',
   'financial_center_id',
   '/financial_centers/'
 );
 
-export const costCenterStore = createReferenceDataStore<CostCenter>(
+export const costCenterStore = new ReferenceDataStore<CostCenter>(
   'cost-centers',
   'cost_center_id',
   '/cost_centers/'
 );
 
-export const nomenclatureStore = createReferenceDataStore<Nomenclature>(
+export const nomenclatureStore = new ReferenceDataStore<Nomenclature>(
   'nomenclatures',
   'nomenclature_id',
   '/nomenclatures/'
 );
 
-// Create enhanced stores with array methods
-function createEnhancedStore<T>(baseStore: any) {
-  return derived([baseStore], ([$baseStore]) => {
-    const items = $baseStore.items || [];
-    return {
-      ...$baseStore,
-      // Array methods
-      map: <U>(callback: (item: T, index: number, array: T[]) => U): U[] => items.map(callback),
-      filter: (callback: (item: T, index: number, array: T[]) => boolean): T[] => items.filter(callback),
-      find: (callback: (item: T, index: number, array: T[]) => boolean): T | undefined => items.find(callback),
-      length: items.length,
-      
-      // Store methods
-      load: (userId: number) => baseStore.load(userId),
-      fetchAll: (userId: number, force?: boolean) => baseStore.fetchAll(userId, force),
-      create: (data: Partial<T>) => baseStore.create(data),
-      update: (id: number, data: Partial<T>) => baseStore.update(id, data),
-      delete: (id: number) => baseStore.delete(id),
-      bulkDelete: (ids: number[]) => baseStore.bulkDelete(ids),
-      selectItem: (id: number) => baseStore.selectItem(id),
-      deselectItem: (id: number) => baseStore.deselectItem(id),
-      selectAll: () => baseStore.selectAll(),
-      deselectAll: () => baseStore.deselectAll(),
-      setSearchTerm: (term: string) => baseStore.setSearchTerm(term),
-      setSortBy: (field: string | null) => baseStore.setSortBy(field),
-      toggleSortOrder: () => baseStore.toggleSortOrder(),
-      setError: (error: string | null) => baseStore.setError(error),
-      clearError: () => baseStore.clearError(),
-      reset: () => baseStore.reset()
-    };
-  });
-}
+// Enhanced stores with array methods (backward compatibility)
+export const enhancedPeriodStore = periodStore;
+export const enhancedFinancialCenterStore = financialCenterStore;
+export const enhancedCostCenterStore = costCenterStore;
+export const enhancedNomenclatureStore = nomenclatureStore;
 
-// Enhanced stores with array methods
-export const enhancedPeriodStore = createEnhancedStore<Period>(periodStore);
-export const enhancedFinancialCenterStore = createEnhancedStore<FinancialCenter>(financialCenterStore);
-export const enhancedCostCenterStore = createEnhancedStore<CostCenter>(costCenterStore);
-export const enhancedNomenclatureStore = createEnhancedStore<Nomenclature>(nomenclatureStore);
+// Derived stores for individual data arrays
+export const periods = derived(
+  periodStore,
+  ($periodStore) => $periodStore.items
+);
 
-// Derived stores for filtered and sorted data
+export const financialCenters = derived(
+  financialCenterStore,
+  ($financialCenterStore) => $financialCenterStore.items
+);
+
+export const costCenters = derived(
+  costCenterStore,
+  ($costCenterStore) => $costCenterStore.items
+);
+
+export const nomenclatures = derived(
+  nomenclatureStore,
+  ($nomenclatureStore) => $nomenclatureStore.items
+);
+
+// Filtered periods derived store for reactive filtering
 export const filteredPeriods = derived(
-  [periodStore],
-  ([$periodStore]) => {
+  periodStore,
+  ($periodStore) => {
     let filtered = $periodStore.items;
     
     // Apply search filter
@@ -426,6 +454,83 @@ export const filteredPeriods = derived(
   }
 );
 
+// Hook-style functions for easier use in components
+export function usePeriods() {
+  return {
+    subscribe: periodStore.subscribe.bind(periodStore),
+    fetchAll: (userId: number, force?: boolean) => periodStore.fetchAll(userId, force),
+    create: (data: Partial<Period>) => periodStore.create(data),
+    update: (id: number, data: Partial<Period>) => periodStore.update(id, data),
+    delete: (id: number) => periodStore.delete(id),
+    bulkDelete: (ids: number[]) => periodStore.bulkDelete(ids),
+    selectItem: (id: number) => periodStore.selectItem(id),
+    deselectItem: (id: number) => periodStore.deselectItem(id),
+    selectAll: () => periodStore.selectAll(),
+    deselectAll: () => periodStore.deselectAll(),
+    setSearchTerm: (term: string) => periodStore.setSearchTerm(term),
+    setSortBy: (field: string | null) => periodStore.setSortBy(field),
+    toggleSortOrder: () => periodStore.toggleSortOrder(),
+    reset: () => periodStore.reset()
+  };
+}
+
+export function useFinancialCenters() {
+  return {
+    subscribe: financialCenterStore.subscribe.bind(financialCenterStore),
+    fetchAll: (userId: number, force?: boolean) => financialCenterStore.fetchAll(userId, force),
+    create: (data: Partial<FinancialCenter>) => financialCenterStore.create(data),
+    update: (id: number, data: Partial<FinancialCenter>) => financialCenterStore.update(id, data),
+    delete: (id: number) => financialCenterStore.delete(id),
+    bulkDelete: (ids: number[]) => financialCenterStore.bulkDelete(ids),
+    selectItem: (id: number) => financialCenterStore.selectItem(id),
+    deselectItem: (id: number) => financialCenterStore.deselectItem(id),
+    selectAll: () => financialCenterStore.selectAll(),
+    deselectAll: () => financialCenterStore.deselectAll(),
+    setSearchTerm: (term: string) => financialCenterStore.setSearchTerm(term),
+    setSortBy: (field: string | null) => financialCenterStore.setSortBy(field),
+    toggleSortOrder: () => financialCenterStore.toggleSortOrder(),
+    reset: () => financialCenterStore.reset()
+  };
+}
+
+export function useCostCenters() {
+  return {
+    subscribe: costCenterStore.subscribe.bind(costCenterStore),
+    fetchAll: (userId: number, force?: boolean) => costCenterStore.fetchAll(userId, force),
+    create: (data: Partial<CostCenter>) => costCenterStore.create(data),
+    update: (id: number, data: Partial<CostCenter>) => costCenterStore.update(id, data),
+    delete: (id: number) => costCenterStore.delete(id),
+    bulkDelete: (ids: number[]) => costCenterStore.bulkDelete(ids),
+    selectItem: (id: number) => costCenterStore.selectItem(id),
+    deselectItem: (id: number) => costCenterStore.deselectItem(id),
+    selectAll: () => costCenterStore.selectAll(),
+    deselectAll: () => costCenterStore.deselectAll(),
+    setSearchTerm: (term: string) => costCenterStore.setSearchTerm(term),
+    setSortBy: (field: string | null) => costCenterStore.setSortBy(field),
+    toggleSortOrder: () => costCenterStore.toggleSortOrder(),
+    reset: () => costCenterStore.reset()
+  };
+}
+
+export function useNomenclatures() {
+  return {
+    subscribe: nomenclatureStore.subscribe.bind(nomenclatureStore),
+    fetchAll: (userId: number, force?: boolean) => nomenclatureStore.fetchAll(userId, force),
+    create: (data: Partial<Nomenclature>) => nomenclatureStore.create(data),
+    update: (id: number, data: Partial<Nomenclature>) => nomenclatureStore.update(id, data),
+    delete: (id: number) => nomenclatureStore.delete(id),
+    bulkDelete: (ids: number[]) => nomenclatureStore.bulkDelete(ids),
+    selectItem: (id: number) => nomenclatureStore.selectItem(id),
+    deselectItem: (id: number) => nomenclatureStore.deselectItem(id),
+    selectAll: () => nomenclatureStore.selectAll(),
+    deselectAll: () => nomenclatureStore.deselectAll(),
+    setSearchTerm: (term: string) => nomenclatureStore.setSearchTerm(term),
+    setSortBy: (field: string | null) => nomenclatureStore.setSortBy(field),
+    toggleSortOrder: () => nomenclatureStore.toggleSortOrder(),
+    reset: () => nomenclatureStore.reset()
+  };
+}
+
 // Global sync function for all reference data
 export async function syncAllReferenceData(userId: number): Promise<void> {
   const stores = [periodStore, financialCenterStore, costCenterStore, nomenclatureStore];
@@ -440,3 +545,12 @@ export function clearAllReferenceData(): void {
   const stores = [periodStore, financialCenterStore, costCenterStore, nomenclatureStore];
   stores.forEach(store => store.reset());
 }
+
+// Legacy exports for backward compatibility with existing components
+export { periodStore as default };
+
+// Export the store instances with legacy methods for gradual migration
+export const periodStoreCompat = periodStore;
+export const financialCenterStoreCompat = financialCenterStore;
+export const costCenterStoreCompat = costCenterStore;
+export const nomenclatureStoreCompat = nomenclatureStore;

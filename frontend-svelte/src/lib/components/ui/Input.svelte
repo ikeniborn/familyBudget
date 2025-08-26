@@ -2,6 +2,21 @@
   import { clsx } from 'clsx';
   import { twMerge } from 'tailwind-merge';
 
+  interface Props {
+    type?: string;
+    placeholder?: string;
+    value?: string;
+    disabled?: boolean;
+    required?: boolean;
+    readonly?: boolean;
+    id?: string | undefined;
+    name?: string | undefined;
+    hasError?: boolean;
+    size?: 'sm' | 'md' | 'lg';
+    class?: string;
+    [key: string]: any; // For rest props
+  }
+
   export let type: string = 'text';
   export let placeholder: string = '';
   export let value: string = '';
@@ -11,9 +26,8 @@
   export let id: string | undefined = undefined;
   export let name: string | undefined = undefined;
   export let hasError: boolean = false;
-  export let size: 'sm' | 'md' | 'lg' = 'md';
-
-  let className = '';
+  export let size: Props['size'] = 'md';
+  let className: string = '';
   export { className as class };
 
   $: inputClass = twMerge(
@@ -52,15 +66,5 @@
   class={inputClass}
   aria-invalid={hasError}
   aria-describedby={hasError && id ? `${id}-error` : undefined}
-  on:blur
-  on:change
-  on:click
-  on:focus
-  on:input
-  on:keydown
-  on:keypress
-  on:keyup
-  on:mouseenter
-  on:mouseleave
   {...$$restProps}
 />

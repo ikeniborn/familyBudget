@@ -31,7 +31,8 @@
     }
     
     // Initialize push notifications if user is authenticated
-    if ($authStore.user && pushNotificationsService) {
+    const authUser = authStore.getUser();
+    if (authUser && pushNotificationsService) {
       // Setup notifications after user grants permission
       const permission = pushNotificationsService.getPermissionStatus();
       if (permission.granted) {

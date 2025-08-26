@@ -5,10 +5,18 @@
 <script lang="ts">
   import { cn } from '$lib/utils/cn';
 
-  // Props
-  export let variant: 'default' | 'destructive' = 'default';
-  export let title = '';
-  export let className = '';
+  interface Props {
+    variant?: 'default' | 'destructive';
+    title?: string;
+    class?: string;
+    icon?: string | null;
+    [key: string]: any; // For rest props
+  }
+
+  export let variant: Props['variant'] = 'default';
+  export let title: string = '';
+  let className: string = '';
+  export { className as class };
   export let icon: string | null = null;
 
   // Вычисляемые классы на основе варианта
@@ -26,6 +34,7 @@
 <div
   role="alert"
   class={alertClasses}
+  {...$$restProps}
 >
   <!-- Иконка (опционально) -->
   {#if icon}
