@@ -2,32 +2,18 @@
   import { clsx } from 'clsx';
   import { twMerge } from 'tailwind-merge';
 
-  interface Props {
-    type?: string;
-    placeholder?: string;
-    value?: string;
-    disabled?: boolean;
-    required?: boolean;
-    readonly?: boolean;
-    id?: string | undefined;
-    name?: string | undefined;
-    hasError?: boolean;
-    size?: 'sm' | 'md' | 'lg';
-    class?: string;
-    [key: string]: any; // For rest props
-  }
-
-  export let type: string = 'text';
-  export let placeholder: string = '';
-  export let value: string = '';
-  export let disabled: boolean = false;
-  export let required: boolean = false;
-  export let readonly: boolean = false;
+  // Using export let for backward compatibility
+  export let type = 'text';
+  export let placeholder = '';
+  export let value = '';
+  export let disabled = false;
+  export let required = false;
+  export let readonly = false;
   export let id: string | undefined = undefined;
   export let name: string | undefined = undefined;
-  export let hasError: boolean = false;
-  export let size: Props['size'] = 'md';
-  let className: string = '';
+  export let hasError = false;
+  export let size: 'sm' | 'md' | 'lg' = 'md';
+  let className = '';
   export { className as class };
 
   $: inputClass = twMerge(

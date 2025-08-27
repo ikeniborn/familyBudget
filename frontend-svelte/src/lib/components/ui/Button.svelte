@@ -3,27 +3,15 @@
   import { twMerge } from 'tailwind-merge';
   import { isTouch } from '$lib/stores/device.store';
   
-  interface Props {
-    variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'accent' | 'warm' | 'ghost' | 'link';
-    size?: 'default' | 'sm' | 'lg' | 'icon' | 'touch';
-    disabled?: boolean;
-    loading?: boolean;
-    type?: 'button' | 'submit' | 'reset';
-    href?: string;
-    class?: string;
-    hapticFeedback?: boolean;
-    children?: import('svelte').Snippet;
-    [key: string]: any; // For additional props passed via {...$$restProps}
-  }
-
-  export let variant: Props['variant'] = 'default';
-  export let size: Props['size'] = 'default';
-  export let disabled: boolean = false;
-  export let loading: boolean = false;
-  export let type: Props['type'] = 'button';
+  // Using export let for backward compatibility
+  export let variant: 'default' | 'destructive' | 'outline' | 'secondary' | 'accent' | 'warm' | 'ghost' | 'link' = 'default';
+  export let size: 'default' | 'sm' | 'lg' | 'icon' | 'touch' = 'default';
+  export let disabled = false;
+  export let loading = false;
+  export let type: 'button' | 'submit' | 'reset' = 'button';
   export let href: string | undefined = undefined;
-  export let hapticFeedback: boolean = true;
-  let className: string = '';
+  export let hapticFeedback = true;
+  let className = '';
   export { className as class };
   
   // Auto-adjust size for touch devices
@@ -49,7 +37,7 @@
   };
   
   // Handle haptic feedback on touch devices
-  function handleClick(_e: Event) {
+  function handleClick(_e: MouseEvent) {
     if (hapticFeedback && $isTouch && 'vibrate' in navigator) {
       navigator.vibrate(10);
     }
@@ -77,7 +65,7 @@
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
       </svg>
     {/if}
-    <slot></slot>
+    <slot />
   </a>
 {:else}
   <button {type} {disabled} class={buttonClass} on:click={handleClick} {...$$restProps}>
@@ -87,6 +75,6 @@
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
       </svg>
     {/if}
-    <slot></slot>
+    <slot />
   </button>
 {/if}

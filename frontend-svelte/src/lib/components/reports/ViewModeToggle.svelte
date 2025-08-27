@@ -2,8 +2,12 @@
   import { BarChart3, Table } from 'lucide-svelte';
 
   // Props
-  export let currentMode: 'chart' | 'table';
-  export let onModeChange: (mode: typeof currentMode) => void;
+  interface Props {
+    currentMode: 'chart' | 'table';
+    onModeChange: (mode: 'chart' | 'table') => void;
+  }
+  
+  let { currentMode, onModeChange }: Props = $props();
 
   // View modes configuration
   const viewModes = [

@@ -44,19 +44,37 @@
   }
 
   // Props
-  export let data: Array<Record<string, any>> = [];
-  export let series: ChartSeries[] = [];
-  export let title = 'Комбинированный график';
-  export let subtitle = '';
-  export let height = 400;
-  export let className = '';
-  export let xAxisKey = 'name';
-  export let showBrush = false;
-  export let showCrosshair = true;
-  export let enableCrossFilter = false;
-  export let dashboardLayout = false;
-  export let loading = false;
-  export let error: string | null = null;
+  interface Props {
+    data?: Array<Record<string, any>>;
+    series?: ChartSeries[];
+    title?: string;
+    subtitle?: string;
+    height?: number;
+    className?: string;
+    xAxisKey?: string;
+    showBrush?: boolean;
+    showCrosshair?: boolean;
+    enableCrossFilter?: boolean;
+    dashboardLayout?: boolean;
+    loading?: boolean;
+    error?: string | null;
+  }
+  
+  let { 
+    data = [], 
+    series = [], 
+    title = 'Комбинированный график',
+    subtitle = '',
+    height = 400,
+    className = '',
+    xAxisKey = 'name',
+    showBrush = false,
+    showCrosshair = true,
+    enableCrossFilter = false,
+    dashboardLayout = false,
+    loading = false,
+    error = null
+  }: Props = $props();
 
   // State
   let seriesState = [...series];

@@ -50,16 +50,16 @@
   onMount(async () => {
     try {
       // Load reference data if not already loaded
-      if ($periodStore.length === 0) {
+      if ($periodStore.items.length === 0) {
         await periodStore.load($currentUser?.user_id || 0);
       }
-      if ($financialCenterStore.length === 0) {
+      if ($financialCenterStore.items.length === 0) {
         await financialCenterStore.load($currentUser?.user_id || 0);
       }
-      if ($costCenterStore.length === 0) {
+      if ($costCenterStore.items.length === 0) {
         await costCenterStore.load($currentUser?.user_id || 0);
       }
-      if ($nomenclatureStore.length === 0) {
+      if ($nomenclatureStore.items.length === 0) {
         await nomenclatureStore.load($currentUser?.user_id || 0);
       }
     } catch (error: any) {
@@ -197,7 +197,7 @@
               class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent {errors.period_id ? 'border-red-300' : ''}"
             >
               <option value="">Выберите период</option>
-              {#each $periodStore as period}
+              {#each $periodStore.items as period}
                 <option value={period.period_id.toString()}>{period.period_ru_name}</option>
               {/each}
             </select>
@@ -219,7 +219,7 @@
             class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent {errors.financial_center_id ? 'border-red-300' : ''}"
           >
             <option value="">Выберите финансовый центр</option>
-            {#each $financialCenterStore as fc}
+            {#each $financialCenterStore.items as fc}
               <option value={fc.financial_center_id.toString()}>{fc.financial_center_name}</option>
             {/each}
           </select>
@@ -240,7 +240,7 @@
             class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent {errors.nomenclature_id ? 'border-red-300' : ''}"
           >
             <option value="">Выберите номенклатуру</option>
-            {#each $nomenclatureStore as nom}
+            {#each $nomenclatureStore.items as nom}
               <option value={nom.nomenclature_id.toString()}>{nom.nomenclature_name}</option>
             {/each}
           </select>
@@ -279,7 +279,7 @@
               class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent {errors.cost_center_id ? 'border-red-300' : ''}"
             >
               <option value="">Выберите МВЗ</option>
-              {#each $costCenterStore as cc}
+              {#each $costCenterStore.items as cc}
                 <option value={cc.cost_center_id.toString()}>{cc.cost_center_name}</option>
               {/each}
             </select>

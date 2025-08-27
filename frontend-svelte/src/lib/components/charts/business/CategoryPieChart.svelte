@@ -26,22 +26,38 @@
   }>();
 
   // Props
-  export let data: Array<{
-    category: string;
-    amount: number;
-    color?: string;
-    [key: string]: any;
-  }> = [];
-  export let title = 'Распределение по категориям';
-  export let subtitle = '';
-  export let height = 300;
-  export let className = '';
-  export let showDonut = true;
-  export let showPercentageLabels = true;
-  export let showLegend = true;
-  export let minSlicePercentage = 2;
-  export let loading = false;
-  export let error: string | null = null;
+  interface Props {
+    data?: Array<{
+      category: string;
+      amount: number;
+      color?: string;
+      [key: string]: any;
+    }>;
+    title?: string;
+    subtitle?: string;
+    height?: number;
+    className?: string;
+    showDonut?: boolean;
+    showPercentageLabels?: boolean;
+    showLegend?: boolean;
+    minSlicePercentage?: number;
+    loading?: boolean;
+    error?: string | null;
+  }
+  
+  let { 
+    data = [],
+    title = 'Распределение по категориям',
+    subtitle = '',
+    height = 300,
+    className = '',
+    showDonut = true,
+    showPercentageLabels = true,
+    showLegend = true,
+    minSlicePercentage = 2,
+    loading = false,
+    error = null
+  }: Props = $props();
 
   // State
   let hiddenCategories = new Set<string>();

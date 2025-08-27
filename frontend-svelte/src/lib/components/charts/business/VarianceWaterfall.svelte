@@ -27,22 +27,38 @@
   }>();
 
   // Props
-  export let data: Array<{
-    name: string;
-    value: number;
-    category?: string;
-    [key: string]: any;
-  }> = [];
-  export let title = 'Анализ отклонений';
-  export let subtitle = '';
-  export let height = 400;
-  export let className = '';
-  export let showRunningTotal = true;
-  export let showCumulativeLine = true;
-  export let sortable = true;
-  export let colorCoding: 'impact' | 'category' | 'value' = 'impact';
-  export let loading = false;
-  export let error: string | null = null;
+  interface Props {
+    data?: Array<{
+      name: string;
+      value: number;
+      category?: string;
+      [key: string]: any;
+    }>;
+    title?: string;
+    subtitle?: string;
+    height?: number;
+    className?: string;
+    showRunningTotal?: boolean;
+    showCumulativeLine?: boolean;
+    sortable?: boolean;
+    colorCoding?: 'impact' | 'category' | 'value';
+    loading?: boolean;
+    error?: string | null;
+  }
+  
+  let {
+    data = [],
+    title = 'Анализ отклонений',
+    subtitle = '',
+    height = 400,
+    className = '',
+    showRunningTotal = true,
+    showCumulativeLine = true,
+    sortable = true,
+    colorCoding = 'impact',
+    loading = false,
+    error = null
+  }: Props = $props();
 
   // State
   let sortBy: 'value' | 'name' | 'impact' = 'value';

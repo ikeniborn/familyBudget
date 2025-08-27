@@ -9,9 +9,13 @@
   import type { ReportFilters } from '$lib/services/reportService';
 
   // Props
-  export let currentType: 'composed' | 'pie' | 'trend' | 'waterfall' | 'gauge';
-  export let onTypeChange: (type: typeof currentType) => void;
-  export let reportType: ReportFilters['report_type'];
+  interface Props {
+    currentType: 'composed' | 'pie' | 'trend' | 'waterfall' | 'gauge';
+    onTypeChange: (type: 'composed' | 'pie' | 'trend' | 'waterfall' | 'gauge') => void;
+    reportType: ReportFilters['report_type'];
+  }
+  
+  let { currentType, onTypeChange, reportType }: Props = $props();
 
   // Chart type configurations with availability per report type
   const chartTypes = [

@@ -46,24 +46,69 @@
       
       // Load data based on report type
       switch (filters.report_type) {
-        case 'plan_fact':
-          rawData = await reportService.getPlanFactReport(filters);
+        case 'plan_fact': {
+          const planFactData = await reportService.getPlanFactReport(filters);
+          // Convert to RawReportData format
+          rawData = {
+            periods: planFactData.map(item => ({
+              period_id: item.period_id,
+              period_name: item.period_name,
+              period_ru_name: item.period_ru_name || item.period_name,
+              planned_amount: item.planned_amount,
+              actual_amount: item.actual_amount,
+              financial_center_name: item.financial_center_name,
+              cost_center_name: item.cost_center_name,
+              nomenclature_name: item.nomenclature_name
+            }))
+          };
           break;
-        case 'budget':
-          rawData = await reportService.getBudgetReport(filters);
+        }
+        case 'budget': {
+          const budgetData = await reportService.getBudgetReport(filters);
+          // Convert to RawReportData format
+          rawData = {
+            categories: budgetData.map(item => ({
+              nomenclature_name: item.nomenclature_name,
+              total_amount: item.total_amount || 0,
+              financial_center_name: item.financial_center_name
+            })),
+            budget_summary: {
+              total_planned: budgetData.reduce((sum, item) => sum + (item.total_amount || 0), 0),
+              total_actual: budgetData.reduce((sum, item) => sum + (item.total_amount || 0), 0) * 0.85, // Mock actual
+              utilization_percent: 85 // Mock utilization
+            }
+          };
           break;
+        }
         case 'categories':
         case 'trends':
-        case 'analytics':
-          rawData = await reportService.getAnalyticsData(filters);
+        case 'analytics': {
+          const analyticsData = await reportService.getAnalyticsData(filters);
+          // Convert to RawReportData format
+          rawData = {
+            categories: analyticsData.categories.map(item => ({
+              nomenclature_name: item.name,
+              total_amount: item.value
+            })),
+            time_series: analyticsData.trends.map(item => ({
+              date: item.date,
+              amount: item.plan,
+              type: 'plan' as const
+            })).concat(analyticsData.trends.map(item => ({
+              date: item.date,
+              amount: item.fact,
+              type: 'fact' as const
+            })))
+          };
           break;
+        }
         default:
           // Use mock data for development
           rawData = reportDataTransformer.generateMockData(filters);
       }
       
       // Transform data for visualization
-      transformedData = reportDataTransformer.transform(rawData, filters);
+      transformedData = reportDataTransformer.transform(rawData as any, filters);
       
     } catch (error: any) {
       console.error('Ошибка загрузки отчета:', error);
@@ -71,7 +116,7 @@
       // Fallback to mock data in case of API error
       try {
         const mockRawData = reportDataTransformer.generateMockData(filters);
-        transformedData = reportDataTransformer.transform(mockRawData, filters);
+        transformedData = reportDataTransformer.transform(mockRawData as any, filters);
         toast.info('Информация', 'Используются тестовые данные');
       } catch (mockError) {
         toast.error('Ошибка', error.message || 'Не удалось загрузить отчет');

@@ -37,26 +37,45 @@
   }>();
 
   // Props
-  export let data: Array<{
-    date: string | Date;
-    value: number;
-    series?: string;
-    forecast?: boolean;
-    [key: string]: any;
-  }> = [];
-  export let title = 'Динамика расходов';
-  export let subtitle = '';
-  export let height = 400;
-  export let className = '';
-  export let showArea = false;
-  export let showForecast = true;
-  export let showMovingAverage = false;
-  export let movingAverageWindow = 7;
-  export let dateRangeSelector = true;
-  export let multiSeries = true;
-  export let forecastDays = 30;
-  export let loading = false;
-  export let error: string | null = null;
+  interface Props {
+    data?: Array<{
+      date: string | Date;
+      value: number;
+      series?: string;
+      forecast?: boolean;
+      [key: string]: any;
+    }>;
+    title?: string;
+    subtitle?: string;
+    height?: number;
+    className?: string;
+    showArea?: boolean;
+    showForecast?: boolean;
+    showMovingAverage?: boolean;
+    movingAverageWindow?: number;
+    dateRangeSelector?: boolean;
+    multiSeries?: boolean;
+    forecastDays?: number;
+    loading?: boolean;
+    error?: string | null;
+  }
+  
+  let {
+    data = [],
+    title = 'Динамика расходов',
+    subtitle = '',
+    height = 400,
+    className = '',
+    showArea = false,
+    showForecast = true,
+    showMovingAverage = false,
+    movingAverageWindow = 7,
+    dateRangeSelector = true,
+    multiSeries = true,
+    forecastDays = 30,
+    loading = false,
+    error = null
+  }: Props = $props();
 
   // State
   let selectedDateRange: { start: string; end: string } | null = null;

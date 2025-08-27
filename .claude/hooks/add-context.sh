@@ -41,7 +41,7 @@ domain_expertise:
   - Testing strategies and CI/CD pipelines
   - User experience and interface design
 operational_rules:
-  - Используй субагента sgr-orchestrator для обработки запроса пользователя
+  - Используй субагента sgr-task-planner для обработки запроса пользователя
   - Всегда проверяй существующий код перед изменениями
   - Следуй архитектурным паттернам проекта
   - Поддерживай консистентность кодовой базы

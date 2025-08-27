@@ -32,14 +32,14 @@
       // Load reference data if not already loaded
       const loadPromises = [];
       
-      if ($periodStore.length === 0) {
-        loadPromises.push($periodStore.load($currentUser?.user_id || 0));
+      if ($periodStore.items.length === 0) {
+        loadPromises.push(periodStore.load($currentUser?.user_id || 0));
       }
-      if ($financialCenterStore.length === 0) {
-        loadPromises.push($financialCenterStore.load($currentUser?.user_id || 0));
+      if ($financialCenterStore.items.length === 0) {
+        loadPromises.push(financialCenterStore.load($currentUser?.user_id || 0));
       }
-      if ($costCenterStore.length === 0) {
-        loadPromises.push($costCenterStore.load($currentUser?.user_id || 0));
+      if ($costCenterStore.items.length === 0) {
+        loadPromises.push(costCenterStore.load($currentUser?.user_id || 0));
       }
       
       await Promise.all(loadPromises);
@@ -72,7 +72,7 @@
   // Create options with "All" option
   $: periodOptions = [
     { value: 'all', label: 'Все периоды' },
-    ...$periodStore.map((period: any) => ({
+    ...$periodStore.items.map((period: any) => ({
       value: period.period_id.toString(),
       label: period.period_ru_name || period.period_name,
     })),
@@ -80,7 +80,7 @@
 
   $: financialCenterOptions = [
     { value: 'all', label: 'Все ФЦ' },
-    ...$financialCenterStore.map((fc: any) => ({
+    ...$financialCenterStore.items.map((fc: any) => ({
       value: fc.financial_center_id.toString(),
       label: fc.financial_center_name,
     })),
@@ -88,7 +88,7 @@
 
   $: costCenterOptions = [
     { value: 'all', label: 'Все МВЗ' },
-    ...$costCenterStore.map((cc: any) => ({
+    ...$costCenterStore.items.map((cc: any) => ({
       value: cc.cost_center_id.toString(),
       label: cc.cost_center_name,
     })),
