@@ -33,7 +33,15 @@ class ApiClient {
         
         if (error.response?.status === 401 && !originalRequest._retry) {
           // Session expired, redirect to login
-          this.handleUnauthorized();
+          // Не редиректим для защищенных страниц - они сами обработают
+          if (!window.location.pathname.startsWith('/fact') && 
+              !window.location.pathname.startsWith('/budget') &&
+              !window.location.pathname.startsWith('/reports') &&
+              !window.location.pathname.startsWith('/reference') &&
+              !window.location.pathname.startsWith('/dashboard') &&
+              !window.location.pathname.startsWith('/settings')) {
+            this.handleUnauthorized();
+          }
         }
         
         return Promise.reject(error);

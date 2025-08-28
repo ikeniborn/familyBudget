@@ -41,7 +41,7 @@ class RegistryService {
     pageSize?: number;
     filters?: RegistryFilters;
   }): Promise<PaginatedResponse<Registry>> {
-    return api.get<PaginatedResponse<Registry>>('/registry', { params });
+    return api.get<PaginatedResponse<Registry>>('/registry/', { params });
   }
 
   async getById(id: number): Promise<Registry> {
@@ -49,11 +49,11 @@ class RegistryService {
   }
 
   async create(data: CreateRegistryData): Promise<Registry> {
-    return api.post<Registry>('/registry', data);
+    return api.post<Registry>('/registry/', data);
   }
 
   async createBulk(data: CreateRegistryData[]): Promise<Registry[]> {
-    return api.post<Registry[]>('/registry/bulk', data);
+    return api.post<Registry[]>('/registry/bulk/', data);
   }
 
   async update(id: number, data: UpdateRegistryData): Promise<Registry> {
@@ -65,12 +65,12 @@ class RegistryService {
   }
 
   async deleteBulk(ids: number[]): Promise<void> {
-    await api.post('/registry/bulk-delete', { ids });
+    await api.post('/registry/bulk-delete/', { ids });
   }
 
   // Get records with filters
   async getWithFilters(filters: RegistryFilters): Promise<Registry[]> {
-    const response = await api.get<Registry[]>('/registry', { params: filters });
+    const response = await api.get<Registry[]>('/registry/', { params: filters });
     return response;
   }
 
@@ -106,7 +106,7 @@ class RegistryService {
     variance: number;
     variance_percent: number;
   }>> {
-    return api.get('/registry/stats/nomenclature', { params });
+    return api.get('/registry/stats/nomenclature/', { params });
   }
 
   async getSummary(filters?: RegistryFilters): Promise<{
@@ -115,7 +115,7 @@ class RegistryService {
     difference: number;
     execution_rate: number;
   }> {
-    return api.get('/registry/summary', { params: filters });
+    return api.get('/registry/summary/', { params: filters });
   }
 
   async export(format: 'csv' | 'excel', filters?: RegistryFilters): Promise<Blob> {

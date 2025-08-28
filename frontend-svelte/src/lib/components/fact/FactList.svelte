@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { currentUser } from '$lib/stores/auth.store';
+  import { browser } from '$app/environment';
+  import { currentUser, isAuthenticated } from '$lib/stores/auth.store';
   import { useToast } from '$lib/stores/toast.store';
   import { registryService, type Registry } from '$lib/services/registry.service';
   import Card from '$lib/components/ui/Card.svelte';
@@ -30,21 +31,39 @@
   let facts: ExtendedRegistry[] = [];
   let isLoading = true;
   let isRefreshing = false;
+  let hasLoadedOnce = false;
 
   const toast = useToast();
 
   onMount(() => {
-    loadFacts();
+    // Загружаем данные только если пользователь аутентифицирован
+    if (browser && $isAuthenticated) {
+      loadFacts();
+    } else if (browser && !$isAuthenticated) {
+      // Если не аутентифицирован, сразу убираем загрузку
+      isLoading = false;
+    }
   });
+  
+  // Реактивно загружаем данные при изменении статуса аутентификации
+  $: if (browser && $isAuthenticated && !hasLoadedOnce && !isLoading) {
+    loadFacts();
+  }
 
   async function loadFacts() {
     try {
       isLoading = true;
+      hasLoadedOnce = true;
       const data = await registryService.getFacts({ limit: 50 });
-      facts = data;
+      // Проверяем, что data является массивом
+      facts = Array.isArray(data) ? data : [];
     } catch (error: any) {
       console.error('Ошибка загрузки фактов:', error);
-      toast.error('Ошибка', error.message || 'Не удалось загрузить фактические операции');
+      // Если ошибка 401, не показываем сообщение - пользователь не авторизован
+      if (error?.response?.status !== 401) {
+        toast.error('Ошибка', error.message || 'Не удалось загрузить фактические операции');
+      }
+      facts = []; // Устанавливаем пустой массив при ошибке
     } finally {
       isLoading = false;
     }
