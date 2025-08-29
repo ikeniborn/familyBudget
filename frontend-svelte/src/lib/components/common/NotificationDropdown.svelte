@@ -1,15 +1,23 @@
 <script lang="ts">
-  import { Bell } from 'lucide-svelte';
+  import { Bell, Maximize2, Minimize2, X } from 'lucide-svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   
   let isOpen = false;
+  let isExpanded = false;
   let notifications = [
     {
       id: 1,
       title: 'Добро пожаловать!',
       message: 'Система готова к использованию',
       time: '5 мин назад',
+      unread: true
+    },
+    {
+      id: 2,
+      title: 'Успешно!',
+      message: 'Вы вошли в систему',
+      time: 'только что',
       unread: true
     }
   ];
@@ -18,10 +26,18 @@
   
   function toggleDropdown() {
     isOpen = !isOpen;
+    if (!isOpen) {
+      isExpanded = false; // Reset expansion when closing
+    }
   }
   
   function closeDropdown() {
     isOpen = false;
+    isExpanded = false;
+  }
+  
+  function toggleExpanded() {
+    isExpanded = !isExpanded;
   }
   
   function markAsRead(id: number) {
@@ -30,6 +46,16 @@
     );
   }
 </script>
+
+<style>
+  @media (max-width: 640px) {
+    :global(.notification-dropdown-mobile) {
+      right: 0.5rem !important;
+      left: 0.5rem !important;
+      width: calc(100% - 1rem) !important;
+    }
+  }
+</style>
 
 <div class="relative">
   <Button
@@ -53,7 +79,7 @@
   {#if isOpen}
     <!-- Backdrop -->
     <div 
-      class="fixed inset-0 z-10" 
+      class={`fixed inset-0 ${isExpanded ? 'z-20 bg-black/50' : 'z-10'}`}
       on:click={closeDropdown}
       on:keydown={(e) => e.key === 'Escape' && closeDropdown()}
       role="button"
@@ -61,12 +87,44 @@
     ></div>
     
     <!-- Dropdown -->
-    <div class="absolute right-0 mt-2 w-80 z-20 bg-white rounded-lg shadow-lg border border-gray-200">
-      <div class="p-4 border-b border-gray-200">
+    <div class={`
+      ${isExpanded 
+        ? 'fixed top-0 right-0 h-screen w-full sm:w-1/2 z-30' 
+        : 'absolute right-0 mt-2 w-full sm:w-80 max-w-sm z-20 notification-dropdown-mobile'
+      } 
+      bg-white ${isExpanded ? '' : 'rounded-lg'} shadow-lg border border-gray-200 transition-all duration-300 ease-in-out
+    `}>
+      <div class="p-4 border-b border-gray-200 flex items-center justify-between">
         <h3 class="text-lg font-medium">Уведомления</h3>
+        <div class="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            on:click={toggleExpanded}
+            class="h-8 w-8"
+            title={isExpanded ? "Свернуть" : "Развернуть"}
+          >
+            {#if isExpanded}
+              <Minimize2 class="h-4 w-4" />
+            {:else}
+              <Maximize2 class="h-4 w-4" />
+            {/if}
+          </Button>
+          {#if isExpanded}
+            <Button
+              variant="ghost"
+              size="icon"
+              on:click={closeDropdown}
+              class="h-8 w-8"
+              title="Закрыть"
+            >
+              <X class="h-4 w-4" />
+            </Button>
+          {/if}
+        </div>
       </div>
       
-      <div class="max-h-96 overflow-y-auto">
+      <div class={`${isExpanded ? 'h-[calc(100vh-8rem)]' : 'max-h-96'} overflow-y-auto`}>
         {#if notifications.length === 0}
           <div class="p-4 text-center text-gray-500">
             Нет уведомлений
