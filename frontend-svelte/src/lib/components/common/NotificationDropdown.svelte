@@ -24,19 +24,34 @@
   
   $: unreadCount = notifications.filter(n => n.unread).length;
   
-  function toggleDropdown() {
+  function toggleDropdown(event?: Event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    console.log('Notification button clicked, isOpen was:', isOpen);
     isOpen = !isOpen;
     if (!isOpen) {
       isExpanded = false; // Reset expansion when closing
     }
+    console.log('Notification dropdown toggled, isOpen is now:', isOpen);
   }
   
-  function closeDropdown() {
+  function closeDropdown(event?: Event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    console.log('Closing notification dropdown');
     isOpen = false;
     isExpanded = false;
   }
   
-  function toggleExpanded() {
+  function toggleExpanded(event?: Event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     isExpanded = !isExpanded;
   }
   
@@ -44,6 +59,22 @@
     notifications = notifications.map(n => 
       n.id === id ? { ...n, unread: false } : n
     );
+  }
+
+  // Handle keyboard events
+  function handleKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape' && isOpen) {
+      closeDropdown();
+    }
+  }
+
+  // Add global escape key listener when dropdown is open
+  $: if (typeof document !== 'undefined') {
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeydown);
+    } else {
+      document.removeEventListener('keydown', handleKeydown);
+    }
   }
 </script>
 
@@ -57,13 +88,15 @@
   }
 </style>
 
-<div class="relative">
-  <Button
-    variant="ghost"
-    size="icon"
-    on:click={toggleDropdown}
-    class="relative"
+<div class="relative" role="region" aria-label="Панель уведомлений">
+  <!-- Fallback direct button implementation -->
+  <button
+    type="button"
+    onclick={toggleDropdown}
+    onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleDropdown(e)}
+    class="relative z-10 inline-flex items-center justify-center h-12 w-12 rounded-md font-medium transition-all hover:bg-secondary hover:text-secondary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-95"
     title="Уведомления"
+    aria-label="Открыть уведомления"
   >
     <Bell class="h-5 w-5" />
     {#if unreadCount > 0}
@@ -74,16 +107,17 @@
         {unreadCount}
       </Badge>
     {/if}
-  </Button>
+  </button>
   
   {#if isOpen}
     <!-- Backdrop -->
     <div 
       class={`fixed inset-0 ${isExpanded ? 'z-20 bg-black/50' : 'z-10'}`}
-      on:click={closeDropdown}
-      on:keydown={(e) => e.key === 'Escape' && closeDropdown()}
+      onclick={closeDropdown}
+      onkeydown={(e) => e.key === 'Escape' && closeDropdown()}
       role="button"
       tabindex="-1"
+      aria-label="Закрыть уведомления"
     ></div>
     
     <!-- Dropdown -->
@@ -100,7 +134,7 @@
           <Button
             variant="ghost"
             size="icon"
-            on:click={toggleExpanded}
+            onclick={toggleExpanded}
             class="h-8 w-8"
             title={isExpanded ? "Свернуть" : "Развернуть"}
           >
@@ -114,7 +148,7 @@
             <Button
               variant="ghost"
               size="icon"
-              on:click={closeDropdown}
+              onclick={closeDropdown}
               class="h-8 w-8"
               title="Закрыть"
             >
@@ -133,8 +167,8 @@
           {#each notifications as notification (notification.id)}
             <div 
               class="p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
-              on:click={() => markAsRead(notification.id)}
-              on:keydown={(e) => e.key === 'Enter' && markAsRead(notification.id)}
+              onclick={() => markAsRead(notification.id)}
+              onkeydown={(e) => e.key === 'Enter' && markAsRead(notification.id)}
               role="button"
               tabindex="0"
             >
@@ -161,7 +195,7 @@
             variant="ghost" 
             size="sm" 
             class="w-full"
-            on:click={() => {
+            onclick={() => {
               notifications = notifications.map(n => ({ ...n, unread: false }));
             }}
           >
