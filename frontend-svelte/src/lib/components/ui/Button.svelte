@@ -42,6 +42,12 @@
 
   // Handle click with haptic feedback on touch devices
   function handleClick(e: MouseEvent) {
+    if (disabled || loading) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    
     if (hapticFeedback && $isTouch && 'vibrate' in navigator) {
       navigator.vibrate(10);
     }
