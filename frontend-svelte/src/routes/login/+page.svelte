@@ -21,14 +21,7 @@
   onMount(async () => {
     console.log('[LOGIN] onMount started', { isAuthenticated: $isAuthenticated });
     
-    // Only redirect if already authenticated and this is initial check
-    if ($isAuthenticated && !authCheckCompleted) {
-      console.log('[LOGIN] Already authenticated, redirecting to dashboard');
-      goto('/dashboard');
-      return;
-    }
-    
-    // Get return URL from query parameters
+    // Get return URL from query parameters first
     returnUrl = $page.url.searchParams.get('returnUrl');
     console.log('[LOGIN] Return URL:', returnUrl);
     
@@ -46,6 +39,14 @@
       loading = false;
       authCheckCompleted = true;
       console.log('[LOGIN] Mount completed', { loading, authCheckCompleted });
+    }
+    
+    // После завершения проверок, проверяем авторизацию
+    // Redirect only if authenticated and auth check is completed
+    if ($isAuthenticated && authCheckCompleted) {
+      console.log('[LOGIN] Already authenticated, redirecting');
+      const redirectTo = returnUrl || '/dashboard';
+      goto(redirectTo);
     }
   });
   

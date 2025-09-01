@@ -31,9 +31,9 @@ LOG_FILE="${REQUESTS_DIR}/${TIMESTAMP}_request.md"
 
 # Create the SGR-enhanced prompt with structured reasoning schema
 ENHANCED_PROMPT="
-# 🎯 Context Definition
+# Context Definition
 ---
-role: Ты профессиональный разработчик фронтенд и бэкенд занимающийся разработкой приложения для домашнего учета и списка продуктов.
+role: Профессиональный разработчик фронтенд и бэкенд для домашнего учета
 domain_expertise:
   - Modern web development (SvelteKit, TypeScript)
   - Database design and optimization (PostgreSQL, FastApi)
@@ -41,11 +41,22 @@ domain_expertise:
   - Testing strategies and CI/CD pipelines
   - User experience and interface design
 operational_rules:
-  - Используй субагента sgr-task-planner для обработки запроса пользователя
+  - Используй инструменты: mcp__sgr,mcp__sequential-thinking, mcp__context7, mcp__memory 
   - Всегда проверяй существующий код перед изменениями
   - Следуй архитектурным паттернам проекта
   - Поддерживай консистентность кодовой базы
-  - Документируй важные решения
+  - Документируй важные решения в /docs
+  - Создавай и запскай модульные тесты для реализованного или измененного функционала в /test
+execution_instructions:
+  - Для обработки запроса пользователя используй инструмент mcp__sgr__start_sgr_execution
+  - Для выполнения следующего шага используй mcp__sgr__continue_sgr_execution
+  - Следуй схеме последовательно, шаг за шагом с использованем субагентов
+  - Для получения статуса используй mcp__sgr__get_execution_status
+  - Фиксируй и используй контрольные точки для валидации с помощью mcp__memory
+  - При блокировках или проблемах - эскалируй пользователю
+  - Поддерживай прозрачность процесса через TodoWrite
+user_request:
+${USER_PROMPT}
 ---
 "
 
@@ -57,9 +68,6 @@ cat > "$LOG_FILE" << EOF
 - Timestamp: $(date +"%Y-%m-%d %H:%M:%S")
 - Session ID: ${SESSION_ID}
 - Project: ${PROJECT_DIR}
-
-## Original User Prompt
-${USER_PROMPT}
 ${ENHANCED_PROMPT}
 EOF
 

@@ -1,23 +1,36 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { X } from 'lucide-svelte';
   import Button from './Button.svelte';
 
 
   export let open: boolean = false;
+  export let isOpen: boolean = false; // Support old API
   export let title: string = '';
   export let description: string = '';
   export let showCloseButton: boolean = true;
+  export let size: 'small' | 'medium' | 'large' | 'extra-large' = 'medium';
   export let onclose: (() => void) | undefined = undefined;
 
+  import { createEventDispatcher } from 'svelte';
+  
+  const dispatch = createEventDispatcher();
   let modalElement: HTMLDialogElement;
+  let mounted = false;
+  
+  // Support both open and isOpen props - исправляем логику
+  $: actualOpen = open === true || isOpen === true;
+
+  onMount(() => {
+    mounted = true;
+  });
 
   // Reactive statement to handle modal open/close
-  $: if (modalElement) {
-    if (open) {
+  $: if (modalElement && mounted) {
+    if (actualOpen && !modalElement.open) {
       modalElement.showModal();
       document.body.style.overflow = 'hidden';
-    } else {
+    } else if (!actualOpen && modalElement.open) {
       modalElement.close();
       document.body.style.overflow = 'auto';
     }
@@ -25,12 +38,18 @@
 
   // Cleanup on destroy
   onDestroy(() => {
+    if (modalElement && modalElement.open) {
+      modalElement.close();
+    }
     document.body.style.overflow = 'auto';
   });
 
   function handleClose() {
-    open = false;
-    onclose?.();
+    // Don't modify props directly - just call callbacks
+    if (onclose) {
+      onclose();
+    }
+    dispatch('close');
   }
 
   function handleBackdropClick(event: MouseEvent) {
@@ -50,11 +69,16 @@
 <dialog
   bind:this={modalElement}
   class="modal backdrop:bg-black/50 backdrop:backdrop-blur-sm"
-  onclick={handleBackdropClick}
-  onkeydown={handleKeydown}
+  on:click={handleBackdropClick}
+  on:keydown={handleKeydown}
   {...$$restProps}
 >
-  <div class="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-hidden">
+  <div class="bg-white rounded-lg shadow-lg w-full max-h-[90vh] overflow-hidden {
+    size === 'small' ? 'max-w-sm' :
+    size === 'large' ? 'max-w-4xl' :
+    size === 'extra-large' ? 'max-w-6xl' :
+    'max-w-md'
+  }">
     <!-- Header -->
     {#if title || showCloseButton}
       <div class="flex items-center justify-between p-6 border-b">

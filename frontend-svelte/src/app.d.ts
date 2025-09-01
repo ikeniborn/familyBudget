@@ -14,6 +14,8 @@ declare global {
         first_name: string;
         last_name?: string;
       };
+      authenticated: boolean;
+      sessionId?: string;
     }
     interface PageData {}
     interface PageState {}

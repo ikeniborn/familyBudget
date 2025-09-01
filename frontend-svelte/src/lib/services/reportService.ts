@@ -10,21 +10,25 @@ export interface ReportFilters {
 }
 
 export interface PlanFactReportData {
+  period_id: number;
+  period_name: string;
+  nomenclature_id: number;
   nomenclature_name: string;
-  plan: number;
-  fact: number;
+  budget_amount: number;
+  actual_amount: number;
   variance: number;
-  variance_percent: number;
+  variance_percent: number | null;
 }
 
 export interface BudgetReportData {
+  period_id: number;
   period_name: string;
-  financial_center_name: string;
+  nomenclature_id: number;
   nomenclature_name: string;
-  planned_amount: number;
+  budget_amount: number;
   actual_amount: number;
   variance: number;
-  variance_percent: number;
+  variance_percent: number | null;
 }
 
 export interface DashboardData {

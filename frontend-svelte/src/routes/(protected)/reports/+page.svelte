@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { useToast } from '$lib/stores/toast.store';
+  import { isAuthenticated } from '$lib/stores/auth.store';
   import { reportService, type ReportFilters } from '$lib/services/reportService';
   import { reportDataTransformer, type TransformedReportData } from '$lib/services/reportDataTransformer';
   import ReportFiltersComponent from '$lib/components/reports/ReportFilters.svelte';
@@ -23,6 +24,7 @@
 
   // State
   let loading = false;
+  let initialLoadCompleted = false;
   let currentFilters: ReportFilters = { report_type: 'plan_fact' };
   let transformedData: TransformedReportData = {};
   let selectedChartType: 'composed' | 'pie' | 'trend' | 'waterfall' | 'gauge' = 'composed';
@@ -48,16 +50,16 @@
       switch (filters.report_type) {
         case 'plan_fact': {
           const planFactData = await reportService.getPlanFactReport(filters);
-          // Convert to RawReportData format
+          // Convert to RawReportData format - use the data structure from API response
           rawData = {
-            periods: planFactData.map(item => ({
+            periods: planFactData.map((item) => ({
               period_id: item.period_id,
               period_name: item.period_name,
-              period_ru_name: item.period_ru_name || item.period_name,
-              planned_amount: item.planned_amount,
+              period_ru_name: item.period_name,
+              planned_amount: item.budget_amount,
               actual_amount: item.actual_amount,
-              financial_center_name: item.financial_center_name,
-              cost_center_name: item.cost_center_name,
+              financial_center_name: '',
+              cost_center_name: '',
               nomenclature_name: item.nomenclature_name
             }))
           };
@@ -65,17 +67,19 @@
         }
         case 'budget': {
           const budgetData = await reportService.getBudgetReport(filters);
-          // Convert to RawReportData format
+          // Convert to RawReportData format - handle API response structure
           rawData = {
-            categories: budgetData.map(item => ({
+            categories: budgetData.map((item) => ({
               nomenclature_name: item.nomenclature_name,
-              total_amount: item.total_amount || 0,
-              financial_center_name: item.financial_center_name
+              total_amount: item.budget_amount || item.actual_amount || 0,
+              financial_center_name: ''
             })),
             budget_summary: {
-              total_planned: budgetData.reduce((sum, item) => sum + (item.total_amount || 0), 0),
-              total_actual: budgetData.reduce((sum, item) => sum + (item.total_amount || 0), 0) * 0.85, // Mock actual
-              utilization_percent: 85 // Mock utilization
+              total_planned: budgetData.reduce((sum, item) => sum + (item.budget_amount || 0), 0),
+              total_actual: budgetData.reduce((sum, item) => sum + (item.actual_amount || 0), 0),
+              utilization_percent: budgetData.length > 0 ? 
+                Math.round((budgetData.reduce((sum, item) => sum + (item.actual_amount || 0), 0) / 
+                           budgetData.reduce((sum, item) => sum + (item.budget_amount || 0), 0)) * 100) : 0
             }
           };
           break;
@@ -90,15 +94,18 @@
               nomenclature_name: item.name,
               total_amount: item.value
             })),
-            time_series: analyticsData.trends.map(item => ({
-              date: item.date,
-              amount: item.plan,
-              type: 'plan' as const
-            })).concat(analyticsData.trends.map(item => ({
-              date: item.date,
-              amount: item.fact,
-              type: 'fact' as const
-            })))
+            time_series: [
+              ...analyticsData.trends.map(item => ({
+                date: item.date,
+                amount: item.plan,
+                type: 'plan' as 'plan' | 'fact'
+              })),
+              ...analyticsData.trends.map(item => ({
+                date: item.date,
+                amount: item.fact,
+                type: 'fact' as 'plan' | 'fact'
+              }))
+            ]
           };
           break;
         }
@@ -120,9 +127,12 @@
         toast.info('Информация', 'Используются тестовые данные');
       } catch (mockError) {
         toast.error('Ошибка', error.message || 'Не удалось загрузить отчет');
+        // Ensure we have empty data to prevent infinite loading
+        transformedData = {};
       }
     } finally {
       loading = false;
+      initialLoadCompleted = true;
     }
   }
 
@@ -182,117 +192,114 @@
     transformedData.composedData?.length
   );
 
-  onMount(() => {
-    // Load initial data with plan_fact report type
-    handleApplyFilters(currentFilters);
+  // Load initial data when component mounts and user is authenticated
+  onMount(async () => {
+    if ($isAuthenticated && !initialLoadCompleted) {
+      await handleApplyFilters(currentFilters);
+    }
   });
 </script>
 
 <svelte:head>
-  <title>Отчеты - Family Budget</title>
+  <title>Отчеты | Family Budget</title>
 </svelte:head>
 
-<div class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-  <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-      <div>
-        <h1 class="text-3xl font-bold text-slate-900 flex items-center gap-3">
-          <div class="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center">
-            <BarChart3 class="h-6 w-6 text-purple-600" />
-          </div>
-          Отчеты и аналитика
-        </h1>
-        <p class="text-slate-600 mt-2 ml-15">Комплексный анализ бюджетных данных</p>
-      </div>
-      
-      <!-- Header Controls -->
-      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <!-- Report Type Selector -->
-        <div class="flex flex-wrap gap-2">
-          {#each availableReportTypes as reportType}
-            <button
-              on:click={() => handleReportTypeChange(reportType.value)}
-              class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all {
-                currentFilters.report_type === reportType.value
-                  ? 'bg-purple-600 text-white shadow-lg'
-                  : 'bg-white text-slate-700 hover:bg-purple-50 border border-slate-200'
-              }"
-            >
-              <svelte:component this={reportType.icon} class="h-4 w-4" />
-              {reportType.label}
-            </button>
-          {/each}
+<div class="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
+  <div class="container mx-auto px-4 py-8">
+    <!-- Заголовок страницы -->
+    <div class="page-header">
+      <div class="header-content">
+        <div class="header-icon-wrapper">
+          <BarChart3 class="h-10 w-10 text-white" />
         </div>
-        
-        <!-- Quick Actions -->
-        <div class="flex items-center gap-2">
-          <Button
-            href="/budget"
-            variant="outline"
-            size="sm"
-            class="flex items-center gap-2"
-          >
-            <Calculator class="h-4 w-4" />
-            План
-          </Button>
-          <Button
-            href="/fact"
-            variant="outline"
-            size="sm"
-            class="flex items-center gap-2"
-          >
-            <CreditCard class="h-4 w-4" />
-            Факт
-          </Button>
+        <div>
+          <h1 class="page-title">
+            Отчеты и аналитика
+          </h1>
+          <p class="page-subtitle">
+            Комплексный анализ бюджетных данных и финансовые отчеты
+          </p>
         </div>
       </div>
     </div>
+    
+    <!-- Панель действий -->
+    <div class="action-panel">
+      <!-- Report Type Selector -->
+      <div class="flex flex-wrap gap-3">
+        {#each availableReportTypes as reportType}
+          <button
+            on:click={() => handleReportTypeChange(reportType.value)}
+            class="action-btn {
+              currentFilters.report_type === reportType.value
+                ? 'action-btn-primary'
+                : 'action-btn-secondary'
+            }"
+          >
+            <svelte:component this={reportType.icon} class="h-5 w-5" />
+            {reportType.label}
+          </button>
+        {/each}
+      </div>
+      
+      <!-- Quick Actions -->
+      <div class="flex items-center gap-3">
+        <a href="/budget" class="action-btn action-btn-secondary">
+          <Calculator class="h-5 w-5" />
+          План
+        </a>
+        <a href="/fact" class="action-btn action-btn-secondary">
+          <CreditCard class="h-5 w-5" />
+          Факт
+        </a>
+      </div>
+    </div>
 
-    <!-- Layout: Filters + Content -->
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-      <!-- Enhanced Filters Sidebar -->
-      <div class="lg:col-span-1 space-y-6">
-        <ReportFiltersComponent 
-          onApplyFilters={handleApplyFilters}
-          isLoading={loading}
-        />
-        
-        <!-- View Controls -->
-        <div class="bg-white rounded-lg shadow-sm border border-l-4 border-l-purple-500 p-4">
-          <h3 class="text-sm font-medium text-slate-900 mb-3 flex items-center gap-2">
-            <Settings class="h-4 w-4" />
-            Настройки отображения
-          </h3>
-          
-          <!-- View Mode Toggle -->
-          <ViewModeToggle 
-            currentMode={viewMode}
-            onModeChange={handleViewModeChange}
+    <!-- Основной контент -->
+    <div class="main-content">
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- Enhanced Filters Sidebar -->
+        <div class="lg:col-span-1 space-y-6">
+          <ReportFiltersComponent 
+            onApplyFilters={handleApplyFilters}
+            isLoading={loading}
           />
           
-          <!-- Chart Type Selector (only in chart mode) -->
-          {#if viewMode === 'chart'}
-            <div class="mt-4">
-              <ChartSelector 
-                currentType={selectedChartType}
-                onTypeChange={handleChartTypeChange}
-                reportType={currentFilters.report_type}
-              />
-            </div>
-          {/if}
-        </div>
-      </div>
-
-      <!-- Main Content Area -->
-      <div class="lg:col-span-3 space-y-6">
-        {#if loading}
-          <div class="bg-white rounded-lg shadow-sm p-8 border border-l-4 border-l-blue-500">
-            <div class="flex items-center justify-center">
-              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-              <span class="ml-3 text-gray-600">Загрузка отчета...</span>
-            </div>
+          <!-- View Controls -->
+          <div class="content-card">
+            <h3 class="card-title">
+              <Settings class="h-5 w-5" />
+              Настройки отображения
+            </h3>
+          
+            <!-- View Mode Toggle -->
+            <ViewModeToggle 
+              currentMode={viewMode}
+              onModeChange={handleViewModeChange}
+            />
+            
+            <!-- Chart Type Selector (only in chart mode) -->
+            {#if viewMode === 'chart'}
+              <div class="mt-4">
+                <ChartSelector 
+                  currentType={selectedChartType}
+                  onTypeChange={handleChartTypeChange}
+                  reportType={currentFilters.report_type}
+                />
+              </div>
+            {/if}
           </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="lg:col-span-3 space-y-6">
+          {#if loading}
+            <div class="content-card">
+              <div class="flex items-center justify-center p-8">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                <span class="ml-3 text-gray-600">Загрузка отчета...</span>
+              </div>
+            </div>
         {:else if hasData}
           <!-- Dynamic Content Rendering -->
           {#if viewMode === 'chart'}
@@ -302,71 +309,159 @@
               reportType={currentFilters.report_type}
               {loading}
             />
-          {:else}
-            <!-- Table View -->
-            <div class="bg-white rounded-lg shadow-sm border border-l-4 border-l-green-500">
-              <div class="px-6 py-4 border-b border-gray-200">
-                <h2 class="text-lg font-medium text-gray-900 flex items-center gap-2">
-                  <BarChart3 class="h-5 w-5" />
-                  Табличное представление
-                </h2>
+            {:else}
+              <!-- Table View -->
+              <div class="content-card">
+                <div class="px-6 py-4 border-b border-gray-200">
+                  <h2 class="text-lg font-medium text-gray-900 flex items-center gap-2">
+                    <BarChart3 class="h-5 w-5" />
+                    Табличное представление
+                  </h2>
+                </div>
+                <div class="p-6">
+                  <BudgetTable 
+                    data={transformedData.planFactData || []}
+                    title="Детальные данные"
+                    loading={false}
+                    onExport={handleExport}
+                  />
+                </div>
               </div>
-              <div class="p-6">
-                <BudgetTable 
-                  data={transformedData.planFactData || []}
-                  title="Детальные данные"
-                  loading={false}
-                  onExport={handleExport}
-                />
+            {/if}
+
+            <!-- Export Actions -->
+            <div class="export-card">
+              <div class="flex items-center gap-2 text-sm text-gray-600">
+                <FileSpreadsheet class="h-4 w-4" />
+                Экспорт данных в различных форматах
               </div>
+              <div class="flex items-center gap-3">
+                <button
+                  on:click={() => handleExport('excel')}
+                  class="export-btn"
+                >
+                  <Download class="h-4 w-4" />
+                  Excel
+                </button>
+                <button
+                  on:click={() => handleExport('pdf')}
+                  class="export-btn"
+                >
+                  <Download class="h-4 w-4" />
+                  PDF
+                </button>
+              </div>
+            </div>
+          {:else if initialLoadCompleted}
+            <!-- Empty State -->
+            <div class="content-card text-center p-12">
+              <div class="h-16 w-16 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <BarChart3 class="h-8 w-8 text-purple-600" />
+              </div>
+              <h3 class="text-lg font-medium text-gray-900 mb-2">Данные не найдены</h3>
+              <p class="text-gray-600 mb-4">Измените параметры фильтра или выберите другой тип отчета</p>
+              <button 
+                on:click={() => handleApplyFilters(currentFilters)}
+                class="action-btn action-btn-secondary"
+              >
+                Обновить
+              </button>
             </div>
           {/if}
-
-          <!-- Export Actions -->
-          <div class="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white rounded-lg shadow-sm p-4 border border-l-4 border-l-amber-500">
-            <div class="flex items-center gap-2 text-sm text-gray-600">
-              <FileSpreadsheet class="h-4 w-4" />
-              Экспорт данных в различных форматах
-            </div>
-            <div class="flex items-center gap-3">
-              <Button
-                on:click={() => handleExport('excel')}
-                variant="outline"
-                size="sm"
-                class="flex items-center gap-2"
-              >
-                <Download class="h-4 w-4" />
-                Excel
-              </Button>
-              <Button
-                on:click={() => handleExport('pdf')}
-                variant="outline"
-                size="sm"
-                class="flex items-center gap-2"
-              >
-                <Download class="h-4 w-4" />
-                PDF
-              </Button>
-            </div>
-          </div>
-        {:else}
-          <!-- Empty State -->
-          <div class="bg-white rounded-lg shadow-sm p-12 text-center border border-l-4 border-l-gray-400">
-            <div class="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <BarChart3 class="h-8 w-8 text-gray-400" />
-            </div>
-            <h3 class="text-lg font-medium text-gray-900 mb-2">Данные не найдены</h3>
-            <p class="text-gray-600 mb-4">Измените параметры фильтра или выберите другой тип отчета</p>
-            <Button 
-              on:click={() => handleApplyFilters(currentFilters)}
-              variant="outline"
-              size="sm"
-            >
-              Обновить
-            </Button>
-          </div>
-        {/if}
+        </div>
       </div>
     </div>
   </div>
 </div>
+
+<style>
+  :global(.container) {
+    max-width: 1200px;
+  }
+
+  .page-header {
+    @apply mb-8 p-8 rounded-2xl;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    box-shadow: 0 10px 25px -5px rgba(102, 126, 234, 0.4);
+  }
+
+  .header-content {
+    @apply flex items-center gap-4;
+  }
+
+  .header-icon-wrapper {
+    @apply flex items-center justify-center w-16 h-16 rounded-xl;
+    background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%);
+    backdrop-filter: blur(10px);
+  }
+
+  .page-title {
+    @apply text-3xl font-bold text-white mb-1;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .page-subtitle {
+    @apply text-white/80;
+  }
+
+  .action-panel {
+    @apply flex flex-wrap justify-between items-center gap-4 mb-6;
+  }
+
+  .action-btn {
+    @apply flex items-center gap-2 px-4 py-2 rounded-xl font-medium;
+    @apply transition-all duration-200 transform hover:-translate-y-0.5;
+    @apply shadow-md hover:shadow-lg;
+  }
+
+  .action-btn-primary {
+    @apply text-white;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+
+  .action-btn-primary:hover {
+    background: linear-gradient(135deg, #5a67d8 0%, #6b5b95 100%);
+  }
+
+  .action-btn-secondary {
+    @apply bg-white/90 text-gray-700 hover:bg-white;
+    backdrop-filter: blur(10px);
+  }
+
+  .main-content {
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .content-card {
+    @apply bg-white/90 rounded-xl p-6 shadow-lg;
+    backdrop-filter: blur(10px);
+  }
+
+  .card-title {
+    @apply text-lg font-semibold mb-3 flex items-center gap-2 text-gray-800;
+  }
+
+  .export-card {
+    @apply flex flex-col sm:flex-row justify-between items-center gap-4;
+    @apply bg-white/90 rounded-xl p-4 shadow-lg;
+    backdrop-filter: blur(10px);
+  }
+
+  .export-btn {
+    @apply flex items-center gap-2 px-4 py-2 rounded-lg;
+    @apply bg-gradient-to-r from-purple-50 to-pink-50 text-gray-700;
+    @apply hover:from-purple-100 hover:to-pink-100;
+    @apply transition-all duration-200 border border-purple-200/50;
+  }
+</style>

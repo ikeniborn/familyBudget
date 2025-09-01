@@ -440,11 +440,11 @@
           <p class="text-gray-600 mt-1">Расширенное управление бюджетными периодами</p>
         </div>
         <div class="flex items-center gap-2">
-          <Button variant="outline" on:click={fetchPeriods}>
+          <Button variant="outline" onclick={fetchPeriods}>
             <RefreshCw class="h-4 w-4 mr-2" />
             Обновить
           </Button>
-          <Button variant="outline" on:click={() => showFilterModal = true}>
+          <Button variant="outline" onclick={() => showFilterModal = true}>
             <Filter class="h-4 w-4 mr-2" />
             Фильтры
             {#if filters.year || filters.month || filters.isActive !== null}
@@ -499,10 +499,10 @@
           <Badge variant="secondary">
             Выбрано: {selectedItems.size}
           </Badge>
-          <Button variant="outline" size="sm" on:click={() => handleMassStatusChange(true)}>
+          <Button variant="outline" size="sm" onclick={() => handleMassStatusChange(true)}>
             Активировать
           </Button>
-          <Button variant="outline" size="sm" on:click={() => handleMassStatusChange(false)}>
+          <Button variant="outline" size="sm" onclick={() => handleMassStatusChange(false)}>
             Деактивировать
           </Button>
         </div>
@@ -623,10 +623,10 @@
   </form>
 
   <svelte:fragment slot="footer">
-    <Button variant="outline" on:click={handleCloseModal}>
+    <Button variant="outline" onclick={handleCloseModal}>
       Отмена
     </Button>
-    <Button type="submit" on:click={handleSubmit}>
+    <Button type="submit" onclick={handleSubmit}>
       {isEditing ? 'Обновить' : 'Создать'}
     </Button>
   </svelte:fragment>
@@ -685,10 +685,10 @@
   </div>
 
   <svelte:fragment slot="footer">
-    <Button variant="outline" on:click={resetFilters}>
+    <Button variant="outline" onclick={resetFilters}>
       Сбросить
     </Button>
-    <Button on:click={() => showFilterModal = false}>
+    <Button onclick={() => showFilterModal = false}>
       Применить
     </Button>
   </svelte:fragment>

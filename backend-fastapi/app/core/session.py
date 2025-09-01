@@ -51,6 +51,16 @@ class SessionStore:
             return None
         
         try:
+            # Try express-session format first (used by SvelteKit)
+            data = await self.redis.get(f"sess:{session_id}")
+            if data:
+                session_dict = json.loads(data)
+                # Express-session format has nested user object
+                if "user" in session_dict:
+                    return SessionData(session_dict["user"])
+                return SessionData(session_dict)
+            
+            # Fallback to old format
             data = await self.redis.get(f"session:{session_id}")
             if data:
                 session_dict = json.loads(data)
@@ -66,9 +76,21 @@ class SessionStore:
             return
         
         try:
-            data = json.dumps(session_data.to_dict(), default=str)
+            # Save in express-session format for compatibility with SvelteKit
+            session_obj = {
+                "cookie": {
+                    "originalMaxAge": settings.SESSION_EXPIRE_SECONDS * 1000,
+                    "expires": (datetime.utcnow() + timedelta(seconds=settings.SESSION_EXPIRE_SECONDS)).isoformat(),
+                    "secure": settings.ENVIRONMENT == "production",
+                    "httpOnly": True,
+                    "path": "/",
+                    "sameSite": "lax"
+                },
+                "user": session_data.to_dict()
+            }
+            data = json.dumps(session_obj, default=str)
             await self.redis.setex(
-                f"session:{session_id}",
+                f"sess:{session_id}",
                 settings.SESSION_EXPIRE_SECONDS,
                 data
             )
@@ -81,6 +103,8 @@ class SessionStore:
             return
         
         try:
+            # Delete both formats
+            await self.redis.delete(f"sess:{session_id}")
             await self.redis.delete(f"session:{session_id}")
         except Exception as e:
             print(f"Session delete error: {e}")
@@ -145,14 +169,15 @@ async def get_current_user_from_session(request: Request) -> Optional[dict]:
     if not session:
         return None
     
-    user_id = session.get("user_id")
+    # Support both old format and express-session format
+    user_id = session.get("user_id") or session.get("id")
     if not user_id:
         return None
     
     return {
         "user_id": user_id,
         "username": session.get("username"),
-        "user_name": session.get("user_name"),
+        "user_name": session.get("user_name") or session.get("name"),
         "auth_method": session.get("auth_method"),
         "telegram_id": session.get("telegram_id"),
     }

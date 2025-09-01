@@ -124,7 +124,7 @@
         <select
           id="report-type"
           value={filters.report_type}
-          on:change={(e) => handleFilterChange('report_type', e.currentTarget.value)}
+          onchange={(e) => handleFilterChange('report_type', e.currentTarget.value)}
           class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
         >
           {#each reportTypeOptions as option}
@@ -142,7 +142,7 @@
         <select
           id="period"
           value={filters.period_id?.toString() || 'all'}
-          on:change={(e) => handleFilterChange('period_id', e.currentTarget.value)}
+          onchange={(e) => handleFilterChange('period_id', e.currentTarget.value)}
           class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
         >
           {#each periodOptions as option}
@@ -160,7 +160,7 @@
         <select
           id="financial-center"
           value={filters.financial_center_id?.toString() || 'all'}
-          on:change={(e) => handleFilterChange('financial_center_id', e.currentTarget.value)}
+          onchange={(e) => handleFilterChange('financial_center_id', e.currentTarget.value)}
           class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
         >
           {#each financialCenterOptions as option}
@@ -178,7 +178,7 @@
         <select
           id="cost-center"
           value={filters.cost_center_id?.toString() || 'all'}
-          on:change={(e) => handleFilterChange('cost_center_id', e.currentTarget.value)}
+          onchange={(e) => handleFilterChange('cost_center_id', e.currentTarget.value)}
           class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
         >
           {#each costCenterOptions as option}

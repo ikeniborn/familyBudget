@@ -37,45 +37,26 @@
   }>();
 
   // Props
-  interface Props {
-    data?: Array<{
-      date: string | Date;
-      value: number;
-      series?: string;
-      forecast?: boolean;
-      [key: string]: any;
-    }>;
-    title?: string;
-    subtitle?: string;
-    height?: number;
-    className?: string;
-    showArea?: boolean;
-    showForecast?: boolean;
-    showMovingAverage?: boolean;
-    movingAverageWindow?: number;
-    dateRangeSelector?: boolean;
-    multiSeries?: boolean;
-    forecastDays?: number;
-    loading?: boolean;
-    error?: string | null;
-  }
-  
-  let {
-    data = [],
-    title = 'Динамика расходов',
-    subtitle = '',
-    height = 400,
-    className = '',
-    showArea = false,
-    showForecast = true,
-    showMovingAverage = false,
-    movingAverageWindow = 7,
-    dateRangeSelector = true,
-    multiSeries = true,
-    forecastDays = 30,
-    loading = false,
-    error = null
-  }: Props = $props();
+  export let data: Array<{
+    date: string | Date;
+    value: number;
+    series?: string;
+    forecast?: boolean;
+    [key: string]: any;
+  }> = [];
+  export let title: string = 'Динамика расходов';
+  export let subtitle: string = '';
+  export let height: number = 400;
+  export let className: string = '';
+  export let showArea: boolean = false;
+  export let showForecast: boolean = true;
+  export let showMovingAverage: boolean = false;
+  export let movingAverageWindow: number = 7;
+  export let dateRangeSelector: boolean = true;
+  export let multiSeries: boolean = true;
+  export let forecastDays: number = 30;
+  export let loading: boolean = false;
+  export let error: string | null = null;
 
   // State
   let selectedDateRange: { start: string; end: string } | null = null;

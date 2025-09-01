@@ -22,7 +22,8 @@
     AlertTriangle,
     Wallet,
     TrendingUpIcon as LineChart,
-    PieChart
+    PieChart,
+    Home
   } from 'lucide-svelte';
   
   let loading = true;
@@ -65,217 +66,320 @@
 </script>
 
 <svelte:head>
-  <title>Главная - Family Budget</title>
+  <title>Главная | Family Budget</title>
 </svelte:head>
 
-{#if loading}
-  <div class="flex justify-center items-center min-h-[400px]">
-    <Loading size="large" text="Загрузка дашборда..." />
-  </div>
-{:else}
-  <div class="space-y-6">
-    <!-- Welcome Section with Geometric Accent -->
-    <div class="mb-8 relative">
-      <div class="absolute top-0 left-0 w-16 h-16 bg-gradient-to-br from-navy/10 to-sky/10 rounded-full opacity-50"></div>
-      <div class="absolute top-4 left-4 w-8 h-8 bg-navy/20 rotate-45 rounded-sm"></div>
-      <h1 class="text-3xl font-bold text-navy-dark mb-2 relative z-10">Добро пожаловать в Family Budget</h1>
-      <p class="text-steel-dark relative z-10">
-        Вот краткий обзор вашего финансового состояния на сегодня
-      </p>
-    </div>
+<div class="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
+  <div class="container mx-auto px-4 py-8">
+    {#if loading}
+      <div class="flex justify-center items-center min-h-[400px]">
+        <Loading size="large" text="Загрузка дашборда..." />
+      </div>
+    {:else}
+      <!-- Заголовок страницы -->
+      <div class="page-header">
+        <div class="header-content">
+          <div class="header-icon-wrapper">
+            <Home class="h-10 w-10 text-white" />
+          </div>
+          <div>
+            <h1 class="page-title">
+              Главная панель
+            </h1>
+            <p class="page-subtitle">
+              Обзор вашего финансового состояния и быстрый доступ к функциям
+            </p>
+          </div>
+        </div>
+      </div>
 
-    <!-- Budget Overview Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <Card variant="navy">
-        <div class="p-6">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm font-medium text-steel-dark">Общий бюджет</p>
-              <p class="text-2xl font-bold text-navy-dark">
+      <!-- Основной контент -->
+      <div class="main-content">
+        <!-- Budget Overview Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div class="stat-card">
+            <div class="stat-card-icon bg-gradient-to-br from-purple-500 to-pink-500">
+              <Target class="h-6 w-6 text-white" />
+            </div>
+            <div class="stat-card-content">
+              <p class="stat-label">Общий бюджет</p>
+              <p class="stat-value">
                 {budgetSummary.totalBudget.toLocaleString()} ₽
               </p>
             </div>
-            <div class="financial-icon navy sm">
-              <Target class="h-6 w-6" />
-            </div>
           </div>
-        </div>
-      </Card>
 
-      <Card variant="steel">
-        <div class="p-6">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm font-medium text-steel-dark">Потрачено</p>
-              <p class="text-2xl font-bold text-navy-dark">
+          <div class="stat-card">
+            <div class="stat-card-icon bg-gradient-to-br from-orange-500 to-red-500">
+              <CreditCard class="h-6 w-6 text-white" />
+            </div>
+            <div class="stat-card-content">
+              <p class="stat-label">Потрачено</p>
+              <p class="stat-value">
                 {budgetSummary.totalSpent.toLocaleString()} ₽
               </p>
-              <p class="text-xs text-steel flex items-center mt-1">
+              <p class="stat-detail flex items-center mt-1">
                 <TrendingDown class="h-3 w-3 mr-1" />
                 58% от бюджета
               </p>
             </div>
-            <div class="financial-icon steel sm">
-              <CreditCard class="h-6 w-6" />
-            </div>
           </div>
-        </div>
-      </Card>
 
-      <Card variant="sky">
-        <div class="p-6">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm font-medium text-steel-dark">Остаток</p>
-              <p class="text-2xl font-bold text-navy-dark">
+          <div class="stat-card">
+            <div class="stat-card-icon bg-gradient-to-br from-green-500 to-teal-500">
+              <PiggyBank class="h-6 w-6 text-white" />
+            </div>
+            <div class="stat-card-content">
+              <p class="stat-label">Остаток</p>
+              <p class="stat-value">
                 {budgetSummary.remaining.toLocaleString()} ₽
               </p>
-              <p class="text-xs text-sky flex items-center mt-1">
+              <p class="stat-detail flex items-center mt-1">
                 <TrendingUp class="h-3 w-3 mr-1" />
                 42% доступно
               </p>
             </div>
-            <div class="financial-icon sky sm">
-              <PiggyBank class="h-6 w-6" />
-            </div>
           </div>
-        </div>
-      </Card>
 
-      <Card variant="beige">
-        <div class="p-6">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm font-medium text-steel-dark">Экономия</p>
-              <p class="text-2xl font-bold text-navy-dark">
+          <div class="stat-card">
+            <div class="stat-card-icon bg-gradient-to-br from-blue-500 to-indigo-500">
+              <Wallet class="h-6 w-6 text-white" />
+            </div>
+            <div class="stat-card-content">
+              <p class="stat-label">Экономия</p>
+              <p class="stat-value">
                 {(budgetSummary.totalBudget - budgetSummary.totalSpent).toLocaleString()} ₽
               </p>
-              <p class="text-xs text-beige flex items-center mt-1">
+              <p class="stat-detail flex items-center mt-1">
                 <DollarSign class="h-3 w-3 mr-1" />
                 К концу месяца
               </p>
             </div>
-            <div class="financial-icon beige sm">
-              <Wallet class="h-6 w-6" />
-            </div>
           </div>
         </div>
-      </Card>
-    </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- Quick Actions -->
-      <Card variant="elevated">
-        <div class="p-6">
-          <h3 class="text-lg font-semibold mb-2 flex items-center text-navy-dark">
-            <div class="financial-icon navy sm mr-3">
-              <Plus class="h-4 w-4" />
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Quick Actions -->
+          <div class="content-card">
+            <h3 class="card-title">
+              <Plus class="h-5 w-5" />
+              Быстрые действия
+            </h3>
+            <p class="card-subtitle">
+              Управляйте вашим бюджетом одним кликом
+            </p>
+            <div class="space-y-3">
+              <a href="/fact" class="quick-action-btn">
+                <CreditCard class="h-4 w-4" />
+                Добавить расход
+              </a>
+              <a href="/budget" class="quick-action-btn">
+                <Calculator class="h-4 w-4" />
+                Создать бюджет
+              </a>
+              <a href="/reports" class="quick-action-btn">
+                <BarChart3 class="h-4 w-4" />
+                Посмотреть отчеты
+              </a>
+              <a href="/products" class="quick-action-btn">
+                <Package class="h-4 w-4" />
+                Управление товарами
+              </a>
             </div>
-            Быстрые действия
-          </h3>
-          <p class="text-sm text-steel-dark mb-4">
-            Управляйте вашим бюджетом одним кликом
-          </p>
-          <div class="space-y-3">
-            <Button href="/fact" variant="outline" class="w-full justify-start">
-              <CreditCard class="h-4 w-4 mr-2" />
-              Добавить расход
-            </Button>
-            <Button href="/budget" variant="outline" class="w-full justify-start">
-              <Calculator class="h-4 w-4 mr-2" />
-              Создать бюджет
-            </Button>
-            <Button href="/reports" variant="outline" class="w-full justify-start">
-              <BarChart3 class="h-4 w-4 mr-2" />
-              Посмотреть отчеты
-            </Button>
-            <Button href="/products" variant="outline" class="w-full justify-start">
-              <Package class="h-4 w-4 mr-2" />
-              Управление товарами
-            </Button>
           </div>
-        </div>
-      </Card>
 
-      <!-- Category Budget Progress -->
-      <Card variant="elevated">
-        <div class="p-6">
-          <h3 class="text-lg font-semibold mb-2 flex items-center text-navy-dark">
-            <div class="financial-icon sky sm mr-3">
-              <PieChart class="h-4 w-4" />
-            </div>
-            Прогресс по категориям
-          </h3>
-          <p class="text-sm text-steel-dark mb-4">
-            Использование бюджета по основным категориям
-          </p>
-          <div class="space-y-4">
-            {#each budgetSummary.categories as category}
-              {@const percentage = (category.spent / category.budget) * 100}
-              {@const isOverBudget = percentage > 100}
-              
-              <div class="space-y-2">
-                <div class="flex items-center justify-between">
-                  <span class="text-sm font-medium text-navy-dark">{category.name}</span>
-                  <div class="flex items-center space-x-2">
-                    {#if isOverBudget}
-                      <AlertTriangle class="h-4 w-4 text-red-500" />
-                    {/if}
-                    <Badge variant={isOverBudget ? "destructive" : "secondary"}>
-                      {percentage.toFixed(0)}%
-                    </Badge>
+          <!-- Category Budget Progress -->
+          <div class="content-card">
+            <h3 class="card-title">
+              <PieChart class="h-5 w-5" />
+              Прогресс по категориям
+            </h3>
+            <p class="card-subtitle">
+              Использование бюджета по основным категориям
+            </p>
+            <div class="space-y-4">
+              {#each budgetSummary.categories as category}
+                {@const percentage = (category.spent / category.budget) * 100}
+                {@const isOverBudget = percentage > 100}
+                
+                <div class="category-progress">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-gray-700">{category.name}</span>
+                    <div class="flex items-center space-x-2">
+                      {#if isOverBudget}
+                        <AlertTriangle class="h-4 w-4 text-red-500" />
+                      {/if}
+                      <span class="text-sm font-semibold {isOverBudget ? 'text-red-500' : 'text-purple-600'}">
+                        {percentage.toFixed(0)}%
+                      </span>
+                    </div>
+                  </div>
+                  <div class="progress-bar">
+                    <div
+                      class="progress-fill {isOverBudget ? 'bg-gradient-to-r from-red-400 to-red-600' : 'bg-gradient-to-r from-purple-400 to-pink-500'}"
+                      style="width: {Math.min(percentage, 100)}%"
+                    ></div>
+                  </div>
+                  <div class="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>{category.spent.toLocaleString()} ₽</span>
+                    <span>{category.budget.toLocaleString()} ₽</span>
                   </div>
                 </div>
-                <div class="w-full bg-steel/20 rounded-full h-2">
-                  <div
-                    class="h-2 rounded-full {isOverBudget ? 'bg-steel' : 'bg-sky'}"
-                    style="width: {Math.min(percentage, 100)}%"
-                  ></div>
-                </div>
-                <div class="flex justify-between text-xs text-steel">
-                  <span>{category.spent.toLocaleString()} ₽</span>
-                  <span>{category.budget.toLocaleString()} ₽</span>
-                </div>
-              </div>
-            {/each}
-          </div>
-        </div>
-      </Card>
-
-      <!-- Recent Transactions -->
-      <Card variant="elevated">
-        <div class="p-6">
-          <h3 class="text-lg font-semibold mb-2 flex items-center text-navy-dark">
-            <div class="financial-icon beige sm mr-3">
-              <LineChart class="h-4 w-4" />
+              {/each}
             </div>
-            Последние операции
-          </h3>
-          <p class="text-sm text-steel-dark mb-4">
-            Недавние доходы и расходы
-          </p>
-          <div class="space-y-3">
-            {#each recentTransactions as transaction}
-              <div class="flex items-center justify-between p-3 border border-steel/20 rounded-lg hover:border-navy/30 transition-colors">
-                <div class="flex-1">
-                  <p class="font-medium text-sm text-navy-dark">{transaction.description}</p>
-                  <p class="text-xs text-steel">{transaction.category}</p>
+          </div>
+
+          <!-- Recent Transactions -->
+          <div class="content-card">
+            <h3 class="card-title">
+              <LineChart class="h-5 w-5" />
+              Последние операции
+            </h3>
+            <p class="card-subtitle">
+              Недавние доходы и расходы
+            </p>
+            <div class="space-y-3">
+              {#each recentTransactions as transaction}
+                <div class="transaction-item">
+                  <div class="flex-1">
+                    <p class="font-medium text-sm text-gray-800">{transaction.description}</p>
+                    <p class="text-xs text-gray-500">{transaction.category}</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="font-semibold {transaction.amount > 0 ? 'text-green-600' : 'text-gray-700'}">
+                      {transaction.amount > 0 ? '+' : ''}{transaction.amount.toLocaleString()} ₽
+                    </p>
+                    <p class="text-xs text-gray-500">{transaction.date}</p>
+                  </div>
                 </div>
-                <div class="text-right">
-                  <p class="font-semibold {transaction.amount > 0 ? 'text-sky' : 'text-steel'}">
-                    {transaction.amount > 0 ? '+' : ''}{transaction.amount.toLocaleString()} ₽
-                  </p>
-                  <p class="text-xs text-steel">{transaction.date}</p>
-                </div>
-              </div>
-            {/each}
-            <Button href="/fact" variant="ghost" class="w-full">
-              Все операции
-              <ArrowRight class="h-4 w-4 ml-2" />
-            </Button>
+              {/each}
+              <a href="/fact" class="view-all-btn">
+                Все операции
+                <ArrowRight class="h-4 w-4" />
+              </a>
+            </div>
           </div>
         </div>
-      </Card>
-    </div>
+      </div>
+    {/if}
   </div>
-{/if}
+</div>
+
+<style>
+  :global(.container) {
+    max-width: 1200px;
+  }
+
+  .page-header {
+    @apply mb-8 p-8 rounded-2xl;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    box-shadow: 0 10px 25px -5px rgba(102, 126, 234, 0.4);
+  }
+
+  .header-content {
+    @apply flex items-center gap-4;
+  }
+
+  .header-icon-wrapper {
+    @apply flex items-center justify-center w-16 h-16 rounded-xl;
+    background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%);
+    backdrop-filter: blur(10px);
+  }
+
+  .page-title {
+    @apply text-3xl font-bold text-white mb-1;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .page-subtitle {
+    @apply text-white/80;
+  }
+
+  .main-content {
+    @apply space-y-6;
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .stat-card {
+    @apply bg-white/90 rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200;
+    @apply flex items-center gap-4;
+    backdrop-filter: blur(10px);
+  }
+
+  .stat-card-icon {
+    @apply w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0;
+  }
+
+  .stat-card-content {
+    @apply flex-1;
+  }
+
+  .stat-label {
+    @apply text-sm font-medium text-gray-600 mb-1;
+  }
+
+  .stat-value {
+    @apply text-2xl font-bold text-gray-800;
+  }
+
+  .stat-detail {
+    @apply text-xs text-gray-500;
+  }
+
+  .content-card {
+    @apply bg-white/90 rounded-xl p-6 shadow-lg;
+    backdrop-filter: blur(10px);
+  }
+
+  .card-title {
+    @apply text-lg font-semibold mb-2 flex items-center gap-2 text-gray-800;
+  }
+
+  .card-subtitle {
+    @apply text-sm text-gray-600 mb-4;
+  }
+
+  .quick-action-btn {
+    @apply flex items-center gap-2 px-4 py-3 rounded-lg;
+    @apply bg-gradient-to-r from-purple-50 to-pink-50 text-gray-700;
+    @apply hover:from-purple-100 hover:to-pink-100;
+    @apply transition-all duration-200 transform hover:-translate-y-0.5;
+    @apply border border-purple-200/50;
+  }
+
+  .category-progress {
+    @apply space-y-1;
+  }
+
+  .progress-bar {
+    @apply w-full bg-gray-200 rounded-full h-2 overflow-hidden;
+  }
+
+  .progress-fill {
+    @apply h-2 rounded-full transition-all duration-300;
+  }
+
+  .transaction-item {
+    @apply flex items-center justify-between p-3;
+    @apply bg-gradient-to-r from-purple-50/50 to-pink-50/50;
+    @apply border border-purple-200/30 rounded-lg;
+    @apply hover:border-purple-300/50 transition-colors;
+  }
+
+  .view-all-btn {
+    @apply flex items-center justify-center gap-2 px-4 py-2;
+    @apply text-purple-600 font-medium;
+    @apply hover:text-purple-700 transition-colors;
+  }
+</style>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Bell, Maximize2, Minimize2, X } from 'lucide-svelte';
+  import { onMount } from 'svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   
@@ -25,6 +26,7 @@
   $: unreadCount = notifications.filter(n => n.unread).length;
   
   function toggleDropdown(event?: Event) {
+    console.log('toggleDropdown called!', event);
     if (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -61,21 +63,26 @@
     );
   }
 
-  // Handle keyboard events
-  function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape' && isOpen) {
-      closeDropdown();
-    }
-  }
-
-  // Add global escape key listener when dropdown is open
-  $: if (typeof document !== 'undefined') {
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeydown);
-    } else {
-      document.removeEventListener('keydown', handleKeydown);
-    }
-  }
+  // Handle escape key listener using lifecycle hooks
+  onMount(() => {
+    console.log('NotificationDropdown mounted!');
+    
+    // Test that button is clickable
+    const button = document.querySelector('button[aria-label="Открыть уведомления"]');
+    console.log('Found notification button:', button);
+    
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isOpen) {
+        closeDropdown();
+      }
+    };
+    
+    document.addEventListener('keydown', handleEscape);
+    
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+    };
+  });
 </script>
 
 <style>
@@ -94,7 +101,7 @@
     type="button"
     onclick={toggleDropdown}
     onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleDropdown(e)}
-    class="relative z-10 inline-flex items-center justify-center h-12 w-12 rounded-md font-medium transition-all hover:bg-secondary hover:text-secondary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-95"
+    class="relative inline-flex items-center justify-center h-12 w-12 rounded-md font-medium transition-all hover:bg-secondary hover:text-secondary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-95"
     title="Уведомления"
     aria-label="Открыть уведомления"
   >
@@ -102,7 +109,7 @@
     {#if unreadCount > 0}
       <Badge 
         variant="destructive" 
-        class="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
+        class="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs pointer-events-none"
       >
         {unreadCount}
       </Badge>
@@ -112,7 +119,7 @@
   {#if isOpen}
     <!-- Backdrop -->
     <div 
-      class={`fixed inset-0 ${isExpanded ? 'z-20 bg-black/50' : 'z-10'}`}
+      class={`fixed inset-0 ${isExpanded ? 'z-40 bg-black/50' : 'z-30'}`}
       onclick={closeDropdown}
       onkeydown={(e) => e.key === 'Escape' && closeDropdown()}
       role="button"
@@ -123,8 +130,8 @@
     <!-- Dropdown -->
     <div class={`
       ${isExpanded 
-        ? 'fixed top-0 right-0 h-screen w-full sm:w-1/2 z-30' 
-        : 'absolute right-0 mt-2 w-full sm:w-80 max-w-sm z-20 notification-dropdown-mobile'
+        ? 'fixed top-0 right-0 h-screen w-full sm:w-1/2 z-50' 
+        : 'absolute top-full right-0 mt-2 w-full sm:w-80 max-w-sm z-40 notification-dropdown-mobile'
       } 
       bg-white ${isExpanded ? '' : 'rounded-lg'} shadow-lg border border-gray-200 transition-all duration-300 ease-in-out
     `}>

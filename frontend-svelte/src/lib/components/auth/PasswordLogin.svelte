@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import { setCurrentUser } from '$lib/stores/auth.store';
   import { useToast } from '$lib/stores/toast.store';
   import { authService } from '$lib/services/auth.service';
@@ -38,7 +39,12 @@
 
         setCurrentUser(user);
         toast.success('Успешно', 'Вы вошли в систему');
-        goto('/dashboard');
+        
+        // Use returnUrl from query params if available, otherwise go to dashboard
+        const returnUrl = $page.url.searchParams.get('returnUrl') || '/dashboard';
+        
+        // Use client-side navigation for proper state handling
+        await goto(returnUrl, { replaceState: true });
       } else {
         error = response.error || 'Ошибка входа';
       }
@@ -81,7 +87,12 @@
 
         setCurrentUser(user);
         toast.success('Успешно', 'Аккаунт создан и вы вошли в систему');
-        goto('/dashboard');
+        
+        // Use returnUrl from query params if available, otherwise go to dashboard
+        const returnUrl = $page.url.searchParams.get('returnUrl') || '/dashboard';
+        
+        // Use client-side navigation for proper state handling
+        await goto(returnUrl, { replaceState: true });
       } else {
         error = response.error || 'Ошибка регистрации';
       }
@@ -119,14 +130,20 @@
     <button 
       class="toggle-mini-button" 
       class:active={!showRegister}
-      onclick={() => { showRegister = false; error = ''; }}
+      onclick={() => { 
+        showRegister = false; 
+        error = ''; 
+      }}
     >
       Вход
     </button>
     <button 
       class="toggle-mini-button" 
       class:active={showRegister}
-      onclick={() => { showRegister = true; error = ''; }}
+      onclick={() => { 
+        showRegister = true; 
+        error = ''; 
+      }}
     >
       Регистрация
     </button>

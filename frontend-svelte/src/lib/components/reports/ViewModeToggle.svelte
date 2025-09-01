@@ -1,13 +1,9 @@
 <script lang="ts">
   import { BarChart3, Table } from 'lucide-svelte';
 
-  // Props
-  interface Props {
-    currentMode: 'chart' | 'table';
-    onModeChange: (mode: 'chart' | 'table') => void;
-  }
-  
-  let { currentMode, onModeChange }: Props = $props();
+  // Props (legacy syntax for compatibility)
+  export let currentMode: 'chart' | 'table';
+  export let onModeChange: (mode: 'chart' | 'table') => void;
 
   // View modes configuration
   const viewModes = [

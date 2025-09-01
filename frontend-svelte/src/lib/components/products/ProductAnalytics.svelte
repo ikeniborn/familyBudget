@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, createEventDispatcher } from 'svelte';
+  import { createEventDispatcher } from 'svelte';
   import { productService, type Product, type ProductPrice } from '$lib/services/product.service';
   import { toastStore } from '$lib/stores/toast.store';
   import Card from '$lib/components/ui/Card.svelte';
@@ -35,15 +35,22 @@
   let productStats: ProductStats | null = null;
   let dateRange: 'week' | 'month' | 'quarter' | 'year' = 'month';
   let searchTerm = '';
+  let dataLoaded = false;
 
-  onMount(() => {
-    if (isOpen) {
-      loadProducts();
-    }
-  });
-
-  $: if (isOpen && products.length === 0) {
+  // Загружаем данные только когда диалог действительно открывается
+  $: if (isOpen && !dataLoaded) {
     loadProducts();
+    dataLoaded = true;
+  }
+
+  // Сбрасываем флаг загрузки данных при закрытии
+  $: if (!isOpen && dataLoaded) {
+    dataLoaded = false;
+    products = [];
+    selectedProductId = null;
+    priceHistory = [];
+    productStats = null;
+    searchTerm = '';
   }
 
   $: if (selectedProductId && isOpen) {
@@ -120,7 +127,7 @@
   }
 </script>
 
-<Modal bind:isOpen title="Аналитика по продуктам" size="extra-large" on:close={handleClose}>
+<Modal bind:isOpen title="Аналитика по продуктам" size="extra-large" onclose={handleClose}>
   <div class="space-y-6">
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
       <div class="md:col-span-2">
@@ -297,7 +304,7 @@
 
   <svelte:fragment slot="footer">
     <div class="flex justify-end">
-      <Button variant="secondary" on:click={handleClose}>
+      <Button variant="secondary" onclick={handleClose}>
         Закрыть
       </Button>
     </div>

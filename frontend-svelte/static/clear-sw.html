@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clear Service Worker</title>
+</head>
+<body>
+  <h1>Clearing Service Worker and Cache...</h1>
+  <div id="status"></div>
+  
+  <script>
+    const statusDiv = document.getElementById('status');
+    
+    async function clearServiceWorker() {
+      try {
+        // Unregister all service workers
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          for(let registration of registrations) {
+            await registration.unregister();
+            statusDiv.innerHTML += '<p>✅ Service Worker unregistered</p>';
+          }
+        }
+        
+        // Clear all caches
+        if ('caches' in window) {
+          const cacheNames = await caches.keys();
+          for(let cacheName of cacheNames) {
+            await caches.delete(cacheName);
+            statusDiv.innerHTML += `<p>✅ Cache "${cacheName}" deleted</p>`;
+          }
+        }
+        
+        // Clear localStorage and sessionStorage
+        localStorage.clear();
+        sessionStorage.clear();
+        statusDiv.innerHTML += '<p>✅ Local storage cleared</p>';
+        
+        statusDiv.innerHTML += '<h2>✨ All cleared! You can now close this page and refresh the app.</h2>';
+        
+        // Redirect after 2 seconds
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 2000);
+        
+      } catch (error) {
+        statusDiv.innerHTML += `<p>❌ Error: ${error.message}</p>`;
+      }
+    }
+    
+    clearServiceWorker();
+  </script>
+</body>
+</html>

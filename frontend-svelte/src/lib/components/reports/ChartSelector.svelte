@@ -8,14 +8,10 @@
   } from 'lucide-svelte';
   import type { ReportFilters } from '$lib/services/reportService';
 
-  // Props
-  interface Props {
-    currentType: 'composed' | 'pie' | 'trend' | 'waterfall' | 'gauge';
-    onTypeChange: (type: 'composed' | 'pie' | 'trend' | 'waterfall' | 'gauge') => void;
-    reportType: ReportFilters['report_type'];
-  }
-  
-  let { currentType, onTypeChange, reportType }: Props = $props();
+  // Props (legacy syntax for compatibility)
+  export let currentType: 'composed' | 'pie' | 'trend' | 'waterfall' | 'gauge';
+  export let onTypeChange: (type: 'composed' | 'pie' | 'trend' | 'waterfall' | 'gauge') => void;
+  export let reportType: ReportFilters['report_type'];
 
   // Chart type configurations with availability per report type
   const chartTypes = [

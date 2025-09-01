@@ -112,5 +112,5 @@
       </Card>
     </div>
 {:else}
-  <slot></slot>
+  <slot />
 {/if}

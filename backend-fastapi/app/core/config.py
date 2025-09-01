@@ -35,7 +35,7 @@ class Settings(BaseSettings):
         default="your-super-secret-session-key-change-in-production",
         env="SESSION_SECRET"
     )
-    SESSION_COOKIE_NAME: str = Field(default="familybudget.sid", env="SESSION_COOKIE_NAME")
+    SESSION_COOKIE_NAME: str = Field(default="connect.sid", env="SESSION_COOKIE_NAME")
     SESSION_EXPIRE_SECONDS: int = Field(default=86400, env="SESSION_EXPIRE_SECONDS")  # 24 hours
     
     # Authentication

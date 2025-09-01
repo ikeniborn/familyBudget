@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, createEventDispatcher } from 'svelte';
+  import { createEventDispatcher } from 'svelte';
   import { productService, type Product } from '$lib/services/product.service';
   import { nomenclaturesService, type CreateNomenclatureData } from '$lib/services/nomenclatures.service';
   import { toastStore } from '$lib/stores/toast.store';
@@ -30,20 +30,28 @@
   let products: ProductNomenclature[] = [];
   let nomenclatures: Nomenclature[] = [];
   let filteredProducts: ProductNomenclature[] = [];
-  let isLoading = true;
+  let isLoading = false;
   let searchTerm = '';
   let filterLinked: 'all' | 'linked' | 'unlinked' = 'all';
   let selectedNomenclature: { [key: number]: number } = {};
   let isUpdating = false;
+  let dataLoaded = false;
 
-  onMount(() => {
-    if (isOpen) {
-      loadData();
-    }
-  });
-
-  $: if (isOpen && products.length === 0) {
+  // Загружаем данные только когда диалог действительно открывается
+  $: if (isOpen && !dataLoaded) {
     loadData();
+    dataLoaded = true;
+  }
+
+  // Сбрасываем данные при закрытии
+  $: if (!isOpen && dataLoaded) {
+    dataLoaded = false;
+    products = [];
+    nomenclatures = [];
+    filteredProducts = [];
+    searchTerm = '';
+    filterLinked = 'all';
+    selectedNomenclature = {};
   }
 
   // Применение фильтров
@@ -230,15 +238,15 @@
   }
 
   function handleClose() {
-    isOpen = false;
     selectedNomenclature = {};
     searchTerm = '';
     filterLinked = 'all';
+    dataLoaded = false;
     dispatch('close');
   }
 </script>
 
-<Modal bind:isOpen title="Привязка продуктов к номенклатуре" size="extra-large" on:close={handleClose}>
+<Modal isOpen={isOpen} title="Привязка продуктов к номенклатуре" size="extra-large" on:close={handleClose}>
   {#if isLoading}
     <div class="flex items-center justify-center py-12">
       <Loading />
@@ -268,7 +276,7 @@
 
         <div class="flex gap-2">
           <Button
-            on:click={handleBatchLink}
+            onclick={handleBatchLink}
             disabled={isUpdating || Object.keys(selectedNomenclature).length === 0}
             class="flex-1"
           >
@@ -360,7 +368,7 @@
                       <Button
                         variant="secondary"
                         size="sm"
-                        on:click={() => handleUnlinkProduct(product.product_id)}
+                        onclick={() => handleUnlinkProduct(product.product_id)}
                         disabled={isUpdating}
                         class="text-red-600 hover:text-red-700"
                       >
@@ -371,7 +379,7 @@
                         <Button
                           variant="secondary"
                           size="sm"
-                          on:click={() => handleLinkProduct(
+                          onclick={() => handleLinkProduct(
                             product.product_id, 
                             selectedNomenclature[product.product_id]
                           )}
@@ -383,7 +391,7 @@
                       <Button
                         variant="secondary"
                         size="sm"
-                        on:click={() => handleCreateNomenclature(product.product_id)}
+                        onclick={() => handleCreateNomenclature(product.product_id)}
                         disabled={isUpdating}
                         title="Создать новую номенклатуру"
                       >
@@ -408,7 +416,7 @@
 
   <svelte:fragment slot="footer">
     <div class="flex justify-end">
-      <Button variant="secondary" on:click={handleClose}>
+      <Button variant="secondary" onclick={handleClose}>
         Закрыть
       </Button>
     </div>

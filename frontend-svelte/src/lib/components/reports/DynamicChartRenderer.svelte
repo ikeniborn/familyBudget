@@ -17,15 +17,11 @@
     export: { format: 'png' | 'svg' };
   }>();
 
-  // Props
-  interface Props {
-    transformedData: TransformedReportData;
-    chartType: 'composed' | 'pie' | 'trend' | 'waterfall' | 'gauge';
-    reportType: ReportFilters['report_type'];
-    loading?: boolean;
-  }
-  
-  let { transformedData, chartType, reportType, loading = false }: Props = $props();
+  // Props (legacy syntax for compatibility)
+  export let transformedData: TransformedReportData;
+  export let chartType: 'composed' | 'pie' | 'trend' | 'waterfall' | 'gauge';
+  export let reportType: ReportFilters['report_type'];
+  export let loading: boolean = false;
 
   // Chart titles and configurations
   const chartConfigs = {

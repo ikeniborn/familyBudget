@@ -113,6 +113,7 @@ async def get_budget_vs_actual_report(
     stmt = stmt.group_by(
         Registry.period_id,
         Period.ru_name,
+        Period.date,
         Registry.nomenclature_id,
         Nomenclature.name
     ).order_by(Period.date, Nomenclature.name)
@@ -183,7 +184,8 @@ async def get_period_summary_report(
     
     stmt = stmt.group_by(
         Registry.period_id,
-        Period.ru_name
+        Period.ru_name,
+        Period.date
     ).order_by(Period.date.desc())
     
     result = await db.execute(stmt)

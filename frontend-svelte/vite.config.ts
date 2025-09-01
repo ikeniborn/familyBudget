@@ -45,27 +45,20 @@ export default defineConfig({
         skipWaiting: false,
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/api\./,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 // 24 hours
-              },
-              cacheKeyWillBeUsed: async ({request}) => {
-                return `${request.url}?${new Date().getDate()}`; // Daily cache busting
-              }
-            }
-          },
-          {
             urlPattern: /^\/api\//,
-            handler: 'NetworkFirst',
+            handler: 'NetworkOnly', // Не кешировать API запросы для auth
             options: {
-              cacheName: 'local-api-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 // 1 hour
+              backgroundSync: {
+                name: 'api-queue',
+                options: {
+                  maxRetentionTime: 60 * 5 // Retry for 5 minutes
+                }
+              },
+              fetchOptions: {
+                credentials: 'include'
+              },
+              matchOptions: {
+                ignoreSearch: false
               }
             }
           },
@@ -200,18 +193,27 @@ export default defineConfig({
         configure: (proxy, options) => {
           proxy.on('proxyReq', (proxyReq, req, res) => {
             console.log(`[PROXY] ${req.method} ${req.url} -> ${options.target}${req.url}`);
+            // Forward cookies from the original request
+            const cookies = req.headers.cookie;
+            if (cookies) {
+              proxyReq.setHeader('Cookie', cookies);
+            }
           });
           proxy.on('proxyRes', (proxyRes, req, res) => {
             console.log(`[PROXY] ${req.method} ${req.url} <- ${proxyRes.statusCode}`);
           });
           proxy.on('error', (err, req, res) => {
             console.error(`[PROXY ERROR] ${req.method} ${req.url}:`, err.message);
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ 
-              error: 'Proxy Error', 
-              message: err.message,
-              target: options.target 
-            }));
+            // Don't convert proxy errors to 500, let the original status code through
+            if (!res.headersSent) {
+              res.writeHead(502, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ 
+                error: 'Bad Gateway', 
+                message: 'Unable to connect to backend service',
+                detail: err.message,
+                target: options.target 
+              }));
+            }
           });
         }
       }

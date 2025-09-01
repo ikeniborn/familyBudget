@@ -21,50 +21,32 @@
   }>();
 
   // Props
-  interface Props {
-    data?: {
-      currentValue: number;
-      maxValue: number;
-      utilization?: number;
-      category?: string;
-    };
-    currentValue?: number;
-    maxValue?: number;
-    title?: string;
-    subtitle?: string;
-    height?: number;
-    className?: string;
-    showLabel?: boolean;
-    showPercentage?: boolean;
-    thresholds?: {
-      good: number;
-      warning: number;
-      danger: number;
-    };
-    animated?: boolean;
-    loading?: boolean;
-    error?: string | null;
-  }
-  
-  let {
-    data = undefined,
-    currentValue = 0,
-    maxValue = 100,
-    title = 'Использование бюджета',
-    subtitle = '',
-    height = 400,
-    className = '',
-    showLabel = true,
-    showPercentage = true,
-    thresholds = {
-      good: 70,
-      warning: 85,
-      danger: 100,
-    },
-    animated = true,
-    loading = false,
-    error = null
-  }: Props = $props();
+  export let data: {
+    currentValue: number;
+    maxValue: number;
+    utilization?: number;
+    category?: string;
+  } | undefined = undefined;
+  export let currentValue: number = 0;
+  export let maxValue: number = 100;
+  export let title: string = 'Использование бюджета';
+  export let subtitle: string = '';
+  export let height: number = 400;
+  export let className: string = '';
+  export let showLabel: boolean = true;
+  export let showPercentage: boolean = true;
+  export let thresholds: {
+    good: number;
+    warning: number;
+    danger: number;
+  } = {
+    good: 70,
+    warning: 85,
+    danger: 100,
+  };
+  export let animated: boolean = true;
+  export let loading: boolean = false;
+  export let error: string | null = null;
 
   // Reactive calculations
   $: actualCurrentValue = data?.currentValue ?? currentValue;

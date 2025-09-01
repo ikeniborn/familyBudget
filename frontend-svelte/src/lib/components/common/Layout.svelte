@@ -92,7 +92,7 @@
       role="button"
       tabindex="-1"
       aria-label="Закрыть меню навигации"
-    />
+    ></div>
   {/if}
 
   <!-- Sidebar -->

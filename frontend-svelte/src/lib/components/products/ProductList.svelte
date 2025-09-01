@@ -2,12 +2,20 @@
   import { onMount, createEventDispatcher } from 'svelte';
   import { productService, type Product } from '$lib/services/product.service';
   import { toastStore } from '$lib/stores/toast.store';
-  import Card from '$lib/components/ui/Card.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Input from '$lib/components/ui/Input.svelte';
-  import DataTable from '$lib/components/common/DataTable.svelte';
   import Loading from '$lib/components/common/Loading.svelte';
-  import { Search, Filter, Trash2 } from 'lucide-svelte';
+  import { 
+    Search, 
+    Filter, 
+    Trash2, 
+    Edit3, 
+    Package,
+    Tag,
+    Ruler,
+    Barcode as BarcodeIcon,
+    FileText,
+    CheckCircle,
+    XCircle
+  } from 'lucide-svelte';
 
   export let onEdit: ((product: Product) => void) | null = null;
   export let refreshKey = 0;
@@ -126,224 +134,470 @@
     }
     selectedProducts = selectedProducts; // Trigger reactivity
   }
-
-  // Колонки для таблицы
-  const columns = [
-    {
-      key: 'select',
-      title: '',
-      width: '40px'
-    },
-    {
-      key: 'product_name',
-      title: 'Наименование',
-      sortable: true
-    },
-    {
-      key: 'category_name',
-      title: 'Категория',
-      sortable: true
-    },
-    {
-      key: 'unit_measure',
-      title: 'Единица',
-      sortable: true
-    },
-    {
-      key: 'barcode',
-      title: 'Штрихкод'
-    },
-    {
-      key: 'is_active',
-      title: 'Статус',
-      width: '100px'
-    },
-    {
-      key: 'description',
-      title: 'Описание'
-    },
-    {
-      key: 'actions',
-      title: 'Действия',
-      width: '150px'
-    }
-  ];
 </script>
 
-<div class="space-y-6">
-  <!-- Фильтры и действия -->
-  <Card title="Управление продуктами">
-    <div class="space-y-4">
-      <!-- Строка поиска и фильтров -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div class="relative">
-          <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input
-            placeholder="Поиск продуктов..."
-            bind:value={filters.search}
-            class="pl-10"
-          />
-        </div>
-        
+<div class="products-container">
+  <!-- Фильтры -->
+  <div class="filters-section">
+    <div class="filters-grid">
+      <!-- Поиск -->
+      <div class="search-container">
+        <Search class="search-icon" />
+        <input
+          type="text"
+          placeholder="Поиск продуктов..."
+          bind:value={filters.search}
+          class="search-input"
+        />
+        {#if filters.search}
+          <button
+            type="button"
+            onclick={() => filters.search = ''}
+            class="clear-icon"
+            title="Очистить"
+          >
+            <XCircle class="h-5 w-5" />
+          </button>
+        {/if}
+      </div>
+      
+      <!-- Категория -->
+      <div class="filter-select-wrapper">
+        <Tag class="select-icon" />
         <select
           bind:value={filters.category}
-          class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          class="filter-select"
         >
           <option value="">Все категории</option>
           {#each categories as category}
             <option value={category}>{category}</option>
           {/each}
         </select>
-        
+        {#if filters.category}
+          <button
+            type="button"
+            onclick={() => filters.category = ''}
+            class="clear-icon"
+            title="Очистить"
+          >
+            <XCircle class="h-5 w-5" />
+          </button>
+        {/if}
+      </div>
+      
+      <!-- Статус -->
+      <div class="filter-select-wrapper">
+        <CheckCircle class="select-icon" />
         <select
           bind:value={filters.status}
-          class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          class="filter-select"
         >
           <option value="">Все статусы</option>
           <option value="active">Активные</option>
           <option value="inactive">Неактивные</option>
         </select>
-
-        <div class="flex gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            on:click={clearFilters}
+        {#if filters.status}
+          <button
+            type="button"
+            onclick={() => filters.status = ''}
+            class="clear-icon"
+            title="Очистить"
           >
-            <Filter class="h-4 w-4 mr-1" />
-            Сбросить
-          </Button>
-        </div>
+            <XCircle class="h-5 w-5" />
+          </button>
+        {/if}
       </div>
 
-      <!-- Действия -->
-      {#if selectedProducts.size > 0}
-        <div class="flex gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            on:click={handleBulkDelete}
-            class="text-red-600 hover:text-red-700"
-          >
-            <Trash2 class="h-4 w-4 mr-1" />
-            Удалить выбранные ({selectedProducts.size})
-          </Button>
-        </div>
-      {/if}
+      <!-- Кнопка сброса -->
+      <button
+        onclick={clearFilters}
+        class="btn-reset"
+      >
+        <Filter class="h-4 w-4" />
+        Сбросить
+      </button>
     </div>
-  </Card>
+
+    <!-- Массовые действия -->
+    {#if selectedProducts.size > 0}
+      <div class="bulk-actions">
+        <button
+          onclick={handleBulkDelete}
+          class="btn-bulk-delete"
+        >
+          <Trash2 class="h-4 w-4" />
+          Удалить выбранные ({selectedProducts.size})
+        </button>
+      </div>
+    {/if}
+  </div>
 
   <!-- Таблица продуктов -->
-  <Card title={`Список продуктов (${filteredProducts.length})`}>
+  <div class="products-table-container">
     {#if isLoading}
-      <Loading />
+      <div class="loading-container">
+        <Loading />
+      </div>
+    {:else if filteredProducts.length === 0}
+      <div class="empty-state">
+        <Package class="empty-icon" />
+        <h3 class="empty-title">Нет продуктов</h3>
+        <p class="empty-description">
+          {filters.search || filters.category || filters.status
+            ? 'Нет продуктов, соответствующих фильтрам'
+            : 'Добавьте первый продукт в каталог'}
+        </p>
+      </div>
     {:else}
-      <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
+      <div class="table-wrapper">
+        <table class="products-table">
+          <thead>
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th class="th-checkbox">
                 <input
                   type="checkbox"
                   checked={filteredProducts.length > 0 && selectedProducts.size === filteredProducts.length}
-                  on:change={(e) => toggleSelectAll(e.currentTarget.checked)}
-                  class="rounded border-gray-300"
+                  onchange={(e) => toggleSelectAll(e.currentTarget.checked)}
+                  class="checkbox-all"
                 />
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Наименование
-              </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Категория
-              </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Единица
-              </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Штрихкод
-              </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Статус
-              </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Описание
-              </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Действия
-              </th>
+              <th class="th-name">НАИМЕНОВАНИЕ</th>
+              <th class="th-category">КАТЕГОРИЯ</th>
+              <th class="th-unit">ЕДИНИЦА</th>
+              <th class="th-barcode">ШТРИХКОД</th>
+              <th class="th-status">СТАТУС</th>
+              <th class="th-description">ОПИСАНИЕ</th>
+              <th class="th-actions">ДЕЙСТВИЯ</th>
             </tr>
           </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            {#each filteredProducts as product (product.product_id)}
-              <tr class="hover:bg-gray-50">
-                <td class="px-6 py-4 whitespace-nowrap">
+          <tbody>
+            {#each filteredProducts as product, index (product.product_id)}
+              <tr class="table-row" style="animation-delay: {index * 0.05}s">
+                <td class="td-checkbox">
                   <input
                     type="checkbox"
                     checked={selectedProducts.has(product.product_id!)}
-                    on:change={() => toggleSelect(product.product_id!)}
-                    class="rounded border-gray-300"
+                    onchange={() => toggleSelect(product.product_id!)}
+                    class="checkbox-item"
                   />
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                  {product.product_name}
+                <td class="td-name">
+                  <div class="product-name">
+                    <Package class="product-icon" />
+                    <span>{product.product_name}</span>
+                  </div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {product.category_name || '—'}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {product.unit_measure || '—'}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {product.barcode || '—'}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <span class="px-2 py-1 rounded-full text-xs font-medium {
-                    product.is_active 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-red-100 text-red-800'
-                  }">
-                    {product.is_active ? 'Активный' : 'Неактивный'}
+                <td class="td-category">
+                  <span class="category-badge">
+                    <Tag class="h-3 w-3" />
+                    {product.category_name || '—'}
                   </span>
                 </td>
-                <td class="px-6 py-4 text-sm text-gray-600">
-                  {#if product.description}
-                    <span title={product.description}>
-                      {product.description.length > 30 ? `${product.description.substring(0, 30)}...` : product.description}
+                <td class="td-unit">
+                  <span class="unit-badge">
+                    <Ruler class="h-3 w-3" />
+                    {product.unit_measure || '—'}
+                  </span>
+                </td>
+                <td class="td-barcode">
+                  {#if product.barcode}
+                    <span class="barcode-badge">
+                      <BarcodeIcon class="h-3 w-3" />
+                      {product.barcode}
                     </span>
                   {:else}
-                    <span class="text-gray-400">—</span>
+                    <span class="text-muted">—</span>
                   {/if}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div class="flex gap-2">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      on:click={() => handleEdit(product)}
+                <td class="td-status">
+                  <span class="status-badge {product.is_active ? 'status-active' : 'status-inactive'}">
+                    {#if product.is_active}
+                      <CheckCircle class="h-3 w-3" />
+                      Активный
+                    {:else}
+                      <XCircle class="h-3 w-3" />
+                      Неактивный
+                    {/if}
+                  </span>
+                </td>
+                <td class="td-description">
+                  {#if product.description}
+                    <span class="description-text" title={product.description}>
+                      <FileText class="h-3 w-3" />
+                      {product.description.length > 30 
+                        ? `${product.description.substring(0, 30)}...` 
+                        : product.description}
+                    </span>
+                  {:else}
+                    <span class="text-muted">—</span>
+                  {/if}
+                </td>
+                <td class="td-actions">
+                  <div class="action-buttons">
+                    <button
+                      onclick={() => handleEdit(product)}
+                      class="btn-edit"
+                      title="Редактировать"
                     >
-                      Изменить
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      on:click={() => handleDelete(product.product_id!)}
-                      class="text-red-600 hover:text-red-700"
+                      <Edit3 class="h-4 w-4" />
+                    </button>
+                    <button
+                      onclick={() => handleDelete(product.product_id!)}
+                      class="btn-delete"
+                      title="Удалить"
                     >
-                      Удалить
-                    </Button>
+                      <Trash2 class="h-4 w-4" />
+                    </button>
                   </div>
                 </td>
               </tr>
             {/each}
           </tbody>
         </table>
-
-        {#if filteredProducts.length === 0}
-          <div class="text-center py-12">
-            <div class="text-gray-500">Нет продуктов, соответствующих фильтрам</div>
-          </div>
-        {/if}
       </div>
     {/if}
-  </Card>
+  </div>
 </div>
+
+<style>
+  .products-container {
+    @apply space-y-6;
+  }
+
+  .filters-section {
+    @apply bg-white rounded-2xl p-6 shadow-lg;
+    background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(249,250,251,0.95) 100%);
+    backdrop-filter: blur(10px);
+  }
+
+  .filters-grid {
+    @apply grid grid-cols-1 md:grid-cols-4 gap-4 items-center;
+  }
+
+  .search-container {
+    @apply relative flex items-center;
+  }
+
+  .search-icon {
+    @apply absolute left-4 h-5 w-5 pointer-events-none z-10;
+    color: #9ca3af;
+  }
+
+  .search-input {
+    @apply w-full pl-12 pr-12 py-3 rounded-xl border-2 border-gray-200;
+    @apply focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 focus:outline-none;
+    @apply transition-all duration-200 hover:border-gray-300;
+    @apply font-medium text-gray-700 placeholder-gray-400;
+    background: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(249,250,251,0.98) 100%);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  }
+  
+  .search-input:hover {
+    background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+  
+  .search-input:focus {
+    background: white;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  }
+
+  .filter-select-wrapper {
+    @apply relative flex items-center;
+  }
+
+  .select-icon {
+    @apply absolute left-4 h-5 w-5 pointer-events-none z-10;
+    color: #9ca3af;
+  }
+
+  .filter-select {
+    @apply w-full pl-12 pr-12 py-3 rounded-xl border-2 border-gray-200;
+    @apply focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 focus:outline-none;
+    @apply transition-all duration-200 hover:border-gray-300 appearance-none;
+    @apply bg-white font-medium text-gray-700;
+    background: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(249,250,251,0.98) 100%);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  }
+  
+  .filter-select:hover {
+    background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+  
+  .filter-select:focus {
+    background: white;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  }
+
+  .clear-icon {
+    @apply absolute right-3 z-10 p-1 rounded-full;
+    @apply text-gray-400 hover:text-gray-600;
+    @apply transition-all duration-200;
+    @apply hover:bg-gray-100;
+  }
+
+  .clear-icon:focus {
+    @apply outline-none ring-2 ring-purple-500/20;
+  }
+
+  .btn-reset {
+    @apply flex items-center justify-center gap-2 px-6 py-3 rounded-xl;
+    @apply font-medium transition-all duration-200;
+    @apply bg-gray-100 text-gray-700 hover:bg-gray-200;
+    @apply hover:transform hover:-translate-y-0.5;
+  }
+
+  .bulk-actions {
+    @apply mt-4 pt-4 border-t border-gray-200;
+  }
+
+  .btn-bulk-delete {
+    @apply flex items-center gap-2 px-4 py-2 rounded-lg;
+    @apply font-medium text-sm transition-all duration-200;
+    @apply bg-red-50 text-red-600 hover:bg-red-100;
+  }
+
+  .products-table-container {
+    @apply bg-white rounded-2xl shadow-lg overflow-hidden;
+    background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+  }
+
+  .loading-container {
+    @apply p-12;
+  }
+
+  .empty-state {
+    @apply py-16 px-8 text-center;
+  }
+
+  .empty-icon {
+    @apply w-16 h-16 mx-auto mb-4 text-gray-300;
+  }
+
+  .empty-title {
+    @apply text-xl font-semibold text-gray-900 mb-2;
+  }
+
+  .empty-description {
+    @apply text-gray-500;
+  }
+
+  .table-wrapper {
+    @apply overflow-x-auto;
+  }
+
+  .products-table {
+    @apply w-full;
+  }
+
+  .products-table thead {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+
+  .products-table thead tr th {
+    @apply px-6 py-4 text-left text-xs font-bold tracking-wider text-white;
+  }
+
+  .th-checkbox {
+    @apply w-12;
+  }
+
+  .th-actions {
+    @apply w-32 text-center;
+  }
+
+  .checkbox-all,
+  .checkbox-item {
+    @apply w-5 h-5 rounded border-2 border-gray-300 text-purple-600;
+    @apply focus:ring-4 focus:ring-purple-500/20;
+  }
+
+  .table-row {
+    @apply border-b border-gray-100 transition-all duration-200;
+    @apply hover:bg-gradient-to-r hover:from-purple-50/50 hover:to-pink-50/50;
+    animation: fadeIn 0.3s ease-out forwards;
+    opacity: 0;
+  }
+
+  @keyframes fadeIn {
+    to {
+      opacity: 1;
+    }
+  }
+
+  .products-table tbody tr td {
+    @apply px-6 py-4;
+  }
+
+  .product-name {
+    @apply flex items-center gap-2 font-medium text-gray-900;
+  }
+
+  .product-icon {
+    @apply h-4 w-4 text-purple-500;
+  }
+
+  .category-badge,
+  .unit-badge {
+    @apply inline-flex items-center gap-1 px-2 py-1 rounded-lg;
+    @apply text-xs font-medium bg-gray-100 text-gray-700;
+  }
+
+  .barcode-badge {
+    @apply inline-flex items-center gap-1 px-2 py-1 rounded-lg;
+    @apply text-xs font-medium bg-blue-50 text-blue-700;
+  }
+
+  .status-badge {
+    @apply inline-flex items-center gap-1 px-3 py-1 rounded-full;
+    @apply text-xs font-semibold;
+  }
+
+  .status-active {
+    @apply bg-green-100 text-green-700;
+  }
+
+  .status-inactive {
+    @apply bg-red-100 text-red-700;
+  }
+
+  .description-text {
+    @apply inline-flex items-center gap-1 text-sm text-gray-600;
+  }
+
+  .text-muted {
+    @apply text-gray-400;
+  }
+
+  .action-buttons {
+    @apply flex items-center justify-center gap-2;
+  }
+
+  .btn-edit,
+  .btn-delete {
+    @apply p-2 rounded-lg transition-all duration-200;
+    @apply hover:transform hover:scale-110;
+  }
+
+  .btn-edit {
+    @apply bg-blue-50 text-blue-600 hover:bg-blue-100;
+  }
+
+  .btn-delete {
+    @apply bg-red-50 text-red-600 hover:bg-red-100;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .th-description,
+    .td-description {
+      @apply hidden;
+    }
+    
+    .th-barcode,
+    .td-barcode {
+      @apply hidden;
+    }
+  }
+</style>

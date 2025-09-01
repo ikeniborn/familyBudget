@@ -15,9 +15,8 @@ export const load: LayoutServerLoad = async ({ cookies, url, fetch }) => {
   // Verify session is valid on the server
   try {
     // Determine correct backend URL for SSR context
-    const backendUrl = process.env.NODE_ENV === 'production' 
-      ? (process.env.BACKEND_URL || 'http://backend:4000')
-      : 'http://localhost:4000'; // В development режиме обращаемся напрямую
+    // In Docker, we always use 'backend' hostname, not localhost
+    const backendUrl = process.env.BACKEND_URL || 'http://backend:4000';
     
     // Build cookie header with the correct name and format
     const cookieName = connectSid ? 'connect.sid' : 'familybudget.sid';
