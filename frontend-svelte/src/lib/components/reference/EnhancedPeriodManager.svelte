@@ -407,6 +407,16 @@
     showFilterModal = false;
   }
 
+  // Apply filters and close modal
+  function applyFilters() {
+    showFilterModal = false;
+  }
+
+  // Handle filter modal close
+  function handleCloseFilterModal() {
+    showFilterModal = false;
+  }
+
   // Auto-update period name when year/month changes
   $: if (formData.period_year && formData.period_month) {
     const monthName = monthNames[formData.period_month - 1];
@@ -538,7 +548,7 @@
 <Modal 
   bind:open={showModal}
   title={isEditing ? 'Редактировать период' : 'Добавить период'}
-  on:close={handleCloseModal}
+  onclose={handleCloseModal}
 >
   <form on:submit|preventDefault={handleSubmit} class="space-y-4">
     <div>
@@ -636,7 +646,7 @@
 <Modal
   bind:open={showFilterModal}
   title="Фильтры"
-  on:close={() => showFilterModal = false}
+  onclose={handleCloseFilterModal}
 >
   <div class="space-y-4">
     <div>
@@ -688,7 +698,7 @@
     <Button variant="outline" onclick={resetFilters}>
       Сбросить
     </Button>
-    <Button onclick={() => showFilterModal = false}>
+    <Button onclick={applyFilters}>
       Применить
     </Button>
   </svelte:fragment>
