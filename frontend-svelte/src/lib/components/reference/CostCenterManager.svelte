@@ -22,7 +22,6 @@
   // Form state
   let formData = {
     cost_center_name: '',
-    cost_center_order: 1,
     is_active: true
   };
 
@@ -35,11 +34,6 @@
     {
       key: 'cost_center_name',
       header: 'Название МВЗ',
-      sortable: true
-    },
-    {
-      key: 'cost_center_order',
-      header: 'Порядок',
       sortable: true
     },
     {
@@ -95,8 +89,13 @@
       formErrors.cost_center_name = 'Название не должно превышать 100 символов';
     }
 
-    if (formData.cost_center_order < 1) {
-      formErrors.cost_center_order = 'Порядок должен быть больше 0';
+    // Check for duplicate names (client-side validation)
+    const duplicateName = costCenters.find(cc => 
+      cc.cost_center_name.toLowerCase() === formData.cost_center_name.toLowerCase() &&
+      (!isEditing || cc.cost_center_id !== editingCostCenter?.cost_center_id)
+    );
+    if (duplicateName) {
+      formErrors.cost_center_name = 'МВЗ с таким названием уже существует';
     }
 
     return Object.keys(formErrors).length === 0;
@@ -108,7 +107,6 @@
     editingCostCenter = null;
     formData = {
       cost_center_name: '',
-      cost_center_order: Math.max(...costCenters.map(cc => cc.cost_center_order), 0) + 1,
       is_active: true
     };
     formErrors = {};
@@ -122,7 +120,6 @@
     editingCostCenter = item;
     formData = {
       cost_center_name: item.cost_center_name,
-      cost_center_order: item.cost_center_order,
       is_active: item.is_active ?? true
     };
     formErrors = {};
@@ -183,6 +180,11 @@
       await fetchCostCenters();
       showModal = false;
     } catch (error: any) {
+      // Handle specific duplicate name error
+      if (error.message && error.message.includes('уже существует')) {
+        formErrors.cost_center_name = error.message;
+        return;
+      }
       toast.error('Ошибка', error.message || 'Не удалось сохранить место возникновения затрат');
     }
   }
@@ -273,33 +275,20 @@
       {/if}
     </div>
 
-    <div>
-      <label for="cost_center_order" class="block text-sm font-medium text-gray-700 mb-1">
-        Порядок *
-      </label>
-      <Input
-        id="cost_center_order"
-        type="number"
-        min="1"
-        bind:value={formData.cost_center_order}
-        class={formErrors.cost_center_order ? 'border-red-500' : ''}
-      />
-      {#if formErrors.cost_center_order}
-        <p class="text-red-500 text-xs mt-1">{formErrors.cost_center_order}</p>
-      {/if}
-    </div>
 
-    <div class="flex items-center">
-      <input
-        id="is_active"
-        type="checkbox"
-        bind:checked={formData.is_active}
-        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-      />
-      <label for="is_active" class="ml-2 block text-sm text-gray-900">
-        Активен
-      </label>
-    </div>
+    {#if isEditing}
+      <div class="flex items-center">
+        <input
+          id="is_active"
+          type="checkbox"
+          bind:checked={formData.is_active}
+          class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+        />
+        <label for="is_active" class="ml-2 block text-sm text-gray-900">
+          Активен
+        </label>
+      </div>
+    {/if}
   </form>
 
   <svelte:fragment slot="footer">

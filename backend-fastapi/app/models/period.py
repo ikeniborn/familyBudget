@@ -27,8 +27,8 @@ class Period(Base):
     def to_dict(self):
         return {
             "id": self.id,
-            "date": self.date.isoformat() if self.date else None,
+            "date": self.date,
             "ru_name": self.ru_name,
-            "start_date": self.start_date.isoformat() if self.start_date else None,
-            "end_date": self.end_date.isoformat() if self.end_date else None
+            "start_date": self.start_date,
+            "end_date": self.end_date
         }

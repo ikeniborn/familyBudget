@@ -1,13 +1,13 @@
 """
 Registry (transactions) management endpoints.
 """
-from typing import List, Optional
-from datetime import datetime
+from typing import List, Optional, Union
+from datetime import datetime, date
 from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, validator
 
 from app.db.database import get_db
 from app.models.registry import Registry
@@ -19,26 +19,58 @@ router = APIRouter()
 
 class RegistryCreate(BaseModel):
     """Registry creation schema."""
-    operation_date: datetime
+    operation_dttm: Union[str, datetime, date]
     period_id: int
     financial_center_id: int
-    cost_center_id: int
+    cost_center_id: Optional[int] = None
     nomenclature_id: int
     row_type_id: int
     cost_sum: Decimal
-    comment: Optional[str] = None
+    comment_description: Optional[str] = None
+    
+    @validator('operation_dttm', pre=True)
+    def parse_operation_date(cls, value):
+        """Convert string date to datetime."""
+        if isinstance(value, str):
+            # Try parsing date string in format YYYY-MM-DD
+            try:
+                return datetime.strptime(value, '%Y-%m-%d')
+            except ValueError:
+                # Try ISO format
+                return datetime.fromisoformat(value)
+        elif isinstance(value, date) and not isinstance(value, datetime):
+            # Convert date to datetime
+            return datetime.combine(value, datetime.min.time())
+        return value
 
 
 class RegistryUpdate(BaseModel):
     """Registry update schema."""
-    operation_date: Optional[datetime] = None
+    operation_dttm: Optional[Union[str, datetime, date]] = None
     period_id: Optional[int] = None
     financial_center_id: Optional[int] = None
     cost_center_id: Optional[int] = None
     nomenclature_id: Optional[int] = None
     row_type_id: Optional[int] = None
     cost_sum: Optional[Decimal] = None
-    comment: Optional[str] = None
+    comment_description: Optional[str] = None
+    
+    @validator('operation_dttm', pre=True)
+    def parse_operation_date(cls, value):
+        """Convert string date to datetime."""
+        if value is None:
+            return value
+        if isinstance(value, str):
+            # Try parsing date string in format YYYY-MM-DD
+            try:
+                return datetime.strptime(value, '%Y-%m-%d')
+            except ValueError:
+                # Try ISO format
+                return datetime.fromisoformat(value)
+        elif isinstance(value, date) and not isinstance(value, datetime):
+            # Convert date to datetime
+            return datetime.combine(value, datetime.min.time())
+        return value
 
 
 class RegistryResponse(BaseModel):
@@ -48,7 +80,7 @@ class RegistryResponse(BaseModel):
     user_id: int
     period_id: int
     financial_center_id: int
-    cost_center_id: int
+    cost_center_id: Optional[int]
     nomenclature_id: int
     row_type_id: int
     cost_sum: Decimal
@@ -152,15 +184,35 @@ async def create_registry_entry(
     current_user: dict = Depends(require_auth)
 ):
     """Create new registry entry."""
-    entry_dict = entry_data.dict()
-    entry_dict["user_id"] = current_user["user_id"]
+    import logging
+    logger = logging.getLogger(__name__)
     
-    entry = Registry(**entry_dict)
-    db.add(entry)
-    await db.commit()
-    await db.refresh(entry)
-    
-    return RegistryResponse(**entry.to_dict())
+    try:
+        logger.info(f"Received registry data: {entry_data.dict()}")
+        
+        entry_dict = entry_data.dict()
+        entry_dict["user_id"] = current_user["user_id"]
+        
+        # Map frontend field names to database column names
+        entry_dict["operation_date"] = entry_dict.pop("operation_dttm")
+        entry_dict["comment"] = entry_dict.pop("comment_description", None)
+        
+        # Remove None values for optional fields
+        if entry_dict.get("cost_center_id") is None:
+            entry_dict.pop("cost_center_id", None)
+        
+        logger.info(f"Mapped data for DB: {entry_dict}")
+        
+        entry = Registry(**entry_dict)
+        db.add(entry)
+        await db.commit()
+        await db.refresh(entry)
+        
+        return RegistryResponse(**entry.to_dict())
+    except Exception as e:
+        logger.error(f"Error creating registry entry: {e}")
+        logger.error(f"Entry data was: {entry_data.dict()}")
+        raise
 
 
 @router.post("/bulk", response_model=List[RegistryResponse])
@@ -176,6 +228,15 @@ async def create_bulk_registry_entries(
     for entry_data in bulk_data.entries:
         entry_dict = entry_data.dict()
         entry_dict["user_id"] = current_user["user_id"]
+        
+        # Map frontend field names to database column names
+        entry_dict["operation_date"] = entry_dict.pop("operation_dttm")
+        entry_dict["comment"] = entry_dict.pop("comment_description", None)
+        
+        # Remove None values for optional fields
+        if entry_dict.get("cost_center_id") is None:
+            entry_dict.pop("cost_center_id", None)
+        
         entry = Registry(**entry_dict)
         db.add(entry)
         entries.append(entry)
@@ -215,6 +276,13 @@ async def update_registry_entry(
     
     # Update entry fields
     update_data = entry_data.dict(exclude_unset=True)
+    
+    # Map frontend field names to database column names
+    if "operation_dttm" in update_data:
+        update_data["operation_date"] = update_data.pop("operation_dttm")
+    if "comment_description" in update_data:
+        update_data["comment"] = update_data.pop("comment_description")
+    
     for field, value in update_data.items():
         setattr(entry, field, value)
     

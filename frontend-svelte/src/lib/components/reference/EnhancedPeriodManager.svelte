@@ -26,8 +26,7 @@
     period_name: '',
     period_year: new Date().getFullYear(),
     period_month: new Date().getMonth() + 1,
-    period_order: 1,
-    is_active: true
+    is_active: true  // Always true by default, not shown in form
   };
 
   let formErrors: Record<string, string> = {};
@@ -47,23 +46,9 @@
     'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
   ];
 
-  // Enhanced data with selection status
-  $: enhancedPeriods = periods.map(period => ({
-    ...period,
-    _selected: selectedItems.has(period.period_id)
-  }));
 
-  // Define table columns for CRUDTable
+  // Define table columns for CRUDTable  
   const columns = [
-    {
-      key: '_selected',
-      header: '',
-      width: '50px',
-      sortable: false,
-      render: (item: Period & { _selected: boolean }) => {
-        return `<input type="checkbox" ${item._selected ? 'checked' : ''} />`;
-      }
-    },
     {
       key: 'period_name',
       header: 'Название периода',
@@ -81,12 +66,6 @@
       sortable: true,
       width: '120px',
       render: (item: Period) => monthNames[item.period_month - 1] || '-'
-    },
-    {
-      key: 'period_order',
-      header: 'Порядок',
-      sortable: true,
-      width: '100px'
     },
     {
       key: 'is_active',
@@ -111,7 +90,7 @@
   ];
 
   // Computed filtered data
-  $: filteredPeriods = enhancedPeriods.filter(period => {
+  $: filteredPeriods = periods.filter(period => {
     if (filters.year !== null && period.period_year !== filters.year) return false;
     if (filters.month !== null && period.period_month !== filters.month) return false;
     if (filters.isActive !== null && period.is_active !== filters.isActive) return false;
@@ -157,9 +136,7 @@
   function validateForm(): boolean {
     formErrors = {};
 
-    if (!formData.period_name || formData.period_name.trim().length < 3) {
-      formErrors.period_name = 'Название должно содержать минимум 3 символа';
-    }
+    // Period name is now auto-generated, no need to validate it
 
     // Check for duplicate period
     const duplicate = periods.find(p => 
@@ -174,10 +151,6 @@
 
     if (formData.period_year < 2020 || formData.period_year > 2030) {
       formErrors.period_year = 'Год должен быть между 2020 и 2030';
-    }
-
-    if (formData.period_order < 1) {
-      formErrors.period_order = 'Порядок должен быть больше 0';
     }
 
     return Object.keys(formErrors).length === 0;
@@ -197,8 +170,7 @@
       period_name: `${year}.${String(month).padStart(2, '0')} - ${monthName}`,
       period_year: year,
       period_month: month,
-      period_order: Math.max(...periods.map(p => p.period_order), 0) + 1,
-      is_active: true
+      is_active: true  // Always true for new periods
     };
     formErrors = {};
     showModal = true;
@@ -213,7 +185,6 @@
       period_name: item.period_name,
       period_year: item.period_year,
       period_month: item.period_month,
-      period_order: item.period_order,
       is_active: item.is_active ?? true
     };
     formErrors = {};
@@ -257,8 +228,7 @@
       period_name: `${nextYear}.${String(nextMonth).padStart(2, '0')} - ${monthName}`,
       period_year: nextYear,
       period_month: nextMonth,
-      period_order: item.period_order + 1,
-      is_active: true
+      is_active: true  // Always true for duplicated periods
     };
     
     isEditing = false;
@@ -284,10 +254,7 @@
         await periodsService.update(editingPeriod.period_id, updateData);
         toast.success('Успешно', 'Период обновлен');
       } else {
-        const createData: CreatePeriodData = {
-          ...formData,
-          user_id: $currentUser.user_id
-        };
+        const createData: CreatePeriodData = { ...formData };
         await periodsService.create(createData);
         toast.success('Успешно', 'Период создан');
       }
@@ -429,9 +396,7 @@
   // Auto-update period name when year/month changes
   $: if (formData.period_year && formData.period_month) {
     const monthName = monthNames[formData.period_month - 1];
-    if (!isEditing || !formData.period_name.includes(monthName)) {
-      formData.period_name = `${formData.period_year}.${String(formData.period_month).padStart(2, '0')} - ${monthName}`;
-    }
+    formData.period_name = `${formData.period_year}.${String(formData.period_month).padStart(2, '0')} - ${monthName}`;
   }
 
   function handleCloseModal() {
@@ -567,8 +532,10 @@
       <Input
         id="period_name"
         bind:value={formData.period_name}
-        placeholder="Введите название периода"
-        class={formErrors.period_name ? 'border-red-500' : ''}
+        placeholder="Формируется автоматически"
+        class="bg-gray-100 cursor-not-allowed {formErrors.period_name ? 'border-red-500' : ''}"
+        disabled={true}
+        readonly={true}
       />
       {#if formErrors.period_name}
         <p class="text-red-500 text-xs mt-1">{formErrors.period_name}</p>
@@ -612,33 +579,6 @@
       </div>
     </div>
 
-    <div>
-      <label for="period_order" class="block text-sm font-medium text-gray-700 mb-1">
-        Порядок *
-      </label>
-      <Input
-        id="period_order"
-        type="number"
-        min="1"
-        bind:value={formData.period_order}
-        class={formErrors.period_order ? 'border-red-500' : ''}
-      />
-      {#if formErrors.period_order}
-        <p class="text-red-500 text-xs mt-1">{formErrors.period_order}</p>
-      {/if}
-    </div>
-
-    <div class="flex items-center">
-      <input
-        id="is_active"
-        type="checkbox"
-        bind:checked={formData.is_active}
-        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-      />
-      <label for="is_active" class="ml-2 block text-sm text-gray-900">
-        Активен
-      </label>
-    </div>
   </form>
 
   <svelte:fragment slot="footer">

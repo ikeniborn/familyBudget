@@ -22,7 +22,6 @@
   // Form state
   let formData = {
     financial_center_name: '',
-    financial_center_order: 1,
     is_active: true
   };
 
@@ -35,11 +34,6 @@
     {
       key: 'financial_center_name',
       header: 'Название ЦФО',
-      sortable: true
-    },
-    {
-      key: 'financial_center_order',
-      header: 'Порядок',
       sortable: true
     },
     {
@@ -95,8 +89,14 @@
       formErrors.financial_center_name = 'Название не должно превышать 100 символов';
     }
 
-    if (formData.financial_center_order < 1) {
-      formErrors.financial_center_order = 'Порядок должен быть больше 0';
+    // Check for duplicate name
+    const duplicate = financialCenters.find(
+      fc => fc.financial_center_name.toLowerCase() === formData.financial_center_name.trim().toLowerCase() &&
+            fc.financial_center_id !== editingFinancialCenter?.financial_center_id
+    );
+    
+    if (duplicate) {
+      formErrors.financial_center_name = 'ЦФО с таким названием уже существует';
     }
 
     return Object.keys(formErrors).length === 0;
@@ -108,7 +108,6 @@
     editingFinancialCenter = null;
     formData = {
       financial_center_name: '',
-      financial_center_order: Math.max(...financialCenters.map(fc => fc.financial_center_order), 0) + 1,
       is_active: true
     };
     formErrors = {};
@@ -122,7 +121,6 @@
     editingFinancialCenter = item;
     formData = {
       financial_center_name: item.financial_center_name,
-      financial_center_order: item.financial_center_order,
       is_active: item.is_active ?? true
     };
     formErrors = {};
@@ -183,7 +181,12 @@
       await fetchFinancialCenters();
       showModal = false;
     } catch (error: any) {
-      toast.error('Ошибка', error.message || 'Не удалось сохранить финансовый центр');
+      // Handle unique constraint violation
+      if (error.message?.includes('уже существует')) {
+        formErrors.financial_center_name = 'ЦФО с таким названием уже существует';
+      } else {
+        toast.error('Ошибка', error.message || 'Не удалось сохранить финансовый центр');
+      }
     }
   }
 
@@ -273,33 +276,19 @@
       {/if}
     </div>
 
-    <div>
-      <label for="financial_center_order" class="block text-sm font-medium text-gray-700 mb-1">
-        Порядок *
-      </label>
-      <Input
-        id="financial_center_order"
-        type="number"
-        min="1"
-        bind:value={formData.financial_center_order}
-        class={formErrors.financial_center_order ? 'border-red-500' : ''}
-      />
-      {#if formErrors.financial_center_order}
-        <p class="text-red-500 text-xs mt-1">{formErrors.financial_center_order}</p>
-      {/if}
-    </div>
-
-    <div class="flex items-center">
-      <input
-        id="is_active"
-        type="checkbox"
-        bind:checked={formData.is_active}
-        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-      />
-      <label for="is_active" class="ml-2 block text-sm text-gray-900">
-        Активен
-      </label>
-    </div>
+    {#if isEditing}
+      <div class="flex items-center">
+        <input
+          id="is_active"
+          type="checkbox"
+          bind:checked={formData.is_active}
+          class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+        />
+        <label for="is_active" class="ml-2 block text-sm text-gray-900">
+          Активен
+        </label>
+      </div>
+    {/if}
   </form>
 
   <svelte:fragment slot="footer">

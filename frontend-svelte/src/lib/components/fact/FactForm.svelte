@@ -121,7 +121,7 @@
         nomenclature_id: parseInt(formData.nomenclature_id),
         cost_sum: parseFloat(formData.cost_sum),
         comment_description: formData.comment_description || undefined,
-        row_type_id: 1, // Факт
+        row_type_id: 2, // Факт
       };
 
       await registryService.create(payload);
@@ -198,7 +198,7 @@
             >
               <option value="">Выберите период</option>
               {#each $periodStore.items as period}
-                <option value={period.period_id.toString()}>{period.period_ru_name}</option>
+                <option value={period.period_id.toString()}>{period.period_name}</option>
               {/each}
             </select>
             {#if errors.period_id}

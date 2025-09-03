@@ -21,11 +21,14 @@
   // Form state
   let formData = {
     nomenclature_name: '',
-    bill_name: '',
+    nomenclature_type: 'EXPENSE' as 'INCOME' | 'EXPENSE',
     account_name: '',
+    bill_name: '',
     operation_name: '',
-    is_fact: false,
-    is_active: true
+    is_budget: true,
+    is_fact: true,
+    is_active: true,
+    parent_id: null as number | null
   };
 
   let formErrors: Record<string, string> = {};
@@ -35,9 +38,11 @@
   // Define table columns using the new system
   const columns = createColumns<Nomenclature>([
     ['nomenclature_name', 'Номенклатура'],
-    ['bill_name', 'Статья бюджета'],
-    ['account_name', 'Название счета'],
-    ['operation_name', 'Название операции'],
+    ['nomenclature_type', 'Тип', { render: (item) => item.nomenclature_type === 'INCOME' ? 'Доход' : 'Расход' }],
+    ['account_name', 'Счёт'],
+    ['bill_name', 'Статья'],
+    ['operation_name', 'Операция'],
+    ['is_budget', 'План', { render: (item) => item.is_budget ? 'Да' : 'Нет' }],
     ['is_fact', 'Факт', { render: (item) => item.is_fact ? 'Да' : 'Нет' }],
     ['is_active', 'Статус', { render: (item) => item.is_active ? 'Активен' : 'Неактивен' }],
     ['created_at', 'Дата создания', { 
@@ -81,16 +86,25 @@
       formErrors.nomenclature_name = 'Название номенклатуры должно содержать минимум 3 символа';
     }
 
-    if (!formData.bill_name || formData.bill_name.trim().length < 3) {
-      formErrors.bill_name = 'Статья бюджета должна содержать минимум 3 символа';
-    }
-
     if (!formData.account_name || formData.account_name.trim().length < 3) {
       formErrors.account_name = 'Название счета должно содержать минимум 3 символа';
     }
 
+    if (!formData.bill_name || formData.bill_name.trim().length < 3) {
+      formErrors.bill_name = 'Название статьи должно содержать минимум 3 символа';
+    }
+
     if (!formData.operation_name || formData.operation_name.trim().length < 3) {
       formErrors.operation_name = 'Название операции должно содержать минимум 3 символа';
+    }
+
+    // Check for duplicate names (client-side validation)
+    const duplicateName = nomenclatures.find(n => 
+      n.nomenclature_name.toLowerCase() === formData.nomenclature_name.toLowerCase() &&
+      (!isEditing || n.nomenclature_id !== editingNomenclature?.nomenclature_id)
+    );
+    if (duplicateName) {
+      formErrors.nomenclature_name = 'Номенклатура с таким названием уже существует';
     }
 
     return Object.keys(formErrors).length === 0;
@@ -102,11 +116,14 @@
     editingNomenclature = null;
     formData = {
       nomenclature_name: '',
-      bill_name: '',
+      nomenclature_type: 'EXPENSE',
       account_name: '',
+      bill_name: '',
       operation_name: '',
-      is_fact: false,
-      is_active: true
+      is_budget: true,
+      is_fact: true,
+      is_active: true,
+      parent_id: null
     };
     formErrors = {};
     showModal = true;
@@ -119,11 +136,14 @@
     editingNomenclature = item;
     formData = {
       nomenclature_name: item.nomenclature_name,
-      bill_name: item.bill_name,
+      nomenclature_type: item.nomenclature_type || 'EXPENSE',
       account_name: item.account_name,
+      bill_name: item.bill_name,
       operation_name: item.operation_name,
+      is_budget: item.is_budget,
       is_fact: item.is_fact,
-      is_active: item.is_active ?? true
+      is_active: item.is_active ?? true,
+      parent_id: item.parent_id || null
     };
     formErrors = {};
     showModal = true;
@@ -183,6 +203,11 @@
       await fetchNomenclatures();
       showModal = false;
     } catch (error: any) {
+      // Handle specific duplicate name error
+      if (error.message && error.message.includes('уже существует')) {
+        formErrors.nomenclature_name = error.message;
+        return;
+      }
       toast.error('Ошибка', error.message || 'Не удалось сохранить номенклатуру');
     }
   }
@@ -273,32 +298,46 @@
     </div>
 
     <div>
-      <label for="bill_name" class="block text-sm font-medium text-gray-700 mb-1">
-        Статья бюджета *
+      <label for="nomenclature_type" class="block text-sm font-medium text-gray-700 mb-1">
+        Тип *
       </label>
-      <Input
-        id="bill_name"
-        bind:value={formData.bill_name}
-        placeholder="Введите статью бюджета"
-        class={formErrors.bill_name ? 'border-red-500' : ''}
-      />
-      {#if formErrors.bill_name}
-        <p class="text-red-500 text-xs mt-1">{formErrors.bill_name}</p>
-      {/if}
+      <select
+        id="nomenclature_type"
+        bind:value={formData.nomenclature_type}
+        class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+      >
+        <option value="EXPENSE">Расход</option>
+        <option value="INCOME">Доход</option>
+      </select>
     </div>
 
     <div>
       <label for="account_name" class="block text-sm font-medium text-gray-700 mb-1">
-        Название счета *
+        Название счёта *
       </label>
       <Input
         id="account_name"
         bind:value={formData.account_name}
-        placeholder="Введите название счета"
+        placeholder="Введите название счёта"
         class={formErrors.account_name ? 'border-red-500' : ''}
       />
       {#if formErrors.account_name}
         <p class="text-red-500 text-xs mt-1">{formErrors.account_name}</p>
+      {/if}
+    </div>
+
+    <div>
+      <label for="bill_name" class="block text-sm font-medium text-gray-700 mb-1">
+        Название статьи *
+      </label>
+      <Input
+        id="bill_name"
+        bind:value={formData.bill_name}
+        placeholder="Введите название статьи"
+        class={formErrors.bill_name ? 'border-red-500' : ''}
+      />
+      {#if formErrors.bill_name}
+        <p class="text-red-500 text-xs mt-1">{formErrors.bill_name}</p>
       {/if}
     </div>
 
@@ -317,7 +356,19 @@
       {/if}
     </div>
 
-    <div class="flex items-center space-x-4">
+    <div class="grid grid-cols-2 gap-4">
+      <div class="flex items-center">
+        <input
+          id="is_budget"
+          type="checkbox"
+          bind:checked={formData.is_budget}
+          class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+        />
+        <label for="is_budget" class="ml-2 block text-sm text-gray-900">
+          План
+        </label>
+      </div>
+
       <div class="flex items-center">
         <input
           id="is_fact"
@@ -326,10 +377,12 @@
           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
         />
         <label for="is_fact" class="ml-2 block text-sm text-gray-900">
-          Это факт
+          Факт
         </label>
       </div>
+    </div>
 
+    {#if isEditing}
       <div class="flex items-center">
         <input
           id="is_active"
@@ -341,7 +394,7 @@
           Активна
         </label>
       </div>
-    </div>
+    {/if}
   </form>
 
   <svelte:fragment slot="footer">

@@ -5,13 +5,14 @@ export interface CreatePeriodData {
   period_name: string;
   period_year: number;
   period_month: number;
-  user_id: number;
+  is_active?: boolean;  // Optional, defaults to true on backend
 }
 
 export interface UpdatePeriodData {
   period_name?: string;
   period_year?: number;
   period_month?: number;
+  is_active?: boolean;  // For updating active status
 }
 
 class PeriodsService extends BaseService<Period, CreatePeriodData, UpdatePeriodData> {
@@ -22,7 +23,7 @@ class PeriodsService extends BaseService<Period, CreatePeriodData, UpdatePeriodD
   // Override getAll to include user_id parameter
   async getByUserId(userId: number): Promise<Period[]> {
     try {
-      const response = await this.getAll({ user_id: userId });
+      const response = await this.getAll();
       // Map period_id to id for consistency with UI components
       return response.map((p: any) => ({
         ...p,
@@ -63,7 +64,6 @@ class PeriodsService extends BaseService<Period, CreatePeriodData, UpdatePeriodD
         period_name: name,
         period_year: Number(year),
         period_month: Number(month),
-        user_id: userId,
       });
     }
 

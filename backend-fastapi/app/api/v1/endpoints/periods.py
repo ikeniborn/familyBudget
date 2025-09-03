@@ -200,6 +200,19 @@ async def create_period(
             detail="Missing required fields: date and ru_name, or period_year and period_month"
         )
     
+    # Check for existing period with same date
+    stmt = select(Period).where(
+        Period.date == date
+    )
+    result = await db.execute(stmt)
+    existing_period = result.scalar_one_or_none()
+    
+    if existing_period:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Период на дату {date.strftime('%Y-%m-%d')} уже существует"
+        )
+    
     period = Period(
         date=date,
         ru_name=ru_name,

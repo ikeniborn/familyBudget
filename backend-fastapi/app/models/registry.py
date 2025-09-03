@@ -17,7 +17,7 @@ class Registry(Base):
     user_id = Column(Integer, ForeignKey("t_d_user.user_id"), nullable=False)
     period_id = Column(Integer, ForeignKey("t_d_period.period_id"), nullable=False)
     financial_center_id = Column(Integer, ForeignKey("t_d_financial_center.financial_center_id"), nullable=False)
-    cost_center_id = Column(Integer, ForeignKey("t_d_cost_center.cost_center_id"), nullable=False)
+    cost_center_id = Column(Integer, ForeignKey("t_d_cost_center.cost_center_id"), nullable=True)
     nomenclature_id = Column(Integer, ForeignKey("t_d_nomenclature.nomenclature_id"), nullable=False)
     row_type_id = Column(Integer, ForeignKey("t_d_row_type.row_type_id"), nullable=False)
     cost_sum = Column(Numeric(10, 2), nullable=False)

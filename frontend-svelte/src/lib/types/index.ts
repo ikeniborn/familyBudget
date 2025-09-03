@@ -32,7 +32,6 @@ export interface FinancialCenter {
   financial_center_name: string;
   financial_center_description?: string;
   parent_id?: number | null;
-  financial_center_order: number;
   user_id: number;
   is_active?: boolean;
   usage_stats?: {
@@ -55,9 +54,8 @@ export interface CostCenter {
   financial_center_id?: number | null;
   budget_limit?: number;
   budget_period?: 'monthly' | 'quarterly' | 'yearly';
-  cost_center_order: number;
   user_id: number;
-  is_active?: boolean;
+  is_active: boolean;
   current_usage?: number;
   usage_percentage?: number;
   history?: CostCenterHistory[];
@@ -80,14 +78,18 @@ export interface Nomenclature {
   id: number;
   nomenclature_id: number;
   nomenclature_name: string;
-  nomenclature_type: 'INCOME' | 'EXPENSE';
+  nomenclature_type?: 'INCOME' | 'EXPENSE';
+  account_name: string;
+  bill_name: string;
+  operation_name: string;
+  is_budget: boolean;
+  is_fact: boolean;
   parent_id?: number | null;
-  nomenclature_order: number;
   color?: string;
   icon?: string;
   auto_rules?: AutoCategorizationRule[];
   user_id: number;
-  is_active?: boolean;
+  is_active: boolean;
   is_expanded?: boolean;
   level?: number;
   children?: Nomenclature[];

@@ -3,14 +3,12 @@ import type { FinancialCenter } from '$types';
 
 export interface CreateFinancialCenterData {
   financial_center_name: string;
-  financial_center_order: number;
   user_id: number;
   is_active?: boolean;
 }
 
 export interface UpdateFinancialCenterData {
   financial_center_name?: string;
-  financial_center_order?: number;
   is_active?: boolean;
 }
 
@@ -36,11 +34,10 @@ class FinancialCentersService extends BaseService<FinancialCenter, CreateFinanci
   // Export to CSV
   async exportToCsv(data: FinancialCenter[]): Promise<string> {
     const csvContent = [
-      ['ID', 'Название ЦФО', 'Порядок', 'Статус', 'Дата создания'].join(','),
+      ['ID', 'Название ЦФО', 'Статус', 'Дата создания'].join(','),
       ...data.map(fc => [
         fc.financial_center_id,
         `"${fc.financial_center_name}"`,
-        fc.financial_center_order,
         fc.is_active ? 'Активен' : 'Неактивен',
         fc.created_at ? new Date(fc.created_at).toLocaleDateString('ru-RU') : '',
       ].join(','))
@@ -57,11 +54,10 @@ class FinancialCentersService extends BaseService<FinancialCenter, CreateFinanci
     for (const line of lines) {
       if (!line.trim()) continue;
       
-      const [, name, order, status] = line.split(',').map(v => v.replace(/"/g, '').trim());
+      const [, name, status] = line.split(',').map(v => v.replace(/"/g, '').trim());
       
       newFinancialCenters.push({
         financial_center_name: name,
-        financial_center_order: Number(order),
         is_active: status === 'Активен',
         user_id: userId,
       });

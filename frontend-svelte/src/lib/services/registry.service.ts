@@ -74,14 +74,14 @@ class RegistryService {
     return response;
   }
 
-  // Get facts (row_type_id = 1)
+  // Get facts (row_type_id = 2)
   async getFacts(filters?: Omit<RegistryFilters, 'row_type_id'>): Promise<Registry[]> {
-    return this.getWithFilters({ ...filters, row_type_id: 1 });
+    return this.getWithFilters({ ...filters, row_type_id: 2 });
   }
 
-  // Get plans/budget (row_type_id = 2)
+  // Get plans/budget (row_type_id = 1)
   async getBudget(filters?: Omit<RegistryFilters, 'row_type_id'>): Promise<Registry[]> {
-    return this.getWithFilters({ ...filters, row_type_id: 2 });
+    return this.getWithFilters({ ...filters, row_type_id: 1 });
   }
 
   // Get summary by period

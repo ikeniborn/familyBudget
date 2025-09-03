@@ -3,14 +3,12 @@ import type { CostCenter } from '$types';
 
 export interface CreateCostCenterData {
   cost_center_name: string;
-  cost_center_order: number;
   user_id: number;
   is_active?: boolean;
 }
 
 export interface UpdateCostCenterData {
   cost_center_name?: string;
-  cost_center_order?: number;
   is_active?: boolean;
 }
 
@@ -36,11 +34,10 @@ class CostCentersService extends BaseService<CostCenter, CreateCostCenterData, U
   // Export to CSV
   async exportToCsv(data: CostCenter[]): Promise<string> {
     const csvContent = [
-      ['ID', 'Название МВЗ', 'Порядок', 'Статус', 'Дата создания'].join(','),
+      ['ID', 'Название МВЗ', 'Статус', 'Дата создания'].join(','),
       ...data.map(cc => [
         cc.cost_center_id,
         `"${cc.cost_center_name}"`,
-        cc.cost_center_order,
         cc.is_active ? 'Активен' : 'Неактивен',
         cc.created_at ? new Date(cc.created_at).toLocaleDateString('ru-RU') : '',
       ].join(','))
@@ -57,11 +54,10 @@ class CostCentersService extends BaseService<CostCenter, CreateCostCenterData, U
     for (const line of lines) {
       if (!line.trim()) continue;
       
-      const [, name, order, status] = line.split(',').map(v => v.replace(/"/g, '').trim());
+      const [, name, status] = line.split(',').map(v => v.replace(/"/g, '').trim());
       
       newCostCenters.push({
         cost_center_name: name,
-        cost_center_order: Number(order),
         is_active: status === 'Активен',
         user_id: userId,
       });
