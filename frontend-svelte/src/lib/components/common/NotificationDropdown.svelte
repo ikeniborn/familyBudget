@@ -3,9 +3,15 @@
   import { onMount } from 'svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
+  import { portal, createPortal } from '$lib/utils/portal';
   
   let isOpen = false;
   let isExpanded = false;
+  let buttonElement: HTMLButtonElement;
+  let buttonRect: DOMRect | null = null;
+  
+  const portalManager = createPortal();
+  
   let notifications = [
     {
       id: 1,
@@ -26,17 +32,26 @@
   $: unreadCount = notifications.filter(n => n.unread).length;
   
   function toggleDropdown(event?: Event) {
-    console.log('toggleDropdown called!', event);
+    console.log('🔔 toggleDropdown called!', event);
+    console.log('🔔 Current isOpen state:', isOpen);
+    
     if (event) {
       event.preventDefault();
       event.stopPropagation();
     }
-    console.log('Notification button clicked, isOpen was:', isOpen);
+    
+    // Обновляем позицию кнопки для правильного позиционирования дропдауна
+    if (buttonElement && !isOpen) {
+      buttonRect = buttonElement.getBoundingClientRect();
+    }
+    
     isOpen = !isOpen;
+    console.log('🔔 New isOpen state:', isOpen);
+    
     if (!isOpen) {
       isExpanded = false; // Reset expansion when closing
+      buttonRect = null;
     }
-    console.log('Notification dropdown toggled, isOpen is now:', isOpen);
   }
   
   function closeDropdown(event?: Event) {
@@ -47,6 +62,7 @@
     console.log('Closing notification dropdown');
     isOpen = false;
     isExpanded = false;
+    buttonRect = null;
   }
   
   function toggleExpanded(event?: Event) {
@@ -63,13 +79,29 @@
     );
   }
 
+  // Calculate dropdown position based on button position
+  $: dropdownStyles = buttonRect && !isExpanded ? {
+    position: 'fixed',
+    top: `${buttonRect.bottom + 8}px`,
+    right: `${window.innerWidth - buttonRect.right}px`,
+    'max-width': '20rem',
+    width: 'auto'
+  } : {};
+
   // Handle escape key listener using lifecycle hooks
   onMount(() => {
-    console.log('NotificationDropdown mounted!');
+    console.log('🔔 NotificationDropdown mounted!');
     
     // Test that button is clickable
     const button = document.querySelector('button[aria-label="Открыть уведомления"]');
-    console.log('Found notification button:', button);
+    console.log('🔔 Found notification button:', button);
+    
+    if (button) {
+      // Add direct event listener for debugging
+      button.addEventListener('click', (e) => {
+        console.log('🔔 Native click event fired!', e);
+      });
+    }
     
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && isOpen) {
@@ -77,15 +109,39 @@
       }
     };
     
+    const handleResize = () => {
+      // Update button position on window resize
+      if (buttonElement && isOpen && !isExpanded) {
+        buttonRect = buttonElement.getBoundingClientRect();
+      }
+    };
+    
     document.addEventListener('keydown', handleEscape);
+    window.addEventListener('resize', handleResize);
     
     return () => {
       document.removeEventListener('keydown', handleEscape);
+      window.removeEventListener('resize', handleResize);
     };
   });
 </script>
 
 <style>
+  /* Высокий z-index для портальных элементов */
+  :global(.notification-portal) {
+    z-index: 99999 !important;
+    position: fixed !important;
+  }
+  
+  :global(.notification-backdrop) {
+    z-index: 99998 !important;
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+  
   @media (max-width: 640px) {
     :global(.notification-dropdown-mobile) {
       right: 0.5rem !important;
@@ -96,42 +152,45 @@
 </style>
 
 <div class="relative" role="region" aria-label="Панель уведомлений">
-  <!-- Fallback direct button implementation -->
+  <!-- Direct button implementation for notification bell -->
   <button
+    bind:this={buttonElement}
     type="button"
-    onclick={toggleDropdown}
-    onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleDropdown(e)}
-    class="relative inline-flex items-center justify-center h-12 w-12 rounded-md font-medium transition-all hover:bg-secondary hover:text-secondary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-95"
+    on:click={toggleDropdown}
+    on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleDropdown(e)}
+    class="relative inline-flex items-center justify-center h-10 w-10 rounded-md font-medium transition-all hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-95"
     title="Уведомления"
     aria-label="Открыть уведомления"
   >
     <Bell class="h-5 w-5" />
     {#if unreadCount > 0}
-      <Badge 
-        variant="destructive" 
-        class="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs pointer-events-none"
-      >
-        {unreadCount}
-      </Badge>
+      <span class="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full"></span>
     {/if}
   </button>
+</div>
+
+{#if isOpen && portalManager.mounted}
+  <!-- Backdrop - всегда через портал -->
+  <div 
+    use:portal
+    class={`notification-backdrop ${isExpanded ? 'bg-black/50' : ''}`}
+    on:click={closeDropdown}
+    on:keydown={(e) => e.key === 'Escape' && closeDropdown(e)}
+    role="button"
+    tabindex="-1"
+    aria-label="Закрыть уведомления"
+  ></div>
   
-  {#if isOpen}
-    <!-- Backdrop -->
-    <div 
-      class={`fixed inset-0 ${isExpanded ? 'z-40 bg-black/50' : 'z-30'}`}
-      onclick={closeDropdown}
-      onkeydown={(e) => e.key === 'Escape' && closeDropdown()}
-      role="button"
-      tabindex="-1"
-      aria-label="Закрыть уведомления"
-    ></div>
-    
-    <!-- Dropdown -->
+  <!-- Dropdown - через портал для правильного z-index -->
+  <div 
+    use:portal
+    class="notification-portal"
+    style={isExpanded ? 'position: fixed; top: 0; right: 0; bottom: 0; width: 100%; max-width: 50vw;' : Object.entries(dropdownStyles).map(([k, v]) => `${k}: ${v}`).join('; ')}
+  >
     <div class={`
       ${isExpanded 
-        ? 'fixed top-0 right-0 h-screen w-full sm:w-1/2 z-50' 
-        : 'absolute top-full right-0 mt-2 w-full sm:w-80 max-w-sm z-40 notification-dropdown-mobile'
+        ? 'h-screen w-full' 
+        : 'w-80 max-w-sm sm:w-80 notification-dropdown-mobile'
       } 
       bg-white ${isExpanded ? '' : 'rounded-lg'} shadow-lg border border-gray-200 transition-all duration-300 ease-in-out
     `}>
@@ -174,8 +233,8 @@
           {#each notifications as notification (notification.id)}
             <div 
               class="p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
-              onclick={() => markAsRead(notification.id)}
-              onkeydown={(e) => e.key === 'Enter' && markAsRead(notification.id)}
+              on:click={() => markAsRead(notification.id)}
+              on:keydown={(e) => e.key === 'Enter' && markAsRead(notification.id)}
               role="button"
               tabindex="0"
             >
@@ -211,5 +270,5 @@
         </div>
       {/if}
     </div>
-  {/if}
-</div>
+  </div>
+{/if}
