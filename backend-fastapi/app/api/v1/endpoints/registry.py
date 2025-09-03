@@ -7,10 +7,15 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel, Field, validator
 
 from app.db.database import get_db
 from app.models.registry import Registry
+from app.models.period import Period
+from app.models.financial_center import FinancialCenter
+from app.models.cost_center import CostCenter
+from app.models.nomenclature import Nomenclature
 from app.core.session import get_current_user_from_session
 from app.core.config import settings
 
@@ -76,7 +81,7 @@ class RegistryUpdate(BaseModel):
 class RegistryResponse(BaseModel):
     """Registry response schema."""
     id: int
-    operation_date: datetime
+    operation_dttm: datetime  # Changed from operation_date
     user_id: int
     period_id: int
     financial_center_id: int
@@ -84,7 +89,12 @@ class RegistryResponse(BaseModel):
     nomenclature_id: int
     row_type_id: int
     cost_sum: Decimal
-    comment: Optional[str]
+    comment_description: Optional[str]  # Changed from comment
+    # Additional fields with names from related tables
+    period_name: Optional[str] = None
+    financial_center_name: Optional[str] = None
+    cost_center_name: Optional[str] = None
+    nomenclature_name: Optional[str] = None
 
 
 class BulkRegistryCreate(BaseModel):
@@ -143,11 +153,41 @@ async def get_registry_entries(
     if date_to:
         stmt = stmt.where(Registry.operation_date <= date_to)
     
+    # Load related entities
+    stmt = stmt.options(
+        selectinload(Registry.period),
+        selectinload(Registry.financial_center),
+        selectinload(Registry.cost_center),
+        selectinload(Registry.nomenclature)
+    )
+    
     stmt = stmt.offset(skip).limit(limit).order_by(Registry.operation_date.desc())
     result = await db.execute(stmt)
     entries = result.scalars().all()
     
-    return [RegistryResponse(**entry.to_dict()) for entry in entries]
+    # Build response with related entity names
+    response_list = []
+    for entry in entries:
+        entry_dict = {
+            "id": entry.id,
+            "operation_dttm": entry.operation_date,
+            "user_id": entry.user_id,
+            "period_id": entry.period_id,
+            "financial_center_id": entry.financial_center_id,
+            "cost_center_id": entry.cost_center_id,
+            "nomenclature_id": entry.nomenclature_id,
+            "row_type_id": entry.row_type_id,
+            "cost_sum": entry.cost_sum,
+            "comment_description": entry.comment,
+            # Add related entity names
+            "period_name": entry.period.ru_name if entry.period else None,
+            "financial_center_name": entry.financial_center.name if entry.financial_center else None,
+            "cost_center_name": entry.cost_center.name if entry.cost_center else None,
+            "nomenclature_name": entry.nomenclature.name if entry.nomenclature else None,
+        }
+        response_list.append(RegistryResponse(**entry_dict))
+    
+    return response_list
 
 
 @router.get("/{entry_id}", response_model=RegistryResponse)
@@ -264,6 +304,11 @@ async def update_registry_entry(
             Registry.id == entry_id,
             Registry.user_id == current_user["user_id"]
         )
+    ).options(
+        selectinload(Registry.period),
+        selectinload(Registry.financial_center),
+        selectinload(Registry.cost_center),
+        selectinload(Registry.nomenclature)
     )
     result = await db.execute(stmt)
     entry = result.scalar_one_or_none()
@@ -289,7 +334,36 @@ async def update_registry_entry(
     await db.commit()
     await db.refresh(entry)
     
-    return RegistryResponse(**entry.to_dict())
+    # Reload with related entities
+    stmt = select(Registry).where(Registry.id == entry_id).options(
+        selectinload(Registry.period),
+        selectinload(Registry.financial_center),
+        selectinload(Registry.cost_center),
+        selectinload(Registry.nomenclature)
+    )
+    result = await db.execute(stmt)
+    entry = result.scalar_one()
+    
+    # Build response with related entity names
+    entry_dict = {
+        "id": entry.id,
+        "operation_dttm": entry.operation_date,
+        "user_id": entry.user_id,
+        "period_id": entry.period_id,
+        "financial_center_id": entry.financial_center_id,
+        "cost_center_id": entry.cost_center_id,
+        "nomenclature_id": entry.nomenclature_id,
+        "row_type_id": entry.row_type_id,
+        "cost_sum": entry.cost_sum,
+        "comment_description": entry.comment,
+        # Add related entity names
+        "period_name": entry.period.ru_name if entry.period else None,
+        "financial_center_name": entry.financial_center.name if entry.financial_center else None,
+        "cost_center_name": entry.cost_center.name if entry.cost_center else None,
+        "nomenclature_name": entry.nomenclature.name if entry.nomenclature else None,
+    }
+    
+    return RegistryResponse(**entry_dict)
 
 
 @router.delete("/{entry_id}")

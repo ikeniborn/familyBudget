@@ -8,6 +8,7 @@
   import DataTable from '$lib/components/common/DataTable.svelte';
   import Loading from '$lib/components/common/Loading.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
+  import FactEditModal from './FactEditModal.svelte';
   import { 
     CreditCard, 
     Calendar, 
@@ -18,20 +19,18 @@
     Receipt,
     TrendingDown,
     TrendingUp,
-    Wallet
+    Wallet,
+    Pencil,
+    Trash2
   } from 'lucide-svelte';
 
-  interface ExtendedRegistry extends Registry {
-    period_name?: string;
-    financial_center_name?: string;
-    cost_center_name?: string;
-    nomenclature_name?: string;
-  }
-
-  let facts: ExtendedRegistry[] = [];
+  let facts: Registry[] = [];
   let isLoading = true;
   let isRefreshing = false;
   let hasLoadedOnce = false;
+  let selectedFact: Registry | null = null;
+  let showEditModal = false;
+  let showDeleteModal = false;
 
   const toast = useToast();
 
@@ -75,6 +74,36 @@
     isRefreshing = false;
   }
 
+  function handleEdit(fact: Registry) {
+    selectedFact = fact;
+    showEditModal = true;
+  }
+
+  async function handleDelete(fact: Registry) {
+    selectedFact = fact;
+    if (confirm(`Удалить операцию на сумму ${formatCurrency(fact.cost_sum)}?`)) {
+      try {
+        await registryService.delete(fact.id);
+        toast.success('Успех', 'Операция удалена');
+        await loadFacts();
+      } catch (error: any) {
+        console.error('Ошибка удаления:', error);
+        toast.error('Ошибка', error.message || 'Не удалось удалить операцию');
+      }
+    }
+  }
+
+  function handleEditSuccess() {
+    showEditModal = false;
+    selectedFact = null;
+    loadFacts();
+  }
+
+  function handleEditCancel() {
+    showEditModal = false;
+    selectedFact = null;
+  }
+
   function formatCurrency(amount: number) {
     return new Intl.NumberFormat('ru-RU', {
       style: 'currency',
@@ -88,8 +117,8 @@
   }
 
   // Calculate totals
-  $: totalExpenses = facts.filter(item => item.cost_sum > 0).reduce((sum, item) => sum + item.cost_sum, 0);
-  $: totalIncomes = Math.abs(facts.filter(item => item.cost_sum < 0).reduce((sum, item) => sum + item.cost_sum, 0));
+  $: totalExpenses = facts.filter(item => item.cost_sum > 0).reduce((sum, item) => sum + Number(item.cost_sum), 0);
+  $: totalIncomes = Math.abs(facts.filter(item => item.cost_sum < 0).reduce((sum, item) => sum + Number(item.cost_sum), 0));
   $: netBalance = totalIncomes - totalExpenses;
 </script>
 
@@ -193,13 +222,14 @@
                 <th class="text-left py-3 px-4 font-medium text-slate-700">Номенклатура</th>
                 <th class="text-left py-3 px-4 font-medium text-slate-700">Сумма</th>
                 <th class="text-left py-3 px-4 font-medium text-slate-700">Комментарий</th>
+                <th class="text-left py-3 px-4 font-medium text-slate-700">Действия</th>
               </tr>
             </thead>
             <tbody>
               {#each facts as item, index}
                 <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                   <td class="py-3 px-4">
-                    {new Date(item.operation_dttm).toLocaleDateString('ru-RU')}
+                    {item.operation_dttm ? new Date(item.operation_dttm).toLocaleDateString('ru-RU') : '—'}
                   </td>
                   <td class="py-3 px-4">
                     {item.period_name || '—'}
@@ -240,6 +270,24 @@
                       <span class="text-slate-400">—</span>
                     {/if}
                   </td>
+                  <td class="py-3 px-4">
+                    <div class="flex items-center gap-2">
+                      <button
+                        on:click={() => handleEdit(item)}
+                        class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                        title="Редактировать"
+                      >
+                        <Pencil class="h-4 w-4" />
+                      </button>
+                      <button
+                        on:click={() => handleDelete(item)}
+                        class="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                        title="Удалить"
+                      >
+                        <Trash2 class="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               {/each}
             </tbody>
@@ -257,3 +305,12 @@
     </div>
   </Card>
 </div>
+
+<!-- Edit Modal -->
+{#if showEditModal && selectedFact}
+  <FactEditModal 
+    fact={selectedFact} 
+    onSuccess={handleEditSuccess}
+    onCancel={handleEditCancel}
+  />
+{/if}

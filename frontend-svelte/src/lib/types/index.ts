@@ -110,16 +110,20 @@ export interface AutoCategorizationRule {
 // Registry types
 export interface Registry {
   id: number;
+  operation_dttm?: string;  // Date of operation
   period_id: number;
   user_id: number;
   financial_center_id: number;
-  cost_center_id: number;
+  cost_center_id: number | null;
   nomenclature_id: number;
-  row_type: 'plan' | 'fact';
-  amount: number;
-  description?: string | null;
-  created_at: string;
-  updated_at: string;
+  row_type_id: number;  // 1=Plan, 2=Fact
+  cost_sum: number;  // Amount of the operation
+  comment_description?: string | null;  // Comment
+  // Additional fields with names from related tables
+  period_name?: string;
+  financial_center_name?: string;
+  cost_center_name?: string;
+  nomenclature_name?: string;
 }
 
 // Product types
