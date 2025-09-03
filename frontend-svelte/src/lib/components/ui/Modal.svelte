@@ -3,126 +3,202 @@
   import { X } from 'lucide-svelte';
   import Button from './Button.svelte';
 
-
   export let open: boolean = false;
   export let isOpen: boolean = false; // Support old API
   export let title: string = '';
   export let description: string = '';
   export let showCloseButton: boolean = true;
   export let size: 'small' | 'medium' | 'large' | 'extra-large' = 'medium';
-  export let onclose: (() => void) | undefined = undefined;
 
   import { createEventDispatcher } from 'svelte';
   
   const dispatch = createEventDispatcher();
-  let modalElement: HTMLDialogElement;
-  let mounted = false;
   
-  // Support both open and isOpen props - исправляем логику
+  // Support both open and isOpen props
   $: actualOpen = open === true || isOpen === true;
 
-  onMount(() => {
-    mounted = true;
-  });
-
-  // Reactive statement to handle modal open/close
-  $: if (modalElement && mounted) {
-    if (actualOpen && !modalElement.open) {
-      modalElement.showModal();
+  // Handle body scroll lock
+  $: if (typeof document !== 'undefined') {
+    if (actualOpen) {
       document.body.style.overflow = 'hidden';
-    } else if (!actualOpen && modalElement.open) {
-      modalElement.close();
+    } else {
       document.body.style.overflow = 'auto';
     }
   }
 
-  // Cleanup on destroy
   onDestroy(() => {
-    if (modalElement && modalElement.open) {
-      modalElement.close();
+    if (typeof document !== 'undefined') {
+      document.body.style.overflow = 'auto';
     }
-    document.body.style.overflow = 'auto';
   });
 
   function handleClose() {
-    // Don't modify props directly - just call callbacks
-    if (onclose) {
-      onclose();
-    }
     dispatch('close');
   }
 
   function handleBackdropClick(event: MouseEvent) {
-    if (event.target === modalElement) {
+    // Only close if clicking directly on the backdrop
+    if (event.target === event.currentTarget) {
       handleClose();
     }
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape') {
+    if (event.key === 'Escape' && actualOpen) {
       handleClose();
     }
   }
+
+  // Add global keydown listener
+  onMount(() => {
+    window.addEventListener('keydown', handleKeydown);
+    return () => {
+      window.removeEventListener('keydown', handleKeydown);
+    };
+  });
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events -->
-<dialog
-  bind:this={modalElement}
-  class="modal backdrop:bg-black/50 backdrop:backdrop-blur-sm"
-  on:click={handleBackdropClick}
-  on:keydown={handleKeydown}
-  {...$$restProps}
->
-  <div class="bg-white rounded-lg shadow-lg w-full max-h-[90vh] overflow-hidden {
-    size === 'small' ? 'max-w-sm' :
-    size === 'large' ? 'max-w-4xl' :
-    size === 'extra-large' ? 'max-w-6xl' :
-    'max-w-md'
-  }">
-    <!-- Header -->
-    {#if title || showCloseButton}
-      <div class="flex items-center justify-between p-6 border-b">
-        <div>
-          {#if title}
-            <h2 class="text-lg font-semibold text-gray-900">{title}</h2>
-          {/if}
-          {#if description}
-            <p class="text-sm text-gray-600 mt-1">{description}</p>
+{#if actualOpen}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div 
+    class="modal-backdrop"
+    on:click={handleBackdropClick}
+    {...$$restProps}
+  >
+    <div class="modal-container {
+      size === 'small' ? 'max-w-sm' :
+      size === 'large' ? 'max-w-4xl' :
+      size === 'extra-large' ? 'max-w-6xl' :
+      'max-w-md'
+    }">
+      <!-- Header -->
+      {#if title || showCloseButton}
+        <div class="modal-header">
+          <div>
+            {#if title}
+              <h2 class="modal-title">{title}</h2>
+            {/if}
+            {#if description}
+              <p class="modal-description">{description}</p>
+            {/if}
+          </div>
+          {#if showCloseButton}
+            <Button variant="ghost" size="sm" on:click={handleClose}>
+              <X class="h-4 w-4" />
+            </Button>
           {/if}
         </div>
-        {#if showCloseButton}
-          <Button variant="ghost" size="sm" onclick={handleClose}>
-            <X class="h-4 w-4" />
-          </Button>
-        {/if}
+      {/if}
+
+      <!-- Content -->
+      <div class="modal-content">
+        <slot></slot>
       </div>
-    {/if}
 
-    <!-- Content -->
-    <div class="p-6 overflow-y-auto">
-      <slot></slot>
-    </div>
-
-    <!-- Footer -->
-    <div class="flex justify-end gap-2 p-6 border-t bg-gray-50">
-      <slot name="footer"></slot>
+      <!-- Footer -->
+      {#if $$slots.footer}
+        <div class="modal-footer">
+          <slot name="footer"></slot>
+        </div>
+      {/if}
     </div>
   </div>
-</dialog>
+{/if}
 
 <style>
-  .modal {
-    @apply fixed inset-0 z-50 flex items-center justify-center;
-    border: none;
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     padding: 1rem;
-  }
-
-  .modal::backdrop {
     background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(4px);
+    animation: fadeIn 200ms ease-out;
   }
 
-  .modal[open] {
+  .modal-container {
+    position: relative;
+    width: 100%;
+    max-height: 90vh;
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    animation: slideUp 200ms ease-out;
+  }
+
+  .modal-header {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .modal-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #111827;
+  }
+
+  .modal-description {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-top: 0.25rem;
+  }
+
+  .modal-content {
+    padding: 1.5rem;
+    overflow-y: auto;
+    max-height: calc(90vh - 8rem);
+  }
+
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+    background: #f9fafb;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 640px) {
+    .modal-backdrop {
+      padding: 0;
+    }
+    
+    .modal-container {
+      max-height: 100vh;
+      border-radius: 0;
+    }
+    
+    .modal-content {
+      max-height: calc(100vh - 8rem);
+    }
   }
 </style>

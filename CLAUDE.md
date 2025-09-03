@@ -262,7 +262,7 @@ Key variables in `.env`:
 
 ## Recent Updates
 
-### August 2025 - Svelte 5 Migration
+### November 2025 - Svelte 5 Migration
 - **Svelte 5 Upgrade**: Migrated to Svelte 5.0.0 with partial runes syntax support
 - **Component Migration**: Core UI components updated to use `$props()`, `$state()`, `$derived()`
 - **Store Modernization**: All stores rewritten using classes with `$state()` for better reactivity

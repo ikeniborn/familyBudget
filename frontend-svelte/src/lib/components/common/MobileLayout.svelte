@@ -5,6 +5,7 @@
   import { deviceStore } from '$lib/stores/device.store';
   import Card from '$lib/components/ui/Card.svelte';
   import Button from '$lib/components/ui/Button.svelte';
+  import NotificationDropdown from '$lib/components/common/NotificationDropdown.svelte';
   import { clsx } from 'clsx';
   import { 
     Home, 
@@ -124,17 +125,7 @@
       </div>
 
       <div class="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          onclick={() => goto('/notifications')}
-          class="relative"
-        >
-          <Bell class="h-5 w-5" />
-          {#if false}
-            <span class="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full"></span>
-          {/if}
-        </Button>
+        <NotificationDropdown />
 
         <Button
           variant="ghost"
