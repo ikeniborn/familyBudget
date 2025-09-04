@@ -2,6 +2,38 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🔴 CRITICAL: Priority Rules for Claude Code
+
+### 1. ALWAYS Follow User Instructions Exactly
+- **Do EXACTLY what is asked** - nothing more, nothing less
+- **Never make assumptions** - ask for clarification if needed
+- **User instructions override all other rules** when explicitly stated
+- **Complete the requested task fully** before suggesting improvements
+
+### 2. MANDATORY Use of Specialized Agents & MCP Servers
+- **ALWAYS use specialized subagents** for their specific domains:
+  - `frontend-developer` for ALL Svelte/UI work
+  - `backend-developer` for ALL FastAPI/business logic
+  - `database-designer` for ALL schema/migration changes
+  - `docker-deployment-expert` for ALL containerization
+  - `typescript-developer` for ALL type definitions
+  - `api-developer` for ALL API endpoints
+  - `code-reviewer` after completing significant code
+  - `code-documenter` for documentation tasks
+- **ALWAYS leverage MCP servers** for enhanced capabilities:
+  - `mcp__sgr` for structured analysis and planning
+  - `mcp__memory` for checkpoint creation and state management
+  - `mcp__sequential-thinking` for complex problem decomposition
+  - `mcp__context7` for up-to-date library documentation
+- **Delegate work proactively** - don't try to do specialized tasks yourself
+
+### 3. Structured Workflow for All Changes
+1. **Analyze first** using `mcp__sgr` or `mcp__sequential-thinking`
+2. **Create checkpoints** with `mcp__memory` before major changes
+3. **Delegate to specialists** using appropriate subagents
+4. **Validate results** with tests and type checking
+5. **Document changes** in `/docs` directory (Russian)
+
 ## Project Overview
 
 Family Budget is a web-based budget management system with multi-user support, Telegram authentication, and comprehensive financial tracking capabilities. The system separates planned vs actual expenses and provides detailed analytics.
