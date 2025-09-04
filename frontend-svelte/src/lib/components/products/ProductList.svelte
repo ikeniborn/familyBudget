@@ -35,10 +35,10 @@
 
   // Фильтрованные продукты
   $: filteredProducts = products.filter(product => {
-    if (filters.search && !product.product_name.toLowerCase().includes(filters.search.toLowerCase())) {
+    if (filters.search && !product.name.toLowerCase().includes(filters.search.toLowerCase())) {
       return false;
     }
-    if (filters.category && product.category_name !== filters.category) {
+    if (filters.category && product.category !== filters.category) {
       return false;
     }
     if (filters.status) {
@@ -49,7 +49,7 @@
   });
 
   // Получение уникальных категорий
-  $: categories = [...new Set(products.map(p => p.category_name).filter(Boolean))];
+  $: categories = [...new Set(products.map(p => p.category).filter(Boolean))];
 
   // Обновление при изменении refreshKey
   $: if (refreshKey) {
@@ -119,7 +119,7 @@
 
   function toggleSelectAll(checked: boolean) {
     if (checked) {
-      selectedProducts = new Set(filteredProducts.map(p => p.product_id!));
+      selectedProducts = new Set(filteredProducts.map(p => p.id));
     } else {
       selectedProducts.clear();
     }
@@ -257,7 +257,7 @@
                 <input
                   type="checkbox"
                   checked={filteredProducts.length > 0 && selectedProducts.size === filteredProducts.length}
-                  onchange={(e) => toggleSelectAll(e.currentTarget.checked)}
+                  on:change={(e) => toggleSelectAll(e.currentTarget.checked)}
                   class="checkbox-all"
                 />
               </th>
@@ -271,32 +271,32 @@
             </tr>
           </thead>
           <tbody>
-            {#each filteredProducts as product, index (product.product_id)}
+            {#each filteredProducts as product, index (product.id)}
               <tr class="table-row" style="animation-delay: {index * 0.05}s">
                 <td class="td-checkbox">
                   <input
                     type="checkbox"
-                    checked={selectedProducts.has(product.product_id!)}
-                    onchange={() => toggleSelect(product.product_id!)}
+                    checked={selectedProducts.has(product.id)}
+                    on:change={() => toggleSelect(product.id)}
                     class="checkbox-item"
                   />
                 </td>
                 <td class="td-name">
                   <div class="product-name">
                     <Package class="product-icon" />
-                    <span>{product.product_name}</span>
+                    <span>{product.name}</span>
                   </div>
                 </td>
                 <td class="td-category">
                   <span class="category-badge">
                     <Tag class="h-3 w-3" />
-                    {product.category_name || '—'}
+                    {product.category || '—'}
                   </span>
                 </td>
                 <td class="td-unit">
                   <span class="unit-badge">
                     <Ruler class="h-3 w-3" />
-                    {product.unit_measure || '—'}
+                    {product.unit || '—'}
                   </span>
                 </td>
                 <td class="td-barcode">
@@ -342,7 +342,7 @@
                       <Edit3 class="h-4 w-4" />
                     </button>
                     <button
-                      on:click={() => handleDelete(product.product_id!)}
+                      on:click={() => handleDelete(product.id)}
                       class="btn-delete"
                       title="Удалить"
                     >

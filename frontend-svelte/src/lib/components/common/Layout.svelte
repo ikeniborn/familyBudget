@@ -88,7 +88,7 @@
     <div
       class="fixed inset-0 z-30 bg-primary/60 backdrop-blur-md lg:hidden transition-opacity duration-300"
       on:click={closeSidebar}
-      onkeydown={(e) => e.key === 'Escape' && closeSidebar()}
+      on:keydown={(e) => e.key === 'Escape' && closeSidebar()}
       role="button"
       tabindex="-1"
       aria-label="Закрыть меню навигации"

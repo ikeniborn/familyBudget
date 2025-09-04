@@ -61,7 +61,7 @@
     if (!searchQuery.trim()) return true;
     
     const searchText = searchQuery.toLowerCase();
-    const keysToSearch = searchKeys.length > 0 ? searchKeys : columns.filter(col => !col.component).map(col => col.key as keyof T);
+    const keysToSearch = searchKeys.length > 0 ? searchKeys : columns.filter(col => !col.component).map(col => col.key);
     
     return keysToSearch.some(key => {
       const value = item[key];
@@ -73,8 +73,8 @@
   $: sortedData = [...filteredData].sort((a, b) => {
     if (!sortColumn || typeof sortColumn === 'string' && sortColumn.startsWith('_')) return 0;
     
-    const aVal = a[sortColumn as keyof T];
-    const bVal = b[sortColumn as keyof T];
+    const aVal = a[sortColumn];
+    const bVal = b[sortColumn];
     
     if (aVal === null || aVal === undefined) return 1;
     if (bVal === null || bVal === undefined) return -1;
@@ -319,7 +319,7 @@
                   {:else if column.render}
                     {@html column.render(item)}
                   {:else}
-                    {item[column.key as keyof T] ?? ''}
+                    {item[column.key] ?? ''}
                   {/if}
                 </TableCell>
               {/each}

@@ -2,7 +2,7 @@
   import { clsx } from 'clsx';
   import { twMerge } from 'tailwind-merge';
 
-  export let type: 'text' | 'password' | 'email' | 'number' | 'tel' | 'url' | 'search' = 'text';
+  export let type: 'text' | 'password' | 'email' | 'number' | 'tel' | 'url' | 'search' | 'date' = 'text';
   export let placeholder = '';
   export let value: string | number = '';
   export let disabled = false;
@@ -12,6 +12,7 @@
   export let name: string | undefined = undefined;
   export let hasError = false;
   export let size: 'sm' | 'md' | 'lg' = 'md';
+  export let step: number | undefined = undefined;
   let className = '';
   export { className as class };
 
@@ -111,6 +112,7 @@
     {readonly}
     {id}
     {name}
+    {step}
     bind:value
     class={inputClass}
     aria-invalid={hasError}
@@ -147,6 +149,27 @@
 {:else if type === 'url'}
   <input
     type="url"
+    {placeholder}
+    {disabled}
+    {required}
+    {readonly}
+    {id}
+    {name}
+    bind:value
+    class={inputClass}
+    aria-invalid={hasError}
+    aria-describedby={hasError && id ? `${id}-error` : undefined}
+    on:keydown
+    on:keyup
+    on:change
+    on:input
+    on:focus
+    on:blur
+    {...$$restProps}
+  />
+{:else if type === 'date'}
+  <input
+    type="date"
     {placeholder}
     {disabled}
     {required}

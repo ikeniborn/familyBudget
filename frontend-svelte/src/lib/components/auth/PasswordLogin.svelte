@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
   import { setCurrentUser } from '$lib/stores/auth.store';
   import { useToast } from '$lib/stores/toast.store';
   import { authService } from '$lib/services/auth.service';
@@ -42,8 +43,8 @@
         // Use returnUrl from query params if available, otherwise go to dashboard
         const returnUrl = $page.url.searchParams.get('returnUrl') || '/dashboard';
         
-        // Use full page reload to ensure SSR state is updated with session
-        window.location.href = returnUrl;
+        // Use SvelteKit navigation for proper state management
+        await goto(returnUrl);
       } else {
         error = response.error || 'Ошибка входа';
       }
@@ -90,8 +91,8 @@
         // Use returnUrl from query params if available, otherwise go to dashboard
         const returnUrl = $page.url.searchParams.get('returnUrl') || '/dashboard';
         
-        // Use full page reload to ensure SSR state is updated with session
-        window.location.href = returnUrl;
+        // Use SvelteKit navigation for proper state management
+        await goto(returnUrl);
       } else {
         error = response.error || 'Ошибка регистрации';
       }

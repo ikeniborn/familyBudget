@@ -51,10 +51,12 @@
 
   onMount(async () => {
     try {
-      // Load reference data if not already loaded
-      if ($periodStore.items.length === 0) {
-        await periodStore.load($currentUser?.user_id || 0);
-      }
+      // Always reload periods to ensure they are up-to-date
+      console.log('Loading periods for user:', $currentUser?.user_id);
+      await periodStore.load($currentUser?.user_id || 0);
+      console.log('Loaded periods:', $periodStore.items);
+      
+      // Load other reference data if not already loaded
       if ($financialCenterStore.items.length === 0) {
         await financialCenterStore.load($currentUser?.user_id || 0);
       }
@@ -202,12 +204,20 @@
               class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent {errors.period_id ? 'border-red-300' : ''}"
             >
               <option value="">Выберите период</option>
-              {#each $periodStore.items as period}
-                <option value={period.period_id.toString()}>{period.period_ru_name}</option>
-              {/each}
+              {#if $periodStore && $periodStore.items}
+                {#each $periodStore.items as period}
+                  <option value={period.period_id.toString()}>{period.period_name || period.ru_name || `${period.period_year}.${String(period.period_month).padStart(2, '0')}`}</option>
+                {/each}
+              {:else}
+                <option disabled>Загрузка периодов...</option>
+              {/if}
             </select>
             {#if errors.period_id}
               <p class="text-sm text-red-600">{errors.period_id}</p>
+            {/if}
+            <!-- Debug info -->
+            {#if $periodStore}
+              <p class="text-xs text-gray-500">Загружено периодов: {$periodStore.items ? $periodStore.items.length : 0}</p>
             {/if}
           </div>
         </div>

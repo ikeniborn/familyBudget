@@ -37,13 +37,13 @@ class Registry(Base):
     def to_dict(self):
         return {
             "id": self.id,
-            "operation_date": self.operation_date.isoformat() if self.operation_date else None,
+            "operation_dttm": self.operation_date,  # Use operation_dttm as expected by RegistryResponse
             "user_id": self.user_id,
             "period_id": self.period_id,
             "financial_center_id": self.financial_center_id,
             "cost_center_id": self.cost_center_id,
             "nomenclature_id": self.nomenclature_id,
             "row_type_id": self.row_type_id,
-            "cost_sum": float(self.cost_sum) if self.cost_sum else 0.0,
-            "comment": self.comment
+            "cost_sum": self.cost_sum,  # Keep as Decimal
+            "comment_description": self.comment  # Use comment_description as expected by RegistryResponse
         }

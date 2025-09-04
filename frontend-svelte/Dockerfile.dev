@@ -10,7 +10,7 @@ COPY package*.json ./
 
 # Install all dependencies (including dev dependencies)
 # Use npm install if package-lock.json doesn't exist, otherwise use npm ci
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+RUN rm -rf package-lock.json node_modules && npm install
 
 # Copy source code
 COPY . .

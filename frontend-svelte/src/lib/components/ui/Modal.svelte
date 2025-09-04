@@ -109,7 +109,7 @@
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    z-index: 50;
+    z-index: 9999;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -128,6 +128,7 @@
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     overflow: hidden;
     animation: slideUp 200ms ease-out;
+    z-index: 10000;
   }
 
   .modal-header {
@@ -151,9 +152,27 @@
   }
 
   .modal-content {
-    padding: 1.5rem;
     overflow-y: auto;
     max-height: calc(90vh - 8rem);
+    pointer-events: auto;
+  }
+  
+  /* Ensure all form elements inside modal are interactive */
+  .modal-content input,
+  .modal-content textarea,
+  .modal-content select,
+  .modal-content button {
+    pointer-events: auto !important;
+    user-select: text !important;
+    background-color: white !important;
+    opacity: 1 !important;
+  }
+  
+  .modal-content input:disabled,
+  .modal-content textarea:disabled,
+  .modal-content select:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
   }
 
   .modal-footer {

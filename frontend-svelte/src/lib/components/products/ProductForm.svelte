@@ -2,9 +2,6 @@
   import { createEventDispatcher } from 'svelte';
   import { productService, type Product, type CreateProductData, type UpdateProductData } from '$lib/services/product.service';
   import { toastStore } from '$lib/stores/toast.store';
-  import Card from '$lib/components/ui/Card.svelte';
-  import Input from '$lib/components/ui/Input.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
   import { Package, Tag, Ruler, Barcode, FileText, Check, X } from 'lucide-svelte';
 
   export let product: Product | null = null;
@@ -18,9 +15,9 @@
   
   // Форма данных
   let formData = {
-    product_name: product?.product_name || '',
-    category_name: product?.category_name || '',
-    unit_measure: product?.unit_measure || '',
+    name: product?.name || '',
+    category: product?.category || '',
+    unit: product?.unit || '',
     barcode: product?.barcode || '',
     description: product?.description || '',
     is_active: product?.is_active ?? true
@@ -53,16 +50,16 @@
   function validateForm() {
     errors = {};
     
-    if (!formData.product_name.trim()) {
-      errors.product_name = 'Наименование обязательно';
+    if (!formData.name.trim()) {
+      errors.name = 'Наименование обязательно';
     }
     
-    if (!formData.category_name) {
-      errors.category_name = 'Выберите категорию';
+    if (!formData.category) {
+      errors.category = 'Выберите категорию';
     }
     
-    if (!formData.unit_measure) {
-      errors.unit_measure = 'Выберите единицу измерения';
+    if (!formData.unit) {
+      errors.unit = 'Выберите единицу измерения';
     }
 
     return Object.keys(errors).length === 0;
@@ -79,21 +76,21 @@
       if (product) {
         // Обновление существующего продукта
         const updateData: UpdateProductData = {
-          product_name: formData.product_name,
-          category_name: formData.category_name,
-          unit_measure: formData.unit_measure,
+          name: formData.name,
+          category: formData.category,
+          unit: formData.unit,
           barcode: formData.barcode || undefined,
           description: formData.description || undefined,
           is_active: formData.is_active,
         };
-        await productService.update(product.product_id!, updateData);
+        await productService.update(product.id, updateData);
         toastStore.success('Продукт обновлен');
       } else {
         // Создание нового продукта
         const createData: CreateProductData = {
-          product_name: formData.product_name,
-          category_name: formData.category_name,
-          unit_measure: formData.unit_measure,
+          name: formData.name,
+          category: formData.category,
+          unit: formData.unit,
           barcode: formData.barcode || undefined,
           description: formData.description || undefined,
           is_active: formData.is_active,
@@ -115,9 +112,9 @@
   function resetForm() {
     if (!product) {
       formData = {
-        product_name: '',
-        category_name: '',
-        unit_measure: '',
+        name: '',
+        category: '',
+        unit: '',
         barcode: '',
         description: '',
         is_active: true
@@ -148,7 +145,7 @@
     </p>
   </div>
 
-  <form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="product-form">
+  <form on:submit={(e) => { e.preventDefault(); handleSubmit(); }} class="product-form">
     <div class="form-field">
       <div class="field-icon">
         <Package class="h-5 w-5" />
@@ -160,13 +157,13 @@
         <input
           id="product_name"
           type="text"
-          bind:value={formData.product_name}
+          bind:value={formData.name}
           class="field-input"
-          class:error={errors.product_name}
+          class:error={errors.name}
           placeholder="Например: Молоко 3.2%"
         />
-        {#if errors.product_name}
-          <p class="field-error">{errors.product_name}</p>
+        {#if errors.name}
+          <p class="field-error">{errors.name}</p>
         {/if}
       </div>
     </div>
@@ -182,17 +179,17 @@
           </label>
           <select
             id="category"
-            bind:value={formData.category_name}
+            bind:value={formData.category}
             class="field-select"
-            class:error={errors.category_name}
+            class:error={errors.category}
           >
             <option value="">Выберите категорию</option>
             {#each categoryOptions as option}
               <option value={option.value}>{option.label}</option>
             {/each}
           </select>
-          {#if errors.category_name}
-            <p class="field-error">{errors.category_name}</p>
+          {#if errors.category}
+            <p class="field-error">{errors.category}</p>
           {/if}
         </div>
       </div>
@@ -207,17 +204,17 @@
           </label>
           <select
             id="unit_measure"
-            bind:value={formData.unit_measure}
+            bind:value={formData.unit}
             class="field-select"
-            class:error={errors.unit_measure}
+            class:error={errors.unit}
           >
             <option value="">Выберите единицу</option>
             {#each unitOptions as option}
               <option value={option.value}>{option.label}</option>
             {/each}
           </select>
-          {#if errors.unit_measure}
-            <p class="field-error">{errors.unit_measure}</p>
+          {#if errors.unit}
+            <p class="field-error">{errors.unit}</p>
           {/if}
         </div>
       </div>

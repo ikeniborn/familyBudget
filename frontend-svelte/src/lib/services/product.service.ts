@@ -1,59 +1,37 @@
 import { api } from './api';
-import type { PaginatedResponse } from '$types';
+import type { PaginatedResponse, Product, ProductPrice } from '$lib/types';
 
-export interface Product {
-  product_id?: number;
-  product_name: string;
-  category_name?: string;
-  unit_measure?: string;
-  barcode?: string;
-  description?: string;
-  is_active: boolean;
-  average_price?: number;
-  last_supplier?: string;
-  last_price_date?: string;
-  created_dttm?: string;
-  updated_dttm?: string;
-}
-
-export interface ProductPrice {
-  price_id?: number;
-  product_id: number;
-  supplier_name?: string;
-  price_value: number;
-  price_date: string;
-  user_id: number;
-  created_dttm?: string;
-}
+// Re-export types
+export type { Product, ProductPrice } from '$lib/types';
 
 export interface CreateProductData {
-  product_name: string;
-  category_name?: string;
-  unit_measure?: string;
+  name: string;
+  category?: string;
+  unit?: string;
   barcode?: string;
   description?: string;
   is_active: boolean;
 }
 
 export interface UpdateProductData {
-  product_name?: string;
-  category_name?: string;
-  unit_measure?: string;
+  name?: string;
+  category?: string;
+  unit?: string;
   barcode?: string;
   description?: string;
   is_active?: boolean;
 }
 
 export interface ProductFilters {
-  category_name?: string;
+  category?: string;
   is_active?: boolean;
   search?: string;
 }
 
 export interface ProductImportData {
-  product_name: string;
-  category_name?: string;
-  unit_measure?: string;
+  name: string;
+  category?: string;
+  unit?: string;
   barcode?: string;
   description?: string;
   price_value?: number;

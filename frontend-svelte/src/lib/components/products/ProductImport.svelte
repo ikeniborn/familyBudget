@@ -362,7 +362,7 @@
           type="file"
           class="hidden"
           accept=".xlsx,.xls,.csv"
-          onchange={handleFileSelect}
+          on:change={handleFileSelect}
         />
       </div>
     {/if}

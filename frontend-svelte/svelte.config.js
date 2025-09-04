@@ -9,8 +9,7 @@ const config = {
   
   compilerOptions: {
     // Svelte 4 compatibility options
-    hydratable: true,
-    legacy: true
+    hydratable: true
   },
 
   kit: {

@@ -25,6 +25,14 @@
     returnUrl = $page.url.searchParams.get('returnUrl');
     console.log('[LOGIN] Return URL:', returnUrl);
     
+    // First check if already authenticated
+    if ($isAuthenticated) {
+      console.log('[LOGIN] Already authenticated, redirecting immediately');
+      const redirectTo = returnUrl || '/dashboard';
+      await goto(redirectTo);
+      return; // Exit early to prevent further execution
+    }
+    
     // Check if password auth is enabled (опционально)
     try {
       loading = true;
@@ -39,14 +47,6 @@
       loading = false;
       authCheckCompleted = true;
       console.log('[LOGIN] Mount completed', { loading, authCheckCompleted });
-    }
-    
-    // После завершения проверок, проверяем авторизацию
-    // Redirect only if authenticated and auth check is completed
-    if ($isAuthenticated && authCheckCompleted) {
-      console.log('[LOGIN] Already authenticated, redirecting');
-      const redirectTo = returnUrl || '/dashboard';
-      goto(redirectTo);
     }
   });
   

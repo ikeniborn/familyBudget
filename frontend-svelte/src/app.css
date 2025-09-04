@@ -172,9 +172,18 @@
   }
   
   .touch-device input,
-  .touch-device textarea {
-    -webkit-user-select: text;
-    user-select: text;
+  .touch-device textarea,
+  .touch-device [contenteditable="true"] {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    pointer-events: auto !important;
+    -webkit-touch-callout: default !important;
+  }
+  
+  .touch-device input:focus,
+  .touch-device textarea:focus {
+    -webkit-user-select: text !important;
+    user-select: text !important;
   }
   
   /* PWA mode optimizations */

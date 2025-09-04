@@ -158,7 +158,7 @@
                   on:click={() => handleSort(column)}
                   role="button"
                   tabindex="0"
-                  onkeydown={(e) => e.key === 'Enter' && handleSort(column)}
+                  on:keydown={(e) => e.key === 'Enter' && handleSort(column)}
                 >
                   {column.header}
                   {#if getSortIcon(column)}

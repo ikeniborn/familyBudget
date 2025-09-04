@@ -88,23 +88,30 @@ async def get_periods(
     current_user: dict = Depends(require_auth)
 ):
     """Get all periods."""
-    stmt = select(Period).offset(skip).limit(limit).order_by(Period.date.desc())
+    stmt = select(Period).offset(skip).limit(limit).order_by(Period.date.asc())
     result = await db.execute(stmt)
     periods = result.scalars().all()
     
     response_periods = []
     for period in periods:
-        period_dict = period.to_dict()
-        # Add legacy fields
-        period_dict['period_id'] = period_dict['id']
-        period_dict['period_name'] = period_dict['ru_name']
-        period_dict['period_year'] = period_dict['date'].year
-        period_dict['period_month'] = period_dict['date'].month
-        period_dict['period_order'] = 1  # Default value
-        period_dict['is_active'] = True  # Default value
-        period_dict['created_at'] = period_dict['date']
-        period_dict['updated_at'] = period_dict['date']
-        period_dict['user_id'] = current_user.get('id')
+        # Use the actual datetime object from the database
+        period_dict = {
+            'id': period.id,
+            'date': period.date,
+            'ru_name': period.ru_name,
+            'start_date': period.start_date,
+            'end_date': period.end_date,
+            # Add legacy fields
+            'period_id': period.id,
+            'period_name': period.ru_name,
+            'period_year': period.date.year if period.date else None,
+            'period_month': period.date.month if period.date else None,
+            'period_order': 1,  # Default value
+            'is_active': True,  # Default value
+            'created_at': period.date,
+            'updated_at': period.date,
+            'user_id': current_user.get('user_id')
+        }
         response_periods.append(PeriodResponse(**period_dict))
     
     return response_periods
@@ -129,16 +136,22 @@ async def get_current_period(
         )
     
     # Prepare response with legacy fields
-    period_dict = period.to_dict()
-    period_dict['period_id'] = period_dict['id']
-    period_dict['period_name'] = period_dict['ru_name']
-    period_dict['period_year'] = period_dict['date'].year
-    period_dict['period_month'] = period_dict['date'].month
-    period_dict['period_order'] = 1
-    period_dict['is_active'] = True
-    period_dict['created_at'] = period_dict['date']
-    period_dict['updated_at'] = period_dict['date']
-    period_dict['user_id'] = current_user.get('id')
+    period_dict = {
+        'id': period.id,
+        'date': period.date,
+        'ru_name': period.ru_name,
+        'start_date': period.start_date,
+        'end_date': period.end_date,
+        'period_id': period.id,
+        'period_name': period.ru_name,
+        'period_year': period.date.year if period.date else None,
+        'period_month': period.date.month if period.date else None,
+        'period_order': 1,
+        'is_active': True,
+        'created_at': period.date,
+        'updated_at': period.date,
+        'user_id': current_user.get('user_id')
+    }
     
     return PeriodResponse(**period_dict)
 
@@ -162,16 +175,22 @@ async def get_period(
         )
     
     # Prepare response with legacy fields
-    period_dict = period.to_dict()
-    period_dict['period_id'] = period_dict['id']
-    period_dict['period_name'] = period_dict['ru_name']
-    period_dict['period_year'] = period_dict['date'].year
-    period_dict['period_month'] = period_dict['date'].month
-    period_dict['period_order'] = 1
-    period_dict['is_active'] = True
-    period_dict['created_at'] = period_dict['date']
-    period_dict['updated_at'] = period_dict['date']
-    period_dict['user_id'] = current_user.get('id')
+    period_dict = {
+        'id': period.id,
+        'date': period.date,
+        'ru_name': period.ru_name,
+        'start_date': period.start_date,
+        'end_date': period.end_date,
+        'period_id': period.id,
+        'period_name': period.ru_name,
+        'period_year': period.date.year if period.date else None,
+        'period_month': period.date.month if period.date else None,
+        'period_order': 1,
+        'is_active': True,
+        'created_at': period.date,
+        'updated_at': period.date,
+        'user_id': current_user.get('user_id')
+    }
     
     return PeriodResponse(**period_dict)
 
@@ -225,16 +244,22 @@ async def create_period(
     await db.refresh(period)
     
     # Prepare response with legacy fields
-    period_dict = period.to_dict()
-    period_dict['period_id'] = period_dict['id']
-    period_dict['period_name'] = period_dict['ru_name']
-    period_dict['period_year'] = period_dict['date'].year
-    period_dict['period_month'] = period_dict['date'].month
-    period_dict['period_order'] = period_data.period_order or 1
-    period_dict['is_active'] = period_data.is_active if period_data.is_active is not None else True
-    period_dict['created_at'] = period_dict['date']
-    period_dict['updated_at'] = period_dict['date']
-    period_dict['user_id'] = current_user.get('id')
+    period_dict = {
+        'id': period.id,
+        'date': period.date,
+        'ru_name': period.ru_name,
+        'start_date': period.start_date,
+        'end_date': period.end_date,
+        'period_id': period.id,
+        'period_name': period.ru_name,
+        'period_year': period.date.year if period.date else None,
+        'period_month': period.date.month if period.date else None,
+        'period_order': period_data.period_order or 1,
+        'is_active': period_data.is_active if period_data.is_active is not None else True,
+        'created_at': period.date,
+        'updated_at': period.date,
+        'user_id': current_user.get('user_id')
+    }
     
     return PeriodResponse(**period_dict)
 
@@ -267,16 +292,22 @@ async def update_period(
     await db.refresh(period)
     
     # Prepare response with legacy fields
-    period_dict = period.to_dict()
-    period_dict['period_id'] = period_dict['id']
-    period_dict['period_name'] = period_dict['ru_name']
-    period_dict['period_year'] = period_dict['date'].year
-    period_dict['period_month'] = period_dict['date'].month
-    period_dict['period_order'] = 1
-    period_dict['is_active'] = True
-    period_dict['created_at'] = period_dict['date']
-    period_dict['updated_at'] = period_dict['date']
-    period_dict['user_id'] = current_user.get('id')
+    period_dict = {
+        'id': period.id,
+        'date': period.date,
+        'ru_name': period.ru_name,
+        'start_date': period.start_date,
+        'end_date': period.end_date,
+        'period_id': period.id,
+        'period_name': period.ru_name,
+        'period_year': period.date.year if period.date else None,
+        'period_month': period.date.month if period.date else None,
+        'period_order': 1,
+        'is_active': True,
+        'created_at': period.date,
+        'updated_at': period.date,
+        'user_id': current_user.get('user_id')
+    }
     
     return PeriodResponse(**period_dict)
 

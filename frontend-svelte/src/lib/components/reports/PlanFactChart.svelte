@@ -277,7 +277,7 @@
     {#if sortable}
       <select
         value="{sortBy}-{sortOrder}"
-        onchange={handleSortChange}
+        on:change={handleSortChange}
         class="text-xs border border-gray-300 rounded px-2 py-1"
       >
         <option value="variance-desc">По отклонению ↓</option>

@@ -24,13 +24,25 @@
         first_name: ssrAuthData.user.first_name || '',
         last_name: ssrAuthData.user.last_name || '',
         username: ssrAuthData.user.username || '',
-        authMethod: 'password'
+        authMethod: ssrAuthData.user.auth_method || 'password'
       });
       authChecked = true;
       isClientAuthReady = true;
     }
-    // Only check auth if we're not already authenticated and don't have SSR data
-    else if (browser && !authChecked && !$isAuthenticated) {
+    // If we're already authenticated (from localStorage), verify with server
+    else if ($isAuthenticated) {
+      authChecked = true;
+      try {
+        // Verify the stored auth is still valid
+        await authStore.checkAuth();
+      } catch (error) {
+        console.error('Auth verification failed:', error);
+      } finally {
+        isClientAuthReady = true;
+      }
+    }
+    // Not authenticated, check with server
+    else if (browser && !authChecked) {
       authChecked = true;
       try {
         await authStore.checkAuth();
@@ -39,10 +51,6 @@
       } finally {
         isClientAuthReady = true;
       }
-    } else if ($isAuthenticated) {
-      // If already authenticated, mark as checked
-      authChecked = true;
-      isClientAuthReady = true;
     } else {
       // No auth data and not authenticated
       isClientAuthReady = true;

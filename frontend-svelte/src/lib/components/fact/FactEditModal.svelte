@@ -127,7 +127,7 @@
         </button>
       </div>
 
-      <form onsubmit={handleSubmit} class="space-y-4">
+      <form on:submit={handleSubmit} class="space-y-4">
         <div>
           <label for="operation_date" class="block text-sm font-medium text-gray-700 mb-1">
             Дата операции
@@ -217,7 +217,7 @@
             type="number"
             bind:value={formData.cost_sum}
             required
-            step="0.01"
+            step={0.01}
             class="w-full"
           />
         </div>
@@ -230,7 +230,7 @@
             id="comment"
             bind:value={formData.comment_description}
             rows="3"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
           ></textarea>
         </div>
 

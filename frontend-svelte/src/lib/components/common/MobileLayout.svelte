@@ -141,8 +141,8 @@
   <!-- Main Content Area -->
   <main 
     class="flex-1 overflow-y-auto pb-16"
-    ontouchstart={handleTouchStart}
-    ontouchend={handleTouchEnd}
+    on:touchstart={handleTouchStart}
+    on:touchend={handleTouchEnd}
   >
     <div class="p-4">
       <slot />
