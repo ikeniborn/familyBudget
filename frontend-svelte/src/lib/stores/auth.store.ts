@@ -1,6 +1,6 @@
 import { browser } from '$app/environment';
 import { writable, derived } from 'svelte/store';
-import type { User } from '$types';
+import type { User, AuthResponse, AuthMeResponse } from '$types';
 import { authService } from '$lib/services/auth.service';
 import api from '$lib/services/api';
 import type { TelegramAuthData } from '$lib/utils/telegram-oauth';
@@ -93,13 +93,12 @@ const authStore = {
   async login(telegramData: any): Promise<void> {
     update(state => ({ ...state, isLoading: true, error: null }));
     try {
-      const response = await api.post('/auth/telegram', telegramData);
-      const data = response.data;
+      const response = await api.post<AuthResponse>('/auth/telegram', telegramData);
       
-      if (data.success && data.user) {
+      if (response.success && response.user) {
         update(state => ({
           ...state,
-          user: { ...data.user, authMethod: 'telegram' as const },
+          user: { ...response.user, authMethod: 'telegram' as const },
           isAuthenticated: true,
           isLoading: false,
           error: null
@@ -162,11 +161,11 @@ const authStore = {
   async checkAuth(): Promise<void> {
     update(state => ({ ...state, isLoading: true }));
     try {
-      const response = await api.get('/auth/me');
-      if (response.data && response.data.user) {
+      const response = await api.get<AuthMeResponse>('/auth/me');
+      if (response.success && response.user) {
         update(state => ({
           ...state,
-          user: response.data.user,
+          user: response.user,
           isAuthenticated: true,
           isLoading: false,
           error: null

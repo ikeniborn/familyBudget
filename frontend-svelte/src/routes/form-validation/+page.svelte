@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { writable } from 'svelte/store';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import { toastStore } from '$stores/toast.store';
@@ -112,7 +111,7 @@
         // Simulate API call
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        toastStore.addToast({
+        toastStore.show({
           type: 'success',
           title: 'Успех!',
           message: 'Форма успешно отправлена. Все валидации прошли.',
@@ -129,7 +128,7 @@
           confirmPassword: ''
         };
       } catch (error) {
-        toastStore.addToast({
+        toastStore.show({
           type: 'error',
           title: 'Ошибка',
           message: 'Произошла ошибка при отправке формы',
@@ -137,7 +136,7 @@
         });
       }
     } else {
-      toastStore.addToast({
+      toastStore.show({
         type: 'error',
         title: 'Ошибка валидации',
         message: 'Пожалуйста, исправьте ошибки в форме',
@@ -301,7 +300,7 @@
         <div class="flex space-x-4 pt-4">
           <Button
             type="submit"
-            variant="primary"
+            variant="default"
             disabled={isSubmitting}
             class="flex-1"
           >
@@ -318,7 +317,7 @@
           <Button
             type="button"
             variant="secondary"
-            onclick={resetForm}
+            on:click={resetForm}
             disabled={isSubmitting}
           >
             Очистить
@@ -346,7 +345,7 @@
               Ошибки валидации ({Object.keys(errors).length}):
             </h3>
             <ul class="text-sm text-red-700 space-y-1">
-              {#each Object.entries(errors) as [field, error]}
+              {#each Object.entries(errors) as [, error]}
                 <li>• {error}</li>
               {/each}
             </ul>

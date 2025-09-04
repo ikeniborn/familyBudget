@@ -81,14 +81,14 @@
           <button 
             class="toggle-button" 
             class:active={showPasswordLogin}
-            onclick={() => showPasswordLogin = true}
+            on:click={() => showPasswordLogin = true}
           >
             Логин / Пароль
           </button>
           <button 
             class="toggle-button" 
             class:active={!showPasswordLogin}
-            onclick={() => showPasswordLogin = false}
+            on:click={() => showPasswordLogin = false}
           >
             Telegram
           </button>
@@ -109,7 +109,7 @@
               size="lg"
               class="login-button"
               disabled={loading}
-              onclick={() => {
+              on:click={() => {
                 console.log('[LOGIN] Кнопка входа нажата!');
                 console.log('[LOGIN] State:', { browser, dev, loading, authCheckCompleted });
                 console.log('[LOGIN] shouldUseMockAuth():', shouldUseMockAuth());

@@ -101,7 +101,7 @@
             'inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 hover:bg-black hover:bg-opacity-5',
             style.title
           )}
-          onclick={handleClose}
+          on:click={handleClose}
         >
           <span class="sr-only">Закрыть</span>
           <X class="h-5 w-5" />

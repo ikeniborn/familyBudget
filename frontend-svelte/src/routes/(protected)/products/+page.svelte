@@ -96,19 +96,19 @@
     <!-- Панель действий -->
     {#if activeView === 'list'}
       <div class="action-panel">
-        <button onclick={handleAddProduct} class="action-btn action-btn-primary">
+        <button on:click={handleAddProduct} class="action-btn action-btn-primary">
           <Plus class="h-5 w-5" />
           Добавить продукт
         </button>
-        <button onclick={openImportModal} class="action-btn action-btn-secondary">
+        <button on:click={openImportModal} class="action-btn action-btn-secondary">
           <Upload class="h-5 w-5" />
           Импорт
         </button>
-        <button onclick={openAnalyticsModal} class="action-btn action-btn-secondary">
+        <button on:click={openAnalyticsModal} class="action-btn action-btn-secondary">
           <BarChart3 class="h-5 w-5" />
           Аналитика
         </button>
-        <button onclick={openLinkModal} class="action-btn action-btn-secondary">
+        <button on:click={openLinkModal} class="action-btn action-btn-secondary">
           <LinkIcon class="h-5 w-5" />
           Привязка к номенклатуре
         </button>
@@ -119,7 +119,7 @@
     <div class="main-content">
       {#if activeView === 'form'}
         <div class="back-button-wrapper">
-          <button onclick={handleFormCancel} class="back-button">
+          <button on:click={handleFormCancel} class="back-button">
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>

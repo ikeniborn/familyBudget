@@ -3,16 +3,14 @@
   import { X } from 'lucide-svelte';
   import Button from './Button.svelte';
 
+  // Props with Svelte 4 syntax
   export let open: boolean = false;
   export let isOpen: boolean = false; // Support old API
   export let title: string = '';
   export let description: string = '';
   export let showCloseButton: boolean = true;
   export let size: 'small' | 'medium' | 'large' | 'extra-large' = 'medium';
-
-  import { createEventDispatcher } from 'svelte';
-  
-  const dispatch = createEventDispatcher();
+  export let onclose: () => void = () => {};
   
   // Support both open and isOpen props
   $: actualOpen = open === true || isOpen === true;
@@ -33,7 +31,9 @@
   });
 
   function handleClose() {
-    dispatch('close');
+    open = false;
+    isOpen = false;
+    onclose();
   }
 
   function handleBackdropClick(event: MouseEvent) {
@@ -64,7 +64,6 @@
   <div 
     class="modal-backdrop"
     on:click={handleBackdropClick}
-    {...$$restProps}
   >
     <div class="modal-container {
       size === 'small' ? 'max-w-sm' :

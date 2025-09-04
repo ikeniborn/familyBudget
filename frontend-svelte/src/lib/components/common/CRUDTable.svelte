@@ -217,7 +217,7 @@
             <span class="text-sm text-gray-600">
               Выбрано: {selectedItems.size}
             </span>
-            <Button variant="outline" size="sm" onclick={handleBulkDelete}>
+            <Button variant="outline" size="sm" on:click={handleBulkDelete}>
               <Trash2 class="h-4 w-4 mr-1" />
               Удалить
             </Button>
@@ -226,18 +226,18 @@
       </div>
       <div class="flex items-center gap-2">
         {#if exportable}
-          <Button variant="outline" size="sm" onclick={handleExport}>
+          <Button variant="outline" size="sm" on:click={handleExport}>
             <Download class="h-4 w-4 mr-1" />
             Экспорт
           </Button>
         {/if}
         {#if importable}
-          <Button variant="outline" size="sm" onclick={handleImport}>
+          <Button variant="outline" size="sm" on:click={handleImport}>
             <Upload class="h-4 w-4 mr-1" />
             Импорт
           </Button>
         {/if}
-        <Button onclick={handleAdd}>
+        <Button on:click={handleAdd}>
           <Plus class="h-4 w-4 mr-1" />
           {addButtonText}
         </Button>

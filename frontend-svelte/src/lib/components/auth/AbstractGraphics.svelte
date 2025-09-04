@@ -39,6 +39,7 @@
         container.removeEventListener('mousemove', handleMouseMove);
       };
     }
+    return () => {}; // Empty cleanup function for when condition is false
   });
 </script>
 
@@ -61,8 +62,8 @@
       <div
         class="icon-area {hoveredIcon === area.id ? 'hovered' : ''}"
         style="left: {area.x}%; top: {area.y}%; width: {area.width}%; height: {area.height}%;"
-        onmouseenter={() => handleIconHover(area.id)}
-        onmouseleave={handleIconLeave}
+        on:mouseenter={() => handleIconHover(area.id)}
+        on:mouseleave={handleIconLeave}
         title={area.title}
         role="button"
         tabindex="0"

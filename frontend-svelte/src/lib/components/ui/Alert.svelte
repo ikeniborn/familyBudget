@@ -5,19 +5,11 @@
 <script lang="ts">
   import { cn } from '$lib/utils/cn';
 
-  interface Props {
-    variant?: 'default' | 'destructive';
-    title?: string;
-    class?: string;
-    icon?: string | null;
-    [key: string]: any; // For rest props
-  }
-
-  export let variant: Props['variant'] = 'default';
-  export let title: string = '';
-  let className: string = '';
-  export { className as class };
+  export let variant: 'default' | 'destructive' | 'success' | 'warning' = 'default';
+  export let title = '';
   export let icon: string | null = null;
+  let className = '';
+  export { className as class };
 
   // Вычисляемые классы на основе варианта
   $: alertClasses = cn(
@@ -25,7 +17,9 @@
     '[&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground',
     {
       'bg-background text-foreground': variant === 'default',
-      'border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive': variant === 'destructive'
+      'border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive': variant === 'destructive',
+      'border-green-500/50 text-green-700 dark:text-green-400 [&>svg]:text-green-700': variant === 'success',
+      'border-yellow-500/50 text-yellow-700 dark:text-yellow-400 [&>svg]:text-yellow-700': variant === 'warning'
     },
     className
   );

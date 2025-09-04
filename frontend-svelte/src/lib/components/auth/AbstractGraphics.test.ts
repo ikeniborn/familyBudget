@@ -159,10 +159,6 @@ describe('AbstractGraphics Component', () => {
 
     it('should handle missing container gracefully', () => {
       const mockContainer = null;
-      const mockEvent = {
-        clientX: 300,
-        clientY: 250
-      };
 
       // Simulate the early return when container is not available
       expect(() => {

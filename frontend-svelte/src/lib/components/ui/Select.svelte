@@ -129,7 +129,7 @@
       } else {
         newValue = [...currentArray, option.value];
       }
-      selected = options.filter(opt => newValue.includes(opt.value));
+      selected = options.filter(opt => Array.isArray(newValue) && newValue.includes(opt.value));
     } else {
       newValue = option.value;
       selected = option;
@@ -251,7 +251,6 @@
     aria-invalid={hasError}
     aria-describedby={hasError && id ? `${id}-error` : undefined}
     {id}
-    {name}
     on:click={toggleOpen}
     on:keydown={handleKeydown}
   >

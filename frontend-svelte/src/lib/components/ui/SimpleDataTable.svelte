@@ -155,7 +155,7 @@
               {#if column.sortable}
                 <div
                   class="cursor-pointer select-none flex items-center gap-1 hover:text-gray-900"
-                  onclick={() => handleSort(column)}
+                  on:click={() => handleSort(column)}
                   role="button"
                   tabindex="0"
                   onkeydown={(e) => e.key === 'Enter' && handleSort(column)}
@@ -177,11 +177,11 @@
           {#each paginatedData as item, index (index)}
             <TableRow 
               class="cursor-pointer hover:bg-gray-50"
-              onclick={() => handleRowClick(item)}
+              on:click={() => handleRowClick(item)}
             >
               {#each columns as column (column.key)}
                 <TableCell
-                  onclick={(e) => {
+                  on:click={(e) => {
                     e.stopPropagation();
                     handleCellClick(item, column);
                   }}
@@ -213,7 +213,7 @@
         <Button
           variant="outline"
           size="sm"
-          onclick={previousPage}
+          on:click={previousPage}
           disabled={currentPage === 0}
         >
           Назад
@@ -224,7 +224,7 @@
         <Button
           variant="outline"
           size="sm"
-          onclick={nextPage}
+          on:click={nextPage}
           disabled={currentPage >= totalPages - 1}
         >
           Вперед

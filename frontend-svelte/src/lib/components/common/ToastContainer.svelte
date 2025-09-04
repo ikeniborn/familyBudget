@@ -29,7 +29,7 @@
   >
     {#if toasts.length > 0}
       <button
-        onclick={toggleExpanded}
+        on:click={toggleExpanded}
         type="button"
         class="pointer-events-auto mb-2 p-2 rounded-lg bg-white shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-600 hover:text-gray-800"
         title={isExpanded ? 'Свернуть уведомления' : 'Развернуть уведомления'}

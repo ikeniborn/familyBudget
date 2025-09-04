@@ -112,7 +112,7 @@
           <Button
             variant="ghost"
             size="icon"
-            onclick={goBack}
+            on:click={goBack}
             class="text-primary"
           >
             <ChevronLeft class="h-6 w-6" />
@@ -130,7 +130,7 @@
         <Button
           variant="ghost"
           size="icon"
-          onclick={() => goto('/profile')}
+          on:click={() => goto('/profile')}
         >
           <User class="h-5 w-5" />
         </Button>
@@ -153,11 +153,11 @@
   {#if mobileMenuOpen}
     <div
       class="fixed inset-0 bg-black/50 z-30"
-      onclick={() => mobileMenuOpen = false}
+      on:click={() => mobileMenuOpen = false}
     >
       <div
         class="absolute bottom-16 left-0 right-0 bg-background rounded-t-2xl shadow-xl"
-        onclick={(e) => e.stopPropagation()}
+        on:click={(e) => e.stopPropagation()}
       >
         <div class="p-4 space-y-2">
           <div class="h-1 w-12 bg-muted rounded-full mx-auto mb-4"></div>
@@ -166,7 +166,7 @@
             {@const Icon = item.icon}
             <button
               class="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-muted transition-colors"
-              onclick={() => handleNavigation(item.path)}
+              on:click={() => handleNavigation(item.path)}
             >
               <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                 <Icon class="h-5 w-5 text-primary" />
@@ -196,7 +196,7 @@
 
             <button
               class="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-destructive/10 text-destructive transition-colors"
-              onclick={handleLogout}
+              on:click={handleLogout}
             >
               <LogOut class="h-5 w-5" />
               <span class="text-base font-medium">Выйти</span>
@@ -223,7 +223,7 @@
             isMenu && mobileMenuOpen && 'text-primary',
             isMenu && !mobileMenuOpen && 'text-muted-foreground'
           )}
-          onclick={() => handleNavigation(item.path)}
+          on:click={() => handleNavigation(item.path)}
         >
           <div class="relative">
             <Icon class="h-5 w-5" />

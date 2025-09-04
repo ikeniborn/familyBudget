@@ -2,10 +2,9 @@
   import { clsx } from 'clsx';
   import { twMerge } from 'tailwind-merge';
 
-  // Using export let for backward compatibility
-  export let type = 'text';
+  export let type: 'text' | 'password' | 'email' | 'number' | 'tel' | 'url' | 'search' = 'text';
   export let placeholder = '';
-  export let value = '';
+  export let value: string | number = '';
   export let disabled = false;
   export let required = false;
   export let readonly = false;
@@ -40,17 +39,151 @@
   );
 </script>
 
-<input
-  {type}
-  {placeholder}
-  {disabled}
-  {required}
-  {readonly}
-  {id}
-  {name}
-  bind:value
-  class={inputClass}
-  aria-invalid={hasError}
-  aria-describedby={hasError && id ? `${id}-error` : undefined}
-  {...$$restProps}
-/>
+{#if type === 'text'}
+  <input
+    type="text"
+    {placeholder}
+    {disabled}
+    {required}
+    {readonly}
+    {id}
+    {name}
+    bind:value
+    class={inputClass}
+    aria-invalid={hasError}
+    aria-describedby={hasError && id ? `${id}-error` : undefined}
+    on:keydown
+    on:keyup
+    on:change
+    on:input
+    on:focus
+    on:blur
+    {...$$restProps}
+  />
+{:else if type === 'password'}
+  <input
+    type="password"
+    {placeholder}
+    {disabled}
+    {required}
+    {readonly}
+    {id}
+    {name}
+    bind:value
+    class={inputClass}
+    aria-invalid={hasError}
+    aria-describedby={hasError && id ? `${id}-error` : undefined}
+    on:keydown
+    on:keyup
+    on:change
+    on:input
+    on:focus
+    on:blur
+    {...$$restProps}
+  />
+{:else if type === 'email'}
+  <input
+    type="email"
+    {placeholder}
+    {disabled}
+    {required}
+    {readonly}
+    {id}
+    {name}
+    bind:value
+    class={inputClass}
+    aria-invalid={hasError}
+    aria-describedby={hasError && id ? `${id}-error` : undefined}
+    on:keydown
+    on:keyup
+    on:change
+    on:input
+    on:focus
+    on:blur
+    {...$$restProps}
+  />
+{:else if type === 'number'}
+  <input
+    type="number"
+    {placeholder}
+    {disabled}
+    {required}
+    {readonly}
+    {id}
+    {name}
+    bind:value
+    class={inputClass}
+    aria-invalid={hasError}
+    aria-describedby={hasError && id ? `${id}-error` : undefined}
+    on:keydown
+    on:keyup
+    on:change
+    on:input
+    on:focus
+    on:blur
+    {...$$restProps}
+  />
+{:else if type === 'tel'}
+  <input
+    type="tel"
+    {placeholder}
+    {disabled}
+    {required}
+    {readonly}
+    {id}
+    {name}
+    bind:value
+    class={inputClass}
+    aria-invalid={hasError}
+    aria-describedby={hasError && id ? `${id}-error` : undefined}
+    on:keydown
+    on:keyup
+    on:change
+    on:input
+    on:focus
+    on:blur
+    {...$$restProps}
+  />
+{:else if type === 'url'}
+  <input
+    type="url"
+    {placeholder}
+    {disabled}
+    {required}
+    {readonly}
+    {id}
+    {name}
+    bind:value
+    class={inputClass}
+    aria-invalid={hasError}
+    aria-describedby={hasError && id ? `${id}-error` : undefined}
+    on:keydown
+    on:keyup
+    on:change
+    on:input
+    on:focus
+    on:blur
+    {...$$restProps}
+  />
+{:else}
+  <input
+    type="search"
+    {placeholder}
+    {disabled}
+    {required}
+    {readonly}
+    {id}
+    {name}
+    bind:value
+    class={inputClass}
+    aria-invalid={hasError}
+    aria-describedby={hasError && id ? `${id}-error` : undefined}
+    on:keydown
+    on:keyup
+    on:change
+    on:input
+    on:focus
+    on:blur
+    {...$$restProps}
+  />
+{/if}

@@ -1,4 +1,4 @@
-import { writable, derived, type Writable } from 'svelte/store';
+import { writable, derived } from 'svelte/store';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 

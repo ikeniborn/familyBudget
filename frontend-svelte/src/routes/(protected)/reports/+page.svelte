@@ -6,7 +6,6 @@
   import { reportDataTransformer, type TransformedReportData } from '$lib/services/reportDataTransformer';
   import ReportFiltersComponent from '$lib/components/reports/ReportFilters.svelte';
   import BudgetTable from '$lib/components/reports/BudgetTable.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
   import ChartSelector from '$lib/components/reports/ChartSelector.svelte';
   import ViewModeToggle from '$lib/components/reports/ViewModeToggle.svelte';
   import DynamicChartRenderer from '$lib/components/reports/DynamicChartRenderer.svelte';

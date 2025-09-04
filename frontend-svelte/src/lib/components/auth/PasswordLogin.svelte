@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { setCurrentUser } from '$lib/stores/auth.store';
   import { useToast } from '$lib/stores/toast.store';
@@ -43,8 +42,8 @@
         // Use returnUrl from query params if available, otherwise go to dashboard
         const returnUrl = $page.url.searchParams.get('returnUrl') || '/dashboard';
         
-        // Use client-side navigation for proper state handling
-        await goto(returnUrl, { replaceState: true });
+        // Use full page reload to ensure SSR state is updated with session
+        window.location.href = returnUrl;
       } else {
         error = response.error || 'Ошибка входа';
       }
@@ -91,8 +90,8 @@
         // Use returnUrl from query params if available, otherwise go to dashboard
         const returnUrl = $page.url.searchParams.get('returnUrl') || '/dashboard';
         
-        // Use client-side navigation for proper state handling
-        await goto(returnUrl, { replaceState: true });
+        // Use full page reload to ensure SSR state is updated with session
+        window.location.href = returnUrl;
       } else {
         error = response.error || 'Ошибка регистрации';
       }
@@ -130,7 +129,7 @@
     <button 
       class="toggle-mini-button" 
       class:active={!showRegister}
-      onclick={() => { 
+      on:click={() => { 
         showRegister = false; 
         error = ''; 
       }}
@@ -140,7 +139,7 @@
     <button 
       class="toggle-mini-button" 
       class:active={showRegister}
-      onclick={() => { 
+      on:click={() => { 
         showRegister = true; 
         error = ''; 
       }}
@@ -149,7 +148,7 @@
     </button>
   </div>
 
-  <form onsubmit={handleSubmit} class="auth-form">
+  <form on:submit={handleSubmit} class="auth-form">
     <div class="form-fields">
       {#if showRegister}
         <div class="form-group">
@@ -163,7 +162,7 @@
             placeholder="Введите имя"
             required
             disabled={isLoading}
-            onkeydown={handleKeydown}
+            on:keydown={handleKeydown}
             class="form-input"
           />
         </div>
@@ -178,7 +177,7 @@
             bind:value={lastName}
             placeholder="Введите фамилию"
             disabled={isLoading}
-            onkeydown={handleKeydown}
+            on:keydown={handleKeydown}
             class="form-input"
           />
         </div>
@@ -195,7 +194,7 @@
           placeholder="Введите имя пользователя"
           required
           disabled={isLoading}
-          onkeydown={handleKeydown}
+          on:keydown={handleKeydown}
           class="form-input"
         />
       </div>
@@ -211,7 +210,7 @@
           placeholder="Введите пароль"
           required
           disabled={isLoading}
-          onkeydown={handleKeydown}
+          on:keydown={handleKeydown}
           class="form-input"
         />
       </div>
@@ -228,7 +227,7 @@
             placeholder="Повторите пароль"
             required
             disabled={isLoading}
-            onkeydown={handleKeydown}
+            on:keydown={handleKeydown}
             class="form-input"
           />
         </div>

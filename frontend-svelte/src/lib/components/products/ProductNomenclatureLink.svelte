@@ -276,7 +276,7 @@
 
         <div class="flex gap-2">
           <Button
-            onclick={handleBatchLink}
+            on:click={handleBatchLink}
             disabled={isUpdating || Object.keys(selectedNomenclature).length === 0}
             class="flex-1"
           >
@@ -368,7 +368,7 @@
                       <Button
                         variant="secondary"
                         size="sm"
-                        onclick={() => handleUnlinkProduct(product.product_id)}
+                        on:click={() => handleUnlinkProduct(product.product_id)}
                         disabled={isUpdating}
                         class="text-red-600 hover:text-red-700"
                       >
@@ -379,7 +379,7 @@
                         <Button
                           variant="secondary"
                           size="sm"
-                          onclick={() => handleLinkProduct(
+                          on:click={() => handleLinkProduct(
                             product.product_id, 
                             selectedNomenclature[product.product_id]
                           )}
@@ -391,7 +391,7 @@
                       <Button
                         variant="secondary"
                         size="sm"
-                        onclick={() => handleCreateNomenclature(product.product_id)}
+                        on:click={() => handleCreateNomenclature(product.product_id)}
                         disabled={isUpdating}
                         title="Создать новую номенклатуру"
                       >
@@ -416,7 +416,7 @@
 
   <svelte:fragment slot="footer">
     <div class="flex justify-end">
-      <Button variant="secondary" onclick={handleClose}>
+      <Button variant="secondary" on:click={handleClose}>
         Закрыть
       </Button>
     </div>

@@ -87,7 +87,7 @@
   {#if sidebarOpen}
     <div
       class="fixed inset-0 z-30 bg-primary/60 backdrop-blur-md lg:hidden transition-opacity duration-300"
-      onclick={closeSidebar}
+      on:click={closeSidebar}
       onkeydown={(e) => e.key === 'Escape' && closeSidebar()}
       role="button"
       tabindex="-1"
@@ -124,7 +124,7 @@
         <Button
           variant="ghost"
           size="icon"
-          onclick={closeSidebar}
+          on:click={closeSidebar}
           class="lg:hidden text-white hover:bg-white/20 relative z-10"
         >
           <X class="h-5 w-5" />
@@ -147,7 +147,7 @@
                   ? 'bg-accent text-accent-foreground shadow-md font-semibold'
                   : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
               )}
-              onclick={() => handleNavigation(item.path)}
+              on:click={() => handleNavigation(item.path)}
             >
               <!-- Geometric accent for active state -->
               {#if isActive}
@@ -189,7 +189,7 @@
             <Button
               variant="ghost"
               size="icon"
-              onclick={handleLogout}
+              on:click={handleLogout}
               class="text-muted-foreground hover:text-destructive transition-colors"
               title="Выйти"
             >
@@ -216,7 +216,7 @@
         <Button
           variant="ghost"
           size="icon"
-          onclick={() => sidebarOpen = true}
+          on:click={() => sidebarOpen = true}
           class="mr-3 lg:hidden text-primary hover:bg-primary/10 transition-all duration-200 hover:scale-105 active:scale-95"
           aria-label="Открыть меню навигации"
         >
@@ -238,7 +238,7 @@
             <Button 
               variant="ghost" 
               size="icon"
-              onclick={() => goto('/form-validation')}
+              on:click={() => goto('/form-validation')}
               title="Валидация форм"
               class="text-muted-foreground hover:text-primary hover:bg-primary/10"
             >
@@ -247,7 +247,7 @@
             <Button 
               variant="ghost" 
               size="icon"
-              onclick={() => goto('/settings')}
+              on:click={() => goto('/settings')}
               title="Настройки"
               class="text-muted-foreground hover:text-primary hover:bg-primary/10"
             >

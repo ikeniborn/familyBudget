@@ -1,15 +1,8 @@
 <script lang="ts">
   import { cn } from '$lib/utils/cn';
   
-  interface Props {
-    variant?: 'default' | 'secondary' | 'destructive' | 'outline';
-    class?: string;
-    children?: import('svelte').Snippet;
-    [key: string]: any; // For rest props
-  }
-
-  export let variant: Props['variant'] = 'default';
-  let className: string = '';
+  export let variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' = 'default';
+  let className = '';
   export { className as class };
   
   $: badgeClasses = cn(
@@ -18,12 +11,14 @@
       'bg-primary text-primary-foreground hover:bg-primary/80': variant === 'default',
       'bg-secondary text-secondary-foreground hover:bg-secondary/80': variant === 'secondary', 
       'bg-destructive text-destructive-foreground hover:bg-destructive/80': variant === 'destructive',
-      'text-foreground': variant === 'outline'
+      'text-foreground': variant === 'outline',
+      'bg-green-500 text-white hover:bg-green-600': variant === 'success',
+      'bg-yellow-500 text-white hover:bg-yellow-600': variant === 'warning'
     },
     className
   );
 </script>
 
 <div class={badgeClasses} {...$$restProps}>
-  <slot></slot>
+  <slot />
 </div>

@@ -152,7 +152,7 @@
         {#if filters.search}
           <button
             type="button"
-            onclick={() => filters.search = ''}
+            on:click={() => filters.search = ''}
             class="clear-icon"
             title="Очистить"
           >
@@ -176,7 +176,7 @@
         {#if filters.category}
           <button
             type="button"
-            onclick={() => filters.category = ''}
+            on:click={() => filters.category = ''}
             class="clear-icon"
             title="Очистить"
           >
@@ -199,7 +199,7 @@
         {#if filters.status}
           <button
             type="button"
-            onclick={() => filters.status = ''}
+            on:click={() => filters.status = ''}
             class="clear-icon"
             title="Очистить"
           >
@@ -210,7 +210,7 @@
 
       <!-- Кнопка сброса -->
       <button
-        onclick={clearFilters}
+        on:click={clearFilters}
         class="btn-reset"
       >
         <Filter class="h-4 w-4" />
@@ -222,7 +222,7 @@
     {#if selectedProducts.size > 0}
       <div class="bulk-actions">
         <button
-          onclick={handleBulkDelete}
+          on:click={handleBulkDelete}
           class="btn-bulk-delete"
         >
           <Trash2 class="h-4 w-4" />
@@ -335,14 +335,14 @@
                 <td class="td-actions">
                   <div class="action-buttons">
                     <button
-                      onclick={() => handleEdit(product)}
+                      on:click={() => handleEdit(product)}
                       class="btn-edit"
                       title="Редактировать"
                     >
                       <Edit3 class="h-4 w-4" />
                     </button>
                     <button
-                      onclick={() => handleDelete(product.product_id!)}
+                      on:click={() => handleDelete(product.product_id!)}
                       class="btn-delete"
                       title="Удалить"
                     >

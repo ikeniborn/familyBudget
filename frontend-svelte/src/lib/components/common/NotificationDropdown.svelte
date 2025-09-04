@@ -157,7 +157,7 @@
     bind:this={buttonElement}
     type="button"
     on:click={toggleDropdown}
-    on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleDropdown(e)}
+    onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleDropdown(e)}
     class="relative inline-flex items-center justify-center h-10 w-10 rounded-md font-medium transition-all hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-95"
     title="Уведомления"
     aria-label="Открыть уведомления"
@@ -175,7 +175,7 @@
     use:portal
     class={`notification-backdrop ${isExpanded ? 'bg-black/50' : ''}`}
     on:click={closeDropdown}
-    on:keydown={(e) => e.key === 'Escape' && closeDropdown(e)}
+    onkeydown={(e) => e.key === 'Escape' && closeDropdown(e)}
     role="button"
     tabindex="-1"
     aria-label="Закрыть уведомления"
@@ -200,7 +200,7 @@
           <Button
             variant="ghost"
             size="icon"
-            onclick={toggleExpanded}
+            on:click={toggleExpanded}
             class="h-8 w-8"
             title={isExpanded ? "Свернуть" : "Развернуть"}
           >
@@ -214,7 +214,7 @@
             <Button
               variant="ghost"
               size="icon"
-              onclick={closeDropdown}
+              on:click={closeDropdown}
               class="h-8 w-8"
               title="Закрыть"
             >
@@ -234,7 +234,7 @@
             <div 
               class="p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
               on:click={() => markAsRead(notification.id)}
-              on:keydown={(e) => e.key === 'Enter' && markAsRead(notification.id)}
+              onkeydown={(e) => e.key === 'Enter' && markAsRead(notification.id)}
               role="button"
               tabindex="0"
             >
@@ -261,7 +261,7 @@
             variant="ghost" 
             size="sm" 
             class="w-full"
-            onclick={() => {
+            on:click={() => {
               notifications = notifications.map(n => ({ ...n, unread: false }));
             }}
           >

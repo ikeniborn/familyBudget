@@ -75,7 +75,7 @@
               <Button
                 variant="outline"
                 size="sm"
-                onclick={toggleDetails}
+                on:click={toggleDetails}
                 class="w-full mb-2"
               >
                 {showDetails ? 'Скрыть' : 'Показать'} подробности
@@ -94,14 +94,14 @@
           <div class="flex space-x-2">
             <Button
               variant="outline"
-              onclick={handleRetry}
+              on:click={handleRetry}
               class="flex-1"
             >
               Повторить
             </Button>
             
             <Button
-              onclick={handleReset}
+              on:click={handleReset}
               class="flex-1"
             >
               <RefreshCw class="h-4 w-4 mr-2" />

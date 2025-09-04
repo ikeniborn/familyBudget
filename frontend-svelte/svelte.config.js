@@ -8,7 +8,9 @@ const config = {
   preprocess: vitePreprocess(),
   
   compilerOptions: {
-    runes: false  // Temporarily disabled due to lucide-svelte incompatibility
+    // Svelte 4 compatibility options
+    hydratable: true,
+    legacy: true
   },
 
   kit: {

@@ -89,7 +89,7 @@
         <!-- Main row content -->
         <div
           class="p-4"
-          onclick={() => onRowClick ? onRowClick(row) : toggleRow(index)}
+          on:click={() => onRowClick ? onRowClick(row) : toggleRow(index)}
           role={onRowClick ? 'button' : 'presentation'}
           tabindex={onRowClick ? 0 : -1}
         >
@@ -130,7 +130,7 @@
                   <Button
                     variant="ghost"
                     size="icon"
-                    onclick={(e: Event) => toggleActionMenu(index, e)}
+                    on:click={(e: Event) => toggleActionMenu(index, e)}
                     class="h-8 w-8"
                   >
                     <MoreVertical class="h-4 w-4" />
@@ -141,7 +141,7 @@
                       {#each actions as action}
                         <button
                           class="w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors"
-                          onclick={(e) => handleAction(row, action.key, e)}
+                          on:click={(e) => handleAction(row, action.key, e)}
                         >
                           <div class="flex items-center gap-2">
                             {#if action.icon}

@@ -288,7 +288,7 @@
       </button>
       <button
         type="button"
-        onclick={handleCancel}
+        on:click={handleCancel}
         disabled={isSubmitting}
         class="btn-secondary"
       >

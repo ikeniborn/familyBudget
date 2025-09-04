@@ -3,24 +3,25 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
   import { useToast } from '$lib/stores/toast.store';
-  import { registryService, type UpdateRegistryData } from '$lib/services/registry.service';
-  import { referenceDataStore } from '$lib/stores/referenceData.store';
-  import type { Registry } from '$lib/types';
+  import { registryService, type UpdateRegistryData, type CreateRegistryData, type Registry } from '$lib/services/registry.service';
+  import { 
+    periodStore, 
+    financialCenterStore, 
+    costCenterStore, 
+    nomenclatureStore 
+  } from '$lib/stores/referenceData.store';
+  import { currentUser } from '$lib/stores/auth.store';
+  import { onMount } from 'svelte';
   import { X, Save } from 'lucide-svelte';
 
-  interface Props {
-    fact: Registry | null;
-    onSuccess: () => void;
-    onCancel: () => void;
-  }
-
-  let { fact = null, onSuccess = () => {}, onCancel = () => {} }: Props = $props();
+  export let fact: Registry | null = null;
+  export let onSuccess: () => void = () => {};
+  export let onCancel: () => void = () => {};
   
   const toast = useToast();
-  const { periods, financialCenters, costCenters, nomenclatures } = referenceDataStore;
   
-  let isSubmitting = $state(false);
-  let formData = $state({
+  let isSubmitting = false;
+  let formData = {
     operation_dttm: '',
     period_id: 0,
     financial_center_id: 0,
@@ -28,55 +29,95 @@
     nomenclature_id: 0,
     cost_sum: 0,
     comment_description: ''
-  });
+  };
 
-  $effect(() => {
-    if (fact) {
-      formData.operation_dttm = fact.operation_dttm ? new Date(fact.operation_dttm).toISOString().split('T')[0] : '';
-      formData.period_id = fact.period_id;
-      formData.financial_center_id = fact.financial_center_id;
-      formData.cost_center_id = fact.cost_center_id;
-      formData.nomenclature_id = fact.nomenclature_id;
-      formData.cost_sum = fact.cost_sum;
-      formData.comment_description = fact.comment_description || '';
+  onMount(async () => {
+    const userId = $currentUser?.user_id || 0;
+    
+    // Load reference data if not already loaded
+    if ($periodStore.items.length === 0) {
+      await periodStore.load(userId);
+    }
+    if ($financialCenterStore.items.length === 0) {
+      await financialCenterStore.load(userId);
+    }
+    if ($costCenterStore.items.length === 0) {
+      await costCenterStore.load(userId);
+    }
+    if ($nomenclatureStore.items.length === 0) {
+      await nomenclatureStore.load(userId);
     }
   });
+
+  $: if (fact) {
+    formData.operation_dttm = fact.operation_dttm ? new Date(fact.operation_dttm).toISOString().split('T')[0] : '';
+    formData.period_id = fact.period_id;
+    formData.financial_center_id = fact.financial_center_id;
+    formData.cost_center_id = fact.cost_center_id;
+    formData.nomenclature_id = fact.nomenclature_id;
+    formData.cost_sum = fact.cost_sum;
+    formData.comment_description = fact.comment_description || '';
+  } else {
+    // Для новой записи устанавливаем значения по умолчанию
+    formData.operation_dttm = new Date().toISOString().split('T')[0];
+    formData.period_id = 0;
+    formData.financial_center_id = 0;
+    formData.cost_center_id = null;
+    formData.nomenclature_id = 0;
+    formData.cost_sum = 0;
+    formData.comment_description = '';
+  }
 
   async function handleSubmit(e: Event) {
     e.preventDefault();
     
-    if (!fact) return;
-    
     isSubmitting = true;
     
     try {
-      const updateData: UpdateRegistryData = {
-        operation_dttm: formData.operation_dttm,
-        period_id: formData.period_id,
-        financial_center_id: formData.financial_center_id,
-        cost_center_id: formData.cost_center_id || undefined,
-        nomenclature_id: formData.nomenclature_id,
-        cost_sum: formData.cost_sum,
-        comment_description: formData.comment_description || undefined
-      };
-      
-      await registryService.update(fact.id, updateData);
-      toast.success('Успех', 'Операция обновлена');
+      if (fact) {
+        // Режим редактирования
+        const updateData: UpdateRegistryData = {
+          operation_dttm: formData.operation_dttm,
+          period_id: formData.period_id,
+          financial_center_id: formData.financial_center_id,
+          cost_center_id: formData.cost_center_id || undefined,
+          nomenclature_id: formData.nomenclature_id,
+          cost_sum: formData.cost_sum,
+          comment_description: formData.comment_description || undefined
+        };
+        
+        await registryService.update(fact.id, updateData);
+        toast.success('Успех', 'Операция обновлена');
+      } else {
+        // Режим создания
+        const createData = {
+          operation_dttm: formData.operation_dttm,
+          period_id: formData.period_id,
+          financial_center_id: formData.financial_center_id,
+          cost_center_id: formData.cost_center_id || undefined,
+          nomenclature_id: formData.nomenclature_id,
+          cost_sum: formData.cost_sum,
+          comment_description: formData.comment_description || undefined,
+          row_type_id: 2 // Факт
+        };
+        
+        await registryService.create(createData);
+        toast.success('Успех', 'Операция добавлена');
+      }
       onSuccess();
     } catch (error: any) {
-      console.error('Ошибка обновления:', error);
-      toast.error('Ошибка', error.message || 'Не удалось обновить операцию');
+      console.error('Ошибка:', error);
+      toast.error('Ошибка', error.message || `Не удалось ${fact ? 'обновить' : 'создать'} операцию`);
     } finally {
       isSubmitting = false;
     }
   }
 </script>
 
-{#if fact}
-  <Modal show={true} onClose={onCancel}>
+<Modal open={true} onclose={onCancel}>
     <div class="p-6">
       <div class="flex items-center justify-between mb-6">
-        <h2 class="text-xl font-semibold text-gray-900">Редактирование операции</h2>
+        <h2 class="text-xl font-semibold text-gray-900">{fact ? 'Редактирование операции' : 'Добавить расход'}</h2>
         <button
           type="button"
           on:click={onCancel}
@@ -86,7 +127,7 @@
         </button>
       </div>
 
-      <form on:submit={handleSubmit} class="space-y-4">
+      <form onsubmit={handleSubmit} class="space-y-4">
         <div>
           <label for="operation_date" class="block text-sm font-medium text-gray-700 mb-1">
             Дата операции
@@ -111,7 +152,7 @@
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
           >
             <option value="">Выберите период</option>
-            {#each $periods as period}
+            {#each $periodStore.items as period}
               <option value={period.period_id}>{period.period_name}</option>
             {/each}
           </select>
@@ -128,7 +169,7 @@
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
           >
             <option value="">Выберите ЦФО</option>
-            {#each $financialCenters as fc}
+            {#each $financialCenterStore.items as fc}
               <option value={fc.financial_center_id}>{fc.financial_center_name}</option>
             {/each}
           </select>
@@ -144,7 +185,7 @@
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
           >
             <option value={null}>Не указано</option>
-            {#each $costCenters as cc}
+            {#each $costCenterStore.items as cc}
               <option value={cc.cost_center_id}>{cc.cost_center_name}</option>
             {/each}
           </select>
@@ -161,7 +202,7 @@
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
           >
             <option value="">Выберите категорию</option>
-            {#each $nomenclatures as nom}
+            {#each $nomenclatureStore.items as nom}
               <option value={nom.nomenclature_id}>{nom.nomenclature_name}</option>
             {/each}
           </select>
@@ -204,16 +245,14 @@
           </Button>
           <Button
             type="submit"
-            variant="primary"
+            variant="default"
             disabled={isSubmitting}
             class="flex items-center gap-2"
           >
             <Save class="h-4 w-4" />
-            {isSubmitting ? 'Сохранение...' : 'Сохранить'}
+            {isSubmitting ? (fact ? 'Сохранение...' : 'Добавление...') : (fact ? 'Сохранить' : 'Добавить расход')}
           </Button>
         </div>
       </form>
     </div>
   </Modal>
-{/if}
-</script>

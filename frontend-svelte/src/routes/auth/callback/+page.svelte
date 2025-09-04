@@ -138,7 +138,7 @@
           <Button
             variant="default"
             size="lg"
-            onclick={handleRetryLogin}
+            on:click={handleRetryLogin}
           >
             Попробовать снова
           </Button>
@@ -146,7 +146,7 @@
           <Button
             variant="secondary"
             size="lg"
-            onclick={handleManualLogin}
+            on:click={handleManualLogin}
           >
             Вернуться к входу
           </Button>

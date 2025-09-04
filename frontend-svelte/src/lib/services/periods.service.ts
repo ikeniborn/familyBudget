@@ -21,7 +21,7 @@ class PeriodsService extends BaseService<Period, CreatePeriodData, UpdatePeriodD
   }
 
   // Override getAll to include user_id parameter
-  async getByUserId(userId: number): Promise<Period[]> {
+  async getByUserId(_userId: number): Promise<Period[]> {
     try {
       const response = await this.getAll();
       // Map period_id to id for consistency with UI components
@@ -51,7 +51,7 @@ class PeriodsService extends BaseService<Period, CreatePeriodData, UpdatePeriodD
   }
 
   // Import from CSV
-  async importFromCsv(csvText: string, userId: number): Promise<CreatePeriodData[]> {
+  async importFromCsv(csvText: string, _userId: number): Promise<CreatePeriodData[]> {
     const lines = csvText.split('\n').slice(1); // Skip header
     const newPeriods: CreatePeriodData[] = [];
     

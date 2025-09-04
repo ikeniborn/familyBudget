@@ -149,9 +149,25 @@ export interface ProductPrice {
 
 // API Response types
 export interface ApiResponse<T> {
+  success: boolean;
   data: T;
   message?: string;
-  status: 'success' | 'error';
+  error?: string;
+}
+
+// Auth-specific API response types
+export interface AuthResponse {
+  success: boolean;
+  user: User;
+  message?: string;
+  error?: string;
+}
+
+export interface AuthMeResponse {
+  success: boolean;
+  user: User;
+  authenticated: boolean;
+  error?: string;
 }
 
 export interface PaginatedResponse<T> {

@@ -304,7 +304,7 @@
 
   <svelte:fragment slot="footer">
     <div class="flex justify-end">
-      <Button variant="secondary" onclick={handleClose}>
+      <Button variant="secondary" on:click={handleClose}>
         Закрыть
       </Button>
     </div>

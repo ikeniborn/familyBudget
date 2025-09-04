@@ -199,7 +199,7 @@ describe('PasswordLogin - Simple Tests', () => {
 
       await fireEvent.input(usernameInput, { target: { value: 'testuser' } });
       await fireEvent.input(passwordInput, { target: { value: 'password123' } });
-      await fireEvent.keydown(passwordInput, { key: 'Enter' });
+      await fireEvent.keyDown(passwordInput, { key: 'Enter' });
 
       await waitFor(() => {
         expect(mockAuthService.loginWithPassword).toHaveBeenCalledWith('testuser', 'password123');
