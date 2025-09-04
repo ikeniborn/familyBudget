@@ -2,17 +2,10 @@
   import { clsx } from 'clsx';
   import { twMerge } from 'tailwind-merge';
   
-  interface Props {
-    variant?: 'default' | 'navy' | 'sky' | 'beige' | 'steel' | 'elevated';
-    bordered?: boolean;
-    class?: string;
-    children?: import('svelte').Snippet;
-    [key: string]: any; // For rest props
-  }
-
-  export let variant: Props['variant'] = 'default';
-  export let bordered: boolean = false;
-  let className: string = '';
+  // Using export let for backward compatibility with Svelte 4 syntax
+  export let variant: 'default' | 'navy' | 'sky' | 'beige' | 'steel' | 'elevated' = 'default';
+  export let bordered = false;
+  let className = '';
   export { className as class };
   
   const variants = {
@@ -36,5 +29,5 @@
 </script>
 
 <div class={cardClass} {...$$restProps}>
-  <slot></slot>
+  <slot />
 </div>
