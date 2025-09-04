@@ -3,9 +3,6 @@
   import { currentUser } from '$lib/stores/auth.store';
   import { syncAllReferenceData } from '$lib/stores/referenceData.store';
   import { useToast } from '$lib/stores/toast.store';
-  import Card from '$lib/components/ui/Card.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
   import Loading from '$lib/components/common/Loading.svelte';
   import { 
     TrendingUp, 
