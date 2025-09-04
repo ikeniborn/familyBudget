@@ -60,11 +60,11 @@ async def get_financial_centers(
     current_user: dict = Depends(require_auth)
 ):
     """Get all financial centers."""
-    stmt = select(FinancialCenter).order_by(FinancialCenter.name)
-    
-    # Filter by user_id if provided
-    if user_id:
-        stmt = stmt.where(FinancialCenter.user_id == user_id)
+    # Always filter by current user's ID for data isolation
+    effective_user_id = user_id if user_id else current_user['user_id']
+    stmt = select(FinancialCenter).where(
+        FinancialCenter.user_id == effective_user_id
+    ).order_by(FinancialCenter.name)
     
     stmt = stmt.offset(skip).limit(limit)
     result = await db.execute(stmt)
@@ -81,7 +81,10 @@ async def get_financial_center(
     current_user: dict = Depends(require_auth)
 ):
     """Get financial center by ID."""
-    stmt = select(FinancialCenter).where(FinancialCenter.id == center_id)
+    stmt = select(FinancialCenter).where(
+        FinancialCenter.id == center_id,
+        FinancialCenter.user_id == current_user['user_id']
+    )
     result = await db.execute(stmt)
     center = result.scalar_one_or_none()
     
@@ -144,7 +147,10 @@ async def update_financial_center(
     current_user: dict = Depends(require_auth)
 ):
     """Update financial center."""
-    stmt = select(FinancialCenter).where(FinancialCenter.id == center_id)
+    stmt = select(FinancialCenter).where(
+        FinancialCenter.id == center_id,
+        FinancialCenter.user_id == current_user['user_id']
+    )
     result = await db.execute(stmt)
     center = result.scalar_one_or_none()
     
@@ -199,7 +205,10 @@ async def delete_financial_center(
     current_user: dict = Depends(require_auth)
 ):
     """Delete financial center."""
-    stmt = select(FinancialCenter).where(FinancialCenter.id == center_id)
+    stmt = select(FinancialCenter).where(
+        FinancialCenter.id == center_id,
+        FinancialCenter.user_id == current_user['user_id']
+    )
     result = await db.execute(stmt)
     center = result.scalar_one_or_none()
     
@@ -223,7 +232,10 @@ async def bulk_delete_financial_centers(
     current_user: dict = Depends(require_auth)
 ):
     """Delete multiple financial centers."""
-    stmt = select(FinancialCenter).where(FinancialCenter.id.in_(ids))
+    stmt = select(FinancialCenter).where(
+        FinancialCenter.id.in_(ids),
+        FinancialCenter.user_id == current_user['user_id']
+    )
     result = await db.execute(stmt)
     centers = result.scalars().all()
     

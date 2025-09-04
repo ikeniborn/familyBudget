@@ -83,11 +83,11 @@ async def get_nomenclatures(
     current_user: dict = Depends(require_auth)
 ):
     """Get all nomenclatures with optional filtering."""
-    stmt = select(Nomenclature).order_by(Nomenclature.name)
-    
-    # Filter by user_id if provided
-    if user_id:
-        stmt = stmt.where(Nomenclature.user_id == user_id)
+    # Always filter by current user's ID for data isolation
+    effective_user_id = user_id if user_id else current_user['user_id']
+    stmt = select(Nomenclature).where(
+        Nomenclature.user_id == effective_user_id
+    ).order_by(Nomenclature.name)
     
     if is_budget is not None:
         stmt = stmt.where(Nomenclature.is_budget == is_budget)
@@ -110,7 +110,10 @@ async def get_nomenclature(
     current_user: dict = Depends(require_auth)
 ):
     """Get nomenclature by ID."""
-    stmt = select(Nomenclature).where(Nomenclature.id == nomenclature_id)
+    stmt = select(Nomenclature).where(
+        Nomenclature.id == nomenclature_id,
+        Nomenclature.user_id == current_user['user_id']
+    )
     result = await db.execute(stmt)
     nomenclature = result.scalar_one_or_none()
     
@@ -180,7 +183,10 @@ async def update_nomenclature(
     current_user: dict = Depends(require_auth)
 ):
     """Update nomenclature."""
-    stmt = select(Nomenclature).where(Nomenclature.id == nomenclature_id)
+    stmt = select(Nomenclature).where(
+        Nomenclature.id == nomenclature_id,
+        Nomenclature.user_id == current_user['user_id']
+    )
     result = await db.execute(stmt)
     nomenclature = result.scalar_one_or_none()
     
@@ -248,7 +254,10 @@ async def delete_nomenclature(
     current_user: dict = Depends(require_auth)
 ):
     """Delete nomenclature."""
-    stmt = select(Nomenclature).where(Nomenclature.id == nomenclature_id)
+    stmt = select(Nomenclature).where(
+        Nomenclature.id == nomenclature_id,
+        Nomenclature.user_id == current_user['user_id']
+    )
     result = await db.execute(stmt)
     nomenclature = result.scalar_one_or_none()
     
@@ -272,7 +281,10 @@ async def bulk_delete_nomenclatures(
     current_user: dict = Depends(require_auth)
 ):
     """Delete multiple nomenclatures."""
-    stmt = select(Nomenclature).where(Nomenclature.id.in_(ids))
+    stmt = select(Nomenclature).where(
+        Nomenclature.id.in_(ids),
+        Nomenclature.user_id == current_user['user_id']
+    )
     result = await db.execute(stmt)
     nomenclatures = result.scalars().all()
     

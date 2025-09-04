@@ -60,11 +60,11 @@ async def get_cost_centers(
     current_user: dict = Depends(require_auth)
 ):
     """Get all cost centers."""
-    stmt = select(CostCenter).order_by(CostCenter.name)
-    
-    # Filter by user_id if provided
-    if user_id:
-        stmt = stmt.where(CostCenter.user_id == user_id)
+    # Always filter by current user's ID for data isolation
+    effective_user_id = user_id if user_id else current_user['user_id']
+    stmt = select(CostCenter).where(
+        CostCenter.user_id == effective_user_id
+    ).order_by(CostCenter.name)
     
     stmt = stmt.offset(skip).limit(limit)
     result = await db.execute(stmt)
@@ -81,7 +81,10 @@ async def get_cost_center(
     current_user: dict = Depends(require_auth)
 ):
     """Get cost center by ID."""
-    stmt = select(CostCenter).where(CostCenter.id == center_id)
+    stmt = select(CostCenter).where(
+        CostCenter.id == center_id,
+        CostCenter.user_id == current_user['user_id']
+    )
     result = await db.execute(stmt)
     center = result.scalar_one_or_none()
     
@@ -144,7 +147,10 @@ async def update_cost_center(
     current_user: dict = Depends(require_auth)
 ):
     """Update cost center."""
-    stmt = select(CostCenter).where(CostCenter.id == center_id)
+    stmt = select(CostCenter).where(
+        CostCenter.id == center_id,
+        CostCenter.user_id == current_user['user_id']
+    )
     result = await db.execute(stmt)
     center = result.scalar_one_or_none()
     
@@ -199,7 +205,10 @@ async def delete_cost_center(
     current_user: dict = Depends(require_auth)
 ):
     """Delete cost center."""
-    stmt = select(CostCenter).where(CostCenter.id == center_id)
+    stmt = select(CostCenter).where(
+        CostCenter.id == center_id,
+        CostCenter.user_id == current_user['user_id']
+    )
     result = await db.execute(stmt)
     center = result.scalar_one_or_none()
     
@@ -223,7 +232,10 @@ async def bulk_delete_cost_centers(
     current_user: dict = Depends(require_auth)
 ):
     """Delete multiple cost centers."""
-    stmt = select(CostCenter).where(CostCenter.id.in_(ids))
+    stmt = select(CostCenter).where(
+        CostCenter.id.in_(ids),
+        CostCenter.user_id == current_user['user_id']
+    )
     result = await db.execute(stmt)
     centers = result.scalars().all()
     
