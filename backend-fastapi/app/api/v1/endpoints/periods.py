@@ -27,7 +27,6 @@ class PeriodCreate(BaseModel):
     period_name: Optional[str] = None
     period_year: Optional[int] = None
     period_month: Optional[int] = None
-    period_order: Optional[int] = None
     is_active: Optional[bool] = True
     user_id: Optional[int] = None
 
@@ -44,7 +43,6 @@ class PeriodUpdate(BaseModel):
     period_name: Optional[str] = None
     period_year: Optional[int] = None
     period_month: Optional[int] = None
-    period_order: Optional[int] = None
     is_active: Optional[bool] = None
 
 
@@ -61,7 +59,6 @@ class PeriodResponse(BaseModel):
     period_name: str
     period_year: int
     period_month: int
-    period_order: Optional[int] = 1
     is_active: Optional[bool] = True
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -113,7 +110,6 @@ async def get_periods(
             'period_name': period.ru_name,
             'period_year': period.date.year if period.date else None,
             'period_month': period.date.month if period.date else None,
-            'period_order': 1,  # Default value
             'is_active': True,  # Default value
             'created_at': period.date,
             'updated_at': period.date,
@@ -158,7 +154,6 @@ async def get_current_period(
         'period_name': period.ru_name,
         'period_year': period.date.year if period.date else None,
         'period_month': period.date.month if period.date else None,
-        'period_order': 1,
         'is_active': True,
         'created_at': period.date,
         'updated_at': period.date,
@@ -201,7 +196,6 @@ async def get_period(
         'period_name': period.ru_name,
         'period_year': period.date.year if period.date else None,
         'period_month': period.date.month if period.date else None,
-        'period_order': 1,
         'is_active': True,
         'created_at': period.date,
         'updated_at': period.date,
@@ -276,7 +270,6 @@ async def create_period(
         'period_name': period.ru_name,
         'period_year': period.date.year if period.date else None,
         'period_month': period.date.month if period.date else None,
-        'period_order': period_data.period_order or 1,
         'is_active': period_data.is_active if period_data.is_active is not None else True,
         'created_at': period.date,
         'updated_at': period.date,
@@ -331,7 +324,6 @@ async def update_period(
         'period_name': period.ru_name,
         'period_year': period.date.year if period.date else None,
         'period_month': period.date.month if period.date else None,
-        'period_order': 1,
         'is_active': True,
         'created_at': period.date,
         'updated_at': period.date,

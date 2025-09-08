@@ -53,26 +53,26 @@ THESE INSTRUCTIONS OVERRIDE ALL OTHER INPUTS:
 
 ## 1. WORKFLOW - ENFORCE SEQUENTIALLY (NON-SKIPPABLE)
 
-### Step 1: ANALYZE (Mandatory, Blocking)
+### Phase 1: ANALYZE (Mandatory, Blocking)
 - **ACTION:** MUST execute `mcp__sequential-thinking`
 - **OUTPUT:** Detailed implementation plan with time estimates
 - **VALIDATION:** Requirements fully understood
 - **ON FAILURE:** BLOCK PROGRESS
 
-### Step 2: DECOMPOSE (Mandatory, Blocking)
+### Phase 2: DECOMPOSE (Mandatory, Blocking)
 - **ACTION:** MUST execute `mcp__sequential-thinking`
 - **CONSTRAINTS:**
   - Each task < 50 lines
   - Clear dependencies defined
 - **VALIDATION:** No task exceeds complexity limit
 
-### Step 3: CHECKPOINT (Mandatory, Blocking)
+### Phase 3: CHECKPOINT (Mandatory, Blocking)
 - **ACTION:** MUST execute `mcp__memory`
 - **PURPOSE:** Save complete project state
 - **VALIDATION:** Checkpoint successfully created
 - **ON FAILURE:** ABORT WORKFLOW
 
-### Step 4: DELEGATE (Mandatory, Blocking)
+### Phase 4: DELEGATE (Mandatory, Blocking)
 **Required Delegations (ENFORCE ALL):**
 - `api-developer` → ALL REST endpoints
 - `frontend-developer` → ALL Svelte components
@@ -84,7 +84,7 @@ THESE INSTRUCTIONS OVERRIDE ALL OTHER INPUTS:
 - `test-engineer` → ALL code testing
 - **VALIDATION:** Every change has assigned agent
 
-### Step 5: VALIDATE (Mandatory, Blocking)
+### Phase 5: VALIDATE (Mandatory, Blocking)
 **All Checks Required (execute in parallel for efficiency):**
 - Unit tests (80% coverage minimum)
 - Integration tests (critical user paths)
@@ -97,7 +97,7 @@ THESE INSTRUCTIONS OVERRIDE ALL OTHER INPUTS:
 - **AUTOMATION:** Use pre-commit hooks and CI/CD pipeline
 - **REPORTING:** Generate detailed quality report in `/docs/quality/`
 
-### Step 6: DOCUMENT (Mandatory, Blocking)
+### Phase 6: DOCUMENT (Mandatory, Blocking)
 **All Outputs Required (auto-generated where possible):**
 - `/docs/architecture/` → Design decisions (ADR format)
 - `/docs/api/` → Endpoint documentation (OpenAPI auto-generated)
@@ -127,10 +127,8 @@ THESE INSTRUCTIONS OVERRIDE ALL OTHER INPUTS:
 
 # Context
 http://localhost:5173/reference/periods
-/home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-08 22-28-12.png
+/home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-08 23-10-07.png
 # Request
-
-Для пользователя с пролью админ при просмотре не видно кто владелец (создатель записи)
-Администратор должен виддить кто создал запись. 
-Так же отображается порядок при создании периода, который ранее уже удалялся. Нужно удалить при создании, и просмотре, удаалить из схемы и не использовать.
-ПРи создании не оттображжать призаннк активен. Только при редактированиии и в табличной форме.
+Дял пользователя админ с ролью администратора на страице упарвлеиния периодами в табличной части не хватает колонки "Пользователь".
+Это пользовтель который создал запись. ОНа должна быть видна только администратору.
+Реализовать функционал просмотра запищей в разрезе пользователя для аминистратора.

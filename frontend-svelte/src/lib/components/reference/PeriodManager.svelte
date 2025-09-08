@@ -25,7 +25,6 @@
     period_name: '',
     period_year: new Date().getFullYear(),
     period_month: new Date().getMonth() + 1,
-    period_order: 1,
     is_active: true
   };
 
@@ -55,11 +54,6 @@
       header: 'Месяц',
       sortable: true,
       render: (item: Period | AdminPeriod) => monthNames[item.period_month - 1] || '-'
-    },
-    {
-      key: 'period_order',
-      header: 'Порядок',
-      sortable: true
     },
     ...($isAdmin ? [
       {
@@ -133,9 +127,6 @@
       formErrors.period_year = 'Год должен быть между 2020 и 2030';
     }
 
-    if (formData.period_order < 1) {
-      formErrors.period_order = 'Порядок должен быть больше 0';
-    }
 
     return Object.keys(formErrors).length === 0;
   }
@@ -148,7 +139,6 @@
       period_name: '',
       period_year: new Date().getFullYear(),
       period_month: new Date().getMonth() + 1,
-      period_order: Math.max(...periods.map(p => p.period_order), 0) + 1,
       is_active: true
     };
     formErrors = {};
@@ -171,7 +161,6 @@
       period_name: item.period_name,
       period_year: item.period_year,
       period_month: item.period_month,
-      period_order: item.period_order,
       is_active: item.is_active ?? true
     };
     formErrors = {};
@@ -382,22 +371,8 @@
       </div>
     </div>
 
-    <div>
-      <label for="period_order" class="block text-sm font-medium text-gray-700 mb-1">
-        Порядок *
-      </label>
-      <Input
-        id="period_order"
-        type="number"
-        min="1"
-        bind:value={formData.period_order}
-        class={formErrors.period_order ? 'border-red-500' : ''}
-      />
-      {#if formErrors.period_order}
-        <p class="text-red-500 text-xs mt-1">{formErrors.period_order}</p>
-      {/if}
-    </div>
 
+    {#if isEditing}
     <div class="flex items-center">
       <input
         id="is_active"
@@ -409,6 +384,7 @@
         Активен
       </label>
     </div>
+    {/if}
   </form>
 
   <svelte:fragment slot="footer">

@@ -6,7 +6,7 @@ export interface CreatePeriodData {
   period_name: string;
   period_year: number;
   period_month: number;
-  is_active?: boolean;  // Optional, defaults to true on backend
+  user_id?: number;
 }
 
 export interface UpdatePeriodData {
@@ -38,7 +38,7 @@ class PeriodsService extends BaseService<Period, CreatePeriodData, UpdatePeriodD
   // Admin API - Get all periods with user information
   async getAllWithUsers(): Promise<AdminPeriod[]> {
     try {
-      const response = await api.get<AdminPeriod[]>('/admin/periods');
+      const response = await api.get<AdminPeriod[]>('/api/admin/periods');
       // Map period_id to id for consistency with UI components
       return response.map((p: any) => ({
         ...p,

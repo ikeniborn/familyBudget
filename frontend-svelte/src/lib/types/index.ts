@@ -24,6 +24,7 @@ export interface Period {
   period_end_date?: string;
   user_id: number;
   transaction_count?: number;
+  is_active?: boolean;
   created_at?: string;
   updated_at?: string;
 }
