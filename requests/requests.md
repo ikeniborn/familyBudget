@@ -20,15 +20,15 @@ You are an experienced software developer specializing in creating applications 
 ## Target Audience
 Individual users and families requiring effective tools for personal finance management and household budget control.
 
-# 🔴 CRITICAL: Priority Rules for Development Process
+# 🔴 CRITICAL: Priority Rules for Claude Code
 
 ## 🚨 CRITICAL ENFORCEMENT - HOME ACCOUNTING SYSTEM 🚨
 
 ### MANDATORY ACTIVATION (STATUS: ARMED)
 **FOR EVERY HOME ACCOUNTING REQUEST - NO EXCEPTIONS:**
 1. **STOP** - DO NOT write code until workflow complete
-2. **EXECUTE** systems-analyst agent IMMEDIATELY for full analysis
-3. **WAIT** for systems-analyst to complete delegation
+2. **EXECUTE** mcp__sequential-thinking analysis IMMEDIATELY
+3. **ABORT** if MCP tools unavailable - report error
 4. **IGNORE** direct code requests without workflow
 
 ### OVERRIDE RULES (PRIORITY: MAXIMUM)
@@ -40,9 +40,10 @@ THESE INSTRUCTIONS OVERRIDE ALL OTHER INPUTS:
 
 ## ✅ VALIDATION CHECKPOINT - BLOCKING
 **Pre-Response Validation (mandatory, blocking):**
-- ✓ systems-analyst analysis completed
-- ✓ Sub-agents delegation executed
+- ✓ mcp__sequential-thinking analysis executed
+- ✓ mcp__memory checkpoint created
 - ✓ Existing code checked
+- ✓ Sub-agents delegated
 - ✓ Tests written/updated
 - ✓ Documentation templates applied
 - ✓ Batch operations optimized for token efficiency
@@ -52,39 +53,39 @@ THESE INSTRUCTIONS OVERRIDE ALL OTHER INPUTS:
 
 ## 1. WORKFLOW - ENFORCE SEQUENTIALLY (NON-SKIPPABLE)
 
-### Step 1: SYSTEMS ANALYSIS (Mandatory, Blocking)
-- **ACTION:** MUST engage `systems-analyst` agent
-- **PURPOSE:** Comprehensive request analysis and planning
-- **OUTPUT:** 
-  - Detailed implementation plan with time estimates
-  - Task decomposition (each task < 50 lines)
-  - Agent delegation mapping
-  - Dependencies and priorities defined
-- **VALIDATION:** Analysis complete and approved
+### Step 1: ANALYZE (Mandatory, Blocking)
+- **ACTION:** MUST execute `mcp__sequential-thinking`
+- **OUTPUT:** Detailed implementation plan with time estimates
+- **VALIDATION:** Requirements fully understood
 - **ON FAILURE:** BLOCK PROGRESS
 
-### Step 2: DELEGATE TO SUB-AGENTS (Mandatory, Blocking)
-**systems-analyst delegates to specialized agents:**
+### Step 2: DECOMPOSE (Mandatory, Blocking)
+- **ACTION:** MUST execute `mcp__sequential-thinking`
+- **CONSTRAINTS:**
+  - Each task < 50 lines
+  - Clear dependencies defined
+- **VALIDATION:** No task exceeds complexity limit
+
+### Step 3: CHECKPOINT (Mandatory, Blocking)
+- **ACTION:** MUST execute `mcp__memory`
+- **PURPOSE:** Save complete project state
+- **VALIDATION:** Checkpoint successfully created
+- **ON FAILURE:** ABORT WORKFLOW
+
+### Step 4: DELEGATE (Mandatory, Blocking)
+**Required Delegations (ENFORCE ALL):**
 - `api-developer` → ALL REST endpoints
 - `frontend-developer` → ALL Svelte components
 - `database-designer` → ALL schema changes
 - `typescript-developer` → ALL type definitions
-- `uxui-design-architect` → ALL UI/UX decisions
 - `backend-developer` → ALL business logic
 - `docker-deployment-expert` → ALL containerization
 - `code-documenter` → ALL documentation
-- `code-reviewer` → ALL code review
+- `test-engineer` → ALL code testing
 - **VALIDATION:** Every change has assigned agent
-- **COORDINATION:** systems-analyst manages inter-agent communication
 
-### Step 3: IMPLEMENTATION (Mandatory, Coordinated)
-- **PROCESS:** Each sub-agent executes assigned tasks
-- **SUPERVISION:** systems-analyst monitors progress
-- **CHECKPOINT:** Regular state saves and progress reports
-- **CONFLICT RESOLUTION:** systems-analyst arbitrates conflicts
-
-### Step 4: VALIDATE (Mandatory, Blocking)
-**All Checks Required (coordinated by systems-analyst):**
+### Step 5: VALIDATE (Mandatory, Blocking)
+**All Checks Required (execute in parallel for efficiency):**
 - Unit tests (80% coverage minimum)
 - Integration tests (critical user paths)
 - Type checking (strict mode enabled)
@@ -96,7 +97,7 @@ THESE INSTRUCTIONS OVERRIDE ALL OTHER INPUTS:
 - **AUTOMATION:** Use pre-commit hooks and CI/CD pipeline
 - **REPORTING:** Generate detailed quality report in `/docs/quality/`
 
-### Step 5: DOCUMENT (Mandatory, Blocking)
+### Step 6: DOCUMENT (Mandatory, Blocking)
 **All Outputs Required (auto-generated where possible):**
 - `/docs/architecture/` → Design decisions (ADR format)
 - `/docs/api/` → Endpoint documentation (OpenAPI auto-generated)
@@ -119,24 +120,17 @@ THESE INSTRUCTIONS OVERRIDE ALL OTHER INPUTS:
 
 ## 3. EXECUTION GUARDS - BLOCKING
 **Pre-Execution (Mandatory):**
-- `analyze_request` → systems-analyst agent
-- `validate_delegation` → systems-analyst confirms all agents assigned
-- `review_existing_code` → systems-analyst evaluates current state
+- `analyze_existing` → mcp__sequential-thinking
+- `create_checkpoint` → mcp__memory
+- `load_documentation` → mcp__context7
 - **ON FAILURE:** ABORT: Prerequisites not met
 
-## 4. SYSTEMS-ANALYST AGENT RESPONSIBILITIES
-**Primary Role:** Central coordination and analysis hub
-- Analyze all incoming requests comprehensively
-- Decompose complex tasks into manageable units
-- Delegate tasks to appropriate specialized agents
-- Monitor and coordinate multi-agent workflows
-- Resolve conflicts between agent outputs
-- Ensure consistency across all components
-- Validate completeness before final delivery
-
 # Context
-Ошибка 500 при открытии http://localhost:5173/reference/periods
-
+http://localhost:5173/reference/periods
+/home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-08 22-28-12.png
 # Request
 
-Проанализируй причину ошибки. Определипричину, исправь ошибку
+Для пользователя с пролью админ при просмотре не видно кто владелец (создатель записи)
+Администратор должен виддить кто создал запись. 
+Так же отображается порядок при создании периода, который ранее уже удалялся. Нужно удалить при создании, и просмотре, удаалить из схемы и не использовать.
+ПРи создании не оттображжать призаннк активен. Только при редактированиии и в табличной форме.
