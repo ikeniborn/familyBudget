@@ -1,7 +1,7 @@
 """
 Period model.
 """
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 
 from app.db.database import Base
@@ -17,9 +17,11 @@ class Period(Base):
     ru_name = Column("period_ru_name", String, nullable=False)
     start_date = Column("period_start_date", DateTime, nullable=True)
     end_date = Column("period_end_date", DateTime, nullable=True)
+    user_id = Column(Integer, ForeignKey("t_d_user.user_id"), nullable=True, index=True)
     
     # Relationships
     registries = relationship("Registry", back_populates="period")
+    user = relationship("User", foreign_keys=[user_id])
     
     def __repr__(self):
         return f"<Period(id={self.id}, ru_name='{self.ru_name}')>"
@@ -30,5 +32,6 @@ class Period(Base):
             "date": self.date.isoformat() if self.date else None,
             "ru_name": self.ru_name,
             "start_date": self.start_date.isoformat() if self.start_date else None,
-            "end_date": self.end_date.isoformat() if self.end_date else None
+            "end_date": self.end_date.isoformat() if self.end_date else None,
+            "user_id": self.user_id
         }
