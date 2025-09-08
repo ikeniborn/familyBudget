@@ -1,7 +1,7 @@
 """
 Period management endpoints.
 """
-from typing import List, Optional
+from typing import List, Optional, Union
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -87,8 +87,15 @@ async def get_periods(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_auth)
 ):
-    """Get all periods."""
-    stmt = select(Period).offset(skip).limit(limit).order_by(Period.date.asc())
+    """Get all periods for current user."""
+    # Filter by user_id for data isolation
+    stmt = (
+        select(Period)
+        .where(Period.user_id == current_user.get('user_id'))
+        .offset(skip)
+        .limit(limit)
+        .order_by(Period.date.asc())
+    )
     result = await db.execute(stmt)
     periods = result.scalars().all()
     
@@ -110,7 +117,7 @@ async def get_periods(
             'is_active': True,  # Default value
             'created_at': period.date,
             'updated_at': period.date,
-            'user_id': current_user.get('user_id')
+            'user_id': period.user_id  # Use actual user_id from database
         }
         response_periods.append(PeriodResponse(**period_dict))
     
@@ -123,16 +130,21 @@ async def get_current_period(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_auth)
 ):
-    """Get current period based on today's date."""
-    # Get period closest to current date
-    stmt = select(Period).order_by(func.abs(func.extract('epoch', Period.date - func.now()))).limit(1)
+    """Get current period based on today's date for current user."""
+    # Get period closest to current date, filtered by user_id
+    stmt = (
+        select(Period)
+        .where(Period.user_id == current_user.get('user_id'))
+        .order_by(func.abs(func.extract('epoch', Period.date - func.now())))
+        .limit(1)
+    )
     result = await db.execute(stmt)
     period = result.scalar_one_or_none()
     
     if not period:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No periods found"
+            detail="No periods found for current user"
         )
     
     # Prepare response with legacy fields
@@ -150,7 +162,7 @@ async def get_current_period(
         'is_active': True,
         'created_at': period.date,
         'updated_at': period.date,
-        'user_id': current_user.get('user_id')
+        'user_id': period.user_id  # Use actual user_id from database
     }
     
     return PeriodResponse(**period_dict)
@@ -163,15 +175,19 @@ async def get_period(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_auth)
 ):
-    """Get period by ID."""
-    stmt = select(Period).where(Period.id == period_id)
+    """Get period by ID for current user."""
+    # Filter by both period_id and user_id for data isolation
+    stmt = select(Period).where(
+        Period.id == period_id,
+        Period.user_id == current_user.get('user_id')
+    )
     result = await db.execute(stmt)
     period = result.scalar_one_or_none()
     
     if not period:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Period not found"
+            detail="Period not found or access denied"
         )
     
     # Prepare response with legacy fields
@@ -189,7 +205,7 @@ async def get_period(
         'is_active': True,
         'created_at': period.date,
         'updated_at': period.date,
-        'user_id': current_user.get('user_id')
+        'user_id': period.user_id  # Use actual user_id from database
     }
     
     return PeriodResponse(**period_dict)
@@ -202,8 +218,11 @@ async def create_period(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_auth)
 ):
-    """Create new period."""
+    """Create new period for current user."""
     # Handle legacy format conversion
+    date: Optional[datetime] = None
+    ru_name: Optional[str] = None
+    
     if period_data.period_year and period_data.period_month:
         # Convert legacy format to modern format
         date = datetime(period_data.period_year, period_data.period_month, 1)
@@ -219,9 +238,10 @@ async def create_period(
             detail="Missing required fields: date and ru_name, or period_year and period_month"
         )
     
-    # Check for existing period with same date
+    # Check for existing period with same date for current user (user-specific uniqueness)
     stmt = select(Period).where(
-        Period.date == date
+        Period.date == date,
+        Period.user_id == current_user.get('user_id')
     )
     result = await db.execute(stmt)
     existing_period = result.scalar_one_or_none()
@@ -232,11 +252,13 @@ async def create_period(
             detail=f"Период на дату {date.strftime('%Y-%m-%d')} уже существует"
         )
     
+    # Create period with automatic user_id assignment
     period = Period(
         date=date,
         ru_name=ru_name,
         start_date=period_data.start_date,
-        end_date=period_data.end_date
+        end_date=period_data.end_date,
+        user_id=current_user.get('user_id')  # Automatically assign current user
     )
     
     db.add(period)
@@ -258,7 +280,7 @@ async def create_period(
         'is_active': period_data.is_active if period_data.is_active is not None else True,
         'created_at': period.date,
         'updated_at': period.date,
-        'user_id': current_user.get('user_id')
+        'user_id': period.user_id  # Use actual user_id from database
     }
     
     return PeriodResponse(**period_dict)
@@ -272,19 +294,26 @@ async def update_period(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_auth)
 ):
-    """Update period."""
-    stmt = select(Period).where(Period.id == period_id)
+    """Update period for current user."""
+    # Filter by both period_id and user_id for data isolation
+    stmt = select(Period).where(
+        Period.id == period_id,
+        Period.user_id == current_user.get('user_id')
+    )
     result = await db.execute(stmt)
     period = result.scalar_one_or_none()
     
     if not period:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Period not found"
+            detail="Period not found or access denied"
         )
     
-    # Update period fields
+    # Update period fields (excluding user_id to prevent unauthorized changes)
     update_data = period_data.dict(exclude_unset=True)
+    # Remove user_id from update data to prevent hijacking
+    update_data.pop('user_id', None)
+    
     for field, value in update_data.items():
         setattr(period, field, value)
     
@@ -306,7 +335,7 @@ async def update_period(
         'is_active': True,
         'created_at': period.date,
         'updated_at': period.date,
-        'user_id': current_user.get('user_id')
+        'user_id': period.user_id  # Use actual user_id from database
     }
     
     return PeriodResponse(**period_dict)
@@ -319,15 +348,19 @@ async def delete_period(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_auth)
 ):
-    """Delete period."""
-    stmt = select(Period).where(Period.id == period_id)
+    """Delete period for current user."""
+    # Filter by both period_id and user_id for data isolation
+    stmt = select(Period).where(
+        Period.id == period_id,
+        Period.user_id == current_user.get('user_id')
+    )
     result = await db.execute(stmt)
     period = result.scalar_one_or_none()
     
     if not period:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Period not found"
+            detail="Period not found or access denied"
         )
     
     await db.delete(period)

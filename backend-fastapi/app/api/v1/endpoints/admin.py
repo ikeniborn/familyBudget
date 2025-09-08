@@ -9,8 +9,9 @@ from app.api.deps import get_db
 from app.core.security import require_admin_access
 from app.models import (
     User, Sharing, Nomenclature, CostCenter, 
-    FinancialCenter, Product, Registry
+    FinancialCenter, Product, Registry, Period
 )
+from app.schemas.period import AdminPeriodResponse
 
 router = APIRouter()
 
@@ -190,6 +191,41 @@ async def delete_reference(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete {resource_type}: {str(e)}"
         )
+
+
+@router.get("/periods", response_model=Dict[str, Any])
+async def get_all_periods(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_admin_access),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000)
+):
+    """Get all periods from all users for admin."""
+    
+    # Get all periods with JOIN to user table for user information
+    periods_with_users = (
+        db.query(Period, User)
+        .join(User, Period.user_id == User.id)
+        .order_by(Period.date.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    
+    total = db.query(Period).count()
+    
+    # Convert to AdminPeriodResponse format
+    admin_periods = []
+    for period, user in periods_with_users:
+        admin_period = AdminPeriodResponse.from_db_models(period, user)
+        admin_periods.append(admin_period.dict())
+    
+    return {
+        "success": True,
+        "data": admin_periods,
+        "total": total
+    }
 
 
 @router.get("/sharing", response_model=Dict[str, Any])

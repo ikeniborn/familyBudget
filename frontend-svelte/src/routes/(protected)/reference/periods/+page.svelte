@@ -1,5 +1,5 @@
 <script lang="ts">
-  import EnhancedPeriodManager from '$lib/components/reference/EnhancedPeriodManager.svelte';
+  import PeriodManager from '$lib/components/reference/PeriodManager.svelte';
 </script>
 
 <svelte:head>
@@ -14,5 +14,5 @@
     </p>
   </div>
 
-  <EnhancedPeriodManager />
+  <PeriodManager />
 </div>

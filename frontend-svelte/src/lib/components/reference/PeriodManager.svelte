@@ -2,10 +2,10 @@
   import { onMount } from 'svelte';
   // TODO: Replace with SimpleDataTable when needed
   // import { createColumnHelper, type ColumnDef } from '@tanstack/svelte-table';
-  import { currentUser } from '$lib/stores/auth.store';
+  import { currentUser, isAdmin } from '$lib/stores/auth.store';
   import { useToast } from '$lib/stores/toast.store';
   import { periodsService, type CreatePeriodData, type UpdatePeriodData } from '$lib/services/periods.service';
-  import type { Period } from '$types';
+  import type { Period, AdminPeriod } from '$types';
   
   import CRUDTable from '$lib/components/common/CRUDTable.svelte';
   import Modal from '$lib/components/ui/Modal.svelte';
@@ -14,6 +14,7 @@
   import Badge from '$lib/components/ui/Badge.svelte';
 
   let periods: Period[] = [];
+  let adminPeriods: AdminPeriod[] = [];
   let loading = true;
   let showModal = false;
   let editingPeriod: Period | null = null;
@@ -38,7 +39,7 @@
   ];
 
   // Define table columns for CRUDTable
-  const columns = [
+  $: columns = [
     {
       key: 'period_name',
       header: 'Название периода',
@@ -53,23 +54,39 @@
       key: 'period_month',
       header: 'Месяц',
       sortable: true,
-      render: (item: Period) => monthNames[item.period_month - 1] || '-'
+      render: (item: Period | AdminPeriod) => monthNames[item.period_month - 1] || '-'
     },
     {
       key: 'period_order',
       header: 'Порядок',
       sortable: true
     },
+    ...($isAdmin ? [
+      {
+        key: 'user_name',
+        header: 'Пользователь',
+        sortable: true,
+        render: (item: AdminPeriod) => {
+          const tooltip = [
+            item.user_email && `Email: ${item.user_email}`,
+            item.username && `Username: ${item.username}`,
+            item.telegram_id && `Telegram ID: ${item.telegram_id}`
+          ].filter(Boolean).join('\n');
+          
+          return `<span title="${tooltip}">${item.user_name}</span>`;
+        }
+      }
+    ] : []),
     {
       key: 'is_active',
       header: 'Статус',
-      render: (item: Period) => item.is_active ? 'Активен' : 'Неактивен'
+      render: (item: Period | AdminPeriod) => item.is_active ? 'Активен' : 'Неактивен'
     },
     {
       key: 'created_at',
       header: 'Создан',
       sortable: true,
-      render: (item: Period) => {
+      render: (item: Period | AdminPeriod) => {
         if (!item.created_at) return '-';
         return new Date(item.created_at).toLocaleDateString('ru-RU', {
           day: '2-digit',
@@ -86,7 +103,12 @@
     
     try {
       loading = true;
-      periods = await periodsService.getByUserId($currentUser.user_id);
+      if ($isAdmin) {
+        adminPeriods = await periodsService.getAllWithUsers();
+        periods = adminPeriods; // For compatibility with existing logic
+      } else {
+        periods = await periodsService.getByUserId($currentUser.user_id);
+      }
     } catch (error: any) {
       toast.error('Ошибка', 'Не удалось загрузить периоды');
       console.error('Error fetching periods:', error);
@@ -136,6 +158,13 @@
   // Handle edit
   function handleEdit(event: CustomEvent) {
     const { item } = event.detail;
+    
+    // Check if admin can edit this period
+    if ($isAdmin && item.user_id !== $currentUser?.user_id) {
+      toast.error('Ошибка', 'Администраторы могут редактировать только свои периоды');
+      return;
+    }
+    
     isEditing = true;
     editingPeriod = item;
     formData = {
@@ -151,7 +180,13 @@
 
   // Handle delete
   async function handleDelete(event: CustomEvent) {
-    const { id } = event.detail;
+    const { id, item } = event.detail;
+    
+    // Check if admin can delete this period
+    if ($isAdmin && item.user_id !== $currentUser?.user_id) {
+      toast.error('Ошибка', 'Администраторы могут удалять только свои периоды');
+      return;
+    }
     
     try {
       await periodsService.delete(id);
@@ -166,10 +201,29 @@
   async function handleBulkDelete(event: CustomEvent) {
     const { ids } = event.detail;
     
+    // For admins, filter out periods that don't belong to them
+    let allowedIds = ids;
+    if ($isAdmin) {
+      const currentPeriods = $isAdmin ? adminPeriods : periods;
+      allowedIds = ids.filter(id => {
+        const period = currentPeriods.find(p => p.id === id);
+        return period && period.user_id === $currentUser?.user_id;
+      });
+      
+      if (allowedIds.length === 0) {
+        toast.error('Ошибка', 'Администраторы могут удалять только свои периоды');
+        return;
+      }
+      
+      if (allowedIds.length < ids.length) {
+        toast.warning('Внимание', `Будут удалены только ваши периоды (${allowedIds.length} из ${ids.length})`);
+      }
+    }
+    
     try {
-      await periodsService.bulkDelete(ids);
+      await periodsService.bulkDelete(allowedIds);
       await fetchPeriods();
-      toast.success('Успешно', `Удалено периодов: ${ids.length}`);
+      toast.success('Успешно', `Удалено периодов: ${allowedIds.length}`);
     } catch (error: any) {
       toast.error('Ошибка', error.message || 'Не удалось удалить периоды');
     }
@@ -210,11 +264,13 @@
   // Handle export
   async function handleExport() {
     try {
-      const csvContent = await periodsService.exportToCsv(periods);
+      const dataToExport = $isAdmin ? adminPeriods : periods;
+      const csvContent = await periodsService.exportToCsv(dataToExport, $isAdmin);
       const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `periods_${new Date().toISOString().split('T')[0]}.csv`;
+      const filename = $isAdmin ? 'admin_periods' : 'periods';
+      link.download = `${filename}_${new Date().toISOString().split('T')[0]}.csv`;
       link.click();
       toast.success('Успешно', 'Данные экспортированы');
     } catch (error: any) {
@@ -254,13 +310,13 @@
 </script>
 
 <CRUDTable
-  title="Управление периодами"
-  {data: periods}
+  title={$isAdmin ? "Управление периодами (Администратор)" : "Управление периодами"}
+  data={periods}
   {columns}
   {loading}
   searchable={true}
   exportable={true}
-  importable={true}
+  importable={!$isAdmin}
   addButtonText="Добавить период"
   emptyMessage="Нет добавленных периодов. Нажмите 'Добавить период' для создания нового."
   on:add={handleAdd}

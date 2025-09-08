@@ -1,5 +1,6 @@
 import { BaseService } from './base.service';
-import type { Period } from '$types';
+import type { Period, AdminPeriod } from '$types';
+import api from './api';
 
 export interface CreatePeriodData {
   period_name: string;
@@ -34,17 +35,49 @@ class PeriodsService extends BaseService<Period, CreatePeriodData, UpdatePeriodD
     }
   }
 
+  // Admin API - Get all periods with user information
+  async getAllWithUsers(): Promise<AdminPeriod[]> {
+    try {
+      const response = await api.get<AdminPeriod[]>('/admin/periods');
+      // Map period_id to id for consistency with UI components
+      return response.map((p: any) => ({
+        ...p,
+        id: p.period_id,
+      }));
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to fetch admin periods');
+    }
+  }
+
   // Export to CSV
-  async exportToCsv(data: Period[]): Promise<string> {
+  async exportToCsv(data: Period[] | AdminPeriod[], isAdmin: boolean = false): Promise<string> {
+    const headers = isAdmin 
+      ? ['ID', 'Название', 'Год', 'Месяц', 'Пользователь', 'Email', 'Username', 'Дата создания']
+      : ['ID', 'Название', 'Год', 'Месяц', 'Дата создания'];
+    
     const csvContent = [
-      ['ID', 'Название', 'Год', 'Месяц', 'Дата создания'].join(','),
-      ...data.map(p => [
-        p.period_id,
-        `"${p.period_name}"`,
-        p.period_year,
-        p.period_month,
-        p.created_at ? new Date(p.created_at).toLocaleDateString('ru-RU') : '',
-      ].join(','))
+      headers.join(','),
+      ...data.map(p => {
+        const baseData = [
+          p.period_id,
+          `"${p.period_name}"`,
+          p.period_year,
+          p.period_month,
+        ];
+        
+        if (isAdmin && 'user_name' in p) {
+          const adminPeriod = p as AdminPeriod;
+          baseData.push(
+            `"${adminPeriod.user_name}"`,
+            `"${adminPeriod.user_email || ''}"`,
+            `"${adminPeriod.username || ''}"`,
+          );
+        }
+        
+        baseData.push(p.created_at ? new Date(p.created_at).toLocaleDateString('ru-RU') : '');
+        
+        return baseData.join(',');
+      })
     ].join('\n');
 
     return csvContent;

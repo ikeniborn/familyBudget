@@ -28,6 +28,14 @@ export interface Period {
   updated_at?: string;
 }
 
+// Admin Period type with user information
+export interface AdminPeriod extends Period {
+  user_name: string;
+  user_email?: string | null;
+  username?: string | null;
+  telegram_id?: string | null;
+}
+
 // Financial Center types - matches backend API
 export interface FinancialCenter {
   id: number;
