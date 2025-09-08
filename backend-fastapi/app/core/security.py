@@ -139,5 +139,42 @@ class SecurityUtils:
         return True
 
 
+# Admin authorization functions
+from fastapi import Request, HTTPException, status
+
+
+async def require_admin_access(request: Request) -> dict:
+    """
+    Dependency to ensure only admin users (user_id == 1) can access endpoints.
+    
+    Args:
+        request: FastAPI request object with session data
+    
+    Returns:
+        dict: Current user data if admin
+    
+    Raises:
+        HTTPException: 401 if not authenticated, 403 if not admin
+    """
+    from app.core.session import get_current_user_from_session
+    
+    # Check authentication first
+    current_user = await get_current_user_from_session(request)
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+    
+    # Check admin access (user_id == 1)
+    if current_user.get("user_id") != 1:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    return current_user
+
+
 # Create instance for easy import
 security = SecurityUtils()

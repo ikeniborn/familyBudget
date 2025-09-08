@@ -215,6 +215,7 @@ export const currentUser = derived(authStore, ($auth) => $auth.user);
 export const isAuthenticated = derived(authStore, ($auth) => $auth.isAuthenticated);
 export const isAuthLoading = derived(authStore, ($auth) => $auth.isLoading);
 export const authError = derived(authStore, ($auth) => $auth.error);
+export const isAdmin = derived(authStore, ($auth) => $auth.user?.id === 1);
 
 // Export alias for compatibility  
 export const setCurrentUser = (user: AuthUser) => authStore.setUser(user);

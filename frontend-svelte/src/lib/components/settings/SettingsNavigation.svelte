@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
+  import { isAdmin } from '$lib/stores/auth.store';
   import Card from '../ui/Card.svelte';
   import {
     Calendar,
@@ -151,10 +152,15 @@
   };
 
   $: currentPath = $page.url.pathname;
+  
+  // Filter categories based on admin status
+  $: visibleCategories = settingsCategories.filter(category => 
+    category.id !== 'system-settings' || $isAdmin
+  );
 </script>
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-  {#each settingsCategories as category}
+  {#each visibleCategories as category}
     {@const Icon = category.icon}
     {@const colors = getColorClasses(category.color)}
     

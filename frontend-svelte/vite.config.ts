@@ -184,7 +184,7 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'http://backend:4000',
+        target: 'http://budget-backend:4000',
         changeOrigin: true,
         secure: false,
         ws: true,

@@ -74,15 +74,28 @@ export function waitForAsync() {
 /**
  * Create a mock user object
  */
-export function createMockUser() {
+export function createMockUser(overrides?: Partial<{
+  id: number;
+  telegram_id: string;
+  username: string;
+  first_name: string;
+  last_name: string;
+  user_name: string;
+  user_email: string;
+  created_at: string;
+  updated_at: string;
+}>) {
   return {
     id: 1,
     telegram_id: '123456789',
     username: 'testuser',
     first_name: 'Test',
     last_name: 'User',
+    user_name: 'Test User',
+    user_email: 'test@example.com',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    ...overrides
   };
 }
 

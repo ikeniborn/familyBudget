@@ -1,12 +1,14 @@
 // User types - matches backend API
 export interface User {
-  user_id: number;
+  id: number;
   user_name: string;
-  user_telegram_id: number;
-  first_name?: string;
-  last_name?: string;
-  username?: string;
-  authMethod?: 'telegram' | 'password';
+  user_email?: string | null;
+  username?: string | null;
+  telegram_id?: string | null;
+  auth_method: string;
+  is_active: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 // Period types - matches backend API

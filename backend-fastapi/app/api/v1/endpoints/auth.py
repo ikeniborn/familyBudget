@@ -214,16 +214,31 @@ async def logout(request: Request):
 
 
 @router.get("/me")
-async def get_current_user(request: Request):
+async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)):
     """Get current authenticated user."""
-    user = await get_current_user_from_session(request)
-    if not user:
+    user_session = await get_current_user_from_session(request)
+    if not user_session:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated"
         )
     
-    return {"user": user}
+    # Get full user data from database
+    stmt = select(User).where(User.id == user_session["user_id"])
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+    
+    return {
+        "success": True,
+        "user": user.to_dict(),
+        "authenticated": True
+    }
 
 
 @router.get("/status")

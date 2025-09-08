@@ -306,7 +306,7 @@
               ? 'bg-blue-100 text-blue-700' 
               : 'text-gray-500 hover:text-gray-700'
           }"
-          on:click={() => activeTab = 'file'}
+          onclick={() => activeTab = 'file'}
         >
           <FileSpreadsheet class="h-4 w-4 inline mr-1" />
           Файл
@@ -317,14 +317,14 @@
               ? 'bg-blue-100 text-blue-700' 
               : 'text-gray-500 hover:text-gray-700'
           }"
-          on:click={() => activeTab = 'sheets'}
+          onclick={() => activeTab = 'sheets'}
         >
           <Globe class="h-4 w-4 inline mr-1" />
           Google Sheets
         </button>
       </div>
       
-      <Button variant="secondary" size="sm" on:click={downloadTemplate}>
+      <Button variant="secondary" size="sm" onclick={downloadTemplate}>
         <Download class="h-4 w-4 mr-1" />
         Скачать шаблон
       </Button>
@@ -352,7 +352,7 @@
         </p>
         <Button
           variant="secondary"
-          on:click={() => fileInputRef.click()}
+          onclick={() => fileInputRef.click()}
           disabled={isUploading}
         >
           {isUploading ? 'Загрузка...' : 'Выбрать файл'}
@@ -362,7 +362,7 @@
           type="file"
           class="hidden"
           accept=".xlsx,.xls,.csv"
-          on:change={handleFileSelect}
+          onchange={handleFileSelect}
         />
       </div>
     {/if}
@@ -384,7 +384,7 @@
           </p>
         </div>
         <Button
-          on:click={handleGoogleSheetsImport}
+          onclick={handleGoogleSheetsImport}
           disabled={isUploading || !sheetsUrl}
         >
           {isUploading ? 'Загрузка...' : 'Загрузить из Google Sheets'}
@@ -514,11 +514,11 @@
   <svelte:fragment slot="footer">
     {#if previewData.length > 0}
       <div class="flex justify-end space-x-2">
-        <Button variant="secondary" on:click={handleClose}>
+        <Button variant="secondary" onclick={handleClose}>
           Отмена
         </Button>
         <Button
-          on:click={handleImport}
+          onclick={handleImport}
           disabled={isUploading || !importConfig.productNameColumn}
         >
           {isUploading ? 'Импорт...' : 'Импортировать'}
