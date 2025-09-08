@@ -1,5 +1,5 @@
 // Main stores export file
-export { authStore, currentUser } from './auth.store';
+export { authStore, currentUser, isAdmin } from './auth.store';
 export { toastStore, useToast } from './toast.store';
 export { errorStore } from './error.store';
 

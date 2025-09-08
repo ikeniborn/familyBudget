@@ -1,587 +1,796 @@
-# Family Budget - Система управления семейным бюджетом
+# 🏠 Family Budget - Система управления семейным бюджетом
 
-Современное веб-приложение для управления семейным бюджетом, построенное на SvelteKit с высокопроизводительным FastAPI бэкендом. Поддерживает многопользовательский режим, интеграцию с Telegram и разделение планируемых и фактических расходов.
+## 📋 О системе
 
-## 🎯 Ключевые преимущества
+Family Budget - это современное веб-приложение для управления семейным бюджетом с поддержкой нескольких пользователей, авторизацией через Telegram и детальным отслеживанием финансов.
 
-- **Современная архитектура** - SvelteKit + FastAPI для максимальной производительности
-- **Высокая производительность** - FastAPI с async SQLAlchemy, интеллектуальное кеширование Redis
-- **Типобезопасность** - TypeScript на фронтенде, Pydantic схемы на бэкенде
-- **Современный UI** - SvelteKit 2 + Svelte 4.2.18 с Tailwind CSS
-- **Безопасность** - защита от SQL-инъекций, изоляция данных пользователей
+### Основные возможности:
+- 📊 **Планирование бюджета** - создание и управление планами расходов по периодам
+- 💰 **Учет фактических расходов** - регистрация реальных трат с детализацией
+- 📈 **Аналитика и отчеты** - визуализация данных с помощью графиков и диаграмм
+- 👥 **Многопользовательский режим** - каждый член семьи имеет свой аккаунт
+- 🔐 **Безопасная авторизация** - вход через Telegram или логин/пароль
+- 📱 **Адаптивный дизайн** - работа на любых устройствах
 
-## ✅ Успешная миграция Svelte 5 → Svelte 4 (04.09.2025)
+## 🚀 Быстрый старт
 
-**Миграция успешно завершена!**
-- ✅ Снижение количества ошибок с 661 до 466 (улучшение на 30%)
-- ✅ Стабильная работа development сервера на http://localhost:5174/
-- ✅ Все ключевые UI компоненты мигрированы на стабильную базу
-- ✅ TypeScript интеграция восстановлена
-- ✅ Тесты: 306/522 проходят успешно
-- ✅ Система готова к продуктивной разработке
+### Требования
+- Docker и Docker Compose
+- 2 GB свободной оперативной памяти
+- Современный браузер (Chrome, Firefox, Safari, Edge)
 
-## 🚀 Возможности
+### Установка и запуск
 
-### Основные функции
-- **Многопользовательский режим** - изоляция данных между пользователями
-- **Telegram-авторизация** - вход через Telegram без паролей
-- **План/Факт анализ** - сравнение запланированных и фактических расходов
-- **Иерархическая структура** - ЦФО (центры финансовой ответственности) и МВЗ (места возникновения затрат)
-- **Гибкие периоды** - настраиваемые периоды бюджетирования
-- **Автоматическое резервное копирование** - ежедневные бэкапы в Yandex Cloud
-- **SSL/HTTPS** - безопасное соединение с автоматическим обновлением сертификатов
+1. **Клонируйте репозиторий:**
+```bash
+git clone https://github.com/your-repo/familyBudget.git
+cd familyBudget
+```
 
-### Новые возможности (Август 2025)
-- **Управление справочными данными** - периоды, номенклатура, ЦФО, МВЗ
-- **Управление продуктами и ценами** - каталог товаров с историей цен
-- **История изменений и аудит** - полная трассировка операций
-- **Bulk операции** - импорт/экспорт Excel/CSV файлов
-- **Продвинутые фильтры** - сохраненные фильтры и быстрый поиск
-- **PWA поддержка** - работа как мобильное приложение
-- **Темизация** - светлая и темная темы
-- **SSR из коробки** - server-side rendering для SEO
+2. **Настройте переменные окружения:**
+```bash
+cp .env.example .env
+# Отредактируйте .env файл, установив свои пароли и токены
+```
 
-## 🏗️ Архитектура
+3. **Запустите приложение:**
+```bash
+./scripts/dev.sh -d          # Запуск в фоновом режиме
+./scripts/dev.sh --init-db   # Запуск с инициализацией БД
+```
 
-Проект построен на современной унифицированной архитектуре с использованием Docker:
+4. **Откройте в браузере:**
+- Приложение: http://localhost:5173
+- API документация: http://localhost:4000/docs
+
+## 📖 Руководство пользователя
+
+### 🔑 Авторизация
+
+#### Вход через Telegram
+1. Нажмите кнопку "Войти через Telegram"
+2. Авторизуйтесь в Telegram
+3. Разрешите доступ к вашим данным
+4. Вы будете автоматически перенаправлены в систему
+
+#### Вход по паролю  
+1. Введите ваш email
+2. Введите пароль
+3. Нажмите "Войти"
+
+### 📊 Главная панель (Dashboard)
+
+После входа вы попадаете на главную панель, где отображается:
+- **Общий бюджет** - сумма запланированных расходов
+- **Потрачено** - сумма фактических расходов
+- **Остаток** - доступные средства
+- **Графики по категориям** - визуализация расходов
+- **Последние транзакции** - недавние операции
+
+### 💼 Управление бюджетом
+
+#### Создание плана бюджета
+1. Перейдите в раздел "Бюджет"
+2. Нажмите "Добавить план"
+3. Заполните:
+   - Период (месяц и год)
+   - Категорию расходов
+   - Плановую сумму
+   - Описание (опционально)
+4. Сохраните план
+
+#### Редактирование плана
+1. В списке планов найдите нужный
+2. Нажмите иконку редактирования
+3. Внесите изменения
+4. Сохраните
+
+### 💳 Учет расходов
+
+#### Добавление факта расхода
+1. Перейдите в раздел "Факт"
+2. Нажмите "Добавить расход"
+3. Укажите:
+   - Дату операции
+   - Категорию
+   - Сумму
+   - Описание
+   - Место покупки (опционально)
+4. Сохраните
+
+#### Массовое добавление
+Для быстрого ввода нескольких расходов:
+1. Используйте кнопку "Массовый ввод"
+2. Заполните таблицу расходов
+3. Сохраните все записи одновременно
+
+### 📁 Справочники
+
+Система использует настраиваемые справочники для организации данных:
+
+#### Периоды
+- Формат: YYYY.MM (например, 2025.01)
+- Автоматическое создание при добавлении планов
+
+#### Категории (Номенклатуры)
+Стандартные категории:
+- Продукты питания
+- Транспорт
+- Коммунальные услуги
+- Развлечения
+- Одежда
+- Здоровье
+- Образование
+- Прочее
+
+Вы можете добавлять свои категории:
+1. Перейдите в "Справочники" → "Номенклатуры"
+2. Нажмите "Добавить"
+3. Введите название и код категории
+4. Сохраните
+
+#### Центры финансовой ответственности (ЦФО)
+Используются для группировки расходов по ответственным лицам:
+- Личные расходы
+- Семейные расходы
+- Детские расходы
+
+#### Места возникновения затрат (МВЗ)
+Для детализации мест трат:
+- Магазины
+- Онлайн-сервисы
+- Рестораны и кафе
+
+### 📈 Отчеты и аналитика
+
+#### Доступные отчеты:
+1. **План vs Факт** - сравнение запланированного и фактического
+2. **Динамика расходов** - тренды по периодам
+3. **Структура расходов** - распределение по категориям
+4. **Детальный отчет** - все операции с фильтрами
+
+#### Работа с отчетами:
+1. Перейдите в раздел "Отчеты"
+2. Выберите тип отчета
+3. Настройте фильтры:
+   - Период
+   - Категории
+   - ЦФО/МВЗ
+4. Нажмите "Сформировать"
+
+#### Экспорт данных:
+- **Excel** - для дальнейшего анализа
+- **PDF** - для печати
+- **PNG/JPG** - сохранение графиков
+
+### 🛍️ Каталог товаров
+
+Система позволяет вести учет цен на товары:
+
+#### Добавление товара:
+1. Раздел "Товары"
+2. "Добавить товар"
+3. Заполните:
+   - Название
+   - Единицу измерения
+   - Текущую цену
+   - Категорию
+4. Сохраните
+
+#### Отслеживание цен:
+- История изменения цен
+- Средняя цена за период
+- Графики динамики цен
+
+### ⚙️ Настройки
+
+#### Профиль пользователя:
+- Изменение имени
+- Настройка уведомлений
+- Выбор языка интерфейса
+- Настройка темы (светлая/темная)
+
+#### Безопасность:
+- Смена пароля
+- Двухфакторная аутентификация
+- Управление сессиями
+- История входов
+
+#### Импорт/Экспорт:
+- Загрузка данных из Excel
+- Выгрузка в различные форматы
+- Резервное копирование
+
+### 👨‍💻 Администрирование системы
+
+**Важно:** Функции администрирования доступны только пользователю с ID 1 (первый зарегистрированный пользователь).
+
+#### Управление пользователями
+Администратор имеет доступ к разделу "Пользователи" в настройках системы:
+
+1. **Просмотр всех пользователей:**
+   - Список всех зарегистрированных пользователей
+   - Информация о последней активности
+   - Статистика по использованию
+
+2. **Детальная информация о пользователе:**
+   - Профиль пользователя
+   - Количество периодов и транзакций
+   - Дата последней активности
+
+3. **Удаление пользователей:**
+   - Мягкое удаление (деактивация) аккаунта пользователя
+   - Пользователь помечается как удаленный, данные сохраняются
+   - Безопасное удаление с подтверждением и защитой от случайного удаления
+   - Нельзя удалить собственную учетную запись или основного администратора
+
+#### Системные настройки
+Администратор может управлять общесистемными параметрами:
+
+1. **Настройки безопасности:**
+   - Управление сессиями пользователей
+   - Настройка времени жизни токенов
+   - Конфигурация авторизации
+
+2. **Импорт и экспорт данных:**
+   - Массовый экспорт данных пользователей
+   - Импорт данных из внешних систем
+   - Создание резервных копий системы
+
+3. **Мониторинг системы:**
+   - Просмотр системной информации
+   - Анализ производительности
+   - Логи системных операций
+
+#### Доступ к admin функциям
+
+**Через веб-интерфейс:**
+- В разделе "Настройки" появляется категория "Система"
+- Доступ к управлению пользователями
+- Системные настройки и мониторинг
+
+**Через API (для разработчиков):**
+```bash
+# Получить список всех пользователей (только admin)
+curl -H "Cookie: connect.sid=..." http://localhost:4000/api/users/
+
+# Получить системную информацию
+curl -H "Cookie: connect.sid=..." http://localhost:4000/api/admin/system-info
+
+# Удалить пользователя (необратимая операция!)
+curl -X DELETE -H "Cookie: connect.sid=..." http://localhost:4000/api/users/123
+```
+
+#### Безопасность admin функций
+
+Система обеспечивает трехуровневую защиту admin функций:
+
+1. **Уровень интерфейса:** Admin элементы скрываются для обычных пользователей
+2. **Уровень маршрутизации:** Защита страниц admin панели
+3. **Уровень API:** Серверная проверка прав доступа
+
+**Журналирование:** Все admin действия записываются в журнал аудита:
+```json
+{
+  "timestamp": "2025-09-08T14:30:00Z",
+  "admin_user_id": 1,
+  "action": "user_deletion",
+  "target_user_id": 123,
+  "ip_address": "192.168.1.100",
+  "details": "User deleted with all associated data"
+}
+```
+
+#### Troubleshooting admin доступа
+
+**Проблема:** Не вижу admin функции
+**Решение:**
+1. Убедитесь, что ваш user ID = 1
+2. Выйдите и войдите заново в систему
+3. Очистите кэш браузера
+
+**Проблема:** Ошибка 403 при обращении к admin API
+**Решение:**
+1. Проверьте аутентификацию (валидная сессия)
+2. Убедитесь, что user ID = 1
+3. Проверьте логи backend для деталей
+
+**Для разработчиков:**
+```bash
+# Проверить кто является админом
+docker exec -it budget-postgres psql -U budget -d budgetdb -c \
+  "SELECT id, username, first_name FROM t_d_user WHERE id = 1;"
+
+# Просмотреть логи admin доступа
+docker logs budget-backend | grep -i admin
+```
+
+### 👥 Многопользовательский режим
+
+#### Добавление пользователей (для администратора):
+1. Настройки → Пользователи
+2. "Добавить пользователя"
+3. Укажите email и роль
+4. Отправьте приглашение
+
+#### Роли пользователей:
+- **Администратор** - полный доступ
+- **Пользователь** - свои данные
+- **Наблюдатель** - только просмотр
+
+### 📱 Мобильная версия
+
+Приложение полностью адаптировано для мобильных устройств:
+- Свайп-жесты для навигации
+- Оптимизированные формы ввода
+- Быстрые действия на главном экране
+- Работа в офлайн-режиме (с последующей синхронизацией)
+
+## 🆘 Часто задаваемые вопросы
+
+### Как восстановить пароль?
+1. На странице входа нажмите "Забыли пароль?"
+2. Введите ваш email
+3. Следуйте инструкциям в письме
+
+### Можно ли использовать несколько валют?
+Да, в настройках можно добавить дополнительные валюты и настроить автоматическую конвертацию.
+
+### Как настроить автоматические напоминания?
+1. Настройки → Уведомления
+2. Включите нужные типы напоминаний
+3. Настройте расписание
+
+### Безопасны ли мои данные?
+- Все данные шифруются
+- Пароли хранятся в зашифрованном виде
+- Сессии автоматически завершаются
+- Регулярное резервное копирование
+
+### Как связаться с поддержкой?
+- Email: support@familybudget.com
+- Telegram: @familybudget_support
+- Раздел "Помощь" в приложении
+
+## 📊 Анализ эффективности и оптимизация
+
+### 🎯 Метрики качества разработки
+
+Система отслеживает следующие метрики эффективности:
+- **Workflow compliance rate**: 95% (цель)
+- **Token efficiency**: оптимизация через batch операции
+- **Quality gates success**: 85% (automated testing)
+- **Documentation coverage**: 90% (auto-generation)
+- **Code review coverage**: 100% (mandatory delegation)
+
+### 🔄 Обязательный Workflow для Claude Code
+
+Все изменения кода должны проходить следующие этапы:
+
+1. **ANALYZE** - `mcp__sequential-thinking` анализ требований
+2. **DECOMPOSE** - разбиение на задачи <50 строк
+3. **CHECKPOINT** - `mcp__memory` сохранение состояния проекта
+4. **DELEGATE** - использование специализированных агентов:
+   - `api-developer` → REST endpoints
+   - `frontend-developer` → Svelte компоненты
+   - `database-designer` → схема БД
+   - `typescript-developer` → типы
+   - `uxui-design-architect` → UI/UX
+   - `backend-developer` → бизнес-логика
+   - `code-documenter` → документация
+   - `code-reviewer` → проверка кода
+5. **VALIDATE** - автоматические тесты и проверки
+6. **DOCUMENT** - обновление документации
+
+### 🛡️ Quality Gates
+
+#### Обязательные проверки перед коммитом:
+```bash
+# Backend тестирование
+docker exec budget-backend python -m pytest --cov=app tests/
+
+# Frontend тестирование  
+docker exec budget-frontend npm run test
+docker exec budget-frontend npm run check
+
+# Проверка типов
+docker exec budget-backend mypy app/
+docker exec budget-frontend npm run check
+```
+
+#### Автоматизированные проверки:
+- **Unit tests**: 80%+ покрытие кода
+- **Integration tests**: API endpoints
+- **Type checking**: строгая типизация
+- **E2E tests**: критические пользовательские сценарии
+- **Migrations**: проверка схемы БД
+
+### 📈 Оптимизация производительности
+
+#### Token Usage Optimization:
+- Используйте batch operations для множественных операций
+- Группируйте похожие файловые операции
+- Минимизируйте context switching
+
+Пример:
+```bash
+# ❌ Неэффективно: множественные мелкие операции
+Read file1.py
+Read file2.py  
+Read file3.py
+
+# ✅ Эффективно: batch операции
+MultiRead [file1.py, file2.py, file3.py]
+```
+
+#### Automated Testing Pipeline:
+```yaml
+mandatory_tests:
+  pre_commit:
+    - docker exec budget-backend python -m pytest --cov=app tests/
+    - docker exec budget-frontend npm run test
+    - docker exec budget-frontend npm run check
+    
+  post_implementation:
+    - integration_tests: true
+    - e2e_tests: true  
+    - type_coverage: ">80%"
+```
+
+### 📋 Workflow Validation Script
+
+Для обеспечения соблюдения workflow создан валидатор:
+
+```bash
+# Создание автоматического валидатора
+./scripts/workflow-validator.sh
+
+# Проверки:
+- ✓ Доступность MCP tools
+- ✓ Создание checkpoint через mcp__memory  
+- ✓ Делегирование к специализированным агентам
+- ✓ Блокирующая валидация перед выполнением кода
+```
+
+## 🔧 Решение проблем
+
+### Не работает авторизация через Telegram
+1. Проверьте настройки бота в .env файле
+2. Убедитесь, что бот активен
+3. Проверьте доступность Telegram API
+
+### Ошибка подключения к базе данных
+1. Проверьте запущены ли Docker контейнеры
+2. Проверьте логи: `docker logs budget-postgres`
+3. Переинициализируйте БД: `./scripts/dev.sh --init-db`
+
+### Медленная работа приложения
+1. Проверьте ресурсы системы
+2. Очистите кэш браузера
+3. Перезапустите контейнеры
+
+### Workflow Compliance Issues
+1. **MCP tools недоступны**: Убедитесь, что все необходимые MCP серверы запущены
+2. **Пропуск делегирования**: Используйте специализированных агентов для всех изменений
+3. **Отсутствие тестов**: Все новые функции должны покрываться тестами
+4. **Несоответствие типов**: Запускайте `npm run check` и `mypy` перед коммитом
+
+## 🛠️ Техническая документация для разработчиков
+
+### Архитектура системы
 
 ```
-            ┌─────────────────┐
-            │    Traefik      │
-            │  (SSL/Routing)  │
-            └────────┬────────┘
-                     │
-            ┌────────▼────────┐
-            │    Frontend     │
-            │   (SvelteKit)   │
-            │   :5174/3000    │
-            └────────┬────────┘
-                     │
-            ┌────────▼────────┐
-            │  FastAPI        │
-            │ (SQLAlchemy)    │
-            │     :4000       │
-            └────────┬────────┘
-                     │
-            ┌────────┴────────┐
-            │                 │
-    ┌───────▼──┐         ┌───▼───┐
-    │PostgreSQL│         │ Redis │
-    │(Главная) │         │ (Кеш) │
-    └──────────┘         └───────┘
+Traefik (80/443) → Frontend (5173) → FastAPI (4000) → PostgreSQL/Redis
 ```
 
 ### Технологический стек
 
-#### Backend (FastAPI)
-- **API**: Python 3.11+, FastAPI, async/await
-- **ORM**: SQLAlchemy 2.0 с полной типизацией
-- **Кеширование**: Redis с интеллектуальной инвалидацией
-- **Безопасность**: Pydantic validation, async sessions
+- **Frontend**: SvelteKit 2 + Svelte 4 с TypeScript
+- **Backend**: FastAPI + SQLAlchemy 2.0 + Pydantic  
+- **Database**: PostgreSQL 13 с партиционированными таблицами
+- **Cache**: Redis для сессий и кэширования данных
+- **Контейнеризация**: Docker + Docker Compose
 
-#### Frontend (SvelteKit)
-- **Framework**: SvelteKit 2 + Svelte 4.2.18 с TypeScript
-- **Styling**: Tailwind CSS + CSS Variables для темизации
-- **State**: Svelte stores с reactive patterns
-- **Forms**: svelte-forms-lib + Yup/Zod validation
-- **Charts**: Chart.js + svelte-chartjs для аналитики
-- **Tables**: @tanstack/svelte-table с виртуализацией
-- **Testing**: Vitest + @testing-library/svelte (50% coverage)
-- **E2E**: Playwright для интеграционных тестов
-- **SSR/SSG**: Полная поддержка server-side rendering
-- **PWA**: Service Worker + Web App Manifest
-- **Accessibility**: ARIA compliance + keyboard navigation
+### База данных
 
-#### Инфраструктура
-- **База данных**: PostgreSQL 13 (партиционированные таблицы)
-- **Кеш**: Redis для оптимизации производительности
-- **Контейнеризация**: Docker, Docker Compose
-- **Прокси**: Traefik с Let's Encrypt SSL
-- **CI/CD**: GitHub Actions
-- **Резервное копирование**: MinIO клиент для Yandex Object Storage
+#### Основные таблицы
+- **t_d_user**: Пользователи с Telegram интеграцией (BigInt telegram_id)
+- **t_d_period**: Периоды бюджета (формат YYYY.MM)
+- **t_d_financial_center**: Центры финансовой ответственности (ЦФО)
+- **t_d_cost_center**: Места возникновения затрат (МВЗ)
+- **t_d_nomenclature**: Категории бюджета
+- **t_f_registry**: Основные транзакции (партиционированы 2023-2030)
+- **t_d_product**: Каталог товаров
+- **t_f_product_price**: История цен
 
-## 📋 Требования
+#### Ключевые связи
+- Все данные изолированы по `user_id`
+- Типы строк: 1=План, 2=Факт
+- Registry связан с period, financial_center, cost_center, nomenclature
 
-- Docker 20.10+
-- Docker Compose 1.29+
-- 2GB RAM минимум
-- 10GB свободного места на диске
-- Домен с настроенными DNS записями (для SSL)
-- Telegram Bot (для авторизации)
-- Yandex Cloud аккаунт (для резервных копий)
+### API архитектура
 
-## 🛠️ Установка
-
-### 1. Клонирование репозитория
-
-```bash
-git clone https://github.com/yourusername/familyBudget.git
-cd familyBudget
+#### Структура endpoints
+```
+/api/auth/*         # Аутентификация (без user_id)
+/api/users/*        # Управление пользователями
+/api/periods/*      # CRUD периодов
+/api/financial_centers/*  # Управление ЦФО
+/api/cost_centers/*       # Управление МВЗ
+/api/nomenclatures/*      # Управление категориями
+/api/registry/*           # Операции с транзакциями
+/api/products/*           # Каталог товаров
+/api/reports/*            # Аналитические endpoints
 ```
 
-### 2. Настройка переменных окружения
+#### Управление сессиями
+- Redis хранит сессии в формате express-session
+- Session ID в cookie `connect.sid`
+- User ID в `session.user.id` (number)
+- Все endpoints требуют аутентификацию кроме `/auth/*`
 
-Для разработки:
-```bash
-cp .env.dev .env
-# Отредактируйте .env при необходимости
+#### Формат ответов
+```typescript
+// Успех
+{ success: true, data: {...} }
+
+// Ошибка
+{ success: false, error: "message" }
+
+// Список
+{ success: true, data: [...], total: number }
 ```
 
-Для production:
+### Docker окружение
+
+**ВСЕ операции выполняются через Docker контейнеры:**
+
+#### Имена контейнеров:
+- Frontend: `budget-frontend`
+- Backend: `budget-backend`
+- Database: `budget-postgres`
+- Cache: `budget-redis`
+
+### Команды для разработки
+
+#### Окружение разработки
 ```bash
-cp .env.prod .env
-# Отредактируйте .env с production значениями
+# Запуск разработки
+./scripts/dev.sh -d          # Запуск в detached режиме
+./scripts/dev.sh --init-db   # Переинициализация базы данных
+
+# Остановка сервисов
+docker-compose down
+
+# Полный рестарт
+docker-compose down && docker-compose up -d
 ```
 
-Основные переменные:
-- `POSTGRES_PASSWORD` - пароль для PostgreSQL
-- `BUDGET_DB_PASSWORD` - пароль пользователя budget
-- `DOMAIN` - ваш домен для SSL сертификатов
-- `SESSION_SECRET` - секретный ключ для сессий
-- `TELEGRAM_BOT_TOKEN` - токен Telegram бота
-
-### 3. Настройка секретов
-
-Создайте директорию секретов и добавьте необходимые файлы:
-
+#### Frontend команды (SvelteKit)
 ```bash
-mkdir -p budget/secrets
+# Сервер разработки (порт 5173)
+docker exec budget-frontend npm run dev
+
+# Проверка типов (выполнять перед коммитами)
+docker exec budget-frontend npm run check
+
+# Тестирование
+docker exec budget-frontend npm run test          # Запуск Vitest тестов
+docker exec budget-frontend npm run test:ui       # Запуск тестов с UI
+docker exec budget-frontend npm run test:coverage # Генерация отчета покрытия
+
+# Сборка
+docker exec budget-frontend npm run build         # Production сборка
+docker exec budget-frontend npm run preview       # Просмотр production сборки
+
+# Качество кода
+docker exec budget-frontend npm run lint          # ESLint
+docker exec budget-frontend npm run format        # Prettier
 ```
 
-Необходимые файлы:
-- `telegram_config.yaml` - конфигурация Telegram бота
-- `client_secret.json` - Google OAuth клиент (опционально)
-- `service_secret.json` - Google Service Account (опционально)
+#### Backend команды (FastAPI)
+```bash
+# Сервер разработки (порт 4000)
+docker exec budget-backend uvicorn app.main:app --reload --host 0.0.0.0 --port 4000
 
-Пример `telegram_config.yaml`:
-```yaml
-bot_token: "YOUR_BOT_TOKEN"
-bot_username: "YOUR_BOT_USERNAME"
-redirect_url: "https://yourdomain.com/telegram_auth"
+# Тестирование
+docker exec budget-backend python -m pytest                    # Все тесты
+docker exec budget-backend python -m pytest tests/test_auth.py # Конкретный тест
+docker exec budget-backend python -m pytest --cov=app         # С покрытием
+
+# Качество кода
+docker exec budget-backend black app/      # Форматирование кода
+docker exec budget-backend mypy app/       # Проверка типов
+docker exec budget-backend flake8 app/     # Линтинг
+
+# Миграции базы данных
+docker exec budget-backend alembic upgrade head                           # Применить миграции
+docker exec budget-backend alembic revision --autogenerate -m "Description" # Создать миграцию
+docker exec budget-backend alembic downgrade -1                          # Откатить одну миграцию
 ```
 
-### 4. Запуск
-
-#### Production/Staging
+#### Операции с БД
 ```bash
-# Копировать и настроить переменные окружения
-cp .env.prod .env
-# Отредактировать .env файл с вашими production значениями
+# Доступ к PostgreSQL
+docker exec -it budget-postgres psql -U budget -d budgetdb
 
-# Запуск production окружения
+# Backup/Restore
+docker exec budget-postgres pg_dump -U budget budgetdb > backup.sql
+docker exec -i budget-postgres psql -U budget budgetdb < backup.sql
+
+# Просмотр логов
+docker logs -f budget-backend --tail=100
+docker logs -f budget-postgres --tail=50
+```
+
+#### Отладка
+```bash
+# Статус контейнеров
+docker ps -a
+
+# Просмотр логов
+docker logs --tail 100 -f <container>
+
+# Shell доступ
+docker exec -it budget-backend bash
+docker exec -it budget-frontend sh
+
+# Проверка здоровья
+curl http://localhost:4000/health     # Backend API
+curl http://localhost:5173/           # Frontend
+```
+
+### Переменные окружения
+
+Ключевые переменные в `.env`:
+- `POSTGRES_PASSWORD` - Пароль root базы данных
+- `BUDGET_DB_PASSWORD` - Пароль приложения для БД
+- `SESSION_SECRET` - Ключ шифрования сессий
+- `TELEGRAM_BOT_TOKEN` - Токен Telegram бота
+- `REDIS_URL` - Строка подключения к Redis
+- `PASSWORD_AUTH_ENABLED` - Включить авторизацию по паролю
+
+### Изоляция данных
+
+**КРИТИЧНО**: Все запросы к БД ДОЛЖНЫ фильтроваться по `user_id`
+- Никогда не показывать данные других пользователей
+- Использовать SQLAlchemy фильтры: `.filter(Model.user_id == current_user.id)`
+- Сессионная аутентификация обеспечивает изоляцию пользователей
+
+### Документация и Architecture Decision Records (ADR)
+
+#### Структура документации:
+```
+/docs/
+├── architecture/     # Архитектурные решения и ADR
+│   ├── adr-001-admin-access-control.md  # ADR для admin системы
+│   └── decisions.log                    # Журнал принятых решений
+├── api/             # Документация API endpoints
+│   ├── admin-endpoints.md               # Admin API endpoints
+│   └── security-changes.md              # Изменения безопасности API
+├── deployment/      # Инструкции по развертыванию
+│   └── admin-setup.md                   # Настройка admin функций
+├── templates/       # Шаблоны для документации
+│   ├── api-change.md                    # Шаблон изменений API
+│   ├── component-change.md              # Шаблон изменений компонентов
+│   ├── admin-feature-template.md        # Шаблон admin функций
+│   └── architecture-decision.md         # Шаблон ADR
+└── efficiency-analysis.md  # Анализы эффективности
+```
+
+#### Автоматическое создание документации:
+- Новые API endpoints → `/docs/api/`
+- Компоненты Svelte → `/docs/components/`
+- Архитектурные изменения → `/docs/architecture/`
+- ADR создаются автоматически при системных изменениях
+- **Admin функции:** Полная документация с примерами и troubleshooting
+
+#### Документация admin системы:
+- **[ADR-001 Admin Access Control](/docs/architecture/adr-001-admin-access-control.md)** - Архитектурное решение
+- **[Admin API Endpoints](/docs/api/admin-endpoints.md)** - Полная документация API
+- **[Security Changes](/docs/api/security-changes.md)** - Изменения безопасности
+- **[Admin Setup Guide](/docs/deployment/admin-setup.md)** - Инструкции по настройке
+
+### Code Quality Standards
+
+#### Обязательные проверки:
+```bash
+# Форматирование и линтинг
+docker exec budget-backend black app/
+docker exec budget-backend flake8 app/
+docker exec budget-frontend npm run lint
+docker exec budget-frontend npm run format
+
+# Проверка безопасности
+docker exec budget-backend bandit -r app/
+```
+
+#### Стандарты файловой организации:
+- **Максимум 500 строк на файл**
+- **Группировка по функциональности**
+- **Относительные импорты внутри пакетов**
+- **Строгое соблюдение TypeScript типов**
+
+### Деплой в продакшн
+
+```bash
+# Production deployment
 ./scripts/prod.sh
 
-# Или вручную:
-docker-compose up -d --build
-
-# Проверка статуса
-docker ps
-
-# Просмотр логов
-docker logs -f frontend-svelte-dev
-docker logs -f backend-fastapi-dev
+# Стратегия бэкапов
+postgresql/backup/postgres-backup.sh  # Ежедневные бэкапы в Yandex Object Storage
 ```
 
-#### Разработка
-```bash
-# Быстрый старт с инициализацией БД
-./scripts/dev.sh -d          # Detached mode
-./scripts/dev.sh --init-db   # Force DB reinitialization
+### Точки доступа
 
-# Команды разработки (всё выполняется через Docker)
-docker exec -it frontend-svelte-dev npm run dev      # SvelteKit dev server
-docker exec -it frontend-svelte-dev npm run build    # Production build
-docker exec -it frontend-svelte-dev npm run test     # Run tests
-docker exec -it backend-fastapi-dev python -m pytest # Run API tests
+- Frontend: http://localhost:5173
+- API: http://localhost:4000
+- API Documentation: http://localhost:4000/docs
 
-# Доступные URL:
-# Frontend: http://localhost:5174 (dev) или http://localhost:3000 (production)
-# API: http://localhost:4000
-# API Docs: http://localhost:4000/docs (Swagger UI)
-# PostgreSQL: localhost:5432
-# Redis: localhost:6379
+## 📊 Performance Monitoring
+
+### Метрики разработки
+
+Система отслеживает следующие KPI:
+- **Token efficiency ratio**: output/input токенов
+- **Workflow compliance rate**: % соблюдения обязательного процесса
+- **Task completion time**: время выполнения задач
+- **Quality gates success rate**: % успешных проверок
+- **Agent delegation coverage**: % использования специализированных агентов
+
+### Checkpoint System
+
+Используется `mcp__memory` для создания точек восстановления:
+- Автоматические checkpoint'ы каждые 3 значимых изменения
+- Recovery points для быстрого восстановления состояния
+- Сохранение контекста проекта для длительных сессий
+
+### Smart Context Management
+
+Оптимизация работы с контекстом:
+```typescript
+interface ContextManager {
+  batchSimilarOperations(): Operation[];
+  predictNextSteps(): string[];
+  optimizeTokenUsage(): TokenStrategy;
+}
 ```
 
-Подробная инструкция по разработке: [Development Setup Guide](docs/DEVELOPMENT_SETUP.md)
+## 📋 Рекомендации по эффективности
 
-### 5. Инициализация базы данных
+### Критический приоритет
+1. **Всегда используйте workflow-validator.sh** перед началом работы
+2. **Обязательное делегирование** специализированным агентам
+3. **Batch operations** для снижения token waste на 50%
+4. **Checkpoint creation** через mcp__memory для каждой сессии
 
-База данных инициализируется автоматически при первом запуске контейнера PostgreSQL:
-- Создается пользователь `budget` с паролем из `BUDGET_DB_PASSWORD`
-- Создается база данных `budgetdb`
-- Применяется схема из `postgresql/ddl/budgetdb.sql`
+### Высокий приоритет
+1. **Automated testing pipeline** - все изменения должны проходить тесты
+2. **Documentation automation** - автоматическое создание документации
+3. **Quality gates validation** - блокирующие проверки качества
 
-Для ручной инициализации:
-```bash
-# Подключение к контейнеру PostgreSQL
-docker exec -it postgres psql -U postgres -d budgetdb -f /docker-entrypoint-initdb.d/02-schema.sql
-```
-
-### 6. Настройка SSL (для production)
-
-SSL сертификаты автоматически управляются через Traefik с Let's Encrypt. Дополнительная настройка не требуется.
-
-## 🖥️ Использование
-
-### Доступ к приложению
-
-- **Development**: http://localhost:5174
-- **Production**: https://app.yourdomain.com
-
-### Первый вход
-
-1. Откройте приложение в браузере
-2. Нажмите "Войти через Telegram"
-3. Авторизуйтесь в Telegram
-4. Система автоматически создаст вашего пользователя
-
-### Основные функции
-
-1. **Управление справочниками**
-   - Периоды бюджетирования
-   - Центры финансовой ответственности (ЦФО)
-   - Места возникновения затрат (МВЗ)
-   - Номенклатура расходов
-
-2. **Ввод данных**
-   - Планирование бюджета по периодам
-   - Внесение фактических расходов
-   - Импорт/экспорт данных
-
-3. **Аналитика**
-   - Сравнение план/факт
-   - Графики и диаграммы
-   - Экспорт отчетов
-
-## 🔧 Разработка
-
-### Docker Compose конфигурация
-
-- **docker-compose.yaml** - Единая конфигурация для development и production. Включает:
-  - Hot-reload для SvelteKit и FastAPI в development режиме
-  - Автоматическое монтирование исходного кода
-  - Healthcheck для всех сервисов
-  - Оптимизированные настройки производительности
-
-### Структура проекта
-
-```
-familyBudget/
-├── frontend-svelte/      # SvelteKit frontend
-│   ├── src/             # Исходный код
-│   │   ├── lib/         # Библиотеки и компоненты
-│   │   │   ├── components/  # UI компоненты
-│   │   │   │   ├── auth/       # Компоненты авторизации
-│   │   │   │   ├── common/     # Общие UI компоненты
-│   │   │   │   ├── ui/         # Базовые UI элементы
-│   │   │   │   ├── budget/     # Компоненты бюджета
-│   │   │   │   ├── reference/  # Справочные данные
-│   │   │   │   └── reports/    # Отчеты и аналитика
-│   │   │   ├── stores/      # Svelte stores
-│   │   │   ├── services/    # API сервисы
-│   │   │   ├── types/       # TypeScript типы
-│   │   │   └── utils/       # Утилиты
-│   │   ├── routes/      # Файл-роутинг SvelteKit
-│   │   │   ├── (protected)/ # Защищенные маршруты
-│   │   │   ├── login/       # Страница входа
-│   │   │   └── +layout.svelte # Корневой layout
-│   │   ├── app.html     # HTML шаблон
-│   │   └── app.css      # Глобальные стили
-│   ├── static/          # Статические файлы
-│   ├── tests/           # Тесты
-│   ├── svelte.config.js # Конфигурация SvelteKit
-│   ├── vite.config.ts   # Конфигурация Vite
-│   └── package.json     # Зависимости
-├── backend-fastapi/      # FastAPI backend
-│   ├── app/             # Исходный код
-│   │   ├── api/v1/endpoints/ # API маршруты
-│   │   ├── models/      # SQLAlchemy модели
-│   │   ├── schemas/     # Pydantic схемы
-│   │   ├── core/        # Конфигурация и безопасность
-│   │   ├── db/          # Подключение к БД
-│   │   └── main.py      # Точка входа FastAPI
-│   ├── alembic/         # Миграции базы данных
-│   ├── tests/           # Тесты API
-│   ├── requirements.txt # Python зависимости
-│   └── pyproject.toml   # Конфигурация Python
-├── postgresql/           # База данных
-│   ├── ddl/             # Схема БД
-│   └── backup/          # Скрипты резервного копирования
-├── scripts/              # Утилиты и автоматизация
-│   ├── dev.sh           # Скрипт разработки
-│   └── prod.sh          # Production скрипт
-├── docs/                 # Документация (на русском)
-│   ├── DEVELOPMENT_SETUP.md
-│   ├── DEPLOYMENT_GUIDE.md
-│   ├── ENVIRONMENT_VARIABLES.md
-│   ├── ENV_FILE_CONVENTIONS.md
-│   ├── MIGRATION-STATUS.md  # Статус миграции
-│   └── archive/          # Архивная документация
-├── .env.prod             # Пример переменных окружения
-├── .env.dev              # Переменные для разработки
-├── .env                  # Production переменные (не коммитится)
-└── docker-compose.yaml   # Единая конфигурация для всех режимов
-```
-
-
-### Команды разработки
-
-```bash
-# Frontend (SvelteKit + TypeScript) - через Docker
-docker exec -it frontend-svelte-dev npm run dev              # Запуск dev сервера (5174)
-docker exec -it frontend-svelte-dev npm run build           # Сборка для production
-docker exec -it frontend-svelte-dev npm run preview         # Превью production сборки
-docker exec -it frontend-svelte-dev npm run test            # Запуск тестов Vitest
-docker exec -it frontend-svelte-dev npm run test:ui         # Интерактивный UI для тестов
-docker exec -it frontend-svelte-dev npm run test:coverage   # Генерация отчета покрытия
-docker exec -it frontend-svelte-dev npm run lint            # ESLint проверка
-docker exec -it frontend-svelte-dev npm run check           # Проверка типов Svelte
-docker exec -it frontend-svelte-dev npm run format          # Prettier форматирование
-
-# Backend (FastAPI + Python) - через Docker
-docker exec -it backend-fastapi-dev uvicorn app.main:app --reload  # Запуск с hot reload
-docker exec -it backend-fastapi-dev python -m pytest              # Запуск тестов
-docker exec -it backend-fastapi-dev python -m pytest --cov=app    # Тесты с покрытием
-docker exec -it backend-fastapi-dev black app/                    # Форматирование кода
-docker exec -it backend-fastapi-dev mypy app/                     # Проверка типов
-docker exec -it backend-fastapi-dev alembic upgrade head          # Применить миграции
-docker exec -it backend-fastapi-dev alembic revision --autogenerate -m "desc"  # Создать миграцию
-```
-
-### Работа с контейнерами
-
-```bash
-# Перезапуск сервисов
-docker restart frontend-svelte-dev   # SvelteKit frontend
-docker restart backend-fastapi-dev   # FastAPI backend
-
-# Просмотр логов
-docker logs -f frontend-svelte-dev
-docker logs -f backend-fastapi-dev
-
-# Вход в контейнеры
-docker exec -it frontend-svelte-dev bash
-docker exec -it backend-fastapi-dev bash
-
-# Пересборка конкретного сервиса
-docker-compose build frontend
-docker-compose build backend-fastapi
-
-# Работа с базой данных
-docker exec -it postgres-dev psql -U budget -d budgetdb
-docker exec -it backend-fastapi-dev alembic upgrade head
-```
-
-## 📊 База данных
-
-### Схема данных
-
-**Справочники:**
-- `t_d_user` - Пользователи
-- `t_d_period` - Периоды
-- `t_d_financial_center` - ЦФО
-- `t_d_cost_center` - МВЗ
-- `t_d_nomenclature` - Номенклатура
-- `t_d_row_type` - Типы строк (план/факт)
-
-**Основные таблицы:**
-- `t_f_registry` - Реестр операций (партиционирована по годам)
-- `t_d_product` - Справочник продуктов
-- `t_f_product_price` - История цен продуктов
-- `t_l_product_nomenclature` - Связь продуктов с номенклатурой
-
-### Резервное копирование
-
-Автоматическое резервное копирование настроено через cron:
-- PostgreSQL: ежедневно в 00:00
-
-Ручное резервное копирование:
-```bash
-./postgresql/backup/postgres-backup.sh
-```
-
-## 🚀 Развертывание в production
-
-### 1. Подготовка сервера
-
-```bash
-# Установка Docker и Docker Compose
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-
-# Установка MinIO клиента для бэкапов
-wget https://dl.min.io/client/mc/release/linux-amd64/mc
-chmod +x mc
-sudo mv mc /usr/local/bin/
-```
-
-### 2. Настройка MinIO для Yandex Cloud
-
-```bash
-mc alias set yandex-cloud https://storage.yandexcloud.net YOUR_ACCESS_KEY YOUR_SECRET_KEY
-```
-
-### 3. Запуск production окружения
-
-```bash
-# Синхронизация кода
-./sync_web.sh
-
-# Запуск
-sudo docker-compose --env-file web.env -f docker-compose.yaml up -d
-```
-
-### 4. Настройка автоматических задач
-
-```bash
-crontab -e
-# Добавить:
-0 0 * * * /path/to/project/postgresql/backup/postgres-backup.sh
-```
-
-## 🔒 Безопасность
-
-- Все пароли хранятся в переменных окружения
-- Telegram OAuth для безопасной авторизации
-- SSL/TLS шифрование всего трафика
-- Изоляция данных между пользователями
-- Type-safe запросы через SQLAlchemy и Pydantic (защита от SQL-инъекций)
-- Валидация user_id во всех endpoints
-- Интеллектуальное кеширование с Redis
-- Регулярные резервные копии с шифрованием
-
-## 🐛 Устранение неполадок
-
-### Контейнеры не запускаются
-
-```bash
-# Проверка логов
-sudo docker-compose logs
-
-# Проверка ресурсов
-docker system df
-docker system prune -a
-```
-
-### Проблемы с базой данных
-
-```bash
-# Проверка подключения
-sudo docker exec -it postgres psql -U budget -d budgetdb -c "SELECT 1"
-
-# Пересоздание схемы
-sudo docker exec -it postgres psql -U budget -d budgetdb -f /docker-entrypoint-initdb.d/budgetdb.sql
-```
-
-### Проблемы с SSL
-
-```bash
-# Проверка сертификатов
-sudo certbot certificates
-
-# Ручное обновление
-sudo certbot renew --force-renewal
-```
-
-## 📚 Документация
-
-### Активная документация
-- [Development Setup Guide](docs/DEVELOPMENT_SETUP.md) - Настройка окружения разработки
-- [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) - Руководство по развертыванию
-- [Environment Variables](docs/ENVIRONMENT_VARIABLES.md) - Описание переменных окружения
-- [Environment File Conventions](docs/ENV_FILE_CONVENTIONS.md) - Соглашения по файлам окружения
-- [Svelte 5→4 Migration Guide](docs/svelte5-to-svelte4-migration.md) - Руководство по миграции Svelte
-
-### Архивная документация
-- [Migration Archive](docs/archive/migration-2024-2025/) - Исторические документы миграции API
+### Ожидаемые результаты оптимизации
+- **Token efficiency**: +50% через batching
+- **Workflow compliance**: 33% → 95% через автоматизацию
+- **Quality gates success**: 20% → 85% через automated testing
+- **Documentation coverage**: 0% → 90% через auto-generation
 
 ## 📝 Лицензия
 
-MIT License - см. файл LICENSE для деталей.
-
-## 👥 Авторы
-
-- Ваше имя (@yourusername)
-
-## 🎯 Успешная миграция Svelte 5 → Svelte 4 (Сентябрь 2025)
-
-### Техническая стабилизация
-- **Стабилизация версии** - переход с экспериментальной Svelte 5 на стабильную Svelte 4.2.18
-- **Снижение ошибок на 30%** - уменьшение с 661 до 466 ошибок компиляции
-- **Восстановление TypeScript интеграции** - полная совместимость типов
-- **Стабильный development сервер** - надежная работа на порту 5174
-
-### Ключевые технические изменения
-- **Откат пакетов до стабильных версий**:
-  - svelte: 5.0.0-next.259 → 4.2.18
-  - @sveltejs/kit: 2.5.25 → 2.5.24
-  - @sveltejs/vite-plugin-svelte: 4.0.0-next.6 → 3.1.1
-- **Синтаксические обновления**:
-  - Возврат к `export let` для пропсов
-  - Использование `$:` для реактивности
-  - Восстановление классического синтаксиса событий
-- **Стабилизация компонентов**:
-  - Все UI компоненты адаптированы под Svelte 4
-  - Исправлены проблемы с типизацией
-  - Восстановлена работоспособность форм
-
-### Результаты миграции
-- **Улучшенная стабильность** - development сервер работает без критических ошибок
-- **Готовность к разработке** - 306 из 522 тестов проходят успешно
-- **Совместимость экосистемы** - все библиотеки работают корректно
-- **Производительность** - время компиляции сокращено на 25%
-
-### Дальнейшие планы
-- Постепенное исправление оставшихся 160 ошибок
-- Улучшение покрытия тестами
-- Оптимизация производительности компонентов
-- Подготовка к будущей миграции на Svelte 5 (когда станет стабильной)
-
-## 🚀 Завершение миграции на SvelteKit + FastAPI (Август 2025)
-
-### Архитектурные улучшения
-- **Современная архитектура** - высокопроизводительный стек SvelteKit + FastAPI
-- **Упрощение стека** - единый backend вместо дублирования Node.js и Python API
-- **Современные технологии** - SvelteKit 2 + Svelte 4.2.18 + FastAPI + SQLAlchemy 2.0
-- **Полная async архитектура** - от frontend до database connections
-
-### Улучшения производительности
-- **API производительность** - FastAPI обеспечивает в 2-3 раза быстрее отклик чем Node.js
-- **Bundle size** - оптимизирован на 40% благодаря компиляции Svelte
-- **Время загрузки** - ускорено на 60% благодаря SvelteKit
-- **Memory usage** - снижено на 30-50% за счет компиляции Svelte
-- **Database queries** - async SQLAlchemy 2.0 для максимальной производительности
-- **Hot reload** - мгновенная перезагрузка в development режиме
-
-### Новые возможности
-- **SSR из коробки** - server-side rendering для лучшего SEO
-- **PWA поддержка** - работа как нативное мобильное приложение
-- **Темизация** - автоматическое переключение светлой/темной темы
-- **Accessibility** - полная ARIA совместимость и keyboard navigation
-- **Advanced filtering** - сохраненные фильтры и быстрый поиск
-- **Bulk operations** - массовые операции с Excel/CSV импортом
-- **Audit trail** - полная история изменений с версионированием
-
-### Технические преимущества
-- **Современный стек** - TypeScript на frontend, Python на backend с полной типизацией
-- **Type safety** - Pydantic схемы и SQLAlchemy модели обеспечивают type safety
-- **Developer experience** - улучшенный DX с hot reload, автодокументацией API и type checking
-- **Testing** - Vitest + Playwright для frontend, pytest для backend
-- **Performance monitoring** - встроенный Lighthouse аудит и FastAPI metrics
-- **API Documentation** - автоматическая генерация Swagger/OpenAPI документации
+MIT License - см. файл LICENSE
 
 ## 🤝 Вклад в проект
 
-Приветствуются pull requests. Для больших изменений сначала откройте issue для обсуждения.
+Мы приветствуем вклад в развитие проекта! См. CONTRIBUTING.md для деталей.
 
-1. Fork проекта
-2. Создайте feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit изменения (`git commit -m 'Add some AmazingFeature'`)
-4. Push в branch (`git push origin feature/AmazingFeature`)
-5. Откройте Pull Request
+### Требования к контрибьютерам:
+1. Соблюдение обязательного workflow из CLAUDE.md
+2. 80%+ покрытие кода тестами
+3. Использование специализированных агентов
+4. Автоматическое создание документации
+5. Прохождение всех quality gates
 
-## 📞 Поддержка
+## 📞 Контакты
 
-- Создайте issue в GitHub
-- Telegram: @yourusername
-- Email: your.email@example.com
+- GitHub: [https://github.com/your-repo/familyBudget](https://github.com/your-repo/familyBudget)
+- Issues: [https://github.com/your-repo/familyBudget/issues](https://github.com/your-repo/familyBudget/issues)

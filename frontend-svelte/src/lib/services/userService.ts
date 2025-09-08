@@ -270,6 +270,91 @@ class UserService extends BaseService<User, CreateUserData, UpdateUserData> {
       throw new Error(error.message || 'Ошибка при получении лога активности');
     }
   }
+
+  // ========== ADMIN METHODS ==========
+
+  /**
+   * Получить всех пользователей (только для админов)
+   */
+  async getAllUsers(): Promise<User[]> {
+    try {
+      return await api.get<User[]>(`${this.endpoint}/admin/all`);
+    } catch (error: any) {
+      throw new Error(error.message || 'Ошибка при получении списка пользователей');
+    }
+  }
+
+  /**
+   * Создать нового пользователя (админ)
+   */
+  async createUser(userData: {
+    user_name: string;
+    user_email?: string;
+    username?: string;
+    password?: string;
+    auth_method?: string;
+  }): Promise<User> {
+    try {
+      return await api.post<User>(`${this.endpoint}/admin`, userData);
+    } catch (error: any) {
+      throw new Error(error.message || 'Ошибка при создании пользователя');
+    }
+  }
+
+  /**
+   * Заблокировать/разблокировать пользователя
+   */
+  async toggleUserStatus(userId: number): Promise<User> {
+    try {
+      return await api.patch<User>(`${this.endpoint}/admin/${userId}/toggle-status`);
+    } catch (error: any) {
+      throw new Error(error.message || 'Ошибка при изменении статуса пользователя');
+    }
+  }
+
+  /**
+   * Редактировать пользователя (админ)
+   */
+  async updateUserAsAdmin(userId: number, userData: {
+    user_name?: string;
+    user_email?: string;
+    username?: string;
+    password?: string;
+    is_active?: boolean;
+  }): Promise<User> {
+    try {
+      return await api.put<User>(`${this.endpoint}/admin/${userId}`, userData);
+    } catch (error: any) {
+      throw new Error(error.message || 'Ошибка при редактировании пользователя');
+    }
+  }
+
+  /**
+   * Получить статистику по пользователям
+   */
+  async getUsersStats(): Promise<{
+    total: number;
+    active: number;
+    inactive: number;
+    blocked: number;
+  }> {
+    try {
+      return await api.get(`${this.endpoint}/admin/stats`);
+    } catch (error: any) {
+      throw new Error(error.message || 'Ошибка при получении статистики пользователей');
+    }
+  }
+
+  /**
+   * Удалить пользователя (админ)
+   */
+  async deleteUser(userId: number): Promise<{ success: boolean; message: string }> {
+    try {
+      return await api.delete(`${this.endpoint}/admin/${userId}`);
+    } catch (error: any) {
+      throw new Error(error.message || 'Ошибка при удалении пользователя');
+    }
+  }
 }
 
 // Export singleton instance
