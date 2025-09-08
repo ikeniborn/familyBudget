@@ -442,41 +442,24 @@ set -e
 
 echo "🔍 WORKFLOW VALIDATION STARTING..."
 
-# Step 1: Check MCP tools availability
-echo "Checking MCP tools..."
-if ! command -v mcp__sequential-thinking &> /dev/null; then
-    echo "❌ ERROR: mcp__sequential-thinking not available"
-    exit 1
-fi
-
-if ! command -v mcp__memory &> /dev/null; then
-    echo "❌ ERROR: mcp__memory not available"
-    exit 1
-fi
-
-# Step 2: Validate existing tests pass
+# Step 1: Validate existing tests pass
 echo "Running existing tests..."
 docker exec budget-backend python -m pytest --tb=short
 docker exec budget-frontend npm run test
 
-# Step 3: Check code quality
+# Step 2: Check code quality
 echo "Checking code quality..."
 docker exec budget-backend black --check app/
 docker exec budget-backend mypy app/
 docker exec budget-frontend npm run lint
 docker exec budget-frontend npm run check
 
-# Step 4: Security validation
+# Step 3: Security validation
 echo "Security validation..."
 docker exec budget-backend python scripts/check-data-isolation.py
 
-# Step 5: Create checkpoint
-echo "Creating mcp__memory checkpoint..."
-# This would be called within Claude Code session
-echo "📋 CHECKPOINT: Ready for workflow execution"
-
 echo "✅ WORKFLOW VALIDATION COMPLETE"
-echo "🚀 Ready for 6-step mandatory workflow"
+echo "🚀 Ready for workflow execution"
 ```
 
 ## 🎯 PERFORMANCE OPTIMIZATION RULES
