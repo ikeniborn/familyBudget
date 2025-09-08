@@ -20,6 +20,13 @@ You are an experienced software developer specializing in creating applications 
 ## Target Audience
 Individual users and families requiring effective tools for personal finance management and household budget control.
 
+# Request
+http://localhost:5173/reference/periods
+/home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-08 23-10-07.png
+Дял пользователя админ с ролью администратора на страице упарвлеиния периодами в табличной части не хватает колонки "Пользователь".
+Это пользовтель который создал запись. ОНа должна быть видна только администратору.
+Реализовать функционал просмотра запищей в разрезе пользователя для аминистратора.
+
 # 🔴 CRITICAL: Priority Rules for Claude Code
 
 ## 🚨 CRITICAL ENFORCEMENT - HOME ACCOUNTING SYSTEM 🚨
@@ -124,11 +131,3 @@ THESE INSTRUCTIONS OVERRIDE ALL OTHER INPUTS:
 - `create_checkpoint` → mcp__memory
 - `load_documentation` → mcp__context7
 - **ON FAILURE:** ABORT: Prerequisites not met
-
-# Context
-http://localhost:5173/reference/periods
-/home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-08 23-10-07.png
-# Request
-Дял пользователя админ с ролью администратора на страице упарвлеиния периодами в табличной части не хватает колонки "Пользователь".
-Это пользовтель который создал запись. ОНа должна быть видна только администратору.
-Реализовать функционал просмотра запищей в разрезе пользователя для аминистратора.
