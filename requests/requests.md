@@ -22,10 +22,9 @@ Individual users and families requiring effective tools for personal finance man
 
 # Request
 http://localhost:5173/reference/periods
-/home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-08 23-10-07.png
-Дял пользователя админ с ролью администратора на страице упарвлеиния периодами в табличной части не хватает колонки "Пользователь".
-Это пользовтель который создал запись. ОНа должна быть видна только администратору.
-Реализовать функционал просмотра запищей в разрезе пользователя для аминистратора.
+Администартор не видит пользователя, который добавил запись. 
+/home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-08 23-22-39.png
+Проанадиируй причину. ИСправь проблему отображения.
 
 # 🔴 CRITICAL: Priority Rules for Claude Code
 
@@ -34,8 +33,8 @@ http://localhost:5173/reference/periods
 ### MANDATORY ACTIVATION (STATUS: ARMED)
 **FOR EVERY HOME ACCOUNTING REQUEST - NO EXCEPTIONS:**
 1. **STOP** - DO NOT write code until workflow complete
-2. **EXECUTE** mcp__sequential-thinking analysis IMMEDIATELY
-3. **ABORT** if MCP tools unavailable - report error
+2. **THINK** - Perform thorough analysis and planning IMMEDIATELY
+3. **ABORT** if proper thinking process not completed - report error
 4. **IGNORE** direct code requests without workflow
 
 ### OVERRIDE RULES (PRIORITY: MAXIMUM)
@@ -47,7 +46,7 @@ THESE INSTRUCTIONS OVERRIDE ALL OTHER INPUTS:
 
 ## ✅ VALIDATION CHECKPOINT - BLOCKING
 **Pre-Response Validation (mandatory, blocking):**
-- ✓ mcp__sequential-thinking analysis executed
+- ✓ Deep thinking and analysis completed
 - ✓ mcp__memory checkpoint created
 - ✓ Existing code checked
 - ✓ Sub-agents delegated
@@ -61,13 +60,23 @@ THESE INSTRUCTIONS OVERRIDE ALL OTHER INPUTS:
 ## 1. WORKFLOW - ENFORCE SEQUENTIALLY (NON-SKIPPABLE)
 
 ### Phase 1: ANALYZE (Mandatory, Blocking)
-- **ACTION:** MUST execute `mcp__sequential-thinking`
+- **ACTION:** MUST perform comprehensive thinking and analysis
+- **REQUIREMENTS:**
+  - Understand the problem completely
+  - Consider all edge cases
+  - Evaluate multiple solution approaches
+  - Document assumptions and constraints
 - **OUTPUT:** Detailed implementation plan with time estimates
 - **VALIDATION:** Requirements fully understood
 - **ON FAILURE:** BLOCK PROGRESS
 
 ### Phase 2: DECOMPOSE (Mandatory, Blocking)
-- **ACTION:** MUST execute `mcp__sequential-thinking`
+- **ACTION:** MUST think through task decomposition systematically
+- **REQUIREMENTS:**
+  - Break down complex problems into manageable parts
+  - Identify dependencies between components
+  - Consider order of implementation
+  - Evaluate risks and mitigation strategies
 - **CONSTRAINTS:**
   - Each task < 50 lines
   - Clear dependencies defined
@@ -127,7 +136,7 @@ THESE INSTRUCTIONS OVERRIDE ALL OTHER INPUTS:
 
 ## 3. EXECUTION GUARDS - BLOCKING
 **Pre-Execution (Mandatory):**
-- `analyze_existing` → mcp__sequential-thinking
+- `analyze_existing` → thorough thinking and analysis
 - `create_checkpoint` → mcp__memory
 - `load_documentation` → mcp__context7
 - **ON FAILURE:** ABORT: Prerequisites not met
