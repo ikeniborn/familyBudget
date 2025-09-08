@@ -145,7 +145,7 @@ from fastapi import Request, HTTPException, status
 
 async def require_admin_access(request: Request) -> dict:
     """
-    Dependency to ensure only admin users (user_id == 1) can access endpoints.
+    Dependency to ensure only admin users can access endpoints.
     
     Args:
         request: FastAPI request object with session data
@@ -157,6 +157,9 @@ async def require_admin_access(request: Request) -> dict:
         HTTPException: 401 if not authenticated, 403 if not admin
     """
     from app.core.session import get_current_user_from_session
+    from app.db.session import get_db
+    from app.models.user import User
+    from sqlalchemy.orm import Session
     
     # Check authentication first
     current_user = await get_current_user_from_session(request)
@@ -166,14 +169,28 @@ async def require_admin_access(request: Request) -> dict:
             detail="Not authenticated"
         )
     
-    # Check admin access (user_id == 1)
-    if current_user.get("user_id") != 1:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required"
-        )
-    
-    return current_user
+    # Get user from database to check role
+    db = next(get_db())
+    try:
+        user = db.query(User).filter(User.id == current_user.get("user_id")).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found"
+            )
+        
+        # Check admin role
+        if user.role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin access required"
+            )
+        
+        # Add role to current_user data
+        current_user["role"] = user.role
+        return current_user
+    finally:
+        db.close()
 
 
 # Create instance for easy import

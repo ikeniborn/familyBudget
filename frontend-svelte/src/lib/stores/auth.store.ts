@@ -161,11 +161,11 @@ const authStore = {
   async checkAuth(): Promise<void> {
     update(state => ({ ...state, isLoading: true }));
     try {
-      const response = await api.get<AuthMeResponse>('/auth/me');
-      if (response.success && response.user) {
+      const response = await api.get<User>('/users/me');
+      if (response) {
         update(state => ({
           ...state,
-          user: response.user,
+          user: response,
           isAuthenticated: true,
           isLoading: false,
           error: null
@@ -215,7 +215,7 @@ export const currentUser = derived(authStore, ($auth) => $auth.user);
 export const isAuthenticated = derived(authStore, ($auth) => $auth.isAuthenticated);
 export const isAuthLoading = derived(authStore, ($auth) => $auth.isLoading);
 export const authError = derived(authStore, ($auth) => $auth.error);
-export const isAdmin = derived(authStore, ($auth) => $auth.user?.id === 1);
+export const isAdmin = derived(authStore, ($auth) => $auth.user?.role === 'admin');
 
 // Export alias for compatibility  
 export const setCurrentUser = (user: AuthUser) => authStore.setUser(user);

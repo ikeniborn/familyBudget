@@ -20,7 +20,8 @@
     User,
     ClipboardList,
     Settings,
-    Database
+    Database,
+    ShieldCheck
   } from 'lucide-svelte';
 
   let sidebarOpen = false;
@@ -29,16 +30,26 @@
     name: string;
     path: string;
     icon: any;
+    adminOnly?: boolean;
   }
 
-  const navItems: NavItem[] = [
+  const baseNavItems: NavItem[] = [
     { name: 'Главная', path: '/dashboard', icon: Home },
     { name: 'Факт', path: '/fact', icon: CreditCard },
     { name: 'Бюджет', path: '/budget', icon: Calculator },
     { name: 'Отчеты', path: '/reports', icon: BarChart3 },
     { name: 'Продукты', path: '/products', icon: Package },
-    { name: 'Справочники', path: '/reference', icon: Database },
+    { name: 'Справочники', path: '/reference', icon: Database, adminOnly: false },
   ];
+
+  const adminNavItems: NavItem[] = [
+    { name: 'Администрирование', path: '/reference', icon: ShieldCheck, adminOnly: true },
+  ];
+
+  // Reactive navigation items based on user role
+  $: navItems = $currentUser?.role === 'admin' 
+    ? [...baseNavItems.filter(item => !item.adminOnly), ...adminNavItems]
+    : baseNavItems;
 
   async function handleLogout() {
     await authStore.logout();
@@ -70,12 +81,14 @@
     // Check for prefix matches
     if (pathname.startsWith('/settings')) return 'Настройки';
     if (pathname.startsWith('/reference')) {
-      if (pathname === '/reference') return 'Справочники';
+      if (pathname === '/reference') {
+        return $currentUser?.role === 'admin' ? 'Администрирование' : 'Справочники';
+      }
       if (pathname.includes('/periods')) return 'Управление периодами';
       if (pathname.includes('/financial-centers')) return 'Управление ЦФО';
       if (pathname.includes('/cost-centers')) return 'Управление МВЗ';
       if (pathname.includes('/nomenclatures')) return 'Управление номенклатурами';
-      return 'Справочники';
+      return $currentUser?.role === 'admin' ? 'Администрирование' : 'Справочники';
     }
     
     return 'Страница';
@@ -180,10 +193,17 @@
                 </div>
               </div>
               <div class="min-w-0 flex-1">
-                <p class="text-sm font-semibold text-foreground truncate">
-                  {$currentUser?.first_name || $currentUser?.username || 'Пользователь'}
-                </p>
-                <p class="text-xs text-muted-foreground">ID: {$currentUser?.user_id}</p>
+                <div class="flex items-center space-x-2">
+                  <p class="text-sm font-semibold text-foreground truncate">
+                    {$currentUser?.user_name || $currentUser?.username || 'Пользователь'}
+                  </p>
+                  {#if $currentUser?.role === 'admin'}
+                    <Badge variant="outline" class="text-xs bg-primary/10 text-primary border-primary/20">
+                      Админ
+                    </Badge>
+                  {/if}
+                </div>
+                <p class="text-xs text-muted-foreground">ID: {$currentUser?.user_id || $currentUser?.id}</p>
               </div>
             </div>
             <Button

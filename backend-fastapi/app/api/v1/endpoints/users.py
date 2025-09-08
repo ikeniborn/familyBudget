@@ -40,6 +40,7 @@ class UserResponse(BaseModel):
     user_email: Optional[str]
     username: Optional[str]
     auth_method: str
+    role: str
     is_active: bool
 
 
@@ -72,6 +73,26 @@ async def get_users(
         return []
     
     return [UserResponse(**user.to_dict())]
+
+
+@router.get("/me", response_model=UserResponse)
+async def get_current_user_info(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Get current user information."""
+    stmt = select(User).where(User.id == current_user["user_id"])
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    return UserResponse(**user.to_dict())
 
 
 @router.get("/{user_id}", response_model=UserResponse)

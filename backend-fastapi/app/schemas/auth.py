@@ -21,7 +21,7 @@ class UserRegistration(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=6)
     user_name: str = Field(..., min_length=1, max_length=100)
-    user_email: Optional[str] = Field(None, regex=r'^[^@]+@[^@]+\.[^@]+$')
+    user_email: Optional[str] = Field(None, pattern=r'^[^@]+@[^@]+\.[^@]+$')
     
     @validator('username')
     def validate_username(cls, v):

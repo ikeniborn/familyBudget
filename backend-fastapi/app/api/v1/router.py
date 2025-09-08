@@ -12,7 +12,9 @@ from app.api.v1.endpoints import (
     registry,
     products,
     reports,
-    users
+    users,
+    admin,
+    sharing
 )
 
 # Main API router
@@ -28,3 +30,5 @@ api_router.include_router(nomenclatures.router, prefix="/nomenclatures", tags=["
 api_router.include_router(registry.router, prefix="/registry", tags=["Registry"])
 api_router.include_router(products.router, prefix="/products", tags=["Products"])
 api_router.include_router(reports.router, prefix="/reports", tags=["Reports"])
+api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
+api_router.include_router(sharing.router, prefix="/sharing", tags=["Sharing"])

@@ -6,6 +6,7 @@ export interface User {
   username?: string | null;
   telegram_id?: string | null;
   auth_method: string;
+  role: 'admin' | 'user';
   is_active: boolean;
   created_at?: string | null;
   updated_at?: string | null;
@@ -274,4 +275,32 @@ export interface BulkOperationWarning {
   data: any;
   warning: string;
   code: string;
+}
+
+// Sharing types
+export interface Sharing {
+  id: number;
+  owner_user_id: number;
+  shared_with_user_id: number;
+  resource_type: 'nomenclature' | 'cost_center' | 'financial_center' | 'product';
+  resource_id?: number | null;
+  permission_type: 'read' | 'write';
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  owner?: User;
+  shared_with?: User;
+}
+
+export interface SharingCreate {
+  shared_with_user_id: number;
+  resource_type: 'nomenclature' | 'cost_center' | 'financial_center' | 'product';
+  resource_id?: number | null;
+  permission_type: 'read' | 'write';
+  is_active: boolean;
+}
+
+export interface SharingUpdate {
+  permission_type?: 'read' | 'write';
+  is_active?: boolean;
 }

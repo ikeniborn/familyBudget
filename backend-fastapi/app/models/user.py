@@ -20,6 +20,7 @@ class User(Base):
     telegram_id = Column("user_telegram_id", BigInteger, unique=True, nullable=True)
     refresh_token = Column(String, nullable=True)
     auth_method = Column(String, nullable=False, default="telegram")
+    role = Column("user_role", String(20), nullable=False, default="user")
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column("created_dttm", DateTime(timezone=True), server_default=func.now())
     updated_at = Column("updated_dttm", DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -39,6 +40,7 @@ class User(Base):
             "username": self.username,
             "telegram_id": str(self.telegram_id) if self.telegram_id else None,
             "auth_method": self.auth_method,
+            "role": self.role,
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None

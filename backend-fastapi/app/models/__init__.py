@@ -11,6 +11,7 @@ from .registry import Registry
 from .product import Product
 from .product_price import ProductPrice
 from .product_nomenclature import ProductNomenclature
+from .sharing import Sharing
 
 __all__ = [
     "User",
@@ -23,4 +24,5 @@ __all__ = [
     "Product",
     "ProductPrice",
     "ProductNomenclature",
+    "Sharing",
 ]
