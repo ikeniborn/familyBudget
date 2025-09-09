@@ -38,13 +38,78 @@ class PeriodsService extends BaseService<Period, CreatePeriodData, UpdatePeriodD
   // Admin API - Get all periods with user information
   async getAllWithUsers(): Promise<AdminPeriod[]> {
     try {
-      const response = await api.get<AdminPeriod[]>('/api/admin/periods');
-      // Map period_id to id for consistency with UI components
-      return response.map((p: any) => ({
-        ...p,
-        id: p.period_id,
-      }));
+      console.log('🔍 Fetching admin periods from /api/admin/periods...');
+      const response = await api.get<{success: boolean, data: AdminPeriod[], total: number}>('/admin/periods');
+      
+      console.log('📦 Raw API response:', response);
+      
+      // The api.get() method returns the full response object {success, data, total}
+      if (!response || typeof response !== 'object') {
+        console.error('❌ Invalid admin periods API response:', response);
+        throw new Error('Invalid response from admin periods API');
+      }
+
+      // Handle different response formats
+      let periods: any[] = [];
+      if (response.success && Array.isArray(response.data)) {
+        periods = response.data;
+      } else if (Array.isArray(response)) {
+        periods = response;
+      } else if (response.data && Array.isArray(response.data)) {
+        periods = response.data;
+      } else {
+        console.error('❌ No valid periods data in response:', response);
+        throw new Error('No periods data in API response');
+      }
+      
+      console.log(`📋 Received ${periods.length} periods from API`);
+      console.log('📋 First period sample:', periods[0]);
+      
+      // Map period_id to id for consistency and ensure all AdminPeriod fields are present
+      const mappedPeriods = periods.map((p: any) => {
+        const mappedPeriod = {
+          ...p,
+          // Ensure id is properly mapped
+          id: p.period_id || p.id,
+          
+          // Ensure period_name is available (map from ru_name if needed for legacy compatibility)
+          period_name: p.period_name || p.ru_name || '',
+          period_ru_name: p.period_ru_name || p.ru_name || '',
+          
+          // Handle date fields
+          created_at: p.created_at || p.date || null,
+          
+          // Ensure all AdminPeriod fields are present with fallbacks
+          user_name: p.user_name || 'Неизвестный пользователь',
+          user_email: p.user_email || null,
+          username: p.username || null,
+          telegram_id: p.telegram_id ? String(p.telegram_id) : null,
+          
+          // Ensure other required fields are present
+          user_id: p.user_id || 0,
+          period_id: p.period_id || p.id || 0,
+          period_year: p.period_year || (p.date ? new Date(p.date).getFullYear() : new Date().getFullYear()),
+          period_month: p.period_month || (p.date ? new Date(p.date).getMonth() + 1 : new Date().getMonth() + 1),
+          is_active: p.is_active !== undefined ? p.is_active : true
+        };
+        
+        console.log('🔧 Mapped period:', mappedPeriod);
+        return mappedPeriod;
+      });
+
+      console.log(`✅ Loaded ${mappedPeriods.length} admin periods with user information`);
+      
+      return mappedPeriods;
     } catch (error: any) {
+      console.error('❌ Error fetching admin periods:', error);
+      console.error('❌ Error stack:', error.stack);
+      
+      // If it's a network or API error, provide more context
+      if (error.response) {
+        console.error('❌ Response status:', error.response.status);
+        console.error('❌ Response data:', error.response.data);
+      }
+      
       throw new Error(error.message || 'Failed to fetch admin periods');
     }
   }

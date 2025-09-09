@@ -61,13 +61,28 @@
         header: 'Пользователь',
         sortable: true,
         render: (item: AdminPeriod) => {
-          const tooltip = [
-            item.user_email && `Email: ${item.user_email}`,
-            item.username && `Username: ${item.username}`,
-            item.telegram_id && `Telegram ID: ${item.telegram_id}`
-          ].filter(Boolean).join('\n');
+          console.log('🔍 Rendering user cell for item:', item);
           
-          return `<span title="${tooltip}">${item.user_name}</span>`;
+          // Check if user_name exists in the item
+          const userName = item.user_name || 'Неизвестный пользователь';
+          const userEmail = item.user_email || '';
+          const username = item.username || '';
+          const telegramId = item.telegram_id || '';
+          
+          // Build tooltip information
+          const tooltipParts = [];
+          if (userEmail) tooltipParts.push(`Email: ${userEmail}`);
+          if (username) tooltipParts.push(`Username: ${username}`);
+          if (telegramId) tooltipParts.push(`Telegram ID: ${telegramId}`);
+          
+          const tooltip = tooltipParts.join('\n');
+          
+          // Return the rendered HTML
+          if (tooltip) {
+            return `<span title="${tooltip}" class="cursor-help">${userName}</span>`;
+          } else {
+            return `<span>${userName}</span>`;
+          }
         }
       }
     ] : []),
@@ -93,19 +108,38 @@
 
   // Load periods
   async function fetchPeriods() {
-    if (!$currentUser?.user_id) return;
+    console.log('🚀 fetchPeriods called. Current user:', $currentUser);
+    console.log('🔐 Is admin?', $isAdmin);
+    console.log('🔑 User role:', $currentUser?.role);
+    console.log('📝 Full user object:', JSON.stringify($currentUser, null, 2));
+    
+    if (!$currentUser?.user_id) {
+      console.warn('⚠️ No user_id found, skipping fetch');
+      return;
+    }
     
     try {
       loading = true;
       if ($isAdmin) {
+        console.log('👑 Fetching admin periods...');
         adminPeriods = await periodsService.getAllWithUsers();
-        periods = adminPeriods; // For compatibility with existing logic
+        console.log(`✅ Admin view: loaded ${adminPeriods.length} periods with user information`);
+        console.log('📊 Admin periods data:', adminPeriods);
+        
+        // Clear regular periods for admin view
+        periods = [];
       } else {
+        console.log('👤 Fetching user periods...');
         periods = await periodsService.getByUserId($currentUser.user_id);
+        console.log(`✅ User view: loaded ${periods.length} periods`);
+        
+        // Clear admin periods for user view
+        adminPeriods = [];
       }
     } catch (error: any) {
       toast.error('Ошибка', 'Не удалось загрузить периоды');
-      console.error('Error fetching periods:', error);
+      console.error('❌ Error fetching periods:', error);
+      console.error('Stack trace:', error.stack);
     } finally {
       loading = false;
     }
@@ -300,7 +334,7 @@
 
 <CRUDTable
   title={$isAdmin ? "Управление периодами (Администратор)" : "Управление периодами"}
-  data={periods}
+  data={$isAdmin ? adminPeriods : periods}
   {columns}
   {loading}
   searchable={true}

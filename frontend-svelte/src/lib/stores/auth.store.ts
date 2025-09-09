@@ -6,6 +6,7 @@ import api from '$lib/services/api';
 import type { TelegramAuthData } from '$lib/utils/telegram-oauth';
 
 interface AuthUser extends User {
+  user_id?: number; // Add user_id for compatibility with services
   authMethod?: 'telegram' | 'password';
 }
 
@@ -141,6 +142,48 @@ const authStore = {
     }
   },
 
+  async loginWithPassword(username: string, password: string): Promise<void> {
+    update(state => ({ ...state, isLoading: true, error: null }));
+    try {
+      const response = await authService.loginWithPassword(username, password);
+      
+      if (response.success && response.user) {
+        // Transform auth service response to User type
+        const userData: AuthUser = {
+          id: response.user.id,
+          user_id: response.user.id, // Add user_id for compatibility
+          user_name: [response.user.firstName, response.user.lastName].filter(Boolean).join(' ') || response.user.username,
+          user_email: null,
+          username: response.user.username,
+          telegram_id: null,
+          auth_method: 'password',
+          role: response.user.role || 'user',
+          is_active: true,
+          authMethod: 'password' as const
+        };
+        
+        update(state => ({
+          ...state,
+          user: userData,
+          isAuthenticated: true,
+          isLoading: false,
+          error: null
+        }));
+      } else {
+        throw new Error(response.error || 'Password login failed');
+      }
+    } catch (error: any) {
+      const errorMessage = error.message || 'Password login failed';
+      update(state => ({
+        ...state,
+        isLoading: false,
+        error: errorMessage,
+        isAuthenticated: false
+      }));
+      throw error;
+    }
+  },
+
   async logout(): Promise<void> {
     update(state => ({ ...state, isLoading: true }));
     try {
@@ -161,16 +204,48 @@ const authStore = {
   async checkAuth(): Promise<void> {
     update(state => ({ ...state, isLoading: true }));
     try {
-      const response = await api.get<User>('/users/me');
-      if (response) {
+      const response = await api.get<{success: boolean, user: User, authenticated: boolean}>('/auth/me');
+      
+      console.log('🔍 Auth check response:', response);
+      
+      // Handle different response formats
+      let userData: User | null = null;
+      if (response.success && response.user) {
+        userData = response.user;
+      } else if (response.user) {
+        userData = response.user;
+      } else if (response.authenticated && (response as any).id) {
+        // Handle case where user data is directly in response
+        userData = response as any;
+      }
+      
+      if (userData) {
+        // Ensure the user object has the required fields
+        const normalizedUser: AuthUser = {
+          id: userData.id,
+          user_id: userData.id, // Map id to user_id for consistency
+          user_name: userData.user_name,
+          user_email: userData.user_email,
+          username: userData.username,
+          telegram_id: userData.telegram_id,
+          auth_method: userData.auth_method,
+          role: userData.role || 'user',
+          is_active: userData.is_active ?? true,
+          created_at: userData.created_at,
+          updated_at: userData.updated_at
+        };
+        
+        console.log('✅ Normalized user data:', normalizedUser);
+        
         update(state => ({
           ...state,
-          user: response,
+          user: normalizedUser,
           isAuthenticated: true,
           isLoading: false,
           error: null
         }));
       } else {
+        console.log('❌ No user data in auth response');
         update(state => ({
           ...state,
           user: null,
@@ -234,6 +309,7 @@ export function useAuth() {
     get error() { return currentState.error; },
     login: (telegramData: any) => authStore.login(telegramData),
     loginWithTelegramOAuth: (authData: TelegramAuthData) => authStore.loginWithTelegramOAuth(authData),
+    loginWithPassword: (username: string, password: string) => authStore.loginWithPassword(username, password),
     logout: () => authStore.logout(),
     checkAuth: () => authStore.checkAuth(),
     setUser: (user: AuthUser) => authStore.setUser(user),
@@ -250,6 +326,7 @@ export const authStoreCompat = {
   subscribe: authStore.subscribe,
   login: authStore.login,
   loginWithTelegramOAuth: authStore.loginWithTelegramOAuth,
+  loginWithPassword: authStore.loginWithPassword,
   logout: authStore.logout,
   checkAuth: authStore.checkAuth,
   setUser: authStore.setUser,
