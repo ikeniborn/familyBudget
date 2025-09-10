@@ -20,6 +20,14 @@ Family Budget is a web-based budget management system with multi-user support, T
 - Database: `budget-postgres`
 - Cache: `budget-redis`
 
+**⚠️ CONTAINER MANAGEMENT RULES:**
+- 🔍 **CHECK** container status before operations: `docker ps | grep budget-`
+- 🔄 **RESTART** existing containers, DON'T create duplicate processes
+- 🚫 **AVOID** running multiple `npm run dev` or `uvicorn` in same container
+- 💀 **KILL** duplicate processes before restart: `docker exec budget-frontend pkill -f "npm run dev"`
+- ✅ **USE** `docker restart budget-frontend` instead of new `docker exec npm run dev`
+- 🔧 **PREFER** `docker-compose restart` for full service restart
+
 ## Quick Command Reference
 
 ### Development Environment
@@ -100,7 +108,20 @@ docker logs -f budget-postgres --tail=50
 
 ```bash
 # Container status
-docker ps -a
+docker ps -a | grep budget-
+
+# Check for duplicate processes (IMPORTANT!)
+docker exec budget-frontend ps aux | grep "npm run dev"
+docker exec budget-backend ps aux | grep uvicorn
+
+# Kill duplicate processes if found
+docker exec budget-frontend pkill -f "npm run dev" || true
+docker exec budget-backend pkill -f uvicorn || true
+
+# Restart containers properly (DON'T create new processes)
+docker restart budget-frontend budget-backend
+# OR
+docker-compose restart
 
 # View logs
 docker logs --tail 100 -f <container>

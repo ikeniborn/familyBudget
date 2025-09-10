@@ -548,6 +548,29 @@ Traefik (80/443) → Frontend (5173) → FastAPI (4000) → PostgreSQL/Redis
 - Database: `budget-postgres`
 - Cache: `budget-redis`
 
+#### ⚠️ ВАЖНО: Управление контейнерами
+
+**ОБЯЗАТЕЛЬНЫЕ ПРАВИЛА:**
+1. **Проверяйте статус контейнеров** перед запуском: `docker ps | grep budget-`
+2. **НЕ создавайте дублирующие процессы** в контейнерах
+3. **Перезапускайте контейнеры**, а не создавайте новые процессы
+4. **Убивайте зависшие процессы** перед перезапуском
+
+```bash
+# Проверка дублирующих процессов
+docker exec budget-frontend ps aux | grep "npm run dev"
+docker exec budget-backend ps aux | grep uvicorn
+
+# Убийство дублирующих процессов
+docker exec budget-frontend pkill -f "npm run dev" || true
+docker exec budget-backend pkill -f uvicorn || true
+
+# Правильный перезапуск контейнеров
+docker restart budget-frontend budget-backend
+# ИЛИ
+docker-compose restart
+```
+
 ### Команды для разработки
 
 #### Окружение разработки
@@ -620,7 +643,25 @@ docker logs -f budget-backend --tail=100
 docker logs -f budget-postgres --tail=50
 ```
 
-#### Отладка
+#### Отладка и управление процессами
+
+```bash
+# ВАЖНО: Проверка и управление процессами
+# Проверить статус контейнеров
+docker ps -a | grep budget-
+
+# Найти дублирующие процессы
+docker exec budget-frontend ps aux | grep "npm run dev"
+docker exec budget-backend ps aux | grep uvicorn
+
+# Убить дублирующие процессы если найдены
+docker exec budget-frontend pkill -f "npm run dev" || true
+docker exec budget-backend pkill -f uvicorn || true
+
+# Правильный перезапуск (НЕ создавать новые процессы!)
+docker restart budget-frontend budget-backend
+
+# Стандартная отладка
 ```bash
 # Статус контейнеров
 docker ps -a
