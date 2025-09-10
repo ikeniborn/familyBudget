@@ -31,6 +31,7 @@ function getStoredAuth(): AuthState | null {
       if (user && (!user.id || !user.role)) {
         console.warn('🚨 Stored user data is incomplete, clearing cache:', user);
         console.warn('🚨 Missing fields - id:', !user.id, 'role:', !user.role);
+        console.warn('🚨 User object keys:', Object.keys(user || {}));
         localStorage.removeItem('auth-storage');
         return null;
       }
@@ -123,14 +124,52 @@ function getInitialState(): AuthState {
   return initialState;
 }
 
-// Create the main writable store
-const { subscribe, set, update } = writable<AuthState>(getInitialState());
+// Create the main writable store with enhanced update protection
+const { subscribe, set, update: originalUpdate } = writable<AuthState>(getInitialState());
+
+// Enhanced update function that protects role field
+const update = (updater: (current: AuthState) => AuthState) => {
+  originalUpdate((currentState) => {
+    const newState = updater(currentState);
+    
+    // Critical protection: Ensure role is never lost during updates
+    if (newState.user && currentState.user && currentState.user.role && !newState.user.role) {
+      console.warn('🛡️ ROLE PROTECTION: Preserving role from previous state');
+      newState.user.role = currentState.user.role;
+    }
+    
+    // Validate final state
+    if (newState.user && !newState.user.role) {
+      console.error('🚨 CRITICAL: Role is still undefined after protection!');
+      if (currentState.user?.role) {
+        console.log('🔧 EMERGENCY FIX: Restoring role from current state');
+        newState.user.role = currentState.user.role;
+      } else {
+        console.log('🔧 EMERGENCY FIX: Setting default user role');
+        newState.user.role = 'user' as const;
+      }
+    }
+    
+    return newState;
+  });
+};
 
 // Auto-save to localStorage when state changes
 let initialized = false;
 subscribe((state) => {
   if (initialized) {
+    // Critical fix: Ensure role is preserved before storing
+    if (state.user && !state.user.role) {
+      console.error('🚨 CRITICAL: Role is undefined before storage!', state.user);
+      // Don't store corrupted data
+      return;
+    }
     storeAuth(state);
+    
+    // Verify storage worked
+    if (state.user) {
+      console.log('💾 Auto-saved user with role:', state.user.role);
+    }
   } else {
     initialized = true;
   }
@@ -269,22 +308,34 @@ const authStore = {
         }
         
         // Transform auth service response to User type
+        // CRITICAL: Ensure all required fields are present
         const userData: AuthUser = {
-          id: response.user.id,
-          user_id: response.user.id, // Add user_id for compatibility
-          user_name: [response.user.firstName, response.user.lastName].filter(Boolean).join(' ') || response.user.username,
-          user_email: null,
-          username: response.user.username,
-          telegram_id: null,
+          id: response.user.id || response.user.user_id,
+          user_id: response.user.id || response.user.user_id, // Add user_id for compatibility
+          user_name: response.user.user_name || [response.user.firstName, response.user.lastName].filter(Boolean).join(' ') || response.user.username || 'User',
+          user_email: response.user.user_email || response.user.email || null,
+          username: response.user.username || response.user.user_login,
+          telegram_id: response.user.telegram_id || null,
           auth_method: 'password',
-          role: userRole, // Use validated role
-          is_active: true,
+          role: userRole, // Use validated role - CRITICAL FIELD
+          is_active: response.user.is_active !== undefined ? response.user.is_active : true,
           authMethod: 'password' as const
         };
         
         console.log('🔐 Password login - original role:', response.user.role);
         console.log('🔐 Password login - processed role:', userRole);
         console.log('🔐 Password login - normalized userData:', userData);
+        
+        // CRITICAL: Validate userData before setting
+        if (!userData.id) {
+          console.error('❌ Password login - userData missing id!', userData);
+          throw new Error('User data is incomplete - missing id');
+        }
+        
+        if (!userData.role) {
+          console.error('❌ Password login - userData missing role!', userData);
+          userData.role = 'user'; // Emergency fallback
+        }
         
         update(state => ({
           ...state,
@@ -379,10 +430,11 @@ const authStore = {
           username: userData.username,
           telegram_id: userData.telegram_id,
           auth_method: userData.auth_method,
-          role: userRole, // Use the strongly typed role
           is_active: userData.is_active ?? true,
           created_at: userData.created_at,
-          updated_at: userData.updated_at
+          updated_at: userData.updated_at,
+          // CRITICAL: Assign role last to ensure it's not overwritten
+          role: userRole
         };
         
         // Additional validation - ensure role is preserved
@@ -453,17 +505,52 @@ const authStore = {
   },
 
   setUser(user: AuthUser): void {
-    update(state => ({
-      ...state,
-      user,
-      isAuthenticated: true,
-      isLoading: false,
-      error: null
-    }));
+    // Validate user has required fields before setting
+    if (!user.id || !user.role) {
+      console.error('🚨 setUser: Invalid user data - missing id or role:', user);
+      return;
+    }
+    
+    console.log('🔧 setUser called with role:', user.role);
+    
+    update(state => {
+      const newState = {
+        ...state,
+        user: {
+          ...user,
+          role: user.role // Explicitly preserve role
+        },
+        isAuthenticated: true,
+        isLoading: false,
+        error: null
+      };
+      
+      console.log('🔧 setUser - new state user role:', newState.user.role);
+      return newState;
+    });
   },
 
   clearError(): void {
     update(state => ({ ...state, error: null }));
+  },
+
+  // Debug helper to clear localStorage and refresh auth
+  async debugRefreshAuth(): Promise<void> {
+    console.log('🔧 DEBUG: Clearing localStorage and refreshing auth');
+    if (browser) {
+      localStorage.removeItem('auth-storage');
+    }
+    await this.checkAuth();
+  },
+
+  // Debug helper to get current state
+  getDebugState(): AuthState {
+    let currentState: AuthState;
+    const unsubscribe = subscribe(state => {
+      currentState = state;
+    });
+    unsubscribe();
+    return currentState!;
   }
 };
 
