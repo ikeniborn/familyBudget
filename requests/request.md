@@ -8,11 +8,9 @@
 </context>
 
 <problem_description>
-URL: http://localhost:5173/dashboard, http://localhost:5173/reference/periods
-Описание: При открытии страницы администратор так и не определяется с ролью адимнистратлр. фронетнд не определяет пользвателя как админа.
-Скриншоты: /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-10 15-19-52.png
-Ожидаемое поведение: Приложение открывается с ролью администратор и доступными функциями для администратора
-Текущее поведение: Приложение открывается с доступом для пользвоателя.
+При открытии http://localhost:5173/dashboard возинкает ошибка 
+/home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-10 15-46-11.png
+Устранинить ошибку
 </problem_description>
 
 <instructions>
