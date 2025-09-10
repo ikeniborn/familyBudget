@@ -359,6 +359,77 @@ const authStore = {
     }
   },
 
+  async register(username: string, password: string, firstName?: string, lastName?: string): Promise<void> {
+    update(state => ({ ...state, isLoading: true, error: null }));
+    try {
+      const response = await authService.register(username, password, firstName, lastName);
+      
+      if (response.success && response.user) {
+        // Use consistent role validation logic
+        let userRole: 'admin' | 'user';
+        
+        if (response.user.role === 'admin') {
+          userRole = 'admin' as const;
+        } else if (response.user.role === 'user') {
+          userRole = 'user' as const;
+        } else if (typeof response.user.role === 'string' && response.user.role.toLowerCase() === 'admin') {
+          userRole = 'admin' as const;
+        } else {
+          userRole = 'user' as const; // safe default
+        }
+        
+        // Transform auth service response to User type
+        // CRITICAL: Ensure all required fields are present
+        const userData: AuthUser = {
+          id: response.user.id,
+          user_id: response.user.id, // Add user_id for compatibility
+          user_name: [response.user.firstName, response.user.lastName].filter(Boolean).join(' ').trim() || response.user.username || 'User',
+          user_email: null,
+          username: response.user.username,
+          telegram_id: null,
+          auth_method: 'password',
+          role: userRole, // Use validated role - CRITICAL FIELD
+          is_active: true,
+          authMethod: 'password' as const
+        };
+        
+        console.log('📝 Registration - original role:', response.user.role);
+        console.log('📝 Registration - processed role:', userRole);
+        console.log('📝 Registration - normalized userData:', userData);
+        
+        // CRITICAL: Validate userData before setting
+        if (!userData.id) {
+          console.error('❌ Registration - userData missing id!', userData);
+          throw new Error('User data is incomplete - missing id');
+        }
+        
+        if (!userData.role) {
+          console.error('❌ Registration - userData missing role!', userData);
+          userData.role = 'user'; // Emergency fallback
+        }
+        
+        update(state => ({
+          ...state,
+          user: userData,
+          isAuthenticated: true,
+          isLoading: false,
+          error: null
+        }));
+      } else {
+        throw new Error(response.error || 'Registration failed');
+      }
+    } catch (error: any) {
+      const errorMessage = error.message || 'Registration failed';
+      update(state => ({
+        ...state,
+        isLoading: false,
+        error: errorMessage,
+        isAuthenticated: false
+      }));
+      throw error;
+    }
+  },
+
   async logout(): Promise<void> {
     update(state => ({ ...state, isLoading: true }));
     try {
@@ -600,6 +671,7 @@ export function useAuth() {
     login: (telegramData: any) => authStore.login(telegramData),
     loginWithTelegramOAuth: (authData: TelegramAuthData) => authStore.loginWithTelegramOAuth(authData),
     loginWithPassword: (username: string, password: string) => authStore.loginWithPassword(username, password),
+    register: (username: string, password: string, firstName?: string, lastName?: string) => authStore.register(username, password, firstName, lastName),
     logout: () => authStore.logout(),
     checkAuth: () => authStore.checkAuth(),
     setUser: (user: AuthUser) => authStore.setUser(user),
@@ -617,6 +689,7 @@ export const authStoreCompat = {
   login: authStore.login,
   loginWithTelegramOAuth: authStore.loginWithTelegramOAuth,
   loginWithPassword: authStore.loginWithPassword,
+  register: authStore.register,
   logout: authStore.logout,
   checkAuth: authStore.checkAuth,
   setUser: authStore.setUser,

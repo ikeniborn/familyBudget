@@ -5,7 +5,6 @@
   import { useToast } from '$lib/stores/toast.store';
   import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
-  import type { User } from '$types';
 
   let username = '';
   let password = '';
@@ -55,34 +54,14 @@
     isLoading = true;
 
     try {
-      // Import auth service for register since auth store doesn't have register method yet
-      const { authService } = await import('$lib/services/auth.service');
-      const response = await authService.register(username, password, firstName, lastName);
-
-      if (response.success && response.user) {
-        // Transform response to User type matching backend API
-        const userData: User = {
-          id: response.user.id,
-          user_name: [response.user.firstName, response.user.lastName].filter(Boolean).join(' ').trim() || response.user.username || '',
-          user_email: null,
-          username: response.user.username || '',
-          telegram_id: null,
-          auth_method: 'password',
-          role: response.user.role || 'user',
-          is_active: true
-        };
-
-        authStore.setUser({...userData, authMethod: 'password'});
-        toast.success('Успешно', 'Аккаунт создан и вы вошли в систему');
-        
-        // Use returnUrl from query params if available, otherwise go to dashboard
-        const returnUrl = $page.url.searchParams.get('returnUrl') || '/dashboard';
-        
-        // Use SvelteKit navigation for proper state management
-        await goto(returnUrl);
-      } else {
-        error = response.error || 'Ошибка регистрации';
-      }
+      await authStore.register(username, password, firstName, lastName);
+      toast.success('Успешно', 'Аккаунт создан и вы вошли в систему');
+      
+      // Use returnUrl from query params if available, otherwise go to dashboard
+      const returnUrl = $page.url.searchParams.get('returnUrl') || '/dashboard';
+      
+      // Use SvelteKit navigation for proper state management
+      await goto(returnUrl);
     } catch (err: any) {
       console.error('Register error:', err);
       error = err.message || 'Ошибка регистрации. Попробуйте еще раз.';
