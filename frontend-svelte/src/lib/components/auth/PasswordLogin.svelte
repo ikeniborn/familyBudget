@@ -1,9 +1,8 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import { setCurrentUser } from '$lib/stores/auth.store';
+  import { authStore } from '$lib/stores/auth.store';
   import { useToast } from '$lib/stores/toast.store';
-  import { authService } from '$lib/services/auth.service';
   import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
   import type { User } from '$types';
@@ -24,33 +23,17 @@
     isLoading = true;
 
     try {
-      const response = await authService.loginWithPassword(username, password);
-
-      if (response.success && response.user) {
-        const user: User = {
-          user_id: response.user.id,
-          user_name: [response.user.firstName, response.user.lastName].filter(Boolean).join(' ').trim() || response.user.username || '',
-          user_telegram_id: 0,
-          first_name: response.user.firstName || '',
-          last_name: response.user.lastName || '',
-          username: response.user.username || '',
-          authMethod: 'password'
-        };
-
-        setCurrentUser(user);
-        toast.success('Успешно', 'Вы вошли в систему');
-        
-        // Use returnUrl from query params if available, otherwise go to dashboard
-        const returnUrl = $page.url.searchParams.get('returnUrl') || '/dashboard';
-        
-        // Use SvelteKit navigation for proper state management
-        await goto(returnUrl);
-      } else {
-        error = response.error || 'Ошибка входа';
-      }
+      await authStore.loginWithPassword(username, password);
+      toast.success('Успешно', 'Вы вошли в систему');
+      
+      // Use returnUrl from query params if available, otherwise go to dashboard
+      const returnUrl = $page.url.searchParams.get('returnUrl') || '/dashboard';
+      
+      // Use SvelteKit navigation for proper state management
+      await goto(returnUrl);
     } catch (err: any) {
       console.error('Password login error:', err);
-      error = err.response?.data?.error || err.message || 'Ошибка входа. Попробуйте еще раз.';
+      error = err.message || 'Ошибка входа. Попробуйте еще раз.';
     } finally {
       isLoading = false;
     }
@@ -72,20 +55,24 @@
     isLoading = true;
 
     try {
+      // Import auth service for register since auth store doesn't have register method yet
+      const { authService } = await import('$lib/services/auth.service');
       const response = await authService.register(username, password, firstName, lastName);
 
       if (response.success && response.user) {
-        const user: User = {
-          user_id: response.user.id,
+        // Transform response to User type matching backend API
+        const userData: User = {
+          id: response.user.id,
           user_name: [response.user.firstName, response.user.lastName].filter(Boolean).join(' ').trim() || response.user.username || '',
-          user_telegram_id: 0,
-          first_name: response.user.firstName || '',
-          last_name: response.user.lastName || '',
+          user_email: null,
           username: response.user.username || '',
-          authMethod: 'password'
+          telegram_id: null,
+          auth_method: 'password',
+          role: response.user.role || 'user',
+          is_active: true
         };
 
-        setCurrentUser(user);
+        authStore.setUser({...userData, authMethod: 'password'});
         toast.success('Успешно', 'Аккаунт создан и вы вошли в систему');
         
         // Use returnUrl from query params if available, otherwise go to dashboard
@@ -98,7 +85,7 @@
       }
     } catch (err: any) {
       console.error('Register error:', err);
-      error = err.response?.data?.error || err.message || 'Ошибка регистрации. Попробуйте еще раз.';
+      error = err.message || 'Ошибка регистрации. Попробуйте еще раз.';
     } finally {
       isLoading = false;
     }

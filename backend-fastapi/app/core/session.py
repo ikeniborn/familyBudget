@@ -180,6 +180,7 @@ async def get_current_user_from_session(request: Request) -> Optional[dict]:
         "user_name": session.get("user_name") or session.get("name"),
         "auth_method": session.get("auth_method"),
         "telegram_id": session.get("telegram_id"),
+        "role": session.get("role"),
     }
 
 

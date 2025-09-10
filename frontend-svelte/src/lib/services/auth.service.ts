@@ -26,6 +26,7 @@ export interface PasswordAuthResponse {
     username: string;
     firstName?: string;
     lastName?: string;
+    role?: 'admin' | 'user';
   };
   accessToken?: string;
   refreshToken?: string;
@@ -40,6 +41,7 @@ export interface RegisterResponse {
     username: string;
     firstName?: string;
     lastName?: string;
+    role?: 'admin' | 'user';
   };
   accessToken?: string;
   refreshToken?: string;
@@ -116,7 +118,8 @@ class AuthService {
           id: response.user.id,
           username: response.user.username,
           firstName: response.user.user_name?.split(' ')[0],
-          lastName: response.user.user_name?.split(' ')[1]
+          lastName: response.user.user_name?.split(' ')[1],
+          role: response.user.role
         }
       };
       
@@ -149,7 +152,8 @@ class AuthService {
           id: response.user.id,
           username: response.user.username,
           firstName: response.user.user_name?.split(' ')[0],
-          lastName: response.user.user_name?.split(' ')[1]
+          lastName: response.user.user_name?.split(' ')[1],
+          role: response.user.role
         }
       };
       

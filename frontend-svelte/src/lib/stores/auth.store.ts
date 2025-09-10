@@ -8,6 +8,7 @@ import type { TelegramAuthData } from '$lib/utils/telegram-oauth';
 interface AuthUser extends User {
   user_id?: number; // Add user_id for compatibility with services
   authMethod?: 'telegram' | 'password';
+  role: 'admin' | 'user'; // Make role required to ensure it's always present
 }
 
 interface AuthState {
@@ -24,8 +25,44 @@ function getStoredAuth(): AuthState | null {
     const stored = localStorage.getItem('auth-storage');
     if (stored) {
       const parsed = JSON.parse(stored);
+      const user = parsed.state?.user || null;
+      
+      // Validate that the user object has the required fields
+      if (user && (!user.id || !user.role)) {
+        console.warn('🚨 Stored user data is incomplete, clearing cache:', user);
+        console.warn('🚨 Missing fields - id:', !user.id, 'role:', !user.role);
+        localStorage.removeItem('auth-storage');
+        return null;
+      }
+      
+      // Critical fix: Ensure role is properly typed with strong validation
+      if (user && typeof user.role === 'string') {
+        // Use the same strict role validation as checkAuth
+        let validRole: 'admin' | 'user';
+        
+        if (user.role === 'admin') {
+          validRole = 'admin' as const;
+        } else if (user.role === 'user') {
+          validRole = 'user' as const;
+        } else if (user.role.toLowerCase() === 'admin') {
+          validRole = 'admin' as const;
+        } else {
+          console.warn('🚨 Invalid role value:', user.role, 'setting to "user"');
+          validRole = 'user' as const;
+        }
+        
+        // Force the role to be the validated value
+        user.role = validRole;
+        console.log('✅ Restored user from localStorage with validated role:', user.role);
+        console.log('✅ Role type:', typeof user.role);
+      } else if (user) {
+        // If role is missing, set default
+        console.warn('🚨 User missing role, setting default "user"');
+        user.role = 'user' as const;
+      }
+      
       return {
-        user: parsed.state?.user || null,
+        user,
         isAuthenticated: parsed.state?.isAuthenticated || false,
         isLoading: false,
         error: null
@@ -33,6 +70,7 @@ function getStoredAuth(): AuthState | null {
     }
   } catch (error) {
     console.error('Failed to parse stored auth:', error);
+    localStorage.removeItem('auth-storage');
   }
   return null;
 }
@@ -47,7 +85,20 @@ function storeAuth(state: AuthState) {
       },
       version: 0
     };
+    
+    // Debug logging for role preservation
+    if (state.user?.role) {
+      console.log('💾 Storing user with role:', state.user.role);
+    }
+    
     localStorage.setItem('auth-storage', JSON.stringify(toStore));
+    
+    // Verify storage worked
+    const stored = localStorage.getItem('auth-storage');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      console.log('💾 Verification - stored role:', parsed.state?.user?.role);
+    }
   } catch (error) {
     console.error('Failed to store auth:', error);
   }
@@ -55,12 +106,21 @@ function storeAuth(state: AuthState) {
 
 function getInitialState(): AuthState {
   const storedState = getStoredAuth();
-  return storedState || {
+  console.log('🔄 Auth store initial state from localStorage:', storedState);
+  
+  const initialState = storedState || {
     user: null,
     isAuthenticated: false,
     isLoading: false,
     error: null
   };
+  
+  if (initialState.user) {
+    console.log('👤 Initial user from localStorage:', initialState.user);
+    console.log('🔑 Initial user role:', initialState.user.role);
+  }
+  
+  return initialState;
 }
 
 // Create the main writable store
@@ -97,9 +157,32 @@ const authStore = {
       const response = await api.post<AuthResponse>('/auth/telegram', telegramData);
       
       if (response.success && response.user) {
+        // Use consistent role validation logic
+        let userRole: 'admin' | 'user';
+        
+        if (response.user.role === 'admin') {
+          userRole = 'admin' as const;
+        } else if (response.user.role === 'user') {
+          userRole = 'user' as const;
+        } else if (typeof response.user.role === 'string' && response.user.role.toLowerCase() === 'admin') {
+          userRole = 'admin' as const;
+        } else {
+          userRole = 'user' as const; // safe default
+        }
+
+        const userData: AuthUser = { 
+          ...response.user, 
+          role: userRole,
+          authMethod: 'telegram' as const 
+        };
+
+        console.log('📱 Telegram login - original role:', response.user.role);
+        console.log('📱 Telegram login - processed role:', userRole);
+        console.log('📱 Telegram login - normalized userData:', userData);
+
         update(state => ({
           ...state,
-          user: { ...response.user, authMethod: 'telegram' as const },
+          user: userData,
           isAuthenticated: true,
           isLoading: false,
           error: null
@@ -123,9 +206,33 @@ const authStore = {
     update(state => ({ ...state, isLoading: true, error: null }));
     try {
       const response = await authService.loginWithTelegramOAuth(authData);
+      
+      // Use consistent role validation logic
+      let userRole: 'admin' | 'user';
+      
+      if (response.user.role === 'admin') {
+        userRole = 'admin' as const;
+      } else if (response.user.role === 'user') {
+        userRole = 'user' as const;
+      } else if (typeof response.user.role === 'string' && response.user.role.toLowerCase() === 'admin') {
+        userRole = 'admin' as const;
+      } else {
+        userRole = 'user' as const; // safe default
+      }
+
+      const userData: AuthUser = { 
+        ...response.user, 
+        role: userRole,
+        authMethod: 'telegram' as const 
+      };
+
+      console.log('📱 Telegram OAuth - original role:', response.user.role);
+      console.log('📱 Telegram OAuth - processed role:', userRole);
+      console.log('📱 Telegram OAuth - normalized userData:', userData);
+
       update(state => ({
         ...state,
-        user: { ...response.user, authMethod: 'telegram' as const },
+        user: userData,
         isAuthenticated: true,
         isLoading: false,
         error: null
@@ -148,6 +255,19 @@ const authStore = {
       const response = await authService.loginWithPassword(username, password);
       
       if (response.success && response.user) {
+        // Use consistent role validation logic
+        let userRole: 'admin' | 'user';
+        
+        if (response.user.role === 'admin') {
+          userRole = 'admin' as const;
+        } else if (response.user.role === 'user') {
+          userRole = 'user' as const;
+        } else if (typeof response.user.role === 'string' && response.user.role.toLowerCase() === 'admin') {
+          userRole = 'admin' as const;
+        } else {
+          userRole = 'user' as const; // safe default
+        }
+        
         // Transform auth service response to User type
         const userData: AuthUser = {
           id: response.user.id,
@@ -157,10 +277,14 @@ const authStore = {
           username: response.user.username,
           telegram_id: null,
           auth_method: 'password',
-          role: response.user.role || 'user',
+          role: userRole, // Use validated role
           is_active: true,
           authMethod: 'password' as const
         };
+        
+        console.log('🔐 Password login - original role:', response.user.role);
+        console.log('🔐 Password login - processed role:', userRole);
+        console.log('🔐 Password login - normalized userData:', userData);
         
         update(state => ({
           ...state,
@@ -207,43 +331,101 @@ const authStore = {
       const response = await api.get<{success: boolean, user: User, authenticated: boolean}>('/auth/me');
       
       console.log('🔍 Auth check response:', response);
+      console.log('🔍 Full response structure:', JSON.stringify(response, null, 2));
       
       // Handle different response formats
       let userData: User | null = null;
       if (response.success && response.user) {
         userData = response.user;
+        console.log('📝 Using response.user:', userData);
       } else if (response.user) {
         userData = response.user;
+        console.log('📝 Using response.user (no success flag):', userData);
       } else if (response.authenticated && (response as any).id) {
         // Handle case where user data is directly in response
         userData = response as any;
+        console.log('📝 Using response directly:', userData);
       }
       
       if (userData) {
-        // Ensure the user object has the required fields
+        console.log('🔍 Raw userData before normalization:', JSON.stringify(userData, null, 2));
+        console.log('🔑 Raw userData.role value:', userData.role);
+        console.log('🔑 Raw userData.role type:', typeof userData.role);
+        
+        // Critical fix: Ensure role is properly preserved as string literal type
+        // Use explicit type assertion to ensure TypeScript treats this as literal type
+        let userRole: 'admin' | 'user';
+        
+        // Direct assignment with strict validation - no conditional logic that might lose the type
+        if (userData.role === 'admin') {
+          userRole = 'admin' as const;
+        } else if (userData.role === 'user') {
+          userRole = 'user' as const;
+        } else if (typeof userData.role === 'string' && userData.role.toLowerCase() === 'admin') {
+          userRole = 'admin' as const;
+        } else {
+          userRole = 'user' as const; // safe default
+        }
+        
+        console.log('🔄 Processed role:', userRole);
+        console.log('🔄 Role type after processing:', typeof userRole);
+        
+        // Create the normalized user with explicit role assignment
         const normalizedUser: AuthUser = {
           id: userData.id,
-          user_id: userData.id, // Map id to user_id for consistency
+          user_id: userData.id,
           user_name: userData.user_name,
           user_email: userData.user_email,
           username: userData.username,
           telegram_id: userData.telegram_id,
           auth_method: userData.auth_method,
-          role: userData.role || 'user',
+          role: userRole, // Use the strongly typed role
           is_active: userData.is_active ?? true,
           created_at: userData.created_at,
           updated_at: userData.updated_at
         };
         
-        console.log('✅ Normalized user data:', normalizedUser);
+        // Additional validation - ensure role is preserved
+        if (normalizedUser.role !== userRole) {
+          console.error('❌ Role was not preserved during object creation!');
+          normalizedUser.role = userRole; // Force assignment
+        }
         
-        update(state => ({
-          ...state,
-          user: normalizedUser,
-          isAuthenticated: true,
-          isLoading: false,
-          error: null
-        }));
+        console.log('✅ Final normalized user data:', JSON.stringify(normalizedUser, null, 2));
+        console.log('🔑 Final user role:', normalizedUser.role);
+        console.log('🔑 Final role type:', typeof normalizedUser.role);
+        console.log('🔍 Admin check:', normalizedUser.role === 'admin');
+        
+        // Update store with the properly typed user
+        update(state => {
+          const newState = {
+            ...state,
+            user: normalizedUser,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null
+          };
+          
+          // Verify role is preserved in the state update
+          console.log('📦 State being set - user role:', newState.user?.role);
+          return newState;
+        });
+        
+        // Verify the store update worked - shorter timeout for faster feedback
+        setTimeout(() => {
+          let currentState: any;
+          const unsubscribe = subscribe(state => {
+            currentState = state;
+          });
+          unsubscribe();
+          
+          console.log('🔄 Final store state after update:');
+          console.log('  - user exists:', !!currentState.user);
+          console.log('  - user role:', currentState.user?.role);
+          console.log('  - isAuthenticated:', currentState.isAuthenticated);
+          console.log('  - isAdmin would be:', currentState.user?.role === 'admin');
+        }, 10);
+        
       } else {
         console.log('❌ No user data in auth response');
         update(state => ({
@@ -290,7 +472,28 @@ export const currentUser = derived(authStore, ($auth) => $auth.user);
 export const isAuthenticated = derived(authStore, ($auth) => $auth.isAuthenticated);
 export const isAuthLoading = derived(authStore, ($auth) => $auth.isLoading);
 export const authError = derived(authStore, ($auth) => $auth.error);
-export const isAdmin = derived(authStore, ($auth) => $auth.user?.role === 'admin');
+export const isAdmin = derived(authStore, ($auth) => {
+  const user = $auth.user;
+  const role = user?.role;
+  const isAdminResult = role === 'admin';
+  
+  // Enhanced debug logging
+  console.log('🔍 isAdmin derived check:', {
+    userExists: !!user,
+    userId: user?.id,
+    role: role,
+    roleType: typeof role,
+    isAuthenticated: $auth.isAuthenticated,
+    isAdminResult: isAdminResult
+  });
+  
+  // Additional validation
+  if (user && !role) {
+    console.warn('⚠️ User exists but role is missing:', user);
+  }
+  
+  return isAdminResult;
+});
 
 // Export alias for compatibility  
 export const setCurrentUser = (user: AuthUser) => authStore.setUser(user);

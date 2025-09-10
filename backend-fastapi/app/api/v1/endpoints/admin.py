@@ -3,9 +3,10 @@ Admin API endpoints for managing all user data.
 """
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
-from app.api.deps import get_db
+from app.db.database import get_db
 from app.core.security import require_admin_access
 from app.models import (
     User, Sharing, Nomenclature, CostCenter, 
@@ -19,14 +20,21 @@ router = APIRouter()
 @router.get("/users", response_model=Dict[str, Any])
 async def get_all_users(
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_admin_access),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000)
 ):
     """Get all users for admin."""
-    users = db.query(User).offset(skip).limit(limit).all()
-    total = db.query(User).count()
+    # Use async query
+    stmt = select(User).offset(skip).limit(limit)
+    result = await db.execute(stmt)
+    users = result.scalars().all()
+    
+    # Count query
+    count_stmt = select(User)
+    count_result = await db.execute(count_stmt)
+    total = len(count_result.scalars().all())
     
     return {
         "success": True,
@@ -39,7 +47,7 @@ async def get_all_users(
 async def get_all_references(
     resource_type: str,
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_admin_access),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
@@ -62,20 +70,28 @@ async def get_all_references(
         )
     
     model = model_map[resource_type]
-    query = db.query(model).join(User, model.user_id == User.id)
+    
+    # Build async query
+    stmt = select(model, User).join(User, model.user_id == User.id)
     
     if user_id:
-        query = query.filter(model.user_id == user_id)
+        stmt = stmt.filter(model.user_id == user_id)
     
-    references = query.offset(skip).limit(limit).all()
-    total = query.count()
+    stmt = stmt.offset(skip).limit(limit)
+    result_set = await db.execute(stmt)
+    references_with_users = result_set.all()
+    
+    # Count query
+    count_stmt = select(model)
+    if user_id:
+        count_stmt = count_stmt.filter(model.user_id == user_id)
+    count_result = await db.execute(count_stmt)
+    total = len(count_result.scalars().all())
     
     # Group by user
     result = []
-    for ref in references:
+    for ref, user in references_with_users:
         ref_dict = ref.to_dict()
-        # Add user info
-        user = db.query(User).filter(User.id == ref.user_id).first()
         ref_dict["user"] = user.to_dict() if user else None
         result.append(ref_dict)
     
@@ -92,7 +108,7 @@ async def update_reference(
     item_id: int,
     request: Request,
     update_data: Dict[str, Any],
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_admin_access)
 ):
     """Update reference item for admin."""
@@ -111,7 +127,11 @@ async def update_reference(
         )
     
     model = model_map[resource_type]
-    item = db.query(model).filter(model.id == item_id).first()
+    
+    # Find item using async query
+    stmt = select(model).filter(model.id == item_id)
+    result = await db.execute(stmt)
+    item = result.scalar_one_or_none()
     
     if not item:
         raise HTTPException(
@@ -132,14 +152,14 @@ async def update_reference(
             setattr(item, field, value)
     
     try:
-        db.commit()
-        db.refresh(item)
+        await db.commit()
+        await db.refresh(item)
         return {
             "success": True,
             "data": item.to_dict()
         }
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update {resource_type}: {str(e)}"
@@ -151,7 +171,7 @@ async def delete_reference(
     resource_type: str,
     item_id: int,
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_admin_access)
 ):
     """Delete reference item for admin."""
@@ -170,7 +190,11 @@ async def delete_reference(
         )
     
     model = model_map[resource_type]
-    item = db.query(model).filter(model.id == item_id).first()
+    
+    # Find item using async query
+    stmt = select(model).filter(model.id == item_id)
+    result = await db.execute(stmt)
+    item = result.scalar_one_or_none()
     
     if not item:
         raise HTTPException(
@@ -179,14 +203,14 @@ async def delete_reference(
         )
     
     try:
-        db.delete(item)
-        db.commit()
+        await db.delete(item)
+        await db.commit()
         return {
             "success": True,
             "message": f"{resource_type.title()} deleted successfully"
         }
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete {resource_type}: {str(e)}"
@@ -196,24 +220,28 @@ async def delete_reference(
 @router.get("/periods", response_model=Dict[str, Any])
 async def get_all_periods(
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_admin_access),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000)
 ):
     """Get all periods from all users for admin."""
     
-    # Get all periods with JOIN to user table for user information
-    periods_with_users = (
-        db.query(Period, User)
+    # Get all periods with JOIN to user table for user information using async
+    stmt = (
+        select(Period, User)
         .join(User, Period.user_id == User.id)
         .order_by(Period.date.desc())
         .offset(skip)
         .limit(limit)
-        .all()
     )
+    result = await db.execute(stmt)
+    periods_with_users = result.all()
     
-    total = db.query(Period).count()
+    # Count query
+    count_stmt = select(Period)
+    count_result = await db.execute(count_stmt)
+    total = len(count_result.scalars().all())
     
     # Convert to AdminPeriodResponse format
     admin_periods = []
@@ -231,22 +259,27 @@ async def get_all_periods(
 @router.get("/sharing", response_model=Dict[str, Any])
 async def get_all_sharing(
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_admin_access),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000)
 ):
     """Get all sharing configurations for admin."""
     
-    sharing_list = (
-        db.query(Sharing)
+    # Use async query for sharing
+    stmt = (
+        select(Sharing)
         .join(User, Sharing.owner_user_id == User.id)
         .offset(skip)
         .limit(limit)
-        .all()
     )
+    result = await db.execute(stmt)
+    sharing_list = result.scalars().all()
     
-    total = db.query(Sharing).count()
+    # Count query
+    count_stmt = select(Sharing)
+    count_result = await db.execute(count_stmt)
+    total = len(count_result.scalars().all())
     
     return {
         "success": True,

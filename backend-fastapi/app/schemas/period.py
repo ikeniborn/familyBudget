@@ -117,6 +117,8 @@ class AdminPeriodResponse(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     user_id: int
+    created_at: Optional[datetime] = None
+    is_active: bool = True
     
     # User information
     user_name: str
@@ -147,6 +149,8 @@ class AdminPeriodResponse(BaseModel):
             start_date=period.start_date,
             end_date=period.end_date,
             user_id=period.user_id,
+            created_at=period.date,  # Map period.date to created_at as in regular Period responses
+            is_active=True,  # Default to True like in regular responses
             # User data
             user_name=user.user_name if user else "",
             user_email=user.user_email if user else None,

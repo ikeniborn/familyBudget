@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   // TODO: Replace with SimpleDataTable when needed
   // import { createColumnHelper, type ColumnDef } from '@tanstack/svelte-table';
-  import { currentUser, isAdmin } from '$lib/stores/auth.store';
+  import { currentUser, isAdmin, isAuthLoading, isAuthenticated } from '$lib/stores/auth.store';
   import { useToast } from '$lib/stores/toast.store';
   import { periodsService, type CreatePeriodData, type UpdatePeriodData } from '$lib/services/periods.service';
   import type { Period, AdminPeriod } from '$types';
@@ -113,6 +113,11 @@
     console.log('🔑 User role:', $currentUser?.role);
     console.log('📝 Full user object:', JSON.stringify($currentUser, null, 2));
     
+    // Additional debugging for isAdmin derivation
+    console.log('🔍 Auth store $auth.user?.role:', $currentUser?.role);
+    console.log('🔍 Auth store comparison result:', $currentUser?.role === 'admin');
+    console.log('🔍 isAdmin derived value:', $isAdmin);
+    
     if (!$currentUser?.user_id) {
       console.warn('⚠️ No user_id found, skipping fetch');
       return;
@@ -146,7 +151,27 @@
   }
 
   onMount(() => {
-    fetchPeriods();
+    // Wait for auth to be fully loaded before fetching periods
+    console.log('🔧 PeriodManager mounted. Auth loading state:', $isAuthLoading);
+    console.log('🔧 Current auth state - user:', $currentUser, 'isAuthenticated:', $isAuthenticated);
+    
+    if (!$isAuthLoading) {
+      // Auth is already loaded
+      fetchPeriods();
+    } else {
+      // Wait for auth to load
+      console.log('⏳ Waiting for auth to complete...');
+      const unsubscribe = isAuthLoading.subscribe((loading) => {
+        if (!loading && $isAuthenticated) {
+          console.log('✅ Auth loading completed, fetching periods');
+          fetchPeriods();
+          unsubscribe();
+        } else if (!loading && !$isAuthenticated) {
+          console.log('❌ Auth loading completed but user not authenticated');
+          unsubscribe();
+        }
+      });
+    }
   });
 
   // Form validation

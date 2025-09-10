@@ -87,6 +87,7 @@ async def register_user(
     session.set("username", user.username)
     session.set("user_name", user.user_name)
     session.set("auth_method", "password")
+    session.set("role", user.role)
     
     return AuthResponse(
         user=user.to_dict(),
@@ -132,6 +133,7 @@ async def login_with_password(
     session.set("username", user.username)
     session.set("user_name", user.user_name)
     session.set("auth_method", "password")
+    session.set("role", user.role)
     
     return AuthResponse(
         user=user.to_dict(),
@@ -199,6 +201,7 @@ async def login_with_telegram(
     session.set("user_name", user.user_name)
     session.set("auth_method", "telegram")
     session.set("telegram_id", str(user.telegram_id) if user.telegram_id else None)
+    session.set("role", user.role)
     
     return AuthResponse(
         user=user.to_dict(),

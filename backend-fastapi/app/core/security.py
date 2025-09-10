@@ -157,9 +157,9 @@ async def require_admin_access(request: Request) -> dict:
         HTTPException: 401 if not authenticated, 403 if not admin
     """
     from app.core.session import get_current_user_from_session
-    from app.db.session import get_db
+    from app.db.database import AsyncSessionLocal
     from app.models.user import User
-    from sqlalchemy.orm import Session
+    from sqlalchemy import select
     
     # Check authentication first
     current_user = await get_current_user_from_session(request)
@@ -169,10 +169,12 @@ async def require_admin_access(request: Request) -> dict:
             detail="Not authenticated"
         )
     
-    # Get user from database to check role
-    db = next(get_db())
-    try:
-        user = db.query(User).filter(User.id == current_user.get("user_id")).first()
+    # Get user from database to check role using async
+    async with AsyncSessionLocal() as db:
+        stmt = select(User).where(User.id == current_user.get("user_id"))
+        result = await db.execute(stmt)
+        user = result.scalar_one_or_none()
+        
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -189,8 +191,6 @@ async def require_admin_access(request: Request) -> dict:
         # Add role to current_user data
         current_user["role"] = user.role
         return current_user
-    finally:
-        db.close()
 
 
 # Create instance for easy import
