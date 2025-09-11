@@ -4,6 +4,7 @@ import type { User, AuthResponse, AuthMeResponse } from '$types';
 import { authService } from '$lib/services/auth.service';
 import api from '$lib/services/api';
 import type { TelegramAuthData } from '$lib/utils/telegram-oauth';
+import { goto } from '$app/navigation';
 
 interface AuthUser extends User {
   user_id?: number; // Add user_id for compatibility with services
@@ -16,6 +17,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  sessionValidated: boolean;
 }
 
 // Persistent storage helpers
@@ -66,7 +68,8 @@ function getStoredAuth(): AuthState | null {
         user,
         isAuthenticated: parsed.state?.isAuthenticated || false,
         isLoading: false,
-        error: null
+        error: null,
+        sessionValidated: false
       };
     }
   } catch (error) {
@@ -113,7 +116,8 @@ function getInitialState(): AuthState {
     user: null,
     isAuthenticated: false,
     isLoading: false,
-    error: null
+    error: null,
+    sessionValidated: false
   };
   
   if (initialState.user) {
@@ -121,7 +125,7 @@ function getInitialState(): AuthState {
     console.log('🔑 Initial user role:', initialState.user.role);
   }
   
-  return initialState;
+  return {...initialState, sessionValidated: false};
 }
 
 // Create the main writable store with enhanced update protection
@@ -188,6 +192,89 @@ const authStore = {
     unsubscribe();
     return currentUser;
   },
+
+  // Validate session with backend
+  async validateSession(): Promise<boolean> {
+    try {
+      const response = await api.get<{success: boolean, user: User, authenticated: boolean}>('/auth/me');
+      
+      if (response && (response.user || response.authenticated)) {
+        // Extract user data from response
+        let userData: User | null = null;
+        if (response.success && response.user) {
+          userData = response.user;
+        } else if (response.user) {
+          userData = response.user;
+        } else if ((response as any).id) {
+          userData = response as any;
+        }
+        
+        if (userData) {
+          // Validate and set user with proper role
+          let userRole: 'admin' | 'user' = 'user';
+          if (userData.role === 'admin') {
+            userRole = 'admin' as const;
+          } else if (userData.role === 'user') {
+            userRole = 'user' as const;
+          }
+          
+          const normalizedUser: AuthUser = {
+            ...userData,
+            role: userRole,
+            user_id: userData.id
+          };
+          
+          update(state => ({
+            ...state,
+            user: normalizedUser,
+            isAuthenticated: true,
+            sessionValidated: true,
+            error: null
+          }));
+          
+          // Update localStorage with fresh user data
+          storeAuth({
+            user: normalizedUser,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+            sessionValidated: true
+          });
+          
+          return true;
+        }
+      }
+    } catch (error) {
+      console.warn('Session validation failed:', error);
+      // Clear auth state on validation failure
+      authStore.clearAuth();
+    }
+    
+    return false;
+  },
+
+  // Clear authentication state completely
+  clearAuth(): void {
+    if (browser) {
+      localStorage.removeItem('auth-storage');
+    }
+    set({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      sessionValidated: false
+    });
+  },
+
+  // Handle authentication error (401)
+  async handleAuthError(): Promise<void> {
+    console.warn('Authentication error detected, clearing session...');
+    authStore.clearAuth();
+    if (browser && !window.location.pathname.includes('/login')) {
+      await goto('/login');
+    }
+  },
   
   // Authentication methods
   async login(telegramData: any): Promise<void> {
@@ -224,7 +311,8 @@ const authStore = {
           user: userData,
           isAuthenticated: true,
           isLoading: false,
-          error: null
+          error: null,
+          sessionValidated: true
         }));
       } else {
         throw new Error('Authentication failed');
@@ -274,7 +362,8 @@ const authStore = {
         user: userData,
         isAuthenticated: true,
         isLoading: false,
-        error: null
+        error: null,
+        sessionValidated: true
       }));
     } catch (error: any) {
       const errorMessage = error.message || 'OAuth login failed';
@@ -342,7 +431,8 @@ const authStore = {
           user: userData,
           isAuthenticated: true,
           isLoading: false,
-          error: null
+          error: null,
+          sessionValidated: true
         }));
       } else {
         throw new Error(response.error || 'Password login failed');
@@ -413,7 +503,8 @@ const authStore = {
           user: userData,
           isAuthenticated: true,
           isLoading: false,
-          error: null
+          error: null,
+          sessionValidated: true
         }));
       } else {
         throw new Error(response.error || 'Registration failed');
@@ -438,12 +529,10 @@ const authStore = {
       console.error('Logout error:', error);
       // Even if logout fails, clear local state
     } finally {
-      set({
-        user: null,
-        isAuthenticated: false,
-        isLoading: false,
-        error: null
-      });
+      authStore.clearAuth();
+      if (browser && !window.location.pathname.includes('/login')) {
+        await goto('/login');
+      }
     }
   },
 
@@ -526,7 +615,8 @@ const authStore = {
             user: normalizedUser,
             isAuthenticated: true,
             isLoading: false,
-            error: null
+            error: null,
+            sessionValidated: true
           };
           
           // Verify role is preserved in the state update
@@ -575,25 +665,36 @@ const authStore = {
     }
   },
 
-  setUser(user: AuthUser): void {
+  setUser(userData: any): void {
+    console.log('🔍 setUser called with:', userData);
+    
+    // Handle wrapped response format { data: { ... } }
+    const actualUser = userData?.data || userData;
+    
     // Validate user has required fields before setting
-    if (!user.id || !user.role) {
-      console.error('🚨 setUser: Invalid user data - missing id or role:', user);
+    if (!actualUser || !actualUser.id || !actualUser.role) {
+      console.error('🚨 setUser: Invalid user data - missing id or role:', {
+        receivedData: userData,
+        extractedUser: actualUser,
+        hasId: actualUser?.id,
+        hasRole: actualUser?.role
+      });
       return;
     }
     
-    console.log('🔧 setUser called with role:', user.role);
+    console.log('🔧 setUser processing user with role:', actualUser.role);
     
     update(state => {
       const newState = {
         ...state,
         user: {
-          ...user,
-          role: user.role // Explicitly preserve role
+          ...actualUser,
+          role: actualUser.role // Explicitly preserve role
         },
         isAuthenticated: true,
         isLoading: false,
-        error: null
+        error: null,
+        sessionValidated: true
       };
       
       console.log('🔧 setUser - new state user role:', newState.user.role);

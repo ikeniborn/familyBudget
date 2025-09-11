@@ -57,6 +57,14 @@ export interface FinancialCenter {
   updated_at?: string;
 }
 
+// Admin Financial Center type with user information
+export interface AdminFinancialCenter extends FinancialCenter {
+  user_name: string;
+  user_email?: string | null;
+  username?: string | null;
+  telegram_id?: string | null;
+}
+
 // Cost Center types - matches backend API
 export interface CostCenter {
   id: number;
@@ -73,6 +81,14 @@ export interface CostCenter {
   history?: CostCenterHistory[];
   created_at?: string;
   updated_at?: string;
+}
+
+// Admin Cost Center type with user information
+export interface AdminCostCenter extends CostCenter {
+  user_name: string;
+  user_email?: string | null;
+  username?: string | null;
+  telegram_id?: string | null;
 }
 
 export interface CostCenterHistory {
@@ -109,6 +125,13 @@ export interface Nomenclature {
   total_amount?: number;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface AdminNomenclature extends Nomenclature {
+	user_name: string;
+	user_email: string;
+	username: string;
+	telegram_id: string;
 }
 
 export interface AutoCategorizationRule {

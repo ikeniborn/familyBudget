@@ -190,6 +190,7 @@ export default defineConfig({
         ws: true,
         timeout: 30000,
         proxyTimeout: 30000,
+        credentials: true,
         configure: (proxy, options) => {
           proxy.on('proxyReq', (proxyReq, req, res) => {
             console.log(`[PROXY] ${req.method} ${req.url} -> ${options.target}${req.url}`);

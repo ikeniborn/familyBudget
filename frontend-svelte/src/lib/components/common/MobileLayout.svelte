@@ -35,7 +35,7 @@
 
   const menuItems = [
     { name: 'Продукты', path: '/products', icon: Package },
-    { name: 'Справочники', path: '/reference', icon: Database },
+    { name: 'Справочники', path: '/settings', icon: Database },
   ];
 
   function handleNavigation(path: string) {
@@ -66,8 +66,8 @@
     if (item) return item.name;
     
     if (pathname.startsWith('/settings')) return 'Настройки';
-    if (pathname.startsWith('/reference')) {
-      if (pathname === '/reference') return 'Справочники';
+    if (pathname.startsWith('/settings')) {
+      if (pathname === '/settings') return 'Справочники';
       if (pathname.includes('/periods')) return 'Периоды';
       if (pathname.includes('/financial-centers')) return 'ЦФО';
       if (pathname.includes('/cost-centers')) return 'МВЗ';

@@ -9,7 +9,7 @@
 
 <problem_description>
 При открытии http://localhost:5173/dashboard возинкает ошибка 
-/home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-10 15-46-11.png
+/home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-10 15-54-02.png
 Устранинить ошибку
 </problem_description>
 

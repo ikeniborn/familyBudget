@@ -8,17 +8,16 @@
   import Card from '$lib/components/ui/Card.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import { clsx } from 'clsx';
-  import { 
-    Menu, 
-    X, 
-    Home, 
-    Calculator, 
-    CreditCard, 
-    BarChart3, 
+  import {
+    Menu,
+    X,
+    Home,
+    Calculator,
+    CreditCard,
+    BarChart3,
     Package,
     LogOut,
     User,
-    ClipboardList,
     Settings,
     Database,
     ShieldCheck
@@ -39,17 +38,25 @@
     { name: 'Бюджет', path: '/budget', icon: Calculator },
     { name: 'Отчеты', path: '/reports', icon: BarChart3 },
     { name: 'Продукты', path: '/products', icon: Package },
-    { name: 'Справочники', path: '/reference', icon: Database, adminOnly: false },
   ];
 
-  const adminNavItems: NavItem[] = [
-    { name: 'Администрирование', path: '/reference', icon: ShieldCheck, adminOnly: true },
-  ];
+  const referenceNavItem: NavItem = {
+    name: 'Справочники',
+    path: '/settings',
+    icon: Database
+  };
+
+  const adminNavItem: NavItem = {
+    name: 'Администрирование',
+    path: '/settings',
+    icon: ShieldCheck,
+    adminOnly: true
+  };
 
   // Reactive navigation items based on user role
-  $: navItems = $currentUser?.role === 'admin' 
-    ? [...baseNavItems.filter(item => !item.adminOnly), ...adminNavItems]
-    : baseNavItems;
+  $: navItems = $currentUser?.role === 'admin'
+    ? [...baseNavItems, adminNavItem]
+    : [...baseNavItems, referenceNavItem];
 
   async function handleLogout() {
     await authStore.logout();
@@ -79,16 +86,15 @@
     if (exactMatch) return exactMatch.name;
     
     // Check for prefix matches
-    if (pathname.startsWith('/settings')) return 'Настройки';
-    if (pathname.startsWith('/reference')) {
-      if (pathname === '/reference') {
+    if (pathname.startsWith('/settings')) {
+      if (pathname === '/settings') {
         return $currentUser?.role === 'admin' ? 'Администрирование' : 'Справочники';
       }
       if (pathname.includes('/periods')) return 'Управление периодами';
       if (pathname.includes('/financial-centers')) return 'Управление ЦФО';
       if (pathname.includes('/cost-centers')) return 'Управление МВЗ';
       if (pathname.includes('/nomenclatures')) return 'Управление номенклатурами';
-      return $currentUser?.role === 'admin' ? 'Администрирование' : 'Справочники';
+      return 'Настройки';
     }
     
     return 'Страница';
@@ -149,9 +155,8 @@
         <nav class="space-y-1">
           {#each navItems as item (item.path)}
             {@const Icon = item.icon}
-            {@const isActive = $page.url.pathname === item.path || 
-              (item.path === '/settings' && $page.url.pathname.startsWith('/settings')) ||
-              (item.path === '/reference' && $page.url.pathname.startsWith('/reference'))}
+            {@const isActive = $page.url.pathname === item.path ||
+              (item.path === '/settings' && $page.url.pathname.startsWith('/settings'))}
             
             <button
               class={clsx(
@@ -255,17 +260,8 @@
           
           <div class="flex items-center space-x-1">
             <NotificationDropdown />
-            <Button 
-              variant="ghost" 
-              size="icon"
-              on:click={() => goto('/form-validation')}
-              title="Валидация форм"
-              class="text-muted-foreground hover:text-primary hover:bg-primary/10"
-            >
-              <ClipboardList class="h-5 w-5" />
-            </Button>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="icon"
               on:click={() => goto('/settings')}
               title="Настройки"

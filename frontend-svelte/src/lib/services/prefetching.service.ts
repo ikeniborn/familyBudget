@@ -82,7 +82,7 @@ class PrefetchingService {
       
       // Reference data pages
       {
-        route: '/reference',
+        route: '/settings',
         endpoints: [
           '/api/nomenclatures',
           '/api/cost-centers',

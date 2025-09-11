@@ -1,7 +1,9 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
+import { browser } from '$app/environment';
 
 class ApiClient {
   private client: AxiosInstance;
+  private isHandling401 = false;
 
   constructor() {
     this.client = axios.create({
@@ -31,16 +33,24 @@ class ApiClient {
       async (error) => {
         const originalRequest = error.config;
         
-        if (error.response?.status === 401 && !originalRequest._retry) {
-          // Session expired, redirect to login
-          // Не редиректим для защищенных страниц - они сами обработают
-          if (!window.location.pathname.startsWith('/fact') && 
-              !window.location.pathname.startsWith('/budget') &&
-              !window.location.pathname.startsWith('/reports') &&
-              !window.location.pathname.startsWith('/reference') &&
-              !window.location.pathname.startsWith('/dashboard') &&
-              !window.location.pathname.startsWith('/settings')) {
-            this.handleUnauthorized();
+        if (error.response?.status === 401) {
+          // Prevent multiple 401 handlers from running simultaneously
+          if (!this.isHandling401 && !originalRequest._retry) {
+            this.isHandling401 = true;
+            originalRequest._retry = true;
+            
+            // Don't redirect if already on login or auth endpoints
+            const pathname = window.location.pathname;
+            if (!pathname.includes('/login') &&
+                !originalRequest.url?.includes('/auth/')) {
+              console.warn('Session expired or invalid, redirecting to login...');
+              this.handleUnauthorized();
+            }
+            
+            // Reset flag after a short delay
+            setTimeout(() => {
+              this.isHandling401 = false;
+            }, 1000);
           }
         }
         
@@ -49,12 +59,11 @@ class ApiClient {
     );
   }
 
-
-  private handleUnauthorized(): void {
-    // Session expired, redirect to login
-    // Не редиректим, если уже на странице логина
-    if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-      window.location.href = '/login';
+  private async handleUnauthorized(): Promise<void> {
+    if (browser) {
+      // Import auth store dynamically to avoid circular dependencies
+      const { authStore } = await import('$lib/stores/auth.store');
+      await authStore.handleAuthError();
     }
   }
 

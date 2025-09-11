@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from app.db.database import get_db
 from app.models.period import Period
-from app.core.session import get_current_user_from_session
+from app.api.deps import get_current_user
 
 router = APIRouter()
 
@@ -65,24 +65,13 @@ class PeriodResponse(BaseModel):
     user_id: Optional[int] = None
 
 
-async def require_auth(request: Request) -> dict:
-    """Require authentication."""
-    user = await get_current_user_from_session(request)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated"
-        )
-    return user
-
-
 @router.get("/", response_model=List[PeriodResponse])
 async def get_periods(
     request: Request,
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """Get all periods for current user."""
     # Filter by user_id for data isolation
@@ -124,7 +113,7 @@ async def get_periods(
 async def get_current_period(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """Get current period based on today's date for current user."""
     # Get period closest to current date, filtered by user_id
@@ -168,7 +157,7 @@ async def get_period(
     period_id: int,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """Get period by ID for current user."""
     # Filter by both period_id and user_id for data isolation
@@ -210,7 +199,7 @@ async def create_period(
     period_data: PeriodCreate,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """Create new period for current user."""
     # Handle legacy format conversion
@@ -285,7 +274,7 @@ async def update_period(
     period_data: PeriodUpdate,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """Update period for current user."""
     # Filter by both period_id and user_id for data isolation
@@ -338,7 +327,7 @@ async def delete_period(
     period_id: int,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """Delete period for current user."""
     # Filter by both period_id and user_id for data isolation

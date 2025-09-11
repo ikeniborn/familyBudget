@@ -2,10 +2,10 @@
   import { onMount } from 'svelte';
   // TODO: Replace with SimpleDataTable when needed
   // import { createColumnHelper, type ColumnDef } from '@tanstack/svelte-table';
-  import { currentUser } from '$lib/stores/auth.store';
+  import { currentUser, isAdmin, isAuthLoading, isAuthenticated } from '$lib/stores/auth.store';
   import { useToast } from '$lib/stores/toast.store';
   import { financialCentersService, type CreateFinancialCenterData, type UpdateFinancialCenterData } from '$lib/services/financialCenters.service';
-  import type { FinancialCenter } from '$types';
+  import type { FinancialCenter, AdminFinancialCenter } from '$types';
   
   import CRUDTable from '$lib/components/common/CRUDTable.svelte';
   import Modal from '$lib/components/ui/Modal.svelte';
@@ -14,6 +14,7 @@
   import Badge from '$lib/components/ui/Badge.svelte';
 
   let financialCenters: FinancialCenter[] = [];
+  let adminFinancialCenters: AdminFinancialCenter[] = [];
   let loading = true;
   let showModal = false;
   let editingFinancialCenter: FinancialCenter | null = null;
@@ -30,22 +31,53 @@
   const toast = useToast();
 
   // Define table columns for CRUDTable
-  const columns = [
+  $: columns = [
     {
       key: 'financial_center_name',
       header: 'Название ЦФО',
       sortable: true
     },
+    ...($isAdmin ? [
+      {
+        key: 'user_name',
+        header: 'Пользователь',
+        sortable: true,
+        render: (item: AdminFinancialCenter) => {
+          console.log('🔍 Rendering user cell for item:', item);
+          
+          // Check if user_name exists in the item
+          const userName = item.user_name || 'Неизвестный пользователь';
+          const userEmail = item.user_email || '';
+          const username = item.username || '';
+          const telegramId = item.telegram_id || '';
+          
+          // Build tooltip information
+          const tooltipParts = [];
+          if (userEmail) tooltipParts.push(`Email: ${userEmail}`);
+          if (username) tooltipParts.push(`Username: ${username}`);
+          if (telegramId) tooltipParts.push(`Telegram ID: ${telegramId}`);
+          
+          const tooltip = tooltipParts.join('\n');
+          
+          // Return the rendered HTML
+          if (tooltip) {
+            return `<span title="${tooltip}" class="cursor-help">${userName}</span>`;
+          } else {
+            return `<span>${userName}</span>`;
+          }
+        }
+      }
+    ] : []),
     {
       key: 'is_active',
       header: 'Статус',
-      render: (item: FinancialCenter) => item.is_active ? 'Активен' : 'Неактивен'
+      render: (item: FinancialCenter | AdminFinancialCenter) => item.is_active ? 'Активен' : 'Неактивен'
     },
     {
       key: 'created_at',
       header: 'Дата создания',
       sortable: true,
-      render: (item: FinancialCenter) => {
+      render: (item: FinancialCenter | AdminFinancialCenter) => {
         if (!item.created_at) return '-';
         return new Date(item.created_at).toLocaleDateString('ru-RU', {
           day: '2-digit',
@@ -60,21 +92,70 @@
 
   // Load financial centers
   async function fetchFinancialCenters() {
-    if (!$currentUser?.user_id) return;
+    console.log('🚀 fetchFinancialCenters called. Current user:', $currentUser);
+    console.log('🔐 Is admin?', $isAdmin);
+    console.log('🔑 User role:', $currentUser?.role);
+    console.log('📝 Full user object:', JSON.stringify($currentUser, null, 2));
+    
+    // Additional debugging for isAdmin derivation
+    console.log('🔍 Auth store $auth.user?.role:', $currentUser?.role);
+    console.log('🔍 Auth store comparison result:', $currentUser?.role === 'admin');
+    console.log('🔍 isAdmin derived value:', $isAdmin);
+    
+    if (!$currentUser?.user_id) {
+      console.warn('⚠️ No user_id found, skipping fetch');
+      return;
+    }
     
     try {
       loading = true;
-      financialCenters = await financialCentersService.getByUserId($currentUser.user_id);
+      if ($isAdmin) {
+        console.log('👑 Fetching admin financial centers...');
+        adminFinancialCenters = await financialCentersService.getAllWithUsers();
+        console.log(`✅ Admin view: loaded ${adminFinancialCenters.length} financial centers with user information`);
+        console.log('📊 Admin financial centers data:', adminFinancialCenters);
+        
+        // Clear regular financial centers for admin view
+        financialCenters = [];
+      } else {
+        console.log('👤 Fetching user financial centers...');
+        financialCenters = await financialCentersService.getByUserId($currentUser.user_id);
+        console.log(`✅ User view: loaded ${financialCenters.length} financial centers`);
+        
+        // Clear admin financial centers for user view
+        adminFinancialCenters = [];
+      }
     } catch (error: any) {
       toast.error('Ошибка', 'Не удалось загрузить финансовые центры');
-      console.error('Error fetching financial centers:', error);
+      console.error('❌ Error fetching financial centers:', error);
+      console.error('Stack trace:', error.stack);
     } finally {
       loading = false;
     }
   }
 
   onMount(() => {
-    fetchFinancialCenters();
+    // Wait for auth to be fully loaded before fetching financial centers
+    console.log('🔧 FinancialCenterManager mounted. Auth loading state:', $isAuthLoading);
+    console.log('🔧 Current auth state - user:', $currentUser, 'isAuthenticated:', $isAuthenticated);
+    
+    if (!$isAuthLoading) {
+      // Auth is already loaded
+      fetchFinancialCenters();
+    } else {
+      // Wait for auth to load
+      console.log('⏳ Waiting for auth to complete...');
+      const unsubscribe = isAuthLoading.subscribe((loading) => {
+        if (!loading && $isAuthenticated) {
+          console.log('✅ Auth loading completed, fetching financial centers');
+          fetchFinancialCenters();
+          unsubscribe();
+        } else if (!loading && !$isAuthenticated) {
+          console.log('❌ Auth loading completed but user not authenticated');
+          unsubscribe();
+        }
+      });
+    }
   });
 
   // Form validation
@@ -117,6 +198,13 @@
   // Handle edit
   function handleEdit(event: CustomEvent) {
     const { item } = event.detail;
+    
+    // Check if admin can edit this financial center
+    if ($isAdmin && item.user_id !== $currentUser?.user_id) {
+      toast.error('Ошибка', 'Администраторы могут редактировать только свои финансовые центры');
+      return;
+    }
+    
     isEditing = true;
     editingFinancialCenter = item;
     formData = {
@@ -129,7 +217,13 @@
 
   // Handle delete
   async function handleDelete(event: CustomEvent) {
-    const { id } = event.detail;
+    const { id, item } = event.detail;
+    
+    // Check if admin can delete this financial center
+    if ($isAdmin && item.user_id !== $currentUser?.user_id) {
+      toast.error('Ошибка', 'Администраторы могут удалять только свои финансовые центры');
+      return;
+    }
     
     try {
       await financialCentersService.delete(id);
@@ -144,10 +238,29 @@
   async function handleBulkDelete(event: CustomEvent) {
     const { ids } = event.detail;
     
+    // For admins, filter out financial centers that don't belong to them
+    let allowedIds = ids;
+    if ($isAdmin) {
+      const currentFinancialCenters = $isAdmin ? adminFinancialCenters : financialCenters;
+      allowedIds = ids.filter(id => {
+        const fc = currentFinancialCenters.find(f => f.id === id);
+        return fc && fc.user_id === $currentUser?.user_id;
+      });
+      
+      if (allowedIds.length === 0) {
+        toast.error('Ошибка', 'Администраторы могут удалять только свои финансовые центры');
+        return;
+      }
+      
+      if (allowedIds.length < ids.length) {
+        toast.warning('Внимание', `Будут удалены только ваши финансовые центры (${allowedIds.length} из ${ids.length})`);
+      }
+    }
+    
     try {
-      await financialCentersService.bulkDelete(ids);
+      await financialCentersService.bulkDelete(allowedIds);
       await fetchFinancialCenters();
-      toast.success('Успешно', `Удалено финансовых центров: ${ids.length}`);
+      toast.success('Успешно', `Удалено финансовых центров: ${allowedIds.length}`);
     } catch (error: any) {
       toast.error('Ошибка', error.message || 'Не удалось удалить финансовые центры');
     }
@@ -193,11 +306,13 @@
   // Handle export
   async function handleExport() {
     try {
-      const csvContent = await financialCentersService.exportToCsv(financialCenters);
+      const dataToExport = $isAdmin ? adminFinancialCenters : financialCenters;
+      const csvContent = await financialCentersService.exportToCsv(dataToExport, $isAdmin);
       const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `financial_centers_${new Date().toISOString().split('T')[0]}.csv`;
+      const filename = $isAdmin ? 'admin_financial_centers' : 'financial_centers';
+      link.download = `${filename}_${new Date().toISOString().split('T')[0]}.csv`;
       link.click();
       toast.success('Успешно', 'Данные экспортированы');
     } catch (error: any) {
@@ -237,13 +352,13 @@
 </script>
 
 <CRUDTable
-  title="Центры финансовой ответственности (ЦФО)"
-  data={financialCenters}
+  title={$isAdmin ? "Центры финансовой ответственности (ЦФО) - Администратор" : "Центры финансовой ответственности (ЦФО)"}
+  data={$isAdmin ? adminFinancialCenters : financialCenters}
   {columns}
   {loading}
   searchable={true}
   exportable={true}
-  importable={true}
+  importable={!$isAdmin}
   addButtonText="Добавить ЦФО"
   emptyMessage="Нет добавленных финансовых центров. Нажмите 'Добавить ЦФО' для создания нового."
   on:add={handleAdd}

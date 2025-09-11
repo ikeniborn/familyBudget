@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from app.db.database import get_db
 from app.models.nomenclature import Nomenclature, NomenclatureType
-from app.core.session import get_current_user_from_session
+from app.api.deps import get_current_user
 
 router = APIRouter()
 
@@ -60,17 +60,6 @@ class NomenclatureResponse(BaseModel):
     updated_at: Optional[datetime] = None
 
 
-async def require_auth(request: Request) -> dict:
-    """Require authentication."""
-    user = await get_current_user_from_session(request)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated"
-        )
-    return user
-
-
 @router.get("/", response_model=List[NomenclatureResponse])
 async def get_nomenclatures(
     request: Request,
@@ -80,7 +69,7 @@ async def get_nomenclatures(
     is_budget: Optional[bool] = None,
     is_fact: Optional[bool] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """Get all nomenclatures with optional filtering."""
     # Always filter by current user's ID for data isolation
@@ -107,7 +96,7 @@ async def get_nomenclature(
     nomenclature_id: int,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """Get nomenclature by ID."""
     stmt = select(Nomenclature).where(
@@ -131,7 +120,7 @@ async def create_nomenclature(
     nomenclature_data: NomenclatureCreate,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """Create new nomenclature."""
     # Check if nomenclature with same name already exists for this user
@@ -180,7 +169,7 @@ async def update_nomenclature(
     nomenclature_data: NomenclatureUpdate,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """Update nomenclature."""
     stmt = select(Nomenclature).where(
@@ -251,7 +240,7 @@ async def delete_nomenclature(
     nomenclature_id: int,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """Delete nomenclature."""
     stmt = select(Nomenclature).where(
@@ -278,7 +267,7 @@ async def bulk_delete_nomenclatures(
     ids: List[int] = Body(...),
     request: Request = None,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """Delete multiple nomenclatures."""
     stmt = select(Nomenclature).where(

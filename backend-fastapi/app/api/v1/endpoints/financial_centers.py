@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from app.db.database import get_db
 from app.models.financial_center import FinancialCenter
-from app.core.session import get_current_user_from_session
+from app.api.deps import get_current_user
 
 router = APIRouter()
 
@@ -39,17 +39,6 @@ class FinancialCenterResponse(BaseModel):
     updated_at: Optional[datetime] = None
 
 
-async def require_auth(request: Request) -> dict:
-    """Require authentication."""
-    user = await get_current_user_from_session(request)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated"
-        )
-    return user
-
-
 @router.get("/", response_model=List[FinancialCenterResponse])
 async def get_financial_centers(
     request: Request,
@@ -57,7 +46,7 @@ async def get_financial_centers(
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """Get all financial centers."""
     # Always filter by current user's ID for data isolation
@@ -78,7 +67,7 @@ async def get_financial_center(
     center_id: int,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """Get financial center by ID."""
     stmt = select(FinancialCenter).where(
@@ -102,7 +91,7 @@ async def create_financial_center(
     center_data: FinancialCenterCreate,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """Create new financial center."""
     # Check if financial center with same name already exists for this user
@@ -144,7 +133,7 @@ async def update_financial_center(
     center_data: FinancialCenterUpdate,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """Update financial center."""
     stmt = select(FinancialCenter).where(
@@ -202,7 +191,7 @@ async def delete_financial_center(
     center_id: int,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """Delete financial center."""
     stmt = select(FinancialCenter).where(
@@ -229,7 +218,7 @@ async def bulk_delete_financial_centers(
     ids: List[int] = Body(...),
     request: Request = None,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """Delete multiple financial centers."""
     stmt = select(FinancialCenter).where(

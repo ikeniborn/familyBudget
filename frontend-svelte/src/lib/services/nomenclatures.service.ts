@@ -1,5 +1,6 @@
 import { BaseService } from './base.service';
-import type { Nomenclature } from '$types';
+import type { Nomenclature, AdminNomenclature } from '$types';
+import api from './api';
 
 export interface CreateNomenclatureData {
   nomenclature_name: string;
@@ -49,8 +50,124 @@ class NomenclaturesService extends BaseService<Nomenclature, CreateNomenclatureD
     }
   }
 
-  // Export to CSV
-  async exportToCsv(data: Nomenclature[]): Promise<string> {
+  // Admin API - Get all nomenclatures with user information
+  async getAllWithUsers(): Promise<AdminNomenclature[]> {
+    try {
+      console.log('🔍 Fetching admin nomenclatures from /api/admin/references/nomenclature...');
+      const response = await api.get<{success: boolean, data: AdminNomenclature[], total: number}>('/admin/references/nomenclature');
+      
+      console.log('📦 Raw API response:', response);
+      
+      // The api.get() method returns the full response object {success, data, total}
+      if (!response || typeof response !== 'object') {
+        console.error('❌ Invalid admin nomenclatures API response:', response);
+        throw new Error('Invalid response from admin nomenclatures API');
+      }
+
+      // Handle different response formats
+      let nomenclatures: any[] = [];
+      if (response.success && Array.isArray(response.data)) {
+        nomenclatures = response.data;
+      } else if (Array.isArray(response)) {
+        nomenclatures = response;
+      } else if (response.data && Array.isArray(response.data)) {
+        nomenclatures = response.data;
+      } else {
+        console.error('❌ No valid nomenclatures data in response:', response);
+        throw new Error('No nomenclatures data in API response');
+      }
+      
+      console.log(`📋 Received ${nomenclatures.length} nomenclatures from API`);
+      console.log('📋 First nomenclature sample:', nomenclatures[0]);
+      
+      // Map nomenclature_id to id for consistency and ensure all AdminNomenclature fields are present
+      const mappedNomenclatures = nomenclatures.map((n: any) => {
+        const mappedN = {
+          ...n,
+          // Ensure id is properly mapped
+          id: n.nomenclature_id || n.id,
+          
+          // Ensure all AdminNomenclature fields are present with fallbacks
+          user_name: n.user_name || 'Неизвестный пользователь',
+          user_email: n.user_email || null,
+          username: n.username || null,
+          telegram_id: n.telegram_id ? String(n.telegram_id) : null,
+          
+          // Ensure other required fields are present
+          user_id: n.user_id || 0,
+          nomenclature_id: n.nomenclature_id || n.id || 0,
+          nomenclature_name: n.nomenclature_name || '',
+          nomenclature_type: n.nomenclature_type || 'EXPENSE',
+          account_name: n.account_name || '',
+          bill_name: n.bill_name || '',
+          operation_name: n.operation_name || '',
+          is_budget: n.is_budget !== undefined ? n.is_budget : true,
+          is_fact: n.is_fact !== undefined ? n.is_fact : true,
+          is_active: n.is_active !== undefined ? n.is_active : true
+        };
+        
+        console.log('🔧 Mapped nomenclature:', mappedN);
+        return mappedN;
+      });
+
+      console.log(`✅ Loaded ${mappedNomenclatures.length} admin nomenclatures with user information`);
+      
+      return mappedNomenclatures;
+    } catch (error: any) {
+      console.error('❌ Error fetching admin nomenclatures:', error);
+      console.error('❌ Error stack:', error.stack);
+      
+      // If it's a network or API error, provide more context
+      if (error.response) {
+        console.error('❌ Response status:', error.response.status);
+        console.error('❌ Response data:', error.response.data);
+      }
+      
+      throw new Error(error.message || 'Failed to fetch admin nomenclatures');
+    }
+  }
+
+  // Export to CSV - updated to support admin data
+  async exportToCsv(data: Nomenclature[] | AdminNomenclature[], isAdmin: boolean = false): Promise<string> {
+    const headers = isAdmin
+      ? ['ID', 'Номенклатура', 'Тип', 'Счёт', 'Статья', 'Операция', 'План', 'Факт', 'Статус', 'Дата создания', 'Пользователь', 'Email', 'Username', 'Telegram ID']
+      : ['ID', 'Номенклатура', 'Тип', 'Счёт', 'Статья', 'Операция', 'План', 'Факт', 'Статус', 'Дата создания'];
+    
+    const csvContent = [
+      headers.join(','),
+      ...data.map(n => {
+        const baseData = [
+          n.nomenclature_id,
+          `"${n.nomenclature_name}"`,
+          n.nomenclature_type || 'EXPENSE',
+          `"${n.account_name}"`,
+          `"${n.bill_name}"`,
+          `"${n.operation_name}"`,
+          n.is_budget ? 'Да' : 'Нет',
+          n.is_fact ? 'Да' : 'Нет',
+          n.is_active ? 'Активен' : 'Неактивен',
+          n.created_at ? new Date(n.created_at).toLocaleDateString('ru-RU') : ''
+        ];
+        
+        if (isAdmin && 'user_name' in n) {
+          const adminN = n as AdminNomenclature;
+          baseData.push(
+            `"${adminN.user_name}"`,
+            `"${adminN.user_email || ''}"`,
+            `"${adminN.username || ''}"`,
+            `"${adminN.telegram_id || ''}"`
+          );
+        }
+        
+        return baseData.join(',');
+      })
+    ].join('\n');
+
+    return csvContent;
+  }
+
+  // Export to CSV (legacy method for backward compatibility)
+  async exportToCsvLegacy(data: Nomenclature[]): Promise<string> {
     const csvContent = [
       ['ID', 'Номенклатура', 'Тип', 'Счёт', 'Статья', 'Операция', 'План', 'Факт', 'Статус', 'Дата создания'].join(','),
       ...data.map(n => [

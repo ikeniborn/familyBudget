@@ -286,3 +286,138 @@ async def get_all_sharing(
         "data": [sharing.to_dict() for sharing in sharing_list],
         "total": total
     }
+
+
+@router.get("/references/financial_center", response_model=Dict[str, Any])
+async def get_admin_financial_centers(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_admin_access),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    user_id: Optional[int] = Query(None, description="Filter by user ID")
+):
+    """Get all financial centers with user information for admin."""
+    
+    # Build query with JOIN to get user information
+    stmt = select(FinancialCenter, User).join(User, FinancialCenter.user_id == User.id)
+    
+    if user_id:
+        stmt = stmt.filter(FinancialCenter.user_id == user_id)
+    
+    stmt = stmt.offset(skip).limit(limit)
+    result_set = await db.execute(stmt)
+    financial_centers_with_users = result_set.all()
+    
+    # Count query
+    count_stmt = select(FinancialCenter)
+    if user_id:
+        count_stmt = count_stmt.filter(FinancialCenter.user_id == user_id)
+    count_result = await db.execute(count_stmt)
+    total = len(count_result.scalars().all())
+    
+    # Format response with user information
+    result = []
+    for fc, user in financial_centers_with_users:
+        fc_dict = fc.to_dict()
+        fc_dict["user_name"] = user.user_name if user else "Unknown User"
+        fc_dict["user_email"] = user.user_email if user else None
+        fc_dict["username"] = user.username if user else None
+        fc_dict["telegram_id"] = str(user.telegram_id) if user and user.telegram_id else None
+        result.append(fc_dict)
+    
+    return {
+        "success": True,
+        "data": result,
+        "total": total
+    }
+
+
+@router.get("/references/cost_center", response_model=Dict[str, Any])
+async def get_admin_cost_centers(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_admin_access),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    user_id: Optional[int] = Query(None, description="Filter by user ID")
+):
+    """Get all cost centers with user information for admin."""
+    
+    # Build query with JOIN to get user information
+    stmt = select(CostCenter, User).join(User, CostCenter.user_id == User.id)
+    
+    if user_id:
+        stmt = stmt.filter(CostCenter.user_id == user_id)
+    
+    stmt = stmt.offset(skip).limit(limit)
+    result_set = await db.execute(stmt)
+    cost_centers_with_users = result_set.all()
+    
+    # Count query
+    count_stmt = select(CostCenter)
+    if user_id:
+        count_stmt = count_stmt.filter(CostCenter.user_id == user_id)
+    count_result = await db.execute(count_stmt)
+    total = len(count_result.scalars().all())
+    
+    # Format response with user information
+    result = []
+    for cc, user in cost_centers_with_users:
+        cc_dict = cc.to_dict()
+        cc_dict["user_name"] = user.user_name if user else "Unknown User"
+        cc_dict["user_email"] = user.user_email if user else None
+        cc_dict["username"] = user.username if user else None
+        cc_dict["telegram_id"] = str(user.telegram_id) if user and user.telegram_id else None
+        result.append(cc_dict)
+    
+    return {
+        "success": True,
+        "data": result,
+        "total": total
+    }
+
+
+@router.get("/references/nomenclature", response_model=Dict[str, Any])
+async def get_admin_nomenclatures(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_admin_access),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    user_id: Optional[int] = Query(None, description="Filter by user ID")
+):
+    """Get all nomenclatures with user information for admin."""
+    
+    # Build query with JOIN to get user information
+    stmt = select(Nomenclature, User).join(User, Nomenclature.user_id == User.id)
+    
+    if user_id:
+        stmt = stmt.filter(Nomenclature.user_id == user_id)
+    
+    stmt = stmt.offset(skip).limit(limit)
+    result_set = await db.execute(stmt)
+    nomenclatures_with_users = result_set.all()
+    
+    # Count query
+    count_stmt = select(Nomenclature)
+    if user_id:
+        count_stmt = count_stmt.filter(Nomenclature.user_id == user_id)
+    count_result = await db.execute(count_stmt)
+    total = len(count_result.scalars().all())
+    
+    # Format response with user information
+    result = []
+    for n, user in nomenclatures_with_users:
+        n_dict = n.to_dict()
+        n_dict["user_name"] = user.user_name if user else "Unknown User"
+        n_dict["user_email"] = user.user_email if user else None
+        n_dict["username"] = user.username if user else None
+        n_dict["telegram_id"] = str(user.telegram_id) if user and user.telegram_id else None
+        result.append(n_dict)
+    
+    return {
+        "success": True,
+        "data": result,
+        "total": total
+    }

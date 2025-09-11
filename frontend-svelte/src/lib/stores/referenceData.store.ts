@@ -76,8 +76,11 @@ class ReferenceDataStore<T extends Record<string, any>> {
 
   // Getters that work with current store state
   private getState(): BaseReferenceDataState<T> {
-    let currentState: BaseReferenceDataState<T>;
-    this.store.subscribe(state => currentState = state)();
+    let currentState: BaseReferenceDataState<T> | undefined;
+    const unsubscribe = this.store.subscribe(state => {
+      currentState = state;
+    });
+    unsubscribe();
     return currentState!;
   }
 
@@ -533,11 +536,33 @@ export function useNomenclatures() {
 
 // Global sync function for all reference data
 export async function syncAllReferenceData(userId: number): Promise<void> {
-  const stores = [periodStore, financialCenterStore, costCenterStore, nomenclatureStore];
+  const stores = [
+    { store: periodStore, name: 'Периоды' },
+    { store: financialCenterStore, name: 'Финансовые центры' },
+    { store: costCenterStore, name: 'Центры затрат' },
+    { store: nomenclatureStore, name: 'Номенклатуры' }
+  ];
   
-  await Promise.all(
-    stores.map(store => store.fetchAll(userId, true))
+  // Use Promise.allSettled to prevent one failure from blocking others
+  const results = await Promise.allSettled(
+    stores.map(({ store }) => store.fetchAll(userId, true))
   );
+  
+  // Log any failures but don't throw
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      console.error(`Failed to load ${stores[index].name}:`, result.reason);
+      // Individual stores already show toast errors, so we don't need to duplicate
+    }
+  });
+  
+  // Check if all failed
+  const allFailed = results.every(r => r.status === 'rejected');
+  if (allFailed) {
+    console.error('All reference data stores failed to load');
+    // This error will be caught by the dashboard, but won't block the page
+    throw new Error('Failed to load any reference data');
+  }
 }
 
 // Clear all reference data

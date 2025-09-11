@@ -1,16 +1,17 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { currentUser } from '$lib/stores/auth.store';
+  import { authStore, currentUser } from '$lib/stores/auth.store';
   import { syncAllReferenceData } from '$lib/stores/referenceData.store';
   import { useToast } from '$lib/stores/toast.store';
+  import { goto } from '$app/navigation';
   import Loading from '$lib/components/common/Loading.svelte';
-  import { 
-    TrendingUp, 
-    TrendingDown, 
-    DollarSign, 
-    CreditCard, 
-    Calculator, 
-    BarChart3, 
+  import {
+    TrendingUp,
+    TrendingDown,
+    DollarSign,
+    CreditCard,
+    Calculator,
+    BarChart3,
     Package,
     Plus,
     ArrowRight,
@@ -31,33 +32,61 @@
     totalSpent: 87500,
     remaining: 62500,
     categories: [
-      { name: 'Продукты', budget: 40000, spent: 32000, color: 'bg-blue-500' },
-      { name: 'Транспорт', budget: 25000, spent: 18000, color: 'bg-green-500' },
-      { name: 'Развлечения', budget: 20000, spent: 22000, color: 'bg-red-500' },
-      { name: 'Коммунальные', budget: 35000, spent: 15500, color: 'bg-purple-500' },
+      { id: 1, name: 'Продукты', budget: 40000, spent: 32000, color: 'bg-blue-500' },
+      { id: 2, name: 'Транспорт', budget: 25000, spent: 18000, color: 'bg-green-500' },
+      { id: 3, name: 'Развлечения', budget: 20000, spent: 22000, color: 'bg-red-500' },
+      { id: 4, name: 'Коммунальные', budget: 35000, spent: 15500, color: 'bg-purple-500' },
     ]
   };
   
   let recentTransactions = [
-    { id: 1, description: 'Покупка продуктов', amount: -2500, date: '2025-01-12', category: 'Продукты' },
-    { id: 2, description: 'Зарплата', amount: 85000, date: '2025-01-10', category: 'Доходы' },
-    { id: 3, description: 'Бензин', amount: -3200, date: '2025-01-09', category: 'Транспорт' },
-    { id: 4, description: 'Кино', amount: -1800, date: '2025-01-08', category: 'Развлечения' },
+    { id: 101, description: 'Покупка продуктов', amount: -2500, date: '2025-01-12', category: 'Продукты' },
+    { id: 102, description: 'Зарплата', amount: 85000, date: '2025-01-10', category: 'Доходы' },
+    { id: 103, description: 'Бензин', amount: -3200, date: '2025-01-09', category: 'Транспорт' },
+    { id: 104, description: 'Кино', amount: -1800, date: '2025-01-08', category: 'Развлечения' },
   ];
   
   const toast = useToast();
   
   onMount(async () => {
+    // Validate session first
     try {
-      if ($currentUser) {
-        await syncAllReferenceData($currentUser.user_id);
-        // Here you would load actual dashboard data from API
-        // For now we use mock data that matches the React version
+      const isValid = await authStore.validateSession();
+      if (!isValid) {
+        // Session invalid, auth store will handle redirect
+        return;
       }
-    } catch (error: any) {
-      toast.error('Ошибка', 'Не удалось загрузить данные дашборда');
-    } finally {
-      loading = false;
+    } catch (error) {
+      console.error('Session validation failed:', error);
+      // Let auth store handle redirect
+      return;
+    }
+    
+    // Set loading to false immediately so dashboard shows
+    loading = false;
+    
+    // Load reference data in background (non-blocking)
+    if ($currentUser?.id) {
+      // Fire and forget - don't await, but handle auth errors
+      syncAllReferenceData($currentUser.id).catch((error: any) => {
+        // Check if it's an authentication error
+        if (error?.message?.includes('Authentication')) {
+          // Session expired, auth store will handle redirect
+          return;
+        }
+        console.error('Failed to sync reference data:', error);
+        toast.error('Справочные данные', 'Не удалось загрузить некоторые справочные данные. Они будут загружены при следующем использовании.');
+      });
+      
+      // Here you would load actual dashboard data from API
+      // For now we use mock data that matches the React version
+    } else {
+      // If no user found in store, try to fetch user data
+      try {
+        await authStore.checkAuth();
+      } catch (error) {
+        console.error('Failed to check auth:', error);
+      }
     }
   });
 </script>
@@ -195,7 +224,7 @@
               Использование бюджета по основным категориям
             </p>
             <div class="space-y-4">
-              {#each budgetSummary.categories as category}
+              {#each budgetSummary.categories as category (category.id)}
                 {@const percentage = (category.spent / category.budget) * 100}
                 {@const isOverBudget = percentage > 100}
                 
@@ -236,7 +265,7 @@
               Недавние доходы и расходы
             </p>
             <div class="space-y-3">
-              {#each recentTransactions as transaction}
+              {#each recentTransactions as transaction (transaction.id)}
                 <div class="transaction-item">
                   <div class="flex-1">
                     <p class="font-medium text-sm text-gray-800">{transaction.description}</p>

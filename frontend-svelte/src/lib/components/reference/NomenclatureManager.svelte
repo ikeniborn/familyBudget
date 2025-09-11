@@ -1,22 +1,24 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { createColumns, type ColumnDef } from '$lib/utils/tableCompatibility';
-  import { currentUser } from '$lib/stores/auth.store';
+  import { currentUser, isAdmin, isAuthLoading, isAuthenticated } from '$lib/stores/auth.store';
   import { useToast } from '$lib/stores/toast.store';
   import { nomenclaturesService, type CreateNomenclatureData, type UpdateNomenclatureData } from '$lib/services/nomenclatures.service';
-  import type { Nomenclature } from '$types';
+  import type { Nomenclature, AdminNomenclature } from '$types';
   
   import CRUDTable from '$lib/components/common/CRUDTable.svelte';
   import Modal from '$lib/components/ui/Modal.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
 
   let nomenclatures: Nomenclature[] = [];
+  let adminNomenclatures: AdminNomenclature[] = [];
   let loading = true;
   let showModal = false;
   let editingNomenclature: Nomenclature | null = null;
   let isEditing = false;
+
+  // Reactive statement to determine which data to display
+  $: displayNomenclatures = $isAdmin ? adminNomenclatures : nomenclatures as (Nomenclature | AdminNomenclature)[];
 
   // Form state
   let formData = {
@@ -35,18 +37,83 @@
 
   const toast = useToast();
 
-  // Define table columns using the new system
-  const columns = createColumns<Nomenclature>([
-    ['nomenclature_name', 'Номенклатура'],
-    ['nomenclature_type', 'Тип', { render: (item) => item.nomenclature_type === 'INCOME' ? 'Доход' : 'Расход' }],
-    ['account_name', 'Счёт'],
-    ['bill_name', 'Статья'],
-    ['operation_name', 'Операция'],
-    ['is_budget', 'План', { render: (item) => item.is_budget ? 'Да' : 'Нет' }],
-    ['is_fact', 'Факт', { render: (item) => item.is_fact ? 'Да' : 'Нет' }],
-    ['is_active', 'Статус', { render: (item) => item.is_active ? 'Активен' : 'Неактивен' }],
-    ['created_at', 'Дата создания', { 
-      render: (item) => {
+  // Define table columns using CRUDTable format for consistency
+  $: columns = [
+    {
+      key: 'nomenclature_name',
+      header: 'Номенклатура',
+      sortable: true
+    },
+    {
+      key: 'nomenclature_type',
+      header: 'Тип',
+      sortable: true,
+      render: (item: Nomenclature | AdminNomenclature) => item.nomenclature_type === 'INCOME' ? 'Доход' : 'Расход'
+    },
+    {
+      key: 'account_name',
+      header: 'Счёт',
+      sortable: true
+    },
+    {
+      key: 'bill_name',
+      header: 'Статья',
+      sortable: true
+    },
+    {
+      key: 'operation_name',
+      header: 'Операция',
+      sortable: true
+    },
+    {
+      key: 'is_budget',
+      header: 'План',
+      sortable: true,
+      render: (item: Nomenclature | AdminNomenclature) => item.is_budget ? 'Да' : 'Нет'
+    },
+    {
+      key: 'is_fact',
+      header: 'Факт',
+      sortable: true,
+      render: (item: Nomenclature | AdminNomenclature) => item.is_fact ? 'Да' : 'Нет'
+    },
+    ...($isAdmin ? [{
+      key: 'user_name',
+      header: 'Пользователь',
+      sortable: true,
+      render: (item: AdminNomenclature) => {
+        const userName = item.user_name || 'Неизвестный пользователь';
+        const userEmail = item.user_email || '';
+        const username = item.username || '';
+        const telegramId = item.telegram_id || '';
+        
+        // Build tooltip information
+        const tooltipParts = [];
+        if (userEmail) tooltipParts.push(`Email: ${userEmail}`);
+        if (username) tooltipParts.push(`Username: ${username}`);
+        if (telegramId) tooltipParts.push(`Telegram ID: ${telegramId}`);
+        
+        const tooltip = tooltipParts.join('\n');
+        
+        // Return the rendered HTML
+        if (tooltip) {
+          return `<span title="${tooltip}" class="cursor-help">${userName}</span>`;
+        } else {
+          return `<span>${userName}</span>`;
+        }
+      }
+    }] : []),
+    {
+      key: 'is_active',
+      header: 'Статус',
+      sortable: true,
+      render: (item: Nomenclature | AdminNomenclature) => item.is_active ? 'Активен' : 'Неактивен'
+    },
+    {
+      key: 'created_at',
+      header: 'Дата создания',
+      sortable: true,
+      render: (item: Nomenclature | AdminNomenclature) => {
         if (!item.created_at) return '-';
         return new Date(item.created_at).toLocaleDateString('ru-RU', {
           day: '2-digit',
@@ -56,26 +123,69 @@
           minute: '2-digit',
         });
       }
-    }]
-  ]);
+    }
+  ];
 
   // Load nomenclatures
   async function fetchNomenclatures() {
-    if (!$currentUser?.user_id) return;
+    console.log('🚀 fetchNomenclatures called. Current user:', $currentUser);
+    console.log('🔐 Is admin?', $isAdmin);
+    console.log('🔑 User role:', $currentUser?.role);
+    
+    if (!$currentUser?.user_id) {
+      console.warn('⚠️ No user_id found, skipping fetch');
+      return;
+    }
     
     try {
       loading = true;
-      nomenclatures = await nomenclaturesService.getByUserId($currentUser.user_id);
+      if ($isAdmin) {
+        console.log('👑 Fetching admin nomenclatures...');
+        adminNomenclatures = await nomenclaturesService.getAllWithUsers();
+        console.log(`✅ Admin view: loaded ${adminNomenclatures.length} nomenclatures with user information`);
+        console.log('📊 Admin nomenclatures data:', adminNomenclatures);
+        
+        // Clear regular nomenclatures for admin view
+        nomenclatures = [];
+      } else {
+        console.log('👤 Fetching user nomenclatures...');
+        nomenclatures = await nomenclaturesService.getByUserId($currentUser.user_id);
+        console.log(`✅ User view: loaded ${nomenclatures.length} nomenclatures`);
+        
+        // Clear admin nomenclatures for user view
+        adminNomenclatures = [];
+      }
     } catch (error: any) {
       toast.error('Ошибка', 'Не удалось загрузить номенклатуры');
-      console.error('Error fetching nomenclatures:', error);
+      console.error('❌ Error fetching nomenclatures:', error);
+      console.error('Stack trace:', error.stack);
     } finally {
       loading = false;
     }
   }
 
   onMount(() => {
-    fetchNomenclatures();
+    // Wait for auth to be fully loaded before fetching nomenclatures
+    console.log('🔧 NomenclatureManager mounted. Auth loading state:', $isAuthLoading);
+    console.log('🔧 Current auth state - user:', $currentUser, 'isAuthenticated:', $isAuthenticated);
+    
+    if (!$isAuthLoading) {
+      // Auth is already loaded
+      fetchNomenclatures();
+    } else {
+      // Wait for auth to load
+      console.log('⏳ Waiting for auth to complete...');
+      const unsubscribe = isAuthLoading.subscribe((loading) => {
+        if (!loading && $isAuthenticated) {
+          console.log('✅ Auth loading completed, fetching nomenclatures');
+          fetchNomenclatures();
+          unsubscribe();
+        } else if (!loading && !$isAuthenticated) {
+          console.log('❌ Auth loading completed but user not authenticated');
+          unsubscribe();
+        }
+      });
+    }
   });
 
   // Form validation
@@ -99,7 +209,8 @@
     }
 
     // Check for duplicate names (client-side validation)
-    const duplicateName = nomenclatures.find(n => 
+    const currentNomenclatures = $isAdmin ? adminNomenclatures : nomenclatures;
+    const duplicateName = currentNomenclatures.find(n =>
       n.nomenclature_name.toLowerCase() === formData.nomenclature_name.toLowerCase() &&
       (!isEditing || n.nomenclature_id !== editingNomenclature?.nomenclature_id)
     );
@@ -132,6 +243,13 @@
   // Handle edit
   function handleEdit(event: CustomEvent) {
     const { item } = event.detail;
+    
+    // Check if admin can edit this nomenclature
+    if ($isAdmin && item.user_id !== $currentUser?.user_id) {
+      toast.error('Ошибка', 'Администраторы могут редактировать только свои номенклатуры');
+      return;
+    }
+    
     isEditing = true;
     editingNomenclature = item;
     formData = {
@@ -151,7 +269,13 @@
 
   // Handle delete
   async function handleDelete(event: CustomEvent) {
-    const { id } = event.detail;
+    const { id, item } = event.detail;
+    
+    // Check if admin can delete this nomenclature
+    if ($isAdmin && item.user_id !== $currentUser?.user_id) {
+      toast.error('Ошибка', 'Администраторы могут удалять только свои номенклатуры');
+      return;
+    }
     
     try {
       await nomenclaturesService.delete(id);
@@ -166,10 +290,29 @@
   async function handleBulkDelete(event: CustomEvent) {
     const { ids } = event.detail;
     
+    // For admins, filter out nomenclatures that don't belong to them
+    let allowedIds = ids;
+    if ($isAdmin) {
+      const currentNomenclatures = $isAdmin ? adminNomenclatures : nomenclatures;
+      allowedIds = ids.filter((id: number) => {
+        const n = currentNomenclatures.find(nomenclature => nomenclature.id === id);
+        return n && n.user_id === $currentUser?.user_id;
+      });
+      
+      if (allowedIds.length === 0) {
+        toast.error('Ошибка', 'Администраторы могут удалять только свои номенклатуры');
+        return;
+      }
+      
+      if (allowedIds.length < ids.length) {
+        toast.warning('Внимание', `Будут удалены только ваши номенклатуры (${allowedIds.length} из ${ids.length})`);
+      }
+    }
+    
     try {
-      await nomenclaturesService.bulkDelete(ids);
+      await nomenclaturesService.bulkDelete(allowedIds);
       await fetchNomenclatures();
-      toast.success('Успешно', `Удалено номенклатур: ${ids.length}`);
+      toast.success('Успешно', `Удалено номенклатур: ${allowedIds.length}`);
     } catch (error: any) {
       toast.error('Ошибка', error.message || 'Не удалось удалить номенклатуры');
     }
@@ -215,11 +358,13 @@
   // Handle export
   async function handleExport() {
     try {
-      const csvContent = await nomenclaturesService.exportToCsv(nomenclatures);
+      const dataToExport = $isAdmin ? adminNomenclatures : nomenclatures;
+      const csvContent = await nomenclaturesService.exportToCsv(dataToExport, $isAdmin);
       const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `nomenclatures_${new Date().toISOString().split('T')[0]}.csv`;
+      const filename = $isAdmin ? 'admin_nomenclatures' : 'nomenclatures';
+      link.download = `${filename}_${new Date().toISOString().split('T')[0]}.csv`;
       link.click();
       toast.success('Успешно', 'Данные экспортированы');
     } catch (error: any) {
@@ -259,13 +404,13 @@
 </script>
 
 <CRUDTable
-  title="Номенклатуры"
-  data={nomenclatures}
+  title={$isAdmin ? "Номенклатуры - Администратор" : "Номенклатуры"}
+  data={displayNomenclatures as any}
   {columns}
   {loading}
   searchable={true}
   exportable={true}
-  importable={true}
+  importable={!$isAdmin}
   addButtonText="Добавить номенклатуру"
   emptyMessage="Нет добавленных номенклатур. Нажмите 'Добавить номенклатуру' для создания новой."
   on:add={handleAdd}
