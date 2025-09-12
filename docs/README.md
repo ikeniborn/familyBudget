@@ -1,7 +1,7 @@
 # Family Budget - Documentation Index
 
-**Last Updated:** 2025-09-08  
-**Version:** 1.0.0
+**Last Updated:** 2025-09-12
+**Version:** 1.1.0
 
 This directory contains comprehensive documentation for the Family Budget application, including architecture decisions, API documentation, deployment guides, and templates for future development.
 
@@ -14,6 +14,10 @@ This directory contains comprehensive documentation for the Family Budget applic
   - Three-layer admin access control system
   - Security implementation with user ID-based authorization
   - Performance considerations and future migration paths
+- **[ADR-004: Host Header Proxy Fix](architecture/adr-004-host-header-proxy-fix.md)** ⭐
+  - Docker networking issue resolution for settings pages
+  - FastAPI redirect hostname fix implementation
+  - Critical DNS resolution error resolution
 - **[Decision Log](architecture/decisions.log)** - Complete history of architectural decisions
 
 ### 🔌 API Documentation
@@ -28,6 +32,13 @@ This directory contains comprehensive documentation for the Family Budget applic
   - API security enhancements
   - Three-layer protection model
   - Error handling and response formats
+
+#### Network Configuration
+- **[Network Configuration Guide](api/networking-configuration.md)** ⭐
+  - Docker networking setup and troubleshooting
+  - Vite proxy configuration with Host header fix
+  - Comprehensive debugging toolkit and health checks
+  - Complete resolution guide for DNS issues
 
 ### 🚀 Deployment Documentation
 
@@ -59,12 +70,14 @@ This directory contains comprehensive documentation for the Family Budget applic
 ### For System Administrators
 1. **Getting Started:** [Admin Setup Guide](deployment/admin-setup.md)
 2. **API Reference:** [Admin Endpoints](api/admin-endpoints.md)
-3. **Troubleshooting:** [Security Changes - Monitoring Section](api/security-changes.md#monitoring-and-alerts)
+3. **Network Issues:** [Network Configuration Guide](api/networking-configuration.md) ⭐
+4. **Troubleshooting:** [Security Changes - Monitoring Section](api/security-changes.md#monitoring-and-alerts)
 
 ### For Developers
 1. **Architecture Overview:** [ADR-001](architecture/adr-001-admin-access-control.md)
-2. **Development Standards:** [Admin Feature Template](templates/admin-feature-template.md)
-3. **API Integration:** [Security Changes](api/security-changes.md)
+2. **Networking Fix:** [ADR-004 Host Header Proxy Fix](architecture/adr-004-host-header-proxy-fix.md) ⭐
+3. **Development Standards:** [Admin Feature Template](templates/admin-feature-template.md)
+4. **API Integration:** [Security Changes](api/security-changes.md)
 
 ### For Project Managers
 1. **Implementation Summary:** [ADR-001 - Decision Section](architecture/adr-001-admin-access-control.md#decision)
@@ -170,6 +183,18 @@ Database Operations (with user_id filtering)
 
 ---
 
-**Maintained by:** Development Team  
-**Review Schedule:** Quarterly  
-**Next Review:** 2025-12-08
+**Maintained by:** Development Team
+**Review Schedule:** Quarterly
+**Last Major Update:** 2025-09-12 (Docker networking fix)
+**Next Review:** 2025-12-12
+
+---
+
+## 🔧 Recent Major Updates
+
+### Docker Networking Issue Resolution (2025-09-12)
+- **Critical Issue:** Settings pages experiencing `ERR_NAME_NOT_RESOLVED` errors
+- **Root Cause:** FastAPI redirects using unresolvable Docker container hostnames
+- **Solution:** Host header override in Vite proxy configuration (ADR-004)
+- **Impact:** 100% resolution of DNS issues, all settings pages now functional
+- **Documentation:** Complete troubleshooting guide and architecture decision record created

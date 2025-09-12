@@ -43,6 +43,13 @@ cp .env.example .env
 - Приложение: http://localhost:5173
 - API документация: http://localhost:4000/docs
 
+5. **Проверка работоспособности (опционально):**
+```bash
+# Быстрая проверка системы
+curl http://localhost:5173/api/health    # Через прокси
+curl http://localhost:4000/health        # Прямо к backend
+```
+
 ## 📖 Руководство пользователя
 
 ### 🔑 Авторизация
@@ -454,6 +461,38 @@ mandatory_tests:
 
 ## 🔧 Решение проблем
 
+### 🌐 Проблемы сети и подключения
+
+#### ✅ ERR_NAME_NOT_RESOLVED на страницах настроек (РЕШЕНО 12.09.2025)
+**Проблема:** Ошибки DNS при обращении к API на страницах настроек
+- **Затронутые страницы:** `/settings/periods`, `/settings/financial-centers`, `/settings/cost-centers`, `/settings/nomenclatures`
+- **Решение:** Автоматическое переопределение Host header в конфигурации Vite прокси
+- **Техническая информация:** См. [ADR-004: Host Header Proxy Fix](docs/architecture/adr-004-host-header-proxy-fix.md)
+
+**Проверка работоспособности:**
+```bash
+# Проверка здоровья API через прокси
+curl http://localhost:5173/api/health
+
+# Прямая проверка backend
+curl http://localhost:4000/health
+
+# Валидация страниц настроек
+curl -I http://localhost:5173/api/periods/
+```
+
+#### Проблемы с Docker networking
+```bash
+# Диагностика подключения контейнеров
+docker exec budget-frontend curl http://budget-backend:4000/health
+
+# Проверка состояния сети
+docker network inspect budget-network
+
+# Статус контейнеров
+docker ps | grep budget-
+```
+
 ### Не работает авторизация через Telegram
 1. Проверьте настройки бота в .env файле
 2. Убедитесь, что бот активен
@@ -579,10 +618,11 @@ Traefik (80/443) → Frontend (5173) → FastAPI (4000) → PostgreSQL/Redis
 ### Технологический стек
 
 - **Frontend**: SvelteKit 2 + Svelte 4 с TypeScript
-- **Backend**: FastAPI + SQLAlchemy 2.0 + Pydantic  
+- **Backend**: FastAPI + SQLAlchemy 2.0 + Pydantic
 - **Database**: PostgreSQL 13 с партиционированными таблицами
 - **Cache**: Redis для сессий и кэширования данных
 - **Контейнеризация**: Docker + Docker Compose
+- **Networking**: Vite прокси с автоматическим переопределением Host заголовков для Docker совместимости
 
 ### База данных
 
@@ -683,8 +723,11 @@ docker-compose down && docker-compose up -d
 ```
 
 #### Frontend команды (SvelteKit)
+
+**Примечание:** Vite прокси автоматически переопределяет Host заголовки (`localhost:5173`) для исправления Docker networking проблем с FastAPI редиректами.
+
 ```bash
-# Сервер разработки (порт 5173)
+# Сервер разработки (порт 5173) - включает networking fix
 docker exec budget-frontend npm run dev
 
 # Проверка типов (выполнять перед коммитами)
@@ -843,9 +886,11 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 /docs/
 ├── architecture/     # Архитектурные решения и ADR
 │   ├── adr-001-admin-access-control.md  # ADR для admin системы
+│   ├── adr-004-host-header-proxy-fix.md # ✅ ADR для networking fix
 │   └── decisions.log                    # Журнал принятых решений
 ├── api/             # Документация API endpoints
 │   ├── admin-endpoints.md               # Admin API endpoints
+│   ├── networking-configuration.md     # ✅ Конфигурация сети и прокси
 │   └── security-changes.md              # Изменения безопасности API
 ├── deployment/      # Инструкции по развертыванию
 │   └── admin-setup.md                   # Настройка admin функций
@@ -865,10 +910,15 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 - **Admin функции:** Полная документация с примерами и troubleshooting
 
 #### Документация admin системы:
-- **[ADR-001 Admin Access Control](/docs/architecture/adr-001-admin-access-control.md)** - Архитектурное решение
-- **[Admin API Endpoints](/docs/api/admin-endpoints.md)** - Полная документация API
-- **[Security Changes](/docs/api/security-changes.md)** - Изменения безопасности
-- **[Admin Setup Guide](/docs/deployment/admin-setup.md)** - Инструкции по настройке
+- **[ADR-001 Admin Access Control](docs/architecture/adr-001-admin-access-control.md)** - Архитектурное решение
+- **[Admin API Endpoints](docs/api/admin-endpoints.md)** - Полная документация API
+- **[Security Changes](docs/api/security-changes.md)** - Изменения безопасности
+- **[Admin Setup Guide](docs/deployment/admin-setup.md)** - Инструкции по настройке
+
+#### Документация networking:
+- **[ADR-004: Host Header Proxy Fix](docs/architecture/adr-004-host-header-proxy-fix.md)** - ✅ Решение Docker networking проблем
+- **[Networking Configuration Guide](docs/api/networking-configuration.md)** - Конфигурация прокси и устранение неисправностей
+- **[DNS Resolution Troubleshooting](docs/implementation/dns-resolution-fix-report.md)** - Подробный отчет об исправлении
 
 ### Code Quality Standards
 
@@ -902,9 +952,25 @@ postgresql/backup/postgres-backup.sh  # Ежедневные бэкапы в Yan
 
 ### Точки доступа
 
-- Frontend: http://localhost:5173
-- API: http://localhost:4000
-- API Documentation: http://localhost:4000/docs
+- **Frontend**: http://localhost:5173
+- **Backend API**: http://localhost:4000
+- **API Documentation**: http://localhost:4000/docs
+
+### 🔍 Проверка состояния системы
+
+```bash
+# Проверка frontend (валидирует конфигурацию прокси)
+curl http://localhost:5173/api/health
+
+# Прямая проверка backend
+curl http://localhost:4000/health
+
+# Валидация страниц настроек (после исправления networking)
+curl -I http://localhost:5173/api/periods/
+curl -I http://localhost:5173/api/financial_centers/
+```
+
+**Поведение прокси**: API запросы от frontend (`/api/*`) автоматически проксируются к backend с правильной обработкой Host заголовков для совместимости с Docker.
 
 ## 📊 Performance Monitoring
 

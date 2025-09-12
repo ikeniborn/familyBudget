@@ -7,39 +7,24 @@
         http://localhost:5173/settings/financial-centers
         http://localhost:5173/settings/cost-centers
         http://localhost:5173/settings/nomenclatures
-        Воникает ошибка 
-        Ошибка при загрузке периодов Network Error
-        GET http://budget-backend:4000/api/periods/ net::ERR_NAME_NOT_RESOLVED
-        Promise.then		
-        get	@	api.ts:72
-        loadPeriods	@	+page.svelte:57
-        (anonymous)	@	+page.svelte:50
-        api.ts:72 
+        возникает типовая ошибка 
+        /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-12 16-37-50.png
+        Что не удалось загрузить.
+        При попвытке добавить выводиться сообщение 
+        Добавить период
+Функция добавления/редактирования периодов будет реализована в следующей итерации.
 
-        GET http://budget-backend:4000/api/nomenclatures/ net::ERR_NAME_NOT_RESOLVED
-        Promise.then		
-        get	@	api.ts:72
-        loadNomenclatures	@	+page.svelte:54
-        (anonymous)	@	+page.svelte:48
+Реализовать функциональность для обычного пользвоателя.
 
-        api.ts:72 
-        GET http://budget-backend:4000/api/cost_centers/ net::ERR_NAME_NOT_RESOLVED
-        Promise.then		
-        get	@	api.ts:72
-        loadCostCenters	@	+page.svelte:48
-        (anonymous)	@	+page.svelte:42
-
-        GET http://budget-backend:4000/api/financial_centers/ net::ERR_NAME_NOT_RESOLVED
-        Promise.then		
-        get	@	api.ts:72
-        loadFinancialCenters	@	+page.svelte:48
-        (anonymous)	@	+page.svelte:42
     </context>
     <tasks>
         <task1>
-            <thinking>Изучить контекс, проаналириовать ошибку, определить причину, исправить проблему</thinking>
-            <memory>Изучить записи в памяти для получениия актуальной информации</memory>
-            <documentation>При необходимости запросить документацию через context7</documentation>
+            <step1>Изучить контекс</step1>
+            <step2>
+                <thinking>Проаналириовать задачу</thinking>
+                <memory>Изучить записи в памяти для получениия актуальной информации</memory>
+                <context7>При необходимости запросить документацию</context7>
+            </step2>
         </task1>
         <task2>Задать уточняющие вопросы</task2>
         <task3>Сформировать план задач</task3>

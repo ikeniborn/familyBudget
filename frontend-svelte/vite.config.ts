@@ -190,9 +190,15 @@ export default defineConfig({
         ws: true,
         timeout: 30000,
         proxyTimeout: 30000,
+        headers: {
+          // Override Host header to fix FastAPI redirects
+          'Host': 'localhost:5173'
+        },
         configure: (proxy, options) => {
           proxy.on('proxyReq', (proxyReq, req, res) => {
             console.log(`[PROXY] ${req.method} ${req.url} -> ${options.target}${req.url}`);
+            // Override Host header to ensure FastAPI redirects work properly
+            proxyReq.setHeader('Host', 'localhost:5173');
             // Forward cookies from the original request
             const cookies = req.headers.cookie;
             if (cookies) {
@@ -207,11 +213,11 @@ export default defineConfig({
             // Don't convert proxy errors to 500, let the original status code through
             if (!res.headersSent) {
               res.writeHead(502, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ 
-                error: 'Bad Gateway', 
+              res.end(JSON.stringify({
+                error: 'Bad Gateway',
                 message: 'Unable to connect to backend service',
                 detail: err.message,
-                target: options.target 
+                target: options.target
               }));
             }
           });

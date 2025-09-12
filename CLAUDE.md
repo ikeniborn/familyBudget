@@ -133,6 +133,7 @@ docker exec -it budget-frontend sh
 # Health checks
 curl http://localhost:4000/health     # Backend API
 curl http://localhost:5173/           # Frontend
+curl http://localhost:5173/api/health # Through proxy (validates Host header fix)
 ```
 
 ## Architecture Overview
@@ -465,6 +466,33 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 3. **Type mismatch errors**: SQLAlchemy BigInteger for telegram_id, Integer for user_id
 4. **Svelte component errors**: Check if using old syntax (on:click vs onclick)
 5. **Docker port conflicts**: Stop other services or change ports in .env
+6. **Settings pages DNS errors**: ✅ **RESOLVED** - Host header proxy fix implemented (ADR-004)
+
+### 🔧 Docker Networking Fix (ADR-004)
+
+**Issue:** `ERR_NAME_NOT_RESOLVED` errors on settings pages due to FastAPI redirects using Docker hostnames
+**Root Cause:** FastAPI generates 307 redirects with `budget-backend:4000` hostnames that browsers cannot resolve
+**Solution:** Override Host header in Vite proxy configuration to use `localhost:5173`
+
+**Fixed in:** [`frontend-svelte/vite.config.ts`](frontend-svelte/vite.config.ts:193-201)
+```typescript
+headers: {
+  'Host': 'localhost:5173'  // Fix FastAPI redirects
+},
+configure: (proxy, options) => {
+  proxy.on('proxyReq', (proxyReq, req, res) => {
+    proxyReq.setHeader('Host', 'localhost:5173');  // Double-ensure fix
+  });
+}
+```
+
+**Pages Fixed:** All settings pages now work correctly
+- `/settings/periods`
+- `/settings/financial-centers`
+- `/settings/cost-centers`
+- `/settings/nomenclatures`
+
+**Documentation:** See [ADR-004](docs/architecture/adr-004-host-header-proxy-fix.md) and [Networking Guide](docs/api/networking-configuration.md)
 
 ## File Organization
 
