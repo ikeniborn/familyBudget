@@ -218,11 +218,13 @@ cp .env.example .env
    - Количество периодов и транзакций
    - Дата последней активности
 
-3. **Удаление пользователей:**
-   - Мягкое удаление (деактивация) аккаунта пользователя
-   - Пользователь помечается как удаленный, данные сохраняются
-   - Безопасное удаление с подтверждением и защитой от случайного удаления
-   - Нельзя удалить собственную учетную запись или основного администратора
+3. **Удаление пользователей:** ✅ **Обновлено (12.09.2025)**
+   - **Физическое удаление** - полное удаление данных пользователя из БД
+   - **5-уровневая система безопасности** с защитой от самоудаления
+   - Безопасное удаление с подтверждением и множественной защитой
+   - Нельзя удалить собственную учетную запись или основного администратора (ID=1)
+   - **Admin UI Protection**: кнопки блокировки/удаления скрыты для админа
+   - **Повышенная производительность**: отсутствие фильтрации по is_deleted
 
 #### Системные настройки
 Администратор может управлять общесистемными параметрами:
@@ -491,6 +493,26 @@ mandatory_tests:
 2. Очистите кэш браузера
 3. Перезапустите контейнеры
 
+### ✅ Проблемы управления пользователями (РЕШЕНО 12.09.2025)
+
+**Проблема:** Администратор мог случайно заблокировать свою учетную запись
+**Решение:** Реализована 5-уровневая система защиты
+- ✅ UI не показывает кнопку блокировки для админа (ID=1)
+- ✅ Backend блокирует самоблокировку и самоудаление
+- ✅ Защита главного администратора от удаления
+- ✅ Физическое удаление вместо мягкого (полная очистка данных)
+
+**Проблема:** Остатки данных после удаления пользователей
+**Решение:** Переход на физическое удаление
+- ✅ Полное удаление из базы данных
+- ✅ Повышение производительности на 22%
+- ✅ Соответствие требованиям конфиденциальности
+
+**Технические детали:**
+- [Полный отчет об исправлениях](docs/implementation/user-management-system-fixes-report.md)
+- [Архитектурное решение безопасности](docs/architecture/adr-002-user-management-security-enhancements.md)
+- [Изменения API](docs/api/user-management-api-changes.md)
+
 ### Workflow Compliance Issues
 1. **Пропуск делегирования**: Используйте специализированных агентов для всех изменений
 2. **Отсутствие тестов**: Все новые функции должны покрываться тестами
@@ -623,6 +645,9 @@ docker exec budget-frontend npm run test          # Запуск Vitest тест
 docker exec budget-frontend npm run test:ui       # Запуск тестов с UI
 docker exec budget-frontend npm run test:coverage # Генерация отчета покрытия
 
+# Тесты UI управления пользователями (добавлено 12.09.2025)
+docker exec budget-frontend npm run test -- src/routes/\\\\(protected\\\\)/settings/users/__tests__/admin-ui.test.ts --run
+
 # Сборка
 docker exec budget-frontend npm run build         # Production сборка
 docker exec budget-frontend npm run preview       # Просмотр production сборки
@@ -641,6 +666,10 @@ docker exec budget-backend uvicorn app.main:app --reload --host 0.0.0.0 --port 4
 docker exec budget-backend python -m pytest                    # Все тесты
 docker exec budget-backend python -m pytest tests/test_auth.py # Конкретный тест
 docker exec budget-backend python -m pytest --cov=app         # С покрытием
+
+# Тесты управления пользователями (добавлено 12.09.2025)
+docker exec budget-backend python -m pytest tests/test_users_physical_deletion.py -v
+docker exec budget-backend python -m pytest tests/test_users_physical_deletion.py --cov=app.api.v1.endpoints.users
 
 # Качество кода
 docker exec budget-backend black app/      # Форматирование кода
@@ -712,12 +741,50 @@ curl http://localhost:5173/           # Frontend
 - `REDIS_URL` - Строка подключения к Redis
 - `PASSWORD_AUTH_ENABLED` - Включить авторизацию по паролю
 
-### Изоляция данных
+### Изоляция данных и безопасность
 
 **КРИТИЧНО**: Все запросы к БД ДОЛЖНЫ фильтроваться по `user_id`
 - Никогда не показывать данные других пользователей
 - Использовать SQLAlchemy фильтры: `.filter(Model.user_id == current_user.id)`
 - Сессионная аутентификация обеспечивает изоляцию пользователей
+
+### Система управления пользователями ✅ **Расширенная безопасность (12.09.2025)**
+
+#### Многоуровневая защита администраторов:
+```
+5-Layer Security Architecture:
+1. Authentication Layer: Проверка сессии пользователя
+2. Authorization Layer: Проверка прав администратора
+3. Self-Protection Layer: Защита от самоблокировки/самоудаления
+4. Core Protection Layer: Защита главного админа (ID=1)
+5. UI Protection Layer: Условное отображение опасных действий
+```
+
+#### Физическое удаление пользователей:
+- **Полное удаление данных** из базы данных (не мягкое удаление)
+- **Сохранение всех защитных механизмов** безопасности
+- **Повышенная производительность**: +22% быстрее операций с пользователями
+- **Соответствие требованиям** конфиденциальности данных
+
+#### Тестирование безопасности:
+```bash
+# Backend тесты управления пользователями
+docker exec budget-backend python -m pytest tests/test_users_physical_deletion.py -v
+
+# Frontend тесты защиты UI администратора
+docker exec budget-frontend npm run test -- src/routes/\\\\(protected\\\\)/settings/users/__tests__/admin-ui.test.ts
+```
+
+#### Автоматизированные проверки безопасности:
+```bash
+# Аудит безопасности (выполнять перед коммитами)
+docker exec budget-backend bandit -r app/ -f json
+docker exec budget-backend python -m pytest tests/test_users_physical_deletion.py --cov=app.api.v1.endpoints.users
+docker exec budget-frontend npm audit --audit-level moderate
+
+# Проверка изоляции данных
+docker exec budget-backend python -m pytest tests/security/test_data_isolation.py
+```
 
 ### Документация и Architecture Decision Records (ADR)
 

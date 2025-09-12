@@ -1,17 +1,54 @@
 <request>
-Удалить раздел http://localhost:5173/reference 
-/home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-11 20-09-50.png
-Он дублируется.
-Основной http://localhost:5173/settings 
+    <role>Разрабочик приложения для учета семейных финаннсов</role>
+    <rule>Придерживаться требований проекта CLAUDE.md</rule>
+    <context>
+        При открытии под обычным пользователем разделов 
+        http://localhost:5173/settings/periods
+        http://localhost:5173/settings/financial-centers
+        http://localhost:5173/settings/cost-centers
+        http://localhost:5173/settings/nomenclatures
+        Воникает ошибка 
+        Ошибка при загрузке периодов Network Error
+        GET http://budget-backend:4000/api/periods/ net::ERR_NAME_NOT_RESOLVED
+        Promise.then		
+        get	@	api.ts:72
+        loadPeriods	@	+page.svelte:57
+        (anonymous)	@	+page.svelte:50
+        api.ts:72 
+
+        GET http://budget-backend:4000/api/nomenclatures/ net::ERR_NAME_NOT_RESOLVED
+        Promise.then		
+        get	@	api.ts:72
+        loadNomenclatures	@	+page.svelte:54
+        (anonymous)	@	+page.svelte:48
+
+        api.ts:72 
+        GET http://budget-backend:4000/api/cost_centers/ net::ERR_NAME_NOT_RESOLVED
+        Promise.then		
+        get	@	api.ts:72
+        loadCostCenters	@	+page.svelte:48
+        (anonymous)	@	+page.svelte:42
+
+        GET http://budget-backend:4000/api/financial_centers/ net::ERR_NAME_NOT_RESOLVED
+        Promise.then		
+        get	@	api.ts:72
+        loadFinancialCenters	@	+page.svelte:48
+        (anonymous)	@	+page.svelte:42
+    </context>
+    <tasks>
+        <task1>
+            <thinking>Изучить контекс, проаналириовать ошибку, определить причину, исправить проблему</thinking>
+            <memory>Изучить записи в памяти для получениия актуальной информации</memory>
+            <documentation>При необходимости запросить документацию через context7</documentation>
+        </task1>
+        <task2>Задать уточняющие вопросы</task2>
+        <task3>Сформировать план задач</task3>
+        <task4>Выполнить план задач шаг за шагом</task4>
+        <task5>Протестировать изменения. Все тесты сохранить в /tests </task5>
+        <task6>Обновить документацию в /docs и README.md</task6>
+        <task7>
+            <memory>Обновить память проекта</memory>
+        </task7>
+        <task8>Сделать коммит</task8>
+    </tasks>
 </request>
-<tasks>
-    <task1>
-        <thinking>Обдумать запрос</thinking>
-    </task1>
-    <task2>Задать уточняющие вопросы</task2>
-    <task3>Сформировать план задач</task3>
-    <task4>Выполнить план задач шаг за шагом</task4>
-    <task5>Протестировать изменения</task5>
-    <task6>Обновить документацию README и CLAUDE</task6>
-    <task7>Сделать коммит</task7>
-</tasks>

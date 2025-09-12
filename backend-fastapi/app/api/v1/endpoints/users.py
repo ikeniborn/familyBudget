@@ -372,18 +372,13 @@ async def delete_user_admin(
             detail="Нельзя удалить основного администратора"
         )
     
-    # For now, perform soft delete by deactivating the user
-    # In the future, you may want to implement cascade deletion of related data
-    # or move user data to an archive table
-    user.is_active = False
-    user.user_name = f"[УДАЛЕН] {user.user_name}"  # Mark as deleted in name
-    
+    # Physical deletion - completely remove user from database
+    await db.delete(user)
     await db.commit()
-    await db.refresh(user)
     
     return {
         "success": True,
-        "message": f"Пользователь {user.user_name} успешно удален"
+        "message": "Пользователь успешно удален"
     }
 
 

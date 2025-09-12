@@ -286,14 +286,16 @@
                         <Button size="sm" variant="outline" on:click={() => handleEditUser(user)}>
                           Изменить
                         </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          class={user.is_active ? 'text-red-600 hover:text-red-700' : 'text-green-600 hover:text-green-700'}
-                          on:click={() => handleToggleUserStatus(user)}
-                        >
-                          {user.is_active ? 'Заблокировать' : 'Разблокировать'}
-                        </Button>
+                        {#if user.id !== 1}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            class={user.is_active ? 'text-red-600 hover:text-red-700' : 'text-green-600 hover:text-green-700'}
+                            on:click={() => handleToggleUserStatus(user)}
+                          >
+                            {user.is_active ? 'Заблокировать' : 'Разблокировать'}
+                          </Button>
+                        {/if}
                         {#if user.id !== $currentUser?.id && user.id !== 1}
                           <Button 
                             size="sm" 
