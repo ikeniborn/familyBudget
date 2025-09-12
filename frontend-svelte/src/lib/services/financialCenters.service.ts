@@ -3,13 +3,12 @@ import type { FinancialCenter, AdminFinancialCenter } from '$types';
 import api from './api';
 
 export interface CreateFinancialCenterData {
-  financial_center_name: string;
-  user_id: number;
+  name: string;  // Updated to match backend schema
   is_active?: boolean;
 }
 
 export interface UpdateFinancialCenterData {
-  financial_center_name?: string;
+  name?: string;  // Updated to match backend schema
   is_active?: boolean;
 }
 
@@ -149,9 +148,8 @@ class FinancialCentersService extends BaseService<FinancialCenter, CreateFinanci
       const [, name, status] = line.split(',').map(v => v.replace(/"/g, '').trim());
       
       newFinancialCenters.push({
-        financial_center_name: name,
+        name: name,  // Updated to match backend schema
         is_active: status === 'Активен',
-        user_id: userId,
       });
     }
 

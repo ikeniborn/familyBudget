@@ -37,6 +37,15 @@
   let showDeleteModal = false;
   let fcToDelete: FinancialCenter | null = null;
   let deleting = false;
+  let saving = false;
+
+  // Form data
+  let formData = {
+    code: '',
+    name: '',
+    description: '',
+    is_active: true
+  };
 
   onMount(() => {
     loadFinancialCenters();
@@ -91,12 +100,81 @@
 
   function handleAddFC() {
     selectedFC = null;
+    formData = {
+      code: '',
+      name: '',
+      description: '',
+      is_active: true
+    };
     showAddModal = true;
   }
 
   function handleEditFC(fc: FinancialCenter) {
     selectedFC = fc;
+    formData = {
+      code: fc.code || '',
+      name: fc.name || '',
+      description: fc.description || '',
+      is_active: fc.is_active !== false
+    };
     showAddModal = true;
+  }
+
+  function handleCloseModal() {
+    showAddModal = false;
+    selectedFC = null;
+    formData = {
+      code: '',
+      name: '',
+      description: '',
+      is_active: true
+    };
+  }
+
+  async function handleSubmitFC() {
+    if (!formData.name) {
+      toast.error('Заполните обязательные поля', 'Название обязательно');
+      return;
+    }
+
+    try {
+      saving = true;
+      
+      const requestData = {
+        financial_center_name: formData.name,
+        is_active: formData.is_active,
+        user_id: 1 // Will be set by backend from current user
+      };
+
+      let response;
+      if (selectedFC) {
+        // Update existing financial center
+        response = await api.put(`/financial_centers/${selectedFC.id}`, {
+          financial_center_name: formData.name,
+          is_active: formData.is_active
+        });
+      } else {
+        // Create new financial center
+        response = await api.post('/financial_centers', requestData);
+      }
+
+      if ((response as any).success) {
+        toast.success(
+          selectedFC ? 'ЦФО успешно обновлен' : 'ЦФО успешно создан'
+        );
+        handleCloseModal();
+        await loadFinancialCenters();
+      } else {
+        throw new Error((response as any).error || 'Ошибка при сохранении ЦФО');
+      }
+    } catch (error: any) {
+      toast.error(
+        `Ошибка при ${selectedFC ? 'обновлении' : 'создании'} ЦФО`,
+        error.message
+      );
+    } finally {
+      saving = false;
+    }
   }
 
   function handleDeleteFC(fc: FinancialCenter) {
@@ -311,21 +389,84 @@
   </Card>
 </div>
 
-<!-- Add/Edit Modal -->
+<!-- Add/Edit Financial Center Modal -->
 {#if showAddModal}
   <div class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
     <Card class="w-full max-w-md">
-      <div class="p-6">
-        <h3 class="text-lg font-semibold mb-4">
-          {selectedFC ? 'Изменить ЦФО' : 'Добавить ЦФО'}
-        </h3>
-        <p class="text-gray-600">Функция добавления/редактирования ЦФО будет реализована в следующей итерации.</p>
-        <div class="flex justify-end gap-2 mt-4">
-          <Button variant="outline" on:click={() => showAddModal = false}>
-            Закрыть
-          </Button>
+      <form on:submit|preventDefault={handleSubmitFC}>
+        <div class="p-6">
+          <h3 class="text-lg font-semibold mb-4">
+            {selectedFC ? 'Изменить ЦФО' : 'Добавить ЦФО'}
+          </h3>
+          
+          <div class="space-y-4">
+            <!-- Code -->
+            <div>
+              <label for="fc-code" class="block text-sm font-medium text-gray-700 mb-1">
+                Код ЦФО
+              </label>
+              <input
+                id="fc-code"
+                type="text"
+                bind:value={formData.code}
+                placeholder="Например: СБ, МА, ИТ"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <!-- Name -->
+            <div>
+              <label for="fc-name" class="block text-sm font-medium text-gray-700 mb-1">
+                Название ЦФО *
+              </label>
+              <input
+                id="fc-name"
+                type="text"
+                bind:value={formData.name}
+                placeholder="Например: Отдел продаж"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <!-- Description -->
+            <div>
+              <label for="fc-description" class="block text-sm font-medium text-gray-700 mb-1">
+                Описание
+              </label>
+              <textarea
+                id="fc-description"
+                bind:value={formData.description}
+                placeholder="Описание центра финансовой ответственности"
+                rows="3"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              ></textarea>
+            </div>
+
+            <!-- Active Status -->
+            <div class="flex items-center">
+              <input
+                id="fc-active"
+                type="checkbox"
+                bind:checked={formData.is_active}
+                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label for="fc-active" class="ml-2 block text-sm text-gray-900">
+                Активен
+              </label>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2 mt-6">
+            <Button type="button" variant="outline" on:click={handleCloseModal}>
+              Отмена
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Сохранение...' : selectedFC ? 'Сохранить' : 'Создать'}
+            </Button>
+          </div>
         </div>
-      </div>
+      </form>
     </Card>
   </div>
 {/if}

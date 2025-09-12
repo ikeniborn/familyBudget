@@ -43,6 +43,17 @@
   let showDeleteModal = false;
   let nomenclatureToDelete: Nomenclature | null = null;
   let deleting = false;
+  let saving = false;
+
+  // Form data
+  let formData = {
+    code: '',
+    name: '',
+    category: '',
+    type: 'expense' as 'income' | 'expense',
+    description: '',
+    is_active: true
+  };
 
   onMount(() => {
     loadNomenclatures();
@@ -107,12 +118,97 @@
 
   function handleAddNomenclature() {
     selectedNomenclature = null;
+    formData = {
+      code: '',
+      name: '',
+      category: '',
+      type: 'expense' as 'income' | 'expense',
+      description: '',
+      is_active: true
+    };
     showAddModal = true;
   }
 
   function handleEditNomenclature(nomenclature: Nomenclature) {
     selectedNomenclature = nomenclature;
+    formData = {
+      code: nomenclature.code || '',
+      name: nomenclature.name || '',
+      category: nomenclature.category || '',
+      type: (nomenclature.type as 'income' | 'expense') || 'expense',
+      description: nomenclature.description || '',
+      is_active: nomenclature.is_active !== false
+    };
     showAddModal = true;
+  }
+
+  function handleCloseModal() {
+    showAddModal = false;
+    selectedNomenclature = null;
+    formData = {
+      code: '',
+      name: '',
+      category: '',
+      type: 'expense' as 'income' | 'expense',
+      description: '',
+      is_active: true
+    };
+  }
+
+  async function handleSubmitNomenclature() {
+    if (!formData.name) {
+      toast.error('Заполните обязательные поля', 'Название обязательно');
+      return;
+    }
+
+    try {
+      saving = true;
+      
+      const requestData = {
+        nomenclature_name: formData.name,
+        nomenclature_type: formData.type,
+        account_name: formData.name,
+        bill_name: formData.name,
+        operation_name: formData.name,
+        is_budget: true,
+        is_fact: true,
+        is_active: formData.is_active,
+        user_id: 1 // Will be set by backend from current user
+      };
+
+      let response;
+      if (selectedNomenclature) {
+        // Update existing nomenclature
+        response = await api.put(`/nomenclatures/${selectedNomenclature.id}`, {
+          nomenclature_name: formData.name,
+          nomenclature_type: formData.type,
+          account_name: formData.name,
+          bill_name: formData.name,
+          operation_name: formData.name,
+          is_active: formData.is_active
+        });
+      } else {
+        // Create new nomenclature
+        response = await api.post('/nomenclatures', requestData);
+      }
+
+      if ((response as any).success) {
+        toast.success(
+          selectedNomenclature ? 'Номенклатура успешно обновлена' : 'Номенклатура успешно создана'
+        );
+        handleCloseModal();
+        await loadNomenclatures();
+      } else {
+        throw new Error((response as any).error || 'Ошибка при сохранении номенклатуры');
+      }
+    } catch (error: any) {
+      toast.error(
+        `Ошибка при ${selectedNomenclature ? 'обновлении' : 'создании'} номенклатуры`,
+        error.message
+      );
+    } finally {
+      saving = false;
+    }
   }
 
   function handleDeleteNomenclature(nomenclature: Nomenclature) {
@@ -370,21 +466,113 @@
   </Card>
 </div>
 
-<!-- Add/Edit Modal -->
+<!-- Add/Edit Nomenclature Modal -->
 {#if showAddModal}
   <div class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
     <Card class="w-full max-w-md">
-      <div class="p-6">
-        <h3 class="text-lg font-semibold mb-4">
-          {selectedNomenclature ? 'Изменить номенклатуру' : 'Добавить номенклатуру'}
-        </h3>
-        <p class="text-gray-600">Функция добавления/редактирования номенклатур будет реализована в следующей итерации.</p>
-        <div class="flex justify-end gap-2 mt-4">
-          <Button variant="outline" on:click={() => showAddModal = false}>
-            Закрыть
-          </Button>
+      <form on:submit|preventDefault={handleSubmitNomenclature}>
+        <div class="p-6">
+          <h3 class="text-lg font-semibold mb-4">
+            {selectedNomenclature ? 'Изменить номенклатуру' : 'Добавить номенклатуру'}
+          </h3>
+          
+          <div class="space-y-4">
+            <!-- Code ---->
+            <div>
+              <label for="nom-code" class="block text-sm font-medium text-gray-700 mb-1">
+                Код номенклатуры
+              </label>
+              <input
+                id="nom-code"
+                type="text"
+                bind:value={formData.code}
+                placeholder="Например: Д001, Р002"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <!-- Name -->
+            <div>
+              <label for="nom-name" class="block text-sm font-medium text-gray-700 mb-1">
+                Название номенклатуры *
+              </label>
+              <input
+                id="nom-name"
+                type="text"
+                bind:value={formData.name}
+                placeholder="Например: Продукты питания"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <!-- Category -->
+            <div>
+              <label for="nom-category" class="block text-sm font-medium text-gray-700 mb-1">
+                Категория
+              </label>
+              <input
+                id="nom-category"
+                type="text"
+                bind:value={formData.category}
+                placeholder="Например: Основные расходы"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <!-- Type -->
+            <div>
+              <label for="nom-type" class="block text-sm font-medium text-gray-700 mb-1">
+                Тип номенклатуры
+              </label>
+              <select
+                id="nom-type"
+                bind:value={formData.type}
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="expense">Расходы</option>
+                <option value="income">Доходы</option>
+              </select>
+            </div>
+
+            <!-- Description -->
+            <div>
+              <label for="nom-description" class="block text-sm font-medium text-gray-700 mb-1">
+                Описание
+              </label>
+              <textarea
+                id="nom-description"
+                bind:value={formData.description}
+                placeholder="Описание номенклатуры"
+                rows="3"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              ></textarea>
+            </div>
+
+            <!-- Active Status -->
+            <div class="flex items-center">
+              <input
+                id="nom-active"
+                type="checkbox"
+                bind:checked={formData.is_active}
+                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label for="nom-active" class="ml-2 block text-sm text-gray-900">
+                Активна
+              </label>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2 mt-6">
+            <Button type="button" variant="outline" on:click={handleCloseModal}>
+              Отмена
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Сохранение...' : selectedNomenclature ? 'Сохранить' : 'Создать'}
+            </Button>
+          </div>
         </div>
-      </div>
+      </form>
     </Card>
   </div>
 {/if}

@@ -1,8 +1,7 @@
 <script lang="ts">
   import Card from '$lib/components/ui/Card.svelte';
   import Button from '$lib/components/ui/Button.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import { Calendar, CalendarPlus, CalendarCheck, CalendarX, Plus, Edit, Trash2 } from 'lucide-svelte';
+  import { Calendar, CalendarPlus, CalendarCheck, CalendarX, Edit, Trash2 } from 'lucide-svelte';
   import { onMount } from 'svelte';
   import { useToast } from '$lib/stores/toast.store';
   import { api } from '$lib/services/api';
@@ -45,6 +44,15 @@
   let showDeleteModal = false;
   let periodToDelete: Period | null = null;
   let deleting = false;
+  let saving = false;
+
+  // Form data
+  let formData = {
+    date: '',
+    ru_name: '',
+    start_date: '',
+    end_date: ''
+  };
 
   onMount(() => {
     loadPeriods();
@@ -54,7 +62,7 @@
   async function loadPeriods() {
     try {
       loading = true;
-      const response = await api.get('/periods');
+      const response = await api.get('/periods') as any;
       if (response.success) {
         periods = response.data || [];
       } else {
@@ -128,12 +136,91 @@
 
   function handleAddPeriod() {
     selectedPeriod = null;
+    formData = {
+      date: '',
+      ru_name: '',
+      start_date: '',
+      end_date: ''
+    };
     showAddModal = true;
   }
 
   function handleEditPeriod(period: Period) {
     selectedPeriod = period;
+    // Convert date to YYYY-MM format for month input
+    const periodDate = new Date(period.date);
+    const yearMonth = `${periodDate.getFullYear()}-${String(periodDate.getMonth() + 1).padStart(2, '0')}`;
+    
+    formData = {
+      date: yearMonth,
+      ru_name: period.ru_name || '',
+      start_date: period.start_date ? period.start_date.substring(0, 10) : '',
+      end_date: period.end_date ? period.end_date.substring(0, 10) : ''
+    };
     showAddModal = true;
+  }
+
+  function handleCloseModal() {
+    showAddModal = false;
+    selectedPeriod = null;
+    formData = {
+      date: '',
+      ru_name: '',
+      start_date: '',
+      end_date: ''
+    };
+  }
+
+  async function handleSubmitPeriod() {
+    if (!formData.date || !formData.ru_name) {
+      toast.error('Заполните обязательные поля', 'Дата периода и название обязательны');
+      return;
+    }
+
+    try {
+      saving = true;
+      
+      // Convert month input (YYYY-MM) to full date
+      const [year, month] = formData.date.split('-');
+      const periodDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+      
+      const requestData = {
+        date: periodDate.toISOString(),
+        ru_name: formData.ru_name,
+        start_date: formData.start_date ? new Date(formData.start_date).toISOString() : null,
+        end_date: formData.end_date ? new Date(formData.end_date).toISOString() : null,
+        period_year: parseInt(year),
+        period_month: parseInt(month),
+        period_name: formData.ru_name
+      };
+
+      let response;
+      if (selectedPeriod) {
+        // Update existing period
+        response = await api.put(`/periods/${selectedPeriod.id}`, requestData);
+      } else {
+        // Create new period
+        response = await api.post('/periods', requestData);
+      }
+
+      if ((response as any).success) {
+        toast.success(
+          selectedPeriod ? 'Период успешно обновлен' : 'Период успешно создан'
+        );
+        handleCloseModal();
+        await loadPeriods();
+        await loadPeriodStats();
+      } else {
+        throw new Error((response as any).error || 'Ошибка при сохранении периода');
+      }
+    } catch (error: any) {
+      toast.error(
+        `Ошибка при ${selectedPeriod ? 'обновлении' : 'создании'} периода`,
+        error.message
+      );
+    } finally {
+      saving = false;
+    }
   }
 
   function handleDeletePeriod(period: Period) {
@@ -147,7 +234,7 @@
     try {
       deleting = true;
       const response = await api.delete(`/periods/${periodToDelete.id}`);
-      if (response.success || response.message) {
+      if ((response as any).success || (response as any).message) {
         toast.success('Период успешно удален');
         
         showDeleteModal = false;
@@ -155,7 +242,7 @@
         await loadPeriods();
         await loadPeriodStats();
       } else {
-        throw new Error(response.error || 'Не удалось удалить период');
+        throw new Error((response as any).error || 'Не удалось удалить период');
       }
     } catch (error: any) {
       toast.error(
@@ -170,12 +257,6 @@
   function handleCloseDeleteModal() {
     showDeleteModal = false;
     periodToDelete = null;
-  }
-
-  function handleModalSuccess() {
-    showAddModal = false;
-    loadPeriods();
-    loadPeriodStats();
   }
 
   // Пересчитываем статистику при изменении периодов
@@ -343,21 +424,83 @@
   </Card>
 </div>
 
-<!-- Modals будут добавлены позже -->
+<!-- Add/Edit Period Modal -->
 {#if showAddModal}
   <div class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
     <Card class="w-full max-w-md">
-      <div class="p-6">
-        <h3 class="text-lg font-semibold mb-4">
-          {selectedPeriod ? 'Изменить период' : 'Добавить период'}
-        </h3>
-        <p class="text-gray-600">Функция добавления/редактирования периодов будет реализована в следующей итерации.</p>
-        <div class="flex justify-end gap-2 mt-4">
-          <Button variant="outline" on:click={() => showAddModal = false}>
-            Закрыть
-          </Button>
+      <form on:submit|preventDefault={handleSubmitPeriod}>
+        <div class="p-6">
+          <h3 class="text-lg font-semibold mb-4">
+            {selectedPeriod ? 'Изменить период' : 'Добавить период'}
+          </h3>
+          
+          <div class="space-y-4">
+            <!-- Period Date -->
+            <div>
+              <label for="period-date" class="block text-sm font-medium text-gray-700 mb-1">
+                Дата периода *
+              </label>
+              <input
+                id="period-date"
+                type="month"
+                bind:value={formData.date}
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <!-- Period Name -->
+            <div>
+              <label for="period-name" class="block text-sm font-medium text-gray-700 mb-1">
+                Название периода *
+              </label>
+              <input
+                id="period-name"
+                type="text"
+                bind:value={formData.ru_name}
+                placeholder="Например: Январь 2024"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <!-- Start Date (Optional) -->
+            <div>
+              <label for="start-date" class="block text-sm font-medium text-gray-700 mb-1">
+                Дата начала (опционально)
+              </label>
+              <input
+                id="start-date"
+                type="date"
+                bind:value={formData.start_date}
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <!-- End Date (Optional) -->
+            <div>
+              <label for="end-date" class="block text-sm font-medium text-gray-700 mb-1">
+                Дата окончания (опционально)
+              </label>
+              <input
+                id="end-date"
+                type="date"
+                bind:value={formData.end_date}
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2 mt-6">
+            <Button type="button" variant="outline" on:click={handleCloseModal}>
+              Отмена
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Сохранение...' : selectedPeriod ? 'Сохранить' : 'Создать'}
+            </Button>
+          </div>
         </div>
-      </div>
+      </form>
     </Card>
   </div>
 {/if}

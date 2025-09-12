@@ -3,31 +3,22 @@ import type { Nomenclature, AdminNomenclature } from '$types';
 import api from './api';
 
 export interface CreateNomenclatureData {
-  nomenclature_name: string;
-  nomenclature_type?: 'INCOME' | 'EXPENSE';
+  name: string;  // Updated to match backend schema
   account_name: string;
   bill_name: string;
-  operation_name: string;
+  operation: string;  // Updated to match backend schema
   is_budget?: boolean;
   is_fact?: boolean;
-  parent_id?: number | null;
-  color?: string;
-  icon?: string;
-  user_id: number;
   is_active?: boolean;
 }
 
 export interface UpdateNomenclatureData {
-  nomenclature_name?: string;
-  nomenclature_type?: 'INCOME' | 'EXPENSE';
+  name?: string;  // Updated to match backend schema
   account_name?: string;
   bill_name?: string;
-  operation_name?: string;
+  operation?: string;  // Updated to match backend schema
   is_budget?: boolean;
   is_fact?: boolean;
-  parent_id?: number | null;
-  color?: string;
-  icon?: string;
   is_active?: boolean;
 }
 
@@ -198,15 +189,13 @@ class NomenclaturesService extends BaseService<Nomenclature, CreateNomenclatureD
       const [, name, type, account, bill, operation, budget, fact, status] = line.split(',').map(v => v.replace(/"/g, '').trim());
       
       newNomenclatures.push({
-        nomenclature_name: name,
-        nomenclature_type: (type as 'INCOME' | 'EXPENSE') || 'EXPENSE',
+        name: name,  // Updated to match backend schema
         account_name: account || 'Счёт',
         bill_name: bill || 'Статья',
-        operation_name: operation || 'Операция',
+        operation: operation || 'Операция',  // Updated to match backend schema
         is_budget: budget === 'Да',
         is_fact: fact === 'Да',
         is_active: status === 'Активен',
-        user_id: userId,
       });
     }
 

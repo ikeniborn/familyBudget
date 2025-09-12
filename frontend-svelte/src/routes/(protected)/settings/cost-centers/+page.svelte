@@ -37,6 +37,15 @@
   let showDeleteModal = false;
   let ccToDelete: CostCenter | null = null;
   let deleting = false;
+  let saving = false;
+
+  // Form data
+  let formData = {
+    code: '',
+    name: '',
+    description: '',
+    is_active: true
+  };
 
   onMount(() => {
     loadCostCenters();
@@ -91,12 +100,81 @@
 
   function handleAddCC() {
     selectedCC = null;
+    formData = {
+      code: '',
+      name: '',
+      description: '',
+      is_active: true
+    };
     showAddModal = true;
   }
 
   function handleEditCC(cc: CostCenter) {
     selectedCC = cc;
+    formData = {
+      code: cc.code || '',
+      name: cc.name || '',
+      description: cc.description || '',
+      is_active: cc.is_active !== false
+    };
     showAddModal = true;
+  }
+
+  function handleCloseModal() {
+    showAddModal = false;
+    selectedCC = null;
+    formData = {
+      code: '',
+      name: '',
+      description: '',
+      is_active: true
+    };
+  }
+
+  async function handleSubmitCC() {
+    if (!formData.name) {
+      toast.error('Заполните обязательные поля', 'Название обязательно');
+      return;
+    }
+
+    try {
+      saving = true;
+      
+      const requestData = {
+        cost_center_name: formData.name,
+        is_active: formData.is_active,
+        user_id: 1 // Will be set by backend from current user
+      };
+
+      let response;
+      if (selectedCC) {
+        // Update existing cost center
+        response = await api.put(`/cost_centers/${selectedCC.id}`, {
+          cost_center_name: formData.name,
+          is_active: formData.is_active
+        });
+      } else {
+        // Create new cost center
+        response = await api.post('/cost_centers', requestData);
+      }
+
+      if ((response as any).success) {
+        toast.success(
+          selectedCC ? 'МВЗ успешно обновлен' : 'МВЗ успешно создан'
+        );
+        handleCloseModal();
+        await loadCostCenters();
+      } else {
+        throw new Error((response as any).error || 'Ошибка при сохранении МВЗ');
+      }
+    } catch (error: any) {
+      toast.error(
+        `Ошибка при ${selectedCC ? 'обновлении' : 'создании'} МВЗ`,
+        error.message
+      );
+    } finally {
+      saving = false;
+    }
   }
 
   function handleDeleteCC(cc: CostCenter) {
@@ -311,21 +389,84 @@
   </Card>
 </div>
 
-<!-- Add/Edit Modal -->
+<!-- Add/Edit Cost Center Modal -->
 {#if showAddModal}
   <div class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
     <Card class="w-full max-w-md">
-      <div class="p-6">
-        <h3 class="text-lg font-semibold mb-4">
-          {selectedCC ? 'Изменить МВЗ' : 'Добавить МВЗ'}
-        </h3>
-        <p class="text-gray-600">Функция добавления/редактирования МВЗ будет реализована в следующей итерации.</p>
-        <div class="flex justify-end gap-2 mt-4">
-          <Button variant="outline" on:click={() => showAddModal = false}>
-            Закрыть
-          </Button>
+      <form on:submit|preventDefault={handleSubmitCC}>
+        <div class="p-6">
+          <h3 class="text-lg font-semibold mb-4">
+            {selectedCC ? 'Изменить МВЗ' : 'Добавить МВЗ'}
+          </h3>
+          
+          <div class="space-y-4">
+            <!-- Code -->
+            <div>
+              <label for="cc-code" class="block text-sm font-medium text-gray-700 mb-1">
+                Код МВЗ
+              </label>
+              <input
+                id="cc-code"
+                type="text"
+                bind:value={formData.code}
+                placeholder="Например: П001, С002"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <!-- Name -->
+            <div>
+              <label for="cc-name" class="block text-sm font-medium text-gray-700 mb-1">
+                Название МВЗ *
+              </label>
+              <input
+                id="cc-name"
+                type="text"
+                bind:value={formData.name}
+                placeholder="Например: Цех основного производства"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <!-- Description -->
+            <div>
+              <label for="cc-description" class="block text-sm font-medium text-gray-700 mb-1">
+                Описание
+              </label>
+              <textarea
+                id="cc-description"
+                bind:value={formData.description}
+                placeholder="Описание места возникновения затрат"
+                rows="3"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              ></textarea>
+            </div>
+
+            <!-- Active Status -->
+            <div class="flex items-center">
+              <input
+                id="cc-active"
+                type="checkbox"
+                bind:checked={formData.is_active}
+                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label for="cc-active" class="ml-2 block text-sm text-gray-900">
+                Активен
+              </label>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2 mt-6">
+            <Button type="button" variant="outline" on:click={handleCloseModal}>
+              Отмена
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Сохранение...' : selectedCC ? 'Сохранить' : 'Создать'}
+            </Button>
+          </div>
         </div>
-      </div>
+      </form>
     </Card>
   </div>
 {/if}

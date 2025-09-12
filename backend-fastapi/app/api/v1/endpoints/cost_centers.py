@@ -7,72 +7,53 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from pydantic import BaseModel, Field
 
 from app.db.database import get_db
 from app.models.cost_center import CostCenter
+from app.schemas.cost_center import (
+    CostCenterCreate,
+    CostCenterUpdate,
+    CostCenterPublic
+)
 from app.api.deps import get_current_user
 
 router = APIRouter()
 
 
-class CostCenterCreate(BaseModel):
-    """Cost Center creation schema."""
-    cost_center_name: str = Field(..., min_length=1, max_length=255)
-    is_active: Optional[bool] = Field(default=True)
-    user_id: int
-
-
-class CostCenterUpdate(BaseModel):
-    """Cost Center update schema."""
-    cost_center_name: Optional[str] = Field(None, min_length=1, max_length=255)
-    is_active: Optional[bool] = None
-
-
-class CostCenterResponse(BaseModel):
-    """Cost Center response schema."""
-    cost_center_id: int
-    cost_center_name: str
-    is_active: bool
-    user_id: int
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-
-
-@router.get("/", response_model=List[CostCenterResponse])
+@router.get("/", response_model=List[CostCenterPublic])
 async def get_cost_centers(
     request: Request,
-    user_id: Optional[int] = None,
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get all cost centers."""
-    # Always filter by current user's ID for data isolation
-    effective_user_id = user_id if user_id else current_user['user_id']
-    stmt = select(CostCenter).where(
-        CostCenter.user_id == effective_user_id
-    ).order_by(CostCenter.name)
-    
-    stmt = stmt.offset(skip).limit(limit)
+    """Get all cost centers for current user."""
+    # Filter by user_id for data isolation
+    stmt = (
+        select(CostCenter)
+        .where(CostCenter.user_id == current_user.get('user_id'))
+        .offset(skip)
+        .limit(limit)
+        .order_by(CostCenter.name.asc())
+    )
     result = await db.execute(stmt)
     centers = result.scalars().all()
     
-    return [CostCenterResponse(**center.to_dict()) for center in centers]
+    return [CostCenterPublic.model_validate(center) for center in centers]
 
 
-@router.get("/{center_id}", response_model=CostCenterResponse)
+@router.get("/{center_id}", response_model=CostCenterPublic)
 async def get_cost_center(
     center_id: int,
     request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get cost center by ID."""
+    """Get cost center by ID for current user."""
     stmt = select(CostCenter).where(
         CostCenter.id == center_id,
-        CostCenter.user_id == current_user['user_id']
+        CostCenter.user_id == current_user.get('user_id')
     )
     result = await db.execute(stmt)
     center = result.scalar_one_or_none()
@@ -80,24 +61,27 @@ async def get_cost_center(
     if not center:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Cost center not found"
+            detail="Cost center not found or access denied"
         )
     
-    return CostCenterResponse(**center.to_dict())
+    return CostCenterPublic.model_validate(center)
 
 
-@router.post("/", response_model=CostCenterResponse)
+@router.post("/", response_model=CostCenterPublic)
 async def create_cost_center(
     center_data: CostCenterCreate,
     request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Create new cost center."""
+    """Create new cost center for current user."""
+    # Auto-assign user_id from current_user for data isolation
+    user_id = current_user.get('user_id')
+    
     # Check if cost center with same name already exists for this user
     stmt = select(CostCenter).where(
-        CostCenter.name == center_data.cost_center_name,
-        CostCenter.user_id == center_data.user_id
+        CostCenter.name == center_data.name,
+        CostCenter.user_id == user_id
     )
     result = await db.execute(stmt)
     existing = result.scalar_one_or_none()
@@ -105,29 +89,29 @@ async def create_cost_center(
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"МВЗ с названием '{center_data.cost_center_name}' уже существует"
+            detail=f"МВЗ с названием '{center_data.name}' уже существует"
         )
     
     try:
         center = CostCenter(
-            name=center_data.cost_center_name,
-            is_active=center_data.is_active if center_data.is_active is not None else True,
-            user_id=center_data.user_id
+            name=center_data.name,
+            is_active=center_data.is_active,
+            user_id=user_id  # Auto-assign from current_user
         )
         db.add(center)
         await db.commit()
         await db.refresh(center)
         
-        return CostCenterResponse(**center.to_dict())
+        return CostCenterPublic.model_validate(center)
     except IntegrityError:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"МВЗ с названием '{center_data.cost_center_name}' уже существует"
+            detail=f"МВЗ с названием '{center_data.name}' уже существует"
         )
 
 
-@router.put("/{center_id}", response_model=CostCenterResponse)
+@router.put("/{center_id}", response_model=CostCenterPublic)
 async def update_cost_center(
     center_id: int,
     center_data: CostCenterUpdate,
@@ -135,10 +119,10 @@ async def update_cost_center(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update cost center."""
+    """Update cost center for current user."""
     stmt = select(CostCenter).where(
         CostCenter.id == center_id,
-        CostCenter.user_id == current_user['user_id']
+        CostCenter.user_id == current_user.get('user_id')
     )
     result = await db.execute(stmt)
     center = result.scalar_one_or_none()
@@ -146,38 +130,38 @@ async def update_cost_center(
     if not center:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Cost center not found"
+            detail="Cost center not found or access denied"
         )
     
-    # Update only provided fields
+    # Update only provided fields (excluding user_id to prevent unauthorized changes)
     update_data = center_data.dict(exclude_unset=True)
+    # Remove user_id from update data to prevent hijacking
+    update_data.pop('user_id', None)
     
-    # Check for name uniqueness if name is being updated
-    if 'cost_center_name' in update_data:
-        stmt = select(CostCenter).where(
-            CostCenter.name == update_data['cost_center_name'],
-            CostCenter.user_id == center.user_id,
-            CostCenter.id != center_id
-        )
-        result = await db.execute(stmt)
-        existing = result.scalar_one_or_none()
-        
-        if existing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"МВЗ с названием '{update_data['cost_center_name']}' уже существует"
+    for field, value in update_data.items():
+        if field == 'name' and value:
+            # Check for name uniqueness
+            stmt = select(CostCenter).where(
+                CostCenter.name == value,
+                CostCenter.user_id == center.user_id,
+                CostCenter.id != center_id
             )
+            result = await db.execute(stmt)
+            existing = result.scalar_one_or_none()
+            
+            if existing:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"МВЗ с названием '{value}' уже существует"
+                )
         
-        center.name = update_data['cost_center_name']
-    
-    if 'is_active' in update_data:
-        center.is_active = update_data['is_active']
+        setattr(center, field, value)
     
     try:
         await db.commit()
         await db.refresh(center)
         
-        return CostCenterResponse(**center.to_dict())
+        return CostCenterPublic.model_validate(center)
     except IntegrityError:
         await db.rollback()
         raise HTTPException(
@@ -193,10 +177,10 @@ async def delete_cost_center(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Delete cost center."""
+    """Delete cost center for current user."""
     stmt = select(CostCenter).where(
         CostCenter.id == center_id,
-        CostCenter.user_id == current_user['user_id']
+        CostCenter.user_id == current_user.get('user_id')
     )
     result = await db.execute(stmt)
     center = result.scalar_one_or_none()
@@ -204,13 +188,13 @@ async def delete_cost_center(
     if not center:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Cost center not found"
+            detail="Cost center not found or access denied"
         )
     
     await db.delete(center)
     await db.commit()
     
-    return {"success": True, "message": "Cost center deleted successfully"}
+    return {"message": "Cost center deleted successfully"}
 
 
 @router.post("/bulk-delete")
@@ -220,10 +204,10 @@ async def bulk_delete_cost_centers(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Delete multiple cost centers."""
+    """Delete multiple cost centers for current user."""
     stmt = select(CostCenter).where(
         CostCenter.id.in_(ids),
-        CostCenter.user_id == current_user['user_id']
+        CostCenter.user_id == current_user.get('user_id')
     )
     result = await db.execute(stmt)
     centers = result.scalars().all()
@@ -231,7 +215,7 @@ async def bulk_delete_cost_centers(
     if not centers:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No cost centers found"
+            detail="No cost centers found or access denied"
         )
     
     for center in centers:
@@ -239,4 +223,4 @@ async def bulk_delete_cost_centers(
     
     await db.commit()
     
-    return {"success": True, "message": f"Deleted {len(centers)} cost centers"}
+    return {"message": f"Deleted {len(centers)} cost centers"}

@@ -7,63 +7,22 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from pydantic import BaseModel, Field
 
 from app.db.database import get_db
 from app.models.nomenclature import Nomenclature, NomenclatureType
+from app.schemas.nomenclature import (
+    NomenclatureCreate,
+    NomenclatureUpdate,
+    NomenclaturePublic
+)
 from app.api.deps import get_current_user
 
 router = APIRouter()
 
 
-class NomenclatureCreate(BaseModel):
-    """Nomenclature creation schema."""
-    nomenclature_name: str = Field(..., min_length=1, max_length=255)
-    nomenclature_type: Optional[NomenclatureType] = Field(default=NomenclatureType.EXPENSE)
-    account_name: str
-    bill_name: str
-    operation_name: str
-    is_budget: bool = True
-    is_fact: bool = True
-    is_active: Optional[bool] = Field(default=True)
-    user_id: int
-    parent_id: Optional[int] = None
-
-
-class NomenclatureUpdate(BaseModel):
-    """Nomenclature update schema."""
-    nomenclature_name: Optional[str] = Field(None, min_length=1, max_length=255)
-    nomenclature_type: Optional[NomenclatureType] = None
-    account_name: Optional[str] = None
-    bill_name: Optional[str] = None
-    operation_name: Optional[str] = None
-    is_budget: Optional[bool] = None
-    is_fact: Optional[bool] = None
-    is_active: Optional[bool] = None
-    parent_id: Optional[int] = None
-
-
-class NomenclatureResponse(BaseModel):
-    """Nomenclature response schema."""
-    nomenclature_id: int
-    nomenclature_name: str
-    nomenclature_type: Optional[str] = None
-    account_name: str
-    bill_name: str
-    operation_name: str
-    is_budget: bool
-    is_fact: bool
-    is_active: bool
-    user_id: int
-    parent_id: Optional[int] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-
-
-@router.get("/", response_model=List[NomenclatureResponse])
+@router.get("/", response_model=List[NomenclaturePublic])
 async def get_nomenclatures(
     request: Request,
-    user_id: Optional[int] = None,
     skip: int = 0,
     limit: int = 100,
     is_budget: Optional[bool] = None,
@@ -71,12 +30,15 @@ async def get_nomenclatures(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get all nomenclatures with optional filtering."""
-    # Always filter by current user's ID for data isolation
-    effective_user_id = user_id if user_id else current_user['user_id']
-    stmt = select(Nomenclature).where(
-        Nomenclature.user_id == effective_user_id
-    ).order_by(Nomenclature.name)
+    """Get all nomenclatures for current user with optional filtering."""
+    # Filter by user_id for data isolation
+    stmt = (
+        select(Nomenclature)
+        .where(Nomenclature.user_id == current_user.get('user_id'))
+        .offset(skip)
+        .limit(limit)
+        .order_by(Nomenclature.name.asc())
+    )
     
     if is_budget is not None:
         stmt = stmt.where(Nomenclature.is_budget == is_budget)
@@ -84,24 +46,23 @@ async def get_nomenclatures(
     if is_fact is not None:
         stmt = stmt.where(Nomenclature.is_fact == is_fact)
     
-    stmt = stmt.offset(skip).limit(limit)
     result = await db.execute(stmt)
     nomenclatures = result.scalars().all()
     
-    return [NomenclatureResponse(**nomenclature.to_dict()) for nomenclature in nomenclatures]
+    return [NomenclaturePublic.model_validate(nomenclature) for nomenclature in nomenclatures]
 
 
-@router.get("/{nomenclature_id}", response_model=NomenclatureResponse)
+@router.get("/{nomenclature_id}", response_model=NomenclaturePublic)
 async def get_nomenclature(
     nomenclature_id: int,
     request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get nomenclature by ID."""
+    """Get nomenclature by ID for current user."""
     stmt = select(Nomenclature).where(
         Nomenclature.id == nomenclature_id,
-        Nomenclature.user_id == current_user['user_id']
+        Nomenclature.user_id == current_user.get('user_id')
     )
     result = await db.execute(stmt)
     nomenclature = result.scalar_one_or_none()
@@ -109,24 +70,27 @@ async def get_nomenclature(
     if not nomenclature:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Nomenclature not found"
+            detail="Nomenclature not found or access denied"
         )
     
-    return NomenclatureResponse(**nomenclature.to_dict())
+    return NomenclaturePublic.model_validate(nomenclature)
 
 
-@router.post("/", response_model=NomenclatureResponse)
+@router.post("/", response_model=NomenclaturePublic)
 async def create_nomenclature(
     nomenclature_data: NomenclatureCreate,
     request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Create new nomenclature."""
+    """Create new nomenclature for current user."""
+    # Auto-assign user_id from current_user for data isolation
+    user_id = current_user.get('user_id')
+    
     # Check if nomenclature with same name already exists for this user
     stmt = select(Nomenclature).where(
-        Nomenclature.name == nomenclature_data.nomenclature_name,
-        Nomenclature.user_id == nomenclature_data.user_id
+        Nomenclature.name == nomenclature_data.name,
+        Nomenclature.user_id == user_id
     )
     result = await db.execute(stmt)
     existing = result.scalar_one_or_none()
@@ -134,36 +98,34 @@ async def create_nomenclature(
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Номенклатура с названием '{nomenclature_data.nomenclature_name}' уже существует"
+            detail=f"Номенклатура с названием '{nomenclature_data.name}' уже существует"
         )
     
     try:
         nomenclature = Nomenclature(
-            name=nomenclature_data.nomenclature_name,
-            nomenclature_type=nomenclature_data.nomenclature_type,
+            name=nomenclature_data.name,
             account_name=nomenclature_data.account_name,
             bill_name=nomenclature_data.bill_name,
-            operation=nomenclature_data.operation_name,
+            operation=nomenclature_data.operation,
             is_budget=nomenclature_data.is_budget,
             is_fact=nomenclature_data.is_fact,
-            is_active=nomenclature_data.is_active if nomenclature_data.is_active is not None else True,
-            user_id=nomenclature_data.user_id,
-            parent_id=nomenclature_data.parent_id
+            is_active=nomenclature_data.is_active,
+            user_id=user_id  # Auto-assign from current_user
         )
         db.add(nomenclature)
         await db.commit()
         await db.refresh(nomenclature)
         
-        return NomenclatureResponse(**nomenclature.to_dict())
+        return NomenclaturePublic.model_validate(nomenclature)
     except IntegrityError:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Номенклатура с названием '{nomenclature_data.nomenclature_name}' уже существует"
+            detail=f"Номенклатура с названием '{nomenclature_data.name}' уже существует"
         )
 
 
-@router.put("/{nomenclature_id}", response_model=NomenclatureResponse)
+@router.put("/{nomenclature_id}", response_model=NomenclaturePublic)
 async def update_nomenclature(
     nomenclature_id: int,
     nomenclature_data: NomenclatureUpdate,
@@ -171,10 +133,10 @@ async def update_nomenclature(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update nomenclature."""
+    """Update nomenclature for current user."""
     stmt = select(Nomenclature).where(
         Nomenclature.id == nomenclature_id,
-        Nomenclature.user_id == current_user['user_id']
+        Nomenclature.user_id == current_user.get('user_id')
     )
     result = await db.execute(stmt)
     nomenclature = result.scalar_one_or_none()
@@ -182,51 +144,38 @@ async def update_nomenclature(
     if not nomenclature:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Nomenclature not found"
+            detail="Nomenclature not found or access denied"
         )
     
-    # Update only provided fields
+    # Update only provided fields (excluding user_id to prevent unauthorized changes)
     update_data = nomenclature_data.dict(exclude_unset=True)
+    # Remove user_id from update data to prevent hijacking
+    update_data.pop('user_id', None)
     
-    # Check for name uniqueness if name is being updated
-    if 'nomenclature_name' in update_data:
-        stmt = select(Nomenclature).where(
-            Nomenclature.name == update_data['nomenclature_name'],
-            Nomenclature.user_id == nomenclature.user_id,
-            Nomenclature.id != nomenclature_id
-        )
-        result = await db.execute(stmt)
-        existing = result.scalar_one_or_none()
-        
-        if existing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Номенклатура с названием '{update_data['nomenclature_name']}' уже существует"
+    for field, value in update_data.items():
+        if field == 'name' and value:
+            # Check for name uniqueness
+            stmt = select(Nomenclature).where(
+                Nomenclature.name == value,
+                Nomenclature.user_id == nomenclature.user_id,
+                Nomenclature.id != nomenclature_id
             )
+            result = await db.execute(stmt)
+            existing = result.scalar_one_or_none()
+            
+            if existing:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Номенклатура с названием '{value}' уже существует"
+                )
         
-        nomenclature.name = update_data['nomenclature_name']
-    
-    # Update other fields
-    field_mapping = {
-        'nomenclature_type': 'nomenclature_type',
-        'account_name': 'account_name',
-        'bill_name': 'bill_name',
-        'operation_name': 'operation',
-        'is_budget': 'is_budget',
-        'is_fact': 'is_fact',
-        'is_active': 'is_active',
-        'parent_id': 'parent_id'
-    }
-    
-    for api_field, db_field in field_mapping.items():
-        if api_field in update_data:
-            setattr(nomenclature, db_field, update_data[api_field])
+        setattr(nomenclature, field, value)
     
     try:
         await db.commit()
         await db.refresh(nomenclature)
         
-        return NomenclatureResponse(**nomenclature.to_dict())
+        return NomenclaturePublic.model_validate(nomenclature)
     except IntegrityError:
         await db.rollback()
         raise HTTPException(
@@ -242,10 +191,10 @@ async def delete_nomenclature(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Delete nomenclature."""
+    """Delete nomenclature for current user."""
     stmt = select(Nomenclature).where(
         Nomenclature.id == nomenclature_id,
-        Nomenclature.user_id == current_user['user_id']
+        Nomenclature.user_id == current_user.get('user_id')
     )
     result = await db.execute(stmt)
     nomenclature = result.scalar_one_or_none()
@@ -253,13 +202,13 @@ async def delete_nomenclature(
     if not nomenclature:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Nomenclature not found"
+            detail="Nomenclature not found or access denied"
         )
     
     await db.delete(nomenclature)
     await db.commit()
     
-    return {"success": True, "message": "Nomenclature deleted successfully"}
+    return {"message": "Nomenclature deleted successfully"}
 
 
 @router.post("/bulk-delete")
@@ -269,10 +218,10 @@ async def bulk_delete_nomenclatures(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Delete multiple nomenclatures."""
+    """Delete multiple nomenclatures for current user."""
     stmt = select(Nomenclature).where(
         Nomenclature.id.in_(ids),
-        Nomenclature.user_id == current_user['user_id']
+        Nomenclature.user_id == current_user.get('user_id')
     )
     result = await db.execute(stmt)
     nomenclatures = result.scalars().all()
@@ -280,7 +229,7 @@ async def bulk_delete_nomenclatures(
     if not nomenclatures:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No nomenclatures found"
+            detail="No nomenclatures found or access denied"
         )
     
     for nomenclature in nomenclatures:
@@ -288,4 +237,4 @@ async def bulk_delete_nomenclatures(
     
     await db.commit()
     
-    return {"success": True, "message": f"Deleted {len(nomenclatures)} nomenclatures"}
+    return {"message": f"Deleted {len(nomenclatures)} nomenclatures"}
