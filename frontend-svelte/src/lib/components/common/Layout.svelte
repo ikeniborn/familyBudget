@@ -187,17 +187,17 @@
                 </div>
               </div>
               <div class="min-w-0 flex-1">
-                <div class="flex items-center space-x-2">
-                  <p class="text-sm font-semibold text-foreground truncate">
+                <div class="flex items-center space-x-2 overflow-hidden">
+                  <p class="text-sm font-semibold text-foreground truncate flex-1">
                     {$currentUser?.user_name || $currentUser?.username || 'Пользователь'}
                   </p>
                   {#if $currentUser?.role === 'admin'}
-                    <Badge variant="outline" class="text-xs bg-primary/10 text-primary border-primary/20">
+                    <Badge variant="outline" class="text-xs bg-primary/10 text-primary border-primary/20 flex-shrink-0">
                       Админ
                     </Badge>
                   {/if}
                 </div>
-                <p class="text-xs text-muted-foreground">ID: {$currentUser?.user_id || $currentUser?.id}</p>
+                <p class="text-xs text-muted-foreground truncate">ID: {$currentUser?.user_id || $currentUser?.id}</p>
               </div>
             </div>
             <Button
