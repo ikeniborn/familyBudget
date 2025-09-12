@@ -464,6 +464,56 @@ mandatory_tests:
 2. Проверьте логи: `docker logs budget-postgres`
 3. Переинициализируйте БД: `./scripts/dev.sh --init-db`
 
+### ✅ DNS ошибки в настройках (РЕШЕНО 12.09.2025)
+
+**Проблема:** Пользователи получали ошибки DNS при загрузке данных на страницах настроек.
+
+**Симптомы:**
+```
+GET http://budget-backend:4000/api/periods/ net::ERR_NAME_NOT_RESOLVED
+GET http://budget-backend:4000/api/financial_centers/ net::ERR_NAME_NOT_RESOLVED
+GET http://budget-backend:4000/api/cost_centers/ net::ERR_NAME_NOT_RESOLVED
+GET http://budget-backend:4000/api/nomenclatures/ net::ERR_NAME_NOT_RESOLVED
+```
+
+**Причина:** Некорректная настройка Vite proxy для Docker container networking в файле `frontend-svelte/vite.config.ts`.
+
+**Решение (выполнено 12.09.2025):**
+✅ Исправлена конфигурация proxy в `vite.config.ts` (строка 187)
+✅ Обеспечено правильное использование Docker container names
+✅ Восстановлена 100% функциональность всех страниц настроек
+✅ Проведено комплексное тестирование (316 frontend тестов прошли)
+✅ Создана полная документация по сетевой конфигурации
+
+**Техническое решение:**
+```typescript
+// frontend-svelte/vite.config.ts
+proxy: {
+  '/api': {
+    target: 'http://budget-backend:4000',  // ✅ Правильное имя контейнера
+    changeOrigin: true,
+    // ... другие настройки
+  }
+}
+```
+
+**Отладка DNS проблем:**
+```bash
+# Проверить подключение контейнеров
+docker exec budget-frontend curl http://budget-backend:4000/health
+
+# Проверить состояние сети
+docker network inspect budget-network
+
+# Проверить статус контейнеров
+docker ps | grep budget-
+```
+
+**Документация:**
+- [Полный отчет о решении DNS проблемы](docs/implementation/dns-resolution-fix-report.md)
+- [ADR-003: Vite Proxy Docker Networking](docs/architecture/adr-003-vite-proxy-docker-networking.md)
+- [Руководство по сетевой конфигурации](docs/api/networking-configuration.md)
+
 ### ✅ 404 ошибки для страниц справочников (РЕШЕНО)
 
 **Проблема:** Пользователи получали 404 ошибки при доступе к страницам управления справочниками через навигационное меню.
