@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { currentUser, authStore } from '$lib/stores/auth.store';
@@ -19,8 +18,7 @@
     LogOut,
     User,
     Settings,
-    Database,
-    ShieldCheck
+    Database
   } from 'lucide-svelte';
 
   let sidebarOpen = false;
@@ -46,17 +44,8 @@
     icon: Database
   };
 
-  const adminNavItem: NavItem = {
-    name: 'Администрирование',
-    path: '/settings',
-    icon: ShieldCheck,
-    adminOnly: true
-  };
-
-  // Reactive navigation items based on user role
-  $: navItems = $currentUser?.role === 'admin'
-    ? [...baseNavItems, adminNavItem]
-    : [...baseNavItems, referenceNavItem];
+  // Reactive navigation items - removed admin navigation
+  $: navItems = [...baseNavItems, referenceNavItem];
 
   async function handleLogout() {
     await authStore.logout();
