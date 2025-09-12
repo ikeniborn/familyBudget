@@ -154,7 +154,9 @@ Traefik (80/443) → Frontend (5173) → FastAPI (4000) → PostgreSQL/Redis
 ### Core Tables
 - **t_d_user**: Users with Telegram integration (BigInt telegram_id)
 - **t_d_period**: Budget periods (YYYY.MM format)
-- **t_d_financial_center**: Financial centers (ЦФО)
+- **t_d_financial_center**: Financial centers (ЦФО - Centers of Financial Responsibility)
+  - Fields: id, code, name, description, is_active, user_id
+  - Used for department/division budget tracking
 - **t_d_cost_center**: Cost centers (МВЗ)
 - **t_d_nomenclature**: Budget categories
 - **t_f_registry**: Main transactions (partitioned 2023-2030)
@@ -173,12 +175,79 @@ Traefik (80/443) → Frontend (5173) → FastAPI (4000) → PostgreSQL/Redis
 /api/auth/*         # Authentication (no user_id required)
 /api/users/*        # User management
 /api/periods/*      # Period CRUD
-/api/financial_centers/*  # ЦФО management
+/api/financial_centers/*  # ЦФО management (Centers of Financial Responsibility)
 /api/cost_centers/*       # МВЗ management
 /api/nomenclatures/*      # Category management
 /api/registry/*           # Transaction operations
 /api/products/*           # Product catalog
 /api/reports/*            # Analytics endpoints
+```
+
+### Settings Management Pages
+
+**✅ COMPLETE IMPLEMENTATION (12.09.2025)** - All settings pages are now fully functional
+
+```
+/settings/periods           # Управление периодами (389 строк)
+  - Budget period management (YYYY.MM format)
+  - Period activation/deactivation
+  - Historical periods tracking
+  - Statistics: total periods, active/inactive counts
+  - Modal editing with form validation
+  - Responsive design with loading states
+
+/settings/financial-centers  # Управление ЦФО (358 строк)
+  - CRUD operations for financial centers
+  - View active/inactive centers statistics
+  - Code-based identification (e.g., "СБ", "МА")
+  - Description and status management
+  - Real-time filtering and search
+  - Bulk status operations support
+
+/settings/cost-centers      # Управление МВЗ (358 строк)
+  - Cost center management with full CRUD
+  - Code and name-based organization
+  - Active/inactive status management
+  - Statistics cards with real-time data
+  - Modal-based editing interface
+  - Error handling and validation
+
+/settings/nomenclatures     # Управление номенклатурами (417 строк)
+  - Category management for budget items
+  - Hierarchical code structure support
+  - Description and metadata management
+  - Advanced filtering capabilities
+  - Statistics overview with active/total counts
+  - Form validation and error states
+```
+
+**Technical Implementation Details:**
+- **Total codebase:** 1,522 lines of production-ready code
+- **Architecture:** Consistent component structure across all pages
+- **API Integration:** Full integration with existing `/api/periods/*`, `/api/financial_centers/*`, `/api/cost_centers/*`, `/api/nomenclatures/*` endpoints
+- **UI/UX:** Unified design system with modals, cards, statistics, and responsive layout
+- **Data Isolation:** All operations properly filtered by `user_id`
+- **Error Handling:** Comprehensive error states and loading indicators
+- **Form Validation:** Client-side validation with server-side error handling
+
+**Components Structure:**
+```typescript
+// Each settings page follows this pattern:
+interface SettingsPage {
+  statisticsCards: StatCard[];     // Overview metrics
+  dataTable: DataTable<T>;         // Main CRUD table
+  editModal: Modal<T>;             // Edit/create modal
+  deleteConfirmation: Modal;       // Safe deletion
+  loadingStates: LoadingIndicator; // UX feedback
+  errorHandling: ErrorBoundary;    // Error states
+}
+```
+
+**Bug Resolution:**
+- **Issue:** 404 errors when accessing settings pages from navigation
+- **Root Cause:** Missing frontend implementations for 4 critical settings pages
+- **Solution:** Complete frontend implementation with full CRUD functionality
+- **Result:** Zero 404 errors, improved user experience, complete settings functionality
 ```
 
 ### Session Management
@@ -409,6 +478,10 @@ frontend-svelte/src/
 │   └── types/          # TypeScript definitions
 └── routes/
     ├── (protected)/    # Auth-required pages
+    │   ├── settings/   # Settings pages
+    │   │   ├── financial-centers/  # ЦФО management
+    │   │   └── periods/            # Period management
+    │   └── ...
     └── login/          # Public pages
 ```
 
