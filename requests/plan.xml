@@ -1,121 +1,83 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<solution_plan>
-    <project>Family Budget - Система управления семейным бюджетом</project>
-    <date>2025-09-13</date>
-    <author>Claude Code Assistant</author>
+<problem_analysis>
+    <issue>
+        <description>Ошибка "Не удалось загрузить периоды" при открытии страницы /settings/periods</description>
+        <root_cause>FastAPI выполняет редирект 307 с /api/periods на /api/periods/ и при этом сбрасывает cookie сессии</root_cause>
+    </issue>
     
-    <problem_description>
-        <issue>Ошибка 409 Conflict при добавлении нового периода в разделе управления периодами</issue>
-        <url>http://localhost:5173/settings/periods</url>
-        <error_message>Request failed with status code 409</error_message>
-        <additional_requirements>Проверка работы справочников номенклатур, ЦФО, МВЗ</additional_requirements>
-    </problem_description>
-    
-    <analysis>
+    <diagnosis>
         <finding number="1">
-            <description>Ошибка 409 возникает из-за попытки добавить период с датой, которая уже существует в базе данных</description>
-            <location>backend-fastapi/app/api/v1/endpoints/periods.py:233-236</location>
-            <code_snippet>
-                if existing_period:
-                    raise HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail=f"Период на дату {date.strftime('%Y-%m-%d')} уже существует"
-                    )
-            </code_snippet>
+            <description>При запросе к /api/periods происходит HTTP 307 Temporary Redirect на /api/periods/</description>
+            <evidence>Логи показывают: GET /api/periods <- 307, затем GET /api/periods/ <- 200</evidence>
         </finding>
-        
         <finding number="2">
-            <description>Фронтенд не обрабатывает детальные сообщения об ошибках от сервера</description>
-            <location>frontend-svelte/src/routes/(protected)/settings/periods/+page.svelte:216-220</location>
-            <issue>Использовался только error.message без извлечения detail из response</issue>
+            <description>При редиректе сбрасывается сессия пользователя</description>
+            <evidence>В заголовках ответа: set-cookie: connect.sid=""; expires=...; Max-Age=0</evidence>
         </finding>
-        
         <finding number="3">
-            <description>В базе данных уже существует 17 периодов для пользователя с user_id=1</description>
-            <data>
-                Периоды от 2024.09 до 2026.09 уже созданы
-            </data>
+            <description>Frontend делает запросы без trailing slash</description>
+            <evidence>В коде: api.get('/periods') вместо api.get('/periods/')</evidence>
         </finding>
-    </analysis>
+    </diagnosis>
     
-    <implemented_solutions>
-        <solution number="1">
-            <title>Улучшение обработки ошибок в компоненте периодов</title>
-            <file>frontend-svelte/src/routes/(protected)/settings/periods/+page.svelte</file>
-            <changes>
-                <change>Добавлена детальная обработка ошибок HTTP-ответов</change>
-                <change>Извлечение сообщения detail из error.response.data</change>
-                <change>Специальная обработка кода 409 с понятным сообщением</change>
-                <change>Обработка различных типов ошибок (сетевые, серверные, клиентские)</change>
-            </changes>
-        </solution>
+    <solution>
+        <approach>Добавить trailing slash к API запросам на frontend</approach>
+        <reason>Это предотвратит редиректы и сохранит сессию пользователя</reason>
         
-        <solution number="2">
-            <title>Улучшение обработки ошибок в справочнике номенклатур</title>
-            <file>frontend-svelte/src/routes/(protected)/settings/nomenclatures/+page.svelte</file>
-            <changes>
-                <change>Аналогичная обработка ошибок 409 для дубликатов кодов</change>
-                <change>Извлечение детальных сообщений об ошибках</change>
-            </changes>
-        </solution>
+        <implementation_plan>
+            <step number="1">
+                <action>Изменить вызов API в файле +page.svelte</action>
+                <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/periods/+page.svelte</file>
+                <change>
+                    <from>await api.get('/periods')</from>
+                    <to>await api.get('/periods/')</to>
+                </change>
+                <line>65</line>
+            </step>
+            
+            <step number="2">
+                <action>Изменить POST запрос для создания периода</action>
+                <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/periods/+page.svelte</file>
+                <change>
+                    <from>api.post('/periods', requestData)</from>
+                    <to>api.post('/periods/', requestData)</to>
+                </change>
+                <line>203</line>
+            </step>
+            
+            <step number="3">
+                <action>Проверить аналогичную проблему в других страницах настроек</action>
+                <files>
+                    <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.svelte</file>
+                    <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/cost-centers/+page.svelte</file>
+                    <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/nomenclatures/+page.svelte</file>
+                </files>
+                <description>Добавить trailing slash ко всем API вызовам</description>
+            </step>
+            
+            <step number="4">
+                <action>Альтернативное решение (опционально)</action>
+                <description>Отключить автоматические редиректы в FastAPI</description>
+                <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/main.py</file>
+                <change>
+                    <description>Добавить параметр redirect_slashes=False при создании FastAPI приложения</description>
+                </change>
+                <note>Это решение потребует больше изменений и может повлиять на другие части приложения</note>
+            </step>
+        </implementation_plan>
         
-        <solution number="3">
-            <title>Улучшение обработки ошибок в справочнике ЦФО</title>
-            <file>frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.svelte</file>
-            <changes>
-                <change>Добавлена обработка конфликтов при создании ЦФО</change>
-                <change>Понятные сообщения об ошибках для пользователя</change>
-            </changes>
-        </solution>
-        
-        <solution number="4">
-            <title>Улучшение обработки ошибок в справочнике МВЗ</title>
-            <file>frontend-svelte/src/routes/(protected)/settings/cost-centers/+page.svelte</file>
-            <changes>
-                <change>Улучшенная обработка ошибок при операциях CRUD</change>
-                <change>Специфичные сообщения для различных типов ошибок</change>
-            </changes>
-        </solution>
-    </implemented_solutions>
+        <testing>
+            <test number="1">Открыть страницу /settings/periods и убедиться, что периоды загружаются</test>
+            <test number="2">Проверить создание, редактирование и удаление периодов</test>
+            <test number="3">Проверить, что сессия не сбрасывается при навигации</test>
+            <test number="4">Проверить другие страницы настроек на аналогичные проблемы</test>
+        </testing>
+    </solution>
     
-    <testing_recommendations>
-        <test number="1">
-            <description>Проверка добавления уникального периода</description>
-            <steps>
-                <step>Открыть раздел управления периодами</step>
-                <step>Нажать "Добавить период"</step>
-                <step>Выбрать месяц, который еще не существует (например, 2027.01)</step>
-                <step>Заполнить название и сохранить</step>
-                <step>Убедиться, что период успешно создан</step>
-            </steps>
-        </test>
-        
-        <test number="2">
-            <description>Проверка обработки дубликата периода</description>
-            <steps>
-                <step>Попытаться добавить период с существующей датой</step>
-                <step>Убедиться, что отображается понятное сообщение об ошибке</step>
-                <step>Сообщение должно указывать конкретную дату конфликта</step>
-            </steps>
-        </test>
-        
-        <test number="3">
-            <description>Проверка работы справочников</description>
-            <steps>
-                <step>Проверить добавление/редактирование/удаление в справочнике номенклатур</step>
-                <step>Проверить добавление/редактирование/удаление в справочнике ЦФО</step>
-                <step>Проверить добавление/редактирование/удаление в справочнике МВЗ</step>
-                <step>Убедиться, что ошибки отображаются корректно</step>
-            </steps>
-        </test>
-    </testing_recommendations>
-    
-    <additional_notes>
-        <note>Все справочники теперь корректно обрабатывают ошибки 409 и другие HTTP-коды</note>
-        <note>Сообщения об ошибках стали более информативными для пользователя</note>
-        <note>Реализована единообразная обработка ошибок во всех справочниках</note>
-        <note>В базе данных обнаружено минимальное количество тестовых данных в справочниках</note>
-    </additional_notes>
-    
-    <status>COMPLETED</status>
-</solution_plan>
+    <benefits>
+        <benefit>Устранение ошибки загрузки данных</benefit>
+        <benefit>Сохранение сессии пользователя</benefit>
+        <benefit>Улучшение производительности (избежание редиректов)</benefit>
+        <benefit>Консистентность API вызовов во всем приложении</benefit>
+    </benefits>
+</problem_analysis>

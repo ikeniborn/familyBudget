@@ -62,7 +62,7 @@
   async function loadPeriods() {
     try {
       loading = true;
-      const response = await api.get('/periods') as any;
+      const response = await api.get('/periods/') as any;
       if (response.success) {
         periods = response.data || [];
       } else {
@@ -197,10 +197,10 @@
       let response;
       if (selectedPeriod) {
         // Update existing period
-        response = await api.put(`/periods/${selectedPeriod.id}`, requestData);
+        response = await api.put(`/periods/${selectedPeriod.id}/`, requestData);
       } else {
         // Create new period
-        response = await api.post('/periods', requestData);
+        response = await api.post('/periods/', requestData);
       }
 
       if ((response as any).success) {
@@ -254,7 +254,7 @@
     
     try {
       deleting = true;
-      const response = await api.delete(`/periods/${periodToDelete.id}`);
+      const response = await api.delete(`/periods/${periodToDelete.id}/`);
       if ((response as any).success || (response as any).message) {
         toast.success('Период успешно удален');
         

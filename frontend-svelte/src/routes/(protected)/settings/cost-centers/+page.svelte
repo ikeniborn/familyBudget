@@ -54,7 +54,7 @@
   async function loadCostCenters() {
     try {
       loading = true;
-      const response = await api.get('/cost_centers') as any;
+      const response = await api.get('/cost_centers/') as any;
       if (response.success) {
         costCenters = response.data || [];
         loadCCStats();
@@ -149,13 +149,13 @@
       let response;
       if (selectedCC) {
         // Update existing cost center
-        response = await api.put(`/cost_centers/${selectedCC.id}`, {
+        response = await api.put(`/cost_centers/${selectedCC.id}/`, {
           cost_center_name: formData.name,
           is_active: formData.is_active
         });
       } else {
         // Create new cost center
-        response = await api.post('/cost_centers', requestData);
+        response = await api.post('/cost_centers/', requestData);
       }
 
       if ((response as any).success) {
@@ -206,7 +206,7 @@
     
     try {
       deleting = true;
-      const response = await api.delete(`/cost_centers/${ccToDelete.id}`) as any;
+      const response = await api.delete(`/cost_centers/${ccToDelete.id}/`) as any;
       if (response.success || response.message) {
         toast.success('Центр затрат успешно удален');
         

@@ -62,7 +62,7 @@
   async function loadNomenclatures() {
     try {
       loading = true;
-      const response = await api.get('/nomenclatures') as any;
+      const response = await api.get('/nomenclatures/') as any;
       if (response.success) {
         nomenclatures = response.data || [];
         loadNomenclatureStats();
@@ -179,7 +179,7 @@
       let response;
       if (selectedNomenclature) {
         // Update existing nomenclature
-        response = await api.put(`/nomenclatures/${selectedNomenclature.id}`, {
+        response = await api.put(`/nomenclatures/${selectedNomenclature.id}/`, {
           nomenclature_name: formData.name,
           nomenclature_type: formData.type,
           account_name: formData.name,
@@ -189,7 +189,7 @@
         });
       } else {
         // Create new nomenclature
-        response = await api.post('/nomenclatures', requestData);
+        response = await api.post('/nomenclatures/', requestData);
       }
 
       if ((response as any).success) {
@@ -241,7 +241,7 @@
     
     try {
       deleting = true;
-      const response = await api.delete(`/nomenclatures/${nomenclatureToDelete.id}`) as any;
+      const response = await api.delete(`/nomenclatures/${nomenclatureToDelete.id}/`) as any;
       if (response.success || response.message) {
         toast.success('Номенклатура успешно удалена');
         

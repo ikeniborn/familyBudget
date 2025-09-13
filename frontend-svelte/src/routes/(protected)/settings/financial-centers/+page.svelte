@@ -54,7 +54,7 @@
   async function loadFinancialCenters() {
     try {
       loading = true;
-      const response = await api.get('/financial_centers') as any;
+      const response = await api.get('/financial_centers/') as any;
       if (response.success) {
         financialCenters = response.data || [];
         loadFCStats();
@@ -149,13 +149,13 @@
       let response;
       if (selectedFC) {
         // Update existing financial center
-        response = await api.put(`/financial_centers/${selectedFC.id}`, {
+        response = await api.put(`/financial_centers/${selectedFC.id}/`, {
           financial_center_name: formData.name,
           is_active: formData.is_active
         });
       } else {
         // Create new financial center
-        response = await api.post('/financial_centers', requestData);
+        response = await api.post('/financial_centers/', requestData);
       }
 
       if ((response as any).success) {
@@ -206,7 +206,7 @@
     
     try {
       deleting = true;
-      const response = await api.delete(`/financial_centers/${fcToDelete.id}`) as any;
+      const response = await api.delete(`/financial_centers/${fcToDelete.id}/`) as any;
       if (response.success || response.message) {
         toast.success('Финансовый центр успешно удален');
         

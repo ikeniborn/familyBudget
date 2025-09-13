@@ -2,30 +2,17 @@
     <role>Разрабочик приложения для учета семейных финансов</role>
     <rule>Придерживаться требований проекта CLAUDE.md</rule>
     <context>
-        После авторизации под роль адвинистратор и попытке доабвить новый период в разделе 
+        После авторизации под роль адвинистратор и открытии
         http://localhost:5173/settings/periods
-        возникает ошибка 409 /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-13 14-43-09.png
-        В логах консоли ошибка 
-        api.ts:77 
-        POST http://localhost:5173/api/periods/ 409 (Conflict)
-        dispatchXhrRequest	@	axios.js?v=29ae0733:1672
-        xhr	@	axios.js?v=29ae0733:1552
-        dispatchRequest	@	axios.js?v=29ae0733:2027
-        Promise.then		
-        _request	@	axios.js?v=29ae0733:2230
-        request	@	axios.js?v=29ae0733:2139
-        httpMethod	@	axios.js?v=29ae0733:2277
-        wrap	@	axios.js?v=29ae0733:8
-        post	@	api.ts:77
-        handleSubmitPeriod	@	+page.svelte:203
-        (anonymous)	@	chunk-OPJHXX5N.js?v=29ae0733:779
-        (anonymous)	@	chunk-LDPCYW46.js?v=29ae0733:3925
-        without_reactive_context	@	chunk-LDPCYW46.js?v=29ae0733:2406
-        target_handler	@	chunk-LDPCYW46.js?v=29ae0733:3924
-
-        Необходимо чтобы функционал добавления периодов работал. Так же нужно проверить возможность просмотра, управления и добавления справочниками
-        номенклатур, цфо, мвз.
+        ошибка 
+        /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-13 16-15-56.png
     </context>
+    <requirements>
+    Изучить ошибку
+    изучить логи
+    Определить причину
+    Описать решение проблемы
+    </requirements>
     <tasks>
         <task number="1">
             <step number="1">

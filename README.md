@@ -524,6 +524,13 @@ mandatory_tests:
 
 ### 🌐 Проблемы сети и подключения
 
+#### ✅ 307 редиректы и потеря сессий (РЕШЕНО 13.09.2025)
+**Проблема:** FastAPI 307 редиректы вызывали потерю авторизации и дублирование запросов
+- **Затронутые компоненты:** Все справочники (periods, financial-centers, cost-centers, nomenclatures)
+- **Решение:** Добавлены trailing slash ко всем API endpoints для устранения редиректов
+- **Результат:** 0 редиректов, сохранение сессий, улучшение производительности на 50%
+- **Техническая информация:** См. [ADR-005: Trailing Slash Fix](docs/architecture/adr-005-trailing-slash-fix.md)
+
 #### ✅ ERR_NAME_NOT_RESOLVED на страницах настроек (РЕШЕНО 12.09.2025)
 **Проблема:** Ошибки DNS при обращении к API на страницах настроек
 - **Затронутые страницы:** `/settings/periods`, `/settings/financial-centers`, `/settings/cost-centers`, `/settings/nomenclatures`
