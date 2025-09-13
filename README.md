@@ -773,17 +773,51 @@ Traefik (80/443) → Frontend (5173) → FastAPI (4000) → PostgreSQL/Redis
 - User ID в `session.user.id` (number)
 - Все endpoints требуют аутентификацию кроме `/auth/*`
 
-#### Формат ответов
+#### Формат ответов ✅ **v3.2.0** (Обновлено 13.09.2025)
+
+**Унифицированный формат API ответов:**
+
 ```typescript
-// Успех
-{ success: true, data: {...} }
+// Успешные ответы
+// Одиночный объект
+{
+  success: true,
+  data: { id: 1, name: "Object", ... }
+}
 
-// Ошибка
-{ success: false, error: "message" }
+// Список объектов
+{
+  success: true,
+  data: [{ id: 1, name: "Item1" }, ...],
+  total: number
+}
 
-// Список
-{ success: true, data: [...], total: number }
+// Ошибки
+{
+  success: false,
+  error: "Описание ошибки"
+}
+
+// Конфликт данных (409)
+{
+  success: false,
+  error: "Период на дату 2025-09-13 уже существует"
+}
 ```
+
+**Обновленные endpoints с унифицированным форматом:**
+- ✅ `/api/periods/` - управление периодами
+- ✅ `/api/financial_centers/` - центры финансовой ответственности
+- ✅ `/api/cost_centers/` - места возникновения затрат
+- ✅ `/api/nomenclatures/` - категории бюджета
+
+**Техническая реализация:**
+- Модуль `app.core.response` с утилитами `success_response()` и `error_response()`
+- Типобезопасные интерфейсы TypeScript
+- Обратная совместимость со старыми форматами
+- Comprehensive тестирование всех форматов ответов
+
+**Документация:** См. [API Endpoints](docs/api/endpoints.md)
 
 ### Docker окружение
 

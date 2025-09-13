@@ -257,17 +257,61 @@ interface SettingsPage {
 - User ID in `session.user.id` (number)
 - All endpoints require authentication except `/auth/*`
 
-### Response Format
+### Response Format ✅ **v3.2.0** (Updated 13.09.2025)
+
+**Unified API Response Format:**
+
 ```typescript
-// Success
-{ success: true, data: {...} }
+// Success responses
+// Single object
+{
+  success: true,
+  data: { id: 1, name: "Object", ... }
+}
 
-// Error
-{ success: false, error: "message" }
+// List of objects
+{
+  success: true,
+  data: [{ id: 1, name: "Item1" }, ...],
+  total: number
+}
 
-// List
-{ success: true, data: [...], total: number }
+// Empty list
+{
+  success: true,
+  data: [],
+  total: 0
+}
+
+// Error responses
+{
+  success: false,
+  error: "Error description"
+}
+
+// Validation error (422)
+{
+  success: false,
+  error: "Validation failed",
+  details: {
+    field_name: ["Field is required"]
+  }
+}
+
+// Conflict error (409)
+{
+  success: false,
+  error: "Period for date 2025-09-13 already exists"
+}
 ```
+
+**Updated endpoints with unified format:**
+- ✅ `/api/periods/` - budget periods management
+- ✅ `/api/financial_centers/` - financial responsibility centers
+- ✅ `/api/cost_centers/` - cost centers management
+- ✅ `/api/nomenclatures/` - budget categories
+
+**Technical implementation:** `app.core.response` module with `success_response()` and `error_response()` utilities
 
 ## ✅ Svelte 4 Migration Complete (2025-09-04)
 
