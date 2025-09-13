@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plan>
+  <problem>
+    <description>Ошибка "Не удалось загрузить периоды" при открытии разделов настроек</description>
+    <error_message>Invalid user data - missing id or role</error_message>
+    <affected_pages>
+      <page>/settings/periods</page>
+      <page>/settings/financial-centers</page>
+      <page>/settings/cost-centers</page>
+      <page>/settings/nomenclatures</page>
+    </affected_pages>
+  </problem>
+  
+  <root_cause>
+    <issue>Агрессивная очистка сессий в backend</issue>
+    <details>
+      Функция get_current_user_from_session() автоматически очищает сессии без user_id,
+      что создает порочный круг: сессия очищается → пустой объект user → снова очищается
+    </details>
+    <location>backend-fastapi/app/core/session.py:195</location>
+  </root_cause>
+  
+  <solution>
+    <step number="1">
+      <file>backend-fastapi/app/core/session.py</file>
+      <action>Убрать автоматическую очистку сессий без user_id</action>
+      <change>
+        <from>
+          if not user_id:
+              await _clear_invalid_session(request)
+              return None
+        </from>
+        <to>
+          if not user_id:
+              print(f"Session missing user_id: {session.to_dict()}")
+              return None
+        </to>
+      </change>
+    </step>
+    
+    <step number="2">
+      <file>frontend-svelte/src/lib/stores/auth.store.ts</file>
+      <action>Сделать валидацию менее строгой с fallback значениями</action>
+      <change>
+        <from>
+          if (!actualUser || !actualUser.id || !actualUser.role) {
+              console.error('setUser: Invalid user data - missing id or role');
+              return;
+          }
+        </from>
+        <to>
+          if (!actualUser) {
+              console.error('setUser: No user data received');
+              return;
+          }
+          const userId = actualUser.id || actualUser.user_id || null;
+          const userRole = actualUser.role || 'user';
+          if (!userId) {
+              console.error('setUser: Missing user ID');
+              return;
+          }
+        </to>
+      </change>
+    </step>
+    
+    <step number="3">
+      <action>Очистить поврежденные сессии в Redis</action>
+      <command>docker exec budget-redis redis-cli --scan --pattern "sess:*" | xargs -I {} redis-cli GET {} | grep '"user":{}'</command>
+    </step>
+    
+    <step number="4">
+      <action>Перезапустить контейнеры</action>
+      <command>docker-compose restart budget-backend budget-frontend</command>
+    </step>
+  </solution>
+  
+  <validation>
+    <test number="1">
+      <description>Проверка авторизации через API</description>
+      <command>curl -b cookies.txt http://localhost:4000/api/auth/me</command>
+      <expected>Ответ с полными данными пользователя включая id и role</expected>
+    </test>
+    
+    <test number="2">
+      <description>Проверка доступа к страницам настроек</description>
+      <commands>
+        <command>curl http://localhost:5173/settings/periods</command>
+        <command>curl http://localhost:5173/settings/financial-centers</command>
+        <command>curl http://localhost:5173/settings/cost-centers</command>
+        <command>curl http://localhost:5173/settings/nomenclatures</command>
+      </commands>
+      <expected>200 OK без ошибок загрузки данных</expected>
+    </test>
+    
+    <test number="3">
+      <description>Проверка логов на отсутствие ошибок</description>
+      <command>docker logs budget-backend --tail=50 | grep -E "error|Error"</command>
+      <expected>Отсутствие ошибок связанных с сессиями и авторизацией</expected>
+    </test>
+  </validation>
+  
+  <security_considerations>
+    <point>Сохранить все проверки user_id в API эндпоинтах для data isolation</point>
+    <point>Не ослаблять валидацию на уровне API</point>
+    <point>Добавить логирование подозрительных сессий для мониторинга</point>
+  </security_considerations>
+</plan>

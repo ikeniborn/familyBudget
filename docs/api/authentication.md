@@ -474,12 +474,26 @@ curl -b "connect.sid=your-session-id" http://localhost:4000/api/auth/me
 
 ## Related Documentation
 
-- [ADR-005: Улучшение системы обработки сессий](../architecture/adr-005-session-handling-improvements.md)
+### Architecture and Implementation
+- [ADR-006: Session Validation Improvements and Debugging Enhancements](../architecture/adr-006-session-validation-improvements.md) - **Latest improvements**
+- [ADR-005: Session Handling Improvements](../architecture/adr-005-session-handling-improvements.md) - Foundation work
+- [Session Management API](session-management.md) - **Comprehensive session documentation**
+
+### Troubleshooting and Support
 - [Session Error Troubleshooting](../troubleshooting/session-errors.md)
 - [Test Coverage Report](../quality/test-coverage-session.md)
 - [API Security Guide](security-changes.md)
 
 ## Changelog
+
+### Version 3.0 (2025-09-13) - **Latest**
+- ✅ **NEW:** Logging-first approach for session validation debugging
+- ✅ **NEW:** Flexible user data handling (both `id` and `user_id` fields)
+- ✅ **NEW:** Enhanced role validation with fallback mechanisms
+- ✅ **NEW:** Debug endpoints and comprehensive debugging tools
+- ✅ **IMPROVED:** Reduced authentication loops through graceful error handling
+- ✅ **ENHANCED:** Frontend auth store with multiple API response format support
+- ✅ **ADDED:** Session debug utilities for developers
 
 ### Version 2.0 (2025-09-13)
 - ✅ **NEW:** Автоматическая очистка невалидных сессий

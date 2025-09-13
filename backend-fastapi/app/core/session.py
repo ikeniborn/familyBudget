@@ -190,9 +190,7 @@ async def get_current_user_from_session(request: Request) -> Optional[dict]:
     # Support both old format and express-session format
     user_id = session.get("user_id") or session.get("id")
     if not user_id:
-        # If session exists but no user_id, this is an invalid/empty session
-        # Clear it to force re-authentication
-        await _clear_invalid_session(request)
+        print(f"Session missing user_id: {session.to_dict()}")
         return None
 
     # Validate that user_id is a valid integer

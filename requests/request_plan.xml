@@ -1,0 +1,40 @@
+<request>
+    <role>Разрабочик приложения для учета семейных финансов</role>
+    <rule>Придерживаться требований проекта CLAUDE.md</rule>
+    <context>
+        При открытии под аднминистраторм  разделов 
+        http://localhost:5173/settings/periods
+        http://localhost:5173/settings/financial-centers
+        http://localhost:5173/settings/cost-centers
+        http://localhost:5173/settings/nomenclatures
+        возникает типовая ошибка 
+        /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-13 12-59-44.png
+        Лог консоли /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-13 12-59-19.png
+        Изучить логи фронтенда и бэкенла. 
+        Определить причину и вариант решения
+    </context>
+    <tasks>
+        <task1>
+            <step1>Изучить контекст</step1>
+            <step2>
+                <thinking>Проанализировать требования</thinking>
+            </step2>
+            <step3>Задать уточняющие вопросы</step3>
+            <step4>Приступить к задаче task2</step4>
+        </task1>
+        <task2>
+            <step1>
+                <memory>Изучить записи в памяти для получениия актуальной информации</memory>
+            </step1>
+            <step2>
+                <context7>При необходимости запросить документацию</context7>
+            </step2>
+            <step3>Сформировать план задач c помощью субагента</step3>
+            <step4>Приступить к задаче task3</step4>
+        </task2>
+        <task3>
+            <step1>Сохранить план в формате xml в файле /requests/plan.xml</step1>
+            <step2>Завершить выполнение</step2>
+        </task3>
+    </tasks>
+</request>

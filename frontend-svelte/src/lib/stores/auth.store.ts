@@ -671,32 +671,34 @@ const authStore = {
     // Handle wrapped response format { data: { ... } }
     const actualUser = userData?.data || userData;
     
-    // Validate user has required fields before setting
-    if (!actualUser || !actualUser.id || !actualUser.role) {
-      console.error('🚨 setUser: Invalid user data - missing id or role:', {
-        receivedData: userData,
-        extractedUser: actualUser,
-        hasId: actualUser?.id,
-        hasRole: actualUser?.role
-      });
+    if (!actualUser) {
+      console.error('setUser: No user data received');
+      return;
+    }
+    const userId = actualUser.id || actualUser.user_id || null;
+    const userRole = actualUser.role || 'user';
+    if (!userId) {
+      console.error('setUser: Missing user ID');
       return;
     }
     
-    console.log('🔧 setUser processing user with role:', actualUser.role);
-    
+    console.log('🔧 setUser processing user with role:', userRole);
+
     update(state => {
       const newState = {
         ...state,
         user: {
           ...actualUser,
-          role: actualUser.role // Explicitly preserve role
+          id: userId,
+          user_id: userId,
+          role: userRole // Use validated role with fallback
         },
         isAuthenticated: true,
         isLoading: false,
         error: null,
         sessionValidated: true
       };
-      
+
       console.log('🔧 setUser - new state user role:', newState.user.role);
       return newState;
     });
