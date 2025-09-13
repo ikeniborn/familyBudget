@@ -4,6 +4,7 @@ Financial Center management endpoints.
 from typing import List, Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Body
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -16,6 +17,13 @@ from app.schemas.financial_center import (
     FinancialCenterPublic
 )
 from app.api.deps import get_current_user
+from app.core.response import (
+    success_response,
+    error_response,
+    error_not_found,
+    error_bad_request,
+    error_conflict
+)
 
 router = APIRouter()
 
@@ -40,7 +48,8 @@ async def get_financial_centers(
     result = await db.execute(stmt)
     centers = result.scalars().all()
     
-    return [FinancialCenterPublic.model_validate(center) for center in centers]
+    centers_data = [FinancialCenterPublic.model_validate(center).dict() for center in centers]
+    return success_response(data=centers_data, total=len(centers_data))
 
 
 @router.get("/{center_id}", response_model=FinancialCenterPublic)
@@ -57,14 +66,11 @@ async def get_financial_center(
     )
     result = await db.execute(stmt)
     center = result.scalar_one_or_none()
-    
+
     if not center:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Financial center not found or access denied"
-        )
-    
-    return FinancialCenterPublic.model_validate(center)
+        return error_not_found("Financial center not found or access denied")
+
+    return success_response(data=FinancialCenterPublic.model_validate(center).dict())
 
 
 @router.post("/", response_model=FinancialCenterPublic)
@@ -87,10 +93,7 @@ async def create_financial_center(
     existing = result.scalar_one_or_none()
     
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"ЦФО с названием '{center_data.name}' уже существует"
-        )
+        return error_bad_request(f"ЦФО с названием '{center_data.name}' уже существует")
     
     try:
         center = FinancialCenter(
@@ -102,13 +105,10 @@ async def create_financial_center(
         await db.commit()
         await db.refresh(center)
         
-        return FinancialCenterPublic.model_validate(center)
+        return success_response(data=FinancialCenterPublic.model_validate(center).dict(), status_code=201)
     except IntegrityError:
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"ЦФО с названием '{center_data.name}' уже существует"
-        )
+        return error_bad_request(f"ЦФО с названием '{center_data.name}' уже существует")
 
 
 @router.put("/{center_id}", response_model=FinancialCenterPublic)
@@ -126,12 +126,9 @@ async def update_financial_center(
     )
     result = await db.execute(stmt)
     center = result.scalar_one_or_none()
-    
+
     if not center:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Financial center not found or access denied"
-        )
+        return error_not_found("Financial center not found or access denied")
     
     # Update only provided fields (excluding user_id to prevent unauthorized changes)
     update_data = center_data.dict(exclude_unset=True)
@@ -150,10 +147,7 @@ async def update_financial_center(
             existing = result.scalar_one_or_none()
             
             if existing:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"ЦФО с названием '{value}' уже существует"
-                )
+                return error_bad_request(f"ЦФО с названием '{value}' уже существует")
         
         setattr(center, field, value)
     
@@ -161,13 +155,10 @@ async def update_financial_center(
         await db.commit()
         await db.refresh(center)
         
-        return FinancialCenterPublic.model_validate(center)
+        return success_response(data=FinancialCenterPublic.model_validate(center).dict())
     except IntegrityError:
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"ЦФО с таким названием уже существует"
-        )
+        return error_bad_request("ЦФО с таким названием уже существует")
 
 
 @router.delete("/{center_id}")
@@ -184,17 +175,14 @@ async def delete_financial_center(
     )
     result = await db.execute(stmt)
     center = result.scalar_one_or_none()
-    
+
     if not center:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Financial center not found or access denied"
-        )
-    
+        return error_not_found("Financial center not found or access denied")
+
     await db.delete(center)
     await db.commit()
-    
-    return {"message": "Financial center deleted successfully"}
+
+    return success_response(data={"message": "Financial center deleted successfully"})
 
 
 @router.post("/bulk-delete")
@@ -213,14 +201,11 @@ async def bulk_delete_financial_centers(
     centers = result.scalars().all()
     
     if not centers:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No financial centers found or access denied"
-        )
-    
+        return error_not_found("No financial centers found or access denied")
+
     for center in centers:
         await db.delete(center)
-    
+
     await db.commit()
-    
-    return {"message": f"Deleted {len(centers)} financial centers"}
+
+    return success_response(data={"message": f"Deleted {len(centers)} financial centers"})

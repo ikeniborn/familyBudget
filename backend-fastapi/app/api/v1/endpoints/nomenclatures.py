@@ -4,6 +4,7 @@ Nomenclature management endpoints.
 from typing import List, Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Body
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -16,6 +17,13 @@ from app.schemas.nomenclature import (
     NomenclaturePublic
 )
 from app.api.deps import get_current_user
+from app.core.response import (
+    success_response,
+    error_response,
+    error_not_found,
+    error_bad_request,
+    error_conflict
+)
 
 router = APIRouter()
 
@@ -49,7 +57,8 @@ async def get_nomenclatures(
     result = await db.execute(stmt)
     nomenclatures = result.scalars().all()
     
-    return [NomenclaturePublic.model_validate(nomenclature) for nomenclature in nomenclatures]
+    nomenclatures_data = [NomenclaturePublic.model_validate(nomenclature).dict() for nomenclature in nomenclatures]
+    return success_response(data=nomenclatures_data, total=len(nomenclatures_data))
 
 
 @router.get("/{nomenclature_id}", response_model=NomenclaturePublic)
@@ -66,14 +75,11 @@ async def get_nomenclature(
     )
     result = await db.execute(stmt)
     nomenclature = result.scalar_one_or_none()
-    
+
     if not nomenclature:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Nomenclature not found or access denied"
-        )
-    
-    return NomenclaturePublic.model_validate(nomenclature)
+        return error_not_found("Nomenclature not found or access denied")
+
+    return success_response(data=NomenclaturePublic.model_validate(nomenclature).dict())
 
 
 @router.post("/", response_model=NomenclaturePublic)
@@ -96,10 +102,7 @@ async def create_nomenclature(
     existing = result.scalar_one_or_none()
     
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Номенклатура с названием '{nomenclature_data.name}' уже существует"
-        )
+        return error_bad_request(f"Номенклатура с названием '{nomenclature_data.name}' уже существует")
     
     try:
         nomenclature = Nomenclature(
@@ -116,13 +119,10 @@ async def create_nomenclature(
         await db.commit()
         await db.refresh(nomenclature)
         
-        return NomenclaturePublic.model_validate(nomenclature)
+        return success_response(data=NomenclaturePublic.model_validate(nomenclature).dict(), status_code=201)
     except IntegrityError:
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Номенклатура с названием '{nomenclature_data.name}' уже существует"
-        )
+        return error_bad_request(f"Номенклатура с названием '{nomenclature_data.name}' уже существует")
 
 
 @router.put("/{nomenclature_id}", response_model=NomenclaturePublic)
@@ -140,12 +140,9 @@ async def update_nomenclature(
     )
     result = await db.execute(stmt)
     nomenclature = result.scalar_one_or_none()
-    
+
     if not nomenclature:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Nomenclature not found or access denied"
-        )
+        return error_not_found("Nomenclature not found or access denied")
     
     # Update only provided fields (excluding user_id to prevent unauthorized changes)
     update_data = nomenclature_data.dict(exclude_unset=True)
@@ -164,10 +161,7 @@ async def update_nomenclature(
             existing = result.scalar_one_or_none()
             
             if existing:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Номенклатура с названием '{value}' уже существует"
-                )
+                return error_bad_request(f"Номенклатура с названием '{value}' уже существует")
         
         setattr(nomenclature, field, value)
     
@@ -175,13 +169,10 @@ async def update_nomenclature(
         await db.commit()
         await db.refresh(nomenclature)
         
-        return NomenclaturePublic.model_validate(nomenclature)
+        return success_response(data=NomenclaturePublic.model_validate(nomenclature).dict())
     except IntegrityError:
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Номенклатура с таким названием уже существует"
-        )
+        return error_bad_request("Номенклатура с таким названием уже существует")
 
 
 @router.delete("/{nomenclature_id}")
@@ -198,17 +189,14 @@ async def delete_nomenclature(
     )
     result = await db.execute(stmt)
     nomenclature = result.scalar_one_or_none()
-    
+
     if not nomenclature:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Nomenclature not found or access denied"
-        )
-    
+        return error_not_found("Nomenclature not found or access denied")
+
     await db.delete(nomenclature)
     await db.commit()
-    
-    return {"message": "Nomenclature deleted successfully"}
+
+    return success_response(data={"message": "Nomenclature deleted successfully"})
 
 
 @router.post("/bulk-delete")
@@ -227,14 +215,11 @@ async def bulk_delete_nomenclatures(
     nomenclatures = result.scalars().all()
     
     if not nomenclatures:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No nomenclatures found or access denied"
-        )
-    
+        return error_not_found("No nomenclatures found or access denied")
+
     for nomenclature in nomenclatures:
         await db.delete(nomenclature)
-    
+
     await db.commit()
-    
-    return {"message": f"Deleted {len(nomenclatures)} nomenclatures"}
+
+    return success_response(data={"message": f"Deleted {len(nomenclatures)} nomenclatures"})

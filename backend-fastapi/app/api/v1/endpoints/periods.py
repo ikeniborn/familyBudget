@@ -4,6 +4,7 @@ Period management endpoints.
 from typing import List, Optional, Union
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from pydantic import BaseModel
@@ -11,6 +12,13 @@ from pydantic import BaseModel
 from app.db.database import get_db
 from app.models.period import Period
 from app.api.deps import get_current_user
+from app.core.response import (
+    success_response,
+    error_response,
+    error_not_found,
+    error_conflict,
+    error_unprocessable_entity
+)
 
 router = APIRouter()
 
@@ -106,7 +114,7 @@ async def get_periods(
         }
         response_periods.append(PeriodResponse(**period_dict))
     
-    return response_periods
+    return success_response(data=response_periods, total=len(response_periods))
 
 
 @router.get("/current", response_model=PeriodResponse)
@@ -127,11 +135,8 @@ async def get_current_period(
     period = result.scalar_one_or_none()
     
     if not period:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No periods found for current user"
-        )
-    
+        return error_not_found("No periods found for current user")
+
     # Prepare response with legacy fields
     period_dict = {
         'id': period.id,
@@ -148,8 +153,8 @@ async def get_current_period(
         'updated_at': period.date,
         'user_id': period.user_id  # Use actual user_id from database
     }
-    
-    return PeriodResponse(**period_dict)
+
+    return success_response(data=PeriodResponse(**period_dict).dict())
 
 
 @router.get("/{period_id}", response_model=PeriodResponse)
@@ -169,11 +174,8 @@ async def get_period(
     period = result.scalar_one_or_none()
     
     if not period:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Period not found or access denied"
-        )
-    
+        return error_not_found("Period not found or access denied")
+
     # Prepare response with legacy fields
     period_dict = {
         'id': period.id,
@@ -190,8 +192,8 @@ async def get_period(
         'updated_at': period.date,
         'user_id': period.user_id  # Use actual user_id from database
     }
-    
-    return PeriodResponse(**period_dict)
+
+    return success_response(data=PeriodResponse(**period_dict).dict())
 
 
 @router.post("/", response_model=PeriodResponse)
@@ -216,10 +218,7 @@ async def create_period(
         ru_name = period_data.ru_name
     
     if not date or not ru_name:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Missing required fields: date and ru_name, or period_year and period_month"
-        )
+        return error_unprocessable_entity("Missing required fields: date and ru_name, or period_year and period_month")
     
     # Check for existing period with same date for current user (user-specific uniqueness)
     stmt = select(Period).where(
@@ -230,10 +229,7 @@ async def create_period(
     existing_period = result.scalar_one_or_none()
     
     if existing_period:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Период на дату {date.strftime('%Y-%m-%d')} уже существует"
-        )
+        return error_conflict(f"Период на дату {date.strftime('%Y-%m-%d')} уже существует")
     
     # Create period with automatic user_id assignment
     period = Period(
@@ -264,8 +260,8 @@ async def create_period(
         'updated_at': period.date,
         'user_id': period.user_id  # Use actual user_id from database
     }
-    
-    return PeriodResponse(**period_dict)
+
+    return success_response(data=PeriodResponse(**period_dict).dict(), status_code=201)
 
 
 @router.put("/{period_id}", response_model=PeriodResponse)
@@ -284,12 +280,9 @@ async def update_period(
     )
     result = await db.execute(stmt)
     period = result.scalar_one_or_none()
-    
+
     if not period:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Period not found or access denied"
-        )
+        return error_not_found("Period not found or access denied")
     
     # Update period fields (excluding user_id to prevent unauthorized changes)
     update_data = period_data.dict(exclude_unset=True)
@@ -301,7 +294,7 @@ async def update_period(
     
     await db.commit()
     await db.refresh(period)
-    
+
     # Prepare response with legacy fields
     period_dict = {
         'id': period.id,
@@ -318,8 +311,8 @@ async def update_period(
         'updated_at': period.date,
         'user_id': period.user_id  # Use actual user_id from database
     }
-    
-    return PeriodResponse(**period_dict)
+
+    return success_response(data=PeriodResponse(**period_dict).dict())
 
 
 @router.delete("/{period_id}")
@@ -337,14 +330,11 @@ async def delete_period(
     )
     result = await db.execute(stmt)
     period = result.scalar_one_or_none()
-    
+
     if not period:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Period not found or access denied"
-        )
+        return error_not_found("Period not found or access denied")
     
     await db.delete(period)
     await db.commit()
-    
-    return {"message": "Period deleted successfully"}
+
+    return success_response(data={"message": "Period deleted successfully"})
