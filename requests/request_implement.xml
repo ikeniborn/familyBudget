@@ -1,33 +1,54 @@
 <request>
     <role>Разрабочик приложения для учета семейных финансов</role>
     <rule>Придерживаться требований проекта CLAUDE.md</rule>
-    <context>
-        План задач /requests/plan.xml
-    </context>
     <tasks>
-        <task1>
-            <step1>Изучить план</step1>
-            <step2>Приступить к задаче task2</step2>
-        </task1>
-        <task2>
-            <step1>Выполнить план задач шаг за шагом с помощью субагентов</step1>
-            <step2>Приступить к задаче task4</step2>
-        </task2>
-        <task3>
-            <step1>Реализовать тестры на новый и измененный функционал. Сохранить в каталоге /tests</step1>
-            <step1>ВЫполнтиь тестирование</step1>
-            <step2>Приступить к задаче task5</step2>
-        </task3>
-        <task4>
-            <step1>Обновить документацию в /docs и README.md</step1>
-            <step2>Приступить к задаче task6</step2>
-        </task4>
-        <task5>
-            <step1>
-                <memory>Обновить память проекта</memory>
-            </step1>
-            <step2>Приступить к задаче task7</step2>
-        </task5>
-        <task6>Сделать коммит</task6>
+        <task number="1">
+            <step number="1">
+                <action>Изучить план /requests/plan.xml</action>
+            </step>
+            <step number="2">
+                <action>Приступить к задаче task 2</action>
+            </step>
+        </task>
+        <task number="2">
+            <step number="1">
+                <action>Выполнить план задач шаг за шагом с помощью субагентов</action>
+            </step>
+            <step number="2">
+                <action>Приступить к задаче task 3</action>
+            </step>
+        </task>
+        <task number="3">
+            <step number="1">
+                <action>Реализовать тестры на новый и измененный функционал. Сохранить в каталоге /tests</action>
+            </step>
+            <step number="2">
+                <action>ВЫполнтиь тестирование</action>
+            </step>
+            <step number="3">
+                <action>Приступить к задаче task 4</action>
+            </step>
+        </task>
+        <task number="4">
+            <step number="1">
+                <action>Обновить документацию в /docs и README.md</action>
+            </step>
+            <step number="2">
+                <action>Приступить к задаче task 5</action>
+            </step>
+        </task>
+        <task number="5">
+            <step number="1">
+                <memory>
+                    <action>Обновить память проекта</action>
+                </memory>
+            </step>
+            <step number="2">
+                <action>Приступить к задаче task 6</action>
+            </step>
+        </task>
+        <task number="6">
+            <action>Сделать коммит</action>
+        </task>
     </tasks>
 </request>

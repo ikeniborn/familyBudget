@@ -2,39 +2,72 @@
     <role>Разрабочик приложения для учета семейных финансов</role>
     <rule>Придерживаться требований проекта CLAUDE.md</rule>
     <context>
-        При открытии под аднминистраторм  разделов 
+        После авторизации под роль адвинистратор и попытке доабвить новый период в разделе 
         http://localhost:5173/settings/periods
-        http://localhost:5173/settings/financial-centers
-        http://localhost:5173/settings/cost-centers
-        http://localhost:5173/settings/nomenclatures
-        возникает типовая ошибка 
-        /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-13 12-59-44.png
-        Лог консоли /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-13 12-59-19.png
-        Изучить логи фронтенда и бэкенла. 
-        Определить причину и вариант решения
+        возникает ошибка 409 /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-13 14-43-09.png
+        В логах консоли ошибка 
+        api.ts:77 
+        POST http://localhost:5173/api/periods/ 409 (Conflict)
+        dispatchXhrRequest	@	axios.js?v=29ae0733:1672
+        xhr	@	axios.js?v=29ae0733:1552
+        dispatchRequest	@	axios.js?v=29ae0733:2027
+        Promise.then		
+        _request	@	axios.js?v=29ae0733:2230
+        request	@	axios.js?v=29ae0733:2139
+        httpMethod	@	axios.js?v=29ae0733:2277
+        wrap	@	axios.js?v=29ae0733:8
+        post	@	api.ts:77
+        handleSubmitPeriod	@	+page.svelte:203
+        (anonymous)	@	chunk-OPJHXX5N.js?v=29ae0733:779
+        (anonymous)	@	chunk-LDPCYW46.js?v=29ae0733:3925
+        without_reactive_context	@	chunk-LDPCYW46.js?v=29ae0733:2406
+        target_handler	@	chunk-LDPCYW46.js?v=29ae0733:3924
+
+        Необходимо чтобы функционал добавления периодов работал. Так же нужно проверить возможность просмотра, управления и добавления справочниками
+        номенклатур, цфо, мвз.
     </context>
     <tasks>
-        <task1>
-            <step1>Изучить контекст</step1>
-            <step2>
-                <thinking>Проанализировать требования</thinking>
-            </step2>
-            <step3>Задать уточняющие вопросы</step3>
-            <step4>Приступить к задаче task2</step4>
-        </task1>
-        <task2>
-            <step1>
-                <memory>Изучить записи в памяти для получениия актуальной информации</memory>
-            </step1>
-            <step2>
-                <context7>При необходимости запросить документацию</context7>
-            </step2>
-            <step3>Сформировать план задач c помощью субагента</step3>
-            <step4>Приступить к задаче task3</step4>
-        </task2>
-        <task3>
-            <step1>Сохранить план в формате xml в файле /requests/plan.xml</step1>
-            <step2>Завершить выполнение</step2>
-        </task3>
+        <task number="1">
+            <step number="1">
+                <action>Изучить контекст</action>
+            </step>
+            <step number="2">
+                <thinking>
+                    <action>Проанализировать требования</action>
+                </thinking>
+            </step>
+            <step number="3">
+                <action>Задать уточняющие вопросы</action>
+            </step>
+            <step number="4">
+                <action>Приступить к задаче task 2</action>
+            </step>
+        </task>
+        <task number="2">
+            <step number="1">
+                <memory>
+                    <action>Изучить записи в памяти для получениия актуальной информации</action>
+                </memory>
+            </step>
+            <step number="2">
+                <context7>
+                    <action>Запросить документацию</action>
+                </context7>
+            </step>
+            <step number="3">
+                <action>Сформировать план задач c помощью субагента</action>
+            </step>
+            <step number="4">
+                <action>Приступить к задаче task 3</action>
+            </step>
+        </task>
+        <task number="3">
+            <step number="1">
+                <action>Сохранить план в формате xml в файле /requests названием plan.xml</action>
+            </step>
+            <step number="2">
+                <action>Завершить выполнение</action>
+            </step>
+        </task>
     </tasks>
 </request>

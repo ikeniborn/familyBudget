@@ -214,9 +214,30 @@
         throw new Error((response as any).error || 'Ошибка при сохранении периода');
       }
     } catch (error: any) {
+      // Улучшенная обработка ошибок от API
+      let errorMessage = 'Неизвестная ошибка';
+      
+      if (error.response) {
+        // Ошибка от сервера
+        if (error.response.status === 409) {
+          // Извлекаем сообщение об ошибке из ответа сервера
+          errorMessage = error.response.data?.detail || 'Период с такой датой уже существует';
+        } else if (error.response.data?.detail) {
+          errorMessage = error.response.data.detail;
+        } else if (error.response.data?.error) {
+          errorMessage = error.response.data.error;
+        } else {
+          errorMessage = `Ошибка сервера: ${error.response.status}`;
+        }
+      } else if (error.request) {
+        errorMessage = 'Сервер не отвечает';
+      } else {
+        errorMessage = error.message || 'Произошла ошибка';
+      }
+      
       toast.error(
         `Ошибка при ${selectedPeriod ? 'обновлении' : 'создании'} периода`,
-        error.message
+        errorMessage
       );
     } finally {
       saving = false;

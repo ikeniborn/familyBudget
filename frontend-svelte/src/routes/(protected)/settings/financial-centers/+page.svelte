@@ -168,9 +168,28 @@
         throw new Error((response as any).error || 'Ошибка при сохранении ЦФО');
       }
     } catch (error: any) {
+      // Улучшенная обработка ошибок от API
+      let errorMessage = 'Неизвестная ошибка';
+      
+      if (error.response) {
+        if (error.response.status === 409) {
+          errorMessage = error.response.data?.detail || 'ЦФО с таким кодом уже существует';
+        } else if (error.response.data?.detail) {
+          errorMessage = error.response.data.detail;
+        } else if (error.response.data?.error) {
+          errorMessage = error.response.data.error;
+        } else {
+          errorMessage = `Ошибка сервера: ${error.response.status}`;
+        }
+      } else if (error.request) {
+        errorMessage = 'Сервер не отвечает';
+      } else {
+        errorMessage = error.message || 'Произошла ошибка';
+      }
+      
       toast.error(
         `Ошибка при ${selectedFC ? 'обновлении' : 'создании'} ЦФО`,
-        error.message
+        errorMessage
       );
     } finally {
       saving = false;

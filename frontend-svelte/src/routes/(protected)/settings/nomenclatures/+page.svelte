@@ -202,9 +202,29 @@
         throw new Error((response as any).error || 'Ошибка при сохранении номенклатуры');
       }
     } catch (error: any) {
+      // Улучшенная обработка ошибок от API
+      let errorMessage = 'Неизвестная ошибка';
+      
+      if (error.response) {
+        // Ошибка от сервера
+        if (error.response.status === 409) {
+          errorMessage = error.response.data?.detail || 'Номенклатура с таким кодом уже существует';
+        } else if (error.response.data?.detail) {
+          errorMessage = error.response.data.detail;
+        } else if (error.response.data?.error) {
+          errorMessage = error.response.data.error;
+        } else {
+          errorMessage = `Ошибка сервера: ${error.response.status}`;
+        }
+      } else if (error.request) {
+        errorMessage = 'Сервер не отвечает';
+      } else {
+        errorMessage = error.message || 'Произошла ошибка';
+      }
+      
       toast.error(
         `Ошибка при ${selectedNomenclature ? 'обновлении' : 'создании'} номенклатуры`,
-        error.message
+        errorMessage
       );
     } finally {
       saving = false;
@@ -232,9 +252,19 @@
         throw new Error(response.error || 'Не удалось удалить номенклатуру');
       }
     } catch (error: any) {
+      let errorMessage = 'Неизвестная ошибка';
+      
+      if (error.response) {
+        errorMessage = error.response.data?.detail || error.response.data?.error || `Ошибка сервера: ${error.response.status}`;
+      } else if (error.request) {
+        errorMessage = 'Сервер не отвечает';
+      } else {
+        errorMessage = error.message || 'Произошла ошибка';
+      }
+      
       toast.error(
         'Ошибка при удалении номенклатуры',
-        error.message
+        errorMessage
       );
     } finally {
       deleting = false;

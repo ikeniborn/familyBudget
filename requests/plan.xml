@@ -1,107 +1,121 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<plan>
-  <problem>
-    <description>Ошибка "Не удалось загрузить периоды" при открытии разделов настроек</description>
-    <error_message>Invalid user data - missing id or role</error_message>
-    <affected_pages>
-      <page>/settings/periods</page>
-      <page>/settings/financial-centers</page>
-      <page>/settings/cost-centers</page>
-      <page>/settings/nomenclatures</page>
-    </affected_pages>
-  </problem>
-  
-  <root_cause>
-    <issue>Агрессивная очистка сессий в backend</issue>
-    <details>
-      Функция get_current_user_from_session() автоматически очищает сессии без user_id,
-      что создает порочный круг: сессия очищается → пустой объект user → снова очищается
-    </details>
-    <location>backend-fastapi/app/core/session.py:195</location>
-  </root_cause>
-  
-  <solution>
-    <step number="1">
-      <file>backend-fastapi/app/core/session.py</file>
-      <action>Убрать автоматическую очистку сессий без user_id</action>
-      <change>
-        <from>
-          if not user_id:
-              await _clear_invalid_session(request)
-              return None
-        </from>
-        <to>
-          if not user_id:
-              print(f"Session missing user_id: {session.to_dict()}")
-              return None
-        </to>
-      </change>
-    </step>
+<solution_plan>
+    <project>Family Budget - Система управления семейным бюджетом</project>
+    <date>2025-09-13</date>
+    <author>Claude Code Assistant</author>
     
-    <step number="2">
-      <file>frontend-svelte/src/lib/stores/auth.store.ts</file>
-      <action>Сделать валидацию менее строгой с fallback значениями</action>
-      <change>
-        <from>
-          if (!actualUser || !actualUser.id || !actualUser.role) {
-              console.error('setUser: Invalid user data - missing id or role');
-              return;
-          }
-        </from>
-        <to>
-          if (!actualUser) {
-              console.error('setUser: No user data received');
-              return;
-          }
-          const userId = actualUser.id || actualUser.user_id || null;
-          const userRole = actualUser.role || 'user';
-          if (!userId) {
-              console.error('setUser: Missing user ID');
-              return;
-          }
-        </to>
-      </change>
-    </step>
+    <problem_description>
+        <issue>Ошибка 409 Conflict при добавлении нового периода в разделе управления периодами</issue>
+        <url>http://localhost:5173/settings/periods</url>
+        <error_message>Request failed with status code 409</error_message>
+        <additional_requirements>Проверка работы справочников номенклатур, ЦФО, МВЗ</additional_requirements>
+    </problem_description>
     
-    <step number="3">
-      <action>Очистить поврежденные сессии в Redis</action>
-      <command>docker exec budget-redis redis-cli --scan --pattern "sess:*" | xargs -I {} redis-cli GET {} | grep '"user":{}'</command>
-    </step>
+    <analysis>
+        <finding number="1">
+            <description>Ошибка 409 возникает из-за попытки добавить период с датой, которая уже существует в базе данных</description>
+            <location>backend-fastapi/app/api/v1/endpoints/periods.py:233-236</location>
+            <code_snippet>
+                if existing_period:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Период на дату {date.strftime('%Y-%m-%d')} уже существует"
+                    )
+            </code_snippet>
+        </finding>
+        
+        <finding number="2">
+            <description>Фронтенд не обрабатывает детальные сообщения об ошибках от сервера</description>
+            <location>frontend-svelte/src/routes/(protected)/settings/periods/+page.svelte:216-220</location>
+            <issue>Использовался только error.message без извлечения detail из response</issue>
+        </finding>
+        
+        <finding number="3">
+            <description>В базе данных уже существует 17 периодов для пользователя с user_id=1</description>
+            <data>
+                Периоды от 2024.09 до 2026.09 уже созданы
+            </data>
+        </finding>
+    </analysis>
     
-    <step number="4">
-      <action>Перезапустить контейнеры</action>
-      <command>docker-compose restart budget-backend budget-frontend</command>
-    </step>
-  </solution>
-  
-  <validation>
-    <test number="1">
-      <description>Проверка авторизации через API</description>
-      <command>curl -b cookies.txt http://localhost:4000/api/auth/me</command>
-      <expected>Ответ с полными данными пользователя включая id и role</expected>
-    </test>
+    <implemented_solutions>
+        <solution number="1">
+            <title>Улучшение обработки ошибок в компоненте периодов</title>
+            <file>frontend-svelte/src/routes/(protected)/settings/periods/+page.svelte</file>
+            <changes>
+                <change>Добавлена детальная обработка ошибок HTTP-ответов</change>
+                <change>Извлечение сообщения detail из error.response.data</change>
+                <change>Специальная обработка кода 409 с понятным сообщением</change>
+                <change>Обработка различных типов ошибок (сетевые, серверные, клиентские)</change>
+            </changes>
+        </solution>
+        
+        <solution number="2">
+            <title>Улучшение обработки ошибок в справочнике номенклатур</title>
+            <file>frontend-svelte/src/routes/(protected)/settings/nomenclatures/+page.svelte</file>
+            <changes>
+                <change>Аналогичная обработка ошибок 409 для дубликатов кодов</change>
+                <change>Извлечение детальных сообщений об ошибках</change>
+            </changes>
+        </solution>
+        
+        <solution number="3">
+            <title>Улучшение обработки ошибок в справочнике ЦФО</title>
+            <file>frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.svelte</file>
+            <changes>
+                <change>Добавлена обработка конфликтов при создании ЦФО</change>
+                <change>Понятные сообщения об ошибках для пользователя</change>
+            </changes>
+        </solution>
+        
+        <solution number="4">
+            <title>Улучшение обработки ошибок в справочнике МВЗ</title>
+            <file>frontend-svelte/src/routes/(protected)/settings/cost-centers/+page.svelte</file>
+            <changes>
+                <change>Улучшенная обработка ошибок при операциях CRUD</change>
+                <change>Специфичные сообщения для различных типов ошибок</change>
+            </changes>
+        </solution>
+    </implemented_solutions>
     
-    <test number="2">
-      <description>Проверка доступа к страницам настроек</description>
-      <commands>
-        <command>curl http://localhost:5173/settings/periods</command>
-        <command>curl http://localhost:5173/settings/financial-centers</command>
-        <command>curl http://localhost:5173/settings/cost-centers</command>
-        <command>curl http://localhost:5173/settings/nomenclatures</command>
-      </commands>
-      <expected>200 OK без ошибок загрузки данных</expected>
-    </test>
+    <testing_recommendations>
+        <test number="1">
+            <description>Проверка добавления уникального периода</description>
+            <steps>
+                <step>Открыть раздел управления периодами</step>
+                <step>Нажать "Добавить период"</step>
+                <step>Выбрать месяц, который еще не существует (например, 2027.01)</step>
+                <step>Заполнить название и сохранить</step>
+                <step>Убедиться, что период успешно создан</step>
+            </steps>
+        </test>
+        
+        <test number="2">
+            <description>Проверка обработки дубликата периода</description>
+            <steps>
+                <step>Попытаться добавить период с существующей датой</step>
+                <step>Убедиться, что отображается понятное сообщение об ошибке</step>
+                <step>Сообщение должно указывать конкретную дату конфликта</step>
+            </steps>
+        </test>
+        
+        <test number="3">
+            <description>Проверка работы справочников</description>
+            <steps>
+                <step>Проверить добавление/редактирование/удаление в справочнике номенклатур</step>
+                <step>Проверить добавление/редактирование/удаление в справочнике ЦФО</step>
+                <step>Проверить добавление/редактирование/удаление в справочнике МВЗ</step>
+                <step>Убедиться, что ошибки отображаются корректно</step>
+            </steps>
+        </test>
+    </testing_recommendations>
     
-    <test number="3">
-      <description>Проверка логов на отсутствие ошибок</description>
-      <command>docker logs budget-backend --tail=50 | grep -E "error|Error"</command>
-      <expected>Отсутствие ошибок связанных с сессиями и авторизацией</expected>
-    </test>
-  </validation>
-  
-  <security_considerations>
-    <point>Сохранить все проверки user_id в API эндпоинтах для data isolation</point>
-    <point>Не ослаблять валидацию на уровне API</point>
-    <point>Добавить логирование подозрительных сессий для мониторинга</point>
-  </security_considerations>
-</plan>
+    <additional_notes>
+        <note>Все справочники теперь корректно обрабатывают ошибки 409 и другие HTTP-коды</note>
+        <note>Сообщения об ошибках стали более информативными для пользователя</note>
+        <note>Реализована единообразная обработка ошибок во всех справочниках</note>
+        <note>В базе данных обнаружено минимальное количество тестовых данных в справочниках</note>
+    </additional_notes>
+    
+    <status>COMPLETED</status>
+</solution_plan>

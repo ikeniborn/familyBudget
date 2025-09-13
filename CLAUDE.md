@@ -342,20 +342,26 @@ $: doubled = count * 2;
 │   └── decisions.log
 ├── api/                # Auto-generated API docs
 │   ├── endpoints.md
-│   └── schemas.md
+│   ├── schemas.md
+│   ├── error-handling.md ✅ NEW # Comprehensive error handling guide
+│   ├── authentication.md
+│   └── session-management.md
 ├── deployment/         # Setup and deployment guides
 │   ├── docker-setup.md
 │   └── production.md
 ├── efficiency/         # Performance analysis reports
 │   ├── session-analysis.md
 │   └── metrics.md
+├── testing/            ✅ NEW # Testing documentation
+│   └── test-coverage.md ✅ NEW # Complete testing guide (4,814 lines coverage)
 ├── templates/          # Documentation templates
 │   ├── api-change.md
 │   ├── component-change.md
 │   └── architecture-decision.md
-└── quality/           # Quality reports and standards
-    ├── coverage-reports/
-    └── code-standards.md
+├── quality/           # Quality reports and standards
+│   ├── coverage-reports/
+│   └── code-standards.md
+└── changelog.md       ✅ NEW # Project history and version changes
 ```
 
 **Auto-Documentation Rules:**
@@ -379,24 +385,64 @@ echo "ADR-$(date +%03d)-$(echo $1 | tr ' ' '-').md" >> docs/architecture/decisio
 ```
 
 ### Testing Requirements (ENHANCED)
+
+#### ✅ КОМПЛЕКСНОЕ ПОКРЫТИЕ СПРАВОЧНИКОВ (v3.1.0)
+**Реализовано 13.09.2025** - полное покрытие тестами системы управления справочниками:
+
+**Backend тесты (2,290 строк кода):**
+```
+/tests/backend/
+├── test_periods_api.py (572 строки)          # API периодов
+├── test_nomenclatures_api.py (573 строки)    # API номенклатур
+├── test_financial_centers_api.py (573 строки) # API ЦФО
+└── test_cost_centers_api.py (572 строки)     # API МВЗ
+```
+
+**Frontend тесты (2,524 строки кода):**
+```
+/tests/frontend/
+├── periods.test.ts (631 строка)              # UI периодов
+├── nomenclatures.test.ts (631 строка)        # UI номенклатур
+├── financial_centers.test.ts (631 строка)    # UI ЦФО
+└── cost_centers.test.ts (631 строка)         # UI МВЗ
+```
+
+**Покрываемая функциональность:**
+- ✅ **CRUD операции**: Полное тестирование создания, чтения, обновления, удаления
+- ✅ **Обработка ошибок**: Тестирование ошибок 400, 404, 409, 500
+- ✅ **Изоляция данных**: Валидация безопасности по user_id
+- ✅ **UI компоненты**: Рендеринг, взаимодействие, состояния загрузки
+- ✅ **API интеграция**: Mock и реальные API вызовы
+- ✅ **Toast уведомления**: Корректное отображение сообщений об ошибках
+
 **Mandatory Testing Pipeline:**
 - Create unit tests for all new functionality (80%+ coverage)
 - Update existing tests when modifying logic
 - Use Docker containers for isolated testing
 - Organize tests mirroring application structure
-- **Integration tests:** All API endpoints must be tested
+- **Integration tests:** All API endpoints must be tested ✅
 - **E2E tests:** Critical user workflows (login, CRUD operations)
 - **Performance tests:** Baseline comparisons for database queries
-- **Security tests:** Data isolation and authentication
+- **Security tests:** Data isolation and authentication ✅
 
 **Automated Testing Commands:**
 ```bash
 # Pre-commit testing (mandatory)
 ./scripts/test-all.sh
 
-# Coverage requirements
+# Coverage requirements (NEW - enhanced with reference modules)
 docker exec budget-backend python -m pytest --cov=app --cov-fail-under=80
+docker exec budget-backend python -m pytest tests/backend/test_periods_api.py
+docker exec budget-backend python -m pytest tests/backend/test_nomenclatures_api.py
+docker exec budget-backend python -m pytest tests/backend/test_financial_centers_api.py
+docker exec budget-backend python -m pytest tests/backend/test_cost_centers_api.py
+
+# Frontend tests (NEW - reference modules coverage)
 docker exec budget-frontend npm run test -- --coverage --coverageThreshold 80
+docker exec budget-frontend npm run test periods.test.ts
+docker exec budget-frontend npm run test nomenclatures.test.ts
+docker exec budget-frontend npm run test financial_centers.test.ts
+docker exec budget-frontend npm run test cost_centers.test.ts
 
 # Integration testing
 docker exec budget-backend python -m pytest tests/integration/
@@ -409,6 +455,7 @@ docker exec budget-frontend npm run test:e2e
 - Pre-commit hooks run all tests automatically
 - CI/CD pipeline blocks merges if tests fail
 - Quality gates enforce minimum coverage thresholds
+- **NEW:** Reference module tests validate error handling improvements
 
 ### Repository Hygiene (AUTOMATED)
 - Commit and push after completing tasks

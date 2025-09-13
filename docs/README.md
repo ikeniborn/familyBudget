@@ -1,9 +1,21 @@
 # Family Budget - Documentation Index
 
-**Last Updated:** 2025-09-12
-**Version:** 1.1.0
+**Last Updated:** 2025-09-13
+**Version:** 1.2.0
 
-This directory contains comprehensive documentation for the Family Budget application, including architecture decisions, API documentation, deployment guides, and templates for future development.
+This directory contains comprehensive documentation for the Family Budget application, including architecture decisions, API documentation, deployment guides, testing coverage, and templates for future development.
+
+## 🆕 Latest Documentation Updates (v1.2.0)
+
+### ✅ Новые документы (13.09.2025)
+- **[Обработка ошибок API](api/error-handling.md)** - Полное руководство по обработке ошибок 409, 400, 404, 500
+- **[Покрытие тестами](testing/test-coverage.md)** - Документация по 4,814 строкам новых тестов
+- **[История изменений](changelog.md)** - Полная история версий и изменений проекта
+
+### 🔧 Исправленные проблемы
+- Ошибка 409 при создании дублирующихся периодов
+- Унифицированная обработка ошибок во всех справочниках
+- Комплексное тестовое покрытие CRUD операций
 
 ## 📚 Documentation Structure
 
@@ -33,6 +45,23 @@ This directory contains comprehensive documentation for the Family Budget applic
   - Three-layer protection model
   - Error handling and response formats
 
+#### Error Handling & Response Management ⭐ NEW
+- **[Обработка ошибок API](api/error-handling.md)** ✅ NEW
+  - Comprehensive error handling guide for 409, 400, 404, 500 errors
+  - Backend (FastAPI) and Frontend (SvelteKit) error patterns
+  - Toast notification system and user-friendly error messages
+  - Testing patterns for error scenarios
+
+#### Authentication & Session Management
+- **[Authentication API](api/authentication.md)**
+  - Complete authentication documentation
+  - Telegram and password authentication flows
+  - Session validation and security measures
+- **[Session Management](api/session-management.md)**
+  - Advanced session handling techniques
+  - Redis session storage configuration
+  - Session debugging and troubleshooting
+
 #### Network Configuration
 - **[Network Configuration Guide](api/networking-configuration.md)** ⭐
   - Docker networking setup and troubleshooting
@@ -48,6 +77,16 @@ This directory contains comprehensive documentation for the Family Budget applic
   - Security setup and SSL configuration
   - Deployment procedures for all environments
   - Troubleshooting and monitoring setup
+
+### 🧪 Testing Documentation ⭐ NEW
+
+#### Comprehensive Test Coverage
+- **[Покрытие тестами](testing/test-coverage.md)** ✅ NEW
+  - Complete testing guide with 4,814 lines of new test code
+  - Backend testing (2,290 lines): Python/pytest for all API endpoints
+  - Frontend testing (2,524 lines): TypeScript/Vitest for UI components
+  - CRUD operations, error handling, data isolation testing
+  - Test execution commands and CI/CD integration
 
 ### 📝 Templates and Standards
 
@@ -65,24 +104,43 @@ This directory contains comprehensive documentation for the Family Budget applic
   - Svelte 4 compatibility guidelines
   - Testing and accessibility requirements
 
+### 📈 Project History & Changelog ⭐ NEW
+
+#### Version History
+- **[История изменений](changelog.md)** ✅ NEW
+  - Complete project version history from v1.x to v3.1.0
+  - Detailed breakdown of bug fixes, new features, and improvements
+  - Technical documentation references for each version
+  - Roadmap for upcoming versions v3.2.0 and v3.3.0
+
 ## 🔍 Quick Navigation
 
 ### For System Administrators
 1. **Getting Started:** [Admin Setup Guide](deployment/admin-setup.md)
 2. **API Reference:** [Admin Endpoints](api/admin-endpoints.md)
 3. **Network Issues:** [Network Configuration Guide](api/networking-configuration.md) ⭐
-4. **Troubleshooting:** [Security Changes - Monitoring Section](api/security-changes.md#monitoring-and-alerts)
+4. **Error Troubleshooting:** [Обработка ошибок API](api/error-handling.md) ⭐ NEW
+5. **Monitoring:** [Security Changes - Monitoring Section](api/security-changes.md#monitoring-and-alerts)
 
 ### For Developers
 1. **Architecture Overview:** [ADR-001](architecture/adr-001-admin-access-control.md)
 2. **Networking Fix:** [ADR-004 Host Header Proxy Fix](architecture/adr-004-host-header-proxy-fix.md) ⭐
-3. **Development Standards:** [Admin Feature Template](templates/admin-feature-template.md)
-4. **API Integration:** [Security Changes](api/security-changes.md)
+3. **Error Handling Guide:** [Обработка ошибок API](api/error-handling.md) ⭐ NEW
+4. **Testing Guide:** [Покрытие тестами](testing/test-coverage.md) ⭐ NEW
+5. **Development Standards:** [Admin Feature Template](templates/admin-feature-template.md)
+6. **API Integration:** [Security Changes](api/security-changes.md)
 
 ### For Project Managers
-1. **Implementation Summary:** [ADR-001 - Decision Section](architecture/adr-001-admin-access-control.md#decision)
-2. **Security Overview:** [Admin Setup - Security Configuration](deployment/admin-setup.md#security-configuration)
-3. **Testing Coverage:** [Security Changes - Testing](api/security-changes.md#testing-changes)
+1. **Latest Updates:** [История изменений](changelog.md) ⭐ NEW
+2. **Implementation Summary:** [ADR-001 - Decision Section](architecture/adr-001-admin-access-control.md#decision)
+3. **Security Overview:** [Admin Setup - Security Configuration](deployment/admin-setup.md#security-configuration)
+4. **Testing Coverage:** [Покрытие тестами](testing/test-coverage.md) ⭐ NEW
+
+### For QA Engineers ⭐ NEW
+1. **Testing Guide:** [Покрытие тестами](testing/test-coverage.md) ⭐ NEW
+2. **Error Scenarios:** [Обработка ошибок API](api/error-handling.md) ⭐ NEW
+3. **Test Execution:** [Testing Commands Section](testing/test-coverage.md#запуск-тестов) ⭐ NEW
+4. **Coverage Reports:** [Coverage Analysis](testing/test-coverage.md#покрытие-кода) ⭐ NEW
 
 ## 📖 Documentation Standards
 
