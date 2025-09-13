@@ -121,10 +121,11 @@ class SessionMiddleware(BaseHTTPMiddleware):
         # Initialize Redis connection if not done
         if not session_store.redis and hasattr(request.app.state, "redis"):
             await session_store.init_redis(request.app.state.redis)
-        
+
         # Get session ID from cookie
         session_id = request.cookies.get(settings.SESSION_COOKIE_NAME)
-        
+        session_was_cleared = False
+
         # Load or create session
         if session_id:
             session_data = await session_store.get_session(session_id)
@@ -134,27 +135,44 @@ class SessionMiddleware(BaseHTTPMiddleware):
         else:
             session_id = generate_session_id()
             session_data = SessionData()
-        
+
         # Attach session to request
         request.state.session = session_data
         request.state.session_id = session_id
-        
+
         # Process request
         response = await call_next(request)
-        
-        # Save session and set cookie
-        await session_store.save_session(session_id, session_data)
-        
-        # Set session cookie
-        response.set_cookie(
-            key=settings.SESSION_COOKIE_NAME,
-            value=session_id,
-            max_age=settings.SESSION_EXPIRE_SECONDS,
-            httponly=True,
-            secure=settings.ENVIRONMENT == "production",
-            samesite="lax"
-        )
-        
+
+        # Check if session was cleared during request processing
+        current_session = getattr(request.state, "session", None)
+        if current_session and len(current_session.data) == 0:
+            # Session was cleared, don't save it and clear the cookie
+            session_was_cleared = True
+            await session_store.delete_session(session_id)
+        else:
+            # Save session and set cookie
+            await session_store.save_session(session_id, session_data)
+
+        # Set or clear session cookie
+        if session_was_cleared:
+            # Clear the session cookie
+            response.delete_cookie(
+                key=settings.SESSION_COOKIE_NAME,
+                path="/",
+                secure=settings.ENVIRONMENT == "production",
+                samesite="lax"
+            )
+        else:
+            # Set session cookie
+            response.set_cookie(
+                key=settings.SESSION_COOKIE_NAME,
+                value=session_id,
+                max_age=settings.SESSION_EXPIRE_SECONDS,
+                httponly=True,
+                secure=settings.ENVIRONMENT == "production",
+                samesite="lax"
+            )
+
         return response
 
 
@@ -168,12 +186,23 @@ async def get_current_user_from_session(request: Request) -> Optional[dict]:
     session = getattr(request.state, "session", None)
     if not session:
         return None
-    
+
     # Support both old format and express-session format
     user_id = session.get("user_id") or session.get("id")
     if not user_id:
+        # If session exists but no user_id, this is an invalid/empty session
+        # Clear it to force re-authentication
+        await _clear_invalid_session(request)
         return None
-    
+
+    # Validate that user_id is a valid integer
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        # Invalid user_id format, clear session
+        await _clear_invalid_session(request)
+        return None
+
     return {
         "user_id": user_id,
         "username": session.get("username"),
@@ -182,6 +211,17 @@ async def get_current_user_from_session(request: Request) -> Optional[dict]:
         "telegram_id": session.get("telegram_id"),
         "role": session.get("role"),
     }
+
+
+async def _clear_invalid_session(request: Request) -> None:
+    """Clear invalid session data."""
+    session = getattr(request.state, "session", None)
+    if session:
+        session.clear()
+
+    session_id = getattr(request.state, "session_id", None)
+    if session_id:
+        await session_store.delete_session(session_id)
 
 
 async def logout_user(request: Request) -> None:
