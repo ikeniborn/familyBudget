@@ -337,6 +337,29 @@ async def create_period(
         scope = "shared" if requested_user_id is None else "user-specific"
         return error_conflict(f"Period for date {db_safe_date.strftime('%Y-%m-%d')} already exists ({scope})")
 
+    # Auto-generate period_code if not provided
+    period_code = getattr(period_data, 'code', None)
+    if not period_code:
+        # Get the next sequential period code
+        # First get all existing codes that match pattern 2020XX
+        existing_codes_stmt = select(Period.code).where(Period.code.like('2020%'))
+        existing_codes_result = await db.execute(existing_codes_stmt)
+        existing_codes = existing_codes_result.scalars().all()
+
+        # Extract sequence numbers and find max
+        max_seq = 0
+        for code in existing_codes:
+            if len(code) == 6 and code.startswith('2020'):
+                try:
+                    seq = int(code[4:])  # Get last 2 digits
+                    max_seq = max(max_seq, seq)
+                except ValueError:
+                    continue
+
+        next_seq = max_seq + 1
+        period_code = f"2020{next_seq:02d}"
+        logger.info(f"Auto-generated period_code: {period_code} (max_seq: {max_seq})")
+
     # Determine final user_id and admin fields
     if requested_user_id is None:
         # Creating shared period
@@ -351,7 +374,7 @@ async def create_period(
 
     # Create period
     period = Period(
-        code=getattr(period_data, 'code', None),
+        code=period_code,
         date=db_safe_date,
         ru_name=ru_name,
         start_date=db_safe_start_date,

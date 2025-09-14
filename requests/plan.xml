@@ -1,101 +1,85 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<dashboard_fix_plan>
-  <issue>
-    <title>Dashboard 500 Errors - Database Schema Mismatch</title>
-    <description>Dashboard page returns HTTP 500 errors due to missing database columns</description>
-    <error_message>column t_d_nomenclature.nomenclature_code does not exist</error_message>
-    <affected_endpoints>
-      <endpoint>/api/reports/dashboard-data</endpoint>
-      <endpoint>/api/nomenclatures/</endpoint>
-      <endpoint>/api/periods/</endpoint>
-    </affected_endpoints>
-  </issue>
+<plan>
+    <title>Fix Period Creation Constraint Violation Error</title>
+    <timestamp>2025-09-14T22:30:00</timestamp>
+    <issue>
+        <description>PostgreSQL constraint violation when creating period for October 2025</description>
+        <error_type>sqlalchemy.dialects.postgresql.asyncpg.IntegrityError</error_type>
+        <constraint>NOT NULL constraint on period_code field</constraint>
+    </issue>
 
-  <root_causes>
-    <cause id="1">
-      <description>Pending migration not applied</description>
-      <migration_id>5ef4678b70a0</migration_id>
-      <current_migration>86027abaa82e</current_migration>
-    </cause>
-    <cause id="2">
-      <description>Missing columns in database tables</description>
-      <tables>
-        <table name="t_d_nomenclature">
-          <missing_columns>nomenclature_code, description, created_by, managed_by</missing_columns>
-        </table>
-        <table name="t_d_period">
-          <missing_columns>period_code, created_by, managed_by</missing_columns>
-        </table>
-        <table name="t_d_financial_center">
-          <missing_columns>financial_center_code, description, created_by, managed_by</missing_columns>
-        </table>
-        <table name="t_d_cost_center">
-          <missing_columns>cost_center_code, description, created_by, managed_by</missing_columns>
-        </table>
-      </tables>
-    </cause>
-  </root_causes>
+    <root_cause>
+        <item>SQLAlchemy model incorrectly defined period_code as nullable=True while database has NOT NULL constraint</item>
+        <item>Frontend not sending period_code value in request</item>
+        <item>Backend not auto-generating period_code when missing</item>
+    </root_cause>
 
-  <implementation_phases>
-    <phase number="1">
-      <name>Database Backup</name>
-      <steps>
-        <step>Create full database backup</step>
-        <step>Verify backup integrity</step>
-      </steps>
-    </phase>
+    <solution_steps>
+        <step number="1">
+            <action>Fix SQLAlchemy model to match database constraints</action>
+            <file>/backend-fastapi/app/models/period.py</file>
+            <change>Set period_code field nullable=False</change>
+            <status>COMPLETED</status>
+        </step>
 
-    <phase number="2">
-      <name>Apply Pending Migration</name>
-      <steps>
-        <step>Check current migration status</step>
-        <step>Apply migration 5ef4678b70a0</step>
-        <step>Verify nomenclature, financial_center, cost_center tables updated</step>
-      </steps>
-    </phase>
+        <step number="2">
+            <action>Implement period_code auto-generation logic</action>
+            <file>/backend-fastapi/app/api/v1/endpoints/periods.py</file>
+            <change>Add logic to generate sequential period codes (2020XX format)</change>
+            <status>COMPLETED</status>
+        </step>
 
-    <phase number="3">
-      <name>Create Period Table Migration</name>
-      <steps>
-        <step>Generate new migration for t_d_period table</step>
-        <step>Add missing columns: period_code, created_by, managed_by</step>
-        <step>Apply the new migration</step>
-      </steps>
-    </phase>
+        <step number="3">
+            <action>Verify backend service restart</action>
+            <command>docker restart budget-backend</command>
+            <status>COMPLETED</status>
+        </step>
 
-    <phase number="4">
-      <name>Validation and Testing</name>
-      <steps>
-        <step>Verify all columns exist in database</step>
-        <step>Test dashboard API endpoints</step>
-        <step>Validate frontend dashboard functionality</step>
-        <step>Run full test suite</step>
-      </steps>
-    </phase>
+        <step number="4">
+            <action>Test period creation functionality</action>
+            <test_case>Create October 2025 period through UI</test_case>
+            <status>PENDING</status>
+        </step>
 
-    <phase number="5">
-      <name>Documentation Update</name>
-      <steps>
-        <step>Update migration documentation</step>
-        <step>Document schema changes</step>
-        <step>Update CLAUDE.md if needed</step>
-      </steps>
-    </phase>
-  </implementation_phases>
+        <step number="5">
+            <action>Create comprehensive tests for period creation</action>
+            <test_files>
+                <file>/tests/backend/test_periods_constraint.py</file>
+                <file>/tests/frontend/periods_creation.test.ts</file>
+            </test_files>
+            <status>PENDING</status>
+        </step>
 
-  <rollback_plan>
-    <step>Stop application services</step>
-    <step>Restore database from backup</step>
-    <step>Revert code changes if any</step>
-    <step>Restart services</step>
-    <step>Verify system functionality</step>
-  </rollback_plan>
+        <step number="6">
+            <action>Update documentation</action>
+            <files>
+                <file>/docs/api/periods.md</file>
+                <file>/docs/architecture/adr-006-period-code-generation.md</file>
+                <file>/README.md</file>
+            </files>
+            <status>PENDING</status>
+        </step>
 
-  <success_criteria>
-    <criterion>Dashboard loads without 500 errors</criterion>
-    <criterion>All API endpoints return 200/201 status codes</criterion>
-    <criterion>Database schema matches SQLAlchemy models</criterion>
-    <criterion>All tests pass</criterion>
-    <criterion>No data loss or corruption</criterion>
-  </success_criteria>
-</dashboard_fix_plan>
+        <step number="7">
+            <action>Update project memory</action>
+            <memory_nodes>
+                <node>Period creation constraint fix</node>
+                <node>Period code auto-generation logic</node>
+            </memory_nodes>
+            <status>PENDING</status>
+        </step>
+
+        <step number="8">
+            <action>Commit changes</action>
+            <commit_message>fix: Period creation constraint violation and auto-generate period_code</commit_message>
+            <status>PENDING</status>
+        </step>
+    </solution_steps>
+
+    <expected_outcome>
+        <item>Period creation works without constraint violations</item>
+        <item>Period codes auto-generated in sequential format</item>
+        <item>Backward compatibility maintained</item>
+        <item>No frontend changes required</item>
+    </expected_outcome>
+</plan>
