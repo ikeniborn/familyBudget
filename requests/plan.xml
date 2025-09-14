@@ -1,112 +1,85 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<implementation_plan>
-    <project>Family Budget - Period Deletion Error Fix</project>
+<plan>
+    <title>Fix Financial Center Creation Error</title>
     <issue>
-        <description>Error 500 when attempting to delete period in settings</description>
-        <url>http://localhost:5173/settings/periods</url>
-        <error_code>500</error_code>
-        <root_cause>Foreign key constraint violation with t_f_registry table</root_cause>
+        <description>[object Object] error when creating financial centers at /settings/financial-centers</description>
+        <root_cause>Data contract mismatch between frontend and backend</root_cause>
+        <impact>Users cannot create financial centers</impact>
     </issue>
 
     <analysis>
-        <database_structure>
-            <constraint>
-                <name>FK_Registry_Period</name>
-                <source_table>t_f_registry</source_table>
-                <source_column>period_id</source_column>
-                <target_table>t_d_period</target_table>
-                <target_column>period_id</target_column>
-                <on_delete>RESTRICT</on_delete>
-            </constraint>
-            <issue>Cannot delete periods with dependent registry records</issue>
-        </database_structure>
+        <problem number="1">
+            <type>Primary</type>
+            <description>Frontend sends 'financial_center_name' but backend expects 'name'</description>
+            <location>frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.svelte:143-147</location>
+        </problem>
+        <problem number="2">
+            <type>Secondary</type>
+            <description>Error handling doesn't properly extract FastAPI validation error messages</description>
+            <location>frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.svelte:174-188</location>
+        </problem>
     </analysis>
 
     <solution>
-        <backend>
-            <file>backend-fastapi/app/api/v1/endpoints/periods.py</file>
-            <changes>
-                <change>
-                    <type>enhancement</type>
-                    <description>Add dependency checking before deletion</description>
-                    <implementation>Query registry table for dependent records count</implementation>
-                </change>
-                <change>
-                    <type>error_handling</type>
-                    <description>Handle IntegrityError exceptions</description>
-                    <implementation>Catch and return 409 Conflict with descriptive message</implementation>
-                </change>
-                <change>
-                    <type>user_feedback</type>
-                    <description>Provide clear error messages</description>
-                    <implementation>Include period name and dependency count in error</implementation>
-                </change>
-            </changes>
-        </backend>
+        <step number="1">
+            <action>Fix data contract mismatch in create request</action>
+            <file>frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.svelte</file>
+            <change>
+                <from>financial_center_name: formData.name</from>
+                <to>name: formData.name</to>
+            </change>
+            <change>
+                <from>user_id: 1</from>
+                <to>Remove user_id field (backend auto-assigns)</to>
+            </change>
+        </step>
 
-        <frontend>
-            <file>frontend-svelte/src/routes/(protected)/settings/periods/+page.svelte</file>
-            <changes>
-                <change>
-                    <type>error_handling</type>
-                    <description>Handle 409 Conflict status</description>
-                    <implementation>Display specific message for constraint violations</implementation>
-                </change>
-                <change>
-                    <type>user_experience</type>
-                    <description>Improve error messages</description>
-                    <implementation>Status-specific error titles and descriptions</implementation>
-                </change>
-            </changes>
-        </frontend>
+        <step number="2">
+            <action>Fix data contract mismatch in update request</action>
+            <file>frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.svelte</file>
+            <change>
+                <from>financial_center_name: formData.name</from>
+                <to>name: formData.name</to>
+            </change>
+        </step>
+
+        <step number="3">
+            <action>Improve error handling for validation errors</action>
+            <file>frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.svelte</file>
+            <change>
+                <description>Add proper handling for FastAPI 422 validation errors</description>
+                <details>Extract field errors from detail array and format as readable messages</details>
+            </change>
+        </step>
+
+        <step number="4">
+            <action>Test the fixes</action>
+            <tests>
+                <test>Create financial center with valid data</test>
+                <test>Try to create duplicate financial center</test>
+                <test>Test validation errors display</test>
+                <test>Test network error handling</test>
+            </tests>
+        </step>
+
+        <step number="5">
+            <action>Apply similar fixes to other settings pages</action>
+            <files>
+                <file>settings/periods/+page.svelte</file>
+                <file>settings/cost-centers/+page.svelte</file>
+                <file>settings/nomenclatures/+page.svelte</file>
+            </files>
+            <description>Check for similar data contract mismatches and error handling issues</description>
+        </step>
     </solution>
 
-    <testing_requirements>
-        <backend_tests>
-            <test>
-                <name>test_delete_period_with_dependencies</name>
-                <description>Verify 409 returned when period has registry records</description>
-                <expected_status>409</expected_status>
-            </test>
-            <test>
-                <name>test_delete_period_without_dependencies</name>
-                <description>Verify successful deletion when no dependencies</description>
-                <expected_status>200</expected_status>
-            </test>
-            <test>
-                <name>test_delete_nonexistent_period</name>
-                <description>Verify 404 for non-existent period</description>
-                <expected_status>404</expected_status>
-            </test>
-        </backend_tests>
-
-        <frontend_tests>
-            <test>
-                <name>test_period_deletion_error_display</name>
-                <description>Verify error messages display correctly</description>
-            </test>
-            <test>
-                <name>test_conflict_error_handling</name>
-                <description>Verify 409 errors show dependency information</description>
-            </test>
-        </frontend_tests>
-    </testing_requirements>
-
-    <documentation_updates>
-        <file>docs/api/error-handling.md</file>
-        <update>Add 409 Conflict handling for period deletion</update>
-
-        <file>docs/changelog.md</file>
-        <update>Document period deletion fix in v3.3.0</update>
-
-        <file>README.md</file>
-        <update>Update known issues section</update>
-    </documentation_updates>
-
-    <implementation_status>
-        <backend>COMPLETED</backend>
-        <frontend>COMPLETED</frontend>
-        <testing>PENDING</testing>
-        <documentation>PENDING</documentation>
-    </implementation_status>
-</implementation_plan>
+    <verification>
+        <unit_tests>backend-fastapi/tests/backend/test_financial_centers_api.py</unit_tests>
+        <integration_tests>frontend-svelte/tests/frontend/financial_centers.test.ts</integration_tests>
+        <manual_testing>
+            <test>Create, update, delete financial centers</test>
+            <test>Verify error messages are readable</test>
+            <test>Check data persistence</test>
+        </manual_testing>
+    </verification>
+</plan>

@@ -407,11 +407,230 @@ def test_period_response_serialization():
 4. **Логируйте типы данных** при отладке
 5. **Используйте утилиты success_response/error_response** для консистентности
 
+## Предотвращение отображения "[object Object]" в уведомлениях
+
+### Проблема с неправильными полями API
+
+**Симптомы:**
+- Toast уведомления отображают "[object Object]" вместо текстовых сообщений
+- Неправильное отображение данных в интерфейсе
+- Использование несуществующих или неправильных полей API схемы
+
+**Пример проблемы:**
+```typescript
+// ❌ НЕПРАВИЛЬНО: использование несуществующего поля
+const centerName = center.financial_center_name; // undefined
+console.log(`Удаление ${centerName}`); // "Удаление undefined"
+toast.error(`Не удается удалить ${centerName}`); // "[object Object]"
+```
+
+**Корневые причины:**
+1. **Несоответствие схемы API**: Frontend использует поля, которых нет в API ответе
+2. **Неправильная документация**: Схема API не соответствует фактическим данным
+3. **Отсутствие валидации**: Нет проверки существования полей перед использованием
+
+**Решение:**
+```typescript
+// ✅ ПРАВИЛЬНО: использование корректного поля
+const centerName = center.name; // правильное поле из API
+console.log(`Удаление ${centerName}`); // "Удаление Центр разработки"
+toast.error(`Не удается удалить ${centerName}`); // корректное сообщение
+```
+
+### Валидация полей API схемы
+
+#### Проверка существования полей
+```typescript
+// Валидация данных перед использованием
+function validateApiResponse(data: any, requiredFields: string[]) {
+    for (const field of requiredFields) {
+        if (!(field in data) || data[field] === undefined) {
+            console.warn(`Missing field "${field}" in API response:`, data);
+            throw new Error(`Некорректные данные API: отсутствует поле "${field}"`);
+        }
+    }
+}
+
+// Использование валидации
+try {
+    validateApiResponse(center, ['id', 'name', 'code']);
+    const centerName = center.name;
+    toast.success(`ЦФО "${centerName}" успешно обновлен`);
+} catch (error) {
+    console.error('API validation error:', error);
+    toast.error('Ошибка обработки данных API');
+}
+```
+
+#### Безопасное извлечение полей
+```typescript
+// Утилита для безопасного извлечения полей
+function safeFieldAccess(obj: any, field: string, defaultValue: string = 'Unknown') {
+    if (obj && typeof obj === 'object' && field in obj && obj[field] !== undefined) {
+        return obj[field];
+    }
+    console.warn(`Field "${field}" not found in object:`, obj);
+    return defaultValue;
+}
+
+// Использование безопасного доступа
+const centerName = safeFieldAccess(center, 'name', 'Неизвестный ЦФО');
+toast.info(`Работа с ЦФО: ${centerName}`);
+```
+
+### Исправленные компоненты
+
+#### Финансовые центры (ЦФО)
+```typescript
+// Исправление в frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.svelte
+
+// ❌ ДО исправления: неправильное поле
+// const centerName = center.financial_center_name;
+
+// ✅ ПОСЛЕ исправления: корректное поле
+const centerName = center.name;
+
+// Безопасное использование в удалении
+async function deleteFinancialCenter(center: any) {
+    const centerName = safeFieldAccess(center, 'name', 'Неизвестный ЦФО');
+
+    if (confirm(`Вы уверены, что хотите удалить ЦФО "${centerName}"?`)) {
+        try {
+            await api.delete(`/financial_centers/${center.id}/`);
+            toast.success(`ЦФО "${centerName}" успешно удален`);
+            loadFinancialCenters();
+        } catch (error: any) {
+            handleError(error, `Не удается удалить ЦФО "${centerName}"`);
+        }
+    }
+}
+```
+
+### Улучшенная обработка ошибок toast
+
+#### Проверка типов в сообщениях
+```typescript
+function safeToastMessage(message: any): string {
+    // Проверка на примитивные типы
+    if (typeof message === 'string') {
+        return message;
+    }
+
+    if (typeof message === 'number') {
+        return message.toString();
+    }
+
+    // Обработка объектов
+    if (typeof message === 'object' && message !== null) {
+        // Попытка извлечь осмысленное сообщение
+        if ('detail' in message) return String(message.detail);
+        if ('message' in message) return String(message.message);
+        if ('error' in message) return String(message.error);
+
+        // Fallback для объектов
+        console.warn('Object passed to toast message:', message);
+        return 'Произошла ошибка при обработке данных';
+    }
+
+    // Fallback для других типов
+    return String(message);
+}
+
+// Безопасные toast вызовы
+function safeToast(type: 'success' | 'error' | 'info', message: any) {
+    const safeMessage = safeToastMessage(message);
+    toast[type](safeMessage);
+}
+
+// Использование
+safeToast('error', errorObject); // не будет показывать "[object Object]"
+safeToast('success', `Обработан объект: ${center.name}`);
+```
+
+### Тестирование валидации полей
+
+#### Backend тесты схемы
+```python
+def test_financial_center_response_schema():
+    """Тест корректности схемы FinancialCenterResponse"""
+    center = FinancialCenter(
+        id=1,
+        name="Центр разработки",
+        code="DEV",
+        description="Отдел разработки",
+        is_active=True,
+        user_id=1
+    )
+
+    response = FinancialCenterResponse.from_orm(center)
+    response_dict = response.dict()
+
+    # Проверяем наличие обязательных полей
+    required_fields = ['id', 'name', 'code', 'description', 'is_active']
+    for field in required_fields:
+        assert field in response_dict, f"Field {field} missing in response"
+        assert response_dict[field] is not None, f"Field {field} is None"
+
+    # Проверяем отсутствие неправильных полей
+    forbidden_fields = ['financial_center_name']
+    for field in forbidden_fields:
+        assert field not in response_dict, f"Forbidden field {field} found in response"
+```
+
+#### Frontend тесты отображения
+```typescript
+test('displays financial center name correctly', () => {
+    const mockCenter = {
+        id: 1,
+        name: 'Центр разработки',
+        code: 'DEV',
+        description: 'Отдел разработки',
+        is_active: true
+    };
+
+    render(FinancialCentersPage, {
+        props: { centers: [mockCenter] }
+    });
+
+    // Проверяем корректное отображение имени
+    expect(screen.getByText('Центр разработки')).toBeInTheDocument();
+
+    // Проверяем отсутствие "[object Object]"
+    expect(screen.queryByText(/\[object Object\]/)).not.toBeInTheDocument();
+});
+
+test('handles missing name field gracefully', () => {
+    const mockCenterWithoutName = {
+        id: 1,
+        code: 'DEV',
+        description: 'Отдел разработки',
+        is_active: true
+        // name отсутствует
+    };
+
+    render(FinancialCentersPage, {
+        props: { centers: [mockCenterWithoutName] }
+    });
+
+    // Проверяем fallback отображение
+    expect(screen.getByText('Неизвестный ЦФО')).toBeInTheDocument();
+});
+```
+
+### Рекомендации по предотвращению проблем
+
+1. **Всегда валидируйте API схему** при добавлении новых полей
+2. **Используйте TypeScript интерфейсы** для строгой типизации
+3. **Тестируйте отображение данных** с различными наборами полей
+4. **Документируйте API схему** и синхронизируйте с frontend
+5. **Используйте безопасные методы доступа** к полям объектов
+6. **Логируйте предупреждения** при отсутствии ожидаемых полей
+
 ## Frontend паттерны обработки ошибок
 
 ### Унифицированная обработка в компонентах
 
-Все компоненты справочников используют единообразную обработку ошибок:
+Все компоненты справочников используют единообразную обработку ошибок с валидацией API полей:
 
 ```typescript
 async function handleSubmit(data: any) {

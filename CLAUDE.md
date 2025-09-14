@@ -186,7 +186,7 @@ Traefik (80/443) → Frontend (5173) → FastAPI (4000) → PostgreSQL/Redis
 
 ### Settings Management Pages
 
-**✅ COMPLETE IMPLEMENTATION (12.09.2025)** - All settings pages are now fully functional
+**✅ COMPLETE IMPLEMENTATION + FIELD FIX (14.09.2025)** - All settings pages are now fully functional with correct field mappings
 
 ```
 /settings/periods           # Управление периодами (389 строк)
@@ -199,13 +199,16 @@ Traefik (80/443) → Frontend (5173) → FastAPI (4000) → PostgreSQL/Redis
   - Responsive design with loading states
   - Smart period creation: names auto-generated, dates auto-calculated
 
-/settings/financial-centers  # Управление ЦФО (358 строк)
+/settings/financial-centers  # Управление ЦФО (358 строк) - ✅ FIELD FIX (14.09.2025)
   - CRUD operations for financial centers
+  - ✅ CORRECTED FIELD MAPPING: Fixed `financial_center_name` → `name` for proper display
+  - ✅ RESOLVED "[object Object]" error in UI notifications
   - View active/inactive centers statistics
   - Code-based identification (e.g., "СБ", "МА")
   - Description and status management
   - Real-time filtering and search
   - Bulk status operations support
+  - Improved error handling with correct field validation
 
 /settings/cost-centers      # Управление МВЗ (358 строк)
   - Cost center management with full CRUD
@@ -561,6 +564,7 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 5. **Docker port conflicts**: Stop other services or change ports in .env
 6. **Settings pages DNS errors**: ✅ **RESOLVED** - Host header proxy fix implemented (ADR-004)
 7. **Timezone errors on period creation**: ✅ **RESOLVED** - Timezone handling utilities implemented (ADR-005)
+8. **Financial center field mapping error**: ✅ **RESOLVED** - Fixed `financial_center_name` → `name` (v3.1.4)
 
 ### 🔧 Docker Networking Fix (ADR-004)
 
@@ -587,6 +591,47 @@ configure: (proxy, options) => {
 - `/settings/nomenclatures`
 
 **Documentation:** See [ADR-004](docs/architecture/adr-004-host-header-proxy-fix.md) and [Networking Guide](docs/api/networking-configuration.md)
+
+### 🔧 Financial Center Field Mapping Fix (v3.1.4)
+
+**Issue:** Financial centers displayed "[object Object]" instead of proper names in UI notifications
+**Root Cause:** Frontend component used incorrect field `financial_center_name` instead of `name` from API response
+**Symptoms:**
+- Toast notifications showing "[object Object]" when working with ЦФО
+- Incorrect data display in financial center management UI
+- API schema mismatch between backend response and frontend expectations
+
+**Solution:** Corrected field mapping in frontend component
+- **Fixed in:** `frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.svelte:216`
+- **Change:** `center.financial_center_name` → `center.name`
+
+**Technical Details:**
+```typescript
+// ❌ BEFORE: Incorrect field mapping
+const centerName = center.financial_center_name; // undefined
+toast.error(`Cannot delete ${centerName}`); // shows "[object Object]"
+
+// ✅ AFTER: Correct field mapping
+const centerName = center.name; // proper string value
+toast.error(`Cannot delete ${centerName}`); // shows "Cannot delete Development Center"
+```
+
+**Affected Components:**
+- Financial Centers management page (`/settings/financial-centers`)
+- Delete confirmation dialogs
+- Toast notification system
+- Error handling for financial center operations
+
+**Result:**
+- ✅ Proper display of financial center names
+- ✅ Resolved "[object Object]" in toast notifications
+- ✅ Improved error message clarity
+- ✅ Correct API schema compliance
+
+**Testing Coverage:**
+- Frontend component tests validate correct field usage
+- API schema validation prevents future field mismatches
+- Error handling tests ensure no "[object Object]" display
 
 ## File Organization
 

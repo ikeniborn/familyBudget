@@ -165,26 +165,25 @@
       saving = true;
       
       const requestData = {
-        nomenclature_name: formData.name,
-        nomenclature_type: formData.type,
-        account_name: formData.name,
-        bill_name: formData.name,
-        operation_name: formData.name,
-        is_budget: true,
-        is_fact: true,
-        is_active: formData.is_active,
-        user_id: 1 // Will be set by backend from current user
+        name: formData.name,
+        account_name: formData.account_name || formData.name,
+        bill_name: formData.bill_name || formData.name,
+        operation: formData.operation || formData.name,
+        is_budget: formData.is_budget !== undefined ? formData.is_budget : true,
+        is_fact: formData.is_fact !== undefined ? formData.is_fact : true,
+        is_active: formData.is_active
       };
 
       let response;
       if (selectedNomenclature) {
         // Update existing nomenclature
         response = await api.put(`/nomenclatures/${selectedNomenclature.id}/`, {
-          nomenclature_name: formData.name,
-          nomenclature_type: formData.type,
-          account_name: formData.name,
-          bill_name: formData.name,
-          operation_name: formData.name,
+          name: formData.name,
+          account_name: formData.account_name || formData.name,
+          bill_name: formData.bill_name || formData.name,
+          operation: formData.operation || formData.name,
+          is_budget: formData.is_budget !== undefined ? formData.is_budget : true,
+          is_fact: formData.is_fact !== undefined ? formData.is_fact : true,
           is_active: formData.is_active
         });
       } else {
@@ -204,15 +203,29 @@
     } catch (error: any) {
       // Улучшенная обработка ошибок от API
       let errorMessage = 'Неизвестная ошибка';
-      
+
       if (error.response) {
-        // Ошибка от сервера
-        if (error.response.status === 409) {
-          errorMessage = error.response.data?.detail || 'Номенклатура с таким кодом уже существует';
-        } else if (error.response.data?.detail) {
-          errorMessage = error.response.data.detail;
+        if (error.response.status === 422) {
+          // Handle FastAPI validation errors
+          const details = error.response.data?.details || error.response.data?.detail;
+          if (Array.isArray(details)) {
+            // Extract field errors from FastAPI validation detail array
+            const fieldErrors = details.map((detail: any) => {
+              const fieldName = detail.loc ? detail.loc[detail.loc.length - 1] : 'field';
+              return `${fieldName}: ${detail.msg}`;
+            }).join(', ');
+            errorMessage = `Ошибка валидации: ${fieldErrors}`;
+          } else if (typeof details === 'string') {
+            errorMessage = `Ошибка валидации: ${details}`;
+          } else {
+            errorMessage = 'Ошибка валидации данных';
+          }
+        } else if (error.response.status === 409) {
+          errorMessage = error.response.data?.error || error.response.data?.detail || 'Номенклатура с таким кодом уже существует';
         } else if (error.response.data?.error) {
           errorMessage = error.response.data.error;
+        } else if (error.response.data?.detail) {
+          errorMessage = error.response.data.detail;
         } else {
           errorMessage = `Ошибка сервера: ${error.response.status}`;
         }
@@ -221,7 +234,7 @@
       } else {
         errorMessage = error.message || 'Произошла ошибка';
       }
-      
+
       toast.error(
         `Ошибка при ${selectedNomenclature ? 'обновлении' : 'создании'} номенклатуры`,
         errorMessage

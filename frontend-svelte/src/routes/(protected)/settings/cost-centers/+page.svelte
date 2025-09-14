@@ -141,16 +141,15 @@
       saving = true;
       
       const requestData = {
-        cost_center_name: formData.name,
-        is_active: formData.is_active,
-        user_id: 1 // Will be set by backend from current user
+        name: formData.name,
+        is_active: formData.is_active
       };
 
       let response;
       if (selectedCC) {
         // Update existing cost center
         response = await api.put(`/cost_centers/${selectedCC.id}/`, {
-          cost_center_name: formData.name,
+          name: formData.name,
           is_active: formData.is_active
         });
       } else {
@@ -170,14 +169,29 @@
     } catch (error: any) {
       // Улучшенная обработка ошибок от API
       let errorMessage = 'Неизвестная ошибка';
-      
+
       if (error.response) {
-        if (error.response.status === 409) {
-          errorMessage = error.response.data?.detail || 'МВЗ с таким кодом уже существует';
-        } else if (error.response.data?.detail) {
-          errorMessage = error.response.data.detail;
+        if (error.response.status === 422) {
+          // Handle FastAPI validation errors
+          const details = error.response.data?.details || error.response.data?.detail;
+          if (Array.isArray(details)) {
+            // Extract field errors from FastAPI validation detail array
+            const fieldErrors = details.map((detail: any) => {
+              const fieldName = detail.loc ? detail.loc[detail.loc.length - 1] : 'field';
+              return `${fieldName}: ${detail.msg}`;
+            }).join(', ');
+            errorMessage = `Ошибка валидации: ${fieldErrors}`;
+          } else if (typeof details === 'string') {
+            errorMessage = `Ошибка валидации: ${details}`;
+          } else {
+            errorMessage = 'Ошибка валидации данных';
+          }
+        } else if (error.response.status === 409) {
+          errorMessage = error.response.data?.error || error.response.data?.detail || 'МВЗ с таким кодом уже существует';
         } else if (error.response.data?.error) {
           errorMessage = error.response.data.error;
+        } else if (error.response.data?.detail) {
+          errorMessage = error.response.data.detail;
         } else {
           errorMessage = `Ошибка сервера: ${error.response.status}`;
         }
@@ -186,7 +200,7 @@
       } else {
         errorMessage = error.message || 'Произошла ошибка';
       }
-      
+
       toast.error(
         `Ошибка при ${selectedCC ? 'обновлении' : 'создании'} МВЗ`,
         errorMessage

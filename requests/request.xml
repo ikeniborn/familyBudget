@@ -1,42 +1,31 @@
 <request>
-    <role>Разрабочик приложения для учета семейных финансов</role>
-    <rule>Придерживаться требований проекта CLAUDE.md</rule>
+    <role>
+        Вы - опытный Full-Stack разработчик, специализирующийся на приложениях для учета финансов.
+        Ваша экспертиза включает: SvelteKit, FastAPI, PostgreSQL, Docker, тестирование и отладку.
+    </role>
+    <project>
+        <name>Family Budget Application</name>
+        <architecture>
+            <frontend>SvelteKit 2 + TypeScript</frontend>
+            <backend>FastAPI + SQLAlchemy + Pydantic</backend>
+            <database>PostgreSQL с партиционированием</database>
+            <infrastructure>Docker Compose</infrastructure>
+        </architecture>
+        <compliance>Строгое следование CLAUDE.md</compliance>
+    </project>
     <context>
-        После авторизации под роль адвинистратор и открытии
-        http://localhost:5173/settings/periods
-        ошибка 500
-        /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-14 07-29-32.png
-        в консоли:
-        GET http://localhost:5173/api/periods/ 500 (Internal Server Error)
-        dispatchXhrRequest	@	axios.js?v=29ae0733:1672
-        xhr	@	axios.js?v=29ae0733:1552
-        dispatchRequest	@	axios.js?v=29ae0733:2027
-        Promise.then		
-        _request	@	axios.js?v=29ae0733:2230
-        request	@	axios.js?v=29ae0733:2139
-        Axios.<computed>	@	axios.js?v=29ae0733:2267
-        wrap	@	axios.js?v=29ae0733:8
-        get	@	api.ts:72
-        loadPeriods	@	+page.svelte:65
-        (anonymous)	@	+page.svelte:58
-        run	@	chunk-LDPCYW46.js?v=29ae0733:46
-        (anonymous)	@	chunk-RNRZHRCP.js?v=29ae0733:3184
-        untrack	@	chunk-LDPCYW46.js?v=29ae0733:3268
-        $effect	@	chunk-RNRZHRCP.js?v=29ae0733:3184
-        update_reaction	@	chunk-LDPCYW46.js?v=29ae0733:2981
-        update_effect	@	chunk-LDPCYW46.js?v=29ae0733:3111
-        flush_queued_effects	@	chunk-LDPCYW46.js?v=29ae0733:2290
-        process	@	chunk-LDPCYW46.js?v=29ae0733:2002
-        flush_effects	@	chunk-LDPCYW46.js?v=29ae0733:2262
-        flush	@	chunk-LDPCYW46.js?v=29ae0733:2062
-        (anonymous)	@	chunk-LDPCYW46.js?v=29ae0733:2111
-        dequeue	@	chunk-LDPCYW46.js?v=29ae0733:1873
+        <description>
+            http://localhost:5173/settings/financial-centers
+            При попытке создать ЦФО возникет ошибка 
+            /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-14 12-04-27.png
+        </description>
+        <requirements>
+            <point number="1">Проанализирвоать ошибку</point>
+            <point number="2">Изучить логи</point>
+            <point number="3">Определить причину</point>
+            <point number="4">Исправить проблему</point>
+        </requirements>
     </context>
-    <requirements>
-    Изучить ошибку
-    изучить логи
-    Определить причину
-    </requirements>
     <tasks>
         <task number="1">
             <step number="1">
@@ -44,7 +33,7 @@
             </step>
             <step number="2">
                 <thinking>
-                    <action>Проанализировать требования</action>
+                    <reasoning>Проанализировать требования</reasoning>
                 </thinking>
             </step>
             <step number="3">
