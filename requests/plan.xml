@@ -1,375 +1,112 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <implementation_plan>
-  <project>Family Budget - Periods Management Enhancement</project>
-  <date>2025-01-14</date>
-  <target_file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/periods/+page.svelte</target_file>
+    <project>Family Budget - Period Deletion Error Fix</project>
+    <issue>
+        <description>Error 500 when attempting to delete period in settings</description>
+        <url>http://localhost:5173/settings/periods</url>
+        <error_code>500</error_code>
+        <root_cause>Foreign key constraint violation with t_f_registry table</root_cause>
+    </issue>
 
-  <requirements>
-    <requirement id="1">Remove ability to edit Start Date and End Date fields</requirement>
-    <requirement id="2">Auto-determine period dates based on selected Period Date</requirement>
-    <requirement id="3">Auto-generate period name in format "2025 Янв" during creation</requirement>
-    <requirement id="4">Make period name non-editable during editing</requirement>
-  </requirements>
+    <analysis>
+        <database_structure>
+            <constraint>
+                <name>FK_Registry_Period</name>
+                <source_table>t_f_registry</source_table>
+                <source_column>period_id</source_column>
+                <target_table>t_d_period</target_table>
+                <target_column>period_id</target_column>
+                <on_delete>RESTRICT</on_delete>
+            </constraint>
+            <issue>Cannot delete periods with dependent registry records</issue>
+        </database_structure>
+    </analysis>
 
-  <steps>
-    <step number="1">
-      <title>Add helper functions for auto-generation</title>
-      <location>After line 55, before onMount</location>
-      <code><![CDATA[
-  // Helper function to get Russian month abbreviation
-  function getMonthName(month: number): string {
-    const months = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн',
-                    'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
-    return months[month - 1] || '';
-  }
+    <solution>
+        <backend>
+            <file>backend-fastapi/app/api/v1/endpoints/periods.py</file>
+            <changes>
+                <change>
+                    <type>enhancement</type>
+                    <description>Add dependency checking before deletion</description>
+                    <implementation>Query registry table for dependent records count</implementation>
+                </change>
+                <change>
+                    <type>error_handling</type>
+                    <description>Handle IntegrityError exceptions</description>
+                    <implementation>Catch and return 409 Conflict with descriptive message</implementation>
+                </change>
+                <change>
+                    <type>user_feedback</type>
+                    <description>Provide clear error messages</description>
+                    <implementation>Include period name and dependency count in error</implementation>
+                </change>
+            </changes>
+        </backend>
 
-  // Generate period name from date
-  function generatePeriodName(dateStr: string): string {
-    if (!dateStr) return '';
-    const [year, month] = dateStr.split('-');
-    return `${year} ${getMonthName(parseInt(month))}`;
-  }
+        <frontend>
+            <file>frontend-svelte/src/routes/(protected)/settings/periods/+page.svelte</file>
+            <changes>
+                <change>
+                    <type>error_handling</type>
+                    <description>Handle 409 Conflict status</description>
+                    <implementation>Display specific message for constraint violations</implementation>
+                </change>
+                <change>
+                    <type>user_experience</type>
+                    <description>Improve error messages</description>
+                    <implementation>Status-specific error titles and descriptions</implementation>
+                </change>
+            </changes>
+        </frontend>
+    </solution>
 
-  // Generate start and end dates for a month
-  function generateDateRange(dateStr: string): { start: Date, end: Date } {
-    const [year, month] = dateStr.split('-').map(Number);
-    const start = new Date(year, month - 1, 1);
-    const end = new Date(year, month, 0); // Last day of month
-    return { start, end };
-  }
-]]></code>
-    </step>
+    <testing_requirements>
+        <backend_tests>
+            <test>
+                <name>test_delete_period_with_dependencies</name>
+                <description>Verify 409 returned when period has registry records</description>
+                <expected_status>409</expected_status>
+            </test>
+            <test>
+                <name>test_delete_period_without_dependencies</name>
+                <description>Verify successful deletion when no dependencies</description>
+                <expected_status>200</expected_status>
+            </test>
+            <test>
+                <name>test_delete_nonexistent_period</name>
+                <description>Verify 404 for non-existent period</description>
+                <expected_status>404</expected_status>
+            </test>
+        </backend_tests>
 
-    <step number="2">
-      <title>Update formData structure</title>
-      <location>Lines 50-55</location>
-      <change>
-        <from><![CDATA[
-  let formData = {
-    date: '',
-    ru_name: '',
-    start_date: '',
-    end_date: ''
-  };
-]]></from>
-        <to><![CDATA[
-  let formData = {
-    date: '',
-    ru_name: ''
-  };
-]]></to>
-      </change>
-    </step>
+        <frontend_tests>
+            <test>
+                <name>test_period_deletion_error_display</name>
+                <description>Verify error messages display correctly</description>
+            </test>
+            <test>
+                <name>test_conflict_error_handling</name>
+                <description>Verify 409 errors show dependency information</description>
+            </test>
+        </frontend_tests>
+    </testing_requirements>
 
-    <step number="3">
-      <title>Update handleAddPeriod function</title>
-      <location>Lines 137-146</location>
-      <change>
-        <from><![CDATA[
-  function handleAddPeriod() {
-    selectedPeriod = null;
-    formData = {
-      date: '',
-      ru_name: '',
-      start_date: '',
-      end_date: ''
-    };
-    showAddModal = true;
-  }
-]]></from>
-        <to><![CDATA[
-  function handleAddPeriod() {
-    selectedPeriod = null;
-    formData = {
-      date: '',
-      ru_name: ''
-    };
-    showAddModal = true;
-  }
-]]></to>
-      </change>
-    </step>
+    <documentation_updates>
+        <file>docs/api/error-handling.md</file>
+        <update>Add 409 Conflict handling for period deletion</update>
 
-    <step number="4">
-      <title>Update handleEditPeriod function</title>
-      <location>Lines 148-161</location>
-      <change>
-        <from><![CDATA[
-  function handleEditPeriod(period: Period) {
-    selectedPeriod = period;
-    // Convert date to YYYY-MM format for month input
-    const periodDate = new Date(period.date);
-    const yearMonth = `${periodDate.getFullYear()}-${String(periodDate.getMonth() + 1).padStart(2, '0')}`;
+        <file>docs/changelog.md</file>
+        <update>Document period deletion fix in v3.3.0</update>
 
-    formData = {
-      date: yearMonth,
-      ru_name: period.ru_name || '',
-      start_date: period.start_date ? period.start_date.substring(0, 10) : '',
-      end_date: period.end_date ? period.end_date.substring(0, 10) : ''
-    };
-    showAddModal = true;
-  }
-]]></from>
-        <to><![CDATA[
-  function handleEditPeriod(period: Period) {
-    selectedPeriod = period;
-    // Convert date to YYYY-MM format for month input
-    const periodDate = new Date(period.date);
-    const yearMonth = `${periodDate.getFullYear()}-${String(periodDate.getMonth() + 1).padStart(2, '0')}`;
+        <file>README.md</file>
+        <update>Update known issues section</update>
+    </documentation_updates>
 
-    formData = {
-      date: yearMonth,
-      ru_name: period.ru_name || ''
-    };
-    showAddModal = true;
-  }
-]]></to>
-      </change>
-    </step>
-
-    <step number="5">
-      <title>Update handleCloseModal function</title>
-      <location>Lines 163-172</location>
-      <change>
-        <from><![CDATA[
-  function handleCloseModal() {
-    showAddModal = false;
-    selectedPeriod = null;
-    formData = {
-      date: '',
-      ru_name: '',
-      start_date: '',
-      end_date: ''
-    };
-  }
-]]></from>
-        <to><![CDATA[
-  function handleCloseModal() {
-    showAddModal = false;
-    selectedPeriod = null;
-    formData = {
-      date: '',
-      ru_name: ''
-    };
-  }
-]]></to>
-      </change>
-    </step>
-
-    <step number="6">
-      <title>Update handleSubmitPeriod function</title>
-      <location>Lines 174-245</location>
-      <change>
-        <from><![CDATA[
-  async function handleSubmitPeriod() {
-    if (!formData.date || !formData.ru_name) {
-      toast.error('Заполните обязательные поля', 'Дата периода и название обязательны');
-      return;
-    }
-
-    try {
-      saving = true;
-
-      // Convert month input (YYYY-MM) to full date
-      const [year, month] = formData.date.split('-');
-      const periodDate = new Date(parseInt(year), parseInt(month) - 1, 1);
-
-      const requestData = {
-        date: periodDate.toISOString(),
-        ru_name: formData.ru_name,
-        start_date: formData.start_date ? new Date(formData.start_date).toISOString() : null,
-        end_date: formData.end_date ? new Date(formData.end_date).toISOString() : null,
-        period_year: parseInt(year),
-        period_month: parseInt(month),
-        period_name: formData.ru_name
-      };
-]]></from>
-        <to><![CDATA[
-  async function handleSubmitPeriod() {
-    if (!formData.date) {
-      toast.error('Заполните обязательные поля', 'Дата периода обязательна');
-      return;
-    }
-
-    try {
-      saving = true;
-
-      // Convert month input (YYYY-MM) to full date
-      const [year, month] = formData.date.split('-');
-      const periodDate = new Date(parseInt(year), parseInt(month) - 1, 1);
-
-      // Auto-generate period name if creating new period
-      const periodName = selectedPeriod
-        ? formData.ru_name // Keep existing name when editing
-        : generatePeriodName(formData.date);
-
-      // Auto-generate date range
-      const { start, end } = generateDateRange(formData.date);
-
-      const requestData = {
-        date: periodDate.toISOString(),
-        ru_name: periodName,
-        start_date: start.toISOString(),
-        end_date: end.toISOString(),
-        period_year: parseInt(year),
-        period_month: parseInt(month),
-        period_name: periodName
-      };
-]]></to>
-      </change>
-    </step>
-
-    <step number="7">
-      <title>Add reactive statement for auto-generating period name</title>
-      <location>After reactive statement at line 284-286</location>
-      <code><![CDATA[
-  // Auto-generate period name when date changes (only for new periods)
-  $: if (!selectedPeriod && formData.date) {
-    formData.ru_name = generatePeriodName(formData.date);
-  }
-]]></code>
-    </step>
-
-    <step number="8">
-      <title>Update modal form fields</title>
-      <location>Lines 459-512 (form fields in modal)</location>
-      <changes>
-        <change id="1">
-          <description>Update period name field to be readonly during editing</description>
-          <from><![CDATA[
-            <!-- Period Name -->
-            <div>
-              <label for="period-name" class="block text-sm font-medium text-gray-700 mb-1">
-                Название периода *
-              </label>
-              <input
-                id="period-name"
-                type="text"
-                bind:value={formData.ru_name}
-                placeholder="Например: Январь 2024"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-]]></from>
-          <to><![CDATA[
-            <!-- Period Name -->
-            <div>
-              <label for="period-name" class="block text-sm font-medium text-gray-700 mb-1">
-                Название периода {selectedPeriod ? '(не редактируется)' : '(автоматически)'}
-              </label>
-              <input
-                id="period-name"
-                type="text"
-                bind:value={formData.ru_name}
-                placeholder={selectedPeriod ? '' : 'Будет сгенерировано автоматически'}
-                readonly={true}
-                class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
-              />
-            </div>
-]]></to>
-        </change>
-
-        <change id="2">
-          <description>Remove start and end date fields completely</description>
-          <from><![CDATA[
-            <!-- Start Date (Optional) -->
-            <div>
-              <label for="start-date" class="block text-sm font-medium text-gray-700 mb-1">
-                Дата начала (опционально)
-              </label>
-              <input
-                id="start-date"
-                type="date"
-                bind:value={formData.start_date}
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <!-- End Date (Optional) -->
-            <div>
-              <label for="end-date" class="block text-sm font-medium text-gray-700 mb-1">
-                Дата окончания (опционально)
-              </label>
-              <input
-                id="end-date"
-                type="date"
-                bind:value={formData.end_date}
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-]]></from>
-          <to><![CDATA[
-            <!-- Date Range Info -->
-            {#if formData.date}
-              {@const { start, end } = generateDateRange(formData.date)}
-              <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
-                <p class="text-sm text-blue-800">
-                  <strong>Период будет установлен автоматически:</strong><br/>
-                  С {start.toLocaleDateString('ru-RU')} по {end.toLocaleDateString('ru-RU')}
-                </p>
-              </div>
-            {/if}
-]]></to>
-        </change>
-      </changes>
-    </step>
-  </steps>
-
-  <testing>
-    <test id="1">
-      <title>Test auto-generation of period name</title>
-      <steps>
-        1. Click "Добавить период"
-        2. Select date "2025-01"
-        3. Verify period name auto-fills with "2025 Янв"
-        4. Change to "2025-12"
-        5. Verify period name updates to "2025 Дек"
-      </steps>
-    </test>
-
-    <test id="2">
-      <title>Test date range auto-generation</title>
-      <steps>
-        1. Select date "2025-02"
-        2. Verify info box shows "С 01.02.2025 по 28.02.2025"
-        3. Select date "2024-02" (leap year)
-        4. Verify info box shows "С 01.02.2024 по 29.02.2024"
-      </steps>
-    </test>
-
-    <test id="3">
-      <title>Test editing existing period</title>
-      <steps>
-        1. Click edit on existing period
-        2. Verify period name field is readonly
-        3. Verify period name shows existing value
-        4. Verify no start/end date fields present
-        5. Change period date
-        6. Submit and verify original name is preserved
-      </steps>
-    </test>
-
-    <test id="4">
-      <title>Test form submission</title>
-      <steps>
-        1. Create new period with date "2025-03"
-        2. Submit form
-        3. Verify API receives:
-           - ru_name: "2025 Мар"
-           - start_date: "2025-03-01T00:00:00.000Z"
-           - end_date: "2025-03-31T00:00:00.000Z"
-      </steps>
-    </test>
-
-    <test id="5">
-      <title>Test period name preservation on edit</title>
-      <steps>
-        1. Edit period with custom name "Особый период"
-        2. Change date to different month
-        3. Submit
-        4. Verify name remains "Особый период"
-      </steps>
-    </test>
-  </testing>
+    <implementation_status>
+        <backend>COMPLETED</backend>
+        <frontend>COMPLETED</frontend>
+        <testing>PENDING</testing>
+        <documentation>PENDING</documentation>
+    </implementation_status>
 </implementation_plan>

@@ -324,6 +324,9 @@ async def delete_period(
     current_user: dict = Depends(get_current_user)
 ):
     """Delete period for current user."""
+    from sqlalchemy.exc import IntegrityError
+    from app.models.registry import Registry
+
     # Filter by both period_id and user_id for data isolation
     stmt = select(Period).where(
         Period.id == period_id,
@@ -334,8 +337,32 @@ async def delete_period(
 
     if not period:
         return error_not_found("Period not found or access denied")
-    
-    await db.delete(period)
-    await db.commit()
 
-    return success_response(data={"message": "Period deleted successfully"})
+    # Check for dependent registry entries before attempting deletion
+    registry_stmt = select(func.count(Registry.id)).where(
+        Registry.period_id == period_id,
+        Registry.user_id == current_user.get('user_id')
+    )
+    registry_result = await db.execute(registry_stmt)
+    registry_count = registry_result.scalar()
+
+    if registry_count > 0:
+        return error_conflict(
+            f"Невозможно удалить период '{period.ru_name}'. "
+            f"Существует {registry_count} записей бюджета, связанных с этим периодом. "
+            f"Сначала удалите все связанные записи или перенесите их в другой период."
+        )
+
+    try:
+        await db.delete(period)
+        await db.commit()
+        return success_response(data={"message": "Period deleted successfully"})
+    except IntegrityError as e:
+        await db.rollback()
+        return error_conflict(
+            f"Невозможно удалить период '{period.ru_name}' из-за связанных данных. "
+            f"Убедитесь, что все связанные записи были удалены."
+        )
+    except Exception as e:
+        await db.rollback()
+        return error_response(f"Ошибка при удалении периода: {str(e)}")

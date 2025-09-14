@@ -273,13 +273,13 @@
 
   async function handleConfirmDelete() {
     if (!periodToDelete) return;
-    
+
     try {
       deleting = true;
       const response = await api.delete(`/periods/${periodToDelete.id}/`);
       if ((response as any).success || (response as any).message) {
         toast.success('Период успешно удален');
-        
+
         showDeleteModal = false;
         periodToDelete = null;
         await loadPeriods();
@@ -288,10 +288,30 @@
         throw new Error((response as any).error || 'Не удалось удалить период');
       }
     } catch (error: any) {
-      toast.error(
-        'Ошибка при удалении периода',
-        error.message
-      );
+      // Enhanced error handling for different error types
+      let errorMessage = 'Неизвестная ошибка';
+      let errorTitle = 'Ошибка при удалении периода';
+
+      if (error.response) {
+        // Server error response
+        if (error.response.status === 409) {
+          // Conflict error - likely dependencies exist
+          errorTitle = 'Невозможно удалить период';
+          errorMessage = error.response.data?.error || 'Период связан с другими записями бюджета';
+        } else if (error.response.status === 404) {
+          errorMessage = 'Период не найден или уже был удален';
+        } else if (error.response.data?.error) {
+          errorMessage = error.response.data.error;
+        } else {
+          errorMessage = `Ошибка сервера: ${error.response.status}`;
+        }
+      } else if (error.request) {
+        errorMessage = 'Сервер не отвечает';
+      } else {
+        errorMessage = error.message || 'Произошла ошибка при удалении';
+      }
+
+      toast.error(errorTitle, errorMessage);
     } finally {
       deleting = false;
     }
