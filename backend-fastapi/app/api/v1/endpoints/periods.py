@@ -391,6 +391,9 @@ async def delete_period(
             f"Сначала удалите все связанные записи или перенесите их в другой период."
         )
 
+    # Store period name before deletion to avoid detached session issues
+    period_name = period.ru_name
+
     try:
         await db.delete(period)
         await db.commit()
@@ -398,7 +401,7 @@ async def delete_period(
     except IntegrityError as e:
         await db.rollback()
         return error_conflict(
-            f"Невозможно удалить период '{period.ru_name}' из-за связанных данных. "
+            f"Невозможно удалить период '{period_name}' из-за связанных данных. "
             f"Убедитесь, что все связанные записи были удалены."
         )
     except Exception as e:

@@ -230,6 +230,76 @@ except Exception as e:
     )
 ```
 
+#### Исправление SQLAlchemy Detached Session Errors
+
+**Проблема:** При удалении записей с зависимостями возникали ошибки 500 вместо корректного 409 Conflict
+
+**Симптомы:**
+```python
+sqlalchemy.exc.IntegrityError: (psycopg2.errors.ForeignKeyViolation)
+update or delete on table "t_d_period" violates foreign key constraint
+```
+
+**Корневая причина:** Доступ к атрибутам объекта после rollback БД приводит к detached session ошибке
+```python
+# ❌ НЕПРАВИЛЬНО: доступ к period.ru_name после rollback
+except IntegrityError:
+    db.rollback()  # Объект period становится detached
+    error_msg = f"Cannot delete period '{period.ru_name}'"  # DetachedInstanceError
+```
+
+**Решение:** Сохранение данных объекта до попытки удаления
+```python
+# ✅ ПРАВИЛЬНО: сохранение данных до удаления
+def delete_period(db: Session, period_id: int, current_user: User):
+    period = get_period_by_id(db, period_id, current_user.id)
+    if not period:
+        raise HTTPException(status_code=404, detail="Период не найден")
+
+    # Сохранить данные ДО попытки удаления
+    period_name = period.ru_name
+
+    try:
+        db.delete(period)
+        db.commit()
+        return {"success": True, "message": f"Период '{period_name}' успешно удален"}
+    except IntegrityError as e:
+        db.rollback()
+
+        # Использовать сохраненные данные ПОСЛЕ rollback
+        if "foreign key constraint" in str(e.orig):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Невозможно удалить период '{period_name}'. "
+                      f"Существуют связанные записи в реестре операций."
+            )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Ошибка при удалении периода"
+        )
+```
+
+**Улучшения обработки ошибок (14.09.2025):**
+- **Корректный 409 ответ** вместо 500 ошибки при нарушении foreign key constraints
+- **Информативные сообщения** с указанием причины невозможности удаления
+- **Сохранение контекста** - имя объекта доступно даже после rollback
+- **Детализация конфликтов** - указание количества связанных записей где возможно
+
+**Тестирование исправления:**
+```python
+def test_delete_period_with_dependencies_returns_409():
+    """Тест возврата 409 при удалении периода с зависимостями"""
+    # Создать период с записями в реестре
+    period = create_test_period(db, user_id=1)
+    create_registry_entry(db, period_id=period.id, user_id=1)
+
+    # Попытка удаления должна вернуть 409
+    response = client.delete(f"/api/periods/{period.id}/", headers=auth_headers)
+    assert response.status_code == 409
+    assert "Невозможно удалить период" in response.json()["error"]
+    assert period.ru_name in response.json()["error"]
+```
+
 #### JSON Serialization Errors
 
 **Проблема:** Ошибки сериализации Pydantic объектов в JSON, особенно с datetime полями
