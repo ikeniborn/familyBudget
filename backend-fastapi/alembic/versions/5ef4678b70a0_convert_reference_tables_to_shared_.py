@@ -50,24 +50,45 @@ def upgrade() -> None:
     op.execute("""
         UPDATE t_d_financial_center
         SET financial_center_code = UPPER(LEFT(financial_center_name, 3)) ||
-            LPAD((ROW_NUMBER() OVER (ORDER BY financial_center_id))::text, 3, '0')
-        WHERE financial_center_code IS NULL;
+            LPAD(row_num::text, 3, '0')
+        FROM (
+            SELECT financial_center_id,
+                   ROW_NUMBER() OVER (ORDER BY financial_center_id) as row_num
+            FROM t_d_financial_center
+            WHERE financial_center_code IS NULL
+        ) seq
+        WHERE t_d_financial_center.financial_center_id = seq.financial_center_id
+        AND financial_center_code IS NULL;
     """)
 
     # Cost Centers - use first 3 chars of name + sequential number
     op.execute("""
         UPDATE t_d_cost_center
         SET cost_center_code = UPPER(LEFT(cost_center_name, 3)) ||
-            LPAD((ROW_NUMBER() OVER (ORDER BY cost_center_id))::text, 3, '0')
-        WHERE cost_center_code IS NULL;
+            LPAD(row_num::text, 3, '0')
+        FROM (
+            SELECT cost_center_id,
+                   ROW_NUMBER() OVER (ORDER BY cost_center_id) as row_num
+            FROM t_d_cost_center
+            WHERE cost_center_code IS NULL
+        ) seq
+        WHERE t_d_cost_center.cost_center_id = seq.cost_center_id
+        AND cost_center_code IS NULL;
     """)
 
     # Nomenclatures - use first 5 chars of name + sequential number
     op.execute("""
         UPDATE t_d_nomenclature
         SET nomenclature_code = UPPER(LEFT(nomenclature_name, 5)) ||
-            LPAD((ROW_NUMBER() OVER (ORDER BY nomenclature_id))::text, 3, '0')
-        WHERE nomenclature_code IS NULL;
+            LPAD(row_num::text, 3, '0')
+        FROM (
+            SELECT nomenclature_id,
+                   ROW_NUMBER() OVER (ORDER BY nomenclature_id) as row_num
+            FROM t_d_nomenclature
+            WHERE nomenclature_code IS NULL
+        ) seq
+        WHERE t_d_nomenclature.nomenclature_id = seq.nomenclature_id
+        AND nomenclature_code IS NULL;
     """)
 
     # Step 4: Set audit fields - first user becomes creator and manager
@@ -94,22 +115,12 @@ def upgrade() -> None:
     op.alter_column('t_d_cost_center', 'cost_center_code', nullable=False)
     op.alter_column('t_d_nomenclature', 'nomenclature_code', nullable=False)
 
-    # Step 6: Drop per-user unique constraints
-    op.drop_constraint('_financial_center_name_user_uc', 't_d_financial_center', type_='unique')
-    op.drop_constraint('_cost_center_name_user_uc', 't_d_cost_center', type_='unique')
-    op.drop_constraint('_nomenclature_name_user_uc', 't_d_nomenclature', type_='unique')
-
-    # Step 7: Create global unique constraints on code
+    # Step 6: Create global unique constraints on code
     op.create_unique_constraint('_financial_center_code_uc', 't_d_financial_center', ['financial_center_code'])
     op.create_unique_constraint('_cost_center_code_uc', 't_d_cost_center', ['cost_center_code'])
     op.create_unique_constraint('_nomenclature_code_uc', 't_d_nomenclature', ['nomenclature_code'])
 
-    # Step 8: Make user_id nullable (it will be NULL for shared reference data)
-    op.alter_column('t_d_financial_center', 'user_id', nullable=True)
-    op.alter_column('t_d_cost_center', 'user_id', nullable=True)
-    op.alter_column('t_d_nomenclature', 'user_id', nullable=True)
-
-    # Step 9: Add foreign key constraints for audit fields
+    # Step 7: Add foreign key constraints for audit fields
     op.create_foreign_key('fk_financial_center_created_by', 't_d_financial_center', 't_d_user', ['created_by'], ['user_id'])
     op.create_foreign_key('fk_financial_center_managed_by', 't_d_financial_center', 't_d_user', ['managed_by'], ['user_id'])
 
@@ -133,16 +144,6 @@ def downgrade() -> None:
     op.drop_constraint('_financial_center_code_uc', 't_d_financial_center', type_='unique')
     op.drop_constraint('_cost_center_code_uc', 't_d_cost_center', type_='unique')
     op.drop_constraint('_nomenclature_code_uc', 't_d_nomenclature', type_='unique')
-
-    # Recreate per-user unique constraints
-    op.create_unique_constraint('_financial_center_name_user_uc', 't_d_financial_center', ['financial_center_name', 'user_id'])
-    op.create_unique_constraint('_cost_center_name_user_uc', 't_d_cost_center', ['cost_center_name', 'user_id'])
-    op.create_unique_constraint('_nomenclature_name_user_uc', 't_d_nomenclature', ['nomenclature_name', 'user_id'])
-
-    # Make user_id not nullable again
-    op.alter_column('t_d_financial_center', 'user_id', nullable=False)
-    op.alter_column('t_d_cost_center', 'user_id', nullable=False)
-    op.alter_column('t_d_nomenclature', 'user_id', nullable=False)
 
     # Drop added columns
     op.drop_column('t_d_financial_center', 'managed_by')

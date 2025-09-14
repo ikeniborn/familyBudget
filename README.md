@@ -679,6 +679,43 @@ docker ps | grep budget-
 2. Проверьте логи: `docker logs budget-postgres`
 3. Переинициализируйте БД: `./scripts/dev.sh --init-db`
 
+### ✅ Dashboard 500 ошибки из-за отсутствующих колонок БД (РЕШЕНО 14.09.2025)
+
+**Проблема:** Dashboard возвращал 500 Internal Server Error при попытке загрузки данных из-за отсутствующих колонок в таблице `t_d_period`.
+
+**Симптомы:**
+```
+psycopg2.errors.UndefinedColumn: column "created_at" does not exist
+psycopg2.errors.UndefinedColumn: column "period_code" does not exist
+psycopg2.errors.UndefinedColumn: column "created_by" does not exist
+```
+
+**Причина:** SQLAlchemy модели ожидали колонки, которых не было в базе данных после обновления схемы.
+
+**Решение (выполнено 14.09.2025):**
+✅ Применены миграции базы данных для добавления отсутствующих колонок
+✅ **Миграция 424c33ed04e9**: Добавлены `period_code`, `created_by`, `managed_by`
+✅ **Миграция 12b7c55f437a**: Добавлены timestamp поля `created_at`, `updated_at`
+✅ Автоматическое заполнение существующих данных валидными значениями
+✅ Восстановлена полная функциональность dashboard и API периодов
+
+**Команды для диагностики:**
+```bash
+# Проверить применённые миграции
+docker exec budget-backend alembic current
+
+# Применить ожидающие миграции
+docker exec budget-backend alembic upgrade head
+
+# Проверить структуру таблицы
+docker exec -it budget-postgres psql -U budget -d budgetdb -c "\\d t_d_period"
+```
+
+**Документация:**
+- [Database Column Missing Errors](docs/api/error-handling.md#database-column-missing-errors)
+- [Database Migration Troubleshooting](docs/api/error-handling.md#database-migration-troubleshooting)
+- [Changelog v3.1.6](docs/changelog.md#версия-316---2025-09-14)
+
 ### ✅ DNS ошибки в настройках (РЕШЕНО 12.09.2025)
 
 **Проблема:** Пользователи получали ошибки DNS при загрузке данных на страницах настроек.

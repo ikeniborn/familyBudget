@@ -300,6 +300,156 @@ def test_delete_period_with_dependencies_returns_409():
     assert period.ru_name in response.json()["error"]
 ```
 
+#### Database Column Missing Errors
+
+**Проблема:** Dashboard возвращает 500 Internal Server Error из-за отсутствующих колонок в базе данных
+
+**Симптомы:**
+```python
+psycopg2.errors.UndefinedColumn: column "created_at" does not exist
+psycopg2.errors.UndefinedColumn: column "period_code" does not exist
+psycopg2.errors.UndefinedColumn: column "created_by" does not exist
+```
+
+**Причины:**
+1. **Несоответствие схемы**: SQLAlchemy модели ожидают колонки, которых нет в базе данных
+2. **Пропущенные миграции**: Database migrations не были применены
+3. **Устаревшая схема**: База данных не обновлена до последней версии
+4. **Кэширование моделей**: ORM кэширует старую структуру таблиц
+
+**Диагностика:**
+```bash
+# Проверить применённые миграции
+docker exec budget-backend alembic current
+docker exec budget-backend alembic history
+
+# Проверить структуру таблицы в БД
+docker exec -it budget-postgres psql -U budget -d budgetdb -c "\\d t_d_period"
+
+# Проверить логи backend на наличие ошибок колонок
+docker logs budget-backend | grep -i "UndefinedColumn\|column.*does not exist"
+```
+
+**Решение:**
+
+##### 1. Применение миграций
+```bash
+# Применить все ожидающие миграции
+docker exec budget-backend alembic upgrade head
+
+# Проверить успешность применения
+docker exec budget-backend alembic current
+```
+
+##### 2. Специфичные миграции для исправления Dashboard
+```bash
+# Миграция для добавления audit полей и period_code
+docker exec budget-backend alembic upgrade 424c33ed04e9
+
+# Миграция для добавления timestamp полей
+docker exec budget-backend alembic upgrade 12b7c55f437a
+
+# Проверить добавленные колонки
+docker exec -it budget-postgres psql -U budget -d budgetdb -c "
+SELECT column_name, data_type, is_nullable
+FROM information_schema.columns
+WHERE table_name = 't_d_period'
+ORDER BY ordinal_position;"
+```
+
+##### 3. Восстановление данных при миграции
+**Важно**: Миграции автоматически заполняют новые колонки валидными данными:
+
+```sql
+-- period_code заполняется автоматически
+UPDATE t_d_period
+SET period_code = UPPER(LEFT(period_ru_name, 3)) || LPAD(row_num::text, 3, '0')
+-- Пример: "Январь 2025" -> "ЯНВ001"
+
+-- audit поля заполняются из существующих пользователей
+UPDATE t_d_period
+SET created_by = user_id, managed_by = user_id
+-- Устанавливается владелец как создатель и менеджер
+
+-- timestamp поля получают значения по умолчанию
+-- created_at = now() (автоматически)
+-- updated_at = NULL (до первого обновления)
+```
+
+##### 4. Отладка миграций
+```python
+# Проверка соответствия модели и БД
+from app.models.period import Period
+from app.db.base import engine
+import sqlalchemy
+
+# Инспекция таблицы БД
+inspector = sqlalchemy.inspect(engine)
+columns = inspector.get_columns('t_d_period')
+column_names = [col['name'] for col in columns]
+print(f"DB columns: {column_names}")
+
+# Проверка модели SQLAlchemy
+model_columns = [col.key for col in Period.__table__.columns]
+print(f"Model columns: {model_columns}")
+
+# Найти различия
+missing_in_db = set(model_columns) - set(column_names)
+missing_in_model = set(column_names) - set(model_columns)
+print(f"Missing in DB: {missing_in_db}")
+print(f"Missing in model: {missing_in_model}")
+```
+
+**Предотвращение проблем:**
+
+##### Автоматизированная проверка схемы
+```python
+# backend-fastapi/app/core/database_validation.py
+def validate_database_schema():
+    """Проверить соответствие моделей SQLAlchemy и схемы БД"""
+    from sqlalchemy import inspect
+    from app.db.base import engine
+    from app.models.period import Period
+
+    inspector = inspect(engine)
+
+    for model in [Period]:  # Добавить другие модели
+        table_name = model.__tablename__
+        db_columns = {col['name'] for col in inspector.get_columns(table_name)}
+        model_columns = {col.key for col in model.__table__.columns}
+
+        missing_columns = model_columns - db_columns
+        if missing_columns:
+            raise RuntimeError(
+                f"Missing columns in {table_name}: {missing_columns}. "
+                f"Run 'alembic upgrade head' to apply migrations."
+            )
+
+# Вызов при старте приложения
+# app/main.py
+@app.on_event("startup")
+async def startup_event():
+    validate_database_schema()
+```
+
+##### Pre-commit проверки
+```bash
+#!/bin/bash
+# scripts/check-migrations.sh
+echo "Checking database migrations..."
+
+# Проверить ожидающие миграции
+PENDING=$(docker exec budget-backend alembic heads)
+CURRENT=$(docker exec budget-backend alembic current)
+
+if [ "$PENDING" != "$CURRENT" ]; then
+    echo "❌ Pending migrations detected. Run 'alembic upgrade head'"
+    exit 1
+fi
+
+echo "✅ Database schema is up to date"
+```
+
 #### JSON Serialization Errors
 
 **Проблема:** Ошибки сериализации Pydantic объектов в JSON, особенно с datetime полями
@@ -924,9 +1074,91 @@ test('handles 409 conflict error correctly', async () => {
 3. **Предлагайте решения** когда это возможно
 4. **Поддерживайте консистентность** в стиле уведомлений
 
+## Database Migration Troubleshooting
+
+### Common Migration Issues
+
+#### 1. Pending migrations not applied
+**Problem**: New code expects database columns that don't exist yet
+**Solution**:
+```bash
+# Check current migration status
+docker exec budget-backend alembic current
+docker exec budget-backend alembic heads
+
+# Apply pending migrations
+docker exec budget-backend alembic upgrade head
+```
+
+#### 2. Migration conflicts
+**Problem**: Multiple developers created conflicting migrations
+**Solution**:
+```bash
+# View migration history
+docker exec budget-backend alembic history --verbose
+
+# Merge conflicting migrations
+docker exec budget-backend alembic merge -m "Merge conflicting migrations" <rev1> <rev2>
+```
+
+#### 3. Failed migration rollback
+**Problem**: Migration fails and needs manual intervention
+**Solution**:
+```bash
+# Rollback to previous revision
+docker exec budget-backend alembic downgrade -1
+
+# Check database state
+docker exec -it budget-postgres psql -U budget -d budgetdb -c "\\d t_d_period"
+
+# Fix issues and retry
+docker exec budget-backend alembic upgrade head
+```
+
+#### 4. Missing database connections during startup
+**Problem**: Application starts before database is ready
+**Solution**:
+```bash
+# Add health check and retry logic
+# Wait for database before applying migrations
+./scripts/wait-for-db.sh && docker exec budget-backend alembic upgrade head
+```
+
+### Migration Best Practices
+
+#### 1. Always backup before migrations
+```bash
+# Create backup before major schema changes
+docker exec budget-postgres pg_dump -U budget budgetdb > backup_$(date +%Y%m%d_%H%M%S).sql
+```
+
+#### 2. Test migrations in development
+```bash
+# Test upgrade
+docker exec budget-backend alembic upgrade head
+
+# Test downgrade
+docker exec budget-backend alembic downgrade -1
+
+# Re-test upgrade
+docker exec budget-backend alembic upgrade head
+```
+
+#### 3. Monitor migration performance
+```bash
+# Time long-running migrations
+time docker exec budget-backend alembic upgrade head
+
+# Monitor database locks during migration
+docker exec -it budget-postgres psql -U budget -d budgetdb -c "
+SELECT query, state, query_start
+FROM pg_stat_activity
+WHERE state = 'active';"
+```
+
 ## Заключение
 
-Комплексная система обработки ошибок в сочетании с предотвращением 307 редиректов обеспечивает:
+Комплексная система обработки ошибок в сочетании с предотвращением 307 редиректов и правильным управлением миграциями базы данных обеспечивает:
 
 1. **Лучший пользовательский опыт** - быстрая и стабильная работа
 2. **Упрощенную диагностику** - понятные сообщения об ошибках

@@ -1,0 +1,375 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dashboard-500-error-fix-plan>
+    <summary>
+        <title>Family Budget Dashboard 500 Error Fix Plan</title>
+        <description>Comprehensive plan to resolve SQLAlchemy column mismatch errors causing 500 errors on dashboard endpoints</description>
+        <priority>CRITICAL</priority>
+        <estimated-time>2-3 hours</estimated-time>
+        <created>2025-09-14</created>
+    </summary>
+
+    <problem-analysis>
+        <root-causes>
+            <cause id="1">
+                <title>Pending Database Migration</title>
+                <description>Migration 5ef4678b70a0 has not been applied to database. Current migration: 86027abaa82e, Available: 5ef4678b70a0</description>
+                <impact>HIGH</impact>
+            </cause>
+            <cause id="2">
+                <title>Missing Period Table Migration</title>
+                <description>Period model expects period_code column but no migration exists to add it to t_d_period table</description>
+                <impact>HIGH</impact>
+            </cause>
+            <cause id="3">
+                <title>Model-Database Schema Mismatch</title>
+                <description>SQLAlchemy models expect columns that don't exist in database tables</description>
+                <impact>CRITICAL</impact>
+            </cause>
+        </root-causes>
+
+        <affected-tables>
+            <table name="t_d_nomenclature">
+                <missing-columns>
+                    <column>nomenclature_code</column>
+                    <column>description</column>
+                    <column>created_by</column>
+                    <column>managed_by</column>
+                </missing-columns>
+                <migration-status>Pending in 5ef4678b70a0</migration-status>
+            </table>
+            <table name="t_d_period">
+                <missing-columns>
+                    <column>period_code</column>
+                    <column>created_by</column>
+                    <column>managed_by</column>
+                </missing-columns>
+                <migration-status>NOT COVERED - Needs new migration</migration-status>
+            </table>
+            <table name="t_d_financial_center">
+                <missing-columns>
+                    <column>financial_center_code</column>
+                    <column>description</column>
+                    <column>created_by</column>
+                    <column>managed_by</column>
+                </missing-columns>
+                <migration-status>Pending in 5ef4678b70a0</migration-status>
+            </table>
+            <table name="t_d_cost_center">
+                <missing-columns>
+                    <column>cost_center_code</column>
+                    <column>description</column>
+                    <column>created_by</column>
+                    <column>managed_by</column>
+                </missing-columns>
+                <migration-status>Pending in 5ef4678b70a0</migration-status>
+            </table>
+        </affected-tables>
+
+        <failing-endpoints>
+            <endpoint>/api/reports/dashboard</endpoint>
+            <endpoint>/api/reports/dashboard-stats</endpoint>
+            <endpoint>/api/reports/budget-vs-actual</endpoint>
+            <endpoint>/api/reports/category-analysis</endpoint>
+            <endpoint>/api/reports/period-summary</endpoint>
+        </failing-endpoints>
+
+        <error-patterns>
+            <error>
+                <message>column t_d_nomenclature.nomenclature_code does not exist</message>
+                <frequency>HIGH</frequency>
+                <source>Dashboard API calls</source>
+            </error>
+            <error>
+                <message>column t_d_period.period_code does not exist</message>
+                <frequency>HIGH</frequency>
+                <source>Period model queries</source>
+            </error>
+        </error-patterns>
+    </problem-analysis>
+
+    <solution-strategy>
+        <approach>Apply pending migration and create additional migration for Period table</approach>
+        <phases>
+            <phase id="1">Database Schema Updates</phase>
+            <phase id="2">Migration Testing</phase>
+            <phase id="3">Endpoint Validation</phase>
+            <phase id="4">Regression Testing</phase>
+        </phases>
+    </solution-strategy>
+
+    <implementation-plan>
+        <phase id="1" name="Database Schema Updates">
+            <description>Apply pending migration and create missing Period table migration</description>
+            <estimated-time>30 minutes</estimated-time>
+
+            <steps>
+                <step id="1.1">
+                    <title>Backup Current Database</title>
+                    <commands>
+                        <command>docker exec budget-postgres pg_dump -U budget budgetdb > /tmp/backup-pre-migration-$(date +%Y%m%d_%H%M%S).sql</command>
+                    </commands>
+                    <validation>Verify backup file exists and has content</validation>
+                </step>
+
+                <step id="1.2">
+                    <title>Apply Pending Migration</title>
+                    <commands>
+                        <command>docker exec budget-backend alembic upgrade head</command>
+                    </commands>
+                    <expected-result>Migration 5ef4678b70a0 applied successfully</expected-result>
+                    <validation>
+                        <command>docker exec budget-backend alembic current</command>
+                        <expected-output>5ef4678b70a0</expected-output>
+                    </validation>
+                </step>
+
+                <step id="1.3">
+                    <title>Create Period Table Migration</title>
+                    <commands>
+                        <command>docker exec budget-backend alembic revision --autogenerate -m "Add missing period_code and audit columns to t_d_period"</command>
+                    </commands>
+                    <manual-edit>
+                        <description>Edit the generated migration file to add:</description>
+                        <changes>
+                            <change>op.add_column('t_d_period', sa.Column('period_code', sa.String(20), nullable=True))</change>
+                            <change>op.add_column('t_d_period', sa.Column('created_by', sa.Integer(), nullable=True))</change>
+                            <change>op.add_column('t_d_period', sa.Column('managed_by', sa.Integer(), nullable=True))</change>
+                            <change>Populate period_code with auto-generated values</change>
+                            <change>Set period_code as not nullable</change>
+                            <change>Add foreign key constraints for audit fields</change>
+                        </changes>
+                    </manual-edit>
+                </step>
+
+                <step id="1.4">
+                    <title>Apply Period Migration</title>
+                    <commands>
+                        <command>docker exec budget-backend alembic upgrade head</command>
+                    </commands>
+                    <validation>Verify period_code column exists in t_d_period table</validation>
+                </step>
+
+                <step id="1.5">
+                    <title>Verify Database Schema</title>
+                    <commands>
+                        <command>docker exec budget-postgres psql -U budget -d budgetdb -c "\d t_d_nomenclature;"</command>
+                        <command>docker exec budget-postgres psql -U budget -d budgetdb -c "\d t_d_period;"</command>
+                        <command>docker exec budget-postgres psql -U budget -d budgetdb -c "\d t_d_financial_center;"</command>
+                        <command>docker exec budget-postgres psql -U budget -d budgetdb -c "\d t_d_cost_center;"</command>
+                    </commands>
+                    <validation>All expected columns (code, description, created_by, managed_by) exist in each table</validation>
+                </step>
+            </steps>
+        </phase>
+
+        <phase id="2" name="Migration Testing">
+            <description>Test database integrity and model compatibility</description>
+            <estimated-time>15 minutes</estimated-time>
+
+            <steps>
+                <step id="2.1">
+                    <title>Test Model Queries</title>
+                    <commands>
+                        <command>docker exec budget-backend python -c "from app.models.nomenclature import Nomenclature; from app.db.database import get_db; print('Nomenclature model OK')"</command>
+                        <command>docker exec budget-backend python -c "from app.models.period import Period; from app.db.database import get_db; print('Period model OK')"</command>
+                        <command>docker exec budget-backend python -c "from app.models.financial_center import FinancialCenter; print('FinancialCenter model OK')"</command>
+                        <command>docker exec budget-backend python -c "from app.models.cost_center import CostCenter; print('CostCenter model OK')"</command>
+                    </commands>
+                    <validation>No SQLAlchemy column errors</validation>
+                </step>
+
+                <step id="2.2">
+                    <title>Test Basic CRUD Operations</title>
+                    <commands>
+                        <command>docker exec budget-backend python -m pytest tests/test_models.py -v</command>
+                    </commands>
+                    <validation>All model tests pass</validation>
+                </step>
+            </steps>
+        </phase>
+
+        <phase id="3" name="Endpoint Validation">
+            <description>Test dashboard and reports endpoints</description>
+            <estimated-time>20 minutes</estimated-time>
+
+            <steps>
+                <step id="3.1">
+                    <title>Restart Backend Service</title>
+                    <commands>
+                        <command>docker restart budget-backend</command>
+                        <command>sleep 10</command>
+                    </commands>
+                    <validation>Backend service healthy</validation>
+                </step>
+
+                <step id="3.2">
+                    <title>Test Dashboard Endpoints</title>
+                    <tests>
+                        <test>
+                            <endpoint>GET /api/reports/dashboard-stats</endpoint>
+                            <expected-status>200</expected-status>
+                            <command>curl -s -o /dev/null -w "%{http_code}" "http://localhost:4000/api/reports/dashboard-stats"</command>
+                        </test>
+                        <test>
+                            <endpoint>GET /api/reports/dashboard</endpoint>
+                            <expected-status>200</expected-status>
+                            <command>curl -s -o /dev/null -w "%{http_code}" "http://localhost:4000/api/reports/dashboard"</command>
+                        </test>
+                        <test>
+                            <endpoint>GET /api/reports/category-analysis</endpoint>
+                            <expected-status>200</expected-status>
+                            <command>curl -s -o /dev/null -w "%{http_code}" "http://localhost:4000/api/reports/category-analysis"</command>
+                        </test>
+                    </tests>
+                </step>
+
+                <step id="3.3">
+                    <title>Test Frontend Dashboard Page</title>
+                    <commands>
+                        <command>curl -s "http://localhost:5173/dashboard" | grep -q "<!DOCTYPE html>" && echo "Dashboard page loads" || echo "Dashboard page error"</command>
+                    </commands>
+                    <validation>Dashboard page loads without 500 errors</validation>
+                </step>
+            </steps>
+        </phase>
+
+        <phase id="4" name="Regression Testing">
+            <description>Comprehensive testing to ensure no regressions</description>
+            <estimated-time>30 minutes</estimated-time>
+
+            <steps>
+                <step id="4.1">
+                    <title>Run Backend Test Suite</title>
+                    <commands>
+                        <command>docker exec budget-backend python -m pytest tests/backend/test_nomenclatures_api.py -v</command>
+                        <command>docker exec budget-backend python -m pytest tests/backend/test_periods_api.py -v</command>
+                        <command>docker exec budget-backend python -m pytest tests/backend/test_financial_centers_api.py -v</command>
+                        <command>docker exec budget-backend python -m pytest tests/backend/test_cost_centers_api.py -v</command>
+                    </commands>
+                    <validation>All reference data API tests pass</validation>
+                </step>
+
+                <step id="4.2">
+                    <title>Run Frontend Dashboard Tests</title>
+                    <commands>
+                        <command>docker exec budget-frontend npm run test dashboard.service.test.ts</command>
+                        <command>docker exec budget-frontend npm run test dashboard.component.test.ts</command>
+                    </commands>
+                    <validation>Dashboard component tests pass</validation>
+                </step>
+
+                <step id="4.3">
+                    <title>Integration Test - Full Dashboard Load</title>
+                    <commands>
+                        <command>docker exec budget-frontend npx playwright test dashboard.e2e.test.ts</command>
+                    </commands>
+                    <validation>End-to-end dashboard test passes</validation>
+                </step>
+
+                <step id="4.4">
+                    <title>Monitor Backend Logs</title>
+                    <commands>
+                        <command>docker logs budget-backend --tail=50 | grep -i "error\|exception" | wc -l</command>
+                    </commands>
+                    <validation>No new errors in backend logs</validation>
+                </step>
+            </steps>
+        </phase>
+    </implementation-plan>
+
+    <rollback-plan>
+        <description>Steps to rollback if migration fails</description>
+
+        <steps>
+            <step id="rollback.1">
+                <title>Stop Application Services</title>
+                <commands>
+                    <command>docker-compose down</command>
+                </commands>
+            </step>
+
+            <step id="rollback.2">
+                <title>Restore Database Backup</title>
+                <commands>
+                    <command>docker-compose up -d budget-postgres</command>
+                    <command>sleep 10</command>
+                    <command>docker exec budget-postgres dropdb -U budget budgetdb</command>
+                    <command>docker exec budget-postgres createdb -U budget budgetdb</command>
+                    <command>docker exec -i budget-postgres psql -U budget budgetdb < /tmp/backup-pre-migration-*.sql</command>
+                </commands>
+            </step>
+
+            <step id="rollback.3">
+                <title>Restart Services</title>
+                <commands>
+                    <command>docker-compose up -d</command>
+                </commands>
+            </step>
+        </steps>
+    </rollback-plan>
+
+    <verification-checklist>
+        <checks>
+            <check id="1">All pending migrations applied successfully</check>
+            <check id="2">All reference tables have required code columns</check>
+            <check id="3">All audit columns (created_by, managed_by) exist</check>
+            <check id="4">Dashboard API endpoints return 200 status</check>
+            <check id="5">Frontend dashboard page loads without errors</check>
+            <check id="6">No SQLAlchemy column errors in backend logs</check>
+            <check id="7">All existing tests continue to pass</check>
+            <check id="8">Data integrity maintained (row counts match)</check>
+        </checks>
+    </verification-checklist>
+
+    <post-implementation-tasks>
+        <tasks>
+            <task id="1">
+                <title>Update Documentation</title>
+                <description>Update /docs/architecture/ with ADR for schema changes</description>
+                <priority>MEDIUM</priority>
+            </task>
+
+            <task id="2">
+                <title>Performance Monitoring</title>
+                <description>Monitor dashboard performance for 24 hours</description>
+                <priority>LOW</priority>
+            </task>
+
+            <task id="3">
+                <title>Clean up Backup Files</title>
+                <description>Remove temporary backup files after 1 week</description>
+                <priority>LOW</priority>
+            </task>
+        </tasks>
+    </post-implementation-tasks>
+
+    <risk-assessment>
+        <risks>
+            <risk level="LOW">
+                <description>Migration failure due to foreign key constraints</description>
+                <mitigation>Database backup created before migration</mitigation>
+            </risk>
+
+            <risk level="MEDIUM">
+                <description>Data loss during column additions</description>
+                <mitigation>Migrations only add columns, no data deletion</mitigation>
+            </risk>
+
+            <risk level="LOW">
+                <description>Application downtime during migration</description>
+                <mitigation>Fast migration execution (~2 minutes)</mitigation>
+            </risk>
+        </risks>
+    </risk-assessment>
+
+    <success-criteria>
+        <criteria>
+            <criterion>Dashboard page loads without 500 errors</criterion>
+            <criterion>All /api/reports/* endpoints return valid responses</criterion>
+            <criterion>No SQLAlchemy column errors in logs</criterion>
+            <criterion>All existing functionality preserved</criterion>
+            <criterion>Database schema matches SQLAlchemy models</criterion>
+            <criterion>Migration rollback tested and working</criterion>
+        </criteria>
+    </success-criteria>
+</dashboard-500-error-fix-plan>
