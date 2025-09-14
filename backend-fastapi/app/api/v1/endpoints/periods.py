@@ -3,6 +3,7 @@ Period management endpoints.
 """
 from typing import List, Optional, Union
 from datetime import datetime
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +20,9 @@ from app.core.response import (
     error_conflict,
     error_unprocessable_entity
 )
+from app.core.timezone import prepare_datetime_for_db, prepare_datetime_fields_for_db
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -208,7 +211,7 @@ async def create_period(
     # Handle legacy format conversion
     date: Optional[datetime] = None
     ru_name: Optional[str] = None
-    
+
     if period_data.period_year and period_data.period_month:
         # Convert legacy format to modern format
         date = datetime(period_data.period_year, period_data.period_month, 1)
@@ -217,30 +220,39 @@ async def create_period(
         # Use modern format directly
         date = period_data.date
         ru_name = period_data.ru_name
-    
+
     if not date or not ru_name:
         return error_unprocessable_entity("Missing required fields: date and ru_name, or period_year and period_month")
-    
+
+    # Prepare datetime fields for database storage (strip timezone info)
+    try:
+        db_safe_date = prepare_datetime_for_db(date)
+        db_safe_start_date = prepare_datetime_for_db(period_data.start_date)
+        db_safe_end_date = prepare_datetime_for_db(period_data.end_date)
+    except (ValueError, TypeError) as e:
+        logger.error(f"Failed to prepare datetime fields for database: {e}")
+        return error_unprocessable_entity(f"Invalid datetime format: {str(e)}")
+
     # Check for existing period with same date for current user (user-specific uniqueness)
     stmt = select(Period).where(
-        Period.date == date,
+        Period.date == db_safe_date,
         Period.user_id == current_user.get('user_id')
     )
     result = await db.execute(stmt)
     existing_period = result.scalar_one_or_none()
-    
+
     if existing_period:
-        return error_conflict(f"Период на дату {date.strftime('%Y-%m-%d')} уже существует")
-    
+        return error_conflict(f"Период на дату {db_safe_date.strftime('%Y-%m-%d')} уже существует")
+
     # Create period with automatic user_id assignment
     period = Period(
-        date=date,
+        date=db_safe_date,
         ru_name=ru_name,
-        start_date=period_data.start_date,
-        end_date=period_data.end_date,
+        start_date=db_safe_start_date,
+        end_date=db_safe_end_date,
         user_id=current_user.get('user_id')  # Automatically assign current user
     )
-    
+
     db.add(period)
     await db.commit()
     await db.refresh(period)
@@ -284,15 +296,41 @@ async def update_period(
 
     if not period:
         return error_not_found("Period not found or access denied")
-    
+
     # Update period fields (excluding user_id to prevent unauthorized changes)
     update_data = period_data.dict(exclude_unset=True)
     # Remove user_id from update data to prevent hijacking
     update_data.pop('user_id', None)
-    
+
+    # Prepare datetime fields for database storage (strip timezone info)
+    try:
+        if 'date' in update_data:
+            update_data['date'] = prepare_datetime_for_db(update_data['date'])
+        if 'start_date' in update_data:
+            update_data['start_date'] = prepare_datetime_for_db(update_data['start_date'])
+        if 'end_date' in update_data:
+            update_data['end_date'] = prepare_datetime_for_db(update_data['end_date'])
+    except (ValueError, TypeError) as e:
+        logger.error(f"Failed to prepare datetime fields for database update: {e}")
+        return error_unprocessable_entity(f"Invalid datetime format: {str(e)}")
+
+    # Check for conflicts if date is being updated
+    if 'date' in update_data:
+        # Check for existing period with same date for current user (excluding current period)
+        conflict_stmt = select(Period).where(
+            Period.date == update_data['date'],
+            Period.user_id == current_user.get('user_id'),
+            Period.id != period_id
+        )
+        conflict_result = await db.execute(conflict_stmt)
+        existing_period = conflict_result.scalar_one_or_none()
+
+        if existing_period:
+            return error_conflict(f"Период на дату {update_data['date'].strftime('%Y-%m-%d')} уже существует")
+
     for field, value in update_data.items():
         setattr(period, field, value)
-    
+
     await db.commit()
     await db.refresh(period)
 

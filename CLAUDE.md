@@ -560,6 +560,7 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 4. **Svelte component errors**: Check if using old syntax (on:click vs onclick)
 5. **Docker port conflicts**: Stop other services or change ports in .env
 6. **Settings pages DNS errors**: ✅ **RESOLVED** - Host header proxy fix implemented (ADR-004)
+7. **Timezone errors on period creation**: ✅ **RESOLVED** - Timezone handling utilities implemented (ADR-005)
 
 ### 🔧 Docker Networking Fix (ADR-004)
 
