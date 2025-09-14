@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Family Budget is a web-based budget management system with multi-user support, Telegram authentication, and comprehensive financial tracking capabilities. The system separates planned vs actual expenses and provides detailed analytics.
 
+**✅ Dashboard Integration Complete (v3.2.1):** Main dashboard now uses real API data instead of mock data, with comprehensive error handling, loading states, and full test coverage (4,192 lines of tests). See `/docs/api/dashboard-integration.md` for technical details.
+
 ## ⚠️ CRITICAL: Docker-Only Development
 
 **ALL operations MUST be performed through Docker containers:**
@@ -181,7 +183,7 @@ Traefik (80/443) → Frontend (5173) → FastAPI (4000) → PostgreSQL/Redis
 /api/nomenclatures/*      # Category management
 /api/registry/*           # Transaction operations
 /api/products/*           # Product catalog
-/api/reports/*            # Analytics endpoints
+/api/reports/*            # Analytics endpoints (✅ Dashboard integrated)
 ```
 
 ### Settings Management Pages
@@ -394,7 +396,8 @@ $: doubled = count * 2;
 │   ├── schemas.md
 │   ├── error-handling.md ✅ NEW # Comprehensive error handling guide
 │   ├── authentication.md
-│   └── session-management.md
+│   ├── session-management.md
+│   └── dashboard-integration.md ✅ NEW # Dashboard API integration guide (v3.2.1)
 ├── deployment/         # Setup and deployment guides
 │   ├── docker-setup.md
 │   └── production.md
@@ -485,6 +488,7 @@ docker exec budget-backend python -m pytest tests/backend/test_periods_api.py
 docker exec budget-backend python -m pytest tests/backend/test_nomenclatures_api.py
 docker exec budget-backend python -m pytest tests/backend/test_financial_centers_api.py
 docker exec budget-backend python -m pytest tests/backend/test_cost_centers_api.py
+docker exec budget-backend python -m pytest tests/backend/test_dashboard_api.py    # ✅ Dashboard API tests
 
 # Frontend tests (NEW - reference modules coverage)
 docker exec budget-frontend npm run test -- --coverage --coverageThreshold 80
@@ -492,12 +496,19 @@ docker exec budget-frontend npm run test periods.test.ts
 docker exec budget-frontend npm run test nomenclatures.test.ts
 docker exec budget-frontend npm run test financial_centers.test.ts
 docker exec budget-frontend npm run test cost_centers.test.ts
+docker exec budget-frontend npm run test dashboard.service.test.ts      # ✅ Dashboard service tests
+docker exec budget-frontend npm run test dashboard.component.test.ts    # ✅ Dashboard component tests
 
 # Integration testing
 docker exec budget-backend python -m pytest tests/integration/
 
 # E2E testing
 docker exec budget-frontend npm run test:e2e
+docker exec budget-frontend npx playwright test dashboard.e2e.test.ts  # ✅ Dashboard E2E tests
+
+# Dashboard comprehensive testing (NEW - v3.2.1)
+./scripts/test-dashboard.sh              # Run all dashboard tests
+./scripts/test-dashboard.sh false true  # With coverage reports
 ```
 
 **Test Automation Integration:**
@@ -641,7 +652,7 @@ frontend-svelte/src/
 ├── lib/
 │   ├── components/     # UI components
 │   ├── stores/         # Svelte stores
-│   ├── services/       # API services
+│   ├── services/       # API services (includes dashboard.service.ts ✅)
 │   └── types/          # TypeScript definitions
 └── routes/
     ├── (protected)/    # Auth-required pages

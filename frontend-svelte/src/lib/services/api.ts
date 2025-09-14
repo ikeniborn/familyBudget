@@ -102,6 +102,7 @@ export default api;
 
 // Export specific service modules
 export * from './auth.service';
+export * from './dashboard.service';
 export * from './periods.service';
 export * from './registry.service';
 export * from './reportService';

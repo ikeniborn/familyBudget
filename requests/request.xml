@@ -15,15 +15,14 @@
     </project>
     <context>
         <description>
-            http://localhost:5173/settings/financial-centers
-            При попытке создать ЦФО возникет ошибка 
-            /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-14 12-04-27.png
+            Сейчас для каждогов пользователя реализован функциогнал изолированного управлегния справочниками.
+            Необходимо изменить подход. 
+            Все справочники доступны всем пользователям.
+            Управление справочниками только с ролью администратор.
+            Упраавление справочниками не достпуно на просмотр пользвтаелям.
         </description>
         <requirements>
-            <point number="1">Проанализирвоать ошибку</point>
-            <point number="2">Изучить логи</point>
-            <point number="3">Определить причину</point>
-            <point number="4">Исправить проблему</point>
+            <point number="1">Реализизовать измменения управления спраавочниками</point>
         </requirements>
     </context>
     <tasks>

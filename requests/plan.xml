@@ -1,85 +1,72 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<plan>
-    <title>Fix Financial Center Creation Error</title>
-    <issue>
-        <description>[object Object] error when creating financial centers at /settings/financial-centers</description>
-        <root_cause>Data contract mismatch between frontend and backend</root_cause>
-        <impact>Users cannot create financial centers</impact>
-    </issue>
+<cleanup-plan>
+  <overview>
+    <title>Family Budget Application - Mock/Test Data Cleanup Plan</title>
+    <description>Comprehensive plan to remove mock data from frontend and integrate real API data</description>
+    <discovered-issues>
+      <issue type="frontend" priority="high">
+        <location>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/dashboard/+page.svelte</location>
+        <description>Lines 29-47 contain hardcoded mock data (150,000 ₽ budget, 87,500 ₽ expenses, mock transactions)</description>
+        <impact>Dashboard displays fake data instead of real user data</impact>
+      </issue>
+      <issue type="backend" priority="low">
+        <location>Backend APIs</location>
+        <description>Backend is clean - no mock data endpoints found</description>
+        <impact>No cleanup needed, APIs are ready for use</impact>
+      </issue>
+      <issue type="database" priority="medium">
+        <location>PostgreSQL database</location>
+        <description>Database contains real user data (24 users, 16 periods, etc.)</description>
+        <impact>Optional cleanup if fresh start is desired</impact>
+      </issue>
+    </discovered-issues>
+  </overview>
 
-    <analysis>
-        <problem number="1">
-            <type>Primary</type>
-            <description>Frontend sends 'financial_center_name' but backend expects 'name'</description>
-            <location>frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.svelte:143-147</location>
-        </problem>
-        <problem number="2">
-            <type>Secondary</type>
-            <description>Error handling doesn't properly extract FastAPI validation error messages</description>
-            <location>frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.svelte:174-188</location>
-        </problem>
-    </analysis>
+  <phase name="phase-1-frontend-cleanup" priority="1">
+    <title>Frontend Mock Data Cleanup</title>
+    <description>Replace hardcoded dashboard data with real API calls</description>
 
-    <solution>
-        <step number="1">
-            <action>Fix data contract mismatch in create request</action>
-            <file>frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.svelte</file>
-            <change>
-                <from>financial_center_name: formData.name</from>
-                <to>name: formData.name</to>
-            </change>
-            <change>
-                <from>user_id: 1</from>
-                <to>Remove user_id field (backend auto-assigns)</to>
-            </change>
-        </step>
+    <tasks>
+      <task id="1.1" type="code-change">
+        <title>Create Dashboard Data Service</title>
+        <file-path>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/services/dashboard.service.ts</file-path>
+        <action>create</action>
+        <description>Create new service for dashboard API calls</description>
+      </task>
 
-        <step number="2">
-            <action>Fix data contract mismatch in update request</action>
-            <file>frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.svelte</file>
-            <change>
-                <from>financial_center_name: formData.name</from>
-                <to>name: formData.name</to>
-            </change>
-        </step>
+      <task id="1.2" type="code-change">
+        <title>Replace Mock Data in Dashboard Component</title>
+        <file-path>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/dashboard/+page.svelte</file-path>
+        <action>modify</action>
+        <description>Replace hardcoded mock data with API calls</description>
+      </task>
 
-        <step number="3">
-            <action>Improve error handling for validation errors</action>
-            <file>frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.svelte</file>
-            <change>
-                <description>Add proper handling for FastAPI 422 validation errors</description>
-                <details>Extract field errors from detail array and format as readable messages</details>
-            </change>
-        </step>
+      <task id="1.3" type="code-change">
+        <title>Add Loading States to Dashboard</title>
+        <file-path>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/dashboard/+page.svelte</file-path>
+        <action>modify</action>
+        <description>Add loading indicators for better UX</description>
+      </task>
+    </tasks>
+  </phase>
 
-        <step number="4">
-            <action>Test the fixes</action>
-            <tests>
-                <test>Create financial center with valid data</test>
-                <test>Try to create duplicate financial center</test>
-                <test>Test validation errors display</test>
-                <test>Test network error handling</test>
-            </tests>
-        </step>
+  <phase name="phase-2-backend-verification" priority="2">
+    <title>Backend Verification</title>
+    <description>Verify backend APIs are working correctly and contain no mock data</description>
+  </phase>
 
-        <step number="5">
-            <action>Apply similar fixes to other settings pages</action>
-            <files>
-                <file>settings/periods/+page.svelte</file>
-                <file>settings/cost-centers/+page.svelte</file>
-                <file>settings/nomenclatures/+page.svelte</file>
-            </files>
-            <description>Check for similar data contract mismatches and error handling issues</description>
-        </step>
-    </solution>
+  <phase name="phase-3-database-management" priority="3">
+    <title>Database Data Management</title>
+    <description>Clear test data from database</description>
+  </phase>
 
-    <verification>
-        <unit_tests>backend-fastapi/tests/backend/test_financial_centers_api.py</unit_tests>
-        <integration_tests>frontend-svelte/tests/frontend/financial_centers.test.ts</integration_tests>
-        <manual_testing>
-            <test>Create, update, delete financial centers</test>
-            <test>Verify error messages are readable</test>
-            <test>Check data persistence</test>
-        </manual_testing>
-    </verification>
-</plan>
+  <phase name="phase-4-testing-verification" priority="4">
+    <title>Testing and Verification</title>
+    <description>Comprehensive testing to ensure dashboard works with real data</description>
+  </phase>
+
+  <phase name="phase-5-documentation" priority="5">
+    <title>Documentation Updates</title>
+    <description>Update documentation to reflect changes</description>
+  </phase>
+</cleanup-plan>

@@ -3,6 +3,7 @@ export * from './api';
 export * from './auth.service';
 export * from './base.service';
 export * from './costCenters.service';
+export * from './dashboard.service';
 export * from './financialCenters.service';
 export * from './nomenclatures.service';
 export * from './periods.service';
