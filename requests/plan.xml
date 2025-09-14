@@ -1,72 +1,222 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<cleanup-plan>
-  <overview>
-    <title>Family Budget Application - Mock/Test Data Cleanup Plan</title>
-    <description>Comprehensive plan to remove mock data from frontend and integrate real API data</description>
-    <discovered-issues>
-      <issue type="frontend" priority="high">
-        <location>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/dashboard/+page.svelte</location>
-        <description>Lines 29-47 contain hardcoded mock data (150,000 ₽ budget, 87,500 ₽ expenses, mock transactions)</description>
-        <impact>Dashboard displays fake data instead of real user data</impact>
-      </issue>
-      <issue type="backend" priority="low">
-        <location>Backend APIs</location>
-        <description>Backend is clean - no mock data endpoints found</description>
-        <impact>No cleanup needed, APIs are ready for use</impact>
-      </issue>
-      <issue type="database" priority="medium">
-        <location>PostgreSQL database</location>
-        <description>Database contains real user data (24 users, 16 periods, etc.)</description>
-        <impact>Optional cleanup if fresh start is desired</impact>
-      </issue>
-    </discovered-issues>
-  </overview>
+<implementation_plan>
+  <project>Family Budget Application - Reference Data Migration</project>
+  <objective>Convert user-isolated reference data to admin-managed shared system</objective>
+  <duration>3-4 weeks</duration>
 
-  <phase name="phase-1-frontend-cleanup" priority="1">
-    <title>Frontend Mock Data Cleanup</title>
-    <description>Replace hardcoded dashboard data with real API calls</description>
+  <prerequisites>
+    <prerequisite>Complete database backup before starting</prerequisite>
+    <prerequisite>Test environment setup for validation</prerequisite>
+    <prerequisite>Admin user accounts properly configured</prerequisite>
+  </prerequisites>
 
-    <tasks>
-      <task id="1.1" type="code-change">
-        <title>Create Dashboard Data Service</title>
-        <file-path>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/services/dashboard.service.ts</file-path>
-        <action>create</action>
-        <description>Create new service for dashboard API calls</description>
-      </task>
+  <phase number="1" name="Database Migration" duration="1 week">
+    <task id="1.1" name="Data Analysis and Backup">
+      <description>Analyze existing data and create comprehensive backup</description>
+      <steps>
+        <step>Run full database backup using pg_dump</step>
+        <step>Analyze duplicate reference data across users</step>
+        <step>Create data consolidation report</step>
+        <step>Identify foreign key relationships</step>
+      </steps>
+    </task>
 
-      <task id="1.2" type="code-change">
-        <title>Replace Mock Data in Dashboard Component</title>
-        <file-path>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/dashboard/+page.svelte</file-path>
-        <action>modify</action>
-        <description>Replace hardcoded mock data with API calls</description>
-      </task>
+    <task id="1.2" name="Schema Modifications">
+      <description>Modify database schema for shared reference data</description>
+      <changes>
+        <change table="t_d_period">
+          <action>Drop constraint period_user_id_period_unique</action>
+          <action>Add constraint period_period_unique UNIQUE(period)</action>
+          <action>Make user_id nullable</action>
+          <action>Add created_by INTEGER REFERENCES t_d_user(id)</action>
+          <action>Add managed_by INTEGER REFERENCES t_d_user(id)</action>
+        </change>
+        <change table="t_d_financial_center">
+          <action>Drop constraint financial_center_user_id_code_unique</action>
+          <action>Add constraint financial_center_code_unique UNIQUE(code)</action>
+          <action>Make user_id nullable</action>
+          <action>Add created_by INTEGER REFERENCES t_d_user(id)</action>
+          <action>Add managed_by INTEGER REFERENCES t_d_user(id)</action>
+        </change>
+        <change table="t_d_cost_center">
+          <action>Drop constraint cost_center_user_id_code_unique</action>
+          <action>Add constraint cost_center_code_unique UNIQUE(code)</action>
+          <action>Make user_id nullable</action>
+          <action>Add created_by INTEGER REFERENCES t_d_user(id)</action>
+          <action>Add managed_by INTEGER REFERENCES t_d_user(id)</action>
+        </change>
+        <change table="t_d_nomenclature">
+          <action>Drop constraint nomenclature_user_id_code_unique</action>
+          <action>Add constraint nomenclature_code_unique UNIQUE(code)</action>
+          <action>Make user_id nullable</action>
+          <action>Add created_by INTEGER REFERENCES t_d_user(id)</action>
+          <action>Add managed_by INTEGER REFERENCES t_d_user(id)</action>
+        </change>
+      </changes>
+    </task>
 
-      <task id="1.3" type="code-change">
-        <title>Add Loading States to Dashboard</title>
-        <file-path>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/dashboard/+page.svelte</file-path>
-        <action>modify</action>
-        <description>Add loading indicators for better UX</description>
-      </task>
-    </tasks>
+    <task id="1.3" name="Data Consolidation">
+      <description>Consolidate duplicate reference data across users</description>
+      <algorithm>
+        <step>For each reference table:
+          - Group records by name/code
+          - Keep oldest record as master
+          - Update all foreign key references in t_f_registry
+          - Delete duplicate records
+          - Set created_by from original user_id
+          - Set managed_by to first admin user
+          - Clear user_id field (set to NULL)
+        </step>
+      </algorithm>
+    </task>
   </phase>
 
-  <phase name="phase-2-backend-verification" priority="2">
-    <title>Backend Verification</title>
-    <description>Verify backend APIs are working correctly and contain no mock data</description>
+  <phase number="2" name="Backend API Modifications" duration="1.5 weeks">
+    <task id="2.1" name="Update SQLAlchemy Models">
+      <description>Modify models to support shared reference data</description>
+      <files>
+        <file>backend-fastapi/app/models/period.py</file>
+        <file>backend-fastapi/app/models/financial_center.py</file>
+        <file>backend-fastapi/app/models/cost_center.py</file>
+        <file>backend-fastapi/app/models/nomenclature.py</file>
+      </files>
+      <changes>
+        <change>Make user_id nullable: user_id = Column(Integer, ForeignKey("t_d_user.id"), nullable=True)</change>
+        <change>Add created_by = Column(Integer, ForeignKey("t_d_user.id"))</change>
+        <change>Add managed_by = Column(Integer, ForeignKey("t_d_user.id"))</change>
+        <change>Add relationships for created_by and managed_by</change>
+      </changes>
+    </task>
+
+    <task id="2.2" name="Update Pydantic Schemas">
+      <description>Modify schemas for shared data model</description>
+      <files>
+        <file>backend-fastapi/app/schemas/period.py</file>
+        <file>backend-fastapi/app/schemas/financial_center.py</file>
+        <file>backend-fastapi/app/schemas/cost_center.py</file>
+        <file>backend-fastapi/app/schemas/nomenclature.py</file>
+      </files>
+      <changes>
+        <change>Make user_id optional in base schemas</change>
+        <change>Add created_by and managed_by fields</change>
+        <change>Add is_admin flag to response schemas</change>
+      </changes>
+    </task>
+
+    <task id="2.3" name="Update API Endpoints">
+      <description>Implement role-based access control</description>
+      <files>
+        <file>backend-fastapi/app/api/v1/endpoints/periods.py</file>
+        <file>backend-fastapi/app/api/v1/endpoints/financial_centers.py</file>
+        <file>backend-fastapi/app/api/v1/endpoints/cost_centers.py</file>
+        <file>backend-fastapi/app/api/v1/endpoints/nomenclatures.py</file>
+      </files>
+      <changes>
+        <change operation="GET">
+          <before>query.filter(Period.user_id == current_user.id)</before>
+          <after>query.all() # No user filtering</after>
+        </change>
+        <change operation="POST">
+          <before>current_user: User = Depends(get_current_user)</before>
+          <after>current_user: User = Depends(require_admin_access)</after>
+        </change>
+        <change operation="PUT">
+          <before>current_user: User = Depends(get_current_user)</before>
+          <after>current_user: User = Depends(require_admin_access)</after>
+        </change>
+        <change operation="DELETE">
+          <before>current_user: User = Depends(get_current_user)</before>
+          <after>current_user: User = Depends(require_admin_access)</after>
+        </change>
+      </changes>
+    </task>
   </phase>
 
-  <phase name="phase-3-database-management" priority="3">
-    <title>Database Data Management</title>
-    <description>Clear test data from database</description>
+  <phase number="3" name="Frontend Modifications" duration="1 week">
+    <task id="3.1" name="Update Navigation Components">
+      <description>Hide settings management from non-admin users</description>
+      <file>frontend-svelte/src/lib/components/common/SettingsNavigation.svelte</file>
+      <implementation>
+        Already implemented:
+        - isAdmin store check
+        - Conditional rendering based on $isAdmin
+        - Admin-only section clearly marked
+      </implementation>
+    </task>
+
+    <task id="3.2" name="Update Reference Management Pages">
+      <description>Add admin-only access control to pages</description>
+      <files>
+        <file>frontend-svelte/src/routes/(protected)/settings/periods/+page.svelte</file>
+        <file>frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.svelte</file>
+        <file>frontend-svelte/src/routes/(protected)/settings/cost-centers/+page.svelte</file>
+        <file>frontend-svelte/src/routes/(protected)/settings/nomenclatures/+page.svelte</file>
+      </files>
+      <changes>
+        <change>Add onMount check for admin role</change>
+        <change>Redirect non-admins to access denied page</change>
+        <change>Show read-only view for non-admins (optional)</change>
+        <change>Disable all edit/delete/create buttons for non-admins</change>
+      </changes>
+    </task>
+
+    <task id="3.3" name="Create Access Denied Page">
+      <description>Create user-friendly access denied page</description>
+      <file>frontend-svelte/src/routes/(protected)/access-denied/+page.svelte</file>
+      <features>
+        <feature>Clear message about admin-only access</feature>
+        <feature>Contact administrator information</feature>
+        <feature>Navigation back to dashboard</feature>
+      </features>
+    </task>
   </phase>
 
-  <phase name="phase-4-testing-verification" priority="4">
-    <title>Testing and Verification</title>
-    <description>Comprehensive testing to ensure dashboard works with real data</description>
+  <phase number="4" name="Testing and Validation" duration="0.5 weeks">
+    <task id="4.1" name="Unit Tests">
+      <description>Create comprehensive unit tests</description>
+      <tests>
+        <test>Test admin-only write operations</test>
+        <test>Test global read access</test>
+        <test>Test role validation</test>
+        <test>Test data consolidation integrity</test>
+      </tests>
+    </task>
+
+    <task id="4.2" name="Integration Tests">
+      <description>End-to-end testing of new system</description>
+      <scenarios>
+        <scenario>Admin creates reference data, all users can see it</scenario>
+        <scenario>Regular user attempts write operation (should fail)</scenario>
+        <scenario>Multiple admins managing same reference data</scenario>
+        <scenario>Foreign key integrity with t_f_registry</scenario>
+      </scenarios>
+    </task>
+
+    <task id="4.3" name="Performance Tests">
+      <description>Validate performance with shared data</description>
+      <metrics>
+        <metric>Query performance without user_id filtering</metric>
+        <metric>Index effectiveness on new constraints</metric>
+        <metric>Concurrent access patterns</metric>
+      </metrics>
+    </task>
   </phase>
 
-  <phase name="phase-5-documentation" priority="5">
-    <title>Documentation Updates</title>
-    <description>Update documentation to reflect changes</description>
-  </phase>
-</cleanup-plan>
+  <rollback_plan>
+    <step>Stop all application services</step>
+    <step>Restore database from backup</step>
+    <step>Revert code changes via git</step>
+    <step>Restart services with original configuration</step>
+    <step>Validate data integrity</step>
+  </rollback_plan>
+
+  <success_criteria>
+    <criterion>All users see the same global reference data</criterion>
+    <criterion>Only administrators can create/update/delete reference data</criterion>
+    <criterion>Regular users have read-only access to reference data</criterion>
+    <criterion>No data loss during consolidation process</criterion>
+    <criterion>All existing transactions maintain correct relationships</criterion>
+    <criterion>Frontend properly hides management UI from non-admins</criterion>
+    <criterion>All tests pass with 100% success rate</criterion>
+  </success_criteria>
+</implementation_plan>

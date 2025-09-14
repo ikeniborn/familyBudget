@@ -1,24 +1,38 @@
 <script lang="ts">
   import Card from '$lib/components/ui/Card.svelte';
   import Button from '$lib/components/ui/Button.svelte';
-  import { Tags, Plus, Edit, Trash2, FileText, TrendingUp, TrendingDown } from 'lucide-svelte';
+  import { Tags, Plus, Edit, Trash2, FileText, TrendingUp, TrendingDown, Shield, Users, User } from 'lucide-svelte';
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
   import { useToast } from '$lib/stores/toast.store';
   import { api } from '$lib/services/api';
+  import { isAdmin } from '$lib/stores/auth.store';
+  import type { Nomenclature } from '$lib/types';
   
   const toast = useToast();
-  
-  interface Nomenclature {
-    id: number;
-    code: string;
-    name: string;
-    category?: string;
-    type?: 'income' | 'expense';
-    description?: string;
-    is_active?: boolean;
-    created_at?: string;
-    updated_at?: string;
-    user_id?: number;
+
+  // Admin check - redirect non-admins
+  let userIsAdmin = false;
+  let adminCheckComplete = false;
+
+  // Subscribe to admin status
+  $: userIsAdmin = $isAdmin;
+
+  // Check admin access on mount
+  onMount(() => {
+    // Wait a moment for auth state to settle
+    setTimeout(() => {
+      adminCheckComplete = true;
+      if (!userIsAdmin) {
+        goto('/access-denied');
+        return;
+      }
+    }, 100);
+  });
+
+  // Don't render anything until admin check is complete
+  $: if (adminCheckComplete && !userIsAdmin) {
+    goto('/access-denied');
   }
 
   interface NomenclatureStats {
@@ -56,8 +70,16 @@
   };
 
   onMount(() => {
-    loadNomenclatures();
+    // Only load data if admin check passes
+    if (adminCheckComplete && userIsAdmin) {
+      loadNomenclatures();
+    }
   });
+
+  // Load data when admin status is confirmed
+  $: if (adminCheckComplete && userIsAdmin && nomenclatures.length === 0) {
+    loadNomenclatures();
+  }
 
   async function loadNomenclatures() {
     try {
@@ -114,6 +136,19 @@
     } else {
       return { class: 'bg-red-100 text-red-800', text: 'Расходы', icon: TrendingDown };
     }
+  }
+
+  function getDataTypeBadge(nomenclature: Nomenclature) {
+    if (nomenclature.is_shared || nomenclature.user_id === null) {
+      return { class: 'bg-purple-100 text-purple-800', text: 'Общий', icon: Users };
+    } else {
+      return { class: 'bg-blue-100 text-blue-800', text: 'Личный', icon: User };
+    }
+  }
+
+  function canEditNomenclature(nomenclature: Nomenclature): boolean {
+    // Admin can edit if is_editable flag is true (from API)
+    return nomenclature.is_editable !== false;
   }
 
   function handleAddNomenclature() {
@@ -300,7 +335,11 @@
       <Tags class="h-8 w-8 text-slate-600" />
       <div>
         <h1 class="text-2xl font-bold text-slate-900">Управление номенклатурами</h1>
-        <p class="text-slate-600">Категории доходов и расходов</p>
+        <p class="text-slate-600">Категории доходов и расходов (только администраторы)</p>
+        <div class="flex items-center gap-2 mt-1">
+          <Shield class="h-4 w-4 text-amber-600" />
+          <span class="text-sm text-amber-600 font-medium">Административный доступ</span>
+        </div>
       </div>
     </div>
     <Button on:click={handleAddNomenclature}>
@@ -383,6 +422,7 @@
               <th class="text-left py-3 px-4">Код</th>
               <th class="text-left py-3 px-4">Название</th>
               <th class="text-left py-3 px-4">Категория</th>
+              <th class="text-left py-3 px-4">Тип данных</th>
               <th class="text-left py-3 px-4">Тип</th>
               <th class="text-left py-3 px-4">Статус</th>
               <th class="text-left py-3 px-4">Создана</th>
@@ -390,15 +430,21 @@
             </tr>
           </thead>
           <tbody>
-            {#if loading}
+            {#if !adminCheckComplete}
               <tr>
-                <td colspan="7" class="py-8 text-center text-gray-500">
+                <td colspan="8" class="py-8 text-center text-gray-500">
+                  Проверка прав доступа...
+                </td>
+              </tr>
+            {:else if loading}
+              <tr>
+                <td colspan="8" class="py-8 text-center text-gray-500">
                   Загрузка номенклатур...
                 </td>
               </tr>
             {:else if nomenclatures.length === 0}
               <tr>
-                <td colspan="7" class="py-8 text-center text-gray-500">
+                <td colspan="8" class="py-8 text-center text-gray-500">
                   Номенклатуры не найдены
                 </td>
               </tr>
@@ -406,6 +452,8 @@
               {#each nomenclatures as nomenclature}
                 {@const statusBadge = getStatusBadge(nomenclature)}
                 {@const typeBadge = getTypeBadge(nomenclature)}
+                {@const dataTypeBadge = getDataTypeBadge(nomenclature)}
+                {@const canEdit = canEditNomenclature(nomenclature)}
                 <tr class="border-b hover:bg-gray-50">
                   <td class="py-3 px-4">
                     <span class="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
@@ -413,7 +461,7 @@
                     </span>
                   </td>
                   <td class="py-3 px-4">
-                    <div class="font-medium">{nomenclature.name}</div>
+                    <div class="font-medium">{nomenclature.name || nomenclature.nomenclature_name}</div>
                     {#if nomenclature.description}
                       <div class="text-xs text-gray-500 truncate max-w-xs">
                         {nomenclature.description}
@@ -423,6 +471,12 @@
                   <td class="py-3 px-4">
                     <span class="text-sm text-gray-600">
                       {nomenclature.category || 'Без категории'}
+                    </span>
+                  </td>
+                  <td class="py-3 px-4">
+                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {dataTypeBadge.class}">
+                      <svelte:component this={dataTypeBadge.icon} class="w-3 h-3 mr-1" />
+                      {dataTypeBadge.text}
                     </span>
                   </td>
                   <td class="py-3 px-4">
@@ -443,18 +497,24 @@
                   </td>
                   <td class="py-3 px-4 text-right">
                     <div class="flex items-center justify-end gap-2">
-                      <Button size="sm" variant="outline" on:click={() => handleEditNomenclature(nomenclature)}>
-                        <Edit class="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        class="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        on:click={() => handleDeleteNomenclature(nomenclature)}
-                        title="Удалить номенклатуру"
-                      >
-                        <Trash2 class="h-4 w-4" />
-                      </Button>
+                      {#if canEdit}
+                        <Button size="sm" variant="outline" on:click={() => handleEditNomenclature(nomenclature)}>
+                          <Edit class="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          class="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          on:click={() => handleDeleteNomenclature(nomenclature)}
+                          title="Удалить номенклатуру"
+                        >
+                          <Trash2 class="h-4 w-4" />
+                        </Button>
+                      {:else}
+                        <span class="text-sm text-gray-500 px-2 py-1 bg-gray-100 rounded">
+                          Только для чтения
+                        </span>
+                      {/if}
                     </div>
                   </td>
                 </tr>

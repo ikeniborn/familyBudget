@@ -1,27 +1,38 @@
 <script lang="ts">
   import Card from '$lib/components/ui/Card.svelte';
   import Button from '$lib/components/ui/Button.svelte';
-  import { Calendar, CalendarPlus, CalendarCheck, CalendarX, Edit, Trash2 } from 'lucide-svelte';
+  import { Calendar, CalendarPlus, CalendarCheck, CalendarX, Edit, Trash2, Shield, Users, User } from 'lucide-svelte';
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
   import { useToast } from '$lib/stores/toast.store';
   import { api } from '$lib/services/api';
+  import { isAdmin } from '$lib/stores/auth.store';
+  import type { Period } from '$lib/types';
   
   const toast = useToast();
-  
-  interface Period {
-    id: number;
-    date: string;
-    ru_name: string;
-    start_date?: string;
-    end_date?: string;
-    period_id: number;
-    period_name: string;
-    period_year: number;
-    period_month: number;
-    is_active?: boolean;
-    created_at?: string;
-    updated_at?: string;
-    user_id?: number;
+
+  // Admin check - redirect non-admins
+  let userIsAdmin = false;
+  let adminCheckComplete = false;
+
+  // Subscribe to admin status
+  $: userIsAdmin = $isAdmin;
+
+  // Check admin access on mount
+  onMount(() => {
+    // Wait a moment for auth state to settle
+    setTimeout(() => {
+      adminCheckComplete = true;
+      if (!userIsAdmin) {
+        goto('/access-denied');
+        return;
+      }
+    }, 100);
+  });
+
+  // Don't render anything until admin check is complete
+  $: if (adminCheckComplete && !userIsAdmin) {
+    goto('/access-denied');
   }
 
   interface PeriodStats {
@@ -75,9 +86,18 @@
   }
 
   onMount(() => {
+    // Only load data if admin check passes
+    if (adminCheckComplete && userIsAdmin) {
+      loadPeriods();
+      loadPeriodStats();
+    }
+  });
+
+  // Load data when admin status is confirmed
+  $: if (adminCheckComplete && userIsAdmin && periods.length === 0) {
     loadPeriods();
     loadPeriodStats();
-  });
+  }
 
   async function loadPeriods() {
     try {
@@ -142,9 +162,9 @@
   function getStatusBadge(period: Period) {
     const today = new Date();
     const periodDate = new Date(period.date);
-    const isCurrent = periodDate.getMonth() === today.getMonth() && 
+    const isCurrent = periodDate.getMonth() === today.getMonth() &&
                      periodDate.getFullYear() === today.getFullYear();
-    
+
     if (isCurrent) {
       return { class: 'bg-blue-100 text-blue-800', text: 'Текущий' };
     } else if (period.is_active !== false) {
@@ -152,6 +172,19 @@
     } else {
       return { class: 'bg-gray-100 text-gray-800', text: 'Неактивен' };
     }
+  }
+
+  function getDataTypeBadge(period: Period) {
+    if (period.is_shared || period.user_id === null) {
+      return { class: 'bg-purple-100 text-purple-800', text: 'Общий', icon: Users };
+    } else {
+      return { class: 'bg-blue-100 text-blue-800', text: 'Личный', icon: User };
+    }
+  }
+
+  function canEditPeriod(period: Period): boolean {
+    // Admin can edit if is_editable flag is true (from API)
+    return period.is_editable !== false;
   }
 
   function handleAddPeriod() {
@@ -343,7 +376,11 @@
       <Calendar class="h-8 w-8 text-slate-600" />
       <div>
         <h1 class="text-2xl font-bold text-slate-900">Управление периодами</h1>
-        <p class="text-slate-600">Временные периоды для планирования бюджета</p>
+        <p class="text-slate-600">Временные периоды для планирования бюджета (только администраторы)</p>
+        <div class="flex items-center gap-2 mt-1">
+          <Shield class="h-4 w-4 text-amber-600" />
+          <span class="text-sm text-amber-600 font-medium">Административный доступ</span>
+        </div>
       </div>
     </div>
     <Button on:click={handleAddPeriod}>
@@ -413,6 +450,7 @@
             <tr class="border-b">
               <th class="text-left py-3 px-4">Период</th>
               <th class="text-left py-3 px-4">Название</th>
+              <th class="text-left py-3 px-4">Тип данных</th>
               <th class="text-left py-3 px-4">Статус</th>
               <th class="text-left py-3 px-4">Диапазон</th>
               <th class="text-left py-3 px-4">Создан</th>
@@ -420,21 +458,29 @@
             </tr>
           </thead>
           <tbody>
-            {#if loading}
+            {#if !adminCheckComplete}
               <tr>
-                <td colspan="6" class="py-8 text-center text-gray-500">
+                <td colspan="7" class="py-8 text-center text-gray-500">
+                  Проверка прав доступа...
+                </td>
+              </tr>
+            {:else if loading}
+              <tr>
+                <td colspan="7" class="py-8 text-center text-gray-500">
                   Загрузка периодов...
                 </td>
               </tr>
             {:else if periods.length === 0}
               <tr>
-                <td colspan="6" class="py-8 text-center text-gray-500">
+                <td colspan="7" class="py-8 text-center text-gray-500">
                   Периоды не найдены
                 </td>
               </tr>
             {:else}
               {#each periods as period}
                 {@const statusBadge = getStatusBadge(period)}
+                {@const dataTypeBadge = getDataTypeBadge(period)}
+                {@const canEdit = canEditPeriod(period)}
                 <tr class="border-b hover:bg-gray-50">
                   <td class="py-3 px-4">
                     <div class="font-medium">
@@ -442,10 +488,19 @@
                     </div>
                     <div class="text-sm text-gray-500">
                       {period.period_year}.{String(period.period_month).padStart(2, '0')}
+                      {#if period.code}
+                        • {period.code}
+                      {/if}
                     </div>
                   </td>
                   <td class="py-3 px-4">
                     <span class="font-medium">{period.ru_name}</span>
+                  </td>
+                  <td class="py-3 px-4">
+                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {dataTypeBadge.class}">
+                      <svelte:component this={dataTypeBadge.icon} class="w-3 h-3 mr-1" />
+                      {dataTypeBadge.text}
+                    </span>
                   </td>
                   <td class="py-3 px-4">
                     <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {statusBadge.class}">
@@ -468,18 +523,24 @@
                   </td>
                   <td class="py-3 px-4 text-right">
                     <div class="flex items-center justify-end gap-2">
-                      <Button size="sm" variant="outline" on:click={() => handleEditPeriod(period)}>
-                        <Edit class="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        class="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        on:click={() => handleDeletePeriod(period)}
-                        title="Удалить период"
-                      >
-                        <Trash2 class="h-4 w-4" />
-                      </Button>
+                      {#if canEdit}
+                        <Button size="sm" variant="outline" on:click={() => handleEditPeriod(period)}>
+                          <Edit class="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          class="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          on:click={() => handleDeletePeriod(period)}
+                          title="Удалить период"
+                        >
+                          <Trash2 class="h-4 w-4" />
+                        </Button>
+                      {:else}
+                        <span class="text-sm text-gray-500 px-2 py-1 bg-gray-100 rounded">
+                          Только для чтения
+                        </span>
+                      {/if}
                     </div>
                   </td>
                 </tr>

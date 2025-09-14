@@ -1,7 +1,7 @@
 """
 Nomenclature model.
 """
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, UniqueConstraint, Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, UniqueConstraint, Enum, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
@@ -20,7 +20,9 @@ class Nomenclature(Base):
     __tablename__ = "t_d_nomenclature"
     
     id = Column("nomenclature_id", Integer, primary_key=True, index=True)
+    code = Column("nomenclature_code", String(50), nullable=False, unique=True)
     name = Column("nomenclature_name", String, nullable=False)
+    description = Column("description", String(500), nullable=True)
     nomenclature_type = Column(Enum(NomenclatureType), default=NomenclatureType.EXPENSE)
     account_name = Column(String, nullable=False)
     bill_name = Column(String, nullable=False)
@@ -28,19 +30,21 @@ class Nomenclature(Base):
     is_budget = Column(Boolean, nullable=False)
     is_fact = Column(Boolean, nullable=False)
     is_active = Column("is_active", Boolean, default=True)
-    user_id = Column("user_id", Integer, index=True)
+    user_id = Column("user_id", Integer, nullable=True, index=True)  # Nullable for shared records
     parent_id = Column("parent_id", Integer, index=True, nullable=True)
+    created_by = Column("created_by", Integer, ForeignKey("t_d_user.user_id"), nullable=True)
+    managed_by = Column("managed_by", Integer, ForeignKey("t_d_user.user_id"), nullable=True)
     created_at = Column("created_at", DateTime(timezone=True), server_default=func.now())
     updated_at = Column("updated_at", DateTime(timezone=True), onupdate=func.now())
     
-    # Unique constraint on name per user
-    __table_args__ = (
-        UniqueConstraint('nomenclature_name', 'user_id', name='_nomenclature_name_user_uc'),
-    )
+    # Global unique constraint on code (shared reference data)
+    __table_args__ = ()
     
     # Relationships
     registries = relationship("Registry", back_populates="nomenclature")
     products = relationship("ProductNomenclature", back_populates="nomenclature")
+    creator = relationship("User", foreign_keys=[created_by])
+    manager = relationship("User", foreign_keys=[managed_by])
     
     def __repr__(self):
         return f"<Nomenclature(id={self.id}, name='{self.name}')>"
@@ -48,7 +52,9 @@ class Nomenclature(Base):
     def to_dict(self):
         return {
             "nomenclature_id": self.id,
+            "nomenclature_code": self.code,
             "nomenclature_name": self.name,
+            "description": self.description,
             "nomenclature_type": self.nomenclature_type.value if self.nomenclature_type else None,
             "account_name": self.account_name,
             "bill_name": self.bill_name,
@@ -58,6 +64,9 @@ class Nomenclature(Base):
             "is_active": self.is_active,
             "user_id": self.user_id,
             "parent_id": self.parent_id,
+            "created_by": self.created_by,
+            "managed_by": self.managed_by,
+            "is_shared": self.user_id is None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }

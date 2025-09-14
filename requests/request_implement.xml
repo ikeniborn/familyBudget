@@ -1,0 +1,492 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<implementation_plan>
+  <meta>
+    <title>Migration from User-Isolated to Admin-Managed Shared Reference Data</title>
+    <description>Comprehensive implementation plan to convert reference data management from user-isolated to shared admin-managed system</description>
+    <estimated_duration>3-4 weeks</estimated_duration>
+    <complexity>High</complexity>
+    <risk_level>Medium-High</risk_level>
+    <created_date>2025-09-14</created_date>
+  </meta>
+
+  <current_state_analysis>
+    <database>
+      <user_table>
+        <status>✅ Ready</status>
+        <notes>User table already has 'role' field (default: 'user'), perfect foundation for admin system</notes>
+      </user_table>
+      <reference_tables>
+        <table name="t_d_period" status="needs_migration">
+          <fields>user_id (filtering), unique constraint on (period_dt, user_id)</fields>
+          <isolation_method>user_id filtering</isolation_method>
+        </table>
+        <table name="t_d_financial_center" status="needs_migration">
+          <fields>user_id (filtering), unique constraint on (financial_center_name, user_id)</fields>
+          <isolation_method>user_id filtering</isolation_method>
+        </table>
+        <table name="t_d_cost_center" status="needs_migration">
+          <fields>user_id (filtering), unique constraint on (cost_center_name, user_id)</fields>
+          <isolation_method>user_id filtering</isolation_method>
+        </table>
+        <table name="t_d_nomenclature" status="needs_migration">
+          <fields>user_id (filtering), unique constraint on (nomenclature_name, user_id)</fields>
+          <isolation_method>user_id filtering</isolation_method>
+        </table>
+      </reference_tables>
+    </database>
+
+    <backend_api>
+      <security>
+        <status>✅ Ready</status>
+        <notes>require_admin_access function already exists in app.core.security</notes>
+      </security>
+      <endpoints>
+        <status>needs_modification</status>
+        <current_behavior>All CRUD operations filter by user_id for data isolation</current_behavior>
+        <required_behavior>Read operations global, Write operations admin-only</required_behavior>
+      </endpoints>
+    </backend_api>
+
+    <frontend>
+      <auth_store>
+        <status>✅ Ready</status>
+        <notes>Comprehensive role handling with isAdmin derived store already implemented</notes>
+      </auth_store>
+      <settings_navigation>
+        <status>✅ Ready</status>
+        <notes>Already has admin filtering - system-settings category only visible to admins</notes>
+      </settings_navigation>
+      <reference_pages>
+        <status>needs_modification</status>
+        <pages>periods, financial-centers, cost-centers, nomenclatures</pages>
+        <current_behavior>Full CRUD access for all users</current_behavior>
+        <required_behavior>Read-only for users, full CRUD for admins</required_behavior>
+      </reference_pages>
+    </frontend>
+  </current_state_analysis>
+
+  <implementation_phases>
+
+    <!-- PHASE 1: Database Migration and Consolidation -->
+    <phase number="1" name="Database Migration" duration="1 week" risk="high">
+      <description>Migrate database schema and consolidate duplicate reference data</description>
+
+      <tasks>
+        <task id="1.1" priority="critical">
+          <title>Create Database Migration Script</title>
+          <description>Create Alembic migration to modify reference table constraints</description>
+          <implementation>
+            <file_path>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/alembic/versions/xxx_migrate_to_shared_references.py</file_path>
+            <actions>
+              <action>Drop existing unique constraints (name + user_id)</action>
+              <action>Create new unique constraints (name only)</action>
+              <action>Add nullable created_by field to track who created the record</action>
+              <action>Add nullable managed_by field to track current admin manager</action>
+            </actions>
+          </implementation>
+        </task>
+
+        <task id="1.2" priority="critical">
+          <title>Data Consolidation Script</title>
+          <description>Consolidate duplicate reference data across users</description>
+          <implementation>
+            <script_path>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/scripts/consolidate_reference_data.py</script_path>
+            <strategy>
+              <step>1. Identify duplicate records across users by name</step>
+              <step>2. Keep the oldest record (by created_at) as master</step>
+              <step>3. Update all foreign key references to point to master record</step>
+              <step>4. Delete duplicate records</step>
+              <step>5. Set user_id to NULL for shared records</step>
+              <step>6. Set created_by to original user_id</step>
+            </strategy>
+          </implementation>
+        </task>
+
+        <task id="1.3" priority="high">
+          <title>Update Model Definitions</title>
+          <description>Modify SQLAlchemy models for shared reference system</description>
+          <files>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/models/period.py</file>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/models/financial_center.py</file>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/models/cost_center.py</file>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/models/nomenclature.py</file>
+          </files>
+          <changes>
+            <change>Make user_id nullable</change>
+            <change>Add created_by field (Integer, nullable=True)</change>
+            <change>Add managed_by field (Integer, nullable=True)</change>
+            <change>Update unique constraints to be global (remove user_id)</change>
+          </changes>
+        </task>
+      </tasks>
+    </phase>
+
+    <!-- PHASE 2: Backend API Modifications -->
+    <phase number="2" name="Backend API Changes" duration="1.5 weeks" risk="medium">
+      <description>Modify API endpoints for admin-only write access and global read access</description>
+
+      <tasks>
+        <task id="2.1" priority="critical">
+          <title>Update Endpoint Security</title>
+          <description>Modify API endpoints to enforce admin-only write operations</description>
+          <files>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/periods.py</file>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/financial_centers.py</file>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/cost_centers.py</file>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/nomenclatures.py</file>
+          </files>
+          <changes>
+            <change>GET endpoints: Remove user_id filtering, make globally accessible</change>
+            <change>POST endpoints: Add require_admin_access dependency</change>
+            <change>PUT endpoints: Add require_admin_access dependency</change>
+            <change>DELETE endpoints: Add require_admin_access dependency</change>
+            <change>Set created_by = current_user.id on creation</change>
+            <change>Set managed_by = current_user.id on updates</change>
+          </changes>
+        </task>
+
+        <task id="2.2" priority="high">
+          <title>Update Pydantic Schemas</title>
+          <description>Modify schemas to reflect shared reference system</description>
+          <files>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/schemas/financial_center.py</file>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/schemas/period.py</file>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/schemas/cost_center.py</file>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/schemas/nomenclature.py</file>
+          </files>
+          <changes>
+            <change>Remove user_id from create/update schemas</change>
+            <change>Add created_by and managed_by to response schemas</change>
+            <change>Update validation rules for global uniqueness</change>
+          </changes>
+        </task>
+
+        <task id="2.3" priority="medium">
+          <title>Add Audit Trail Support</title>
+          <description>Implement tracking for who manages reference data</description>
+          <implementation>
+            <feature>Track creation user in created_by field</feature>
+            <feature>Track last modifier in managed_by field</feature>
+            <feature>Add audit endpoints for admin users</feature>
+          </implementation>
+        </task>
+      </tasks>
+    </phase>
+
+    <!-- PHASE 3: Frontend Role-Based Access -->
+    <phase number="3" name="Frontend Modifications" duration="1 week" risk="low">
+      <description>Update frontend for role-based access to reference data management</description>
+
+      <tasks>
+        <task id="3.1" priority="high">
+          <title>Hide Reference Settings from Regular Users</title>
+          <description>Modify settings navigation to hide reference data management from non-admins</description>
+          <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/settings/SettingsNavigation.svelte</file>
+          <changes>
+            <change>Filter 'reference-data' category based on $isAdmin</change>
+            <change>Keep 'catalog-data' category visible for products (read-only)</change>
+            <change>Add admin-only indicator to reference data items</change>
+          </changes>
+        </task>
+
+        <task id="3.2" priority="high">
+          <title>Update Reference Data Pages</title>
+          <description>Modify reference data pages for admin-only write access</description>
+          <files>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/periods/+page.svelte</file>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.svelte</file>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/cost-centers/+page.svelte</file>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/nomenclatures/+page.svelte</file>
+          </files>
+          <changes>
+            <change>Add admin check using $isAdmin store</change>
+            <change>Hide create/edit/delete buttons for non-admin users</change>
+            <change>Show read-only view for regular users</change>
+            <change>Add admin-required message for non-admin users</change>
+            <change>Update API calls to not expect user_id filtering</change>
+          </changes>
+        </task>
+
+        <task id="3.3" priority="medium">
+          <title>Add Admin Indicators</title>
+          <description>Add visual indicators showing reference data is admin-managed</description>
+          <implementation>
+            <feature>Admin badges on reference data items</feature>
+            <feature>Creator/manager information display</feature>
+            <feature>Admin-only tooltips and help text</feature>
+          </implementation>
+        </task>
+
+        <task id="3.4" priority="medium">
+          <title>Update Route Guards</title>
+          <description>Add route-level protection for reference data pages</description>
+          <files>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/periods/+page.ts</file>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.ts</file>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/cost-centers/+page.ts</file>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/nomenclatures/+page.ts</file>
+          </files>
+          <changes>
+            <change>Add admin role check in page load functions</change>
+            <change>Redirect non-admin users with access denied message</change>
+          </changes>
+        </task>
+      </tasks>
+    </phase>
+
+    <!-- PHASE 4: Testing and Validation -->
+    <phase number="4" name="Testing and Validation" duration="0.5 weeks" risk="low">
+      <description>Comprehensive testing of the new admin-managed reference system</description>
+
+      <tasks>
+        <task id="4.1" priority="critical">
+          <title>Backend API Testing</title>
+          <description>Update and create tests for new API behavior</description>
+          <files>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/tests/backend/test_periods_api.py</file>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/tests/backend/test_financial_centers_api.py</file>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/tests/backend/test_cost_centers_api.py</file>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/tests/backend/test_nomenclatures_api.py</file>
+          </files>
+          <test_scenarios>
+            <scenario>Admin user can create/read/update/delete reference data</scenario>
+            <scenario>Regular user can only read reference data</scenario>
+            <scenario>Regular user gets 403 on create/update/delete attempts</scenario>
+            <scenario>Global reference data is visible to all users</scenario>
+            <scenario>Audit trail fields are properly populated</scenario>
+          </test_scenarios>
+        </task>
+
+        <task id="4.2" priority="high">
+          <title>Frontend Component Testing</title>
+          <description>Test role-based access in frontend components</description>
+          <files>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/tests/frontend/periods.test.ts</file>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/tests/frontend/financial_centers.test.ts</file>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/tests/frontend/cost_centers.test.ts</file>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/tests/frontend/nomenclatures.test.ts</file>
+          </files>
+          <test_scenarios>
+            <scenario>Admin users see full CRUD interface</scenario>
+            <scenario>Regular users see read-only interface</scenario>
+            <scenario>Settings navigation properly filters by role</scenario>
+            <scenario>Route guards work for non-admin users</scenario>
+          </test_scenarios>
+        </task>
+
+        <task id="4.3" priority="medium">
+          <title>End-to-End Testing</title>
+          <description>Full workflow testing with different user roles</description>
+          <test_scenarios>
+            <scenario>Admin creates reference data, visible to all users</scenario>
+            <scenario>Regular user cannot access reference management pages</scenario>
+            <scenario>Reference data changes affect all users immediately</scenario>
+            <scenario>Migration doesn't break existing functionality</scenario>
+          </test_scenarios>
+        </task>
+      </tasks>
+    </phase>
+  </implementation_phases>
+
+  <technical_specifications>
+
+    <database_changes>
+      <migration_script>
+        <name>xxx_migrate_to_shared_references.py</name>
+        <operations>
+          <operation type="modify_constraint">
+            <table>t_d_period</table>
+            <action>DROP CONSTRAINT _period_dt_user_uc</action>
+          </operation>
+          <operation type="modify_constraint">
+            <table>t_d_period</table>
+            <action>ADD CONSTRAINT _period_dt_unique UNIQUE (period_dt)</action>
+          </operation>
+          <operation type="add_column">
+            <table>t_d_period</table>
+            <column>created_by INTEGER REFERENCES t_d_user(user_id)</column>
+          </operation>
+          <operation type="add_column">
+            <table>t_d_period</table>
+            <column>managed_by INTEGER REFERENCES t_d_user(user_id)</column>
+          </operation>
+          <operation type="modify_column">
+            <table>t_d_period</table>
+            <column>user_id SET NULL</column>
+          </operation>
+          <!-- Similar operations for financial_center, cost_center, nomenclature tables -->
+        </operations>
+      </migration_script>
+
+      <consolidation_script>
+        <name>consolidate_reference_data.py</name>
+        <logic>
+          <step>FOR EACH reference table (periods, financial_centers, cost_centers, nomenclatures)</step>
+          <step>  GROUP records BY name</step>
+          <step>  FOR EACH group with multiple records</step>
+          <step>    SELECT oldest record as master (MIN created_at)</step>
+          <step>    UPDATE registry table foreign keys to point to master</step>
+          <step>    SET master.created_by = master.user_id</step>
+          <step>    SET master.user_id = NULL</step>
+          <step>    DELETE duplicate records</step>
+          <step>  END FOR</step>
+          <step>END FOR</step>
+        </logic>
+      </consolidation_script>
+    </database_changes>
+
+    <api_endpoint_changes>
+      <security_model>
+        <read_operations>
+          <access_level>All authenticated users</access_level>
+          <filtering>No user_id filtering - global data</filtering>
+        </read_operations>
+        <write_operations>
+          <access_level>Admin users only</access_level>
+          <dependency>require_admin_access from app.core.security</dependency>
+        </write_operations>
+      </security_model>
+
+      <endpoint_modifications>
+        <endpoint path="GET /api/periods/" change="remove_user_filtering">
+          <before>WHERE Period.user_id == current_user.get('user_id')</before>
+          <after>No user_id filtering - return all periods</after>
+        </endpoint>
+        <endpoint path="POST /api/periods/" change="add_admin_check">
+          <before>current_user: dict = Depends(get_current_user)</before>
+          <after>current_user: dict = Depends(require_admin_access)</after>
+        </endpoint>
+        <!-- Similar changes for financial_centers, cost_centers, nomenclatures -->
+      </endpoint_modifications>
+    </api_endpoint_changes>
+
+    <frontend_modifications>
+      <settings_navigation>
+        <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/settings/SettingsNavigation.svelte</file>
+        <change>Filter reference-data category: category.id !== 'reference-data' || $isAdmin</change>
+      </settings_navigation>
+
+      <reference_pages>
+        <admin_check>
+          <code>
+            {#if $isAdmin}
+              <!-- Full CRUD interface -->
+              <button on:click={createItem}>Create New</button>
+              <button on:click={editItem}>Edit</button>
+              <button on:click={deleteItem}>Delete</button>
+            {:else}
+              <!-- Read-only view -->
+              <div class="text-center py-8">
+                <p class="text-gray-500">Reference data management requires administrator privileges.</p>
+                <p class="text-sm text-gray-400">Contact your administrator to make changes.</p>
+              </div>
+            {/if}
+          </code>
+        </admin_check>
+      </reference_pages>
+    </frontend_modifications>
+  </technical_specifications>
+
+  <migration_strategy>
+    <pre_migration>
+      <step>1. Backup current database completely</step>
+      <step>2. Run data analysis script to identify duplicate records</step>
+      <step>3. Create consolidation plan report</step>
+      <step>4. Verify foreign key relationships</step>
+    </pre_migration>
+
+    <migration_execution>
+      <step>1. Put application in maintenance mode</step>
+      <step>2. Run consolidation script to merge duplicate data</step>
+      <step>3. Execute database migration (schema changes)</step>
+      <step>4. Deploy backend API changes</step>
+      <step>5. Deploy frontend changes</step>
+      <step>6. Run post-migration validation</step>
+      <step>7. Exit maintenance mode</step>
+    </migration_execution>
+
+    <post_migration>
+      <step>1. Verify all users can see shared reference data</step>
+      <step>2. Verify only admins can modify reference data</step>
+      <step>3. Test existing transactions still work with new references</step>
+      <step>4. Monitor for any foreign key violations</step>
+    </post_migration>
+
+    <rollback_plan>
+      <condition>If migration fails or causes issues</condition>
+      <steps>
+        <step>1. Restore database from backup</step>
+        <step>2. Revert backend API deployment</step>
+        <step>3. Revert frontend deployment</step>
+        <step>4. Investigate root cause</step>
+      </steps>
+    </rollback_plan>
+  </migration_strategy>
+
+  <risk_assessment>
+    <high_risks>
+      <risk>
+        <description>Data loss during consolidation</description>
+        <mitigation>Complete backup before migration, extensive testing on copy</mitigation>
+        <probability>Low</probability>
+        <impact>Critical</impact>
+      </risk>
+      <risk>
+        <description>Foreign key constraint violations</description>
+        <mitigation>Validate all FK relationships before and after consolidation</mitigation>
+        <probability>Medium</probability>
+        <impact>High</impact>
+      </risk>
+    </high_risks>
+
+    <medium_risks>
+      <risk>
+        <description>User confusion about lost personal reference data</description>
+        <mitigation>User communication plan, clear documentation</mitigation>
+        <probability>High</probability>
+        <impact>Low</impact>
+      </risk>
+      <risk>
+        <description>Performance impact from removing user_id indexes</description>
+        <mitigation>Add new indexes on commonly queried fields</mitigation>
+        <probability>Medium</probability>
+        <impact>Medium</impact>
+      </risk>
+    </medium_risks>
+  </risk_assessment>
+
+  <success_criteria>
+    <criteria>
+      <criterion>All users can see the same reference data globally</criterion>
+      <criterion>Only admin users can create/edit/delete reference data</criterion>
+      <criterion>Regular users see read-only interface for reference data</criterion>
+      <criterion>No data loss during consolidation process</criterion>
+      <criterion>All existing transactions maintain referential integrity</criterion>
+      <criterion>Frontend settings navigation properly reflects admin/user roles</criterion>
+      <criterion>Performance remains acceptable for reference data queries</criterion>
+      <criterion>All tests pass with new role-based access model</criterion>
+    </criteria>
+  </success_criteria>
+
+  <post_implementation>
+    <user_communication>
+      <announcement>
+        <title>Reference Data Management Changes</title>
+        <message>Reference data (periods, financial centers, cost centers, nomenclatures) are now managed centrally by administrators. All users will see the same reference data, but only administrators can make changes. Contact your administrator if you need new reference data created or modified.</message>
+      </announcement>
+    </user_communication>
+
+    <documentation_updates>
+      <update>Update user manual with new role-based access information</update>
+      <update>Create admin guide for reference data management</update>
+      <update>Update API documentation with new security model</update>
+    </documentation_updates>
+
+    <monitoring>
+      <metric>Track admin vs user access patterns</metric>
+      <metric>Monitor reference data creation/modification frequency</metric>
+      <metric>Watch for 403 errors from regular users</metric>
+    </monitoring>
+  </post_implementation>
+
+</implementation_plan>

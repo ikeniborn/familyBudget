@@ -22,11 +22,17 @@ export interface Period {
   period_month: number;
   period_start_date?: string;
   period_end_date?: string;
-  user_id: number;
+  user_id: number | null;
   transaction_count?: number;
   is_active?: boolean;
   created_at?: string;
   updated_at?: string;
+  // Shared data fields
+  code?: string;
+  created_by?: number;
+  managed_by?: number;
+  is_editable?: boolean;
+  is_shared?: boolean;
 }
 
 // Admin Period type with user information
@@ -41,10 +47,12 @@ export interface AdminPeriod extends Period {
 export interface FinancialCenter {
   id: number;
   financial_center_id: number;
-  financial_center_name: string;
+  financial_center_name?: string; // For backward compatibility
+  name: string; // New standardized field name
   financial_center_description?: string;
+  description?: string; // New standardized field name
   parent_id?: number | null;
-  user_id: number;
+  user_id: number | null;
   is_active?: boolean;
   usage_stats?: {
     cost_centers_count: number;
@@ -55,6 +63,12 @@ export interface FinancialCenter {
   level?: number;
   created_at?: string;
   updated_at?: string;
+  // Shared data fields
+  code?: string;
+  created_by?: number;
+  managed_by?: number;
+  is_editable?: boolean;
+  is_shared?: boolean;
 }
 
 // Admin Financial Center type with user information
@@ -69,18 +83,26 @@ export interface AdminFinancialCenter extends FinancialCenter {
 export interface CostCenter {
   id: number;
   cost_center_id: number;
-  cost_center_name: string;
+  cost_center_name?: string; // For backward compatibility
+  name: string; // New standardized field name
   cost_center_description?: string;
+  description?: string; // New standardized field name
   financial_center_id?: number | null;
   budget_limit?: number;
   budget_period?: 'monthly' | 'quarterly' | 'yearly';
-  user_id: number;
+  user_id: number | null;
   is_active: boolean;
   current_usage?: number;
   usage_percentage?: number;
   history?: CostCenterHistory[];
   created_at?: string;
   updated_at?: string;
+  // Shared data fields
+  code?: string;
+  created_by?: number;
+  managed_by?: number;
+  is_editable?: boolean;
+  is_shared?: boolean;
 }
 
 // Admin Cost Center type with user information
@@ -105,7 +127,8 @@ export interface CostCenterHistory {
 export interface Nomenclature {
   id: number;
   nomenclature_id: number;
-  nomenclature_name: string;
+  nomenclature_name?: string; // For backward compatibility
+  name: string; // New standardized field name
   nomenclature_type?: 'INCOME' | 'EXPENSE';
   account_name: string;
   bill_name: string;
@@ -116,7 +139,7 @@ export interface Nomenclature {
   color?: string;
   icon?: string;
   auto_rules?: AutoCategorizationRule[];
-  user_id: number;
+  user_id: number | null;
   is_active: boolean;
   is_expanded?: boolean;
   level?: number;
@@ -125,6 +148,12 @@ export interface Nomenclature {
   total_amount?: number;
   created_at?: string;
   updated_at?: string;
+  // Shared data fields
+  code?: string;
+  created_by?: number;
+  managed_by?: number;
+  is_editable?: boolean;
+  is_shared?: boolean;
 }
 
 export interface AdminNomenclature extends Nomenclature {

@@ -1,22 +1,38 @@
 <script lang="ts">
   import Card from '$lib/components/ui/Card.svelte';
   import Button from '$lib/components/ui/Button.svelte';
-  import { Building2, BuildingIcon, Plus, Edit, Trash2, FileText } from 'lucide-svelte';
+  import { Building2, BuildingIcon, Plus, Edit, Trash2, FileText, Shield, Users, User } from 'lucide-svelte';
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
   import { useToast } from '$lib/stores/toast.store';
   import { api } from '$lib/services/api';
+  import { isAdmin } from '$lib/stores/auth.store';
+  import type { FinancialCenter } from '$lib/types';
   
   const toast = useToast();
-  
-  interface FinancialCenter {
-    id: number;
-    code: string;
-    name: string;
-    description?: string;
-    is_active?: boolean;
-    created_at?: string;
-    updated_at?: string;
-    user_id?: number;
+
+  // Admin check - redirect non-admins
+  let userIsAdmin = false;
+  let adminCheckComplete = false;
+
+  // Subscribe to admin status
+  $: userIsAdmin = $isAdmin;
+
+  // Check admin access on mount
+  onMount(() => {
+    // Wait a moment for auth state to settle
+    setTimeout(() => {
+      adminCheckComplete = true;
+      if (!userIsAdmin) {
+        goto('/access-denied');
+        return;
+      }
+    }, 100);
+  });
+
+  // Don't render anything until admin check is complete
+  $: if (adminCheckComplete && !userIsAdmin) {
+    goto('/access-denied');
   }
 
   interface FinancialCenterStats {
@@ -48,8 +64,16 @@
   };
 
   onMount(() => {
-    loadFinancialCenters();
+    // Only load data if admin check passes
+    if (adminCheckComplete && userIsAdmin) {
+      loadFinancialCenters();
+    }
   });
+
+  // Load data when admin status is confirmed
+  $: if (adminCheckComplete && userIsAdmin && financialCenters.length === 0) {
+    loadFinancialCenters();
+  }
 
   async function loadFinancialCenters() {
     try {
@@ -96,6 +120,19 @@
     } else {
       return { class: 'bg-gray-100 text-gray-800', text: 'Неактивен' };
     }
+  }
+
+  function getDataTypeBadge(fc: FinancialCenter) {
+    if (fc.is_shared || fc.user_id === null) {
+      return { class: 'bg-purple-100 text-purple-800', text: 'Общий', icon: Users };
+    } else {
+      return { class: 'bg-blue-100 text-blue-800', text: 'Личный', icon: User };
+    }
+  }
+
+  function canEditFC(fc: FinancialCenter): boolean {
+    // Admin can edit if is_editable flag is true (from API)
+    return fc.is_editable !== false;
   }
 
   function handleAddFC() {
@@ -260,7 +297,11 @@
       <Building2 class="h-8 w-8 text-slate-600" />
       <div>
         <h1 class="text-2xl font-bold text-slate-900">Управление ЦФО</h1>
-        <p class="text-slate-600">Центры финансовой ответственности</p>
+        <p class="text-slate-600">Центры финансовой ответственности (только администраторы)</p>
+        <div class="flex items-center gap-2 mt-1">
+          <Shield class="h-4 w-4 text-amber-600" />
+          <span class="text-sm text-amber-600 font-medium">Административный доступ</span>
+        </div>
       </div>
     </div>
     <Button on:click={handleAddFC}>
@@ -319,27 +360,36 @@
               <th class="text-left py-3 px-4">Код</th>
               <th class="text-left py-3 px-4">Название</th>
               <th class="text-left py-3 px-4">Описание</th>
+              <th class="text-left py-3 px-4">Тип данных</th>
               <th class="text-left py-3 px-4">Статус</th>
               <th class="text-left py-3 px-4">Создан</th>
               <th class="text-right py-3 px-4">Действия</th>
             </tr>
           </thead>
           <tbody>
-            {#if loading}
+            {#if !adminCheckComplete}
               <tr>
-                <td colspan="6" class="py-8 text-center text-gray-500">
+                <td colspan="7" class="py-8 text-center text-gray-500">
+                  Проверка прав доступа...
+                </td>
+              </tr>
+            {:else if loading}
+              <tr>
+                <td colspan="7" class="py-8 text-center text-gray-500">
                   Загрузка финансовых центров...
                 </td>
               </tr>
             {:else if financialCenters.length === 0}
               <tr>
-                <td colspan="6" class="py-8 text-center text-gray-500">
+                <td colspan="7" class="py-8 text-center text-gray-500">
                   Финансовые центры не найдены
                 </td>
               </tr>
             {:else}
               {#each financialCenters as fc}
                 {@const statusBadge = getStatusBadge(fc)}
+                {@const dataTypeBadge = getDataTypeBadge(fc)}
+                {@const canEdit = canEditFC(fc)}
                 <tr class="border-b hover:bg-gray-50">
                   <td class="py-3 px-4">
                     <span class="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
@@ -347,12 +397,18 @@
                     </span>
                   </td>
                   <td class="py-3 px-4">
-                    <div class="font-medium">{fc.name}</div>
+                    <div class="font-medium">{fc.name || fc.financial_center_name}</div>
                   </td>
                   <td class="py-3 px-4">
                     <div class="text-sm text-gray-600 max-w-xs truncate">
-                      {fc.description || 'Нет описания'}
+                      {fc.description || fc.financial_center_description || 'Нет описания'}
                     </div>
+                  </td>
+                  <td class="py-3 px-4">
+                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {dataTypeBadge.class}">
+                      <svelte:component this={dataTypeBadge.icon} class="w-3 h-3 mr-1" />
+                      {dataTypeBadge.text}
+                    </span>
                   </td>
                   <td class="py-3 px-4">
                     <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {statusBadge.class}">
@@ -366,18 +422,24 @@
                   </td>
                   <td class="py-3 px-4 text-right">
                     <div class="flex items-center justify-end gap-2">
-                      <Button size="sm" variant="outline" on:click={() => handleEditFC(fc)}>
-                        <Edit class="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        class="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        on:click={() => handleDeleteFC(fc)}
-                        title="Удалить финансовый центр"
-                      >
-                        <Trash2 class="h-4 w-4" />
-                      </Button>
+                      {#if canEdit}
+                        <Button size="sm" variant="outline" on:click={() => handleEditFC(fc)}>
+                          <Edit class="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          class="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          on:click={() => handleDeleteFC(fc)}
+                          title="Удалить финансовый центр"
+                        >
+                          <Trash2 class="h-4 w-4" />
+                        </Button>
+                      {:else}
+                        <span class="text-sm text-gray-500 px-2 py-1 bg-gray-100 rounded">
+                          Только для чтения
+                        </span>
+                      {/if}
                     </div>
                   </td>
                 </tr>

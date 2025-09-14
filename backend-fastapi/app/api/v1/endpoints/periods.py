@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from app.db.database import get_db
 from app.models.period import Period
 from app.api.deps import get_current_user
+from app.core.security import require_admin_access
 from app.core.response import (
     success_response,
     error_response,
@@ -64,16 +65,21 @@ class PeriodResponse(BaseModel):
     ru_name: str
     start_date: Optional[datetime]
     end_date: Optional[datetime]
-    
+    code: Optional[str] = None
+    user_id: Optional[int] = None
+    created_by: Optional[int] = None
+    managed_by: Optional[int] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    is_shared: bool = False
+    is_editable: bool = True
+
     # Legacy fields for backward compatibility
     period_id: int
     period_name: str
     period_year: int
     period_month: int
     is_active: Optional[bool] = True
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-    user_id: Optional[int] = None
 
 
 @router.get("/", response_model=List[PeriodResponse])
@@ -84,11 +90,16 @@ async def get_periods(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get all periods for current user."""
-    # Filter by user_id for data isolation
+    """Get all periods (both shared and user-specific)."""
+    user_id = current_user.get('user_id')
+
+    # Show all shared periods (user_id=NULL) and user's own periods
     stmt = (
         select(Period)
-        .where(Period.user_id == current_user.get('user_id'))
+        .where(
+            (Period.user_id.is_(None)) |  # Shared periods
+            (Period.user_id == user_id)   # User's own periods
+        )
         .offset(skip)
         .limit(limit)
         .order_by(Period.date.asc())
@@ -98,6 +109,18 @@ async def get_periods(
     
     response_periods = []
     for period in periods:
+        is_shared = period.user_id is None
+        is_editable = True
+
+        # Determine editability based on admin role and ownership
+        user_role = current_user.get('role', 'user')
+        if is_shared:
+            # Shared periods only editable by admins
+            is_editable = user_role == 'admin'
+        else:
+            # User periods editable by owner or admins
+            is_editable = period.user_id == user_id or user_role == 'admin'
+
         # Use the actual datetime object from the database
         period_dict = {
             'id': period.id,
@@ -105,15 +128,20 @@ async def get_periods(
             'ru_name': period.ru_name,
             'start_date': period.start_date,
             'end_date': period.end_date,
+            'code': getattr(period, 'code', None),
+            'user_id': period.user_id,
+            'created_by': getattr(period, 'created_by', None),
+            'managed_by': getattr(period, 'managed_by', None),
+            'created_at': getattr(period, 'created_at', period.date),
+            'updated_at': getattr(period, 'updated_at', period.date),
+            'is_shared': is_shared,
+            'is_editable': is_editable,
             # Add legacy fields
             'period_id': period.id,
             'period_name': period.ru_name,
             'period_year': period.date.year if period.date else None,
             'period_month': period.date.month if period.date else None,
             'is_active': True,  # Default value
-            'created_at': period.date,
-            'updated_at': period.date,
-            'user_id': period.user_id  # Use actual user_id from database
         }
         # Convert PeriodResponse to dict for JSON serialization with proper datetime handling
         response_periods.append(PeriodResponse(**period_dict).dict())
@@ -127,19 +155,33 @@ async def get_current_period(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get current period based on today's date for current user."""
-    # Get period closest to current date, filtered by user_id
+    """Get current period based on today's date (includes shared and user periods)."""
+    user_id = current_user.get('user_id')
+    user_role = current_user.get('role', 'user')
+
+    # Get period closest to current date, including shared periods and user's own
     stmt = (
         select(Period)
-        .where(Period.user_id == current_user.get('user_id'))
+        .where(
+            (Period.user_id.is_(None)) |  # Shared periods
+            (Period.user_id == user_id)   # User's own periods
+        )
         .order_by(func.abs(func.extract('epoch', Period.date - func.now())))
         .limit(1)
     )
     result = await db.execute(stmt)
     period = result.scalar_one_or_none()
-    
+
     if not period:
-        return error_not_found("No periods found for current user")
+        return error_not_found("No periods found")
+
+    # Determine response fields
+    is_shared = period.user_id is None
+    is_editable = True
+    if is_shared:
+        is_editable = user_role == 'admin'
+    else:
+        is_editable = period.user_id == user_id or user_role == 'admin'
 
     # Prepare response with legacy fields
     period_dict = {
@@ -148,14 +190,19 @@ async def get_current_period(
         'ru_name': period.ru_name,
         'start_date': period.start_date,
         'end_date': period.end_date,
+        'code': getattr(period, 'code', None),
+        'user_id': period.user_id,
+        'created_by': getattr(period, 'created_by', None),
+        'managed_by': getattr(period, 'managed_by', None),
+        'created_at': getattr(period, 'created_at', period.date),
+        'updated_at': getattr(period, 'updated_at', period.date),
+        'is_shared': is_shared,
+        'is_editable': is_editable,
         'period_id': period.id,
         'period_name': period.ru_name,
         'period_year': period.date.year if period.date else None,
         'period_month': period.date.month if period.date else None,
         'is_active': True,
-        'created_at': period.date,
-        'updated_at': period.date,
-        'user_id': period.user_id  # Use actual user_id from database
     }
 
     return success_response(data=PeriodResponse(**period_dict).dict())
@@ -168,17 +215,31 @@ async def get_period(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get period by ID for current user."""
-    # Filter by both period_id and user_id for data isolation
+    """Get period by ID (shared periods and user's own periods)."""
+    user_id = current_user.get('user_id')
+    user_role = current_user.get('role', 'user')
+
+    # Show period if it's shared or belongs to current user
     stmt = select(Period).where(
         Period.id == period_id,
-        Period.user_id == current_user.get('user_id')
+        (
+            (Period.user_id.is_(None)) |  # Shared periods
+            (Period.user_id == user_id)   # User's own periods
+        )
     )
     result = await db.execute(stmt)
     period = result.scalar_one_or_none()
-    
+
     if not period:
         return error_not_found("Period not found or access denied")
+
+    # Determine response fields
+    is_shared = period.user_id is None
+    is_editable = True
+    if is_shared:
+        is_editable = user_role == 'admin'
+    else:
+        is_editable = period.user_id == user_id or user_role == 'admin'
 
     # Prepare response with legacy fields
     period_dict = {
@@ -187,14 +248,19 @@ async def get_period(
         'ru_name': period.ru_name,
         'start_date': period.start_date,
         'end_date': period.end_date,
+        'code': getattr(period, 'code', None),
+        'user_id': period.user_id,
+        'created_by': getattr(period, 'created_by', None),
+        'managed_by': getattr(period, 'managed_by', None),
+        'created_at': getattr(period, 'created_at', period.date),
+        'updated_at': getattr(period, 'updated_at', period.date),
+        'is_shared': is_shared,
+        'is_editable': is_editable,
         'period_id': period.id,
         'period_name': period.ru_name,
         'period_year': period.date.year if period.date else None,
         'period_month': period.date.month if period.date else None,
         'is_active': True,
-        'created_at': period.date,
-        'updated_at': period.date,
-        'user_id': period.user_id  # Use actual user_id from database
     }
 
     return success_response(data=PeriodResponse(**period_dict).dict())
@@ -207,7 +273,25 @@ async def create_period(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Create new period for current user."""
+    """Create new period. Admins can create shared periods (user_id=NULL)."""
+    user_role = current_user.get('role', 'user')
+    requested_user_id = period_data.user_id if hasattr(period_data, 'user_id') else None
+
+    # Check admin access for shared periods
+    if requested_user_id is None:  # Requesting to create shared period
+        if user_role != 'admin':
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin access required to create shared periods"
+            )
+    elif requested_user_id != current_user.get('user_id'):
+        # Can't create periods for other users (unless admin)
+        if user_role != 'admin':
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cannot create periods for other users"
+            )
+
     # Handle legacy format conversion
     date: Optional[datetime] = None
     ru_name: Optional[str] = None
@@ -233,30 +317,62 @@ async def create_period(
         logger.error(f"Failed to prepare datetime fields for database: {e}")
         return error_unprocessable_entity(f"Invalid datetime format: {str(e)}")
 
-    # Check for existing period with same date for current user (user-specific uniqueness)
-    stmt = select(Period).where(
-        Period.date == db_safe_date,
-        Period.user_id == current_user.get('user_id')
-    )
+    # Check for existing period with same date
+    if requested_user_id is None:
+        # For shared periods, check global uniqueness
+        stmt = select(Period).where(
+            Period.date == db_safe_date,
+            Period.user_id.is_(None)
+        )
+    else:
+        # For user periods, check user-specific uniqueness
+        stmt = select(Period).where(
+            Period.date == db_safe_date,
+            Period.user_id == requested_user_id
+        )
     result = await db.execute(stmt)
     existing_period = result.scalar_one_or_none()
 
     if existing_period:
-        return error_conflict(f"Период на дату {db_safe_date.strftime('%Y-%m-%d')} уже существует")
+        scope = "shared" if requested_user_id is None else "user-specific"
+        return error_conflict(f"Period for date {db_safe_date.strftime('%Y-%m-%d')} already exists ({scope})")
 
-    # Create period with automatic user_id assignment
+    # Determine final user_id and admin fields
+    if requested_user_id is None:
+        # Creating shared period
+        final_user_id = None
+        created_by = current_user.get('user_id')
+        managed_by = period_data.managed_by if hasattr(period_data, 'managed_by') else current_user.get('user_id')
+    else:
+        # Creating user-specific period
+        final_user_id = requested_user_id if user_role == 'admin' else current_user.get('user_id')
+        created_by = current_user.get('user_id')
+        managed_by = period_data.managed_by if hasattr(period_data, 'managed_by') else None
+
+    # Create period
     period = Period(
+        code=getattr(period_data, 'code', None),
         date=db_safe_date,
         ru_name=ru_name,
         start_date=db_safe_start_date,
         end_date=db_safe_end_date,
-        user_id=current_user.get('user_id')  # Automatically assign current user
+        user_id=final_user_id,
+        created_by=created_by,
+        managed_by=managed_by
     )
 
     db.add(period)
     await db.commit()
     await db.refresh(period)
     
+    # Determine response fields
+    is_shared = period.user_id is None
+    is_editable = True
+    if is_shared:
+        is_editable = user_role == 'admin'
+    else:
+        is_editable = period.user_id == current_user.get('user_id') or user_role == 'admin'
+
     # Prepare response with legacy fields
     period_dict = {
         'id': period.id,
@@ -264,14 +380,19 @@ async def create_period(
         'ru_name': period.ru_name,
         'start_date': period.start_date,
         'end_date': period.end_date,
+        'code': period.code,
+        'user_id': period.user_id,
+        'created_by': period.created_by,
+        'managed_by': period.managed_by,
+        'created_at': period.created_at,
+        'updated_at': period.updated_at,
+        'is_shared': is_shared,
+        'is_editable': is_editable,
         'period_id': period.id,
         'period_name': period.ru_name,
         'period_year': period.date.year if period.date else None,
         'period_month': period.date.month if period.date else None,
-        'is_active': period_data.is_active if period_data.is_active is not None else True,
-        'created_at': period.date,
-        'updated_at': period.date,
-        'user_id': period.user_id  # Use actual user_id from database
+        'is_active': period_data.is_active if hasattr(period_data, 'is_active') and period_data.is_active is not None else True,
     }
 
     return success_response(data=PeriodResponse(**period_dict).dict(), status_code=201)
@@ -285,17 +406,34 @@ async def update_period(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update period for current user."""
-    # Filter by both period_id and user_id for data isolation
-    stmt = select(Period).where(
-        Period.id == period_id,
-        Period.user_id == current_user.get('user_id')
-    )
+    """Update period. Admins can edit shared periods and any user periods."""
+    user_role = current_user.get('role', 'user')
+    user_id = current_user.get('user_id')
+
+    # Get period without user restriction first
+    stmt = select(Period).where(Period.id == period_id)
     result = await db.execute(stmt)
     period = result.scalar_one_or_none()
 
     if not period:
-        return error_not_found("Period not found or access denied")
+        return error_not_found("Period not found")
+
+    # Check permissions
+    is_shared = period.user_id is None
+    if is_shared:
+        # Shared periods only editable by admins
+        if user_role != 'admin':
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin access required to edit shared periods"
+            )
+    else:
+        # User periods editable by owner or admins
+        if period.user_id != user_id and user_role != 'admin':
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You can only edit your own periods"
+            )
 
     # Update period fields (excluding user_id to prevent unauthorized changes)
     update_data = period_data.dict(exclude_unset=True)
@@ -316,23 +454,41 @@ async def update_period(
 
     # Check for conflicts if date is being updated
     if 'date' in update_data:
-        # Check for existing period with same date for current user (excluding current period)
-        conflict_stmt = select(Period).where(
-            Period.date == update_data['date'],
-            Period.user_id == current_user.get('user_id'),
-            Period.id != period_id
-        )
+        # Check for existing period with same date in same scope (excluding current period)
+        if is_shared:
+            # For shared periods, check global shared scope
+            conflict_stmt = select(Period).where(
+                Period.date == update_data['date'],
+                Period.user_id.is_(None),
+                Period.id != period_id
+            )
+        else:
+            # For user periods, check user-specific scope
+            conflict_stmt = select(Period).where(
+                Period.date == update_data['date'],
+                Period.user_id == period.user_id,
+                Period.id != period_id
+            )
         conflict_result = await db.execute(conflict_stmt)
         existing_period = conflict_result.scalar_one_or_none()
 
         if existing_period:
-            return error_conflict(f"Период на дату {update_data['date'].strftime('%Y-%m-%d')} уже существует")
+            scope = "shared" if is_shared else "user-specific"
+            return error_conflict(f"Period for date {update_data['date'].strftime('%Y-%m-%d')} already exists ({scope})")
 
     for field, value in update_data.items():
         setattr(period, field, value)
 
     await db.commit()
     await db.refresh(period)
+
+    # Determine response fields
+    is_shared_after_update = period.user_id is None
+    is_editable = True
+    if is_shared_after_update:
+        is_editable = user_role == 'admin'
+    else:
+        is_editable = period.user_id == user_id or user_role == 'admin'
 
     # Prepare response with legacy fields
     period_dict = {
@@ -341,14 +497,19 @@ async def update_period(
         'ru_name': period.ru_name,
         'start_date': period.start_date,
         'end_date': period.end_date,
+        'code': period.code,
+        'user_id': period.user_id,
+        'created_by': period.created_by,
+        'managed_by': period.managed_by,
+        'created_at': period.created_at,
+        'updated_at': period.updated_at,
+        'is_shared': is_shared_after_update,
+        'is_editable': is_editable,
         'period_id': period.id,
         'period_name': period.ru_name,
         'period_year': period.date.year if period.date else None,
         'period_month': period.date.month if period.date else None,
         'is_active': True,
-        'created_at': period.date,
-        'updated_at': period.date,
-        'user_id': period.user_id  # Use actual user_id from database
     }
 
     return success_response(data=PeriodResponse(**period_dict).dict())
@@ -361,20 +522,37 @@ async def delete_period(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Delete period for current user."""
+    """Delete period. Admins can delete shared periods and any user periods."""
     from sqlalchemy.exc import IntegrityError
     from app.models.registry import Registry
 
-    # Filter by both period_id and user_id for data isolation
-    stmt = select(Period).where(
-        Period.id == period_id,
-        Period.user_id == current_user.get('user_id')
-    )
+    user_role = current_user.get('role', 'user')
+    user_id = current_user.get('user_id')
+
+    # Get period without user restriction first
+    stmt = select(Period).where(Period.id == period_id)
     result = await db.execute(stmt)
     period = result.scalar_one_or_none()
 
     if not period:
-        return error_not_found("Period not found or access denied")
+        return error_not_found("Period not found")
+
+    # Check permissions
+    is_shared = period.user_id is None
+    if is_shared:
+        # Shared periods only deletable by admins
+        if user_role != 'admin':
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin access required to delete shared periods"
+            )
+    else:
+        # User periods deletable by owner or admins
+        if period.user_id != user_id and user_role != 'admin':
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You can only delete your own periods"
+            )
 
     # Check for dependent registry entries before attempting deletion
     registry_stmt = select(func.count(Registry.id)).where(
