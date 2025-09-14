@@ -1,0 +1,129 @@
+<request>
+    <role>Разрабочик приложения для учета семейных финансов</role>
+    <rule>Придерживаться требований проекта CLAUDE.md</rule>
+    <context>
+        После авторизации под роль адвинистратор и открытии
+        http://localhost:5173/settings/periods
+        ошибка 500
+        /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-14 07-29-32.png
+        в консоли:
+        GET http://localhost:5173/api/periods/ 500 (Internal Server Error)
+        dispatchXhrRequest	@	axios.js?v=29ae0733:1672
+        xhr	@	axios.js?v=29ae0733:1552
+        dispatchRequest	@	axios.js?v=29ae0733:2027
+        Promise.then		
+        _request	@	axios.js?v=29ae0733:2230
+        request	@	axios.js?v=29ae0733:2139
+        Axios.<computed>	@	axios.js?v=29ae0733:2267
+        wrap	@	axios.js?v=29ae0733:8
+        get	@	api.ts:72
+        loadPeriods	@	+page.svelte:65
+        (anonymous)	@	+page.svelte:58
+        run	@	chunk-LDPCYW46.js?v=29ae0733:46
+        (anonymous)	@	chunk-RNRZHRCP.js?v=29ae0733:3184
+        untrack	@	chunk-LDPCYW46.js?v=29ae0733:3268
+        $effect	@	chunk-RNRZHRCP.js?v=29ae0733:3184
+        update_reaction	@	chunk-LDPCYW46.js?v=29ae0733:2981
+        update_effect	@	chunk-LDPCYW46.js?v=29ae0733:3111
+        flush_queued_effects	@	chunk-LDPCYW46.js?v=29ae0733:2290
+        process	@	chunk-LDPCYW46.js?v=29ae0733:2002
+        flush_effects	@	chunk-LDPCYW46.js?v=29ae0733:2262
+        flush	@	chunk-LDPCYW46.js?v=29ae0733:2062
+        (anonymous)	@	chunk-LDPCYW46.js?v=29ae0733:2111
+        dequeue	@	chunk-LDPCYW46.js?v=29ae0733:1873
+    </context>
+    <requirements>
+    Изучить ошибку
+    изучить логи
+    Определить причину
+    </requirements>
+    <tasks>
+        <task number="1">
+            <step number="1">
+                <action>Изучить контекст</action>
+            </step>
+            <step number="2">
+                <thinking>
+                    <action>Проанализировать требования</action>
+                </thinking>
+            </step>
+            <step number="3">
+                <action>Приступить к задаче task 2</action>
+            </step>
+        </task>
+        <task number="2">
+            <step number="1">
+                <memory>
+                    <action>Изучить записи в памяти для получениия актуальной информации</action>
+                </memory>
+            </step>
+            <step number="2">
+                <context7>
+                    <action>Запросить документацию</action>
+                </context7>
+            </step>
+            <step number="3">
+                <action>Сформировать план задач c помощью субагента</action>
+            </step>
+            <step number="4">
+                <action>Приступить к задаче task 3</action>
+            </step>
+        </task>
+        <task number="3">
+            <step number="1">
+                <action>Сохранить план в формате xml в файле /requests названием plan.xml</action>
+            </step>
+            <step number="2">
+                <action>Приступить к задаче task 4</action>
+            </step>
+        </task>
+        <task number="4">
+            <step number="1">
+                <action>Изучить план /requests/plan.xml</action>
+            </step>
+            <step number="2">
+                <action>Приступить к задаче task 5</action>
+            </step>
+        </task>
+        <task number="5">
+            <step number="1">
+                <action>Выполнить план задач шаг за шагом с помощью субагентов</action>
+            </step>
+            <step number="2">
+                <action>Приступить к задаче task 6</action>
+            </step>
+        </task>
+        <task number="6">
+            <step number="1">
+                <action>Реализовать тестры на новый и измененный функционал. Сохранить в каталоге /tests</action>
+            </step>
+            <step number="2">
+                <action>ВЫполнтиь тестирование</action>
+            </step>
+            <step number="3">
+                <action>Приступить к задаче task 7</action>
+            </step>
+        </task>
+        <task number="7">
+            <step number="1">
+                <action>Обновить документацию в /docs и README.md</action>
+            </step>
+            <step number="2">
+                <action>Приступить к задаче task 8</action>
+            </step>
+        </task>
+        <task number="8">
+            <step number="1">
+                <memory>
+                    <action>Обновить память проекта</action>
+                </memory>
+            </step>
+            <step number="2">
+                <action>Приступить к задаче task 9</action>
+            </step>
+        </task>
+        <task number="9">
+            <action>Сделать коммит</action>
+        </task>
+    </tasks>
+</request>

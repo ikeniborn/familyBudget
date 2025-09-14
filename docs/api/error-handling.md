@@ -230,6 +230,183 @@ except Exception as e:
     )
 ```
 
+#### JSON Serialization Errors
+
+**Проблема:** Ошибки сериализации Pydantic объектов в JSON, особенно с datetime полями
+
+**Симптомы:**
+```
+TypeError: Object of type datetime is not JSON serializable
+TypeError: Object of type PeriodResponse is not JSON serializable
+```
+
+**Причины:**
+1. **Некорректная сериализация Pydantic моделей** - передача объекта модели напрямую в JSONResponse
+2. **Datetime поля** - стандартный JSON encoder не поддерживает datetime объекты
+3. **Вложенные объекты** - сложные структуры данных требуют специальной обработки
+
+**Решения:**
+
+##### 1. Правильная сериализация Pydantic моделей
+```python
+from app.core.response import success_response
+
+# ❌ НЕПРАВИЛЬНО - объект не сериализуется
+period = PeriodResponse(...)
+return JSONResponse(content={"success": True, "data": period})
+
+# ✅ ПРАВИЛЬНО - конвертация в словарь
+period = PeriodResponse(...)
+return success_response(period.dict())
+
+# ✅ ПРАВИЛЬНО - для списков
+periods = [PeriodResponse(...), ...]
+return success_response([p.dict() for p in periods], total=len(periods))
+```
+
+##### 2. Обработка datetime полей с DateTimeJSONEncoder
+```python
+from app.core.response import DateTimeJSONEncoder
+import json
+
+# Создание encoder для datetime сериализации
+class DateTimeJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
+
+# Использование в JSONResponse
+return JSONResponse(
+    content=response_data,
+    cls=DateTimeJSONEncoder
+)
+```
+
+##### 3. Утилита success_response с автоматической сериализацией
+```python
+from app.core.response import success_response
+
+def success_response(data: Any, total: Optional[int] = None) -> JSONResponse:
+    """Создать успешный ответ API с правильной сериализацией"""
+
+    # Сериализация Pydantic объектов
+    if hasattr(data, 'dict'):
+        serialized_data = data.dict()
+    elif isinstance(data, list) and all(hasattr(item, 'dict') for item in data):
+        serialized_data = [item.dict() for item in data]
+    else:
+        serialized_data = data
+
+    response_content = {"success": True, "data": serialized_data}
+    if total is not None:
+        response_content["total"] = total
+
+    return JSONResponse(
+        content=response_content,
+        cls=DateTimeJSONEncoder  # Автоматическая обработка datetime
+    )
+```
+
+**Примеры исправленных endpoints:**
+
+```python
+# Исправление в app/api/v1/endpoints/periods.py
+@router.get("/", response_model=List[PeriodResponse])
+async def get_periods(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    periods = crud.period.get_multi_by_user(db, user_id=current_user.id)
+    period_responses = [PeriodResponse.from_orm(period) for period in periods]
+
+    # ✅ Правильная сериализация с .dict()
+    return success_response(
+        [p.dict() for p in period_responses],
+        total=len(period_responses)
+    )
+
+@router.post("/", response_model=PeriodResponse)
+async def create_period(
+    period_data: PeriodCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        period = crud.period.create_with_owner(db, obj_in=period_data, user_id=current_user.id)
+        period_response = PeriodResponse.from_orm(period)
+
+        # ✅ Правильная сериализация
+        return success_response(period_response.dict())
+
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Период на дату {period_data.date} уже существует"
+        )
+```
+
+**Отладка JSON сериализации:**
+
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+
+try:
+    # Попытка сериализации
+    response_data = success_response(data)
+    logger.info(f"Successfully serialized response: {type(data)}")
+
+except TypeError as e:
+    logger.error(f"JSON serialization error: {str(e)}")
+    logger.error(f"Data type: {type(data)}")
+    logger.error(f"Data content: {data}")
+
+    # Fallback сериализация
+    if hasattr(data, 'dict'):
+        logger.info("Attempting .dict() serialization")
+        response_data = success_response(data.dict())
+    else:
+        raise HTTPException(
+            status_code=500,
+            detail="Ошибка сериализации данных"
+        )
+```
+
+**Тестирование сериализации:**
+
+```python
+def test_period_response_serialization():
+    """Тест правильной сериализации PeriodResponse"""
+    period = Period(id=1, date=date(2025, 9, 14), name="Test Period")
+    period_response = PeriodResponse.from_orm(period)
+
+    # Проверка сериализации в словарь
+    serialized = period_response.dict()
+    assert isinstance(serialized, dict)
+    assert "id" in serialized
+    assert "date" in serialized
+
+    # Проверка JSON сериализации
+    import json
+    json_str = json.dumps(serialized, cls=DateTimeJSONEncoder)
+    assert isinstance(json_str, str)
+
+    # Проверка десериализации
+    deserialized = json.loads(json_str)
+    assert deserialized["id"] == 1
+```
+
+**Профилактика ошибок сериализации:**
+
+1. **Всегда используйте .dict()** для Pydantic моделей в API ответах
+2. **Используйте DateTimeJSONEncoder** для datetime полей
+3. **Тестируйте сериализацию** в unit тестах
+4. **Логируйте типы данных** при отладке
+5. **Используйте утилиты success_response/error_response** для консистентности
+
 ## Frontend паттерны обработки ошибок
 
 ### Унифицированная обработка в компонентах

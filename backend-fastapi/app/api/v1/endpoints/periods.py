@@ -112,8 +112,9 @@ async def get_periods(
             'updated_at': period.date,
             'user_id': period.user_id  # Use actual user_id from database
         }
-        response_periods.append(PeriodResponse(**period_dict))
-    
+        # Convert PeriodResponse to dict for JSON serialization with proper datetime handling
+        response_periods.append(PeriodResponse(**period_dict).dict())
+
     return success_response(data=response_periods, total=len(response_periods))
 
 

@@ -1,11 +1,55 @@
 """
 Comprehensive tests for financial centers (ЦФО) API endpoints.
 Tests CRUD operations, duplicate handling, and user isolation.
+Updated to test unified API response format: {"success": true/false, "data": ..., "error": ...}
 """
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
+
+
+def validate_success_response(response_data: dict, expected_data_checks: dict = None):
+    """Helper function to validate unified success response format."""
+    assert "success" in response_data
+    assert response_data["success"] is True
+    assert "data" in response_data
+
+    if expected_data_checks:
+        data = response_data["data"]
+        for key, expected_value in expected_data_checks.items():
+            assert key in data
+            if expected_value is not None:
+                assert data[key] == expected_value
+
+    return response_data["data"]
+
+
+def validate_error_response(response_data: dict, expected_error_substring: str = None):
+    """Helper function to validate unified error response format."""
+    assert "success" in response_data
+    assert response_data["success"] is False
+    assert "error" in response_data
+    assert isinstance(response_data["error"], str)
+
+    if expected_error_substring:
+        assert expected_error_substring in response_data["error"]
+
+    return response_data["error"]
+
+
+def validate_list_response(response_data: dict, expected_total: int = None):
+    """Helper function to validate unified list response format."""
+    assert "success" in response_data
+    assert response_data["success"] is True
+    assert "data" in response_data
+    assert isinstance(response_data["data"], list)
+
+    if expected_total is not None:
+        assert "total" in response_data
+        assert response_data["total"] == expected_total
+
+    return response_data["data"]
 
 
 class TestFinancialCentersCRUDOperations:
@@ -21,9 +65,11 @@ class TestFinancialCentersCRUDOperations:
         response = authenticated_client.post("/api/financial_centers/", json=center_data)
         assert response.status_code == status.HTTP_200_OK
 
-        data = response.json()
-        assert data["name"] == center_data["name"]
-        assert data["is_active"] is True
+        response_data = response.json()
+        data = validate_success_response(response_data, {
+            "name": center_data["name"],
+            "is_active": True
+        })
         assert "id" in data
         assert "user_id" in data
 

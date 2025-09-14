@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<investigation-plan>
+    <title>API Periods Endpoint 500 Error Analysis and Resolution Plan</title>
+    <created>2025-09-14</created>
+    <priority>CRITICAL</priority>
+
+    <problem-summary>
+        <description>
+            The /api/periods/ endpoint returns "Request failed with status code 500" when accessed after admin authorization.
+            The frontend call to http://localhost:5173/api/periods/ fails with 500 error.
+        </description>
+        <impact>
+            - Users cannot access periods management in settings
+            - Complete breakdown of settings/periods functionality
+            - Potential authentication/session issues affecting other endpoints
+        </impact>
+    </problem-summary>
+
+    <current-findings>
+        <database-status>HEALTHY - PostgreSQL connection working, periods table contains data (5 records with user_ids 3,5,6)</database-status>
+        <backend-health>HEALTHY - FastAPI backend responding to /health endpoint</backend-health>
+        <frontend-proxy>PARTIALLY WORKING - Proxy redirects to backend but authentication fails</frontend-proxy>
+        <session-storage>ISSUE DETECTED - Redis contains sessions but user data is empty: {"user": {}}</session-storage>
+        <authentication>FAILING - "Not authenticated" response indicates session/auth middleware issues</authentication>
+    </current-findings>
+
+    <investigation-steps>
+        <step id="1" priority="HIGH">
+            <title>Capture Real-time Backend Logs</title>
+            <description>Monitor backend logs during a periods API call to identify the exact 500 error source</description>
+            <commands>
+                <command>docker logs -f budget-backend --tail=100</command>
+                <command>curl -X GET http://localhost:5173/api/periods/ -H "Cookie: [REAL_SESSION_ID]"</command>
+            </commands>
+            <expected-outcome>Identify exact error stack trace causing 500 response</expected-outcome>
+        </step>
+
+        <step id="2" priority="HIGH">
+            <title>Validate Session Middleware Chain</title>
+            <description>Test if SessionMiddleware is properly attached and processing requests</description>
+            <files-to-check>
+                <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/main.py</file>
+                <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/core/session.py</file>
+            </files-to-check>
+            <tests>
+                <test>Verify SessionMiddleware is added to FastAPI app</test>
+                <test>Check Redis connection initialization in middleware</test>
+                <test>Validate session cookie parsing logic</test>
+            </tests>
+        </step>
+
+        <step id="3" priority="HIGH">
+            <title>Debug Authentication Dependency Chain</title>
+            <description>Trace the get_current_user dependency execution path</description>
+            <files-to-analyze>
+                <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/deps.py</file>
+                <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/core/session.py (get_current_user_from_session)</file>
+            </files-to-analyze>
+            <debug-points>
+                <point>Check if request.state.session exists</point>
+                <point>Validate session data structure and user_id extraction</point>
+                <point>Verify user_id type conversion (int casting)</point>
+                <point>Check for logging output during auth process</point>
+            </debug-points>
+        </step>
+
+        <step id="4" priority="MEDIUM">
+            <title>Analyze Session Data Structure</title>
+            <description>Investigate why Redis sessions have empty user data</description>
+            <investigation>
+                <check>Examine multiple session keys in Redis</check>
+                <check>Compare session format with expected express-session structure</check>
+                <check>Validate session creation during login process</check>
+                <check>Check session expiration and cleanup logic</check>
+            </investigation>
+        </step>
+
+        <step id="5" priority="MEDIUM">
+            <title>Test Database Model Compatibility</title>
+            <description>Ensure Period model aligns with database schema and SQLAlchemy 2.0 async patterns</description>
+            <files-to-review>
+                <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/models/period.py</file>
+                <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/db/database.py</file>
+            </files-to-review>
+            <validation-tests>
+                <test>Direct SQLAlchemy query execution test</test>
+                <test>Model attribute mapping verification</test>
+                <test>Async session handling validation</test>
+            </validation-tests>
+        </step>
+
+        <step id="6" priority="LOW">
+            <title>Frontend Proxy Configuration Review</title>
+            <description>Verify Vite proxy configuration for API routing</description>
+            <files-to-check>
+                <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/vite.config.ts</file>
+            </files-to-check>
+            <checks>
+                <check>API proxy target URL configuration</check>
+                <check>Host header override implementation (ADR-004)</check>
+                <check>Cookie forwarding configuration</check>
+            </checks>
+        </step>
+    </investigation-steps>
+
+    <resolution-plan>
+        <phase id="1">
+            <title>Root Cause Identification</title>
+            <duration>30 minutes</duration>
+            <actions>
+                <action>Execute investigation steps 1-3 to identify exact failure point</action>
+                <action>Determine if issue is in authentication, session management, or database layer</action>
+                <action>Document specific error messages and stack traces</action>
+            </actions>
+        </phase>
+
+        <phase id="2">
+            <title>Primary Fix Implementation</title>
+            <duration>45 minutes</duration>
+            <scenarios>
+                <scenario name="Authentication Issue">
+                    <symptoms>Empty session data, authentication failures</symptoms>
+                    <fixes>
+                        <fix>Repair session middleware initialization</fix>
+                        <fix>Fix Redis connection issues</fix>
+                        <fix>Correct session data structure handling</fix>
+                    </fixes>
+                </scenario>
+                <scenario name="Database/Model Issue">
+                    <symptoms>SQLAlchemy errors, model mapping issues</symptoms>
+                    <fixes>
+                        <fix>Update Period model for SQLAlchemy 2.0 compatibility</fix>
+                        <fix>Fix async session handling in endpoints</fix>
+                        <fix>Correct column mapping discrepancies</fix>
+                    </fixes>
+                </scenario>
+                <scenario name="Response Format Issue">
+                    <symptoms>Pydantic validation errors, response serialization failures</symptoms>
+                    <fixes>
+                        <fix>Update response schemas for compatibility</fix>
+                        <fix>Fix datetime serialization issues</fix>
+                        <fix>Correct success_response helper usage</fix>
+                    </fixes>
+                </scenario>
+            </scenarios>
+        </phase>
+
+        <phase id="3">
+            <title>Testing and Validation</title>
+            <duration>30 minutes</duration>
+            <tests>
+                <test type="unit">Test periods endpoint directly via backend (port 4000)</test>
+                <test type="integration">Test periods endpoint via frontend proxy (port 5173)</test>
+                <test type="authentication">Verify proper user session handling and data isolation</test>
+                <test type="crud">Test all CRUD operations (GET, POST, PUT, DELETE)</test>
+                <test type="error-handling">Validate error responses for edge cases</test>
+            </tests>
+            <success-criteria>
+                <criterion>GET /api/periods/ returns 200 with valid period data</criterion>
+                <criterion>Authentication properly identifies user and filters by user_id</criterion>
+                <criterion>No 500 errors in backend logs</criterion>
+                <criterion>Frontend settings/periods page loads successfully</criterion>
+            </success-criteria>
+        </phase>
+
+        <phase id="4">
+            <title>Regression Prevention</title>
+            <duration>15 minutes</duration>
+            <actions>
+                <action>Add enhanced error logging for session debugging</action>
+                <action>Create automated test for periods endpoint authentication flow</action>
+                <action>Document fix in architecture decisions (ADR format)</action>
+                <action>Update monitoring alerts for similar issues</action>
+            </actions>
+        </phase>
+    </resolution-plan>
+
+    <risk-analysis>
+        <high-risk>
+            <item>Session management changes could affect all authenticated endpoints</item>
+            <item>Database model changes could break other CRUD operations</item>
+        </high-risk>
+        <mitigation>
+            <item>Test all settings endpoints after any session fixes</item>
+            <item>Backup current working state before major changes</item>
+            <item>Use Docker container isolation for safe testing</item>
+        </mitigation>
+    </risk-analysis>
+
+    <tools-and-commands>
+        <debugging>
+            <command>docker logs -f budget-backend --tail=100</command>
+            <command>docker exec budget-backend python -c "import logging; logging.basicConfig(level=logging.DEBUG)"</command>
+            <command>curl -X GET http://localhost:5173/api/periods/ -H "Cookie: [SESSION_ID]" -v</command>
+        </debugging>
+        <testing>
+            <command>docker exec budget-backend python -m pytest tests/backend/test_periods_api.py -v</command>
+            <command>docker exec budget-frontend npm run test periods.test.ts</command>
+        </testing>
+        <redis-debugging>
+            <command>docker exec budget-redis redis-cli keys "*sess*"</command>
+            <command>docker exec budget-redis redis-cli get "sess:[SESSION_ID]"</command>
+        </redis-debugging>
+    </tools-and-commands>
+
+    <expected-outcomes>
+        <immediate>
+            <outcome>/api/periods/ endpoint returns 200 status with valid data</outcome>
+            <outcome>Frontend settings/periods page loads without errors</outcome>
+            <outcome>Authentication correctly identifies and filters user data</outcome>
+        </immediate>
+        <long-term>
+            <outcome>Improved error handling and debugging capabilities</outcome>
+            <outcome>Better session management reliability</outcome>
+            <outcome>Enhanced monitoring for similar authentication issues</outcome>
+        </long-term>
+    </expected-outcomes>
+
+    <documentation-updates>
+        <create>
+            <doc>docs/troubleshooting/api-500-errors.md</doc>
+            <doc>docs/architecture/adr-005-session-debugging-improvements.md</doc>
+        </create>
+        <update>
+            <doc>docs/api/error-handling.md</doc>
+            <doc>docs/api/authentication.md</doc>
+        </update>
+    </documentation-updates>
+</investigation-plan>

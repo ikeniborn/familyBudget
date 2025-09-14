@@ -6,9 +6,20 @@ This module provides utilities for creating standardized API responses:
 - Error responses: {"success": false, "error": "..."}
 """
 from typing import Any, Dict, List, Optional, Union
+from datetime import datetime, date
+import json
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+
+
+class DateTimeJSONEncoder(json.JSONEncoder):
+    """Custom JSON encoder that handles datetime objects."""
+
+    def default(self, obj):
+        if isinstance(obj, (datetime, date)):
+            return obj.isoformat()
+        return super().default(obj)
 
 
 class ApiResponse(BaseModel):
@@ -51,8 +62,11 @@ def success_response(
     if total is not None:
         response_content["total"] = total
 
+    # Use custom encoder for datetime serialization
+    content_json = json.dumps(response_content, cls=DateTimeJSONEncoder)
+
     return JSONResponse(
-        content=response_content,
+        content=json.loads(content_json),
         status_code=status_code
     )
 
