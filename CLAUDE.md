@@ -190,12 +190,14 @@ Traefik (80/443) → Frontend (5173) → FastAPI (4000) → PostgreSQL/Redis
 
 ```
 /settings/periods           # Управление периодами (389 строк)
-  - Budget period management (YYYY.MM format)
+  - Budget period management with auto-generated names ("2025 Янв" format)
+  - Auto-calculated start/end dates based on selected month
   - Period activation/deactivation
   - Historical periods tracking
   - Statistics: total periods, active/inactive counts
-  - Modal editing with form validation
+  - Modal editing with simplified form (readonly period names)
   - Responsive design with loading states
+  - Smart period creation: names auto-generated, dates auto-calculated
 
 /settings/financial-centers  # Управление ЦФО (358 строк)
   - CRUD operations for financial centers

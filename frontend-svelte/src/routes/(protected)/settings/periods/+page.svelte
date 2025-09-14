@@ -49,10 +49,30 @@
   // Form data
   let formData = {
     date: '',
-    ru_name: '',
-    start_date: '',
-    end_date: ''
+    ru_name: ''
   };
+
+  // Helper function to get Russian month abbreviation
+  function getMonthName(month: number): string {
+    const months = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн',
+                    'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+    return months[month - 1] || '';
+  }
+
+  // Generate period name from date
+  function generatePeriodName(dateStr: string): string {
+    if (!dateStr) return '';
+    const [year, month] = dateStr.split('-');
+    return `${year} ${getMonthName(parseInt(month))}`;
+  }
+
+  // Generate start and end dates for a month
+  function generateDateRange(dateStr: string): { start: Date, end: Date } {
+    const [year, month] = dateStr.split('-').map(Number);
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0); // Last day of month
+    return { start, end };
+  }
 
   onMount(() => {
     loadPeriods();
@@ -138,9 +158,7 @@
     selectedPeriod = null;
     formData = {
       date: '',
-      ru_name: '',
-      start_date: '',
-      end_date: ''
+      ru_name: ''
     };
     showAddModal = true;
   }
@@ -150,12 +168,10 @@
     // Convert date to YYYY-MM format for month input
     const periodDate = new Date(period.date);
     const yearMonth = `${periodDate.getFullYear()}-${String(periodDate.getMonth() + 1).padStart(2, '0')}`;
-    
+
     formData = {
       date: yearMonth,
-      ru_name: period.ru_name || '',
-      start_date: period.start_date ? period.start_date.substring(0, 10) : '',
-      end_date: period.end_date ? period.end_date.substring(0, 10) : ''
+      ru_name: period.ru_name || ''
     };
     showAddModal = true;
   }
@@ -165,33 +181,39 @@
     selectedPeriod = null;
     formData = {
       date: '',
-      ru_name: '',
-      start_date: '',
-      end_date: ''
+      ru_name: ''
     };
   }
 
   async function handleSubmitPeriod() {
-    if (!formData.date || !formData.ru_name) {
-      toast.error('Заполните обязательные поля', 'Дата периода и название обязательны');
+    if (!formData.date) {
+      toast.error('Заполните обязательные поля', 'Дата периода обязательна');
       return;
     }
 
     try {
       saving = true;
-      
+
       // Convert month input (YYYY-MM) to full date
       const [year, month] = formData.date.split('-');
       const periodDate = new Date(parseInt(year), parseInt(month) - 1, 1);
-      
+
+      // Auto-generate period name if creating new period
+      const periodName = selectedPeriod
+        ? formData.ru_name // Keep existing name when editing
+        : generatePeriodName(formData.date);
+
+      // Auto-generate date range
+      const { start, end } = generateDateRange(formData.date);
+
       const requestData = {
         date: periodDate.toISOString(),
-        ru_name: formData.ru_name,
-        start_date: formData.start_date ? new Date(formData.start_date).toISOString() : null,
-        end_date: formData.end_date ? new Date(formData.end_date).toISOString() : null,
+        ru_name: periodName,
+        start_date: start.toISOString(),
+        end_date: end.toISOString(),
         period_year: parseInt(year),
         period_month: parseInt(month),
-        period_name: formData.ru_name
+        period_name: periodName
       };
 
       let response;
@@ -283,6 +305,11 @@
   // Пересчитываем статистику при изменении периодов
   $: if (periods.length >= 0) {
     loadPeriodStats();
+  }
+
+  // Auto-generate period name when date changes (only for new periods)
+  $: if (!selectedPeriod && formData.date) {
+    formData.ru_name = generatePeriodName(formData.date);
   }
 </script>
 
@@ -473,43 +500,28 @@
             <!-- Period Name -->
             <div>
               <label for="period-name" class="block text-sm font-medium text-gray-700 mb-1">
-                Название периода *
+                Название периода {selectedPeriod ? '(не редактируется)' : '(автоматически)'}
               </label>
               <input
                 id="period-name"
                 type="text"
                 bind:value={formData.ru_name}
-                placeholder="Например: Январь 2024"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder={selectedPeriod ? '' : 'Будет сгенерировано автоматически'}
+                readonly={true}
+                class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
               />
             </div>
 
-            <!-- Start Date (Optional) -->
-            <div>
-              <label for="start-date" class="block text-sm font-medium text-gray-700 mb-1">
-                Дата начала (опционально)
-              </label>
-              <input
-                id="start-date"
-                type="date"
-                bind:value={formData.start_date}
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <!-- End Date (Optional) -->
-            <div>
-              <label for="end-date" class="block text-sm font-medium text-gray-700 mb-1">
-                Дата окончания (опционально)
-              </label>
-              <input
-                id="end-date"
-                type="date"
-                bind:value={formData.end_date}
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
+            <!-- Date Range Info -->
+            {#if formData.date}
+              {@const { start, end } = generateDateRange(formData.date)}
+              <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
+                <p class="text-sm text-blue-800">
+                  <strong>Период будет установлен автоматически:</strong><br/>
+                  С {start.toLocaleDateString('ru-RU')} по {end.toLocaleDateString('ru-RU')}
+                </p>
+              </div>
+            {/if}
           </div>
 
           <div class="flex justify-end gap-2 mt-6">
