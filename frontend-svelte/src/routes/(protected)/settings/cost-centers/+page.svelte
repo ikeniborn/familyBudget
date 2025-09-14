@@ -174,19 +174,28 @@
       return;
     }
 
+    if (!formData.code) {
+      toast.error('Заполните обязательные поля', 'Код МВЗ обязателен');
+      return;
+    }
+
     try {
       saving = true;
       
       const requestData = {
+        code: formData.code,
         name: formData.name,
+        description: formData.description || null,
         is_active: formData.is_active
       };
 
       let response;
       if (selectedCC) {
-        // Update existing cost center
+        // Update existing cost center - include all fields
         response = await api.put(`/cost_centers/${selectedCC.id}/`, {
+          code: formData.code,
           name: formData.name,
+          description: formData.description || null,
           is_active: formData.is_active
         });
       } else {
@@ -498,13 +507,14 @@
             <!-- Code -->
             <div>
               <label for="cc-code" class="block text-sm font-medium text-gray-700 mb-1">
-                Код МВЗ
+                Код МВЗ *
               </label>
               <input
                 id="cc-code"
                 type="text"
                 bind:value={formData.code}
                 placeholder="Например: П001, С002"
+                required
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>

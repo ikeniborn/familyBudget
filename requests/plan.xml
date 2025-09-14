@@ -1,85 +1,98 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plan>
-    <title>Fix Period Creation Constraint Violation Error</title>
-    <timestamp>2025-09-14T22:30:00</timestamp>
-    <issue>
-        <description>PostgreSQL constraint violation when creating period for October 2025</description>
-        <error_type>sqlalchemy.dialects.postgresql.asyncpg.IntegrityError</error_type>
-        <constraint>NOT NULL constraint on period_code field</constraint>
-    </issue>
+  <title>Fix Cost Center Creation Error - Field Mapping Issue</title>
+  <issue>
+    <description>При создании МВЗ (cost center) возникает ошибка валидации "code: Field required"</description>
+    <url>http://localhost:5173/settings/cost-centers</url>
+    <error_message>Ошибка валидации: code: Field required</error_message>
+  </issue>
 
-    <root_cause>
-        <item>SQLAlchemy model incorrectly defined period_code as nullable=True while database has NOT NULL constraint</item>
-        <item>Frontend not sending period_code value in request</item>
-        <item>Backend not auto-generating period_code when missing</item>
-    </root_cause>
+  <root_cause>
+    <problem>Несоответствие полей между frontend и backend</problem>
+    <details>
+      <frontend_issue>
+        Frontend собирает все данные из формы (code, name, description, is_active),
+        но отправляет на backend только name и is_active, пропуская обязательное поле code
+      </frontend_issue>
+      <backend_expectation>
+        Backend ожидает обязательные поля: code (str), name (str)
+        Опциональные поля: description (str), is_active (bool)
+      </backend_expectation>
+    </details>
+  </root_cause>
 
-    <solution_steps>
-        <step number="1">
-            <action>Fix SQLAlchemy model to match database constraints</action>
-            <file>/backend-fastapi/app/models/period.py</file>
-            <change>Set period_code field nullable=False</change>
-            <status>COMPLETED</status>
-        </step>
+  <solution>
+    <step number="1" status="completed">
+      <action>Анализ ошибки и определение причины</action>
+      <result>Обнаружено несоответствие полей в API запросе</result>
+    </step>
 
-        <step number="2">
-            <action>Implement period_code auto-generation logic</action>
-            <file>/backend-fastapi/app/api/v1/endpoints/periods.py</file>
-            <change>Add logic to generate sequential period codes (2020XX format)</change>
-            <status>COMPLETED</status>
-        </step>
+    <step number="2" status="completed">
+      <action>Исправление frontend компонента</action>
+      <file>/frontend-svelte/src/routes/(protected)/settings/cost-centers/+page.svelte</file>
+      <changes>
+        <change line="180-198">
+          Добавлены поля code и description в requestData при создании/обновлении МВЗ
+        </change>
+        <change line="177-180">
+          Добавлена валидация обязательного поля code на клиенте
+        </change>
+        <change line="510">
+          Добавлена звездочка (*) к label поля "Код МВЗ" для обозначения обязательности
+        </change>
+        <change line="517">
+          Добавлен HTML5 атрибут required к input полю code
+        </change>
+      </changes>
+    </step>
 
-        <step number="3">
-            <action>Verify backend service restart</action>
-            <command>docker restart budget-backend</command>
-            <status>COMPLETED</status>
-        </step>
+    <step number="3" status="pending">
+      <action>Создание тестов для проверки исправления</action>
+      <tests>
+        <test type="unit">Тест создания МВЗ с обязательными полями</test>
+        <test type="unit">Тест валидации при отсутствии поля code</test>
+        <test type="integration">Тест полного цикла создания МВЗ через UI</test>
+      </tests>
+    </step>
 
-        <step number="4">
-            <action>Test period creation functionality</action>
-            <test_case>Create October 2025 period through UI</test_case>
-            <status>PENDING</status>
-        </step>
+    <step number="4" status="pending">
+      <action>Обновление документации</action>
+      <documents>
+        <doc>/docs/api/cost-centers.md</doc>
+        <doc>/docs/changelog.md</doc>
+        <doc>README.md</doc>
+      </documents>
+    </step>
 
-        <step number="5">
-            <action>Create comprehensive tests for period creation</action>
-            <test_files>
-                <file>/tests/backend/test_periods_constraint.py</file>
-                <file>/tests/frontend/periods_creation.test.ts</file>
-            </test_files>
-            <status>PENDING</status>
-        </step>
+    <step number="5" status="pending">
+      <action>Коммит изменений</action>
+      <commit_message>fix: Исправлена ошибка создания МВЗ - добавлена передача обязательного поля code</commit_message>
+    </step>
+  </solution>
 
-        <step number="6">
-            <action>Update documentation</action>
-            <files>
-                <file>/docs/api/periods.md</file>
-                <file>/docs/architecture/adr-006-period-code-generation.md</file>
-                <file>/README.md</file>
-            </files>
-            <status>PENDING</status>
-        </step>
+  <affected_components>
+    <component>
+      <name>Cost Centers Frontend Page</name>
+      <path>/frontend-svelte/src/routes/(protected)/settings/cost-centers/+page.svelte</path>
+      <type>SvelteKit Component</type>
+    </component>
+    <component>
+      <name>Cost Centers API</name>
+      <path>/api/cost_centers/</path>
+      <type>FastAPI Endpoint</type>
+    </component>
+  </affected_components>
 
-        <step number="7">
-            <action>Update project memory</action>
-            <memory_nodes>
-                <node>Period creation constraint fix</node>
-                <node>Period code auto-generation logic</node>
-            </memory_nodes>
-            <status>PENDING</status>
-        </step>
-
-        <step number="8">
-            <action>Commit changes</action>
-            <commit_message>fix: Period creation constraint violation and auto-generate period_code</commit_message>
-            <status>PENDING</status>
-        </step>
-    </solution_steps>
-
-    <expected_outcome>
-        <item>Period creation works without constraint violations</item>
-        <item>Period codes auto-generated in sequential format</item>
-        <item>Backward compatibility maintained</item>
-        <item>No frontend changes required</item>
-    </expected_outcome>
+  <validation>
+    <test_scenario>
+      <step>Открыть страницу /settings/cost-centers</step>
+      <step>Нажать кнопку "Добавить МВЗ"</step>
+      <step>Заполнить поле "Код МВЗ" значением "324"</step>
+      <step>Заполнить поле "Название МВЗ" значением "Тестовый МВЗ"</step>
+      <step>Заполнить поле "Описание"</step>
+      <step>Оставить галочку "Активен"</step>
+      <step>Нажать кнопку "Создать"</step>
+      <expected_result>МВЗ успешно создан без ошибок валидации</expected_result>
+    </test_scenario>
+  </validation>
 </plan>
