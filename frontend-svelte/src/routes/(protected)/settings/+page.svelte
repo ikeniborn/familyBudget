@@ -1,27 +1,42 @@
 <script lang="ts">
-  import { Settings, AlertCircle } from 'lucide-svelte';
+  import { Settings, AlertCircle, Loader2 } from 'lucide-svelte';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import SettingsNavigation from '$lib/components/settings/SettingsNavigation.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
+  import { dashboardService, type ReferenceDataStats } from '$lib/services/dashboard.service';
 
   let showAccessDeniedAlert = false;
   let accessDeniedMessage = '';
 
-  onMount(() => {
+  // Reference data statistics state
+  let referenceStats: ReferenceDataStats | null = null;
+  let loading = true;
+  let error: string | null = null;
+
+  onMount(async () => {
     // Check for access denied error in URL params
-    const error = $page.url.searchParams.get('error');
+    const errorParam = $page.url.searchParams.get('error');
     const message = $page.url.searchParams.get('message');
-    
-    if (error === 'access_denied' && message) {
+
+    if (errorParam === 'access_denied' && message) {
       showAccessDeniedAlert = true;
       accessDeniedMessage = decodeURIComponent(message);
-      
+
       // Remove the error params from URL after showing message
       const url = new URL($page.url);
       url.searchParams.delete('error');
       url.searchParams.delete('message');
       history.replaceState({}, '', url);
+    }
+
+    // Fetch reference data statistics
+    try {
+      referenceStats = await dashboardService.getReferenceDataStats();
+    } catch (err: any) {
+      error = err.message || 'Ошибка при загрузке статистики';
+    } finally {
+      loading = false;
     }
   });
 
@@ -74,21 +89,61 @@
 
   <!-- Quick Stats -->
   <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-    <div class="bg-white rounded-lg border p-4">
-      <div class="text-2xl font-bold text-gray-900">12</div>
-      <div class="text-sm text-gray-600">Активных периодов</div>
-    </div>
-    <div class="bg-white rounded-lg border p-4">
-      <div class="text-2xl font-bold text-gray-900">5</div>
-      <div class="text-sm text-gray-600">Финансовых центров</div>
-    </div>
-    <div class="bg-white rounded-lg border p-4">
-      <div class="text-2xl font-bold text-gray-900">23</div>
-      <div class="text-sm text-gray-600">Категорий</div>
-    </div>
-    <div class="bg-white rounded-lg border p-4">
-      <div class="text-2xl font-bold text-gray-900">156</div>
-      <div class="text-sm text-gray-600">Продуктов</div>
-    </div>
+    {#if error}
+      <div class="col-span-2 md:col-span-4">
+        <Alert variant="destructive">
+          <AlertCircle class="h-4 w-4" />
+          <span>Ошибка загрузки статистики: {error}</span>
+        </Alert>
+      </div>
+    {:else}
+      <!-- Active Periods -->
+      <div class="bg-white rounded-lg border p-4">
+        <div class="text-2xl font-bold text-gray-900">
+          {#if loading}
+            <Loader2 class="h-6 w-6 animate-spin text-gray-400" />
+          {:else}
+            {referenceStats?.active_periods ?? 0}
+          {/if}
+        </div>
+        <div class="text-sm text-gray-600">Активных периодов</div>
+      </div>
+
+      <!-- Financial Centers -->
+      <div class="bg-white rounded-lg border p-4">
+        <div class="text-2xl font-bold text-gray-900">
+          {#if loading}
+            <Loader2 class="h-6 w-6 animate-spin text-gray-400" />
+          {:else}
+            {referenceStats?.financial_centers ?? 0}
+          {/if}
+        </div>
+        <div class="text-sm text-gray-600">Финансовых центров</div>
+      </div>
+
+      <!-- Nomenclatures (Categories) -->
+      <div class="bg-white rounded-lg border p-4">
+        <div class="text-2xl font-bold text-gray-900">
+          {#if loading}
+            <Loader2 class="h-6 w-6 animate-spin text-gray-400" />
+          {:else}
+            {referenceStats?.nomenclatures ?? 0}
+          {/if}
+        </div>
+        <div class="text-sm text-gray-600">Категорий</div>
+      </div>
+
+      <!-- Products -->
+      <div class="bg-white rounded-lg border p-4">
+        <div class="text-2xl font-bold text-gray-900">
+          {#if loading}
+            <Loader2 class="h-6 w-6 animate-spin text-gray-400" />
+          {:else}
+            {referenceStats?.products ?? 0}
+          {/if}
+        </div>
+        <div class="text-sm text-gray-600">Продуктов</div>
+      </div>
+    {/if}
   </div>
 </div>

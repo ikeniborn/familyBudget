@@ -2,10 +2,10 @@
 Reports and analytics endpoints.
 """
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, func, case
+from sqlalchemy import select, and_, func, case, or_
 from pydantic import BaseModel
 
 from app.db.database import get_db
@@ -14,8 +14,11 @@ from app.models.period import Period
 from app.models.nomenclature import Nomenclature
 from app.models.financial_center import FinancialCenter
 from app.models.cost_center import CostCenter
+from app.models.product import Product
+from app.models.product_nomenclature import ProductNomenclature
 from app.models.row_type import RowType
 from app.core.session import get_current_user_from_session
+from app.core.response import success_response
 
 router = APIRouter()
 
@@ -582,3 +585,69 @@ async def get_spending_trends(
         })
     
     return {"trends": list(reversed(trends))}  # Reverse to show chronological order
+
+
+@router.get("/reference-stats")
+async def get_reference_stats(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_auth)
+):
+    """Get reference data statistics for current user."""
+
+    user_id = current_user["user_id"]
+
+    # Total periods count (both user-specific and shared)
+    total_periods_stmt = select(func.count(Period.id)).where(
+        or_(Period.user_id == user_id, Period.user_id.is_(None))
+    )
+    total_periods_result = await db.execute(total_periods_stmt)
+    total_periods = total_periods_result.scalar() or 0
+
+    # Active periods count (within last year from current date)
+    one_year_ago = datetime.now() - timedelta(days=365)
+    active_periods_stmt = select(func.count(Period.id)).where(
+        and_(
+            or_(Period.user_id == user_id, Period.user_id.is_(None)),
+            Period.date >= one_year_ago
+        )
+    )
+    active_periods_result = await db.execute(active_periods_stmt)
+    active_periods = active_periods_result.scalar() or 0
+
+    # Financial centers count (both user-specific and shared)
+    financial_centers_stmt = select(func.count(FinancialCenter.id)).where(
+        or_(FinancialCenter.user_id == user_id, FinancialCenter.user_id.is_(None))
+    )
+    financial_centers_result = await db.execute(financial_centers_stmt)
+    financial_centers = financial_centers_result.scalar() or 0
+
+    # Nomenclatures count (both user-specific and shared)
+    nomenclatures_stmt = select(func.count(Nomenclature.id)).where(
+        or_(Nomenclature.user_id == user_id, Nomenclature.user_id.is_(None))
+    )
+    nomenclatures_result = await db.execute(nomenclatures_stmt)
+    nomenclatures = nomenclatures_result.scalar() or 0
+
+    # Products count - products are linked to user through nomenclatures
+    # Count products that are linked to user's nomenclatures
+    products_stmt = select(func.count(func.distinct(ProductNomenclature.product_id))).select_from(
+        ProductNomenclature.__table__.join(
+            Nomenclature.__table__,
+            ProductNomenclature.nomenclature_id == Nomenclature.id
+        )
+    ).where(
+        or_(Nomenclature.user_id == user_id, Nomenclature.user_id.is_(None))
+    )
+    products_result = await db.execute(products_stmt)
+    products = products_result.scalar() or 0
+
+    stats_data = {
+        "total_periods": total_periods,
+        "active_periods": active_periods,
+        "financial_centers": financial_centers,
+        "nomenclatures": nomenclatures,
+        "products": products
+    }
+
+    return success_response(data=stats_data)

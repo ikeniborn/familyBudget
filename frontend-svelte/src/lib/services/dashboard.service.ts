@@ -76,6 +76,17 @@ export interface SpendingTrendsResponse {
   }>;
 }
 
+/**
+ * Reference Data Statistics Interface
+ */
+export interface ReferenceDataStats {
+  total_periods: number;
+  active_periods: number;
+  financial_centers: number;
+  nomenclatures: number;
+  products: number;
+}
+
 class DashboardService {
   private endpoint = '/reports';
 
@@ -233,6 +244,17 @@ class DashboardService {
       return await api.get(`${this.endpoint}/period-stats`);
     } catch (error: any) {
       throw new Error(error.message || 'Ошибка при получении статистики по периодам');
+    }
+  }
+
+  /**
+   * Get reference data statistics
+   */
+  async getReferenceDataStats(): Promise<ReferenceDataStats> {
+    try {
+      return await api.get<ReferenceDataStats>(`${this.endpoint}/reference-stats`);
+    } catch (error: any) {
+      throw new Error(error.message || 'Ошибка при получении статистики справочных данных');
     }
   }
 

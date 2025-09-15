@@ -140,7 +140,7 @@ Production: https://your-domain.com/api
 /api/nomenclatures/*          # Управление категориями ✅ v3.2.0
 /api/registry/*               # Операции с транзакциями
 /api/products/*               # Каталог товаров
-/api/reports/*                # Аналитические endpoints
+/api/reports/*                # Аналитические endpoints ✅ v3.3.0
 /api/admin/*                  # Административные функции
 ```
 
@@ -368,6 +368,53 @@ curl -b "connect.sid=session-id" http://localhost:4000/api/auth/me
 }
 ```
 
+### Отчеты и аналитика `/api/reports/*` ✅ **v3.3.0** (Обновлено 15.09.2025)
+
+#### GET `/api/reports/reference-stats`
+Получить статистику справочных данных
+
+**Назначение**: Предоставляет актуальную статистику по справочным данным для замены mock данных в интерфейсе настроек
+
+**Ответ:**
+```json
+{
+  "success": true,
+  "data": {
+    "total_periods": 12,
+    "active_periods": 8,
+    "financial_centers": 3,
+    "nomenclatures": 25,
+    "products": 150
+  }
+}
+```
+
+**Поля ответа:**
+- `total_periods` - общее количество периодов бюджета
+- `active_periods` - количество активных периодов (за последний год)
+- `financial_centers` - количество центров финансовой ответственности (ЦФО)
+- `nomenclatures` - количество номенклатур/категорий бюджета
+- `products` - количество товаров, связанных с номенклатурами пользователя
+
+**Изоляция данных:**
+- Учитывает данные пользователя и общие справочники (user_id IS NULL)
+- Исключает данные других пользователей
+- Активные периоды определяются как периоды в пределах 365 дней от текущей даты
+
+**Применение:**
+- Замена mock данных на страницах настроек
+- Статистические карточки dashboard
+- Административные отчеты
+
+#### GET `/api/reports/dashboard-stats`
+Получить основную статистику dashboard (см. [Dashboard Integration](dashboard-integration.md))
+
+#### GET `/api/reports/category-analysis`
+Получить анализ по категориям расходов
+
+#### GET `/api/reports/spending-trends`
+Получить тренды расходов по периодам
+
 ### Управление пользователями `/api/users/*` (Только для администратора)
 
 #### GET `/api/users/`
@@ -451,6 +498,9 @@ curl -X POST -b "connect.sid=session" \
 
 # Проверка унифицированного формата ответа
 curl -b "connect.sid=session" http://localhost:4000/api/financial_centers/ | jq
+
+# Получение статистики справочных данных (замена mock данных)
+curl -b "connect.sid=session" http://localhost:4000/api/reports/reference-stats | jq
 ```
 
 ## Миграция на v3.2.0
@@ -523,5 +573,6 @@ Endpoints, не обновленные на v3.2.0, продолжают раб�
 
 ---
 
-*Документ обновлен: 13.09.2025 (v3.2.0)*
+*Документ обновлен: 15.09.2025 (v3.3.0)*
+*Последние изменения: Добавлен endpoint /api/reports/reference-stats для замены mock данных*
 *Техническая информация: [История изменений API](../changelog.md)*

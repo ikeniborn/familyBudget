@@ -43,6 +43,9 @@ class DashboardService {
 
   // Analytics data for charts
   async getAnalyticsData(periodId?: number): Promise<AnalyticsData>
+
+  // Reference data statistics for settings pages ✅ NEW v3.3.0
+  async getReferenceStats(): Promise<ReferenceStatsResponse>
 }
 ```
 
@@ -172,6 +175,40 @@ interface SpendingTrendsResponse {
 ```
 
 **Integration**: Powers historical trend charts and analytics
+
+### 6. Reference Statistics (`/reports/reference-stats`) ✅ **NEW v3.3.0** (Added 15.09.2025)
+
+**Purpose**: Real-time reference data statistics to replace mock data in settings pages
+
+**Request**:
+```typescript
+GET /api/reports/reference-stats
+```
+
+**Response**:
+```typescript
+interface ReferenceStatsResponse {
+  total_periods: number;          // Total budget periods count
+  active_periods: number;         // Periods within last year
+  financial_centers: number;      // Count of ЦФО (user + shared)
+  nomenclatures: number;         // Count of budget categories
+  products: number;              // Count of products linked to nomenclatures
+}
+```
+
+**Integration**: Provides actual statistics for settings page overview cards, replacing static mock data
+
+**Data Isolation**:
+- Includes user-specific data (`user_id = current_user.id`)
+- Includes shared reference data (`user_id IS NULL`)
+- Excludes other users' private data
+- Active periods calculated as periods within 365 days from current date
+
+**Usage Example**:
+```typescript
+// Replace mock data with real API call
+const stats = await dashboardService.getReferenceStats();
+```
 
 ## Data Transformation Layer
 
@@ -353,6 +390,7 @@ const loadDashboardData = async () => {
 2. **Hardcoded categories** - Now dynamically loaded from database
 3. **Fake transactions** - Real transaction data from registry
 4. **Mock calculations** - Server-side calculations for accuracy
+5. **Settings page mock statistics** ✅ **NEW v3.3.0** - Replaced with `/api/reports/reference-stats` endpoint
 
 ### Database Cleanup
 
@@ -368,6 +406,37 @@ const loadDashboardData = async () => {
 3. **Reliability**: Robust error handling and retry mechanisms
 4. **Maintainability**: Single source of truth for dashboard data
 5. **Testability**: Comprehensive test coverage ensures quality
+6. **Settings page integration** ✅ **NEW v3.3.0**: Actual reference data statistics instead of hardcoded values
+
+### Settings Page Mock Data Removal ✅ **v3.3.0** (Added 15.09.2025)
+
+#### Previous Implementation (Mock Data)
+Settings pages previously displayed static, hardcoded statistics:
+```typescript
+// Old mock data approach
+const mockStats = {
+  total_periods: 15,      // Hardcoded value
+  active_periods: 8,      // Static number
+  financial_centers: 5,   // Fake count
+  nomenclatures: 30,      // Mock data
+  products: 200          // Hardcoded statistic
+};
+```
+
+#### New Implementation (Real API Data)
+Settings pages now fetch real-time statistics from the database:
+```typescript
+// New API integration
+const stats = await dashboardService.getReferenceStats();
+// Returns actual counts from user's data + shared reference data
+```
+
+#### Technical Benefits
+- **Real-time accuracy**: Statistics reflect actual database state
+- **User data isolation**: Proper filtering by user_id and shared data
+- **Performance optimization**: Single API call for all reference statistics
+- **Consistency**: Unified data source prevents discrepancies
+- **Maintenance**: No need to update hardcoded values
 
 ## Development Guidelines
 

@@ -1,34 +1,115 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<fix-plan>
-    <issue>
-        <description>Nomenclature creation fails due to field mapping error</description>
-        <error-message>code: Field required</error-message>
-        <root-cause>The 'code' field from the form is not being included in the API request payload</root-cause>
-    </issue>
-    <analysis>
-        <frontend-field>formData.code (collected from form but not sent to API)</frontend-field>
-        <backend-field>code (required field in NomenclatureCreate schema)</backend-field>
-        <location>frontend-svelte/src/routes/(protected)/settings/nomenclatures/+page.svelte:202-227</location>
-        <backend-schema>backend-fastapi/app/schemas/nomenclature.py:24-28</backend-schema>
-    </analysis>
-    <solution>
-        <step number="1">Add 'code' field to requestData object in the handleSubmit function</step>
-        <step number="2">Update the requestData mapping to include: code: formData.code</step>
-        <step number="3">Ensure field names match the backend schema (code, name, account_name, bill_name, operation)</step>
-        <step number="4">Test creating a new nomenclature with all required fields</step>
-        <step number="5">Verify no validation errors occur</step>
-    </solution>
-    <implementation>
-        <file>frontend-svelte/src/routes/(protected)/settings/nomenclatures/+page.svelte</file>
-        <change>
-            <line>202-227</line>
-            <description>Add code field to requestData object:
-                const requestData = {
-                    code: formData.code,  // ADD THIS LINE
-                    name: formData.name,
-                    // ... rest of the fields
-                };
-            </description>
-        </change>
-    </implementation>
-</fix-plan>
+<implementation-plan>
+    <project>Family Budget - Remove Mock Data from Settings Page</project>
+    <date>2025-09-15</date>
+    <objective>Replace mock statistics data with real database counts on settings page</objective>
+
+    <current-state>
+        <issue>Settings page displays hardcoded mock data</issue>
+        <mock-values>
+            <active-periods>12</active-periods>
+            <financial-centers>5</financial-centers>
+            <categories>23</categories>
+            <products>156</products>
+        </mock-values>
+        <location>/settings page statistics cards</location>
+    </current-state>
+
+    <implementation-steps>
+        <step number="1">
+            <title>Create Backend API Endpoint</title>
+            <description>Add reference statistics endpoint to reports API</description>
+            <file>backend-fastapi/app/api/v1/endpoints/reports.py</file>
+            <action>
+                <type>ADD_ENDPOINT</type>
+                <endpoint>/api/reports/reference-stats</endpoint>
+                <method>GET</method>
+                <functionality>
+                    - Count total and active periods
+                    - Count financial centers
+                    - Count nomenclatures (categories)
+                    - Count products
+                    - Filter by user_id for data isolation
+                </functionality>
+            </action>
+        </step>
+
+        <step number="2">
+            <title>Extend Frontend Service</title>
+            <description>Add method to fetch reference statistics</description>
+            <file>frontend-svelte/src/lib/services/dashboard.service.ts</file>
+            <action>
+                <type>ADD_METHOD</type>
+                <interface>ReferenceDataStats</interface>
+                <method>getReferenceDataStats()</method>
+                <returns>Promise&lt;ReferenceDataStats&gt;</returns>
+            </action>
+        </step>
+
+        <step number="3">
+            <title>Update Settings Page Component</title>
+            <description>Replace mock data with API calls</description>
+            <file>frontend-svelte/src/routes/(protected)/settings/+page.svelte</file>
+            <action>
+                <type>MODIFY_COMPONENT</type>
+                <changes>
+                    - Import dashboard service
+                    - Add reactive state for statistics
+                    - Fetch data on mount
+                    - Replace hardcoded values with dynamic data
+                    - Add loading and error states
+                </changes>
+            </action>
+        </step>
+
+        <step number="4">
+            <title>Implement Tests</title>
+            <description>Create tests for new functionality</description>
+            <tests>
+                <backend>
+                    <file>tests/backend/test_reference_stats_api.py</file>
+                    <coverage>
+                        - Test endpoint response
+                        - Test user data isolation
+                        - Test count accuracy
+                    </coverage>
+                </backend>
+                <frontend>
+                    <file>tests/frontend/settings-stats.test.ts</file>
+                    <coverage>
+                        - Test data fetching
+                        - Test loading states
+                        - Test error handling
+                    </coverage>
+                </frontend>
+            </tests>
+        </step>
+
+        <step number="5">
+            <title>Update Documentation</title>
+            <description>Document API changes and component updates</description>
+            <files>
+                <file>docs/api/endpoints.md</file>
+                <file>docs/api/dashboard-integration.md</file>
+                <file>README.md</file>
+            </files>
+        </step>
+    </implementation-steps>
+
+    <validation>
+        <criteria>
+            <criterion>No mock data remains in frontend</criterion>
+            <criterion>Statistics reflect actual database counts</criterion>
+            <criterion>User data isolation maintained</criterion>
+            <criterion>Loading and error states implemented</criterion>
+            <criterion>All tests pass</criterion>
+        </criteria>
+    </validation>
+
+    <expected-results>
+        <result>Real-time statistics from database</result>
+        <result>User-specific data display</result>
+        <result>Improved user experience with loading states</result>
+        <result>Maintainable and tested code</result>
+    </expected-results>
+</implementation-plan>
