@@ -35,6 +35,50 @@ class TestNomenclaturesCRUDOperations:
         assert "id" in data
         assert "user_id" in data
 
+    def test_create_nomenclature_with_article_id(self, authenticated_client: TestClient):
+        """Test creating nomenclature with article_id reference."""
+        # First create an article
+        article_data = {
+            "code": "ART001",
+            "name": "Test Article",
+            "description": "Test article for nomenclature",
+            "is_active": True
+        }
+        article_response = authenticated_client.post("/api/articles/", json=article_data)
+        assert article_response.status_code == status.HTTP_200_OK
+        article_id = article_response.json()["article_id"]
+
+        # Create nomenclature with article reference
+        nomenclature_data = {
+            "name": "Продукты с статьей",
+            "account_name": "Счет продуктов",
+            "is_budget": True,
+            "is_fact": True,
+            "article_id": article_id
+        }
+
+        response = authenticated_client.post("/api/nomenclatures/", json=nomenclature_data)
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert data["name"] == nomenclature_data["name"]
+        assert data["article_id"] == article_id
+        assert "id" in data
+
+    def test_create_nomenclature_with_invalid_article_id(self, authenticated_client: TestClient):
+        """Test creating nomenclature with non-existent article_id."""
+        nomenclature_data = {
+            "name": "Продукты с несуществующей статьей",
+            "account_name": "Счет продуктов",
+            "is_budget": True,
+            "is_fact": True,
+            "article_id": 99999  # Non-existent article
+        }
+
+        response = authenticated_client.post("/api/nomenclatures/", json=nomenclature_data)
+        # Should return validation error due to foreign key constraint
+        assert response.status_code in [status.HTTP_400_BAD_REQUEST, status.HTTP_422_UNPROCESSABLE_ENTITY]
+
     def test_create_nomenclature_minimal_data(self, authenticated_client: TestClient):
         """Test creating nomenclature with minimal required data."""
         nomenclature_data = {
@@ -481,6 +525,131 @@ class TestNomenclaturesUserIsolation:
 
         # Both should succeed because they belong to different users
         assert response1.json()["id"] != response2.json()["id"]
+
+
+class TestNomenclaturesArticleRelationship:
+    """Test nomenclature-article relationship functionality."""
+
+    def test_update_nomenclature_article_id(self, authenticated_client: TestClient):
+        """Test updating nomenclature's article_id."""
+        # Create article
+        article_data = {
+            "code": "UPD001",
+            "name": "Update Test Article",
+            "description": "Article for update test",
+            "is_active": True
+        }
+        article_response = authenticated_client.post("/api/articles/", json=article_data)
+        article_id = article_response.json()["article_id"]
+
+        # Create nomenclature without article
+        nomenclature_data = {
+            "name": "Номенклатура для обновления",
+            "is_budget": True,
+            "is_fact": True
+        }
+        nomenclature_response = authenticated_client.post("/api/nomenclatures/", json=nomenclature_data)
+        nomenclature_id = nomenclature_response.json()["id"]
+
+        # Update nomenclature to add article reference
+        update_data = {"article_id": article_id}
+        response = authenticated_client.put(f"/api/nomenclatures/{nomenclature_id}", json=update_data)
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert data["article_id"] == article_id
+
+    def test_get_nomenclatures_with_article_info(self, authenticated_client: TestClient):
+        """Test retrieving nomenclatures includes article information."""
+        # Create article
+        article_data = {
+            "code": "INFO001",
+            "name": "Info Test Article",
+            "description": "Article for info test",
+            "is_active": True
+        }
+        article_response = authenticated_client.post("/api/articles/", json=article_data)
+        article_id = article_response.json()["article_id"]
+
+        # Create nomenclature with article
+        nomenclature_data = {
+            "name": "Номенклатура с информацией о статье",
+            "is_budget": True,
+            "is_fact": True,
+            "article_id": article_id
+        }
+        authenticated_client.post("/api/nomenclatures/", json=nomenclature_data)
+
+        # Get nomenclatures list
+        response = authenticated_client.get("/api/nomenclatures/")
+        assert response.status_code == status.HTTP_200_OK
+
+        nomenclatures = response.json()
+        # Find our nomenclature
+        test_nomenclature = next(
+            (n for n in nomenclatures if n["name"] == "Номенклатура с информацией о статье"),
+            None
+        )
+        assert test_nomenclature is not None
+        assert test_nomenclature["article_id"] == article_id
+
+    def test_delete_article_with_nomenclatures(self, authenticated_client: TestClient):
+        """Test behavior when trying to delete article that has associated nomenclatures."""
+        # Create article
+        article_data = {
+            "code": "DEL001",
+            "name": "Article to Delete",
+            "description": "Article for deletion test",
+            "is_active": True
+        }
+        article_response = authenticated_client.post("/api/articles/", json=article_data)
+        article_id = article_response.json()["article_id"]
+
+        # Create nomenclature with article reference
+        nomenclature_data = {
+            "name": "Зависимая номенклатура",
+            "is_budget": True,
+            "is_fact": True,
+            "article_id": article_id
+        }
+        authenticated_client.post("/api/nomenclatures/", json=nomenclature_data)
+
+        # Try to delete article
+        response = authenticated_client.delete(f"/api/articles/{article_id}")
+        # Should fail due to foreign key constraint
+        assert response.status_code in [status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT]
+
+    def test_nomenclature_with_shared_article(self, authenticated_client: TestClient):
+        """Test creating nomenclature with reference to shared article."""
+        # Note: This test assumes admin functionality for creating shared articles
+        # Create shared article (this might require admin privileges)
+        shared_article_data = {
+            "code": "SHARED001",
+            "name": "Shared Article",
+            "description": "Article shared among users",
+            "is_active": True,
+            "user_id": None  # Shared article
+        }
+
+        # Try to create shared article (may fail if user is not admin)
+        article_response = authenticated_client.post("/api/articles/", json=shared_article_data)
+
+        if article_response.status_code == status.HTTP_200_OK:
+            article_id = article_response.json()["article_id"]
+
+            # Create nomenclature referencing shared article
+            nomenclature_data = {
+                "name": "Номенклатура с общей статьей",
+                "is_budget": True,
+                "is_fact": True,
+                "article_id": article_id
+            }
+
+            response = authenticated_client.post("/api/nomenclatures/", json=nomenclature_data)
+            assert response.status_code == status.HTTP_200_OK
+
+            data = response.json()
+            assert data["article_id"] == article_id
 
 
 class TestNomenclaturesErrorHandling:
