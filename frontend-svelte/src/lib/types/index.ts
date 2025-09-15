@@ -132,10 +132,10 @@ export interface Nomenclature {
   code: string;
   description?: string;
   nomenclature_type?: 'INCOME' | 'EXPENSE';
-  account_name: string;
-  bill_name: string;
-  operation_name: string;
-  operation: string;
+  account_name?: string;
+  bill_name?: string;
+  operation_name?: string;
+  operation?: string;
   is_budget: boolean;
   is_fact: boolean;
   parent_id?: number | null;

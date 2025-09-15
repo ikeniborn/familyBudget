@@ -63,9 +63,6 @@
   let formData = {
     code: '',
     name: '',
-    account_name: '',
-    bill_name: '',
-    operation: '',
     description: '',
     nomenclature_type: 'EXPENSE' as 'INCOME' | 'EXPENSE',
     is_active: true
@@ -158,9 +155,6 @@
     formData = {
       code: '',
       name: '',
-      account_name: '',
-      bill_name: '',
-      operation: '',
       description: '',
       nomenclature_type: 'EXPENSE' as 'INCOME' | 'EXPENSE',
       is_active: true
@@ -173,9 +167,6 @@
     formData = {
       code: nomenclature.code || '',
       name: nomenclature.name || '',
-      account_name: nomenclature.account_name || '',
-      bill_name: nomenclature.bill_name || '',
-      operation: nomenclature.operation || '',
       description: nomenclature.description || '',
       nomenclature_type: (nomenclature.nomenclature_type as 'INCOME' | 'EXPENSE') || 'EXPENSE',
       is_active: nomenclature.is_active !== false
@@ -189,9 +180,6 @@
     formData = {
       code: '',
       name: '',
-      account_name: '',
-      bill_name: '',
-      operation: '',
       description: '',
       nomenclature_type: 'EXPENSE' as 'INCOME' | 'EXPENSE',
       is_active: true
@@ -210,9 +198,6 @@
       const requestData = {
         code: formData.code,
         name: formData.name,
-        account_name: formData.account_name || formData.name,
-        bill_name: formData.bill_name || formData.name,
-        operation: formData.operation || formData.name,
         description: formData.description || null,
         nomenclature_type: formData.nomenclature_type,
         is_budget: true,
@@ -226,9 +211,6 @@
         response = await api.put(`/nomenclatures/${selectedNomenclature.id}/`, {
           code: formData.code,
           name: formData.name,
-          account_name: formData.account_name || formData.name,
-          bill_name: formData.bill_name || formData.name,
-          operation: formData.operation || formData.name,
           description: formData.description || null,
           nomenclature_type: formData.nomenclature_type,
           is_budget: true,
@@ -619,51 +601,6 @@
                 type="text"
                 bind:value={formData.name}
                 placeholder="Например: Продукты питания"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <!-- Account Name -->
-            <div>
-              <label for="nom-account-name" class="block text-sm font-medium text-gray-700 mb-1">
-                Название счета *
-              </label>
-              <input
-                id="nom-account-name"
-                type="text"
-                bind:value={formData.account_name}
-                placeholder="Например: Счет продуктов"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <!-- Bill Name -->
-            <div>
-              <label for="nom-bill-name" class="block text-sm font-medium text-gray-700 mb-1">
-                Название счета к оплате *
-              </label>
-              <input
-                id="nom-bill-name"
-                type="text"
-                bind:value={formData.bill_name}
-                placeholder="Например: К оплате продукты"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <!-- Operation -->
-            <div>
-              <label for="nom-operation" class="block text-sm font-medium text-gray-700 mb-1">
-                Операция *
-              </label>
-              <input
-                id="nom-operation"
-                type="text"
-                bind:value={formData.operation}
-                placeholder="Например: Покупка продуктов"
                 required
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />

@@ -4,9 +4,12 @@ import api from './api';
 
 export interface CreateNomenclatureData {
   name: string;  // Updated to match backend schema
-  account_name: string;
-  bill_name: string;
-  operation: string;  // Updated to match backend schema
+  code?: string;
+  description?: string;
+  nomenclature_type?: 'INCOME' | 'EXPENSE';
+  account_name?: string;
+  bill_name?: string;
+  operation?: string;  // Updated to match backend schema
   is_budget?: boolean;
   is_fact?: boolean;
   is_active?: boolean;
@@ -14,6 +17,9 @@ export interface CreateNomenclatureData {
 
 export interface UpdateNomenclatureData {
   name?: string;  // Updated to match backend schema
+  code?: string;
+  description?: string;
+  nomenclature_type?: 'INCOME' | 'EXPENSE';
   account_name?: string;
   bill_name?: string;
   operation?: string;  // Updated to match backend schema
@@ -89,9 +95,10 @@ class NomenclaturesService extends BaseService<Nomenclature, CreateNomenclatureD
           nomenclature_id: n.nomenclature_id || n.id || 0,
           nomenclature_name: n.nomenclature_name || '',
           nomenclature_type: n.nomenclature_type || 'EXPENSE',
-          account_name: n.account_name || '',
-          bill_name: n.bill_name || '',
-          operation_name: n.operation_name || '',
+          account_name: n.account_name || undefined,
+          bill_name: n.bill_name || undefined,
+          operation_name: n.operation_name || undefined,
+          operation: n.operation || undefined,
           is_budget: n.is_budget !== undefined ? n.is_budget : true,
           is_fact: n.is_fact !== undefined ? n.is_fact : true,
           is_active: n.is_active !== undefined ? n.is_active : true
@@ -121,19 +128,16 @@ class NomenclaturesService extends BaseService<Nomenclature, CreateNomenclatureD
   // Export to CSV - updated to support admin data
   async exportToCsv(data: Nomenclature[] | AdminNomenclature[], isAdmin: boolean = false): Promise<string> {
     const headers = isAdmin
-      ? ['ID', 'Номенклатура', 'Тип', 'Счёт', 'Статья', 'Операция', 'План', 'Факт', 'Статус', 'Дата создания', 'Пользователь', 'Email', 'Username', 'Telegram ID']
-      : ['ID', 'Номенклатура', 'Тип', 'Счёт', 'Статья', 'Операция', 'План', 'Факт', 'Статус', 'Дата создания'];
+      ? ['ID', 'Номенклатура', 'Тип', 'План', 'Факт', 'Статус', 'Дата создания', 'Пользователь', 'Email', 'Username', 'Telegram ID']
+      : ['ID', 'Номенклатура', 'Тип', 'План', 'Факт', 'Статус', 'Дата создания'];
     
     const csvContent = [
       headers.join(','),
       ...data.map(n => {
         const baseData = [
           n.nomenclature_id,
-          `"${n.nomenclature_name}"`,
+          `"${n.nomenclature_name || n.name}"`,
           n.nomenclature_type || 'EXPENSE',
-          `"${n.account_name}"`,
-          `"${n.bill_name}"`,
-          `"${n.operation_name}"`,
           n.is_budget ? 'Да' : 'Нет',
           n.is_fact ? 'Да' : 'Нет',
           n.is_active ? 'Активен' : 'Неактивен',
@@ -160,14 +164,11 @@ class NomenclaturesService extends BaseService<Nomenclature, CreateNomenclatureD
   // Export to CSV (legacy method for backward compatibility)
   async exportToCsvLegacy(data: Nomenclature[]): Promise<string> {
     const csvContent = [
-      ['ID', 'Номенклатура', 'Тип', 'Счёт', 'Статья', 'Операция', 'План', 'Факт', 'Статус', 'Дата создания'].join(','),
+      ['ID', 'Номенклатура', 'Тип', 'План', 'Факт', 'Статус', 'Дата создания'].join(','),
       ...data.map(n => [
         n.nomenclature_id,
-        `"${n.nomenclature_name}"`,
+        `"${n.nomenclature_name || n.name}"`,
         n.nomenclature_type || 'EXPENSE',
-        `"${n.account_name}"`,
-        `"${n.bill_name}"`,
-        `"${n.operation_name}"`,
         n.is_budget ? 'Да' : 'Нет',
         n.is_fact ? 'Да' : 'Нет',
         n.is_active ? 'Активен' : 'Неактивен',
@@ -190,9 +191,9 @@ class NomenclaturesService extends BaseService<Nomenclature, CreateNomenclatureD
       
       newNomenclatures.push({
         name: name,  // Updated to match backend schema
-        account_name: account || 'Счёт',
-        bill_name: bill || 'Статья',
-        operation: operation || 'Операция',  // Updated to match backend schema
+        account_name: account || undefined,
+        bill_name: bill || undefined,
+        operation: operation || undefined,  // Updated to match backend schema
         is_budget: budget === 'Да',
         is_fact: fact === 'Да',
         is_active: status === 'Активен',
