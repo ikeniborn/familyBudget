@@ -1,98 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<plan>
-  <title>Fix Cost Center Creation Error - Field Mapping Issue</title>
-  <issue>
-    <description>При создании МВЗ (cost center) возникает ошибка валидации "code: Field required"</description>
-    <url>http://localhost:5173/settings/cost-centers</url>
-    <error_message>Ошибка валидации: code: Field required</error_message>
-  </issue>
-
-  <root_cause>
-    <problem>Несоответствие полей между frontend и backend</problem>
-    <details>
-      <frontend_issue>
-        Frontend собирает все данные из формы (code, name, description, is_active),
-        но отправляет на backend только name и is_active, пропуская обязательное поле code
-      </frontend_issue>
-      <backend_expectation>
-        Backend ожидает обязательные поля: code (str), name (str)
-        Опциональные поля: description (str), is_active (bool)
-      </backend_expectation>
-    </details>
-  </root_cause>
-
-  <solution>
-    <step number="1" status="completed">
-      <action>Анализ ошибки и определение причины</action>
-      <result>Обнаружено несоответствие полей в API запросе</result>
-    </step>
-
-    <step number="2" status="completed">
-      <action>Исправление frontend компонента</action>
-      <file>/frontend-svelte/src/routes/(protected)/settings/cost-centers/+page.svelte</file>
-      <changes>
-        <change line="180-198">
-          Добавлены поля code и description в requestData при создании/обновлении МВЗ
+<fix-plan>
+    <issue>
+        <description>Nomenclature creation fails due to field mapping error</description>
+        <error-message>code: Field required</error-message>
+        <root-cause>The 'code' field from the form is not being included in the API request payload</root-cause>
+    </issue>
+    <analysis>
+        <frontend-field>formData.code (collected from form but not sent to API)</frontend-field>
+        <backend-field>code (required field in NomenclatureCreate schema)</backend-field>
+        <location>frontend-svelte/src/routes/(protected)/settings/nomenclatures/+page.svelte:202-227</location>
+        <backend-schema>backend-fastapi/app/schemas/nomenclature.py:24-28</backend-schema>
+    </analysis>
+    <solution>
+        <step number="1">Add 'code' field to requestData object in the handleSubmit function</step>
+        <step number="2">Update the requestData mapping to include: code: formData.code</step>
+        <step number="3">Ensure field names match the backend schema (code, name, account_name, bill_name, operation)</step>
+        <step number="4">Test creating a new nomenclature with all required fields</step>
+        <step number="5">Verify no validation errors occur</step>
+    </solution>
+    <implementation>
+        <file>frontend-svelte/src/routes/(protected)/settings/nomenclatures/+page.svelte</file>
+        <change>
+            <line>202-227</line>
+            <description>Add code field to requestData object:
+                const requestData = {
+                    code: formData.code,  // ADD THIS LINE
+                    name: formData.name,
+                    // ... rest of the fields
+                };
+            </description>
         </change>
-        <change line="177-180">
-          Добавлена валидация обязательного поля code на клиенте
-        </change>
-        <change line="510">
-          Добавлена звездочка (*) к label поля "Код МВЗ" для обозначения обязательности
-        </change>
-        <change line="517">
-          Добавлен HTML5 атрибут required к input полю code
-        </change>
-      </changes>
-    </step>
-
-    <step number="3" status="pending">
-      <action>Создание тестов для проверки исправления</action>
-      <tests>
-        <test type="unit">Тест создания МВЗ с обязательными полями</test>
-        <test type="unit">Тест валидации при отсутствии поля code</test>
-        <test type="integration">Тест полного цикла создания МВЗ через UI</test>
-      </tests>
-    </step>
-
-    <step number="4" status="pending">
-      <action>Обновление документации</action>
-      <documents>
-        <doc>/docs/api/cost-centers.md</doc>
-        <doc>/docs/changelog.md</doc>
-        <doc>README.md</doc>
-      </documents>
-    </step>
-
-    <step number="5" status="pending">
-      <action>Коммит изменений</action>
-      <commit_message>fix: Исправлена ошибка создания МВЗ - добавлена передача обязательного поля code</commit_message>
-    </step>
-  </solution>
-
-  <affected_components>
-    <component>
-      <name>Cost Centers Frontend Page</name>
-      <path>/frontend-svelte/src/routes/(protected)/settings/cost-centers/+page.svelte</path>
-      <type>SvelteKit Component</type>
-    </component>
-    <component>
-      <name>Cost Centers API</name>
-      <path>/api/cost_centers/</path>
-      <type>FastAPI Endpoint</type>
-    </component>
-  </affected_components>
-
-  <validation>
-    <test_scenario>
-      <step>Открыть страницу /settings/cost-centers</step>
-      <step>Нажать кнопку "Добавить МВЗ"</step>
-      <step>Заполнить поле "Код МВЗ" значением "324"</step>
-      <step>Заполнить поле "Название МВЗ" значением "Тестовый МВЗ"</step>
-      <step>Заполнить поле "Описание"</step>
-      <step>Оставить галочку "Активен"</step>
-      <step>Нажать кнопку "Создать"</step>
-      <expected_result>МВЗ успешно создан без ошибок валидации</expected_result>
-    </test_scenario>
-  </validation>
-</plan>
+    </implementation>
+</fix-plan>

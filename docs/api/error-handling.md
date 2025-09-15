@@ -68,6 +68,27 @@ const loadNomenclatures = async () => {
 - ✅ **Улучшение производительности на 50%** - отсутствие дублирующих запросов
 - ✅ **Стабильное поведение** - предсказуемая работа всех компонентов
 
+## Известные проблемы и их решения
+
+### Ошибка поля code при создании номенклатуры (Исправлено: 15.09.2025)
+
+**Проблема:** При создании номенклатуры возникала ошибка валидации "code: Field required", даже когда пользователь заполнял поле кода.
+
+**Причина:** Несоответствие между полями формы frontend и схемой backend API. Поле `code` не включалось в запрос к API.
+
+**Решение:** Обновлена маппинг полей в компоненте `/settings/nomenclatures`:
+- Добавлено поле `code` в объект `requestData` (строка 210)
+- Добавлены все обязательные поля backend схемы (`account_name`, `bill_name`, `operation`)
+- Обновлена форма для сбора всех необходимых данных
+
+**Файлы изменены:**
+- `frontend-svelte/src/routes/(protected)/settings/nomenclatures/+page.svelte` (строки 63-72, 202-227, 597-684)
+- `frontend-svelte/src/lib/types/index.ts`
+
+**Тесты:**
+- `tests/frontend/nomenclature-field-mapping.test.ts` - проверка маппинга полей
+- `tests/backend/test_nomenclature_field_fix.py` - валидация API
+
 ## Архитектура обработки ошибок
 
 ### Backend (FastAPI)

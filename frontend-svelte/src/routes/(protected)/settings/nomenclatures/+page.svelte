@@ -63,9 +63,11 @@
   let formData = {
     code: '',
     name: '',
-    category: '',
-    type: 'expense' as 'income' | 'expense',
+    account_name: '',
+    bill_name: '',
+    operation: '',
     description: '',
+    nomenclature_type: 'EXPENSE' as 'INCOME' | 'EXPENSE',
     is_active: true
   };
 
@@ -107,9 +109,9 @@
     const total = nomenclatures.length;
     const active = nomenclatures.filter(n => n.is_active !== false).length;
     const inactive = total - active;
-    const income = nomenclatures.filter(n => n.type === 'income').length;
-    const expense = nomenclatures.filter(n => n.type === 'expense' || !n.type).length;
-    
+    const income = nomenclatures.filter(n => n.nomenclature_type === 'INCOME').length;
+    const expense = nomenclatures.filter(n => n.nomenclature_type === 'EXPENSE' || !n.nomenclature_type).length;
+
     nomenclatureStats = { total, active, inactive, income, expense };
   }
 
@@ -131,7 +133,7 @@
   }
 
   function getTypeBadge(nomenclature: Nomenclature) {
-    if (nomenclature.type === 'income') {
+    if (nomenclature.nomenclature_type === 'INCOME') {
       return { class: 'bg-green-100 text-green-800', text: 'Доходы', icon: TrendingUp };
     } else {
       return { class: 'bg-red-100 text-red-800', text: 'Расходы', icon: TrendingDown };
@@ -156,9 +158,11 @@
     formData = {
       code: '',
       name: '',
-      category: '',
-      type: 'expense' as 'income' | 'expense',
+      account_name: '',
+      bill_name: '',
+      operation: '',
       description: '',
+      nomenclature_type: 'EXPENSE' as 'INCOME' | 'EXPENSE',
       is_active: true
     };
     showAddModal = true;
@@ -169,9 +173,11 @@
     formData = {
       code: nomenclature.code || '',
       name: nomenclature.name || '',
-      category: nomenclature.category || '',
-      type: (nomenclature.type as 'income' | 'expense') || 'expense',
+      account_name: nomenclature.account_name || '',
+      bill_name: nomenclature.bill_name || '',
+      operation: nomenclature.operation || '',
       description: nomenclature.description || '',
+      nomenclature_type: (nomenclature.nomenclature_type as 'INCOME' | 'EXPENSE') || 'EXPENSE',
       is_active: nomenclature.is_active !== false
     };
     showAddModal = true;
@@ -183,29 +189,34 @@
     formData = {
       code: '',
       name: '',
-      category: '',
-      type: 'expense' as 'income' | 'expense',
+      account_name: '',
+      bill_name: '',
+      operation: '',
       description: '',
+      nomenclature_type: 'EXPENSE' as 'INCOME' | 'EXPENSE',
       is_active: true
     };
   }
 
   async function handleSubmitNomenclature() {
-    if (!formData.name) {
-      toast.error('Заполните обязательные поля', 'Название обязательно');
+    if (!formData.name || !formData.code) {
+      toast.error('Заполните обязательные поля', 'Код и название обязательны');
       return;
     }
 
     try {
       saving = true;
-      
+
       const requestData = {
+        code: formData.code,
         name: formData.name,
         account_name: formData.account_name || formData.name,
         bill_name: formData.bill_name || formData.name,
         operation: formData.operation || formData.name,
-        is_budget: formData.is_budget !== undefined ? formData.is_budget : true,
-        is_fact: formData.is_fact !== undefined ? formData.is_fact : true,
+        description: formData.description || null,
+        nomenclature_type: formData.nomenclature_type,
+        is_budget: true,
+        is_fact: true,
         is_active: formData.is_active
       };
 
@@ -213,12 +224,15 @@
       if (selectedNomenclature) {
         // Update existing nomenclature
         response = await api.put(`/nomenclatures/${selectedNomenclature.id}/`, {
+          code: formData.code,
           name: formData.name,
           account_name: formData.account_name || formData.name,
           bill_name: formData.bill_name || formData.name,
           operation: formData.operation || formData.name,
-          is_budget: formData.is_budget !== undefined ? formData.is_budget : true,
-          is_fact: formData.is_fact !== undefined ? formData.is_fact : true,
+          description: formData.description || null,
+          nomenclature_type: formData.nomenclature_type,
+          is_budget: true,
+          is_fact: true,
           is_active: formData.is_active
         });
       } else {
@@ -421,7 +435,7 @@
             <tr class="border-b">
               <th class="text-left py-3 px-4">Код</th>
               <th class="text-left py-3 px-4">Название</th>
-              <th class="text-left py-3 px-4">Категория</th>
+              <th class="text-left py-3 px-4">Описание</th>
               <th class="text-left py-3 px-4">Тип данных</th>
               <th class="text-left py-3 px-4">Тип</th>
               <th class="text-left py-3 px-4">Статус</th>
@@ -470,7 +484,7 @@
                   </td>
                   <td class="py-3 px-4">
                     <span class="text-sm text-gray-600">
-                      {nomenclature.category || 'Без категории'}
+                      {nomenclature.description || 'Без описания'}
                     </span>
                   </td>
                   <td class="py-3 px-4">
@@ -583,13 +597,14 @@
             <!-- Code ---->
             <div>
               <label for="nom-code" class="block text-sm font-medium text-gray-700 mb-1">
-                Код номенклатуры
+                Код номенклатуры *
               </label>
               <input
                 id="nom-code"
                 type="text"
                 bind:value={formData.code}
                 placeholder="Например: Д001, Р002"
+                required
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -609,32 +624,63 @@
               />
             </div>
 
-            <!-- Category -->
+            <!-- Account Name -->
             <div>
-              <label for="nom-category" class="block text-sm font-medium text-gray-700 mb-1">
-                Категория
+              <label for="nom-account-name" class="block text-sm font-medium text-gray-700 mb-1">
+                Название счета *
               </label>
               <input
-                id="nom-category"
+                id="nom-account-name"
                 type="text"
-                bind:value={formData.category}
-                placeholder="Например: Основные расходы"
+                bind:value={formData.account_name}
+                placeholder="Например: Счет продуктов"
+                required
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
-            <!-- Type -->
+            <!-- Bill Name -->
+            <div>
+              <label for="nom-bill-name" class="block text-sm font-medium text-gray-700 mb-1">
+                Название счета к оплате *
+              </label>
+              <input
+                id="nom-bill-name"
+                type="text"
+                bind:value={formData.bill_name}
+                placeholder="Например: К оплате продукты"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <!-- Operation -->
+            <div>
+              <label for="nom-operation" class="block text-sm font-medium text-gray-700 mb-1">
+                Операция *
+              </label>
+              <input
+                id="nom-operation"
+                type="text"
+                bind:value={formData.operation}
+                placeholder="Например: Покупка продуктов"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <!-- Nomenclature Type -->
             <div>
               <label for="nom-type" class="block text-sm font-medium text-gray-700 mb-1">
                 Тип номенклатуры
               </label>
               <select
                 id="nom-type"
-                bind:value={formData.type}
+                bind:value={formData.nomenclature_type}
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="expense">Расходы</option>
-                <option value="income">Доходы</option>
+                <option value="EXPENSE">Расходы</option>
+                <option value="INCOME">Доходы</option>
               </select>
             </div>
 

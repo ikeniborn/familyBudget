@@ -576,6 +576,7 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 6. **Settings pages DNS errors**: ✅ **RESOLVED** - Host header proxy fix implemented (ADR-004)
 7. **Timezone errors on period creation**: ✅ **RESOLVED** - Timezone handling utilities implemented (ADR-005)
 8. **Financial center field mapping error**: ✅ **RESOLVED** - Fixed `financial_center_name` → `name` (v3.1.4)
+9. **Nomenclature code field error**: ✅ **RESOLVED** - Fixed missing `code` field in API request (v3.1.5)
 
 ### 🔧 Docker Networking Fix (ADR-004)
 
@@ -643,6 +644,60 @@ toast.error(`Cannot delete ${centerName}`); // shows "Cannot delete Development 
 - Frontend component tests validate correct field usage
 - API schema validation prevents future field mismatches
 - Error handling tests ensure no "[object Object]" display
+
+### 🔧 Nomenclature Code Field Mapping Fix (v3.1.5)
+
+**Issue:** Nomenclature creation failed with "code: Field required" even when user filled the code field
+**Root Cause:** Frontend form collected `code` field but didn't include it in API request payload
+**Symptoms:**
+- Validation error "code: Field required" when creating nomenclatures
+- Form data not properly mapped to backend schema requirements
+- Missing required fields (`account_name`, `bill_name`, `operation`) in API requests
+
+**Solution:** Updated field mapping in frontend component
+- **Fixed in:** `frontend-svelte/src/routes/(protected)/settings/nomenclatures/+page.svelte:210-221`
+- **Changes:**
+  - Added `code` field to `requestData` object
+  - Included all required backend fields
+  - Updated form to collect all necessary data
+
+**Technical Details:**
+```typescript
+// ❌ BEFORE: Missing code field
+const requestData = {
+  name: formData.name,
+  // code field was missing!
+  ...
+};
+
+// ✅ AFTER: All required fields included
+const requestData = {
+  code: formData.code,               // Added required field
+  name: formData.name,
+  account_name: formData.account_name || formData.name,
+  bill_name: formData.bill_name || formData.name,
+  operation: formData.operation || formData.name,
+  ...
+};
+```
+
+**Affected Components:**
+- Nomenclatures management page (`/settings/nomenclatures`)
+- Create/Edit nomenclature modal
+- Form validation and submission logic
+- TypeScript type definitions
+
+**Result:**
+- ✅ Nomenclatures can be created successfully
+- ✅ All required fields properly sent to backend
+- ✅ Validation errors resolved
+- ✅ Full compliance with backend schema
+
+**Testing Coverage:**
+- `tests/frontend/nomenclature-field-mapping.test.ts` - Frontend field mapping tests
+- `tests/backend/test_nomenclature_field_fix.py` - Backend API validation tests
+- Comprehensive validation of all required fields
+- Error handling for missing fields
 
 ## File Organization
 

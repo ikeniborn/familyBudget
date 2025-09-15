@@ -129,10 +129,13 @@ export interface Nomenclature {
   nomenclature_id: number;
   nomenclature_name?: string; // For backward compatibility
   name: string; // New standardized field name
+  code: string;
+  description?: string;
   nomenclature_type?: 'INCOME' | 'EXPENSE';
   account_name: string;
   bill_name: string;
   operation_name: string;
+  operation: string;
   is_budget: boolean;
   is_fact: boolean;
   parent_id?: number | null;
@@ -149,7 +152,6 @@ export interface Nomenclature {
   created_at?: string;
   updated_at?: string;
   // Shared data fields
-  code?: string;
   created_by?: number;
   managed_by?: number;
   is_editable?: boolean;
