@@ -153,6 +153,7 @@ async def create_nomenclature(
             is_fact=nomenclature_data.is_fact,
             is_active=nomenclature_data.is_active,
             parent_id=nomenclature_data.parent_id,
+            article_id=nomenclature_data.article_id,
             user_id=final_user_id,
             created_by=created_by,
             managed_by=managed_by

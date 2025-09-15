@@ -32,6 +32,7 @@ class Nomenclature(Base):
     is_active = Column("is_active", Boolean, default=True)
     user_id = Column("user_id", Integer, nullable=True, index=True)  # Nullable for shared records
     parent_id = Column("parent_id", Integer, index=True, nullable=True)
+    article_id = Column("article_id", Integer, ForeignKey("t_d_article.article_id"), nullable=True)
     created_by = Column("created_by", Integer, ForeignKey("t_d_user.user_id"), nullable=True)
     managed_by = Column("managed_by", Integer, ForeignKey("t_d_user.user_id"), nullable=True)
     created_at = Column("created_at", DateTime(timezone=True), server_default=func.now())
@@ -43,6 +44,7 @@ class Nomenclature(Base):
     # Relationships
     registries = relationship("Registry", back_populates="nomenclature")
     products = relationship("ProductNomenclature", back_populates="nomenclature")
+    article = relationship("Article", back_populates="nomenclatures")
     creator = relationship("User", foreign_keys=[created_by])
     manager = relationship("User", foreign_keys=[managed_by])
     
@@ -64,6 +66,7 @@ class Nomenclature(Base):
             "is_active": self.is_active,
             "user_id": self.user_id,
             "parent_id": self.parent_id,
+            "article_id": self.article_id,
             "created_by": self.created_by,
             "managed_by": self.managed_by,
             "is_shared": self.user_id is None,

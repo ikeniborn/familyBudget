@@ -6,8 +6,9 @@
   import { goto } from '$app/navigation';
   import { useToast } from '$lib/stores/toast.store';
   import { api } from '$lib/services/api';
+  import { articlesService } from '$lib/services/articles.service';
   import { isAdmin } from '$lib/stores/auth.store';
-  import type { Nomenclature } from '$lib/types';
+  import type { Nomenclature, Article } from '$lib/types';
   
   const toast = useToast();
 
@@ -44,6 +45,7 @@
   }
 
   let nomenclatures: Nomenclature[] = [];
+  let articles: Article[] = [];
   let nomenclatureStats: NomenclatureStats = {
     total: 0,
     active: 0,
@@ -65,6 +67,7 @@
     name: '',
     description: '',
     nomenclature_type: 'EXPENSE' as 'INCOME' | 'EXPENSE',
+    article_id: null as number | null,
     is_active: true
   };
 
@@ -83,12 +86,22 @@
   async function loadNomenclatures() {
     try {
       loading = true;
-      const response = await api.get('/nomenclatures/') as any;
-      if (response.success) {
-        nomenclatures = response.data || [];
+      const [nomenclaturesResponse, articlesResponse] = await Promise.all([
+        api.get('/nomenclatures/') as any,
+        articlesService.getAll()
+      ]);
+
+      if (nomenclaturesResponse.success) {
+        nomenclatures = nomenclaturesResponse.data || [];
         loadNomenclatureStats();
       } else {
-        throw new Error(response.error || 'Не удалось загрузить номенклатуры');
+        throw new Error(nomenclaturesResponse.error || 'Не удалось загрузить номенклатуры');
+      }
+
+      if (articlesResponse.success && articlesResponse.data) {
+        articles = articlesResponse.data;
+      } else {
+        articles = [];
       }
     } catch (error: any) {
       toast.error(
@@ -157,6 +170,7 @@
       name: '',
       description: '',
       nomenclature_type: 'EXPENSE' as 'INCOME' | 'EXPENSE',
+      article_id: null,
       is_active: true
     };
     showAddModal = true;
@@ -169,6 +183,7 @@
       name: nomenclature.name || '',
       description: nomenclature.description || '',
       nomenclature_type: (nomenclature.nomenclature_type as 'INCOME' | 'EXPENSE') || 'EXPENSE',
+      article_id: nomenclature.article_id || null,
       is_active: nomenclature.is_active !== false
     };
     showAddModal = true;
@@ -182,6 +197,7 @@
       name: '',
       description: '',
       nomenclature_type: 'EXPENSE' as 'INCOME' | 'EXPENSE',
+      article_id: null,
       is_active: true
     };
   }
@@ -200,6 +216,7 @@
         name: formData.name,
         description: formData.description || null,
         nomenclature_type: formData.nomenclature_type,
+        article_id: formData.article_id,
         is_budget: true,
         is_fact: true,
         is_active: formData.is_active
@@ -213,6 +230,7 @@
           name: formData.name,
           description: formData.description || null,
           nomenclature_type: formData.nomenclature_type,
+          article_id: formData.article_id,
           is_budget: true,
           is_fact: true,
           is_active: formData.is_active
@@ -618,6 +636,23 @@
               >
                 <option value="EXPENSE">Расходы</option>
                 <option value="INCOME">Доходы</option>
+              </select>
+            </div>
+
+            <!-- Article -->
+            <div>
+              <label for="nom-article" class="block text-sm font-medium text-gray-700 mb-1">
+                Статья
+              </label>
+              <select
+                id="nom-article"
+                bind:value={formData.article_id}
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value={null}>Не выбрана</option>
+                {#each articles as article}
+                  <option value={article.id}>{article.name} ({article.code})</option>
+                {/each}
               </select>
             </div>
 

@@ -19,6 +19,7 @@ class NomenclatureBase(BaseModel):
     is_fact: bool = Field(True, description="Is fact flag")
     is_active: bool = Field(True, description="Is active flag")
     parent_id: Optional[int] = Field(None, description="Parent nomenclature ID")
+    article_id: Optional[int] = Field(None, description="Article ID")
 
 
 class NomenclatureCreate(NomenclatureBase):
@@ -40,6 +41,7 @@ class NomenclatureUpdate(BaseModel):
     is_fact: Optional[bool] = None
     is_active: Optional[bool] = None
     parent_id: Optional[int] = Field(None, description="Parent nomenclature ID")
+    article_id: Optional[int] = Field(None, description="Article ID")
     managed_by: Optional[int] = Field(None, description="Manager user ID")
 
 
@@ -92,6 +94,7 @@ class NomenclaturePublic(NomenclatureInDB):
             is_fact=nomenclature.is_fact,
             is_active=nomenclature.is_active,
             parent_id=nomenclature.parent_id,
+            article_id=nomenclature.article_id,
             user_id=nomenclature.user_id,
             created_by=nomenclature.created_by,
             managed_by=nomenclature.managed_by,

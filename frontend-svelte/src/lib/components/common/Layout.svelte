@@ -83,6 +83,7 @@
       if (pathname.includes('/financial-centers')) return 'Управление ЦФО';
       if (pathname.includes('/cost-centers')) return 'Управление МВЗ';
       if (pathname.includes('/nomenclatures')) return 'Управление номенклатурами';
+      if (pathname.includes('/articles')) return 'Управление статьями';
       return 'Настройки';
     }
     

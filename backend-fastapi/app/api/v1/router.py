@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     financial_centers,
     cost_centers,
     nomenclatures,
+    articles,
     registry,
     products,
     reports,
@@ -27,6 +28,7 @@ api_router.include_router(periods.router, prefix="/periods", tags=["Periods"])
 api_router.include_router(financial_centers.router, prefix="/financial_centers", tags=["Financial Centers"])
 api_router.include_router(cost_centers.router, prefix="/cost_centers", tags=["Cost Centers"])
 api_router.include_router(nomenclatures.router, prefix="/nomenclatures", tags=["Nomenclatures"])
+api_router.include_router(articles.router, prefix="/articles", tags=["Articles"])
 api_router.include_router(registry.router, prefix="/registry", tags=["Registry"])
 api_router.include_router(products.router, prefix="/products", tags=["Products"])
 api_router.include_router(reports.router, prefix="/reports", tags=["Reports"])

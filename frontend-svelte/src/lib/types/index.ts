@@ -123,6 +123,41 @@ export interface CostCenterHistory {
   description?: string;
 }
 
+// Article types - matches backend API
+export interface Article {
+  id: number;
+  article_id: number;
+  article_code?: string; // For backward compatibility
+  code: string; // New standardized field name
+  article_name?: string; // For backward compatibility
+  name: string; // New standardized field name
+  description?: string;
+  is_active: boolean;
+  user_id: number | null;
+  created_at?: string;
+  updated_at?: string;
+  // Shared data fields
+  created_by?: number;
+  managed_by?: number;
+  is_editable?: boolean;
+  is_shared?: boolean;
+}
+
+export interface AdminArticle extends Article {
+  user_name: string;
+  user_email?: string | null;
+  username?: string | null;
+  telegram_id?: string | null;
+}
+
+export interface ArticleStats {
+  total: number;
+  active: number;
+  inactive: number;
+  shared: number;
+  user_specific: number;
+}
+
 // Nomenclature types - matches backend API
 export interface Nomenclature {
   id: number;
@@ -139,6 +174,7 @@ export interface Nomenclature {
   is_budget: boolean;
   is_fact: boolean;
   parent_id?: number | null;
+  article_id?: number | null;
   color?: string;
   icon?: string;
   auto_rules?: AutoCategorizationRule[];

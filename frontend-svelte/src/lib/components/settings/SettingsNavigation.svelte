@@ -75,6 +75,13 @@
       color: 'green',
       items: [
         {
+          id: 'articles',
+          label: 'Статьи',
+          description: 'Группировка номенклатур по статьям',
+          path: '/settings/articles',
+          icon: FileText,
+        },
+        {
           id: 'nomenclatures',
           label: 'Номенклатуры',
           description: 'Категории доходов и расходов',
