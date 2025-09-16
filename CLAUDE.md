@@ -599,6 +599,7 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 8. **Financial center field mapping error**: ✅ **RESOLVED** - Fixed `financial_center_name` → `name` (v3.1.4)
 9. **Nomenclature code field error**: ✅ **RESOLVED** - Fixed missing `code` field in API request (v3.1.5)
 10. **Admin features visible to regular users**: ✅ **RESOLVED** - Implemented RBAC with multi-layered protection (v3.3.1)
+11. **FactForm TypeError on undefined fields**: ✅ **RESOLVED** - Fixed field mapping with defensive coding (v3.3.2)
 
 ### 🔧 Docker Networking Fix (ADR-004)
 
@@ -666,6 +667,47 @@ toast.error(`Cannot delete ${centerName}`); // shows "Cannot delete Development 
 - Frontend component tests validate correct field usage
 - API schema validation prevents future field mismatches
 - Error handling tests ensure no "[object Object]" display
+
+### 🔧 FactForm Field Mapping Fix (v3.3.2)
+
+**Issue:** "Cannot read properties of undefined (reading 'toString')" error when creating operations in /fact page
+**Root Cause:** Component using legacy field names (financial_center_id, nomenclature_id) that might be undefined
+**Symptoms:**
+- TypeError when opening fact creation form
+- Dropdown options not displaying correctly
+- Form submission might fail with undefined values
+
+**Solution:** Implemented defensive field mapping with safe navigation
+- **Fixed in:** `frontend-svelte/src/lib/components/fact/FactForm.svelte`
+- **Changes:**
+  - Line 201: `period.period_id?.toString() || ''` - Safe period ID access
+  - Line 223: `fc.financial_center_id?.toString() || ''` and `fc.name || fc.financial_center_name` - Safe financial center access
+  - Line 244: `nom.nomenclature_id?.toString() || ''` and `nom.name || nom.nomenclature_name` - Safe nomenclature access
+  - Line 283: `cc.cost_center_id?.toString() || ''` and `cc.name || cc.cost_center_name` - Safe cost center access
+
+**Technical Pattern:**
+```typescript
+// ✅ Safe field access pattern
+<option value={(entity.field_id?.toString() || '')}>
+  {entity.name || entity.legacy_name || 'Unknown'}
+</option>
+```
+
+**Result:**
+- ✅ No more TypeError when creating facts
+- ✅ Support for both legacy and modern field names
+- ✅ Graceful fallback for missing fields
+- ✅ Comprehensive test coverage added
+
+**Testing Coverage:**
+- `tests/frontend/fact-form-field-mapping.test.ts` - 415 lines of tests
+- Tests null/undefined handling
+- Tests legacy and modern field structures
+- Tests form submission with various data formats
+
+**Documentation:**
+- [ADR-007: Field Mapping Strategy](docs/architecture/adr-007-field-mapping-strategy.md)
+- [Field Mapping Guide](docs/api/field-mapping-guide.md)
 
 ### 🔧 Nomenclature Code Field Mapping Fix (v3.1.5)
 
