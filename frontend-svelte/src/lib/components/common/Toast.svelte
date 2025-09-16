@@ -11,7 +11,6 @@
     message?: string;
     duration?: number;
     onClose: (id: string) => void;
-    isExpanded?: boolean;
   }
 
   export let id: string;
@@ -20,7 +19,6 @@
   export let message: string | undefined = undefined;
   export let duration: number = 5000;
   export let onClose: (id: string) => void;
-  export let isExpanded: boolean = false;
 
   const icons = {
     success: CheckCircle,
@@ -77,21 +75,21 @@
 <div
   class={clsx(
     'pointer-events-auto w-full overflow-hidden rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 transform transition-all duration-300 ease-in-out',
-    isExpanded ? 'max-w-none' : 'sm:max-w-sm md:max-w-md lg:max-w-lg',
-    !isExpanded && 'hover:scale-105',
+    'sm:max-w-md',
+    'hover:scale-105',
     'hover:shadow-xl',
     style.bg
   )}
 >
-  <div class={clsx('p-4', isExpanded && 'sm:p-6')}>
+  <div class="p-4">
     <div class="flex items-start">
       <div class="flex-shrink-0">
-        <Icon class={clsx(isExpanded ? 'h-6 w-6' : 'h-5 w-5', style.icon)} />
+        <Icon class={clsx('h-5 w-5', style.icon)} />
       </div>
       <div class="ml-3 w-0 flex-1">
-        <p class={clsx(isExpanded ? 'text-base font-semibold' : 'text-sm font-medium', style.title)}>{title}</p>
+        <p class={clsx('text-sm font-medium', style.title)}>{title}</p>
         {#if message}
-          <p class={clsx('mt-1', isExpanded ? 'text-base' : 'text-sm', style.message)}>{message}</p>
+          <p class={clsx('mt-1 text-sm', style.message)}>{message}</p>
         {/if}
       </div>
       <div class="ml-4 flex flex-shrink-0">
