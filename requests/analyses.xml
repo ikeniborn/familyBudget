@@ -1,135 +1,63 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <analysis>
   <context>
-    <url>http://localhost:5173/settings/sharing</url>
-    <description>Неиспользуемый функционал sharing в приложении Family Budget</description>
+    <component>Notification System (Toast)</component>
+    <files>
+      <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/Toast.svelte</file>
+      <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/ToastContainer.svelte</file>
+    </files>
+    <screenshot>Screenshot shows a green success notification with an expand button</screenshot>
   </context>
 
-  <requirement>
-    <description>Удалить функционал sharing из приложения</description>
-  </requirement>
-
   <current_implementation>
-    <frontend>
-      <files>
-        <file path="/frontend-svelte/src/routes/(protected)/settings/sharing/+page.svelte">
-          <description>Страница управления sharing (324 строки)</description>
-          <functionality>
-            - Отображение настроек sharing пользователя
-            - Создание новых настроек sharing
-            - Управление правами доступа
-            - Просмотр shared данных от других пользователей
-          </functionality>
-        </file>
-
-        <file path="/frontend-svelte/src/lib/services/sharingService.ts">
-          <description>Сервис для работы с sharing API (48 строк)</description>
-          <functionality>
-            - getMyShares() - получение настроек пользователя
-            - getSharedWithMe() - получение shared данных
-            - createSharing() - создание настроек
-            - updateSharing() - обновление настроек
-            - deleteSharing() - удаление настроек
-            - getAvailableUsers() - получение списка пользователей
-          </functionality>
-        </file>
-
-        <file path="/frontend-svelte/src/lib/components/settings/SettingsNavigation.svelte">
-          <description>Навигационный компонент с ссылкой на sharing</description>
-          <lines>129-132</lines>
-        </file>
-
-        <file path="/frontend-svelte/src/lib/types/index.ts">
-          <description>TypeScript типы для sharing</description>
-        </file>
-      </files>
-    </frontend>
-
-    <backend>
-      <files>
-        <file path="/backend-fastapi/app/api/v1/endpoints/sharing.py">
-          <description>API endpoints для sharing (264 строки)</description>
-          <endpoints>
-            - GET /sharing/my-shares
-            - GET /sharing/shared-with-me
-            - POST /sharing/create
-            - PUT /sharing/{sharing_id}
-            - DELETE /sharing/{sharing_id}
-            - GET /sharing/available-users
-          </endpoints>
-        </file>
-
-        <file path="/backend-fastapi/app/models/sharing.py">
-          <description>SQLAlchemy модель Sharing (45 строк)</description>
-          <table>t_d_sharing</table>
-        </file>
-
-        <file path="/backend-fastapi/app/schemas/sharing.py">
-          <description>Pydantic схемы для sharing (91 строка)</description>
-        </file>
-
-        <file path="/backend-fastapi/app/api/v1/router.py">
-          <description>Подключение sharing роутера</description>
-          <lines>18, 36</lines>
-        </file>
-
-        <file path="/backend-fastapi/app/models/__init__.py">
-          <description>Экспорт модели Sharing</description>
-        </file>
-
-        <file path="/backend-fastapi/app/schemas/__init__.py">
-          <description>Экспорт схем sharing</description>
-        </file>
-      </files>
-    </backend>
-
-    <database>
-      <table name="t_d_sharing">
-        <description>Таблица для хранения настроек sharing между пользователями</description>
-        <migration>/backend-fastapi/migrations/create_sharing_table.sql</migration>
-      </table>
-    </database>
-
-    <tests>
-      <references>
-        <file>/tests/frontend/access-control.test.ts</file>
-        <file>/tests/frontend/settings-protection.test.ts</file>
-        <file>/backend-fastapi/tests/security/test_admin_privilege_escalation.py</file>
-      </references>
-    </tests>
+    <feature name="expansion_functionality">
+      <component name="ToastContainer">
+        <element>Expand/collapse button with Maximize2/Minimize2 icons (lines 31-42)</element>
+        <element>isExpanded state variable (line 10)</element>
+        <element>toggleExpanded function (lines 16-18)</element>
+        <element>Dynamic width classes based on isExpanded (lines 26-28)</element>
+        <element>Conditional scrolling for expanded state (line 45)</element>
+      </component>
+      <component name="Toast">
+        <element>isExpanded prop (line 23)</element>
+        <element>Dynamic max-width based on isExpanded (line 80)</element>
+        <element>Conditional hover scale effect when not expanded (line 81)</element>
+        <element>Dynamic padding based on isExpanded (line 86)</element>
+        <element>Dynamic icon size based on isExpanded (line 89)</element>
+        <element>Dynamic text size based on isExpanded (lines 92, 94)</element>
+      </component>
+    </feature>
   </current_implementation>
 
-  <impact_analysis>
-    <components>
-      <component name="Frontend">
-        <impact>Удаление страницы и сервиса sharing</impact>
-        <risk>Низкий - изолированный функционал</risk>
-      </component>
+  <requirements>
+    <requirement id="1">Simplify notification output display</requirement>
+    <requirement id="2">Remove expansion functionality extension for notifications</requirement>
+  </requirements>
 
-      <component name="Backend">
-        <impact>Удаление API endpoints, моделей и схем</impact>
-        <risk>Низкий - отдельный модуль</risk>
-      </component>
+  <changes_needed>
+    <change priority="1">
+      <file>ToastContainer.svelte</file>
+      <action>Remove expand/collapse button (lines 31-42)</action>
+      <action>Remove isExpanded state variable (line 10)</action>
+      <action>Remove toggleExpanded function (lines 16-18)</action>
+      <action>Simplify container width to fixed responsive sizes</action>
+      <action>Remove isExpanded prop passing to Toast component (line 59)</action>
+    </change>
+    <change priority="2">
+      <file>Toast.svelte</file>
+      <action>Remove isExpanded prop from interface and export (lines 14, 23)</action>
+      <action>Simplify width classes to consistent values (line 80)</action>
+      <action>Remove conditional hover scale effect (line 81)</action>
+      <action>Use consistent padding (line 86)</action>
+      <action>Use consistent icon size (line 89)</action>
+      <action>Use consistent text sizes (lines 92, 94)</action>
+    </change>
+  </changes_needed>
 
-      <component name="Database">
-        <impact>Необходима миграция для удаления таблицы</impact>
-        <risk>Средний - нужно проверить зависимости</risk>
-      </component>
-
-      <component name="Navigation">
-        <impact>Удаление ссылки из навигации настроек</impact>
-        <risk>Низкий</risk>
-      </component>
-    </components>
-  </impact_analysis>
-
-  <removal_strategy>
-    <step number="1">Создать backup базы данных перед удалением</step>
-    <step number="2">Удалить frontend компоненты и сервисы</step>
-    <step number="3">Удалить backend endpoints и модели</step>
-    <step number="4">Создать миграцию для удаления таблицы</step>
-    <step number="5">Обновить импорты и зависимости</step>
-    <step number="6">Обновить тесты</step>
-    <step number="7">Обновить документацию</step>
-  </removal_strategy>
+  <expected_result>
+    <item>Simplified notification system without expansion capability</item>
+    <item>Consistent notification size and appearance</item>
+    <item>Cleaner, more minimalist interface</item>
+    <item>Reduced code complexity</item>
+  </expected_result>
 </analysis>

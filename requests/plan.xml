@@ -1,448 +1,80 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<plan>
-  <context>
-    <title>Complete Removal of Sharing Functionality from Family Budget Application</title>
-    <description>Comprehensive step-by-step plan to remove all sharing-related code, database structures, and configuration</description>
-    <date>2025-09-16</date>
-  </context>
+<implementation_plan>
+  <overview>
+    <goal>Simplify notification system by removing expansion functionality</goal>
+    <scope>Toast.svelte and ToastContainer.svelte components</scope>
+    <risk_level>Low - UI only changes, no backend impact</risk_level>
+    <estimated_time>30 minutes</estimated_time>
+  </overview>
 
-  <prerequisites>
-    <step number="1">
-      <action>Create database backup</action>
-      <command>docker exec budget-postgres pg_dump -U budget budgetdb > /home/ikeniborn/Documents/Project/familyBudget/backups/backup_before_sharing_removal_$(date +%Y%m%d_%H%M%S).sql</command>
-      <description>Backup database before making changes</description>
-    </step>
+  <phases>
+    <phase number="1" name="Backup and Preparation">
+      <step>Create backup of current components</step>
+      <step>Ensure development environment is running</step>
+      <step>Verify current notification system functionality</step>
+    </phase>
 
-    <step number="2">
-      <action>Stop running containers</action>
-      <command>docker-compose down</command>
-      <description>Stop all services to prevent interference during removal</description>
-    </step>
-  </prerequisites>
-
-  <frontend_removal>
-    <step number="3">
-      <action>Remove sharing page component</action>
-      <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/sharing/+page.svelte</file>
-      <operation>DELETE FILE</operation>
-      <description>Delete entire sharing settings page (324 lines)</description>
-    </step>
-
-    <step number="4">
-      <action>Remove sharing service</action>
-      <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/services/sharingService.ts</file>
-      <operation>DELETE FILE</operation>
-      <description>Delete sharing API service module (48 lines)</description>
-    </step>
-
-    <step number="5">
-      <action>Remove sharing from navigation</action>
-      <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/settings/SettingsNavigation.svelte</file>
-      <operation>EDIT</operation>
+    <phase number="2" name="Simplify Toast Component">
+      <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/Toast.svelte</file>
       <changes>
-        <change>
-          <location>Import section</location>
-          <action>Remove Share icon import</action>
-          <old_content>Database,
-    ChevronRight,
-    BookOpen,
-    Share
-  } from 'lucide-svelte';</old_content>
-          <new_content>Database,
-    ChevronRight,
-    BookOpen
-  } from 'lucide-svelte';</new_content>
-        </change>
-        <change>
-          <location>Settings configuration</location>
-          <action>Remove sharing navigation item</action>
-          <old_content>        {
-          id: 'sharing',
-          label: 'Sharing',
-          description: 'Настройки обмена данными',
-          path: '/settings/sharing',
-          icon: Share,
-        },</old_content>
-          <new_content></new_content>
-        </change>
+        <change line="14">Remove isExpanded from interface Props</change>
+        <change line="23">Remove export let isExpanded declaration</change>
+        <change line="80">Simplify width classes to 'sm:max-w-md'</change>
+        <change line="81">Remove conditional hover scale, keep 'hover:scale-105'</change>
+        <change line="86">Simplify padding to 'p-4'</change>
+        <change line="89">Set consistent icon size 'h-5 w-5'</change>
+        <change line="92">Set consistent title text 'text-sm font-medium'</change>
+        <change line="94">Set consistent message text 'text-sm'</change>
       </changes>
-    </step>
+    </phase>
 
-    <step number="6">
-      <action>Remove sharing types from TypeScript definitions</action>
-      <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/types/index.ts</file>
-      <operation>EDIT</operation>
+    <phase number="3" name="Simplify ToastContainer Component">
+      <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/ToastContainer.svelte</file>
       <changes>
-        <change>
-          <action>Remove Sharing interface</action>
-          <lines_to_remove>export interface Sharing {
-  id: number;
-  owner_user_id: number;
-  shared_with_user_id: number;
-  resource_type: 'nomenclature' | 'cost_center' | 'financial_center' | 'product';
-  resource_id?: number | null;
-  permission_type: 'read' | 'write';
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  owner?: User;
-  shared_with?: User;
-}</lines_to_remove>
-        </change>
-        <change>
-          <action>Remove SharingCreate interface</action>
-          <lines_to_remove>export interface SharingCreate {
-  shared_with_user_id: number;
-  resource_type: 'nomenclature' | 'cost_center' | 'financial_center' | 'product';
-  resource_id?: number | null;
-  permission_type: 'read' | 'write';
-  is_active: boolean;
-}</lines_to_remove>
-        </change>
-        <change>
-          <action>Remove SharingUpdate interface</action>
-          <lines_to_remove>export interface SharingUpdate {
-  permission_type?: 'read' | 'write';
-  is_active?: boolean;
-}</lines_to_remove>
-        </change>
+        <change line="6">Remove Maximize2, Minimize2 imports</change>
+        <change line="10">Remove isExpanded state variable</change>
+        <change lines="16-18">Remove toggleExpanded function</change>
+        <change lines="26-28">Simplify container width to 'w-full max-w-md sm:max-w-lg'</change>
+        <change lines="30-43">Remove entire expand/collapse button block</change>
+        <change line="45">Simplify div classes, remove conditional scrolling</change>
+        <change line="59">Remove isExpanded prop from Toast component</change>
       </changes>
-    </step>
-  </frontend_removal>
+    </phase>
 
-  <backend_removal>
-    <step number="7">
-      <action>Remove sharing from API router</action>
-      <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/router.py</file>
-      <operation>EDIT</operation>
-      <changes>
-        <change>
-          <action>Remove sharing import</action>
-          <old_content>from app.api.v1.endpoints import (
-    auth,
-    periods,
-    financial_centers,
-    cost_centers,
-    nomenclatures,
-    articles,
-    registry,
-    products,
-    reports,
-    users,
-    admin,
-    sharing
-)</old_content>
-          <new_content>from app.api.v1.endpoints import (
-    auth,
-    periods,
-    financial_centers,
-    cost_centers,
-    nomenclatures,
-    articles,
-    registry,
-    products,
-    reports,
-    users,
-    admin
-)</new_content>
-        </change>
-        <change>
-          <action>Remove sharing router include</action>
-          <old_content>api_router.include_router(sharing.router, prefix="/sharing", tags=["Sharing"])</old_content>
-          <new_content></new_content>
-        </change>
-      </changes>
-    </step>
+    <phase number="4" name="Testing and Validation">
+      <tests>
+        <test type="visual">Verify notifications appear correctly without expansion button</test>
+        <test type="functional">Test all notification types (success, error, warning, info)</test>
+        <test type="functional">Verify auto-dismiss functionality</test>
+        <test type="functional">Test manual close button</test>
+        <test type="responsive">Check appearance on mobile/tablet/desktop</test>
+      </tests>
+      <validation_commands>
+        <command>docker exec budget-frontend npm run check</command>
+        <command>docker exec budget-frontend npm run lint</command>
+        <command>docker exec budget-frontend npm run test</command>
+      </validation_commands>
+    </phase>
 
-    <step number="8">
-      <action>Remove sharing endpoints file</action>
-      <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/sharing.py</file>
-      <operation>DELETE FILE</operation>
-      <description>Delete sharing API endpoints (264 lines)</description>
-    </step>
+    <phase number="5" name="Documentation and Cleanup">
+      <step>Update component documentation</step>
+      <step>Update CLAUDE.md with changes</step>
+      <step>Remove backup files if successful</step>
+      <step>Commit changes with descriptive message</step>
+    </phase>
+  </phases>
 
-    <step number="9">
-      <action>Remove sharing model</action>
-      <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/models/sharing.py</file>
-      <operation>DELETE FILE</operation>
-      <description>Delete sharing SQLAlchemy model (45 lines)</description>
-    </step>
-
-    <step number="10">
-      <action>Remove sharing schemas</action>
-      <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/schemas/sharing.py</file>
-      <operation>DELETE FILE</operation>
-      <description>Delete sharing Pydantic schemas (91 lines)</description>
-    </step>
-
-    <step number="11">
-      <action>Remove sharing from models init</action>
-      <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/models/__init__.py</file>
-      <operation>EDIT</operation>
-      <changes>
-        <change>
-          <action>Remove sharing import</action>
-          <old_content>from .sharing import Sharing</old_content>
-          <new_content></new_content>
-        </change>
-        <change>
-          <action>Remove Sharing from __all__</action>
-          <old_content>    "Sharing",</old_content>
-          <new_content></new_content>
-        </change>
-      </changes>
-    </step>
-
-    <step number="12">
-      <action>Remove sharing from schemas init</action>
-      <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/schemas/__init__.py</file>
-      <operation>EDIT</operation>
-      <changes>
-        <change>
-          <action>Remove sharing import</action>
-          <old_content>from .sharing import *</old_content>
-          <new_content></new_content>
-        </change>
-      </changes>
-    </step>
-
-    <step number="13">
-      <action>Remove sharing from admin endpoints</action>
-      <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/admin.py</file>
-      <operation>EDIT</operation>
-      <changes>
-        <change>
-          <action>Remove Sharing from imports</action>
-          <old_content>from app.models import (
-    User, Sharing, Nomenclature, CostCenter,
-    FinancialCenter, Product, Registry, Period
-)</old_content>
-          <new_content>from app.models import (
-    User, Nomenclature, CostCenter,
-    FinancialCenter, Product, Registry, Period
-)</new_content>
-        </change>
-        <change>
-          <action>Remove sharing admin endpoint</action>
-          <old_content>@router.get("/sharing", response_model=Dict[str, Any])
-async def get_all_sharing(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_admin_access),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000)
-):
-    """Get all sharing configurations for admin."""
-
-    # Use async query for sharing
-    stmt = (
-        select(Sharing)
-        .join(User, Sharing.owner_user_id == User.id)
-        .offset(skip)
-        .limit(limit)
-    )
-    result = await db.execute(stmt)
-    sharing_list = result.scalars().all()
-
-    # Count query
-    count_stmt = select(Sharing)
-    count_result = await db.execute(count_stmt)
-    total = len(count_result.scalars().all())
-
-    return {
-        "success": True,
-        "data": [sharing.to_dict() for sharing in sharing_list],
-        "total": total
-    }</old_content>
-          <new_content></new_content>
-        </change>
-      </changes>
-    </step>
-  </backend_removal>
-
-  <database_removal>
-    <step number="14">
-      <action>Create migration for removing sharing table</action>
-      <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/migrations/drop_sharing_table.sql</file>
-      <operation>CREATE FILE</operation>
-      <content>-- Drop t_d_sharing table and related constraints/indexes
--- Migration: drop_sharing_table.sql
--- Created: 2025-09-16
--- Purpose: Remove sharing functionality from Family Budget
-
--- Drop indexes first
-DROP INDEX IF EXISTS ix_t_d_sharing_owner_user_id;
-DROP INDEX IF EXISTS ix_t_d_sharing_shared_with_user_id;
-DROP INDEX IF EXISTS ix_t_d_sharing_resource_type;
-DROP INDEX IF EXISTS ix_t_d_sharing_owner_resource;
-DROP INDEX IF EXISTS ix_t_d_sharing_shared_resource;
-DROP INDEX IF EXISTS ix_t_d_sharing_active;
-DROP INDEX IF EXISTS ix_t_d_sharing_sharing_id;
-
--- Drop constraints
-ALTER TABLE t_d_sharing DROP CONSTRAINT IF EXISTS fk_t_d_sharing_owner_user_id;
-ALTER TABLE t_d_sharing DROP CONSTRAINT IF EXISTS fk_t_d_sharing_shared_with_user_id;
-ALTER TABLE t_d_sharing DROP CONSTRAINT IF EXISTS ck_t_d_sharing_resource_type;
-ALTER TABLE t_d_sharing DROP CONSTRAINT IF EXISTS ck_t_d_sharing_permission_type;
-ALTER TABLE t_d_sharing DROP CONSTRAINT IF EXISTS ck_t_d_sharing_different_users;
-ALTER TABLE t_d_sharing DROP CONSTRAINT IF EXISTS uq_t_d_sharing_owner_shared_resource;
-
--- Drop the table
-DROP TABLE IF EXISTS t_d_sharing;
-
--- Log removal
-INSERT INTO migration_log (migration_name, executed_at, description)
-VALUES ('drop_sharing_table', NOW(), 'Removed sharing functionality - dropped t_d_sharing table')
-ON CONFLICT DO NOTHING;</content>
-    </step>
-
-    <step number="15">
-      <action>Execute database migration</action>
-      <command>docker exec budget-postgres psql -U budget -d budgetdb -f /migrations/drop_sharing_table.sql</command>
-      <description>Execute SQL migration to drop sharing table</description>
-      <verification>docker exec budget-postgres psql -U budget -d budgetdb -c "\dt" | grep -v sharing</verification>
-    </step>
-  </database_removal>
-
-  <test_cleanup>
-    <step number="16">
-      <action>Update access control tests</action>
-      <file>/home/ikeniborn/Documents/Project/familyBudget/tests/frontend/settings-protection.test.ts</file>
-      <operation>EDIT</operation>
-      <changes>
-        <change>
-          <action>Remove sharing route from protected routes test</action>
-          <old_content>'/settings/users',
-      '/settings/security',
-      '/settings/import-export',
-      '/settings/sharing'</old_content>
-          <new_content>'/settings/users',
-      '/settings/security',
-      '/settings/import-export'</new_content>
-        </change>
-      </changes>
-    </step>
-
-    <step number="17">
-      <action>Update admin privilege escalation tests</action>
-      <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/tests/security/test_admin_privilege_escalation.py</file>
-      <operation>EDIT</operation>
-      <changes>
-        <change>
-          <action>Remove sharing endpoint from admin tests</action>
-          <old_content>"/api/admin/users",
-                    "/api/admin/references/nomenclature",
-                    "/api/admin/references/cost_center",
-                    "/api/admin/sharing",</old_content>
-          <new_content>"/api/admin/users",
-                    "/api/admin/references/nomenclature",
-                    "/api/admin/references/cost_center",</new_content>
-        </change>
-      </changes>
-    </step>
-  </test_cleanup>
-
-  <cleanup_files>
-    <step number="18">
-      <action>Remove original sharing migration file</action>
-      <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/migrations/create_sharing_table.sql</file>
-      <operation>DELETE FILE</operation>
-      <description>Remove the original sharing table creation migration</description>
-    </step>
-
-    <step number="19">
-      <action>Remove sharing directory</action>
-      <command>rm -rf /home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/\(protected\)/settings/sharing</command>
-      <description>Remove the entire sharing directory structure</description>
-    </step>
-  </cleanup_files>
-
-  <verification>
-    <step number="20">
-      <action>Start services and verify removal</action>
-      <command>docker-compose up -d</command>
-      <description>Start all services after removal</description>
-    </step>
-
-    <step number="21">
-      <action>Verify frontend compilation</action>
-      <command>docker exec budget-frontend npm run check</command>
-      <description>Ensure TypeScript compilation succeeds without sharing types</description>
-    </step>
-
-    <step number="22">
-      <action>Verify backend startup</action>
-      <command>docker exec budget-backend python -c "from app.main import app; print('Backend starts successfully')"</command>
-      <description>Ensure backend starts without sharing imports</description>
-    </step>
-
-    <step number="23">
-      <action>Verify database structure</action>
-      <command>docker exec budget-postgres psql -U budget -d budgetdb -c "SELECT table_name FROM information_schema.tables WHERE table_name = 't_d_sharing';"</command>
-      <expected_result>No rows returned (table should not exist)</expected_result>
-    </step>
-
-    <step number="24">
-      <action>Test settings navigation</action>
-      <verification>
-        <url>http://localhost:5173/settings</url>
-        <expected>Sharing should not appear in navigation menu</expected>
-      </verification>
-    </step>
-
-    <step number="25">
-      <action>Test sharing URL access</action>
-      <verification>
-        <url>http://localhost:5173/settings/sharing</url>
-        <expected>404 error (page not found)</expected>
-      </verification>
-    </step>
-
-    <step number="26">
-      <action>Test API endpoints removal</action>
-      <verification>
-        <url>http://localhost:4000/api/sharing/my-shares</url>
-        <expected>404 error (endpoint not found)</expected>
-      </verification>
-    </step>
-
-    <step number="27">
-      <action>Run updated tests</action>
-      <command>docker exec budget-frontend npm run test</command>
-      <command>docker exec budget-backend python -m pytest tests/</command>
-      <description>Ensure all tests pass after sharing removal</description>
-    </step>
-  </verification>
-
-  <rollback_plan>
-    <step number="28">
-      <action>Rollback instructions (if needed)</action>
-      <description>In case of issues, restore from backup created in step 1</description>
-      <command>docker exec -i budget-postgres psql -U budget budgetdb &lt; /backups/backup_before_sharing_removal_YYYYMMDD_HHMMSS.sql</command>
-      <additional>Restore files from git using: git checkout HEAD~1 -- [file_paths]</additional>
-    </step>
-  </rollback_plan>
-
-  <estimated_effort>
-    <time_required>2-3 hours</time_required>
-    <complexity>Medium</complexity>
-    <risk_level>Low</risk_level>
-    <affected_files>
-      <frontend>7 files</frontend>
-      <backend>7 files</backend>
-      <tests>2 files</tests>
-      <database>1 table</database>
-    </affected_files>
-  </estimated_effort>
+  <rollback_strategy>
+    <step>Restore backup files if any issues occur</step>
+    <step>Restart development server</step>
+    <step>Verify original functionality is restored</step>
+  </rollback_strategy>
 
   <success_criteria>
-    <criterion>No sharing-related code remains in codebase</criterion>
-    <criterion>All services start successfully</criterion>
-    <criterion>Frontend compiles without errors</criterion>
-    <criterion>Backend API starts without import errors</criterion>
-    <criterion>Database has no t_d_sharing table</criterion>
-    <criterion>Settings navigation shows no sharing option</criterion>
-    <criterion>All tests pass</criterion>
-    <criterion>Sharing URLs return 404 errors</criterion>
+    <criterion>Notifications display without expansion button</criterion>
+    <criterion>Consistent notification sizing across all states</criterion>
+    <criterion>All notification types work correctly</criterion>
+    <criterion>No TypeScript or build errors</criterion>
+    <criterion>Tests pass successfully</criterion>
   </success_criteria>
-</plan>
+</implementation_plan>

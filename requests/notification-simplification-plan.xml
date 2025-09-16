@@ -1,0 +1,432 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<implementation_plan>
+  <meta>
+    <title>Notification System Simplification - Remove Expansion Functionality</title>
+    <description>Complete plan to remove toast notification expansion capabilities and simplify the UI</description>
+    <estimated_effort>2-3 hours</estimated_effort>
+    <risk_level>low</risk_level>
+  </meta>
+
+  <scope>
+    <objectives>
+      <objective id="1">Remove expand/collapse button from notification container</objective>
+      <objective id="2">Eliminate expansion state management and related logic</objective>
+      <objective id="3">Simplify notification styling to consistent, fixed dimensions</objective>
+      <objective id="4">Update TypeScript interfaces to remove expansion-related props</objective>
+      <objective id="5">Maintain full functionality of core notification features</objective>
+    </objectives>
+
+    <affected_files>
+      <file priority="high">/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/ToastContainer.svelte</file>
+      <file priority="high">/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/Toast.svelte</file>
+      <file priority="medium">/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/stores/__tests__/toastStore.test.ts</file>
+    </affected_files>
+
+    <dependencies>
+      <dependency type="import">lucide-svelte icons (Maximize2, Minimize2 will be removed)</dependency>
+      <dependency type="component">Main layout uses ToastContainer (/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/+layout.svelte)</dependency>
+      <dependency type="store">toastStore - no changes needed</dependency>
+    </dependencies>
+  </scope>
+
+  <detailed_changes>
+    <!-- Phase 1: ToastContainer.svelte Simplification -->
+    <change_group id="container" priority="1">
+      <title>Simplify ToastContainer Component</title>
+      <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/ToastContainer.svelte</file>
+
+      <changes>
+        <change line="6" type="remove">
+          <description>Remove Maximize2, Minimize2 imports from lucide-svelte</description>
+          <before>import { Maximize2, Minimize2 } from 'lucide-svelte';</before>
+          <after>// Remove this import entirely</after>
+        </change>
+
+        <change line="10" type="remove">
+          <description>Remove isExpanded state variable</description>
+          <before>let isExpanded = false;</before>
+          <after>// Remove this variable entirely</after>
+        </change>
+
+        <change line="16-18" type="remove">
+          <description>Remove toggleExpanded function</description>
+          <before>function toggleExpanded() {
+    isExpanded = !isExpanded;
+  }</before>
+          <after>// Remove this function entirely</after>
+        </change>
+
+        <change line="26-28" type="replace">
+          <description>Simplify container width classes to consistent responsive sizing</description>
+          <before>class="flex flex-col items-center space-y-4 sm:items-end ml-auto transition-all duration-300 ease-in-out {isExpanded
+      ? 'w-full sm:w-1/2 max-w-none'
+      : 'w-full max-w-full sm:max-w-lg md:max-w-xl lg:max-w-2xl'}"</before>
+          <after>class="flex flex-col items-center space-y-4 sm:items-end ml-auto w-full max-w-full sm:max-w-lg md:max-w-xl lg:max-w-2xl"</after>
+        </change>
+
+        <change line="30-43" type="remove">
+          <description>Remove expand/collapse button and conditional rendering</description>
+          <before>{#if toasts.length > 0}
+      <button
+        on:click={toggleExpanded}
+        type="button"
+        class="pointer-events-auto mb-2 p-2 rounded-lg bg-white shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-600 hover:text-gray-800"
+        title={isExpanded ? 'Свернуть уведомления' : 'Развернуть уведомления'}
+      >
+        {#if isExpanded}
+          <Minimize2 class="h-5 w-5" />
+        {:else}
+          <Maximize2 class="h-5 w-5" />
+        {/if}
+      </button>
+    {/if}</before>
+          <after><!-- Remove entire button block --></after>
+        </change>
+
+        <change line="45" type="replace">
+          <description>Simplify toast container styling</description>
+          <before>div class="w-full space-y-4 {isExpanded ? 'max-h-[80vh] overflow-y-auto pr-2' : ''}"</before>
+          <after>div class="w-full space-y-4"</after>
+        </change>
+
+        <change line="59" type="remove">
+          <description>Remove isExpanded prop from Toast component</description>
+          <before>{isExpanded}</before>
+          <after><!-- Remove this prop entirely --></after>
+        </change>
+      </changes>
+
+      <result_structure>
+        <code><![CDATA[
+<script lang="ts">
+  import { flip } from 'svelte/animate';
+  import { fly, scale } from 'svelte/transition';
+  import Toast from './Toast.svelte';
+  import { toastStore } from '$lib/stores/toast.store';
+
+  $: toasts = $toastStore.toasts;
+
+  function handleClose(id: string) {
+    toastStore.remove(id);
+  }
+</script>
+
+<div
+  aria-live="assertive"
+  class="pointer-events-none fixed inset-0 flex items-end px-2 py-4 sm:px-4 sm:py-6 sm:items-start sm:p-6 z-50"
+>
+  <div class="flex flex-col items-center space-y-4 sm:items-end ml-auto w-full max-w-full sm:max-w-lg md:max-w-xl lg:max-w-2xl">
+    <div class="w-full space-y-4">
+      {#each toasts as toast (toast.id)}
+        <div
+          animate:flip={{ duration: 200 }}
+          in:fly={{ x: 300, duration: 300 }}
+          out:scale={{ duration: 200, start: 0.8 }}
+        >
+          <Toast
+            id={toast.id}
+            type={toast.type}
+            title={toast.title}
+            message={toast.message}
+            duration={toast.duration}
+            onClose={handleClose}
+          />
+        </div>
+      {/each}
+    </div>
+  </div>
+</div>
+        ]]></code>
+      </result_structure>
+    </change_group>
+
+    <!-- Phase 2: Toast.svelte Simplification -->
+    <change_group id="toast" priority="2">
+      <title>Simplify Toast Component</title>
+      <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/Toast.svelte</file>
+
+      <changes>
+        <change line="14" type="remove">
+          <description>Remove isExpanded from Props interface</description>
+          <before>isExpanded?: boolean;</before>
+          <after>// Remove this property entirely</after>
+        </change>
+
+        <change line="23" type="remove">
+          <description>Remove isExpanded export</description>
+          <before>export let isExpanded: boolean = false;</before>
+          <after>// Remove this export entirely</after>
+        </change>
+
+        <change line="80" type="replace">
+          <description>Simplify width classes to consistent responsive sizing</description>
+          <before>isExpanded ? 'max-w-none' : 'sm:max-w-sm md:max-w-md lg:max-w-lg',</before>
+          <after>'sm:max-w-sm md:max-w-md lg:max-w-lg',</after>
+        </change>
+
+        <change line="81" type="remove">
+          <description>Remove conditional hover scale effect</description>
+          <before>!isExpanded && 'hover:scale-105',</before>
+          <after>// Remove this line entirely</after>
+        </change>
+
+        <change line="86" type="replace">
+          <description>Use consistent padding</description>
+          <before>div class={clsx('p-4', isExpanded && 'sm:p-6')}</before>
+          <after>div class="p-4"</after>
+        </change>
+
+        <change line="89" type="replace">
+          <description>Use consistent icon size</description>
+          <before>Icon class={clsx(isExpanded ? 'h-6 w-6' : 'h-5 w-5', style.icon)}</before>
+          <after>Icon class={clsx('h-5 w-5', style.icon)}</after>
+        </change>
+
+        <change line="92" type="replace">
+          <description>Use consistent title text size</description>
+          <before>p class={clsx(isExpanded ? 'text-base font-semibold' : 'text-sm font-medium', style.title)}</before>
+          <after>p class={clsx('text-sm font-medium', style.title)}</after>
+        </change>
+
+        <change line="94" type="replace">
+          <description>Use consistent message text size</description>
+          <before>p class={clsx('mt-1', isExpanded ? 'text-base' : 'text-sm', style.message)}</before>
+          <after>p class={clsx('mt-1 text-sm', style.message)}</after>
+        </change>
+      </changes>
+
+      <result_structure>
+        <code><![CDATA[
+interface Props {
+  id: string;
+  type: ToastType;
+  title: string;
+  message?: string;
+  duration?: number;
+  onClose: (id: string) => void;
+}
+
+export let id: string;
+export let type: ToastType;
+export let title: string;
+export let message: string | undefined = undefined;
+export let duration: number = 5000;
+export let onClose: (id: string) => void;
+
+// Component implementation with simplified styling:
+<div
+  class={clsx(
+    'pointer-events-auto w-full overflow-hidden rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 transform transition-all duration-300 ease-in-out',
+    'sm:max-w-sm md:max-w-md lg:max-w-lg',
+    'hover:shadow-xl',
+    style.bg
+  )}
+>
+  <div class="p-4">
+    <div class="flex items-start">
+      <div class="flex-shrink-0">
+        <Icon class={clsx('h-5 w-5', style.icon)} />
+      </div>
+      <div class="ml-3 w-0 flex-1">
+        <p class={clsx('text-sm font-medium', style.title)}>{title}</p>
+        {#if message}
+          <p class={clsx('mt-1 text-sm', style.message)}>{message}</p>
+        {/if}
+      </div>
+      <!-- Close button remains unchanged -->
+    </div>
+  </div>
+</div>
+        ]]></code>
+      </result_structure>
+    </change_group>
+
+    <!-- Phase 3: Testing Updates -->
+    <change_group id="testing" priority="3">
+      <title>Update Test Coverage</title>
+      <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/stores/__tests__/toastStore.test.ts</file>
+
+      <changes>
+        <change type="add">
+          <description>Add test to verify expansion functionality is removed</description>
+          <location>End of file, new test group</location>
+          <content><![CDATA[
+  describe('Simplified UI (No Expansion)', () => {
+    it('should maintain core functionality without expansion features', () => {
+      // Test that toasts still work without expansion
+      const id1 = toastStore.success('Test 1');
+      const id2 = toastStore.error('Test 2');
+
+      const state = get(toastStore);
+      expect(state.toasts).toHaveLength(2);
+
+      // Verify basic functionality
+      toastStore.remove(id1);
+      const stateAfterRemoval = get(toastStore);
+      expect(stateAfterRemoval.toasts).toHaveLength(1);
+      expect(stateAfterRemoval.toasts[0].id).toBe(id2);
+    });
+  });
+          ]]></content>
+        </change>
+      </changes>
+    </change_group>
+  </detailed_changes>
+
+  <execution_order>
+    <phase number="1" name="backup_and_preparation">
+      <step>Create backup of current files</step>
+      <step>Run existing tests to establish baseline</step>
+      <step>Verify development environment is running</step>
+    </phase>
+
+    <phase number="2" name="toast_component_simplification">
+      <step>Modify Toast.svelte - remove expansion props and styling</step>
+      <step>Test Toast component in isolation</step>
+      <step>Verify component renders correctly</step>
+    </phase>
+
+    <phase number="3" name="container_simplification">
+      <step>Modify ToastContainer.svelte - remove expansion logic</step>
+      <step>Remove unused imports</step>
+      <step>Test complete notification system</step>
+    </phase>
+
+    <phase number="4" name="validation_and_testing">
+      <step>Run all existing tests</step>
+      <step>Add new tests for simplified functionality</step>
+      <step>Manual testing of notification display</step>
+      <step>Browser testing across different screen sizes</step>
+    </phase>
+
+    <phase number="5" name="cleanup_and_documentation">
+      <step>Remove unused icon imports</step>
+      <step>Update any related documentation</step>
+      <step>Final test run and verification</step>
+    </phase>
+  </execution_order>
+
+  <testing_strategy>
+    <unit_tests>
+      <test component="Toast">
+        <description>Verify Toast renders without isExpanded prop</description>
+        <verification>Component displays with consistent styling</verification>
+      </test>
+      <test component="ToastContainer">
+        <description>Verify container renders without expand button</description>
+        <verification>No expand/minimize buttons visible</verification>
+      </test>
+    </unit_tests>
+
+    <integration_tests>
+      <test scope="notification_system">
+        <description>End-to-end notification functionality</description>
+        <steps>
+          <step>Trigger success notification</step>
+          <step>Trigger error notification</step>
+          <step>Verify proper display and auto-removal</step>
+          <step>Test manual close functionality</step>
+        </steps>
+      </test>
+    </integration_tests>
+
+    <browser_tests>
+      <test device="mobile">
+        <description>Responsive behavior on small screens</description>
+        <verification>Notifications stack properly</verification>
+      </test>
+      <test device="desktop">
+        <description>Notification positioning and sizing</description>
+        <verification>Notifications appear in correct position</verification>
+      </test>
+    </browser_tests>
+  </testing_strategy>
+
+  <rollback_strategy>
+    <backup_files>
+      <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/Toast.svelte.backup</file>
+      <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/ToastContainer.svelte.backup</file>
+    </backup_files>
+
+    <rollback_triggers>
+      <trigger>Critical functionality broken</trigger>
+      <trigger>Tests failing that cannot be quickly fixed</trigger>
+      <trigger>UI rendering issues that affect usability</trigger>
+    </rollback_triggers>
+
+    <rollback_process>
+      <step>Stop development server</step>
+      <step>Restore backup files</step>
+      <step>Run test suite to verify restoration</step>
+      <step>Restart development server</step>
+      <step>Document issues encountered for future reference</step>
+    </rollback_process>
+  </rollback_strategy>
+
+  <validation_commands>
+    <development>
+      <command description="Start development server">docker exec budget-frontend npm run dev</command>
+      <command description="Run type checking">docker exec budget-frontend npm run check</command>
+      <command description="Run unit tests">docker exec budget-frontend npm run test</command>
+    </development>
+
+    <post_implementation>
+      <command description="Full test suite">docker exec budget-frontend npm run test</command>
+      <command description="Lint check">docker exec budget-frontend npm run lint</command>
+      <command description="Build verification">docker exec budget-frontend npm run build</command>
+    </post_implementation>
+  </validation_commands>
+
+  <expected_outcomes>
+    <functional>
+      <outcome>Notifications display with consistent, simplified styling</outcome>
+      <outcome>No expand/collapse buttons visible</outcome>
+      <outcome>All core notification features remain intact (success, error, warning, info)</outcome>
+      <outcome>Auto-removal and manual close functionality preserved</outcome>
+    </functional>
+
+    <technical>
+      <outcome>Reduced component complexity</outcome>
+      <outcome>Cleaner TypeScript interfaces</outcome>
+      <outcome>Eliminated unused state management</outcome>
+      <outcome>Improved code maintainability</outcome>
+    </technical>
+
+    <user_experience>
+      <outcome>Cleaner, more minimalist notification appearance</outcome>
+      <outcome>Consistent notification sizing across all states</outcome>
+      <outcome>Faster rendering without conditional styling logic</outcome>
+      <outcome>Simplified interaction model</outcome>
+    </user_experience>
+  </expected_outcomes>
+
+  <risk_assessment>
+    <risks>
+      <risk level="low" impact="minor">
+        <description>Users might initially expect expansion functionality</description>
+        <mitigation>Feature was likely underutilized; simplification improves UX</mitigation>
+      </risk>
+      <risk level="low" impact="minor">
+        <description>CSS layout might need adjustment for edge cases</description>
+        <mitigation>Thorough testing across different screen sizes</mitigation>
+      </risk>
+    </risks>
+
+    <dependencies>
+      <dependency risk="none">toastStore functionality unchanged</dependency>
+      <dependency risk="none">Main layout integration unchanged</dependency>
+      <dependency risk="none">Existing notification calls unchanged</dependency>
+    </dependencies>
+  </risk_assessment>
+
+  <success_criteria>
+    <criteria>
+      <criterion>All existing tests pass</criterion>
+      <criterion>Notifications display correctly in all browsers</criterion>
+      <criterion>No TypeScript errors</criterion>
+      <criterion>No accessibility regressions</criterion>
+      <criterion>Code complexity reduced (fewer lines, simpler logic)</criterion>
+      <criterion>Consistent visual appearance across all notification types</criterion>
+    </criteria>
+  </success_criteria>
+</implementation_plan>

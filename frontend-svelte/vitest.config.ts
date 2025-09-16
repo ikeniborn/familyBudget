@@ -28,7 +28,14 @@ export default defineConfig({
     
     // Force client-side compilation
     define: {
-      'import.meta.env.SSR': false
+      'import.meta.env.SSR': false,
+      'import.meta.env.MODE': '"test"'
+    },
+
+    // Configure for browser environment
+    transformMode: {
+      web: [/\.[jt]sx?$/, /\.svelte$/],
+      ssr: []
     },
     
     // Coverage configuration

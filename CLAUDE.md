@@ -12,6 +12,8 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ Console Logging Cleanup (v3.3.1):** Removed excessive debug logging from production code. Reduced console output by 87% (from 500+ to <50 logs per session) while preserving critical error logging. Major performance improvement by eliminating high-frequency isAdmin logging.
 
+**✅ Simplified Notification System (v3.4.1):** Removed expansion functionality from toast notifications for cleaner, more consistent UI. All notifications now display with uniform sizing. Removed 27 lines of expansion logic while maintaining all core functionality (success, error, warning, info notifications with auto-dismiss and manual close).
+
 ## ⚠️ CRITICAL: Docker-Only Development
 
 **ALL operations MUST be performed through Docker containers:**
