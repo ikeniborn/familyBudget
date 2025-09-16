@@ -48,6 +48,51 @@
 
 ---
 
+## [Версия 3.1.8] - 2025-09-16
+
+### 🔧 Исправление ошибки маппинга полей в компоненте ReportFilters
+
+#### Проблема
+- **Описание**: Страница отчетов /reports выбрасывала TypeError "Cannot read properties of undefined (reading 'toString')"
+- **URL**: http://localhost:5173/reports
+- **Симптомы**:
+  - Страница не загружалась, показывала критическую ошибку
+  - Ошибка в компоненте ReportFilters.svelte на строках 83-86 и 91-94
+  - Попытка обращения к несуществующим полям объектов
+
+#### Корневая причина
+- **Несоответствие полей при маппинге данных** из store в компоненте ReportFilters
+- Компонент использовал устаревшие поля:
+  - `financial_center_id` и `financial_center_name` вместо стандартизированных `id` и `name`
+  - `cost_center_id` и `cost_center_name` вместо стандартизированных `id` и `name`
+- API возвращает объекты с новыми полями, но компонент ожидал старые
+
+#### Решение
+- **Файл**: `frontend-svelte/src/lib/components/reports/ReportFilters.svelte`
+- **Изменения**:
+  - Строки 83-86: Добавлена обратная совместимость для FinancialCenter
+    - `fc.financial_center_id.toString()` → `(fc.id || fc.financial_center_id || 0).toString()`
+    - `fc.financial_center_name` → `fc.name || fc.financial_center_name || 'Без названия'`
+  - Строки 91-94: Добавлена обратная совместимость для CostCenter
+    - `cc.cost_center_id.toString()` → `(cc.id || cc.cost_center_id || 0).toString()`
+    - `cc.cost_center_name` → `cc.name || cc.cost_center_name || 'Без названия'`
+
+#### Результат
+- ✅ Страница отчетов загружается без ошибок
+- ✅ Фильтры работают с обеими версиями структуры данных
+- ✅ Добавлены fallback значения для отсутствующих полей
+- ✅ Компонент устойчив к изменениям API
+
+#### Тестирование
+- **Добавлен тест**: `frontend-svelte/src/lib/components/reports/ReportFilters.test.ts`
+- Покрытие сценариев:
+  - Работа с новой структурой полей (id, name)
+  - Обратная совместимость со старой структурой
+  - Обработка undefined полей
+  - Fallback значения при отсутствии данных
+
+---
+
 ## [Версия 3.1.7] - 2025-09-14
 
 ### 🔧 Исправление создания МВЗ (Cost Centers) - отсутствующее поле code

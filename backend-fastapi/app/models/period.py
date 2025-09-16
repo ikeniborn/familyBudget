@@ -14,7 +14,7 @@ class Period(Base):
     __tablename__ = "t_d_period"
     
     id = Column("period_id", Integer, primary_key=True, index=True)
-    code = Column("period_code", String(20), nullable=True, unique=True)
+    code = Column("period_code", String(20), nullable=False, unique=True)
     date = Column("period_dt", DateTime, nullable=False)
     ru_name = Column("period_ru_name", String, nullable=False)
     start_date = Column("period_start_date", DateTime, nullable=True)

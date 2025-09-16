@@ -81,16 +81,16 @@
   $: financialCenterOptions = [
     { value: 'all', label: 'Все ФЦ' },
     ...$financialCenterStore.items.map((fc: any) => ({
-      value: fc.financial_center_id.toString(),
-      label: fc.financial_center_name,
+      value: (fc.id || fc.financial_center_id || 0).toString(),
+      label: fc.name || fc.financial_center_name || 'Без названия',
     })),
   ];
 
   $: costCenterOptions = [
     { value: 'all', label: 'Все МВЗ' },
     ...$costCenterStore.items.map((cc: any) => ({
-      value: cc.cost_center_id.toString(),
-      label: cc.cost_center_name,
+      value: (cc.id || cc.cost_center_id || 0).toString(),
+      label: cc.name || cc.cost_center_name || 'Без названия',
     })),
   ];
 </script>

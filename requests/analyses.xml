@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<analysis>
+    <timestamp>2025-09-16T14:45:00</timestamp>
+    <issue>
+        <type>TypeError</type>
+        <message>Cannot read properties of undefined (reading 'toString')</message>
+        <location>
+            <file>/lib/components/reports/ReportFilters.svelte</file>
+            <lines>83-86</lines>
+        </location>
+    </issue>
+
+    <root_cause>
+        <description>Несоответствие полей при маппинге данных из store в компоненте ReportFilters</description>
+        <details>
+            <point>API возвращает объекты FinancialCenter с полями 'id' и 'name'</point>
+            <point>Store инициализирован с идентификатором 'financial_center_id'</point>
+            <point>Компонент пытается обратиться к полю 'financial_center_name', которое может быть undefined</point>
+            <point>Аналогичная проблема с CostCenter - используется 'cost_center_name' вместо 'name'</point>
+        </details>
+    </root_cause>
+
+    <affected_code>
+        <snippet file="ReportFilters.svelte" lines="83-86">
+            ...$financialCenterStore.items.map((fc: any) => ({
+                value: fc.financial_center_id.toString(),  // fc.financial_center_id может быть undefined
+                label: fc.financial_center_name,           // должно быть fc.name
+            }))
+        </snippet>
+        <snippet file="ReportFilters.svelte" lines="91-94">
+            ...$costCenterStore.items.map((cc: any) => ({
+                value: cc.cost_center_id.toString(),       // cc.cost_center_id может быть undefined
+                label: cc.cost_center_name,                // должно быть cc.name
+            }))
+        </snippet>
+    </affected_code>
+
+    <solution>
+        <step number="1">
+            <action>Исправить маппинг полей для FinancialCenter</action>
+            <change>
+                <from>fc.financial_center_id.toString()</from>
+                <to>fc.id.toString()</to>
+            </change>
+            <change>
+                <from>fc.financial_center_name</from>
+                <to>fc.name || fc.financial_center_name</to>
+            </change>
+        </step>
+        <step number="2">
+            <action>Исправить маппинг полей для CostCenter</action>
+            <change>
+                <from>cc.cost_center_id.toString()</from>
+                <to>cc.id.toString()</to>
+            </change>
+            <change>
+                <from>cc.cost_center_name</from>
+                <to>cc.name || cc.cost_center_name</to>
+            </change>
+        </step>
+        <step number="3">
+            <action>Добавить проверку на существование полей</action>
+            <description>Использовать optional chaining для безопасного доступа к полям</description>
+        </step>
+    </solution>
+
+    <impact>
+        <severity>High</severity>
+        <affected_functionality>Страница отчетов /reports</affected_functionality>
+        <user_experience>Страница не открывается, показывает ошибку</user_experience>
+    </impact>
+
+    <testing_requirements>
+        <test>Проверить загрузку страницы /reports</test>
+        <test>Проверить корректное отображение фильтров</test>
+        <test>Проверить работу фильтрации по ЦФО и МВЗ</test>
+        <test>Добавить unit-тесты для компонента ReportFilters</test>
+    </testing_requirements>
+</analysis>

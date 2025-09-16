@@ -15,13 +15,13 @@
     </project>
     <context>
         <description>
-            Сейчас для каждогов пользователя реализован функциогнал изолированного управлегния справочниками.
-            Необходимо изменить подход. 
+            http://localhost:5173/reports не открывается
+            в логах ошибка /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-16 14-33-52.png
         </description>
         <requirements>
-            <point number="1">Все справочники доступны всем пользователям.</point>
-            <point number="2">Управление справочниками только с ролью администратор.</point>
-            <point number="3">Упраавление справочниками не достпуно на просмотр пользвтаелям.</point>
+            <point number="1">Проанализирвоать ошибку</point>
+            <point number="2">Определить проблему</point>
+            <point number="3">Исправить ошибку</point>
         </requirements>
     </context>
     <tasks>
@@ -31,28 +31,26 @@
             </step>
             <step number="2">
                 <thinking>
-                    <reasoning>Проанализировать требования</reasoning>
+                    <action>Проанализировать и обдумать требования шаг за шагом</action>
                 </thinking>
             </step>
             <step number="3">
+                <context7>
+                    <action>Запросить актуальную документацию по стэку и функциональности</action>
+                </context7>
+            </step>
+            <step number="3">
+                    <action>Сохранить результат анализа в формате xml в файле /requests названием analyses.xml</action>
+            </step>
+            <step number="4">
                 <action>Приступить к задаче task 2</action>
             </step>
         </task>
         <task number="2">
             <step number="1">
-                <memory>
-                    <action>Изучить записи в памяти для получениия актуальной информации</action>
-                </memory>
+                <action>Сформировать план задач c помощью субагента на основании /requests/analyses.xml</action>
             </step>
             <step number="2">
-                <context7>
-                    <action>Запросить документацию</action>
-                </context7>
-            </step>
-            <step number="3">
-                <action>Сформировать план задач c помощью субагента</action>
-            </step>
-            <step number="4">
                 <action>Приступить к задаче task 3</action>
             </step>
         </task>
@@ -100,16 +98,6 @@
             </step>
         </task>
         <task number="8">
-            <step number="1">
-                <memory>
-                    <action>Обновить память проекта</action>
-                </memory>
-            </step>
-            <step number="2">
-                <action>Приступить к задаче task 9</action>
-            </step>
-        </task>
-        <task number="9">
             <action>Сделать коммит</action>
         </task>
     </tasks>
