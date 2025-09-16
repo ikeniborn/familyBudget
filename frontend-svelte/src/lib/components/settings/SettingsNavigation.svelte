@@ -168,10 +168,14 @@
 
   $: currentPath = $page.url.pathname;
   
-  // Filter categories based on admin status
-  $: visibleCategories = settingsCategories.filter(category => 
-    category.id !== 'system-settings' || $isAdmin
-  );
+  // Filter categories based on admin status - only admins see all categories
+  $: visibleCategories = settingsCategories.filter(category => {
+    // Only admins can see all categories
+    if (!$isAdmin) {
+      return false; // Regular users see no settings categories
+    }
+    return true; // Admins see all categories
+  });
 </script>
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

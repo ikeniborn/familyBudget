@@ -6,10 +6,35 @@ export const handle: Handle = async ({ event, resolve }) => {
   const connectSid = event.cookies.get('connect.sid');
   const familyBudgetSid = event.cookies.get('familybudget.sid');
   const sessionId = connectSid || familyBudgetSid;
-  
+
   // Добавляем информацию о состоянии аутентификации в locals
   event.locals.authenticated = !!sessionId;
   event.locals.sessionId = sessionId;
+
+  // Fetch user data for server-side route protection
+  if (sessionId) {
+    try {
+      const response = await fetch('http://localhost:4000/api/auth/me', {
+        headers: {
+          'Cookie': `connect.sid=${sessionId}`
+        }
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        if (userData.success && userData.user) {
+          event.locals.user = userData.user;
+        } else if (userData.user) {
+          event.locals.user = userData.user;
+        } else if (userData.id) {
+          event.locals.user = userData;
+        }
+      }
+    } catch (error) {
+      // Silently fail - user data will be undefined
+      console.warn('Failed to fetch user data in server hook:', error);
+    }
+  }
   
   // Передаем cookies для API запросов
   if (event.url.pathname.startsWith('/api/')) {

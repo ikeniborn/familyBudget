@@ -8,6 +8,8 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ Dashboard Integration Complete (v3.2.1):** Main dashboard now uses real API data instead of mock data, with comprehensive error handling, loading states, and full test coverage (4,192 lines of tests). See `/docs/api/dashboard-integration.md` for technical details.
 
+**✅ Role-Based Access Control (v3.3.1):** Implemented comprehensive RBAC system restricting administrative features to admin users only. Regular users cannot access settings/справочники. See `/docs/architecture/adr-006-role-based-access-control.md` and `/docs/api/access-control.md`.
+
 ## ⚠️ CRITICAL: Docker-Only Development
 
 **ALL operations MUST be performed through Docker containers:**
@@ -498,6 +500,8 @@ docker exec budget-frontend npm run test financial_centers.test.ts
 docker exec budget-frontend npm run test cost_centers.test.ts
 docker exec budget-frontend npm run test dashboard.service.test.ts      # ✅ Dashboard service tests
 docker exec budget-frontend npm run test dashboard.component.test.ts    # ✅ Dashboard component tests
+docker exec budget-frontend npm run test access-control-simple.test.ts  # ✅ Access control tests
+docker exec budget-frontend npm run test settings-route-protection.test.ts # ✅ Route protection tests
 
 # Integration testing
 docker exec budget-backend python -m pytest tests/integration/
@@ -566,6 +570,23 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 - Data leakage prevention verified
 - Regular security dependency updates
 
+## Access Control System
+
+### User Roles
+- **admin**: Full access to all features including settings and справочники
+- **user**: Access to core functionality only (dashboard, budget, facts, reports, products)
+
+### Protected Features (Admin Only)
+- Справочники (Reference Data)
+- Settings icon in header
+- All settings pages (/settings/*)
+- System configuration
+
+### Implementation
+- Frontend: Navigation filtering based on `isAdmin` store
+- Server-side: Route protection in `+layout.server.ts`
+- Multi-layered defense with proper HTTP status codes (401/403)
+
 ## Common Issues & Solutions
 
 1. **Session not persisting**: Check Redis connection and SESSION_SECRET match
@@ -577,6 +598,7 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 7. **Timezone errors on period creation**: ✅ **RESOLVED** - Timezone handling utilities implemented (ADR-005)
 8. **Financial center field mapping error**: ✅ **RESOLVED** - Fixed `financial_center_name` → `name` (v3.1.4)
 9. **Nomenclature code field error**: ✅ **RESOLVED** - Fixed missing `code` field in API request (v3.1.5)
+10. **Admin features visible to regular users**: ✅ **RESOLVED** - Implemented RBAC with multi-layered protection (v3.3.1)
 
 ### 🔧 Docker Networking Fix (ADR-004)
 

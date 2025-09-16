@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import { currentUser, authStore } from '$lib/stores/auth.store';
+  import { currentUser, authStore, isAdmin } from '$lib/stores/auth.store';
   import NotificationDropdown from './NotificationDropdown.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
@@ -41,11 +41,15 @@
   const referenceNavItem: NavItem = {
     name: 'Справочники',
     path: '/settings',
-    icon: Database
+    icon: Database,
+    adminOnly: true
   };
 
-  // Reactive navigation items - removed admin navigation
-  $: navItems = [...baseNavItems, referenceNavItem];
+  // Reactive navigation items - filter based on admin status
+  $: navItems = [
+    ...baseNavItems,
+    ...(referenceNavItem.adminOnly && !$isAdmin ? [] : [referenceNavItem])
+  ];
 
   async function handleLogout() {
     await authStore.logout();
@@ -76,8 +80,13 @@
     
     // Check for prefix matches
     if (pathname.startsWith('/settings')) {
+      // Non-admin users should not see settings pages
+      if (!$isAdmin) {
+        return 'Доступ запрещен';
+      }
+
       if (pathname === '/settings') {
-        return $currentUser?.role === 'admin' ? 'Администрирование' : 'Справочники';
+        return 'Администрирование';
       }
       if (pathname.includes('/periods')) return 'Управление периодами';
       if (pathname.includes('/financial-centers')) return 'Управление ЦФО';
@@ -214,15 +223,17 @@
           
           <div class="flex items-center space-x-3">
             <NotificationDropdown />
-            <Button
-              variant="ghost"
-              size="icon"
-              on:click={() => goto('/settings')}
-              title="Настройки"
-              class="text-muted-foreground hover:text-primary hover:bg-primary/10"
-            >
-              <Settings class="h-5 w-5" />
-            </Button>
+            {#if $isAdmin}
+              <Button
+                variant="ghost"
+                size="icon"
+                on:click={() => goto('/settings')}
+                title="Настройки"
+                class="text-muted-foreground hover:text-primary hover:bg-primary/10"
+              >
+                <Settings class="h-5 w-5" />
+              </Button>
+            {/if}
 
             <!-- User Info Section -->
             <div class="flex items-center space-x-3 border-l border-muted-foreground/20 pl-3">

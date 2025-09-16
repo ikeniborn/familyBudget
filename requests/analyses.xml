@@ -1,104 +1,72 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <analysis>
-  <project>
-    <name>Family Budget Application</name>
+    <context>
+        <requirement>Ограничить доступ к справочникам и настройкам для пользователей без роли администратора</requirement>
+        <scope>
+            <item>Скрыть пункт меню "Справочники" в боковой навигации</item>
+            <item>Скрыть иконку настроек (шестеренку) в хедере</item>
+            <item>Запретить доступ к страницам настроек для обычных пользователей</item>
+        </scope>
+    </context>
+
     <current_state>
-      <user_info_location>
-        <current>Left sidebar bottom (lines 180-215 in Layout.svelte)</current>
-        <component_path>/frontend-svelte/src/lib/components/common/Layout.svelte</component_path>
-        <description>User info displayed in Card with beige variant inside sidebar</description>
-        <elements>
-          <element>User avatar with geometric circle</element>
-          <element>Username display with truncation</element>
-          <element>Admin badge for admin users</element>
-          <element>User ID display</element>
-          <element>Logout button with LogOut icon</element>
-        </elements>
-      </user_info_location>
-      <top_bar_location>
-        <current>Lines 222-265 in Layout.svelte</current>
-        <description>Top bar with geometric header, page title and notifications</description>
-        <current_right_section>
-          <element>NotificationDropdown component</element>
-          <element>Settings button</element>
-        </current_right_section>
-      </top_bar_location>
+        <auth_system>
+            <role_model>role: 'admin' | 'user'</role_model>
+            <store>auth.store.ts с поддержкой ролей</store>
+            <derived_store>isAdmin для проверки администратора</derived_store>
+        </auth_system>
+
+        <navigation_components>
+            <layout_component>
+                <file>Layout.svelte</file>
+                <issues>
+                    <issue>Пункт "Справочники" в меню отображается всем пользователям (строка 41-44)</issue>
+                    <issue>Иконка настроек в хедере видна всем (строка 220-225)</issue>
+                    <issue>Отсутствует проверка роли при формировании navItems</issue>
+                </issues>
+            </layout_component>
+
+            <settings_navigation>
+                <file>SettingsNavigation.svelte</file>
+                <partial_implementation>Системные настройки скрыты для не-админов (строка 172-174)</partial_implementation>
+                <issues>
+                    <issue>Разделы "Справочники" и "Каталоги" доступны всем</issue>
+                </issues>
+            </settings_navigation>
+        </navigation_components>
     </current_state>
-  </project>
 
-  <requirements>
-    <requirement number="1">
-      <description>Move user information from bottom left to top right corner</description>
-      <technical_details>
-        <from>Sidebar bottom section (lines 180-215)</from>
-        <to>Top bar right section (lines 250-262)</to>
-      </technical_details>
-    </requirement>
-    <requirement number="2">
-      <description>Adapt information to existing style</description>
-      <style_considerations>
-        <existing_style>Geometric elements, Cards with variants, consistent spacing</existing_style>
-        <needed_adaptations>
-          <adaptation>Use inline display instead of Card</adaptation>
-          <adaptation>Maintain geometric design elements</adaptation>
-          <adaptation>Keep consistent color scheme</adaptation>
-          <adaptation>Adjust size for header context</adaptation>
-        </needed_adaptations>
-      </style_considerations>
-    </requirement>
-    <requirement number="3">
-      <description>Place logout button as the rightmost element</description>
-      <layout_order>
-        <item order="1">NotificationDropdown</item>
-        <item order="2">Settings button</item>
-        <item order="3">User info (avatar, name, ID)</item>
-        <item order="4">Admin badge (if applicable)</item>
-        <item order="5">Logout button (rightmost)</item>
-      </layout_order>
-    </requirement>
-  </requirements>
+    <required_changes>
+        <change priority="1">
+            <component>Layout.svelte</component>
+            <action>Добавить условное отображение пункта "Справочники" только для администраторов</action>
+            <location>Строка 48, формирование navItems</location>
+        </change>
 
-  <implementation_approach>
-    <step number="1">
-      <action>Remove user info section from sidebar (lines 180-215)</action>
-      <reason>Relocating to header</reason>
-    </step>
-    <step number="2">
-      <action>Modify top bar right section to include user info</action>
-      <details>
-        <location>Lines 250-262 in Layout.svelte</location>
-        <approach>Create inline user info display with avatar, name, badge, and logout</approach>
-      </details>
-    </step>
-    <step number="3">
-      <action>Adjust styling for header context</action>
-      <style_changes>
-        <change>Reduce avatar size from 40px to 32px for header</change>
-        <change>Use horizontal layout with items-center</change>
-        <change>Apply proper spacing between elements</change>
-      </style_changes>
-    </step>
-    <step number="4">
-      <action>Test responsive behavior</action>
-      <considerations>
-        <mobile>May need to hide some elements on small screens</mobile>
-        <desktop>Full display of all user information</desktop>
-      </considerations>
-    </step>
-  </implementation_approach>
+        <change priority="2">
+            <component>Layout.svelte</component>
+            <action>Скрыть иконку Settings в хедере для обычных пользователей</action>
+            <location>Строки 217-225</location>
+        </change>
 
-  <affected_files>
-    <file>
-      <path>/frontend-svelte/src/lib/components/common/Layout.svelte</path>
-      <changes>Primary component requiring modification</changes>
-    </file>
-  </affected_files>
+        <change priority="3">
+            <component>SettingsNavigation.svelte</component>
+            <action>Показывать все категории настроек только администраторам</action>
+            <location>Строки 172-174</location>
+        </change>
 
-  <testing_requirements>
-    <test>Visual verification of user info in new location</test>
-    <test>Responsive behavior on different screen sizes</test>
-    <test>Logout functionality preservation</test>
-    <test>Admin badge display for admin users</test>
-    <test>Username truncation for long names</test>
-  </testing_requirements>
+        <change priority="4">
+            <component>Settings pages layout</component>
+            <action>Добавить защиту на уровне layout для страниц настроек</action>
+            <location>Создать или модифицировать +layout.svelte в /settings/</location>
+        </change>
+    </required_changes>
+
+    <technical_approach>
+        <step>Импортировать isAdmin store в Layout.svelte</step>
+        <step>Использовать реактивное условие для фильтрации navItems</step>
+        <step>Обернуть иконку Settings в условный блок {#if $isAdmin}</step>
+        <step>В SettingsNavigation скрывать все категории для не-админов</step>
+        <step>Добавить серверную проверку роли в +page.server.ts</step>
+    </technical_approach>
 </analysis>
