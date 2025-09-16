@@ -9,7 +9,7 @@ from sqlalchemy import select
 from app.db.database import get_db
 from app.core.security import require_admin_access
 from app.models import (
-    User, Sharing, Nomenclature, CostCenter, 
+    User, Nomenclature, CostCenter,
     FinancialCenter, Product, Registry, Period
 )
 from app.schemas.period import AdminPeriodResponse
@@ -256,36 +256,6 @@ async def get_all_periods(
     }
 
 
-@router.get("/sharing", response_model=Dict[str, Any])
-async def get_all_sharing(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_admin_access),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000)
-):
-    """Get all sharing configurations for admin."""
-    
-    # Use async query for sharing
-    stmt = (
-        select(Sharing)
-        .join(User, Sharing.owner_user_id == User.id)
-        .offset(skip)
-        .limit(limit)
-    )
-    result = await db.execute(stmt)
-    sharing_list = result.scalars().all()
-    
-    # Count query
-    count_stmt = select(Sharing)
-    count_result = await db.execute(count_stmt)
-    total = len(count_result.scalars().all())
-    
-    return {
-        "success": True,
-        "data": [sharing.to_dict() for sharing in sharing_list],
-        "total": total
-    }
 
 
 @router.get("/references/financial_center", response_model=Dict[str, Any])

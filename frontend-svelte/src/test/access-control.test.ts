@@ -553,7 +553,6 @@ describe('Access Control - Settings Navigation Category Filtering', () => {
       expect(container.textContent).toContain('Пользователи');
       expect(container.textContent).toContain('Безопасность');
       expect(container.textContent).toContain('Импорт/Экспорт');
-      expect(container.textContent).toContain('Sharing');
     });
 
     it('should call navigation function when settings item is clicked', async () => {

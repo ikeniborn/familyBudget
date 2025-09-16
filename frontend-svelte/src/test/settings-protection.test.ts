@@ -253,8 +253,7 @@ describe('Settings Route Protection - Server-Side Access Control', () => {
       '/settings/articles',
       '/settings/users',
       '/settings/security',
-      '/settings/import-export',
-      '/settings/sharing'
+      '/settings/import-export'
     ];
 
     it.each(settingsRoutes)('should protect %s route for non-admin users', async (route) => {

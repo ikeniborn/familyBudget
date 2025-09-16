@@ -10,4 +10,3 @@ from .nomenclature import *
 from .row_type import *
 from .registry import *
 from .product import *
-from .sharing import *

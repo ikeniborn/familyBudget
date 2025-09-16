@@ -2,7 +2,7 @@
  * Service for admin operations
  */
 import api from './api';
-import type { User, Sharing } from '$lib/types/index.js';
+import type { User } from '$lib/types/index.js';
 
 interface AdminUsersResponse {
   success: boolean;
@@ -16,11 +16,6 @@ interface AdminReferencesResponse {
   total: number;
 }
 
-interface AdminSharingResponse {
-  success: boolean;
-  data: Sharing[];
-  total: number;
-}
 
 export const adminService = {
   // Get all users
@@ -52,8 +47,4 @@ export const adminService = {
     return api.delete(`/admin/references/${resourceType}/${itemId}`);
   },
 
-  // Get all sharing configurations
-  async getAllSharing(skip = 0, limit = 100): Promise<AdminSharingResponse> {
-    return api.get<AdminSharingResponse>(`/admin/sharing?skip=${skip}&limit=${limit}`);
-  }
 };

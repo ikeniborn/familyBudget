@@ -1,47 +1,135 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <analysis>
-    <problem>
-        <description>Администратор получает ошибку 401 (Unauthorized) при доступе к странице /settings</description>
-        <error_code>401</error_code>
-        <affected_route>/settings</affected_route>
-    </problem>
+  <context>
+    <url>http://localhost:5173/settings/sharing</url>
+    <description>Неиспользуемый функционал sharing в приложении Family Budget</description>
+  </context>
 
-    <root_cause>
-        <issue>Неправильный URL бэкенда в hooks.server.ts</issue>
-        <details>
-            <point>В hooks.server.ts используется http://localhost:4000 вместо http://budget-backend:4000</point>
-            <point>В Docker-среде сервис фронтенда не может обратиться к localhost:4000</point>
-            <point>Из-за этого запрос к /api/auth/me не выполняется успешно</point>
-            <point>Данные пользователя не попадают в event.locals.user</point>
-            <point>+layout.server.ts в /settings проверяет locals.user и выбрасывает 401</point>
-        </details>
-    </root_cause>
+  <requirement>
+    <description>Удалить функционал sharing из приложения</description>
+  </requirement>
 
-    <solution>
-        <step number="1">
-            <action>Исправить URL backend в hooks.server.ts</action>
-            <code>const backendUrl = process.env.BACKEND_URL || 'http://budget-backend:4000';</code>
-            <status>completed</status>
-        </step>
-        <step number="2">
-            <action>Исправить формат cookie для совместимости</action>
-            <code>Support both connect.sid and familybudget.sid cookie names</code>
-            <status>completed</status>
-        </step>
-        <step number="3">
-            <action>Перезапустить frontend контейнер для применения изменений</action>
-            <status>pending</status>
-        </step>
-    </solution>
+  <current_implementation>
+    <frontend>
+      <files>
+        <file path="/frontend-svelte/src/routes/(protected)/settings/sharing/+page.svelte">
+          <description>Страница управления sharing (324 строки)</description>
+          <functionality>
+            - Отображение настроек sharing пользователя
+            - Создание новых настроек sharing
+            - Управление правами доступа
+            - Просмотр shared данных от других пользователей
+          </functionality>
+        </file>
 
-    <technical_details>
-        <authentication_flow>
-            <step>1. hooks.server.ts проверяет cookie сессии</step>
-            <step>2. Делает запрос к backend /api/auth/me для получения данных пользователя</step>
-            <step>3. Сохраняет данные в event.locals.user</step>
-            <step>4. +layout.server.ts в /settings проверяет locals.user и его роль</step>
-            <step>5. Если роль !== 'admin', возвращает 403</step>
-            <step>6. Если locals.user нет, возвращает 401</step>
-        </authentication_flow>
-    </technical_details>
+        <file path="/frontend-svelte/src/lib/services/sharingService.ts">
+          <description>Сервис для работы с sharing API (48 строк)</description>
+          <functionality>
+            - getMyShares() - получение настроек пользователя
+            - getSharedWithMe() - получение shared данных
+            - createSharing() - создание настроек
+            - updateSharing() - обновление настроек
+            - deleteSharing() - удаление настроек
+            - getAvailableUsers() - получение списка пользователей
+          </functionality>
+        </file>
+
+        <file path="/frontend-svelte/src/lib/components/settings/SettingsNavigation.svelte">
+          <description>Навигационный компонент с ссылкой на sharing</description>
+          <lines>129-132</lines>
+        </file>
+
+        <file path="/frontend-svelte/src/lib/types/index.ts">
+          <description>TypeScript типы для sharing</description>
+        </file>
+      </files>
+    </frontend>
+
+    <backend>
+      <files>
+        <file path="/backend-fastapi/app/api/v1/endpoints/sharing.py">
+          <description>API endpoints для sharing (264 строки)</description>
+          <endpoints>
+            - GET /sharing/my-shares
+            - GET /sharing/shared-with-me
+            - POST /sharing/create
+            - PUT /sharing/{sharing_id}
+            - DELETE /sharing/{sharing_id}
+            - GET /sharing/available-users
+          </endpoints>
+        </file>
+
+        <file path="/backend-fastapi/app/models/sharing.py">
+          <description>SQLAlchemy модель Sharing (45 строк)</description>
+          <table>t_d_sharing</table>
+        </file>
+
+        <file path="/backend-fastapi/app/schemas/sharing.py">
+          <description>Pydantic схемы для sharing (91 строка)</description>
+        </file>
+
+        <file path="/backend-fastapi/app/api/v1/router.py">
+          <description>Подключение sharing роутера</description>
+          <lines>18, 36</lines>
+        </file>
+
+        <file path="/backend-fastapi/app/models/__init__.py">
+          <description>Экспорт модели Sharing</description>
+        </file>
+
+        <file path="/backend-fastapi/app/schemas/__init__.py">
+          <description>Экспорт схем sharing</description>
+        </file>
+      </files>
+    </backend>
+
+    <database>
+      <table name="t_d_sharing">
+        <description>Таблица для хранения настроек sharing между пользователями</description>
+        <migration>/backend-fastapi/migrations/create_sharing_table.sql</migration>
+      </table>
+    </database>
+
+    <tests>
+      <references>
+        <file>/tests/frontend/access-control.test.ts</file>
+        <file>/tests/frontend/settings-protection.test.ts</file>
+        <file>/backend-fastapi/tests/security/test_admin_privilege_escalation.py</file>
+      </references>
+    </tests>
+  </current_implementation>
+
+  <impact_analysis>
+    <components>
+      <component name="Frontend">
+        <impact>Удаление страницы и сервиса sharing</impact>
+        <risk>Низкий - изолированный функционал</risk>
+      </component>
+
+      <component name="Backend">
+        <impact>Удаление API endpoints, моделей и схем</impact>
+        <risk>Низкий - отдельный модуль</risk>
+      </component>
+
+      <component name="Database">
+        <impact>Необходима миграция для удаления таблицы</impact>
+        <risk>Средний - нужно проверить зависимости</risk>
+      </component>
+
+      <component name="Navigation">
+        <impact>Удаление ссылки из навигации настроек</impact>
+        <risk>Низкий</risk>
+      </component>
+    </components>
+  </impact_analysis>
+
+  <removal_strategy>
+    <step number="1">Создать backup базы данных перед удалением</step>
+    <step number="2">Удалить frontend компоненты и сервисы</step>
+    <step number="3">Удалить backend endpoints и модели</step>
+    <step number="4">Создать миграцию для удаления таблицы</step>
+    <step number="5">Обновить импорты и зависимости</step>
+    <step number="6">Обновить тесты</step>
+    <step number="7">Обновить документацию</step>
+  </removal_strategy>
 </analysis>

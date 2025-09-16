@@ -15,8 +15,7 @@
     Shield,
     Database,
     ChevronRight,
-    BookOpen,
-    Share
+    BookOpen
   } from 'lucide-svelte';
 
   interface SettingCategory {
@@ -124,13 +123,6 @@
           description: 'Массовые операции с данными',
           path: '/settings/import-export',
           icon: FileText,
-        },
-        {
-          id: 'sharing',
-          label: 'Sharing',
-          description: 'Настройки обмена данными',
-          path: '/settings/sharing',
-          icon: Share,
         },
       ],
     },

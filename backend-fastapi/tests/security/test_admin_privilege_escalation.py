@@ -382,7 +382,6 @@ class TestAdminPrivilegeEscalation:
                     "/api/admin/users",
                     "/api/admin/references/nomenclature",
                     "/api/admin/references/cost_center",
-                    "/api/admin/sharing",
                 ]
                 
                 for endpoint in admin_endpoints:

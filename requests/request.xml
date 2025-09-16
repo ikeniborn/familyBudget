@@ -14,12 +14,11 @@
         <compliance>Строгое следование CLAUDE.md</compliance>
     </project>
     <context>
-        http://localhost:5173/settings
-        ПРи авторизаци под пользвоателем с ролью администратор ошибка 401
+        Фунционал увведомлений всплываюищй. 
+        /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-16 22-12-04.png
     </context>
     <requirements>
-        <point number="1">Опредилть причину ошибки</point>
-        <point number="2">Испарвить доступ администратору к странице настроек</point>
+        <point number="1">Упросить вывод всплываюззего окна. Убрать дополнительный функционал расишрения уведомленя</point>
     </requirements>
     <tasks>
         <task number="1">
@@ -91,6 +90,8 @@
                     <tip number="1">Be specific: “Use 2-space indentation” is better than “Format code properly”.</tip>
                     <tip number="2">Use structure to organize: Format each individual memory as a bullet point and group related memories under descriptive markdown headings.</tip>
                     <tip number="3">Review periodically: Update memories as your project evolves to ensure Claude is always using the most up to date information and context.</tip>
+                    <tip number="3">Размер файла не более 500 строк.</tip>
+                    <tip number="3">Хранить только актуальную информацию.</tip>
                 </best_practice>
             </step>
             <step number="3">
