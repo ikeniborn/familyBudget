@@ -602,6 +602,7 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 9. **Nomenclature code field error**: ✅ **RESOLVED** - Fixed missing `code` field in API request (v3.1.5)
 10. **Admin features visible to regular users**: ✅ **RESOLVED** - Implemented RBAC with multi-layered protection (v3.3.1)
 11. **FactForm TypeError on undefined fields**: ✅ **RESOLVED** - Fixed field mapping with defensive coding (v3.3.2)
+12. **Admin users getting 401 error on /settings**: ✅ **RESOLVED** - Fixed session handling and backend URL configuration (ADR-008, ADR-009)
 
 ### 🔧 Docker Networking Fix (ADR-004)
 
@@ -764,6 +765,81 @@ const requestData = {
 - `tests/backend/test_nomenclature_field_fix.py` - Backend API validation tests
 - Comprehensive validation of all required fields
 - Error handling for missing fields
+
+### 🔧 Admin Settings 401 Authorization Fix (v3.3.3)
+
+**Issue:** Admin users receiving 401 (Unauthorized) errors when accessing `/settings` despite having valid sessions
+**Root Causes:**
+1. Incorrect session cookie format handling in `hooks.server.ts`
+2. Wrong backend URL configuration in Docker environment
+**Symptoms:**
+- Admin users unable to access settings page
+- API `/api/auth/me` returning 401 even with valid admin sessions
+- Network connectivity issues between frontend and backend containers
+
+**Solution:** Two-phase fix implemented (ADR-008 + ADR-009)
+- **Phase 1 (ADR-008):** Enhanced session cookie handling in `hooks.server.ts`
+- **Phase 2 (ADR-009):** Fixed backend URL configuration with smart detection
+
+**Technical Details:**
+```typescript
+// ✅ AFTER: Smart backend URL detection with connectivity validation
+const backendUrl = process.env.BACKEND_URL ||
+  (process.env.NODE_ENV === 'production'
+    ? 'http://budget-backend:4000'  // Docker internal network
+    : 'http://localhost:4000'       // Development fallback
+  );
+
+// ✅ AFTER: Improved session handling with multiple format support
+let sessionId = connectSid || familyBudgetSid;
+if (sessionId) {
+  sessionId = sessionId.replace(/^s:/, '').replace(/\..*$/, '');
+}
+
+const cookieHeader = connectSid
+  ? `connect.sid=${connectSid}`
+  : familyBudgetSid
+  ? `familybudget.sid=${familyBudgetSid}`
+  : `connect.sid=s:${sessionId}`;
+```
+
+**Affected Components:**
+- `frontend-svelte/src/hooks.server.ts` - Main authentication logic
+- Admin settings pages (`/settings/*`)
+- Session management system
+- Docker container networking
+
+**Result:**
+- ✅ Admin users can access `/settings` without 401 errors
+- ✅ Improved session cookie format compatibility
+- ✅ Enhanced network connectivity between containers
+- ✅ Smart backend URL detection with fallback mechanisms
+- ✅ Better error diagnostics and logging
+
+**Testing Coverage:**
+- `tests/backend/test_admin_settings_auth.py` - 412 lines of backend tests
+- `tests/frontend/admin-settings-auth.test.ts` - 456 lines of frontend tests
+- `tests/backend/test_backend_url_connectivity.py` - 356 lines connectivity tests
+- `tests/frontend/backend-url-config.test.ts` - 398 lines URL config tests
+- `tests/integration/test_admin_auth_integration.py` - 289 lines integration tests
+- **Total:** 1,911 lines of comprehensive test coverage
+
+**Documentation:**
+- [ADR-008: Admin Settings Auth Fix](docs/architecture/adr-008-admin-settings-auth-fix.md)
+- [ADR-009: Backend URL Configuration Fix](docs/architecture/adr-009-backend-url-configuration-fix.md)
+- [Admin Auth Troubleshooting Guide](docs/troubleshooting/admin-settings-401-fix.md)
+
+**Validation Commands:**
+```bash
+# Test admin authentication
+curl -s -w "HTTP Status: %{http_code}\n" http://localhost:5173/settings
+
+# Check backend connectivity
+docker exec budget-frontend npm run test backend-url-config.test.ts
+
+# Validate session handling
+docker exec budget-backend python -m pytest tests/backend/test_admin_settings_auth.py -v
+```
 
 ## File Organization
 

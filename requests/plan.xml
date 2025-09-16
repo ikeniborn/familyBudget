@@ -1,257 +1,60 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plan>
-  <metadata>
-    <created_date>2025-09-16</created_date>
-    <scope>Console Logging Cleanup</scope>
-    <objective>Remove excessive console logging while preserving critical error handling and debugging capabilities</objective>
-    <estimated_impact>
-      <performance>Reduced JavaScript execution overhead in production</performance>
-      <debugging>Cleaner console output for developers</debugging>
-      <bundle_size>Minimal reduction through dead code elimination</bundle_size>
-    </estimated_impact>
-  </metadata>
+    <tasks>
+        <task number="1" status="completed">
+            <name>Исправление URL backend в hooks.server.ts</name>
+            <description>Изменить URL с localhost:4000 на budget-backend:4000 для Docker-среды</description>
+            <actions>
+                <action>Добавить переменную окружения BACKEND_URL</action>
+                <action>Исправить формат cookie headers</action>
+                <action>Добавить поддержку различных форматов session ID</action>
+            </actions>
+            <result>Файл hooks.server.ts успешно обновлен</result>
+        </task>
 
-  <executive_summary>
-    <issue>Excessive console logging throughout the frontend codebase creates noise in development and production environments, hampering debugging and potentially impacting performance.</issue>
-    <scope_analysis>
-      <total_files_affected>54</total_files_affected>
-      <primary_offenders>
-        <file path="frontend-svelte/src/lib/stores/auth.store.ts" console_calls="63" severity="critical"/>
-        <file path="frontend-svelte/src/routes/(protected)/+layout.ts" console_calls="6" severity="medium"/>
-        <file path="frontend-svelte/src/routes/auth/callback/+page.svelte" console_calls="15" severity="high"/>
-        <file path="frontend-svelte/src/routes/login/+page.svelte" console_calls="12" severity="high"/>
-        <file path="frontend-svelte/src/lib/services/*" console_calls="80+" severity="high"/>
-      </primary_offenders>
-      <estimated_total_calls_per_session>500+</estimated_total_calls_per_session>
-    </scope_analysis>
-  </executive_summary>
+        <task number="2" status="pending">
+            <name>Перезапуск frontend контейнера</name>
+            <description>Применить изменения путем перезапуска контейнера</description>
+            <actions>
+                <action>docker restart budget-frontend</action>
+            </actions>
+        </task>
 
-  <cleanup_strategy>
-    <phase name="Phase 1: Critical Auth Store Cleanup" priority="critical" estimated_effort="2 hours">
-      <target_file>frontend-svelte/src/lib/stores/auth.store.ts</target_file>
-      <actions>
-        <action type="remove" priority="critical" lines="742-749">
-          <description>Remove frequent isAdmin derived store logging (called on every reactive update)</description>
-          <impact>Eliminates 100+ logs per session from reactive checking</impact>
-        </action>
+        <task number="3" status="pending">
+            <name>Тестирование исправлений</name>
+            <description>Проверить работоспособность авторизации администратора</description>
+            <actions>
+                <action>Проверить доступ к /settings под администратором</action>
+                <action>Проверить корректность получения данных пользователя</action>
+                <action>Проверить работу RBAC системы</action>
+            </actions>
+        </task>
 
-        <action type="remove" priority="high" lines="59-60,95-96,104-105,113-114,124-126,174-176">
-          <description>Remove localStorage operation logging</description>
-          <impact>Reduces noise from storage operations</impact>
-        </action>
+        <task number="4" status="pending">
+            <name>Создание тестов</name>
+            <description>Написать unit и integration тесты для предотвращения регрессии</description>
+            <actions>
+                <action>Backend тесты для /api/auth/me endpoint</action>
+                <action>Frontend тесты для hooks.server.ts</action>
+                <action>E2E тесты для admin доступа к /settings</action>
+            </actions>
+        </task>
 
-        <action type="conditional" priority="medium" lines="305-307,356-358,414-416,486-488">
-          <description>Replace authentication flow logging with conditional DEBUG logging</description>
-          <implementation>if (import.meta.env.DEV) console.log(...)</implementation>
-        </action>
+        <task number="5" status="pending">
+            <name>Обновление документации</name>
+            <description>Задокументировать решение проблемы</description>
+            <actions>
+                <action>Создать ADR для архитектурного решения</action>
+                <action>Обновить troubleshooting guide</action>
+                <action>Обновить CLAUDE.md с информацией об исправлении</action>
+            </actions>
+        </task>
+    </tasks>
 
-        <action type="remove" priority="high" lines="544-565,581-582,606-609,623,635-640,669,685,702">
-          <description>Remove verbose checkAuth and setUser method logging</description>
-          <impact>Eliminates authentication noise while preserving error handling</impact>
-        </action>
-
-        <action type="preserve" priority="critical" lines="34-36,76,167-168,248,272,420,425,492,497,529,655,675,681">
-          <description>Keep critical error logging for authentication failures and validation errors</description>
-          <rationale>Essential for debugging authentication issues</rationale>
-        </action>
-      </actions>
-    </phase>
-
-    <phase name="Phase 2: Route and Component Cleanup" priority="high" estimated_effort="3 hours">
-      <targets>
-        <file>frontend-svelte/src/routes/auth/callback/+page.svelte</file>
-        <file>frontend-svelte/src/routes/login/+page.svelte</file>
-        <file>frontend-svelte/src/routes/(protected)/+layout.ts</file>
-      </targets>
-      <actions>
-        <action type="conditional" priority="high">
-          <description>Replace debug logging in auth callback and login pages with conditional DEV logging</description>
-          <affected_lines>callback: 16,24,30,37,40,56,59,65,69,74,81,93,100 | login: 22,26,30,41,49,113-115,118,123,128-129</affected_lines>
-        </action>
-
-        <action type="preserve" priority="critical">
-          <description>Keep error logging for OAuth failures and critical auth errors</description>
-          <affected_lines>callback: 85 | login: 43 | layout: 30,61,75-76</affected_lines>
-        </action>
-
-        <action type="remove" priority="medium">
-          <description>Remove routine state logging in protected layout</description>
-          <affected_lines>layout: 70,73</affected_lines>
-        </action>
-      </actions>
-    </phase>
-
-    <phase name="Phase 3: Service Layer Cleanup" priority="high" estimated_effort="4 hours">
-      <scope>All files in frontend-svelte/src/lib/services/</scope>
-      <patterns_to_address>
-        <pattern type="debug_logging" severity="high">
-          <description>Remove excessive API request/response logging</description>
-          <examples>
-            <example file="periods.service.ts" lines="41,44,48,61,65-66,96,100"/>
-            <example file="costCenters.service.ts" lines="37,40,44,57,61-62,84,88"/>
-            <example file="financialCenters.service.ts" lines="similar_pattern"/>
-            <example file="nomenclatures.service.ts" lines="similar_pattern"/>
-          </examples>
-          <solution>Replace with conditional DEV logging for request/response details</solution>
-        </pattern>
-
-        <pattern type="error_logging" severity="preserve">
-          <description>Keep critical error logging for API failures</description>
-          <examples>
-            <example file="periods.service.ts" lines="104-110"/>
-            <example file="costCenters.service.ts" lines="92-99"/>
-          </examples>
-          <rationale>Essential for diagnosing API connectivity and authentication issues</rationale>
-        </pattern>
-
-        <pattern type="warning_logging" severity="conditional">
-          <description>Convert performance warnings to conditional logging</description>
-          <examples>
-            <example file="apiCache.service.ts" lines="176,282,347,358"/>
-            <example file="pushNotifications.service.ts" lines="30,72,106,128,169"/>
-          </examples>
-          <solution>Keep in DEV mode, remove in production</solution>
-        </pattern>
-      </patterns_to_address>
-    </phase>
-
-    <phase name="Phase 4: Component Cleanup" priority="medium" estimated_effort="3 hours">
-      <scope>UI components with excessive logging</scope>
-      <categories>
-        <category name="form_validation" priority="medium">
-          <description>Remove form validation debug logging</description>
-          <affected_files>FactForm.svelte, BudgetForm.svelte, ProductForm.svelte</affected_files>
-        </category>
-
-        <category name="user_interaction" priority="low">
-          <description>Remove user interaction debug logging</description>
-          <affected_files>Select.svelte, Modal components, Button components</affected_files>
-        </category>
-
-        <category name="chart_rendering" priority="low">
-          <description>Remove chart rendering debug logging</description>
-          <affected_files>ChartContainer.svelte, chart utilities</affected_files>
-        </category>
-      </categories>
-    </phase>
-
-    <phase name="Phase 5: Infrastructure and Utility Cleanup" priority="low" estimated_effort="2 hours">
-      <scope>Build scripts, utilities, and configuration files</scope>
-      <actions>
-        <action type="conditional" priority="medium">
-          <description>Update vite.config.ts proxy logging to be development-only</description>
-          <file>frontend-svelte/vite.config.ts</file>
-          <lines>199,209,212</lines>
-        </action>
-
-        <action type="review" priority="low">
-          <description>Review and clean utility logging</description>
-          <files>performance.ts, telegram-oauth.ts, unauthorized-access.ts</files>
-        </action>
-      </actions>
-    </phase>
-  </cleanup_strategy>
-
-  <implementation_guidelines>
-    <logging_standards>
-      <debug_logging>
-        <rule>Use conditional logging for development debugging: if (import.meta.env.DEV) console.log(...)</rule>
-        <rule>Remove any console.log statements used for temporary debugging</rule>
-        <rule>Keep structured debug logging for complex authentication flows (in DEV only)</rule>
-      </debug_logging>
-
-      <error_logging>
-        <rule>Always preserve console.error for critical failures (authentication, API errors, validation failures)</rule>
-        <rule>Keep console.warn for important but non-critical issues (missing optional data, fallback scenarios)</rule>
-        <rule>Remove console.warn for routine validation messages</rule>
-      </error_logging>
-
-      <performance_logging>
-        <rule>Remove console.log from frequently called functions (reactive stores, derived values)</rule>
-        <rule>Remove API request/response logging unless flagged as development-only</rule>
-        <rule>Keep performance warnings only in development mode</rule>
-      </performance_logging>
-    </logging_standards>
-
-    <development_alternatives>
-      <debug_flag>
-        <implementation>
-          <code>
-// Create debug utility
-const DEBUG = import.meta.env.DEV;
-const debugLog = DEBUG ? console.log : () => {};
-const debugWarn = DEBUG ? console.warn : () => {};
-
-// Usage
-debugLog('Auth state change:', newState);
-debugWarn('Performance warning:', data);
-          </code>
-        </implementation>
-      </debug_flag>
-
-      <structured_logging>
-        <implementation>
-          <code>
-// For critical debugging that needs to be preserved
-const authLogger = {
-  debug: import.meta.env.DEV ? console.log : () => {},
-  info: import.meta.env.DEV ? console.info : () => {},
-  warn: console.warn, // Always show warnings
-  error: console.error // Always show errors
-};
-          </code>
-        </implementation>
-      </structured_logging>
-    </development_alternatives>
-  </implementation_guidelines>
-
-  <testing_strategy>
-    <validation_steps>
-      <step>Run all existing tests to ensure no critical functionality is broken</step>
-      <step>Test authentication flows in both development and production builds</step>
-      <step>Verify error handling still logs appropriately for debugging</step>
-      <step>Check that performance-critical paths (isAdmin checks) no longer spam console</step>
-      <step>Validate that development debugging capabilities are preserved with DEV flag</step>
-    </validation_steps>
-
-    <regression_prevention>
-      <eslint_rule>Add ESLint rule to prevent new console.log statements in production code</eslint_rule>
-      <typescript_utility>Create typed debug utilities to enforce consistent logging practices</typescript_utility>
-      <pre_commit_hook>Add pre-commit hook to check for console.log statements</eslint_rule>
-    </regression_prevention>
-  </testing_strategy>
-
-  <rollback_plan>
-    <backup_strategy>Create backup of all modified files before cleanup</backup_strategy>
-    <phased_rollback>Each phase can be rolled back independently if issues arise</phased_rollback>
-    <critical_paths>Authentication and API error handling have highest priority for preservation</critical_paths>
-  </rollback_plan>
-
-  <success_metrics>
-    <quantitative>
-      <metric>Reduce console statements in auth.store.ts from 63 to &lt;15</metric>
-      <metric>Eliminate 90%+ of debug logging from service layer</metric>
-      <metric>Maintain 100% of critical error logging</metric>
-      <metric>Reduce total console calls per session from 500+ to &lt;50</metric>
-    </quantitative>
-
-    <qualitative>
-      <metric>Cleaner console output during development</metric>
-      <metric>Preserved debugging capabilities for critical issues</metric>
-      <metric>Improved code readability and maintainability</metric>
-      <metric>Better separation between debug logging and error handling</metric>
-    </qualitative>
-  </success_metrics>
-
-  <timeline>
-    <total_effort>14 hours</total_effort>
-    <phases>
-      <phase_1>2 hours - Critical auth store cleanup</phase_1>
-      <phase_2>3 hours - Route and component cleanup</phase_2>
-      <phase_3>4 hours - Service layer cleanup</phase_3>
-      <phase_4>3 hours - Component cleanup</phase_4>
-      <phase_5>2 hours - Infrastructure cleanup</phase_5>
-    </phases>
-    <testing_buffer>Additional 2-3 hours for testing and validation</testing_buffer>
-  </timeline>
+    <expected_outcome>
+        <point>Администратор успешно получает доступ к /settings</point>
+        <point>Ошибка 401 больше не возникает</point>
+        <point>Система корректно определяет роль пользователя</point>
+        <point>Добавлены тесты для предотвращения регрессии</point>
+    </expected_outcome>
 </plan>

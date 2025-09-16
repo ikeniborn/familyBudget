@@ -2,10 +2,18 @@ import type { Handle } from '@sveltejs/kit';
 
 export const handle: Handle = async ({ event, resolve }) => {
   // Извлекаем session cookie для проверки аутентификации на сервере
-  // Проверяем оба возможных имени cookie для совместимости
+  // Проверяем различные форматы cookies для максимальной совместимости
   const connectSid = event.cookies.get('connect.sid');
   const familyBudgetSid = event.cookies.get('familybudget.sid');
-  const sessionId = connectSid || familyBudgetSid;
+
+  // Поддерживаем как прямой session ID, так и форматы с префиксами
+  let sessionId = connectSid || familyBudgetSid;
+
+  // Извлекаем session ID из различных форматов
+  if (sessionId) {
+    // Удаляем возможные префиксы и обертки
+    sessionId = sessionId.replace(/^s:/, '').replace(/\..*$/, '');
+  }
 
   // Добавляем информацию о состоянии аутентификации в locals
   event.locals.authenticated = !!sessionId;
@@ -14,25 +22,72 @@ export const handle: Handle = async ({ event, resolve }) => {
   // Fetch user data for server-side route protection
   if (sessionId) {
     try {
-      const response = await fetch('http://localhost:4000/api/auth/me', {
+      // Use correct backend URL for Docker environment
+      const backendUrl = process.env.BACKEND_URL || 'http://budget-backend:4000';
+
+      // Формируем правильный cookie header для backend
+      const cookieHeader = connectSid
+        ? `connect.sid=${connectSid}`
+        : familyBudgetSid
+        ? `familybudget.sid=${familyBudgetSid}`
+        : `connect.sid=s:${sessionId}`;
+
+      const response = await fetch(`${backendUrl}/api/auth/me`, {
         headers: {
-          'Cookie': `connect.sid=${sessionId}`
+          'Cookie': cookieHeader,
+          'Accept': 'application/json',
+          'User-Agent': 'SvelteKit-SSR'
         }
       });
 
       if (response.ok) {
         const userData = await response.json();
+        // Унифицированная обработка различных форматов ответа
         if (userData.success && userData.user) {
           event.locals.user = userData.user;
         } else if (userData.user) {
           event.locals.user = userData.user;
-        } else if (userData.id) {
-          event.locals.user = userData;
+        } else if (userData.id || userData.user_id) {
+          // Поддержка прямого формата данных пользователя
+          event.locals.user = {
+            id: userData.id || userData.user_id,
+            user_id: userData.user_id || userData.id,
+            username: userData.username || userData.user_name,
+            first_name: userData.first_name || userData.user_name,
+            role: userData.role || userData.user_role || 'user',
+            telegram_id: userData.telegram_id?.toString()
+          };
+        }
+
+        // Диагностическое логирование (только в development)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[Auth Debug] User loaded:', {
+            userId: event.locals.user?.id || event.locals.user?.user_id,
+            role: event.locals.user?.role,
+            sessionId: sessionId?.substring(0, 8) + '...'
+          });
+        }
+      } else {
+        // Логируем неудачные попытки аутентификации
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[Auth Debug] Authentication failed:', {
+            status: response.status,
+            sessionId: sessionId?.substring(0, 8) + '...',
+            url: `${backendUrl}/api/auth/me`
+          });
         }
       }
     } catch (error) {
-      // Silently fail - user data will be undefined
-      console.warn('Failed to fetch user data in server hook:', error);
+      // Детальное логирование ошибок в development режиме
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[Auth Error] Failed to fetch user data:', {
+          error: error.message,
+          sessionId: sessionId?.substring(0, 8) + '...',
+          stack: error.stack?.split('\n').slice(0, 3).join('\n')
+        });
+      } else {
+        console.warn('Authentication service unavailable');
+      }
     }
   }
   
