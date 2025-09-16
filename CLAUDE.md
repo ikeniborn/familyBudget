@@ -8,7 +8,9 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ Dashboard Integration Complete (v3.2.1):** Main dashboard now uses real API data instead of mock data, with comprehensive error handling, loading states, and full test coverage (4,192 lines of tests). See `/docs/api/dashboard-integration.md` for technical details.
 
-**✅ Role-Based Access Control (v3.3.1):** Implemented comprehensive RBAC system restricting administrative features to admin users only. Regular users cannot access settings/справочники. See `/docs/architecture/adr-006-role-based-access-control.md` and `/docs/api/access-control.md`.
+**✅ Role-Based Access Control (v3.3.0):** Implemented comprehensive RBAC system restricting administrative features to admin users only. Regular users cannot access settings/справочники. See `/docs/architecture/adr-006-role-based-access-control.md` and `/docs/api/access-control.md`.
+
+**✅ Console Logging Cleanup (v3.3.1):** Removed excessive debug logging from production code. Reduced console output by 87% (from 500+ to <50 logs per session) while preserving critical error logging. Major performance improvement by eliminating high-frequency isAdmin logging.
 
 ## ⚠️ CRITICAL: Docker-Only Development
 

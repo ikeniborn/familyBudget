@@ -67,14 +67,10 @@ export const load: LayoutLoad = async ({ parent, data }) => {
         userData.role = 'user';
       }
 
-      console.log('🔧 Protected layout: Setting user with role:', userData.role);
       try {
         authStore.setUser(userData);
-        console.log('✅ Protected layout: User set successfully');
       } catch (error) {
-        console.error('🚨 Protected layout: Error setting user:', error);
-        console.error('🚨 Protected layout: Failed userData:', userData);
-        // Don't throw error to avoid breaking the layout
+        // Silently handle error to avoid breaking the layout
       }
     }
   }

@@ -56,8 +56,6 @@ function getStoredAuth(): AuthState | null {
         
         // Force the role to be the validated value
         user.role = validRole;
-        console.log('✅ Restored user from localStorage with validated role:', user.role);
-        console.log('✅ Role type:', typeof user.role);
       } else if (user) {
         // If role is missing, set default
         console.warn('🚨 User missing role, setting default "user"');
@@ -90,19 +88,9 @@ function storeAuth(state: AuthState) {
       version: 0
     };
     
-    // Debug logging for role preservation
-    if (state.user?.role) {
-      console.log('💾 Storing user with role:', state.user.role);
-    }
     
     localStorage.setItem('auth-storage', JSON.stringify(toStore));
     
-    // Verify storage worked
-    const stored = localStorage.getItem('auth-storage');
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      console.log('💾 Verification - stored role:', parsed.state?.user?.role);
-    }
   } catch (error) {
     console.error('Failed to store auth:', error);
   }
@@ -110,8 +98,7 @@ function storeAuth(state: AuthState) {
 
 function getInitialState(): AuthState {
   const storedState = getStoredAuth();
-  console.log('🔄 Auth store initial state from localStorage:', storedState);
-  
+
   const initialState = storedState || {
     user: null,
     isAuthenticated: false,
@@ -119,12 +106,7 @@ function getInitialState(): AuthState {
     error: null,
     sessionValidated: false
   };
-  
-  if (initialState.user) {
-    console.log('👤 Initial user from localStorage:', initialState.user);
-    console.log('🔑 Initial user role:', initialState.user.role);
-  }
-  
+
   return {...initialState, sessionValidated: false};
 }
 
@@ -170,10 +152,6 @@ subscribe((state) => {
     }
     storeAuth(state);
     
-    // Verify storage worked
-    if (state.user) {
-      console.log('💾 Auto-saved user with role:', state.user.role);
-    }
   } else {
     initialized = true;
   }
@@ -302,9 +280,6 @@ const authStore = {
           authMethod: 'telegram' as const 
         };
 
-        console.log('📱 Telegram login - original role:', response.user.role);
-        console.log('📱 Telegram login - processed role:', userRole);
-        console.log('📱 Telegram login - normalized userData:', userData);
 
         update(state => ({
           ...state,
@@ -353,9 +328,6 @@ const authStore = {
         authMethod: 'telegram' as const 
       };
 
-      console.log('📱 Telegram OAuth - original role:', response.user.role);
-      console.log('📱 Telegram OAuth - processed role:', userRole);
-      console.log('📱 Telegram OAuth - normalized userData:', userData);
 
       update(state => ({
         ...state,
@@ -411,9 +383,6 @@ const authStore = {
           authMethod: 'password' as const
         };
         
-        console.log('🔐 Password login - original role:', response.user.role);
-        console.log('🔐 Password login - processed role:', userRole);
-        console.log('🔐 Password login - normalized userData:', userData);
         
         // CRITICAL: Validate userData before setting
         if (!userData.id) {
@@ -483,9 +452,6 @@ const authStore = {
           authMethod: 'password' as const
         };
         
-        console.log('📝 Registration - original role:', response.user.role);
-        console.log('📝 Registration - processed role:', userRole);
-        console.log('📝 Registration - normalized userData:', userData);
         
         // CRITICAL: Validate userData before setting
         if (!userData.id) {
@@ -541,27 +507,18 @@ const authStore = {
     try {
       const response = await api.get<{success: boolean, user: User, authenticated: boolean}>('/auth/me');
       
-      console.log('🔍 Auth check response:', response);
-      console.log('🔍 Full response structure:', JSON.stringify(response, null, 2));
-      
       // Handle different response formats
       let userData: User | null = null;
       if (response.success && response.user) {
         userData = response.user;
-        console.log('📝 Using response.user:', userData);
       } else if (response.user) {
         userData = response.user;
-        console.log('📝 Using response.user (no success flag):', userData);
       } else if (response.authenticated && (response as any).id) {
         // Handle case where user data is directly in response
         userData = response as any;
-        console.log('📝 Using response directly:', userData);
       }
       
       if (userData) {
-        console.log('🔍 Raw userData before normalization:', JSON.stringify(userData, null, 2));
-        console.log('🔑 Raw userData.role value:', userData.role);
-        console.log('🔑 Raw userData.role type:', typeof userData.role);
         
         // Critical fix: Ensure role is properly preserved as string literal type
         // Use explicit type assertion to ensure TypeScript treats this as literal type
@@ -578,8 +535,6 @@ const authStore = {
           userRole = 'user' as const; // safe default
         }
         
-        console.log('🔄 Processed role:', userRole);
-        console.log('🔄 Role type after processing:', typeof userRole);
         
         // Create the normalized user with explicit role assignment
         const normalizedUser: AuthUser = {
@@ -603,10 +558,6 @@ const authStore = {
           normalizedUser.role = userRole; // Force assignment
         }
         
-        console.log('✅ Final normalized user data:', JSON.stringify(normalizedUser, null, 2));
-        console.log('🔑 Final user role:', normalizedUser.role);
-        console.log('🔑 Final role type:', typeof normalizedUser.role);
-        console.log('🔍 Admin check:', normalizedUser.role === 'admin');
         
         // Update store with the properly typed user
         update(state => {
@@ -619,28 +570,11 @@ const authStore = {
             sessionValidated: true
           };
           
-          // Verify role is preserved in the state update
-          console.log('📦 State being set - user role:', newState.user?.role);
           return newState;
         });
         
-        // Verify the store update worked - shorter timeout for faster feedback
-        setTimeout(() => {
-          let currentState: any;
-          const unsubscribe = subscribe(state => {
-            currentState = state;
-          });
-          unsubscribe();
-          
-          console.log('🔄 Final store state after update:');
-          console.log('  - user exists:', !!currentState.user);
-          console.log('  - user role:', currentState.user?.role);
-          console.log('  - isAuthenticated:', currentState.isAuthenticated);
-          console.log('  - isAdmin would be:', currentState.user?.role === 'admin');
-        }, 10);
         
       } else {
-        console.log('❌ No user data in auth response');
         update(state => ({
           ...state,
           user: null,
@@ -666,11 +600,9 @@ const authStore = {
   },
 
   setUser(userData: any): void {
-    console.log('🔍 setUser called with:', userData);
-    
     // Handle wrapped response format { data: { ... } }
     const actualUser = userData?.data || userData;
-    
+
     if (!actualUser) {
       console.error('setUser: No user data received');
       return;
@@ -681,8 +613,6 @@ const authStore = {
       console.error('setUser: Missing user ID');
       return;
     }
-    
-    console.log('🔧 setUser processing user with role:', userRole);
 
     update(state => {
       const newState = {
@@ -699,7 +629,6 @@ const authStore = {
         sessionValidated: true
       };
 
-      console.log('🔧 setUser - new state user role:', newState.user.role);
       return newState;
     });
   },
@@ -710,7 +639,6 @@ const authStore = {
 
   // Debug helper to clear localStorage and refresh auth
   async debugRefreshAuth(): Promise<void> {
-    console.log('🔧 DEBUG: Clearing localStorage and refreshing auth');
     if (browser) {
       localStorage.removeItem('auth-storage');
     }
@@ -737,22 +665,12 @@ export const isAdmin = derived(authStore, ($auth) => {
   const user = $auth.user;
   const role = user?.role;
   const isAdminResult = role === 'admin';
-  
-  // Enhanced debug logging
-  console.log('🔍 isAdmin derived check:', {
-    userExists: !!user,
-    userId: user?.id,
-    role: role,
-    roleType: typeof role,
-    isAuthenticated: $auth.isAuthenticated,
-    isAdminResult: isAdminResult
-  });
-  
+
   // Additional validation
   if (user && !role) {
     console.warn('⚠️ User exists but role is missing:', user);
   }
-  
+
   return isAdminResult;
 });
 

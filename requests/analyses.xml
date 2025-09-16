@@ -1,72 +1,106 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <analysis>
-    <context>
-        <requirement>Ограничить доступ к справочникам и настройкам для пользователей без роли администратора</requirement>
-        <scope>
-            <item>Скрыть пункт меню "Справочники" в боковой навигации</item>
-            <item>Скрыть иконку настроек (шестеренку) в хедере</item>
-            <item>Запретить доступ к страницам настроек для обычных пользователей</item>
-        </scope>
-    </context>
+  <summary>
+    <issue>Избыточное логирование в консоль браузера</issue>
+    <impact>Засорение консоли отладочными сообщениями, затрудняющими работу и отладку</impact>
+    <files_affected>
+      <file>frontend-svelte/src/lib/stores/auth.store.ts</file>
+      <file>frontend-svelte/src/routes/(protected)/+layout.ts</file>
+    </files_affected>
+  </summary>
 
-    <current_state>
-        <auth_system>
-            <role_model>role: 'admin' | 'user'</role_model>
-            <store>auth.store.ts с поддержкой ролей</store>
-            <derived_store>isAdmin для проверки администратора</derived_store>
-        </auth_system>
+  <findings>
+    <file path="frontend-svelte/src/lib/stores/auth.store.ts">
+      <excessive_logging>
+        <category name="localStorage operations">
+          <lines>59-60, 95-96, 104-105, 174-176</lines>
+          <description>Логирование каждой операции с localStorage</description>
+        </category>
 
-        <navigation_components>
-            <layout_component>
-                <file>Layout.svelte</file>
-                <issues>
-                    <issue>Пункт "Справочники" в меню отображается всем пользователям (строка 41-44)</issue>
-                    <issue>Иконка настроек в хедере видна всем (строка 220-225)</issue>
-                    <issue>Отсутствует проверка роли при формировании navItems</issue>
-                </issues>
-            </layout_component>
+        <category name="initial state">
+          <lines>113-114, 124-126</lines>
+          <description>Логирование начального состояния при инициализации</description>
+        </category>
 
-            <settings_navigation>
-                <file>SettingsNavigation.svelte</file>
-                <partial_implementation>Системные настройки скрыты для не-админов (строка 172-174)</partial_implementation>
-                <issues>
-                    <issue>Разделы "Справочники" и "Каталоги" доступны всем</issue>
-                </issues>
-            </settings_navigation>
-        </navigation_components>
-    </current_state>
+        <category name="authentication flows">
+          <lines>305-307, 356-358, 414-416, 486-488</lines>
+          <description>Детальное логирование при каждом методе аутентификации</description>
+        </category>
 
-    <required_changes>
-        <change priority="1">
-            <component>Layout.svelte</component>
-            <action>Добавить условное отображение пункта "Справочники" только для администраторов</action>
-            <location>Строка 48, формирование navItems</location>
-        </change>
+        <category name="checkAuth method">
+          <lines>544-565, 581-582, 606-609, 623, 635-640</lines>
+          <description>Избыточное логирование при проверке авторизации</description>
+        </category>
 
-        <change priority="2">
-            <component>Layout.svelte</component>
-            <action>Скрыть иконку Settings в хедере для обычных пользователей</action>
-            <location>Строки 217-225</location>
-        </change>
+        <category name="setUser method">
+          <lines>669, 685, 702</lines>
+          <description>Логирование при установке пользователя</description>
+        </category>
 
-        <change priority="3">
-            <component>SettingsNavigation.svelte</component>
-            <action>Показывать все категории настроек только администраторам</action>
-            <location>Строки 172-174</location>
-        </change>
+        <category name="isAdmin derived store">
+          <lines>742-749</lines>
+          <description>Частое логирование при каждой проверке isAdmin (вызывается очень часто)</description>
+        </category>
 
-        <change priority="4">
-            <component>Settings pages layout</component>
-            <action>Добавить защиту на уровне layout для страниц настроек</action>
-            <location>Создать или модифицировать +layout.svelte в /settings/</location>
-        </change>
-    </required_changes>
+        <category name="role validation">
+          <lines>34-36, 53-54, 63-64, 141-142, 147-154, 167-168</lines>
+          <description>Избыточные предупреждения при валидации ролей</description>
+        </category>
+      </excessive_logging>
 
-    <technical_approach>
-        <step>Импортировать isAdmin store в Layout.svelte</step>
-        <step>Использовать реактивное условие для фильтрации navItems</step>
-        <step>Обернуть иконку Settings в условный блок {#if $isAdmin}</step>
-        <step>В SettingsNavigation скрывать все категории для не-админов</step>
-        <step>Добавить серверную проверку роли в +page.server.ts</step>
-    </technical_approach>
+      <total_console_calls>
+        <console_log>45</console_log>
+        <console_warn>8</console_warn>
+        <console_error>10</console_error>
+      </total_console_calls>
+    </file>
+
+    <file path="frontend-svelte/src/routes/(protected)/+layout.ts">
+      <excessive_logging>
+        <category name="user setting">
+          <lines>70, 73</lines>
+          <description>Логирование при установке пользователя в protected layout</description>
+        </category>
+
+        <category name="error handling">
+          <lines>61, 66, 75-76</lines>
+          <description>Избыточное логирование ошибок валидации</description>
+        </category>
+      </excessive_logging>
+
+      <total_console_calls>
+        <console_log>2</console_log>
+        <console_warn>1</console_warn>
+        <console_error>3</console_error>
+      </total_console_calls>
+    </file>
+  </findings>
+
+  <recommendations>
+    <recommendation priority="high">
+      <action>Удалить все console.log вызовы, используемые для отладки</action>
+      <reason>Отладочные логи не должны присутствовать в production коде</reason>
+    </recommendation>
+
+    <recommendation priority="high">
+      <action>Удалить логирование в isAdmin derived store</action>
+      <reason>Этот store вызывается очень часто и генерирует большое количество логов</reason>
+    </recommendation>
+
+    <recommendation priority="medium">
+      <action>Оставить только критические console.error для реальных ошибок</action>
+      <reason>Важные ошибки должны логироваться для диагностики проблем</reason>
+    </recommendation>
+
+    <recommendation priority="low">
+      <action>Использовать условное логирование через DEBUG флаг если необходимо</action>
+      <reason>Позволит включать отладку при необходимости без изменения кода</reason>
+    </recommendation>
+  </recommendations>
+
+  <statistics>
+    <total_lines_with_logging>69</total_lines_with_logging>
+    <files_affected>2</files_affected>
+    <estimated_console_calls_per_session>200+</estimated_console_calls_per_session>
+  </statistics>
 </analysis>

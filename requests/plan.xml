@@ -1,769 +1,257 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<implementation-plan>
-    <project-info>
-        <name>Restrict Admin Access to References and Settings</name>
-        <goal>Hide reference data menu and settings access for non-admin users in Family Budget application</goal>
-        <created>2025-09-16</created>
-        <priority>high</priority>
-    </project-info>
-
-    <current-state>
-        <auth-system>
-            <role-support>roles: 'admin' | 'user'</role-support>
-            <stores>
-                <store>auth.store.ts with role management</store>
-                <derived-store>isAdmin store available for role checks</derived-store>
-                <user-object>AuthUser interface with required role field</user-object>
-            </stores>
-        </auth-system>
-
-        <navigation-issues>
-            <layout-component>
-                <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/Layout.svelte</file>
-                <issues>
-                    <issue>Line 48: "Справочники" menu item shown to all users</issue>
-                    <issue>Lines 217-225: Settings icon visible to all users</issue>
-                    <issue>No role-based navigation filtering</issue>
-                </issues>
-            </layout-component>
-
-            <settings-navigation>
-                <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/settings/SettingsNavigation.svelte</file>
-                <current-protection>Line 172-174: Only "system-settings" hidden for non-admins</current-protection>
-                <issues>
-                    <issue>"reference-data" and "catalog-data" categories visible to all users</issue>
-                    <issue>Inconsistent protection across settings sections</issue>
-                </issues>
-            </settings-navigation>
-        </navigation-issues>
-
-        <security-gaps>
-            <gap>No server-side route protection for settings pages</gap>
-            <gap>Frontend-only restrictions can be bypassed via direct URLs</gap>
-            <gap>No centralized admin check for settings access</gap>
-        </security-gaps>
-    </current-state>
-
-    <implementation-steps>
-        <step id="1" priority="critical">
-            <title>Update Layout.svelte Navigation</title>
-            <description>Implement role-based navigation filtering in main layout</description>
-            <tasks>
-                <task id="1.1">
-                    <action>Import isAdmin store in Layout.svelte</action>
-                    <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/Layout.svelte</file>
-                    <location>Line 4 - add to existing import from auth.store</location>
-                    <code-change>
-                        <before>import { currentUser, authStore } from '$lib/stores/auth.store';</before>
-                        <after>import { currentUser, authStore, isAdmin } from '$lib/stores/auth.store';</after>
-                    </code-change>
-                </task>
-
-                <task id="1.2">
-                    <action>Add adminOnly flag to referenceNavItem</action>
-                    <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/Layout.svelte</file>
-                    <location>Lines 41-45</location>
-                    <code-change>
-                        <before>const referenceNavItem: NavItem = {
-  name: 'Справочники',
-  path: '/settings',
-  icon: Database
-};</before>
-                        <after>const referenceNavItem: NavItem = {
-  name: 'Справочники',
-  path: '/settings',
-  icon: Database,
-  adminOnly: true
-};</after>
-                    </code-change>
-                </task>
-
-                <task id="1.3">
-                    <action>Filter navigation items based on admin status</action>
-                    <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/Layout.svelte</file>
-                    <location>Line 48</location>
-                    <code-change>
-                        <before>$: navItems = [...baseNavItems, referenceNavItem];</before>
-                        <after>$: navItems = [
-  ...baseNavItems,
-  ...(referenceNavItem.adminOnly && !$isAdmin ? [] : [referenceNavItem])
-];</after>
-                    </code-change>
-                </task>
-
-                <task id="1.4">
-                    <action>Hide Settings icon for non-admin users</action>
-                    <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/Layout.svelte</file>
-                    <location>Lines 217-225</location>
-                    <code-change>
-                        <before><Button
-  variant="ghost"
-  size="icon"
-  on:click={() => goto('/settings')}
-  title="Настройки"
-  class="text-muted-foreground hover:text-primary hover:bg-primary/10"
->
-  <Settings class="h-5 w-5" />
-</Button></before>
-                        <after>{#if $isAdmin}
-  <Button
-    variant="ghost"
-    size="icon"
-    on:click={() => goto('/settings')}
-    title="Настройки"
-    class="text-muted-foreground hover:text-primary hover:bg-primary/10"
-  >
-    <Settings class="h-5 w-5" />
-  </Button>
-{/if}</after>
-                    </code-change>
-                </task>
-            </tasks>
-        </step>
-
-        <step id="2" priority="high">
-            <title>Restrict Settings Navigation Categories</title>
-            <description>Update SettingsNavigation to hide reference and catalog sections for non-admins</description>
-            <tasks>
-                <task id="2.1">
-                    <action>Update category filtering logic</action>
-                    <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/settings/SettingsNavigation.svelte</file>
-                    <location>Lines 172-174</location>
-                    <code-change>
-                        <before>// Filter categories based on admin status
-$: visibleCategories = settingsCategories.filter(category =>
-  category.id !== 'system-settings' || $isAdmin
-);</before>
-                        <after>// Filter categories based on admin status - only admins see all categories
-$: visibleCategories = settingsCategories.filter(category => {
-  // Only admins can see all categories
-  if (!$isAdmin) {
-    return false; // Regular users see no settings categories
-  }
-  return true; // Admins see all categories
-});</after>
-                    </code-change>
-                </task>
-            </tasks>
-        </step>
-
-        <step id="3" priority="high">
-            <title>Create Settings Route Protection</title>
-            <description>Add server-side route protection to prevent direct URL access</description>
-            <tasks>
-                <task id="3.1">
-                    <action>Create settings layout server load function</action>
-                    <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/+layout.server.ts</file>
-                    <location>New file</location>
-                    <code-change>
-                        <after>import { error } from '@sveltejs/kit';
-import type { LayoutServerLoad } from './$types';
-
-export const load: LayoutServerLoad = async ({ locals }) => {
-  // Check if user is authenticated
-  if (!locals.user) {
-    throw error(401, 'Authentication required');
-  }
-
-  // Check if user has admin role
-  if (locals.user.role !== 'admin') {
-    throw error(403, 'Доступ запрещен. Требуются права администратора.');
-  }
-
-  return {
-    user: locals.user
-  };
-};</after>
-                    </code-change>
-                </task>
-
-                <task id="3.2">
-                    <action>Create settings layout component with admin check</action>
-                    <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/+layout.svelte</file>
-                    <location>New file</location>
-                    <code-change>
-                        <after><script lang="ts">
-  import { page } from '$app/stores';
-  import { isAdmin } from '$lib/stores/auth.store';
-  import { goto } from '$app/navigation';
-  import { onMount } from 'svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import { Shield } from 'lucide-svelte';
-
-  export let data;
-
-  // Double-check admin status on client side
-  onMount(() => {
-    const unsubscribe = isAdmin.subscribe(adminStatus => {
-      if (adminStatus === false) {
-        console.warn('Non-admin user attempted to access settings');
-        goto('/dashboard');
-      }
-    });
-
-    return unsubscribe;
-  });
-</script>
-
-<!-- Admin protection overlay -->
-{#if !$isAdmin}
-  <div class="min-h-screen bg-background flex items-center justify-center p-4">
-    <Card class="max-w-md w-full text-center p-8">
-      <div class="mb-4">
-        <Shield class="h-16 w-16 mx-auto text-destructive" />
-      </div>
-      <h1 class="text-2xl font-bold text-foreground mb-2">Доступ запрещен</h1>
-      <p class="text-muted-foreground mb-6">
-        Для доступа к настройкам системы требуются права администратора.
-      </p>
-      <button
-        on:click={() => goto('/dashboard')}
-        class="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
-      >
-        Вернуться на главную
-      </button>
-    </Card>
-  </div>
-{:else}
-  <!-- Settings content for admin users -->
-  <slot />
-{/if}</after>
-                    </code-change>
-                </task>
-            </tasks>
-        </step>
-
-        <step id="4" priority="medium">
-            <title>Add User Feedback</title>
-            <description>Provide clear feedback when non-admin users attempt to access restricted features</description>
-            <tasks>
-                <task id="4.1">
-                    <action>Create unauthorized access handler</action>
-                    <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/utils/unauthorized-access.ts</file>
-                    <location>New file</location>
-                    <code-change>
-                        <after>import { toast } from '$lib/stores/toast.store';
-import { goto } from '$app/navigation';
-
-/**
- * Handle unauthorized access attempts by non-admin users
- * @param feature - Name of the feature being accessed
- * @param redirectTo - Where to redirect the user (default: '/dashboard')
- */
-export function handleUnauthorizedAccess(
-  feature: string = 'эта функция',
-  redirectTo: string = '/dashboard'
-): void {
-  toast.error(`Доступ к ${feature} доступен только администраторам`);
-
-  // Log the unauthorized access attempt
-  console.warn(`Unauthorized access attempt to: ${feature}`);
-
-  // Redirect to safe page
-  setTimeout(() => {
-    goto(redirectTo);
-  }, 2000);
-}</after>
-                    </code-change>
-                </task>
-
-                <task id="4.2">
-                    <action>Update page title logic for non-admin users</action>
-                    <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/Layout.svelte</file>
-                    <location>Lines 70-91</location>
-                    <code-change>
-                        <before>// Check for prefix matches
-if (pathname.startsWith('/settings')) {
-  if (pathname === '/settings') {
-    return $currentUser?.role === 'admin' ? 'Администрирование' : 'Справочники';
-  }
-  if (pathname.includes('/periods')) return 'Управление периодами';
-  if (pathname.includes('/financial-centers')) return 'Управление ЦФО';
-  if (pathname.includes('/cost-centers')) return 'Управление МВЗ';
-  if (pathname.includes('/nomenclatures')) return 'Управление номенклатурами';
-  if (pathname.includes('/articles')) return 'Управление статьями';
-  return 'Настройки';
-}</before>
-                        <after>// Check for prefix matches
-if (pathname.startsWith('/settings')) {
-  // Non-admin users should not see settings pages
-  if (!$isAdmin) {
-    return 'Доступ запрещен';
-  }
-
-  if (pathname === '/settings') {
-    return 'Администрирование';
-  }
-  if (pathname.includes('/periods')) return 'Управление периодами';
-  if (pathname.includes('/financial-centers')) return 'Управление ЦФО';
-  if (pathname.includes('/cost-centers')) return 'Управление МВЗ';
-  if (pathname.includes('/nomenclatures')) return 'Управление номенклатурами';
-  if (pathname.includes('/articles')) return 'Управление статьями';
-  return 'Настройки';
-}</after>
-                    </code-change>
-                </task>
-            </tasks>
-        </step>
-
-        <step id="5" priority="medium">
-            <title>Create Comprehensive Tests</title>
-            <description>Test role-based access restrictions and navigation filtering</description>
-            <tasks>
-                <task id="5.1">
-                    <action>Create Layout component tests</action>
-                    <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/Layout.test.ts</file>
-                    <location>New file</location>
-                    <code-change>
-                        <after>import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/svelte';
-import { writable } from 'svelte/store';
-import Layout from './Layout.svelte';
-
-// Mock stores
-const mockCurrentUser = writable(null);
-const mockIsAdmin = writable(false);
-const mockPage = writable({ url: { pathname: '/dashboard' } });
-
-vi.mock('$lib/stores/auth.store', () => ({
-  currentUser: mockCurrentUser,
-  isAdmin: mockIsAdmin,
-  authStore: { logout: vi.fn() }
-}));
-
-vi.mock('$app/stores', () => ({
-  page: mockPage
-}));
-
-vi.mock('$app/navigation', () => ({
-  goto: vi.fn()
-}));
-
-describe('Layout - Admin Access Control', () => {
-  beforeEach(() => {
-    // Reset mocks
-    mockCurrentUser.set(null);
-    mockIsAdmin.set(false);
-    mockPage.set({ url: { pathname: '/dashboard' } });
-  });
-
-  it('hides References menu item for non-admin users', async () => {
-    mockCurrentUser.set({
-      id: 1,
-      user_name: 'Test User',
-      role: 'user'
-    });
-    mockIsAdmin.set(false);
-
-    render(Layout, { props: {} });
-
-    // Should not show "Справочники" menu item
-    expect(screen.queryByText('Справочники')).toBeNull();
-  });
-
-  it('shows References menu item for admin users', async () => {
-    mockCurrentUser.set({
-      id: 1,
-      user_name: 'Admin User',
-      role: 'admin'
-    });
-    mockIsAdmin.set(true);
-
-    render(Layout, { props: {} });
-
-    // Should show "Справочники" menu item
-    expect(screen.getByText('Справочники')).toBeInTheDocument();
-  });
-
-  it('hides Settings icon for non-admin users', async () => {
-    mockCurrentUser.set({
-      id: 1,
-      user_name: 'Test User',
-      role: 'user'
-    });
-    mockIsAdmin.set(false);
-
-    render(Layout, { props: {} });
-
-    // Should not show settings button
-    expect(screen.queryByTitle('Настройки')).toBeNull();
-  });
-
-  it('shows Settings icon for admin users', async () => {
-    mockCurrentUser.set({
-      id: 1,
-      user_name: 'Admin User',
-      role: 'admin'
-    });
-    mockIsAdmin.set(true);
-
-    render(Layout, { props: {} });
-
-    // Should show settings button
-    expect(screen.getByTitle('Настройки')).toBeInTheDocument();
-  });
-
-  it('shows access denied title for non-admin users on settings pages', async () => {
-    mockCurrentUser.set({
-      id: 1,
-      user_name: 'Test User',
-      role: 'user'
-    });
-    mockIsAdmin.set(false);
-    mockPage.set({ url: { pathname: '/settings' } });
-
-    render(Layout, { props: {} });
-
-    // Should show "Доступ запрещен" in page title
-    expect(screen.getByText('Доступ запрещен')).toBeInTheDocument();
-  });
-});</after>
-                    </code-change>
-                </task>
-
-                <task id="5.2">
-                    <action>Create SettingsNavigation tests</action>
-                    <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/settings/SettingsNavigation.test.ts</file>
-                    <location>New file</location>
-                    <code-change>
-                        <after>import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/svelte';
-import { writable } from 'svelte/store';
-import SettingsNavigation from './SettingsNavigation.svelte';
-
-// Mock stores
-const mockIsAdmin = writable(false);
-const mockPage = writable({ url: { pathname: '/settings' } });
-
-vi.mock('$lib/stores/auth.store', () => ({
-  isAdmin: mockIsAdmin
-}));
-
-vi.mock('$app/stores', () => ({
-  page: mockPage
-}));
-
-vi.mock('$app/navigation', () => ({
-  goto: vi.fn()
-}));
-
-describe('SettingsNavigation - Admin Access Control', () => {
-  beforeEach(() => {
-    mockIsAdmin.set(false);
-  });
-
-  it('hides all categories for non-admin users', async () => {
-    mockIsAdmin.set(false);
-
-    render(SettingsNavigation, { props: {} });
-
-    // Should not show any settings categories
-    expect(screen.queryByText('Справочники')).toBeNull();
-    expect(screen.queryByText('Каталоги')).toBeNull();
-    expect(screen.queryByText('Система')).toBeNull();
-  });
-
-  it('shows all categories for admin users', async () => {
-    mockIsAdmin.set(true);
-
-    render(SettingsNavigation, { props: {} });
-
-    // Should show all settings categories
-    expect(screen.getByText('Справочники')).toBeInTheDocument();
-    expect(screen.getByText('Каталоги')).toBeInTheDocument();
-    expect(screen.getByText('Система')).toBeInTheDocument();
-  });
-
-  it('shows reference data items for admin users', async () => {
-    mockIsAdmin.set(true);
-
-    render(SettingsNavigation, { props: {} });
-
-    // Should show reference data navigation items
-    expect(screen.getByText('Периоды')).toBeInTheDocument();
-    expect(screen.getByText('Финансовые центры')).toBeInTheDocument();
-    expect(screen.getByText('Центры затрат')).toBeInTheDocument();
-  });
-
-  it('shows catalog items for admin users', async () => {
-    mockIsAdmin.set(true);
-
-    render(SettingsNavigation, { props: {} });
-
-    // Should show catalog navigation items
-    expect(screen.getByText('Номенклатуры')).toBeInTheDocument();
-    expect(screen.getByText('Продукты')).toBeInTheDocument();
-  });
-});</after>
-                    </code-change>
-                </task>
-
-                <task id="5.3">
-                    <action>Create settings route protection tests</action>
-                    <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/+layout.server.test.ts</file>
-                    <location>New file</location>
-                    <code-change>
-                        <after>import { describe, it, expect } from 'vitest';
-import { load } from './+layout.server';
-
-describe('Settings Layout Server Load - Access Control', () => {
-  it('throws 401 error when user is not authenticated', async () => {
-    const mockEvent = {
-      locals: {
-        user: null
-      }
-    } as any;
-
-    await expect(load(mockEvent)).rejects.toThrow();
-  });
-
-  it('throws 403 error when user is not admin', async () => {
-    const mockEvent = {
-      locals: {
-        user: {
-          id: 1,
-          role: 'user'
-        }
-      }
-    } as any;
-
-    await expect(load(mockEvent)).rejects.toThrow();
-  });
-
-  it('allows access for admin users', async () => {
-    const mockEvent = {
-      locals: {
-        user: {
-          id: 1,
-          role: 'admin'
-        }
-      }
-    } as any;
-
-    const result = await load(mockEvent);
-
-    expect(result).toEqual({
-      user: {
-        id: 1,
-        role: 'admin'
-      }
-    });
-  });
-});</after>
-                    </code-change>
-                </task>
-            </tasks>
-        </step>
-
-        <step id="6" priority="low">
-            <title>Update Documentation</title>
-            <description>Document the new access control implementation</description>
-            <tasks>
-                <task id="6.1">
-                    <action>Create access control documentation</action>
-                    <file>/home/ikeniborn/Documents/Project/familyBudget/docs/architecture/adr-006-admin-access-control.md</file>
-                    <location>New file</location>
-                    <code-change>
-                        <after># ADR-006: Admin Access Control for Settings and References
-
-## Status
-Implemented (2025-09-16)
-
-## Context
-Regular users were able to access administrative functions including reference data management and system settings, creating security risks and potential data integrity issues.
-
-## Decision
-Implement comprehensive role-based access control:
-
-### Frontend Protection:
-- Hide navigation elements for non-admin users
-- Filter settings categories based on admin status
-- Add client-side route protection
-
-### Backend Protection:
-- Server-side layout load functions with admin checks
-- Proper HTTP error responses (401/403)
-- Session validation for admin routes
-
-### User Experience:
-- Clear error messages for unauthorized access
-- Graceful redirects to safe pages
-- Toast notifications for attempted access
-
-## Implementation
-
-### Navigation Changes:
-- `Layout.svelte`: Hide "Справочники" menu and Settings icon for non-admins
-- `SettingsNavigation.svelte`: Filter all categories for non-admin users
-
-### Route Protection:
-- `+layout.server.ts`: Server-side admin validation
-- `+layout.svelte`: Client-side admin checks with fallback UI
-
-### Testing:
-- Comprehensive test coverage for role-based restrictions
-- Both positive and negative test cases
-- Component and integration tests
-
-## Consequences
-
-### Positive:
-- Enhanced security with proper access control
-- Clear separation between admin and user capabilities
-- Consistent user experience across the application
-- Proper error handling and user feedback
-
-### Negative:
-- Additional complexity in navigation logic
-- More conditional rendering in components
-- Increased test coverage requirements
-
-## Rollback Strategy
-If issues arise, changes can be reverted by:
-1. Removing conditional navigation filtering
-2. Deleting server-side layout protection
-3. Restoring original SettingsNavigation filtering
-4. Removing admin-specific UI components</after>
-                    </code-change>
-                </task>
-            </tasks>
-        </step>
-    </implementation-steps>
-
-    <testing-strategy>
-        <testing-framework>Vitest + Testing Library</testing-framework>
-        <test-categories>
-            <category name="unit-tests">
-                <description>Component-level role-based rendering tests</description>
-                <coverage>Layout.svelte, SettingsNavigation.svelte</coverage>
-                <scenarios>
-                    <scenario>Admin user sees all navigation items</scenario>
-                    <scenario>Regular user sees limited navigation</scenario>
-                    <scenario>Settings icon visibility based on role</scenario>
-                    <scenario>Page title changes for unauthorized access</scenario>
-                </scenarios>
-            </category>
-
-            <category name="integration-tests">
-                <description>Route protection and server-side validation</description>
-                <coverage>Settings layout server load functions</coverage>
-                <scenarios>
-                    <scenario>Unauthenticated access returns 401</scenario>
-                    <scenario>Non-admin access returns 403</scenario>
-                    <scenario>Admin access succeeds</scenario>
-                </scenarios>
-            </category>
-
-            <category name="e2e-tests">
-                <description>End-to-end user experience testing</description>
-                <coverage>Complete user workflows</coverage>
-                <scenarios>
-                    <scenario>Regular user cannot access settings via URL</scenario>
-                    <scenario>Admin user can access all features</scenario>
-                    <scenario>Proper redirects on unauthorized access</scenario>
-                </scenarios>
-            </category>
-        </test-categories>
-
-        <test-commands>
-            <command>docker exec budget-frontend npm run test</command>
-            <command>docker exec budget-frontend npm run test Layout.test.ts</command>
-            <command>docker exec budget-frontend npm run test SettingsNavigation.test.ts</command>
-            <command>docker exec budget-frontend npm run test:coverage</command>
-        </test-commands>
-    </testing-strategy>
-
-    <rollback-strategy>
-        <condition>If critical navigation issues arise</condition>
-        <steps>
-            <step>Revert Layout.svelte navigation filtering (restore line 48)</step>
-            <step>Restore Settings icon visibility (remove conditional wrapper)</step>
-            <step>Remove server-side layout protection files</step>
-            <step>Restore original SettingsNavigation category filtering</step>
-            <step>Run regression tests to ensure functionality</step>
-        </steps>
-
-        <emergency-fixes>
-            <fix scenario="Navigation completely broken">
-                <action>Temporarily disable all conditional navigation</action>
-                <code>// Temporarily show all items: $: navItems = [...baseNavItems, referenceNavItem];</code>
-            </fix>
-            <fix scenario="Settings pages inaccessible">
-                <action>Temporarily disable server-side protection</action>
-                <code>// Comment out admin check in +layout.server.ts</code>
-            </fix>
-        </emergency-fixes>
-    </rollback-strategy>
-
-    <performance-considerations>
-        <impact>
-            <navigation>Minimal - additional reactive statement for filtering</navigation>
-            <settings>Low - client-side category filtering</settings>
-            <routes>Medium - server-side validation on settings routes</routes>
-        </impact>
-
-        <optimizations>
-            <caching>Cache admin status checks where possible</caching>
-            <lazy-loading>Lazy load admin-only components</lazy-loading>
-            <minimal-dom>Avoid rendering hidden elements entirely</minimal-dom>
-        </optimizations>
-    </performance-considerations>
-
-    <security-considerations>
-        <client-side-protection>
-            <limitation>Can be bypassed by modifying client code</limitation>
-            <mitigation>Always paired with server-side validation</mitigation>
-        </client-side-protection>
-
-        <server-side-protection>
-            <strength>Cannot be bypassed by client manipulation</strength>
-            <implementation>Layout server load functions with proper HTTP errors</implementation>
-        </server-side-protection>
-
-        <session-management>
-            <requirement>Ensure admin role is properly validated in session</requirement>
-            <validation>Check role field integrity in auth store</validation>
-        </session-management>
-    </security-considerations>
-
-    <deployment-checklist>
-        <pre-deployment>
-            <item>Run all tests and ensure 100% pass rate</item>
-            <item>Verify admin users can still access all features</item>
-            <item>Confirm regular users cannot access restricted areas</item>
-            <item>Test direct URL access scenarios</item>
-            <item>Validate error messages and redirects</item>
-        </pre-deployment>
-
-        <post-deployment>
-            <item>Monitor for 403/401 errors in logs</item>
-            <item>Verify navigation works correctly for both user types</item>
-            <item>Ensure no broken links or missing features for admins</item>
-            <item>Test edge cases like role changes during session</item>
-        </post-deployment>
-    </deployment-checklist>
-
-    <success-criteria>
-        <functional>
-            <criterion>Non-admin users cannot see "Справочники" menu item</criterion>
-            <criterion>Non-admin users cannot see Settings icon</criterion>
-            <criterion>Non-admin users cannot access settings pages via direct URLs</criterion>
-            <criterion>Admin users retain full access to all features</criterion>
-            <criterion>Proper error messages displayed for unauthorized access</criterion>
-        </functional>
-
-        <technical>
-            <criterion>All tests pass with 95%+ coverage</criterion>
-            <criterion>No broken functionality for existing features</criterion>
-            <criterion>Performance impact under 50ms for navigation</criterion>
-            <criterion>Proper HTTP status codes for protected routes</criterion>
-        </technical>
-
-        <user-experience>
-            <criterion>Smooth navigation without flickering or delays</criterion>
-            <criterion>Clear feedback when access is restricted</criterion>
-            <criterion>Consistent UI/UX across different user roles</criterion>
-            <criterion>Graceful error handling and recovery</criterion>
-        </user-experience>
-    </success-criteria>
-</implementation-plan>
+<plan>
+  <metadata>
+    <created_date>2025-09-16</created_date>
+    <scope>Console Logging Cleanup</scope>
+    <objective>Remove excessive console logging while preserving critical error handling and debugging capabilities</objective>
+    <estimated_impact>
+      <performance>Reduced JavaScript execution overhead in production</performance>
+      <debugging>Cleaner console output for developers</debugging>
+      <bundle_size>Minimal reduction through dead code elimination</bundle_size>
+    </estimated_impact>
+  </metadata>
+
+  <executive_summary>
+    <issue>Excessive console logging throughout the frontend codebase creates noise in development and production environments, hampering debugging and potentially impacting performance.</issue>
+    <scope_analysis>
+      <total_files_affected>54</total_files_affected>
+      <primary_offenders>
+        <file path="frontend-svelte/src/lib/stores/auth.store.ts" console_calls="63" severity="critical"/>
+        <file path="frontend-svelte/src/routes/(protected)/+layout.ts" console_calls="6" severity="medium"/>
+        <file path="frontend-svelte/src/routes/auth/callback/+page.svelte" console_calls="15" severity="high"/>
+        <file path="frontend-svelte/src/routes/login/+page.svelte" console_calls="12" severity="high"/>
+        <file path="frontend-svelte/src/lib/services/*" console_calls="80+" severity="high"/>
+      </primary_offenders>
+      <estimated_total_calls_per_session>500+</estimated_total_calls_per_session>
+    </scope_analysis>
+  </executive_summary>
+
+  <cleanup_strategy>
+    <phase name="Phase 1: Critical Auth Store Cleanup" priority="critical" estimated_effort="2 hours">
+      <target_file>frontend-svelte/src/lib/stores/auth.store.ts</target_file>
+      <actions>
+        <action type="remove" priority="critical" lines="742-749">
+          <description>Remove frequent isAdmin derived store logging (called on every reactive update)</description>
+          <impact>Eliminates 100+ logs per session from reactive checking</impact>
+        </action>
+
+        <action type="remove" priority="high" lines="59-60,95-96,104-105,113-114,124-126,174-176">
+          <description>Remove localStorage operation logging</description>
+          <impact>Reduces noise from storage operations</impact>
+        </action>
+
+        <action type="conditional" priority="medium" lines="305-307,356-358,414-416,486-488">
+          <description>Replace authentication flow logging with conditional DEBUG logging</description>
+          <implementation>if (import.meta.env.DEV) console.log(...)</implementation>
+        </action>
+
+        <action type="remove" priority="high" lines="544-565,581-582,606-609,623,635-640,669,685,702">
+          <description>Remove verbose checkAuth and setUser method logging</description>
+          <impact>Eliminates authentication noise while preserving error handling</impact>
+        </action>
+
+        <action type="preserve" priority="critical" lines="34-36,76,167-168,248,272,420,425,492,497,529,655,675,681">
+          <description>Keep critical error logging for authentication failures and validation errors</description>
+          <rationale>Essential for debugging authentication issues</rationale>
+        </action>
+      </actions>
+    </phase>
+
+    <phase name="Phase 2: Route and Component Cleanup" priority="high" estimated_effort="3 hours">
+      <targets>
+        <file>frontend-svelte/src/routes/auth/callback/+page.svelte</file>
+        <file>frontend-svelte/src/routes/login/+page.svelte</file>
+        <file>frontend-svelte/src/routes/(protected)/+layout.ts</file>
+      </targets>
+      <actions>
+        <action type="conditional" priority="high">
+          <description>Replace debug logging in auth callback and login pages with conditional DEV logging</description>
+          <affected_lines>callback: 16,24,30,37,40,56,59,65,69,74,81,93,100 | login: 22,26,30,41,49,113-115,118,123,128-129</affected_lines>
+        </action>
+
+        <action type="preserve" priority="critical">
+          <description>Keep error logging for OAuth failures and critical auth errors</description>
+          <affected_lines>callback: 85 | login: 43 | layout: 30,61,75-76</affected_lines>
+        </action>
+
+        <action type="remove" priority="medium">
+          <description>Remove routine state logging in protected layout</description>
+          <affected_lines>layout: 70,73</affected_lines>
+        </action>
+      </actions>
+    </phase>
+
+    <phase name="Phase 3: Service Layer Cleanup" priority="high" estimated_effort="4 hours">
+      <scope>All files in frontend-svelte/src/lib/services/</scope>
+      <patterns_to_address>
+        <pattern type="debug_logging" severity="high">
+          <description>Remove excessive API request/response logging</description>
+          <examples>
+            <example file="periods.service.ts" lines="41,44,48,61,65-66,96,100"/>
+            <example file="costCenters.service.ts" lines="37,40,44,57,61-62,84,88"/>
+            <example file="financialCenters.service.ts" lines="similar_pattern"/>
+            <example file="nomenclatures.service.ts" lines="similar_pattern"/>
+          </examples>
+          <solution>Replace with conditional DEV logging for request/response details</solution>
+        </pattern>
+
+        <pattern type="error_logging" severity="preserve">
+          <description>Keep critical error logging for API failures</description>
+          <examples>
+            <example file="periods.service.ts" lines="104-110"/>
+            <example file="costCenters.service.ts" lines="92-99"/>
+          </examples>
+          <rationale>Essential for diagnosing API connectivity and authentication issues</rationale>
+        </pattern>
+
+        <pattern type="warning_logging" severity="conditional">
+          <description>Convert performance warnings to conditional logging</description>
+          <examples>
+            <example file="apiCache.service.ts" lines="176,282,347,358"/>
+            <example file="pushNotifications.service.ts" lines="30,72,106,128,169"/>
+          </examples>
+          <solution>Keep in DEV mode, remove in production</solution>
+        </pattern>
+      </patterns_to_address>
+    </phase>
+
+    <phase name="Phase 4: Component Cleanup" priority="medium" estimated_effort="3 hours">
+      <scope>UI components with excessive logging</scope>
+      <categories>
+        <category name="form_validation" priority="medium">
+          <description>Remove form validation debug logging</description>
+          <affected_files>FactForm.svelte, BudgetForm.svelte, ProductForm.svelte</affected_files>
+        </category>
+
+        <category name="user_interaction" priority="low">
+          <description>Remove user interaction debug logging</description>
+          <affected_files>Select.svelte, Modal components, Button components</affected_files>
+        </category>
+
+        <category name="chart_rendering" priority="low">
+          <description>Remove chart rendering debug logging</description>
+          <affected_files>ChartContainer.svelte, chart utilities</affected_files>
+        </category>
+      </categories>
+    </phase>
+
+    <phase name="Phase 5: Infrastructure and Utility Cleanup" priority="low" estimated_effort="2 hours">
+      <scope>Build scripts, utilities, and configuration files</scope>
+      <actions>
+        <action type="conditional" priority="medium">
+          <description>Update vite.config.ts proxy logging to be development-only</description>
+          <file>frontend-svelte/vite.config.ts</file>
+          <lines>199,209,212</lines>
+        </action>
+
+        <action type="review" priority="low">
+          <description>Review and clean utility logging</description>
+          <files>performance.ts, telegram-oauth.ts, unauthorized-access.ts</files>
+        </action>
+      </actions>
+    </phase>
+  </cleanup_strategy>
+
+  <implementation_guidelines>
+    <logging_standards>
+      <debug_logging>
+        <rule>Use conditional logging for development debugging: if (import.meta.env.DEV) console.log(...)</rule>
+        <rule>Remove any console.log statements used for temporary debugging</rule>
+        <rule>Keep structured debug logging for complex authentication flows (in DEV only)</rule>
+      </debug_logging>
+
+      <error_logging>
+        <rule>Always preserve console.error for critical failures (authentication, API errors, validation failures)</rule>
+        <rule>Keep console.warn for important but non-critical issues (missing optional data, fallback scenarios)</rule>
+        <rule>Remove console.warn for routine validation messages</rule>
+      </error_logging>
+
+      <performance_logging>
+        <rule>Remove console.log from frequently called functions (reactive stores, derived values)</rule>
+        <rule>Remove API request/response logging unless flagged as development-only</rule>
+        <rule>Keep performance warnings only in development mode</rule>
+      </performance_logging>
+    </logging_standards>
+
+    <development_alternatives>
+      <debug_flag>
+        <implementation>
+          <code>
+// Create debug utility
+const DEBUG = import.meta.env.DEV;
+const debugLog = DEBUG ? console.log : () => {};
+const debugWarn = DEBUG ? console.warn : () => {};
+
+// Usage
+debugLog('Auth state change:', newState);
+debugWarn('Performance warning:', data);
+          </code>
+        </implementation>
+      </debug_flag>
+
+      <structured_logging>
+        <implementation>
+          <code>
+// For critical debugging that needs to be preserved
+const authLogger = {
+  debug: import.meta.env.DEV ? console.log : () => {},
+  info: import.meta.env.DEV ? console.info : () => {},
+  warn: console.warn, // Always show warnings
+  error: console.error // Always show errors
+};
+          </code>
+        </implementation>
+      </structured_logging>
+    </development_alternatives>
+  </implementation_guidelines>
+
+  <testing_strategy>
+    <validation_steps>
+      <step>Run all existing tests to ensure no critical functionality is broken</step>
+      <step>Test authentication flows in both development and production builds</step>
+      <step>Verify error handling still logs appropriately for debugging</step>
+      <step>Check that performance-critical paths (isAdmin checks) no longer spam console</step>
+      <step>Validate that development debugging capabilities are preserved with DEV flag</step>
+    </validation_steps>
+
+    <regression_prevention>
+      <eslint_rule>Add ESLint rule to prevent new console.log statements in production code</eslint_rule>
+      <typescript_utility>Create typed debug utilities to enforce consistent logging practices</typescript_utility>
+      <pre_commit_hook>Add pre-commit hook to check for console.log statements</eslint_rule>
+    </regression_prevention>
+  </testing_strategy>
+
+  <rollback_plan>
+    <backup_strategy>Create backup of all modified files before cleanup</backup_strategy>
+    <phased_rollback>Each phase can be rolled back independently if issues arise</phased_rollback>
+    <critical_paths>Authentication and API error handling have highest priority for preservation</critical_paths>
+  </rollback_plan>
+
+  <success_metrics>
+    <quantitative>
+      <metric>Reduce console statements in auth.store.ts from 63 to &lt;15</metric>
+      <metric>Eliminate 90%+ of debug logging from service layer</metric>
+      <metric>Maintain 100% of critical error logging</metric>
+      <metric>Reduce total console calls per session from 500+ to &lt;50</metric>
+    </quantitative>
+
+    <qualitative>
+      <metric>Cleaner console output during development</metric>
+      <metric>Preserved debugging capabilities for critical issues</metric>
+      <metric>Improved code readability and maintainability</metric>
+      <metric>Better separation between debug logging and error handling</metric>
+    </qualitative>
+  </success_metrics>
+
+  <timeline>
+    <total_effort>14 hours</total_effort>
+    <phases>
+      <phase_1>2 hours - Critical auth store cleanup</phase_1>
+      <phase_2>3 hours - Route and component cleanup</phase_2>
+      <phase_3>4 hours - Service layer cleanup</phase_3>
+      <phase_4>3 hours - Component cleanup</phase_4>
+      <phase_5>2 hours - Infrastructure cleanup</phase_5>
+    </phases>
+    <testing_buffer>Additional 2-3 hours for testing and validation</testing_buffer>
+  </timeline>
+</plan>
