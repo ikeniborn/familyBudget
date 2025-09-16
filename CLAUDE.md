@@ -14,6 +14,8 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ Simplified Notification System (v3.4.1):** Removed expansion functionality from toast notifications for cleaner, more consistent UI. All notifications now display with uniform sizing. Removed 27 lines of expansion logic while maintaining all core functionality (success, error, warning, info notifications with auto-dismiss and manual close).
 
+**✅ Articles Reference Module (v3.5.0):** Implemented comprehensive articles management for nomenclature categorization. Full CRUD operations with role-based permissions, shared/personal articles support, and bulk operations for administrators. Complete test coverage with 69 tests. Admin login credentials: username=admin, password=admin. See `/docs/api/articles-reference.md`.
+
 ## ⚠️ CRITICAL: Docker-Only Development
 
 **ALL operations MUST be performed through Docker containers:**

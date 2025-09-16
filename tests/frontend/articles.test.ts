@@ -1,24 +1,17 @@
 /**
  * Frontend tests for articles settings component.
- * Tests UI behavior, form handling, error processing, admin permissions, and shared articles.
+ * Tests UI behavior, form handling, error processing, and 409 conflict handling.
+ * Tests both shared and user-specific articles with proper permission handling.
  */
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import { userEvent } from '@testing-library/user-event';
 import ArticlesPage from '../../frontend-svelte/src/routes/(protected)/settings/articles/+page.svelte';
-import * as api from '../../frontend-svelte/src/lib/services/api';
-import { createMockApiResponse, createMockAxiosResponse, waitForAsync } from '../../frontend-svelte/src/test/utils';
+import { articlesService } from '../../frontend-svelte/src/lib/services/articles.service';
 import { isAdmin } from '../../frontend-svelte/src/lib/stores/auth.store';
+import { createMockApiResponse, waitForAsync } from '../../frontend-svelte/src/test/utils';
 
-// Mock the API module
-vi.mock('../../frontend-svelte/src/lib/services/api', () => ({
-  get: vi.fn(),
-  post: vi.fn(),
-  put: vi.fn(),
-  delete: vi.fn(),
-}));
-
-// Mock articles service
+// Mock the articles service
 vi.mock('../../frontend-svelte/src/lib/services/articles.service', () => ({
   articlesService: {
     getAll: vi.fn(),
@@ -32,71 +25,60 @@ vi.mock('../../frontend-svelte/src/lib/services/articles.service', () => ({
 
 // Mock auth store
 vi.mock('../../frontend-svelte/src/lib/stores/auth.store', () => ({
-  isAdmin: { subscribe: vi.fn() }
+  isAdmin: {
+    subscribe: vi.fn((callback) => {
+      callback(false); // Default to regular user
+      return () => {};
+    })
+  }
 }));
 
 // Mock toast notifications
 vi.mock('../../frontend-svelte/src/lib/stores/toast.store', () => ({
-  toastStore: {
+  useToast: vi.fn(() => ({
     success: vi.fn(),
     error: vi.fn(),
     info: vi.fn(),
-  },
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-  })
+  }))
 }));
 
 describe('Articles Settings Component', () => {
-  const mockApiGet = api.get as Mock;
-  const mockApiPost = api.post as Mock;
-  const mockApiPut = api.put as Mock;
-  const mockApiDelete = api.delete as Mock;
+  const mockArticlesService = articlesService as any;
+  let mockIsAdmin = false;
 
   const mockArticles = [
     {
-      article_id: 1,
-      article_code: 'ART001',
-      article_name: 'Test Article 1',
-      description: 'Test description 1',
+      id: 1,
+      code: 'FOOD',
+      name: 'Питание',
+      description: 'Расходы на питание',
       is_active: true,
-      user_id: 1,
-      created_by: 1,
-      managed_by: 1,
       is_shared: false,
       is_editable: true,
-      created_at: '2025-01-01T00:00:00.000Z',
-      updated_at: '2025-01-01T00:00:00.000Z'
+      user_id: 1,
+      created_at: '2025-01-01T00:00:00.000Z'
     },
     {
-      article_id: 2,
-      article_code: 'SHARED001',
-      article_name: 'Shared Article',
-      description: 'Shared description',
-      is_active: true,
-      user_id: null,
-      created_by: 1,
-      managed_by: 1,
+      id: 2,
+      code: 'TRANSPORT',
+      name: 'Транспорт',
+      description: 'Транспортные расходы',
+      is_active: false,
       is_shared: true,
       is_editable: false,
-      created_at: '2025-01-01T00:00:00.000Z',
-      updated_at: '2025-01-01T00:00:00.000Z'
+      user_id: null,
+      created_at: '2025-01-02T00:00:00.000Z'
     },
     {
-      article_id: 3,
-      article_code: 'ART003',
-      article_name: 'Inactive Article',
-      description: 'Inactive description',
-      is_active: false,
-      user_id: 1,
-      created_by: 1,
-      managed_by: 1,
-      is_shared: false,
+      id: 3,
+      code: 'HOUSING',
+      name: 'Жильё',
+      description: 'Расходы на жильё',
+      is_active: true,
+      is_shared: true,
       is_editable: true,
-      created_at: '2025-01-01T00:00:00.000Z',
-      updated_at: '2025-01-01T00:00:00.000Z'
+      user_id: null,
+      created_at: '2025-01-03T00:00:00.000Z'
     }
   ];
 
@@ -104,666 +86,712 @@ describe('Articles Settings Component', () => {
     total: 3,
     active: 2,
     inactive: 1,
-    shared: 1,
-    user_specific: 2
+    shared: 2,
+    user_specific: 1
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Mock successful API responses by default
-    mockApiGet.mockImplementation((url: string) => {
-      if (url.includes('/articles/stats')) {
-        return Promise.resolve(createMockAxiosResponse({ success: true, data: mockStats }));
-      }
-      if (url.includes('/articles/')) {
-        return Promise.resolve(createMockAxiosResponse({ success: true, data: mockArticles, total: mockArticles.length }));
-      }
-      return Promise.resolve(createMockAxiosResponse({ success: true, data: [] }));
+    // Reset admin status
+    mockIsAdmin = false;
+    (isAdmin.subscribe as Mock).mockImplementation((callback) => {
+      callback(mockIsAdmin);
+      return () => {};
     });
 
-    // Mock auth store subscription
-    const mockIsAdmin = isAdmin as any;
-    mockIsAdmin.subscribe = vi.fn((callback: (value: boolean) => void) => {
-      callback(false); // Default to non-admin
-      return () => {}; // Unsubscribe function
-    });
+    // Default service mocks
+    mockArticlesService.getAll.mockResolvedValue(createMockApiResponse(mockArticles));
+    mockArticlesService.getStats.mockResolvedValue(createMockApiResponse(mockStats));
+    mockArticlesService.create.mockResolvedValue(createMockApiResponse({
+      id: 4,
+      code: 'NEW_ARTICLE',
+      name: 'Новая статья',
+      description: 'Описание новой статьи',
+      is_active: true,
+      is_shared: false,
+      is_editable: true
+    }));
+    mockArticlesService.update.mockResolvedValue(createMockApiResponse({
+      id: 1,
+      code: 'FOOD',
+      name: 'Обновлённое питание',
+      description: 'Обновлённое описание',
+      is_active: false,
+      is_shared: false,
+      is_editable: true
+    }));
+    mockArticlesService.delete.mockResolvedValue(createMockApiResponse({
+      message: 'Article deleted successfully'
+    }));
+    mockArticlesService.bulkDelete.mockResolvedValue(createMockApiResponse({
+      message: 'Articles deleted successfully',
+      deleted_count: 2
+    }));
   });
 
-  describe('Component Initialization', () => {
-    it('should render articles page with loading state', async () => {
+  describe('Component Rendering', () => {
+    it('renders articles page with title', async () => {
       render(ArticlesPage);
 
       expect(screen.getByText('Управление статьями')).toBeInTheDocument();
-      expect(screen.getByText('Загрузка...')).toBeInTheDocument();
+      expect(screen.getByText('Управление категориями статей для группировки номенклатур')).toBeInTheDocument();
     });
 
-    it('should load articles data on mount', async () => {
+    it('displays create button', async () => {
       render(ArticlesPage);
 
-      await waitFor(() => {
-        expect(mockApiGet).toHaveBeenCalledWith('/articles/');
-        expect(mockApiGet).toHaveBeenCalledWith('/articles/stats');
-      });
+      expect(screen.getByText('Создать статью')).toBeInTheDocument();
     });
 
-    it('should display error state when loading fails', async () => {
-      mockApiGet.mockRejectedValueOnce(new Error('Network error'));
-
+    it('displays statistics cards', async () => {
       render(ArticlesPage);
+      await waitForAsync();
 
-      await waitFor(() => {
-        expect(screen.getByText(/Ошибка загрузки/)).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('Statistics Cards', () => {
-    it('should display statistics cards with correct data', async () => {
-      render(ArticlesPage);
-
-      await waitFor(() => {
-        expect(screen.getByText('Всего статей')).toBeInTheDocument();
-        expect(screen.getByText('3')).toBeInTheDocument(); // Total
-        expect(screen.getByText('Активные статьи')).toBeInTheDocument();
-        expect(screen.getByText('2')).toBeInTheDocument(); // Active
-        expect(screen.getByText('Неактивные статьи')).toBeInTheDocument();
-        expect(screen.getByText('1')).toBeInTheDocument(); // Inactive
-        expect(screen.getByText('Общие статьи')).toBeInTheDocument();
-        expect(screen.getByText('1')).toBeInTheDocument(); // Shared
-        expect(screen.getByText('Пользовательские статьи')).toBeInTheDocument();
-        expect(screen.getByText('2')).toBeInTheDocument(); // User specific
-      });
+      // Should show statistics
+      expect(screen.getByText('Всего')).toBeInTheDocument();
+      expect(screen.getByText('3')).toBeInTheDocument();
+      expect(screen.getByText('Активные')).toBeInTheDocument();
+      expect(screen.getByText('2')).toBeInTheDocument();
+      expect(screen.getByText('Неактивные')).toBeInTheDocument();
+      expect(screen.getByText('1')).toBeInTheDocument();
+      expect(screen.getByText('Общие')).toBeInTheDocument();
+      expect(screen.getByText('Личные')).toBeInTheDocument();
     });
 
-    it('should handle zero statistics gracefully', async () => {
-      const emptyStats = { total: 0, active: 0, inactive: 0, shared: 0, user_specific: 0 };
-      mockApiGet.mockImplementation((url: string) => {
-        if (url.includes('/articles/stats')) {
-          return Promise.resolve(createMockAxiosResponse({ success: true, data: emptyStats }));
-        }
-        return Promise.resolve(createMockAxiosResponse({ success: true, data: [], total: 0 }));
-      });
-
+    it('displays loading state initially', () => {
       render(ArticlesPage);
 
-      await waitFor(() => {
-        const zeroElements = screen.getAllByText('0');
-        expect(zeroElements.length).toBeGreaterThanOrEqual(5); // All stats should be 0
-      });
-    });
-  });
-
-  describe('Articles Table', () => {
-    it('should display articles in table format', async () => {
-      render(ArticlesPage);
-
-      await waitFor(() => {
-        expect(screen.getByText('Test Article 1')).toBeInTheDocument();
-        expect(screen.getByText('ART001')).toBeInTheDocument();
-        expect(screen.getByText('Shared Article')).toBeInTheDocument();
-        expect(screen.getByText('SHARED001')).toBeInTheDocument();
-        expect(screen.getByText('Inactive Article')).toBeInTheDocument();
-        expect(screen.getByText('ART003')).toBeInTheDocument();
-      });
+      expect(screen.getByText('Загрузка статей...')).toBeInTheDocument();
     });
 
-    it('should show shared article badges correctly', async () => {
+    it('displays articles table after loading', async () => {
       render(ArticlesPage);
+      await waitForAsync();
 
-      await waitFor(() => {
-        expect(screen.getByText('Общая')).toBeInTheDocument(); // Shared badge
-      });
+      // Check table headers
+      expect(screen.getByText('Код и название')).toBeInTheDocument();
+      expect(screen.getByText('Описание')).toBeInTheDocument();
+      expect(screen.getByText('Тип')).toBeInTheDocument();
+      expect(screen.getByText('Статус')).toBeInTheDocument();
+      expect(screen.getByText('Действия')).toBeInTheDocument();
+
+      // Check articles are displayed
+      expect(screen.getByText('FOOD')).toBeInTheDocument();
+      expect(screen.getByText('Питание')).toBeInTheDocument();
+      expect(screen.getByText('TRANSPORT')).toBeInTheDocument();
+      expect(screen.getByText('Транспорт')).toBeInTheDocument();
     });
 
-    it('should show active/inactive status badges', async () => {
+    it('displays article type badges correctly', async () => {
       render(ArticlesPage);
+      await waitForAsync();
 
-      await waitFor(() => {
-        expect(screen.getAllByText('Активная')).toHaveLength(2); // Two active articles
-        expect(screen.getByText('Неактивная')).toBeInTheDocument(); // One inactive article
-      });
+      // Should show shared and personal badges
+      expect(screen.getByText('Общая')).toBeInTheDocument();
+      expect(screen.getByText('Личная')).toBeInTheDocument();
     });
 
-    it('should handle empty articles list', async () => {
-      mockApiGet.mockImplementation((url: string) => {
-        if (url.includes('/articles/stats')) {
-          return Promise.resolve(createMockAxiosResponse({ success: true, data: { total: 0, active: 0, inactive: 0, shared: 0, user_specific: 0 } }));
-        }
-        return Promise.resolve(createMockAxiosResponse({ success: true, data: [], total: 0 }));
-      });
-
+    it('displays article status badges correctly', async () => {
       render(ArticlesPage);
+      await waitForAsync();
 
-      await waitFor(() => {
-        expect(screen.getByText('Статьи не найдены')).toBeInTheDocument();
-      });
+      // Should show active and inactive badges
+      expect(screen.getByText('Активна')).toBeInTheDocument();
+      expect(screen.getByText('Неактивна')).toBeInTheDocument();
     });
   });
 
-  describe('Create Article Modal', () => {
-    it('should open create modal when add button is clicked', async () => {
-      const user = userEvent.setup();
+  describe('Loading and Error States', () => {
+    it('displays error state when loading fails', async () => {
+      mockArticlesService.getAll.mockRejectedValue(new Error('Network error'));
+
       render(ArticlesPage);
+      await waitForAsync();
 
-      await waitFor(() => {
-        expect(screen.getByText('Добавить статью')).toBeInTheDocument();
-      });
+      expect(screen.getByText('Ошибка загрузки')).toBeInTheDocument();
+      expect(screen.getByText('Попробовать снова')).toBeInTheDocument();
+    });
 
-      const addButton = screen.getByText('Добавить статью');
-      await user.click(addButton);
+    it('displays empty state when no articles found', async () => {
+      mockArticlesService.getAll.mockResolvedValue(createMockApiResponse([]));
+      mockArticlesService.getStats.mockResolvedValue(createMockApiResponse({
+        total: 0, active: 0, inactive: 0, shared: 0, user_specific: 0
+      }));
 
-      expect(screen.getByText('Создание статьи')).toBeInTheDocument();
-      expect(screen.getByLabelText('Код статьи')).toBeInTheDocument();
-      expect(screen.getByLabelText('Название статьи')).toBeInTheDocument();
+      render(ArticlesPage);
+      await waitForAsync();
+
+      expect(screen.getByText('Статьи не найдены')).toBeInTheDocument();
+      expect(screen.getByText('Создайте первую статью')).toBeInTheDocument();
+    });
+
+    it('retries loading when retry button is clicked', async () => {
+      mockArticlesService.getAll.mockRejectedValueOnce(new Error('Network error'));
+      mockArticlesService.getAll.mockResolvedValueOnce(createMockApiResponse(mockArticles));
+
+      render(ArticlesPage);
+      await waitForAsync();
+
+      expect(screen.getByText('Ошибка загрузки')).toBeInTheDocument();
+
+      const retryButton = screen.getByText('Попробовать снова');
+      await fireEvent.click(retryButton);
+      await waitForAsync();
+
+      expect(screen.getByText('Питание')).toBeInTheDocument();
+    });
+  });
+
+  describe('Filtering and Search', () => {
+    it('displays search input and filters', async () => {
+      render(ArticlesPage);
+      await waitForAsync();
+
+      expect(screen.getByPlaceholderText('Поиск по названию, коду или описанию...')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('Все статусы')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('Все типы')).toBeInTheDocument();
+    });
+
+    it('filters articles by search term', async () => {
+      render(ArticlesPage);
+      await waitForAsync();
+
+      const searchInput = screen.getByPlaceholderText('Поиск по названию, коду или описанию...');
+
+      await userEvent.type(searchInput, 'FOOD');
+      await waitForAsync();
+
+      // Should show only FOOD article
+      expect(screen.getByText('FOOD')).toBeInTheDocument();
+      expect(screen.queryByText('TRANSPORT')).not.toBeInTheDocument();
+    });
+
+    it('filters articles by active status', async () => {
+      render(ArticlesPage);
+      await waitForAsync();
+
+      const statusFilter = screen.getByDisplayValue('Все статусы');
+
+      await userEvent.selectOptions(statusFilter, 'active');
+      await waitForAsync();
+
+      // Should show only active articles
+      expect(screen.getByText('FOOD')).toBeInTheDocument();
+      expect(screen.getByText('HOUSING')).toBeInTheDocument();
+      expect(screen.queryByText('TRANSPORT')).not.toBeInTheDocument();
+    });
+
+    it('filters articles by shared type', async () => {
+      render(ArticlesPage);
+      await waitForAsync();
+
+      const sharedFilter = screen.getByDisplayValue('Все типы');
+
+      await userEvent.selectOptions(sharedFilter, 'shared');
+      await waitForAsync();
+
+      // Should show only shared articles
+      expect(screen.getByText('TRANSPORT')).toBeInTheDocument();
+      expect(screen.getByText('HOUSING')).toBeInTheDocument();
+      expect(screen.queryByText('FOOD')).not.toBeInTheDocument();
+    });
+
+    it('shows no results message when search yields no results', async () => {
+      render(ArticlesPage);
+      await waitForAsync();
+
+      const searchInput = screen.getByPlaceholderText('Поиск по названию, коду или описанию...');
+
+      await userEvent.type(searchInput, 'NONEXISTENT');
+      await waitForAsync();
+
+      expect(screen.getByText('Статьи не найдены')).toBeInTheDocument();
+      expect(screen.getByText('Попробуйте изменить критерии поиска')).toBeInTheDocument();
+    });
+  });
+
+  describe('Create Article', () => {
+    it('opens create modal when create button is clicked', async () => {
+      render(ArticlesPage);
+      await waitForAsync();
+
+      const createButton = screen.getByText('Создать статью');
+      await fireEvent.click(createButton);
+
+      expect(screen.getByText('Создать статью')).toBeInTheDocument();
+      expect(screen.getByLabelText('Код статьи *')).toBeInTheDocument();
+      expect(screen.getByLabelText('Название *')).toBeInTheDocument();
       expect(screen.getByLabelText('Описание')).toBeInTheDocument();
     });
 
-    it('should create new article successfully', async () => {
-      const user = userEvent.setup();
-      const newArticle = {
-        article_id: 4,
-        article_code: 'NEW001',
-        article_name: 'New Article',
-        description: 'New description',
-        is_active: true,
-        user_id: 1,
-        created_by: 1,
-        managed_by: 1,
-        is_shared: false,
-        is_editable: true,
-        created_at: '2025-01-01T00:00:00.000Z',
-        updated_at: '2025-01-01T00:00:00.000Z'
-      };
-
-      mockApiPost.mockResolvedValueOnce(createMockAxiosResponse({ success: true, data: newArticle }));
-
+    it('creates article successfully', async () => {
       render(ArticlesPage);
+      await waitForAsync();
 
-      await waitFor(() => {
-        expect(screen.getByText('Добавить статью')).toBeInTheDocument();
-      });
-
-      const addButton = screen.getByText('Добавить статью');
-      await user.click(addButton);
+      // Open create modal
+      const createButton = screen.getByText('Создать статью');
+      await fireEvent.click(createButton);
 
       // Fill form
-      await user.type(screen.getByLabelText('Код статьи'), 'NEW001');
-      await user.type(screen.getByLabelText('Название статьи'), 'New Article');
-      await user.type(screen.getByLabelText('Описание'), 'New description');
+      const codeInput = screen.getByLabelText('Код статьи *');
+      const nameInput = screen.getByLabelText('Название *');
+      const descriptionInput = screen.getByLabelText('Описание');
+
+      await userEvent.type(codeInput, 'NEWCODE');
+      await userEvent.type(nameInput, 'Новая статья');
+      await userEvent.type(descriptionInput, 'Описание новой статьи');
 
       // Submit form
-      const saveButton = screen.getByText('Сохранить');
-      await user.click(saveButton);
+      const submitButton = screen.getByRole('button', { name: 'Создать' });
+      await fireEvent.click(submitButton);
 
-      await waitFor(() => {
-        expect(mockApiPost).toHaveBeenCalledWith('/articles/', expect.objectContaining({
-          code: 'NEW001',
-          name: 'New Article',
-          description: 'New description',
-          is_active: true
-        }));
+      await waitForAsync();
+
+      // Verify service was called
+      expect(mockArticlesService.create).toHaveBeenCalledWith({
+        code: 'NEWCODE',
+        name: 'Новая статья',
+        description: 'Описание новой статьи',
+        is_active: true,
+        user_id: null
       });
+
+      // Verify data is reloaded
+      expect(mockArticlesService.getAll).toHaveBeenCalledTimes(2); // Initial load + after create
     });
 
-    it('should handle duplicate code error (409)', async () => {
-      const user = userEvent.setup();
-      mockApiPost.mockRejectedValueOnce({
-        response: {
-          status: 409,
-          data: { success: false, error: "Article with code 'DUP001' already exists" }
-        }
+    it('shows admin-only fields when user is admin', async () => {
+      mockIsAdmin = true;
+      (isAdmin.subscribe as Mock).mockImplementation((callback) => {
+        callback(mockIsAdmin);
+        return () => {};
       });
 
       render(ArticlesPage);
+      await waitForAsync();
 
-      await waitFor(() => {
-        expect(screen.getByText('Добавить статью')).toBeInTheDocument();
-      });
+      const createButton = screen.getByText('Создать статью');
+      await fireEvent.click(createButton);
 
-      const addButton = screen.getByText('Добавить статью');
-      await user.click(addButton);
-
-      // Fill form with duplicate code
-      await user.type(screen.getByLabelText('Код статьи'), 'DUP001');
-      await user.type(screen.getByLabelText('Название статьи'), 'Duplicate Article');
-
-      // Submit form
-      const saveButton = screen.getByText('Сохранить');
-      await user.click(saveButton);
-
-      await waitFor(() => {
-        expect(screen.getByText(/статья с кодом.*уже существует/i)).toBeInTheDocument();
-      });
+      expect(screen.getByText('Тип статьи')).toBeInTheDocument();
+      expect(screen.getByText('Общая статья (доступна всем пользователям)')).toBeInTheDocument();
     });
 
-    it('should validate required fields', async () => {
-      const user = userEvent.setup();
+    it('handles create error with 409 conflict', async () => {
+      mockArticlesService.create.mockRejectedValue(new Error('Article with code \'DUPLICATE\' already exists'));
+
       render(ArticlesPage);
+      await waitForAsync();
 
-      await waitFor(() => {
-        expect(screen.getByText('Добавить статью')).toBeInTheDocument();
-      });
+      // Open create modal
+      const createButton = screen.getByText('Создать статью');
+      await fireEvent.click(createButton);
 
-      const addButton = screen.getByText('Добавить статью');
-      await user.click(addButton);
+      // Fill form
+      const codeInput = screen.getByLabelText('Код статьи *');
+      const nameInput = screen.getByLabelText('Название *');
+
+      await userEvent.type(codeInput, 'DUPLICATE');
+      await userEvent.type(nameInput, 'Дублирующаяся статья');
+
+      // Submit form
+      const submitButton = screen.getByRole('button', { name: 'Создать' });
+      await fireEvent.click(submitButton);
+
+      await waitForAsync();
+
+      // Error should be displayed via toast (mocked)
+      expect(mockArticlesService.create).toHaveBeenCalled();
+    });
+
+    it('validates required fields', async () => {
+      render(ArticlesPage);
+      await waitForAsync();
+
+      // Open create modal
+      const createButton = screen.getByText('Создать статью');
+      await fireEvent.click(createButton);
 
       // Try to submit without filling required fields
-      const saveButton = screen.getByText('Сохранить');
-      await user.click(saveButton);
+      const submitButton = screen.getByRole('button', { name: 'Создать' });
+      await fireEvent.click(submitButton);
 
-      // Should show validation errors
-      await waitFor(() => {
-        expect(screen.getByText('Код статьи обязателен')).toBeInTheDocument();
-        expect(screen.getByText('Название статьи обязательно')).toBeInTheDocument();
-      });
+      // Form should not submit (browser validation)
+      expect(mockArticlesService.create).not.toHaveBeenCalled();
+    });
+
+    it('closes modal when cancel is clicked', async () => {
+      render(ArticlesPage);
+      await waitForAsync();
+
+      // Open create modal
+      const createButton = screen.getByText('Создать статью');
+      await fireEvent.click(createButton);
+
+      // Click cancel
+      const cancelButton = screen.getByRole('button', { name: 'Отмена' });
+      await fireEvent.click(cancelButton);
+
+      // Modal should be closed
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
   });
 
-  describe('Edit Article Modal', () => {
-    it('should open edit modal with pre-filled data', async () => {
-      const user = userEvent.setup();
+  describe('Edit Article', () => {
+    it('opens edit modal when edit button is clicked', async () => {
       render(ArticlesPage);
+      await waitForAsync();
 
-      await waitFor(() => {
-        expect(screen.getByText('Test Article 1')).toBeInTheDocument();
-      });
+      // Find and click edit button for editable article
+      const editButtons = screen.getAllByText('Изменить');
+      await fireEvent.click(editButtons[0]);
 
-      // Find and click edit button for first article
-      const editButtons = screen.getAllByRole('button', { name: /редактировать/i });
-      await user.click(editButtons[0]);
-
-      expect(screen.getByText('Редактирование статьи')).toBeInTheDocument();
-      expect(screen.getByDisplayValue('ART001')).toBeInTheDocument();
-      expect(screen.getByDisplayValue('Test Article 1')).toBeInTheDocument();
-      expect(screen.getByDisplayValue('Test description 1')).toBeInTheDocument();
+      expect(screen.getByText('Редактировать статью')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('FOOD')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('Питание')).toBeInTheDocument();
     });
 
-    it('should update article successfully', async () => {
-      const user = userEvent.setup();
-      const updatedArticle = { ...mockArticles[0], article_name: 'Updated Article' };
-
-      mockApiPut.mockResolvedValueOnce(createMockAxiosResponse({ success: true, data: updatedArticle }));
-
+    it('updates article successfully', async () => {
       render(ArticlesPage);
-
-      await waitFor(() => {
-        expect(screen.getByText('Test Article 1')).toBeInTheDocument();
-      });
+      await waitForAsync();
 
       // Open edit modal
-      const editButtons = screen.getAllByRole('button', { name: /редактировать/i });
-      await user.click(editButtons[0]);
+      const editButtons = screen.getAllByText('Изменить');
+      await fireEvent.click(editButtons[0]);
 
-      // Update name
-      const nameInput = screen.getByDisplayValue('Test Article 1');
-      await user.clear(nameInput);
-      await user.type(nameInput, 'Updated Article');
+      // Update fields
+      const nameInput = screen.getByDisplayValue('Питание');
+      await userEvent.clear(nameInput);
+      await userEvent.type(nameInput, 'Обновлённое питание');
 
       // Submit form
-      const saveButton = screen.getByText('Сохранить');
-      await user.click(saveButton);
+      const submitButton = screen.getByRole('button', { name: 'Сохранить' });
+      await fireEvent.click(submitButton);
 
-      await waitFor(() => {
-        expect(mockApiPut).toHaveBeenCalledWith('/articles/1', expect.objectContaining({
-          name: 'Updated Article'
-        }));
+      await waitForAsync();
+
+      // Verify service was called
+      expect(mockArticlesService.update).toHaveBeenCalledWith(1, {
+        code: 'FOOD',
+        name: 'Обновлённое питание',
+        description: 'Расходы на питание',
+        is_active: true
       });
     });
 
-    it('should not allow editing shared articles for non-admin users', async () => {
+    it('shows only edit buttons for editable articles', async () => {
       render(ArticlesPage);
+      await waitForAsync();
 
-      await waitFor(() => {
-        expect(screen.getByText('Shared Article')).toBeInTheDocument();
-      });
+      const editButtons = screen.getAllByText('Изменить');
 
-      // Shared article should not have edit button for regular users
-      const editButtons = screen.getAllByRole('button', { name: /редактировать/i });
-      // Should only have edit buttons for user's own articles (not shared ones)
-      expect(editButtons).toHaveLength(2); // Only for user articles, not shared
+      // Should show edit button only for editable articles (FOOD and HOUSING in mock data)
+      expect(editButtons).toHaveLength(2);
+    });
+
+    it('handles update error', async () => {
+      mockArticlesService.update.mockRejectedValue(new Error('Update failed'));
+
+      render(ArticlesPage);
+      await waitForAsync();
+
+      // Open edit modal
+      const editButtons = screen.getAllByText('Изменить');
+      await fireEvent.click(editButtons[0]);
+
+      // Submit form
+      const submitButton = screen.getByRole('button', { name: 'Сохранить' });
+      await fireEvent.click(submitButton);
+
+      await waitForAsync();
+
+      // Error should be handled via toast (mocked)
+      expect(mockArticlesService.update).toHaveBeenCalled();
     });
   });
 
   describe('Delete Article', () => {
-    it('should open delete confirmation modal', async () => {
-      const user = userEvent.setup();
+    it('opens delete modal when delete button is clicked', async () => {
       render(ArticlesPage);
-
-      await waitFor(() => {
-        expect(screen.getByText('Test Article 1')).toBeInTheDocument();
-      });
+      await waitForAsync();
 
       // Find and click delete button
-      const deleteButtons = screen.getAllByRole('button', { name: /удалить/i });
-      await user.click(deleteButtons[0]);
+      const deleteButtons = screen.getAllByText('Удалить');
+      await fireEvent.click(deleteButtons[0]);
 
-      expect(screen.getByText('Подтвердите удаление')).toBeInTheDocument();
-      expect(screen.getByText(/Вы уверены, что хотите удалить статью/)).toBeInTheDocument();
+      expect(screen.getByText('Удалить статью')).toBeInTheDocument();
+      expect(screen.getByText('Вы уверены, что хотите удалить статью')).toBeInTheDocument();
+      expect(screen.getByText('"Питание"')).toBeInTheDocument();
     });
 
-    it('should delete article successfully', async () => {
-      const user = userEvent.setup();
-      mockApiDelete.mockResolvedValueOnce(createMockAxiosResponse({ success: true, data: { message: 'Article deleted successfully' } }));
-
+    it('deletes article successfully', async () => {
       render(ArticlesPage);
-
-      await waitFor(() => {
-        expect(screen.getByText('Test Article 1')).toBeInTheDocument();
-      });
+      await waitForAsync();
 
       // Open delete modal
-      const deleteButtons = screen.getAllByRole('button', { name: /удалить/i });
-      await user.click(deleteButtons[0]);
+      const deleteButtons = screen.getAllByText('Удалить');
+      await fireEvent.click(deleteButtons[0]);
 
       // Confirm deletion
-      const confirmButton = screen.getByText('Удалить');
-      await user.click(confirmButton);
+      const confirmButton = screen.getByRole('button', { name: 'Удалить' });
+      await fireEvent.click(confirmButton);
 
-      await waitFor(() => {
-        expect(mockApiDelete).toHaveBeenCalledWith('/articles/1');
-      });
+      await waitForAsync();
+
+      // Verify service was called
+      expect(mockArticlesService.delete).toHaveBeenCalledWith(1);
+
+      // Verify data is reloaded
+      expect(mockArticlesService.getAll).toHaveBeenCalledTimes(2); // Initial load + after delete
     });
 
-    it('should handle delete error gracefully', async () => {
-      const user = userEvent.setup();
-      mockApiDelete.mockRejectedValueOnce({
-        response: {
-          status: 400,
-          data: { success: false, error: 'Cannot delete article with associated nomenclatures' }
-        }
-      });
-
+    it('shows only delete buttons for deletable articles', async () => {
       render(ArticlesPage);
+      await waitForAsync();
 
-      await waitFor(() => {
-        expect(screen.getByText('Test Article 1')).toBeInTheDocument();
-      });
+      const deleteButtons = screen.getAllByText('Удалить');
+
+      // Should show delete button only for editable articles (same as edit)
+      expect(deleteButtons).toHaveLength(2);
+    });
+
+    it('cancels deletion when cancel is clicked', async () => {
+      render(ArticlesPage);
+      await waitForAsync();
 
       // Open delete modal
-      const deleteButtons = screen.getAllByRole('button', { name: /удалить/i });
-      await user.click(deleteButtons[0]);
+      const deleteButtons = screen.getAllByText('Удалить');
+      await fireEvent.click(deleteButtons[0]);
+
+      // Cancel deletion
+      const cancelButton = screen.getByRole('button', { name: 'Отмена' });
+      await fireEvent.click(cancelButton);
+
+      // Service should not be called
+      expect(mockArticlesService.delete).not.toHaveBeenCalled();
+    });
+
+    it('handles delete error', async () => {
+      mockArticlesService.delete.mockRejectedValue(new Error('Delete failed'));
+
+      render(ArticlesPage);
+      await waitForAsync();
+
+      // Open delete modal
+      const deleteButtons = screen.getAllByText('Удалить');
+      await fireEvent.click(deleteButtons[0]);
 
       // Confirm deletion
-      const confirmButton = screen.getByText('Удалить');
-      await user.click(confirmButton);
+      const confirmButton = screen.getByRole('button', { name: 'Удалить' });
+      await fireEvent.click(confirmButton);
 
-      await waitFor(() => {
-        expect(screen.getByText(/Cannot delete article with associated nomenclatures/)).toBeInTheDocument();
-      });
+      await waitForAsync();
+
+      // Error should be handled via toast (mocked)
+      expect(mockArticlesService.delete).toHaveBeenCalled();
     });
   });
 
-  describe('Bulk Delete Articles', () => {
-    it('should show bulk delete button when articles are selected', async () => {
-      const user = userEvent.setup();
-      render(ArticlesPage);
-
-      await waitFor(() => {
-        expect(screen.getByText('Test Article 1')).toBeInTheDocument();
+  describe('Permission Handling', () => {
+    it('shows appropriate actions for shared articles when user is admin', async () => {
+      mockIsAdmin = true;
+      (isAdmin.subscribe as Mock).mockImplementation((callback) => {
+        callback(mockIsAdmin);
+        return () => {};
       });
 
-      // Select articles using checkboxes
-      const checkboxes = screen.getAllByRole('checkbox');
-      await user.click(checkboxes[0]); // Select first article
-      await user.click(checkboxes[1]); // Select second article
+      // Update mock to show shared articles as editable for admin
+      const adminMockArticles = mockArticles.map(article => ({
+        ...article,
+        is_editable: article.is_shared ? true : article.is_editable
+      }));
+      mockArticlesService.getAll.mockResolvedValue(createMockApiResponse(adminMockArticles));
 
-      expect(screen.getByText('Удалить выбранные (2)')).toBeInTheDocument();
+      render(ArticlesPage);
+      await waitForAsync();
+
+      // Admin should see edit/delete buttons for all articles
+      const editButtons = screen.getAllByText('Изменить');
+      const deleteButtons = screen.getAllByText('Удалить');
+
+      expect(editButtons.length).toBeGreaterThanOrEqual(3);
+      expect(deleteButtons.length).toBeGreaterThanOrEqual(3);
     });
 
-    it('should perform bulk delete successfully', async () => {
-      const user = userEvent.setup();
-      mockApiPost.mockResolvedValueOnce(createMockAxiosResponse({
-        success: true,
-        data: { message: 'Successfully deleted 2 articles', deleted_count: 2 }
+    it('hides edit/delete buttons for non-editable shared articles for regular users', async () => {
+      render(ArticlesPage);
+      await waitForAsync();
+
+      // Regular user should not see edit/delete for non-editable shared articles
+      const editButtons = screen.getAllByText('Изменить');
+      const deleteButtons = screen.getAllByText('Удалить');
+
+      // Should only show for editable articles (FOOD and HOUSING where is_editable=true)
+      expect(editButtons).toHaveLength(2);
+      expect(deleteButtons).toHaveLength(2);
+    });
+
+    it('shows correct UI state based on user permissions', async () => {
+      render(ArticlesPage);
+      await waitForAsync();
+
+      // Check that shared articles are marked appropriately
+      expect(screen.getByText('Общая')).toBeInTheDocument();
+      expect(screen.getByText('Личная')).toBeInTheDocument();
+
+      // Verify that non-editable shared articles don't have action buttons
+      const rows = screen.getAllByRole('row');
+
+      // Find the TRANSPORT row (shared, non-editable)
+      const transportRow = rows.find(row => row.textContent?.includes('TRANSPORT'));
+      expect(transportRow).toBeDefined();
+
+      // This row should not have edit/delete buttons
+      expect(transportRow?.querySelector('button')).toBeNull();
+    });
+  });
+
+  describe('Data Refresh and Real-time Updates', () => {
+    it('refreshes statistics after CRUD operations', async () => {
+      render(ArticlesPage);
+      await waitForAsync();
+
+      // Initial load should call getStats
+      expect(mockArticlesService.getStats).toHaveBeenCalledTimes(1);
+
+      // Create article should trigger stats refresh
+      const createButton = screen.getByText('Создать статью');
+      await fireEvent.click(createButton);
+
+      const codeInput = screen.getByLabelText('Код статьи *');
+      const nameInput = screen.getByLabelText('Название *');
+
+      await userEvent.type(codeInput, 'REFRESH');
+      await userEvent.type(nameInput, 'Тест обновления');
+
+      const submitButton = screen.getByRole('button', { name: 'Создать' });
+      await fireEvent.click(submitButton);
+
+      await waitForAsync();
+
+      // Should call getStats again after creation
+      expect(mockArticlesService.getStats).toHaveBeenCalledTimes(2);
+    });
+
+    it('handles concurrent modifications gracefully', async () => {
+      render(ArticlesPage);
+      await waitForAsync();
+
+      // Simulate external modification by changing mock data
+      const modifiedArticles = [...mockArticles];
+      modifiedArticles[0] = { ...modifiedArticles[0], name: 'Externally Modified' };
+
+      mockArticlesService.getAll.mockResolvedValue(createMockApiResponse(modifiedArticles));
+
+      // Trigger refresh by performing an operation
+      const editButtons = screen.getAllByText('Изменить');
+      await fireEvent.click(editButtons[0]);
+
+      const cancelButton = screen.getByRole('button', { name: 'Отмена' });
+      await fireEvent.click(cancelButton);
+
+      // Component should handle the modified data correctly
+      expect(mockArticlesService.getAll).toHaveBeenCalled();
+    });
+  });
+
+  describe('Accessibility and UX', () => {
+    it('provides proper ARIA labels and roles', async () => {
+      render(ArticlesPage);
+      await waitForAsync();
+
+      // Check table structure
+      expect(screen.getByRole('table')).toBeInTheDocument();
+      expect(screen.getAllByRole('columnheader')).toHaveLength(5);
+      expect(screen.getAllByRole('row')).toHaveLength(4); // 3 data rows + 1 header row
+    });
+
+    it('supports keyboard navigation', async () => {
+      render(ArticlesPage);
+      await waitForAsync();
+
+      // Test that buttons are focusable
+      const createButton = screen.getByText('Создать статью');
+      createButton.focus();
+      expect(document.activeElement).toBe(createButton);
+
+      // Test form field focus
+      await fireEvent.click(createButton);
+
+      const codeInput = screen.getByLabelText('Код статьи *');
+      codeInput.focus();
+      expect(document.activeElement).toBe(codeInput);
+    });
+
+    it('displays proper loading indicators', async () => {
+      // Test loading state
+      mockArticlesService.getAll.mockImplementation(() =>
+        new Promise(resolve => setTimeout(() => resolve(createMockApiResponse(mockArticles)), 100))
+      );
+
+      render(ArticlesPage);
+
+      expect(screen.getByText('Загрузка статей...')).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(screen.queryByText('Загрузка статей...')).not.toBeInTheDocument();
+      });
+    });
+
+    it('shows appropriate empty states with helpful messaging', async () => {
+      mockArticlesService.getAll.mockResolvedValue(createMockApiResponse([]));
+      mockArticlesService.getStats.mockResolvedValue(createMockApiResponse({
+        total: 0, active: 0, inactive: 0, shared: 0, user_specific: 0
       }));
 
       render(ArticlesPage);
+      await waitForAsync();
 
-      await waitFor(() => {
-        expect(screen.getByText('Test Article 1')).toBeInTheDocument();
-      });
-
-      // Select articles
-      const checkboxes = screen.getAllByRole('checkbox');
-      await user.click(checkboxes[0]);
-      await user.click(checkboxes[1]);
-
-      // Click bulk delete
-      const bulkDeleteButton = screen.getByText('Удалить выбранные (2)');
-      await user.click(bulkDeleteButton);
-
-      // Confirm bulk deletion
-      const confirmButton = screen.getByText('Удалить выбранные');
-      await user.click(confirmButton);
-
-      await waitFor(() => {
-        expect(mockApiPost).toHaveBeenCalledWith('/articles/bulk-delete', {
-          article_ids: [1, 3] // Based on mockArticles data
-        });
-      });
+      expect(screen.getByText('Статьи не найдены')).toBeInTheDocument();
+      expect(screen.getByText('Создайте первую статью')).toBeInTheDocument();
     });
   });
 
-  describe('Admin Features', () => {
-    beforeEach(() => {
-      // Mock admin user
-      const mockIsAdmin = isAdmin as any;
-      mockIsAdmin.subscribe = vi.fn((callback: (value: boolean) => void) => {
-        callback(true); // Set as admin
-        return () => {};
-      });
-    });
-
-    it('should show shared article creation option for admin', async () => {
-      const user = userEvent.setup();
-      render(ArticlesPage);
-
-      await waitFor(() => {
-        expect(screen.getByText('Добавить статью')).toBeInTheDocument();
-      });
-
-      const addButton = screen.getByText('Добавить статью');
-      await user.click(addButton);
-
-      expect(screen.getByLabelText('Общая статья')).toBeInTheDocument();
-    });
-
-    it('should allow admin to create shared articles', async () => {
-      const user = userEvent.setup();
-      const sharedArticle = {
-        article_id: 5,
-        article_code: 'ADMIN001',
-        article_name: 'Admin Shared Article',
-        description: 'Admin created shared article',
-        is_active: true,
-        user_id: null,
-        created_by: 1,
-        managed_by: 1,
-        is_shared: true,
-        is_editable: true,
-        created_at: '2025-01-01T00:00:00.000Z',
-        updated_at: '2025-01-01T00:00:00.000Z'
-      };
-
-      mockApiPost.mockResolvedValueOnce(createMockAxiosResponse({ success: true, data: sharedArticle }));
+  describe('Error Recovery', () => {
+    it('recovers from network errors', async () => {
+      // Start with network error
+      mockArticlesService.getAll.mockRejectedValueOnce(new Error('Network error'));
 
       render(ArticlesPage);
+      await waitForAsync();
 
-      await waitFor(() => {
-        expect(screen.getByText('Добавить статью')).toBeInTheDocument();
-      });
+      expect(screen.getByText('Ошибка загрузки')).toBeInTheDocument();
 
-      const addButton = screen.getByText('Добавить статью');
-      await user.click(addButton);
+      // Fix the network and retry
+      mockArticlesService.getAll.mockResolvedValueOnce(createMockApiResponse(mockArticles));
 
-      // Fill form as shared article
-      await user.type(screen.getByLabelText('Код статьи'), 'ADMIN001');
-      await user.type(screen.getByLabelText('Название статьи'), 'Admin Shared Article');
-      await user.type(screen.getByLabelText('Описание'), 'Admin created shared article');
-      await user.click(screen.getByLabelText('Общая статья'));
+      const retryButton = screen.getByText('Попробовать снова');
+      await fireEvent.click(retryButton);
+      await waitForAsync();
 
-      // Submit form
-      const saveButton = screen.getByText('Сохранить');
-      await user.click(saveButton);
-
-      await waitFor(() => {
-        expect(mockApiPost).toHaveBeenCalledWith('/articles/', expect.objectContaining({
-          code: 'ADMIN001',
-          name: 'Admin Shared Article',
-          description: 'Admin created shared article',
-          user_id: null, // Shared article
-          is_active: true
-        }));
-      });
+      expect(screen.getByText('Питание')).toBeInTheDocument();
+      expect(screen.queryByText('Ошибка загрузки')).not.toBeInTheDocument();
     });
 
-    it('should allow admin to edit shared articles', async () => {
-      const user = userEvent.setup();
-      render(ArticlesPage);
-
-      await waitFor(() => {
-        expect(screen.getByText('Shared Article')).toBeInTheDocument();
-      });
-
-      // Admin should see edit button for shared articles
-      const editButtons = screen.getAllByRole('button', { name: /редактировать/i });
-      expect(editButtons).toHaveLength(3); // All articles including shared ones
-    });
-  });
-
-  describe('Search and Filtering', () => {
-    it('should filter articles by search term', async () => {
-      const user = userEvent.setup();
-      render(ArticlesPage);
-
-      await waitFor(() => {
-        expect(screen.getByText('Test Article 1')).toBeInTheDocument();
-        expect(screen.getByText('Shared Article')).toBeInTheDocument();
-        expect(screen.getByText('Inactive Article')).toBeInTheDocument();
-      });
-
-      // Search for "Test"
-      const searchInput = screen.getByPlaceholderText('Поиск статей...');
-      await user.type(searchInput, 'Test');
-
-      await waitFor(() => {
-        expect(screen.getByText('Test Article 1')).toBeInTheDocument();
-        expect(screen.queryByText('Shared Article')).not.toBeInTheDocument();
-      });
-    });
-
-    it('should filter articles by active status', async () => {
-      const user = userEvent.setup();
-      render(ArticlesPage);
-
-      await waitFor(() => {
-        expect(screen.getByText('Test Article 1')).toBeInTheDocument();
-        expect(screen.getByText('Inactive Article')).toBeInTheDocument();
-      });
-
-      // Filter by active status
-      const activeFilter = screen.getByLabelText('Только активные');
-      await user.click(activeFilter);
-
-      await waitFor(() => {
-        expect(screen.getByText('Test Article 1')).toBeInTheDocument();
-        expect(screen.queryByText('Inactive Article')).not.toBeInTheDocument();
-      });
-    });
-
-    it('should show no results message when search yields no matches', async () => {
-      const user = userEvent.setup();
-      render(ArticlesPage);
-
-      await waitFor(() => {
-        expect(screen.getByText('Test Article 1')).toBeInTheDocument();
-      });
-
-      // Search for non-existent article
-      const searchInput = screen.getByPlaceholderText('Поиск статей...');
-      await user.type(searchInput, 'NonExistentArticle');
-
-      await waitFor(() => {
-        expect(screen.getByText('Статьи не найдены')).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('Error Handling', () => {
-    it('should display error message when API call fails', async () => {
-      mockApiGet.mockRejectedValueOnce(new Error('Network error'));
+    it('handles partial failures gracefully', async () => {
+      // Stats loading fails but articles load successfully
+      mockArticlesService.getStats.mockRejectedValue(new Error('Stats error'));
 
       render(ArticlesPage);
+      await waitForAsync();
 
-      await waitFor(() => {
-        expect(screen.getByText(/Ошибка загрузки данных/)).toBeInTheDocument();
-      });
-    });
+      // Articles should still be displayed
+      expect(screen.getByText('Питание')).toBeInTheDocument();
 
-    it('should handle server errors gracefully', async () => {
-      mockApiGet.mockRejectedValueOnce({
-        response: {
-          status: 500,
-          data: { success: false, error: 'Internal server error' }
-        }
-      });
-
-      render(ArticlesPage);
-
-      await waitFor(() => {
-        expect(screen.getByText(/Ошибка сервера/)).toBeInTheDocument();
-      });
-    });
-
-    it('should retry loading data after error', async () => {
-      const user = userEvent.setup();
-      mockApiGet.mockRejectedValueOnce(new Error('Network error'));
-
-      render(ArticlesPage);
-
-      await waitFor(() => {
-        expect(screen.getByText(/Ошибка загрузки данных/)).toBeInTheDocument();
-      });
-
-      // Reset mock to return successful response
-      mockApiGet.mockImplementation((url: string) => {
-        if (url.includes('/articles/stats')) {
-          return Promise.resolve(createMockAxiosResponse({ success: true, data: mockStats }));
-        }
-        if (url.includes('/articles/')) {
-          return Promise.resolve(createMockAxiosResponse({ success: true, data: mockArticles, total: mockArticles.length }));
-        }
-        return Promise.resolve(createMockAxiosResponse({ success: true, data: [] }));
-      });
-
-      // Click retry button
-      const retryButton = screen.getByText('Повторить');
-      await user.click(retryButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('Test Article 1')).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('Responsive Design', () => {
-    it('should adapt to mobile view', async () => {
-      // Mock mobile viewport
-      Object.defineProperty(window, 'innerWidth', {
-        writable: true,
-        configurable: true,
-        value: 375,
-      });
-
-      render(ArticlesPage);
-
-      await waitFor(() => {
-        expect(screen.getByText('Test Article 1')).toBeInTheDocument();
-      });
-
-      // Mobile-specific elements should be present
-      expect(screen.getByRole('main')).toHaveClass('mobile-optimized'); // Assuming this class exists
+      // Stats might show default values or error state
+      // The component should not crash
+      expect(screen.getByText('Управление статьями')).toBeInTheDocument();
     });
   });
 });

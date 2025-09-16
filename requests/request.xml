@@ -14,11 +14,13 @@
         <compliance>Строгое следование CLAUDE.md</compliance>
     </project>
     <context>
-        Фунционал увведомлений всплываюищй. 
-        /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-16 22-12-04.png
+        http://localhost:5173/settings/articles
+        Не поолучается редактировать или слздавать заиписи
     </context>
     <requirements>
-        <point number="1">Упросить вывод всплываюззего окна. Убрать дополнительный функционал расишрения уведомленя</point>
+        <point number="1">Проверить корректность работы функционала</point>
+        <point number="1">Испарвить ошибки</point>
+        <point number="1">Уддалить мок данные</point>
     </requirements>
     <tasks>
         <task number="1">
