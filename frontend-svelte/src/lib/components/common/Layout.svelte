@@ -177,42 +177,6 @@
         </nav>
       </div>
 
-      <!-- User info -->
-      <div class="border-t bg-surface-subtle p-4">
-        <Card variant="beige" class="p-3">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-              <div class="flex-shrink-0">
-                <div class="geometric-circle w-10 h-10 flex items-center justify-center">
-                  <User class="h-5 w-5 text-white" />
-                </div>
-              </div>
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center space-x-2 overflow-hidden">
-                  <p class="text-sm font-semibold text-foreground truncate flex-1">
-                    {$currentUser?.user_name || $currentUser?.username || 'Пользователь'}
-                  </p>
-                  {#if $currentUser?.role === 'admin'}
-                    <Badge variant="outline" class="text-xs bg-primary/10 text-primary border-primary/20 flex-shrink-0">
-                      Админ
-                    </Badge>
-                  {/if}
-                </div>
-                <p class="text-xs text-muted-foreground truncate">ID: {$currentUser?.user_id || $currentUser?.id}</p>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              on:click={handleLogout}
-              class="text-muted-foreground hover:text-destructive transition-colors"
-              title="Выйти"
-            >
-              <LogOut class="h-4 w-4" />
-            </Button>
-          </div>
-        </Card>
-      </div>
     </div>
   </Card>
 
@@ -248,7 +212,7 @@
             </p>
           </div>
           
-          <div class="flex items-center space-x-1">
+          <div class="flex items-center space-x-3">
             <NotificationDropdown />
             <Button
               variant="ghost"
@@ -259,6 +223,44 @@
             >
               <Settings class="h-5 w-5" />
             </Button>
+
+            <!-- User Info Section -->
+            <div class="flex items-center space-x-3 border-l border-muted-foreground/20 pl-3">
+              <!-- User Avatar -->
+              <div class="flex-shrink-0">
+                <div class="geometric-circle w-8 h-8 flex items-center justify-center">
+                  <User class="h-4 w-4 text-white" />
+                </div>
+              </div>
+
+              <!-- User Details -->
+              <div class="hidden md:flex flex-col min-w-0">
+                <div class="flex items-center space-x-2">
+                  <span class="text-sm font-semibold text-foreground truncate max-w-24">
+                    {$currentUser?.user_name || $currentUser?.username || 'Пользователь'}
+                  </span>
+                  {#if $currentUser?.role === 'admin'}
+                    <Badge variant="outline" class="text-xs bg-primary/10 text-primary border-primary/20">
+                      Админ
+                    </Badge>
+                  {/if}
+                </div>
+                <span class="text-xs text-muted-foreground truncate">
+                  ID: {$currentUser?.user_id || $currentUser?.id}
+                </span>
+              </div>
+
+              <!-- Logout Button -->
+              <Button
+                variant="ghost"
+                size="icon"
+                on:click={handleLogout}
+                class="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-200"
+                title="Выйти"
+              >
+                <LogOut class="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>

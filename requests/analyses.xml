@@ -1,79 +1,104 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <analysis>
-    <timestamp>2025-09-16T14:45:00</timestamp>
-    <issue>
-        <type>TypeError</type>
-        <message>Cannot read properties of undefined (reading 'toString')</message>
-        <location>
-            <file>/lib/components/reports/ReportFilters.svelte</file>
-            <lines>83-86</lines>
-        </location>
-    </issue>
+  <project>
+    <name>Family Budget Application</name>
+    <current_state>
+      <user_info_location>
+        <current>Left sidebar bottom (lines 180-215 in Layout.svelte)</current>
+        <component_path>/frontend-svelte/src/lib/components/common/Layout.svelte</component_path>
+        <description>User info displayed in Card with beige variant inside sidebar</description>
+        <elements>
+          <element>User avatar with geometric circle</element>
+          <element>Username display with truncation</element>
+          <element>Admin badge for admin users</element>
+          <element>User ID display</element>
+          <element>Logout button with LogOut icon</element>
+        </elements>
+      </user_info_location>
+      <top_bar_location>
+        <current>Lines 222-265 in Layout.svelte</current>
+        <description>Top bar with geometric header, page title and notifications</description>
+        <current_right_section>
+          <element>NotificationDropdown component</element>
+          <element>Settings button</element>
+        </current_right_section>
+      </top_bar_location>
+    </current_state>
+  </project>
 
-    <root_cause>
-        <description>Несоответствие полей при маппинге данных из store в компоненте ReportFilters</description>
-        <details>
-            <point>API возвращает объекты FinancialCenter с полями 'id' и 'name'</point>
-            <point>Store инициализирован с идентификатором 'financial_center_id'</point>
-            <point>Компонент пытается обратиться к полю 'financial_center_name', которое может быть undefined</point>
-            <point>Аналогичная проблема с CostCenter - используется 'cost_center_name' вместо 'name'</point>
-        </details>
-    </root_cause>
+  <requirements>
+    <requirement number="1">
+      <description>Move user information from bottom left to top right corner</description>
+      <technical_details>
+        <from>Sidebar bottom section (lines 180-215)</from>
+        <to>Top bar right section (lines 250-262)</to>
+      </technical_details>
+    </requirement>
+    <requirement number="2">
+      <description>Adapt information to existing style</description>
+      <style_considerations>
+        <existing_style>Geometric elements, Cards with variants, consistent spacing</existing_style>
+        <needed_adaptations>
+          <adaptation>Use inline display instead of Card</adaptation>
+          <adaptation>Maintain geometric design elements</adaptation>
+          <adaptation>Keep consistent color scheme</adaptation>
+          <adaptation>Adjust size for header context</adaptation>
+        </needed_adaptations>
+      </style_considerations>
+    </requirement>
+    <requirement number="3">
+      <description>Place logout button as the rightmost element</description>
+      <layout_order>
+        <item order="1">NotificationDropdown</item>
+        <item order="2">Settings button</item>
+        <item order="3">User info (avatar, name, ID)</item>
+        <item order="4">Admin badge (if applicable)</item>
+        <item order="5">Logout button (rightmost)</item>
+      </layout_order>
+    </requirement>
+  </requirements>
 
-    <affected_code>
-        <snippet file="ReportFilters.svelte" lines="83-86">
-            ...$financialCenterStore.items.map((fc: any) => ({
-                value: fc.financial_center_id.toString(),  // fc.financial_center_id может быть undefined
-                label: fc.financial_center_name,           // должно быть fc.name
-            }))
-        </snippet>
-        <snippet file="ReportFilters.svelte" lines="91-94">
-            ...$costCenterStore.items.map((cc: any) => ({
-                value: cc.cost_center_id.toString(),       // cc.cost_center_id может быть undefined
-                label: cc.cost_center_name,                // должно быть cc.name
-            }))
-        </snippet>
-    </affected_code>
+  <implementation_approach>
+    <step number="1">
+      <action>Remove user info section from sidebar (lines 180-215)</action>
+      <reason>Relocating to header</reason>
+    </step>
+    <step number="2">
+      <action>Modify top bar right section to include user info</action>
+      <details>
+        <location>Lines 250-262 in Layout.svelte</location>
+        <approach>Create inline user info display with avatar, name, badge, and logout</approach>
+      </details>
+    </step>
+    <step number="3">
+      <action>Adjust styling for header context</action>
+      <style_changes>
+        <change>Reduce avatar size from 40px to 32px for header</change>
+        <change>Use horizontal layout with items-center</change>
+        <change>Apply proper spacing between elements</change>
+      </style_changes>
+    </step>
+    <step number="4">
+      <action>Test responsive behavior</action>
+      <considerations>
+        <mobile>May need to hide some elements on small screens</mobile>
+        <desktop>Full display of all user information</desktop>
+      </considerations>
+    </step>
+  </implementation_approach>
 
-    <solution>
-        <step number="1">
-            <action>Исправить маппинг полей для FinancialCenter</action>
-            <change>
-                <from>fc.financial_center_id.toString()</from>
-                <to>fc.id.toString()</to>
-            </change>
-            <change>
-                <from>fc.financial_center_name</from>
-                <to>fc.name || fc.financial_center_name</to>
-            </change>
-        </step>
-        <step number="2">
-            <action>Исправить маппинг полей для CostCenter</action>
-            <change>
-                <from>cc.cost_center_id.toString()</from>
-                <to>cc.id.toString()</to>
-            </change>
-            <change>
-                <from>cc.cost_center_name</from>
-                <to>cc.name || cc.cost_center_name</to>
-            </change>
-        </step>
-        <step number="3">
-            <action>Добавить проверку на существование полей</action>
-            <description>Использовать optional chaining для безопасного доступа к полям</description>
-        </step>
-    </solution>
+  <affected_files>
+    <file>
+      <path>/frontend-svelte/src/lib/components/common/Layout.svelte</path>
+      <changes>Primary component requiring modification</changes>
+    </file>
+  </affected_files>
 
-    <impact>
-        <severity>High</severity>
-        <affected_functionality>Страница отчетов /reports</affected_functionality>
-        <user_experience>Страница не открывается, показывает ошибку</user_experience>
-    </impact>
-
-    <testing_requirements>
-        <test>Проверить загрузку страницы /reports</test>
-        <test>Проверить корректное отображение фильтров</test>
-        <test>Проверить работу фильтрации по ЦФО и МВЗ</test>
-        <test>Добавить unit-тесты для компонента ReportFilters</test>
-    </testing_requirements>
+  <testing_requirements>
+    <test>Visual verification of user info in new location</test>
+    <test>Responsive behavior on different screen sizes</test>
+    <test>Logout functionality preservation</test>
+    <test>Admin badge display for admin users</test>
+    <test>Username truncation for long names</test>
+  </testing_requirements>
 </analysis>

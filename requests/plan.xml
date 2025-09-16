@@ -1,0 +1,418 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<implementation_plan>
+  <project>
+    <name>User Info Header Migration</name>
+    <description>Move user information from sidebar bottom to header top right</description>
+    <target_file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/Layout.svelte</target_file>
+  </project>
+
+  <current_analysis>
+    <sidebar_user_info>
+      <location>Lines 180-215</location>
+      <structure>
+        <border_top>Line 181: border-t bg-surface-subtle p-4</border_top>
+        <card_wrapper>Line 182: Card variant="beige" class="p-3"</card_wrapper>
+        <content_container>Line 183: flex items-center justify-between</content_container>
+        <user_section>Lines 184-202: User avatar, name, badge, ID</user_section>
+        <logout_button>Lines 204-212: LogOut button with icon</logout_button>
+      </structure>
+    </sidebar_user_info>
+
+    <header_right_section>
+      <location>Lines 250-262</location>
+      <current_elements>
+        <notifications>Line 252: NotificationDropdown component</notifications>
+        <settings>Lines 253-261: Settings button with icon</settings>
+      </current_elements>
+    </header_right_section>
+  </current_analysis>
+
+  <implementation_steps>
+    <step number="1">
+      <name>Remove user info from sidebar</name>
+      <action>DELETE_LINES</action>
+      <details>
+        <lines_to_remove>180-215</lines_to_remove>
+        <description>Remove entire user info section including border-t div and Card wrapper</description>
+        <specific_elements>
+          <element>Line 181: &lt;div class="border-t bg-surface-subtle p-4"&gt;</element>
+          <element>Lines 182-214: Card with user info and logout button</element>
+          <element>Line 215: Closing div tag</element>
+        </specific_elements>
+      </details>
+    </step>
+
+    <step number="2">
+      <name>Modify header right section structure</name>
+      <action>REPLACE_CONTENT</action>
+      <details>
+        <target_lines>250-262</target_lines>
+        <current_content>
+          <![CDATA[
+          <div class="flex items-center space-x-1">
+            <NotificationDropdown />
+            <Button
+              variant="ghost"
+              size="icon"
+              on:click={() => goto('/settings')}
+              title="Настройки"
+              class="text-muted-foreground hover:text-primary hover:bg-primary/10"
+            >
+              <Settings class="h-5 w-5" />
+            </Button>
+          </div>
+          ]]>
+        </current_content>
+        <new_content>
+          <![CDATA[
+          <div class="flex items-center space-x-3">
+            <NotificationDropdown />
+            <Button
+              variant="ghost"
+              size="icon"
+              on:click={() => goto('/settings')}
+              title="Настройки"
+              class="text-muted-foreground hover:text-primary hover:bg-primary/10"
+            >
+              <Settings class="h-5 w-5" />
+            </Button>
+
+            <!-- User Info Section -->
+            <div class="flex items-center space-x-3 border-l border-muted-foreground/20 pl-3">
+              <!-- User Avatar -->
+              <div class="flex-shrink-0">
+                <div class="geometric-circle w-8 h-8 flex items-center justify-center">
+                  <User class="h-4 w-4 text-white" />
+                </div>
+              </div>
+
+              <!-- User Details -->
+              <div class="hidden md:flex flex-col min-w-0">
+                <div class="flex items-center space-x-2">
+                  <span class="text-sm font-semibold text-foreground truncate max-w-24">
+                    {$currentUser?.user_name || $currentUser?.username || 'Пользователь'}
+                  </span>
+                  {#if $currentUser?.role === 'admin'}
+                    <Badge variant="outline" class="text-xs bg-primary/10 text-primary border-primary/20">
+                      Админ
+                    </Badge>
+                  {/if}
+                </div>
+                <span class="text-xs text-muted-foreground truncate">
+                  ID: {$currentUser?.user_id || $currentUser?.id}
+                </span>
+              </div>
+
+              <!-- Logout Button -->
+              <Button
+                variant="ghost"
+                size="icon"
+                on:click={handleLogout}
+                class="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-200"
+                title="Выйти"
+              >
+                <LogOut class="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          ]]>
+        </new_content>
+      </details>
+    </step>
+
+    <step number="3">
+      <name>Add responsive behavior for mobile</name>
+      <action>ADD_MOBILE_STYLES</action>
+      <details>
+        <description>Ensure user info displays appropriately on different screen sizes</description>
+        <mobile_considerations>
+          <hide_user_details>Hide username and ID on screens smaller than md (768px)</hide_user_details>
+          <keep_avatar_logout>Always show avatar and logout button</keep_avatar_logout>
+          <admin_badge>Show admin badge on all screen sizes if applicable</admin_badge>
+        </mobile_considerations>
+        <breakpoint_behavior>
+          <small_screens>Show only avatar, admin badge (if applicable), and logout button</small_screens>
+          <medium_up>Show full user details including username and ID</medium_up>
+        </breakpoint_behavior>
+      </details>
+    </step>
+
+    <step number="4">
+      <name>Adjust geometric styling for header context</name>
+      <action>STYLE_ADJUSTMENTS</action>
+      <details>
+        <avatar_size>
+          <from>w-10 h-10 (40px)</from>
+          <to>w-8 h-8 (32px)</to>
+          <reason>Better proportion for header height of 64px</reason>
+        </avatar_size>
+        <icon_size>
+          <from>h-5 w-5 (20px)</from>
+          <to>h-4 w-4 (16px)</to>
+          <reason>Maintain proportion with smaller avatar</reason>
+        </icon_size>
+        <spacing>
+          <container>space-x-3 for main elements</container>
+          <user_details>space-x-2 for name and badge</user_details>
+          <visual_separator>border-l border-muted-foreground/20 pl-3 for user section</visual_separator>
+        </spacing>
+        <text_styling>
+          <username>text-sm font-semibold with max-w-24 for truncation</username>
+          <user_id>text-xs text-muted-foreground</user_id>
+          <badge>Same as current: text-xs bg-primary/10 text-primary border-primary/20</badge>
+        </text_styling>
+      </details>
+    </step>
+
+    <step number="5">
+      <name>Preserve existing functionality</name>
+      <action>FUNCTIONALITY_CHECK</action>
+      <details>
+        <logout_handler>Ensure handleLogout function is still properly called</logout_handler>
+        <user_data_binding>Maintain $currentUser store binding</user_data_binding>
+        <admin_badge_logic>Preserve admin role conditional rendering</admin_badge_logic>
+        <user_fallback>Keep username fallback logic intact</user_fallback>
+        <accessibility>
+          <logout_title>Maintain "Выйти" title attribute</logout_title>
+          <button_accessibility>Preserve button accessibility attributes</button_accessibility>
+        </accessibility>
+      </details>
+    </step>
+  </implementation_steps>
+
+  <code_changes>
+    <file_modifications>
+      <file_path>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/Layout.svelte</file_path>
+
+      <change number="1">
+        <type>DELETION</type>
+        <location>Lines 180-215</location>
+        <description>Remove entire sidebar user info section</description>
+        <code_to_remove>
+          <![CDATA[
+      <!-- User info -->
+      <div class="border-t bg-surface-subtle p-4">
+        <Card variant="beige" class="p-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <div class="flex-shrink-0">
+                <div class="geometric-circle w-10 h-10 flex items-center justify-center">
+                  <User class="h-5 w-5 text-white" />
+                </div>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center space-x-2 overflow-hidden">
+                  <p class="text-sm font-semibold text-foreground truncate flex-1">
+                    {$currentUser?.user_name || $currentUser?.username || 'Пользователь'}
+                  </p>
+                  {#if $currentUser?.role === 'admin'}
+                    <Badge variant="outline" class="text-xs bg-primary/10 text-primary border-primary/20 flex-shrink-0">
+                      Админ
+                    </Badge>
+                  {/if}
+                </div>
+                <p class="text-xs text-muted-foreground truncate">ID: {$currentUser?.user_id || $currentUser?.id}</p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              on:click={handleLogout}
+              class="text-muted-foreground hover:text-destructive transition-colors"
+              title="Выйти"
+            >
+              <LogOut class="h-4 w-4" />
+            </Button>
+          </div>
+        </Card>
+      </div>
+          ]]>
+        </code_to_remove>
+      </change>
+
+      <change number="2">
+        <type>REPLACEMENT</type>
+        <location>Lines 250-262 (after deletion, will be approximately lines 215-227)</location>
+        <description>Replace header right section with expanded user info</description>
+        <code_to_replace>
+          <![CDATA[
+          <div class="flex items-center space-x-1">
+            <NotificationDropdown />
+            <Button
+              variant="ghost"
+              size="icon"
+              on:click={() => goto('/settings')}
+              title="Настройки"
+              class="text-muted-foreground hover:text-primary hover:bg-primary/10"
+            >
+              <Settings class="h-5 w-5" />
+            </Button>
+          </div>
+          ]]>
+        </code_to_replace>
+        <code_replacement>
+          <![CDATA[
+          <div class="flex items-center space-x-3">
+            <NotificationDropdown />
+            <Button
+              variant="ghost"
+              size="icon"
+              on:click={() => goto('/settings')}
+              title="Настройки"
+              class="text-muted-foreground hover:text-primary hover:bg-primary/10"
+            >
+              <Settings class="h-5 w-5" />
+            </Button>
+
+            <!-- User Info Section -->
+            <div class="flex items-center space-x-3 border-l border-muted-foreground/20 pl-3">
+              <!-- User Avatar -->
+              <div class="flex-shrink-0">
+                <div class="geometric-circle w-8 h-8 flex items-center justify-center">
+                  <User class="h-4 w-4 text-white" />
+                </div>
+              </div>
+
+              <!-- User Details -->
+              <div class="hidden md:flex flex-col min-w-0">
+                <div class="flex items-center space-x-2">
+                  <span class="text-sm font-semibold text-foreground truncate max-w-24">
+                    {$currentUser?.user_name || $currentUser?.username || 'Пользователь'}
+                  </span>
+                  {#if $currentUser?.role === 'admin'}
+                    <Badge variant="outline" class="text-xs bg-primary/10 text-primary border-primary/20">
+                      Админ
+                    </Badge>
+                  {/if}
+                </div>
+                <span class="text-xs text-muted-foreground truncate">
+                  ID: {$currentUser?.user_id || $currentUser?.id}
+                </span>
+              </div>
+
+              <!-- Logout Button -->
+              <Button
+                variant="ghost"
+                size="icon"
+                on:click={handleLogout}
+                class="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-200"
+                title="Выйти"
+              >
+                <LogOut class="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          ]]>
+        </code_replacement>
+      </change>
+    </file_modifications>
+  </code_changes>
+
+  <design_considerations>
+    <geometric_elements>
+      <preservation>
+        <element>geometric-circle class maintained for user avatar</element>
+        <element>Consistent styling with existing header geometric background</element>
+        <element>Border separator using muted-foreground/20 for visual separation</element>
+      </preservation>
+    </geometric_elements>
+
+    <responsive_design>
+      <mobile_behavior>
+        <screen_size>Below 768px (md breakpoint)</screen_size>
+        <visible_elements>
+          <element>User avatar with geometric circle</element>
+          <element>Admin badge (if applicable)</element>
+          <element>Logout button</element>
+        </visible_elements>
+        <hidden_elements>
+          <element>Username text</element>
+          <element>User ID text</element>
+        </hidden_elements>
+      </mobile_behavior>
+
+      <desktop_behavior>
+        <screen_size>768px and above (md+)</screen_size>
+        <visible_elements>
+          <element>All user information</element>
+          <element>Full username with truncation at max-w-24</element>
+          <element>User ID display</element>
+          <element>Admin badge (if applicable)</element>
+        </visible_elements>
+      </desktop_behavior>
+    </responsive_design>
+
+    <layout_hierarchy>
+      <element_order>
+        <position number="1">NotificationDropdown (leftmost in right section)</position>
+        <position number="2">Settings button</position>
+        <position number="3">Visual separator (border-l)</position>
+        <position number="4">User avatar</position>
+        <position number="5">User details (name, badge, ID)</position>
+        <position number="6">Logout button (rightmost)</position>
+      </element_order>
+    </layout_hierarchy>
+
+    <color_scheme_consistency>
+      <avatar_background>geometric-circle maintains existing primary color</avatar_background>
+      <text_colors>
+        <username>text-foreground (main text color)</username>
+        <user_id>text-muted-foreground (secondary text)</user_id>
+        <logout_button>text-muted-foreground with hover:text-destructive</logout_button>
+      </text_colors>
+      <admin_badge>Maintains existing primary/10 background with primary text</admin_badge>
+    </color_scheme_consistency>
+  </design_considerations>
+
+  <testing_checklist>
+    <visual_tests>
+      <test>Verify user info appears in top right corner of header</test>
+      <test>Check geometric circle avatar displays correctly</test>
+      <test>Confirm admin badge appears for admin users</test>
+      <test>Validate logout button is rightmost element</test>
+      <test>Ensure visual separator between settings and user info</test>
+    </visual_tests>
+
+    <responsive_tests>
+      <test>Mobile (< 768px): Only avatar, badge, and logout visible</test>
+      <test>Tablet (768px+): Full user info displayed</test>
+      <test>Desktop (1024px+): All elements properly spaced</test>
+      <test>Username truncation works with max-w-24 class</test>
+    </responsive_tests>
+
+    <functional_tests>
+      <test>Logout button triggers handleLogout function</test>
+      <test>User data binding from $currentUser store works</test>
+      <test>Admin role conditional rendering functions</test>
+      <test>Fallback username display works</test>
+      <test>Settings button navigation still works</test>
+      <test>NotificationDropdown functionality preserved</test>
+    </functional_tests>
+
+    <accessibility_tests>
+      <test>Logout button has proper title attribute</test>
+      <test>All buttons remain keyboard accessible</test>
+      <test>Screen reader compatibility maintained</test>
+      <test>Focus indicators work correctly</test>
+    </accessibility_tests>
+  </testing_checklist>
+
+  <rollback_plan>
+    <steps>
+      <step>Revert file to previous commit if issues arise</step>
+      <step>Re-add user info section to sidebar if header approach fails</step>
+      <step>Test thoroughly on all device sizes before final commit</step>
+    </steps>
+    <backup_location>Git history provides automatic rollback capability</backup_location>
+  </rollback_plan>
+
+  <completion_criteria>
+    <requirement>User info completely removed from sidebar bottom</requirement>
+    <requirement>User info fully functional in header top right</requirement>
+    <requirement>Logout button positioned as rightmost element</requirement>
+    <requirement>Responsive behavior working on all screen sizes</requirement>
+    <requirement>Existing geometric design language maintained</requirement>
+    <requirement>All functionality preserved (logout, admin badge, etc.)</requirement>
+    <requirement>Visual consistency with existing header styling</requirement>
+  </completion_criteria>
+</implementation_plan>

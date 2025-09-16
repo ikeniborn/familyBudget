@@ -2,6 +2,30 @@
 
 ## 📈 Latest Updates
 
+### 🎨 Header User Information Layout (16.09.2025 - v3.3.0)
+
+✅ **ОБНОВЛЕН LAYOUT КОМПОНЕНТ** с переносом информации о пользователе в header:
+
+**Изменения дизайна:**
+- **Перенос пользователя в header**: Информация о пользователе перемещена из нижней части sidebar в правый верхний угол header
+- **Geometric design**: Сохранен геометрический стиль дизайна с четкими линиями
+- **Responsive layout**: Детали пользователя скрываются на мобильных устройствах
+- **Logout positioning**: Кнопка выхода располагается крайней справа в header
+
+**Технические детали:**
+- **Component**: Updated `src/lib/components/layout/Layout.svelte`
+- **UI positioning**: User info moved from sidebar bottom to header top-right
+- **Mobile adaptation**: Smart hiding of user details on small screens
+- **Consistent styling**: Maintained design system colors and spacing
+
+**Результат:**
+- ✅ Улучшенная навигация - больше места в sidebar для основного меню
+- ✅ Современный UX - пользовательская информация в привычном месте (header)
+- ✅ Адаптивность - корректное отображение на всех устройствах
+- ✅ Согласованность - соответствие современным паттернам дизайна
+
+---
+
 ### 📊 Справочник статей для категоризации номенклатур (15.09.2025 - v3.4.0)
 
 ✅ **РЕАЛИЗОВАН СПРАВОЧНИК СТАТЕЙ** - новый модуль для организации бюджета:
