@@ -57,12 +57,12 @@
     loadProductAnalytics();
   }
 
-  $: filteredProducts = products.filter(product => 
-    product.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category_name?.toLowerCase().includes(searchTerm.toLowerCase())
+  $: filteredProducts = products.filter(product =>
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.category?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  $: selectedProduct = products.find(p => p.product_id === selectedProductId);
+  $: selectedProduct = products.find(p => p.id === selectedProductId);
 
   async function loadProducts() {
     try {
@@ -146,8 +146,8 @@
           >
             <option value={null}>Выберите продукт</option>
             {#each filteredProducts as product}
-              <option value={product.product_id}>
-                {product.product_name} {product.category_name ? `(${product.category_name})` : ''}
+              <option value={product.id}>
+                {product.name} {product.category ? `(${product.category})` : ''}
               </option>
             {/each}
           </select>
@@ -172,7 +172,7 @@
     </div>
 
     {#if selectedProduct && productStats}
-      <Card title={`Анализ: ${selectedProduct.product_name}`}>
+      <Card title={`Анализ: ${selectedProduct.name}`}>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div class="bg-blue-50 p-4 rounded-lg">
             <div class="flex items-center">

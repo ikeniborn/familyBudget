@@ -104,12 +104,17 @@ async def get_articles_stats(
     active_result = await db.execute(active_stmt)
     inactive_result = await db.execute(inactive_stmt)
 
+    # Store scalar values to avoid ResourceClosedError
+    total_count = total_result.scalar() or 0
+    active_count = active_result.scalar() or 0
+    inactive_count = inactive_result.scalar() or 0
+
     stats = ArticleStats(
-        total=total_result.scalar() or 0,
-        active=active_result.scalar() or 0,
-        inactive=inactive_result.scalar() or 0,
+        total=total_count,
+        active=active_count,
+        inactive=inactive_count,
         shared=0,  # No shared articles in simplified model
-        user_specific=total_result.scalar() or 0
+        user_specific=total_count
     )
 
     return success_response(data=stats.dict())
