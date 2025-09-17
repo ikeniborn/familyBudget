@@ -18,6 +18,7 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   sessionValidated: boolean;
+  ssrAuthenticated: boolean; // Flag to track SSR authentication
 }
 
 // Persistent storage helpers
@@ -67,7 +68,8 @@ function getStoredAuth(): AuthState | null {
         isAuthenticated: parsed.state?.isAuthenticated || false,
         isLoading: false,
         error: null,
-        sessionValidated: false
+        sessionValidated: false,
+        ssrAuthenticated: false
       };
     }
   } catch (error) {
@@ -104,10 +106,11 @@ function getInitialState(): AuthState {
     isAuthenticated: false,
     isLoading: false,
     error: null,
-    sessionValidated: false
+    sessionValidated: false,
+    ssrAuthenticated: false
   };
 
-  return {...initialState, sessionValidated: false};
+  return {...initialState, sessionValidated: false, ssrAuthenticated: false};
 }
 
 // Create the main writable store with enhanced update protection
@@ -241,7 +244,8 @@ const authStore = {
       isAuthenticated: false,
       isLoading: false,
       error: null,
-      sessionValidated: false
+      sessionValidated: false,
+      ssrAuthenticated: false
     });
   },
 
@@ -503,6 +507,18 @@ const authStore = {
   },
 
   async checkAuth(): Promise<void> {
+    // Skip checkAuth if user is already SSR-authenticated
+    let currentState: AuthState;
+    const unsubscribe = subscribe(state => {
+      currentState = state;
+    });
+    unsubscribe();
+
+    if (currentState!.ssrAuthenticated && currentState!.isAuthenticated) {
+      console.log('Skipping checkAuth - user already SSR-authenticated');
+      return;
+    }
+
     update(state => ({ ...state, isLoading: true }));
     try {
       const response = await api.get<{success: boolean, user: User, authenticated: boolean}>('/auth/me');
@@ -653,6 +669,23 @@ const authStore = {
     });
     unsubscribe();
     return currentState!;
+  },
+
+  // Mark user as SSR-authenticated to avoid redundant checks
+  markSSRAuthenticated(): void {
+    update(state => ({
+      ...state,
+      ssrAuthenticated: true,
+      sessionValidated: true
+    }));
+  },
+
+  // Clear SSR authentication flag (for testing or manual auth)
+  clearSSRAuthenticated(): void {
+    update(state => ({
+      ...state,
+      ssrAuthenticated: false
+    }));
   }
 };
 

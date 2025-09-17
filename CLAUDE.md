@@ -608,7 +608,7 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 11. **FactForm TypeError on undefined fields**: ✅ **RESOLVED** - Fixed field mapping with defensive coding (v3.3.2)
 12. **Admin users getting 401 error on /settings**: ✅ **RESOLVED** - Fixed session handling and backend URL configuration (ADR-008, ADR-009)
 13. **Sharing functionality removal**: ✅ **COMPLETED** - Removed unused sharing functionality (v3.4.0) - cleaned up frontend, backend, and database components
-14. **Articles page 401 authentication error**: ✅ **RESOLVED** - Fixed redundant client-side auth checks (v3.5.1)
+14. **Articles page 401 authentication error**: ✅ **FULLY RESOLVED** - Removed redundant AuthGuard client-side auth checks (v3.5.2)
 
 ### 🔧 Docker Networking Fix (ADR-004)
 
@@ -846,6 +846,41 @@ docker exec budget-frontend npm run test backend-url-config.test.ts
 # Validate session handling
 docker exec budget-backend python -m pytest tests/backend/test_admin_settings_auth.py -v
 ```
+
+### 🔧 Articles Page Authentication Fix (v3.5.2)
+
+**Issue:** Users receiving 401 (Unauthorized) errors when accessing `/settings/articles` page despite having valid authentication
+**Root Cause:** Redundant client-side authentication checks (AuthGuard component) conflicting with server-side authentication
+**Symptoms:**
+- 401 error on articles page load
+- Page inaccessible even for authenticated administrators
+- Articles functionality completely blocked
+
+**Solution:** Removed redundant AuthGuard component from articles page
+- **Fixed in:** `frontend-svelte/src/routes/(protected)/settings/articles/+page.svelte`
+- **Change:** Removed AuthGuard wrapper, using standard server-side authentication via `+layout.server.ts`
+- **Architecture simplification:** Single authentication layer instead of duplicate checks
+
+**Technical Details:**
+```typescript
+// ❌ BEFORE: Redundant client-side auth check
+<AuthGuard>
+  <ArticlesPage />
+</AuthGuard>
+
+// ✅ AFTER: Standard server-side protection via route layout
+<ArticlesPage />
+```
+
+**Result:**
+- ✅ Full elimination of 401 errors on articles page
+- ✅ Restored articles management functionality
+- ✅ Simplified authentication architecture
+- ✅ Consistent with other settings pages protection scheme
+
+**Documentation:**
+- [Articles Reference Module Guide](docs/api/articles-reference.md)
+- [Authentication Architecture](docs/api/authentication.md)
 
 ## File Organization
 

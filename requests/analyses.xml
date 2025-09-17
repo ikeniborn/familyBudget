@@ -1,57 +1,86 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <analysis>
-    <problem>
-        <description>Administrator cannot edit or create records on /settings/articles page</description>
-        <error_type>401 Unauthorized</error_type>
-        <endpoint>/api/auth/me</endpoint>
-        <location>api.ts:72</location>
-    </problem>
+  <problem>
+    <title>Authentication Error on Articles Settings Page</title>
+    <description>
+      The /settings/articles page shows a 401 Unauthorized error in the console when accessing /api/auth/me endpoint.
+      Buttons on the page are not responding to clicks, preventing the admin user from creating or editing articles.
+    </description>
+    <error_details>
+      <error_code>401</error_code>
+      <error_message>Request failed with status code 401 (Unauthorized)</error_message>
+      <endpoint>/api/auth/me</endpoint>
+      <location>auth.store.ts:226</location>
+    </error_details>
+  </problem>
 
-    <context>
-        <page>/settings/articles</page>
-        <user_role>administrator</user_role>
-        <expected_behavior>Admin should be able to perform CRUD operations on articles</expected_behavior>
-        <actual_behavior>Authentication check fails preventing any operations</actual_behavior>
-    </context>
+  <root_cause>
+    <summary>Redundant client-side authentication check in AuthGuard component</summary>
+    <details>
+      <finding number="1">
+        <component>AuthGuard.svelte</component>
+        <line>37</line>
+        <issue>
+          The AuthGuard component calls authStore.checkAuth() even when the user is already authenticated
+          from SSR data, causing a redundant API call that fails with 401.
+        </issue>
+      </finding>
+      <finding number="2">
+        <component>AuthGuard.svelte</component>
+        <line>32-42</line>
+        <issue>
+          When $isAuthenticated is true (from localStorage), the component tries to verify with the server,
+          but this verification fails because the session validation on client-side uses different headers
+          than the SSR context.
+        </issue>
+      </finding>
+      <finding number="3">
+        <component>articles/+page.svelte</component>
+        <observation>
+          The articles page itself does not have any authentication-related issues. The buttons are likely
+          not working because the auth store is in an error state due to the failed checkAuth() call.
+        </observation>
+      </finding>
+    </details>
+  </root_cause>
 
-    <root_cause_analysis>
-        <possible_causes>
-            <cause priority="1">Session cookie not being properly sent with the request</cause>
-            <cause priority="2">Backend authentication middleware not recognizing the session</cause>
-            <cause priority="3">Articles page specific implementation issue</cause>
-            <cause priority="4">API service not handling authentication headers correctly</cause>
-        </possible_causes>
-    </root_cause_analysis>
+  <impact>
+    <severity>HIGH</severity>
+    <affected_features>
+      - Articles management page (/settings/articles)
+      - All CRUD operations on articles
+      - User experience for administrators
+    </affected_features>
+    <symptoms>
+      - 401 error in console on page load
+      - Buttons not responding to clicks
+      - Forms not opening when buttons are clicked
+      - Page appears to load but is non-functional
+    </symptoms>
+  </impact>
 
-    <related_fixes>
-        <fix version="v3.3.3">
-            <adr>ADR-008</adr>
-            <adr>ADR-009</adr>
-            <description>Fixed similar 401 errors for admin users accessing /settings</description>
-            <components>
-                <component>hooks.server.ts - Session cookie handling</component>
-                <component>Backend URL configuration</component>
-            </components>
-        </fix>
-    </related_fixes>
+  <solution_approach>
+    <strategy>Remove redundant client-side authentication verification</strategy>
+    <steps>
+      <step number="1">
+        Modify AuthGuard.svelte to trust SSR authentication data and avoid redundant checkAuth() calls
+      </step>
+      <step number="2">
+        Only call checkAuth() when there's no SSR data and no stored authentication
+      </step>
+      <step number="3">
+        Ensure the auth store properly handles SSR data without additional verification
+      </step>
+    </steps>
+  </solution_approach>
 
-    <investigation_areas>
-        <area priority="1">
-            <file>frontend-svelte/src/lib/services/api.ts</file>
-            <line>72</line>
-            <reason>Direct location of the error</reason>
-        </area>
-        <area priority="2">
-            <file>frontend-svelte/src/routes/(protected)/settings/articles/+page.svelte</file>
-            <reason>Articles page implementation</reason>
-        </area>
-        <area priority="3">
-            <file>frontend-svelte/src/hooks.server.ts</file>
-            <reason>Session handling logic</reason>
-        </area>
-        <area priority="4">
-            <file>backend-fastapi/app/api/v1/endpoints/articles.py</file>
-            <reason>Backend authentication middleware</reason>
-        </area>
-    </investigation_areas>
+  <historical_context>
+    <reference>
+      Similar issue was previously fixed in v3.5.1 as mentioned in CLAUDE.md:
+      "Articles page 401 authentication error: RESOLVED - Fixed redundant client-side auth checks"
+    </reference>
+    <note>
+      The issue has resurfaced or was not completely fixed, indicating the need for a more comprehensive solution
+    </note>
+  </historical_context>
 </analysis>

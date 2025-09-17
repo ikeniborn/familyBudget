@@ -14,8 +14,8 @@
 
   onMount(async () => {
     mounted = true;
-    
-    // If we have SSR auth data, use it immediately
+
+    // If we have SSR auth data, use it immediately and mark as SSR-authenticated
     if (ssrAuthData?.user && ssrAuthData?.authenticated) {
       authStore.setUser({
         user_id: ssrAuthData.user.id || ssrAuthData.user.user_id,
@@ -24,12 +24,20 @@
         first_name: ssrAuthData.user.first_name || '',
         last_name: ssrAuthData.user.last_name || '',
         username: ssrAuthData.user.username || '',
-        authMethod: ssrAuthData.user.auth_method || 'password'
+        authMethod: ssrAuthData.user.auth_method || 'password',
+        role: ssrAuthData.user.role || 'user'
       });
+      authStore.markSSRAuthenticated();
       authChecked = true;
       isClientAuthReady = true;
     }
-    // If we're already authenticated (from localStorage), verify with server
+    // If we're already authenticated (from localStorage) and have SSR data, trust it
+    else if ($isAuthenticated && ssrAuthData?.authenticated) {
+      authChecked = true;
+      isClientAuthReady = true;
+      // SSR already validated the session, no need to verify again
+    }
+    // If authenticated but no SSR data, verify with server
     else if ($isAuthenticated) {
       authChecked = true;
       try {

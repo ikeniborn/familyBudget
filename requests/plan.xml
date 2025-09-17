@@ -1,70 +1,432 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plan>
-    <problem_summary>
-        <issue>401 Unauthorized error when accessing /settings/articles page</issue>
-        <cause>Client-side authentication check in +layout.svelte triggers unnecessary /api/auth/me call</cause>
-        <impact>Admin users cannot perform CRUD operations on articles</impact>
-    </problem_summary>
+  <title>Fix Authentication Issue on Articles Settings Page</title>
 
-    <solution_approach>
-        <description>Remove redundant client-side authentication check in layout since server-side protection is already in place</description>
-        <justification>
-            <point>Server-side authentication in hooks.server.ts and +layout.server.ts is sufficient</point>
-            <point>Client-side checkAuth() call causes unnecessary 401 errors</point>
-            <point>Authentication state is already populated from server-side</point>
-        </justification>
-    </solution_approach>
+  <problem_summary>
+    <issue>401 Unauthorized error on /settings/articles page due to redundant client-side authentication checks</issue>
+    <root_cause>AuthGuard.svelte makes unnecessary checkAuth() calls even when user is already authenticated via SSR</root_cause>
+    <impact>Buttons non-functional, preventing CRUD operations on articles</impact>
+  </problem_summary>
 
-    <tasks>
-        <task priority="1">
-            <name>Check current authentication flow</name>
-            <description>Verify how authentication is currently handled in +layout.svelte</description>
-            <files>
-                <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/+layout.svelte</file>
-            </files>
-        </task>
+  <solution_strategy>
+    <approach>Remove redundant client-side authentication verification and trust SSR authentication data</approach>
+    <principle>Avoid duplicate API calls when authentication state is already established</principle>
+  </solution_strategy>
 
-        <task priority="2">
-            <name>Fix client-side authentication</name>
-            <description>Modify +layout.svelte to avoid redundant auth checks when user is already authenticated server-side</description>
-            <changes>
-                <change>Check if user data exists from server before calling checkAuth()</change>
-                <change>Only call checkAuth() if no user data is available</change>
-            </changes>
-        </task>
+  <implementation_steps>
 
-        <task priority="3">
-            <name>Verify API configuration</name>
-            <description>Ensure API client is properly configured with credentials</description>
-            <files>
-                <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/services/api.ts</file>
-            </files>
-        </task>
+    <step number="1">
+      <title>Analyze Current AuthGuard Logic</title>
+      <description>Review the current authentication flow in AuthGuard.svelte to identify redundant calls</description>
+      <current_issue>
+        Lines 32-42 in AuthGuard.svelte call authStore.checkAuth() even when user is authenticated from localStorage,
+        causing unnecessary API calls that fail due to different session context between SSR and client-side
+      </current_issue>
+      <files_affected>
+        <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/auth/AuthGuard.svelte</file>
+      </files_affected>
+    </step>
 
-        <task priority="4">
-            <name>Test the fix</name>
-            <description>Verify that articles page works correctly after the fix</description>
-            <test_scenarios>
-                <scenario>Admin can access /settings/articles without 401 error</scenario>
-                <scenario>Admin can create new articles</scenario>
-                <scenario>Admin can edit existing articles</scenario>
-                <scenario>Admin can delete articles</scenario>
-            </test_scenarios>
-        </task>
+    <step number="2">
+      <title>Modify AuthGuard to Trust SSR Data</title>
+      <description>Update AuthGuard.svelte to trust SSR authentication data and avoid redundant verification</description>
+      <changes>
+        <change>
+          <description>Remove unnecessary checkAuth() call when user is already authenticated from localStorage</description>
+          <location>Lines 32-42</location>
+          <rationale>If user is authenticated from localStorage and SSR provides valid user data, no additional verification needed</rationale>
+        </change>
+        <change>
+          <description>Add logic to detect when SSR authentication is sufficient</description>
+          <location>onMount function</location>
+          <rationale>Trust SSR data when available to avoid redundant API calls</rationale>
+        </change>
+        <change>
+          <description>Only call checkAuth() when there's no SSR data and no stored authentication</description>
+          <location>Lines 44-58</location>
+          <rationale>Maintain authentication check only when truly necessary</rationale>
+        </change>
+      </changes>
+      <expected_outcome>Elimination of 401 errors on pages with SSR authentication</expected_outcome>
+    </step>
 
-        <task priority="5">
-            <name>Add fallback error handling</name>
-            <description>Ensure articles page handles auth errors gracefully</description>
-            <changes>
-                <change>Add try-catch in loadArticles function</change>
-                <change>Check user permissions before making API calls</change>
-            </changes>
-        </task>
-    </tasks>
+    <step number="3">
+      <title>Enhance Auth Store to Handle SSR Context</title>
+      <description>Improve auth.store.ts to better handle SSR authentication data without redundant verification</description>
+      <changes>
+        <change>
+          <description>Add flag to track SSR authentication status</description>
+          <location>AuthState interface</location>
+          <rationale>Distinguish between SSR-authenticated and client-authenticated users</rationale>
+        </change>
+        <change>
+          <description>Modify checkAuth() to respect SSR authentication flag</description>
+          <location>checkAuth() method around line 505</location>
+          <rationale>Avoid redundant API calls when SSR has already validated the session</rationale>
+        </change>
+      </changes>
+      <expected_outcome>More intelligent authentication state management</expected_outcome>
+    </step>
 
-    <expected_outcome>
-        <point>No 401 errors on articles page load</point>
-        <point>Admin users can perform all CRUD operations</point>
-        <point>Improved client-server authentication synchronization</point>
-    </expected_outcome>
+    <step number="4">
+      <title>Add Comprehensive Testing</title>
+      <description>Create tests to verify the authentication fix works correctly across different scenarios</description>
+      <test_scenarios>
+        <scenario>
+          <name>SSR Authentication with Valid Session</name>
+          <description>Test that articles page loads without 401 errors when user authenticated via SSR</description>
+          <expected_result>No API calls to /auth/me, buttons functional</expected_result>
+        </scenario>
+        <scenario>
+          <name>Client-side Authentication Fall-back</name>
+          <description>Test that authentication still works when SSR data is not available</description>
+          <expected_result>checkAuth() called only when necessary</expected_result>
+        </scenario>
+        <scenario>
+          <name>Invalid Session Handling</name>
+          <description>Test that invalid sessions are properly handled without causing errors</description>
+          <expected_result>Graceful redirect to login page</expected_result>
+        </scenario>
+      </test_scenarios>
+      <files_to_create>
+        <file>/home/ikeniborn/Documents/Project/familyBudget/tests/frontend/auth-guard-ssr-fix.test.ts</file>
+        <file>/home/ikeniborn/Documents/Project/familyBudget/tests/integration/articles-auth-integration.test.ts</file>
+      </files_to_create>
+    </step>
+
+    <step number="5">
+      <title>Edge Cases and Error Handling</title>
+      <description>Address edge cases and improve error handling</description>
+      <edge_cases>
+        <case>
+          <name>Session Expiry During Page Load</name>
+          <solution>Implement graceful session expiry detection and redirect</solution>
+        </case>
+        <case>
+          <name>Network Connectivity Issues</name>
+          <solution>Add retry logic with exponential backoff for network failures</solution>
+        </case>
+        <case>
+          <name>Malformed SSR Data</name>
+          <solution>Validate SSR data integrity before trusting it</solution>
+        </case>
+        <case>
+          <name>Admin Role Verification</name>
+          <solution>Ensure admin role is preserved during authentication flows</solution>
+        </case>
+      </edge_cases>
+    </step>
+
+    <step number="6">
+      <title>Performance Optimization</title>
+      <description>Optimize authentication performance by reducing unnecessary API calls</description>
+      <optimizations>
+        <optimization>
+          <name>Reduce API Call Frequency</name>
+          <description>Eliminate redundant /auth/me calls when authentication state is known</description>
+          <expected_improvement>50% reduction in authentication-related API calls</expected_improvement>
+        </optimization>
+        <optimization>
+          <name>Faster Page Load</name>
+          <description>Remove authentication delay on SSR-authenticated pages</description>
+          <expected_improvement>200-500ms faster page load for authenticated users</expected_improvement>
+        </optimization>
+        <optimization>
+          <name>Better User Experience</name>
+          <description>Eliminate loading states for already-authenticated users</description>
+          <expected_improvement>Immediate UI responsiveness</expected_improvement>
+        </optimization>
+      </optimizations>
+    </step>
+
+  </implementation_steps>
+
+  <detailed_code_changes>
+
+    <file_modification>
+      <file_path>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/auth/AuthGuard.svelte</file_path>
+      <change_description>Remove redundant authentication verification for SSR-authenticated users</change_description>
+      <modifications>
+        <modification>
+          <line_range>32-42</line_range>
+          <current_code>
+            // If we're already authenticated (from localStorage), verify with server
+            else if ($isAuthenticated) {
+              authChecked = true;
+              try {
+                // Verify the stored auth is still valid
+                await authStore.checkAuth();
+              } catch (error) {
+                console.error('Auth verification failed:', error);
+              } finally {
+                isClientAuthReady = true;
+              }
+            }
+          </current_code>
+          <new_code>
+            // If we're already authenticated (from localStorage) and have SSR data, trust it
+            else if ($isAuthenticated && ssrAuthData?.authenticated) {
+              authChecked = true;
+              isClientAuthReady = true;
+              // SSR already validated the session, no need to verify again
+            }
+            // If authenticated but no SSR data, verify with server
+            else if ($isAuthenticated) {
+              authChecked = true;
+              try {
+                // Verify the stored auth is still valid
+                await authStore.checkAuth();
+              } catch (error) {
+                console.error('Auth verification failed:', error);
+              } finally {
+                isClientAuthReady = true;
+              }
+            }
+          </new_code>
+          <rationale>Trust SSR authentication data when available to avoid redundant API calls</rationale>
+        </modification>
+        <modification>
+          <line_range>15-31</line_range>
+          <current_code>
+            onMount(async () => {
+              mounted = true;
+
+              // If we have SSR auth data, use it immediately
+              if (ssrAuthData?.user && ssrAuthData?.authenticated) {
+                authStore.setUser({
+                  user_id: ssrAuthData.user.id || ssrAuthData.user.user_id,
+                  user_name: ssrAuthData.user.user_name || ssrAuthData.user.username || '',
+                  user_telegram_id: ssrAuthData.user.telegram_id || 0,
+                  first_name: ssrAuthData.user.first_name || '',
+                  last_name: ssrAuthData.user.last_name || '',
+                  username: ssrAuthData.user.username || '',
+                  authMethod: ssrAuthData.user.auth_method || 'password'
+                });
+                authChecked = true;
+                isClientAuthReady = true;
+              }
+          </current_code>
+          <new_code>
+            onMount(async () => {
+              mounted = true;
+
+              // If we have SSR auth data, use it immediately and mark as SSR-authenticated
+              if (ssrAuthData?.user && ssrAuthData?.authenticated) {
+                authStore.setUser({
+                  user_id: ssrAuthData.user.id || ssrAuthData.user.user_id,
+                  user_name: ssrAuthData.user.user_name || ssrAuthData.user.username || '',
+                  user_telegram_id: ssrAuthData.user.telegram_id || 0,
+                  first_name: ssrAuthData.user.first_name || '',
+                  last_name: ssrAuthData.user.last_name || '',
+                  username: ssrAuthData.user.username || '',
+                  authMethod: ssrAuthData.user.auth_method || 'password',
+                  role: ssrAuthData.user.role || 'user'
+                });
+                authStore.markSSRAuthenticated();
+                authChecked = true;
+                isClientAuthReady = true;
+              }
+          </new_code>
+          <rationale>Add role preservation and SSR authentication flag</rationale>
+        </modification>
+      </modifications>
+    </file_modification>
+
+    <file_modification>
+      <file_path>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/stores/auth.store.ts</file_path>
+      <change_description>Add SSR authentication tracking and optimize checkAuth behavior</change_description>
+      <modifications>
+        <modification>
+          <line_range>15-21</line_range>
+          <current_code>
+            interface AuthState {
+              user: AuthUser | null;
+              isAuthenticated: boolean;
+              isLoading: boolean;
+              error: string | null;
+              sessionValidated: boolean;
+            }
+          </current_code>
+          <new_code>
+            interface AuthState {
+              user: AuthUser | null;
+              isAuthenticated: boolean;
+              isLoading: boolean;
+              error: string | null;
+              sessionValidated: boolean;
+              ssrAuthenticated: boolean; // Flag to track SSR authentication
+            }
+          </new_code>
+          <rationale>Add flag to distinguish SSR-authenticated users</rationale>
+        </modification>
+        <modification>
+          <line_range>99-111</line_range>
+          <current_code>
+            const initialState = storedState || {
+              user: null,
+              isAuthenticated: false,
+              isLoading: false,
+              error: null,
+              sessionValidated: false
+            };
+
+            return {...initialState, sessionValidated: false};
+          </current_code>
+          <new_code>
+            const initialState = storedState || {
+              user: null,
+              isAuthenticated: false,
+              isLoading: false,
+              error: null,
+              sessionValidated: false,
+              ssrAuthenticated: false
+            };
+
+            return {...initialState, sessionValidated: false, ssrAuthenticated: false};
+          </new_code>
+          <rationale>Initialize SSR authentication flag</rationale>
+        </modification>
+        <modification>
+          <line_range>505-511</line_range>
+          <current_code>
+            async checkAuth(): Promise&lt;void&gt; {
+              update(state =&gt; ({ ...state, isLoading: true }));
+              try {
+                const response = await api.get&lt;{success: boolean, user: User, authenticated: boolean}&gt;('/auth/me');
+          </current_code>
+          <new_code>
+            async checkAuth(): Promise&lt;void&gt; {
+              // Skip checkAuth if user is already SSR-authenticated
+              let currentState: AuthState;
+              const unsubscribe = subscribe(state =&gt; {
+                currentState = state;
+              });
+              unsubscribe();
+
+              if (currentState!.ssrAuthenticated && currentState!.isAuthenticated) {
+                console.log('Skipping checkAuth - user already SSR-authenticated');
+                return;
+              }
+
+              update(state =&gt; ({ ...state, isLoading: true }));
+              try {
+                const response = await api.get&lt;{success: boolean, user: User, authenticated: boolean}&gt;('/auth/me');
+          </new_code>
+          <rationale>Skip redundant authentication checks for SSR-authenticated users</rationale>
+        </modification>
+        <modification>
+          <line_range>660</line_range>
+          <current_code>
+            // Add new methods after existing ones
+          </current_code>
+          <new_code>
+            // Mark user as SSR-authenticated to avoid redundant checks
+            markSSRAuthenticated(): void {
+              update(state => ({
+                ...state,
+                ssrAuthenticated: true,
+                sessionValidated: true
+              }));
+            },
+
+            // Clear SSR authentication flag (for testing or manual auth)
+            clearSSRAuthenticated(): void {
+              update(state => ({
+                ...state,
+                ssrAuthenticated: false
+              }));
+            },
+          </new_code>
+          <rationale>Add methods to manage SSR authentication state</rationale>
+        </modification>
+      </modifications>
+    </file_modification>
+
+  </detailed_code_changes>
+
+  <testing_strategy>
+
+    <unit_tests>
+      <test_file>/home/ikeniborn/Documents/Project/familyBudget/tests/frontend/auth-guard-ssr-fix.test.ts</test_file>
+      <test_cases>
+        <test_case>
+          <name>Should trust SSR authentication data</name>
+          <description>Verify AuthGuard doesn't call checkAuth() when SSR provides valid user data</description>
+        </test_case>
+        <test_case>
+          <name>Should call checkAuth() when no SSR data available</name>
+          <description>Ensure fallback authentication still works</description>
+        </test_case>
+        <test_case>
+          <name>Should handle malformed SSR data gracefully</name>
+          <description>Test error handling for corrupted SSR authentication data</description>
+        </test_case>
+      </test_cases>
+    </unit_tests>
+
+    <integration_tests>
+      <test_file>/home/ikeniborn/Documents/Project/familyBudget/tests/integration/articles-auth-integration.test.ts</test_file>
+      <test_cases>
+        <test_case>
+          <name>Articles page should load without 401 errors</name>
+          <description>End-to-end test of articles page functionality with SSR authentication</description>
+        </test_case>
+        <test_case>
+          <name>CRUD operations should work correctly</name>
+          <description>Test create, read, update, delete operations on articles</description>
+        </test_case>
+        <test_case>
+          <name>Admin features should be properly protected</name>
+          <description>Verify admin-only features work for admin users and are hidden for regular users</description>
+        </test_case>
+      </test_cases>
+    </integration_tests>
+
+    <manual_testing_checklist>
+      <item>Load /settings/articles page and verify no 401 errors in console</item>
+      <item>Verify all buttons respond to clicks</item>
+      <item>Test article creation modal opens and functions</item>
+      <item>Test article editing modal opens and functions</item>
+      <item>Test article deletion confirmation works</item>
+      <item>Verify admin-specific features are visible for admin users</item>
+      <item>Test page refresh maintains authentication state</item>
+      <item>Test browser back/forward navigation</item>
+    </manual_testing_checklist>
+
+  </testing_strategy>
+
+  <rollback_plan>
+    <trigger_conditions>
+      <condition>Authentication breaks on any protected page</condition>
+      <condition>Users unable to access admin features</condition>
+      <condition>Infinite authentication loops</condition>
+      <condition>Performance degradation greater than 20%</condition>
+    </trigger_conditions>
+    <rollback_steps>
+      <step>Revert AuthGuard.svelte to previous version</step>
+      <step>Revert auth.store.ts modifications</step>
+      <step>Run full test suite to verify rollback</step>
+      <step>Deploy reverted version</step>
+      <step>Monitor for restoration of original functionality</step>
+    </rollback_steps>
+  </rollback_plan>
+
+  <success_criteria>
+    <criterion>No 401 errors on /settings/articles page</criterion>
+    <criterion>All buttons functional and responsive</criterion>
+    <criterion>CRUD operations work correctly</criterion>
+    <criterion>Reduced API calls to /auth/me by at least 50%</criterion>
+    <criterion>Page load time improvement of 200-500ms</criterion>
+    <criterion>All existing authentication functionality preserved</criterion>
+    <criterion>Test coverage for authentication flows at 95%+</criterion>
+  </success_criteria>
+
+  <deployment_notes>
+    <note>Test in development environment first</note>
+    <note>Deploy during low-traffic period</note>
+    <note>Monitor authentication-related logs for first 24 hours</note>
+    <note>Have rollback plan ready for immediate execution</note>
+    <note>Inform admin users of expected improvements</note>
+  </deployment_notes>
+
 </plan>
