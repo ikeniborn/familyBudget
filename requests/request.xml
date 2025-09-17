@@ -13,14 +13,21 @@
         </architecture>
     </project>
     <context>
-        http://localhost:5173/settings/articles
-        Не поолучается редактировать или слздавать заиписи под пользвтаелем админисратор
-        Кнопки не реагируют на нажатие
+          http://localhost:5173/settings/articles
+          Авториззаация под пользователем с рлью администратор
+          Кнопка сооздать статбьб не реагилурет на нажатие. Диалоговое окно ене открывается
+          /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-17 08-40-57.png
+          Кнопка изменить не реалзирует. Диалоговое окно не открывается 
+          /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-17 08-41-30.png
+          Кнопка удалить не реалигуре
+          /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-17 08-42-30.png
+          Функционал раоыт со сттатьями не функционариует
     </context>
     <requirements>
-        <point number="1">Проанализировать логи</point>
+        <point number="1">Проанализировать логи консоли и контейнеров</point>
         <point number="2">Определить проблему</point>
         <point number="3">Испарвить проблему</point>
+        <point number="4">Проверить рабоут функционала через фронтенд</point>
     </requirements>
     <tasks>
         <task number="1">
@@ -93,7 +100,7 @@
                     <tip number="2">Use structure to organize: Format each individual memory as a bullet point and group related memories under descriptive markdown headings.</tip>
                     <tip number="3">Review periodically: Update memories as your project evolves to ensure Claude is always using the most up to date information and context.</tip>
                     <tip number="3">Размер файла не более 500 строк.</tip>
-                    <tip number="3">Хранить только актуальную информацию.</tip>
+                    <tip number="3">Хранить только актуальную информацию по проекту</tip>
                 </best_practice>
             </step>
             <step number="3">
