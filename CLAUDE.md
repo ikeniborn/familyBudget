@@ -20,6 +20,8 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ BudgetForm Field Mapping Fix (v3.6.0):** Fixed TypeError "Cannot read properties of undefined (reading 'toString')" in BudgetForm.svelte when creating budget plan entries. Applied defensive field mapping pattern with safe access (`?.toString() || ''`) and fallback display names (`name || legacy_name || 'Unknown'`) to lines 269, 290, and 326. Supports both modern and legacy field structures. Complete test coverage with 22 tests. See `/docs/api/budget-form-field-mapping-fix.md`.
 
+**✅ SvelteKit Proxy Route Cache Fix (v3.6.1, 2025-09-17):** Resolved 500 ENOENT error for missing `/app/.svelte-kit/types/src/routes/proxy+page.ts` file. Issue caused by corrupted SvelteKit build cache with stale references to non-existent proxy route. Fixed by: 1) Stopping all duplicate processes, 2) Force-removing `.svelte-kit/` cache directory, 3) Fresh npm install and svelte-kit sync. Application now starts without proxy route errors. Added cache validation tests.
+
 ## ⚠️ CRITICAL: Docker-Only Development
 
 **ALL operations MUST be performed through Docker containers:**
