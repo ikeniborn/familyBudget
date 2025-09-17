@@ -28,6 +28,8 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ Products Page 500 Error Fix (v3.6.2, 2025-09-17):** Fixed 500 Internal Server Error on /products page. Root causes: 1) SQLAlchemy ResourceClosedError in articles stats endpoint - fixed by storing scalar() results before reuse, 2) ProductAnalytics component using legacy field names (product_name, product_id, category_name) - updated to use correct schema fields (name, id, category). Created comprehensive test suite with 1,901 lines covering backend, frontend, and integration scenarios. See `/docs/api/products-page-500-fix.md`.
 
+**✅ Articles 422 Error & Modal Z-Index Fix (v3.7.1, 2025-09-17):** Fixed two critical issues on articles page: 1) 422 Unprocessable Entity error when creating articles - resolved by making user_id optional in ArticleCreate schema since backend gets it from session, removed user_id from frontend payload. 2) Modal dialogs appearing behind page content - increased z-index values from 9999/10000 to 50000/50001 for guaranteed visibility. Complete test coverage added. See `/docs/api/articles-422-fix.md` and `/docs/ui/modal-zindex-fix.md`.
+
 ## ⚠️ CRITICAL: Docker-Only Development
 
 **ALL operations MUST be performed through Docker containers:**

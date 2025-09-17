@@ -111,7 +111,7 @@
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    z-index: 9999;
+    z-index: 50000;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -131,7 +131,7 @@
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 10px 20px -6px rgba(0, 0, 0, 0.1);
     overflow: hidden;
     animation: slideUp 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
-    z-index: 10000;
+    z-index: 50001;
   }
 
   .modal-header {

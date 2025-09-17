@@ -48,8 +48,7 @@
     code: '',
     name: '',
     description: '',
-    is_active: true,
-    user_id: null as number | null
+    is_active: true
   };
 
   // Filter and search
@@ -113,8 +112,7 @@
       code: '',
       name: '',
       description: '',
-      is_active: true,
-      user_id: null
+      is_active: true
     };
     showCreateModal = true;
   }
@@ -125,8 +123,7 @@
       code: article.code,
       name: article.name,
       description: article.description || '',
-      is_active: article.is_active,
-      user_id: article.user_id
+      is_active: article.is_active
     };
     showEditModal = true;
   }
@@ -142,8 +139,7 @@
         code: formData.code,
         name: formData.name,
         description: formData.description || undefined,
-        is_active: formData.is_active,
-        user_id: formData.user_id
+        is_active: formData.is_active
       });
 
       if (response.success) {

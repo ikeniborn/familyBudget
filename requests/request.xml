@@ -13,12 +13,11 @@
         </architecture>
     </project>
     <context>
-        Управление статьями имеет не красивую форму 
-        /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-17 17-36-06.png
-        Нет отсупов от краев.
+        ПРи переходе между страницами приложения в консоли сообзение ошибка 
+        /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-17 20-29-54.png
     </context>
     <requirements>
-        <point number="1">Доработать диалоговое окно. Сделать красивее.</point>
+        <point number="1">Исправить ошибку</point>
     </requirements>
     <tasks>
         <task number="1">

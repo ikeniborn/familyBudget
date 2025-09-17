@@ -1,170 +1,69 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <analysis>
-    <project>Family Budget Application</project>
-    <date>2025-09-17</date>
-    <requirement>Remove shared/personal distinction from reference modules (справочники)</requirement>
+  <context>
+    <page>http://localhost:5173/settings/articles</page>
+    <user_role>administrator</user_role>
+    <environment>Docker-based development environment</environment>
+  </context>
 
-    <current_implementation>
-        <summary>
-            The application currently implements a shared/personal data model where reference data can be either:
-            - Shared (user_id = NULL): Managed by admins, visible to all users
-            - Personal (user_id = specific user): Owned and visible only to specific user
-        </summary>
+  <problems>
+    <problem id="1">
+      <description>422 Unprocessable Entity error when creating article</description>
+      <root_cause>
+        <finding>Frontend sends user_id as null in line 146 of +page.svelte</finding>
+        <finding>Backend ArticleCreate schema requires user_id field (line 19 of article.py schema)</finding>
+        <finding>Backend actually gets user_id from session (line 178 of articles.py), but schema validation fails first</finding>
+        <finding>Backend expects managed_by field that frontend doesn't send</finding>
+      </root_cause>
+      <solution>
+        <option priority="1">Remove user_id requirement from ArticleCreate schema since backend gets it from session</option>
+        <option priority="2">Make managed_by optional in backend or handle missing field</option>
+      </solution>
+    </problem>
 
-        <affected_modules>
-            <module name="Database">
-                <tables>
-                    <table>t_d_period</table>
-                    <table>t_d_financial_center</table>
-                    <table>t_d_cost_center</table>
-                    <table>t_d_nomenclature</table>
-                    <table>t_d_article</table>
-                </tables>
-                <fields>
-                    <field>user_id (nullable for shared records)</field>
-                    <field>created_by</field>
-                    <field>managed_by</field>
-                </fields>
-                <migrations>
-                    <migration>5ef4678b70a0_convert_reference_tables_to_shared_.py</migration>
-                    <migration>db5be6413a0c_add_article_table_and_update_.py</migration>
-                </migrations>
-            </module>
+    <problem id="2">
+      <description>Modal window appears behind other elements (z-index issue)</description>
+      <root_cause>
+        <finding>Modal.svelte has z-index: 9999 for backdrop and z-index: 10000 for container</finding>
+        <finding>These z-index values should be sufficient, but may conflict with other elements</finding>
+      </root_cause>
+      <solution>
+        <option priority="1">Increase z-index values to 50000-50001 range</option>
+        <option priority="2">Check for conflicting z-index values in other components</option>
+      </solution>
+    </problem>
+  </problems>
 
-            <module name="Backend Models">
-                <files>
-                    <file>app/models/period.py</file>
-                    <file>app/models/financial_center.py</file>
-                    <file>app/models/cost_center.py</file>
-                    <file>app/models/nomenclature.py</file>
-                    <file>app/models/article.py</file>
-                </files>
-                <features>
-                    <feature>is_shared property based on user_id is None</feature>
-                    <feature>to_dict() methods include is_shared flag</feature>
-                    <feature>Global unique constraints on codes</feature>
-                </features>
-            </module>
+  <implementation_plan>
+    <task order="1">
+      <action>Update ArticleCreate schema to make user_id optional</action>
+      <file>backend-fastapi/app/schemas/article.py</file>
+      <changes>Change user_id field to Optional[int] = None</changes>
+    </task>
 
-            <module name="Backend Schemas">
-                <files>
-                    <file>app/schemas/period.py</file>
-                    <file>app/schemas/financial_center.py</file>
-                    <file>app/schemas/cost_center.py</file>
-                    <file>app/schemas/nomenclature.py</file>
-                    <file>app/schemas/article.py</file>
-                </files>
-                <features>
-                    <feature>is_shared field in response schemas</feature>
-                    <feature>is_editable field based on ownership/role</feature>
-                </features>
-            </module>
+    <task order="2">
+      <action>Handle managed_by field in backend create endpoint</action>
+      <file>backend-fastapi/app/api/v1/endpoints/articles.py</file>
+      <changes>Already handled with 'or user_id' fallback on line 180</changes>
+    </task>
 
-            <module name="API Endpoints">
-                <files>
-                    <file>app/api/v1/endpoints/periods.py</file>
-                    <file>app/api/v1/endpoints/financial_centers.py</file>
-                    <file>app/api/v1/endpoints/cost_centers.py</file>
-                    <file>app/api/v1/endpoints/nomenclatures.py</file>
-                    <file>app/api/v1/endpoints/articles.py</file>
-                    <file>app/api/v1/endpoints/reports.py</file>
-                </files>
-                <logic>
-                    <item>Filter queries: (user_id == current_user_id) | (user_id.is_(None))</item>
-                    <item>Admin-only creation of shared records (user_id=NULL)</item>
-                    <item>Permission checks for editing shared vs personal records</item>
-                    <item>Response includes is_shared and is_editable flags</item>
-                </logic>
-            </module>
+    <task order="3">
+      <action>Increase Modal z-index values</action>
+      <file>frontend-svelte/src/lib/components/ui/Modal.svelte</file>
+      <changes>Change z-index from 9999/10000 to 50000/50001</changes>
+    </task>
 
-            <module name="Frontend Components">
-                <files>
-                    <file>src/routes/(protected)/settings/periods/+page.svelte</file>
-                    <file>src/routes/(protected)/settings/financial-centers/+page.svelte</file>
-                    <file>src/routes/(protected)/settings/cost-centers/+page.svelte</file>
-                    <file>src/routes/(protected)/settings/nomenclatures/+page.svelte</file>
-                    <file>src/routes/(protected)/settings/articles/+page.svelte</file>
-                </files>
-                <ui_elements>
-                    <element>Badge showing "Общий" (Shared) or "Личный" (Personal)</element>
-                    <element>Filter dropdown for shared/personal/all</element>
-                    <element>Statistics showing shared vs personal counts</element>
-                    <element>Edit restrictions based on is_editable flag</element>
-                </ui_elements>
-            </module>
+    <task order="4">
+      <action>Remove user_id from frontend article creation</action>
+      <file>frontend-svelte/src/routes/(protected)/settings/articles/+page.svelte</file>
+      <changes>Remove user_id from request payload</changes>
+    </task>
+  </implementation_plan>
 
-            <module name="Frontend Types">
-                <file>src/lib/types/index.ts</file>
-                <fields>
-                    <field>is_shared?: boolean</field>
-                    <field>is_editable?: boolean</field>
-                </fields>
-            </module>
-
-            <module name="Tests">
-                <backend_tests>
-                    <test>tests/backend/test_shared_references.py</test>
-                    <test>tests/backend/test_articles_api.py</test>
-                    <test>tests/backend/test_nomenclatures_api.py</test>
-                    <test>tests/backend/test_reference_stats_api.py</test>
-                </backend_tests>
-                <frontend_tests>
-                    <test>tests/frontend/shared_references.test.ts</test>
-                    <test>tests/frontend/articles.test.ts</test>
-                </frontend_tests>
-            </module>
-        </affected_modules>
-    </current_implementation>
-
-    <required_changes>
-        <change_summary>
-            Remove all shared/personal distinction logic. All reference data should be strictly personal to each user.
-            No shared records, no admin-managed shared data, no special permissions for shared vs personal.
-        </change_summary>
-
-        <database_changes>
-            <change>Make user_id NOT NULL in all reference tables</change>
-            <change>Remove created_by and managed_by fields</change>
-            <change>Remove global unique constraints on codes (make them unique per user)</change>
-            <change>Create migration to assign existing NULL user_id records to specific users</change>
-        </database_changes>
-
-        <backend_changes>
-            <change>Remove is_shared property from all models</change>
-            <change>Remove is_editable logic based on shared status</change>
-            <change>Simplify API queries to filter only by user_id</change>
-            <change>Remove admin permission checks for shared data</change>
-            <change>Remove NULL user_id handling in create/update operations</change>
-        </backend_changes>
-
-        <frontend_changes>
-            <change>Remove shared/personal badges from UI</change>
-            <change>Remove shared/personal filter dropdowns</change>
-            <change>Remove shared statistics from dashboard cards</change>
-            <change>Remove is_shared and is_editable fields from types</change>
-            <change>Simplify edit permissions (user can edit own data only)</change>
-        </frontend_changes>
-
-        <test_changes>
-            <change>Remove tests for shared data functionality</change>
-            <change>Update existing tests to work without shared/personal distinction</change>
-            <change>Add tests to verify all data is user-specific</change>
-        </test_changes>
-    </required_changes>
-
-    <impact_assessment>
-        <risk level="medium">
-            Existing shared records need to be migrated to specific users.
-            Decision needed on how to handle current NULL user_id records.
-        </risk>
-        <risk level="low">
-            UI simplification should improve user experience by removing complexity.
-        </risk>
-        <benefit>
-            Simpler permission model - users only see and edit their own data.
-        </benefit>
-        <benefit>
-            Reduced code complexity by removing shared/personal branching logic.
-        </benefit>
-    </impact_assessment>
+  <testing_requirements>
+    <test>Verify article creation works without 422 error</test>
+    <test>Verify modal appears on top of all other elements</test>
+    <test>Test with both admin and regular user roles</test>
+    <test>Ensure data isolation by user_id is maintained</test>
+  </testing_requirements>
 </analysis>
