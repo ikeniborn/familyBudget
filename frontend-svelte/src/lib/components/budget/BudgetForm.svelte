@@ -266,7 +266,7 @@
           >
             <option value="">Выберите финансовый центр</option>
             {#each $financialCenterStore.items as fc}
-              <option value={fc.financial_center_id.toString()}>{fc.financial_center_name}</option>
+              <option value={(fc.financial_center_id?.toString() || '')}>{fc.name || fc.financial_center_name || 'Unknown'}</option>
             {/each}
           </select>
           {#if errors.financial_center_id}
@@ -287,7 +287,7 @@
           >
             <option value="">Выберите номенклатуру</option>
             {#each $nomenclatureStore.items as nom}
-              <option value={nom.nomenclature_id.toString()}>{nom.nomenclature_name}</option>
+              <option value={(nom.nomenclature_id?.toString() || '')}>{nom.name || nom.nomenclature_name || 'Unknown'}</option>
             {/each}
           </select>
           {#if errors.nomenclature_id}
@@ -322,7 +322,7 @@
             >
               <option value="">Выберите МВЗ</option>
               {#each $costCenterStore.items as cc}
-                <option value={cc.cost_center_id.toString()}>{cc.cost_center_name}</option>
+                <option value={(cc.cost_center_id?.toString() || '')}>{cc.name || cc.cost_center_name || 'Unknown'}</option>
               {/each}
             </select>
             {#if errors.cost_center_id}
