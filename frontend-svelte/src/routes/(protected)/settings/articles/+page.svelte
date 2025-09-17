@@ -120,6 +120,7 @@
   }
 
   function openCreateModal() {
+    console.log('🔵 openCreateModal called');
     formData = {
       code: '',
       name: '',
@@ -128,9 +129,11 @@
       user_id: null
     };
     showCreateModal = true;
+    console.log('🔵 showCreateModal set to:', showCreateModal);
   }
 
   function openEditModal(article: Article) {
+    console.log('📝 openEditModal called for article:', article);
     selectedArticle = article;
     formData = {
       code: article.code,
@@ -140,11 +143,14 @@
       user_id: article.user_id
     };
     showEditModal = true;
+    console.log('📝 showEditModal set to:', showEditModal);
   }
 
   function openDeleteModal(article: Article) {
+    console.log('🗑️ openDeleteModal called for article:', article);
     selectedArticle = article;
     showDeleteModal = true;
+    console.log('🗑️ showDeleteModal set to:', showDeleteModal);
   }
 
   async function handleCreate() {

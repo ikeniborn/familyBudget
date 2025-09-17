@@ -37,23 +37,25 @@
     touch: 'min-h-[44px] px-6 py-3' // iOS HIG recommended touch target
   };
   
-  import { createEventDispatcher } from 'svelte';
-  const dispatch = createEventDispatcher<{ click: MouseEvent }>();
+  // Handle haptic feedback without interfering with event propagation
+  function addHapticFeedback(e: MouseEvent) {
+    console.log('🎯 Button clicked - haptic feedback handler', { disabled, loading });
 
-  // Handle click with haptic feedback on touch devices
-  function handleClick(e: MouseEvent) {
     if (disabled || loading) {
+      console.log('⛔ Button disabled or loading, preventing click');
       e.preventDefault();
       e.stopPropagation();
       return;
     }
 
+    // Add haptic feedback on touch devices
     if (hapticFeedback && $isTouch && 'vibrate' in navigator) {
+      console.log('📳 Triggering haptic feedback');
       navigator.vibrate(10);
     }
 
-    // Dispatch event for on:click usage
-    dispatch('click', e);
+    console.log('✅ Click event propagating to parent handlers');
+    // Note: Event continues to propagate naturally to parent handlers
   }
   
   $: buttonClass = twMerge(
@@ -71,7 +73,7 @@
 </script>
 
 {#if href && !disabled}
-  <a {href} class={buttonClass} on:click={handleClick} {...$$restProps}>
+  <a {href} class={buttonClass} on:click={addHapticFeedback} on:click {...$$restProps}>
     {#if loading}
       <svg class="mr-2 h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -81,7 +83,7 @@
     <slot />
   </a>
 {:else}
-  <button {type} {disabled} class={buttonClass} on:click={handleClick} {...$$restProps}>
+  <button {type} {disabled} class={buttonClass} on:click={addHapticFeedback} on:click {...$$restProps}>
     {#if loading}
       <svg class="mr-2 h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>

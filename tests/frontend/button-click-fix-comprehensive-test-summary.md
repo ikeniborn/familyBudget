@@ -2,11 +2,15 @@
 
 ## Overview
 
-This document summarizes the comprehensive test suite created for validating the button click fix in the articles page. The fix involved removing the `onclick` prop from the Button component and ensuring all buttons use Svelte's proper `on:click` event dispatch system.
+This document summarizes the comprehensive test suite created for validating the button click fix in the articles page. The fix involved removing the `onclick` prop from the Button component and implementing proper Svelte event forwarding using `addHapticFeedback` handler and `on:click` directive.
 
 ## Background
 
 **Issue**: Buttons were completely non-responsive across the application, particularly affecting the articles page functionality.
+
+**Root Cause**: The Button component was using an `onclick` prop that was not properly forwarding events to parent handlers.
+
+**Solution**: Replaced with Svelte's native `on:click` event forwarding system.
 
 **Root Cause**: Button component was incorrectly using HTML `onclick` attributes instead of Svelte's `on:click` event directives.
 
