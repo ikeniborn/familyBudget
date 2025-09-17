@@ -11,7 +11,7 @@
   export let type: 'button' | 'submit' | 'reset' = 'button';
   export let href: string | undefined = undefined;
   export let hapticFeedback = true;
-  export let onclick: ((e: MouseEvent) => void) | undefined = undefined;
+  // Removed onclick prop - use on:click event instead
   let className = '';
   export { className as class };
   
@@ -52,12 +52,7 @@
       navigator.vibrate(10);
     }
 
-    // Call the external onclick handler if provided
-    if (onclick) {
-      onclick(e);
-    }
-
-    // Dispatch event for backward compatibility with on:click
+    // Dispatch event for on:click usage
     dispatch('click', e);
   }
   

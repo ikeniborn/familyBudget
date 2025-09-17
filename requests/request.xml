@@ -25,9 +25,10 @@
     </context>
     <requirements>
         <point number="1">Проанализировать логи консоли и контейнеров</point>
-        <point number="2">Определить проблему</point>
-        <point number="3">Испарвить проблему</point>
-        <point number="4">Проверить рабоут функционала через фронтенд</point>
+        <point number="2">Проверить наличие стурктур в БД и АПИ</point>
+        <point number="3">Проверить наличие форм на фронтенде</point>
+        <point number="4">Определить проблему не доступности форм и функционалала редактирования, удаления</point>
+        <point number="5">Испарвить проблему</point>
     </requirements>
     <tasks>
         <task number="1">

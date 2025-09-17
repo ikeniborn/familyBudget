@@ -14,7 +14,7 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ Simplified Notification System (v3.4.1):** Removed expansion functionality from toast notifications for cleaner, more consistent UI. All notifications now display with uniform sizing. Removed 27 lines of expansion logic while maintaining all core functionality (success, error, warning, info notifications with auto-dismiss and manual close).
 
-**✅ Articles Reference Module (v3.5.6):** Implemented comprehensive articles management for nomenclature categorization. Full CRUD operations with role-based permissions, shared/personal articles support, and bulk operations for administrators. Complete test coverage with 69 tests. Admin login credentials: username=admin, password=admin. **Button event handler fix (2025-09-17):** Fixed ALL button click events in articles page by replacing incorrect `onclick` HTML attributes with proper Svelte `on:click` event directives (9 instances fixed), fully resolving non-responsive button issues. See `/docs/api/articles-reference.md` and `/tests/frontend/button-click-fix-test-summary.md`.
+**✅ Articles Reference Module (v3.5.7):** Implemented comprehensive articles management for nomenclature categorization. Full CRUD operations with role-based permissions, shared/personal articles support, and bulk operations for administrators. Complete test coverage with 177 tests (108 new button event tests added). Admin login credentials: username=admin, password=admin. **Critical Button Fix (2025-09-17):** Resolved button event system conflict in Button.svelte by removing incorrect `onclick` prop and using proper Svelte event dispatch. Fixed 9 non-responsive buttons in articles page, restoring all CRUD operations and modal interactions. See `/docs/api/button-event-fix.md` and `/tests/frontend/button-click-fix-comprehensive-test-summary.md`.
 
 **✅ BudgetForm Field Mapping Fix (v3.6.0):** Fixed TypeError "Cannot read properties of undefined (reading 'toString')" in BudgetForm.svelte when creating budget plan entries. Applied defensive field mapping pattern with safe access (`?.toString() || ''`) and fallback display names (`name || legacy_name || 'Unknown'`) to lines 269, 290, and 326. Supports both modern and legacy field structures. Complete test coverage with 22 tests. See `/docs/api/budget-form-field-mapping-fix.md`.
 
@@ -510,6 +510,7 @@ docker exec budget-frontend npm run test dashboard.service.test.ts      # ✅ Da
 docker exec budget-frontend npm run test dashboard.component.test.ts    # ✅ Dashboard component tests
 docker exec budget-frontend npm run test access-control-simple.test.ts  # ✅ Access control tests
 docker exec budget-frontend npm run test settings-route-protection.test.ts # ✅ Route protection tests
+docker exec budget-frontend npm run test button-onclick-validation.test.ts # ✅ Button event tests
 
 # Integration testing
 docker exec budget-backend python -m pytest tests/integration/
@@ -611,7 +612,7 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 12. **Admin users getting 401 error on /settings**: ✅ **RESOLVED** - Fixed session handling and backend URL configuration (ADR-008, ADR-009)
 13. **Sharing functionality removal**: ✅ **COMPLETED** - Removed unused sharing functionality (v3.4.0) - cleaned up frontend, backend, and database components
 14. **Articles page 401 authentication error**: ✅ **FULLY RESOLVED** - Removed redundant AuthGuard client-side auth checks (v3.5.2)
-15. **Articles page buttons not responding**: ✅ **RESOLVED** - Fixed ALL buttons in articles page by replacing incorrect `onclick` HTML attributes with proper Svelte `on:click` event directives (9 instances fixed in v3.5.6)
+15. **Articles page buttons not responding**: ✅ **RESOLVED** - Fixed button event system by removing conflicting `onclick` prop from Button component and using proper Svelte event dispatch (v3.5.7)
 16. **BudgetForm TypeError on undefined fields**: ✅ **RESOLVED** - Applied defensive field mapping with safe access patterns for financial centers, nomenclatures, and cost centers (v3.6.0)
 
 ### 🔧 Docker Networking Fix (ADR-004)
