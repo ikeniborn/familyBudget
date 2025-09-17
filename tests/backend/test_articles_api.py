@@ -1,7 +1,8 @@
 """
 Comprehensive tests for articles API endpoints.
-Tests all CRUD operations with focus on authentication, authorization, user isolation, and shared articles.
+Tests all CRUD operations with focus on authentication, authorization, and user data isolation.
 Updated to test unified API response format: {"success": true/false, "data": ..., "error": ...}
+All data is user-specific - no shared functionality.
 """
 import pytest
 from datetime import datetime
@@ -77,44 +78,9 @@ class TestArticlesCRUDOperations:
         })
         assert "id" in data
         assert data["is_editable"] is True
-        assert data["is_shared"] is False
-
-    def test_create_shared_article_admin(self, admin_authenticated_client: TestClient):
-        """Test successful shared article creation by admin with unified response."""
-        article_data = {
-            "code": "TRANSPORT",
-            "name": "Транспорт",
-            "description": "Транспортные расходы",
-            "is_active": True,
-            "user_id": None  # Shared article
-        }
-
-        response = admin_authenticated_client.post("/api/articles/", json=article_data)
-        assert response.status_code == status.HTTP_200_OK
-
-        response_data = response.json()
-        data = validate_success_response(response_data, {
-            "code": "TRANSPORT",
-            "name": "Транспорт",
-            "is_active": True
-        })
-        assert data["is_shared"] is True
-        assert data["is_editable"] is True
-
-    def test_create_shared_article_regular_user_forbidden(self, authenticated_client: TestClient):
-        """Test that regular users cannot create shared articles."""
-        article_data = {
-            "code": "SHARED_ONLY",
-            "name": "Общая статья",
-            "is_active": True,
-            "user_id": None  # Shared article
-        }
-
-        response = authenticated_client.post("/api/articles/", json=article_data)
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-
-        response_data = response.json()
-        validate_error_response(response_data, "Only administrators can create shared articles")
+        # All articles are user-specific, no shared functionality
+        assert "user_id" in data
+        assert data["user_id"] is not None
 
     def test_create_article_duplicate_code(self, authenticated_client: TestClient):
         """Test article creation with duplicate code returns 409 conflict."""
@@ -167,14 +133,16 @@ class TestArticlesCRUDOperations:
         articles = validate_list_response(response_data)
         assert len(articles) >= 3
 
-        # Check articles structure
+        # Check articles structure - all should be user-specific
         for article in articles:
             assert "id" in article
             assert "code" in article
             assert "name" in article
             assert "is_active" in article
             assert "is_editable" in article
-            assert "is_shared" in article
+            assert "user_id" in article
+            assert article["user_id"] is not None
+            assert article["is_editable"] is True
 
     def test_get_articles_with_active_filter(self, authenticated_client: TestClient):
         """Test retrieving articles with active status filter."""
@@ -373,69 +341,8 @@ class TestArticlesAuthenticationAndAuthorization:
             )
             assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    def test_shared_article_permissions_admin(self, admin_authenticated_client: TestClient):
-        """Test admin can manage shared articles."""
-        # Create shared article as admin
-        shared_article_data = {
-            "code": "SHARED_ADMIN",
-            "name": "Общая статья админа",
-            "is_active": True,
-            "user_id": None
-        }
-
-        response = admin_authenticated_client.post("/api/articles/", json=shared_article_data)
-        assert response.status_code == status.HTTP_200_OK
-        shared_article = response.json()["data"]
-
-        # Admin can update shared article
-        update_data = {"name": "Обновлённая общая статья"}
-        response = admin_authenticated_client.put(
-            f"/api/articles/{shared_article['id']}",
-            json=update_data
-        )
-        assert response.status_code == status.HTTP_200_OK
-
-        # Admin can delete shared article
-        response = admin_authenticated_client.delete(f"/api/articles/{shared_article['id']}")
-        assert response.status_code == status.HTTP_200_OK
-
-    def test_shared_article_permissions_regular_user(self, authenticated_client: TestClient, admin_authenticated_client: TestClient):
-        """Test regular user cannot edit/delete shared articles."""
-        # Create shared article as admin
-        shared_article_data = {
-            "code": "SHARED_READONLY",
-            "name": "Общая статья только для чтения",
-            "is_active": True,
-            "user_id": None
-        }
-
-        response = admin_authenticated_client.post("/api/articles/", json=shared_article_data)
-        assert response.status_code == status.HTTP_200_OK
-        shared_article = response.json()["data"]
-
-        # Regular user can read shared article
-        response = authenticated_client.get(f"/api/articles/{shared_article['id']}")
-        assert response.status_code == status.HTTP_200_OK
-        data = response.json()["data"]
-        assert data["is_shared"] is True
-        assert data["is_editable"] is False  # Not editable for regular user
-
-        # Regular user cannot update shared article
-        update_data = {"name": "Попытка обновления"}
-        response = authenticated_client.put(
-            f"/api/articles/{shared_article['id']}",
-            json=update_data
-        )
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-        validate_error_response(response.json(), "administrators can edit shared articles")
-
-        # Regular user cannot delete shared article
-        response = authenticated_client.delete(f"/api/articles/{shared_article['id']}")
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-        validate_error_response(response.json(), "administrators can delete shared articles")
-
-    def test_user_isolation(self, authenticated_client: TestClient, second_authenticated_client: TestClient):
-        """Test that users can only access their own personal articles."""
+    def test_user_data_isolation(self, authenticated_client: TestClient, second_authenticated_client: TestClient):
+        """Test that users can only access their own articles - strict data isolation."""
         # User 1 creates article
         article_data = {
             "code": "USER1_ONLY",
@@ -470,6 +377,31 @@ class TestArticlesAuthenticationAndAuthorization:
         user1_article_ids = [a["id"] for a in user2_articles]
         assert user1_article["id"] not in user1_article_ids
 
+    def test_admin_user_data_isolation(self, admin_authenticated_client: TestClient, authenticated_client: TestClient):
+        """Test that even admin users have isolated data."""
+        # Admin creates article
+        admin_article_data = {
+            "code": "ADMIN_ARTICLE",
+            "name": "Статья администратора",
+            "is_active": True
+        }
+
+        response = admin_authenticated_client.post("/api/articles/", json=admin_article_data)
+        assert response.status_code == status.HTTP_200_OK
+        admin_article = response.json()["data"]
+
+        # Regular user cannot see admin's article
+        response = authenticated_client.get(f"/api/articles/{admin_article['id']}")
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+        # Regular user's list should not include admin's article
+        response = authenticated_client.get("/api/articles/")
+        assert response.status_code == status.HTTP_200_OK
+        user_articles = response.json()["data"]
+
+        admin_article_ids = [a["id"] for a in user_articles]
+        assert admin_article["id"] not in admin_article_ids
+
 
 class TestArticlesStatistics:
     """Test articles statistics endpoint."""
@@ -483,27 +415,20 @@ class TestArticlesStatistics:
         stats = validate_success_response(response_data, {
             "total": 0,
             "active": 0,
-            "inactive": 0,
-            "shared": 0,
-            "user_specific": 0
+            "inactive": 0
         })
 
-    def test_get_statistics_with_articles(self, authenticated_client: TestClient, admin_authenticated_client: TestClient):
-        """Test statistics with various article types."""
+    def test_get_statistics_with_articles(self, authenticated_client: TestClient):
+        """Test statistics with user-specific articles only."""
         # Create user-specific articles
         authenticated_client.post("/api/articles/", json={
-            "code": "USER_ACTIVE", "name": "Активная пользователя", "is_active": True
+            "code": "USER_ACTIVE1", "name": "Активная 1", "is_active": True
         })
         authenticated_client.post("/api/articles/", json={
-            "code": "USER_INACTIVE", "name": "Неактивная пользователя", "is_active": False
+            "code": "USER_ACTIVE2", "name": "Активная 2", "is_active": True
         })
-
-        # Create shared articles
-        admin_authenticated_client.post("/api/articles/", json={
-            "code": "SHARED_ACTIVE", "name": "Общая активная", "is_active": True, "user_id": None
-        })
-        admin_authenticated_client.post("/api/articles/", json={
-            "code": "SHARED_INACTIVE", "name": "Общая неактивная", "is_active": False, "user_id": None
+        authenticated_client.post("/api/articles/", json={
+            "code": "USER_INACTIVE", "name": "Неактивная", "is_active": False
         })
 
         # Get statistics from user perspective
@@ -512,11 +437,9 @@ class TestArticlesStatistics:
 
         response_data = response.json()
         stats = validate_success_response(response_data, {
-            "total": 4,  # 2 user + 2 shared
-            "active": 2,  # 1 user active + 1 shared active
-            "inactive": 2,  # 1 user inactive + 1 shared inactive
-            "shared": 2,  # 2 shared articles
-            "user_specific": 2  # 2 user articles
+            "total": 3,
+            "active": 2,
+            "inactive": 1
         })
 
     def test_statistics_user_isolation(self, authenticated_client: TestClient, second_authenticated_client: TestClient):
@@ -544,19 +467,21 @@ class TestArticlesStatistics:
         assert response.status_code == status.HTTP_200_OK
         user2_stats = response.json()["data"]
 
-        # Each user should only see their own articles (no shared articles in this test)
-        assert user1_stats["user_specific"] == 2
+        # Each user should only see their own articles
         assert user1_stats["total"] == 2
+        assert user1_stats["active"] == 1
+        assert user1_stats["inactive"] == 1
 
-        assert user2_stats["user_specific"] == 1
         assert user2_stats["total"] == 1
+        assert user2_stats["active"] == 1
+        assert user2_stats["inactive"] == 0
 
 
 class TestArticlesBulkOperations:
     """Test bulk operations for articles."""
 
     def test_bulk_delete_success(self, authenticated_client: TestClient):
-        """Test successful bulk deletion of articles."""
+        """Test successful bulk deletion of user's own articles."""
         # Create multiple articles
         article_ids = []
         for i in range(3):
@@ -602,29 +527,6 @@ class TestArticlesBulkOperations:
 
         response_data = response.json()
         validate_error_response(response_data, "No articles found")
-
-    def test_bulk_delete_mixed_permissions(self, authenticated_client: TestClient, admin_authenticated_client: TestClient):
-        """Test bulk delete with mixed ownership (should fail for unauthorized articles)."""
-        # Create user article
-        response = authenticated_client.post("/api/articles/", json={
-            "code": "USER_ART", "name": "Пользовательская статья", "is_active": True
-        })
-        user_article_id = response.json()["data"]["id"]
-
-        # Create shared article
-        response = admin_authenticated_client.post("/api/articles/", json={
-            "code": "SHARED_ART", "name": "Общая статья", "is_active": True, "user_id": None
-        })
-        shared_article_id = response.json()["data"]["id"]
-
-        # Regular user tries to bulk delete both (should fail on shared article)
-        response = authenticated_client.post("/api/articles/bulk-delete", json={
-            "article_ids": [user_article_id, shared_article_id]
-        })
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-
-        response_data = response.json()
-        validate_error_response(response_data, "administrators can delete shared article")
 
     def test_bulk_delete_user_isolation(self, authenticated_client: TestClient, second_authenticated_client: TestClient):
         """Test bulk delete respects user isolation."""
@@ -733,3 +635,88 @@ class TestArticlesErrorHandling:
         assert response.status_code == status.HTTP_200_OK
         final_article = response.json()["data"]
         assert final_article["name"] == "Обновление 2"
+
+
+class TestArticlesUserIdEnforcement:
+    """Test that user_id is always required and enforced for data isolation."""
+
+    def test_create_article_user_id_set_automatically(self, authenticated_client: TestClient):
+        """Test that user_id is automatically set when creating articles."""
+        article_data = {
+            "code": "AUTO_USER_ID",
+            "name": "Автоматический user_id",
+            "is_active": True
+        }
+
+        response = authenticated_client.post("/api/articles/", json=article_data)
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()["data"]
+        assert "user_id" in data
+        assert data["user_id"] is not None
+        assert isinstance(data["user_id"], int)
+
+    def test_article_belongs_to_creating_user(self, authenticated_client: TestClient, second_authenticated_client: TestClient):
+        """Test that created articles belong to the creating user."""
+        # User 1 creates article
+        response = authenticated_client.post("/api/articles/", json={
+            "code": "USER1_ARTICLE", "name": "Статья user 1", "is_active": True
+        })
+        assert response.status_code == status.HTTP_200_OK
+        user1_article = response.json()["data"]
+
+        # User 2 creates article
+        response = second_authenticated_client.post("/api/articles/", json={
+            "code": "USER2_ARTICLE", "name": "Статья user 2", "is_active": True
+        })
+        assert response.status_code == status.HTTP_200_OK
+        user2_article = response.json()["data"]
+
+        # Articles should have different user_ids
+        assert user1_article["user_id"] != user2_article["user_id"]
+
+        # User 1 can only see their own article
+        response = authenticated_client.get("/api/articles/")
+        user1_articles = response.json()["data"]
+        user1_article_ids = [a["id"] for a in user1_articles]
+        assert user1_article["id"] in user1_article_ids
+        assert user2_article["id"] not in user1_article_ids
+
+        # User 2 can only see their own article
+        response = second_authenticated_client.get("/api/articles/")
+        user2_articles = response.json()["data"]
+        user2_article_ids = [a["id"] for a in user2_articles]
+        assert user2_article["id"] in user2_article_ids
+        assert user1_article["id"] not in user2_article_ids
+
+    def test_update_preserves_user_id(self, authenticated_client: TestClient):
+        """Test that updating an article preserves the user_id."""
+        # Create article
+        response = authenticated_client.post("/api/articles/", json={
+            "code": "PRESERVE_USER", "name": "Сохранить user_id", "is_active": True
+        })
+        original_article = response.json()["data"]
+        original_user_id = original_article["user_id"]
+
+        # Update article
+        response = authenticated_client.put(f"/api/articles/{original_article['id']}", json={
+            "name": "Обновленное название"
+        })
+        assert response.status_code == status.HTTP_200_OK
+
+        updated_article = response.json()["data"]
+        assert updated_article["user_id"] == original_user_id
+        assert updated_article["name"] == "Обновленное название"
+
+    def test_all_operations_require_user_authentication(self, client: TestClient):
+        """Test that all article operations require user authentication."""
+        test_data = {"code": "TEST", "name": "Test Article", "is_active": True}
+
+        # All operations should fail without authentication
+        assert client.get("/api/articles/").status_code == status.HTTP_401_UNAUTHORIZED
+        assert client.get("/api/articles/1").status_code == status.HTTP_401_UNAUTHORIZED
+        assert client.post("/api/articles/", json=test_data).status_code == status.HTTP_401_UNAUTHORIZED
+        assert client.put("/api/articles/1", json=test_data).status_code == status.HTTP_401_UNAUTHORIZED
+        assert client.delete("/api/articles/1").status_code == status.HTTP_401_UNAUTHORIZED
+        assert client.get("/api/articles/stats").status_code == status.HTTP_401_UNAUTHORIZED
+        assert client.post("/api/articles/bulk-delete", json={"article_ids": [1]}).status_code == status.HTTP_401_UNAUTHORIZED

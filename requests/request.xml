@@ -13,13 +13,12 @@
         </architecture>
     </project>
     <context>
-        http://localhost:5173/settings/articles
-        ПРи нажатии на кнопки создать стаью, удалить или изменить есть реакиця в коносли, но нет никакой реакции в вие диалогового окна.
-        /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-17 17-07-09.png
+        Управление статьями имеет не красивую форму 
+        /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-17 17-36-06.png
+        Нет отсупов от краев.
     </context>
     <requirements>
-        <point number="1">Определить почему кнопки реалирубт но не открываются окна. Возможно они спрятаны на задний план.</point>
-        <point number="2">Устнанить пробелму с редактированием статей</point>
+        <point number="1">Доработать диалоговое окно. Сделать красивее.</point>
     </requirements>
     <tasks>
         <task number="1">

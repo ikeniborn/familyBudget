@@ -9,9 +9,6 @@
     Plus,
     Edit,
     Trash2,
-    Shield,
-    Users,
-    User,
     Check,
     X,
     Search,
@@ -31,9 +28,7 @@
   let articleStats: ArticleStats = {
     total: 0,
     active: 0,
-    inactive: 0,
-    shared: 0,
-    user_specific: 0
+    inactive: 0
   };
   let loading = true;
   let error = '';
@@ -60,7 +55,6 @@
   // Filter and search
   let searchTerm = '';
   let activeFilter: 'all' | 'active' | 'inactive' = 'all';
-  let sharedFilter: 'all' | 'shared' | 'user' = 'all';
 
   // Pagination
   let currentPage = 1;
@@ -81,10 +75,6 @@
     // Active filter
     if (activeFilter === 'active' && !article.is_active) return false;
     if (activeFilter === 'inactive' && article.is_active) return false;
-
-    // Shared filter
-    if (sharedFilter === 'shared' && !article.is_shared) return false;
-    if (sharedFilter === 'user' && article.is_shared) return false;
 
     return true;
   });
@@ -212,11 +202,11 @@
   }
 
   function canEdit(article: Article): boolean {
-    return article.is_editable || false;
+    return true; // Users can edit all their own articles
   }
 
   function canDelete(article: Article): boolean {
-    return canEdit(article);
+    return true; // Users can delete all their own articles
   }
 
   onMount(() => {
@@ -244,7 +234,7 @@
   </div>
 
   <!-- Statistics Cards -->
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
     <Card class="p-4">
       <div class="flex items-center justify-between">
         <div>
@@ -275,25 +265,6 @@
       </div>
     </Card>
 
-    <Card class="p-4">
-      <div class="flex items-center justify-between">
-        <div>
-          <p class="text-sm font-medium text-gray-600">Общие</p>
-          <p class="text-2xl font-bold text-purple-600">{articleStats.shared}</p>
-        </div>
-        <Users class="h-8 w-8 text-purple-600" />
-      </div>
-    </Card>
-
-    <Card class="p-4">
-      <div class="flex items-center justify-between">
-        <div>
-          <p class="text-sm font-medium text-gray-600">Личные</p>
-          <p class="text-2xl font-bold text-orange-600">{articleStats.user_specific}</p>
-        </div>
-        <User class="h-8 w-8 text-orange-600" />
-      </div>
-    </Card>
   </div>
 
   <!-- Filters -->
@@ -322,15 +293,6 @@
         <option value="inactive">Только неактивные</option>
       </select>
 
-      <!-- Shared Filter -->
-      <select
-        bind:value={sharedFilter}
-        class="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-      >
-        <option value="all">Все типы</option>
-        <option value="shared">Только общие</option>
-        <option value="user">Только личные</option>
-      </select>
     </div>
   </Card>
 
@@ -368,9 +330,6 @@
                 Описание
               </th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Тип
-              </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Статус
               </th>
               <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -396,21 +355,6 @@
                 <td class="px-6 py-4">
                   <div class="text-sm text-gray-900">
                     {article.description || '-'}
-                  </div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="flex items-center gap-2">
-                    {#if article.is_shared}
-                      <Badge variant="purple" class="flex items-center gap-1">
-                        <Shield class="h-3 w-3" />
-                        Общая
-                      </Badge>
-                    {:else}
-                      <Badge variant="orange" class="flex items-center gap-1">
-                        <User class="h-3 w-3" />
-                        Личная
-                      </Badge>
-                    {/if}
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
@@ -505,24 +449,6 @@
       ></textarea>
     </div>
 
-    {#if userIsAdmin}
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">
-          Тип статьи
-        </label>
-        <div class="space-y-2">
-          <label class="flex items-center">
-            <input
-              type="radio"
-              bind:group={formData.user_id}
-              value={null}
-              class="mr-2"
-            />
-            <span class="text-sm">Общая статья (доступна всем пользователям)</span>
-          </label>
-        </div>
-      </div>
-    {/if}
 
     <div class="flex items-center">
       <input

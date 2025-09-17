@@ -619,37 +619,36 @@ class TestNomenclaturesArticleRelationship:
         # Should fail due to foreign key constraint
         assert response.status_code in [status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT]
 
-    def test_nomenclature_with_shared_article(self, authenticated_client: TestClient):
-        """Test creating nomenclature with reference to shared article."""
-        # Note: This test assumes admin functionality for creating shared articles
-        # Create shared article (this might require admin privileges)
-        shared_article_data = {
-            "code": "SHARED001",
-            "name": "Shared Article",
-            "description": "Article shared among users",
-            "is_active": True,
-            "user_id": None  # Shared article
+    def test_nomenclature_with_user_article(self, authenticated_client: TestClient):
+        """Test creating nomenclature with reference to user's own article."""
+        # Create user-specific article
+        article_data = {
+            "code": "USER001",
+            "name": "User Article",
+            "description": "Article for user nomenclature",
+            "is_active": True
         }
 
-        # Try to create shared article (may fail if user is not admin)
-        article_response = authenticated_client.post("/api/articles/", json=shared_article_data)
+        # Create article as authenticated user
+        article_response = authenticated_client.post("/api/articles/", json=article_data)
+        assert article_response.status_code == status.HTTP_200_OK
+        article_id = article_response.json()["article_id"]
 
-        if article_response.status_code == status.HTTP_200_OK:
-            article_id = article_response.json()["article_id"]
+        # Create nomenclature referencing user's article
+        nomenclature_data = {
+            "name": "Номенклатура с пользовательской статьей",
+            "is_budget": True,
+            "is_fact": True,
+            "article_id": article_id
+        }
 
-            # Create nomenclature referencing shared article
-            nomenclature_data = {
-                "name": "Номенклатура с общей статьей",
-                "is_budget": True,
-                "is_fact": True,
-                "article_id": article_id
-            }
+        response = authenticated_client.post("/api/nomenclatures/", json=nomenclature_data)
+        assert response.status_code == status.HTTP_200_OK
 
-            response = authenticated_client.post("/api/nomenclatures/", json=nomenclature_data)
-            assert response.status_code == status.HTTP_200_OK
-
-            data = response.json()
-            assert data["article_id"] == article_id
+        data = response.json()
+        assert data["article_id"] == article_id
+        assert "user_id" in data
+        assert data["user_id"] is not None
 
 
 class TestNomenclaturesErrorHandling:

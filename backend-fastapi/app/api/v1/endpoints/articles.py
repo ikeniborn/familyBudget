@@ -39,16 +39,13 @@ async def get_articles(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get all articles (both shared and user-specific) with optional filtering."""
+    """Get all articles for current user with optional filtering."""
     user_id = current_user.get('user_id')
 
-    # Show all shared articles (user_id=NULL) and user's own articles
+    # Show only user's own articles
     stmt = (
         select(Article)
-        .where(
-            (Article.user_id.is_(None)) |  # Shared articles
-            (Article.user_id == user_id)   # User's own articles
-        )
+        .where(Article.user_id == user_id)
         .offset(skip)
         .limit(limit)
         .order_by(Article.name.asc())
@@ -60,7 +57,24 @@ async def get_articles(
     result = await db.execute(stmt)
     articles = result.scalars().all()
 
-    articles_data = [ArticlePublic.from_db_model(article, current_user).dict() for article in articles]
+    articles_data = []
+    for article in articles:
+        article_dict = {
+            'id': article.id,
+            'code': article.code,
+            'name': article.name,
+            'description': article.description,
+            'is_active': article.is_active,
+            'user_id': article.user_id,
+            'created_by': getattr(article, 'created_by', None),
+            'managed_by': getattr(article, 'managed_by', None),
+            'created_at': getattr(article, 'created_at', None),
+            'updated_at': getattr(article, 'updated_at', None),
+            'is_shared': False,
+            'is_editable': True
+        }
+        articles_data.append(article_dict)
+
     return success_response(data=articles_data, total=len(articles_data))
 
 
@@ -70,44 +84,32 @@ async def get_articles_stats(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get articles statistics."""
+    """Get articles statistics for current user."""
     user_id = current_user.get('user_id')
 
-    # Count all articles visible to user (shared + own)
-    total_stmt = select(func.count(Article.id)).where(
-        (Article.user_id.is_(None)) | (Article.user_id == user_id)
-    )
+    # Count all articles for current user
+    total_stmt = select(func.count(Article.id)).where(Article.user_id == user_id)
 
     # Count active articles
     active_stmt = select(func.count(Article.id)).where(
-        ((Article.user_id.is_(None)) | (Article.user_id == user_id)) &
-        (Article.is_active == True)
+        (Article.user_id == user_id) & (Article.is_active == True)
     )
 
     # Count inactive articles
     inactive_stmt = select(func.count(Article.id)).where(
-        ((Article.user_id.is_(None)) | (Article.user_id == user_id)) &
-        (Article.is_active == False)
+        (Article.user_id == user_id) & (Article.is_active == False)
     )
-
-    # Count shared articles
-    shared_stmt = select(func.count(Article.id)).where(Article.user_id.is_(None))
-
-    # Count user-specific articles
-    user_specific_stmt = select(func.count(Article.id)).where(Article.user_id == user_id)
 
     total_result = await db.execute(total_stmt)
     active_result = await db.execute(active_stmt)
     inactive_result = await db.execute(inactive_stmt)
-    shared_result = await db.execute(shared_stmt)
-    user_specific_result = await db.execute(user_specific_stmt)
 
     stats = ArticleStats(
         total=total_result.scalar() or 0,
         active=active_result.scalar() or 0,
         inactive=inactive_result.scalar() or 0,
-        shared=shared_result.scalar() or 0,
-        user_specific=user_specific_result.scalar() or 0
+        shared=0,  # No shared articles in simplified model
+        user_specific=total_result.scalar() or 0
     )
 
     return success_response(data=stats.dict())
@@ -120,24 +122,36 @@ async def get_article(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get article by ID (shared articles and user's own articles)."""
+    """Get article by ID for current user."""
     user_id = current_user.get('user_id')
 
-    # Show article if it's shared or belongs to current user
+    # Show article if it belongs to current user
     stmt = select(Article).where(
         Article.id == article_id,
-        (
-            (Article.user_id.is_(None)) |  # Shared articles
-            (Article.user_id == user_id)   # User's own articles
-        )
+        Article.user_id == user_id
     )
     result = await db.execute(stmt)
     article = result.scalar_one_or_none()
 
     if not article:
-        return error_not_found("Article not found or access denied")
+        return error_not_found("Article not found")
 
-    return success_response(data=ArticlePublic.from_db_model(article, current_user).dict())
+    article_dict = {
+        'id': article.id,
+        'code': article.code,
+        'name': article.name,
+        'description': article.description,
+        'is_active': article.is_active,
+        'user_id': article.user_id,
+        'created_by': getattr(article, 'created_by', None),
+        'managed_by': getattr(article, 'managed_by', None),
+        'created_at': getattr(article, 'created_at', None),
+        'updated_at': getattr(article, 'updated_at', None),
+        'is_shared': False,
+        'is_editable': True
+    }
+
+    return success_response(data=article_dict)
 
 
 @router.post("/", response_model=ArticlePublic)
@@ -147,20 +161,8 @@ async def create_article(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Create a new article."""
+    """Create a new article for current user."""
     user_id = current_user.get('user_id')
-    user_role = current_user.get('role', 'user')
-
-    # Check if creating shared article
-    is_shared = article_data.user_id is None
-    if is_shared and user_role != 'admin':
-        return error_bad_request("Only administrators can create shared articles")
-
-    # Set default values
-    if is_shared:
-        target_user_id = None
-    else:
-        target_user_id = article_data.user_id or user_id
 
     try:
         article = Article(
@@ -168,7 +170,7 @@ async def create_article(
             name=article_data.name,
             description=article_data.description,
             is_active=article_data.is_active,
-            user_id=target_user_id,
+            user_id=user_id,
             created_by=user_id,
             managed_by=article_data.managed_by or user_id
         )
@@ -177,7 +179,22 @@ async def create_article(
         await db.commit()
         await db.refresh(article)
 
-        return success_response(data=ArticlePublic.from_db_model(article, current_user).dict())
+        article_dict = {
+            'id': article.id,
+            'code': article.code,
+            'name': article.name,
+            'description': article.description,
+            'is_active': article.is_active,
+            'user_id': article.user_id,
+            'created_by': article.created_by,
+            'managed_by': article.managed_by,
+            'created_at': article.created_at,
+            'updated_at': article.updated_at,
+            'is_shared': False,
+            'is_editable': True
+        }
+
+        return success_response(data=article_dict)
 
     except IntegrityError as e:
         await db.rollback()
@@ -197,24 +214,19 @@ async def update_article(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update an existing article."""
+    """Update an existing article for current user."""
     user_id = current_user.get('user_id')
-    user_role = current_user.get('role', 'user')
 
-    # Find article
-    stmt = select(Article).where(Article.id == article_id)
+    # Find article for current user
+    stmt = select(Article).where(
+        Article.id == article_id,
+        Article.user_id == user_id
+    )
     result = await db.execute(stmt)
     article = result.scalar_one_or_none()
 
     if not article:
         return error_not_found("Article not found")
-
-    # Check permissions
-    is_shared = article.user_id is None
-    if is_shared and user_role != 'admin':
-        return error_bad_request("Only administrators can edit shared articles")
-    elif not is_shared and article.user_id != user_id and user_role != 'admin':
-        return error_bad_request("You can only edit your own articles")
 
     try:
         # Update only provided fields
@@ -231,7 +243,22 @@ async def update_article(
         await db.commit()
         await db.refresh(article)
 
-        return success_response(data=ArticlePublic.from_db_model(article, current_user).dict())
+        article_dict = {
+            'id': article.id,
+            'code': article.code,
+            'name': article.name,
+            'description': article.description,
+            'is_active': article.is_active,
+            'user_id': article.user_id,
+            'created_by': article.created_by,
+            'managed_by': article.managed_by,
+            'created_at': article.created_at,
+            'updated_at': article.updated_at,
+            'is_shared': False,
+            'is_editable': True
+        }
+
+        return success_response(data=article_dict)
 
     except IntegrityError as e:
         await db.rollback()
@@ -250,24 +277,19 @@ async def delete_article(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Delete an article."""
+    """Delete an article for current user."""
     user_id = current_user.get('user_id')
-    user_role = current_user.get('role', 'user')
 
-    # Find article
-    stmt = select(Article).where(Article.id == article_id)
+    # Find article for current user
+    stmt = select(Article).where(
+        Article.id == article_id,
+        Article.user_id == user_id
+    )
     result = await db.execute(stmt)
     article = result.scalar_one_or_none()
 
     if not article:
         return error_not_found("Article not found")
-
-    # Check permissions
-    is_shared = article.user_id is None
-    if is_shared and user_role != 'admin':
-        return error_bad_request("Only administrators can delete shared articles")
-    elif not is_shared and article.user_id != user_id and user_role != 'admin':
-        return error_bad_request("You can only delete your own articles")
 
     try:
         await db.delete(article)
@@ -285,29 +307,23 @@ async def bulk_delete_articles(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Bulk delete articles."""
+    """Bulk delete articles for current user."""
     user_id = current_user.get('user_id')
-    user_role = current_user.get('role', 'user')
 
     if not article_ids:
         return error_bad_request("No article IDs provided")
 
     try:
-        # Find all articles to delete
-        stmt = select(Article).where(Article.id.in_(article_ids))
+        # Find all articles to delete for current user
+        stmt = select(Article).where(
+            Article.id.in_(article_ids),
+            Article.user_id == user_id
+        )
         result = await db.execute(stmt)
         articles = result.scalars().all()
 
         if not articles:
             return error_not_found("No articles found")
-
-        # Check permissions for each article
-        for article in articles:
-            is_shared = article.user_id is None
-            if is_shared and user_role != 'admin':
-                return error_bad_request(f"Only administrators can delete shared article '{article.name}'")
-            elif not is_shared and article.user_id != user_id and user_role != 'admin':
-                return error_bad_request(f"You can only delete your own articles. Article '{article.name}' belongs to another user")
 
         # Delete all articles
         for article in articles:

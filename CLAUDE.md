@@ -10,11 +10,13 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ Role-Based Access Control (v3.3.0):** Implemented comprehensive RBAC system restricting administrative features to admin users only. Regular users cannot access settings/справочники. See `/docs/architecture/adr-006-role-based-access-control.md` and `/docs/api/access-control.md`.
 
+**✅ Shared/Personal Data Model Removed (v3.7.0, 2025-09-17):** Removed the shared/personal data distinction from all reference modules. All data is now strictly user-specific with no shared functionality. Simplified architecture, better data isolation, and cleaner UI. Database migration applied to convert all NULL user_id records to specific users. See `/docs/architecture/adr-010-remove-shared-personal-distinction.md`.
+
 **✅ Console Logging Cleanup (v3.3.1):** Removed excessive debug logging from production code. Reduced console output by 87% (from 500+ to <50 logs per session) while preserving critical error logging. Major performance improvement by eliminating high-frequency isAdmin logging.
 
 **✅ Simplified Notification System (v3.4.1):** Removed expansion functionality from toast notifications for cleaner, more consistent UI. All notifications now display with uniform sizing. Removed 27 lines of expansion logic while maintaining all core functionality (success, error, warning, info notifications with auto-dismiss and manual close).
 
-**✅ Articles Reference Module (v3.5.9):** Implemented comprehensive articles management for nomenclature categorization. Full CRUD operations with role-based permissions, shared/personal articles support, and bulk operations for administrators. Complete test coverage with 194 tests. Admin login credentials: username=admin, password=admin.
+**✅ Articles Reference Module (v3.5.9):** Implemented comprehensive articles management for nomenclature categorization. Full CRUD operations with user-specific data isolation. Complete test coverage with 194 tests. Admin login credentials: username=admin, password=admin.
 **Button Fix (v3.5.8):** Fixed button event forwarding issue in Button.svelte by using Svelte's native `on:click` directive.
 **Modal Fix (v3.5.9, 2025-09-17):** Fixed modal dialogs not displaying on articles page by adding support for `show` prop in Modal component. Modal now supports `open`, `isOpen`, and `show` props for backward compatibility. All CRUD modals now work correctly. See `/docs/api/modal-show-prop-fix.md`.
 
@@ -278,7 +280,7 @@ interface SettingsPage {
 - User ID in `session.user.id` (number)
 - All endpoints require authentication except `/auth/*`
 
-### Response Format ✅ **v3.2.0** (Updated 13.09.2025)
+### Response Format ✅ **v3.7.0** (Updated 17.09.2025)
 
 **Unified API Response Format:**
 
@@ -590,10 +592,14 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 - **user**: Access to core functionality only (dashboard, budget, facts, reports, products)
 
 ### Protected Features (Admin Only)
-- Справочники (Reference Data)
 - Settings icon in header
 - All settings pages (/settings/*)
 - System configuration
+
+### Data Isolation
+- All reference data (periods, financial centers, cost centers, nomenclatures, articles) is strictly user-specific
+- No shared data between users
+- Each user manages only their own data
 
 ### Implementation
 - Frontend: Navigation filtering based on `isAdmin` store

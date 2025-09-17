@@ -22,17 +22,17 @@ export interface Period {
   period_month: number;
   period_start_date?: string;
   period_end_date?: string;
-  user_id: number | null;
+  user_id: number;
   transaction_count?: number;
   is_active?: boolean;
   created_at?: string;
   updated_at?: string;
-  // Shared data fields
+  // Additional fields used in frontend
+  date?: string;
+  ru_name?: string;
+  start_date?: string;
+  end_date?: string;
   code?: string;
-  created_by?: number;
-  managed_by?: number;
-  is_editable?: boolean;
-  is_shared?: boolean;
 }
 
 // Admin Period type with user information
@@ -52,7 +52,7 @@ export interface FinancialCenter {
   financial_center_description?: string;
   description?: string; // New standardized field name
   parent_id?: number | null;
-  user_id: number | null;
+  user_id: number;
   is_active?: boolean;
   usage_stats?: {
     cost_centers_count: number;
@@ -63,12 +63,6 @@ export interface FinancialCenter {
   level?: number;
   created_at?: string;
   updated_at?: string;
-  // Shared data fields
-  code?: string;
-  created_by?: number;
-  managed_by?: number;
-  is_editable?: boolean;
-  is_shared?: boolean;
 }
 
 // Admin Financial Center type with user information
@@ -90,19 +84,13 @@ export interface CostCenter {
   financial_center_id?: number | null;
   budget_limit?: number;
   budget_period?: 'monthly' | 'quarterly' | 'yearly';
-  user_id: number | null;
+  user_id: number;
   is_active: boolean;
   current_usage?: number;
   usage_percentage?: number;
   history?: CostCenterHistory[];
   created_at?: string;
   updated_at?: string;
-  // Shared data fields
-  code?: string;
-  created_by?: number;
-  managed_by?: number;
-  is_editable?: boolean;
-  is_shared?: boolean;
 }
 
 // Admin Cost Center type with user information
@@ -133,14 +121,9 @@ export interface Article {
   name: string; // New standardized field name
   description?: string;
   is_active: boolean;
-  user_id: number | null;
+  user_id: number;
   created_at?: string;
   updated_at?: string;
-  // Shared data fields
-  created_by?: number;
-  managed_by?: number;
-  is_editable?: boolean;
-  is_shared?: boolean;
 }
 
 export interface AdminArticle extends Article {
@@ -154,8 +137,6 @@ export interface ArticleStats {
   total: number;
   active: number;
   inactive: number;
-  shared: number;
-  user_specific: number;
 }
 
 // Nomenclature types - matches backend API
@@ -178,7 +159,7 @@ export interface Nomenclature {
   color?: string;
   icon?: string;
   auto_rules?: AutoCategorizationRule[];
-  user_id: number | null;
+  user_id: number;
   is_active: boolean;
   is_expanded?: boolean;
   level?: number;
@@ -187,11 +168,6 @@ export interface Nomenclature {
   total_amount?: number;
   created_at?: string;
   updated_at?: string;
-  // Shared data fields
-  created_by?: number;
-  managed_by?: number;
-  is_editable?: boolean;
-  is_shared?: boolean;
 }
 
 export interface AdminNomenclature extends Nomenclature {

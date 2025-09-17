@@ -597,9 +597,9 @@ async def get_reference_stats(
 
     user_id = current_user["user_id"]
 
-    # Total periods count (both user-specific and shared)
+    # Total periods count for current user
     total_periods_stmt = select(func.count(Period.id)).where(
-        or_(Period.user_id == user_id, Period.user_id.is_(None))
+        Period.user_id == user_id
     )
     total_periods_result = await db.execute(total_periods_stmt)
     total_periods = total_periods_result.scalar() or 0
@@ -608,23 +608,23 @@ async def get_reference_stats(
     one_year_ago = datetime.now() - timedelta(days=365)
     active_periods_stmt = select(func.count(Period.id)).where(
         and_(
-            or_(Period.user_id == user_id, Period.user_id.is_(None)),
+            Period.user_id == user_id,
             Period.date >= one_year_ago
         )
     )
     active_periods_result = await db.execute(active_periods_stmt)
     active_periods = active_periods_result.scalar() or 0
 
-    # Financial centers count (both user-specific and shared)
+    # Financial centers count for current user
     financial_centers_stmt = select(func.count(FinancialCenter.id)).where(
-        or_(FinancialCenter.user_id == user_id, FinancialCenter.user_id.is_(None))
+        FinancialCenter.user_id == user_id
     )
     financial_centers_result = await db.execute(financial_centers_stmt)
     financial_centers = financial_centers_result.scalar() or 0
 
-    # Nomenclatures count (both user-specific and shared)
+    # Nomenclatures count for current user
     nomenclatures_stmt = select(func.count(Nomenclature.id)).where(
-        or_(Nomenclature.user_id == user_id, Nomenclature.user_id.is_(None))
+        Nomenclature.user_id == user_id
     )
     nomenclatures_result = await db.execute(nomenclatures_stmt)
     nomenclatures = nomenclatures_result.scalar() or 0
@@ -637,7 +637,7 @@ async def get_reference_stats(
             ProductNomenclature.nomenclature_id == Nomenclature.id
         )
     ).where(
-        or_(Nomenclature.user_id == user_id, Nomenclature.user_id.is_(None))
+        Nomenclature.user_id == user_id
     )
     products_result = await db.execute(products_stmt)
     products = products_result.scalar() or 0

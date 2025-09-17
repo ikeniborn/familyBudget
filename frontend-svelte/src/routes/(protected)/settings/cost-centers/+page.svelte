@@ -1,7 +1,7 @@
 <script lang="ts">
   import Card from '$lib/components/ui/Card.svelte';
   import Button from '$lib/components/ui/Button.svelte';
-  import { Briefcase, Plus, Edit, Trash2, FileText, Shield, Users, User } from 'lucide-svelte';
+  import { Briefcase, Plus, Edit, Trash2, FileText, Shield } from 'lucide-svelte';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { useToast } from '$lib/stores/toast.store';
@@ -122,17 +122,10 @@
     }
   }
 
-  function getDataTypeBadge(cc: CostCenter) {
-    if (cc.is_shared || cc.user_id === null) {
-      return { class: 'bg-purple-100 text-purple-800', text: 'Общий', icon: Users };
-    } else {
-      return { class: 'bg-blue-100 text-blue-800', text: 'Личный', icon: User };
-    }
-  }
 
   function canEditCC(cc: CostCenter): boolean {
-    // Admin can edit if is_editable flag is true (from API)
-    return cc.is_editable !== false;
+    // Users can edit all their own cost centers
+    return true;
   }
 
   function handleAddCC() {
@@ -365,7 +358,6 @@
               <th class="text-left py-3 px-4">Код</th>
               <th class="text-left py-3 px-4">Название</th>
               <th class="text-left py-3 px-4">Описание</th>
-              <th class="text-left py-3 px-4">Тип данных</th>
               <th class="text-left py-3 px-4">Статус</th>
               <th class="text-left py-3 px-4">Создан</th>
               <th class="text-right py-3 px-4">Действия</th>
@@ -374,26 +366,25 @@
           <tbody>
             {#if !adminCheckComplete}
               <tr>
-                <td colspan="7" class="py-8 text-center text-gray-500">
+                <td colspan="6" class="py-8 text-center text-gray-500">
                   Проверка прав доступа...
                 </td>
               </tr>
             {:else if loading}
               <tr>
-                <td colspan="7" class="py-8 text-center text-gray-500">
+                <td colspan="6" class="py-8 text-center text-gray-500">
                   Загрузка центров затрат...
                 </td>
               </tr>
             {:else if costCenters.length === 0}
               <tr>
-                <td colspan="7" class="py-8 text-center text-gray-500">
+                <td colspan="6" class="py-8 text-center text-gray-500">
                   Центры затрат не найдены
                 </td>
               </tr>
             {:else}
               {#each costCenters as cc}
                 {@const statusBadge = getStatusBadge(cc)}
-                {@const dataTypeBadge = getDataTypeBadge(cc)}
                 {@const canEdit = canEditCC(cc)}
                 <tr class="border-b hover:bg-gray-50">
                   <td class="py-3 px-4">
@@ -408,12 +399,6 @@
                     <div class="text-sm text-gray-600 max-w-xs truncate">
                       {cc.description || cc.cost_center_description || 'Нет описания'}
                     </div>
-                  </td>
-                  <td class="py-3 px-4">
-                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {dataTypeBadge.class}">
-                      <svelte:component this={dataTypeBadge.icon} class="w-3 h-3 mr-1" />
-                      {dataTypeBadge.text}
-                    </span>
                   </td>
                   <td class="py-3 px-4">
                     <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {statusBadge.class}">

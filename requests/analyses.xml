@@ -1,119 +1,170 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <analysis>
-    <project_context>
-        <name>Family Budget Application</name>
-        <description>Приложение для учета домашних финансов с мультипользовательской поддержкой</description>
-        <current_version>v3.5.8</recent_version>
-        <stack>
-            <frontend>SvelteKit 2 + Svelte 4 + TypeScript</frontend>
-            <backend>FastAPI + SQLAlchemy 2.0 + Pydantic</backend>
-            <database>PostgreSQL 13 с партиционированием + Redis</database>
-            <infrastructure>Docker Compose</infrastructure>
-        </stack>
-    </project_context>
+    <project>Family Budget Application</project>
+    <date>2025-09-17</date>
+    <requirement>Remove shared/personal distinction from reference modules (справочники)</requirement>
 
-    <code_review_scope>
-        <areas_to_review>
-            <area priority="high">
-                <name>Отладочный код</name>
-                <description>Console.log statements и временные отладочные функции после исправления кнопок</description>
-                <locations>
-                    <location>Button.svelte - добавленные console.log для отладки</location>
-                    <location>articles/+page.svelte - отладочные логи для кнопок</location>
-                </locations>
-            </area>
+    <current_implementation>
+        <summary>
+            The application currently implements a shared/personal data model where reference data can be either:
+            - Shared (user_id = NULL): Managed by admins, visible to all users
+            - Personal (user_id = specific user): Owned and visible only to specific user
+        </summary>
 
-            <area priority="high">
-                <name>Временные файлы</name>
-                <description>Тестовые и временные файлы созданные во время отладки</description>
-                <locations>
-                    <location>test-button-click.html - временный тестовый файл</location>
-                    <location>/requests/*.xml - временные файлы анализа</location>
-                </locations>
-            </area>
+        <affected_modules>
+            <module name="Database">
+                <tables>
+                    <table>t_d_period</table>
+                    <table>t_d_financial_center</table>
+                    <table>t_d_cost_center</table>
+                    <table>t_d_nomenclature</table>
+                    <table>t_d_article</table>
+                </tables>
+                <fields>
+                    <field>user_id (nullable for shared records)</field>
+                    <field>created_by</field>
+                    <field>managed_by</field>
+                </fields>
+                <migrations>
+                    <migration>5ef4678b70a0_convert_reference_tables_to_shared_.py</migration>
+                    <migration>db5be6413a0c_add_article_table_and_update_.py</migration>
+                </migrations>
+            </module>
 
-            <area priority="medium">
-                <name>Дублирующиеся тесты</name>
-                <description>Множественные тестовые файлы для кнопок с возможным дублированием</description>
-                <locations>
-                    <location>tests/frontend/button-onclick-validation.test.ts</location>
-                    <location>frontend-svelte/src/test/button-onclick-validation.test.ts</location>
-                    <location>frontend-svelte/src/test/button-simple-validation.test.ts</location>
-                </locations>
-            </area>
+            <module name="Backend Models">
+                <files>
+                    <file>app/models/period.py</file>
+                    <file>app/models/financial_center.py</file>
+                    <file>app/models/cost_center.py</file>
+                    <file>app/models/nomenclature.py</file>
+                    <file>app/models/article.py</file>
+                </files>
+                <features>
+                    <feature>is_shared property based on user_id is None</feature>
+                    <feature>to_dict() methods include is_shared flag</feature>
+                    <feature>Global unique constraints on codes</feature>
+                </features>
+            </module>
 
-            <area priority="medium">
-                <name>Устаревший код после миграций</name>
-                <description>Код оставшийся после миграции Svelte 5 → Svelte 4</description>
-                <potential_issues>
-                    <issue>Возможные остатки Svelte 5 синтаксиса</issue>
-                    <issue>Закомментированный старый код</issue>
-                </potential_issues>
-            </area>
+            <module name="Backend Schemas">
+                <files>
+                    <file>app/schemas/period.py</file>
+                    <file>app/schemas/financial_center.py</file>
+                    <file>app/schemas/cost_center.py</file>
+                    <file>app/schemas/nomenclature.py</file>
+                    <file>app/schemas/article.py</file>
+                </files>
+                <features>
+                    <feature>is_shared field in response schemas</feature>
+                    <feature>is_editable field based on ownership/role</feature>
+                </features>
+            </module>
 
-            <area priority="low">
-                <name>Неиспользуемые импорты и зависимости</name>
-                <description>Импорты и npm пакеты которые больше не используются</description>
-            </area>
-        </areas_to_review>
-    </code_review_scope>
+            <module name="API Endpoints">
+                <files>
+                    <file>app/api/v1/endpoints/periods.py</file>
+                    <file>app/api/v1/endpoints/financial_centers.py</file>
+                    <file>app/api/v1/endpoints/cost_centers.py</file>
+                    <file>app/api/v1/endpoints/nomenclatures.py</file>
+                    <file>app/api/v1/endpoints/articles.py</file>
+                    <file>app/api/v1/endpoints/reports.py</file>
+                </files>
+                <logic>
+                    <item>Filter queries: (user_id == current_user_id) | (user_id.is_(None))</item>
+                    <item>Admin-only creation of shared records (user_id=NULL)</item>
+                    <item>Permission checks for editing shared vs personal records</item>
+                    <item>Response includes is_shared and is_editable flags</item>
+                </logic>
+            </module>
 
-    <recent_changes>
-        <change version="v3.5.8">
-            <description>Исправление event forwarding в Button.svelte</description>
-            <files_modified>
-                <file>frontend-svelte/src/lib/components/ui/Button.svelte</file>
-                <file>frontend-svelte/src/routes/(protected)/settings/articles/+page.svelte</file>
-            </files_modified>
-            <added_for_debugging>
-                <item>Console.log statements в Button.svelte</item>
-                <item>Console.log statements в articles page</item>
-                <item>test-button-click.html для тестирования</item>
-            </added_for_debugging>
-        </change>
-    </recent_changes>
+            <module name="Frontend Components">
+                <files>
+                    <file>src/routes/(protected)/settings/periods/+page.svelte</file>
+                    <file>src/routes/(protected)/settings/financial-centers/+page.svelte</file>
+                    <file>src/routes/(protected)/settings/cost-centers/+page.svelte</file>
+                    <file>src/routes/(protected)/settings/nomenclatures/+page.svelte</file>
+                    <file>src/routes/(protected)/settings/articles/+page.svelte</file>
+                </files>
+                <ui_elements>
+                    <element>Badge showing "Общий" (Shared) or "Личный" (Personal)</element>
+                    <element>Filter dropdown for shared/personal/all</element>
+                    <element>Statistics showing shared vs personal counts</element>
+                    <element>Edit restrictions based on is_editable flag</element>
+                </ui_elements>
+            </module>
 
-    <recommendations>
-        <recommendation priority="1">
-            <action>Удалить все console.log добавленные для отладки кнопок</action>
-            <reason>Отладка завершена, проблема решена, логи засоряют консоль</reason>
-        </recommendation>
+            <module name="Frontend Types">
+                <file>src/lib/types/index.ts</file>
+                <fields>
+                    <field>is_shared?: boolean</field>
+                    <field>is_editable?: boolean</field>
+                </fields>
+            </module>
 
-        <recommendation priority="2">
-            <action>Удалить временный файл test-button-click.html</action>
-            <reason>Временный файл для тестирования, больше не нужен</reason>
-        </recommendation>
+            <module name="Tests">
+                <backend_tests>
+                    <test>tests/backend/test_shared_references.py</test>
+                    <test>tests/backend/test_articles_api.py</test>
+                    <test>tests/backend/test_nomenclatures_api.py</test>
+                    <test>tests/backend/test_reference_stats_api.py</test>
+                </backend_tests>
+                <frontend_tests>
+                    <test>tests/frontend/shared_references.test.ts</test>
+                    <test>tests/frontend/articles.test.ts</test>
+                </frontend_tests>
+            </module>
+        </affected_modules>
+    </current_implementation>
 
-        <recommendation priority="3">
-            <action>Консолидировать тесты для кнопок в один файл</action>
-            <reason>Избежать дублирования и упростить поддержку</reason>
-        </recommendation>
+    <required_changes>
+        <change_summary>
+            Remove all shared/personal distinction logic. All reference data should be strictly personal to each user.
+            No shared records, no admin-managed shared data, no special permissions for shared vs personal.
+        </change_summary>
 
-        <recommendation priority="4">
-            <action>Очистить файлы в /requests/</action>
-            <reason>Временные файлы анализа не должны быть в репозитории</reason>
-        </recommendation>
+        <database_changes>
+            <change>Make user_id NOT NULL in all reference tables</change>
+            <change>Remove created_by and managed_by fields</change>
+            <change>Remove global unique constraints on codes (make them unique per user)</change>
+            <change>Create migration to assign existing NULL user_id records to specific users</change>
+        </database_changes>
 
-        <recommendation priority="5">
-            <action>Проверить и удалить неиспользуемые зависимости</action>
-            <reason>Уменьшить размер bundle и улучшить производительность</reason>
-        </recommendation>
-    </recommendations>
+        <backend_changes>
+            <change>Remove is_shared property from all models</change>
+            <change>Remove is_editable logic based on shared status</change>
+            <change>Simplify API queries to filter only by user_id</change>
+            <change>Remove admin permission checks for shared data</change>
+            <change>Remove NULL user_id handling in create/update operations</change>
+        </backend_changes>
 
-    <quality_improvements>
-        <improvement>
-            <area>Производительность</area>
-            <suggestion>Удаление console.log улучшит производительность на production</suggestion>
-        </improvement>
+        <frontend_changes>
+            <change>Remove shared/personal badges from UI</change>
+            <change>Remove shared/personal filter dropdowns</change>
+            <change>Remove shared statistics from dashboard cards</change>
+            <change>Remove is_shared and is_editable fields from types</change>
+            <change>Simplify edit permissions (user can edit own data only)</change>
+        </frontend_changes>
 
-        <improvement>
-            <area>Поддерживаемость</area>
-            <suggestion>Консолидация тестов упростит их поддержку</suggestion>
-        </improvement>
+        <test_changes>
+            <change>Remove tests for shared data functionality</change>
+            <change>Update existing tests to work without shared/personal distinction</change>
+            <change>Add tests to verify all data is user-specific</change>
+        </test_changes>
+    </required_changes>
 
-        <improvement>
-            <area>Безопасность</area>
-            <suggestion>Удаление отладочного кода предотвратит утечку информации</suggestion>
-        </improvement>
-    </quality_improvements>
+    <impact_assessment>
+        <risk level="medium">
+            Existing shared records need to be migrated to specific users.
+            Decision needed on how to handle current NULL user_id records.
+        </risk>
+        <risk level="low">
+            UI simplification should improve user experience by removing complexity.
+        </risk>
+        <benefit>
+            Simpler permission model - users only see and edit their own data.
+        </benefit>
+        <benefit>
+            Reduced code complexity by removing shared/personal branching logic.
+        </benefit>
+    </impact_assessment>
 </analysis>

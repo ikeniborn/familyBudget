@@ -1,7 +1,7 @@
 <script lang="ts">
   import Card from '$lib/components/ui/Card.svelte';
   import Button from '$lib/components/ui/Button.svelte';
-  import { Calendar, CalendarPlus, CalendarCheck, CalendarX, Edit, Trash2, Shield, Users, User } from 'lucide-svelte';
+  import { Calendar, CalendarPlus, CalendarCheck, CalendarX, Edit, Trash2, Shield } from 'lucide-svelte';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { useToast } from '$lib/stores/toast.store';
@@ -174,17 +174,10 @@
     }
   }
 
-  function getDataTypeBadge(period: Period) {
-    if (period.is_shared || period.user_id === null) {
-      return { class: 'bg-purple-100 text-purple-800', text: 'Общий', icon: Users };
-    } else {
-      return { class: 'bg-blue-100 text-blue-800', text: 'Личный', icon: User };
-    }
-  }
 
   function canEditPeriod(period: Period): boolean {
-    // Admin can edit if is_editable flag is true (from API)
-    return period.is_editable !== false;
+    // Users can edit all their own periods
+    return true;
   }
 
   function handleAddPeriod() {
@@ -450,7 +443,6 @@
             <tr class="border-b">
               <th class="text-left py-3 px-4">Период</th>
               <th class="text-left py-3 px-4">Название</th>
-              <th class="text-left py-3 px-4">Тип данных</th>
               <th class="text-left py-3 px-4">Статус</th>
               <th class="text-left py-3 px-4">Диапазон</th>
               <th class="text-left py-3 px-4">Создан</th>
@@ -460,26 +452,25 @@
           <tbody>
             {#if !adminCheckComplete}
               <tr>
-                <td colspan="7" class="py-8 text-center text-gray-500">
+                <td colspan="6" class="py-8 text-center text-gray-500">
                   Проверка прав доступа...
                 </td>
               </tr>
             {:else if loading}
               <tr>
-                <td colspan="7" class="py-8 text-center text-gray-500">
+                <td colspan="6" class="py-8 text-center text-gray-500">
                   Загрузка периодов...
                 </td>
               </tr>
             {:else if periods.length === 0}
               <tr>
-                <td colspan="7" class="py-8 text-center text-gray-500">
+                <td colspan="6" class="py-8 text-center text-gray-500">
                   Периоды не найдены
                 </td>
               </tr>
             {:else}
               {#each periods as period}
                 {@const statusBadge = getStatusBadge(period)}
-                {@const dataTypeBadge = getDataTypeBadge(period)}
                 {@const canEdit = canEditPeriod(period)}
                 <tr class="border-b hover:bg-gray-50">
                   <td class="py-3 px-4">
@@ -495,12 +486,6 @@
                   </td>
                   <td class="py-3 px-4">
                     <span class="font-medium">{period.ru_name}</span>
-                  </td>
-                  <td class="py-3 px-4">
-                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {dataTypeBadge.class}">
-                      <svelte:component this={dataTypeBadge.icon} class="w-3 h-3 mr-1" />
-                      {dataTypeBadge.text}
-                    </span>
                   </td>
                   <td class="py-3 px-4">
                     <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {statusBadge.class}">

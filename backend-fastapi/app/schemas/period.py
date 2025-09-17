@@ -17,8 +17,7 @@ class PeriodBase(BaseModel):
 
 class PeriodCreate(PeriodBase):
     """Period creation schema."""
-    user_id: Optional[int] = Field(None, description="User ID (null for shared periods)")
-    managed_by: Optional[int] = Field(None, description="Manager user ID")
+    user_id: int = Field(..., description="User ID")
 
 
 class PeriodCreateLegacy(BaseModel):
@@ -52,7 +51,6 @@ class PeriodUpdate(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     code: Optional[str] = Field(None, max_length=20, description="Period code")
-    managed_by: Optional[int] = Field(None, description="Manager user ID")
 
     # Legacy fields for backward compatibility
     period_year: Optional[int] = None
@@ -66,13 +64,9 @@ class PeriodUpdate(BaseModel):
 class PeriodInDB(PeriodBase):
     """Period schema for database operations."""
     id: int
-    user_id: Optional[int] = None
-    created_by: Optional[int] = None
-    managed_by: Optional[int] = None
+    user_id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    is_shared: bool = Field(default=False, description="Whether this is a shared period")
-    is_editable: bool = Field(default=True, description="Whether current user can edit this period")
 
     class Config:
         from_attributes = True
@@ -86,13 +80,9 @@ class PeriodPublic(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     code: Optional[str] = None
-    user_id: Optional[int] = None
-    created_by: Optional[int] = None
-    managed_by: Optional[int] = None
+    user_id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    is_shared: bool = Field(default=False, description="Whether this is a shared period")
-    is_editable: bool = Field(default=True, description="Whether current user can edit this period")
 
     # Legacy fields for backward compatibility
     period_id: int
@@ -110,21 +100,6 @@ class PeriodPublic(BaseModel):
     @classmethod
     def from_db_model(cls, period, current_user=None):
         """Create schema instance from database model with legacy mapping."""
-        is_shared = period.user_id is None
-        is_editable = True
-
-        # Determine editability based on admin role and ownership
-        if current_user:
-            user_role = current_user.get('role', 'user')
-            user_id = current_user.get('user_id')
-
-            if is_shared:
-                # Shared periods only editable by admins
-                is_editable = user_role == 'admin'
-            else:
-                # User periods editable by owner or admins
-                is_editable = user_id == period.user_id or user_role == 'admin'
-
         return cls(
             id=period.id,
             date=period.date,
@@ -133,12 +108,8 @@ class PeriodPublic(BaseModel):
             end_date=period.end_date,
             code=getattr(period, 'code', None),
             user_id=period.user_id,
-            created_by=getattr(period, 'created_by', None),
-            managed_by=getattr(period, 'managed_by', None),
             created_at=getattr(period, 'created_at', None),
             updated_at=getattr(period, 'updated_at', None),
-            is_shared=is_shared,
-            is_editable=is_editable,
             # Legacy mappings
             period_id=period.id,
             period_dt=period.date,
