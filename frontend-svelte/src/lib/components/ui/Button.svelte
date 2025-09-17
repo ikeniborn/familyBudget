@@ -76,7 +76,7 @@
 </script>
 
 {#if href && !disabled}
-  <a {href} class={buttonClass} on:click={handleClick} {...$$restProps}>
+  <a {href} class={buttonClass} onclick={handleClick} {...$$restProps}>
     {#if loading}
       <svg class="mr-2 h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -86,7 +86,7 @@
     <slot />
   </a>
 {:else}
-  <button {type} {disabled} class={buttonClass} on:click={handleClick} {...$$restProps}>
+  <button {type} {disabled} class={buttonClass} onclick={handleClick} {...$$restProps}>
     {#if loading}
       <svg class="mr-2 h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
