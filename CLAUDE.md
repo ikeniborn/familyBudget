@@ -14,7 +14,9 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ Simplified Notification System (v3.4.1):** Removed expansion functionality from toast notifications for cleaner, more consistent UI. All notifications now display with uniform sizing. Removed 27 lines of expansion logic while maintaining all core functionality (success, error, warning, info notifications with auto-dismiss and manual close).
 
-**✅ Articles Reference Module (v3.5.8):** Implemented comprehensive articles management for nomenclature categorization. Full CRUD operations with role-based permissions, shared/personal articles support, and bulk operations for administrators. Complete test coverage with 194 tests (125 new button event tests added). Admin login credentials: username=admin, password=admin. **Critical Button Fix (2025-09-17):** Fixed button event forwarding issue in Button.svelte by using Svelte's native `on:click` directive for proper event propagation. Fixed 9 non-responsive buttons in articles page, restoring all CRUD operations and modal interactions. All tests passing (16/16). See `/docs/api/button-event-fix.md` and `/tests/frontend/button-onclick-validation.test.ts`.
+**✅ Articles Reference Module (v3.5.9):** Implemented comprehensive articles management for nomenclature categorization. Full CRUD operations with role-based permissions, shared/personal articles support, and bulk operations for administrators. Complete test coverage with 194 tests. Admin login credentials: username=admin, password=admin.
+**Button Fix (v3.5.8):** Fixed button event forwarding issue in Button.svelte by using Svelte's native `on:click` directive.
+**Modal Fix (v3.5.9, 2025-09-17):** Fixed modal dialogs not displaying on articles page by adding support for `show` prop in Modal component. Modal now supports `open`, `isOpen`, and `show` props for backward compatibility. All CRUD modals now work correctly. See `/docs/api/modal-show-prop-fix.md`.
 
 **✅ BudgetForm Field Mapping Fix (v3.6.0):** Fixed TypeError "Cannot read properties of undefined (reading 'toString')" in BudgetForm.svelte when creating budget plan entries. Applied defensive field mapping pattern with safe access (`?.toString() || ''`) and fallback display names (`name || legacy_name || 'Unknown'`) to lines 269, 290, and 326. Supports both modern and legacy field structures. Complete test coverage with 22 tests. See `/docs/api/budget-form-field-mapping-fix.md`.
 
@@ -613,7 +615,8 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 13. **Sharing functionality removal**: ✅ **COMPLETED** - Removed unused sharing functionality (v3.4.0) - cleaned up frontend, backend, and database components
 14. **Articles page 401 authentication error**: ✅ **FULLY RESOLVED** - Removed redundant AuthGuard client-side auth checks (v3.5.2)
 15. **Articles page buttons not responding**: ✅ **RESOLVED** - Fixed button event forwarding by using Svelte's native event forwarding mechanism with `on:click` directive instead of custom event handling. All 9 buttons in articles page now work correctly (v3.5.8)
-16. **BudgetForm TypeError on undefined fields**: ✅ **RESOLVED** - Applied defensive field mapping with safe access patterns for financial centers, nomenclatures, and cost centers (v3.6.0)
+16. **Articles page modals not displaying**: ✅ **RESOLVED** - Fixed Modal component to support `show` prop in addition to `open` and `isOpen`. Modal dialogs now display correctly on articles page (v3.5.9)
+17. **BudgetForm TypeError on undefined fields**: ✅ **RESOLVED** - Applied defensive field mapping with safe access patterns for financial centers, nomenclatures, and cost centers (v3.6.0)
 
 ### 🔧 Docker Networking Fix (ADR-004)
 

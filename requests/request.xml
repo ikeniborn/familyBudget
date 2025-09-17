@@ -13,22 +13,13 @@
         </architecture>
     </project>
     <context>
-          http://localhost:5173/settings/articles
-          Авториззаация под пользователем с рлью администратор
-          Кнопка сооздать статбьб не реагилурет на нажатие. Диалоговое окно ене открывается
-          /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-17 08-40-57.png
-          Кнопка изменить не реалзирует. Диалоговое окно не открывается 
-          /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-17 08-41-30.png
-          Кнопка удалить не реалигуре
-          /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-17 08-42-30.png
-          Функционал раоыт со сттатьями не функционариует
+        http://localhost:5173/settings/articles
+        ПРи нажатии на кнопки создать стаью, удалить или изменить есть реакиця в коносли, но нет никакой реакции в вие диалогового окна.
+        /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-17 17-07-09.png
     </context>
     <requirements>
-        <point number="1">Проанализировать логи консоли и контейнеров</point>
-        <point number="2">Проверить наличие стурктур в БД и АПИ</point>
-        <point number="3">Проверить наличие форм на фронтенде</point>
-        <point number="4">Определить проблему не доступности форм и функционалала редактирования, удаления</point>
-        <point number="5">Испарвить проблему</point>
+        <point number="1">Определить почему кнопки реалирубт но не открываются окна. Возможно они спрятаны на задний план.</point>
+        <point number="2">Устнанить пробелму с редактированием статей</point>
     </requirements>
     <tasks>
         <task number="1">

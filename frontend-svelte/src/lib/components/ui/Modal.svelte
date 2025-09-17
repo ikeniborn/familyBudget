@@ -6,14 +6,15 @@
   // Props with Svelte 4 syntax
   export let open: boolean = false;
   export let isOpen: boolean = false; // Support old API
+  export let show: boolean = false; // Support show prop
   export let title: string = '';
   export let description: string = '';
   export let showCloseButton: boolean = true;
   export let size: 'small' | 'medium' | 'large' | 'extra-large' = 'medium';
   export let onclose: () => void = () => {};
-  
-  // Support both open and isOpen props
-  $: actualOpen = open === true || isOpen === true;
+
+  // Support open, isOpen, and show props
+  $: actualOpen = open === true || isOpen === true || show === true;
 
   // Handle body scroll lock
   $: if (typeof document !== 'undefined') {
@@ -33,6 +34,7 @@
   function handleClose() {
     open = false;
     isOpen = false;
+    show = false;
     onclose();
   }
 

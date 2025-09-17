@@ -1,341 +1,84 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<plan>
-  <title>Button Click Issue Fix - Articles Page Comprehensive Plan</title>
-  <version>v3.5.7</version>
-  <date>2025-09-17</date>
+<cleanup_plan>
+    <title>План очистки кода Family Budget Application</title>
+    <version>1.0</version>
+    <date>2025-09-17</date>
 
-  <current_state>
-    <description>Analysis shows Button component click events may be broken due to incorrect event handling</description>
-    <root_cause>Button component using incorrect onclick prop pattern instead of proper Svelte event handling</root_cause>
-    <affected_components>
-      <component>Button.svelte (/frontend-svelte/src/lib/components/ui/Button.svelte)</component>
-      <component>Articles page (/frontend-svelte/src/routes/(protected)/settings/articles/+page.svelte)</component>
-    </affected_components>
-    <symptoms>
-      <symptom>Create button doesn't open modal</symptom>
-      <symptom>Edit buttons don't respond</symptom>
-      <symptom>Delete buttons don't work</symptom>
-      <symptom>Modal control buttons unresponsive</symptom>
-    </symptoms>
-  </current_state>
+    <phase number="1" priority="critical">
+        <title>Удаление отладочного кода</title>
+        <tasks>
+            <task id="1.1">
+                <description>Удалить console.log из Button.svelte</description>
+                <file>frontend-svelte/src/lib/components/ui/Button.svelte</file>
+                <lines>42-43, 45, 53, 57</lines>
+                <action>Удалить строки с console.log</action>
+            </task>
 
-  <analysis>
-    <technical_issue>
-      <component>Button.svelte</component>
-      <line>14</line>
-      <problem>Component exports onclick prop but may not properly handle it</problem>
-      <code_review>
-        <current_implementation>
-          export let onclick: ((e: MouseEvent) => void) | undefined = undefined;
+            <task id="1.2">
+                <description>Удалить console.log из articles page</description>
+                <file>frontend-svelte/src/routes/(protected)/settings/articles/+page.svelte</file>
+                <lines>123, 132, 136, 146, 150, 153</lines>
+                <action>Удалить отладочные логи из функций открытия модалов</action>
+            </task>
+        </tasks>
+    </phase>
 
-          function handleClick(e: MouseEvent) {
-            if (onclick) {
-              onclick(e);
-            }
-            dispatch('click', e);
-          }
-        </current_implementation>
-        <issue>The onclick prop exists but articles page uses on:click directive, creating potential mismatch</issue>
-      </code_review>
-    </technical_issue>
+    <phase number="2" priority="high">
+        <title>Удаление временных файлов</title>
+        <tasks>
+            <task id="2.1">
+                <description>Удалить тестовый HTML файл</description>
+                <file>test-button-click.html</file>
+                <action>Полное удаление файла</action>
+            </task>
 
-    <articles_page_analysis>
-      <button_count>11</button_count>
-      <button_types>
-        <primary_actions>3</primary_actions>
-        <row_actions>2_per_article</row_actions>
-        <modal_controls>6</modal_controls>
-      </button_types>
-      <all_usage_pattern>on:click directive</all_usage_pattern>
-    </articles_page_analysis>
-  </analysis>
+            <task id="2.2">
+                <description>Очистить временные XML файлы</description>
+                <files>
+                    <file>requests/analyses.xml</file>
+                    <file>requests/plan.xml</file>
+                    <file>requests/request copy.xml</file>
+                </files>
+                <action>Удалить после завершения code review</action>
+            </task>
+        </tasks>
+    </phase>
 
-  <solution_strategy>
-    <approach>Verify and ensure proper Svelte event handling in Button component</approach>
-    <priority>Critical - affects all button interactions</priority>
-    <risk_level>Low - targeted fix with clear solution</risk_level>
+    <phase number="3" priority="medium">
+        <title>Консолидация тестов</title>
+        <tasks>
+            <task id="3.1">
+                <description>Объединить тесты кнопок</description>
+                <files>
+                    <keep>tests/frontend/button-onclick-validation.test.ts</keep>
+                    <remove>frontend-svelte/src/test/button-onclick-validation.test.ts</remove>
+                </files>
+                <action>Оставить только один файл тестов в /tests/frontend/</action>
+            </task>
+        </tasks>
+    </phase>
 
-    <steps>
-      <step id="1">
-        <title>Code Analysis and Verification</title>
-        <description>Examine current Button component implementation and articles page usage</description>
-        <actions>
-          <action>Review Button.svelte handleClick function</action>
-          <action>Verify onclick prop usage patterns</action>
-          <action>Check if HTML onclick attributes exist in template</action>
-          <action>Validate event dispatch mechanism</action>
-        </actions>
-        <expected_outcome>Clear understanding of current implementation state</expected_outcome>
-      </step>
+    <phase number="4" priority="low">
+        <title>Проверка зависимостей</title>
+        <tasks>
+            <task id="4.1">
+                <description>Проверить неиспользуемые npm пакеты</description>
+                <action>Запустить npm-check-unused</action>
+            </task>
 
-      <step id="2">
-        <title>Fix Implementation</title>
-        <description>Ensure Button component properly handles both onclick prop and on:click directive</description>
-        <file>/frontend-svelte/src/lib/components/ui/Button.svelte</file>
-        <changes>
-          <change>
-            <line_range>78-98</line_range>
-            <description>Verify button and anchor elements use on:click={handleClick} not onclick={handleClick}</description>
-            <before>If any HTML onclick attributes exist, replace with Svelte on:click directives</before>
-            <after>Ensure all event binding uses proper Svelte on:click directive syntax</after>
-            <rationale>Svelte requires on: prefix for event directives, HTML onclick won't work with Svelte's reactivity</rationale>
-          </change>
-          <change>
-            <description>Maintain onclick prop support for backward compatibility</description>
-            <ensure>handleClick function calls onclick prop if provided</ensure>
-            <ensure>Event is still dispatched for on:click usage</ensure>
-          </change>
-        </changes>
-      </step>
+            <task id="4.2">
+                <description>Проверить импорты</description>
+                <action>Найти и удалить неиспользуемые импорты</action>
+            </task>
+        </tasks>
+    </phase>
 
-      <step id="3">
-        <title>Validation Testing</title>
-        <description>Comprehensive testing of button functionality</description>
-        <test_categories>
-          <category name="Manual Testing">
-            <test>Open articles page in browser</test>
-            <test>Click "Создать статью" button - should open create modal</test>
-            <test>Click "Изменить" button - should open edit modal with pre-filled data</test>
-            <test>Click "Удалить" button - should open delete confirmation modal</test>
-            <test>Test modal control buttons (Cancel/Save/Create/Delete)</test>
-            <test>Test retry button in error state</test>
-            <test>Test empty state create button</test>
-          </category>
-
-          <category name="Automated Testing">
-            <test>Run existing button component tests</test>
-            <test>Execute articles page integration tests</test>
-            <test>Verify no console errors during interactions</test>
-          </category>
-
-          <category name="Edge Cases">
-            <test>Rapid clicking prevention</test>
-            <test>Button state changes during loading</test>
-            <test>Disabled button interactions</test>
-            <test>Keyboard accessibility (Enter/Space)</test>
-          </category>
-        </test_categories>
-      </step>
-
-      <step id="4">
-        <title>Regression Prevention</title>
-        <description>Ensure fix doesn't break existing functionality</description>
-        <actions>
-          <action>Test all other pages using Button component</action>
-          <action>Verify backward compatibility with onclick prop</action>
-          <action>Check other settings pages functionality</action>
-          <action>Validate form submission buttons work correctly</action>
-        </actions>
-      </step>
-
-      <step id="5">
-        <title>Performance and Accessibility Validation</title>
-        <description>Ensure fix maintains performance and accessibility standards</description>
-        <metrics>
-          <metric>Button response time &lt; 50ms</metric>
-          <metric>Modal open time &lt; 100ms</metric>
-          <metric>No memory leaks from event handlers</metric>
-          <metric>Keyboard navigation working</metric>
-          <metric>Screen reader accessibility maintained</metric>
-        </metrics>
-      </step>
-    </steps>
-  </solution_strategy>
-
-  <implementation_details>
-    <files_to_modify>
-      <file>
-        <path>/frontend-svelte/src/lib/components/ui/Button.svelte</path>
-        <priority>Critical</priority>
-        <changes>
-          <change type="verification">Ensure lines 79 and 89 use on:click={handleClick} not onclick={handleClick}</change>
-          <change type="ensure">Maintain onclick prop functionality for backward compatibility</change>
-          <change type="ensure">Event dispatch mechanism works for on:click usage</change>
-        </changes>
-        <backup_required>yes</backup_required>
-      </file>
-    </files_to_modify>
-
-    <specific_code_changes>
-      <change>
-        <location>Button.svelte line 79 (anchor element)</location>
-        <current>Should be: on:click={handleClick}</current>
-        <verify>Element uses Svelte on:click directive not HTML onclick attribute</verify>
-      </change>
-      <change>
-        <location>Button.svelte line 89 (button element)</location>
-        <current>Should be: on:click={handleClick}</current>
-        <verify>Element uses Svelte on:click directive not HTML onclick attribute</verify>
-      </change>
-    </specific_code_changes>
-
-    <event_flow_diagram>
-      <step>1. User clicks button element in browser</step>
-      <step>2. Svelte on:click directive triggers handleClick function</step>
-      <step>3. handleClick checks if disabled/loading and prevents action if needed</step>
-      <step>4. handleClick calls onclick prop if provided (backward compatibility)</step>
-      <step>5. handleClick dispatches 'click' event for on:click usage</step>
-      <step>6. Parent component receives event and executes appropriate action</step>
-    </event_flow_diagram>
-  </implementation_details>
-
-  <testing_strategy>
-    <test_phases>
-      <phase name="Pre-Implementation">
-        <description>Validate current state and reproduce issue</description>
-        <tests>
-          <test>Manual verification of button non-responsiveness</test>
-          <test>Browser console error checking</test>
-          <test>Code review of current implementation</test>
-        </tests>
-      </phase>
-
-      <phase name="Post-Implementation">
-        <description>Comprehensive validation of fix</description>
-        <tests>
-          <test>All 11 button types in articles page functional</test>
-          <test>Modal workflows complete successfully</test>
-          <test>Form submissions work correctly</test>
-          <test>Error handling and retry buttons functional</test>
-          <test>No console errors during interactions</test>
-        </tests>
-      </phase>
-
-      <phase name="Regression">
-        <description>Ensure other components still work</description>
-        <tests>
-          <test>Other settings pages button functionality</test>
-          <test>Dashboard and navigation button interactions</test>
-          <test>Login/logout button functionality</test>
-          <test>All forms and CRUD operations across application</test>
-        </tests>
-      </phase>
-    </test_phases>
-
-    <automated_tests>
-      <command>docker exec budget-frontend npm run test -- --testNamePattern="Button"</command>
-      <command>docker exec budget-frontend npm run test -- --testNamePattern="Articles.*Button"</command>
-      <command>docker exec budget-frontend npm run test:coverage</command>
-    </automated_tests>
-
-    <manual_validation>
-      <url>http://localhost:5173/settings/articles</url>
-      <actions>
-        <action>Click "Создать статью" - should open modal</action>
-        <action>Fill form and click "Создать" - should submit</action>
-        <action>Click "Изменить" on article - should open edit modal</action>
-        <action>Click "Удалить" on article - should open confirmation</action>
-        <action>Test cancel buttons - should close modals</action>
-      </actions>
-    </manual_validation>
-  </testing_strategy>
-
-  <risk_assessment>
-    <risk_level>Low</risk_level>
-    <factors>
-      <factor type="positive">Simple, targeted fix with clear solution</factor>
-      <factor type="positive">Existing onclick prop provides backward compatibility</factor>
-      <factor type="positive">Comprehensive test documentation exists</factor>
-      <factor type="positive">Issue appears to be localized to event binding</factor>
-    </factors>
-
-    <mitigation_strategies>
-      <strategy>Create backup of Button.svelte before changes</strategy>
-      <strategy>Test fix in development environment first</strategy>
-      <strategy>Validate all button usage patterns across application</strategy>
-      <strategy>Keep existing onclick prop functionality intact</strategy>
-    </mitigation_strategies>
-
-    <rollback_plan>
-      <condition>If buttons stop working after fix</condition>
-      <action>Restore Button.svelte from backup</action>
-      <validation>Test articles page button functionality</validation>
-      <escalation>Review event handling implementation in detail</escalation>
-    </rollback_plan>
-  </risk_assessment>
-
-  <success_criteria>
-    <primary>
-      <criterion>All 11 button types in articles page respond to clicks</criterion>
-      <criterion>Create modal opens when clicking "Создать статью"</criterion>
-      <criterion>Edit modal opens with pre-filled data</criterion>
-      <criterion>Delete confirmation modal opens</criterion>
-      <criterion>Modal control buttons (Cancel/Save/Delete) work correctly</criterion>
-      <criterion>Error retry buttons restore functionality</criterion>
-    </primary>
-
-    <secondary>
-      <criterion>No console errors during button interactions</criterion>
-      <criterion>Button response time under 50ms</criterion>
-      <criterion>Modal open time under 100ms</criterion>
-      <criterion>Keyboard accessibility maintained (Tab/Enter/Space)</criterion>
-      <criterion>All existing button functionality preserved</criterion>
-    </secondary>
-
-    <technical>
-      <criterion>Button.svelte uses proper Svelte on:click directives</criterion>
-      <criterion>Event flow works: click → handleClick → onclick prop → dispatch</criterion>
-      <criterion>Backward compatibility with onclick prop maintained</criterion>
-      <criterion>No memory leaks from event handlers</criterion>
-    </technical>
-  </success_criteria>
-
-  <implementation_commands>
-    <development>
-      <command description="Start development environment">./scripts/dev.sh -d</command>
-      <command description="Access frontend container">docker exec -it budget-frontend sh</command>
-      <command description="Run type checking">npm run check</command>
-      <command description="Run tests">npm run test</command>
-    </development>
-
-    <testing>
-      <command description="Run button tests">npm run test -- --testNamePattern="Button"</command>
-      <command description="Run with coverage">npm run test -- --coverage</command>
-      <command description="Watch mode">npm run test:watch -- button-click-fix</command>
-    </testing>
-
-    <validation>
-      <command description="Check for onclick attributes">grep -r "onclick=" src/lib/components/</command>
-      <command description="Verify articles page">curl -s http://localhost:5173/settings/articles</command>
-      <command description="Build verification">npm run build</command>
-    </validation>
-  </implementation_commands>
-
-  <completion_checklist>
-    <item>☐ Button.svelte code reviewed and verified</item>
-    <item>☐ Event binding uses proper Svelte on:click directives</item>
-    <item>☐ Articles page buttons all functional</item>
-    <item>☐ Modal workflows work end-to-end</item>
-    <item>☐ No console errors during interactions</item>
-    <item>☐ Automated tests passing</item>
-    <item>☐ Manual validation completed</item>
-    <item>☐ Regression testing performed</item>
-    <item>☐ Performance metrics within targets</item>
-    <item>☐ Accessibility standards maintained</item>
-    <item>☐ Code committed and pushed</item>
-    <item>☐ Documentation updated</item>
-  </completion_checklist>
-
-  <monitoring_plan>
-    <immediate>
-      <action>Monitor articles page for button responsiveness</action>
-      <action>Watch browser console for any new errors</action>
-      <action>Check user feedback for interaction issues</action>
-    </immediate>
-
-    <ongoing>
-      <action>Run button tests in CI/CD pipeline</action>
-      <action>Include button interaction tests in QA process</action>
-      <action>Monitor performance metrics for button response times</action>
-    </ongoing>
-  </monitoring_plan>
-
-  <references>
-    <document>CLAUDE.md - Project development guidelines</document>
-    <document>analyses.xml - Root cause analysis</document>
-    <document>button-click-fix-test-summary.md - Comprehensive test documentation</document>
-    <documentation>Svelte Event Handling: https://svelte.dev/docs/element-directives</documentation>
-    <codebase>Button.svelte - Primary component to fix</codebase>
-    <codebase>articles/+page.svelte - Primary affected page</codebase>
-  </references>
-</plan>
+    <execution_order>
+        <step>1. Удаление отладочных console.log</step>
+        <step>2. Удаление временных файлов</step>
+        <step>3. Консолидация тестовых файлов</step>
+        <step>4. Проверка зависимостей</step>
+        <step>5. Финальное тестирование</step>
+        <step>6. Коммит изменений</step>
+    </execution_order>
+</cleanup_plan>

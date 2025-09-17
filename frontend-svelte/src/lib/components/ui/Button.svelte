@@ -39,10 +39,7 @@
   
   // Handle haptic feedback without interfering with event propagation
   function addHapticFeedback(e: MouseEvent) {
-    console.log('🎯 Button clicked - haptic feedback handler', { disabled, loading });
-
     if (disabled || loading) {
-      console.log('⛔ Button disabled or loading, preventing click');
       e.preventDefault();
       e.stopPropagation();
       return;
@@ -50,11 +47,9 @@
 
     // Add haptic feedback on touch devices
     if (hapticFeedback && $isTouch && 'vibrate' in navigator) {
-      console.log('📳 Triggering haptic feedback');
       navigator.vibrate(10);
     }
 
-    console.log('✅ Click event propagating to parent handlers');
     // Note: Event continues to propagate naturally to parent handlers
   }
   
