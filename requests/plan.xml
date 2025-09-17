@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plan>
+    <problem_summary>
+        <issue>401 Unauthorized error when accessing /settings/articles page</issue>
+        <cause>Client-side authentication check in +layout.svelte triggers unnecessary /api/auth/me call</cause>
+        <impact>Admin users cannot perform CRUD operations on articles</impact>
+    </problem_summary>
+
+    <solution_approach>
+        <description>Remove redundant client-side authentication check in layout since server-side protection is already in place</description>
+        <justification>
+            <point>Server-side authentication in hooks.server.ts and +layout.server.ts is sufficient</point>
+            <point>Client-side checkAuth() call causes unnecessary 401 errors</point>
+            <point>Authentication state is already populated from server-side</point>
+        </justification>
+    </solution_approach>
+
+    <tasks>
+        <task priority="1">
+            <name>Check current authentication flow</name>
+            <description>Verify how authentication is currently handled in +layout.svelte</description>
+            <files>
+                <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/+layout.svelte</file>
+            </files>
+        </task>
+
+        <task priority="2">
+            <name>Fix client-side authentication</name>
+            <description>Modify +layout.svelte to avoid redundant auth checks when user is already authenticated server-side</description>
+            <changes>
+                <change>Check if user data exists from server before calling checkAuth()</change>
+                <change>Only call checkAuth() if no user data is available</change>
+            </changes>
+        </task>
+
+        <task priority="3">
+            <name>Verify API configuration</name>
+            <description>Ensure API client is properly configured with credentials</description>
+            <files>
+                <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/services/api.ts</file>
+            </files>
+        </task>
+
+        <task priority="4">
+            <name>Test the fix</name>
+            <description>Verify that articles page works correctly after the fix</description>
+            <test_scenarios>
+                <scenario>Admin can access /settings/articles without 401 error</scenario>
+                <scenario>Admin can create new articles</scenario>
+                <scenario>Admin can edit existing articles</scenario>
+                <scenario>Admin can delete articles</scenario>
+            </test_scenarios>
+        </task>
+
+        <task priority="5">
+            <name>Add fallback error handling</name>
+            <description>Ensure articles page handles auth errors gracefully</description>
+            <changes>
+                <change>Add try-catch in loadArticles function</change>
+                <change>Check user permissions before making API calls</change>
+            </changes>
+        </task>
+    </tasks>
+
+    <expected_outcome>
+        <point>No 401 errors on articles page load</point>
+        <point>Admin users can perform all CRUD operations</point>
+        <point>Improved client-server authentication synchronization</point>
+    </expected_outcome>
+</plan>

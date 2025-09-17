@@ -608,6 +608,7 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 11. **FactForm TypeError on undefined fields**: ✅ **RESOLVED** - Fixed field mapping with defensive coding (v3.3.2)
 12. **Admin users getting 401 error on /settings**: ✅ **RESOLVED** - Fixed session handling and backend URL configuration (ADR-008, ADR-009)
 13. **Sharing functionality removal**: ✅ **COMPLETED** - Removed unused sharing functionality (v3.4.0) - cleaned up frontend, backend, and database components
+14. **Articles page 401 authentication error**: ✅ **RESOLVED** - Fixed redundant client-side auth checks (v3.5.1)
 
 ### 🔧 Docker Networking Fix (ADR-004)
 

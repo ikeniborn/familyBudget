@@ -10,30 +10,8 @@ export const load: LayoutLoad = async ({ parent, data }) => {
   
   // Client-side authentication check
   if (browser) {
-    // Get current auth state
-    const authState = get(authStore);
-    
-    // If not authenticated at all, redirect immediately
-    if (!authState.isAuthenticated && !authState.isLoading) {
-      throw redirect(302, '/login');
-    }
-    
-    // If we have a user but session not validated yet, validate it
-    if (authState.user && !authState.sessionValidated) {
-      try {
-        const isValid = await authStore.validateSession();
-        if (!isValid) {
-          // Session invalid, auth store will clear state
-          throw redirect(302, '/login');
-        }
-      } catch (error) {
-        console.error('Session validation failed:', error);
-        authStore.clearAuth();
-        throw redirect(302, '/login');
-      }
-    }
-    
     // If there's server user data, update the store (SSR hydration)
+    // This should be done FIRST before any validation checks
     if (data?.user) {
       // Create proper AuthUser object with all required fields
       const userData = {
@@ -71,6 +49,30 @@ export const load: LayoutLoad = async ({ parent, data }) => {
         authStore.setUser(userData);
       } catch (error) {
         // Silently handle error to avoid breaking the layout
+      }
+    } else {
+      // Only validate session if we don't have server user data
+      // Get current auth state
+      const authState = get(authStore);
+
+      // If not authenticated at all, redirect immediately
+      if (!authState.isAuthenticated && !authState.isLoading) {
+        throw redirect(302, '/login');
+      }
+
+      // If we have a user but session not validated yet, validate it
+      if (authState.user && !authState.sessionValidated) {
+        try {
+          const isValid = await authStore.validateSession();
+          if (!isValid) {
+            // Session invalid, auth store will clear state
+            throw redirect(302, '/login');
+          }
+        } catch (error) {
+          console.error('Session validation failed:', error);
+          authStore.clearAuth();
+          throw redirect(302, '/login');
+        }
       }
     }
   }
