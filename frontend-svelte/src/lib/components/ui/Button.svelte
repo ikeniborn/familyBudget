@@ -47,16 +47,16 @@
       e.stopPropagation();
       return;
     }
-    
+
     if (hapticFeedback && $isTouch && 'vibrate' in navigator) {
       navigator.vibrate(10);
     }
-    
+
     // Call the external onclick handler if provided
     if (onclick) {
       onclick(e);
     }
-    
+
     // Dispatch event for backward compatibility with on:click
     dispatch('click', e);
   }

@@ -14,7 +14,7 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ Simplified Notification System (v3.4.1):** Removed expansion functionality from toast notifications for cleaner, more consistent UI. All notifications now display with uniform sizing. Removed 27 lines of expansion logic while maintaining all core functionality (success, error, warning, info notifications with auto-dismiss and manual close).
 
-**✅ Articles Reference Module (v3.5.0):** Implemented comprehensive articles management for nomenclature categorization. Full CRUD operations with role-based permissions, shared/personal articles support, and bulk operations for administrators. Complete test coverage with 69 tests. Admin login credentials: username=admin, password=admin. See `/docs/api/articles-reference.md`.
+**✅ Articles Reference Module (v3.5.3):** Implemented comprehensive articles management for nomenclature categorization. Full CRUD operations with role-based permissions, shared/personal articles support, and bulk operations for administrators. Complete test coverage with 69 tests. Admin login credentials: username=admin, password=admin. **Button click issue fixed (2025-09-17):** Converted all 9 Button components from `on:click` to `onclick` prop syntax to resolve unresponsive buttons. See `/docs/api/articles-reference.md`.
 
 ## ⚠️ CRITICAL: Docker-Only Development
 
@@ -609,6 +609,7 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 12. **Admin users getting 401 error on /settings**: ✅ **RESOLVED** - Fixed session handling and backend URL configuration (ADR-008, ADR-009)
 13. **Sharing functionality removal**: ✅ **COMPLETED** - Removed unused sharing functionality (v3.4.0) - cleaned up frontend, backend, and database components
 14. **Articles page 401 authentication error**: ✅ **FULLY RESOLVED** - Removed redundant AuthGuard client-side auth checks (v3.5.2)
+15. **Articles page buttons not responding**: ✅ **RESOLVED** - Updated Button components from `on:click` to `onclick` prop syntax (v3.5.3)
 
 ### 🔧 Docker Networking Fix (ADR-004)
 

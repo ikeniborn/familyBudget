@@ -8,32 +8,29 @@
         <architecture>
             <frontend>SvelteKit 2 + TypeScript</frontend>
             <backend>FastAPI + SQLAlchemy + Pydantic</backend>
-            <database>PostgreSQL с партиционированием</database>
+            <database>PostgreSQL с партиционированием, Redis</database>
             <infrastructure>Docker Compose</infrastructure>
         </architecture>
-        <compliance>Строгое следование CLAUDE.md</compliance>
     </project>
     <context>
         http://localhost:5173/settings/articles
         Не поолучается редактировать или слздавать заиписи под пользвтаелем админисратор
         Кнопки не реагируют на нажатие
-        В логах консоли только одна ошибка после перезагрузки страницы 
-        /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-17 07-36-53.png
     </context>
     <requirements>
         <point number="1">Проанализировать логи</point>
-        <point number="2">Определить ппроблему</point>
-        <point number="3">Испарвить ппроблему</point>
+        <point number="2">Определить проблему</point>
+        <point number="3">Испарвить проблему</point>
     </requirements>
     <tasks>
         <task number="1">
             <step number="1">
-                <action>Изучить контекст(context) и требования(requirements)</action>
+                <action>Изучить контекст(context), требования(requirements), память CLAUDE.md</action>
             </step>
             <step number="2">
                 <thinking>
                     <action>Проанализировать контекст (context) </action>
-                    <action>Обдумать требования (requirements) шаг за шагом</action>
+                    <action>Обдумать требования (requirements) шаг за шагом с учетом CLAUDE.md</action>
                 </thinking>
             </step>
             <step number="3">

@@ -238,7 +238,7 @@
       </p>
     </div>
 
-    <Button on:click={openCreateModal} class="flex items-center gap-2">
+    <Button onclick={openCreateModal} class="flex items-center gap-2">
       <Plus class="h-4 w-4" />
       Создать статью
     </Button>
@@ -344,7 +344,7 @@
         <X class="h-12 w-12 text-red-500 mx-auto mb-4" />
         <p class="text-gray-900 font-medium mb-2">Ошибка загрузки</p>
         <p class="text-gray-600 mb-4">{error}</p>
-        <Button on:click={loadArticles}>Попробовать снова</Button>
+        <Button onclick={loadArticles}>Попробовать снова</Button>
       </div>
     {:else if filteredArticles.length === 0}
       <div class="p-6 text-center">
@@ -354,7 +354,7 @@
           {searchTerm ? 'Попробуйте изменить критерии поиска' : 'Создайте первую статью'}
         </p>
         {#if !searchTerm}
-          <Button on:click={openCreateModal}>Создать статью</Button>
+          <Button onclick={openCreateModal}>Создать статью</Button>
         {/if}
       </div>
     {:else}
@@ -433,7 +433,7 @@
                       <Button
                         variant="outline"
                         size="sm"
-                        on:click={() => openEditModal(article)}
+                        onclick={() => openEditModal(article)}
                         class="flex items-center gap-1"
                       >
                         <Edit class="h-4 w-4" />
@@ -444,7 +444,7 @@
                       <Button
                         variant="outline"
                         size="sm"
-                        on:click={() => openDeleteModal(article)}
+                        onclick={() => openDeleteModal(article)}
                         class="flex items-center gap-1 text-red-600 hover:text-red-700"
                       >
                         <Trash2 class="h-4 w-4" />
@@ -541,7 +541,7 @@
       <Button
         type="button"
         variant="outline"
-        on:click={() => (showCreateModal = false)}
+        onclick={() => (showCreateModal = false)}
       >
         Отмена
       </Button>
@@ -607,7 +607,7 @@
       <Button
         type="button"
         variant="outline"
-        on:click={() => (showEditModal = false)}
+        onclick={() => (showEditModal = false)}
       >
         Отмена
       </Button>
@@ -631,14 +631,14 @@
       <Button
         type="button"
         variant="outline"
-        on:click={() => (showDeleteModal = false)}
+        onclick={() => (showDeleteModal = false)}
       >
         Отмена
       </Button>
       <Button
         type="button"
         variant="destructive"
-        on:click={handleDelete}
+        onclick={handleDelete}
       >
         Удалить
       </Button>

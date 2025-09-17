@@ -3,6 +3,13 @@
 ## Overview
 The Articles reference module provides comprehensive management of article categories used for nomenclature grouping in the Family Budget application. Articles can be either shared (system-wide) or user-specific.
 
+## Recent Updates (v3.5.3)
+**Fixed Button Click Issue (2025-09-17):**
+- Resolved unresponsive buttons on articles management page
+- Updated all Button components from `on:click` to `onclick` prop syntax
+- Affected 9 buttons: Create, Edit, Delete, Cancel (3x), Submit (2x), Retry
+- Root cause: Button component migration to prioritize `onclick` prop over event dispatch
+
 ## API Endpoints
 
 ### Base URL
