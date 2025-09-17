@@ -407,9 +407,9 @@
 
 <!-- Create Modal -->
 <Modal bind:show={showCreateModal} title="Создать статью">
-  <form on:submit|preventDefault={handleCreate} class="space-y-4">
-    <div>
-      <label for="create-code" class="block text-sm font-medium text-gray-700 mb-1">
+  <form on:submit|preventDefault={handleCreate} class="space-y-5">
+    <div class="space-y-2">
+      <label for="create-code" class="block text-sm font-medium text-gray-700 mb-2">
         Код статьи *
       </label>
       <input
@@ -422,8 +422,8 @@
       />
     </div>
 
-    <div>
-      <label for="create-name" class="block text-sm font-medium text-gray-700 mb-1">
+    <div class="space-y-2">
+      <label for="create-name" class="block text-sm font-medium text-gray-700 mb-2">
         Название *
       </label>
       <input
@@ -436,8 +436,8 @@
       />
     </div>
 
-    <div>
-      <label for="create-description" class="block text-sm font-medium text-gray-700 mb-1">
+    <div class="space-y-2">
+      <label for="create-description" class="block text-sm font-medium text-gray-700 mb-2">
         Описание
       </label>
       <textarea
@@ -450,19 +450,19 @@
     </div>
 
 
-    <div class="flex items-center">
+    <div class="flex items-center bg-gray-50 p-3 rounded-lg">
       <input
         id="create-active"
         type="checkbox"
         bind:checked={formData.is_active}
-        class="mr-2"
+        class="mr-3 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
       />
-      <label for="create-active" class="text-sm text-gray-700">
-        Активная статья
+      <label for="create-active" class="text-sm font-medium text-gray-700 select-none cursor-pointer">
+        Активная статья (доступна всем пользователям)
       </label>
     </div>
 
-    <div class="flex justify-end gap-3 pt-4">
+    <div class="flex justify-end gap-3 pt-5 border-t border-gray-100">
       <Button
         type="button"
         variant="outline"
@@ -477,9 +477,9 @@
 
 <!-- Edit Modal -->
 <Modal bind:show={showEditModal} title="Редактировать статью">
-  <form on:submit|preventDefault={handleUpdate} class="space-y-4">
-    <div>
-      <label for="edit-code" class="block text-sm font-medium text-gray-700 mb-1">
+  <form on:submit|preventDefault={handleUpdate} class="space-y-5">
+    <div class="space-y-2">
+      <label for="edit-code" class="block text-sm font-medium text-gray-700 mb-2">
         Код статьи *
       </label>
       <input
@@ -491,8 +491,8 @@
       />
     </div>
 
-    <div>
-      <label for="edit-name" class="block text-sm font-medium text-gray-700 mb-1">
+    <div class="space-y-2">
+      <label for="edit-name" class="block text-sm font-medium text-gray-700 mb-2">
         Название *
       </label>
       <input
@@ -504,8 +504,8 @@
       />
     </div>
 
-    <div>
-      <label for="edit-description" class="block text-sm font-medium text-gray-700 mb-1">
+    <div class="space-y-2">
+      <label for="edit-description" class="block text-sm font-medium text-gray-700 mb-2">
         Описание
       </label>
       <textarea
@@ -516,19 +516,19 @@
       ></textarea>
     </div>
 
-    <div class="flex items-center">
+    <div class="flex items-center bg-gray-50 p-3 rounded-lg">
       <input
         id="edit-active"
         type="checkbox"
         bind:checked={formData.is_active}
-        class="mr-2"
+        class="mr-3 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
       />
-      <label for="edit-active" class="text-sm text-gray-700">
+      <label for="edit-active" class="text-sm font-medium text-gray-700 select-none cursor-pointer">
         Активная статья
       </label>
     </div>
 
-    <div class="flex justify-end gap-3 pt-4">
+    <div class="flex justify-end gap-3 pt-5 border-t border-gray-100">
       <Button
         type="button"
         variant="outline"
@@ -543,7 +543,7 @@
 
 <!-- Delete Modal -->
 <Modal bind:show={showDeleteModal} title="Удалить статью">
-  <div class="space-y-4">
+  <div class="space-y-5">
     <p class="text-gray-700">
       Вы уверены, что хотите удалить статью
       <strong>"{selectedArticle?.name}"</strong>?
@@ -552,7 +552,7 @@
       Это действие нельзя отменить. Убедитесь, что статья не используется в номенклатурах.
     </p>
 
-    <div class="flex justify-end gap-3 pt-4">
+    <div class="flex justify-end gap-3 pt-5 border-t border-gray-100">
       <Button
         type="button"
         variant="outline"
