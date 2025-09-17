@@ -13,11 +13,14 @@
         </architecture>
     </project>
     <context>
-        ПРи переходе между страницами приложения в консоли сообзение ошибка 
-        /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-17 20-29-54.png
+        http://localhost:5173/products
+        при переходе на страинук ошика 500
+        в консоли ошибка /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-17 20-53-05.png
     </context>
     <requirements>
-        <point number="1">Исправить ошибку</point>
+        <point number="1">Проанализировать ошибку</point>
+        <point number="2">определить причину ошибку</point>
+        <point number="3">Исправить ошибку</point>
     </requirements>
     <tasks>
         <task number="1">

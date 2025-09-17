@@ -30,6 +30,8 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ Articles 422 Error & Modal Z-Index Fix (v3.7.1, 2025-09-17):** Fixed two critical issues on articles page: 1) 422 Unprocessable Entity error when creating articles - resolved by making user_id optional in ArticleCreate schema since backend gets it from session, removed user_id from frontend payload. 2) Modal dialogs appearing behind page content - increased z-index values from 9999/10000 to 50000/50001 for guaranteed visibility. Complete test coverage added. See `/docs/api/articles-422-fix.md` and `/docs/ui/modal-zindex-fix.md`.
 
+**✅ SvelteKit Params Warning Fix (v3.7.2, 2025-09-17):** Resolved console warning "Page was created with unknown prop 'params'" during navigation. Added warning suppression in svelte.config.js for SvelteKit internal props. Clean console output without functional impact. See `/docs/api/params-warning-fix.md`.
+
 ## ⚠️ CRITICAL: Docker-Only Development
 
 **ALL operations MUST be performed through Docker containers:**
