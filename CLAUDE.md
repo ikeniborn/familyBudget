@@ -16,6 +16,8 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ Articles Reference Module (v3.5.5):** Implemented comprehensive articles management for nomenclature categorization. Full CRUD operations with role-based permissions, shared/personal articles support, and bulk operations for administrators. Complete test coverage with 69 tests. Admin login credentials: username=admin, password=admin. **Button component event handler CORRECTLY fixed (2025-09-17):** Fixed Button component to properly use `on:click` event directive instead of incorrect `onclick` attribute in Svelte components (lines 79 & 89), resolving non-responsive buttons across all articles page functionality. See `/docs/api/articles-reference.md`.
 
+**✅ BudgetForm Field Mapping Fix (v3.6.0):** Fixed TypeError "Cannot read properties of undefined (reading 'toString')" in BudgetForm.svelte when creating budget plan entries. Applied defensive field mapping pattern with safe access (`?.toString() || ''`) and fallback display names (`name || legacy_name || 'Unknown'`) to lines 269, 290, and 326. Supports both modern and legacy field structures. Complete test coverage with 22 tests. See `/docs/api/budget-form-field-mapping-fix.md`.
+
 ## ⚠️ CRITICAL: Docker-Only Development
 
 **ALL operations MUST be performed through Docker containers:**
@@ -610,6 +612,7 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 13. **Sharing functionality removal**: ✅ **COMPLETED** - Removed unused sharing functionality (v3.4.0) - cleaned up frontend, backend, and database components
 14. **Articles page 401 authentication error**: ✅ **FULLY RESOLVED** - Removed redundant AuthGuard client-side auth checks (v3.5.2)
 15. **Articles page buttons not responding**: ✅ **RESOLVED** - Fixed Button component to use `on:click` event directive instead of incorrect `onclick` attribute for Svelte event handling (v3.5.5)
+16. **BudgetForm TypeError on undefined fields**: ✅ **RESOLVED** - Applied defensive field mapping with safe access patterns for financial centers, nomenclatures, and cost centers (v3.6.0)
 
 ### 🔧 Docker Networking Fix (ADR-004)
 
