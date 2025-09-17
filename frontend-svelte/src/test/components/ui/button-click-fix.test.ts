@@ -637,4 +637,188 @@ describe('Button Component Click Fix', () => {
       expect(mockOnClick).toHaveBeenCalledTimes(1); // Still 1, no new call
     });
   });
+
+  describe('Articles Page Button Scenarios', () => {
+    it('should handle article creation button clicks', async () => {
+      const createHandler = vi.fn();
+      const component = render(Button, {
+        props: {
+          variant: 'default',
+          onclick: createHandler,
+          'data-testid': 'create-article-btn'
+        }
+      });
+
+      // Simulate articles page listener
+      component.component.$on('click', mockOnClickHandler);
+
+      const button = screen.getByTestId('create-article-btn');
+      await user.click(button);
+
+      expect(createHandler).toHaveBeenCalledTimes(1);
+      expect(mockOnClickHandler).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle article edit button clicks', async () => {
+      const editHandler = vi.fn();
+      render(Button, {
+        props: {
+          variant: 'outline',
+          size: 'sm',
+          onclick: editHandler,
+          'data-testid': 'edit-article-btn'
+        }
+      });
+
+      const button = screen.getByTestId('edit-article-btn');
+      await user.click(button);
+
+      expect(editHandler).toHaveBeenCalledTimes(1);
+      expect(editHandler).toHaveBeenCalledWith(expect.any(MouseEvent));
+    });
+
+    it('should handle article delete button clicks', async () => {
+      const deleteHandler = vi.fn();
+      const component = render(Button, {
+        props: {
+          variant: 'destructive',
+          size: 'sm',
+          onclick: deleteHandler,
+          'data-testid': 'delete-article-btn'
+        }
+      });
+
+      component.component.$on('click', mockOnClickHandler);
+
+      const button = screen.getByTestId('delete-article-btn');
+      await user.click(button);
+
+      expect(deleteHandler).toHaveBeenCalledTimes(1);
+      expect(mockOnClickHandler).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle save/submit button clicks in article forms', async () => {
+      const saveHandler = vi.fn();
+      render(Button, {
+        props: {
+          type: 'submit',
+          variant: 'default',
+          onclick: saveHandler,
+          'data-testid': 'save-article-btn'
+        }
+      });
+
+      const button = screen.getByTestId('save-article-btn');
+      expect(button).toHaveAttribute('type', 'submit');
+
+      await user.click(button);
+
+      expect(saveHandler).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle cancel button clicks in article modals', async () => {
+      const cancelHandler = vi.fn();
+      const component = render(Button, {
+        props: {
+          variant: 'secondary',
+          onclick: cancelHandler,
+          'data-testid': 'cancel-article-btn'
+        }
+      });
+
+      component.component.$on('click', mockOnClickHandler);
+
+      const button = screen.getByTestId('cancel-article-btn');
+      await user.click(button);
+
+      expect(cancelHandler).toHaveBeenCalledTimes(1);
+      expect(mockOnClickHandler).toHaveBeenCalledTimes(1);
+    });
+
+    it('should prevent actions when article operations are loading', async () => {
+      const actionHandler = vi.fn();
+      render(Button, {
+        props: {
+          loading: true,
+          onclick: actionHandler,
+          'data-testid': 'loading-article-btn'
+        }
+      });
+
+      const button = screen.getByTestId('loading-article-btn');
+      const spinner = button.querySelector('.animate-spin');
+
+      expect(spinner).toBeInTheDocument();
+
+      await user.click(button);
+
+      expect(actionHandler).not.toHaveBeenCalled();
+    });
+
+    it('should disable buttons when articles are being processed', async () => {
+      const processHandler = vi.fn();
+      render(Button, {
+        props: {
+          disabled: true,
+          onclick: processHandler,
+          'data-testid': 'disabled-article-btn'
+        }
+      });
+
+      const button = screen.getByTestId('disabled-article-btn');
+      expect(button).toBeDisabled();
+
+      await user.click(button);
+
+      expect(processHandler).not.toHaveBeenCalled();
+    });
+
+    it('should handle article navigation link clicks', async () => {
+      const navHandler = vi.fn();
+      render(Button, {
+        props: {
+          href: '/settings/articles/123',
+          onclick: navHandler,
+          variant: 'link',
+          'data-testid': 'article-nav-link'
+        }
+      });
+
+      const link = screen.getByRole('link');
+      expect(link).toHaveAttribute('href', '/settings/articles/123');
+
+      await user.click(link);
+
+      expect(navHandler).toHaveBeenCalledTimes(1);
+    });
+
+    it('should verify the fix - on:click directive vs onclick prop', async () => {
+      // This test specifically validates the fix from onclick={} to on:click={}
+      const onclickPropHandler = vi.fn();
+      const onClickEventHandler = vi.fn();
+
+      const component = render(Button, {
+        props: {
+          onclick: onclickPropHandler, // This should call the prop function
+          'data-testid': 'fix-validation-btn'
+        }
+      });
+
+      // This should work with the on:click directive in the component
+      component.component.$on('click', onClickEventHandler);
+
+      const button = screen.getByTestId('fix-validation-btn');
+      await user.click(button);
+
+      // Both should work after the fix
+      expect(onclickPropHandler).toHaveBeenCalledTimes(1);
+      expect(onClickEventHandler).toHaveBeenCalledTimes(1);
+
+      // Verify that the onclick prop received a MouseEvent
+      expect(onclickPropHandler).toHaveBeenCalledWith(expect.any(MouseEvent));
+
+      // Verify that the on:click listener received a CustomEvent
+      expect(onClickEventHandler).toHaveBeenCalledWith(expect.any(CustomEvent));
+    });
+  });
 });

@@ -14,7 +14,7 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ Simplified Notification System (v3.4.1):** Removed expansion functionality from toast notifications for cleaner, more consistent UI. All notifications now display with uniform sizing. Removed 27 lines of expansion logic while maintaining all core functionality (success, error, warning, info notifications with auto-dismiss and manual close).
 
-**✅ Articles Reference Module (v3.5.4):** Implemented comprehensive articles management for nomenclature categorization. Full CRUD operations with role-based permissions, shared/personal articles support, and bulk operations for administrators. Complete test coverage with 69 tests. Admin login credentials: username=admin, password=admin. **Button component event handler fixed (2025-09-17):** Fixed Button component to properly use `onclick` attribute instead of `on:click` event directive in DOM elements (lines 79 & 89), resolving non-responsive buttons across all articles page functionality. See `/docs/api/articles-reference.md`.
+**✅ Articles Reference Module (v3.5.5):** Implemented comprehensive articles management for nomenclature categorization. Full CRUD operations with role-based permissions, shared/personal articles support, and bulk operations for administrators. Complete test coverage with 69 tests. Admin login credentials: username=admin, password=admin. **Button component event handler CORRECTLY fixed (2025-09-17):** Fixed Button component to properly use `on:click` event directive instead of incorrect `onclick` attribute in Svelte components (lines 79 & 89), resolving non-responsive buttons across all articles page functionality. See `/docs/api/articles-reference.md`.
 
 ## ⚠️ CRITICAL: Docker-Only Development
 
@@ -609,7 +609,7 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 12. **Admin users getting 401 error on /settings**: ✅ **RESOLVED** - Fixed session handling and backend URL configuration (ADR-008, ADR-009)
 13. **Sharing functionality removal**: ✅ **COMPLETED** - Removed unused sharing functionality (v3.4.0) - cleaned up frontend, backend, and database components
 14. **Articles page 401 authentication error**: ✅ **FULLY RESOLVED** - Removed redundant AuthGuard client-side auth checks (v3.5.2)
-15. **Articles page buttons not responding**: ✅ **RESOLVED** - Fixed Button component DOM elements to use `onclick` attribute instead of `on:click` event directive (v3.5.4)
+15. **Articles page buttons not responding**: ✅ **RESOLVED** - Fixed Button component to use `on:click` event directive instead of incorrect `onclick` attribute for Svelte event handling (v3.5.5)
 
 ### 🔧 Docker Networking Fix (ADR-004)
 
