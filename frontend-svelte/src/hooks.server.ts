@@ -15,12 +15,18 @@ export const handle: Handle = async ({ event, resolve }) => {
     sessionId = sessionId.replace(/^s:/, '').replace(/\..*$/, '');
   }
 
+  // Валидация session ID перед API запросом
+  const isValidSession = sessionId &&
+    sessionId.length >= 16 && // Минимальная длина для валидного session ID
+    !/^(undefined|null|false|true)$/i.test(sessionId) && // Исключаем строковые представления примитивов
+    /^[a-zA-Z0-9+/=-]+$/.test(sessionId); // Проверяем формат base64/alphanumeric
+
   // Добавляем информацию о состоянии аутентификации в locals
-  event.locals.authenticated = !!sessionId;
+  event.locals.authenticated = !!isValidSession;
   event.locals.sessionId = sessionId;
 
-  // Fetch user data for server-side route protection
-  if (sessionId) {
+  // Fetch user data for server-side route protection - только для валидных сессий
+  if (isValidSession) {
     try {
       // Use correct backend URL for Docker environment
       const backendUrl = process.env.BACKEND_URL || 'http://budget-backend:4000';
@@ -51,7 +57,6 @@ export const handle: Handle = async ({ event, resolve }) => {
           // Поддержка прямого формата данных пользователя
           event.locals.user = {
             id: userData.id || userData.user_id,
-            user_id: userData.user_id || userData.id,
             username: userData.username || userData.user_name,
             first_name: userData.first_name || userData.user_name,
             role: userData.role || userData.user_role || 'user',
@@ -62,33 +67,50 @@ export const handle: Handle = async ({ event, resolve }) => {
         // Диагностическое логирование (только в development)
         if (process.env.NODE_ENV === 'development') {
           console.log('[Auth Debug] User loaded:', {
-            userId: event.locals.user?.id || event.locals.user?.user_id,
+            userId: event.locals.user?.id,
             role: event.locals.user?.role,
             sessionId: sessionId?.substring(0, 8) + '...'
           });
         }
       } else {
-        // Логируем неудачные попытки аутентификации
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[Auth Debug] Authentication failed:', {
+        // Логируем только неожиданные ошибки (не 401/403 для валидных сессий)
+        if (response.status !== 401 && response.status !== 403) {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[Auth Debug] Unexpected authentication error:', {
+              status: response.status,
+              sessionId: sessionId?.substring(0, 8) + '...',
+              url: `${backendUrl}/api/auth/me`
+            });
+          }
+        } else if (process.env.NODE_ENV === 'development') {
+          // Для 401/403 логируем только в debug режиме без warning уровня
+          console.debug('[Auth Debug] Session invalid or expired:', {
             status: response.status,
-            sessionId: sessionId?.substring(0, 8) + '...',
-            url: `${backendUrl}/api/auth/me`
+            sessionId: sessionId?.substring(0, 8) + '...'
           });
         }
       }
     } catch (error) {
       // Детальное логирование ошибок в development режиме
       if (process.env.NODE_ENV === 'development') {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorStack = error instanceof Error ? error.stack?.split('\n').slice(0, 3).join('\n') : undefined;
         console.error('[Auth Error] Failed to fetch user data:', {
-          error: error.message,
+          error: errorMessage,
           sessionId: sessionId?.substring(0, 8) + '...',
-          stack: error.stack?.split('\n').slice(0, 3).join('\n')
+          stack: errorStack
         });
       } else {
         console.warn('Authentication service unavailable');
       }
     }
+  } else if (sessionId && process.env.NODE_ENV === 'development') {
+    // Логируем случаи невалидных сессий только в debug режиме
+    console.debug('[Auth Debug] Skipping auth request for invalid session:', {
+      sessionId: sessionId?.substring(0, 8) + '...',
+      length: sessionId?.length,
+      reason: 'Session format validation failed'
+    });
   }
   
   // Передаем cookies для API запросов
