@@ -13,13 +13,13 @@
         </architecture>
     </project>
     <context>
-        При переходе по страницам в консоли ошибки.
-        /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-18 13-49-05.png
+        При переходе по страницам в консоли уведоммление.
+        /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-18 15-49-33.png
     </context>
     <requirements>
-        <point number="1">Проанализировать ошибку и логи фронтенда и бэкенда</point>
-        <point number="2">определить причину ошибку</point>
-        <point number="3">Исправить ошибку</point>
+        <point number="1">Проанидиировать логи</point>
+        <point number="2">Определить критичность уведолений</point>
+        <point number="3">Внести изменения в код, если уведомления критичные и требуют правок.</point>
     </requirements>
     <tasks>
         <task number="1">
@@ -64,10 +64,14 @@
                 <action>Выполнить план задач /requests/plan.xml шаг за шагом с помощью субагентов</action>
             </step>
             <step number="2">
-                <action>Проверить что план выполнент польностью</action>
+                <action>Проверить, что план выполнен полностью</action>
             </step>
             <step number="3">
                 <action>ВЫполнить пропущенные задачи</action>
+            </step>
+            <step number="3">
+                <action>Созранить результаты плана в /requests/result.md</action>
+                <output_file>/requests/result.md</output_file>
             </step>
             <step number="4">
                 <action>Приступить к задаче task 4</action>
@@ -97,12 +101,14 @@
                     <tip number="1">Be specific: “Use 2-space indentation” is better than “Format code properly”.</tip>
                     <tip number="2">Use structure to organize: Format each individual memory as a bullet point and group related memories under descriptive markdown headings.</tip>
                     <tip number="3">Review periodically: Update memories as your project evolves to ensure Claude is always using the most up to date information and context.</tip>
-                    <tip number="3">Размер файла не более 500 строк.</tip>
-                    <tip number="3">Хранить только актуальную информацию по проекту</tip>
                 </best_practice>
+                <requirements>
+                    <point number="1">Размер CLAUDE.md не должен превышать 40000 токенов</point>
+                    <point number="2">Хранить только актуальную информацию по проекту</point>
+                </requirements>
             </step>
             <step number="3">
-                <action>Сделать коммит</action>
+                <action>Сделать коммит и пуш</action>
             </step>
         </task>
     </tasks>

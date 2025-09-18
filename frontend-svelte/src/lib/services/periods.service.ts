@@ -38,10 +38,8 @@ class PeriodsService extends BaseService<Period, CreatePeriodData, UpdatePeriodD
   // Admin API - Get all periods with user information
   async getAllWithUsers(): Promise<AdminPeriod[]> {
     try {
-      console.log('🔍 Fetching admin periods from /api/admin/periods...');
       const response = await api.get<{success: boolean, data: AdminPeriod[], total: number}>('/admin/periods');
       
-      console.log('📦 Raw API response:', response);
       
       // The api.get() method returns the full response object {success, data, total}
       if (!response || typeof response !== 'object') {
@@ -62,8 +60,6 @@ class PeriodsService extends BaseService<Period, CreatePeriodData, UpdatePeriodD
         throw new Error('No periods data in API response');
       }
       
-      console.log(`📋 Received ${periods.length} periods from API`);
-      console.log('📋 First period sample:', periods[0]);
       
       // Map period_id to id for consistency and ensure all AdminPeriod fields are present
       const mappedPeriods = periods.map((p: any) => {
@@ -93,11 +89,9 @@ class PeriodsService extends BaseService<Period, CreatePeriodData, UpdatePeriodD
           is_active: p.is_active !== undefined ? p.is_active : true
         };
         
-        console.log('🔧 Mapped period:', mappedPeriod);
         return mappedPeriod;
       });
 
-      console.log(`✅ Loaded ${mappedPeriods.length} admin periods with user information`);
       
       return mappedPeriods;
     } catch (error: any) {

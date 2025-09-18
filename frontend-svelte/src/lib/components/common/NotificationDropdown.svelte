@@ -32,21 +32,17 @@
   $: unreadCount = notifications.filter(n => n.unread).length;
   
   function toggleDropdown(event?: Event) {
-    console.log('🔔 toggleDropdown called!', event);
-    console.log('🔔 Current isOpen state:', isOpen);
-    
     if (event) {
       event.preventDefault();
       event.stopPropagation();
     }
-    
+
     // Обновляем позицию кнопки для правильного позиционирования дропдауна
     if (buttonElement && !isOpen) {
       buttonRect = buttonElement.getBoundingClientRect();
     }
-    
+
     isOpen = !isOpen;
-    console.log('🔔 New isOpen state:', isOpen);
     
     if (!isOpen) {
       isExpanded = false; // Reset expansion when closing
@@ -59,7 +55,6 @@
       event.preventDefault();
       event.stopPropagation();
     }
-    console.log('Closing notification dropdown');
     isOpen = false;
     isExpanded = false;
     buttonRect = null;
@@ -90,18 +85,7 @@
 
   // Handle escape key listener using lifecycle hooks
   onMount(() => {
-    console.log('🔔 NotificationDropdown mounted!');
-    
-    // Test that button is clickable
-    const button = document.querySelector('button[aria-label="Открыть уведомления"]');
-    console.log('🔔 Found notification button:', button);
-    
-    if (button) {
-      // Add direct event listener for debugging
-      button.addEventListener('click', (e) => {
-        console.log('🔔 Native click event fired!', e);
-      });
-    }
+    // Component mounted successfully
     
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && isOpen) {

@@ -61,7 +61,6 @@
         header: 'Пользователь',
         sortable: true,
         render: (item: AdminPeriod) => {
-          console.log('🔍 Rendering user cell for item:', item);
           
           // Check if user_name exists in the item
           const userName = item.user_name || 'Неизвестный пользователь';
@@ -108,43 +107,26 @@
 
   // Load periods
   async function fetchPeriods() {
-    console.log('🚀 fetchPeriods called. Current user:', $currentUser);
-    console.log('🔐 Is admin?', $isAdmin);
-    console.log('🔑 User role:', $currentUser?.role);
-    console.log('📝 Full user object:', JSON.stringify($currentUser, null, 2));
-    
-    // Additional debugging for isAdmin derivation
-    console.log('🔍 Auth store $auth.user?.role:', $currentUser?.role);
-    console.log('🔍 Auth store comparison result:', $currentUser?.role === 'admin');
-    console.log('🔍 isAdmin derived value:', $isAdmin);
-    
     if (!$currentUser?.user_id) {
-      console.warn('⚠️ No user_id found, skipping fetch');
       return;
     }
-    
+
     try {
       loading = true;
       if ($isAdmin) {
-        console.log('👑 Fetching admin periods...');
         adminPeriods = await periodsService.getAllWithUsers();
-        console.log(`✅ Admin view: loaded ${adminPeriods.length} periods with user information`);
-        console.log('📊 Admin periods data:', adminPeriods);
-        
+
         // Clear regular periods for admin view
         periods = [];
       } else {
-        console.log('👤 Fetching user periods...');
         periods = await periodsService.getByUserId($currentUser.user_id);
-        console.log(`✅ User view: loaded ${periods.length} periods`);
-        
+
         // Clear admin periods for user view
         adminPeriods = [];
       }
     } catch (error: any) {
       toast.error('Ошибка', 'Не удалось загрузить периоды');
-      console.error('❌ Error fetching periods:', error);
-      console.error('Stack trace:', error.stack);
+      console.error('Error fetching periods:', error);
     } finally {
       loading = false;
     }
@@ -152,22 +134,16 @@
 
   onMount(() => {
     // Wait for auth to be fully loaded before fetching periods
-    console.log('🔧 PeriodManager mounted. Auth loading state:', $isAuthLoading);
-    console.log('🔧 Current auth state - user:', $currentUser, 'isAuthenticated:', $isAuthenticated);
-    
     if (!$isAuthLoading) {
       // Auth is already loaded
       fetchPeriods();
     } else {
       // Wait for auth to load
-      console.log('⏳ Waiting for auth to complete...');
       const unsubscribe = isAuthLoading.subscribe((loading) => {
         if (!loading && $isAuthenticated) {
-          console.log('✅ Auth loading completed, fetching periods');
           fetchPeriods();
           unsubscribe();
         } else if (!loading && !$isAuthenticated) {
-          console.log('❌ Auth loading completed but user not authenticated');
           unsubscribe();
         }
       });

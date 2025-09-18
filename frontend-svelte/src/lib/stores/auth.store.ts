@@ -5,6 +5,7 @@ import { authService } from '$lib/services/auth.service';
 import api from '$lib/services/api';
 import type { TelegramAuthData } from '$lib/utils/telegram-oauth';
 import { goto } from '$app/navigation';
+import { debugLog, errorLog } from '$lib/utils/debug';
 
 interface AuthUser extends User {
   user_id?: number; // Add user_id for compatibility with services
@@ -73,7 +74,7 @@ function getStoredAuth(): AuthState | null {
       };
     }
   } catch (error) {
-    console.error('Failed to parse stored auth:', error);
+    errorLog('AUTH', 'Failed to parse stored auth', error as Error);
     localStorage.removeItem('auth-storage');
   }
   return null;
@@ -94,7 +95,7 @@ function storeAuth(state: AuthState) {
     localStorage.setItem('auth-storage', JSON.stringify(toStore));
     
   } catch (error) {
-    console.error('Failed to store auth:', error);
+    errorLog('AUTH', 'Failed to store auth', error as Error);
   }
 }
 
@@ -129,12 +130,12 @@ const update = (updater: (current: AuthState) => AuthState) => {
     
     // Validate final state
     if (newState.user && !newState.user.role) {
-      console.error('🚨 CRITICAL: Role is still undefined after protection!');
+      errorLog('AUTH', 'CRITICAL: Role is still undefined after protection!');
       if (currentState.user?.role) {
-        console.log('🔧 EMERGENCY FIX: Restoring role from current state');
+        // EMERGENCY FIX: Restoring role from current state
         newState.user.role = currentState.user.role;
       } else {
-        console.log('🔧 EMERGENCY FIX: Setting default user role');
+        // EMERGENCY FIX: Setting default user role
         newState.user.role = 'user' as const;
       }
     }
@@ -149,7 +150,7 @@ subscribe((state) => {
   if (initialized) {
     // Critical fix: Ensure role is preserved before storing
     if (state.user && !state.user.role) {
-      console.error('🚨 CRITICAL: Role is undefined before storage!', state.user);
+      errorLog('AUTH', 'CRITICAL: Role is undefined before storage!', undefined, state.user);
       // Don't store corrupted data
       return;
     }
@@ -390,12 +391,12 @@ const authStore = {
         
         // CRITICAL: Validate userData before setting
         if (!userData.id) {
-          console.error('❌ Password login - userData missing id!', userData);
+          errorLog('AUTH', 'Password login - userData missing id!', undefined, userData);
           throw new Error('User data is incomplete - missing id');
         }
-        
+
         if (!userData.role) {
-          console.error('❌ Password login - userData missing role!', userData);
+          errorLog('AUTH', 'Password login - userData missing role!', undefined, userData);
           userData.role = 'user'; // Emergency fallback
         }
         
@@ -459,12 +460,12 @@ const authStore = {
         
         // CRITICAL: Validate userData before setting
         if (!userData.id) {
-          console.error('❌ Registration - userData missing id!', userData);
+          errorLog('AUTH', 'Registration - userData missing id!', undefined, userData);
           throw new Error('User data is incomplete - missing id');
         }
-        
+
         if (!userData.role) {
-          console.error('❌ Registration - userData missing role!', userData);
+          errorLog('AUTH', 'Registration - userData missing role!', undefined, userData);
           userData.role = 'user'; // Emergency fallback
         }
         
@@ -496,7 +497,7 @@ const authStore = {
     try {
       await api.post('/auth/logout');
     } catch (error) {
-      console.error('Logout error:', error);
+      errorLog('AUTH', 'Logout error', error as Error);
       // Even if logout fails, clear local state
     } finally {
       authStore.clearAuth();
@@ -515,7 +516,7 @@ const authStore = {
     unsubscribe();
 
     if (currentState!.ssrAuthenticated && currentState!.isAuthenticated) {
-      console.log('Skipping checkAuth - user already SSR-authenticated');
+      debugLog('AUTH', 'Skipping checkAuth - user already SSR-authenticated');
       return;
     }
 
@@ -570,7 +571,7 @@ const authStore = {
         
         // Additional validation - ensure role is preserved
         if (normalizedUser.role !== userRole) {
-          console.error('❌ Role was not preserved during object creation!');
+          errorLog('AUTH', 'Role was not preserved during object creation!');
           normalizedUser.role = userRole; // Force assignment
         }
         
@@ -620,13 +621,13 @@ const authStore = {
     const actualUser = userData?.data || userData;
 
     if (!actualUser) {
-      console.error('setUser: No user data received');
+      errorLog('AUTH', 'setUser: No user data received');
       return;
     }
     const userId = actualUser.id || actualUser.user_id || null;
     const userRole = actualUser.role || 'user';
     if (!userId) {
-      console.error('setUser: Missing user ID');
+      errorLog('AUTH', 'setUser: Missing user ID');
       return;
     }
 

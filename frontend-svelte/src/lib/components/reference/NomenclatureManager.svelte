@@ -128,37 +128,26 @@
 
   // Load nomenclatures
   async function fetchNomenclatures() {
-    console.log('🚀 fetchNomenclatures called. Current user:', $currentUser);
-    console.log('🔐 Is admin?', $isAdmin);
-    console.log('🔑 User role:', $currentUser?.role);
-    
     if (!$currentUser?.user_id) {
-      console.warn('⚠️ No user_id found, skipping fetch');
       return;
     }
-    
+
     try {
       loading = true;
       if ($isAdmin) {
-        console.log('👑 Fetching admin nomenclatures...');
         adminNomenclatures = await nomenclaturesService.getAllWithUsers();
-        console.log(`✅ Admin view: loaded ${adminNomenclatures.length} nomenclatures with user information`);
-        console.log('📊 Admin nomenclatures data:', adminNomenclatures);
-        
+
         // Clear regular nomenclatures for admin view
         nomenclatures = [];
       } else {
-        console.log('👤 Fetching user nomenclatures...');
         nomenclatures = await nomenclaturesService.getByUserId($currentUser.user_id);
-        console.log(`✅ User view: loaded ${nomenclatures.length} nomenclatures`);
-        
+
         // Clear admin nomenclatures for user view
         adminNomenclatures = [];
       }
     } catch (error: any) {
       toast.error('Ошибка', 'Не удалось загрузить номенклатуры');
-      console.error('❌ Error fetching nomenclatures:', error);
-      console.error('Stack trace:', error.stack);
+      console.error('Error fetching nomenclatures:', error);
     } finally {
       loading = false;
     }
@@ -166,22 +155,16 @@
 
   onMount(() => {
     // Wait for auth to be fully loaded before fetching nomenclatures
-    console.log('🔧 NomenclatureManager mounted. Auth loading state:', $isAuthLoading);
-    console.log('🔧 Current auth state - user:', $currentUser, 'isAuthenticated:', $isAuthenticated);
-    
     if (!$isAuthLoading) {
       // Auth is already loaded
       fetchNomenclatures();
     } else {
       // Wait for auth to load
-      console.log('⏳ Waiting for auth to complete...');
       const unsubscribe = isAuthLoading.subscribe((loading) => {
         if (!loading && $isAuthenticated) {
-          console.log('✅ Auth loading completed, fetching nomenclatures');
           fetchNomenclatures();
           unsubscribe();
         } else if (!loading && !$isAuthenticated) {
-          console.log('❌ Auth loading completed but user not authenticated');
           unsubscribe();
         }
       });

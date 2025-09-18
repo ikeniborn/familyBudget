@@ -1,58 +1,110 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <analysis>
-    <issue>
-        <title>SvelteKit "params" prop warnings in console</title>
-        <description>Multiple warnings about pages being created with unknown prop 'params' when navigating between pages</description>
-        <impact>Console pollution with non-critical warnings, reduced developer experience</impact>
-    </issue>
+    <timestamp>2025-09-18T15:50:00</timestamp>
+    <context>
+        <screenshot>/home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-18 15-49-33.png</screenshot>
+        <description>При переходе по страницам в консоли появляются уведомления</description>
+    </context>
 
-    <root_cause>
-        <description>SvelteKit automatically passes certain props (params, route, url, etc.) to page components, but Svelte warns about unknown props if components don't explicitly declare them</description>
-        <technical_details>
-            <point>SvelteKit passes internal props to all +page.svelte and +layout.svelte components</point>
-            <point>Components don't declare these props with 'export let params'</point>
-            <point>Svelte's compiler generates warnings for undeclared props</point>
-            <point>Current warning suppression in svelte.config.js is partially working but not catching all cases</point>
-        </technical_details>
-    </root_cause>
+    <findings>
+        <finding id="1" severity="LOW">
+            <type>Warning</type>
+            <code>unknown-prop</code>
+            <message>Page was created with unknown prop 'params'</message>
+            <frequency>Multiple (20+ occurrences)</frequency>
+            <affected_components>
+                <component>+page.svelte files</component>
+                <component>+layout.svelte files</component>
+            </affected_components>
+            <description>
+                SvelteKit генерирует предупреждения о неизвестном свойстве 'params'.
+                Это внутренние свойства SvelteKit, которые передаются компонентам автоматически.
+            </description>
+            <current_solution>
+                В файле svelte.config.js уже реализована система подавления (v3.7.5),
+                но она не работает полностью эффективно.
+            </current_solution>
+        </finding>
 
-    <affected_files>
-        <file>frontend-svelte/src/routes/+page.svelte</file>
-        <file>frontend-svelte/src/routes/+layout.svelte</file>
-        <file>frontend-svelte/src/routes/(protected)/+layout.svelte</file>
-        <file>All other +page.svelte and +layout.svelte files in routes directory</file>
-    </affected_files>
+        <finding id="2" severity="HIGH">
+            <type>Error</type>
+            <code>401</code>
+            <message>Failed to load resource: the server responded with a status of 401 (Unauthorized)</message>
+            <endpoint>/api/auth/me</endpoint>
+            <description>
+                Ошибка аутентификации при обращении к API endpoint.
+                Может блокировать функциональность приложения.
+            </description>
+            <known_fix>
+                Согласно CLAUDE.md, проблема должна быть исправлена в версии 3.3.3,
+                но ошибка все еще появляется.
+            </known_fix>
+        </finding>
 
-    <current_state>
-        <point>svelte.config.js already has warning suppression logic</point>
-        <point>onwarn handler includes 'params' in internalProps array</point>
-        <point>Multiple regex patterns attempt to catch warnings</point>
-        <point>But warnings still appear in browser console</point>
-    </current_state>
+        <finding id="3" severity="LOW">
+            <type>Warning</type>
+            <message>NotificationDropdown mounted!</message>
+            <description>
+                Информационное сообщение о монтировании компонента.
+                Не критично, но загрязняет консоль.
+            </description>
+        </finding>
+    </findings>
 
-    <solution_options>
-        <option priority="1">
-            <name>Enhanced warning suppression</name>
-            <description>Improve the onwarn handler to better detect and suppress these specific warnings</description>
-            <pros>Clean solution, no changes to components needed</pros>
-            <cons>May miss some edge cases</cons>
-        </option>
-        <option priority="2">
-            <name>Add export declarations</name>
-            <description>Add 'export let params' to all affected components</description>
-            <pros>Explicit, no warnings</pros>
-            <cons>Repetitive, requires changes to many files</cons>
-        </option>
-    </solution_options>
+    <sveltekit_context>
+        <version_info>
+            <project_uses>SvelteKit 2 + Svelte 4</project_uses>
+            <migration_status>Успешно мигрирован с Svelte 5 на Svelte 4</migration_status>
+        </version_info>
+        <props_handling>
+            <current_pattern>
+                В новых версиях SvelteKit используется паттерн:
+                let { data } = $props();
+            </current_pattern>
+            <internal_props>
+                SvelteKit автоматически передает следующие props:
+                - params (параметры маршрута)
+                - route (информация о маршруте)
+                - url (URL объект)
+                - data (данные из load функции)
+                - form (данные формы)
+            </internal_props>
+        </props_handling>
+    </sveltekit_context>
 
-    <recommendation>
-        <action>Enhance the warning suppression in svelte.config.js</action>
-        <reason>Most maintainable and clean solution</reason>
-        <steps>
-            <step>Analyze why current suppression isn't working</step>
-            <step>Debug the warning detection logic</step>
-            <step>Implement improved pattern matching</step>
-            <step>Test with various navigation scenarios</step>
-        </steps>
-    </recommendation>
+    <criticality_assessment>
+        <critical_issues>
+            <issue>401 Unauthorized на /api/auth/me - требует немедленного исправления</issue>
+        </critical_issues>
+        <non_critical_issues>
+            <issue>Предупреждения о 'params' prop - косметическая проблема</issue>
+            <issue>Информационные логи компонентов - можно убрать для чистоты</issue>
+        </non_critical_issues>
+    </criticality_assessment>
+
+    <recommendations>
+        <recommendation priority="1">
+            <action>Исправить ошибку 401 на /api/auth/me</action>
+            <steps>
+                <step>Проверить hooks.server.ts</step>
+                <step>Проверить сессионные куки</step>
+                <step>Проверить настройки CORS</step>
+            </steps>
+        </recommendation>
+        <recommendation priority="2">
+            <action>Улучшить подавление предупреждений SvelteKit</action>
+            <steps>
+                <step>Обновить паттерны в svelte.config.js</step>
+                <step>Добавить специфичные проверки для Layout компонентов</step>
+                <step>Использовать более точные regex паттерны</step>
+            </steps>
+        </recommendation>
+        <recommendation priority="3">
+            <action>Убрать отладочные логи</action>
+            <steps>
+                <step>Найти и удалить console.log в NotificationDropdown</step>
+                <step>Проверить другие компоненты на наличие отладочных логов</step>
+            </steps>
+        </recommendation>
+    </recommendations>
 </analysis>

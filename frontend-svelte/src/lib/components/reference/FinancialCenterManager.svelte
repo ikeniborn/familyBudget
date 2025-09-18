@@ -43,7 +43,6 @@
         header: 'Пользователь',
         sortable: true,
         render: (item: AdminFinancialCenter) => {
-          console.log('🔍 Rendering user cell for item:', item);
           
           // Check if user_name exists in the item
           const userName = item.user_name || 'Неизвестный пользователь';
@@ -92,43 +91,29 @@
 
   // Load financial centers
   async function fetchFinancialCenters() {
-    console.log('🚀 fetchFinancialCenters called. Current user:', $currentUser);
-    console.log('🔐 Is admin?', $isAdmin);
-    console.log('🔑 User role:', $currentUser?.role);
-    console.log('📝 Full user object:', JSON.stringify($currentUser, null, 2));
     
     // Additional debugging for isAdmin derivation
-    console.log('🔍 Auth store $auth.user?.role:', $currentUser?.role);
-    console.log('🔍 Auth store comparison result:', $currentUser?.role === 'admin');
-    console.log('🔍 isAdmin derived value:', $isAdmin);
     
     if (!$currentUser?.user_id) {
-      console.warn('⚠️ No user_id found, skipping fetch');
       return;
     }
     
     try {
       loading = true;
       if ($isAdmin) {
-        console.log('👑 Fetching admin financial centers...');
         adminFinancialCenters = await financialCentersService.getAllWithUsers();
-        console.log(`✅ Admin view: loaded ${adminFinancialCenters.length} financial centers with user information`);
-        console.log('📊 Admin financial centers data:', adminFinancialCenters);
         
         // Clear regular financial centers for admin view
         financialCenters = [];
       } else {
-        console.log('👤 Fetching user financial centers...');
         financialCenters = await financialCentersService.getByUserId($currentUser.user_id);
-        console.log(`✅ User view: loaded ${financialCenters.length} financial centers`);
         
         // Clear admin financial centers for user view
         adminFinancialCenters = [];
       }
     } catch (error: any) {
       toast.error('Ошибка', 'Не удалось загрузить финансовые центры');
-      console.error('❌ Error fetching financial centers:', error);
-      console.error('Stack trace:', error.stack);
+      console.error('Error fetching financial centers:', error);
     } finally {
       loading = false;
     }
@@ -136,22 +121,17 @@
 
   onMount(() => {
     // Wait for auth to be fully loaded before fetching financial centers
-    console.log('🔧 FinancialCenterManager mounted. Auth loading state:', $isAuthLoading);
-    console.log('🔧 Current auth state - user:', $currentUser, 'isAuthenticated:', $isAuthenticated);
     
     if (!$isAuthLoading) {
       // Auth is already loaded
       fetchFinancialCenters();
     } else {
       // Wait for auth to load
-      console.log('⏳ Waiting for auth to complete...');
       const unsubscribe = isAuthLoading.subscribe((loading) => {
         if (!loading && $isAuthenticated) {
-          console.log('✅ Auth loading completed, fetching financial centers');
           fetchFinancialCenters();
           unsubscribe();
         } else if (!loading && !$isAuthenticated) {
-          console.log('❌ Auth loading completed but user not authenticated');
           unsubscribe();
         }
       });

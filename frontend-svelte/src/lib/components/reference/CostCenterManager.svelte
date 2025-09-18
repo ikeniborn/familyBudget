@@ -42,7 +42,6 @@
         header: 'Пользователь',
         sortable: true,
         render: (item: AdminCostCenter) => {
-          console.log('🔍 Rendering user cell for item:', item);
           
           // Check if user_name exists in the item
           const userName = item.user_name || 'Неизвестный пользователь';
@@ -91,43 +90,27 @@
 
   // Load cost centers
   async function fetchCostCenters() {
-    console.log('🚀 fetchCostCenters called. Current user:', $currentUser);
-    console.log('🔐 Is admin?', $isAdmin);
-    console.log('🔑 User role:', $currentUser?.role);
-    console.log('📝 Full user object:', JSON.stringify($currentUser, null, 2));
-    
-    // Additional debugging for isAdmin derivation
-    console.log('🔍 Auth store $auth.user?.role:', $currentUser?.role);
-    console.log('🔍 Auth store comparison result:', $currentUser?.role === 'admin');
-    console.log('🔍 isAdmin derived value:', $isAdmin);
     
     if (!$currentUser?.user_id) {
-      console.warn('⚠️ No user_id found, skipping fetch');
       return;
     }
     
     try {
       loading = true;
       if ($isAdmin) {
-        console.log('👑 Fetching admin cost centers...');
         adminCostCenters = await costCentersService.getAllWithUsers();
-        console.log(`✅ Admin view: loaded ${adminCostCenters.length} cost centers with user information`);
-        console.log('📊 Admin cost centers data:', adminCostCenters);
         
         // Clear regular cost centers for admin view
         costCenters = [];
       } else {
-        console.log('👤 Fetching user cost centers...');
         costCenters = await costCentersService.getByUserId($currentUser.user_id);
-        console.log(`✅ User view: loaded ${costCenters.length} cost centers`);
         
         // Clear admin cost centers for user view
         adminCostCenters = [];
       }
     } catch (error: any) {
       toast.error('Ошибка', 'Не удалось загрузить места возникновения затрат');
-      console.error('❌ Error fetching cost centers:', error);
-      console.error('Stack trace:', error.stack);
+      console.error('Error fetching cost centers:', error);
     } finally {
       loading = false;
     }
@@ -135,22 +118,16 @@
 
   onMount(() => {
     // Wait for auth to be fully loaded before fetching cost centers
-    console.log('🔧 CostCenterManager mounted. Auth loading state:', $isAuthLoading);
-    console.log('🔧 Current auth state - user:', $currentUser, 'isAuthenticated:', $isAuthenticated);
-    
     if (!$isAuthLoading) {
       // Auth is already loaded
       fetchCostCenters();
     } else {
       // Wait for auth to load
-      console.log('⏳ Waiting for auth to complete...');
       const unsubscribe = isAuthLoading.subscribe((loading) => {
         if (!loading && $isAuthenticated) {
-          console.log('✅ Auth loading completed, fetching cost centers');
           fetchCostCenters();
           unsubscribe();
         } else if (!loading && !$isAuthenticated) {
-          console.log('❌ Auth loading completed but user not authenticated');
           unsubscribe();
         }
       });

@@ -50,10 +50,8 @@ class NomenclaturesService extends BaseService<Nomenclature, CreateNomenclatureD
   // Admin API - Get all nomenclatures with user information
   async getAllWithUsers(): Promise<AdminNomenclature[]> {
     try {
-      console.log('🔍 Fetching admin nomenclatures from /api/admin/references/nomenclature...');
       const response = await api.get<{success: boolean, data: AdminNomenclature[], total: number}>('/admin/references/nomenclature');
       
-      console.log('📦 Raw API response:', response);
       
       // The api.get() method returns the full response object {success, data, total}
       if (!response || typeof response !== 'object') {
@@ -74,8 +72,6 @@ class NomenclaturesService extends BaseService<Nomenclature, CreateNomenclatureD
         throw new Error('No nomenclatures data in API response');
       }
       
-      console.log(`📋 Received ${nomenclatures.length} nomenclatures from API`);
-      console.log('📋 First nomenclature sample:', nomenclatures[0]);
       
       // Map nomenclature_id to id for consistency and ensure all AdminNomenclature fields are present
       const mappedNomenclatures = nomenclatures.map((n: any) => {
@@ -104,11 +100,9 @@ class NomenclaturesService extends BaseService<Nomenclature, CreateNomenclatureD
           is_active: n.is_active !== undefined ? n.is_active : true
         };
         
-        console.log('🔧 Mapped nomenclature:', mappedN);
         return mappedN;
       });
 
-      console.log(`✅ Loaded ${mappedNomenclatures.length} admin nomenclatures with user information`);
       
       return mappedNomenclatures;
     } catch (error: any) {

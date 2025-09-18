@@ -52,9 +52,7 @@
   onMount(async () => {
     try {
       // Always reload periods to ensure they are up-to-date
-      console.log('Loading periods for user:', $currentUser?.user_id);
       await periodStore.load($currentUser?.user_id || 0);
-      console.log('Loaded periods:', $periodStore.items);
       
       // Load other reference data if not already loaded
       if ($financialCenterStore.items.length === 0) {

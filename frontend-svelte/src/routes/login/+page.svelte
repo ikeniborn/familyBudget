@@ -110,23 +110,14 @@
               class="login-button"
               disabled={loading}
               on:click={() => {
-                console.log('[LOGIN] Кнопка входа нажата!');
-                console.log('[LOGIN] State:', { browser, dev, loading, authCheckCompleted });
-                console.log('[LOGIN] shouldUseMockAuth():', shouldUseMockAuth());
-                
                 if (loading || !authCheckCompleted) {
-                  console.log('[LOGIN] Выход - приложение еще загружается');
                   return;
                 }
-                
+
                 if ($isAuthenticated) {
-                  console.log('[LOGIN] Выход - уже авторизован');
                   goto('/dashboard');
                   return;
                 }
-                
-                console.log('[LOGIN] Запуск Telegram OAuth с botName:', getEffectiveBotName());
-                console.log('[LOGIN] returnUrl:', returnUrl || undefined);
                 
                 // Start Telegram OAuth redirect flow
                 authService.startTelegramOAuth(getEffectiveBotName(), returnUrl || undefined);

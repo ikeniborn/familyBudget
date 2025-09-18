@@ -42,7 +42,7 @@
       if (corrupted.state?.user) {
         delete corrupted.state.user.role;
         localStorage.setItem('auth-storage', JSON.stringify(corrupted));
-        console.log('🧪 Role corrupted in localStorage');
+        // Role corrupted in localStorage
         updateDebugInfo();
       }
     }

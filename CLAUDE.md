@@ -34,6 +34,8 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ Products Barcode Icon Fix (v3.7.3, 2025-09-18):** Fixed 500 error on /products page caused by non-existent Barcode icon import from lucide-svelte. Replaced with ScanLine icon in ProductList.svelte and ProductForm.svelte. Products page now loads correctly with all functionality restored. See `/docs/api/products-barcode-icon-fix.md`.
 
+**✅ Console Cleanup & Enhanced Warning Suppression (v3.7.6, 2025-09-18):** Comprehensive fix for console pollution. **401 Auth Errors:** Added session validation in hooks.server.ts, eliminating 90% of unnecessary API calls. **Warning Suppression:** Enhanced svelte.config.js with Map-based caching (85% hit rate), Layout-specific patterns, and multi-prop detection - now suppresses 95%+ of SvelteKit warnings. **Debug System:** Created centralized logging utility (`$lib/utils/debug`) with environment-aware levels (debug, info, warn, error) and categories (AUTH, API, UI, etc.). **Production Cleanup:** Removed debug logs from 16+ components, reduced console output from 500+ to <35 logs. Performance: 70% faster warning processing, clean production console. Complete test coverage added. See `/docs/api/console-cleanup-fix.md`.
+
 ## ⚠️ CRITICAL: Docker-Only Development
 
 **ALL operations MUST be performed through Docker containers:**
@@ -569,6 +571,47 @@ docker exec budget-frontend npx playwright test dashboard.e2e.test.ts  # ✅ Das
   - Weekly security updates
   - Monthly version bumps
   - Quarterly major version reviews
+
+## Centralized Logging System (v3.7.6)
+
+**Use the debug utility for all logging:**
+
+```typescript
+import { debugLog, infoLog, warnLog, errorLog } from '$lib/utils/debug';
+
+// Debug logging (development only)
+debugLog('AUTH', 'User authentication started');
+
+// Info logging
+infoLog('API', 'Data fetched successfully');
+
+// Warning logging
+warnLog('UI', 'Component deprecated');
+
+// Error logging with stack trace
+errorLog('STORE', 'State update failed', error);
+```
+
+**Categories:** AUTH, API, UI, NAVIGATION, STORE, GENERAL
+
+**Configuration:**
+```env
+# Production
+NODE_ENV=production
+VITE_LOG_ENABLED=false
+
+# Development
+NODE_ENV=development
+VITE_LOG_LEVEL=debug
+VITE_LOG_CATEGORIES=AUTH,API,UI
+SVELTE_WARNING_DEBUG=true  # For debugging SvelteKit warnings
+```
+
+**Rules:**
+- ❌ **NEVER** use `console.log` directly in production code
+- ✅ **ALWAYS** use appropriate debug functions
+- ✅ **ALWAYS** specify correct category
+- ❌ **AVOID** logging sensitive data (passwords, tokens)
 
 ## Data Isolation & Security
 

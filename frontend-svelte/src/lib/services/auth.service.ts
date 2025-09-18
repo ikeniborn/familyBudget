@@ -70,17 +70,10 @@ class AuthService {
    * @param returnUrl - URL to return to after authentication
    */
   startTelegramOAuth(botName: string, returnUrl?: string): void {
-    console.log('authService.startTelegramOAuth вызвана!');
-    console.log('browser:', browser);
-    console.log('botName:', botName);
-    console.log('returnUrl:', returnUrl);
-    
     if (!browser) {
-      console.log('Выход из authService.startTelegramOAuth - browser = false');
       return;
     }
-    
-    console.log('Вызов startTelegramOAuth из utils...');
+
     startTelegramOAuth(botName, returnUrl);
   }
 

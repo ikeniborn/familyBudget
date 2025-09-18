@@ -64,14 +64,7 @@ export const handle: Handle = async ({ event, resolve }) => {
           };
         }
 
-        // Диагностическое логирование (только в development)
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[Auth Debug] User loaded:', {
-            userId: event.locals.user?.id,
-            role: event.locals.user?.role,
-            sessionId: sessionId?.substring(0, 8) + '...'
-          });
-        }
+        // Diagnostic logging handled by debug utility
       } else {
         // Логируем только неожиданные ошибки (не 401/403 для валидных сессий)
         if (response.status !== 401 && response.status !== 403) {

@@ -34,10 +34,8 @@ class CostCentersService extends BaseService<CostCenter, CreateCostCenterData, U
   // Admin API - Get all cost centers with user information
   async getAllWithUsers(): Promise<AdminCostCenter[]> {
     try {
-      console.log('🔍 Fetching admin cost centers from /api/admin/references/cost_center...');
       const response = await api.get<{success: boolean, data: AdminCostCenter[], total: number}>('/admin/references/cost_center');
       
-      console.log('📦 Raw API response:', response);
       
       // The api.get() method returns the full response object {success, data, total}
       if (!response || typeof response !== 'object') {
@@ -58,8 +56,6 @@ class CostCentersService extends BaseService<CostCenter, CreateCostCenterData, U
         throw new Error('No cost centers data in API response');
       }
       
-      console.log(`📋 Received ${costCenters.length} cost centers from API`);
-      console.log('📋 First cost center sample:', costCenters[0]);
       
       // Map cost_center_id to id for consistency and ensure all AdminCostCenter fields are present
       const mappedCostCenters = costCenters.map((cc: any) => {
@@ -81,11 +77,9 @@ class CostCentersService extends BaseService<CostCenter, CreateCostCenterData, U
           is_active: cc.is_active !== undefined ? cc.is_active : true
         };
         
-        console.log('🔧 Mapped cost center:', mappedCC);
         return mappedCC;
       });
 
-      console.log(`✅ Loaded ${mappedCostCenters.length} admin cost centers with user information`);
       
       return mappedCostCenters;
     } catch (error: any) {

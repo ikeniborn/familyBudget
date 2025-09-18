@@ -34,10 +34,8 @@ class FinancialCentersService extends BaseService<FinancialCenter, CreateFinanci
   // Admin API - Get all financial centers with user information
   async getAllWithUsers(): Promise<AdminFinancialCenter[]> {
     try {
-      console.log('🔍 Fetching admin financial centers from /api/admin/references/financial_center...');
       const response = await api.get<{success: boolean, data: AdminFinancialCenter[], total: number}>('/admin/references/financial_center');
       
-      console.log('📦 Raw API response:', response);
       
       // The api.get() method returns the full response object {success, data, total}
       if (!response || typeof response !== 'object') {
@@ -58,8 +56,6 @@ class FinancialCentersService extends BaseService<FinancialCenter, CreateFinanci
         throw new Error('No financial centers data in API response');
       }
       
-      console.log(`📋 Received ${financialCenters.length} financial centers from API`);
-      console.log('📋 First financial center sample:', financialCenters[0]);
       
       // Map financial_center_id to id for consistency and ensure all AdminFinancialCenter fields are present
       const mappedFinancialCenters = financialCenters.map((fc: any) => {
@@ -81,11 +77,9 @@ class FinancialCentersService extends BaseService<FinancialCenter, CreateFinanci
           is_active: fc.is_active !== undefined ? fc.is_active : true
         };
         
-        console.log('🔧 Mapped financial center:', mappedFC);
         return mappedFC;
       });
 
-      console.log(`✅ Loaded ${mappedFinancialCenters.length} admin financial centers with user information`);
       
       return mappedFinancialCenters;
     } catch (error: any) {
