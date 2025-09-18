@@ -14,10 +14,10 @@
     </project>
     <context>
         При переходе по страницам в консоли ошибки.
-        /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-18 07-57-22.png
+        /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-18 13-49-05.png
     </context>
     <requirements>
-        <point number="1">Проанализировать ошибку</point>
+        <point number="1">Проанализировать ошибку и логи фронтенда и бэкенда</point>
         <point number="2">определить причину ошибку</point>
         <point number="3">Исправить ошибку</point>
     </requirements>
@@ -64,6 +64,12 @@
                 <action>Выполнить план задач /requests/plan.xml шаг за шагом с помощью субагентов</action>
             </step>
             <step number="2">
+                <action>Проверить что план выполнент польностью</action>
+            </step>
+            <step number="3">
+                <action>ВЫполнить пропущенные задачи</action>
+            </step>
+            <step number="4">
                 <action>Приступить к задаче task 4</action>
             </step>
         </task>

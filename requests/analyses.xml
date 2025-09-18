@@ -1,44 +1,58 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <analysis>
-  <problem>
-    <description>Console warnings about pages being created with unknown prop 'params' in SvelteKit application</description>
-    <error_type>Development warning</error_type>
+    <issue>
+        <title>SvelteKit "params" prop warnings in console</title>
+        <description>Multiple warnings about pages being created with unknown prop 'params' when navigating between pages</description>
+        <impact>Console pollution with non-critical warnings, reduced developer experience</impact>
+    </issue>
+
+    <root_cause>
+        <description>SvelteKit automatically passes certain props (params, route, url, etc.) to page components, but Svelte warns about unknown props if components don't explicitly declare them</description>
+        <technical_details>
+            <point>SvelteKit passes internal props to all +page.svelte and +layout.svelte components</point>
+            <point>Components don't declare these props with 'export let params'</point>
+            <point>Svelte's compiler generates warnings for undeclared props</point>
+            <point>Current warning suppression in svelte.config.js is partially working but not catching all cases</point>
+        </technical_details>
+    </root_cause>
+
     <affected_files>
-      <file>+page.svelte:93</file>
-      <file>+page.svelte:15</file>
-      <file>+page.svelte:69</file>
-      <file>+page.svelte:197</file>
-      <file>+layout.svelte:20</file>
-      <file>+page.svelte:44</file>
+        <file>frontend-svelte/src/routes/+page.svelte</file>
+        <file>frontend-svelte/src/routes/+layout.svelte</file>
+        <file>frontend-svelte/src/routes/(protected)/+layout.svelte</file>
+        <file>All other +page.svelte and +layout.svelte files in routes directory</file>
     </affected_files>
-  </problem>
 
-  <root_cause>
-    <description>SvelteKit 2 automatically passes 'params' prop to page components, but components don't declare this prop</description>
-    <technical_details>
-      <detail>SvelteKit routing system injects props automatically</detail>
-      <detail>Components without 'export let params' declaration trigger warnings</detail>
-      <detail>This is a known SvelteKit behavior that requires warning suppression</detail>
-    </technical_details>
-  </root_cause>
+    <current_state>
+        <point>svelte.config.js already has warning suppression logic</point>
+        <point>onwarn handler includes 'params' in internalProps array</point>
+        <point>Multiple regex patterns attempt to catch warnings</point>
+        <point>But warnings still appear in browser console</point>
+    </current_state>
 
-  <previous_fix>
-    <version>v3.7.2</version>
-    <description>SvelteKit Params Warning Fix was implemented</description>
-    <details>Enhanced warning suppression in svelte.config.js for 15 SvelteKit internal props</details>
-  </previous_fix>
+    <solution_options>
+        <option priority="1">
+            <name>Enhanced warning suppression</name>
+            <description>Improve the onwarn handler to better detect and suppress these specific warnings</description>
+            <pros>Clean solution, no changes to components needed</pros>
+            <cons>May miss some edge cases</cons>
+        </option>
+        <option priority="2">
+            <name>Add export declarations</name>
+            <description>Add 'export let params' to all affected components</description>
+            <pros>Explicit, no warnings</pros>
+            <cons>Repetitive, requires changes to many files</cons>
+        </option>
+    </solution_options>
 
-  <solution>
-    <approach>Update svelte.config.js to properly suppress 'params' prop warnings</approach>
-    <steps>
-      <step>Check current svelte.config.js configuration</step>
-      <step>Enhance onwarn handler to suppress params warnings</step>
-      <step>Test that warnings are suppressed</step>
-    </steps>
-    <impact>
-      <item>No functional changes to application</item>
-      <item>Cleaner console output</item>
-      <item>Better developer experience</item>
-    </impact>
-  </solution>
+    <recommendation>
+        <action>Enhance the warning suppression in svelte.config.js</action>
+        <reason>Most maintainable and clean solution</reason>
+        <steps>
+            <step>Analyze why current suppression isn't working</step>
+            <step>Debug the warning detection logic</step>
+            <step>Implement improved pattern matching</step>
+            <step>Test with various navigation scenarios</step>
+        </steps>
+    </recommendation>
 </analysis>

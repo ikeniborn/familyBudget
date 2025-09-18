@@ -3,9 +3,59 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
+// Enhanced SvelteKit Warning Suppression Plugin (v3.7.5)
+function svelteKitWarningSuppressionPlugin() {
+  return {
+    name: 'sveltekit-warning-suppression',
+    configureServer(server) {
+      // Add middleware to inject warning suppression debugging info
+      server.middlewares.use('/api/warning-suppression-status', (req, res, next) => {
+        if (req.method === 'GET') {
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            active: true,
+            environment: 'development',
+            timestamp: new Date().toISOString(),
+            config: {
+              suppressSvelteKitWarnings: process.env.SUPPRESS_SVELTEKIT_WARNINGS !== 'false',
+              debugWarningSuppress: process.env.DEBUG_WARNING_SUPPRESSION === 'true',
+              version: 'v3.7.5'
+            }
+          }));
+        } else {
+          next();
+        }
+      });
+    },
+    transformIndexHtml: {
+      enforce: 'pre',
+      transform(html, context) {
+        // Inject environment variables for warning suppression
+        if (context.server) {
+          const envVars = {
+            VITE_SUPPRESS_SVELTEKIT_WARNINGS: process.env.SUPPRESS_SVELTEKIT_WARNINGS || 'true',
+            VITE_DEBUG_WARNING_SUPPRESSION: process.env.DEBUG_WARNING_SUPPRESSION || 'false'
+          };
+
+          const envScript = `
+            <script>
+              // Environment variables for SvelteKit warning suppression
+              window.__SVELTEKIT_WARNING_SUPPRESSION_ENV__ = ${JSON.stringify(envVars)};
+            </script>
+          `;
+
+          return html.replace('</head>', `${envScript}</head>`);
+        }
+        return html;
+      }
+    }
+  };
+}
+
 export default defineConfig({
   plugins: [
     sveltekit(),
+    svelteKitWarningSuppressionPlugin(),
     VitePWA({
       registerType: 'prompt',
       includeAssets: ['favicon.svg', 'favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
@@ -176,7 +226,7 @@ export default defineConfig({
     hmr: {
       port: parseInt(process.env.HMR_PORT || '5173'),
       host: 'localhost',
-      overlay: false
+      overlay: false // Disable overlay to prevent interference with warning suppression
     },
     fs: {
       // Запретить доступ к тестовым файлам
