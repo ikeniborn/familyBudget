@@ -1,44 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <analysis>
   <issue>
-    <description>Console warning "Page was created with unknown prop 'params'" appearing during navigation between pages</description>
-    <severity>Medium</severity>
-    <impact>Produces console warnings but doesn't break functionality</impact>
+    <description>500 Error on /products page with SyntaxError</description>
+    <error_message>SyntaxError: The requested module '/node_modules/.vite/deps/lucide-svelte.js?v=67ca6543' does not provide an export named 'Barcode'</error_message>
+    <location>products page (http://localhost:5173/products)</location>
   </issue>
 
   <root_cause>
-    <primary>SvelteKit 2 migration issue - page components receiving 'params' prop they don't declare</primary>
-    <details>
-      - In SvelteKit 2, route parameters are accessed via load functions, not component props
-      - Page components shouldn't declare 'export let params'
-      - The warning occurs when SvelteKit internally passes params to components that don't expect them
-    </details>
+    <finding>The 'Barcode' icon is being imported from lucide-svelte package but it doesn't exist in that package</finding>
+    <affected_files>
+      <file>
+        <path>/frontend-svelte/src/lib/components/products/ProductList.svelte</path>
+        <line>14</line>
+        <code>Barcode as BarcodeIcon</code>
+      </file>
+      <file>
+        <path>/frontend-svelte/src/lib/components/products/ProductForm.svelte</path>
+        <line>5</line>
+        <code>Barcode</code>
+      </file>
+    </affected_files>
   </root_cause>
 
-  <symptoms>
-    <symptom>Console warning during page navigation</symptom>
-    <symptom>Unknown prop 'params' warning</symptom>
-    <symptom>Stack trace references internal Svelte/SvelteKit files</symptom>
-  </symptoms>
+  <solution>
+    <step>Replace 'Barcode' import with an existing icon from lucide-svelte</step>
+    <alternatives>
+      <icon>ScanLine - good for barcode scanning representation</icon>
+      <icon>QrCode - for code/barcode representation</icon>
+      <icon>Hash - for product codes</icon>
+      <icon>Package2 - alternative package icon</icon>
+    </alternatives>
+    <recommendation>Use 'ScanLine' as it's the closest semantic match to Barcode functionality</recommendation>
+  </solution>
 
-  <additional_observations>
-    <observation>Two duplicate npm run dev processes detected in background</observation>
-    <observation>This may cause additional issues or conflicts</observation>
-  </additional_observations>
-
-  <solution_approach>
-    <step>Search for all +page.svelte files with 'export let params' declarations</step>
-    <step>Remove direct params props from page components</step>
-    <step>Ensure params are accessed through load functions</step>
-    <step>Kill duplicate dev server processes</step>
-    <step>Test navigation between pages to confirm fix</step>
-  </solution_approach>
-
-  <technical_details>
-    <framework>SvelteKit 2</framework>
-    <pattern_change>
-      <old>export let params in +page.svelte</old>
-      <new>Access params through $page store or load function</new>
-    </pattern_change>
-  </technical_details>
+  <additional_issues>
+    <warning>
+      <description>Props warning about 'params' and 'form'</description>
+      <severity>Low</severity>
+      <note>Already addressed in CLAUDE.md as SvelteKit Params Warning Fix (v3.7.2)</note>
+    </warning>
+  </additional_issues>
 </analysis>

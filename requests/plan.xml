@@ -1,299 +1,78 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plan>
-  <title>Fix SvelteKit 'unknown prop params' Warning</title>
-  <description>
-    Comprehensive action plan to resolve console warnings "Page was created with unknown prop 'params'"
-    appearing during navigation in SvelteKit 2 application.
-  </description>
+  <objective>Fix 500 error on products page caused by non-existent Barcode icon import</objective>
 
-  <issue_analysis>
-    <root_cause>
-      SvelteKit 2 migration issue where page components receive 'params' prop they don't explicitly declare.
-      This occurs when SvelteKit internally passes route parameters to page components that don't expect them.
-    </root_cause>
-    <severity>Medium</severity>
-    <impact>Produces console warnings but doesn't break functionality</impact>
-    <framework>SvelteKit 2.36.1 + Svelte 4.2.18</framework>
-  </issue_analysis>
+  <tasks>
+    <task id="1" priority="critical">
+      <action>Fix ProductList.svelte component</action>
+      <details>
+        <file>/frontend-svelte/src/lib/components/products/ProductList.svelte</file>
+        <change>
+          <from>Barcode as BarcodeIcon</from>
+          <to>ScanLine as BarcodeIcon</to>
+          <line>14</line>
+        </change>
+      </details>
+    </task>
 
-  <phase_1>
-    <title>Investigation and Analysis</title>
-    <steps>
-      <step id="1.1">
-        <action>Search for page components potentially using params prop</action>
-        <command>find /home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes -name "+page.svelte" -exec grep -l "export let params\|params\." {} \;</command>
-        <expected_outcome>Identify components explicitly declaring or using params</expected_outcome>
-      </step>
+    <task id="2" priority="critical">
+      <action>Fix ProductForm.svelte component</action>
+      <details>
+        <file>/frontend-svelte/src/lib/components/products/ProductForm.svelte</file>
+        <changes>
+          <change>
+            <from>Barcode</from>
+            <to>ScanLine</to>
+            <line>5</line>
+          </change>
+          <change>
+            <from>&lt;Barcode class="h-5 w-5" /&gt;</from>
+            <to>&lt;ScanLine class="h-5 w-5" /&gt;</to>
+            <line>225</line>
+          </change>
+        </changes>
+      </details>
+    </task>
 
-      <step id="1.2">
-        <action>Check for dynamic route segments</action>
-        <command>find /home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes -name "*\[*\]*" -type d</command>
-        <expected_outcome>Find directories with dynamic route parameters like [id] or [slug]</expected_outcome>
-      </step>
+    <task id="3" priority="high">
+      <action>Verify the fix</action>
+      <steps>
+        <step>Check that the dev server reloads without errors</step>
+        <step>Navigate to /products page</step>
+        <step>Ensure page loads correctly</step>
+        <step>Test product creation and editing functionality</step>
+      </steps>
+    </task>
 
-      <step id="1.3">
-        <action>Examine load functions for parameter passing</action>
-        <command>find /home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes -name "+page.ts" -o -name "+page.server.ts" -o -name "+layout.ts" -o -name "+layout.server.ts"</command>
-        <expected_outcome>Review how parameters are passed from load functions to page components</expected_outcome>
-      </step>
+    <task id="4" priority="medium">
+      <action>Create tests for the fixed functionality</action>
+      <details>
+        <test_file>/tests/frontend/products-icon-fix.test.ts</test_file>
+        <coverage>
+          <item>Test that ProductList renders without errors</item>
+          <item>Test that ProductForm renders without errors</item>
+          <item>Verify ScanLine icon is properly imported and rendered</item>
+        </coverage>
+      </details>
+    </task>
 
-      <step id="1.4">
-        <action>Monitor runtime console for specific warning patterns</action>
-        <command>docker exec budget-frontend npm run dev</command>
-        <navigation_test>Navigate between pages to trigger warnings</navigation_test>
-        <expected_outcome>Capture exact warning messages and stack traces</expected_outcome>
-      </step>
+    <task id="5" priority="medium">
+      <action>Update documentation</action>
+      <files>
+        <file>/docs/api/products-barcode-icon-fix.md</file>
+        <file>CLAUDE.md - add note about the fix</file>
+      </files>
+    </task>
 
-      <step id="1.5">
-        <action>Check SvelteKit generated types for parameter interfaces</action>
-        <command>docker exec budget-frontend npx svelte-kit sync</command>
-        <expected_outcome>Generate fresh type definitions and examine PageData interfaces</expected_outcome>
-      </step>
-    </steps>
-  </phase_1>
+    <task id="6" priority="low">
+      <action>Commit changes with descriptive message</action>
+      <commit_message>fix: Replace non-existent Barcode icon with ScanLine in products components</commit_message>
+    </task>
+  </tasks>
 
-  <phase_2>
-    <title>Identify Affected Components</title>
-    <steps>
-      <step id="2.1">
-        <action>Audit all page components for prop declarations</action>
-        <target_files>
-          <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/dashboard/+page.svelte</file>
-          <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/*/+page.svelte</file>
-          <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/+page.svelte</file>
-          <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/login/+page.svelte</file>
-        </target_files>
-        <check_patterns>
-          <pattern>export let params</pattern>
-          <pattern>export let { params }</pattern>
-          <pattern>$$props.params</pattern>
-          <pattern>$$restProps.params</pattern>
-        </check_patterns>
-      </step>
-
-      <step id="2.2">
-        <action>Review page component prop interfaces</action>
-        <examine>
-          - PageData type usage
-          - Props interface declarations
-          - Component script tag parameter handling
-        </examine>
-      </step>
-
-      <step id="2.3">
-        <action>Check for undeclared prop usage patterns</action>
-        <search_patterns>
-          <pattern>Accessing $page.params instead of props</pattern>
-          <pattern>Load function returning params explicitly</pattern>
-          <pattern>Component receiving params without declaring them</pattern>
-        </search_patterns>
-      </step>
-    </steps>
-  </phase_2>
-
-  <phase_3>
-    <title>Implement Fixes</title>
-    <approach>SvelteKit 2 best practices for parameter handling</approach>
-    <steps>
-      <step id="3.1">
-        <action>Remove explicit params prop declarations from page components</action>
-        <rationale>In SvelteKit 2, params should be accessed via $page store or load functions</rationale>
-        <pattern_fix>
-          <before>export let params;</before>
-          <after>// Remove this line - access params via $page.params</after>
-        </pattern_fix>
-      </step>
-
-      <step id="3.2">
-        <action>Update parameter access to use $page store</action>
-        <import_required>import { page } from '$app/stores';</import_required>
-        <usage_pattern>
-          <before>params.id</before>
-          <after>$page.params.id</after>
-        </usage_pattern>
-      </step>
-
-      <step id="3.3">
-        <action>Ensure load functions handle parameters correctly</action>
-        <load_function_pattern>
-          <correct>
-            export const load = ({ params }) => {
-              return {
-                // Don't return params directly to component
-                data: fetchData(params.id)
-              };
-            };
-          </correct>
-        </load_function_pattern>
-      </step>
-
-      <step id="3.4">
-        <action>Update TypeScript interfaces for page components</action>
-        <interface_fix>
-          <remove>params property from PageData interfaces</remove>
-          <ensure>Components don't expect params in props</ensure>
-        </interface_fix>
-      </step>
-
-      <step id="3.5">
-        <action>Review and fix component prop declarations</action>
-        <target_patterns>
-          <pattern>Remove unused export let declarations</pattern>
-          <pattern>Ensure proper typing for PageData</pattern>
-          <pattern>Update component prop interfaces</pattern>
-        </target_patterns>
-      </step>
-    </steps>
-  </phase_3>
-
-  <phase_4>
-    <title>Testing and Validation</title>
-    <steps>
-      <step id="4.1">
-        <action>Clear SvelteKit cache and rebuild types</action>
-        <commands>
-          <command>docker exec budget-frontend rm -rf .svelte-kit</command>
-          <command>docker exec budget-frontend npm run check</command>
-          <command>docker exec budget-frontend npx svelte-kit sync</command>
-        </commands>
-      </step>
-
-      <step id="4.2">
-        <action>Test navigation between all major pages</action>
-        <test_routes>
-          <route>/dashboard</route>
-          <route>/settings/periods</route>
-          <route>/settings/financial-centers</route>
-          <route>/settings/cost-centers</route>
-          <route>/settings/nomenclatures</route>
-          <route>/settings/articles</route>
-          <route>/budget</route>
-          <route>/fact</route>
-          <route>/reports</route>
-          <route>/products</route>
-        </test_routes>
-        <validation>Monitor browser console for "unknown prop 'params'" warnings</validation>
-      </step>
-
-      <step id="4.3">
-        <action>Verify TypeScript compilation</action>
-        <command>docker exec budget-frontend npm run check</command>
-        <expected_outcome>No TypeScript errors related to parameter handling</expected_outcome>
-      </step>
-
-      <step id="4.4">
-        <action>Test development server stability</action>
-        <validation>
-          - No console warnings during navigation
-          - All routes load correctly
-          - Parameter-dependent features work properly
-        </validation>
-      </step>
-
-      <step id="4.5">
-        <action>Run comprehensive test suite</action>
-        <commands>
-          <command>docker exec budget-frontend npm run test</command>
-          <command>docker exec budget-frontend npm run lint</command>
-        </commands>
-      </step>
-    </steps>
-  </phase_4>
-
-  <phase_5>
-    <title>Cleanup and Documentation</title>
-    <steps>
-      <step id="5.1">
-        <action>Kill any duplicate development processes</action>
-        <commands>
-          <command>docker exec budget-frontend pkill -f "npm run dev" || true</command>
-          <command>docker restart budget-frontend</command>
-        </commands>
-        <rationale>Eliminate potential process conflicts mentioned in analysis</rationale>
-      </step>
-
-      <step id="5.2">
-        <action>Update component documentation</action>
-        <document>
-          - Parameter access patterns used
-          - SvelteKit 2 migration considerations
-          - Best practices for prop handling
-        </document>
-      </step>
-
-      <step id="5.3">
-        <action>Create regression test</action>
-        <test_file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/tests/navigation-param-warnings.test.ts</test_file>
-        <test_purpose>Ensure no console warnings during navigation</test_purpose>
-      </step>
-
-      <step id="5.4">
-        <action>Update project documentation</action>
-        <files>
-          <file>/home/ikeniborn/Documents/Project/familyBudget/CLAUDE.md</file>
-          <file>/home/ikeniborn/Documents/Project/familyBudget/docs/api/sveltekit-migration.md</file>
-        </files>
-        <content>Document SvelteKit 2 parameter handling best practices</content>
-      </step>
-    </steps>
-  </phase_5>
-
-  <technical_details>
-    <sveltekit_version>2.36.1</sveltekit_version>
-    <svelte_version>4.2.18</svelte_version>
-    <migration_context>SvelteKit 2 parameter handling changes</migration_context>
-
-    <key_changes>
-      <change>Parameters accessed via $page.params store, not component props</change>
-      <change>Load functions should not return params directly to components</change>
-      <change>Page components should not declare export let params</change>
-      <change>TypeScript interfaces should not include params in PageData</change>
-    </key_changes>
-
-    <common_patterns>
-      <pattern_1>
-        <name>Dynamic Route Parameter Access</name>
-        <before>export let params; const id = params.id;</before>
-        <after>import { page } from '$app/stores'; const id = $page.params.id;</after>
-      </pattern_1>
-
-      <pattern_2>
-        <name>Load Function Parameter Handling</name>
-        <before>return { params, data };</before>
-        <after>return { data: fetchWithParams(params) };</after>
-      </pattern_2>
-
-      <pattern_3>
-        <name>Component Props Interface</name>
-        <before>interface PageData { params: Record&lt;string, string&gt;; }</before>
-        <after>interface PageData { /* no params */ }</after>
-      </pattern_3>
-    </common_patterns>
-  </technical_details>
-
-  <expected_outcomes>
-    <outcome>Elimination of "unknown prop 'params'" console warnings</outcome>
-    <outcome>Improved compliance with SvelteKit 2 best practices</outcome>
-    <outcome>Cleaner component prop interfaces</outcome>
-    <outcome>Better separation of concerns between routing and components</outcome>
-    <outcome>Enhanced development experience with no console noise</outcome>
-  </expected_outcomes>
-
-  <rollback_plan>
-    <trigger>If fixes break existing functionality</trigger>
-    <steps>
-      <step>Revert component changes</step>
-      <step>Restore original prop declarations</step>
-      <step>Use git to reset to working state</step>
-      <step>Investigate alternative solutions</step>
-    </steps>
-  </rollback_plan>
-
-  <validation_criteria>
-    <criterion>No console warnings during page navigation</criterion>
-    <criterion>All route parameters accessible where needed</criterion>
-    <criterion>TypeScript compilation succeeds without parameter-related errors</criterion>
-    <criterion>All tests pass</criterion>
-    <criterion>Application functionality remains intact</criterion>
-  </validation_criteria>
+  <expected_result>
+    <item>Products page loads without 500 error</item>
+    <item>All product functionality works correctly</item>
+    <item>No console errors related to icon imports</item>
+  </expected_result>
 </plan>

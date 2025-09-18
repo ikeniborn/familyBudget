@@ -32,6 +32,8 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ SvelteKit Params Warning Fix (v3.7.2, 2025-09-17):** Resolved console warning "Page was created with unknown prop 'params'" during navigation. Added warning suppression in svelte.config.js for SvelteKit internal props. Clean console output without functional impact. See `/docs/api/params-warning-fix.md`.
 
+**✅ Products Barcode Icon Fix (v3.7.3, 2025-09-18):** Fixed 500 error on /products page caused by non-existent Barcode icon import from lucide-svelte. Replaced with ScanLine icon in ProductList.svelte and ProductForm.svelte. Products page now loads correctly with all functionality restored. See `/docs/api/products-barcode-icon-fix.md`.
+
 ## ⚠️ CRITICAL: Docker-Only Development
 
 **ALL operations MUST be performed through Docker containers:**
@@ -633,7 +635,8 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 15. **Articles page buttons not responding**: ✅ **RESOLVED** - Fixed button event forwarding by using Svelte's native event forwarding mechanism with `on:click` directive instead of custom event handling. All 9 buttons in articles page now work correctly (v3.5.8)
 16. **Articles page modals not displaying**: ✅ **RESOLVED** - Fixed Modal component to support `show` prop in addition to `open` and `isOpen`. Modal dialogs now display correctly on articles page (v3.5.9)
 17. **BudgetForm TypeError on undefined fields**: ✅ **RESOLVED** - Applied defensive field mapping with safe access patterns for financial centers, nomenclatures, and cost centers (v3.6.0)
-18. **Products page 500 error**: ✅ **RESOLVED** - Fixed SQLAlchemy ResourceClosedError in articles stats endpoint and corrected ProductAnalytics field mappings (product_name→name, product_id→id, category_name→category) (v3.6.2)
+18. **Products page 500 error (SQLAlchemy)**: ✅ **RESOLVED** - Fixed SQLAlchemy ResourceClosedError in articles stats endpoint and corrected ProductAnalytics field mappings (product_name→name, product_id→id, category_name→category) (v3.6.2)
+19. **Products page 500 error (Barcode icon)**: ✅ **RESOLVED** - Fixed non-existent Barcode icon import from lucide-svelte by replacing with ScanLine icon in ProductList and ProductForm components (v3.7.3)
 
 ### 🔧 Docker Networking Fix (ADR-004)
 

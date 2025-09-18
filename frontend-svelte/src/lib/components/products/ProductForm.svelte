@@ -2,7 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import { productService, type Product, type CreateProductData, type UpdateProductData } from '$lib/services/product.service';
   import { toastStore } from '$lib/stores/toast.store';
-  import { Package, Tag, Ruler, Barcode, FileText, Check, X } from 'lucide-svelte';
+  import { Package, Tag, Ruler, ScanLine, FileText, Check, X } from 'lucide-svelte';
 
   export let product: Product | null = null;
   export let onCancel: (() => void) | null = null;
@@ -222,7 +222,7 @@
 
     <div class="form-field">
       <div class="field-icon">
-        <Barcode class="h-5 w-5" />
+        <ScanLine class="h-5 w-5" />
       </div>
       <div class="field-content">
         <label for="barcode" class="field-label">

@@ -3,15 +3,15 @@
   import { productService, type Product } from '$lib/services/product.service';
   import { toastStore } from '$lib/stores/toast.store';
   import Loading from '$lib/components/common/Loading.svelte';
-  import { 
-    Search, 
-    Filter, 
-    Trash2, 
-    Edit3, 
+  import {
+    Search,
+    Filter,
+    Trash2,
+    Edit3,
     Package,
     Tag,
     Ruler,
-    Barcode as BarcodeIcon,
+    ScanLine as BarcodeIcon,
     FileText,
     CheckCircle,
     XCircle
