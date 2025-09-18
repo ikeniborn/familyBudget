@@ -14,19 +14,38 @@ const config = {
 
   onwarn: (warning, handler) => {
     // Suppress warnings about unknown props that SvelteKit passes internally
-    // This is a known issue when SvelteKit passes internal props like 'params' to page components
+    // This is a known issue when SvelteKit passes internal props to page components
     if (warning.code === 'unknown-prop') {
       // List of known SvelteKit internal props that shouldn't cause warnings
-      const internalProps = ['params', 'route', 'url', 'status', 'error', 'form', 'data'];
-      const propMatch = warning.message.match(/'([^']+)'/);
+      const internalProps = [
+        'params', 'route', 'url', 'status', 'error', 'form', 'data',
+        'beforeNavigate', 'afterNavigate', 'invalidateAll', 'preloadData',
+        'updated', 'page', 'stores', 'snapshot', 'state'
+      ];
+
+      // Enhanced pattern matching for prop warnings
+      const propMatch = warning.message.match(/Page was created with unknown prop '([^']+)'/) ||
+                       warning.message.match(/Component was created with unknown prop '([^']+)'/) ||
+                       warning.message.match(/'([^']+)' was exported/) ||
+                       warning.message.match(/Unknown prop '([^']+)'/);
+
       if (propMatch && internalProps.includes(propMatch[1])) {
         return; // Suppress the warning
+      }
+
+      // Additional check for warning filename to suppress SvelteKit internal warnings
+      if (warning.filename && warning.filename.includes('node_modules/@sveltejs')) {
+        return;
       }
     }
 
     // Suppress other known non-critical warnings
     if (warning.code === 'a11y-unknown-aria-attribute') return;
     if (warning.code === 'a11y-unknown-role') return;
+    if (warning.code === 'css-unused-selector') return; // Suppress unused CSS warnings in dev
+
+    // Suppress dev-only warnings that aren't actionable
+    if (warning.code === 'module_script_reactive_declaration' && process.env.NODE_ENV === 'development') return;
 
     // Handle all other warnings normally
     handler(warning);

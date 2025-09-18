@@ -1,43 +1,54 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <analysis>
-  <issue>
-    <description>500 Error on /products page with SyntaxError</description>
-    <error_message>SyntaxError: The requested module '/node_modules/.vite/deps/lucide-svelte.js?v=67ca6543' does not provide an export named 'Barcode'</error_message>
-    <location>products page (http://localhost:5173/products)</location>
-  </issue>
+  <problem>
+    <description>Множественные предупреждения в консоли браузера при навигации по страницам приложения</description>
+    <error_message>Page was created with unknown prop 'params'</error_message>
+    <error_message>Layout was created with unknown prop 'params'</error_message>
+    <frequency>Появляется при каждом переходе между страницами</frequency>
+    <impact>Не критично, но засоряет консоль разработчика</impact>
+  </problem>
 
   <root_cause>
-    <finding>The 'Barcode' icon is being imported from lucide-svelte package but it doesn't exist in that package</finding>
-    <affected_files>
-      <file>
-        <path>/frontend-svelte/src/lib/components/products/ProductList.svelte</path>
-        <line>14</line>
-        <code>Barcode as BarcodeIcon</code>
-      </file>
-      <file>
-        <path>/frontend-svelte/src/lib/components/products/ProductForm.svelte</path>
-        <line>5</line>
-        <code>Barcode</code>
-      </file>
-    </affected_files>
+    <description>SvelteKit автоматически передает системные props (params, route, data) в компоненты страниц и layouts</description>
+    <technical_detail>Компоненты не объявляют эти props через export let, что вызывает предупреждения Svelte compiler</technical_detail>
+    <framework_version>SvelteKit 2 с Svelte 4</framework_version>
   </root_cause>
 
-  <solution>
-    <step>Replace 'Barcode' import with an existing icon from lucide-svelte</step>
-    <alternatives>
-      <icon>ScanLine - good for barcode scanning representation</icon>
-      <icon>QrCode - for code/barcode representation</icon>
-      <icon>Hash - for product codes</icon>
-      <icon>Package2 - alternative package icon</icon>
-    </alternatives>
-    <recommendation>Use 'ScanLine' as it's the closest semantic match to Barcode functionality</recommendation>
-  </solution>
+  <solution_options>
+    <option priority="1">
+      <name>Конфигурация подавления предупреждений</name>
+      <description>Настроить svelte.config.js для игнорирования предупреждений о системных props SvelteKit</description>
+      <pros>Чистое решение, не требует изменения множества файлов</pros>
+      <cons>Может скрыть реальные проблемы с props</cons>
+    </option>
+    <option priority="2">
+      <name>Добавление export let params</name>
+      <description>Явно объявить params в каждом компоненте страницы</description>
+      <pros>Явное объявление всех props</pros>
+      <cons>Избыточный код, params часто не используется</cons>
+    </option>
+    <option priority="3">
+      <name>Использование $$restProps</name>
+      <description>Использовать $$restProps для сбора неиспользуемых props</description>
+      <pros>Гибкое решение</pros>
+      <cons>Может усложнить отладку</cons>
+    </option>
+  </solution_options>
 
-  <additional_issues>
-    <warning>
-      <description>Props warning about 'params' and 'form'</description>
-      <severity>Low</severity>
-      <note>Already addressed in CLAUDE.md as SvelteKit Params Warning Fix (v3.7.2)</note>
-    </warning>
-  </additional_issues>
+  <recommended_approach>
+    <choice>Конфигурация подавления предупреждений</choice>
+    <reasoning>Наиболее чистое и централизованное решение, не требующее изменения множества файлов</reasoning>
+    <implementation_steps>
+      <step>Проверить текущий svelte.config.js</step>
+      <step>Добавить настройку onwarn для фильтрации предупреждений</step>
+      <step>Протестировать, что предупреждения исчезли</step>
+      <step>Убедиться, что другие важные предупреждения не скрыты</step>
+    </implementation_steps>
+  </recommended_approach>
+
+  <affected_files>
+    <file>frontend-svelte/svelte.config.js</file>
+    <file>Все файлы +page.svelte в routes</file>
+    <file>Все файлы +layout.svelte в routes</file>
+  </affected_files>
 </analysis>

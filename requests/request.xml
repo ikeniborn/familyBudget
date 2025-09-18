@@ -13,9 +13,8 @@
         </architecture>
     </project>
     <context>
-        http://localhost:5173/products
-        при переходе на страинук ошика 500
-        в консоли ошибка /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-18 07-15-05.png
+        При переходе по страницам в консоли ошибки.
+        /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-18 07-24-15.png
     </context>
     <requirements>
         <point number="1">Проанализировать ошибку</point>

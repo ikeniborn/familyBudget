@@ -1,78 +1,248 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<plan>
-  <objective>Fix 500 error on products page caused by non-existent Barcode icon import</objective>
+<action_plan>
+  <task_overview>
+    <title>SvelteKit Params Warning Suppression Implementation</title>
+    <description>Implement and validate warning suppression configuration for SvelteKit internal props to eliminate console warnings</description>
+    <priority>Medium</priority>
+    <estimated_effort>1-2 hours</estimated_effort>
+    <version>v3.7.2</version>
+  </task_overview>
 
-  <tasks>
-    <task id="1" priority="critical">
-      <action>Fix ProductList.svelte component</action>
-      <details>
-        <file>/frontend-svelte/src/lib/components/products/ProductList.svelte</file>
-        <change>
-          <from>Barcode as BarcodeIcon</from>
-          <to>ScanLine as BarcodeIcon</to>
-          <line>14</line>
-        </change>
-      </details>
-    </task>
+  <current_status>
+    <analysis>Warning suppression configuration already exists in svelte.config.js but needs validation and potential enhancement</analysis>
+    <existing_implementation>
+      <file>frontend-svelte/svelte.config.js</file>
+      <configuration>onwarn handler with internalProps array filtering</configuration>
+      <suppressed_props>['params', 'route', 'url', 'status', 'error', 'form', 'data']</suppressed_props>
+    </existing_implementation>
+  </current_status>
 
-    <task id="2" priority="critical">
-      <action>Fix ProductForm.svelte component</action>
-      <details>
-        <file>/frontend-svelte/src/lib/components/products/ProductForm.svelte</file>
+  <implementation_steps>
+
+    <step id="1" phase="validation">
+      <title>Validate Current Configuration</title>
+      <description>Check if existing warning suppression is working correctly</description>
+      <actions>
+        <action>Review current svelte.config.js onwarn configuration</action>
+        <action>Test frontend application and check browser console for params warnings</action>
+        <action>Navigate through different routes to trigger SvelteKit props passing</action>
+        <action>Verify that legitimate prop warnings are still visible</action>
+      </actions>
+      <expected_outcome>Confirm current suppression effectiveness</expected_outcome>
+      <validation_commands>
+        <command>docker exec budget-frontend npm run dev</command>
+        <command>curl http://localhost:5173/</command>
+        <command>Check browser console at http://localhost:5173/settings/periods</command>
+      </validation_commands>
+    </step>
+
+    <step id="2" phase="enhancement">
+      <title>Enhance Warning Suppression Configuration</title>
+      <description>Improve the onwarn handler to be more robust and comprehensive</description>
+      <actions>
+        <action>Add more specific pattern matching for SvelteKit internal props</action>
+        <action>Include additional SvelteKit system props if discovered</action>
+        <action>Add debug logging for suppressed warnings (development only)</action>
+        <action>Ensure accessibility warnings are appropriately handled</action>
+      </actions>
+      <implementation_details>
+        <file>frontend-svelte/svelte.config.js</file>
         <changes>
-          <change>
-            <from>Barcode</from>
-            <to>ScanLine</to>
-            <line>5</line>
-          </change>
-          <change>
-            <from>&lt;Barcode class="h-5 w-5" /&gt;</from>
-            <to>&lt;ScanLine class="h-5 w-5" /&gt;</to>
-            <line>225</line>
-          </change>
+          <change>Enhance internalProps array with comprehensive SvelteKit props</change>
+          <change>Add pattern matching for prop names with regex support</change>
+          <change>Add conditional debug logging for development environment</change>
+          <change>Improve warning categorization and filtering logic</change>
         </changes>
-      </details>
-    </task>
+      </implementation_details>
+    </step>
 
-    <task id="3" priority="high">
-      <action>Verify the fix</action>
-      <steps>
-        <step>Check that the dev server reloads without errors</step>
-        <step>Navigate to /products page</step>
-        <step>Ensure page loads correctly</step>
-        <step>Test product creation and editing functionality</step>
-      </steps>
-    </task>
+    <step id="3" phase="testing">
+      <title>Comprehensive Testing</title>
+      <description>Test warning suppression across all application routes and scenarios</description>
+      <actions>
+        <action>Test navigation through all protected routes (/settings/*)</action>
+        <action>Test page transitions with different URL parameters</action>
+        <action>Test error pages and layouts for prop warnings</action>
+        <action>Verify form submissions and data loading scenarios</action>
+        <action>Check that legitimate prop warnings still appear for custom components</action>
+      </actions>
+      <test_scenarios>
+        <scenario>Navigate from dashboard to settings pages</scenario>
+        <scenario>Access routes with dynamic parameters (e.g., /settings/periods/[id])</scenario>
+        <scenario>Test 404 and error page rendering</scenario>
+        <scenario>Test component with intentionally incorrect props</scenario>
+      </test_scenarios>
+    </step>
 
-    <task id="4" priority="medium">
-      <action>Create tests for the fixed functionality</action>
-      <details>
-        <test_file>/tests/frontend/products-icon-fix.test.ts</test_file>
-        <coverage>
-          <item>Test that ProductList renders without errors</item>
-          <item>Test that ProductForm renders without errors</item>
-          <item>Verify ScanLine icon is properly imported and rendered</item>
-        </coverage>
-      </details>
-    </task>
+    <step id="4" phase="documentation">
+      <title>Create Test Validation Suite</title>
+      <description>Create automated tests to validate warning suppression</description>
+      <actions>
+        <action>Create test file for warning suppression validation</action>
+        <action>Add tests for console.warn capturing during navigation</action>
+        <action>Add tests for legitimate warning preservation</action>
+        <action>Document the warning suppression strategy</action>
+      </actions>
+      <test_file>tests/frontend/params-warning-suppression.test.ts</test_file>
+    </step>
 
-    <task id="5" priority="medium">
-      <action>Update documentation</action>
-      <files>
-        <file>/docs/api/products-barcode-icon-fix.md</file>
-        <file>CLAUDE.md - add note about the fix</file>
-      </files>
-    </task>
+    <step id="5" phase="deployment">
+      <title>Final Validation and Documentation</title>
+      <description>Ensure solution is working and properly documented</description>
+      <actions>
+        <action>Restart development server to ensure configuration is loaded</action>
+        <action>Run frontend linting and type checking</action>
+        <action>Update project documentation with warning suppression details</action>
+        <action>Create documentation entry in CLAUDE.md</action>
+      </actions>
+      <documentation_updates>
+        <file>CLAUDE.md</file>
+        <section>Common Issues & Solutions</section>
+        <content>SvelteKit params warning suppression implementation</content>
+      </documentation_updates>
+    </step>
 
-    <task id="6" priority="low">
-      <action>Commit changes with descriptive message</action>
-      <commit_message>fix: Replace non-existent Barcode icon with ScanLine in products components</commit_message>
-    </task>
-  </tasks>
+  </implementation_steps>
 
-  <expected_result>
-    <item>Products page loads without 500 error</item>
-    <item>All product functionality works correctly</item>
-    <item>No console errors related to icon imports</item>
-  </expected_result>
-</plan>
+  <technical_specifications>
+
+    <configuration_details>
+      <target_file>frontend-svelte/svelte.config.js</target_file>
+      <handler_function>onwarn</handler_function>
+      <suppression_strategy>Pattern matching with prop name filtering</suppression_strategy>
+      <affected_warning_codes>
+        <code>unknown-prop</code>
+        <code>a11y-unknown-aria-attribute</code>
+        <code>a11y-unknown-role</code>
+      </affected_warning_codes>
+    </configuration_details>
+
+    <enhanced_implementation>
+      <internal_props>
+        <prop>params</prop>
+        <prop>route</prop>
+        <prop>url</prop>
+        <prop>status</prop>
+        <prop>error</prop>
+        <prop>form</prop>
+        <prop>data</prop>
+        <prop>updated</prop>
+        <prop>navigating</prop>
+        <prop>page</prop>
+      </internal_props>
+      <regex_patterns>
+        <pattern>Page was created with unknown prop '(params|route|url|data|form)'</pattern>
+        <pattern>Layout was created with unknown prop '(params|route|url|data|form)'</pattern>
+      </regex_patterns>
+    </enhanced_implementation>
+
+  </technical_specifications>
+
+  <risk_assessment>
+
+    <risks>
+      <risk level="low">
+        <description>Over-suppression might hide legitimate prop warnings</description>
+        <mitigation>Use specific prop name matching instead of broad suppression</mitigation>
+        <validation>Test with intentionally incorrect props to ensure warnings appear</validation>
+      </risk>
+
+      <risk level="low">
+        <description>Configuration changes might not be picked up without restart</description>
+        <mitigation>Restart development server after configuration changes</mitigation>
+        <validation>Verify configuration is active by checking console output</validation>
+      </risk>
+
+      <risk level="minimal">
+        <description>Performance impact from warning filtering logic</description>
+        <mitigation>Keep filtering logic simple and efficient</mitigation>
+        <validation>Monitor development server performance</validation>
+      </risk>
+    </risks>
+
+    <compatibility_concerns>
+      <concern>SvelteKit version compatibility</concern>
+      <current_version>SvelteKit 2 with Svelte 4</current_version>
+      <solution>Configuration should work across SvelteKit 2.x versions</solution>
+    </compatibility_concerns>
+
+  </risk_assessment>
+
+  <validation_criteria>
+
+    <success_metrics>
+      <metric>Zero "unknown prop 'params'" warnings in browser console</metric>
+      <metric>Zero "Page was created with unknown prop" warnings during navigation</metric>
+      <metric>Legitimate prop warnings still appear for custom components</metric>
+      <metric>Development server starts without configuration errors</metric>
+      <metric>All existing functionality remains intact</metric>
+    </success_metrics>
+
+    <test_commands>
+      <command phase="pre-implementation">
+        <description>Capture current warning state</description>
+        <cmd>docker exec budget-frontend npm run dev 2>&1 | grep -i "unknown prop" | head -10</cmd>
+      </command>
+
+      <command phase="post-implementation">
+        <description>Verify warnings are suppressed</description>
+        <cmd>docker restart budget-frontend</cmd>
+        <cmd>curl -s http://localhost:5173/ > /dev/null</cmd>
+        <cmd>docker logs --tail 100 budget-frontend 2>&1 | grep -i "unknown prop" || echo "No warnings found"</cmd>
+      </command>
+
+      <command phase="validation">
+        <description>Run frontend tests and linting</description>
+        <cmd>docker exec budget-frontend npm run check</cmd>
+        <cmd>docker exec budget-frontend npm run lint</cmd>
+        <cmd>docker exec budget-frontend npm run test</cmd>
+      </command>
+    </test_commands>
+
+  </validation_criteria>
+
+  <rollback_plan>
+    <scenario>If warning suppression causes issues</scenario>
+    <steps>
+      <step>Revert svelte.config.js to previous version</step>
+      <step>Restart development server</step>
+      <step>Verify application functionality is restored</step>
+      <step>Re-evaluate suppression strategy</step>
+    </steps>
+    <backup_strategy>Git commit current working state before changes</backup_strategy>
+  </rollback_plan>
+
+  <delivery_artifacts>
+
+    <files_modified>
+      <file>frontend-svelte/svelte.config.js</file>
+      <modification>Enhanced onwarn handler with comprehensive prop filtering</modification>
+    </files_modified>
+
+    <files_created>
+      <file>tests/frontend/params-warning-suppression.test.ts</file>
+      <description>Automated tests for warning suppression validation</description>
+    </files_created>
+
+    <documentation_updates>
+      <file>docs/api/params-warning-fix.md</file>
+      <file>CLAUDE.md</file>
+      <section>Common Issues & Solutions</section>
+    </documentation_updates>
+
+  </delivery_artifacts>
+
+  <completion_checklist>
+    <item>✓ Current configuration validated and working</item>
+    <item>☐ Enhanced warning suppression implemented</item>
+    <item>☐ Comprehensive testing completed</item>
+    <item>☐ Test suite created and passing</item>
+    <item>☐ Browser console clean of params warnings</item>
+    <item>☐ Legitimate warnings still visible</item>
+    <item>☐ Development server restart successful</item>
+    <item>☐ Documentation updated</item>
+    <item>☐ Git commit with descriptive message</item>
+    <item>☐ Final validation completed</item>
+  </completion_checklist>
+
+</action_plan>
