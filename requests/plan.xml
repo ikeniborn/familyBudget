@@ -1,248 +1,305 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<action_plan>
-  <task_overview>
-    <title>SvelteKit Params Warning Suppression Implementation</title>
-    <description>Implement and validate warning suppression configuration for SvelteKit internal props to eliminate console warnings</description>
-    <priority>Medium</priority>
-    <estimated_effort>1-2 hours</estimated_effort>
-    <version>v3.7.2</version>
-  </task_overview>
+<plan>
+  <title>SvelteKit Params Warning Suppression Implementation Plan</title>
+  <version>v3.7.2+</version>
+  <date>2025-09-18</date>
+  <status>Enhancement to existing fix</status>
 
-  <current_status>
-    <analysis>Warning suppression configuration already exists in svelte.config.js but needs validation and potential enhancement</analysis>
-    <existing_implementation>
-      <file>frontend-svelte/svelte.config.js</file>
-      <configuration>onwarn handler with internalProps array filtering</configuration>
-      <suppressed_props>['params', 'route', 'url', 'status', 'error', 'form', 'data']</suppressed_props>
-    </existing_implementation>
-  </current_status>
+  <overview>
+    <description>
+      Enhance the existing SvelteKit params warning suppression in svelte.config.js to ensure
+      comprehensive coverage of all SvelteKit internal props and improve pattern matching reliability.
+      The current implementation (v3.7.2) already addresses the core issue, but this plan provides
+      additional robustness and future-proofing.
+    </description>
+    <current_state>
+      <item>✅ Basic params warning suppression already implemented</item>
+      <item>✅ 15 SvelteKit internal props currently handled</item>
+      <item>✅ Enhanced pattern matching in place</item>
+      <item>⚠️ Potential for additional edge cases or future SvelteKit props</item>
+    </current_state>
+  </overview>
 
   <implementation_steps>
-
-    <step id="1" phase="validation">
-      <title>Validate Current Configuration</title>
-      <description>Check if existing warning suppression is working correctly</description>
+    <step number="1">
+      <title>Verify Current Configuration</title>
+      <description>Validate the existing svelte.config.js warning suppression configuration</description>
       <actions>
-        <action>Review current svelte.config.js onwarn configuration</action>
-        <action>Test frontend application and check browser console for params warnings</action>
-        <action>Navigate through different routes to trigger SvelteKit props passing</action>
-        <action>Verify that legitimate prop warnings are still visible</action>
+        <action>Examine current onwarn handler in svelte.config.js</action>
+        <action>Verify all SvelteKit internal props are included in suppression list</action>
+        <action>Test current pattern matching effectiveness</action>
       </actions>
-      <expected_outcome>Confirm current suppression effectiveness</expected_outcome>
-      <validation_commands>
-        <command>docker exec budget-frontend npm run dev</command>
-        <command>curl http://localhost:5173/</command>
-        <command>Check browser console at http://localhost:5173/settings/periods</command>
-      </validation_commands>
-    </step>
-
-    <step id="2" phase="enhancement">
-      <title>Enhance Warning Suppression Configuration</title>
-      <description>Improve the onwarn handler to be more robust and comprehensive</description>
-      <actions>
-        <action>Add more specific pattern matching for SvelteKit internal props</action>
-        <action>Include additional SvelteKit system props if discovered</action>
-        <action>Add debug logging for suppressed warnings (development only)</action>
-        <action>Ensure accessibility warnings are appropriately handled</action>
-      </actions>
-      <implementation_details>
+      <files_to_examine>
         <file>frontend-svelte/svelte.config.js</file>
-        <changes>
-          <change>Enhance internalProps array with comprehensive SvelteKit props</change>
-          <change>Add pattern matching for prop names with regex support</change>
-          <change>Add conditional debug logging for development environment</change>
-          <change>Improve warning categorization and filtering logic</change>
-        </changes>
-      </implementation_details>
+      </files_to_examine>
+      <expected_outcome>Understanding of current implementation completeness</expected_outcome>
     </step>
 
-    <step id="3" phase="testing">
+    <step number="2">
+      <title>Enhance Warning Pattern Detection</title>
+      <description>Improve regex patterns and add additional SvelteKit prop detection</description>
+      <actions>
+        <action>Add more comprehensive regex patterns for warning detection</action>
+        <action>Include additional SvelteKit internal props if any are missing</action>
+        <action>Add version-specific prop handling for future SvelteKit versions</action>
+      </actions>
+      <files_to_modify>
+        <file>frontend-svelte/svelte.config.js</file>
+      </files_to_modify>
+      <changes>
+        <change>
+          <location>onwarn function - line ~27-30</location>
+          <description>Enhance regex patterns with more comprehensive matching</description>
+          <code_before>
+            const propMatch = warning.message.match(/Page was created with unknown prop '([^']+)'/) ||
+                             warning.message.match(/Component was created with unknown prop '([^']+)'/) ||
+                             warning.message.match(/'([^']+)' was exported/) ||
+                             warning.message.match(/Unknown prop '([^']+)'/);
+          </code_before>
+          <code_after>
+            const propMatch = warning.message.match(/Page was created with unknown prop '([^']+)'/) ||
+                             warning.message.match(/Component was created with unknown prop '([^']+)'/) ||
+                             warning.message.match(/'([^']+)' was exported/) ||
+                             warning.message.match(/Unknown prop '([^']+)'/) ||
+                             warning.message.match(/received an unexpected slot "([^"]+)"/) ||
+                             warning.message.match(/\<[^>]+\> was created with unknown prop '([^']+)'/);
+          </code_after>
+        </change>
+        <change>
+          <location>internalProps array - line ~20-24</location>
+          <description>Add any missing SvelteKit internal props</description>
+          <code_before>
+            const internalProps = [
+              'params', 'route', 'url', 'status', 'error', 'form', 'data',
+              'beforeNavigate', 'afterNavigate', 'invalidateAll', 'preloadData',
+              'updated', 'page', 'stores', 'snapshot', 'state'
+            ];
+          </code_before>
+          <code_after>
+            const internalProps = [
+              'params', 'route', 'url', 'status', 'error', 'form', 'data',
+              'beforeNavigate', 'afterNavigate', 'invalidateAll', 'preloadData',
+              'updated', 'page', 'stores', 'snapshot', 'state', 'navigating',
+              'routeId', 'browser', 'dev', 'assets', 'version', 'base'
+            ];
+          </code_after>
+        </change>
+      </changes>
+    </step>
+
+    <step number="3">
+      <title>Add Development Environment Detection</title>
+      <description>Enhance warning suppression to be more specific to development environment</description>
+      <actions>
+        <action>Add NODE_ENV checks for development-specific warnings</action>
+        <action>Implement different warning levels for development vs production</action>
+        <action>Add debugging output for warning suppression (optional)</action>
+      </actions>
+      <files_to_modify>
+        <file>frontend-svelte/svelte.config.js</file>
+      </files_to_modify>
+      <changes>
+        <change>
+          <location>onwarn function - after existing checks</location>
+          <description>Add environment-specific warning handling</description>
+          <code_addition>
+    // Development-specific warning suppression
+    if (process.env.NODE_ENV === 'development') {
+      // Suppress noisy development warnings that don't affect functionality
+      if (warning.code === 'css-unused-selector') return;
+      if (warning.code === 'a11y-missing-attribute' && warning.message.includes('img')) return;
+      if (warning.code === 'a11y-click-events-have-key-events') return;
+    }
+
+    // Optional: Debug warning suppression (uncomment for debugging)
+    // if (warning.code === 'unknown-prop') {
+    //   console.log('Suppressed warning:', warning.message);
+    // }
+          </code_addition>
+        </change>
+      </changes>
+    </step>
+
+    <step number="4">
+      <title>Add Future-Proofing for SvelteKit Updates</title>
+      <description>Implement dynamic prop detection for future SvelteKit versions</description>
+      <actions>
+        <action>Add dynamic detection of SvelteKit version-specific props</action>
+        <action>Implement fallback mechanisms for unknown SvelteKit props</action>
+        <action>Add configuration comments for maintenance</action>
+      </actions>
+      <files_to_modify>
+        <file>frontend-svelte/svelte.config.js</file>
+      </files_to_modify>
+      <changes>
+        <change>
+          <location>Before internalProps array definition</location>
+          <description>Add version-aware prop detection</description>
+          <code_addition>
+    // Dynamic SvelteKit version detection and prop handling
+    const svelteKitVersion = process.env.npm_package_dependencies_sveltekit ||
+                            require('./package.json').devDependencies['@sveltejs/kit'];
+
+    // Base SvelteKit internal props (common across versions)
+    const baseSvelteKitProps = [
+      'params', 'route', 'url', 'status', 'error', 'form', 'data',
+      'beforeNavigate', 'afterNavigate', 'invalidateAll', 'preloadData',
+      'updated', 'page', 'stores', 'snapshot', 'state'
+    ];
+
+    // Version-specific additional props
+    const versionSpecificProps = svelteKitVersion?.startsWith('^2.') ?
+      ['navigating', 'routeId', 'browser', 'dev', 'assets', 'version', 'base'] : [];
+          </code_addition>
+        </change>
+        <change>
+          <location>internalProps array definition</location>
+          <description>Use dynamic prop array</description>
+          <code_after>
+            const internalProps = [...baseSvelteKitProps, ...versionSpecificProps];
+          </code_after>
+        </change>
+      </changes>
+    </step>
+
+    <step number="5">
       <title>Comprehensive Testing</title>
-      <description>Test warning suppression across all application routes and scenarios</description>
+      <description>Test the enhanced warning suppression across all application routes</description>
       <actions>
-        <action>Test navigation through all protected routes (/settings/*)</action>
-        <action>Test page transitions with different URL parameters</action>
-        <action>Test error pages and layouts for prop warnings</action>
-        <action>Verify form submissions and data loading scenarios</action>
-        <action>Check that legitimate prop warnings still appear for custom components</action>
+        <action>Restart development server to apply configuration changes</action>
+        <action>Navigate through all main application routes</action>
+        <action>Monitor browser console for any remaining warnings</action>
+        <action>Test with both admin and regular user accounts</action>
+        <action>Verify legitimate warnings still appear</action>
       </actions>
-      <test_scenarios>
-        <scenario>Navigate from dashboard to settings pages</scenario>
-        <scenario>Access routes with dynamic parameters (e.g., /settings/periods/[id])</scenario>
-        <scenario>Test 404 and error page rendering</scenario>
-        <scenario>Test component with intentionally incorrect props</scenario>
-      </test_scenarios>
+      <test_routes>
+        <route>/</route>
+        <route>/dashboard</route>
+        <route>/settings/periods</route>
+        <route>/settings/financial-centers</route>
+        <route>/settings/cost-centers</route>
+        <route>/settings/nomenclatures</route>
+        <route>/settings/articles</route>
+        <route>/budget</route>
+        <route>/fact</route>
+        <route>/reports</route>
+        <route>/products</route>
+      </test_routes>
+      <validation_steps>
+        <step>Open browser developer console</step>
+        <step>Navigate to each test route</step>
+        <step>Verify no "unknown prop 'params'" warnings appear</step>
+        <step>Verify no other SvelteKit internal prop warnings appear</step>
+        <step>Create a test component with invalid props to ensure legitimate warnings still show</step>
+      </validation_steps>
     </step>
 
-    <step id="4" phase="documentation">
-      <title>Create Test Validation Suite</title>
-      <description>Create automated tests to validate warning suppression</description>
+    <step number="6">
+      <title>Documentation and Testing</title>
+      <description>Create comprehensive test suite and update documentation</description>
       <actions>
-        <action>Create test file for warning suppression validation</action>
-        <action>Add tests for console.warn capturing during navigation</action>
-        <action>Add tests for legitimate warning preservation</action>
-        <action>Document the warning suppression strategy</action>
+        <action>Create automated tests for warning suppression</action>
+        <action>Add test to verify legitimate warnings still appear</action>
+        <action>Update existing documentation</action>
+        <action>Add maintenance notes for future SvelteKit upgrades</action>
       </actions>
-      <test_file>tests/frontend/params-warning-suppression.test.ts</test_file>
+      <files_to_create>
+        <file>tests/frontend/svelte-config-warning-suppression.test.ts</file>
+      </files_to_create>
+      <files_to_update>
+        <file>docs/api/params-warning-fix.md</file>
+      </files_to_update>
+      <test_content>
+        <description>Test suite to validate warning suppression behavior</description>
+        <test_cases>
+          <case>Test that SvelteKit internal props don't generate warnings</case>
+          <case>Test that legitimate prop warnings still appear</case>
+          <case>Test pattern matching effectiveness</case>
+          <case>Test environment-specific warning handling</case>
+        </test_cases>
+      </test_content>
     </step>
-
-    <step id="5" phase="deployment">
-      <title>Final Validation and Documentation</title>
-      <description>Ensure solution is working and properly documented</description>
-      <actions>
-        <action>Restart development server to ensure configuration is loaded</action>
-        <action>Run frontend linting and type checking</action>
-        <action>Update project documentation with warning suppression details</action>
-        <action>Create documentation entry in CLAUDE.md</action>
-      </actions>
-      <documentation_updates>
-        <file>CLAUDE.md</file>
-        <section>Common Issues & Solutions</section>
-        <content>SvelteKit params warning suppression implementation</content>
-      </documentation_updates>
-    </step>
-
   </implementation_steps>
 
-  <technical_specifications>
+  <potential_side_effects>
+    <effect>
+      <description>Over-suppression of legitimate warnings</description>
+      <mitigation>Careful pattern matching and whitelist approach</mitigation>
+      <testing>Create test cases with intentionally incorrect props</testing>
+    </effect>
+    <effect>
+      <description>Performance impact from extensive regex matching</description>
+      <mitigation>Optimize regex patterns and use early returns</mitigation>
+      <testing>Monitor build times before and after changes</testing>
+    </effect>
+    <effect>
+      <description>Future SvelteKit version compatibility</description>
+      <mitigation>Version-aware prop detection and dynamic configuration</mitigation>
+      <testing>Test with SvelteKit version updates</testing>
+    </effect>
+  </potential_side_effects>
 
-    <configuration_details>
-      <target_file>frontend-svelte/svelte.config.js</target_file>
-      <handler_function>onwarn</handler_function>
-      <suppression_strategy>Pattern matching with prop name filtering</suppression_strategy>
-      <affected_warning_codes>
-        <code>unknown-prop</code>
-        <code>a11y-unknown-aria-attribute</code>
-        <code>a11y-unknown-role</code>
-      </affected_warning_codes>
-    </configuration_details>
+  <validation_commands>
+    <command>
+      <description>Restart frontend container to apply configuration</description>
+      <code>docker restart budget-frontend</code>
+    </command>
+    <command>
+      <description>Start development server</description>
+      <code>docker exec budget-frontend npm run dev</code>
+    </command>
+    <command>
+      <description>Run type checking to ensure no new issues</description>
+      <code>docker exec budget-frontend npm run check</code>
+    </command>
+    <command>
+      <description>Run frontend tests</description>
+      <code>docker exec budget-frontend npm run test</code>
+    </command>
+    <command>
+      <description>Test specific warning suppression functionality</description>
+      <code>docker exec budget-frontend npm run test svelte-config-warning-suppression.test.ts</code>
+    </command>
+  </validation_commands>
 
-    <enhanced_implementation>
-      <internal_props>
-        <prop>params</prop>
-        <prop>route</prop>
-        <prop>url</prop>
-        <prop>status</prop>
-        <prop>error</prop>
-        <prop>form</prop>
-        <prop>data</prop>
-        <prop>updated</prop>
-        <prop>navigating</prop>
-        <prop>page</prop>
-      </internal_props>
-      <regex_patterns>
-        <pattern>Page was created with unknown prop '(params|route|url|data|form)'</pattern>
-        <pattern>Layout was created with unknown prop '(params|route|url|data|form)'</pattern>
-      </regex_patterns>
-    </enhanced_implementation>
+  <success_criteria>
+    <criterion>✅ No "unknown prop 'params'" warnings in browser console</criterion>
+    <criterion>✅ No warnings for other SvelteKit internal props</criterion>
+    <criterion>✅ All application routes navigate without console warnings</criterion>
+    <criterion>✅ Legitimate component warnings still appear for debugging</criterion>
+    <criterion>✅ Type checking passes without new errors</criterion>
+    <criterion>✅ All existing tests continue to pass</criterion>
+    <criterion>✅ Build process completes successfully</criterion>
+    <criterion>✅ Development server starts without warnings</criterion>
+  </success_criteria>
 
-  </technical_specifications>
-
-  <risk_assessment>
-
-    <risks>
-      <risk level="low">
-        <description>Over-suppression might hide legitimate prop warnings</description>
-        <mitigation>Use specific prop name matching instead of broad suppression</mitigation>
-        <validation>Test with intentionally incorrect props to ensure warnings appear</validation>
-      </risk>
-
-      <risk level="low">
-        <description>Configuration changes might not be picked up without restart</description>
-        <mitigation>Restart development server after configuration changes</mitigation>
-        <validation>Verify configuration is active by checking console output</validation>
-      </risk>
-
-      <risk level="minimal">
-        <description>Performance impact from warning filtering logic</description>
-        <mitigation>Keep filtering logic simple and efficient</mitigation>
-        <validation>Monitor development server performance</validation>
-      </risk>
-    </risks>
-
-    <compatibility_concerns>
-      <concern>SvelteKit version compatibility</concern>
-      <current_version>SvelteKit 2 with Svelte 4</current_version>
-      <solution>Configuration should work across SvelteKit 2.x versions</solution>
-    </compatibility_concerns>
-
-  </risk_assessment>
-
-  <validation_criteria>
-
-    <success_metrics>
-      <metric>Zero "unknown prop 'params'" warnings in browser console</metric>
-      <metric>Zero "Page was created with unknown prop" warnings during navigation</metric>
-      <metric>Legitimate prop warnings still appear for custom components</metric>
-      <metric>Development server starts without configuration errors</metric>
-      <metric>All existing functionality remains intact</metric>
-    </success_metrics>
-
-    <test_commands>
-      <command phase="pre-implementation">
-        <description>Capture current warning state</description>
-        <cmd>docker exec budget-frontend npm run dev 2>&1 | grep -i "unknown prop" | head -10</cmd>
-      </command>
-
-      <command phase="post-implementation">
-        <description>Verify warnings are suppressed</description>
-        <cmd>docker restart budget-frontend</cmd>
-        <cmd>curl -s http://localhost:5173/ > /dev/null</cmd>
-        <cmd>docker logs --tail 100 budget-frontend 2>&1 | grep -i "unknown prop" || echo "No warnings found"</cmd>
-      </command>
-
-      <command phase="validation">
-        <description>Run frontend tests and linting</description>
-        <cmd>docker exec budget-frontend npm run check</cmd>
-        <cmd>docker exec budget-frontend npm run lint</cmd>
-        <cmd>docker exec budget-frontend npm run test</cmd>
-      </command>
-    </test_commands>
-
-  </validation_criteria>
+  <maintenance_notes>
+    <note>
+      <title>SvelteKit Version Updates</title>
+      <description>When updating SvelteKit, review the internal props list and add any new props that may cause warnings</description>
+    </note>
+    <note>
+      <title>Pattern Matching Updates</title>
+      <description>If new warning message formats appear, update the regex patterns accordingly</description>
+    </note>
+    <note>
+      <title>Performance Monitoring</title>
+      <description>Monitor build performance after changes to ensure warning suppression doesn't impact compilation speed</description>
+    </note>
+  </maintenance_notes>
 
   <rollback_plan>
-    <scenario>If warning suppression causes issues</scenario>
-    <steps>
-      <step>Revert svelte.config.js to previous version</step>
-      <step>Restart development server</step>
-      <step>Verify application functionality is restored</step>
-      <step>Re-evaluate suppression strategy</step>
-    </steps>
-    <backup_strategy>Git commit current working state before changes</backup_strategy>
+    <step>Revert svelte.config.js to previous working version</step>
+    <step>Restart development server</step>
+    <step>Verify application functionality</step>
+    <step>Re-evaluate warning suppression approach</step>
   </rollback_plan>
 
-  <delivery_artifacts>
-
-    <files_modified>
-      <file>frontend-svelte/svelte.config.js</file>
-      <modification>Enhanced onwarn handler with comprehensive prop filtering</modification>
-    </files_modified>
-
-    <files_created>
-      <file>tests/frontend/params-warning-suppression.test.ts</file>
-      <description>Automated tests for warning suppression validation</description>
-    </files_created>
-
-    <documentation_updates>
-      <file>docs/api/params-warning-fix.md</file>
-      <file>CLAUDE.md</file>
-      <section>Common Issues & Solutions</section>
-    </documentation_updates>
-
-  </delivery_artifacts>
-
-  <completion_checklist>
-    <item>✓ Current configuration validated and working</item>
-    <item>☐ Enhanced warning suppression implemented</item>
-    <item>☐ Comprehensive testing completed</item>
-    <item>☐ Test suite created and passing</item>
-    <item>☐ Browser console clean of params warnings</item>
-    <item>☐ Legitimate warnings still visible</item>
-    <item>☐ Development server restart successful</item>
-    <item>☐ Documentation updated</item>
-    <item>☐ Git commit with descriptive message</item>
-    <item>☐ Final validation completed</item>
-  </completion_checklist>
-
-</action_plan>
+  <implementation_priority>
+    <level>Medium</level>
+    <rationale>
+      The core issue is already resolved in v3.7.2. This plan provides enhancements for robustness
+      and future-proofing, but is not critical for application functionality.
+    </rationale>
+  </implementation_priority>
+</plan>

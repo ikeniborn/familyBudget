@@ -16,26 +16,76 @@ const config = {
     // Suppress warnings about unknown props that SvelteKit passes internally
     // This is a known issue when SvelteKit passes internal props to page components
     if (warning.code === 'unknown-prop') {
-      // List of known SvelteKit internal props that shouldn't cause warnings
+      // Comprehensive list of known SvelteKit internal props that shouldn't cause warnings
       const internalProps = [
         'params', 'route', 'url', 'status', 'error', 'form', 'data',
         'beforeNavigate', 'afterNavigate', 'invalidateAll', 'preloadData',
-        'updated', 'page', 'stores', 'snapshot', 'state'
+        'updated', 'page', 'stores', 'snapshot', 'state', 'navigating',
+        'enhanced', 'shallow', 'keepFocus', 'noscroll', 'replaceState',
+        'invalidate', 'goto', 'pushState', 'popState'
       ];
 
-      // Enhanced pattern matching for prop warnings
-      const propMatch = warning.message.match(/Page was created with unknown prop '([^']+)'/) ||
-                       warning.message.match(/Component was created with unknown prop '([^']+)'/) ||
-                       warning.message.match(/'([^']+)' was exported/) ||
-                       warning.message.match(/Unknown prop '([^']+)'/);
+      // Enhanced pattern matching for prop warnings with comprehensive regex patterns
+      const propPatterns = [
+        /Page was created with unknown prop '([^']+)'/,
+        /Component was created with unknown prop '([^']+)'/,
+        /'([^']+)' was exported/,
+        /Unknown prop '([^']+)'/,
+        /received an unexpected slot "([^"]+)"/,
+        /\$\$props\.([a-zA-Z_$][a-zA-Z0-9_$]*)/,
+        /prop '([^']+)' was passed to/
+      ];
+
+      let propMatch = null;
+      for (const pattern of propPatterns) {
+        propMatch = warning.message.match(pattern);
+        if (propMatch) break;
+      }
 
       if (propMatch && internalProps.includes(propMatch[1])) {
         return; // Suppress the warning
       }
 
-      // Additional check for warning filename to suppress SvelteKit internal warnings
-      if (warning.filename && warning.filename.includes('node_modules/@sveltejs')) {
-        return;
+      // Enhanced filename checks for SvelteKit internal warnings
+      if (warning.filename) {
+        const suppressPaths = [
+          'node_modules/@sveltejs',
+          '.svelte-kit',
+          'vite/preload-helper',
+          '__sveltekit',
+          'app.html'
+        ];
+
+        if (suppressPaths.some(path => warning.filename.includes(path))) {
+          return;
+        }
+      }
+
+      // Additional message-based suppression for SvelteKit internals
+      const suppressMessages = [
+        'was created with unknown prop',
+        'received an unexpected slot',
+        'was passed to component',
+        'exported from',
+        '$$props',
+        'received props',
+        'which are not declared'
+      ];
+
+      if (suppressMessages.some(msg => warning.message.includes(msg))) {
+        // Check if it's about internal props
+        const messageProps = warning.message.match(/'([^']+)'/g);
+        if (messageProps) {
+          // Check if ALL mentioned props are internal SvelteKit props
+          const allPropsInternal = messageProps.every(prop => {
+            const cleanProp = prop.replace(/'/g, '');
+            return internalProps.includes(cleanProp);
+          });
+
+          if (allPropsInternal) {
+            return;
+          }
+        }
       }
     }
 

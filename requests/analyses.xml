@@ -1,54 +1,44 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <analysis>
   <problem>
-    <description>Множественные предупреждения в консоли браузера при навигации по страницам приложения</description>
-    <error_message>Page was created with unknown prop 'params'</error_message>
-    <error_message>Layout was created with unknown prop 'params'</error_message>
-    <frequency>Появляется при каждом переходе между страницами</frequency>
-    <impact>Не критично, но засоряет консоль разработчика</impact>
+    <description>Console warnings about pages being created with unknown prop 'params' in SvelteKit application</description>
+    <error_type>Development warning</error_type>
+    <affected_files>
+      <file>+page.svelte:93</file>
+      <file>+page.svelte:15</file>
+      <file>+page.svelte:69</file>
+      <file>+page.svelte:197</file>
+      <file>+layout.svelte:20</file>
+      <file>+page.svelte:44</file>
+    </affected_files>
   </problem>
 
   <root_cause>
-    <description>SvelteKit автоматически передает системные props (params, route, data) в компоненты страниц и layouts</description>
-    <technical_detail>Компоненты не объявляют эти props через export let, что вызывает предупреждения Svelte compiler</technical_detail>
-    <framework_version>SvelteKit 2 с Svelte 4</framework_version>
+    <description>SvelteKit 2 automatically passes 'params' prop to page components, but components don't declare this prop</description>
+    <technical_details>
+      <detail>SvelteKit routing system injects props automatically</detail>
+      <detail>Components without 'export let params' declaration trigger warnings</detail>
+      <detail>This is a known SvelteKit behavior that requires warning suppression</detail>
+    </technical_details>
   </root_cause>
 
-  <solution_options>
-    <option priority="1">
-      <name>Конфигурация подавления предупреждений</name>
-      <description>Настроить svelte.config.js для игнорирования предупреждений о системных props SvelteKit</description>
-      <pros>Чистое решение, не требует изменения множества файлов</pros>
-      <cons>Может скрыть реальные проблемы с props</cons>
-    </option>
-    <option priority="2">
-      <name>Добавление export let params</name>
-      <description>Явно объявить params в каждом компоненте страницы</description>
-      <pros>Явное объявление всех props</pros>
-      <cons>Избыточный код, params часто не используется</cons>
-    </option>
-    <option priority="3">
-      <name>Использование $$restProps</name>
-      <description>Использовать $$restProps для сбора неиспользуемых props</description>
-      <pros>Гибкое решение</pros>
-      <cons>Может усложнить отладку</cons>
-    </option>
-  </solution_options>
+  <previous_fix>
+    <version>v3.7.2</version>
+    <description>SvelteKit Params Warning Fix was implemented</description>
+    <details>Enhanced warning suppression in svelte.config.js for 15 SvelteKit internal props</details>
+  </previous_fix>
 
-  <recommended_approach>
-    <choice>Конфигурация подавления предупреждений</choice>
-    <reasoning>Наиболее чистое и централизованное решение, не требующее изменения множества файлов</reasoning>
-    <implementation_steps>
-      <step>Проверить текущий svelte.config.js</step>
-      <step>Добавить настройку onwarn для фильтрации предупреждений</step>
-      <step>Протестировать, что предупреждения исчезли</step>
-      <step>Убедиться, что другие важные предупреждения не скрыты</step>
-    </implementation_steps>
-  </recommended_approach>
-
-  <affected_files>
-    <file>frontend-svelte/svelte.config.js</file>
-    <file>Все файлы +page.svelte в routes</file>
-    <file>Все файлы +layout.svelte в routes</file>
-  </affected_files>
+  <solution>
+    <approach>Update svelte.config.js to properly suppress 'params' prop warnings</approach>
+    <steps>
+      <step>Check current svelte.config.js configuration</step>
+      <step>Enhance onwarn handler to suppress params warnings</step>
+      <step>Test that warnings are suppressed</step>
+    </steps>
+    <impact>
+      <item>No functional changes to application</item>
+      <item>Cleaner console output</item>
+      <item>Better developer experience</item>
+    </impact>
+  </solution>
 </analysis>
