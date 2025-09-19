@@ -16,7 +16,7 @@ class ArticleBase(BaseModel):
 
 class ArticleCreate(ArticleBase):
     """Article creation schema."""
-    user_id: Optional[int] = Field(None, description="User ID")
+    user_id: Optional[int] = Field(None, description="User ID (set automatically from session)")
     managed_by: Optional[int] = Field(None, description="Manager user ID")
 
 

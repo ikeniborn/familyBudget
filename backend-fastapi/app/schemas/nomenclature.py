@@ -24,7 +24,7 @@ class NomenclatureBase(BaseModel):
 
 class NomenclatureCreate(NomenclatureBase):
     """Nomenclature creation schema."""
-    user_id: int = Field(..., description="User ID")
+    user_id: Optional[int] = Field(None, description="User ID (set automatically from session)")
 
 
 class NomenclatureUpdate(BaseModel):

@@ -1,110 +1,72 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <analysis>
-    <timestamp>2025-09-18T15:50:00</timestamp>
-    <context>
-        <screenshot>/home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-18 15-49-33.png</screenshot>
-        <description>При переходе по страницам в консоли появляются уведомления</description>
-    </context>
+  <timestamp>2025-09-19T16:30:00</timestamp>
+  <severity>CRITICAL</severity>
 
-    <findings>
-        <finding id="1" severity="LOW">
-            <type>Warning</type>
-            <code>unknown-prop</code>
-            <message>Page was created with unknown prop 'params'</message>
-            <frequency>Multiple (20+ occurrences)</frequency>
-            <affected_components>
-                <component>+page.svelte files</component>
-                <component>+layout.svelte files</component>
-            </affected_components>
-            <description>
-                SvelteKit генерирует предупреждения о неизвестном свойстве 'params'.
-                Это внутренние свойства SvelteKit, которые передаются компонентам автоматически.
-            </description>
-            <current_solution>
-                В файле svelte.config.js уже реализована система подавления (v3.7.5),
-                но она не работает полностью эффективно.
-            </current_solution>
-        </finding>
+  <errors>
+    <error id="1">
+      <page>/settings/periods</page>
+      <type>500 Internal Server Error</type>
+      <message>created_by is an invalid keyword argument for Period</message>
+      <cause>Frontend sending 'created_by' field that doesn't exist in Period model</cause>
+      <impact>Cannot create new budget periods</impact>
+      <priority>CRITICAL</priority>
+    </error>
 
-        <finding id="2" severity="HIGH">
-            <type>Error</type>
-            <code>401</code>
-            <message>Failed to load resource: the server responded with a status of 401 (Unauthorized)</message>
-            <endpoint>/api/auth/me</endpoint>
-            <description>
-                Ошибка аутентификации при обращении к API endpoint.
-                Может блокировать функциональность приложения.
-            </description>
-            <known_fix>
-                Согласно CLAUDE.md, проблема должна быть исправлена в версии 3.3.3,
-                но ошибка все еще появляется.
-            </known_fix>
-        </finding>
+    <error id="2">
+      <page>/settings/financial-centers</page>
+      <type>422 Unprocessable Entity</type>
+      <message>user_id: Field required</message>
+      <cause>Frontend not sending required user_id field</cause>
+      <impact>Cannot create new financial centers (ЦФО)</impact>
+      <priority>CRITICAL</priority>
+    </error>
 
-        <finding id="3" severity="LOW">
-            <type>Warning</type>
-            <message>NotificationDropdown mounted!</message>
-            <description>
-                Информационное сообщение о монтировании компонента.
-                Не критично, но загрязняет консоль.
-            </description>
-        </finding>
-    </findings>
+    <error id="3">
+      <page>/settings/cost-centers</page>
+      <type>422 Unprocessable Entity</type>
+      <message>user_id: Field required</message>
+      <cause>Frontend not sending required user_id field</cause>
+      <impact>Cannot create new cost centers (МВЗ)</impact>
+      <priority>CRITICAL</priority>
+    </error>
 
-    <sveltekit_context>
-        <version_info>
-            <project_uses>SvelteKit 2 + Svelte 4</project_uses>
-            <migration_status>Успешно мигрирован с Svelte 5 на Svelte 4</migration_status>
-        </version_info>
-        <props_handling>
-            <current_pattern>
-                В новых версиях SvelteKit используется паттерн:
-                let { data } = $props();
-            </current_pattern>
-            <internal_props>
-                SvelteKit автоматически передает следующие props:
-                - params (параметры маршрута)
-                - route (информация о маршруте)
-                - url (URL объект)
-                - data (данные из load функции)
-                - form (данные формы)
-            </internal_props>
-        </props_handling>
-    </sveltekit_context>
+    <error id="4">
+      <page>/settings/articles</page>
+      <type>400 Bad Request</type>
+      <message>Bad Request error on article creation</message>
+      <cause>Unknown - needs investigation</cause>
+      <impact>Cannot create new articles</impact>
+      <priority>CRITICAL</priority>
+    </error>
+  </errors>
 
-    <criticality_assessment>
-        <critical_issues>
-            <issue>401 Unauthorized на /api/auth/me - требует немедленного исправления</issue>
-        </critical_issues>
-        <non_critical_issues>
-            <issue>Предупреждения о 'params' prop - косметическая проблема</issue>
-            <issue>Информационные логи компонентов - можно убрать для чистоты</issue>
-        </non_critical_issues>
-    </criticality_assessment>
+  <console_warnings>
+    <warning>
+      <type>SvelteKit warnings</type>
+      <message>Layout created with unknown prop 'params'</message>
+      <severity>LOW</severity>
+      <note>Already addressed in v3.7.5 - not critical</note>
+    </warning>
+    <warning>
+      <type>Module import warning</type>
+      <message>Cannot use import statement outside a module</message>
+      <severity>MEDIUM</severity>
+      <location>periods:3795:13</location>
+    </warning>
+  </console_warnings>
+
+  <assessment>
+    <critical_issues>4</critical_issues>
+    <blocking_functionality>true</blocking_functionality>
+    <user_impact>HIGH - Core CRUD operations are broken</user_impact>
+    <fix_priority>IMMEDIATE</fix_priority>
 
     <recommendations>
-        <recommendation priority="1">
-            <action>Исправить ошибку 401 на /api/auth/me</action>
-            <steps>
-                <step>Проверить hooks.server.ts</step>
-                <step>Проверить сессионные куки</step>
-                <step>Проверить настройки CORS</step>
-            </steps>
-        </recommendation>
-        <recommendation priority="2">
-            <action>Улучшить подавление предупреждений SvelteKit</action>
-            <steps>
-                <step>Обновить паттерны в svelte.config.js</step>
-                <step>Добавить специфичные проверки для Layout компонентов</step>
-                <step>Использовать более точные regex паттерны</step>
-            </steps>
-        </recommendation>
-        <recommendation priority="3">
-            <action>Убрать отладочные логи</action>
-            <steps>
-                <step>Найти и удалить console.log в NotificationDropdown</step>
-                <step>Проверить другие компоненты на наличие отладочных логов</step>
-            </steps>
-        </recommendation>
+      <recommendation>Fix schema mismatches between frontend and backend</recommendation>
+      <recommendation>Ensure proper field mapping in all forms</recommendation>
+      <recommendation>Add comprehensive error handling</recommendation>
+      <recommendation>Implement tests to prevent regression</recommendation>
     </recommendations>
+  </assessment>
 </analysis>

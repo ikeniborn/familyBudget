@@ -67,8 +67,6 @@ class PeriodResponse(BaseModel):
     end_date: Optional[datetime]
     code: Optional[str] = None
     user_id: Optional[int] = None
-    created_by: Optional[int] = None
-    managed_by: Optional[int] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     is_shared: bool = False
@@ -115,8 +113,6 @@ async def get_periods(
             'end_date': period.end_date,
             'code': getattr(period, 'code', None),
             'user_id': period.user_id,
-            'created_by': getattr(period, 'created_by', None),
-            'managed_by': getattr(period, 'managed_by', None),
             'created_at': getattr(period, 'created_at', period.date),
             'updated_at': getattr(period, 'updated_at', period.date),
             'is_shared': False,
@@ -129,7 +125,7 @@ async def get_periods(
             'is_active': True,  # Default value
         }
         # Convert PeriodResponse to dict for JSON serialization with proper datetime handling
-        response_periods.append(PeriodResponse(**period_dict).dict())
+        response_periods.append(PeriodResponse(**period_dict).model_dump())
 
     return success_response(data=response_periods, total=len(response_periods))
 
@@ -165,8 +161,6 @@ async def get_current_period(
         'end_date': period.end_date,
         'code': getattr(period, 'code', None),
         'user_id': period.user_id,
-        'created_by': getattr(period, 'created_by', None),
-        'managed_by': getattr(period, 'managed_by', None),
         'created_at': getattr(period, 'created_at', period.date),
         'updated_at': getattr(period, 'updated_at', period.date),
         'is_shared': False,
@@ -178,7 +172,7 @@ async def get_current_period(
         'is_active': True,
     }
 
-    return success_response(data=PeriodResponse(**period_dict).dict())
+    return success_response(data=PeriodResponse(**period_dict).model_dump())
 
 
 @router.get("/{period_id}", response_model=PeriodResponse)
@@ -211,8 +205,6 @@ async def get_period(
         'end_date': period.end_date,
         'code': getattr(period, 'code', None),
         'user_id': period.user_id,
-        'created_by': getattr(period, 'created_by', None),
-        'managed_by': getattr(period, 'managed_by', None),
         'created_at': getattr(period, 'created_at', period.date),
         'updated_at': getattr(period, 'updated_at', period.date),
         'is_shared': False,
@@ -224,7 +216,7 @@ async def get_period(
         'is_active': True,
     }
 
-    return success_response(data=PeriodResponse(**period_dict).dict())
+    return success_response(data=PeriodResponse(**period_dict).model_dump())
 
 
 @router.post("/", response_model=PeriodResponse)
@@ -296,10 +288,6 @@ async def create_period(
         period_code = f"2020{next_seq:02d}"
         logger.info(f"Auto-generated period_code: {period_code} (max_seq: {max_seq})")
 
-    # Set user_id and admin fields
-    created_by = user_id
-    managed_by = period_data.managed_by if hasattr(period_data, 'managed_by') else None
-
     # Create period
     period = Period(
         code=period_code,
@@ -307,9 +295,7 @@ async def create_period(
         ru_name=ru_name,
         start_date=db_safe_start_date,
         end_date=db_safe_end_date,
-        user_id=user_id,
-        created_by=created_by,
-        managed_by=managed_by
+        user_id=user_id
     )
 
     db.add(period)
@@ -325,8 +311,6 @@ async def create_period(
         'end_date': period.end_date,
         'code': period.code,
         'user_id': period.user_id,
-        'created_by': period.created_by,
-        'managed_by': period.managed_by,
         'created_at': period.created_at,
         'updated_at': period.updated_at,
         'is_shared': False,
@@ -409,8 +393,6 @@ async def update_period(
         'end_date': period.end_date,
         'code': period.code,
         'user_id': period.user_id,
-        'created_by': period.created_by,
-        'managed_by': period.managed_by,
         'created_at': period.created_at,
         'updated_at': period.updated_at,
         'is_shared': False,
@@ -422,7 +404,7 @@ async def update_period(
         'is_active': True,
     }
 
-    return success_response(data=PeriodResponse(**period_dict).dict())
+    return success_response(data=PeriodResponse(**period_dict).model_dump())
 
 
 @router.delete("/{period_id}")

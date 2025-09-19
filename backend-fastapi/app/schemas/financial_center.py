@@ -16,7 +16,7 @@ class FinancialCenterBase(BaseModel):
 
 class FinancialCenterCreate(FinancialCenterBase):
     """Financial center creation schema."""
-    user_id: int = Field(..., description="User ID")
+    user_id: Optional[int] = Field(None, description="User ID (set automatically from session)")
 
 
 class FinancialCenterUpdate(BaseModel):

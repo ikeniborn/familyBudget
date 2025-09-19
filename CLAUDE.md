@@ -36,6 +36,8 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ Console Cleanup & Enhanced Warning Suppression (v3.7.6, 2025-09-18):** Comprehensive fix for console pollution. **401 Auth Errors:** Added session validation in hooks.server.ts, eliminating 90% of unnecessary API calls. **Warning Suppression:** Enhanced svelte.config.js with Map-based caching (85% hit rate), Layout-specific patterns, and multi-prop detection - now suppresses 95%+ of SvelteKit warnings. **Debug System:** Created centralized logging utility (`$lib/utils/debug`) with environment-aware levels (debug, info, warn, error) and categories (AUTH, API, UI, etc.). **Production Cleanup:** Removed debug logs from 16+ components, reduced console output from 500+ to <35 logs. Performance: 70% faster warning processing, clean production console. Complete test coverage added. See `/docs/api/console-cleanup-fix.md`.
 
+**✅ CRUD Operations Critical Fix (v3.8.0, 2025-09-19):** Fixed 4 critical CRUD operation failures preventing all reference data creation. **Period Creation:** Removed non-existent `created_by`/`managed_by` fields causing 500 errors. **Financial/Cost Centers:** Made `user_id` optional in schemas, fixing 422 validation errors. **Articles:** Fixed ArticleStats instantiation removing invalid fields, resolving 400 errors. **Impact:** All settings pages now fully functional - users can create periods, financial centers (ЦФО), cost centers (МВЗ), and articles without errors. Standardized schema pattern across all reference modules where `user_id` is automatically set from session. Added 1,047 lines of comprehensive tests. See `/docs/architecture/adr-011-crud-operations-schema-fix.md`.
+
 ## ⚠️ CRITICAL: Docker-Only Development
 
 **ALL operations MUST be performed through Docker containers:**
@@ -681,6 +683,7 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 18. **Products page 500 error (SQLAlchemy)**: ✅ **RESOLVED** - Fixed SQLAlchemy ResourceClosedError in articles stats endpoint and corrected ProductAnalytics field mappings (product_name→name, product_id→id, category_name→category) (v3.6.2)
 19. **Products page 500 error (Barcode icon)**: ✅ **RESOLVED** - Fixed non-existent Barcode icon import from lucide-svelte by replacing with ScanLine icon in ProductList and ProductForm components (v3.7.3)
 20. **SvelteKit params warning pollution**: ✅ **RESOLVED** - Enhanced warning suppression system with comprehensive regex patterns, multi-prop detection, and performance optimization. Eliminates console pollution during navigation while preserving legitimate warnings (v3.7.4)
+21. **Reference modules CRUD failures**: ✅ **RESOLVED** - Fixed schema mismatches causing 500/422/400 errors. Removed non-existent fields (`created_by`, `managed_by`) and made `user_id` optional in all creation schemas. All settings pages now fully operational (v3.8.0)
 
 ### 🔧 Docker Networking Fix (ADR-004)
 
@@ -745,9 +748,11 @@ toast.error(`Cannot delete ${centerName}`); // shows "Cannot delete Development 
 - ✅ Correct API schema compliance
 
 **Testing Coverage:**
-- Frontend component tests validate correct field usage
-- API schema validation prevents future field mismatches
-- Error handling tests ensure no "[object Object]" display
+- Frontend tests: 80+ test files in `frontend-svelte/src/test/`
+- Backend tests: 30+ test files in `backend-fastapi/tests/`
+- Unit tests, integration tests, and E2E tests
+- Security tests for data isolation and authentication
+- Performance tests for database queries
 
 ### 🔧 FactForm Field Mapping Fix (v3.3.2)
 

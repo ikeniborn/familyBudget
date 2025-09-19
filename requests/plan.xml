@@ -1,372 +1,384 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<plan>
-    <metadata>
-        <title>Детальный план устранения проблем Family Budget Application</title>
-        <created>2025-09-18T16:00:00</created>
-        <version>1.0</version>
-        <priority>HIGH</priority>
-    </metadata>
+<implementation_plan>
+  <meta>
+    <created_date>2025-09-19T16:45:00</created_date>
+    <priority>CRITICAL</priority>
+    <estimated_time>2-3 hours</estimated_time>
+    <complexity>MEDIUM</complexity>
+  </meta>
 
-    <analysis_summary>
-        <critical_issues>
-            <issue id="401-auth" severity="HIGH">
-                401 ошибки на /api/auth/me при отсутствии сессии загрязняют консоль.
-                Текущая реализация в hooks.server.ts делает запросы без проверки наличия валидной сессии.
-            </issue>
-        </critical_issues>
-        <warning_issues>
-            <issue id="params-warnings" severity="LOW">
-                Предупреждения о 'params' prop продолжают появляться несмотря на систему подавления v3.7.5.
-                Требуется улучшение regex паттернов и добавление Layout-специфичных проверок.
-            </issue>
-            <issue id="debug-logs" severity="LOW">
-                Отладочные console.log в продакшен коде загрязняют консоль.
-                Найдено в NotificationDropdown и других компонентах.
-            </issue>
-        </warning_issues>
-    </analysis_summary>
+  <summary>
+    <description>Fix critical CRUD operation failures in all settings pages due to schema mismatches between frontend and backend</description>
+    <root_causes>
+      <cause id="1">Frontend sending invalid 'created_by' field for periods</cause>
+      <cause id="2">Frontend not sending required 'user_id' field for financial centers and cost centers</cause>
+      <cause id="3">Articles service sending optional 'user_id' field which backend expects to be set by session</cause>
+      <cause id="4">Backend endpoints expecting user_id to be automatically set from session context, not from frontend</cause>
+    </root_causes>
+  </summary>
 
-    <tasks>
-        <task id="1" priority="CRITICAL" estimated_time="30min">
-            <title>Исправление ошибки 401 в hooks.server.ts</title>
-            <description>
-                Проблема: hooks.server.ts делает запрос к /api/auth/me даже при отсутствии валидной сессии,
-                что генерирует 401 ошибки в консоли браузера.
-                Решение: Добавить проверку валидности сессии перед API запросом.
-            </description>
-            <files_to_modify>
-                <file>frontend-svelte/src/hooks.server.ts</file>
-            </files_to_modify>
-            <technical_solution>
-                <step order="1">
-                    <action>Добавить валидацию сессии перед fetch запросом</action>
-                    <details>
-                        Проверить наличие sessionId и его валидность (минимальная длина, формат).
-                        Не делать запрос к API если сессия явно невалидна.
-                    </details>
-                    <code_change>
-                        Добавить проверку: if (sessionId && sessionId.length > 10 && !sessionId.includes('undefined'))
-                        перед блоком fetch(`${backendUrl}/api/auth/me`)
-                    </code_change>
-                </step>
-                <step order="2">
-                    <action>Улучшить обработку ошибок аутентификации</action>
-                    <details>
-                        Заменить console.warn на условное логирование только для неожиданных ошибок.
-                        401 ошибки для пустых сессий не должны логироваться как ошибки.
-                    </details>
-                    <code_change>
-                        Изменить логику в блоке catch: различать ожидаемые 401 от реальных ошибок сети.
-                    </code_change>
-                </step>
-                <step order="3">
-                    <action>Добавить проверку статуса контейнера backend</action>
-                    <details>
-                        Проверить доступность backend-а перед попыткой аутентификации.
-                        Избежать сетевых ошибок при недоступном backend.
-                    </details>
-                    <code_change>
-                        Добавить timeout и проверку connectivity перед основным запросом.
-                    </code_change>
-                </step>
-            </technical_solution>
-            <expected_result>
-                - Устранение 401 ошибок в консоли браузера
-                - Сохранение функциональности аутентификации
-                - Улучшенное логирование только критических ошибок
-            </expected_result>
-            <testing>
-                <test>Открыть браузер без аутентификации - не должно быть 401 ошибок</test>
-                <test>Войти в систему - аутентификация должна работать корректно</test>
-                <test>Проверить логи в development режиме</test>
-            </testing>
-        </task>
+  <errors_to_fix>
+    <error id="1">
+      <title>Period Creation: Invalid 'created_by' Field</title>
+      <type>500 Internal Server Error</type>
+      <page>/settings/periods</page>
+      <message>created_by is an invalid keyword argument for Period</message>
+      <severity>CRITICAL</severity>
+    </error>
 
-        <task id="2" priority="MEDIUM" estimated_time="45min">
-            <title>Улучшение системы подавления предупреждений SvelteKit</title>
-            <description>
-                Проблема: Система подавления v3.7.5 не полностью эффективна для всех случаев 'params' warnings.
-                Решение: Расширить regex паттерны и добавить специальную обработку для Layout компонентов.
-            </description>
-            <files_to_modify>
-                <file>frontend-svelte/svelte.config.js</file>
-            </files_to_modify>
-            <technical_solution>
-                <step order="1">
-                    <action>Анализ неподавленных предупреждений</action>
-                    <details>
-                        Включить SVELTE_WARNING_DEBUG=true для анализа пропущенных предупреждений.
-                        Определить точные паттерны сообщений, которые не обрабатываются.
-                    </details>
-                    <code_change>
-                        Временно добавить: console.log для всех необработанных unknown-prop warnings
-                    </code_change>
-                </step>
-                <step order="2">
-                    <action>Добавить Layout-специфичные паттерны</action>
-                    <details>
-                        SvelteKit Layouts имеют особые паттерны передачи props.
-                        Добавить специальные regex для +layout.svelte компонентов.
-                    </details>
-                    <code_change>
-                        Добавить паттерны:
-                        - /Layout was created with unknown prop '([^']+)'/i
-                        - /\+layout\.svelte.*unknown prop '([^']+)'/i
-                        - /\$\$slots\.([a-zA-Z_$][a-zA-Z0-9_$]*)/
-                    </code_change>
-                </step>
-                <step order="3">
-                    <action>Улучшить обнаружение множественных props</action>
-                    <details>
-                        Обработать случаи, когда одно предупреждение содержит несколько props.
-                        Улучшить regex для detection нескольких quoted values.
-                    </details>
-                    <code_change>
-                        Модифицировать: warning.message.match(/'([^']+)'/g) для поддержки complex patterns
-                    </code_change>
-                </step>
-                <step order="4">
-                    <action>Добавить динамическое кэширование паттернов</action>
-                    <details>
-                        Оптимизировать производительность через кэширование результатов regex.
-                        Избежать повторных вычислений для одинаковых предупреждений.
-                    </details>
-                    <code_change>
-                        Создать Map cache для уже обработанных warning signatures.
-                    </code_change>
-                </step>
-            </technical_solution>
-            <expected_result>
-                - Полное подавление SvelteKit internal props warnings
-                - Сохранение легитимных предупреждений разработчика
-                - Улучшенная производительность обработки warnings
-            </expected_result>
-            <testing>
-                <test>Навигация по всем страницам приложения - отсутствие params warnings</test>
-                <test>Проверка, что custom prop warnings все еще отображаются</test>
-                <test>Запуск с SVELTE_WARNING_DEBUG=true для валидации</test>
-            </testing>
-        </task>
+    <error id="2">
+      <title>Financial Centers: Missing 'user_id' Field</title>
+      <type>422 Unprocessable Entity</type>
+      <page>/settings/financial-centers</page>
+      <message>user_id: Field required</message>
+      <severity>CRITICAL</severity>
+    </error>
 
-        <task id="3" priority="LOW" estimated_time="20min">
-            <title>Удаление отладочных console.log из продакшен кода</title>
-            <description>
-                Проблема: Отладочные сообщения в console.log загрязняют консоль в продакшен.
-                Решение: Найти и удалить или условно логировать все debug messages.
-            </description>
-            <files_to_modify>
-                <file>frontend-svelte/src/lib/components/common/NotificationDropdown.svelte</file>
-                <file>frontend-svelte/src/routes/test-modal/+page.svelte</file>
-                <file>frontend-svelte/src/lib/components/budget/BudgetForm.svelte</file>
-                <file>frontend-svelte/src/lib/components/reference/NomenclatureManager.svelte</file>
-                <file>frontend-svelte/src/lib/components/reference/CostCenterManager.svelte</file>
-                <file>frontend-svelte/src/lib/components/reference/FinancialCenterManager.svelte</file>
-                <file>frontend-svelte/src/routes/debug-auth/+page.svelte</file>
-                <file>frontend-svelte/src/lib/components/reference/PeriodManager.svelte</file>
-                <file>frontend-svelte/src/lib/components/products/ProductImport.svelte</file>
-                <file>frontend-svelte/src/routes/login/+page.svelte</file>
-                <file>frontend-svelte/src/routes/auth/callback/+page.svelte</file>
-                <file>frontend-svelte/src/routes/offline/+page.svelte</file>
-                <file>frontend-svelte/src/routes/(protected)/settings/security/+page.svelte</file>
-                <file>frontend-svelte/src/routes/(protected)/settings/import-export/+page.svelte</file>
-                <file>frontend-svelte/src/lib/examples/HelpExamples.svelte</file>
-                <file>frontend-svelte/src/lib/components/pwa/PWAInstallPrompt.svelte</file>
-            </files_to_modify>
-            <technical_solution>
-                <step order="1">
-                    <action>Аудит всех console.log в codebase</action>
-                    <details>
-                        Проанализировать каждый console.log на предмет необходимости.
-                        Классифицировать на: debug, info, error, warning.
-                    </details>
-                    <code_change>
-                        Создать список всех console.log с контекстом использования.
-                    </code_change>
-                </step>
-                <step order="2">
-                    <action>Реализовать условное логирование</action>
-                    <details>
-                        Заменить console.log на условное логирование через process.env.NODE_ENV.
-                        Создать utility функцию для debug logging.
-                    </details>
-                    <code_change>
-                        Создать: src/lib/utils/debug.ts с функциями debugLog, infoLog, errorLog.
-                        Заменить: console.log на debugLog для development-only сообщений.
-                    </code_change>
-                </step>
-                <step order="3">
-                    <action>Удалить устаревшие debug сообщения</action>
-                    <details>
-                        Удалить сообщения типа "Component mounted!" которые не несут полезной информации.
-                        Сохранить критически важные error logs.
-                    </details>
-                    <code_change>
-                        Удалить: console.log('🔔 NotificationDropdown mounted!') и подобные.
-                        Сохранить: error handling и critical state logging.
-                    </code_change>
-                </step>
-            </technical_solution>
-            <expected_result>
-                - Чистая консоль в продакшен режиме
-                - Сохранение debug информации в development
-                - Централизованная система логирования
-            </expected_result>
-            <testing>
-                <test>Запуск в production mode - консоль должна быть чистой</test>
-                <test>Запуск в development mode - debug info должна сохраниться</test>
-                <test>Проверка error handling - критические ошибки должны логироваться</test>
-            </testing>
-        </task>
+    <error id="3">
+      <title>Cost Centers: Missing 'user_id' Field</title>
+      <type>422 Unprocessable Entity</type>
+      <page>/settings/cost-centers</page>
+      <message>user_id: Field required</message>
+      <severity>CRITICAL</severity>
+    </error>
 
-        <task id="4" priority="MEDIUM" estimated_time="15min">
-            <title>Создание утилиты для централизованного логирования</title>
-            <description>
-                Проблема: Отсутствие единой системы логирования приводит к хаотичному использованию console.log.
-                Решение: Создать centralized logging utility с уровнями и условиями.
-            </description>
-            <files_to_modify>
-                <file>frontend-svelte/src/lib/utils/debug.ts</file>
-            </files_to_modify>
-            <technical_solution>
-                <step order="1">
-                    <action>Создать debug utility модуль</action>
-                    <details>
-                        Модуль должен поддерживать различные уровни логирования.
-                        Автоматически определять environment и применять соответствующие фильтры.
-                    </details>
-                    <code_change>
-                        Создать функции: debugLog, infoLog, warnLog, errorLog с environment checks.
-                    </code_change>
-                </step>
-                <step order="2">
-                    <action>Добавить поддержку категорий logging</action>
-                    <details>
-                        Добавить категории: AUTH, API, UI, NAVIGATION для фильтрации.
-                        Возможность включения/отключения категорий через environment variables.
-                    </details>
-                    <code_change>
-                        Добавить: categories support и filtering через DEBUG_CATEGORIES env var.
-                    </code_change>
-                </step>
-                <step order="3">
-                    <action>Интеграция с existing error handling</action>
-                    <details>
-                        Интегрировать с существующей системой toast notifications.
-                        Обеспечить consistency между console logs и user notifications.
-                    </details>
-                    <code_change>
-                        Связать с toast store для автоматического отображения критических ошибок.
-                    </code_change>
-                </step>
-            </technical_solution>
-            <expected_result>
-                - Единая система логирования для всего приложения
-                - Гибкое управление уровнями логирования
-                - Интеграция с пользовательскими уведомлениями
-            </expected_result>
-            <testing>
-                <test>Тестирование всех уровней логирования</test>
-                <test>Проверка фильтрации по категориям</test>
-                <test>Интеграция с toast notifications</test>
-            </testing>
-        </task>
+    <error id="4">
+      <title>Articles: 400 Bad Request Error</title>
+      <type>400 Bad Request</type>
+      <page>/settings/articles</page>
+      <message>Bad Request error on article creation</message>
+      <severity>CRITICAL</severity>
+    </error>
+  </errors_to_fix>
 
-        <task id="5" priority="LOW" estimated_time="10min">
-            <title>Создание тестов для исправлений</title>
-            <description>
-                Создать автоматизированные тесты для валидации исправлений.
-                Предотвратить регрессии в будущих версиях.
-            </description>
-            <files_to_modify>
-                <file>frontend-svelte/src/tests/auth-error-handling.test.ts</file>
-                <file>frontend-svelte/src/tests/warning-suppression.test.ts</file>
-                <file>frontend-svelte/src/tests/debug-logging.test.ts</file>
-            </files_to_modify>
-            <technical_solution>
-                <step order="1">
-                    <action>Тесты для auth error handling</action>
-                    <details>
-                        Мокировать API responses и проверить отсутствие 401 в консоли.
-                        Тестировать различные сценарии: no session, invalid session, network error.
-                    </details>
-                </step>
-                <step order="2">
-                    <action>Тесты для warning suppression</action>
-                    <details>
-                        Симулировать SvelteKit warnings и проверить их подавление.
-                        Убедиться, что legitimate warnings не подавляются.
-                    </details>
-                </step>
-                <step order="3">
-                    <action>Тесты для debug logging</action>
-                    <details>
-                        Проверить поведение logging utility в разных environments.
-                        Валидировать категории и уровни логирования.
-                    </details>
-                </step>
-            </technical_solution>
-            <expected_result>
-                - Автоматизированная валидация исправлений
-                - Предотвращение регрессий
-                - CI/CD интеграция для качества кода
-            </expected_result>
-        </task>
-    </tasks>
+  <implementation_steps>
+    <step id="1" order="1">
+      <title>Fix Period Creation Schema Mismatch</title>
+      <description>Remove invalid 'created_by' field and ensure proper field mapping</description>
+      <files_to_modify>
+        <file path="/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/periods/+page.svelte">
+          <change_type>FIELD_REMOVAL</change_type>
+          <description>Remove any 'created_by' field from requestData object in period creation/update logic</description>
+          <location>Line ~200-220 in async function handleSubmit</location>
+          <current_code>
+            const requestData = {
+              date: periodDate.toISOString(),
+              ru_name: periodName,
+              start_date: start.toISOString(),
+              end_date: end.toISOString(),
+              period_year: parseInt(year),
+              period_month: parseInt(month),
+              period_name: periodName
+            };
+          </current_code>
+          <new_code>
+            const requestData = {
+              date: periodDate.toISOString(),
+              ru_name: periodName,
+              start_date: start.toISOString(),
+              end_date: end.toISOString(),
+              period_year: parseInt(year),
+              period_month: parseInt(month),
+              period_name: periodName
+            };
+            // Note: user_id is automatically set by backend from session
+          </new_code>
+        </file>
+      </files_to_modify>
+      <validation>
+        <test>Period creation should work without 500 error</test>
+        <success_criteria>Period created successfully with auto-generated names</success_criteria>
+      </validation>
+    </step>
 
-    <execution_order>
-        <phase name="CRITICAL" priority="1">
-            <task_ref>1</task_ref>
-            <description>Устранение 401 ошибок - критическая проблема пользовательского опыта</description>
-        </phase>
-        <phase name="IMPROVEMENT" priority="2">
-            <task_ref>4</task_ref>
-            <task_ref>2</task_ref>
-            <description>Создание инфраструктуры и улучшение warning suppression</description>
-        </phase>
-        <phase name="CLEANUP" priority="3">
-            <task_ref>3</task_ref>
-            <task_ref>5</task_ref>
-            <description>Очистка кода и создание тестов</description>
-        </phase>
-    </execution_order>
+    <step id="2" order="2">
+      <title>Fix Financial Centers Schema - Remove user_id from Frontend</title>
+      <description>Ensure user_id is not sent from frontend and handled by backend session</description>
+      <files_to_modify>
+        <file path="/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/schemas/financial_center.py">
+          <change_type>SCHEMA_UPDATE</change_type>
+          <description>Make user_id optional in FinancialCenterCreate schema</description>
+          <location>Line 17-20</location>
+          <current_code>
+            class FinancialCenterCreate(FinancialCenterBase):
+                """Financial center creation schema."""
+                user_id: int = Field(..., description="User ID")
+          </current_code>
+          <new_code>
+            class FinancialCenterCreate(FinancialCenterBase):
+                """Financial center creation schema."""
+                user_id: Optional[int] = Field(None, description="User ID (set automatically by backend)")
+          </new_code>
+        </file>
+        <file path="/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/financial_centers.py">
+          <change_type>ENDPOINT_UPDATE</change_type>
+          <description>Ensure user_id is set from session in POST endpoint</description>
+          <location>POST endpoint function</location>
+          <action>Verify user_id is set from current_user session, not from request data</action>
+        </file>
+        <file path="/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.svelte">
+          <change_type>VERIFICATION</change_type>
+          <description>Verify requestData does not include user_id</description>
+          <location>Line ~210-220</location>
+          <current_code>
+            const requestData = {
+              name: formData.name,
+              code: formData.code,
+              description: formData.description,
+              is_active: formData.is_active
+            };
+          </current_code>
+          <action>Confirm this is correct - no user_id field</action>
+        </file>
+      </files_to_modify>
+      <validation>
+        <test>Financial center creation should work without 422 error</test>
+        <success_criteria>Financial center created with user_id set from session</success_criteria>
+      </validation>
+    </step>
 
-    <validation_criteria>
-        <criterion>
-            <name>Console Cleanliness</name>
-            <description>После исправлений консоль браузера должна быть чистой при нормальном использовании</description>
-            <test>Навигация по всем страницам без 401 ошибок и params warnings</test>
-        </criterion>
-        <criterion>
-            <name>Functionality Preservation</name>
-            <description>Все существующие функции должны работать без изменений</description>
-            <test>Полный функциональный тест всех модулей приложения</test>
-        </criterion>
-        <criterion>
-            <name>Performance Impact</name>
-            <description>Исправления не должны негативно влиять на производительность</description>
-            <test>Сравнение метрик производительности до и после изменений</test>
-        </criterion>
-        <criterion>
-            <name>Error Handling Quality</name>
-            <description>Критические ошибки должны по-прежнему отображаться и логироваться</description>
-            <test>Симуляция реальных ошибок и проверка их обработки</test>
-        </criterion>
-    </validation_criteria>
+    <step id="3" order="3">
+      <title>Fix Cost Centers Schema - Remove user_id from Frontend</title>
+      <description>Ensure user_id is not sent from frontend and handled by backend session</description>
+      <files_to_modify>
+        <file path="/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/schemas/cost_center.py">
+          <change_type>SCHEMA_UPDATE</change_type>
+          <description>Make user_id optional in CostCenterCreate schema</description>
+          <location>Line 17-20</location>
+          <current_code>
+            class CostCenterCreate(CostCenterBase):
+                """Cost center creation schema."""
+                user_id: int = Field(..., description="User ID")
+          </current_code>
+          <new_code>
+            class CostCenterCreate(CostCenterBase):
+                """Cost center creation schema."""
+                user_id: Optional[int] = Field(None, description="User ID (set automatically by backend)")
+          </new_code>
+        </file>
+        <file path="/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/cost_centers.py">
+          <change_type>ENDPOINT_UPDATE</change_type>
+          <description>Ensure user_id is set from session in POST endpoint</description>
+          <location>POST endpoint function</location>
+          <action>Verify user_id is set from current_user session, not from request data</action>
+        </file>
+        <file path="/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/cost-centers/+page.svelte">
+          <change_type>VERIFICATION</change_type>
+          <description>Verify requestData does not include user_id</description>
+          <location>Line ~210-220</location>
+          <current_code>
+            const requestData = {
+              code: formData.code,
+              name: formData.name,
+              description: formData.description || null,
+              is_active: formData.is_active
+            };
+          </current_code>
+          <action>Confirm this is correct - no user_id field</action>
+        </file>
+      </files_to_modify>
+      <validation>
+        <test>Cost center creation should work without 422 error</test>
+        <success_criteria>Cost center created with user_id set from session</success_criteria>
+      </validation>
+    </step>
 
-    <rollback_plan>
-        <step>Сохранить текущие версии всех изменяемых файлов</step>
-        <step>Создать git branch для всех изменений</step>
-        <step>При проблемах - откатиться к предыдущим версиям файлов</step>
-        <step>Валидировать работоспособность после отката</step>
-    </rollback_plan>
+    <step id="4" order="4">
+      <title>Fix Articles 400 Error - Remove user_id from Frontend Service</title>
+      <description>Remove user_id field from articles service and ensure backend handles it automatically</description>
+      <files_to_modify>
+        <file path="/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/services/articles.service.ts">
+          <change_type>SERVICE_UPDATE</change_type>
+          <description>Remove user_id field from create method payload</description>
+          <location>Line 39-46</location>
+          <current_code>
+            async create(articleData: {
+              code: string;
+              name: string;
+              description?: string;
+              is_active?: boolean;
+              user_id?: number | null;
+              managed_by?: number;
+            }): Promise&lt;ApiResponse&lt;Article&gt;&gt; {
+          </current_code>
+          <new_code>
+            async create(articleData: {
+              code: string;
+              name: string;
+              description?: string;
+              is_active?: boolean;
+            }): Promise&lt;ApiResponse&lt;Article&gt;&gt; {
+          </new_code>
+        </file>
+        <file path="/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/articles.py">
+          <change_type>ENDPOINT_VERIFICATION</change_type>
+          <description>Verify user_id is set from session in POST endpoint</description>
+          <location>POST endpoint function</location>
+          <action>Confirm user_id is set from current_user session, not from request data</action>
+        </file>
+      </files_to_modify>
+      <validation>
+        <test>Article creation should work without 400 error</test>
+        <success_criteria>Article created with user_id set from session</success_criteria>
+      </validation>
+    </step>
 
+    <step id="5" order="5">
+      <title>Verify Backend Endpoints Handle user_id Correctly</title>
+      <description>Ensure all backend endpoints set user_id from session context</description>
+      <files_to_check>
+        <file path="/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/periods.py">
+          <verification>Confirm POST endpoint sets user_id = current_user.get('user_id')</verification>
+        </file>
+        <file path="/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/financial_centers.py">
+          <verification>Confirm POST endpoint sets user_id = current_user.get('user_id')</verification>
+        </file>
+        <file path="/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/cost_centers.py">
+          <verification>Confirm POST endpoint sets user_id = current_user.get('user_id')</verification>
+        </file>
+        <file path="/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/articles.py">
+          <verification>Confirm POST endpoint sets user_id = current_user.get('user_id')</verification>
+        </file>
+      </files_to_check>
+      <validation>
+        <test>All endpoints should handle user_id automatically</test>
+        <success_criteria>No schema validation errors for user_id field</success_criteria>
+      </validation>
+    </step>
+
+    <step id="6" order="6">
+      <title>Add Enhanced Error Handling</title>
+      <description>Improve error handling for better debugging</description>
+      <files_to_modify>
+        <file path="/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/periods/+page.svelte">
+          <change_type>ERROR_HANDLING</change_type>
+          <description>Add better error logging for debugging</description>
+        </file>
+        <file path="/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.svelte">
+          <change_type>ERROR_HANDLING</change_type>
+          <description>Add better error logging for debugging</description>
+        </file>
+        <file path="/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/cost-centers/+page.svelte">
+          <change_type>ERROR_HANDLING</change_type>
+          <description>Add better error logging for debugging</description>
+        </file>
+        <file path="/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/articles/+page.svelte">
+          <change_type>ERROR_HANDLING</change_type>
+          <description>Add better error logging for debugging</description>
+        </file>
+      </files_to_modify>
+    </step>
+  </implementation_steps>
+
+  <testing_approach>
+    <unit_tests>
+      <test id="1">
+        <description>Test period creation with valid data</description>
+        <expected_result>Period created successfully without schema errors</expected_result>
+      </test>
+      <test id="2">
+        <description>Test financial center creation with valid data</description>
+        <expected_result>Financial center created with user_id from session</expected_result>
+      </test>
+      <test id="3">
+        <description>Test cost center creation with valid data</description>
+        <expected_result>Cost center created with user_id from session</expected_result>
+      </test>
+      <test id="4">
+        <description>Test article creation with valid data</description>
+        <expected_result>Article created with user_id from session</expected_result>
+      </test>
+    </unit_tests>
+
+    <integration_tests>
+      <test id="1">
+        <description>E2E test of complete CRUD workflows for all settings pages</description>
+        <steps>
+          <step>Login as admin user</step>
+          <step>Navigate to each settings page</step>
+          <step>Create new entities</step>
+          <step>Edit entities</step>
+          <step>Delete entities</step>
+        </steps>
+        <expected_result>All CRUD operations work without errors</expected_result>
+      </test>
+    </integration_tests>
+
+    <validation_commands>
+      <command description="Test backend schemas">
+        docker exec budget-backend python -m pytest tests/backend/test_periods_api.py -v
+        docker exec budget-backend python -m pytest tests/backend/test_financial_centers_api.py -v
+        docker exec budget-backend python -m pytest tests/backend/test_cost_centers_api.py -v
+        docker exec budget-backend python -m pytest tests/backend/test_articles_api.py -v
+      </command>
+
+      <command description="Test frontend components">
+        docker exec budget-frontend npm run test periods.test.ts
+        docker exec budget-frontend npm run test financial_centers.test.ts
+        docker exec budget-frontend npm run test cost_centers.test.ts
+        docker exec budget-frontend npm run test articles.test.ts
+      </command>
+
+      <command description="Manual testing">
+        # Access each settings page and test CRUD operations:
+        # http://localhost:5173/settings/periods
+        # http://localhost:5173/settings/financial-centers
+        # http://localhost:5173/settings/cost-centers
+        # http://localhost:5173/settings/articles
+      </command>
+    </validation_commands>
+  </testing_approach>
+
+  <rollback_plan>
+    <description>If implementation fails, revert changes and restore working state</description>
+    <steps>
+      <step>Create git branch before starting changes</step>
+      <step>Commit each file change separately for granular rollback</step>
+      <step>If errors persist, revert to previous working commit</step>
+      <step>Review error logs and adjust approach</step>
+    </steps>
+  </rollback_plan>
+
+  <risk_assessment>
+    <risks>
+      <risk level="LOW">
+        <description>Schema changes might affect other endpoints</description>
+        <mitigation>Test all endpoints after changes</mitigation>
+      </risk>
+      <risk level="MEDIUM">
+        <description>Frontend-backend API contract changes</description>
+        <mitigation>Verify all API calls work after schema updates</mitigation>
+      </risk>
+      <risk level="LOW">
+        <description>User authentication issues</description>
+        <mitigation>Ensure session handling remains intact</mitigation>
+      </risk>
+    </risks>
+  </risk_assessment>
+
+  <post_implementation>
     <documentation_updates>
-        <document>Обновить CLAUDE.md с информацией о исправлениях v3.7.6</document>
-        <document>Создать ADR документ для logging strategy</document>
-        <document>Обновить troubleshooting guide с новыми решениями</document>
+      <file path="/docs/api/field-mapping-fix.md">Create documentation for the field mapping fixes</file>
+      <file path="/docs/architecture/adr-011-settings-crud-fix.md">Create ADR for the architectural decision</file>
     </documentation_updates>
 
-    <estimated_total_time>2 hours 10 minutes</estimated_total_time>
-    <complexity>MEDIUM</complexity>
-    <risk_level>LOW</risk_level>
-</plan>
+    <monitoring>
+      <description>Monitor settings pages for any new errors after deployment</description>
+      <log_locations>
+        <location>Browser console for frontend errors</location>
+        <location>Backend logs for API errors</location>
+        <location>Docker logs for container issues</location>
+      </log_locations>
+    </monitoring>
+  </post_implementation>
+
+  <success_criteria>
+    <criterion id="1">All settings pages load without errors</criterion>
+    <criterion id="2">CRUD operations work for periods, financial centers, cost centers, and articles</criterion>
+    <criterion id="3">No 422 validation errors on entity creation</criterion>
+    <criterion id="4">No 500 server errors on entity creation</criterion>
+    <criterion id="5">No 400 bad request errors on entity creation</criterion>
+    <criterion id="6">User data isolation maintained (user_id correctly set from session)</criterion>
+    <criterion id="7">All existing tests continue to pass</criterion>
+  </success_criteria>
+</implementation_plan>

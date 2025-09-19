@@ -112,9 +112,7 @@ async def get_articles_stats(
     stats = ArticleStats(
         total=total_count,
         active=active_count,
-        inactive=inactive_count,
-        shared=0,  # No shared articles in simplified model
-        user_specific=total_count
+        inactive=inactive_count
     )
 
     return success_response(data=stats.dict())
