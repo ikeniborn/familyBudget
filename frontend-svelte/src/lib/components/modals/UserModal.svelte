@@ -136,9 +136,12 @@
           id="user_name"
           bind:value={formData.user_name}
           placeholder="Введите имя пользователя"
-          error={errors.user_name}
+          hasError={!!errors.user_name}
           required
         />
+        {#if errors.user_name}
+          <div class="text-sm text-red-600">{errors.user_name}</div>
+        {/if}
       </div>
 
       <!-- Email -->
@@ -151,21 +154,28 @@
           type="email"
           bind:value={formData.user_email}
           placeholder="Введите email"
-          error={errors.user_email}
+          hasError={!!errors.user_email}
         />
+        {#if errors.user_email}
+          <div class="text-sm text-red-600">{errors.user_email}</div>
+        {/if}
       </div>
 
       <!-- Логин -->
       <div class="space-y-2">
         <label for="username" class="block text-sm font-medium text-gray-700">
-          Логин
+          Логин {isEditing ? '(только для чтения)' : ''}
         </label>
         <Input
           id="username"
           bind:value={formData.username}
           placeholder="Введите логин"
-          error={errors.username}
+          hasError={!!errors.username}
+          readonly={isEditing}
         />
+        {#if errors.username}
+          <div class="text-sm text-red-600">{errors.username}</div>
+        {/if}
       </div>
 
       <!-- Пароль -->
@@ -178,9 +188,12 @@
           type="password"
           bind:value={formData.password}
           placeholder={isEditing ? 'Новый пароль' : 'Введите пароль'}
-          error={errors.password}
+          hasError={!!errors.password}
           required={!isEditing}
         />
+        {#if errors.password}
+          <div class="text-sm text-red-600">{errors.password}</div>
+        {/if}
       </div>
 
       <!-- Метод аутентификации -->

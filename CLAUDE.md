@@ -38,6 +38,8 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ CRUD Operations Critical Fix (v3.8.0, 2025-09-19):** Fixed 4 critical CRUD operation failures preventing all reference data creation. **Period Creation:** Removed non-existent `created_by`/`managed_by` fields causing 500 errors. **Financial/Cost Centers:** Made `user_id` optional in schemas, fixing 422 validation errors. **Articles:** Fixed ArticleStats instantiation removing invalid fields, resolving 400 errors. **Impact:** All settings pages now fully functional - users can create periods, financial centers (ЦФО), cost centers (МВЗ), and articles without errors. Standardized schema pattern across all reference modules where `user_id` is automatically set from session. Added 1,047 lines of comprehensive tests. See `/docs/architecture/adr-011-crud-operations-schema-fix.md`.
 
+**✅ UserModal Component Field Fix (v3.8.1, 2025-09-19):** Enhanced UserModal component security and usability. Fixed Input component prop usage (confirmed `hasError` vs `error` pattern), made username field readonly during editing to prevent accidental login credential changes, added visual indicators for readonly fields, and maintained proper error message display. Improved user management security while preserving all functionality. See `/docs/architecture/adr-012-user-modal-field-fix.md`.
+
 ## ⚠️ CRITICAL: Docker-Only Development
 
 **ALL operations MUST be performed through Docker containers:**
@@ -684,6 +686,7 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 19. **Products page 500 error (Barcode icon)**: ✅ **RESOLVED** - Fixed non-existent Barcode icon import from lucide-svelte by replacing with ScanLine icon in ProductList and ProductForm components (v3.7.3)
 20. **SvelteKit params warning pollution**: ✅ **RESOLVED** - Enhanced warning suppression system with comprehensive regex patterns, multi-prop detection, and performance optimization. Eliminates console pollution during navigation while preserving legitimate warnings (v3.7.4)
 21. **Reference modules CRUD failures**: ✅ **RESOLVED** - Fixed schema mismatches causing 500/422/400 errors. Removed non-existent fields (`created_by`, `managed_by`) and made `user_id` optional in all creation schemas. All settings pages now fully operational (v3.8.0)
+22. **UserModal component field access**: ✅ **RESOLVED** - Fixed Input component prop usage (hasError vs error) and made username field readonly during editing for security. Added proper error message display and visual indicators for readonly fields (v3.8.1)
 
 ### 🔧 Docker Networking Fix (ADR-004)
 

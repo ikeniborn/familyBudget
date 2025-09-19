@@ -13,16 +13,13 @@
         </architecture>
     </project>
     <context>
-        ПРи попытке добавить период
-        Ошибка /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-19 16-24-13.png
-        При добавлении цфо ошибка /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-19 16-25-10.png
-        При добавлении мвз ошибка /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-19 16-25-58.png
-        ПРи добавлении статьи /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-19 16-26-37.png
+        http://localhost:5173/products
+        Удалить функционал раздела продуктов с четом ввода спраоников.
     </context>
     <requirements>
-        <point number="1">Проанидиировать логи</point>
-        <point number="2">Определить критичность уведолений</point>
-        <point number="3">Внести изменения в код, если уведомления критичные и требуют правок.</point>
+        <point number="1">Удалить раздел управления продукктами</point>
+        <point number="2">Удали ть все зависимости. Удалть фронт, бэк, БД</point>
+        <point number="3">Протестировать остаавщийся функционал. Влияение не должно быть</point>
     </requirements>
     <tasks>
         <task number="1">
@@ -111,6 +108,11 @@
                 </requirements>
             </step>
             <step number="3">
+                <action>Сделать коммит и пуш</action>
+            </step>
+        </task>
+        <task number="6">
+            <step number="1">
                 <action>Сделать коммит и пуш</action>
             </step>
         </task>

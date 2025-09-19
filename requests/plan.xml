@@ -1,446 +1,234 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<comprehensive-fix-plan>
-  <title>Critical CRUD Operations Schema Fix for All Reference Modules</title>
-  <version>3.8.0</version>
-  <date>2025-09-19</date>
-  <priority>CRITICAL</priority>
-
-  <problem-analysis>
+<implementation_plan>
     <summary>
-      All reference modules (financial_centers, cost_centers, articles, nomenclatures) have critical schema mismatches
-      that prevent users from creating reference data. The endpoints attempt to access and set database fields
-      (created_by, managed_by) that don't exist in the actual SQLAlchemy models.
+        Fix user editing form issues in UserModal.svelte to enable proper editing functionality
+        for user_name and user_email fields, and make username read-only for existing users.
     </summary>
 
-    <impact>
-      <severity>CRITICAL</severity>
-      <affected-functionality>
-        <item>Financial Centers creation (500 Internal Server Error)</item>
-        <item>Cost Centers creation (500 Internal Server Error)</item>
-        <item>Articles creation (500 Internal Server Error)</item>
-        <item>Nomenclatures creation (500 Internal Server Error)</item>
-        <item>All settings pages (/settings/*) non-functional for CRUD operations</item>
-      </affected-functionality>
+    <current_issues>
+        <issue id="1">
+            <description>Input component prop mismatch</description>
+            <details>
+                UserModal.svelte uses `error={errors.field_name}` but Input component expects `hasError` boolean prop.
+                This causes form fields to not behave properly for error states.
+            </details>
+            <affected_lines>139, 154, 167, 181</affected_lines>
+        </issue>
 
-      <user-impact>
-        Users cannot create any reference data, making the application unusable for budget setup and configuration.
-      </user-impact>
-    </impact>
+        <issue id="2">
+            <description>Username field should be readonly when editing</description>
+            <details>
+                The username (Логин) field should be read-only when editing existing users to prevent
+                changes to the login identifier, but currently has no readonly logic.
+            </details>
+            <affected_lines>163-168</affected_lines>
+        </issue>
+    </current_issues>
 
-    <root-cause>
-      <description>
-        Endpoints were written assuming created_by and managed_by fields exist in database models,
-        but actual SQLAlchemy models only contain: id, code, name, description, is_active, user_id,
-        created_at, updated_at.
-      </description>
+    <requirements>
+        <requirement id="1">Enable editing for user_name (Имя пользователя) field</requirement>
+        <requirement id="2">Enable editing for user_email (Email) field</requirement>
+        <requirement id="3">Make username (Логин) field read-only when editing existing user</requirement>
+        <requirement id="4">Fix Input component prop usage to use correct hasError boolean prop</requirement>
+    </requirements>
 
-      <technical-details>
-        <affected-files>
-          <file>backend-fastapi/app/api/v1/endpoints/financial_centers.py</file>
-          <file>backend-fastapi/app/api/v1/endpoints/cost_centers.py</file>
-          <file>backend-fastapi/app/api/v1/endpoints/articles.py</file>
-          <file>backend-fastapi/app/api/v1/endpoints/nomenclatures.py</file>
-        </affected-files>
+    <implementation_steps>
+        <step id="1">
+            <title>Fix Input component prop usage</title>
+            <description>Replace `error` prop with `hasError` boolean prop for all Input components</description>
+            <files>
+                <file>frontend-svelte/src/lib/components/modals/UserModal.svelte</file>
+            </files>
+            <changes>
+                <change line="139">
+                    <from>error={errors.user_name}</from>
+                    <to>hasError={!!errors.user_name}</to>
+                </change>
+                <change line="154">
+                    <from>error={errors.user_email}</from>
+                    <to>hasError={!!errors.user_email}</to>
+                </change>
+                <change line="167">
+                    <from>error={errors.username}</from>
+                    <to>hasError={!!errors.username}</to>
+                </change>
+                <change line="181">
+                    <from>error={errors.password}</from>
+                    <to>hasError={!!errors.password}</to>
+                </change>
+            </changes>
+        </step>
 
-        <error-patterns>
-          <pattern>getattr(obj, 'created_by', None) - field doesn't exist</pattern>
-          <pattern>getattr(obj, 'managed_by', None) - field doesn't exist</pattern>
-          <pattern>Model(created_by=user_id, managed_by=...) - invalid constructor args</pattern>
-          <pattern>obj.created_by = user_id - setting non-existent attribute</pattern>
-        </error-patterns>
-      </technical-details>
-    </root-cause>
-  </problem-analysis>
+        <step id="2">
+            <title>Add error message display elements</title>
+            <description>Since we're changing from error prop to hasError, we need to add separate error message elements</description>
+            <files>
+                <file>frontend-svelte/src/lib/components/modals/UserModal.svelte</file>
+            </files>
+            <changes>
+                <change line="after_141">
+                    <add>
+                        {#if errors.user_name}
+                          <div class="text-sm text-red-600">{errors.user_name}</div>
+                        {/if}
+                    </add>
+                </change>
+                <change line="after_156">
+                    <add>
+                        {#if errors.user_email}
+                          <div class="text-sm text-red-600">{errors.user_email}</div>
+                        {/if}
+                    </add>
+                </change>
+                <change line="after_169">
+                    <add>
+                        {#if errors.username}
+                          <div class="text-sm text-red-600">{errors.username}</div>
+                        {/if}
+                    </add>
+                </change>
+                <change line="after_184">
+                    <add>
+                        {#if errors.password}
+                          <div class="text-sm text-red-600">{errors.password}</div>
+                        {/if}
+                    </add>
+                </change>
+            </changes>
+        </step>
 
-  <solution-strategy>
-    <approach>
-      Remove all references to non-existent created_by and managed_by fields from endpoints
-      while maintaining data integrity and user isolation through existing user_id field.
-    </approach>
+        <step id="3">
+            <title>Make username field readonly when editing</title>
+            <description>Add readonly prop to username Input when in editing mode</description>
+            <files>
+                <file>frontend-svelte/src/lib/components/modals/UserModal.svelte</file>
+            </files>
+            <changes>
+                <change line="163-168">
+                    <from>
+                        <Input
+                          id="username"
+                          bind:value={formData.username}
+                          placeholder="Введите логин"
+                          error={errors.username}
+                        />
+                    </from>
+                    <to>
+                        <Input
+                          id="username"
+                          bind:value={formData.username}
+                          placeholder="Введите логин"
+                          hasError={!!errors.username}
+                          readonly={isEditing}
+                        />
+                    </to>
+                </change>
+            </changes>
+        </step>
 
-    <principles>
-      <principle>Maintain strict user data isolation via user_id</principle>
-      <principle>Preserve all existing functionality</principle>
-      <principle>Use only fields that exist in database models</principle>
-      <principle>Maintain backward compatibility with frontend</principle>
-      <principle>Add comprehensive test coverage</principle>
-    </principles>
-  </solution-strategy>
+        <step id="4">
+            <title>Update username label to indicate readonly state</title>
+            <description>Modify the username label to indicate when it's readonly</description>
+            <files>
+                <file>frontend-svelte/src/lib/components/modals/UserModal.svelte</file>
+            </files>
+            <changes>
+                <change line="160-162">
+                    <from>
+                        <label for="username" class="block text-sm font-medium text-gray-700">
+                          Логин
+                        </label>
+                    </from>
+                    <to>
+                        <label for="username" class="block text-sm font-medium text-gray-700">
+                          Логин {isEditing ? '(только для чтения)' : ''}
+                        </label>
+                    </to>
+                </change>
+            </changes>
+        </step>
 
-  <implementation-plan>
+        <step id="5">
+            <title>Ensure user_name and user_email remain editable</title>
+            <description>Verify that user_name and user_email fields don't have unnecessary restrictions</description>
+            <files>
+                <file>frontend-svelte/src/lib/components/modals/UserModal.svelte</file>
+            </files>
+            <verification>
+                <check>user_name Input component should not have disabled or readonly props</check>
+                <check>user_email Input component should not have disabled or readonly props</check>
+                <check>Both fields should bind properly to formData values</check>
+            </verification>
+        </step>
+    </implementation_steps>
 
-    <!-- Phase 1: Analysis and Verification -->
-    <phase number="1" name="Analysis and Verification">
-      <tasks>
-        <task id="1.1" priority="high">
-          <name>Verify database schema for all reference models</name>
-          <description>
-            Confirm exact field definitions in SQLAlchemy models for:
-            - FinancialCenter (t_d_financial_center)
-            - CostCenter (t_d_cost_center)
-            - Article (t_d_article)
-            - Nomenclature (t_d_nomenclature)
-          </description>
-          <commands>
-            <command>docker exec budget-backend python -c "from app.models.financial_center import FinancialCenter; print([c.name for c in FinancialCenter.__table__.columns])"</command>
-            <command>docker exec budget-backend python -c "from app.models.cost_center import CostCenter; print([c.name for c in CostCenter.__table__.columns])"</command>
-            <command>docker exec budget-backend python -c "from app.models.article import Article; print([c.name for c in Article.__table__.columns])"</command>
-            <command>docker exec budget-backend python -c "from app.models.nomenclature import Nomenclature; print([c.name for c in Nomenclature.__table__.columns])"</command>
-          </commands>
-          <expected-outcome>
-            Confirmed field lists showing created_by and managed_by are NOT present in any model.
-          </expected-outcome>
-        </task>
+    <testing_requirements>
+        <test id="1">
+            <description>Test form field editability</description>
+            <scenarios>
+                <scenario>Create new user: all fields should be editable</scenario>
+                <scenario>Edit existing user: user_name and user_email should be editable</scenario>
+                <scenario>Edit existing user: username should be readonly</scenario>
+                <scenario>Password field should be optional when editing</scenario>
+            </scenarios>
+        </test>
 
-        <task id="1.2" priority="high">
-          <name>Check Pydantic schemas for consistency</name>
-          <description>
-            Review all Pydantic schemas to ensure they don't reference non-existent fields
-          </description>
-          <files>
-            <file>backend-fastapi/app/schemas/financial_center.py</file>
-            <file>backend-fastapi/app/schemas/cost_center.py</file>
-            <file>backend-fastapi/app/schemas/article.py</file>
-            <file>backend-fastapi/app/schemas/nomenclature.py</file>
-          </files>
-          <validation>Schemas should only reference fields that exist in database models</validation>
-        </task>
+        <test id="2">
+            <description>Test error handling</description>
+            <scenarios>
+                <scenario>Verify hasError prop correctly shows error states</scenario>
+                <scenario>Verify error messages display correctly below inputs</scenario>
+                <scenario>Verify validation works for all field types</scenario>
+            </scenarios>
+        </test>
 
-        <task id="1.3" priority="medium">
-          <name>Document current error patterns</name>
-          <description>
-            Test current endpoints to capture exact error messages and failure points
-          </description>
-          <test-commands>
-            <command>curl -X POST http://localhost:4000/api/financial_centers/ -H "Content-Type: application/json" -d '{"code":"TEST","name":"Test Center","description":"Test"}'</command>
-            <command>curl -X POST http://localhost:4000/api/cost_centers/ -H "Content-Type: application/json" -d '{"code":"TEST","name":"Test Center","description":"Test"}'</command>
-          </test-commands>
-        </task>
-      </tasks>
-    </phase>
+        <test id="3">
+            <description>Test form submission</description>
+            <scenarios>
+                <scenario>Create user with valid data should succeed</scenario>
+                <scenario>Update user with changed user_name/user_email should succeed</scenario>
+                <scenario>Update user without changing username should succeed</scenario>
+            </scenarios>
+        </test>
+    </testing_requirements>
 
-    <!-- Phase 2: Fix Financial Centers -->
-    <phase number="2" name="Fix Financial Centers Module">
-      <tasks>
-        <task id="2.1" priority="critical">
-          <name>Remove created_by/managed_by from financial_centers.py</name>
-          <description>
-            Clean up financial_centers.py endpoint to remove all references to non-existent fields
-          </description>
-          <file>backend-fastapi/app/api/v1/endpoints/financial_centers.py</file>
-          <changes>
-            <change line="63-64">Remove getattr calls for created_by and managed_by</change>
-            <change line="103-104">Remove getattr calls for created_by and managed_by</change>
-            <change line="154-155">Remove getattr calls for created_by and managed_by</change>
-            <change line="222-223">Remove getattr calls for created_by and managed_by</change>
-          </changes>
-          <validation>
-            <test>POST /api/financial_centers/ should succeed</test>
-            <test>GET /api/financial_centers/ should return data without created_by/managed_by</test>
-          </validation>
-        </task>
-      </tasks>
-    </phase>
+    <validation_criteria>
+        <criteria>
+            <item>user_name field is editable in both create and edit modes</item>
+            <item>user_email field is editable in both create and edit modes</item>
+            <item>username field is editable in create mode but readonly in edit mode</item>
+            <item>All Input components use hasError prop instead of error prop</item>
+            <item>Error messages display correctly below each input field</item>
+            <item>Form validation works correctly for all scenarios</item>
+            <item>Form submission works for both create and update operations</item>
+        </criteria>
+    </validation_criteria>
 
-    <!-- Phase 3: Fix Cost Centers -->
-    <phase number="3" name="Fix Cost Centers Module">
-      <tasks>
-        <task id="3.1" priority="critical">
-          <name>Remove created_by/managed_by from cost_centers.py</name>
-          <description>
-            Clean up cost_centers.py endpoint to remove all references to non-existent fields
-          </description>
-          <file>backend-fastapi/app/api/v1/endpoints/cost_centers.py</file>
-          <changes>
-            <change line="63-64">Remove getattr calls for created_by and managed_by</change>
-            <change line="103-104">Remove getattr calls for created_by and managed_by</change>
-            <change line="142-143">Remove created_by and managed_by from constructor</change>
-            <change line="156-157">Remove direct access to created_by and managed_by</change>
-            <change line="224-225">Remove direct access to created_by and managed_by</change>
-          </changes>
-          <validation>
-            <test>POST /api/cost_centers/ should succeed</test>
-            <test>PUT /api/cost_centers/{id} should succeed</test>
-          </validation>
-        </task>
-      </tasks>
-    </phase>
+    <files_affected>
+        <file>
+            <path>frontend-svelte/src/lib/components/modals/UserModal.svelte</path>
+            <change_type>modification</change_type>
+            <estimated_lines_changed>12</estimated_lines_changed>
+        </file>
+    </files_affected>
 
-    <!-- Phase 4: Fix Articles -->
-    <phase number="4" name="Fix Articles Module">
-      <tasks>
-        <task id="4.1" priority="critical">
-          <name>Remove created_by/managed_by from articles.py</name>
-          <description>
-            Clean up articles.py endpoint to remove all references to non-existent fields
-          </description>
-          <file>backend-fastapi/app/api/v1/endpoints/articles.py</file>
-          <changes>
-            <change line="69-70">Remove getattr calls for created_by and managed_by</change>
-            <change line="149-150">Remove getattr calls for created_by and managed_by</change>
-            <change line="177-178">Remove created_by and managed_by from constructor</change>
-            <change line="192-193">Remove direct access to created_by and managed_by</change>
-            <change line="242-244">Remove managed_by update logic</change>
-            <change line="256-257">Remove direct access to created_by and managed_by</change>
-          </changes>
-          <validation>
-            <test>POST /api/articles/ should succeed</test>
-            <test>Articles page should load without 500 errors</test>
-          </validation>
-        </task>
-      </tasks>
-    </phase>
+    <dependencies>
+        <dependency>
+            <component>Input component (ui/Input.svelte)</component>
+            <requirement>Must support hasError, readonly, and other props correctly</requirement>
+        </dependency>
+        <dependency>
+            <component>Modal component (ui/Modal.svelte)</component>
+            <requirement>Must handle form submission and events properly</requirement>
+        </dependency>
+    </dependencies>
 
-    <!-- Phase 5: Fix Nomenclatures -->
-    <phase number="5" name="Fix Nomenclatures Module">
-      <tasks>
-        <task id="5.1" priority="critical">
-          <name>Remove created_by/managed_by from nomenclatures.py</name>
-          <description>
-            Clean up nomenclatures.py endpoint to remove all references to non-existent fields
-          </description>
-          <file>backend-fastapi/app/api/v1/endpoints/nomenclatures.py</file>
-          <changes>
-            <change line="80-81">Remove getattr calls for created_by and managed_by</change>
-            <change line="128-129">Remove getattr calls for created_by and managed_by</change>
-            <change line="175-176">Remove created_by and managed_by from constructor</change>
-            <change line="197-198">Remove direct access to created_by and managed_by</change>
-            <change line="277-278">Remove direct access to created_by and managed_by</change>
-          </changes>
-          <validation>
-            <test>POST /api/nomenclatures/ should succeed</test>
-            <test>All nomenclature CRUD operations should work</test>
-          </validation>
-        </task>
-      </tasks>
-    </phase>
-
-    <!-- Phase 6: Schema Standardization -->
-    <phase number="6" name="Schema Standardization">
-      <tasks>
-        <task id="6.1" priority="high">
-          <name>Update Pydantic schemas to match database models</name>
-          <description>
-            Ensure all Pydantic schemas accurately reflect database model fields
-          </description>
-          <approach>
-            <step>Remove created_by/managed_by from all *Create schemas</step>
-            <step>Remove created_by/managed_by from all *Update schemas</step>
-            <step>Remove created_by/managed_by from all *Public schemas</step>
-            <step>Ensure user_id is handled automatically by endpoints</step>
-          </approach>
-        </task>
-
-        <task id="6.2" priority="medium">
-          <name>Standardize response format across all modules</name>
-          <description>
-            Ensure consistent response structure without non-existent fields
-          </description>
-          <standard-response>
-            {
-              "success": true,
-              "data": {
-                "id": int,
-                "code": string,
-                "name": string,
-                "description": string,
-                "is_active": boolean,
-                "user_id": int,
-                "created_at": datetime,
-                "updated_at": datetime
-              }
-            }
-          </standard-response>
-        </task>
-      </tasks>
-    </phase>
-
-    <!-- Phase 7: Testing -->
-    <phase number="7" name="Comprehensive Testing">
-      <tasks>
-        <task id="7.1" priority="critical">
-          <name>Create CRUD operation tests for all modules</name>
-          <description>
-            Implement comprehensive test coverage for all reference modules
-          </description>
-          <test-files>
-            <file>tests/backend/test_financial_centers_crud_fix.py</file>
-            <file>tests/backend/test_cost_centers_crud_fix.py</file>
-            <file>tests/backend/test_articles_crud_fix.py</file>
-            <file>tests/backend/test_nomenclatures_crud_fix.py</file>
-          </test-files>
-          <test-scenarios>
-            <scenario>Create operations succeed without 500 errors</scenario>
-            <scenario>Read operations return correct data structure</scenario>
-            <scenario>Update operations work with valid fields only</scenario>
-            <scenario>Delete operations work correctly</scenario>
-            <scenario>User isolation is maintained</scenario>
-            <scenario>Error handling for invalid data</scenario>
-          </test-scenarios>
-        </task>
-
-        <task id="7.2" priority="high">
-          <name>Frontend integration testing</name>
-          <description>
-            Test all settings pages work correctly with fixed endpoints
-          </description>
-          <pages-to-test>
-            <page>/settings/financial-centers</page>
-            <page>/settings/cost-centers</page>
-            <page>/settings/articles</page>
-            <page>/settings/nomenclatures</page>
-          </pages-to-test>
-        </task>
-
-        <task id="7.3" priority="medium">
-          <name>Performance validation</name>
-          <description>
-            Ensure fixes don't impact performance
-          </description>
-          <metrics>
-            <metric>Response times for CRUD operations</metric>
-            <metric>Database query efficiency</metric>
-            <metric>Memory usage patterns</metric>
-          </metrics>
-        </task>
-      </tasks>
-    </phase>
-
-    <!-- Phase 8: Documentation -->
-    <phase number="8" name="Documentation">
-      <tasks>
-        <task id="8.1" priority="medium">
-          <name>Create Architecture Decision Record</name>
-          <description>
-            Document the decision to remove created_by/managed_by fields
-          </description>
-          <file>docs/architecture/adr-011-crud-operations-schema-fix.md</file>
-          <content>
-            <section>Context and Problem Statement</section>
-            <section>Decision Drivers</section>
-            <section>Considered Options</section>
-            <section>Decision Outcome</section>
-            <section>Consequences</section>
-          </content>
-        </task>
-
-        <task id="8.2" priority="low">
-          <name>Update API documentation</name>
-          <description>
-            Update endpoint documentation to reflect actual field structure
-          </description>
-          <files>
-            <file>docs/api/financial-centers.md</file>
-            <file>docs/api/cost-centers.md</file>
-            <file>docs/api/articles.md</file>
-            <file>docs/api/nomenclatures.md</file>
-          </files>
-        </task>
-      </tasks>
-    </phase>
-
-  </implementation-plan>
-
-  <validation-criteria>
-    <success-metrics>
-      <metric>All reference module CRUD operations work without 500 errors</metric>
-      <metric>Settings pages are fully functional</metric>
-      <metric>User data isolation is maintained</metric>
-      <metric>No regression in existing functionality</metric>
-      <metric>Test coverage above 85% for all modified modules</metric>
-    </success-metrics>
-
-    <test-commands>
-      <command description="Test financial center creation">
-        curl -X POST http://localhost:4000/api/financial_centers/ \
-          -H "Content-Type: application/json" \
-          -H "Cookie: connect.sid=admin-session-id" \
-          -d '{"code":"FC001","name":"Test Financial Center","description":"Test","is_active":true}'
-      </command>
-
-      <command description="Test cost center creation">
-        curl -X POST http://localhost:4000/api/cost_centers/ \
-          -H "Content-Type: application/json" \
-          -H "Cookie: connect.sid=admin-session-id" \
-          -d '{"code":"CC001","name":"Test Cost Center","description":"Test","is_active":true}'
-      </command>
-
-      <command description="Test article creation">
-        curl -X POST http://localhost:4000/api/articles/ \
-          -H "Content-Type: application/json" \
-          -H "Cookie: connect.sid=admin-session-id" \
-          -d '{"code":"ART001","name":"Test Article","description":"Test","is_active":true}'
-      </command>
-
-      <command description="Test nomenclature creation">
-        curl -X POST http://localhost:4000/api/nomenclatures/ \
-          -H "Content-Type: application/json" \
-          -H "Cookie: connect.sid=admin-session-id" \
-          -d '{"code":"NOM001","name":"Test Nomenclature","description":"Test","is_active":true}'
-      </command>
-    </test-commands>
-  </validation-criteria>
-
-  <rollback-plan>
-    <triggers>
-      <trigger>Any CRUD operation still fails after fixes</trigger>
-      <trigger>Data corruption or loss detected</trigger>
-      <trigger>User isolation compromised</trigger>
-      <trigger>Critical functionality regression</trigger>
-    </triggers>
-
-    <steps>
-      <step>Revert all endpoint changes using git</step>
-      <step>Restore original endpoint files from backup</step>
-      <step>Run full test suite to ensure stability</step>
-      <step>Investigate alternative approaches</step>
-    </steps>
-  </rollback-plan>
-
-  <timeline>
-    <milestone date="2025-09-19" phase="1">Analysis and verification complete</milestone>
-    <milestone date="2025-09-19" phase="2-5">All endpoint fixes implemented</milestone>
-    <milestone date="2025-09-19" phase="6">Schema standardization complete</milestone>
-    <milestone date="2025-09-19" phase="7">Testing complete</milestone>
-    <milestone date="2025-09-19" phase="8">Documentation complete</milestone>
-  </timeline>
-
-  <risk-assessment>
-    <risks>
-      <risk level="low" impact="medium">
-        <description>Frontend compatibility issues with modified response structure</description>
-        <mitigation>Maintain backward compatibility in response format</mitigation>
-      </risk>
-
-      <risk level="low" impact="low">
-        <description>Performance impact from schema changes</description>
-        <mitigation>Performance testing and optimization</mitigation>
-      </risk>
-
-      <risk level="medium" impact="high">
-        <description>Undiscovered dependencies on created_by/managed_by fields</description>
-        <mitigation>Comprehensive testing and gradual rollout</mitigation>
-      </risk>
-    </risks>
-  </risk-assessment>
-
-  <success-definition>
-    <criteria>
-      <criterion>Users can create financial centers without errors</criterion>
-      <criterion>Users can create cost centers without errors</criterion>
-      <criterion>Users can create articles without errors</criterion>
-      <criterion>Users can create nomenclatures without errors</criterion>
-      <criterion>All settings pages are fully functional</criterion>
-      <criterion>Data integrity and user isolation maintained</criterion>
-      <criterion>No regression in existing functionality</criterion>
-      <criterion>Comprehensive test coverage achieved</criterion>
-    </criteria>
-
-    <measurement>
-      All reference module CRUD operations complete successfully with proper HTTP status codes
-      (200, 201) and correct response structures, enabling full application functionality
-      for budget management and configuration.
-    </measurement>
-  </success-definition>
-
-</comprehensive-fix-plan>
+    <risk_assessment>
+        <risk level="low">
+            <description>Changes are localized to UserModal component and don't affect other parts of the system</description>
+        </risk>
+        <risk level="low">
+            <description>Input component prop changes are compatible and well-defined</description>
+        </risk>
+    </risk_assessment>
+</implementation_plan>
