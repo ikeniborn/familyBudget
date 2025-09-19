@@ -81,7 +81,6 @@ def test_reference_stats_authenticated_success():
         "active_periods",
         "financial_centers",
         "nomenclatures",
-        "products"
     ]
 
     for field in required_fields:
@@ -317,5 +316,4 @@ def test_reference_stats_user_isolation():
         assert isinstance(stats["active_periods"], int)
         assert isinstance(stats["financial_centers"], int)
         assert isinstance(stats["nomenclatures"], int)
-        assert isinstance(stats["products"], int)
         assert stats["active_periods"] <= stats["total_periods"]

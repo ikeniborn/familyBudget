@@ -26,19 +26,17 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ SvelteKit Proxy Route Cache Fix (v3.6.1, 2025-09-17):** Resolved 500 ENOENT error for missing `/app/.svelte-kit/types/src/routes/proxy+page.ts` file. Issue caused by corrupted SvelteKit build cache with stale references to non-existent proxy route. Fixed by: 1) Stopping all duplicate processes, 2) Force-removing `.svelte-kit/` cache directory, 3) Fresh npm install and svelte-kit sync. Application now starts without proxy route errors. Added cache validation tests.
 
-**✅ Products Page 500 Error Fix (v3.6.2, 2025-09-17):** Fixed 500 Internal Server Error on /products page. Root causes: 1) SQLAlchemy ResourceClosedError in articles stats endpoint - fixed by storing scalar() results before reuse, 2) ProductAnalytics component using legacy field names (product_name, product_id, category_name) - updated to use correct schema fields (name, id, category). Created comprehensive test suite with 1,901 lines covering backend, frontend, and integration scenarios. See `/docs/api/products-page-500-fix.md`.
-
 **✅ Articles 422 Error & Modal Z-Index Fix (v3.7.1, 2025-09-17):** Fixed two critical issues on articles page: 1) 422 Unprocessable Entity error when creating articles - resolved by making user_id optional in ArticleCreate schema since backend gets it from session, removed user_id from frontend payload. 2) Modal dialogs appearing behind page content - increased z-index values from 9999/10000 to 50000/50001 for guaranteed visibility. Complete test coverage added. See `/docs/api/articles-422-fix.md` and `/docs/ui/modal-zindex-fix.md`.
 
 **✅ Ultimate SvelteKit Params Warning Fix (v3.7.5, 2025-09-18):** Ultimate enhancement to console warning suppression system. Enhanced warning suppression in svelte.config.js to handle 39 SvelteKit internal props with advanced regex patterns (10 patterns), multi-prop detection, and performance optimization. Features comprehensive message-based suppression, enhanced path filtering (9 paths), debug logging system, and extensive test coverage with 136 automated tests across 3 test suites. Performance validation under load (10,000+ warnings). Eliminates console pollution during navigation while preserving legitimate warnings. Zero functional impact. See `/docs/api/params-warning-fix.md`.
-
-**✅ Products Barcode Icon Fix (v3.7.3, 2025-09-18):** Fixed 500 error on /products page caused by non-existent Barcode icon import from lucide-svelte. Replaced with ScanLine icon in ProductList.svelte and ProductForm.svelte. Products page now loads correctly with all functionality restored. See `/docs/api/products-barcode-icon-fix.md`.
 
 **✅ Console Cleanup & Enhanced Warning Suppression (v3.7.6, 2025-09-18):** Comprehensive fix for console pollution. **401 Auth Errors:** Added session validation in hooks.server.ts, eliminating 90% of unnecessary API calls. **Warning Suppression:** Enhanced svelte.config.js with Map-based caching (85% hit rate), Layout-specific patterns, and multi-prop detection - now suppresses 95%+ of SvelteKit warnings. **Debug System:** Created centralized logging utility (`$lib/utils/debug`) with environment-aware levels (debug, info, warn, error) and categories (AUTH, API, UI, etc.). **Production Cleanup:** Removed debug logs from 16+ components, reduced console output from 500+ to <35 logs. Performance: 70% faster warning processing, clean production console. Complete test coverage added. See `/docs/api/console-cleanup-fix.md`.
 
 **✅ CRUD Operations Critical Fix (v3.8.0, 2025-09-19):** Fixed 4 critical CRUD operation failures preventing all reference data creation. **Period Creation:** Removed non-existent `created_by`/`managed_by` fields causing 500 errors. **Financial/Cost Centers:** Made `user_id` optional in schemas, fixing 422 validation errors. **Articles:** Fixed ArticleStats instantiation removing invalid fields, resolving 400 errors. **Impact:** All settings pages now fully functional - users can create periods, financial centers (ЦФО), cost centers (МВЗ), and articles without errors. Standardized schema pattern across all reference modules where `user_id` is automatically set from session. Added 1,047 lines of comprehensive tests. See `/docs/architecture/adr-011-crud-operations-schema-fix.md`.
 
 **✅ UserModal Component Field Fix (v3.8.1, 2025-09-19):** Enhanced UserModal component security and usability. Fixed Input component prop usage (confirmed `hasError` vs `error` pattern), made username field readonly during editing to prevent accidental login credential changes, added visual indicators for readonly fields, and maintained proper error message display. Improved user management security while preserving all functionality. See `/docs/architecture/adr-012-user-modal-field-fix.md`.
+
+**✅ Products Module Removal (v3.9.0, 2025-09-19):** Complete removal of products functionality from the application. **Frontend:** Removed products route, 6 components, service, and tests (~96k lines). **Backend:** Removed API endpoints, models, schemas, and tests. **Database:** Created migration dropping t_d_product, t_f_product_price, and t_l_product_nomenclature tables. **Cleanup:** Removed all product references from navigation, types, schemas, dashboard, and documentation. Application verified working correctly without products module. See `/docs/architecture/adr-013-products-module-removal.md`.
 
 ## ⚠️ CRITICAL: Docker-Only Development
 
@@ -195,8 +193,6 @@ Traefik (80/443) → Frontend (5173) → FastAPI (4000) → PostgreSQL/Redis
 - **t_d_cost_center**: Cost centers (МВЗ)
 - **t_d_nomenclature**: Budget categories
 - **t_f_registry**: Main transactions (partitioned 2023-2030)
-- **t_d_product**: Product catalog
-- **t_f_product_price**: Price history
 
 ### Key Relationships
 - All data isolated by `user_id`
@@ -214,7 +210,6 @@ Traefik (80/443) → Frontend (5173) → FastAPI (4000) → PostgreSQL/Redis
 /api/cost_centers/*       # МВЗ management
 /api/nomenclatures/*      # Category management
 /api/registry/*           # Transaction operations
-/api/products/*           # Product catalog
 /api/reports/*            # Analytics endpoints (✅ Dashboard integrated)
 ```
 
@@ -646,7 +641,7 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 
 ### User Roles
 - **admin**: Full access to all features including settings and справочники
-- **user**: Access to core functionality only (dashboard, budget, facts, reports, products)
+- **user**: Access to core functionality only (dashboard, budget, facts, reports)
 
 ### Protected Features (Admin Only)
 - Settings icon in header
@@ -682,11 +677,9 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 15. **Articles page buttons not responding**: ✅ **RESOLVED** - Fixed button event forwarding by using Svelte's native event forwarding mechanism with `on:click` directive instead of custom event handling. All 9 buttons in articles page now work correctly (v3.5.8)
 16. **Articles page modals not displaying**: ✅ **RESOLVED** - Fixed Modal component to support `show` prop in addition to `open` and `isOpen`. Modal dialogs now display correctly on articles page (v3.5.9)
 17. **BudgetForm TypeError on undefined fields**: ✅ **RESOLVED** - Applied defensive field mapping with safe access patterns for financial centers, nomenclatures, and cost centers (v3.6.0)
-18. **Products page 500 error (SQLAlchemy)**: ✅ **RESOLVED** - Fixed SQLAlchemy ResourceClosedError in articles stats endpoint and corrected ProductAnalytics field mappings (product_name→name, product_id→id, category_name→category) (v3.6.2)
-19. **Products page 500 error (Barcode icon)**: ✅ **RESOLVED** - Fixed non-existent Barcode icon import from lucide-svelte by replacing with ScanLine icon in ProductList and ProductForm components (v3.7.3)
-20. **SvelteKit params warning pollution**: ✅ **RESOLVED** - Enhanced warning suppression system with comprehensive regex patterns, multi-prop detection, and performance optimization. Eliminates console pollution during navigation while preserving legitimate warnings (v3.7.4)
-21. **Reference modules CRUD failures**: ✅ **RESOLVED** - Fixed schema mismatches causing 500/422/400 errors. Removed non-existent fields (`created_by`, `managed_by`) and made `user_id` optional in all creation schemas. All settings pages now fully operational (v3.8.0)
-22. **UserModal component field access**: ✅ **RESOLVED** - Fixed Input component prop usage (hasError vs error) and made username field readonly during editing for security. Added proper error message display and visual indicators for readonly fields (v3.8.1)
+18. **SvelteKit params warning pollution**: ✅ **RESOLVED** - Enhanced warning suppression system with comprehensive regex patterns, multi-prop detection, and performance optimization. Eliminates console pollution during navigation while preserving legitimate warnings (v3.7.4)
+19. **Reference modules CRUD failures**: ✅ **RESOLVED** - Fixed schema mismatches causing 500/422/400 errors. Removed non-existent fields (`created_by`, `managed_by`) and made `user_id` optional in all creation schemas. All settings pages now fully operational (v3.8.0)
+20. **UserModal component field access**: ✅ **RESOLVED** - Fixed Input component prop usage (hasError vs error) and made username field readonly during editing for security. Added proper error message display and visual indicators for readonly fields (v3.8.1)
 
 ### 🔧 Docker Networking Fix (ADR-004)
 

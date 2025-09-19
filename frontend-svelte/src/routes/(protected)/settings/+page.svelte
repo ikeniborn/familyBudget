@@ -88,9 +88,9 @@
   <SettingsNavigation />
 
   <!-- Quick Stats -->
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+  <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mt-8">
     {#if error}
-      <div class="col-span-2 md:col-span-4">
+      <div class="col-span-2 md:col-span-3">
         <Alert variant="destructive">
           <AlertCircle class="h-4 w-4" />
           <span>Ошибка загрузки статистики: {error}</span>
@@ -133,17 +133,6 @@
         <div class="text-sm text-gray-600">Категорий</div>
       </div>
 
-      <!-- Products -->
-      <div class="bg-white rounded-lg border p-4">
-        <div class="text-2xl font-bold text-gray-900">
-          {#if loading}
-            <Loader2 class="h-6 w-6 animate-spin text-gray-400" />
-          {:else}
-            {referenceStats?.products ?? 0}
-          {/if}
-        </div>
-        <div class="text-sm text-gray-600">Продуктов</div>
-      </div>
     {/if}
   </div>
 </div>

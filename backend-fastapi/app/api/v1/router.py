@@ -11,7 +11,6 @@ from app.api.v1.endpoints import (
     nomenclatures,
     articles,
     registry,
-    products,
     reports,
     users,
     admin
@@ -29,6 +28,5 @@ api_router.include_router(cost_centers.router, prefix="/cost_centers", tags=["Co
 api_router.include_router(nomenclatures.router, prefix="/nomenclatures", tags=["Nomenclatures"])
 api_router.include_router(articles.router, prefix="/articles", tags=["Articles"])
 api_router.include_router(registry.router, prefix="/registry", tags=["Registry"])
-api_router.include_router(products.router, prefix="/products", tags=["Products"])
 api_router.include_router(reports.router, prefix="/reports", tags=["Reports"])
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])

@@ -14,7 +14,6 @@
     Calculator,
     CreditCard,
     BarChart3,
-    Package,
     LogOut,
     User,
     Settings,
@@ -35,7 +34,6 @@
     { name: 'Факт', path: '/fact', icon: CreditCard },
     { name: 'Бюджет', path: '/budget', icon: Calculator },
     { name: 'Отчеты', path: '/reports', icon: BarChart3 },
-    { name: 'Продукты', path: '/products', icon: Package },
   ];
 
   const referenceNavItem: NavItem = {

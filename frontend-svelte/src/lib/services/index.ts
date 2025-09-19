@@ -7,7 +7,6 @@ export * from './dashboard.service';
 export * from './financialCenters.service';
 export * from './nomenclatures.service';
 export * from './periods.service';
-export * from './product.service';
 export * from './registry.service';
 export * from './reportService';
 export * from './reportDataTransformer';

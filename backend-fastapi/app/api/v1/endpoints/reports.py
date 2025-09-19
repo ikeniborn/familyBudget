@@ -14,8 +14,6 @@ from app.models.period import Period
 from app.models.nomenclature import Nomenclature
 from app.models.financial_center import FinancialCenter
 from app.models.cost_center import CostCenter
-from app.models.product import Product
-from app.models.product_nomenclature import ProductNomenclature
 from app.models.row_type import RowType
 from app.core.session import get_current_user_from_session
 from app.core.response import success_response
@@ -629,25 +627,11 @@ async def get_reference_stats(
     nomenclatures_result = await db.execute(nomenclatures_stmt)
     nomenclatures = nomenclatures_result.scalar() or 0
 
-    # Products count - products are linked to user through nomenclatures
-    # Count products that are linked to user's nomenclatures
-    products_stmt = select(func.count(func.distinct(ProductNomenclature.product_id))).select_from(
-        ProductNomenclature.__table__.join(
-            Nomenclature.__table__,
-            ProductNomenclature.nomenclature_id == Nomenclature.id
-        )
-    ).where(
-        Nomenclature.user_id == user_id
-    )
-    products_result = await db.execute(products_stmt)
-    products = products_result.scalar() or 0
-
     stats_data = {
         "total_periods": total_periods,
         "active_periods": active_periods,
         "financial_centers": financial_centers,
-        "nomenclatures": nomenclatures,
-        "products": products
+        "nomenclatures": nomenclatures
     }
 
     return success_response(data=stats_data)

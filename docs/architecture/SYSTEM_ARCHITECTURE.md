@@ -207,22 +207,6 @@ erDiagram
         timestamp updated_dttm
     }
     
-    T_D_PRODUCT {
-        bigint product_id PK
-        varchar product_name
-        varchar category
-        varchar barcode
-        timestamp created_dttm
-        timestamp updated_dttm
-    }
-    
-    T_F_PRODUCT_PRICE {
-        bigint price_id PK
-        bigint product_id FK
-        numeric price
-        timestamp price_date
-        timestamp created_dttm
-    }
     
     T_F_REGISTRY ||--|| T_D_USER : belongs_to
     T_F_REGISTRY ||--|| T_D_PERIOD : in_period
@@ -230,7 +214,6 @@ erDiagram
     T_F_REGISTRY ||--|| T_D_COST_CENTER : charged_to
     T_F_REGISTRY ||--|| T_D_NOMENCLATURE : categorized_as
     T_F_REGISTRY ||--|| T_D_ROW_TYPE : typed_as
-    T_F_PRODUCT_PRICE ||--|| T_D_PRODUCT : price_for
 ```
 
 ### Partitioning Strategy
@@ -364,7 +347,6 @@ graph TB
         CC[/cost_centers/*<br/>МВЗ Management]
         NOM[/nomenclatures/*<br/>Category Management]
         REG[/registry/*<br/>Transaction Operations]
-        PROD[/products/*<br/>Product Catalog]
         REP[/reports/*<br/>Analytics Endpoints]
         ADMIN[/admin/*<br/>Admin Operations]
         SHARE[/sharing/*<br/>Data Sharing]

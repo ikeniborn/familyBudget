@@ -180,7 +180,6 @@ describe('Access Control - Navigation Logic', () => {
           { name: 'Факт', path: '/fact' },
           { name: 'Бюджет', path: '/budget' },
           { name: 'Отчеты', path: '/reports' },
-          { name: 'Продукты', path: '/products' }
         ];
 
         const match = navItems.find(item => item.path === pathname);
@@ -596,7 +595,7 @@ describe('Access Control - Integration Scenarios', () => {
       expect(canViewCategories).toBe(false);
 
       // Should have access to regular pages
-      const regularPaths = ['/dashboard', '/fact', '/budget', '/reports', '/products'];
+      const regularPaths = ['/dashboard', '/fact', '/budget', '/reports'];
 
       for (const path of regularPaths) {
         mockPageStore.set({
@@ -691,7 +690,6 @@ describe('Access Control - Integration Scenarios', () => {
         { name: 'Факт', path: '/fact', icon: 'CreditCard' },
         { name: 'Бюджет', path: '/budget', icon: 'Calculator' },
         { name: 'Отчеты', path: '/reports', icon: 'BarChart3' },
-        { name: 'Продукты', path: '/products', icon: 'Package' }
       ];
 
       const referenceNavItem = {

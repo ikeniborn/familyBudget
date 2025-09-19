@@ -1,234 +1,396 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<implementation_plan>
-    <summary>
-        Fix user editing form issues in UserModal.svelte to enable proper editing functionality
-        for user_name and user_email fields, and make username read-only for existing users.
-    </summary>
+<plan>
+  <header>
+    <title>Products Functionality Removal Plan</title>
+    <description>Comprehensive plan to remove products functionality from Family Budget application</description>
+    <date>2025-09-19</date>
+    <architecture>
+      <frontend>SvelteKit + TypeScript</frontend>
+      <backend>FastAPI + SQLAlchemy</backend>
+      <database>PostgreSQL</database>
+      <infrastructure>Docker Compose</infrastructure>
+    </architecture>
+  </header>
 
-    <current_issues>
-        <issue id="1">
-            <description>Input component prop mismatch</description>
-            <details>
-                UserModal.svelte uses `error={errors.field_name}` but Input component expects `hasError` boolean prop.
-                This causes form fields to not behave properly for error states.
-            </details>
-            <affected_lines>139, 154, 167, 181</affected_lines>
-        </issue>
+  <phases>
+    <!-- PHASE 1: FRONTEND CLEANUP -->
+    <phase id="1" name="Frontend Components Removal">
+      <description>Remove all frontend product-related components, routes, and services</description>
 
-        <issue id="2">
-            <description>Username field should be readonly when editing</description>
-            <details>
-                The username (Логин) field should be read-only when editing existing users to prevent
-                changes to the login identifier, but currently has no readonly logic.
-            </details>
-            <affected_lines>163-168</affected_lines>
-        </issue>
-    </current_issues>
+      <step id="1.1">
+        <title>Remove Product Page Route</title>
+        <action>Delete file</action>
+        <path>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/products/+page.svelte</path>
+        <command>rm -f /home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/products/+page.svelte</command>
+        <verification>ls -la /home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/products/</verification>
+      </step>
 
-    <requirements>
-        <requirement id="1">Enable editing for user_name (Имя пользователя) field</requirement>
-        <requirement id="2">Enable editing for user_email (Email) field</requirement>
-        <requirement id="3">Make username (Логин) field read-only when editing existing user</requirement>
-        <requirement id="4">Fix Input component prop usage to use correct hasError boolean prop</requirement>
-    </requirements>
+      <step id="1.2">
+        <title>Remove Products Directory</title>
+        <action>Delete directory</action>
+        <path>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/products/</path>
+        <command>rm -rf /home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/products/</command>
+        <verification>test ! -d /home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/products/</verification>
+      </step>
 
-    <implementation_steps>
-        <step id="1">
-            <title>Fix Input component prop usage</title>
-            <description>Replace `error` prop with `hasError` boolean prop for all Input components</description>
-            <files>
-                <file>frontend-svelte/src/lib/components/modals/UserModal.svelte</file>
-            </files>
-            <changes>
-                <change line="139">
-                    <from>error={errors.user_name}</from>
-                    <to>hasError={!!errors.user_name}</to>
-                </change>
-                <change line="154">
-                    <from>error={errors.user_email}</from>
-                    <to>hasError={!!errors.user_email}</to>
-                </change>
-                <change line="167">
-                    <from>error={errors.username}</from>
-                    <to>hasError={!!errors.username}</to>
-                </change>
-                <change line="181">
-                    <from>error={errors.password}</from>
-                    <to>hasError={!!errors.password}</to>
-                </change>
-            </changes>
-        </step>
+      <step id="1.3">
+        <title>Remove Product Components</title>
+        <action>Delete component files</action>
+        <files>
+          <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/products/ProductForm.svelte</file>
+          <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/products/ProductList.svelte</file>
+          <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/products/ProductAnalytics.svelte</file>
+          <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/products/ProductImport.svelte</file>
+          <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/products/ProductNomenclatureLink.svelte</file>
+          <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/products/index.ts</file>
+        </files>
+        <command>rm -rf /home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/products/</command>
+        <verification>test ! -d /home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/products/</verification>
+      </step>
 
-        <step id="2">
-            <title>Add error message display elements</title>
-            <description>Since we're changing from error prop to hasError, we need to add separate error message elements</description>
-            <files>
-                <file>frontend-svelte/src/lib/components/modals/UserModal.svelte</file>
-            </files>
-            <changes>
-                <change line="after_141">
-                    <add>
-                        {#if errors.user_name}
-                          <div class="text-sm text-red-600">{errors.user_name}</div>
-                        {/if}
-                    </add>
-                </change>
-                <change line="after_156">
-                    <add>
-                        {#if errors.user_email}
-                          <div class="text-sm text-red-600">{errors.user_email}</div>
-                        {/if}
-                    </add>
-                </change>
-                <change line="after_169">
-                    <add>
-                        {#if errors.username}
-                          <div class="text-sm text-red-600">{errors.username}</div>
-                        {/if}
-                    </add>
-                </change>
-                <change line="after_184">
-                    <add>
-                        {#if errors.password}
-                          <div class="text-sm text-red-600">{errors.password}</div>
-                        {/if}
-                    </add>
-                </change>
-            </changes>
-        </step>
+      <step id="1.4">
+        <title>Remove Product Service</title>
+        <action>Delete service file</action>
+        <path>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/services/product.service.ts</path>
+        <command>rm -f /home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/services/product.service.ts</command>
+        <verification>test ! -f /home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/services/product.service.ts</verification>
+      </step>
 
-        <step id="3">
-            <title>Make username field readonly when editing</title>
-            <description>Add readonly prop to username Input when in editing mode</description>
-            <files>
-                <file>frontend-svelte/src/lib/components/modals/UserModal.svelte</file>
-            </files>
-            <changes>
-                <change line="163-168">
-                    <from>
-                        <Input
-                          id="username"
-                          bind:value={formData.username}
-                          placeholder="Введите логин"
-                          error={errors.username}
-                        />
-                    </from>
-                    <to>
-                        <Input
-                          id="username"
-                          bind:value={formData.username}
-                          placeholder="Введите логин"
-                          hasError={!!errors.username}
-                          readonly={isEditing}
-                        />
-                    </to>
-                </change>
-            </changes>
-        </step>
+      <step id="1.5">
+        <title>Remove Products Navigation Links</title>
+        <action>Edit navigation files</action>
+        <files>
+          <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/Layout.svelte</file>
+          <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/MobileLayout.svelte</file>
+        </files>
+        <description>Remove products navigation entry from both Layout.svelte line 38 and MobileLayout.svelte line 37</description>
+        <verification>grep -n "products" /home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/common/Layout.svelte || echo "No products references found"</verification>
+      </step>
 
-        <step id="4">
-            <title>Update username label to indicate readonly state</title>
-            <description>Modify the username label to indicate when it's readonly</description>
-            <files>
-                <file>frontend-svelte/src/lib/components/modals/UserModal.svelte</file>
-            </files>
-            <changes>
-                <change line="160-162">
-                    <from>
-                        <label for="username" class="block text-sm font-medium text-gray-700">
-                          Логин
-                        </label>
-                    </from>
-                    <to>
-                        <label for="username" class="block text-sm font-medium text-gray-700">
-                          Логин {isEditing ? '(только для чтения)' : ''}
-                        </label>
-                    </to>
-                </change>
-            </changes>
-        </step>
+      <step id="1.6">
+        <title>Update Services Index</title>
+        <action>Edit services index file</action>
+        <path>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/services/index.ts</path>
+        <description>Remove product service export if present</description>
+        <verification>grep -n "product" /home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/services/index.ts || echo "No product references found"</verification>
+      </step>
 
-        <step id="5">
-            <title>Ensure user_name and user_email remain editable</title>
-            <description>Verify that user_name and user_email fields don't have unnecessary restrictions</description>
-            <files>
-                <file>frontend-svelte/src/lib/components/modals/UserModal.svelte</file>
-            </files>
-            <verification>
-                <check>user_name Input component should not have disabled or readonly props</check>
-                <check>user_email Input component should not have disabled or readonly props</check>
-                <check>Both fields should bind properly to formData values</check>
-            </verification>
-        </step>
-    </implementation_steps>
+      <step id="1.7">
+        <title>Remove Frontend Product Tests</title>
+        <action>Delete test files</action>
+        <files>
+          <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/products/__tests__/products-icon-fix.test.ts</file>
+          <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/tests/product-analytics-field-mapping.test.ts</file>
+        </files>
+        <command>rm -f /home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/tests/product-analytics-field-mapping.test.ts</command>
+        <verification>test ! -f /home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/tests/product-analytics-field-mapping.test.ts</verification>
+      </step>
+    </phase>
 
-    <testing_requirements>
-        <test id="1">
-            <description>Test form field editability</description>
-            <scenarios>
-                <scenario>Create new user: all fields should be editable</scenario>
-                <scenario>Edit existing user: user_name and user_email should be editable</scenario>
-                <scenario>Edit existing user: username should be readonly</scenario>
-                <scenario>Password field should be optional when editing</scenario>
-            </scenarios>
-        </test>
+    <!-- PHASE 2: BACKEND API CLEANUP -->
+    <phase id="2" name="Backend API Removal">
+      <description>Remove backend product API endpoints, schemas, and models</description>
 
-        <test id="2">
-            <description>Test error handling</description>
-            <scenarios>
-                <scenario>Verify hasError prop correctly shows error states</scenario>
-                <scenario>Verify error messages display correctly below inputs</scenario>
-                <scenario>Verify validation works for all field types</scenario>
-            </scenarios>
-        </test>
+      <step id="2.1">
+        <title>Remove Products Router from API</title>
+        <action>Edit API router file</action>
+        <path>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/router.py</path>
+        <description>Remove products import (line 14) and router inclusion (line 32)</description>
+        <verification>grep -n "products" /home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/router.py || echo "No products references found"</verification>
+      </step>
 
-        <test id="3">
-            <description>Test form submission</description>
-            <scenarios>
-                <scenario>Create user with valid data should succeed</scenario>
-                <scenario>Update user with changed user_name/user_email should succeed</scenario>
-                <scenario>Update user without changing username should succeed</scenario>
-            </scenarios>
-        </test>
-    </testing_requirements>
+      <step id="2.2">
+        <title>Remove Products Endpoint File</title>
+        <action>Delete endpoint file</action>
+        <path>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/products.py</path>
+        <command>rm -f /home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/products.py</command>
+        <verification>test ! -f /home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/products.py</verification>
+      </step>
 
-    <validation_criteria>
-        <criteria>
-            <item>user_name field is editable in both create and edit modes</item>
-            <item>user_email field is editable in both create and edit modes</item>
-            <item>username field is editable in create mode but readonly in edit mode</item>
-            <item>All Input components use hasError prop instead of error prop</item>
-            <item>Error messages display correctly below each input field</item>
-            <item>Form validation works correctly for all scenarios</item>
-            <item>Form submission works for both create and update operations</item>
-        </criteria>
-    </validation_criteria>
+      <step id="2.3">
+        <title>Remove Product Models</title>
+        <action>Delete model files</action>
+        <files>
+          <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/models/product.py</file>
+          <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/models/product_price.py</file>
+          <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/models/product_nomenclature.py</file>
+        </files>
+        <command>rm -f /home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/models/product*.py</command>
+        <verification>ls -la /home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/models/product*.py 2>/dev/null || echo "No product model files found"</verification>
+      </step>
 
-    <files_affected>
-        <file>
-            <path>frontend-svelte/src/lib/components/modals/UserModal.svelte</path>
-            <change_type>modification</change_type>
-            <estimated_lines_changed>12</estimated_lines_changed>
-        </file>
-    </files_affected>
+      <step id="2.4">
+        <title>Remove Product Schemas</title>
+        <action>Delete schema file</action>
+        <path>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/schemas/product.py</path>
+        <command>rm -f /home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/schemas/product.py</command>
+        <verification>test ! -f /home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/schemas/product.py</verification>
+      </step>
 
-    <dependencies>
-        <dependency>
-            <component>Input component (ui/Input.svelte)</component>
-            <requirement>Must support hasError, readonly, and other props correctly</requirement>
-        </dependency>
-        <dependency>
-            <component>Modal component (ui/Modal.svelte)</component>
-            <requirement>Must handle form submission and events properly</requirement>
-        </dependency>
-    </dependencies>
+      <step id="2.5">
+        <title>Update Models __init__.py</title>
+        <action>Edit models init file</action>
+        <path>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/models/__init__.py</path>
+        <description>Remove product imports (lines 12-14): Product, ProductPrice, ProductNomenclature</description>
+        <verification>grep -n "product" /home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/models/__init__.py || echo "No product references found"</verification>
+      </step>
 
-    <risk_assessment>
-        <risk level="low">
-            <description>Changes are localized to UserModal component and don't affect other parts of the system</description>
-        </risk>
-        <risk level="low">
-            <description>Input component prop changes are compatible and well-defined</description>
-        </risk>
-    </risk_assessment>
-</implementation_plan>
+      <step id="2.6">
+        <title>Update Schemas __init__.py</title>
+        <action>Edit schemas init file</action>
+        <path>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/schemas/__init__.py</path>
+        <description>Remove product schema import (line 12)</description>
+        <verification>grep -n "product" /home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/schemas/__init__.py || echo "No product references found"</verification>
+      </step>
+
+      <step id="2.7">
+        <title>Update Reports Endpoint</title>
+        <action>Edit reports endpoint</action>
+        <path>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/reports.py</path>
+        <description>Remove product imports (lines 17-18) and products count functionality (lines 632-643, 650)</description>
+        <verification>grep -n "product" /home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/reports.py || echo "No product references found"</verification>
+      </step>
+
+      <step id="2.8">
+        <title>Update Alembic env.py</title>
+        <action>Edit Alembic environment file</action>
+        <path>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/alembic/env.py</path>
+        <description>Remove product model imports (lines 21-22)</description>
+        <verification>grep -n "product" /home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/alembic/env.py || echo "No product references found"</verification>
+      </step>
+
+      <step id="2.9">
+        <title>Remove Backend Product Tests</title>
+        <action>Delete test files</action>
+        <files>
+          <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/tests/integration/test_products_page_500_fix.py</file>
+          <file>/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/tests/test_products.py</file>
+        </files>
+        <command>rm -f /home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/tests/*product*.py /home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/tests/integration/*product*.py</command>
+        <verification>find /home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/tests -name "*product*" || echo "No product test files found"</verification>
+      </step>
+    </phase>
+
+    <!-- PHASE 3: DATABASE CLEANUP -->
+    <phase id="3" name="Database Schema Cleanup">
+      <description>Remove product-related database tables and cleanup SQL files</description>
+
+      <step id="3.1">
+        <title>Create Database Migration to Drop Product Tables</title>
+        <action>Create Alembic migration</action>
+        <command>docker exec budget-backend alembic revision -m "Remove product tables and functionality"</command>
+        <description>Create migration to drop t_d_product, t_f_product_price, t_l_product_nomenclature tables</description>
+        <verification>ls -la /home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/alembic/versions/ | grep "remove_product"</verification>
+        <migration_content>
+          <drop_tables>
+            <table>t_l_product_nomenclature</table>
+            <table>t_f_product_price</table>
+            <table>t_d_product</table>
+          </drop_tables>
+          <drop_functions>
+            <function>update_product_timestamp()</function>
+          </drop_functions>
+          <drop_triggers>
+            <trigger>update_product_timestamp_trigger</trigger>
+          </drop_triggers>
+        </migration_content>
+      </step>
+
+      <step id="3.2">
+        <title>Remove Product SQL Initialization Files</title>
+        <action>Delete SQL files</action>
+        <files>
+          <file>/home/ikeniborn/Documents/Project/familyBudget/postgresql/init/03-products.sql</file>
+          <file>/home/ikeniborn/Documents/Project/familyBudget/postgresql/ddl/products.sql</file>
+        </files>
+        <command>rm -f /home/ikeniborn/Documents/Project/familyBudget/postgresql/init/03-products.sql /home/ikeniborn/Documents/Project/familyBudget/postgresql/ddl/products.sql</command>
+        <verification>test ! -f /home/ikeniborn/Documents/Project/familyBudget/postgresql/init/03-products.sql</verification>
+      </step>
+
+      <step id="3.3">
+        <title>Run Database Migration</title>
+        <action>Execute migration</action>
+        <command>docker exec budget-backend alembic upgrade head</command>
+        <description>Apply the migration to remove product tables from database</description>
+        <verification>docker exec budget-postgres psql -U budget -d budgetdb -c "\dt" | grep -v product || echo "No product tables found"</verification>
+      </step>
+    </phase>
+
+    <!-- PHASE 4: CLEANUP AND VALIDATION -->
+    <phase id="4" name="Final Cleanup and Validation">
+      <description>Remove remaining references and validate the removal</description>
+
+      <step id="4.1">
+        <title>Check for Remaining Product References</title>
+        <action>Search for references</action>
+        <command>find /home/ikeniborn/Documents/Project/familyBudget -name "*.py" -o -name "*.ts" -o -name "*.svelte" | xargs grep -l "product" | grep -v node_modules | grep -v ".git" | grep -v backups</command>
+        <description>Find any remaining product references in codebase</description>
+        <verification>echo "Manual review required for remaining references"</verification>
+      </step>
+
+      <step id="4.2">
+        <title>Update Package-lock.json if needed</title>
+        <action>Regenerate dependencies</action>
+        <command>docker exec budget-frontend npm install</command>
+        <description>Ensure no broken imports remain in frontend</description>
+        <verification>docker exec budget-frontend npm run check</verification>
+      </step>
+
+      <step id="4.3">
+        <title>Test Frontend Build</title>
+        <action>Build frontend</action>
+        <command>docker exec budget-frontend npm run build</command>
+        <description>Ensure frontend builds without errors</description>
+        <verification>echo "Build should complete without errors"</verification>
+      </step>
+
+      <step id="4.4">
+        <title>Test Backend Startup</title>
+        <action>Restart backend</action>
+        <command>docker restart budget-backend</command>
+        <description>Ensure backend starts without import errors</description>
+        <verification>docker logs budget-backend | tail -10</verification>
+      </step>
+
+      <step id="4.5">
+        <title>Remove MyPy Cache for Product Files</title>
+        <action>Clean cache</action>
+        <command>rm -rf /home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/.mypy_cache/3.12/app/schemas/product*</command>
+        <description>Remove cached type information for deleted files</description>
+        <verification>test ! -f /home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/.mypy_cache/3.12/app/schemas/product.meta.json</verification>
+      </step>
+
+      <step id="4.6">
+        <title>Clean Build Artifacts</title>
+        <action>Remove build artifacts</action>
+        <command>rm -rf /home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/build/server/chunks/products-components*</command>
+        <description>Remove any compiled product components</description>
+        <verification>find /home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/build -name "*products*" || echo "No product artifacts found"</verification>
+      </step>
+    </phase>
+
+    <!-- PHASE 5: COMPREHENSIVE TESTING -->
+    <phase id="5" name="Testing and Verification">
+      <description>Test all functionality to ensure no breaking changes</description>
+
+      <step id="5.1">
+        <title>Test Navigation Links</title>
+        <action>Manual verification</action>
+        <url>http://localhost:5173</url>
+        <description>Verify products link is removed from navigation and no 404 errors occur</description>
+        <verification>curl -s http://localhost:5173 | grep -v "products" || echo "Products link removed from homepage"</verification>
+      </step>
+
+      <step id="5.2">
+        <title>Test API Endpoints</title>
+        <action>API verification</action>
+        <command>curl -s http://localhost:4000/docs</command>
+        <description>Verify products endpoints are removed from API documentation</description>
+        <verification>curl -s http://localhost:4000/api/products 2>/dev/null | grep "404" || echo "Products API endpoint not found (expected)"</verification>
+      </step>
+
+      <step id="5.3">
+        <title>Test Dashboard Functionality</title>
+        <action>Manual verification</action>
+        <url>http://localhost:5173/dashboard</url>
+        <description>Ensure dashboard works without product data references</description>
+        <verification>curl -s -o /dev/null -w "%{http_code}" http://localhost:5173/dashboard</verification>
+      </step>
+
+      <step id="5.4">
+        <title>Test Reports Functionality</title>
+        <action>Manual verification</action>
+        <url>http://localhost:5173/reports</url>
+        <description>Ensure reports work without product statistics</description>
+        <verification>curl -s -o /dev/null -w "%{http_code}" http://localhost:5173/reports</verification>
+      </step>
+
+      <step id="5.5">
+        <title>Test Settings Pages</title>
+        <action>Manual verification</action>
+        <description>Ensure all settings pages function correctly</description>
+        <urls>
+          <url>http://localhost:5173/settings/periods</url>
+          <url>http://localhost:5173/settings/financial-centers</url>
+          <url>http://localhost:5173/settings/cost-centers</url>
+          <url>http://localhost:5173/settings/nomenclatures</url>
+          <url>http://localhost:5173/settings/articles</url>
+        </urls>
+        <verification>echo "Manual verification of all settings pages required"</verification>
+      </step>
+
+      <step id="5.6">
+        <title>Run Backend Tests</title>
+        <action>Execute tests</action>
+        <command>docker exec budget-backend python -m pytest --tb=short</command>
+        <description>Ensure all remaining backend tests pass</description>
+        <verification>echo "All tests should pass without product-related failures"</verification>
+      </step>
+
+      <step id="5.7">
+        <title>Run Frontend Tests</title>
+        <action>Execute tests</action>
+        <command>docker exec budget-frontend npm run test</command>
+        <description>Ensure all remaining frontend tests pass</description>
+        <verification>echo "All tests should pass without product-related failures"</verification>
+      </step>
+
+      <step id="5.8">
+        <title>Database Integrity Check</title>
+        <action>Database verification</action>
+        <command>docker exec budget-postgres psql -U budget -d budgetdb -c "SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE '%product%';"</command>
+        <description>Verify no product tables remain in database</description>
+        <verification>echo "Query should return no rows"</verification>
+      </step>
+    </phase>
+  </phases>
+
+  <rollback_plan>
+    <description>Steps to rollback changes if issues occur</description>
+    <steps>
+      <step>Restore deleted files from git history: git checkout HEAD~1 -- [file_paths]</step>
+      <step>Rollback database migration: docker exec budget-backend alembic downgrade -1</step>
+      <step>Restart all containers: docker-compose restart</step>
+      <step>Verify system functionality</step>
+    </steps>
+  </rollback_plan>
+
+  <post_removal_tasks>
+    <description>Tasks to complete after successful removal</description>
+    <tasks>
+      <task>Update documentation to reflect removed functionality</task>
+      <task>Create git commit with descriptive message</task>
+      <task>Update version in package.json</task>
+      <task>Create architecture decision record (ADR) for the removal</task>
+      <task>Update user documentation if products functionality was documented</task>
+    </tasks>
+  </post_removal_tasks>
+
+  <risks_and_mitigation>
+    <risk level="high">
+      <description>Breaking changes to dashboard or reports that rely on product data</description>
+      <mitigation>Thoroughly test all analytics endpoints and dashboard components</mitigation>
+    </risk>
+    <risk level="medium">
+      <description>Orphaned data in database that references product tables</description>
+      <mitigation>Check for foreign key constraints and data dependencies before migration</mitigation>
+    </risk>
+    <risk level="low">
+      <description>Cached data in Redis containing product information</description>
+      <mitigation>Clear Redis cache after changes: docker exec budget-redis redis-cli FLUSHALL</mitigation>
+    </risk>
+  </risks_and_mitigation>
+
+  <completion_criteria>
+    <criteria>
+      <item>All product-related files removed from frontend and backend</item>
+      <item>No product references in navigation or routing</item>
+      <item>Database tables for products completely removed</item>
+      <item>All tests pass without product-related failures</item>
+      <item>Application starts and functions normally</item>
+      <item>No 404 errors or broken links</item>
+      <item>Dashboard and reports work without product data</item>
+      <item>API documentation updated (products endpoints removed)</item>
+    </criteria>
+  </completion_criteria>
+</plan>

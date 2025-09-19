@@ -18,8 +18,8 @@ from app.models.financial_center import FinancialCenter
 from app.models.cost_center import CostCenter
 from app.models.nomenclature import Nomenclature
 from app.models.registry import Registry
-from app.models.product import Product
-from app.models.product_price import ProductPrice
+from app.models.article import Article
+# Product models removed - tables will be dropped by migration
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -41,7 +41,6 @@ class Nomenclature(Base):
     
     # Relationships
     registries = relationship("Registry", back_populates="nomenclature")
-    products = relationship("ProductNomenclature", back_populates="nomenclature")
     article = relationship("Article", back_populates="nomenclatures")
     
     def __repr__(self):

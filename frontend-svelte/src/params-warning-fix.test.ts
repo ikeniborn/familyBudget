@@ -147,7 +147,6 @@ describe('Navigation without warnings', () => {
       '/budget',
       '/fact',
       '/reports',
-      '/products',
       '/settings'
     ];
 

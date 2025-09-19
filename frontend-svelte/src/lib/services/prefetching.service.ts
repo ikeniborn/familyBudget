@@ -69,16 +69,6 @@ class PrefetchingService {
         delay: 1000 // Delay to avoid blocking main navigation
       },
       
-      // Products page
-      {
-        route: '/products',
-        endpoints: [
-          '/api/products?limit=20',
-          '/api/nomenclatures'
-        ],
-        priority: 'medium',
-        delay: 2000
-      },
       
       // Reference data pages
       {

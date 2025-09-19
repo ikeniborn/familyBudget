@@ -222,10 +222,6 @@
                 <BarChart3 class="h-4 w-4" />
                 Посмотреть отчеты
               </a>
-              <a href="/products" class="quick-action-btn">
-                <Package class="h-4 w-4" />
-                Управление товарами
-              </a>
             </div>
           </div>
 

@@ -1123,8 +1123,6 @@ Traefik (80/443) → Frontend (5173) → FastAPI (4000) → PostgreSQL/Redis
 - **t_d_cost_center**: Места возникновения затрат (МВЗ)
 - **t_d_nomenclature**: Категории бюджета
 - **t_f_registry**: Основные транзакции (партиционированы 2023-2030)
-- **t_d_product**: Каталог товаров
-- **t_f_product_price**: История цен
 
 #### Ключевые связи
 - Все данные изолированы по `user_id`
@@ -1142,7 +1140,6 @@ Traefik (80/443) → Frontend (5173) → FastAPI (4000) → PostgreSQL/Redis
 /api/cost_centers/*       # Управление МВЗ
 /api/nomenclatures/*      # Управление категориями
 /api/registry/*           # Операции с транзакциями
-/api/products/*           # Каталог товаров
 /api/reports/*            # Аналитические endpoints
 ```
 

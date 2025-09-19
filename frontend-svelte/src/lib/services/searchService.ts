@@ -108,7 +108,7 @@ class SearchService {
   ): Promise<SearchResult<any>> {
     const startTime = Date.now();
     const {
-      entities = ['periods', 'financial_centers', 'cost_centers', 'nomenclatures', 'products'],
+      entities = ['periods', 'financial_centers', 'cost_centers', 'nomenclatures'],
       fields = [],
       fuzzy = true,
       boost = {},
@@ -550,7 +550,6 @@ class SearchService {
       financial_centers: ['financial_center_name', 'financial_center_description'],
       cost_centers: ['cost_center_name', 'cost_center_description'],
       nomenclatures: ['nomenclature_name', 'nomenclature_type'],
-      products: ['product_name', 'product_description', 'barcode']
     };
 
     return fieldMappings[entityType] || [];

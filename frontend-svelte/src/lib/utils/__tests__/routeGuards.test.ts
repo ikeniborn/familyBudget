@@ -115,7 +115,6 @@ describe('Route Guards', () => {
         '/reference/nomenclatures',
         '/dashboard',
         '/reports',
-        '/products'
       ];
 
       regularRoutes.forEach(route => {

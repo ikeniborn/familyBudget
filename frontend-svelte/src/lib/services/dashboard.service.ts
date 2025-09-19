@@ -84,7 +84,6 @@ export interface ReferenceDataStats {
   active_periods: number;
   financial_centers: number;
   nomenclatures: number;
-  products: number;
 }
 
 class DashboardService {

@@ -115,14 +115,6 @@
         { field: 'is_active', label: 'Активен', type: 'boolean' },
         { field: 'created_at', label: 'Дата создания', type: 'date' }
       ],
-      products: [
-        { field: 'product_name', label: 'Название', type: 'string' },
-        { field: 'product_description', label: 'Описание', type: 'string' },
-        { field: 'barcode', label: 'Штрихкод', type: 'string' },
-        { field: 'unit', label: 'Единица измерения', type: 'select' },
-        { field: 'is_active', label: 'Активен', type: 'boolean' },
-        { field: 'created_at', label: 'Дата создания', type: 'date' }
-      ]
     };
     
     return fieldMappings[entityType] || [];
@@ -176,7 +168,6 @@
       financial_centers: 'financial_center_id',
       cost_centers: 'cost_center_id',
       nomenclatures: 'nomenclature_id',
-      products: 'product_id'
     };
     return idFields[entityType] || 'id';
   };

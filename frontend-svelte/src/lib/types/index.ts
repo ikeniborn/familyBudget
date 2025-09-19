@@ -204,28 +204,6 @@ export interface Registry {
   nomenclature_name?: string;
 }
 
-// Product types - matches backend API
-export interface Product {
-  id: number;
-  name: string;
-  category?: string | null;
-  unit?: string | null;
-  barcode?: string | null;
-  description?: string | null;
-  is_active: boolean;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface ProductPrice {
-  id: number;
-  product_id: number;
-  supplier_name?: string | null;
-  price_value: number;
-  price_date: string;
-  user_id: number;
-  created_at?: string;
-}
 
 // API Response types
 export interface ApiResponse<T> {

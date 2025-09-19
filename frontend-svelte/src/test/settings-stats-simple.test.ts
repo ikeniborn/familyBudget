@@ -42,7 +42,6 @@ describe('Settings Page Statistics - Service Integration', () => {
         active_periods: 3,
         financial_centers: 8,
         nomenclatures: 25,
-        products: 156
       };
 
       // Validate expected structure
@@ -50,20 +49,18 @@ describe('Settings Page Statistics - Service Integration', () => {
       expect(mockResponse).toHaveProperty('active_periods');
       expect(mockResponse).toHaveProperty('financial_centers');
       expect(mockResponse).toHaveProperty('nomenclatures');
-      expect(mockResponse).toHaveProperty('products');
 
       // Validate data types
       expect(typeof mockResponse.total_periods).toBe('number');
       expect(typeof mockResponse.active_periods).toBe('number');
       expect(typeof mockResponse.financial_centers).toBe('number');
       expect(typeof mockResponse.nomenclatures).toBe('number');
-      expect(typeof mockResponse.products).toBe('number');
     });
 
     it('should handle edge cases in data values', () => {
       const edgeCases = [
-        { name: 'zero values', data: { active_periods: 0, financial_centers: 0, nomenclatures: 0, products: 0 } },
-        { name: 'large values', data: { active_periods: 999, financial_centers: 1000, nomenclatures: 5000, products: 10000 } },
+        { name: 'zero values', data: { active_periods: 0, financial_centers: 0, nomenclatures: 0 } },
+        { name: 'large values', data: { active_periods: 999, financial_centers: 1000, nomenclatures: 5000 } },
         { name: 'undefined values', data: { active_periods: undefined, financial_centers: null } }
       ];
 
@@ -111,7 +108,6 @@ describe('Settings Page Statistics - Service Integration', () => {
         active_periods: 3,
         financial_centers: 8,
         nomenclatures: 25,
-        products: 156
       };
 
       // Test the logic that would be used in the component
@@ -119,13 +115,11 @@ describe('Settings Page Statistics - Service Integration', () => {
         activePeriods: statsData.active_periods ?? 0,
         financialCenters: statsData.financial_centers ?? 0,
         nomenclatures: statsData.nomenclatures ?? 0,
-        products: statsData.products ?? 0
       };
 
       expect(displayValues.activePeriods).toBe(3);
       expect(displayValues.financialCenters).toBe(8);
       expect(displayValues.nomenclatures).toBe(25);
-      expect(displayValues.products).toBe(156);
     });
 
     it('should handle null/undefined fallbacks correctly', () => {
@@ -133,7 +127,6 @@ describe('Settings Page Statistics - Service Integration', () => {
         active_periods: null,
         financial_centers: undefined,
         nomenclatures: 25,
-        products: 156
       };
 
       // Test fallback logic
@@ -141,13 +134,11 @@ describe('Settings Page Statistics - Service Integration', () => {
         activePeriods: incompleteData.active_periods ?? 0,
         financialCenters: incompleteData.financial_centers ?? 0,
         nomenclatures: incompleteData.nomenclatures ?? 0,
-        products: incompleteData.products ?? 0
       };
 
       expect(safeValues.activePeriods).toBe(0);
       expect(safeValues.financialCenters).toBe(0);
       expect(safeValues.nomenclatures).toBe(25);
-      expect(safeValues.products).toBe(156);
     });
   });
 
@@ -165,7 +156,7 @@ describe('Settings Page Statistics - Service Integration', () => {
 
       // Successful load
       loading = false;
-      data = { active_periods: 3, financial_centers: 8, nomenclatures: 25, products: 156 };
+      data = { active_periods: 3, financial_centers: 8, nomenclatures: 25 };
 
       expect(loading).toBe(false);
       expect(error).toBe(null);
@@ -217,7 +208,6 @@ describe('Settings Page Statistics - Service Integration', () => {
         'Активных периодов',
         'Финансовых центров',
         'Категорий',
-        'Продуктов'
       ];
 
       // These labels should be present in the component

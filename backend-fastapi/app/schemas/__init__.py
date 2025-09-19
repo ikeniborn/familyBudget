@@ -9,4 +9,3 @@ from .cost_center import *
 from .nomenclature import *
 from .row_type import *
 from .registry import *
-from .product import *

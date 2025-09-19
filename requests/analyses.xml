@@ -1,38 +1,83 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <analysis>
-    <problem>
-        <description>Form fields in UserModal are not accessible for editing when trying to edit a user</description>
-        <location>frontend-svelte/src/lib/components/modals/UserModal.svelte</location>
-    </problem>
+  <context>
+    <requirement>Удалить функционал раздела продуктов из приложения Family Budget</requirement>
+    <url>http://localhost:5173/products</url>
+    <architecture>
+      <frontend>SvelteKit с TypeScript</frontend>
+      <backend>FastAPI с SQLAlchemy</backend>
+      <database>PostgreSQL</database>
+      <infrastructure>Docker Compose</infrastructure>
+    </architecture>
+  </context>
 
-    <findings>
-        <finding id="1">
-            <issue>Input component prop mismatch</issue>
-            <details>
-                UserModal uses error={errors.field_name} but Input component expects hasError boolean prop.
-                This might be causing the fields to appear disabled or have unexpected behavior.
-            </details>
-            <affected_lines>139, 154, 167, 181</affected_lines>
-        </finding>
+  <components_to_remove>
+    <frontend>
+      <routes>
+        <route>/frontend-svelte/src/routes/(protected)/products/+page.svelte</route>
+      </routes>
+      <components>
+        <component>/frontend-svelte/src/lib/components/products/ProductForm.svelte</component>
+        <component>/frontend-svelte/src/lib/components/products/ProductList.svelte</component>
+        <component>/frontend-svelte/src/lib/components/products/ProductAnalytics.svelte</component>
+        <component>/frontend-svelte/src/lib/components/products/ProductImport.svelte</component>
+        <component>/frontend-svelte/src/lib/components/products/ProductNomenclatureLink.svelte</component>
+        <component>/frontend-svelte/src/lib/components/products/index.ts</component>
+      </components>
+      <services>
+        <service>/frontend-svelte/src/lib/services/product.service.ts</service>
+      </services>
+      <tests>
+        <test>/frontend-svelte/src/lib/components/products/__tests__/products-icon-fix.test.ts</test>
+        <test>/frontend-svelte/tests/product-analytics-field-mapping.test.ts</test>
+      </tests>
+    </frontend>
 
-        <finding id="2">
-            <issue>No explicit disabled/readonly logic for form fields</issue>
-            <details>
-                All input fields are editable by default, no disabled or readonly props are set.
-                The login field (username) should be readonly when editing existing users.
-            </details>
-        </finding>
-    </findings>
+    <backend>
+      <endpoints>
+        <endpoint>/backend-fastapi/app/api/v1/endpoints/products.py</endpoint>
+      </endpoints>
+      <models>
+        <model>/backend-fastapi/app/models/product.py</model>
+        <model>/backend-fastapi/app/models/product_price.py</model>
+        <model>/backend-fastapi/app/models/product_nomenclature.py</model>
+      </models>
+      <schemas>
+        <schema>/backend-fastapi/app/schemas/product.py</schema>
+      </schemas>
+      <tests>
+        <test>/backend-fastapi/tests/integration/test_products_page_500_fix.py</test>
+      </tests>
+    </backend>
 
-    <requirements>
-        <requirement id="1">Enable editing for user_name (Имя пользователя) field</requirement>
-        <requirement id="2">Enable editing for user_email (Email) field</requirement>
-        <requirement id="3">Make username (Логин) field read-only when editing existing user</requirement>
-    </requirements>
+    <database>
+      <tables>
+        <table>t_d_product</table>
+        <table>t_f_product_price</table>
+        <table>t_f_product_nomenclature_link</table>
+      </tables>
+    </database>
+  </components_to_remove>
 
-    <solution>
-        <step id="1">Fix Input component prop usage - change error to hasError</step>
-        <step id="2">Add readonly prop to username field when in editing mode</step>
-        <step id="3">Ensure user_name and user_email fields remain editable</step>
-    </solution>
+  <dependencies_to_check>
+    <navigation>Удалить ссылку на /products из навигации</navigation>
+    <imports>Проверить и удалить импорты product-related модулей</imports>
+    <router>Удалить маршруты API для products</router>
+    <reports>Проверить отчеты и дашборды на использование данных о продуктах</reports>
+    <documentation>Обновить документацию</documentation>
+  </dependencies_to_check>
+
+  <risks>
+    <risk priority="high">Возможные ссылки на продукты в отчетах и аналитике</risk>
+    <risk priority="medium">База данных может содержать связанные данные</risk>
+    <risk priority="low">Кэшированные данные в Redis</risk>
+  </risks>
+
+  <testing_required>
+    <test>Проверить доступность всех страниц после удаления</test>
+    <test>Проверить работу навигации</test>
+    <test>Проверить API endpoints на отсутствие ошибок</test>
+    <test>Проверить отчеты и дашборды</test>
+    <test>Выполнить интеграционные тесты</test>
+  </testing_required>
 </analysis>

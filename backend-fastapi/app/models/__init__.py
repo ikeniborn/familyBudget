@@ -9,10 +9,6 @@ from .nomenclature import Nomenclature
 from .article import Article
 from .row_type import RowType
 from .registry import Registry
-from .product import Product
-from .product_price import ProductPrice
-from .product_nomenclature import ProductNomenclature
-
 __all__ = [
     "User",
     "Period",
@@ -22,7 +18,4 @@ __all__ = [
     "Article",
     "RowType",
     "Registry",
-    "Product",
-    "ProductPrice",
-    "ProductNomenclature",
 ]

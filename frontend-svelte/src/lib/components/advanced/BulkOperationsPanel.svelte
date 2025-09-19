@@ -27,7 +27,7 @@
     Settings
   } from 'lucide-svelte';
 
-  export let entityType: 'periods' | 'financial_centers' | 'cost_centers' | 'nomenclatures' | 'products';
+  export let entityType: 'periods' | 'financial_centers' | 'cost_centers' | 'nomenclatures';
   export let selectedItems: number[] = [];
   export let data: any[] = [];
   export let userId: number;

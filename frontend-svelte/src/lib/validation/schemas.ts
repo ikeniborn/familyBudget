@@ -145,29 +145,6 @@ export const periodSchema = z.object({
 
 export type PeriodFormData = z.infer<typeof periodSchema>;
 
-// Product validation schema
-export const productSchema = z.object({
-  name: createStringField(2, 200),
-  description: createOptionalStringField(1000),
-  barcode: z.string()
-    .regex(/^[0-9]{8,13}$/, 'Штрихкод должен содержать 8-13 цифр')
-    .optional()
-    .or(z.literal('')),
-  unit: createOptionalStringField(20),
-});
-
-export type ProductFormData = z.infer<typeof productSchema>;
-
-// Product Price validation schema
-export const productPriceSchema = z.object({
-  product_id: idField,
-  price: createPositiveNumberField(),
-  store: createOptionalStringField(200),
-  date: z.string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата должна быть в формате YYYY-MM-DD'),
-});
-
-export type ProductPriceFormData = z.infer<typeof productPriceSchema>;
 
 // Registry (Budget/Fact) validation schema
 export const registrySchema = z.object({
@@ -314,8 +291,6 @@ export const schemas = {
   financialCenter: financialCenterSchema,
   costCenter: costCenterSchema,
   period: periodSchema,
-  product: productSchema,
-  productPrice: productPriceSchema,
   registry: registrySchema,
   userSettings: userSettingsSchema,
   autoCategorizationRule: autoCategorizationRuleSchema,

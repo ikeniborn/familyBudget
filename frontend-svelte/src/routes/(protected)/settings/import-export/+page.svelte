@@ -93,7 +93,6 @@
             <option value="financial-centers">Финансовые центры</option>
             <option value="cost-centers">Центры затрат</option>
             <option value="nomenclatures">Номенклатуры</option>
-            <option value="products">Продукты</option>
           </select>
         </div>
 
@@ -149,7 +148,6 @@
             <option value="financial-centers">Финансовые центры</option>
             <option value="cost-centers">Центры затрат</option>
             <option value="nomenclatures">Номенклатуры</option>
-            <option value="products">Продукты</option>
             <option value="all">Все справочники</option>
           </select>
         </div>

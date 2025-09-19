@@ -27,7 +27,6 @@ class User(Base):
     
     # Relationships
     registries = relationship("Registry", back_populates="user", lazy="dynamic")
-    product_prices = relationship("ProductPrice", back_populates="user", lazy="dynamic")
     
     def __repr__(self):
         return f"<User(id={self.id}, username={self.username}, auth_method={self.auth_method})>"

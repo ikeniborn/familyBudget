@@ -34,7 +34,6 @@
   ];
 
   const menuItems = [
-    { name: 'Продукты', path: '/products', icon: Package },
     { name: 'Справочники', path: '/settings', icon: Database },
   ];
 

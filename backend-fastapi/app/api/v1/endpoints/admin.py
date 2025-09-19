@@ -10,7 +10,7 @@ from app.db.database import get_db
 from app.core.security import require_admin_access
 from app.models import (
     User, Nomenclature, CostCenter,
-    FinancialCenter, Product, Registry, Period
+    FinancialCenter, Registry, Period
 )
 from app.schemas.period import AdminPeriodResponse
 
@@ -59,8 +59,7 @@ async def get_all_references(
     model_map = {
         "nomenclature": Nomenclature,
         "cost_center": CostCenter,
-        "financial_center": FinancialCenter,
-        "product": Product
+        "financial_center": FinancialCenter
     }
     
     if resource_type not in model_map:
@@ -116,8 +115,7 @@ async def update_reference(
     model_map = {
         "nomenclature": Nomenclature,
         "cost_center": CostCenter,
-        "financial_center": FinancialCenter,
-        "product": Product
+        "financial_center": FinancialCenter
     }
     
     if resource_type not in model_map:
@@ -143,8 +141,7 @@ async def update_reference(
     allowed_fields = {
         "nomenclature": ["name", "description", "is_active"],
         "cost_center": ["name", "description", "is_active"],
-        "financial_center": ["name", "description", "is_active"],
-        "product": ["name", "description", "is_active", "unit"]
+        "financial_center": ["name", "description", "is_active"]
     }
     
     for field, value in update_data.items():
@@ -179,8 +176,7 @@ async def delete_reference(
     model_map = {
         "nomenclature": Nomenclature,
         "cost_center": CostCenter,
-        "financial_center": FinancialCenter,
-        "product": Product
+        "financial_center": FinancialCenter
     }
     
     if resource_type not in model_map:
