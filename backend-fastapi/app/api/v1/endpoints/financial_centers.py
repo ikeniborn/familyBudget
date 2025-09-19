@@ -60,10 +60,8 @@ async def get_financial_centers(
             'description': center.description,
             'is_active': center.is_active,
             'user_id': center.user_id,
-            'created_by': getattr(center, 'created_by', None),
-            'managed_by': getattr(center, 'managed_by', None),
-            'created_at': getattr(center, 'created_at', None),
-            'updated_at': getattr(center, 'updated_at', None),
+            'created_at': center.created_at,
+            'updated_at': center.updated_at,
             'is_shared': False,
             'is_editable': True
         }
@@ -138,9 +136,7 @@ async def create_financial_center(
             name=center_data.name,
             description=center_data.description,
             is_active=center_data.is_active,
-            user_id=user_id,
-            created_by=user_id,
-            managed_by=center_data.managed_by if hasattr(center_data, 'managed_by') else None
+            user_id=user_id
         )
         db.add(center)
         await db.commit()
@@ -153,8 +149,6 @@ async def create_financial_center(
             'description': center.description,
             'is_active': center.is_active,
             'user_id': center.user_id,
-            'created_by': center.created_by,
-            'managed_by': center.managed_by,
             'created_at': center.created_at,
             'updated_at': center.updated_at,
             'is_shared': False,
@@ -221,8 +215,6 @@ async def update_financial_center(
             'description': center.description,
             'is_active': center.is_active,
             'user_id': center.user_id,
-            'created_by': center.created_by,
-            'managed_by': center.managed_by,
             'created_at': center.created_at,
             'updated_at': center.updated_at,
             'is_shared': False,

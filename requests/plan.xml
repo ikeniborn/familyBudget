@@ -1,384 +1,446 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<implementation_plan>
-  <meta>
-    <created_date>2025-09-19T16:45:00</created_date>
-    <priority>CRITICAL</priority>
-    <estimated_time>2-3 hours</estimated_time>
-    <complexity>MEDIUM</complexity>
-  </meta>
+<comprehensive-fix-plan>
+  <title>Critical CRUD Operations Schema Fix for All Reference Modules</title>
+  <version>3.8.0</version>
+  <date>2025-09-19</date>
+  <priority>CRITICAL</priority>
 
-  <summary>
-    <description>Fix critical CRUD operation failures in all settings pages due to schema mismatches between frontend and backend</description>
-    <root_causes>
-      <cause id="1">Frontend sending invalid 'created_by' field for periods</cause>
-      <cause id="2">Frontend not sending required 'user_id' field for financial centers and cost centers</cause>
-      <cause id="3">Articles service sending optional 'user_id' field which backend expects to be set by session</cause>
-      <cause id="4">Backend endpoints expecting user_id to be automatically set from session context, not from frontend</cause>
-    </root_causes>
-  </summary>
+  <problem-analysis>
+    <summary>
+      All reference modules (financial_centers, cost_centers, articles, nomenclatures) have critical schema mismatches
+      that prevent users from creating reference data. The endpoints attempt to access and set database fields
+      (created_by, managed_by) that don't exist in the actual SQLAlchemy models.
+    </summary>
 
-  <errors_to_fix>
-    <error id="1">
-      <title>Period Creation: Invalid 'created_by' Field</title>
-      <type>500 Internal Server Error</type>
-      <page>/settings/periods</page>
-      <message>created_by is an invalid keyword argument for Period</message>
+    <impact>
       <severity>CRITICAL</severity>
-    </error>
+      <affected-functionality>
+        <item>Financial Centers creation (500 Internal Server Error)</item>
+        <item>Cost Centers creation (500 Internal Server Error)</item>
+        <item>Articles creation (500 Internal Server Error)</item>
+        <item>Nomenclatures creation (500 Internal Server Error)</item>
+        <item>All settings pages (/settings/*) non-functional for CRUD operations</item>
+      </affected-functionality>
 
-    <error id="2">
-      <title>Financial Centers: Missing 'user_id' Field</title>
-      <type>422 Unprocessable Entity</type>
-      <page>/settings/financial-centers</page>
-      <message>user_id: Field required</message>
-      <severity>CRITICAL</severity>
-    </error>
+      <user-impact>
+        Users cannot create any reference data, making the application unusable for budget setup and configuration.
+      </user-impact>
+    </impact>
 
-    <error id="3">
-      <title>Cost Centers: Missing 'user_id' Field</title>
-      <type>422 Unprocessable Entity</type>
-      <page>/settings/cost-centers</page>
-      <message>user_id: Field required</message>
-      <severity>CRITICAL</severity>
-    </error>
+    <root-cause>
+      <description>
+        Endpoints were written assuming created_by and managed_by fields exist in database models,
+        but actual SQLAlchemy models only contain: id, code, name, description, is_active, user_id,
+        created_at, updated_at.
+      </description>
 
-    <error id="4">
-      <title>Articles: 400 Bad Request Error</title>
-      <type>400 Bad Request</type>
-      <page>/settings/articles</page>
-      <message>Bad Request error on article creation</message>
-      <severity>CRITICAL</severity>
-    </error>
-  </errors_to_fix>
+      <technical-details>
+        <affected-files>
+          <file>backend-fastapi/app/api/v1/endpoints/financial_centers.py</file>
+          <file>backend-fastapi/app/api/v1/endpoints/cost_centers.py</file>
+          <file>backend-fastapi/app/api/v1/endpoints/articles.py</file>
+          <file>backend-fastapi/app/api/v1/endpoints/nomenclatures.py</file>
+        </affected-files>
 
-  <implementation_steps>
-    <step id="1" order="1">
-      <title>Fix Period Creation Schema Mismatch</title>
-      <description>Remove invalid 'created_by' field and ensure proper field mapping</description>
-      <files_to_modify>
-        <file path="/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/periods/+page.svelte">
-          <change_type>FIELD_REMOVAL</change_type>
-          <description>Remove any 'created_by' field from requestData object in period creation/update logic</description>
-          <location>Line ~200-220 in async function handleSubmit</location>
-          <current_code>
-            const requestData = {
-              date: periodDate.toISOString(),
-              ru_name: periodName,
-              start_date: start.toISOString(),
-              end_date: end.toISOString(),
-              period_year: parseInt(year),
-              period_month: parseInt(month),
-              period_name: periodName
-            };
-          </current_code>
-          <new_code>
-            const requestData = {
-              date: periodDate.toISOString(),
-              ru_name: periodName,
-              start_date: start.toISOString(),
-              end_date: end.toISOString(),
-              period_year: parseInt(year),
-              period_month: parseInt(month),
-              period_name: periodName
-            };
-            // Note: user_id is automatically set by backend from session
-          </new_code>
-        </file>
-      </files_to_modify>
-      <validation>
-        <test>Period creation should work without 500 error</test>
-        <success_criteria>Period created successfully with auto-generated names</success_criteria>
-      </validation>
-    </step>
+        <error-patterns>
+          <pattern>getattr(obj, 'created_by', None) - field doesn't exist</pattern>
+          <pattern>getattr(obj, 'managed_by', None) - field doesn't exist</pattern>
+          <pattern>Model(created_by=user_id, managed_by=...) - invalid constructor args</pattern>
+          <pattern>obj.created_by = user_id - setting non-existent attribute</pattern>
+        </error-patterns>
+      </technical-details>
+    </root-cause>
+  </problem-analysis>
 
-    <step id="2" order="2">
-      <title>Fix Financial Centers Schema - Remove user_id from Frontend</title>
-      <description>Ensure user_id is not sent from frontend and handled by backend session</description>
-      <files_to_modify>
-        <file path="/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/schemas/financial_center.py">
-          <change_type>SCHEMA_UPDATE</change_type>
-          <description>Make user_id optional in FinancialCenterCreate schema</description>
-          <location>Line 17-20</location>
-          <current_code>
-            class FinancialCenterCreate(FinancialCenterBase):
-                """Financial center creation schema."""
-                user_id: int = Field(..., description="User ID")
-          </current_code>
-          <new_code>
-            class FinancialCenterCreate(FinancialCenterBase):
-                """Financial center creation schema."""
-                user_id: Optional[int] = Field(None, description="User ID (set automatically by backend)")
-          </new_code>
-        </file>
-        <file path="/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/financial_centers.py">
-          <change_type>ENDPOINT_UPDATE</change_type>
-          <description>Ensure user_id is set from session in POST endpoint</description>
-          <location>POST endpoint function</location>
-          <action>Verify user_id is set from current_user session, not from request data</action>
-        </file>
-        <file path="/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.svelte">
-          <change_type>VERIFICATION</change_type>
-          <description>Verify requestData does not include user_id</description>
-          <location>Line ~210-220</location>
-          <current_code>
-            const requestData = {
-              name: formData.name,
-              code: formData.code,
-              description: formData.description,
-              is_active: formData.is_active
-            };
-          </current_code>
-          <action>Confirm this is correct - no user_id field</action>
-        </file>
-      </files_to_modify>
-      <validation>
-        <test>Financial center creation should work without 422 error</test>
-        <success_criteria>Financial center created with user_id set from session</success_criteria>
-      </validation>
-    </step>
+  <solution-strategy>
+    <approach>
+      Remove all references to non-existent created_by and managed_by fields from endpoints
+      while maintaining data integrity and user isolation through existing user_id field.
+    </approach>
 
-    <step id="3" order="3">
-      <title>Fix Cost Centers Schema - Remove user_id from Frontend</title>
-      <description>Ensure user_id is not sent from frontend and handled by backend session</description>
-      <files_to_modify>
-        <file path="/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/schemas/cost_center.py">
-          <change_type>SCHEMA_UPDATE</change_type>
-          <description>Make user_id optional in CostCenterCreate schema</description>
-          <location>Line 17-20</location>
-          <current_code>
-            class CostCenterCreate(CostCenterBase):
-                """Cost center creation schema."""
-                user_id: int = Field(..., description="User ID")
-          </current_code>
-          <new_code>
-            class CostCenterCreate(CostCenterBase):
-                """Cost center creation schema."""
-                user_id: Optional[int] = Field(None, description="User ID (set automatically by backend)")
-          </new_code>
-        </file>
-        <file path="/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/cost_centers.py">
-          <change_type>ENDPOINT_UPDATE</change_type>
-          <description>Ensure user_id is set from session in POST endpoint</description>
-          <location>POST endpoint function</location>
-          <action>Verify user_id is set from current_user session, not from request data</action>
-        </file>
-        <file path="/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/cost-centers/+page.svelte">
-          <change_type>VERIFICATION</change_type>
-          <description>Verify requestData does not include user_id</description>
-          <location>Line ~210-220</location>
-          <current_code>
-            const requestData = {
-              code: formData.code,
-              name: formData.name,
-              description: formData.description || null,
-              is_active: formData.is_active
-            };
-          </current_code>
-          <action>Confirm this is correct - no user_id field</action>
-        </file>
-      </files_to_modify>
-      <validation>
-        <test>Cost center creation should work without 422 error</test>
-        <success_criteria>Cost center created with user_id set from session</success_criteria>
-      </validation>
-    </step>
+    <principles>
+      <principle>Maintain strict user data isolation via user_id</principle>
+      <principle>Preserve all existing functionality</principle>
+      <principle>Use only fields that exist in database models</principle>
+      <principle>Maintain backward compatibility with frontend</principle>
+      <principle>Add comprehensive test coverage</principle>
+    </principles>
+  </solution-strategy>
 
-    <step id="4" order="4">
-      <title>Fix Articles 400 Error - Remove user_id from Frontend Service</title>
-      <description>Remove user_id field from articles service and ensure backend handles it automatically</description>
-      <files_to_modify>
-        <file path="/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/services/articles.service.ts">
-          <change_type>SERVICE_UPDATE</change_type>
-          <description>Remove user_id field from create method payload</description>
-          <location>Line 39-46</location>
-          <current_code>
-            async create(articleData: {
-              code: string;
-              name: string;
-              description?: string;
-              is_active?: boolean;
-              user_id?: number | null;
-              managed_by?: number;
-            }): Promise&lt;ApiResponse&lt;Article&gt;&gt; {
-          </current_code>
-          <new_code>
-            async create(articleData: {
-              code: string;
-              name: string;
-              description?: string;
-              is_active?: boolean;
-            }): Promise&lt;ApiResponse&lt;Article&gt;&gt; {
-          </new_code>
-        </file>
-        <file path="/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/articles.py">
-          <change_type>ENDPOINT_VERIFICATION</change_type>
-          <description>Verify user_id is set from session in POST endpoint</description>
-          <location>POST endpoint function</location>
-          <action>Confirm user_id is set from current_user session, not from request data</action>
-        </file>
-      </files_to_modify>
-      <validation>
-        <test>Article creation should work without 400 error</test>
-        <success_criteria>Article created with user_id set from session</success_criteria>
-      </validation>
-    </step>
+  <implementation-plan>
 
-    <step id="5" order="5">
-      <title>Verify Backend Endpoints Handle user_id Correctly</title>
-      <description>Ensure all backend endpoints set user_id from session context</description>
-      <files_to_check>
-        <file path="/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/periods.py">
-          <verification>Confirm POST endpoint sets user_id = current_user.get('user_id')</verification>
-        </file>
-        <file path="/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/financial_centers.py">
-          <verification>Confirm POST endpoint sets user_id = current_user.get('user_id')</verification>
-        </file>
-        <file path="/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/cost_centers.py">
-          <verification>Confirm POST endpoint sets user_id = current_user.get('user_id')</verification>
-        </file>
-        <file path="/home/ikeniborn/Documents/Project/familyBudget/backend-fastapi/app/api/v1/endpoints/articles.py">
-          <verification>Confirm POST endpoint sets user_id = current_user.get('user_id')</verification>
-        </file>
-      </files_to_check>
-      <validation>
-        <test>All endpoints should handle user_id automatically</test>
-        <success_criteria>No schema validation errors for user_id field</success_criteria>
-      </validation>
-    </step>
+    <!-- Phase 1: Analysis and Verification -->
+    <phase number="1" name="Analysis and Verification">
+      <tasks>
+        <task id="1.1" priority="high">
+          <name>Verify database schema for all reference models</name>
+          <description>
+            Confirm exact field definitions in SQLAlchemy models for:
+            - FinancialCenter (t_d_financial_center)
+            - CostCenter (t_d_cost_center)
+            - Article (t_d_article)
+            - Nomenclature (t_d_nomenclature)
+          </description>
+          <commands>
+            <command>docker exec budget-backend python -c "from app.models.financial_center import FinancialCenter; print([c.name for c in FinancialCenter.__table__.columns])"</command>
+            <command>docker exec budget-backend python -c "from app.models.cost_center import CostCenter; print([c.name for c in CostCenter.__table__.columns])"</command>
+            <command>docker exec budget-backend python -c "from app.models.article import Article; print([c.name for c in Article.__table__.columns])"</command>
+            <command>docker exec budget-backend python -c "from app.models.nomenclature import Nomenclature; print([c.name for c in Nomenclature.__table__.columns])"</command>
+          </commands>
+          <expected-outcome>
+            Confirmed field lists showing created_by and managed_by are NOT present in any model.
+          </expected-outcome>
+        </task>
 
-    <step id="6" order="6">
-      <title>Add Enhanced Error Handling</title>
-      <description>Improve error handling for better debugging</description>
-      <files_to_modify>
-        <file path="/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/periods/+page.svelte">
-          <change_type>ERROR_HANDLING</change_type>
-          <description>Add better error logging for debugging</description>
-        </file>
-        <file path="/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/financial-centers/+page.svelte">
-          <change_type>ERROR_HANDLING</change_type>
-          <description>Add better error logging for debugging</description>
-        </file>
-        <file path="/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/cost-centers/+page.svelte">
-          <change_type>ERROR_HANDLING</change_type>
-          <description>Add better error logging for debugging</description>
-        </file>
-        <file path="/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/routes/(protected)/settings/articles/+page.svelte">
-          <change_type>ERROR_HANDLING</change_type>
-          <description>Add better error logging for debugging</description>
-        </file>
-      </files_to_modify>
-    </step>
-  </implementation_steps>
+        <task id="1.2" priority="high">
+          <name>Check Pydantic schemas for consistency</name>
+          <description>
+            Review all Pydantic schemas to ensure they don't reference non-existent fields
+          </description>
+          <files>
+            <file>backend-fastapi/app/schemas/financial_center.py</file>
+            <file>backend-fastapi/app/schemas/cost_center.py</file>
+            <file>backend-fastapi/app/schemas/article.py</file>
+            <file>backend-fastapi/app/schemas/nomenclature.py</file>
+          </files>
+          <validation>Schemas should only reference fields that exist in database models</validation>
+        </task>
 
-  <testing_approach>
-    <unit_tests>
-      <test id="1">
-        <description>Test period creation with valid data</description>
-        <expected_result>Period created successfully without schema errors</expected_result>
-      </test>
-      <test id="2">
-        <description>Test financial center creation with valid data</description>
-        <expected_result>Financial center created with user_id from session</expected_result>
-      </test>
-      <test id="3">
-        <description>Test cost center creation with valid data</description>
-        <expected_result>Cost center created with user_id from session</expected_result>
-      </test>
-      <test id="4">
-        <description>Test article creation with valid data</description>
-        <expected_result>Article created with user_id from session</expected_result>
-      </test>
-    </unit_tests>
+        <task id="1.3" priority="medium">
+          <name>Document current error patterns</name>
+          <description>
+            Test current endpoints to capture exact error messages and failure points
+          </description>
+          <test-commands>
+            <command>curl -X POST http://localhost:4000/api/financial_centers/ -H "Content-Type: application/json" -d '{"code":"TEST","name":"Test Center","description":"Test"}'</command>
+            <command>curl -X POST http://localhost:4000/api/cost_centers/ -H "Content-Type: application/json" -d '{"code":"TEST","name":"Test Center","description":"Test"}'</command>
+          </test-commands>
+        </task>
+      </tasks>
+    </phase>
 
-    <integration_tests>
-      <test id="1">
-        <description>E2E test of complete CRUD workflows for all settings pages</description>
-        <steps>
-          <step>Login as admin user</step>
-          <step>Navigate to each settings page</step>
-          <step>Create new entities</step>
-          <step>Edit entities</step>
-          <step>Delete entities</step>
-        </steps>
-        <expected_result>All CRUD operations work without errors</expected_result>
-      </test>
-    </integration_tests>
+    <!-- Phase 2: Fix Financial Centers -->
+    <phase number="2" name="Fix Financial Centers Module">
+      <tasks>
+        <task id="2.1" priority="critical">
+          <name>Remove created_by/managed_by from financial_centers.py</name>
+          <description>
+            Clean up financial_centers.py endpoint to remove all references to non-existent fields
+          </description>
+          <file>backend-fastapi/app/api/v1/endpoints/financial_centers.py</file>
+          <changes>
+            <change line="63-64">Remove getattr calls for created_by and managed_by</change>
+            <change line="103-104">Remove getattr calls for created_by and managed_by</change>
+            <change line="154-155">Remove getattr calls for created_by and managed_by</change>
+            <change line="222-223">Remove getattr calls for created_by and managed_by</change>
+          </changes>
+          <validation>
+            <test>POST /api/financial_centers/ should succeed</test>
+            <test>GET /api/financial_centers/ should return data without created_by/managed_by</test>
+          </validation>
+        </task>
+      </tasks>
+    </phase>
 
-    <validation_commands>
-      <command description="Test backend schemas">
-        docker exec budget-backend python -m pytest tests/backend/test_periods_api.py -v
-        docker exec budget-backend python -m pytest tests/backend/test_financial_centers_api.py -v
-        docker exec budget-backend python -m pytest tests/backend/test_cost_centers_api.py -v
-        docker exec budget-backend python -m pytest tests/backend/test_articles_api.py -v
+    <!-- Phase 3: Fix Cost Centers -->
+    <phase number="3" name="Fix Cost Centers Module">
+      <tasks>
+        <task id="3.1" priority="critical">
+          <name>Remove created_by/managed_by from cost_centers.py</name>
+          <description>
+            Clean up cost_centers.py endpoint to remove all references to non-existent fields
+          </description>
+          <file>backend-fastapi/app/api/v1/endpoints/cost_centers.py</file>
+          <changes>
+            <change line="63-64">Remove getattr calls for created_by and managed_by</change>
+            <change line="103-104">Remove getattr calls for created_by and managed_by</change>
+            <change line="142-143">Remove created_by and managed_by from constructor</change>
+            <change line="156-157">Remove direct access to created_by and managed_by</change>
+            <change line="224-225">Remove direct access to created_by and managed_by</change>
+          </changes>
+          <validation>
+            <test>POST /api/cost_centers/ should succeed</test>
+            <test>PUT /api/cost_centers/{id} should succeed</test>
+          </validation>
+        </task>
+      </tasks>
+    </phase>
+
+    <!-- Phase 4: Fix Articles -->
+    <phase number="4" name="Fix Articles Module">
+      <tasks>
+        <task id="4.1" priority="critical">
+          <name>Remove created_by/managed_by from articles.py</name>
+          <description>
+            Clean up articles.py endpoint to remove all references to non-existent fields
+          </description>
+          <file>backend-fastapi/app/api/v1/endpoints/articles.py</file>
+          <changes>
+            <change line="69-70">Remove getattr calls for created_by and managed_by</change>
+            <change line="149-150">Remove getattr calls for created_by and managed_by</change>
+            <change line="177-178">Remove created_by and managed_by from constructor</change>
+            <change line="192-193">Remove direct access to created_by and managed_by</change>
+            <change line="242-244">Remove managed_by update logic</change>
+            <change line="256-257">Remove direct access to created_by and managed_by</change>
+          </changes>
+          <validation>
+            <test>POST /api/articles/ should succeed</test>
+            <test>Articles page should load without 500 errors</test>
+          </validation>
+        </task>
+      </tasks>
+    </phase>
+
+    <!-- Phase 5: Fix Nomenclatures -->
+    <phase number="5" name="Fix Nomenclatures Module">
+      <tasks>
+        <task id="5.1" priority="critical">
+          <name>Remove created_by/managed_by from nomenclatures.py</name>
+          <description>
+            Clean up nomenclatures.py endpoint to remove all references to non-existent fields
+          </description>
+          <file>backend-fastapi/app/api/v1/endpoints/nomenclatures.py</file>
+          <changes>
+            <change line="80-81">Remove getattr calls for created_by and managed_by</change>
+            <change line="128-129">Remove getattr calls for created_by and managed_by</change>
+            <change line="175-176">Remove created_by and managed_by from constructor</change>
+            <change line="197-198">Remove direct access to created_by and managed_by</change>
+            <change line="277-278">Remove direct access to created_by and managed_by</change>
+          </changes>
+          <validation>
+            <test>POST /api/nomenclatures/ should succeed</test>
+            <test>All nomenclature CRUD operations should work</test>
+          </validation>
+        </task>
+      </tasks>
+    </phase>
+
+    <!-- Phase 6: Schema Standardization -->
+    <phase number="6" name="Schema Standardization">
+      <tasks>
+        <task id="6.1" priority="high">
+          <name>Update Pydantic schemas to match database models</name>
+          <description>
+            Ensure all Pydantic schemas accurately reflect database model fields
+          </description>
+          <approach>
+            <step>Remove created_by/managed_by from all *Create schemas</step>
+            <step>Remove created_by/managed_by from all *Update schemas</step>
+            <step>Remove created_by/managed_by from all *Public schemas</step>
+            <step>Ensure user_id is handled automatically by endpoints</step>
+          </approach>
+        </task>
+
+        <task id="6.2" priority="medium">
+          <name>Standardize response format across all modules</name>
+          <description>
+            Ensure consistent response structure without non-existent fields
+          </description>
+          <standard-response>
+            {
+              "success": true,
+              "data": {
+                "id": int,
+                "code": string,
+                "name": string,
+                "description": string,
+                "is_active": boolean,
+                "user_id": int,
+                "created_at": datetime,
+                "updated_at": datetime
+              }
+            }
+          </standard-response>
+        </task>
+      </tasks>
+    </phase>
+
+    <!-- Phase 7: Testing -->
+    <phase number="7" name="Comprehensive Testing">
+      <tasks>
+        <task id="7.1" priority="critical">
+          <name>Create CRUD operation tests for all modules</name>
+          <description>
+            Implement comprehensive test coverage for all reference modules
+          </description>
+          <test-files>
+            <file>tests/backend/test_financial_centers_crud_fix.py</file>
+            <file>tests/backend/test_cost_centers_crud_fix.py</file>
+            <file>tests/backend/test_articles_crud_fix.py</file>
+            <file>tests/backend/test_nomenclatures_crud_fix.py</file>
+          </test-files>
+          <test-scenarios>
+            <scenario>Create operations succeed without 500 errors</scenario>
+            <scenario>Read operations return correct data structure</scenario>
+            <scenario>Update operations work with valid fields only</scenario>
+            <scenario>Delete operations work correctly</scenario>
+            <scenario>User isolation is maintained</scenario>
+            <scenario>Error handling for invalid data</scenario>
+          </test-scenarios>
+        </task>
+
+        <task id="7.2" priority="high">
+          <name>Frontend integration testing</name>
+          <description>
+            Test all settings pages work correctly with fixed endpoints
+          </description>
+          <pages-to-test>
+            <page>/settings/financial-centers</page>
+            <page>/settings/cost-centers</page>
+            <page>/settings/articles</page>
+            <page>/settings/nomenclatures</page>
+          </pages-to-test>
+        </task>
+
+        <task id="7.3" priority="medium">
+          <name>Performance validation</name>
+          <description>
+            Ensure fixes don't impact performance
+          </description>
+          <metrics>
+            <metric>Response times for CRUD operations</metric>
+            <metric>Database query efficiency</metric>
+            <metric>Memory usage patterns</metric>
+          </metrics>
+        </task>
+      </tasks>
+    </phase>
+
+    <!-- Phase 8: Documentation -->
+    <phase number="8" name="Documentation">
+      <tasks>
+        <task id="8.1" priority="medium">
+          <name>Create Architecture Decision Record</name>
+          <description>
+            Document the decision to remove created_by/managed_by fields
+          </description>
+          <file>docs/architecture/adr-011-crud-operations-schema-fix.md</file>
+          <content>
+            <section>Context and Problem Statement</section>
+            <section>Decision Drivers</section>
+            <section>Considered Options</section>
+            <section>Decision Outcome</section>
+            <section>Consequences</section>
+          </content>
+        </task>
+
+        <task id="8.2" priority="low">
+          <name>Update API documentation</name>
+          <description>
+            Update endpoint documentation to reflect actual field structure
+          </description>
+          <files>
+            <file>docs/api/financial-centers.md</file>
+            <file>docs/api/cost-centers.md</file>
+            <file>docs/api/articles.md</file>
+            <file>docs/api/nomenclatures.md</file>
+          </files>
+        </task>
+      </tasks>
+    </phase>
+
+  </implementation-plan>
+
+  <validation-criteria>
+    <success-metrics>
+      <metric>All reference module CRUD operations work without 500 errors</metric>
+      <metric>Settings pages are fully functional</metric>
+      <metric>User data isolation is maintained</metric>
+      <metric>No regression in existing functionality</metric>
+      <metric>Test coverage above 85% for all modified modules</metric>
+    </success-metrics>
+
+    <test-commands>
+      <command description="Test financial center creation">
+        curl -X POST http://localhost:4000/api/financial_centers/ \
+          -H "Content-Type: application/json" \
+          -H "Cookie: connect.sid=admin-session-id" \
+          -d '{"code":"FC001","name":"Test Financial Center","description":"Test","is_active":true}'
       </command>
 
-      <command description="Test frontend components">
-        docker exec budget-frontend npm run test periods.test.ts
-        docker exec budget-frontend npm run test financial_centers.test.ts
-        docker exec budget-frontend npm run test cost_centers.test.ts
-        docker exec budget-frontend npm run test articles.test.ts
+      <command description="Test cost center creation">
+        curl -X POST http://localhost:4000/api/cost_centers/ \
+          -H "Content-Type: application/json" \
+          -H "Cookie: connect.sid=admin-session-id" \
+          -d '{"code":"CC001","name":"Test Cost Center","description":"Test","is_active":true}'
       </command>
 
-      <command description="Manual testing">
-        # Access each settings page and test CRUD operations:
-        # http://localhost:5173/settings/periods
-        # http://localhost:5173/settings/financial-centers
-        # http://localhost:5173/settings/cost-centers
-        # http://localhost:5173/settings/articles
+      <command description="Test article creation">
+        curl -X POST http://localhost:4000/api/articles/ \
+          -H "Content-Type: application/json" \
+          -H "Cookie: connect.sid=admin-session-id" \
+          -d '{"code":"ART001","name":"Test Article","description":"Test","is_active":true}'
       </command>
-    </validation_commands>
-  </testing_approach>
 
-  <rollback_plan>
-    <description>If implementation fails, revert changes and restore working state</description>
+      <command description="Test nomenclature creation">
+        curl -X POST http://localhost:4000/api/nomenclatures/ \
+          -H "Content-Type: application/json" \
+          -H "Cookie: connect.sid=admin-session-id" \
+          -d '{"code":"NOM001","name":"Test Nomenclature","description":"Test","is_active":true}'
+      </command>
+    </test-commands>
+  </validation-criteria>
+
+  <rollback-plan>
+    <triggers>
+      <trigger>Any CRUD operation still fails after fixes</trigger>
+      <trigger>Data corruption or loss detected</trigger>
+      <trigger>User isolation compromised</trigger>
+      <trigger>Critical functionality regression</trigger>
+    </triggers>
+
     <steps>
-      <step>Create git branch before starting changes</step>
-      <step>Commit each file change separately for granular rollback</step>
-      <step>If errors persist, revert to previous working commit</step>
-      <step>Review error logs and adjust approach</step>
+      <step>Revert all endpoint changes using git</step>
+      <step>Restore original endpoint files from backup</step>
+      <step>Run full test suite to ensure stability</step>
+      <step>Investigate alternative approaches</step>
     </steps>
-  </rollback_plan>
+  </rollback-plan>
 
-  <risk_assessment>
+  <timeline>
+    <milestone date="2025-09-19" phase="1">Analysis and verification complete</milestone>
+    <milestone date="2025-09-19" phase="2-5">All endpoint fixes implemented</milestone>
+    <milestone date="2025-09-19" phase="6">Schema standardization complete</milestone>
+    <milestone date="2025-09-19" phase="7">Testing complete</milestone>
+    <milestone date="2025-09-19" phase="8">Documentation complete</milestone>
+  </timeline>
+
+  <risk-assessment>
     <risks>
-      <risk level="LOW">
-        <description>Schema changes might affect other endpoints</description>
-        <mitigation>Test all endpoints after changes</mitigation>
+      <risk level="low" impact="medium">
+        <description>Frontend compatibility issues with modified response structure</description>
+        <mitigation>Maintain backward compatibility in response format</mitigation>
       </risk>
-      <risk level="MEDIUM">
-        <description>Frontend-backend API contract changes</description>
-        <mitigation>Verify all API calls work after schema updates</mitigation>
+
+      <risk level="low" impact="low">
+        <description>Performance impact from schema changes</description>
+        <mitigation>Performance testing and optimization</mitigation>
       </risk>
-      <risk level="LOW">
-        <description>User authentication issues</description>
-        <mitigation>Ensure session handling remains intact</mitigation>
+
+      <risk level="medium" impact="high">
+        <description>Undiscovered dependencies on created_by/managed_by fields</description>
+        <mitigation>Comprehensive testing and gradual rollout</mitigation>
       </risk>
     </risks>
-  </risk_assessment>
+  </risk-assessment>
 
-  <post_implementation>
-    <documentation_updates>
-      <file path="/docs/api/field-mapping-fix.md">Create documentation for the field mapping fixes</file>
-      <file path="/docs/architecture/adr-011-settings-crud-fix.md">Create ADR for the architectural decision</file>
-    </documentation_updates>
+  <success-definition>
+    <criteria>
+      <criterion>Users can create financial centers without errors</criterion>
+      <criterion>Users can create cost centers without errors</criterion>
+      <criterion>Users can create articles without errors</criterion>
+      <criterion>Users can create nomenclatures without errors</criterion>
+      <criterion>All settings pages are fully functional</criterion>
+      <criterion>Data integrity and user isolation maintained</criterion>
+      <criterion>No regression in existing functionality</criterion>
+      <criterion>Comprehensive test coverage achieved</criterion>
+    </criteria>
 
-    <monitoring>
-      <description>Monitor settings pages for any new errors after deployment</description>
-      <log_locations>
-        <location>Browser console for frontend errors</location>
-        <location>Backend logs for API errors</location>
-        <location>Docker logs for container issues</location>
-      </log_locations>
-    </monitoring>
-  </post_implementation>
+    <measurement>
+      All reference module CRUD operations complete successfully with proper HTTP status codes
+      (200, 201) and correct response structures, enabling full application functionality
+      for budget management and configuration.
+    </measurement>
+  </success-definition>
 
-  <success_criteria>
-    <criterion id="1">All settings pages load without errors</criterion>
-    <criterion id="2">CRUD operations work for periods, financial centers, cost centers, and articles</criterion>
-    <criterion id="3">No 422 validation errors on entity creation</criterion>
-    <criterion id="4">No 500 server errors on entity creation</criterion>
-    <criterion id="5">No 400 bad request errors on entity creation</criterion>
-    <criterion id="6">User data isolation maintained (user_id correctly set from session)</criterion>
-    <criterion id="7">All existing tests continue to pass</criterion>
-  </success_criteria>
-</implementation_plan>
+</comprehensive-fix-plan>

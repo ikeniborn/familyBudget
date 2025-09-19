@@ -77,10 +77,8 @@ async def get_nomenclatures(
             'parent_id': nomenclature.parent_id,
             'article_id': nomenclature.article_id,
             'user_id': nomenclature.user_id,
-            'created_by': getattr(nomenclature, 'created_by', None),
-            'managed_by': getattr(nomenclature, 'managed_by', None),
-            'created_at': getattr(nomenclature, 'created_at', None),
-            'updated_at': getattr(nomenclature, 'updated_at', None),
+            'created_at': nomenclature.created_at,
+            'updated_at': nomenclature.updated_at,
             'is_shared': False,
             'is_editable': True
         }
@@ -171,9 +169,7 @@ async def create_nomenclature(
             is_active=nomenclature_data.is_active,
             parent_id=nomenclature_data.parent_id,
             article_id=nomenclature_data.article_id,
-            user_id=user_id,
-            created_by=user_id,
-            managed_by=nomenclature_data.managed_by if hasattr(nomenclature_data, 'managed_by') else None
+            user_id=user_id
         )
         db.add(nomenclature)
         await db.commit()
@@ -194,8 +190,6 @@ async def create_nomenclature(
             'parent_id': nomenclature.parent_id,
             'article_id': nomenclature.article_id,
             'user_id': nomenclature.user_id,
-            'created_by': nomenclature.created_by,
-            'managed_by': nomenclature.managed_by,
             'created_at': nomenclature.created_at,
             'updated_at': nomenclature.updated_at,
             'is_shared': False,
@@ -274,8 +268,6 @@ async def update_nomenclature(
             'parent_id': nomenclature.parent_id,
             'article_id': nomenclature.article_id,
             'user_id': nomenclature.user_id,
-            'created_by': nomenclature.created_by,
-            'managed_by': nomenclature.managed_by,
             'created_at': nomenclature.created_at,
             'updated_at': nomenclature.updated_at,
             'is_shared': False,

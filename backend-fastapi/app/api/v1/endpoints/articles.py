@@ -66,10 +66,8 @@ async def get_articles(
             'description': article.description,
             'is_active': article.is_active,
             'user_id': article.user_id,
-            'created_by': getattr(article, 'created_by', None),
-            'managed_by': getattr(article, 'managed_by', None),
-            'created_at': getattr(article, 'created_at', None),
-            'updated_at': getattr(article, 'updated_at', None),
+            'created_at': article.created_at,
+            'updated_at': article.updated_at,
             'is_shared': False,
             'is_editable': True
         }
@@ -173,9 +171,7 @@ async def create_article(
             name=article_data.name,
             description=article_data.description,
             is_active=article_data.is_active,
-            user_id=user_id,
-            created_by=user_id,
-            managed_by=article_data.managed_by or user_id
+            user_id=user_id
         )
 
         db.add(article)
@@ -189,8 +185,6 @@ async def create_article(
             'description': article.description,
             'is_active': article.is_active,
             'user_id': article.user_id,
-            'created_by': article.created_by,
-            'managed_by': article.managed_by,
             'created_at': article.created_at,
             'updated_at': article.updated_at,
             'is_shared': False,
@@ -239,9 +233,6 @@ async def update_article(
             if hasattr(article, field):
                 setattr(article, field, value)
 
-        # Always update managed_by to current user if not specified
-        if 'managed_by' not in update_data:
-            article.managed_by = user_id
 
         await db.commit()
         await db.refresh(article)
@@ -253,8 +244,6 @@ async def update_article(
             'description': article.description,
             'is_active': article.is_active,
             'user_id': article.user_id,
-            'created_by': article.created_by,
-            'managed_by': article.managed_by,
             'created_at': article.created_at,
             'updated_at': article.updated_at,
             'is_shared': False,

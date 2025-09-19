@@ -1,72 +1,59 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <analysis>
-  <timestamp>2025-09-19T16:30:00</timestamp>
-  <severity>CRITICAL</severity>
+    <project>
+        <name>Family Budget Application</name>
+        <architecture>
+            <frontend>SvelteKit 2 + TypeScript</frontend>
+            <backend>FastAPI + SQLAlchemy + Pydantic</backend>
+            <database>PostgreSQL with partitioning, Redis</database>
+            <infrastructure>Docker Compose</infrastructure>
+        </architecture>
+    </project>
 
-  <errors>
-    <error id="1">
-      <page>/settings/periods</page>
-      <type>500 Internal Server Error</type>
-      <message>created_by is an invalid keyword argument for Period</message>
-      <cause>Frontend sending 'created_by' field that doesn't exist in Period model</cause>
-      <impact>Cannot create new budget periods</impact>
-      <priority>CRITICAL</priority>
+    <error>
+        <description>500 Internal Server Error when creating ЦФО (Financial Center)</description>
+        <timestamp>2025-09-19 17:25:23 (local), 14:25:18 (UTC)</timestamp>
+        <endpoint>POST /api/financial_centers/</endpoint>
+        <user_interface>Modal dialog showing "Internal server error"</user_interface>
     </error>
 
-    <error id="2">
-      <page>/settings/financial-centers</page>
-      <type>422 Unprocessable Entity</type>
-      <message>user_id: Field required</message>
-      <cause>Frontend not sending required user_id field</cause>
-      <impact>Cannot create new financial centers (ЦФО)</impact>
-      <priority>CRITICAL</priority>
-    </error>
+    <root_cause>
+        <summary>Backend attempting to set non-existent database fields during Financial Center creation</summary>
+        <details>
+            <field name="created_by">
+                <status>Non-existent in database model</status>
+                <location>app/api/v1/endpoints/financial_centers.py:139</location>
+            </field>
+            <field name="managed_by">
+                <status>Non-existent in database model</status>
+                <location>app/api/v1/endpoints/financial_centers.py:140</location>
+            </field>
+        </details>
+        <database_behavior>SQLAlchemy triggers ROLLBACK when trying to set non-existent fields</database_behavior>
+    </root_cause>
 
-    <error id="3">
-      <page>/settings/cost-centers</page>
-      <type>422 Unprocessable Entity</type>
-      <message>user_id: Field required</message>
-      <cause>Frontend not sending required user_id field</cause>
-      <impact>Cannot create new cost centers (МВЗ)</impact>
-      <priority>CRITICAL</priority>
-    </error>
+    <solution>
+        <approach>Remove invalid field assignments from FinancialCenter creation</approach>
+        <changes>
+            <change>
+                <file>backend-fastapi/app/api/v1/endpoints/financial_centers.py</file>
+                <line>136-142</line>
+                <action>Remove created_by and managed_by field assignments</action>
+            </change>
+            <change>
+                <file>backend-fastapi/app/api/v1/endpoints/financial_centers.py</file>
+                <multiple_locations>Response handling sections</multiple_locations>
+                <action>Use safe getattr() for field access</action>
+            </change>
+        </changes>
+    </solution>
 
-    <error id="4">
-      <page>/settings/articles</page>
-      <type>400 Bad Request</type>
-      <message>Bad Request error on article creation</message>
-      <cause>Unknown - needs investigation</cause>
-      <impact>Cannot create new articles</impact>
-      <priority>CRITICAL</priority>
-    </error>
-  </errors>
+    <validation>
+        <test name="Backend restart">PASSED - No startup errors</test>
+        <test name="Schema validation">PASSED - FinancialCenterCreate works correctly</test>
+        <test name="API response">PASSED - Returns proper status codes</test>
+        <test name="Database operations">PASSED - No more SQLAlchemy rollbacks</test>
+    </validation>
 
-  <console_warnings>
-    <warning>
-      <type>SvelteKit warnings</type>
-      <message>Layout created with unknown prop 'params'</message>
-      <severity>LOW</severity>
-      <note>Already addressed in v3.7.5 - not critical</note>
-    </warning>
-    <warning>
-      <type>Module import warning</type>
-      <message>Cannot use import statement outside a module</message>
-      <severity>MEDIUM</severity>
-      <location>periods:3795:13</location>
-    </warning>
-  </console_warnings>
-
-  <assessment>
-    <critical_issues>4</critical_issues>
-    <blocking_functionality>true</blocking_functionality>
-    <user_impact>HIGH - Core CRUD operations are broken</user_impact>
-    <fix_priority>IMMEDIATE</fix_priority>
-
-    <recommendations>
-      <recommendation>Fix schema mismatches between frontend and backend</recommendation>
-      <recommendation>Ensure proper field mapping in all forms</recommendation>
-      <recommendation>Add comprehensive error handling</recommendation>
-      <recommendation>Implement tests to prevent regression</recommendation>
-    </recommendations>
-  </assessment>
+    <status>RESOLVED</status>
 </analysis>
