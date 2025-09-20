@@ -9,7 +9,6 @@
   } from '$lib/stores/referenceData.store';
   import { useToast } from '$lib/stores/toast.store';
   import { registryService, type CreateRegistryData } from '$lib/services/registry.service';
-  import Card from '$lib/components/ui/Card.svelte';
   import Input from '$lib/components/ui/Input.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Loading from '$lib/components/common/Loading.svelte';
@@ -152,25 +151,12 @@
 </script>
 
 {#if loading}
-  <div class="flex justify-center items-center min-h-[400px]">
+  <div class="flex justify-center items-center min-h-[200px]">
     <Loading size="large" text="Загрузка формы..." />
   </div>
 {:else}
-  <Card class="border-l-4 border-l-blue-500 max-w-2xl mx-auto">
-    <div class="bg-gradient-to-r from-blue-50 to-purple-50 p-6 border-b">
-      <div class="flex items-center gap-3 mb-2">
-        <div class="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
-          <CreditCard class="h-6 w-6 text-blue-600" />
-        </div>
-        <div>
-          <h2 class="text-xl font-bold text-slate-900">Добавить операцию</h2>
-          <p class="text-sm text-slate-600">Внесите информацию о расходе или доходе</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="p-6">
-      <form on:submit|preventDefault={handleSubmit} class="space-y-6">
+  <div class="max-w-2xl mx-auto">
+    <form on:submit|preventDefault={handleSubmit} class="space-y-6">
         <!-- Date and Period -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="space-y-2">
@@ -352,6 +338,5 @@
           </Button>
         </div>
       </form>
-    </div>
-  </Card>
+  </div>
 {/if}

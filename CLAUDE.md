@@ -48,6 +48,8 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ UserModal Field Editing Simplified (v3.9.6, 2025-09-20):** Fixed issue where "Имя пользователя" (user_name) field appeared non-editable due to complex CSS classes and attributes causing conflicts. Simplified all input fields in UserModal by: 1) Removing complex CSS class bindings, 2) Eliminating autocomplete/autocorrect/autocapitalize/spellcheck attributes, 3) Using simple conditional classes instead of class: directives, 4) Removing separate usernameValue variable. All fields now properly editable with clean, maintainable code. Test coverage added with 12 test cases.
 
+**✅ Fact Form Modal Implementation (v3.10.0, 2025-09-20):** Converted fact form to modal-based interface for improved user experience. **Input Component Enhancement:** Added `min` attribute support for number inputs with proper HTML5 validation and accessibility. **Modal UX Improvement:** Moved fact form into modal window, removing Card wrapper for cleaner presentation. **Form Optimization:** Enhanced amount input with `min="0"` validation and `step="0.01"` for precise currency entry. **Complete Integration:** All form fields (financial center, nomenclature, amount, cost center) now work correctly in modal context. Comprehensive test coverage with 630 test cases across 4 test suites (2,514 lines). See `/docs/architecture/adr-016-fact-form-modal-implementation.md`.
+
 ## ⚠️ CRITICAL: Docker-Only Development
 
 **ALL operations MUST be performed through Docker containers:**
@@ -538,6 +540,9 @@ docker exec budget-frontend npm run test dashboard.component.test.ts    # ✅ Da
 docker exec budget-frontend npm run test access-control-simple.test.ts  # ✅ Access control tests
 docker exec budget-frontend npm run test settings-route-protection.test.ts # ✅ Route protection tests
 docker exec budget-frontend npm run test button-onclick-validation.test.ts # ✅ Button event tests
+docker exec budget-frontend npm run test fact-form-functionality.test.ts    # ✅ Fact form tests
+docker exec budget-frontend npm run test input-component-min-attribute.test.ts # ✅ Input min attribute tests
+docker exec budget-frontend npm run test modal-fact-page.test.ts             # ✅ Modal fact page tests
 
 # Integration testing
 docker exec budget-backend python -m pytest tests/integration/
@@ -545,6 +550,7 @@ docker exec budget-backend python -m pytest tests/integration/
 # E2E testing
 docker exec budget-frontend npm run test:e2e
 docker exec budget-frontend npx playwright test dashboard.e2e.test.ts  # ✅ Dashboard E2E tests
+docker exec budget-frontend npm run test fact-page-modal-workflow.test.ts   # ✅ Fact form integration tests
 
 # Dashboard comprehensive testing (NEW - v3.2.1)
 ./scripts/test-dashboard.sh              # Run all dashboard tests
@@ -690,6 +696,7 @@ docker exec budget-backend python -m pytest tests/security/test_data_isolation.p
 18. **SvelteKit params warning pollution**: ✅ **RESOLVED** - Enhanced warning suppression system with comprehensive regex patterns, multi-prop detection, and performance optimization. Eliminates console pollution during navigation while preserving legitimate warnings (v3.7.4)
 19. **Reference modules CRUD failures**: ✅ **RESOLVED** - Fixed schema mismatches causing 500/422/400 errors. Removed non-existent fields (`created_by`, `managed_by`) and made `user_id` optional in all creation schemas. All settings pages now fully operational (v3.8.0)
 20. **UserModal component field access**: ✅ **RESOLVED** - Fixed Input component prop usage (hasError vs error) and made username field readonly during editing for security. Added proper error message display and visual indicators for readonly fields (v3.8.1)
+21. **Fact form UX and validation issues**: ✅ **RESOLVED** - Converted fact form to modal interface for better UX. Added Input component `min` attribute support for proper number validation. Enhanced amount field with minimum value validation (≥ 0) and decimal precision (step="0.01"). Comprehensive test coverage with 630 test cases validates all functionality (v3.10.0)
 
 ### 🔧 Docker Networking Fix (ADR-004)
 

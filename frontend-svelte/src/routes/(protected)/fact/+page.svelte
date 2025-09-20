@@ -1,6 +1,7 @@
 <script lang="ts">
   import FactForm from '$lib/components/fact/FactForm.svelte';
   import FactList from '$lib/components/fact/FactList.svelte';
+  import Modal from '$lib/components/ui/Modal.svelte';
   import { CreditCard, Plus, BarChart3, Calculator } from 'lucide-svelte';
 
   let showForm = false;
@@ -43,7 +44,7 @@
     <div class="action-panel">
       <button on:click={toggleForm} class="action-btn action-btn-primary">
         <Plus class="h-5 w-5" />
-        {showForm ? 'Скрыть форму' : 'Добавить операцию'}
+        Добавить операцию
       </button>
       <a href="/budget" class="action-btn action-btn-secondary">
         <Calculator class="h-5 w-5" />
@@ -57,13 +58,6 @@
 
     <!-- Основной контент -->
     <div class="main-content">
-      <!-- Form Section -->
-      {#if showForm}
-        <div class="form-wrapper">
-          <FactForm onSuccess={handleFormSuccess} />
-        </div>
-      {/if}
-
       <!-- List Section -->
       <div class="list-wrapper">
         {#key refreshList}
@@ -71,6 +65,16 @@
         {/key}
       </div>
     </div>
+
+    <!-- Modal Form -->
+    <Modal
+      show={showForm}
+      title="Добавить операцию"
+      size="large"
+      onclose={() => showForm = false}
+    >
+      <FactForm onSuccess={handleFormSuccess} />
+    </Modal>
   </div>
 </div>
 
@@ -142,10 +146,6 @@
       opacity: 1;
       transform: translateY(0);
     }
-  }
-
-  .form-wrapper {
-    @apply transition-all duration-300 ease-in-out;
   }
 
   .list-wrapper {

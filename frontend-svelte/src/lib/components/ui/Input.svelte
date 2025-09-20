@@ -14,6 +14,7 @@
   export let hasError = false;
   export let size: 'sm' | 'md' | 'lg' = 'md';
   export let step: number | undefined = undefined;
+  export let min: number | undefined = undefined;
   let className = '';
   export { className as class };
 
@@ -145,6 +146,7 @@
       {id}
       {name}
       {step}
+      {min}
       bind:value
       class={inputClass}
       aria-invalid={hasError}
