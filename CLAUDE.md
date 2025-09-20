@@ -40,6 +40,8 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ Input Component Readonly Styling Fix (v3.9.1, 2025-09-20):** Enhanced Input component with proper readonly visual states and accessibility indicators. Added lock icon (🔒) for readonly fields, distinct gray background styling, and clear visual differentiation between readonly, disabled, and editable states. Fixes user confusion in forms where readonly fields appeared disabled. Comprehensive test coverage with 194 test cases. Improved UX consistency across all form inputs. See `/docs/architecture/adr-014-input-readonly-styling-fix.md` and `/docs/ui/input-component-states.md`.
 
+**✅ UserModal Field Editability Fix (v3.9.2, 2025-09-20):** Fixed issue where email and password fields in user editing modal were incorrectly appearing as readonly/disabled. Added explicit `readonly={false}` and `disabled={false}` props to email and password Input components in UserModal. Username field correctly remains readonly during editing for security (as per v3.8.1). Full user management functionality restored with comprehensive test coverage (15 tests). Admin users can now properly edit email addresses and update passwords. See `/docs/architecture/adr-015-user-modal-field-editability-fix.md`.
+
 ## ⚠️ CRITICAL: Docker-Only Development
 
 **ALL operations MUST be performed through Docker containers:**

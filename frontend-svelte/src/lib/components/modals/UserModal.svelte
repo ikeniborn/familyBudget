@@ -155,6 +155,8 @@
           bind:value={formData.user_email}
           placeholder="Введите email"
           hasError={!!errors.user_email}
+          readonly={false}
+          disabled={false}
         />
         {#if errors.user_email}
           <div class="text-sm text-red-600">{errors.user_email}</div>
@@ -190,6 +192,8 @@
           placeholder={isEditing ? 'Новый пароль' : 'Введите пароль'}
           hasError={!!errors.password}
           required={!isEditing}
+          readonly={false}
+          disabled={false}
         />
         {#if errors.password}
           <div class="text-sm text-red-600">{errors.password}</div>

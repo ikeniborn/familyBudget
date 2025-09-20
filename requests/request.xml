@@ -13,13 +13,13 @@
         </architecture>
     </project>
     <context>
-        http://localhost:5173/products
-        Удалить функционал раздела продуктов с четом ввода спраоников.
+        http://localhost:5173/settings/users
+        ПРи редактировании пользователя не получается отредакттировать имя пользвоателя, почту, пароль.
+        /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-09-20 10-04-36.png
     </context>
     <requirements>
-        <point number="1">Удалить раздел управления продукктами</point>
-        <point number="2">Удали ть все зависимости. Удалть фронт, бэк, БД</point>
-        <point number="3">Протестировать остаавщийся функционал. Влияение не должно быть</point>
+        <point number="1">Проаналлизилвать проблему</point>
+        <point number="2">Исправть проблему с ввдом на форме реддактирования пользователя</point>
     </requirements>
     <tasks>
         <task number="1">
