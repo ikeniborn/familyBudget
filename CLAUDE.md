@@ -38,6 +38,8 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ Products Module Removal (v3.9.0, 2025-09-19):** Complete removal of products functionality from the application. **Frontend:** Removed products route, 6 components, service, and tests (~96k lines). **Backend:** Removed API endpoints, models, schemas, and tests. **Database:** Created migration dropping t_d_product, t_f_product_price, and t_l_product_nomenclature tables. **Cleanup:** Removed all product references from navigation, types, schemas, dashboard, and documentation. Application verified working correctly without products module. See `/docs/architecture/adr-013-products-module-removal.md`.
 
+**✅ Input Component Readonly Styling Fix (v3.9.1, 2025-09-20):** Enhanced Input component with proper readonly visual states and accessibility indicators. Added lock icon (🔒) for readonly fields, distinct gray background styling, and clear visual differentiation between readonly, disabled, and editable states. Fixes user confusion in forms where readonly fields appeared disabled. Comprehensive test coverage with 194 test cases. Improved UX consistency across all form inputs. See `/docs/architecture/adr-014-input-readonly-styling-fix.md` and `/docs/ui/input-component-states.md`.
+
 ## ⚠️ CRITICAL: Docker-Only Development
 
 **ALL operations MUST be performed through Docker containers:**
