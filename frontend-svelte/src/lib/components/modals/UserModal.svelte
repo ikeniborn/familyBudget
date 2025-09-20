@@ -1,7 +1,6 @@
 <script lang="ts">
   import Modal from '$lib/components/ui/Modal.svelte';
   import Button from '$lib/components/ui/Button.svelte';
-  import Input from '$lib/components/ui/Input.svelte';
   import { createEventDispatcher } from 'svelte';
   import { userService } from '$lib/services/userService';
   import { useToast } from '$lib/stores/toast.store';
@@ -142,12 +141,20 @@
         <label for="user_name" class="block text-sm font-medium text-gray-700">
           Имя пользователя *
         </label>
-        <Input
+        <input
           id="user_name"
+          name="user_name_edit"
+          type="text"
           bind:value={formData.user_name}
           placeholder="Введите имя пользователя"
-          hasError={!!errors.user_name}
+          class="flex w-full rounded-md border px-3 h-10 text-sm bg-white border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          class:border-red-300={!!errors.user_name}
+          class:bg-red-50={!!errors.user_name}
           required
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
         />
         {#if errors.user_name}
           <div class="text-sm text-red-600">{errors.user_name}</div>
@@ -159,14 +166,16 @@
         <label for="user_email" class="block text-sm font-medium text-gray-700">
           Email
         </label>
-        <Input
+        <input
           id="user_email"
+          name="user_email_edit"
           type="email"
           bind:value={formData.user_email}
           placeholder="Введите email"
-          hasError={!!errors.user_email}
-          readonly={false}
-          disabled={false}
+          class="flex w-full rounded-md border px-3 h-10 text-sm bg-white border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          class:border-red-300={!!errors.user_email}
+          class:bg-red-50={!!errors.user_email}
+          autocomplete="off"
         />
         {#if errors.user_email}
           <div class="text-sm text-red-600">{errors.user_email}</div>
@@ -202,15 +211,17 @@
         <label for="password" class="block text-sm font-medium text-gray-700">
           Пароль {isEditing ? '(оставьте пустым, если не нужно менять)' : '*'}
         </label>
-        <Input
+        <input
           id="password"
+          name="password_edit"
           type="password"
           bind:value={formData.password}
           placeholder={isEditing ? 'Новый пароль' : 'Введите пароль'}
-          hasError={!!errors.password}
+          class="flex w-full rounded-md border px-3 h-10 text-sm bg-white border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          class:border-red-300={!!errors.password}
+          class:bg-red-50={!!errors.password}
           required={!isEditing}
-          readonly={false}
-          disabled={false}
+          autocomplete="new-password"
         />
         {#if errors.password}
           <div class="text-sm text-red-600">{errors.password}</div>
