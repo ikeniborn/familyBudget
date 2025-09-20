@@ -44,7 +44,7 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ UserModal Username Editing Enabled (v3.9.3, 2025-09-20):** Modified UserModal component to allow username editing during user modification. Removed `readonly={isEditing}` restriction from username field (line 176) and updated label text (line 169). This reverses the security decision from v3.8.1, allowing administrators to modify usernames for existing users. The backend already supports username updates through the `userService.updateUserAsAdmin` method. Test coverage added with 8 test cases verifying username editability.
 
-**✅ UserModal Username Field Fix (v3.9.4, 2025-09-20):** Fixed issue where username field was not editable in UserModal. Replaced the Input component with a native HTML input element for the username field (lines 179-185) to resolve component interaction issues. The field now uses standard HTML input with Tailwind CSS styling, maintaining consistent appearance while ensuring full editability. Test coverage added with 8 test cases in `/tests/user-modal-username-edit.test.ts`.
+**✅ UserModal Username Field Fix (v3.9.4, 2025-09-20):** Fixed issue where username field appeared non-editable due to browser autocomplete interference. Solution: 1) Used separate variable `usernameValue` for cleaner data binding, 2) Changed field ID/name to avoid browser autocomplete conflicts, 3) Added `autocomplete="new-password"` and other attributes to prevent autofill popups. The field now uses native HTML input with proper autocomplete suppression attributes. Test coverage added with 8 test cases in `/tests/user-modal-username-edit.test.ts`.
 
 ## ⚠️ CRITICAL: Docker-Only Development
 

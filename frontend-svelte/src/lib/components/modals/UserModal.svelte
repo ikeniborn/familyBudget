@@ -34,13 +34,6 @@
   $: isEditing = !!user;
   $: modalTitle = isEditing ? 'Редактирование пользователя' : 'Добавить пользователя';
 
-  // Debug info
-  $: console.log('UserModal state:', {
-    isEditing,
-    user,
-    usernameValue,
-    'formData.username': formData.username
-  });
 
   // Update form data when user prop changes
   $: if (user) {
@@ -141,20 +134,6 @@
   }
 </script>
 
-<!-- Test field outside modal -->
-{#if open}
-<div style="position: fixed; top: 10px; left: 10px; z-index: 100000; background: white; padding: 10px; border: 2px solid red;">
-  <label>Test Username Field (Outside Modal):</label>
-  <input
-    type="text"
-    bind:value={usernameValue}
-    placeholder="Test username input"
-    style="border: 1px solid black; padding: 5px;"
-  />
-  <div>Value: {usernameValue}</div>
-</div>
-{/if}
-
 <Modal bind:open on:close={handleClose} title={modalTitle} size="md">
   <div class="p-6 bg-white border border-gray-200 rounded-lg">
     <form on:submit|preventDefault={handleSubmit} class="space-y-6">
@@ -196,20 +175,22 @@
 
       <!-- Логин -->
       <div class="space-y-2">
-        <label for="username" class="block text-sm font-medium text-gray-700">
+        <label for="username-edit-field" class="block text-sm font-medium text-gray-700">
           Логин
         </label>
         <input
-          id="username"
-          name="username"
+          id="username-edit-field"
+          name="username-edit"
           type="text"
           bind:value={usernameValue}
           placeholder="Введите логин"
           class="flex w-full rounded-md border px-3 h-10 text-sm bg-white border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          autocomplete="off"
-          on:click={() => console.log('Username field clicked')}
-          on:focus={() => console.log('Username field focused')}
-          on:input={(e) => console.log('Username input:', e.currentTarget.value)}
+          autocomplete="new-password"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          data-form-type="other"
+          data-lpignore="true"
         />
         {#if errors.username}
           <div class="text-sm text-red-600">{errors.username}</div>
