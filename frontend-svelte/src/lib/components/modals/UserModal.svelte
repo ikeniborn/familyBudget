@@ -24,9 +24,6 @@
     auth_method: 'password'
   };
 
-  // Separate variable for username to test binding
-  let usernameValue = '';
-
   let loading = false;
   let errors: Record<string, string> = {};
 
@@ -43,7 +40,6 @@
       password: '',
       auth_method: user.auth_method || 'password'
     };
-    usernameValue = user.username || '';
   } else {
     formData = {
       user_name: '',
@@ -52,11 +48,7 @@
       password: '',
       auth_method: 'password'
     };
-    usernameValue = '';
   }
-
-  // Sync username value back to formData
-  $: formData.username = usernameValue;
 
   function validateForm() {
     errors = {};
@@ -127,7 +119,6 @@
       password: '',
       auth_method: 'password'
     };
-    usernameValue = '';
     errors = {};
     dispatch('close');
   }
@@ -143,18 +134,12 @@
         </label>
         <input
           id="user_name"
-          name="user_name_edit"
+          name="user_name"
           type="text"
           bind:value={formData.user_name}
           placeholder="Введите имя пользователя"
-          class="flex w-full rounded-md border px-3 h-10 text-sm bg-white border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          class:border-red-300={!!errors.user_name}
-          class:bg-red-50={!!errors.user_name}
+          class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 {!!errors.user_name ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'}"
           required
-          autocomplete="off"
-          autocorrect="off"
-          autocapitalize="off"
-          spellcheck="false"
         />
         {#if errors.user_name}
           <div class="text-sm text-red-600">{errors.user_name}</div>
@@ -168,14 +153,11 @@
         </label>
         <input
           id="user_email"
-          name="user_email_edit"
+          name="user_email"
           type="email"
           bind:value={formData.user_email}
           placeholder="Введите email"
-          class="flex w-full rounded-md border px-3 h-10 text-sm bg-white border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          class:border-red-300={!!errors.user_email}
-          class:bg-red-50={!!errors.user_email}
-          autocomplete="off"
+          class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 {!!errors.user_email ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'}"
         />
         {#if errors.user_email}
           <div class="text-sm text-red-600">{errors.user_email}</div>
@@ -184,26 +166,20 @@
 
       <!-- Логин -->
       <div class="space-y-2">
-        <label for="username-edit-field" class="block text-sm font-medium text-gray-700">
+        <label for="username" class="block text-sm font-medium text-gray-700">
           Логин
         </label>
         <input
-          id="username-edit-field"
-          name="username-edit"
+          id="username"
+          name="username"
           type="text"
-          bind:value={usernameValue}
+          bind:value={formData.username}
           placeholder="Введите логин"
-          class="flex w-full rounded-md border px-3 h-10 text-sm bg-white border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          autocomplete="new-password"
-          autocorrect="off"
-          autocapitalize="off"
-          spellcheck="false"
-          data-form-type="other"
-          data-lpignore="true"
+          class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 {!!errors.username ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'}"
         />
         {#if errors.username}
           <div class="text-sm text-red-600">{errors.username}</div>
-        {/if}
+        {/if>
       </div>
 
       <!-- Пароль -->
@@ -213,19 +189,16 @@
         </label>
         <input
           id="password"
-          name="password_edit"
+          name="password"
           type="password"
           bind:value={formData.password}
           placeholder={isEditing ? 'Новый пароль' : 'Введите пароль'}
-          class="flex w-full rounded-md border px-3 h-10 text-sm bg-white border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          class:border-red-300={!!errors.password}
-          class:bg-red-50={!!errors.password}
+          class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 {!!errors.password ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'}"
           required={!isEditing}
-          autocomplete="new-password"
         />
         {#if errors.password}
           <div class="text-sm text-red-600">{errors.password}</div>
-        {/if}
+        {/if>
       </div>
 
       <!-- Метод аутентификации -->

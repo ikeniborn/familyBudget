@@ -46,6 +46,8 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ UserModal Fields Complete Fix (v3.9.5, 2025-09-20):** Replaced ALL Input components in UserModal with native HTML inputs to resolve editing issues. Fixed fields: 1) "Имя пользователя" (user_name) - was using Input component causing non-editable state, 2) Email field - replaced for consistency, 3) Password field - replaced for consistency, 4) Username field - previously fixed. All fields now use native HTML inputs with Tailwind CSS styling and proper autocomplete suppression. This completely removes dependency on the problematic Input component in UserModal.
 
+**✅ UserModal Field Editing Simplified (v3.9.6, 2025-09-20):** Fixed issue where "Имя пользователя" (user_name) field appeared non-editable due to complex CSS classes and attributes causing conflicts. Simplified all input fields in UserModal by: 1) Removing complex CSS class bindings, 2) Eliminating autocomplete/autocorrect/autocapitalize/spellcheck attributes, 3) Using simple conditional classes instead of class: directives, 4) Removing separate usernameValue variable. All fields now properly editable with clean, maintainable code. Test coverage added with 12 test cases.
+
 ## ⚠️ CRITICAL: Docker-Only Development
 
 **ALL operations MUST be performed through Docker containers:**
