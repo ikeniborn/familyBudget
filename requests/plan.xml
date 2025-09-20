@@ -1,55 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plan>
-  <task id="1">
-    <description>Fix UserModal component to allow username editing</description>
-    <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/modals/UserModal.svelte</file>
-    <changes>
-      <change line="176">
-        <current>readonly={isEditing}</current>
-        <new>readonly={false}</new>
-        <reason>Allow username to be editable during user editing</reason>
-      </change>
-      <change line="169">
-        <current>Логин {isEditing ? '(только для чтения)' : ''}</current>
-        <new>Логин</new>
-        <reason>Remove readonly indicator text since field will be editable</reason>
-      </change>
-    </changes>
-  </task>
+    <objective>Fix username field editing issue in UserModal component</objective>
 
-  <task id="2">
-    <description>Verify backend accepts username updates</description>
-    <action>Check if userService.updateUserAsAdmin includes username in the update request</action>
-    <verification>Line 86 already includes username in the update payload</verification>
-    <status>Already implemented</status>
-  </task>
+    <root_cause>
+        <finding>The username field in UserModal is missing explicit disabled={false} prop</finding>
+        <finding>Other editable fields (email, password) have both readonly={false} and disabled={false}</finding>
+        <finding>The Input component may be defaulting disabled state incorrectly for username field</finding>
+    </root_cause>
 
-  <task id="3">
-    <description>Test the fix</description>
-    <steps>
-      <step>Reload the application</step>
-      <step>Navigate to /settings/users</step>
-      <step>Click edit on any user</step>
-      <step>Verify username field is now editable</step>
-      <step>Test changing username and saving</step>
-    </steps>
-  </task>
+    <tasks>
+        <task number="1" priority="high">
+            <description>Add explicit disabled={false} prop to username Input field</description>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/modals/UserModal.svelte</file>
+            <line>176</line>
+            <change>Add disabled={false} prop to match email and password fields</change>
+        </task>
 
-  <task id="4">
-    <description>Create tests for username editing functionality</description>
-    <test_file>/home/ikeniborn/Documents/Project/familyBudget/tests/frontend/user-modal-username-edit.test.ts</test_file>
-    <test_cases>
-      <case>Username field should be editable when editing user</case>
-      <case>Username should update successfully on form submission</case>
-      <case>Validation should work for username field</case>
-    </test_cases>
-  </task>
+        <task number="2" priority="medium">
+            <description>Verify the fix by testing the user edit modal</description>
+            <steps>
+                <step>Check that username field is now editable</step>
+                <step>Verify no visual artifacts or errors</step>
+                <step>Test saving changes with modified username</step>
+            </steps>
+        </task>
 
-  <task id="5">
-    <description>Update documentation</description>
-    <files>
-      <file>CLAUDE.md - Add entry about username field now being editable (v3.9.3)</file>
-      <file>README.md - Update if necessary</file>
-    </files>
-  </task>
+        <task number="3" priority="medium">
+            <description>Create test to prevent regression</description>
+            <file>/home/ikeniborn/Documents/Project/familyBudget/tests/user-modal-username-edit.test.ts</file>
+            <tests>
+                <test>Username field should be editable when editing user</test>
+                <test>Username field should not be disabled or readonly</test>
+                <test>Username changes should be saved correctly</test>
+            </tests>
+        </task>
+
+        <task number="4" priority="low">
+            <description>Update documentation</description>
+            <files>
+                <file>/home/ikeniborn/Documents/Project/familyBudget/CLAUDE.md</file>
+                <file>/home/ikeniborn/Documents/Project/familyBudget/docs/architecture/adr-016-user-modal-username-editability.md</file>
+            </files>
+            <content>Document the fix for username field editability issue</content>
+        </task>
+    </tasks>
 </plan>

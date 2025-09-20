@@ -174,6 +174,7 @@
           placeholder="Введите логин"
           hasError={!!errors.username}
           readonly={false}
+          disabled={false}
         />
         {#if errors.username}
           <div class="text-sm text-red-600">{errors.username}</div>
