@@ -166,14 +166,14 @@
       <!-- Логин -->
       <div class="space-y-2">
         <label for="username" class="block text-sm font-medium text-gray-700">
-          Логин {isEditing ? '(только для чтения)' : ''}
+          Логин
         </label>
         <Input
           id="username"
           bind:value={formData.username}
           placeholder="Введите логин"
           hasError={!!errors.username}
-          readonly={isEditing}
+          readonly={false}
         />
         {#if errors.username}
           <div class="text-sm text-red-600">{errors.username}</div>

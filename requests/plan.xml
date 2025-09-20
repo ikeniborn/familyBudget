@@ -1,413 +1,55 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plan>
-    <overview>
-        <title>Fix User Editing Form - Email and Password Fields Not Editable</title>
-        <description>
-            The user editing modal has incorrect readonly field behavior. The email and password fields appear as readonly (purple background) when they should be editable, while only the username field should be readonly for security reasons (as per v3.8.1).
-        </description>
-        <current_issue>
-            Based on screenshot analysis:
-            - Имя пользователя (User Name) field: readonly (should be editable)
-            - Email field: readonly (should be editable)
-            - Логин (Username) field: editable (should be readonly for security)
-            - Пароль (Password) field: readonly (should be editable)
-        </current_issue>
-        <expected_behavior>
-            - User Name field: editable
-            - Email field: editable
-            - Username field: readonly (for security - prevent accidental login credential changes)
-            - Password field: editable (with optional behavior during editing)
-        </expected_behavior>
-    </overview>
+  <task id="1">
+    <description>Fix UserModal component to allow username editing</description>
+    <file>/home/ikeniborn/Documents/Project/familyBudget/frontend-svelte/src/lib/components/modals/UserModal.svelte</file>
+    <changes>
+      <change line="176">
+        <current>readonly={isEditing}</current>
+        <new>readonly={false}</new>
+        <reason>Allow username to be editable during user editing</reason>
+      </change>
+      <change line="169">
+        <current>Логин {isEditing ? '(только для чтения)' : ''}</current>
+        <new>Логин</new>
+        <reason>Remove readonly indicator text since field will be editable</reason>
+      </change>
+    </changes>
+  </task>
 
-    <root_cause_analysis>
-        <hypothesis>
-            The UserModal component has incorrect readonly prop assignments or there's a logic error in how the readonly state is determined. The code shows only username should be readonly, but the UI shows the opposite behavior.
-        </hypothesis>
-        <affected_files>
-            <file>frontend-svelte/src/lib/components/modals/UserModal.svelte</file>
-            <file>frontend-svelte/src/lib/components/ui/Input.svelte</file>
-            <file>frontend-svelte/src/routes/(protected)/settings/users/+page.svelte</file>
-        </affected_files>
-    </root_cause_analysis>
+  <task id="2">
+    <description>Verify backend accepts username updates</description>
+    <action>Check if userService.updateUserAsAdmin includes username in the update request</action>
+    <verification>Line 86 already includes username in the update payload</verification>
+    <status>Already implemented</status>
+  </task>
 
-    <investigation_steps>
-        <step number="1">
-            <description>Verify current container status and ensure proper Docker environment</description>
-            <commands>
-                <command>docker ps | grep budget-</command>
-                <command>docker logs budget-frontend --tail=50</command>
-            </commands>
-        </step>
-        <step number="2">
-            <description>Access the user editing form in browser to reproduce the issue</description>
-            <commands>
-                <command>docker exec budget-frontend npm run dev</command>
-            </commands>
-            <manual_steps>
-                <step>Navigate to http://localhost:5173/settings/users</step>
-                <step>Click "Изменить" on any user to open editing modal</step>
-                <step>Verify which fields appear readonly vs editable</step>
-                <step>Check browser developer tools for any console errors</step>
-            </manual_steps>
-        </step>
-        <step number="3">
-            <description>Examine the exact readonly prop assignments in UserModal component</description>
-            <analysis>
-                Current code shows:
-                - Line 174: username field has readonly={isEditing}
-                - Other fields (user_name, user_email, password) have no readonly props
-                But screenshot shows opposite behavior - investigate discrepancy
-            </analysis>
-        </step>
-    </investigation_steps>
+  <task id="3">
+    <description>Test the fix</description>
+    <steps>
+      <step>Reload the application</step>
+      <step>Navigate to /settings/users</step>
+      <step>Click edit on any user</step>
+      <step>Verify username field is now editable</step>
+      <step>Test changing username and saving</step>
+    </steps>
+  </task>
 
-    <fixes>
-        <fix number="1">
-            <title>Correct readonly prop assignments in UserModal component</title>
-            <file>frontend-svelte/src/lib/components/modals/UserModal.svelte</file>
-            <description>
-                Ensure only the username field is readonly during editing, while all other fields remain editable.
-            </description>
-            <changes>
-                <change>
-                    <location>Lines 135-145 (User Name field)</location>
-                    <action>Verify no readonly prop is set</action>
-                    <old_code>
-                        &lt;Input
-                          id="user_name"
-                          bind:value={formData.user_name}
-                          placeholder="Введите имя пользователя"
-                          hasError={!!errors.user_name}
-                          required
-                        /&gt;
-                    </old_code>
-                    <new_code>
-                        &lt;Input
-                          id="user_name"
-                          bind:value={formData.user_name}
-                          placeholder="Введите имя пользователя"
-                          hasError={!!errors.user_name}
-                          required
-                        /&gt;
-                    </new_code>
-                    <note>Ensure no readonly prop is accidentally set</note>
-                </change>
-                <change>
-                    <location>Lines 152-162 (Email field)</location>
-                    <action>Verify no readonly prop is set</action>
-                    <old_code>
-                        &lt;Input
-                          id="user_email"
-                          type="email"
-                          bind:value={formData.user_email}
-                          placeholder="Введите email"
-                          hasError={!!errors.user_email}
-                        /&gt;
-                    </old_code>
-                    <new_code>
-                        &lt;Input
-                          id="user_email"
-                          type="email"
-                          bind:value={formData.user_email}
-                          placeholder="Введите email"
-                          hasError={!!errors.user_email}
-                        /&gt;
-                    </new_code>
-                    <note>Ensure no readonly prop is accidentally set</note>
-                </change>
-                <change>
-                    <location>Lines 169-179 (Username field)</location>
-                    <action>Confirm readonly behavior is correct</action>
-                    <old_code>
-                        &lt;Input
-                          id="username"
-                          bind:value={formData.username}
-                          placeholder="Введите логин"
-                          hasError={!!errors.username}
-                          readonly={isEditing}
-                        /&gt;
-                    </old_code>
-                    <new_code>
-                        &lt;Input
-                          id="username"
-                          bind:value={formData.username}
-                          placeholder="Введите логин"
-                          hasError={!!errors.username}
-                          readonly={isEditing}
-                        /&gt;
-                    </new_code>
-                    <note>This is correct - username should be readonly during editing</note>
-                </change>
-                <change>
-                    <location>Lines 186-197 (Password field)</location>
-                    <action>Verify no readonly prop is set</action>
-                    <old_code>
-                        &lt;Input
-                          id="password"
-                          type="password"
-                          bind:value={formData.password}
-                          placeholder={isEditing ? 'Новый пароль' : 'Введите пароль'}
-                          hasError={!!errors.password}
-                          required={!isEditing}
-                        /&gt;
-                    </old_code>
-                    <new_code>
-                        &lt;Input
-                          id="password"
-                          type="password"
-                          bind:value={formData.password}
-                          placeholder={isEditing ? 'Новый пароль' : 'Введите пароль'}
-                          hasError={!!errors.password}
-                          required={!isEditing}
-                        /&gt;
-                    </new_code>
-                    <note>Ensure no readonly prop is accidentally set</note>
-                </change>
-            </changes>
-        </fix>
-        <fix number="2">
-            <title>Verify Input component readonly logic</title>
-            <file>frontend-svelte/src/lib/components/ui/Input.svelte</file>
-            <description>
-                Check that the Input component correctly applies readonly styling and behavior only when readonly=true is explicitly passed.
-            </description>
-            <validation>
-                <check>Verify readonly prop is correctly declared (line 11)</check>
-                <check>Verify readonly styling logic (lines 50-54)</check>
-                <check>Verify readonly attribute is correctly passed to input elements</check>
-                <check>Ensure no default readonly behavior is applied</check>
-            </validation>
-        </fix>
-        <fix number="3">
-            <title>Debug value binding issues</title>
-            <file>frontend-svelte/src/lib/components/modals/UserModal.svelte</file>
-            <description>
-                Check if there are any issues with value binding or reactive statements that might affect field behavior.
-            </description>
-            <investigation>
-                <check>Verify formData reactive updates (lines 35-51)</check>
-                <check>Check isEditing reactive variable (line 31)</check>
-                <check>Ensure no accidental disabled/readonly logic in form handling</check>
-            </investigation>
-        </fix>
-    </fixes>
+  <task id="4">
+    <description>Create tests for username editing functionality</description>
+    <test_file>/home/ikeniborn/Documents/Project/familyBudget/tests/frontend/user-modal-username-edit.test.ts</test_file>
+    <test_cases>
+      <case>Username field should be editable when editing user</case>
+      <case>Username should update successfully on form submission</case>
+      <case>Validation should work for username field</case>
+    </test_cases>
+  </task>
 
-    <testing_plan>
-        <test_phase name="Unit Testing">
-            <test number="1">
-                <description>Test UserModal component readonly behavior</description>
-                <file>tests/frontend/user-modal-readonly-fix.test.ts</file>
-                <test_cases>
-                    <case>Create mode: All fields should be editable</case>
-                    <case>Edit mode: Only username field should be readonly</case>
-                    <case>Edit mode: Name, email, password fields should be editable</case>
-                    <case>Verify visual indicators for readonly fields</case>
-                </test_cases>
-                <commands>
-                    <command>docker exec budget-frontend npm run test user-modal-readonly-fix.test.ts</command>
-                </commands>
-            </test>
-            <test number="2">
-                <description>Test Input component readonly functionality</description>
-                <test_cases>
-                    <case>Input with readonly=false should be editable</case>
-                    <case>Input with readonly=true should show lock icon and gray background</case>
-                    <case>Input with no readonly prop should default to editable</case>
-                </test_cases>
-            </test>
-        </test_phase>
-        <test_phase name="Integration Testing">
-            <test number="3">
-                <description>Test user editing workflow end-to-end</description>
-                <steps>
-                    <step>Start development server: docker exec budget-frontend npm run dev</step>
-                    <step>Navigate to http://localhost:5173/settings/users</step>
-                    <step>Click "Изменить" on test user</step>
-                    <step>Verify field editability:
-                        - User name field: should be editable (white background)
-                        - Email field: should be editable (white background)
-                        - Username field: should be readonly (gray background with lock icon)
-                        - Password field: should be editable (white background)
-                    </step>
-                    <step>Test editing capabilities:
-                        - Edit user name - should work
-                        - Edit email - should work
-                        - Try to edit username - should be prevented
-                        - Edit password - should work
-                    </step>
-                    <step>Test form submission with changes</step>
-                </steps>
-            </test>
-            <test number="4">
-                <description>Test user creation workflow</description>
-                <steps>
-                    <step>Click "Добавить пользователя"</step>
-                    <step>Verify all fields are editable in create mode</step>
-                    <step>Test creating new user with all fields</step>
-                </steps>
-            </test>
-        </test_phase>
-        <test_phase name="Browser Testing">
-            <test number="5">
-                <description>Cross-browser compatibility testing</description>
-                <browsers>
-                    <browser>Chrome/Chromium</browser>
-                    <browser>Firefox</browser>
-                    <browser>Safari (if available)</browser>
-                </browsers>
-                <validation>
-                    <check>Readonly styling appears correctly</check>
-                    <check>Lock icons display properly</check>
-                    <check>Form functionality works across browsers</check>
-                </validation>
-            </test>
-        </test_phase>
-    </testing_plan>
-
-    <docker_commands>
-        <environment_setup>
-            <command description="Check container status">docker ps | grep budget-</command>
-            <command description="Start frontend if not running">docker exec budget-frontend npm run dev</command>
-            <command description="Start backend if needed">docker exec budget-backend uvicorn app.main:app --reload --host 0.0.0.0 --port 4000</command>
-        </environment_setup>
-        <development_workflow>
-            <command description="Run frontend tests">docker exec budget-frontend npm run test</command>
-            <command description="Run type checking">docker exec budget-frontend npm run check</command>
-            <command description="Run linting">docker exec budget-frontend npm run lint</command>
-            <command description="Format code">docker exec budget-frontend npm run format</command>
-        </development_workflow>
-        <debugging>
-            <command description="View frontend logs">docker logs budget-frontend --tail=100 -f</command>
-            <command description="Access frontend shell">docker exec -it budget-frontend sh</command>
-            <command description="Check for duplicate processes">docker exec budget-frontend ps aux | grep "npm run dev"</command>
-        </debugging>
-    </docker_commands>
-
-    <validation_criteria>
-        <criteria number="1">
-            <description>Visual Validation</description>
-            <requirements>
-                <requirement>User name field shows white background and is editable</requirement>
-                <requirement>Email field shows white background and is editable</requirement>
-                <requirement>Username field shows gray background with lock icon and is readonly during editing</requirement>
-                <requirement>Password field shows white background and is editable</requirement>
-            </requirements>
-        </criteria>
-        <criteria number="2">
-            <description>Functional Validation</description>
-            <requirements>
-                <requirement>User can edit name field and changes are saved</requirement>
-                <requirement>User can edit email field and changes are saved</requirement>
-                <requirement>User cannot edit username field during editing (security)</requirement>
-                <requirement>User can edit password field and changes are saved</requirement>
-                <requirement>Form validation works correctly for all editable fields</requirement>
-            </requirements>
-        </criteria>
-        <criteria number="3">
-            <description>Security Validation</description>
-            <requirements>
-                <requirement>Username field remains readonly during editing to prevent accidental credential changes</requirement>
-                <requirement>All other fields remain editable for proper user management</requirement>
-                <requirement>No unintended readonly behavior on editable fields</requirement>
-            </requirements>
-        </criteria>
-    </validation_criteria>
-
-    <documentation_updates>
-        <update number="1">
-            <file>docs/architecture/adr-015-user-modal-readonly-fix.md</file>
-            <description>Document the fix for user modal readonly field behavior</description>
-            <content_outline>
-                <section>Problem description and root cause analysis</section>
-                <section>Solution implementation details</section>
-                <section>Security considerations for username readonly behavior</section>
-                <section>Testing approach and validation</section>
-            </content_outline>
-        </update>
-        <update number="2">
-            <file>docs/ui/user-management-form-behavior.md</file>
-            <description>Document expected behavior for user editing forms</description>
-            <content_outline>
-                <section>Field editability matrix (create vs edit mode)</section>
-                <section>Security rationale for readonly username</section>
-                <section>Visual indicators and styling</section>
-            </content_outline>
-        </update>
-        <update number="3">
-            <file>CLAUDE.md</file>
-            <description>Update project status with v3.9.2 fix</description>
-            <content>Add entry for "User Modal Readonly Field Fix (v3.9.2)" in the completed fixes section</content>
-        </update>
-    </documentation_updates>
-
-    <rollback_plan>
-        <condition>If the fix introduces new issues or breaks existing functionality</condition>
-        <steps>
-            <step>Revert changes to UserModal.svelte</step>
-            <step>Run full test suite to ensure stability</step>
-            <step>Re-investigate root cause with more detailed debugging</step>
-            <step>Check for any conflicting CSS or component inheritance issues</step>
-        </steps>
-        <backup_approach>
-            <step>Create backup of current UserModal component before changes</step>
-            <step>Use git to track changes and enable easy rollback</step>
-            <step>Test rollback procedure in development environment</step>
-        </backup_approach>
-    </rollback_plan>
-
-    <success_metrics>
-        <metric number="1">
-            <name>Visual Correctness</name>
-            <description>All fields display correct readonly/editable visual states</description>
-            <measurement>Manual verification via browser testing</measurement>
-        </metric>
-        <metric number="2">
-            <name>Functional Correctness</name>
-            <description>Users can edit appropriate fields and changes are saved</description>
-            <measurement>End-to-end testing of user editing workflow</measurement>
-        </metric>
-        <metric number="3">
-            <name>Security Maintenance</name>
-            <description>Username field remains readonly during editing for security</description>
-            <measurement>Verification that security requirements from v3.8.1 are maintained</measurement>
-        </metric>
-        <metric number="4">
-            <name>Test Coverage</name>
-            <description>All new functionality is covered by automated tests</description>
-            <measurement>Test coverage reports show >90% coverage for modified components</measurement>
-        </metric>
-    </success_metrics>
-
-    <timeline>
-        <phase name="Investigation" duration="15 minutes">
-            <activities>
-                <activity>Reproduce issue in browser</activity>
-                <activity>Analyze component code for root cause</activity>
-                <activity>Verify container status and environment</activity>
-            </activities>
-        </phase>
-        <phase name="Implementation" duration="30 minutes">
-            <activities>
-                <activity>Fix readonly prop assignments in UserModal</activity>
-                <activity>Verify Input component behavior</activity>
-                <activity>Test changes in development environment</activity>
-            </activities>
-        </phase>
-        <phase name="Testing" duration="45 minutes">
-            <activities>
-                <activity>Write and run unit tests</activity>
-                <activity>Perform integration testing</activity>
-                <activity>Cross-browser validation</activity>
-                <activity>End-to-end workflow testing</activity>
-            </activities>
-        </phase>
-        <phase name="Documentation" duration="15 minutes">
-            <activities>
-                <activity>Update architecture decision records</activity>
-                <activity>Update CLAUDE.md project status</activity>
-                <activity>Document user management form behavior</activity>
-            </activities>
-        </phase>
-    </timeline>
+  <task id="5">
+    <description>Update documentation</description>
+    <files>
+      <file>CLAUDE.md - Add entry about username field now being editable (v3.9.3)</file>
+      <file>README.md - Update if necessary</file>
+    </files>
+  </task>
 </plan>

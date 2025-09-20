@@ -42,6 +42,8 @@ Family Budget is a web-based budget management system with multi-user support, T
 
 **✅ UserModal Field Editability Fix (v3.9.2, 2025-09-20):** Fixed issue where email and password fields in user editing modal were incorrectly appearing as readonly/disabled. Added explicit `readonly={false}` and `disabled={false}` props to email and password Input components in UserModal. Username field correctly remains readonly during editing for security (as per v3.8.1). Full user management functionality restored with comprehensive test coverage (15 tests). Admin users can now properly edit email addresses and update passwords. See `/docs/architecture/adr-015-user-modal-field-editability-fix.md`.
 
+**✅ UserModal Username Editing Enabled (v3.9.3, 2025-09-20):** Modified UserModal component to allow username editing during user modification. Removed `readonly={isEditing}` restriction from username field (line 176) and updated label text (line 169). This reverses the security decision from v3.8.1, allowing administrators to modify usernames for existing users. The backend already supports username updates through the `userService.updateUserAsAdmin` method. Test coverage added with 8 test cases verifying username editability.
+
 ## ⚠️ CRITICAL: Docker-Only Development
 
 **ALL operations MUST be performed through Docker containers:**

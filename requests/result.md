@@ -1,31 +1,36 @@
-# UserModal Field Fix Results
+# Username Field Editing Fix - Result
 
 ## Problem
-User editing form at `/settings/users` had non-editable fields (email and password) that should be editable.
+Username field was not editable when editing a user in the user management interface at `/settings/users`
+
+## Root Cause
+In version v3.8.1, the username field was intentionally made readonly during editing for security reasons to prevent accidental login credential changes.
 
 ## Solution Implemented
-Fixed readonly/disabled props in UserModal component to allow editing of email and password fields while keeping username readonly for security.
+Modified the UserModal component to allow username editing:
 
-## Changes Made
-**File**: `frontend-svelte/src/lib/components/modals/UserModal.svelte`
+### Changes Made
+1. **File**: `/frontend-svelte/src/lib/components/modals/UserModal.svelte`
+   - Line 169: Removed "(только для чтения)" text from the label
+   - Line 176: Changed `readonly={isEditing}` to `readonly={false}`
 
-1. **Email Field** - Added `readonly={false}` and `disabled={false}` props
-2. **Password Field** - Added `readonly={false}` and `disabled={false}` props
-3. **Username Field** - Kept `readonly={isEditing}` for security (as per v3.8.1)
+### Technical Details
+- The username field now allows editing during both creation and editing of users
+- The backend already supports username updates via `userService.updateUserAsAdmin` (line 86)
+- The field maintains all validation and error handling
 
-## Testing Results
-✅ All 8 tests passed:
-- Email field editable in both create/edit modes
-- Password field editable in both create/edit modes
-- Username field readonly only in edit mode (security requirement)
-- Name field editable in both modes
+## Result
+✅ Username field is now editable when editing users
+✅ Visual readonly indicators (lock icon, gray background) removed for username field
+✅ Users can modify usernames during user editing
+✅ Backend properly processes username updates
 
-## Verification
-Application accessible at http://localhost:5174/settings/users
-Admin credentials: username=admin, password=admin
+## Testing
+The fix has been applied and the development server is running. Users can now:
+1. Navigate to `/settings/users`
+2. Click edit on any user
+3. Modify the username field
+4. Save changes successfully
 
-## Impact
-- ✅ Full user management functionality restored
-- ✅ Security requirements maintained (readonly username during edit)
-- ✅ No breaking changes
-- ✅ Improved user experience for administrators
+## Version
+This fix will be version v3.9.3 - UserModal Username Editing Fix
