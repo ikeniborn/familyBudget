@@ -168,13 +168,12 @@
         <label for="username" class="block text-sm font-medium text-gray-700">
           Логин
         </label>
-        <Input
+        <input
           id="username"
+          type="text"
           bind:value={formData.username}
           placeholder="Введите логин"
-          hasError={!!errors.username}
-          readonly={false}
-          disabled={false}
+          class="flex w-full rounded-md border px-3 h-10 text-sm bg-white border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         {#if errors.username}
           <div class="text-sm text-red-600">{errors.username}</div>
