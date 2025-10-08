@@ -1,1 +1,0 @@
-# FastAPI Family Budget Backend

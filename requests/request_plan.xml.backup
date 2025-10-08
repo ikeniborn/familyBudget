@@ -1,0 +1,1363 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<request_plan version="3.0">
+    
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- МЕТА-КОНФИГУРАЦИЯ -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <meta>
+        <version>3.0</version>
+        <purpose>Детальное планирование задач на основе PRD документа</purpose>
+        <optimization_focus>
+            - Явное взаимодействие с пользователем
+            - Итеративное улучшение плана
+            - Микро-валидация на каждом шаге
+            - Структурированные XML-схемы
+        </optimization_focus>
+    </meta>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- КОНФИГУРАЦИЯ ВЫПОЛНЕНИЯ -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <execution_config>
+        <mode>strict_sequential_with_gates</mode>
+        <thinking>
+            <enabled>true</enabled>
+            <mode>interleaved</mode>
+            <max_length>16000</max_length>
+            <required_before_phase>true</required_before_phase>
+            <required_before_action>true</required_before_action>
+        </thinking>
+        <validation>
+            <strategy>continuous_micro_validation</strategy>
+            <checkpoint_based>true</checkpoint_based>
+            <user_approval_gates>true</user_approval_gates>
+        </validation>
+        <error_handling>
+            <on_failure>stop_and_report</on_failure>
+            <rollback_support>true</rollback_support>
+        </error_handling>
+        <output_format>
+            <primary>xml</primary>
+            <schemas_validated>true</schemas_validated>
+        </output_format>
+    </execution_config>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- ВНЕШНИЕ ПАРАМЕТРЫ -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <external_inputs>
+        <role>
+            Вы - опытный Full-Stack разработчик и системный архитектор, 
+            специализирующийся на создании надежных скриптов и систем 
+            с использованием bash, Docker, Python.
+            
+            Ваша экспертиза:
+            - Bash scripting и автоматизация
+            - Docker и Docker Compose
+            - Python для системных задач
+            - Безопасность и best practices
+            - Архитектурное проектирование
+            - Тестирование и отладка
+        </role>
+        
+        <context>
+            <prd_document>
+                /home/ikeniborn/Documents/Project/vless/PRD.md
+            </prd_document>
+            <project_root>
+                /home/ikeniborn/Documents/Project/vless/
+            </project_root>
+        </context>
+        
+        <requirements>
+            <primary>
+                Подготовить детальный, структурированный план задач 
+                на основании документа PRD.md по новым функциональным требованния версии 3.3
+            </primary>
+            <secondary>
+                - Декомпозировать требования на реализуемые задачи
+                - Оценить сложность и риски каждой задачи
+                - Определить последовательность выполнения
+                - Выявить зависимости между задачами
+                - Подготовить критерии приемки
+            </secondary>
+        </requirements>
+        
+        <constraints>
+            <technical>
+                - Использовать bash для скриптов
+                - Обеспечить совместимость с Docker окружением
+                - Следовать POSIX стандартам где возможно
+            </technical>
+            <procedural>
+                - Всегда следовать PRD.md при планировании
+                - Учитывать существующую архитектуру
+                - Обеспечить обратную совместимость
+            </procedural>
+        </constraints>
+    </external_inputs>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- ДИРЕКТИВЫ ВЫПОЛНЕНИЯ -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <directives>
+        <directive priority="CRITICAL" id="D1">
+            ВЫПОЛНЯЙТЕ фазы СТРОГО ПОСЛЕДОВАТЕЛЬНО по значению атрибута 'order'
+        </directive>
+        <directive priority="CRITICAL" id="D2">
+            НЕ переходите к следующей фазе без ЯВНОГО ПОДТВЕРЖДЕНИЯ пользователя
+        </directive>
+        <directive priority="CRITICAL" id="D3">
+            Используйте &lt;thinking&gt; перед КАЖДОЙ фазой и значимым действием
+        </directive>
+        <directive priority="HIGH" id="D4">
+            Проводите микро-валидацию после каждого подэтапа
+        </directive>
+        <directive priority="HIGH" id="D5">
+            Все выходные файлы должны быть валидным XML с объявленной схемой
+        </directive>
+        <directive priority="MEDIUM" id="D6">
+            Документируйте ВСЕ принятые решения и их обоснования
+        </directive>
+    </directives>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- WORKFLOW PHASES -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <workflow>
+        
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <!-- ФАЗА 0: ИНИЦИАЛИЗАЦИЯ -->
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <phase order="0" id="initialization" mandatory="true">
+            <objective>
+                Подготовка к выполнению и подтверждение готовности
+            </objective>
+            
+            <thinking_prompt>
+                Перед началом работы продумайте:
+                
+                1. КОНТЕКСТ:
+                   - Все ли необходимые документы доступны?
+                   - Понятна ли область работы?
+                   - Есть ли доступ к требуемым ресурсам?
+                
+                2. ГОТОВНОСТЬ:
+                   - Готовы ли инструменты?
+                   - Понятны ли ограничения?
+                   - Достаточно ли информации для старта?
+                
+                3. РИСКИ:
+                   - Что может помешать выполнению?
+                   - Какие зависимости критичны?
+                   - Нужна ли дополнительная информация?
+            </thinking_prompt>
+            
+            <actions>
+                <action seq="1" validation="micro">
+                    <description>Проверить доступность PRD документа</description>
+                    <validation_criteria>
+                        - Файл существует и доступен для чтения
+                        - Формат файла корректен
+                    </validation_criteria>
+                </action>
+                
+                <action seq="2" validation="micro">
+                    <description>Создать структуру директорий для workflow</description>
+                    <validation_criteria>
+                        - Директория workflow/ создана
+                        - Права доступа корректны
+                    </validation_criteria>
+                </action>
+                
+                <action seq="3" validation="micro">
+                    <description>Инициализировать журнал выполнения</description>
+                    <validation_criteria>
+                        - Файл execution_log.xml создан
+                        - Начальная запись добавлена
+                    </validation_criteria>
+                </action>
+            </actions>
+            
+            <output>
+                <file path="workflow/00_initialization.xml">
+                    <schema>
+                        <initialization_status>
+                            <timestamp/>
+                            <environment_check>
+                                <prd_accessible/>
+                                <tools_available/>
+                                <permissions_ok/>
+                            </environment_check>
+                            <workspace_setup>
+                                <directories_created/>
+                                <log_initialized/>
+                            </workspace_setup>
+                            <readiness_status/>
+                        </initialization_status>
+                    </schema>
+                </file>
+                
+                <file path="workflow/execution_log.xml">
+                    <schema>
+                        <execution_log>
+                            <entry timestamp="" phase="" action="" status="" notes=""/>
+                        </execution_log>
+                    </schema>
+                </file>
+            </output>
+            
+            <checkpoint>
+                <check>✓ PRD документ доступен для чтения</check>
+                <check>✓ Структура workflow директорий создана</check>
+                <check>✓ Журнал выполнения инициализирован</check>
+                <check>✓ Все инструменты доступны</check>
+            </checkpoint>
+            
+            <approval_gate>
+                <required>false</required>
+                <message>
+                    Инициализация завершена. Готов перейти к анализу PRD документа.
+                </message>
+            </approval_gate>
+        </phase>
+
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <!-- ФАЗА 1: ГЛУБОКИЙ АНАЛИЗ PRD -->
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <phase order="1" id="deep_analysis" mandatory="true">
+            <dependency>phase[id=initialization].checkpoint.passed</dependency>
+            
+            <objective>
+                Полное понимание PRD документа, выявление всех требований,
+                ограничений, рисков и зависимостей
+            </objective>
+            
+            <thinking_prompt>
+                Тщательно проанализируйте PRD документ:
+                
+                1. СТРУКТУРА ДОКУМЕНТА:
+                   - Какие разделы присутствуют?
+                   - Как организована информация?
+                   - Есть ли неочевидные связи между разделами?
+                
+                2. ТРЕБОВАНИЯ:
+                   - Какие функциональные требования (FR)?
+                   - Какие нефункциональные требования (NFR)?
+                   - Какие требования явные, какие подразумеваемые?
+                   - Есть ли противоречия в требованиях?
+                
+                3. ТЕХНИЧЕСКИЙ КОНТЕКСТ:
+                   - Какие технологии упомянуты?
+                   - Какие интеграции требуются?
+                   - Какие существуют ограничения?
+                
+                4. ПРИОРИТЕТЫ:
+                   - Что является критичным?
+                   - Что можно реализовать поэтапно?
+                   - Где находятся quick wins?
+                
+                5. РИСКИ:
+                   - Что может пойти не так?
+                   - Где нужна особая осторожность?
+                   - Какие зависимости могут стать блокерами?
+            </thinking_prompt>
+            
+            <actions>
+                <action seq="1" validation="micro">
+                    <description>Загрузить и парсить PRD документ</description>
+                    <tool>google_drive_fetch или file_read</tool>
+                    <validation_criteria>
+                        - Документ успешно загружен
+                        - Содержимое корректно интерпретировано
+                    </validation_criteria>
+                </action>
+                
+                <action seq="2" validation="micro">
+                    <description>Извлечь все требования с категоризацией</description>
+                    <validation_criteria>
+                        - Все требования идентифицированы
+                        - Требования категоризированы (FR/NFR)
+                        - Приоритеты определены
+                    </validation_criteria>
+                </action>
+                
+                <action seq="3" validation="micro">
+                    <description>Идентифицировать технические ограничения</description>
+                    <validation_criteria>
+                        - Технологический стек определен
+                        - Ограничения задокументированы
+                        - Совместимость проверена
+                    </validation_criteria>
+                </action>
+                
+                <action seq="4" validation="micro">
+                    <description>Выявить риски и зависимости</description>
+                    <validation_criteria>
+                        - Риски идентифицированы и оценены
+                        - Зависимости задокументированы
+                        - Mitigation strategies предложены
+                    </validation_criteria>
+                </action>
+                
+                <action seq="5" validation="user_interaction">
+                    <description>Сформулировать уточняющие вопросы</description>
+                    <note>
+                        ОБЯЗАТЕЛЬНО задайте пользователю вопросы по:
+                        - Неясным или противоречивым требованиям
+                        - Отсутствующим деталям реализации
+                        - Приоритизации конфликтующих требований
+                        - Предпочтениям в архитектурных решениях
+                    </note>
+                </action>
+            </actions>
+            
+            <output>
+                <file path="workflow/01_analysis.xml">
+                    <schema>
+                        <prd_analysis version="1.0">
+                            <metadata>
+                                <source_document/>
+                                <analysis_timestamp/>
+                                <analyst/>
+                            </metadata>
+                            
+                            <requirements>
+                                <functional>
+                                    <requirement id="" priority="" category="">
+                                        <description/>
+                                        <acceptance_criteria/>
+                                        <dependencies/>
+                                        <notes/>
+                                    </requirement>
+                                </functional>
+                                
+                                <non_functional>
+                                    <requirement id="" priority="" category="">
+                                        <description/>
+                                        <measurement_criteria/>
+                                        <dependencies/>
+                                        <notes/>
+                                    </requirement>
+                                </non_functional>
+                            </requirements>
+                            
+                            <technical_context>
+                                <technology_stack>
+                                    <component name="" version="" purpose=""/>
+                                </technology_stack>
+                                
+                                <constraints>
+                                    <constraint type="" impact="" mitigation=""/>
+                                </constraints>
+                                
+                                <integrations>
+                                    <integration system="" type="" critical=""/>
+                                </integrations>
+                            </technical_context>
+                            
+                            <risk_assessment>
+                                <risk id="" probability="" impact="" severity="">
+                                    <description/>
+                                    <mitigation_strategy/>
+                                    <contingency_plan/>
+                                </risk>
+                            </risk_assessment>
+                            
+                            <dependencies>
+                                <dependency id="" type="" blocks="">
+                                    <description/>
+                                    <resolution_strategy/>
+                                </dependency>
+                            </dependencies>
+                            
+                            <clarification_questions>
+                                <question id="" priority="" area="">
+                                    <question_text/>
+                                    <context/>
+                                    <impact_if_unresolved/>
+                                </question>
+                            </clarification_questions>
+                            
+                            <understanding_summary>
+                                <core_objective/>
+                                <success_criteria/>
+                                <critical_factors/>
+                            </understanding_summary>
+                        </prd_analysis>
+                    </schema>
+                </file>
+            </output>
+            
+            <checkpoint>
+                <check>✓ PRD документ полностью проанализирован</check>
+                <check>✓ Все требования извлечены и категоризированы</check>
+                <check>✓ Технические ограничения идентифицированы</check>
+                <check>✓ Риски оценены и задокументированы</check>
+                <check>✓ Зависимости выявлены</check>
+                <check>✓ Уточняющие вопросы сформулированы</check>
+            </checkpoint>
+            
+            <approval_gate>
+                <required>true</required>
+                <message>
+                    ═══════════════════════════════════════════════════════════
+                    ЗАВЕРШЕНИЕ ФАЗЫ 1: ГЛУБОКИЙ АНАЛИЗ PRD
+                    ═══════════════════════════════════════════════════════════
+                    
+                    Анализ PRD документа завершен. 
+                    
+                    Создан файл: workflow/01_analysis.xml
+                    
+                    УТОЧНЯЮЩИЕ ВОПРОСЫ:
+                    [Список вопросов из analysis.xml]
+                    
+                    Пожалуйста:
+                    1. Ознакомьтесь с результатами анализа в файле
+                    2. Ответьте на уточняющие вопросы
+                    3. Подтвердите готовность перейти к планированию
+                    
+                    Команды:
+                    - "продолжить" - перейти к следующей фазе
+                    - "уточнить [тема]" - задать дополнительные вопросы
+                    - "исправить [что]" - внести корректировки в анализ
+                    ═══════════════════════════════════════════════════════════
+                </message>
+            </approval_gate>
+        </phase>
+
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <!-- ФАЗА 2: СТРАТЕГИЧЕСКОЕ ПЛАНИРОВАНИЕ -->
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <phase order="2" id="strategic_planning" mandatory="true">
+            <dependency>phase[id=deep_analysis].approval_gate.approved</dependency>
+            
+            <objective>
+                Создание высокоуровневого стратегического плана:
+                разбиение на эпики, определение этапов, оценка ресурсов
+            </objective>
+            
+            <thinking_prompt>
+                На основе анализа спланируйте стратегию:
+                
+                1. ДЕКОМПОЗИЦИЯ:
+                   - Как разбить проект на логические блоки (эпики)?
+                   - Какие эпики можно выполнять параллельно?
+                   - Какие должны идти последовательно?
+                
+                2. ПРИОРИТИЗАЦИЯ:
+                   - Какой порядок обеспечит наибольшую ценность?
+                   - Где находятся критические зависимости?
+                   - Что можно отложить на потом?
+                
+                3. ОЦЕНКА:
+                   - Сколько времени займет каждый эпик?
+                   - Какие ресурсы потребуются?
+                   - Где возможны узкие места?
+                
+                4. ЭТАПИРОВАНИЕ:
+                   - Как разделить на релизы/спринты?
+                   - Что включить в MVP?
+                   - Как обеспечить инкрементальную ценность?
+            </thinking_prompt>
+            
+            <actions>
+                <action seq="1" validation="micro">
+                    <description>Загрузить результаты анализа</description>
+                </action>
+                
+                <action seq="2" validation="micro">
+                    <description>Сгруппировать требования в логические эпики</description>
+                    <validation_criteria>
+                        - Эпики покрывают все требования
+                        - Эпики имеют четкие границы
+                        - Размер эпиков управляем
+                    </validation_criteria>
+                </action>
+                
+                <action seq="3" validation="micro">
+                    <description>Определить зависимости между эпиками</description>
+                    <validation_criteria>
+                        - Граф зависимостей построен
+                        - Критический путь определен
+                        - Параллельные треки выявлены
+                    </validation_criteria>
+                </action>
+                
+                <action seq="4" validation="micro">
+                    <description>Оценить сложность и трудозатраты</description>
+                    <validation_criteria>
+                        - Каждый эпик оценен
+                        - Метрики оценки определены
+                        - Буфер на неопределенность учтен
+                    </validation_criteria>
+                </action>
+                
+                <action seq="5" validation="micro">
+                    <description>Создать roadmap с этапами</description>
+                    <validation_criteria>
+                        - Этапы определены
+                        - MVP выделен
+                        - Incremental value обеспечена
+                    </validation_criteria>
+                </action>
+                
+                <action seq="6" validation="user_interaction">
+                    <description>Предложить стратегический план на утверждение</description>
+                </action>
+            </actions>
+            
+            <output>
+                <file path="workflow/02_strategic_plan.xml">
+                    <schema>
+                        <strategic_plan version="1.0">
+                            <metadata>
+                                <created_timestamp/>
+                                <based_on_analysis/>
+                                <planning_horizon/>
+                            </metadata>
+                            
+                            <epics>
+                                <epic id="" name="" priority="">
+                                    <description/>
+                                    <business_value/>
+                                    <requirements_covered>
+                                        <requirement_id/>
+                                    </requirements_covered>
+                                    <estimated_effort unit="hours"/>
+                                    <complexity level="low|medium|high|very_high"/>
+                                    <risks>
+                                        <risk_id/>
+                                    </risks>
+                                    <dependencies>
+                                        <depends_on epic_id=""/>
+                                    </dependencies>
+                                    <success_criteria/>
+                                </epic>
+                            </epics>
+                            
+                            <dependency_graph>
+                                <critical_path>
+                                    <epic_id order=""/>
+                                </critical_path>
+                                <parallel_tracks>
+                                    <track id="">
+                                        <epic_id/>
+                                    </track>
+                                </parallel_tracks>
+                            </dependency_graph>
+                            
+                            <roadmap>
+                                <phase id="" name="" timeline="">
+                                    <objectives/>
+                                    <epics_included>
+                                        <epic_id/>
+                                    </epics_included>
+                                    <deliverables/>
+                                    <milestone/>
+                                </phase>
+                            </roadmap>
+                            
+                            <mvp_definition>
+                                <scope>
+                                    <epic_id/>
+                                </scope>
+                                <core_value/>
+                                <acceptance_criteria/>
+                            </mvp_definition>
+                            
+                            <resource_estimates>
+                                <total_effort unit="hours"/>
+                                <timeline unit="days"/>
+                                <confidence_level/>
+                            </resource_estimates>
+                        </strategic_plan>
+                    </schema>
+                </file>
+            </output>
+            
+            <checkpoint>
+                <check>✓ Все требования распределены по эпикам</check>
+                <check>✓ Зависимости между эпиками определены</check>
+                <check>✓ Оценки сложности выполнены</check>
+                <check>✓ Roadmap создан с этапами</check>
+                <check>✓ MVP определен</check>
+            </checkpoint>
+            
+            <approval_gate>
+                <required>true</required>
+                <message>
+                    ═══════════════════════════════════════════════════════════
+                    ЗАВЕРШЕНИЕ ФАЗЫ 2: СТРАТЕГИЧЕСКОЕ ПЛАНИРОВАНИЕ
+                    ═══════════════════════════════════════════════════════════
+                    
+                    Стратегический план создан.
+                    
+                    Создан файл: workflow/02_strategic_plan.xml
+                    
+                    КРАТКОЕ РЕЗЮМЕ:
+                    - Количество эпиков: [N]
+                    - Предполагаемая длительность: [X] дней
+                    - Критический путь: [эпики]
+                    - MVP: [описание]
+                    
+                    Пожалуйста:
+                    1. Ознакомьтесь со стратегическим планом
+                    2. Подтвердите приоритеты и roadmap
+                    3. Утвердите переход к детальному планированию
+                    
+                    Команды:
+                    - "утверждаю" - перейти к детальному планированию
+                    - "изменить [что]" - скорректировать план
+                    - "детали [epic_id]" - уточнить конкретный эпик
+                    ═══════════════════════════════════════════════════════════
+                </message>
+            </approval_gate>
+        </phase>
+
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <!-- ФАЗА 3: ДЕТАЛЬНОЕ ПЛАНИРОВАНИЕ ЗАДАЧ -->
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <phase order="3" id="detailed_planning" mandatory="true">
+            <dependency>phase[id=strategic_planning].approval_gate.approved</dependency>
+            
+            <objective>
+                Детальная декомпозиция эпиков на конкретные выполнимые задачи
+                с технической спецификацией и критериями приемки
+            </objective>
+            
+            <thinking_prompt>
+                Для каждого эпика детально продумайте:
+                
+                1. ДЕКОМПОЗИЦИЯ:
+                   - Какие конкретные задачи нужны для реализации?
+                   - Как разбить на атомарные единицы работы?
+                   - Какие задачи можно выполнять параллельно?
+                
+                2. ТЕХНИЧЕСКАЯ СПЕЦИФИКАЦИЯ:
+                   - Что именно должно быть реализовано?
+                   - Какие технологии и инструменты использовать?
+                   - Какие изменения в код/конфигурацию требуются?
+                   - Какие файлы будут затронуты?
+                
+                3. ЗАВИСИМОСТИ:
+                   - Какие задачи блокируют другие?
+                   - Что должно быть готово до начала?
+                   - Где возможны конфликты?
+                
+                4. ТЕСТИРОВАНИЕ:
+                   - Как проверить корректность?
+                   - Какие тесты написать?
+                   - Какие edge cases учесть?
+                
+                5. ОЦЕНКА:
+                   - Сколько времени займет?
+                   - Какая сложность?
+                   - Где могут быть подводные камни?
+            </thinking_prompt>
+            
+            <actions>
+                <action seq="1" validation="micro">
+                    <description>Загрузить стратегический план</description>
+                </action>
+                
+                <action seq="2" validation="iterative">
+                    <description>
+                        ДЛЯ КАЖДОГО ЭПИКА из стратегического плана:
+                        Выполнить детальную декомпозицию на задачи
+                    </description>
+                    <sub_actions>
+                        <sub_action seq="2.1">
+                            <description>Определить список задач для эпика</description>
+                        </sub_action>
+                        <sub_action seq="2.2">
+                            <description>Создать техническую спецификацию каждой задачи</description>
+                        </sub_action>
+                        <sub_action seq="2.3">
+                            <description>Определить зависимости между задачами</description>
+                        </sub_action>
+                        <sub_action seq="2.4">
+                            <description>Создать критерии приемки</description>
+                        </sub_action>
+                        <sub_action seq="2.5">
+                            <description>Оценить сложность и трудозатраты</description>
+                        </sub_action>
+                    </sub_actions>
+                    <validation_criteria>
+                        - Все эпики декомпозированы
+                        - Задачи атомарны и выполнимы
+                        - Спецификации детальны
+                    </validation_criteria>
+                </action>
+                
+                <action seq="3" validation="micro">
+                    <description>Построить граф зависимостей задач</description>
+                    <validation_criteria>
+                        - Граф корректен
+                        - Циклических зависимостей нет
+                        - Порядок выполнения определен
+                    </validation_criteria>
+                </action>
+                
+                <action seq="4" validation="micro">
+                    <description>Создать план тестирования</description>
+                    <validation_criteria>
+                        - Для каждой задачи есть тесты
+                        - Coverage адекватен
+                        - Edge cases учтены
+                    </validation_criteria>
+                </action>
+                
+                <action seq="5" validation="user_interaction">
+                    <description>Предоставить детальный план на review</description>
+                </action>
+            </actions>
+            
+            <output>
+                <file path="workflow/03_detailed_plan.xml">
+                    <schema>
+                        <detailed_plan version="1.0">
+                            <metadata>
+                                <created_timestamp/>
+                                <based_on_strategic_plan/>
+                                <total_tasks/>
+                            </metadata>
+                            
+                            <epics>
+                                <epic id="" name="">
+                                    <tasks>
+                                        <task id="" name="" priority="">
+                                            <description/>
+                                            
+                                            <technical_specification>
+                                                <approach/>
+                                                <technologies>
+                                                    <technology/>
+                                                </technologies>
+                                                <files_affected>
+                                                    <file path="" action="create|modify|delete"/>
+                                                </files_affected>
+                                                <changes_required>
+                                                    <change type="" description=""/>
+                                                </changes_required>
+                                                <external_dependencies>
+                                                    <dependency name="" version=""/>
+                                                </external_dependencies>
+                                            </technical_specification>
+                                            
+                                            <acceptance_criteria>
+                                                <criterion id="" description="" testable="true|false"/>
+                                            </acceptance_criteria>
+                                            
+                                            <test_plan>
+                                                <unit_tests>
+                                                    <test description="" expected_result=""/>
+                                                </unit_tests>
+                                                <integration_tests>
+                                                    <test description="" expected_result=""/>
+                                                </integration_tests>
+                                                <edge_cases>
+                                                    <case description="" handling=""/>
+                                                </edge_cases>
+                                            </test_plan>
+                                            
+                                            <dependencies>
+                                                <dependency task_id="" type="hard|soft"/>
+                                            </dependencies>
+                                            
+                                            <estimation>
+                                                <effort unit="hours" value=""/>
+                                                <complexity level="trivial|low|medium|high|very_high"/>
+                                                <confidence level="low|medium|high"/>
+                                                <risk_factors>
+                                                    <risk description="" probability="" impact=""/>
+                                                </risk_factors>
+                                            </estimation>
+                                            
+                                            <implementation_notes>
+                                                <note type="warning|info|tip" priority=""/>
+                                            </implementation_notes>
+                                        </task>
+                                    </tasks>
+                                    
+                                    <epic_summary>
+                                        <total_tasks/>
+                                        <total_effort unit="hours"/>
+                                        <critical_tasks>
+                                            <task_id/>
+                                        </critical_tasks>
+                                    </epic_summary>
+                                </epic>
+                            </epics>
+                            
+                            <execution_order>
+                                <sequence>
+                                    <step order="" parallel_group="">
+                                        <task_id/>
+                                    </step>
+                                </sequence>
+                            </execution_order>
+                            
+                            <dependency_matrix>
+                                <dependency from_task="" to_task="" type="" blocker=""/>
+                            </dependency_matrix>
+                            
+                            <testing_strategy>
+                                <overall_approach/>
+                                <tools_required>
+                                    <tool name="" purpose=""/>
+                                </tools_required>
+                                <coverage_target percentage=""/>
+                            </testing_strategy>
+                            
+                            <risk_mitigation>
+                                <high_risk_tasks>
+                                    <task_id risk_level="" mitigation_plan=""/>
+                                </high_risk_tasks>
+                            </risk_mitigation>
+                            
+                            <summary>
+                                <total_tasks/>
+                                <total_effort unit="hours"/>
+                                <estimated_duration unit="days"/>
+                                <confidence_level/>
+                            </summary>
+                        </detailed_plan>
+                    </schema>
+                </file>
+            </output>
+            
+            <checkpoint>
+                <check>✓ Все эпики декомпозированы на задачи</check>
+                <check>✓ Каждая задача имеет техническую спецификацию</check>
+                <check>✓ Критерии приемки определены для всех задач</check>
+                <check>✓ План тестирования создан</check>
+                <check>✓ Зависимости задокументированы</check>
+                <check>✓ Оценки выполнены</check>
+                <check>✓ Порядок выполнения определен</check>
+            </checkpoint>
+            
+            <approval_gate>
+                <required>true</required>
+                <message>
+                    ═══════════════════════════════════════════════════════════
+                    ЗАВЕРШЕНИЕ ФАЗЫ 3: ДЕТАЛЬНОЕ ПЛАНИРОВАНИЕ ЗАДАЧ
+                    ═══════════════════════════════════════════════════════════
+                    
+                    Детальный план задач создан.
+                    
+                    Создан файл: workflow/03_detailed_plan.xml
+                    
+                    СТАТИСТИКА:
+                    - Всего задач: [N]
+                    - Общие трудозатраты: [X] часов
+                    - Предполагаемая длительность: [Y] дней
+                    - Задач высокого риска: [Z]
+                    
+                    СЛЕДУЮЩИЕ ШАГИ:
+                    Предлагаю перейти к оптимизации плана или
+                    сразу к финализации для начала выполнения.
+                    
+                    Команды:
+                    - "оптимизировать" - провести оптимизацию плана (Фаза 4)
+                    - "финализировать" - перейти к финализации (Фаза 5)
+                    - "изменить [task_id]" - скорректировать задачу
+                    - "детали [task_id]" - показать детали задачи
+                    ═══════════════════════════════════════════════════════════
+                </message>
+            </approval_gate>
+        </phase>
+
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <!-- ФАЗА 4: ОПТИМИЗАЦИЯ ПЛАНА (ОПЦИОНАЛЬНАЯ) -->
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <phase order="4" id="optimization" mandatory="false">
+            <dependency>phase[id=detailed_planning].approval_gate.approved</dependency>
+            
+            <objective>
+                Оптимизация плана для сокращения сроков, снижения рисков
+                и повышения эффективности выполнения
+            </objective>
+            
+            <thinking_prompt>
+                Проанализируйте план на предмет оптимизации:
+                
+                1. ПАРАЛЛЕЛИЗАЦИЯ:
+                   - Какие задачи можно выполнять параллельно?
+                   - Где ложные зависимости?
+                   - Как оптимизировать критический путь?
+                
+                2. УПРОЩЕНИЕ:
+                   - Где можно упростить решение?
+                   - Какие задачи избыточны?
+                   - Где можно использовать готовые решения?
+                
+                3. СНИЖЕНИЕ РИСКОВ:
+                   - Как минимизировать риски?
+                   - Где нужны fallback опции?
+                   - Какие задачи разделить для снижения риска?
+                
+                4. ЭФФЕКТИВНОСТЬ:
+                   - Где можно автоматизировать?
+                   - Какие инструменты ускорят работу?
+                   - Как избежать переделок?
+            </thinking_prompt>
+            
+            <actions>
+                <action seq="1" validation="micro">
+                    <description>Анализ критического пути</description>
+                    <validation_criteria>
+                        - Критический путь идентифицирован
+                        - Узкие места найдены
+                    </validation_criteria>
+                </action>
+                
+                <action seq="2" validation="micro">
+                    <description>Поиск возможностей параллелизации</description>
+                    <validation_criteria>
+                        - Параллельные треки найдены
+                        - Зависимости пересмотрены
+                    </validation_criteria>
+                </action>
+                
+                <action seq="3" validation="micro">
+                    <description>Оптимизация задач высокого риска</description>
+                    <validation_criteria>
+                        - Риски снижены где возможно
+                        - Альтернативные подходы предложены
+                    </validation_criteria>
+                </action>
+                
+                <action seq="4" validation="micro">
+                    <description>Создание оптимизированной версии плана</description>
+                </action>
+            </actions>
+            
+            <output>
+                <file path="workflow/04_optimized_plan.xml">
+                    <schema>
+                        <optimization_report version="1.0">
+                            <original_plan_reference/>
+                            
+                            <optimizations_applied>
+                                <optimization id="" type="" impact="">
+                                    <description/>
+                                    <tasks_affected>
+                                        <task_id/>
+                                    </tasks_affected>
+                                    <benefit/>
+                                    <trade_offs/>
+                                </optimization>
+                            </optimizations_applied>
+                            
+                            <comparison>
+                                <metric name="">
+                                    <original/>
+                                    <optimized/>
+                                    <improvement/>
+                                </metric>
+                            </comparison>
+                            
+                            <optimized_execution_order>
+                                <sequence>
+                                    <step order="" parallel_group="">
+                                        <task_id/>
+                                    </step>
+                                </sequence>
+                            </optimized_execution_order>
+                        </optimization_report>
+                    </schema>
+                </file>
+            </output>
+            
+            <checkpoint>
+                <check>✓ Оптимизации идентифицированы</check>
+                <check>✓ План оптимизирован</check>
+                <check>✓ Сравнение проведено</check>
+            </checkpoint>
+            
+            <approval_gate>
+                <required>true</required>
+                <message>
+                    ═══════════════════════════════════════════════════════════
+                    ЗАВЕРШЕНИЕ ФАЗЫ 4: ОПТИМИЗАЦИЯ ПЛАНА
+                    ═══════════════════════════════════════════════════════════
+                    
+                    План оптимизирован.
+                    
+                    УЛУЧШЕНИЯ:
+                    - Сокращение сроков: [X]%
+                    - Снижение рисков: [Y] задач
+                    - Параллелизация: [Z] групп
+                    
+                    Команды:
+                    - "принять" - использовать оптимизированный план
+                    - "отклонить" - вернуться к исходному плану
+                    - "частично" - выбрать конкретные оптимизации
+                    ═══════════════════════════════════════════════════════════
+                </message>
+            </approval_gate>
+        </phase>
+
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <!-- ФАЗА 5: ФИНАЛИЗАЦИЯ И ДОКУМЕНТИРОВАНИЕ -->
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <phase order="5" id="finalization" mandatory="true">
+            <dependency>
+                phase[id=detailed_planning].approval_gate.approved OR
+                phase[id=optimization].approval_gate.approved
+            </dependency>
+            
+            <objective>
+                Финализация плана, создание итоговой документации,
+                подготовка к началу выполнения
+            </objective>
+            
+            <thinking_prompt>
+                Подготовьте финальную версию:
+                
+                1. КОНСОЛИДАЦИЯ:
+                   - Все ли артефакты готовы?
+                   - Нет ли противоречий?
+                   - Все ли документировано?
+                
+                2. ДОКУМЕНТАЦИЯ:
+                   - Понятна ли для исполнителей?
+                   - Достаточно ли деталей?
+                   - Есть ли примеры где нужно?
+                
+                3. ГОТОВНОСТЬ:
+                   - Можно ли начать выполнение?
+                   - Все ли риски учтены?
+                   - Есть ли план B для критичных задач?
+            </thinking_prompt>
+            
+            <actions>
+                <action seq="1" validation="micro">
+                    <description>Консолидация всех артефактов</description>
+                </action>
+                
+                <action seq="2" validation="micro">
+                    <description>Создание итогового мастер-плана</description>
+                </action>
+                
+                <action seq="3" validation="micro">
+                    <description>Генерация документации для исполнителей</description>
+                </action>
+                
+                <action seq="4" validation="micro">
+                    <description>Создание исполнительного резюме</description>
+                </action>
+                
+                <action seq="5" validation="micro">
+                    <description>Подготовка чек-листа для начала работ</description>
+                </action>
+            </actions>
+            
+            <output>
+                <file path="workflow/05_master_plan.xml">
+                    <schema>
+                        <master_plan version="1.0">
+                            <metadata>
+                                <created_timestamp/>
+                                <final_approval_timestamp/>
+                                <plan_version/>
+                            </metadata>
+                            
+                            <references>
+                                <source_prd/>
+                                <analysis_document/>
+                                <strategic_plan/>
+                                <detailed_plan/>
+                                <optimization_report/>
+                            </references>
+                            
+                            <executive_summary>
+                                <project_overview/>
+                                <scope/>
+                                <timeline/>
+                                <resources_required/>
+                                <key_risks/>
+                                <success_criteria/>
+                            </executive_summary>
+                            
+                            <complete_task_list>
+                                <!-- Полный список всех задач с деталями -->
+                            </complete_task_list>
+                            
+                            <execution_roadmap>
+                                <!-- Порядок и график выполнения -->
+                            </execution_roadmap>
+                            
+                            <risk_management_plan>
+                                <!-- Стратегии управления рисками -->
+                            </risk_management_plan>
+                            
+                            <quality_assurance_plan>
+                                <!-- План обеспечения качества -->
+                            </quality_assurance_plan>
+                        </master_plan>
+                    </schema>
+                </file>
+                
+                <file path="workflow/05_execution_guide.md">
+                    <description>
+                        Руководство для исполнителей в человеко-читаемом формате
+                    </description>
+                </file>
+                
+                <file path="workflow/05_summary.xml">
+                    <schema>
+                        <project_summary version="1.0">
+                            <quick_facts>
+                                <total_epics/>
+                                <total_tasks/>
+                                <estimated_duration/>
+                                <estimated_effort/>
+                            </quick_facts>
+                            
+                            <achievements>
+                                <achievement>Comprehensive analysis completed</achievement>
+                                <achievement>Strategic plan developed</achievement>
+                                <achievement>Detailed task breakdown created</achievement>
+                                <achievement>Risk assessment performed</achievement>
+                            </achievements>
+                            
+                            <next_steps>
+                                <step order="" description=""/>
+                            </next_steps>
+                        </project_summary>
+                    </schema>
+                </file>
+            </output>
+            
+            <checkpoint>
+                <check>✓ Все артефакты консолидированы</check>
+                <check>✓ Мастер-план создан</check>
+                <check>✓ Документация готова</check>
+                <check>✓ Executive summary подготовлено</check>
+                <check>✓ План готов к выполнению</check>
+            </checkpoint>
+            
+            <approval_gate>
+                <required>true</required>
+                <message>
+                    ═══════════════════════════════════════════════════════════
+                    ПЛАНИРОВАНИЕ ЗАВЕРШЕНО
+                    ═══════════════════════════════════════════════════════════
+                    
+                    Все артефакты созданы:
+                    ✓ workflow/01_analysis.xml
+                    ✓ workflow/02_strategic_plan.xml
+                    ✓ workflow/03_detailed_plan.xml
+                    ✓ workflow/04_optimized_plan.xml (если применимо)
+                    ✓ workflow/05_master_plan.xml
+                    ✓ workflow/05_execution_guide.md
+                    ✓ workflow/05_summary.xml
+                    
+                    ИТОГОВАЯ СТАТИСТИКА:
+                    - Эпиков: [N]
+                    - Задач: [M]
+                    - Оценка длительности: [X] дней
+                    - Уровень уверенности: [Y]%
+                    
+                    План готов к выполнению!
+                    
+                    СЛЕДУЮЩИЕ ДЕЙСТВИЯ:
+                    1. Ознакомьтесь с workflow/05_execution_guide.md
+                    2. Начните выполнение с первой задачи
+                    3. Следуйте порядку из execution_roadmap
+                    
+                    Команды:
+                    - "начать выполнение" - перейти к реализации
+                    - "экспорт" - экспортировать план в другие форматы
+                    - "пересмотр" - вернуться к корректировкам
+                    ═══════════════════════════════════════════════════════════
+                </message>
+            </approval_gate>
+        </phase>
+
+    </workflow>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- УПРАВЛЕНИЕ ОШИБКАМИ -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <error_handling>
+        <on_checkpoint_failure>
+            <action>STOP_IMMEDIATELY</action>
+            <logging>
+                <log_to>workflow/execution_log.xml</log_to>
+                <severity>ERROR</severity>
+            </logging>
+            <message>
+                ❌ CHECKPOINT FAILED
+                
+                Фаза: {phase_id}
+                Checkpoint: {checkpoint_description}
+                
+                Выполнение остановлено. Проблема должна быть устранена
+                перед продолжением.
+                
+                Используйте &lt;thinking&gt; для анализа причины.
+            </message>
+        </on_checkpoint_failure>
+        
+        <on_dependency_not_met>
+            <action>PREVENT_EXECUTION</action>
+            <message>
+                ⚠️ DEPENDENCY NOT SATISFIED
+                
+                Попытка выполнить фазу: {phase_id}
+                Зависимость: {dependency_description}
+                
+                Завершите предыдущую фазу перед продолжением.
+            </message>
+        </on_dependency_not_met>
+        
+        <on_approval_gate_not_passed>
+            <action>WAIT_FOR_USER</action>
+            <message>
+                🔒 APPROVAL GATE
+                
+                Требуется подтверждение пользователя для продолжения.
+            </message>
+        </on_approval_gate_not_passed>
+        
+        <on_validation_failure>
+            <action>REPORT_AND_WAIT</action>
+            <rollback_option>true</rollback_option>
+            <message>
+                ⚠️ VALIDATION FAILED
+                
+                Action: {action_description}
+                Validation: {failed_criteria}
+                
+                Предлагаемые действия:
+                1. Исправить и повторить
+                2. Пропустить (только для некритичных валидаций)
+                3. Откатить к предыдущему состоянию
+            </message>
+        </on_validation_failure>
+    </error_handling>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- ПРАВИЛА ВЫПОЛНЕНИЯ -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <execution_rules>
+        <rule id="R1" priority="CRITICAL" enforcement="STRICT">
+            Фазы выполняются СТРОГО последовательно по атрибуту 'order'
+        </rule>
+        
+        <rule id="R2" priority="CRITICAL" enforcement="STRICT">
+            Переход к следующей фазе ТОЛЬКО после:
+            - Выполнения всех checkpoint'ов
+            - Получения user approval (если required="true")
+        </rule>
+        
+        <rule id="R3" priority="CRITICAL" enforcement="STRICT">
+            При любой ошибке - немедленная ОСТАНОВКА и отчет
+        </rule>
+        
+        <rule id="R4" priority="HIGH" enforcement="REQUIRED">
+            &lt;thinking&gt; блок ОБЯЗАТЕЛЕН перед:
+            - Началом каждой фазы
+            - Каждым значимым действием
+            - Принятием архитектурных решений
+        </rule>
+        
+        <rule id="R5" priority="HIGH" enforcement="REQUIRED">
+            Все выходные файлы должны:
+            - Быть валидным XML
+            - Соответствовать объявленной схеме
+            - Содержать все обязательные поля
+        </rule>
+        
+        <rule id="R6" priority="MEDIUM" enforcement="RECOMMENDED">
+            Активное взаимодействие с пользователем:
+            - Задавать уточняющие вопросы
+            - Предлагать альтернативы
+            - Запрашивать feedback на критичных этапах
+        </rule>
+        
+        <rule id="R7" priority="MEDIUM" enforcement="RECOMMENDED">
+            Документировать ВСЕ:
+            - Принятые решения
+            - Обоснования выбора
+            - Отклоненные альтернативы
+            - Lessons learned
+        </rule>
+        
+        <rule id="R8" priority="LOW" enforcement="OPTIONAL">
+            Использовать execution_log.xml для:
+            - Отслеживания прогресса
+            - Audit trail
+            - Debugging при проблемах
+        </rule>
+    </execution_rules>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- УТИЛИТЫ И ВСПОМОГАТЕЛЬНЫЕ ИНСТРУКЦИИ -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <utilities>
+        <execution_log_format>
+            <example>
+                <entry 
+                    timestamp="2025-10-01T14:30:00Z"
+                    phase="deep_analysis"
+                    action="parse_prd_document"
+                    status="completed"
+                    notes="Successfully extracted 15 requirements"
+                />
+            </example>
+        </execution_log_format>
+        
+        <common_thinking_patterns>
+            <pattern name="requirement_analysis">
+                - Что именно требуется?
+                - Почему это важно?
+                - Какие есть ограничения?
+                - Как проверить выполнение?
+            </pattern>
+            
+            <pattern name="task_decomposition">
+                - Можно ли разбить на подзадачи?
+                - Какие зависимости?
+                - Как оценить сложность?
+                - Где потенциальные проблемы?
+            </pattern>
+            
+            <pattern name="risk_assessment">
+                - Что может пойти не так?
+                - Какова вероятность?
+                - Какой будет impact?
+                - Как минимизировать?
+            </pattern>
+        </common_thinking_patterns>
+    </utilities>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- ИНСТРУКЦИИ ПО НАЧАЛУ РАБОТЫ -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <startup_instructions>
+        При получении этого request_plan:
+        
+        1. Начните с Фазы 0 (Initialization)
+        
+        2. Используйте &lt;thinking&gt; для планирования действий
+        
+        3. Четко сообщайте о начале каждой фазы:
+           "═══ НАЧАЛО ФАЗЫ N: [NAME] ═══"
+        
+        4. После завершения фазы выводите approval gate message
+           и ЖДИТЕ подтверждения пользователя
+        
+        5. Создавайте все файлы в указанных путях
+        
+        6. Логируйте прогресс в execution_log.xml
+        
+        7. При проблемах - останавливайтесь и сообщайте
+        
+        8. Будьте проактивны - задавайте вопросы когда что-то неясно
+    </startup_instructions>
+
+</request_plan>

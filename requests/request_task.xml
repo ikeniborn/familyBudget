@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<request_execute version="2.1" optimized="true">
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- META -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <meta>
+        <version>2.1</version>
+    </meta>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- CORE CONFIG -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <config>
+        <mode>streamlined_sequential</mode>
+        <thinking enabled="true" mode="interleaved"/>
+        <validation strategy="targeted" focus="critical_only"/>
+        <git mode="optional" auto_commit="false"/>
+    </config>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SPECIFIC PRINCIPLES (дополняют CLAUDE.md) -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <principles>
+        <principle id="PS1" level="CRITICAL">
+            PRD Compliance - все решения ДОЛЖНЫ соответствовать PRD
+        </principle>
+        <principle id="PS2" level="HIGH">
+            Acceptance Criteria Fulfillment - все критерии ДОЛЖНЫ быть выполнены
+        </principle>
+    </principles>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- CONTEXT -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <context>
+        <role>
+            Full-Stack разработчик, специализирующийся на быстром выполнении точечных задач
+            с фокусом на Bash, Python, Docker, безопасность, тестирование.
+        </role>
+
+        <prd_document required="true">
+            PRD - ОБЯЗАТЕЛЬНЫЙ Product Requirements Document
+        </prd_document>
+
+        <project_context>
+            При запуске теста безопасности после устанвоки возникает ошибка
+            ikeniborn@11154:~/vless$ sudo vless test-security 
+
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            VLESS REALITY VPN - ENCRYPTION SECURITY TESTING SUITE
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+            Test Suite: Encryption & Secure Channel Validation
+            Date: Tue Oct  7 20:52:43 CEST 2025
+            Server: 11154.example.us
+
+
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            CHECKING PREREQUISITES
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+            [INFO] VLESS installation found: /opt/vless
+            [INFO] Optional tool not found: testssl.sh (some tests will be limited)
+            ERROR: No users.json found - VLESS may not be installed
+
+            This test suite requires a working VLESS installation.
+
+            If VLESS is NOT installed, run the installer:
+            sudo bash install.sh
+
+            If VLESS IS installed but has no users, create one:
+            sudo vless-user add testuser
+
+            [INFO] Cleaning up...
+            [INFO] Cleanup completed
+
+        </project_context>
+
+        <task>
+            <technical_requirements>
+                - Изучить текущее решение по тестирование
+                - Определить причину ошибки при запуске тестирования
+                - Исправить скрпиты для тестирования
+                - ЗАфиксировать изменения в документации если потребуется.
+            </technical_requirements>
+
+            <quality_requirements>
+                - Следовать PRD
+            </quality_requirements>
+        </task>
+    </context>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- WORKFLOW -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <workflow>
+        
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- PHASE 1: ANALYZE & PLAN -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <phase id="1_analyze" mandatory="true">
+            <objective>Анализ задачи, проверка PRD, создание плана</objective>
+
+            <actions>
+                <action seq="1" requires_thinking="true">
+                    <do>Загрузить PRD и проанализировать релевантные секции</do>
+                    <verify>PRD прочитан, задача aligned</verify>
+                </action>
+
+                <action seq="2" requires_thinking="true">
+                    <do>Проанализировать логи и определить root causes проблем</do>
+                    <verify>Проблемы идентифицированы, подход выбран</verify>
+                </action>
+
+                <action seq="3" output="required" mandatory_format="true">
+                    <do>Создать план выполнения</do>
+                    <format>
+                        ПЛАН ВЫПОЛНЕНИЯ
+                        ════════════════════════════════════════════
+                        PRD: ✓ [релевантные секции]
+                        
+                        ПРОБЛЕМЫ:
+                        1. [проблема 1] → [решение]
+                        2. [проблема 2] → [решение]
+                        
+                        ФАЙЛЫ:
+                        - [файл]: [что изменить]
+                        
+                        ШАГИ:
+                        1. [шаг]
+                        2. [шаг]
+                        
+                        РИСКИ: [список]
+                        ВАЛИДАЦИЯ: [как проверить]
+                        ════════════════════════════════════════════
+                    </format>
+                </action>
+            </actions>
+
+            <exit_conditions>
+                <condition>PRD проверен, задача соответствует</condition>
+                <condition>План создан с деталями</condition>
+                <condition>Риски идентифицированы</condition>
+            </exit_conditions>
+        </phase>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- PHASE 2: EXECUTE -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <phase id="2_execute" mandatory="true">
+            <objective>Выполнение задачи согласно плану</objective>
+
+            <execution_loop>
+                ДЛЯ КАЖДОГО ШАГА:
+                1. Выполнить изменения кода
+                2. Micro-валидация (syntax, basic functionality)
+                3. Документировать результат
+            </execution_loop>
+
+            <exit_conditions>
+                <condition>Все шаги выполнены</condition>
+                <condition>Код работает, нет syntax errors</condition>
+            </exit_conditions>
+        </phase>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- PHASE 3: VALIDATE -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <phase id="3_validate" mandatory="true">
+            <objective>Проверка acceptance criteria и PRD</objective>
+
+            <actions>
+                <action seq="1" validation="critical" blocking="true">
+                    <do>Проверить acceptance criteria</do>
+                    <verify>Каждый критерий ✓, работает корректно</verify>
+                </action>
+
+                <action seq="2" validation="critical" blocking="true">
+                    <do>Проверить PRD compliance</do>
+                    <verify>Нет противоречий, requirements соблюдены</verify>
+                </action>
+
+                <action seq="3" validation="standard">
+                    <do>Функциональное тестирование</do>
+                    <verify>Функционал работает, edge cases обработаны</verify>
+                </action>
+            </actions>
+
+            <exit_conditions>
+                <condition>Acceptance criteria выполнены</condition>
+                <condition>PRD requirements соблюдены</condition>
+                <condition>Тесты пройдены (если применимо)</condition>
+            </exit_conditions>
+
+            <approval_gate required="true">
+                Валидация завершена. Результаты:
+                - Acceptance Criteria: [✓/✗]
+                - PRD Compliance: [✓/✗]
+                - Tests: [✓/✗/N/A]
+            </approval_gate>
+        </phase>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- PHASE 4: FINALIZE -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <phase id="4_finalize" mandatory="true">
+            <objective>Документирование и git (опционально)</objective>
+
+            <actions>
+                <action seq="1">
+                    <do>Обновить inline документацию</do>
+                </action>
+
+                <action seq="2" output="required" mandatory_format="true">
+                    <do>Создать summary</do>
+                    <format>
+                        TASK SUMMARY
+                        ════════════════════════════════════════════
+                        СТАТУС: ✓ COMPLETED
+                        
+                        СДЕЛАНО:
+                        - [пункт 1]
+                        - [пункт 2]
+                        
+                        ФАЙЛЫ:
+                        - [файл]: [изменения]
+                        
+                        ACCEPTANCE CRITERIA:
+                        ✓ [критерий 1]
+                        ✓ [критерий 2]
+                        
+                        PRD: ✓
+                        TESTS: [статус]
+                        
+                        РЕШЕНИЯ:
+                        - [решение]: [обоснование]
+                        
+                        NEXT STEPS (если есть):
+                        - [рекомендация]
+                        ════════════════════════════════════════════
+                    </format>
+                </action>
+
+                <action seq="3" optional="true">
+                    <do>Git commit (по запросу пользователя)</do>
+                </action>
+            </actions>
+        </phase>
+    </workflow>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SPECIFIC ERROR TYPES (дополняют CLAUDE.md) -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <error_handling>
+        <error type="prd_conflict" action="STOP_IMMEDIATELY">
+            <message>
+                ⛔ КОНФЛИКТ С PRD
+                Задача противоречит PRD: {details}
+                PRD секция: {reference}
+            </message>
+        </error>
+
+        <error type="acceptance_fail" action="RETRY" max_attempts="2">
+            <message>
+                ❌ ACCEPTANCE CRITERIA НЕ ВЫПОЛНЕН
+                Критерий: {criterion}
+                Попытка исправления...
+            </message>
+        </error>
+    </error_handling>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- QUICK COMMANDS -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <quick_commands>
+        <command name="execute" syntax="execute: [описание]" />
+        <command name="fix" syntax="fix: [описание бага]" />
+        <command name="refactor" syntax="refactor: [что улучшить]" />
+        <command name="test" syntax="test: [что покрыть]" />
+    </quick_commands>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- STARTUP -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <startup_instructions>
+        1. Проверить задачу в &lt;context&gt;&lt;task&gt;
+        2. ПЕРВЫМ ДЕЛОМ загрузить PRD
+        3. Начать с Phase 1
+        4. Использовать thinking (следуя CLAUDE.md)
+        5. Применять все правила из CLAUDE.md автоматически
+        
+        КРИТИЧНО:
+        - PRD проверяется ВСЕГДА
+        - При конфликте с PRD - STOP
+        - Acceptance criteria ДОЛЖНЫ быть выполнены
+    </startup_instructions>
+
+</request_execute>
