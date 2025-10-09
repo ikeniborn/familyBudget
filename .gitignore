@@ -236,3 +236,6 @@ dist
 *.gif
 *.bmp
 *.svgfrontend-api/
+
+workflow/
+requests/
