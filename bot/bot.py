@@ -74,13 +74,17 @@ class BotApplication:
 
         # Import handlers
         from bot.handlers.start import start_handler
+        from bot.handlers.add import add_conversation_handler
 
         # Register command handlers
         self.application.add_handler(CommandHandler("start", start_handler))
         logger.info("Registered /start handler")
 
+        # Register conversation handlers
+        self.application.add_handler(add_conversation_handler)
+        logger.info("Registered /add conversation handler")
+
         # More handlers will be added in upcoming tasks
-        # TASK-030: /add command handler
         # TASK-031: /today stats handler
         # TASK-032: /stats general stats handler
 
