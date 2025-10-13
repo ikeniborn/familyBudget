@@ -6,6 +6,7 @@ Schemas are organized by domain (auth, users, articles, facts).
 
 Schemas:
     Auth: TelegramAuthData, UserResponse, AuthResponse
+    Users: UserUpdate, UserDetailResponse, UserListResponse
     Articles: ArticleCreate, ArticleUpdate, ArticleResponse, ArticleListResponse
     Facts: FactCreate, FactUpdate, FactResponse, FactListResponse, FactSummary
 """
@@ -25,12 +26,21 @@ from backend.app.schemas.fact import (
     FactSummary,
     FactUpdate,
 )
+from backend.app.schemas.user import (
+    UserDetailResponse,
+    UserListResponse,
+    UserUpdate,
+)
 
 __all__ = [
     # Auth schemas
     "TelegramAuthData",
     "UserResponse",
     "AuthResponse",
+    # User schemas
+    "UserUpdate",
+    "UserDetailResponse",
+    "UserListResponse",
     # Article schemas
     "ArticleCreate",
     "ArticleUpdate",

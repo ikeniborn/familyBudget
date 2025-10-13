@@ -11,9 +11,11 @@ This package contains all API endpoint routers organized by domain:
 from backend.app.api.v1.endpoints.auth import router as auth_router
 from backend.app.api.v1.endpoints.articles import router as articles_router
 from backend.app.api.v1.endpoints.facts import router as facts_router
+from backend.app.api.v1.endpoints.users import router as users_router
 
 __all__ = [
     "auth_router",
     "articles_router",
     "facts_router",
+    "users_router",
 ]
