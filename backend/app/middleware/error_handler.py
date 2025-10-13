@@ -10,7 +10,7 @@ Features:
     - Handles database exceptions (SQLAlchemy)
     - Handles generic Python exceptions
     - Structured error response format
-    - Error logging (basic - enhanced in TASK-022)
+    - Structured logging with correlation IDs
 """
 
 import traceback
@@ -22,6 +22,10 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from backend.app.core.exceptions import APIException, DatabaseException
+from backend.app.core.logging import get_logger
+from backend.app.middleware.logging_middleware import get_correlation_id
+
+logger = get_logger(__name__)
 
 
 async def api_exception_handler(
@@ -51,6 +55,19 @@ async def api_exception_handler(
         #   }
         # }
     """
+    # Log error with structured logging
+    logger.warning(
+        "API exception raised",
+        correlation_id=get_correlation_id(request),
+        request_method=request.method,
+        request_path=request.url.path,
+        exception_type=type(exc).__name__,
+        status_code=exc.status_code,
+        error_code=exc.error_code,
+        message=exc.message,
+        details=exc.details,
+    )
+
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -85,6 +102,16 @@ async def http_exception_handler(
         #   }
         # }
     """
+    # Log error with structured logging
+    logger.warning(
+        "HTTP exception raised",
+        correlation_id=get_correlation_id(request),
+        request_method=request.method,
+        request_path=request.url.path,
+        status_code=exc.status_code,
+        message=exc.detail,
+    )
+
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -127,9 +154,15 @@ async def database_exception_handler(
         #   }
         # }
     """
-    # Log the full error (basic logging - enhanced in TASK-022)
-    print(f"Database error: {type(exc).__name__}: {str(exc)}")
-    print(f"Request: {request.method} {request.url}")
+    # Log the full error with structured logging
+    logger.error(
+        "Database exception raised",
+        correlation_id=get_correlation_id(request),
+        request_method=request.method,
+        request_path=request.url.path,
+        error_type=type(exc).__name__,
+        error_message=str(exc),
+    )
 
     # Determine error type and response
     error_type = type(exc).__name__
@@ -205,11 +238,15 @@ async def generic_exception_handler(
         #   }
         # }
     """
-    # Log the full error with traceback (basic logging - enhanced in TASK-022)
-    print(f"Unhandled exception: {type(exc).__name__}: {str(exc)}")
-    print(f"Request: {request.method} {request.url}")
-    print("Traceback:")
-    traceback.print_exc()
+    # Log the full error with traceback using structured logging
+    logger.exception(
+        "Unhandled exception",
+        correlation_id=get_correlation_id(request),
+        request_method=request.method,
+        request_path=request.url.path,
+        error_type=type(exc).__name__,
+        error_message=str(exc),
+    )
 
     # Return generic error response (don't expose internal details)
     return JSONResponse(

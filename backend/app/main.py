@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from backend.app.api.v1.router import api_router
 from backend.app.core.config import get_settings
 from backend.app.core.exceptions import APIException
+from backend.app.core.logging import setup_logging, get_logger
 from backend.app.db.health import check_db_connection
 from backend.app.db.session import close_db, init_db
 from backend.app.middleware import JWTAuthMiddleware
@@ -18,10 +19,15 @@ from backend.app.middleware.error_handler import (
     generic_exception_handler,
     http_exception_handler,
 )
+from backend.app.middleware.logging_middleware import LoggingMiddleware
 from backend.app.middleware.validation_error_handler import (
     validation_exception_handler,
     value_error_handler,
 )
+
+# Setup structured logging
+setup_logging(level="INFO")
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
@@ -33,16 +39,16 @@ async def lifespan(app: FastAPI):
     Shutdown: Clean up database connections
     """
     # Startup
-    print("Starting up...")
+    logger.info("Application starting up")
     await init_db()
-    print("Database initialized")
+    logger.info("Database initialized successfully")
 
     yield
 
     # Shutdown
-    print("Shutting down...")
+    logger.info("Application shutting down")
     await close_db()
-    print("Database connections closed")
+    logger.info("Database connections closed")
 
 
 settings = get_settings()
@@ -62,6 +68,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Logging middleware (before JWT for request tracing)
+app.add_middleware(LoggingMiddleware)
 
 # JWT Authentication middleware
 app.add_middleware(JWTAuthMiddleware)
