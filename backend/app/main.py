@@ -6,6 +6,7 @@ from backend.app.core.config import get_settings
 from backend.app.api.v1.router import api_router
 from backend.app.db.session import init_db, close_db
 from backend.app.db.health import check_db_connection
+from backend.app.middleware import JWTAuthMiddleware
 
 
 @asynccontextmanager
@@ -46,6 +47,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# JWT Authentication middleware
+app.add_middleware(JWTAuthMiddleware)
 
 
 # Health check endpoint
