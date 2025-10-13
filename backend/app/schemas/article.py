@@ -5,6 +5,7 @@ This module defines request/response schemas for Article CRUD operations.
 Articles represent budget categories with hierarchical organization.
 """
 
+import re
 from datetime import datetime
 from typing import Literal, Optional
 
@@ -63,18 +64,61 @@ class ArticleCreate(BaseModel):
     @field_validator("name")
     @classmethod
     def name_not_empty(cls, v: str) -> str:
-        """Validate that name is not empty or whitespace only."""
+        """
+        Validate article name.
+
+        Rules:
+        - Cannot be empty or whitespace only
+        - Must contain at least one alphanumeric character
+        - Leading/trailing whitespace is trimmed
+        """
         if not v or not v.strip():
             raise ValueError("Article name cannot be empty")
-        return v.strip()
+
+        trimmed = v.strip()
+
+        # Check if name contains at least one alphanumeric character
+        if not re.search(r'[a-zA-Z0-9а-яА-ЯёЁ]', trimmed):
+            raise ValueError(
+                "Article name must contain at least one alphanumeric character"
+            )
+
+        return trimmed
 
     @field_validator("code")
     @classmethod
-    def code_uppercase(cls, v: Optional[str]) -> Optional[str]:
-        """Convert code to uppercase if provided."""
-        if v:
-            return v.strip().upper()
-        return None
+    def code_validation(cls, v: Optional[str]) -> Optional[str]:
+        """
+        Validate and normalize article code.
+
+        Rules:
+        - Must contain only letters, digits, and underscores
+        - Converted to uppercase
+        - Leading/trailing whitespace is trimmed
+        """
+        if not v:
+            return None
+
+        trimmed = v.strip()
+
+        if not trimmed:
+            return None
+
+        # Check for valid characters (letters, digits, underscores only)
+        if not re.match(r'^[a-zA-Z0-9_]+$', trimmed):
+            raise ValueError(
+                "Article code must contain only letters, digits, and underscores"
+            )
+
+        return trimmed.upper()
+
+    @field_validator("parent_id")
+    @classmethod
+    def parent_id_positive(cls, v: Optional[int]) -> Optional[int]:
+        """Validate that parent_id is positive if provided."""
+        if v is not None and v <= 0:
+            raise ValueError("Parent ID must be a positive integer")
+        return v
 
 
 class ArticleUpdate(BaseModel):
@@ -125,18 +169,50 @@ class ArticleUpdate(BaseModel):
     @field_validator("name")
     @classmethod
     def name_not_empty(cls, v: Optional[str]) -> Optional[str]:
-        """Validate that name is not empty if provided."""
-        if v is not None and (not v or not v.strip()):
+        """Validate article name if provided."""
+        if v is None:
+            return None
+
+        if not v or not v.strip():
             raise ValueError("Article name cannot be empty")
-        return v.strip() if v else None
+
+        trimmed = v.strip()
+
+        # Check if name contains at least one alphanumeric character
+        if not re.search(r'[a-zA-Z0-9а-яА-ЯёЁ]', trimmed):
+            raise ValueError(
+                "Article name must contain at least one alphanumeric character"
+            )
+
+        return trimmed
 
     @field_validator("code")
     @classmethod
-    def code_uppercase(cls, v: Optional[str]) -> Optional[str]:
-        """Convert code to uppercase if provided."""
-        if v:
-            return v.strip().upper()
-        return None
+    def code_validation(cls, v: Optional[str]) -> Optional[str]:
+        """Validate and normalize article code if provided."""
+        if not v:
+            return None
+
+        trimmed = v.strip()
+
+        if not trimmed:
+            return None
+
+        # Check for valid characters
+        if not re.match(r'^[a-zA-Z0-9_]+$', trimmed):
+            raise ValueError(
+                "Article code must contain only letters, digits, and underscores"
+            )
+
+        return trimmed.upper()
+
+    @field_validator("parent_id")
+    @classmethod
+    def parent_id_positive(cls, v: Optional[int]) -> Optional[int]:
+        """Validate that parent_id is positive if provided."""
+        if v is not None and v <= 0:
+            raise ValueError("Parent ID must be a positive integer")
+        return v
 
 
 class ArticleHierarchyInfo(BaseModel):

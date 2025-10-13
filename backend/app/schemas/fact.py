@@ -5,7 +5,7 @@ This module defines request/response schemas for budget fact (transaction) CRUD 
 Facts represent actual income/expense transactions.
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Optional
 
@@ -72,19 +72,74 @@ class FactCreate(BaseModel):
 
     @field_validator("fact_date")
     @classmethod
-    def date_not_future(cls, v: date) -> date:
-        """Validate that fact_date is not in the future."""
-        if v > date.today():
+    def date_validation(cls, v: date) -> date:
+        """
+        Validate transaction date.
+
+        Rules:
+        - Cannot be in the future
+        - Cannot be more than 10 years in the past (configurable)
+        """
+        today = date.today()
+
+        if v > today:
             raise ValueError("Fact date cannot be in the future")
+
+        # Check if date is too old (more than 10 years ago)
+        ten_years_ago = today - timedelta(days=365 * 10)
+        if v < ten_years_ago:
+            raise ValueError(
+                f"Fact date cannot be more than 10 years in the past (earliest: {ten_years_ago.isoformat()})"
+            )
+
+        return v
+
+    @field_validator("amount")
+    @classmethod
+    def amount_validation(cls, v: Decimal) -> Decimal:
+        """
+        Validate transaction amount.
+
+        Rules:
+        - Must be positive (> 0)
+        - Cannot exceed 1 billion (reasonable upper limit)
+        - Maximum 2 decimal places
+        """
+        if v <= 0:
+            raise ValueError("Amount must be greater than zero")
+
+        # Check upper bound (1 billion)
+        max_amount = Decimal("1000000000.00")
+        if v > max_amount:
+            raise ValueError(
+                f"Amount cannot exceed {max_amount:,.2f} (1 billion)"
+            )
+
+        # Check decimal places (should be handled by Field, but double-check)
+        if v.as_tuple().exponent < -2:
+            raise ValueError("Amount cannot have more than 2 decimal places")
+
         return v
 
     @field_validator("description")
     @classmethod
     def description_trimmed(cls, v: Optional[str]) -> Optional[str]:
-        """Trim whitespace from description."""
-        if v:
-            return v.strip() or None
-        return None
+        """
+        Trim and validate description.
+
+        Rules:
+        - Trim leading/trailing whitespace
+        - Return None if empty after trimming
+        """
+        if not v:
+            return None
+
+        trimmed = v.strip()
+
+        if not trimmed:
+            return None
+
+        return trimmed
 
 
 class FactUpdate(BaseModel):
@@ -145,19 +200,61 @@ class FactUpdate(BaseModel):
 
     @field_validator("fact_date")
     @classmethod
-    def date_not_future(cls, v: Optional[date]) -> Optional[date]:
-        """Validate that fact_date is not in the future if provided."""
-        if v and v > date.today():
+    def date_validation(cls, v: Optional[date]) -> Optional[date]:
+        """Validate transaction date if provided."""
+        if v is None:
+            return None
+
+        today = date.today()
+
+        if v > today:
             raise ValueError("Fact date cannot be in the future")
+
+        # Check if date is too old (more than 10 years ago)
+        ten_years_ago = today - timedelta(days=365 * 10)
+        if v < ten_years_ago:
+            raise ValueError(
+                f"Fact date cannot be more than 10 years in the past (earliest: {ten_years_ago.isoformat()})"
+            )
+
+        return v
+
+    @field_validator("amount")
+    @classmethod
+    def amount_validation(cls, v: Optional[Decimal]) -> Optional[Decimal]:
+        """Validate transaction amount if provided."""
+        if v is None:
+            return None
+
+        if v <= 0:
+            raise ValueError("Amount must be greater than zero")
+
+        # Check upper bound (1 billion)
+        max_amount = Decimal("1000000000.00")
+        if v > max_amount:
+            raise ValueError(
+                f"Amount cannot exceed {max_amount:,.2f} (1 billion)"
+            )
+
+        # Check decimal places
+        if v.as_tuple().exponent < -2:
+            raise ValueError("Amount cannot have more than 2 decimal places")
+
         return v
 
     @field_validator("description")
     @classmethod
     def description_trimmed(cls, v: Optional[str]) -> Optional[str]:
-        """Trim whitespace from description if provided."""
-        if v:
-            return v.strip() or None
-        return None
+        """Trim and validate description if provided."""
+        if not v:
+            return None
+
+        trimmed = v.strip()
+
+        if not trimmed:
+            return None
+
+        return trimmed
 
 
 class FactResponse(BaseModel):

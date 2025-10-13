@@ -1,12 +1,19 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from backend.app.core.config import get_settings
+from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import ValidationError
+
 from backend.app.api.v1.router import api_router
-from backend.app.db.session import init_db, close_db
+from backend.app.core.config import get_settings
 from backend.app.db.health import check_db_connection
+from backend.app.db.session import close_db, init_db
 from backend.app.middleware import JWTAuthMiddleware
+from backend.app.middleware.validation_error_handler import (
+    validation_exception_handler,
+    value_error_handler,
+)
 
 
 @asynccontextmanager
@@ -50,6 +57,11 @@ app.add_middleware(
 
 # JWT Authentication middleware
 app.add_middleware(JWTAuthMiddleware)
+
+# Exception handlers for validation errors
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(ValidationError, validation_exception_handler)
+app.add_exception_handler(ValueError, value_error_handler)
 
 
 # Health check endpoint
