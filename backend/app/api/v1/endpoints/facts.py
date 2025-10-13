@@ -30,6 +30,7 @@ from backend.app.core.dependencies import (
 )
 from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact
+from backend.app.schemas import get_common_responses
 from backend.app.schemas.fact import (
     FactCreate,
     FactListResponse,
@@ -41,7 +42,12 @@ from backend.app.schemas.fact import (
 router = APIRouter(prefix="/facts", tags=["Facts"])
 
 
-@router.post("", response_model=FactResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=FactResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses=get_common_responses(include_403=True, include_404=True),
+)
 async def create_fact(
     fact_data: FactCreate,
     current_user: CurrentUser,
@@ -102,7 +108,11 @@ async def create_fact(
     return fact
 
 
-@router.get("", response_model=FactListResponse)
+@router.get(
+    "",
+    response_model=FactListResponse,
+    responses=get_common_responses(),
+)
 async def list_facts(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
@@ -168,7 +178,11 @@ async def list_facts(
     )
 
 
-@router.get("/summary", response_model=FactSummary)
+@router.get(
+    "/summary",
+    response_model=FactSummary,
+    responses=get_common_responses(),
+)
 async def get_facts_summary(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
@@ -244,7 +258,11 @@ async def get_facts_summary(
     )
 
 
-@router.get("/{fact_id}", response_model=FactResponse)
+@router.get(
+    "/{fact_id}",
+    response_model=FactResponse,
+    responses=get_common_responses(include_403=True, include_404=True),
+)
 async def get_fact(
     fact_id: int,
     current_user: CurrentUser,
@@ -279,7 +297,11 @@ async def get_fact(
     return fact
 
 
-@router.put("/{fact_id}", response_model=FactResponse)
+@router.put(
+    "/{fact_id}",
+    response_model=FactResponse,
+    responses=get_common_responses(include_400=True, include_403=True, include_404=True),
+)
 async def update_fact(
     fact_id: int,
     fact_data: FactUpdate,
@@ -364,7 +386,11 @@ async def update_fact(
     return fact
 
 
-@router.delete("/{fact_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{fact_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=get_common_responses(include_403=True, include_404=True),
+)
 async def delete_fact(
     fact_id: int,
     current_user: CurrentUser,

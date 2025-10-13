@@ -53,11 +53,108 @@ async def lifespan(app: FastAPI):
 
 settings = get_settings()
 
+# OpenAPI Tags Metadata
+tags_metadata = [
+    {
+        "name": "Authentication",
+        "description": """
+        **Telegram OAuth authentication endpoints.**
+
+        Handles user authentication via Telegram Login Widget with HMAC-SHA256 hash validation.
+        JWT tokens are issued as httpOnly cookies for security.
+
+        **Security:** Critical endpoints with hash validation and SCD Type 2 user versioning.
+        """,
+    },
+    {
+        "name": "Articles",
+        "description": """
+        **Budget category management (CRUD operations).**
+
+        Articles represent hierarchical budget categories (income/expense).
+        Supports parent-child relationships via closure table for efficient queries.
+
+        **Features:**
+        - SCD Type 2 versioning for audit trail
+        - User data isolation (users see own + global articles)
+        - Admin-only global articles
+        - Hierarchy operations (subtree, ancestors, breadcrumbs)
+        """,
+    },
+    {
+        "name": "Facts",
+        "description": """
+        **Budget transaction management (CRUD operations).**
+
+        Facts represent actual income/expense transactions.
+        Simple transactional records without SCD Type 2 versioning.
+
+        **Features:**
+        - User data isolation
+        - Date range filtering for reports
+        - Aggregation endpoint for income/expense summaries
+        - Validation: no future dates, positive amounts only
+        """,
+    },
+    {
+        "name": "Users",
+        "description": """
+        **User management endpoints (admin-focused).**
+
+        User data comes from Telegram OAuth and cannot be manually edited.
+        Admins can promote/demote users via role updates.
+
+        **Features:**
+        - SCD Type 2 versioning for role changes
+        - Admin-only list all users
+        - Regular users can view own profile
+        - Role management (promote/demote admins)
+        """,
+    },
+]
+
 app = FastAPI(
     title="Family Budget API",
-    description="API for Family Budget Management System",
-    version="1.0.0",
-    lifespan=lifespan
+    description="""
+    **Production-ready REST API for family budget management.**
+
+    ## Features
+
+    - 🔐 **Telegram OAuth Authentication** - Secure login via Telegram Login Widget
+    - 📊 **Hierarchical Budget Categories** - Flexible category organization with parent-child relationships
+    - 💰 **Transaction Tracking** - Record and manage income/expense transactions
+    - 👥 **Multi-User Support** - User data isolation with admin capabilities
+    - 📈 **Reporting** - Aggregated summaries and date range filtering
+    - 🔄 **Audit Trail** - SCD Type 2 versioning for articles and users
+    - 🛡️ **Security** - JWT tokens, httpOnly cookies, HMAC-SHA256 validation
+    - 🚀 **Performance** - Efficient hierarchy queries via closure table
+
+    ## Architecture
+
+    - **FastAPI** - Modern async web framework
+    - **PostgreSQL** - Reliable ACID-compliant database
+    - **SQLModel** - Type-safe ORM with Pydantic integration
+    - **JWT** - Stateless authentication with httpOnly cookies
+    - **SCD Type 2** - Slowly Changing Dimension pattern for audit trails
+
+    ## Authentication
+
+    All endpoints (except `/health` and `/auth/telegram`) require authentication via JWT token in cookie.
+    Use `/auth/telegram` endpoint to obtain access token.
+    """,
+    version="4.0.0",
+    lifespan=lifespan,
+    tags_metadata=tags_metadata,
+    contact={
+        "name": "Family Budget API Support",
+        "url": "https://github.com/yourusername/familyBudget",
+        "email": "support@familybudget.example.com",
+    },
+    license_info={
+        "name": "MIT License",
+        "url": "https://opensource.org/licenses/MIT",
+    },
+    openapi_tags=tags_metadata,
 )
 
 # CORS middleware

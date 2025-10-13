@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.dependencies import get_session
+from backend.app.schemas import get_common_responses
 from backend.app.schemas.auth import AuthResponse, TelegramAuthData, UserResponse
 from backend.app.services.auth_service import get_or_create_user
 from backend.app.services.jwt import create_access_token
@@ -26,6 +27,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
     response_model=AuthResponse,
     status_code=status.HTTP_200_OK,
     summary="Telegram OAuth Login",
+    responses=get_common_responses(include_401=True, include_503=True),
     description="""
     Authenticate user via Telegram Login Widget.
 

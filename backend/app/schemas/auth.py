@@ -44,29 +44,50 @@ class TelegramAuthData(BaseModel):
     """
 
     id: int = Field(
-        description="Telegram user ID"
+        description="Telegram user ID",
+        examples=[123456789]
     )
     first_name: str = Field(
-        description="User's first name from Telegram"
+        description="User's first name from Telegram",
+        examples=["John"]
     )
     last_name: Optional[str] = Field(
         default=None,
-        description="User's last name from Telegram (optional)"
+        description="User's last name from Telegram (optional)",
+        examples=["Doe", None]
     )
     username: Optional[str] = Field(
         default=None,
-        description="Telegram username (optional)"
+        description="Telegram username (optional)",
+        examples=["johndoe", None]
     )
     photo_url: Optional[str] = Field(
         default=None,
-        description="Profile photo URL (optional)"
+        description="Profile photo URL (optional)",
+        examples=["https://t.me/i/userpic/320/johndoe.jpg", None]
     )
     auth_date: int = Field(
-        description="Authentication timestamp (unix timestamp)"
+        description="Authentication timestamp (unix timestamp)",
+        examples=[1699999999]
     )
     hash: str = Field(
-        description="HMAC-SHA256 hash from Telegram for validation"
+        description="HMAC-SHA256 hash from Telegram for validation",
+        examples=["abc123def456789abcdef123456789abcdef"]
     )
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "id": 123456789,
+                "first_name": "John",
+                "last_name": "Doe",
+                "username": "johndoe",
+                "photo_url": "https://t.me/i/userpic/320/johndoe.jpg",
+                "auth_date": 1699999999,
+                "hash": "abc123def456789abcdef123456789abcdef"
+            }
+        }
+    }
 
 
 class UserResponse(BaseModel):
@@ -95,31 +116,47 @@ class UserResponse(BaseModel):
     """
 
     id: int = Field(
-        description="User's database ID"
+        description="User's database ID",
+        examples=[1]
     )
     telegram_id: int = Field(
-        description="User's Telegram ID"
+        description="User's Telegram ID",
+        examples=[123456789]
     )
     username: Optional[str] = Field(
         default=None,
-        description="Telegram username"
+        description="Telegram username",
+        examples=["johndoe", None]
     )
     first_name: Optional[str] = Field(
         default=None,
-        description="User's first name"
+        description="User's first name",
+        examples=["John"]
     )
     last_name: Optional[str] = Field(
         default=None,
-        description="User's last name"
+        description="User's last name",
+        examples=["Doe", None]
     )
     is_admin: bool = Field(
         default=False,
-        description="Admin status flag"
+        description="Admin status flag",
+        examples=[False]
     )
 
-    class Config:
-        """Pydantic configuration."""
-        from_attributes = True  # Enable ORM mode for SQLModel compatibility
+    model_config = {
+        "from_attributes": True,  # Enable ORM mode for SQLModel compatibility
+        "json_schema_extra": {
+            "example": {
+                "id": 1,
+                "telegram_id": 123456789,
+                "username": "johndoe",
+                "first_name": "John",
+                "last_name": "Doe",
+                "is_admin": False
+            }
+        }
+    }
 
 
 class AuthResponse(BaseModel):
@@ -145,5 +182,22 @@ class AuthResponse(BaseModel):
     )
     message: str = Field(
         default="Authentication successful",
-        description="Success message"
+        description="Success message",
+        examples=["Authentication successful"]
     )
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "user": {
+                    "id": 1,
+                    "telegram_id": 123456789,
+                    "username": "johndoe",
+                    "first_name": "John",
+                    "last_name": "Doe",
+                    "is_admin": False
+                },
+                "message": "Authentication successful"
+            }
+        }
+    }

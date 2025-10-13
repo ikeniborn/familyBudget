@@ -9,6 +9,7 @@ Schemas:
     Users: UserUpdate, UserDetailResponse, UserListResponse
     Articles: ArticleCreate, ArticleUpdate, ArticleResponse, ArticleListResponse
     Facts: FactCreate, FactUpdate, FactResponse, FactListResponse, FactSummary
+    Errors: ErrorResponse, ValidationErrorResponse, get_common_responses
 """
 
 from backend.app.schemas.auth import AuthResponse, TelegramAuthData, UserResponse
@@ -18,6 +19,11 @@ from backend.app.schemas.article import (
     ArticleListResponse,
     ArticleResponse,
     ArticleUpdate,
+)
+from backend.app.schemas.errors import (
+    ErrorResponse,
+    ValidationErrorResponse,
+    get_common_responses,
 )
 from backend.app.schemas.fact import (
     FactCreate,
@@ -53,4 +59,8 @@ __all__ = [
     "FactResponse",
     "FactListResponse",
     "FactSummary",
+    # Error schemas
+    "ErrorResponse",
+    "ValidationErrorResponse",
+    "get_common_responses",
 ]

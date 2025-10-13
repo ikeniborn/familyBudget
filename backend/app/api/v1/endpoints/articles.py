@@ -27,6 +27,7 @@ from backend.app.core.dependencies import (
     get_user_id_for_create,
 )
 from backend.app.models.article import Article
+from backend.app.schemas import get_common_responses
 from backend.app.schemas.article import (
     ArticleCreate,
     ArticleListResponse,
@@ -45,7 +46,12 @@ from backend.app.services import (
 router = APIRouter(prefix="/articles", tags=["Articles"])
 
 
-@router.post("", response_model=ArticleResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=ArticleResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses=get_common_responses(include_403=True, include_404=True),
+)
 async def create_article(
     article_data: ArticleCreate,
     current_user: CurrentUser,
@@ -114,7 +120,11 @@ async def create_article(
     return article
 
 
-@router.get("", response_model=ArticleListResponse)
+@router.get(
+    "",
+    response_model=ArticleListResponse,
+    responses=get_common_responses(include_400=True),
+)
 async def list_articles(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
@@ -191,7 +201,11 @@ async def list_articles(
     )
 
 
-@router.get("/{article_id}", response_model=ArticleResponse)
+@router.get(
+    "/{article_id}",
+    response_model=ArticleResponse,
+    responses=get_common_responses(include_403=True, include_404=True),
+)
 async def get_article(
     article_id: int,
     current_user: CurrentUser,
@@ -234,7 +248,11 @@ async def get_article(
     return article
 
 
-@router.put("/{article_id}", response_model=ArticleResponse)
+@router.put(
+    "/{article_id}",
+    response_model=ArticleResponse,
+    responses=get_common_responses(include_400=True, include_403=True, include_404=True),
+)
 async def update_article(
     article_id: int,
     article_data: ArticleUpdate,
@@ -336,7 +354,11 @@ async def update_article(
     return new_article
 
 
-@router.delete("/{article_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{article_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=get_common_responses(include_403=True, include_404=True),
+)
 async def delete_article(
     article_id: int,
     current_user: CurrentUser,
@@ -401,7 +423,11 @@ async def delete_article(
     return None
 
 
-@router.get("/{article_id}/subtree", response_model=ArticleListResponse)
+@router.get(
+    "/{article_id}/subtree",
+    response_model=ArticleListResponse,
+    responses=get_common_responses(include_400=True, include_403=True, include_404=True),
+)
 async def get_article_subtree(
     article_id: int,
     current_user: CurrentUser,
@@ -465,7 +491,11 @@ async def get_article_subtree(
     )
 
 
-@router.get("/{article_id}/ancestors", response_model=ArticleListResponse)
+@router.get(
+    "/{article_id}/ancestors",
+    response_model=ArticleListResponse,
+    responses=get_common_responses(include_403=True, include_404=True),
+)
 async def get_article_ancestors(
     article_id: int,
     current_user: CurrentUser,

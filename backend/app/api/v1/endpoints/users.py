@@ -25,6 +25,7 @@ from backend.app.core.dependencies import (
     get_session,
 )
 from backend.app.models.user import User
+from backend.app.schemas import get_common_responses
 from backend.app.schemas.auth import UserResponse
 from backend.app.schemas.user import (
     UserDetailResponse,
@@ -36,7 +37,11 @@ from backend.app.services import create_new_version, has_changes
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
-@router.get("", response_model=UserListResponse)
+@router.get(
+    "",
+    response_model=UserListResponse,
+    responses=get_common_responses(include_403=True),
+)
 async def list_users(
     admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session),
@@ -80,7 +85,11 @@ async def list_users(
     )
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get(
+    "/me",
+    response_model=UserResponse,
+    responses=get_common_responses(),
+)
 async def get_current_user_info(
     current_user: CurrentUser,
 ) -> User:
@@ -97,7 +106,11 @@ async def get_current_user_info(
     return current_user
 
 
-@router.get("/{user_id}", response_model=UserDetailResponse)
+@router.get(
+    "/{user_id}",
+    response_model=UserDetailResponse,
+    responses=get_common_responses(include_403=True, include_404=True),
+)
 async def get_user(
     user_id: int,
     current_user: CurrentUser,
@@ -139,7 +152,11 @@ async def get_user(
     return user
 
 
-@router.put("/{user_id}", response_model=UserDetailResponse)
+@router.put(
+    "/{user_id}",
+    response_model=UserDetailResponse,
+    responses=get_common_responses(include_403=True, include_404=True),
+)
 async def update_user_role(
     user_id: int,
     user_data: UserUpdate,
