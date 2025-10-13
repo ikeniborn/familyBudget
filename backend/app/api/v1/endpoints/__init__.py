@@ -3,13 +3,15 @@ API v1 endpoints package.
 
 This package contains all API endpoint routers organized by domain:
 - auth: Authentication endpoints (Telegram OAuth, JWT)
-- facts: Budget facts CRUD endpoints
-- articles: Articles/categories CRUD endpoints
-- users: User management endpoints
+- articles: Articles/categories CRUD endpoints (TASK-015)
+- facts: Budget facts CRUD endpoints (TASK-016)
+- users: User management endpoints (TASK-017)
 """
 
 from backend.app.api.v1.endpoints.auth import router as auth_router
+from backend.app.api.v1.endpoints.articles import router as articles_router
 
 __all__ = [
     "auth_router",
+    "articles_router",
 ]
