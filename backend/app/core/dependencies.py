@@ -10,25 +10,35 @@ These dependencies will be used throughout the application for:
 from backend.app.core.config import get_settings
 from backend.app.db.session import get_session
 
-# Current user dependency (TASK-014)
-# async def get_current_user():
-#     """
-#     Extracts and validates JWT token, returns current user.
-#     Will be implemented in TASK-014.
-#     """
-#     pass
+# Authentication dependencies (TASK-014)
+from backend.app.core.auth import (
+    CurrentAdmin,
+    CurrentUser,
+    get_current_admin,
+    get_current_user,
+)
 
-# Current admin dependency (TASK-014)
-# async def get_current_admin():
-#     """
-#     Validates that current user is an admin.
-#     Will be implemented in TASK-014.
-#     """
-#     pass
+# User isolation helpers (TASK-014)
+from backend.app.core.user_isolation import (
+    apply_user_filter,
+    can_access_resource,
+    ensure_user_owns_resource,
+    get_user_id_for_create,
+)
 
 __all__ = [
+    # Configuration
     "get_settings",
-    "get_session",  # TASK-011: Database session dependency
-    # "get_current_user",  # Uncomment in TASK-014
-    # "get_current_admin",  # Uncomment in TASK-014
+    # Database
+    "get_session",
+    # Authentication
+    "get_current_user",
+    "get_current_admin",
+    "CurrentUser",
+    "CurrentAdmin",
+    # User isolation
+    "apply_user_filter",
+    "can_access_resource",
+    "ensure_user_owns_resource",
+    "get_user_id_for_create",
 ]
