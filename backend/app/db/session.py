@@ -1,0 +1,75 @@
+"""
+Database session management with async SQLModel.
+
+Provides async database engine and session management for FastAPI endpoints.
+"""
+
+from typing import AsyncGenerator
+
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.orm import sessionmaker
+from sqlmodel import SQLModel
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from backend.app.core.config import get_settings
+
+settings = get_settings()
+
+# Create async engine with connection pooling
+engine = create_async_engine(
+    settings.DATABASE_URL,
+    echo=False,  # Set to True for SQL query logging
+    future=True,
+    pool_size=5,
+    max_overflow=15,
+)
+
+# Create async session factory
+async_session_maker = sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
+
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    """
+    FastAPI dependency that provides async database session.
+
+    Yields:
+        AsyncSession: Database session for the request
+
+    Example:
+        @app.get("/items")
+        async def get_items(session: AsyncSession = Depends(get_session)):
+            result = await session.execute(select(Item))
+            return result.scalars().all()
+    """
+    async with async_session_maker() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
+async def init_db() -> None:
+    """
+    Initialize database (create tables if needed).
+
+    Note: In production, use Alembic migrations instead.
+    """
+    async with engine.begin() as conn:
+        # SQLModel.metadata.create_all would go here
+        # But we're using migrations from EPIC-001
+        pass
+
+
+async def close_db() -> None:
+    """
+    Cleanup database connections on shutdown.
+    """
+    await engine.dispose()
