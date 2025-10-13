@@ -31,6 +31,7 @@ from backend.app.schemas.user import (
     UserListResponse,
     UserUpdate,
 )
+from backend.app.services import create_new_version, has_changes
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -178,36 +179,21 @@ async def update_user_role(
             detail=f"User with id={user_id} not found"
         )
 
+    # Prepare update data
+    update_data = user_data.model_dump()
+
     # Check if is_admin actually changed
-    if old_user.is_admin == user_data.is_admin:
+    changed, changed_fields = has_changes(old_user, update_data)
+    if not changed:
         # No change, return existing user
         return old_user
 
-    # Close old version (SCD Type 2)
-    now = datetime.utcnow()
-    old_user.is_current = False
-    old_user.valid_to = now
-    old_user.updated_at = now
-
-    # Create new version
-    new_user = User(
-        # Copy fields from old version
-        telegram_id=old_user.telegram_id,
-        username=old_user.username,
-        first_name=old_user.first_name,
-        last_name=old_user.last_name,
-        # Apply update
-        is_admin=user_data.is_admin,
-        # SCD Type 2 fields
-        is_current=True,
-        valid_from=now,
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
-        created_at=old_user.created_at,  # Preserve original creation time
-        updated_at=now,
+    # Create new version using SCD2 service
+    new_user = await create_new_version(
+        session=session,
+        old_instance=old_user,
+        updates=update_data,
+        changed_fields=changed_fields,
     )
-
-    session.add(new_user)
-    await session.commit()
-    await session.refresh(new_user)
 
     return new_user

@@ -33,6 +33,7 @@ from backend.app.schemas.article import (
     ArticleResponse,
     ArticleUpdate,
 )
+from backend.app.services import create_new_version, has_changes
 
 router = APIRouter(prefix="/articles", tags=["Articles"])
 
@@ -311,34 +312,19 @@ async def update_article(
                 detail="Article cannot be its own parent"
             )
 
-    # Close old version
-    now = datetime.utcnow()
-    old_article.is_current = False
-    old_article.valid_to = now
-    old_article.updated_at = now
+    # Check if any fields actually changed
+    changed, changed_fields = has_changes(old_article, update_data)
+    if not changed:
+        # No changes, return existing article
+        return old_article
 
-    # Create new version
-    new_article = Article(
-        # Copy unchanged fields from old version
-        user_id=old_article.user_id,
-        parent_id=old_article.parent_id,
-        code=old_article.code,
-        name=old_article.name,
-        type=old_article.type,
-        is_global=old_article.is_global,
-        # Apply updates
-        **update_data,
-        # SCD Type 2 fields
-        is_current=True,
-        valid_from=now,
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
-        created_at=old_article.created_at,  # Preserve original creation time
-        updated_at=now,
+    # Create new version using SCD2 service
+    new_article = await create_new_version(
+        session=session,
+        old_instance=old_article,
+        updates=update_data,
+        changed_fields=changed_fields,
     )
-
-    session.add(new_article)
-    await session.commit()
-    await session.refresh(new_article)
 
     return new_article
 
