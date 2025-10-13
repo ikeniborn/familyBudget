@@ -33,7 +33,14 @@ from backend.app.schemas.article import (
     ArticleResponse,
     ArticleUpdate,
 )
-from backend.app.services import create_new_version, has_changes
+from backend.app.services import (
+    create_new_version,
+    get_ancestors,
+    get_depth,
+    get_direct_children,
+    get_subtree,
+    has_changes,
+)
 
 router = APIRouter(prefix="/articles", tags=["Articles"])
 
@@ -392,3 +399,128 @@ async def delete_article(
     await session.commit()
 
     return None
+
+
+@router.get("/{article_id}/subtree", response_model=ArticleListResponse)
+async def get_article_subtree(
+    article_id: int,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    max_depth: Annotated[int | None, Query(ge=0, le=10)] = None,
+    include_self: Annotated[bool, Query()] = True,
+) -> ArticleListResponse:
+    """
+    Get subtree of an article (all descendants).
+
+    Uses closure table for efficient O(1) hierarchical query.
+
+    **User Isolation:**
+    - User can access subtree of their own articles + global articles
+    - Admins can access any subtree
+
+    **Parameters:**
+    - max_depth: Maximum depth to traverse (0-10, None = unlimited)
+    - include_self: Include root article in results (default: True)
+
+    **Returns:**
+    - 200 OK: List of articles in subtree (ordered by depth)
+    - 403 Forbidden: Article not accessible
+    - 404 Not Found: Article not found
+
+    **Example:**
+    ```
+    GET /api/v1/articles/1/subtree?max_depth=2&include_self=true
+
+    Returns: [Food, Groceries, Dining Out, Organic, Regular]
+    ```
+
+    **Use Cases:**
+    - Display category tree
+    - Calculate subtree budget totals
+    - Find all articles under category
+    """
+    # Verify article exists and is accessible
+    article = await get_article(article_id, current_user, session)
+
+    # Get subtree using hierarchy service
+    subtree_articles = await get_subtree(
+        session=session,
+        article_id=article_id,
+        max_depth=max_depth,
+        include_self=include_self,
+    )
+
+    # Filter by user isolation (already done by get_article, but double-check)
+    if not current_user.is_admin:
+        subtree_articles = [
+            a for a in subtree_articles
+            if a.is_global or a.user_id == current_user.id
+        ]
+
+    return ArticleListResponse(
+        articles=subtree_articles,
+        total=len(subtree_articles),
+        limit=len(subtree_articles),
+        offset=0,
+    )
+
+
+@router.get("/{article_id}/ancestors", response_model=ArticleListResponse)
+async def get_article_ancestors(
+    article_id: int,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    include_self: Annotated[bool, Query()] = False,
+) -> ArticleListResponse:
+    """
+    Get ancestors of an article (path to root).
+
+    Uses closure table for efficient O(1) query.
+
+    **User Isolation:**
+    - User can access ancestors of their own articles + global articles
+    - Admins can access any ancestors
+
+    **Parameters:**
+    - include_self: Include article itself in results (default: False)
+
+    **Returns:**
+    - 200 OK: List of ancestors (ordered root → article)
+    - 403 Forbidden: Article not accessible
+    - 404 Not Found: Article not found
+
+    **Example:**
+    ```
+    GET /api/v1/articles/3/ancestors?include_self=true
+
+    Returns: [Food, Groceries, Organic]  # Breadcrumb path
+    ```
+
+    **Use Cases:**
+    - Breadcrumb navigation
+    - Full category path display
+    - Validate hierarchy constraints
+    """
+    # Verify article exists and is accessible
+    article = await get_article(article_id, current_user, session)
+
+    # Get ancestors using hierarchy service
+    ancestor_articles = await get_ancestors(
+        session=session,
+        article_id=article_id,
+        include_self=include_self,
+    )
+
+    # Filter by user isolation
+    if not current_user.is_admin:
+        ancestor_articles = [
+            a for a in ancestor_articles
+            if a.is_global or a.user_id == current_user.id
+        ]
+
+    return ArticleListResponse(
+        articles=ancestor_articles,
+        total=len(ancestor_articles),
+        limit=len(ancestor_articles),
+        offset=0,
+    )
