@@ -1,15 +1,23 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.exceptions import RequestValidationError
+from fastapi.exceptions import HTTPException, RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
+from sqlalchemy.exc import SQLAlchemyError
 
 from backend.app.api.v1.router import api_router
 from backend.app.core.config import get_settings
+from backend.app.core.exceptions import APIException
 from backend.app.db.health import check_db_connection
 from backend.app.db.session import close_db, init_db
 from backend.app.middleware import JWTAuthMiddleware
+from backend.app.middleware.error_handler import (
+    api_exception_handler,
+    database_exception_handler,
+    generic_exception_handler,
+    http_exception_handler,
+)
 from backend.app.middleware.validation_error_handler import (
     validation_exception_handler,
     value_error_handler,
@@ -58,10 +66,25 @@ app.add_middleware(
 # JWT Authentication middleware
 app.add_middleware(JWTAuthMiddleware)
 
-# Exception handlers for validation errors
+# Exception handlers (order matters: specific before generic)
+# 1. Validation errors (most specific)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(ValidationError, validation_exception_handler)
+
+# 2. Custom API exceptions
+app.add_exception_handler(APIException, api_exception_handler)
+
+# 3. FastAPI HTTP exceptions
+app.add_exception_handler(HTTPException, http_exception_handler)
+
+# 4. Database exceptions
+app.add_exception_handler(SQLAlchemyError, database_exception_handler)
+
+# 5. Generic value errors
 app.add_exception_handler(ValueError, value_error_handler)
+
+# 6. Catch-all for any unhandled exceptions (most generic)
+app.add_exception_handler(Exception, generic_exception_handler)
 
 
 # Health check endpoint
