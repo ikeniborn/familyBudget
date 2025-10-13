@@ -72,10 +72,19 @@ class BotApplication:
         if not self.application:
             raise RuntimeError("Application not built. Call build_application() first.")
 
-        # Basic command handlers (to be implemented in TASK-029, TASK-030, etc.)
-        # For now, just register placeholder handlers
+        # Import handlers
+        from bot.handlers.start import start_handler
 
-        logger.info("Handlers registered")
+        # Register command handlers
+        self.application.add_handler(CommandHandler("start", start_handler))
+        logger.info("Registered /start handler")
+
+        # More handlers will be added in upcoming tasks
+        # TASK-030: /add command handler
+        # TASK-031: /today stats handler
+        # TASK-032: /stats general stats handler
+
+        logger.info("All handlers registered")
 
     async def error_handler(self, update: Optional[Update], context: ContextTypes.DEFAULT_TYPE):
         """
