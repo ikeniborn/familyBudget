@@ -2,7 +2,7 @@
 Shared test fixtures and configuration.
 
 This module provides pytest fixtures for database setup, session management,
-and common test data across all test modules.
+common test data, and HTTP client fixtures for API endpoint testing.
 """
 
 import asyncio
@@ -11,14 +11,17 @@ from typing import AsyncGenerator, Generator
 
 import pytest
 import pytest_asyncio
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 from sqlmodel import SQLModel
 
+from backend.app.main import app
 from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact
 from backend.app.models.hierarchy import ArticleHierarchy
 from backend.app.models.user import User
+from backend.app.services.jwt import create_access_token
 
 # Test database URL (SQLite in-memory for fast tests)
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -240,3 +243,119 @@ async def test_fact(
     await session.commit()
     await session.refresh(fact)
     return fact
+
+
+# ============================================================================
+# HTTP Client Fixtures
+# ============================================================================
+
+
+@pytest_asyncio.fixture
+async def client(engine) -> AsyncGenerator[AsyncClient, None]:
+    """
+    Create unauthenticated HTTP client for API testing.
+
+    Uses FastAPI TestClient with async support via httpx.AsyncClient.
+    Database session is overridden to use test database.
+
+    Returns:
+        AsyncClient: HTTP client without authentication
+
+    Example:
+        async def test_endpoint(client: AsyncClient):
+            response = await client.get("/api/v1/articles")
+            assert response.status_code == 401  # Requires authentication
+    """
+    from backend.app.core.dependencies import get_session
+
+    # Override get_session dependency to use test database
+    async def override_get_session() -> AsyncGenerator[AsyncSession, None]:
+        async with AsyncSession(engine, expire_on_commit=False) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+
+    # Create HTTP client
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        yield ac
+
+    # Cleanup
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def auth_client(
+    engine, test_user: User
+) -> AsyncGenerator[AsyncClient, None]:
+    """
+    Create authenticated HTTP client for regular user.
+
+    Creates JWT token for test_user and includes it in cookies.
+    All requests will be authenticated as regular user (not admin).
+
+    Returns:
+        AsyncClient: HTTP client authenticated as test_user
+
+    Example:
+        async def test_endpoint(auth_client: AsyncClient):
+            response = await auth_client.get("/api/v1/facts")
+            assert response.status_code == 200  # Authenticated
+    """
+    from backend.app.core.dependencies import get_session
+
+    # Override get_session dependency
+    async def override_get_session() -> AsyncGenerator[AsyncSession, None]:
+        async with AsyncSession(engine, expire_on_commit=False) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+
+    # Create JWT token for test_user
+    access_token = create_access_token(user_id=test_user.id)
+
+    # Create HTTP client with authentication cookie
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        ac.cookies.set("access_token", access_token)
+        yield ac
+
+    # Cleanup
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def admin_client(
+    engine, test_admin: User
+) -> AsyncGenerator[AsyncClient, None]:
+    """
+    Create authenticated HTTP client for admin user.
+
+    Creates JWT token for test_admin and includes it in cookies.
+    All requests will be authenticated as admin user.
+
+    Returns:
+        AsyncClient: HTTP client authenticated as test_admin
+
+    Example:
+        async def test_endpoint(admin_client: AsyncClient):
+            response = await admin_client.get("/api/v1/users")
+            assert response.status_code == 200  # Admin only endpoint
+    """
+    from backend.app.core.dependencies import get_session
+
+    # Override get_session dependency
+    async def override_get_session() -> AsyncGenerator[AsyncSession, None]:
+        async with AsyncSession(engine, expire_on_commit=False) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+
+    # Create JWT token for test_admin
+    access_token = create_access_token(user_id=test_admin.id)
+
+    # Create HTTP client with authentication cookie
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        ac.cookies.set("access_token", access_token)
+        yield ac
+
+    # Cleanup
+    app.dependency_overrides.clear()
