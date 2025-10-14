@@ -61,7 +61,6 @@
             <div class="chart-card">
                 <h2>🔥 Spending Heatmap</h2>
                 <div id="chart-heatmap" style="width: 100%; height: 400px;"></div>
-                <p class="info-text">Will be implemented in TASK-045</p>
             </div>
         </div>
     {% endif %}
@@ -75,6 +74,7 @@ let planFactChart = null;
 let trendsChart = null;
 let pieChart = null;
 let waterfallChart = null;
+let heatmapChart = null;
 let currentPeriod = 'week';
 let currentTrendsDays = 30;
 let currentPieType = 'expense';
@@ -92,6 +92,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     initWaterfallChart();
     loadWaterfallData();
+
+    initHeatmapChart();
+    loadHeatmapData();
 });
 
 // Initialize Plan vs Fact chart
@@ -723,6 +726,140 @@ function updateWaterfallChart(data) {
     waterfallChart.setOption(option);
 }
 
+// Initialize Heatmap chart
+function initHeatmapChart() {
+    const chartDom = document.getElementById('chart-heatmap');
+    heatmapChart = echarts.init(chartDom);
+    heatmapChart.showLoading();
+}
+
+// Load Heatmap data from API
+async function loadHeatmapData() {
+    try {
+        const response = await fetch('/api/v1/analytics/heatmap');
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        updateHeatmapChart(data);
+    } catch (error) {
+        console.error('Error loading heatmap data:', error);
+        heatmapChart.hideLoading();
+
+        heatmapChart.setOption({
+            title: {
+                text: 'Error loading data',
+                subtext: error.message,
+                left: 'center',
+                top: 'middle',
+                textStyle: { color: '#f44336' }
+            }
+        });
+    }
+}
+
+// Update Heatmap chart with data
+function updateHeatmapChart(data) {
+    heatmapChart.hideLoading();
+
+    // Transform data to ECharts format: [dayIndex, weekIndex, value]
+    const heatmapData = [];
+    const weekLabels = [];
+
+    data.weeks.forEach((week, weekIndex) => {
+        weekLabels.push(`W${weekIndex + 1}`);
+        week.forEach((value, dayIndex) => {
+            heatmapData.push([dayIndex, weekIndex, value]);
+        });
+    });
+
+    // Find max value for visualMap
+    const maxValue = Math.max(...data.weeks.flat());
+
+    const option = {
+        title: {
+            text: 'Spending Heatmap (Last 90 Days)',
+            left: 'center',
+            textStyle: {
+                fontSize: 16,
+                fontWeight: 'normal'
+            }
+        },
+        tooltip: {
+            position: 'top',
+            formatter: function(params) {
+                const dayName = data.day_labels[params.value[0]];
+                const weekNum = params.value[1] + 1;
+                const amount = params.value[2].toFixed(2);
+                return `<strong>${dayName}, Week ${weekNum}</strong><br/>` +
+                       `Expense: ${amount} ₽`;
+            }
+        },
+        grid: {
+            left: '10%',
+            right: '10%',
+            bottom: '15%',
+            top: '15%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            data: data.day_labels,
+            splitArea: {
+                show: true
+            },
+            axisLabel: {
+                fontSize: 12
+            }
+        },
+        yAxis: {
+            type: 'category',
+            data: weekLabels,
+            splitArea: {
+                show: true
+            },
+            axisLabel: {
+                fontSize: 12
+            }
+        },
+        visualMap: {
+            min: 0,
+            max: maxValue > 0 ? maxValue : 1000,
+            calculable: true,
+            orient: 'horizontal',
+            left: 'center',
+            bottom: '0%',
+            inRange: {
+                color: ['#eef5ee', '#c8e6c9', '#81c784', '#4caf50', '#388e3c', '#2e7d32']
+            },
+            text: ['High', 'Low'],
+            textStyle: {
+                fontSize: 11
+            }
+        },
+        series: [
+            {
+                name: 'Spending',
+                type: 'heatmap',
+                data: heatmapData,
+                label: {
+                    show: false
+                },
+                emphasis: {
+                    itemStyle: {
+                        shadowBlur: 10,
+                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                    }
+                }
+            }
+        ]
+    };
+
+    heatmapChart.setOption(option);
+}
+
 // Responsive chart resize
 window.addEventListener('resize', function() {
     if (planFactChart) {
@@ -736,6 +873,9 @@ window.addEventListener('resize', function() {
     }
     if (waterfallChart) {
         waterfallChart.resize();
+    }
+    if (heatmapChart) {
+        heatmapChart.resize();
     }
 });
 </script>
