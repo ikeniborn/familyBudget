@@ -9,12 +9,12 @@ from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
+from backend.app.api.health import router as health_router
 from backend.app.api.v1.router import api_router
 from backend.app.api.web.router import web_router
 from backend.app.core.config import get_settings
 from backend.app.core.exceptions import APIException
 from backend.app.core.logging import setup_logging, get_logger
-from backend.app.db.health import check_db_connection
 from backend.app.db.session import close_db, init_db
 from backend.app.middleware import JWTAuthMiddleware
 from backend.app.middleware.error_handler import (
@@ -197,23 +197,6 @@ app.add_exception_handler(ValueError, value_error_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
 
 
-# Health check endpoint
-@app.get("/health")
-async def health_check() -> dict[str, str | bool]:
-    """
-    Health check endpoint to verify API and database status.
-
-    Returns:
-        dict: Status message indicating API and database health
-    """
-    db_connected = await check_db_connection()
-
-    return {
-        "status": "ok" if db_connected else "degraded",
-        "database": db_connected
-    }
-
-
 # Configure static files and templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  # familyBudget root
 STATIC_DIR = BASE_DIR / "web" / "static"
@@ -226,5 +209,6 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 # Include routers
+app.include_router(health_router)  # Health endpoints at /health, /ready, /ping
 app.include_router(api_router)  # API endpoints at /api/v1
 app.include_router(web_router)  # Web pages at /

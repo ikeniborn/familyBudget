@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     Uses Pydantic for validation and type checking.
     """
 
+    # Application
+    VERSION: str = "4.0.0"
+
     # Database
     DATABASE_URL: str
 
