@@ -22,10 +22,10 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from backend.app.core.exceptions import APIException, DatabaseException
-from backend.app.core.logging import get_logger
+from backend.app.core.logging import StructuredLogger
 from backend.app.middleware.logging_middleware import get_correlation_id
 
-logger = get_logger(__name__)
+logger = StructuredLogger(__name__)
 
 
 async def api_exception_handler(
