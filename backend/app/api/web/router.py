@@ -7,7 +7,7 @@ Handles web interface routes with Jinja2 templates and HTMX integration.
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
-from backend.app.core.dependencies import CurrentUserOptional
+from backend.app.core.dependencies import CurrentAdmin, CurrentUserOptional
 from backend.app.models.user import User
 
 web_router = APIRouter(tags=["Web UI"])
@@ -53,5 +53,28 @@ async def analytics(
             "request": request,
             "user": current_user,
             "page_title": "Analytics"
+        }
+    )
+
+
+@web_router.get("/admin/users", response_class=HTMLResponse)
+async def admin_users(
+    request: Request,
+    current_admin: CurrentAdmin
+):
+    """
+    Admin users management page (admin only).
+
+    Provides interface for viewing and managing all users,
+    including granting/revoking admin privileges.
+    """
+    from backend.app.main import templates
+
+    return templates.TemplateResponse(
+        "admin_users.html",
+        {
+            "request": request,
+            "user": current_admin,
+            "page_title": "User Management"
         }
     )

@@ -6,6 +6,7 @@ to be included in the main FastAPI application.
 """
 from fastapi import APIRouter
 
+from backend.app.api.v1.admin import router as admin_router
 from backend.app.api.v1.analytics import router as analytics_router
 from backend.app.api.v1.endpoints import (
     articles_router,
@@ -30,3 +31,6 @@ api_router.include_router(users_router)
 
 # Analytics endpoints (TASK-040) ✅
 api_router.include_router(analytics_router)
+
+# Admin endpoints (TASK-048) ✅
+api_router.include_router(admin_router)
