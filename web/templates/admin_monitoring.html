@@ -1,0 +1,480 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-page">
+    <div class="page-header">
+        <h1>📊 System Monitoring</h1>
+        <p class="page-description">Real-time health and performance metrics</p>
+    </div>
+
+    <!-- Status Overview -->
+    <div class="card">
+        <div class="card-header">
+            <h2>System Status</h2>
+            <div class="status-indicator" id="overall-status">
+                <span class="status-dot status-loading"></span>
+                <span class="status-text">Loading...</span>
+            </div>
+        </div>
+        <div class="stats-grid" id="status-cards">
+            <!-- Populated dynamically -->
+        </div>
+    </div>
+
+    <!-- Component Health -->
+    <div class="card" style="margin-top: 1.5rem;">
+        <div class="card-header">
+            <h2>Component Health</h2>
+            <button class="btn-secondary btn-small" onclick="refreshMonitoring()">🔄 Refresh</button>
+        </div>
+        <div id="components-container">
+            <div class="loading">Loading components...</div>
+        </div>
+    </div>
+
+    <!-- System Resources -->
+    <div class="card" style="margin-top: 1.5rem;">
+        <div class="card-header">
+            <h2>System Resources</h2>
+            <span class="text-muted" id="last-updated">Last updated: --</span>
+        </div>
+        <div class="resources-grid" id="resources-container">
+            <div class="loading">Loading resources...</div>
+        </div>
+    </div>
+
+    <!-- Database Statistics -->
+    <div class="card" style="margin-top: 1.5rem;">
+        <div class="card-header">
+            <h2>Database Statistics</h2>
+        </div>
+        <div class="stats-grid" id="db-stats-container">
+            <div class="loading">Loading statistics...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Global state
+let autoRefreshInterval = null;
+let autoRefreshEnabled = true;
+const REFRESH_INTERVAL = 5000; // 5 seconds
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadMonitoringData();
+    startAutoRefresh();
+});
+
+// Start auto-refresh
+function startAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+
+    autoRefreshInterval = setInterval(() => {
+        if (autoRefreshEnabled) {
+            loadMonitoringData();
+        }
+    }, REFRESH_INTERVAL);
+}
+
+// Stop auto-refresh
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+    }
+}
+
+// Manual refresh
+function refreshMonitoring() {
+    loadMonitoringData();
+}
+
+// Load monitoring data
+async function loadMonitoringData() {
+    try {
+        const response = await fetch('/health/detailed');
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        renderMonitoringData(data);
+        updateLastRefreshed();
+    } catch (error) {
+        console.error('Error loading monitoring data:', error);
+        showError('Failed to load monitoring data');
+    }
+}
+
+// Render all monitoring data
+function renderMonitoringData(data) {
+    renderOverallStatus(data.status);
+    renderStatusCards(data);
+    renderComponents(data.components);
+    renderSystemResources(data.system);
+    renderDatabaseStats(data.components.database);
+}
+
+// Render overall status indicator
+function renderOverallStatus(status) {
+    const container = document.getElementById('overall-status');
+
+    const statusConfig = {
+        'healthy': { dot: 'status-healthy', text: 'System Healthy', icon: '✓' },
+        'degraded': { dot: 'status-warning', text: 'System Degraded', icon: '⚠' },
+        'unhealthy': { dot: 'status-error', text: 'System Unhealthy', icon: '✗' }
+    };
+
+    const config = statusConfig[status] || statusConfig['unhealthy'];
+
+    container.innerHTML = `
+        <span class="status-dot ${config.dot}"></span>
+        <span class="status-text">${config.icon} ${config.text}</span>
+    `;
+}
+
+// Render status cards
+function renderStatusCards(data) {
+    const container = document.getElementById('status-cards');
+
+    const uptimeHours = (data.uptime_seconds / 3600).toFixed(2);
+    const uptimeDays = (data.uptime_seconds / 86400).toFixed(2);
+
+    container.innerHTML = `
+        <div class="stat-card">
+            <div class="stat-icon">📦</div>
+            <div>
+                <div class="stat-value">${data.version}</div>
+                <div class="stat-label">Version</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">⏱️</div>
+            <div>
+                <div class="stat-value">${uptimeHours}h</div>
+                <div class="stat-label">Uptime (${uptimeDays}d)</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🕐</div>
+            <div>
+                <div class="stat-value">${new Date(data.timestamp).toLocaleTimeString()}</div>
+                <div class="stat-label">Current Time</div>
+            </div>
+        </div>
+    `;
+}
+
+// Render components health
+function renderComponents(components) {
+    const container = document.getElementById('components-container');
+
+    let html = '<div class="components-list">';
+
+    for (const [name, component] of Object.entries(components)) {
+        const statusClass = component.status === 'up' ? 'component-up' : 'component-down';
+        const statusIcon = component.status === 'up' ? '✓' : '✗';
+        const latency = component.latency_ms ? `${component.latency_ms.toFixed(2)} ms` : '--';
+
+        html += `
+            <div class="component-item ${statusClass}">
+                <div class="component-header">
+                    <span class="component-name">${statusIcon} ${name.charAt(0).toUpperCase() + name.slice(1)}</span>
+                    <span class="component-status badge ${component.status === 'up' ? 'success' : 'inactive'}">${component.status.toUpperCase()}</span>
+                </div>
+                <div class="component-details">
+                    <p class="component-message">${component.message || 'No additional information'}</p>
+                    ${component.latency_ms ? `<p class="component-latency">Latency: ${latency}</p>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Render system resources
+function renderSystemResources(system) {
+    const container = document.getElementById('resources-container');
+
+    html = `
+        <div class="resource-item">
+            <div class="resource-header">
+                <span class="resource-name">💻 CPU Usage</span>
+                <span class="resource-value">${system.cpu_percent.toFixed(1)}%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: ${system.cpu_percent}%; background-color: ${getResourceColor(system.cpu_percent)}"></div>
+            </div>
+            <div class="resource-info">Cores: ${system.cpu_count}</div>
+        </div>
+
+        <div class="resource-item">
+            <div class="resource-header">
+                <span class="resource-name">💾 Memory Usage</span>
+                <span class="resource-value">${system.memory_percent.toFixed(1)}%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: ${system.memory_percent}%; background-color: ${getResourceColor(system.memory_percent)}"></div>
+            </div>
+            <div class="resource-info">${system.memory_used_gb} GB / ${system.memory_total_gb} GB</div>
+        </div>
+
+        <div class="resource-item">
+            <div class="resource-header">
+                <span class="resource-name">💿 Disk Usage</span>
+                <span class="resource-value">${system.disk_percent.toFixed(1)}%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: ${system.disk_percent}%; background-color: ${getResourceColor(system.disk_percent)}"></div>
+            </div>
+            <div class="resource-info">${system.disk_used_gb} GB / ${system.disk_total_gb} GB</div>
+        </div>
+
+        <div class="resource-item">
+            <div class="resource-header">
+                <span class="resource-name">🖥️ Platform</span>
+                <span class="resource-value">${system.platform}</span>
+            </div>
+            <div class="resource-info">${system.platform_version}</div>
+            <div class="resource-info">Python ${system.python_version}</div>
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+// Render database statistics
+function renderDatabaseStats(dbComponent) {
+    const container = document.getElementById('db-stats-container');
+
+    // Extract stats from message
+    const message = dbComponent.message || '';
+    const usersMatch = message.match(/Users: (\d+)/);
+    const factsMatch = message.match(/Facts: (\d+)/);
+
+    const totalUsers = usersMatch ? usersMatch[1] : '--';
+    const totalFacts = factsMatch ? factsMatch[1] : '--';
+
+    container.innerHTML = `
+        <div class="stat-card">
+            <div class="stat-icon">👥</div>
+            <div>
+                <div class="stat-value">${totalUsers}</div>
+                <div class="stat-label">Total Users</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📊</div>
+            <div>
+                <div class="stat-value">${totalFacts}</div>
+                <div class="stat-label">Total Facts</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">⚡</div>
+            <div>
+                <div class="stat-value">${dbComponent.latency_ms ? dbComponent.latency_ms.toFixed(2) : '--'} ms</div>
+                <div class="stat-label">DB Latency</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🟢</div>
+            <div>
+                <div class="stat-value">${dbComponent.status.toUpperCase()}</div>
+                <div class="stat-label">DB Status</div>
+            </div>
+        </div>
+    `;
+}
+
+// Helper: Get color based on resource usage
+function getResourceColor(percent) {
+    if (percent < 70) return '#4CAF50';  // Green
+    if (percent < 85) return '#FFA726';  // Orange
+    return '#EF5350';  // Red
+}
+
+// Update last refreshed timestamp
+function updateLastRefreshed() {
+    const element = document.getElementById('last-updated');
+    const now = new Date();
+    element.textContent = `Last updated: ${now.toLocaleTimeString()}`;
+}
+
+// Show error notification
+function showError(message) {
+    const container = document.getElementById('overall-status');
+    container.innerHTML = `
+        <span class="status-dot status-error"></span>
+        <span class="status-text">✗ ${message}</span>
+    `;
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    stopAutoRefresh();
+});
+</script>
+
+<style>
+/* Status Indicator */
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background-color: var(--bg-color);
+    border-radius: 4px;
+}
+
+.status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.status-healthy {
+    background-color: #4CAF50;
+}
+
+.status-warning {
+    background-color: #FFA726;
+}
+
+.status-error {
+    background-color: #EF5350;
+}
+
+.status-loading {
+    background-color: #9E9E9E;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.status-text {
+    font-weight: 500;
+}
+
+/* Components List */
+.components-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.component-item {
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--card-bg);
+}
+
+.component-up {
+    border-left: 4px solid #4CAF50;
+}
+
+.component-down {
+    border-left: 4px solid #EF5350;
+}
+
+.component-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.component-name {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.component-details {
+    font-size: 0.9rem;
+    color: var(--text-color-secondary);
+}
+
+.component-message {
+    margin: 0.5rem 0 0.25rem 0;
+}
+
+.component-latency {
+    margin: 0.25rem 0 0 0;
+    font-weight: 500;
+}
+
+/* Resources Grid */
+.resources-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.resource-item {
+    padding: 1rem;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.resource-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.resource-name {
+    font-weight: 600;
+}
+
+.resource-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background-color: var(--bg-color);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+    height: 100%;
+    transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.resource-info {
+    font-size: 0.85rem;
+    color: var(--text-color-secondary);
+    margin-top: 0.25rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .resources-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+}
+</style>
+{% endblock %}

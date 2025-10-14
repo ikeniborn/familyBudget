@@ -124,3 +124,30 @@ async def admin_facts(
             "page_title": "Facts Management"
         }
     )
+
+
+@web_router.get("/admin/monitoring", response_class=HTMLResponse)
+async def admin_monitoring(
+    request: Request,
+    current_admin: CurrentAdmin
+):
+    """
+    Admin monitoring dashboard (admin only).
+
+    Provides real-time system health monitoring with:
+    - Application status
+    - Database health and statistics
+    - System resource usage (CPU, memory, disk)
+    - Uptime tracking
+    - Component status indicators
+    """
+    from backend.app.main import templates
+
+    return templates.TemplateResponse(
+        "admin_monitoring.html",
+        {
+            "request": request,
+            "user": current_admin,
+            "page_title": "System Monitoring"
+        }
+    )
