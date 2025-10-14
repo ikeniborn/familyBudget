@@ -31,8 +31,16 @@
 
             <div class="chart-card">
                 <h2>📈 Spending Trends</h2>
+                <div class="trends-controls">
+                    <label>Days:</label>
+                    <select id="trends-days" onchange="updateTrendsDays()">
+                        <option value="7">Last 7 days</option>
+                        <option value="30" selected>Last 30 days</option>
+                        <option value="90">Last 90 days</option>
+                        <option value="365">Last year</option>
+                    </select>
+                </div>
                 <div id="chart-trends" style="width: 100%; height: 400px;"></div>
-                <p class="info-text">Will be implemented in TASK-042</p>
             </div>
 
             <div class="chart-card">
@@ -61,12 +69,17 @@
 <script>
 // Global variables
 let planFactChart = null;
+let trendsChart = null;
 let currentPeriod = 'week';
+let currentTrendsDays = 30;
 
 // Initialize charts on page load
 document.addEventListener('DOMContentLoaded', function() {
     initPlanFactChart();
     loadPlanFactData('week');
+
+    initTrendsChart();
+    loadTrendsData(30);
 });
 
 // Initialize Plan vs Fact chart
@@ -217,10 +230,185 @@ function updatePeriod(period) {
     loadPlanFactData(period);
 }
 
+// Initialize Trends chart
+function initTrendsChart() {
+    const chartDom = document.getElementById('chart-trends');
+    trendsChart = echarts.init(chartDom);
+    trendsChart.showLoading();
+}
+
+// Load Trends data from API
+async function loadTrendsData(days) {
+    try {
+        const response = await fetch(`/api/v1/analytics/trends?days=${days}`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        updateTrendsChart(data);
+    } catch (error) {
+        console.error('Error loading trends data:', error);
+        trendsChart.hideLoading();
+
+        trendsChart.setOption({
+            title: {
+                text: 'Error loading data',
+                subtext: error.message,
+                left: 'center',
+                top: 'middle',
+                textStyle: { color: '#f44336' }
+            }
+        });
+    }
+}
+
+// Update Trends chart with data
+function updateTrendsChart(data) {
+    trendsChart.hideLoading();
+
+    const option = {
+        title: {
+            text: `Income & Expense Trends (${data.period_days} days)`,
+            left: 'center',
+            textStyle: {
+                fontSize: 16,
+                fontWeight: 'normal'
+            }
+        },
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'cross',
+                label: {
+                    backgroundColor: '#6a7985'
+                }
+            },
+            formatter: function(params) {
+                const date = params[0].axisValue;
+                let result = `<strong>${date}</strong><br/>`;
+
+                params.forEach(param => {
+                    const value = param.value.toFixed(2);
+                    result += `${param.marker} ${param.seriesName}: ${value} ₽<br/>`;
+                });
+
+                // Calculate net
+                if (params.length === 2) {
+                    const net = params[0].value - params[1].value;
+                    const netColor = net >= 0 ? '#4CAF50' : '#f44336';
+                    result += `<span style="color: ${netColor}">Net: ${net.toFixed(2)} ₽</span>`;
+                }
+
+                return result;
+            }
+        },
+        legend: {
+            data: ['Income', 'Expense'],
+            bottom: 10
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '15%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: data.dates.map(d => {
+                // Format date as MM-DD
+                const date = new Date(d);
+                return `${date.getMonth() + 1}/${date.getDate()}`;
+            }),
+            axisLabel: {
+                rotate: data.dates.length > 30 ? 45 : 0,
+                interval: Math.max(1, Math.floor(data.dates.length / 20))
+            }
+        },
+        yAxis: {
+            type: 'value',
+            name: 'Amount (₽)',
+            axisLabel: {
+                formatter: function(value) {
+                    return value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value;
+                }
+            }
+        },
+        series: [
+            {
+                name: 'Income',
+                type: 'line',
+                smooth: true,
+                data: data.income,
+                lineStyle: {
+                    color: '#4CAF50',
+                    width: 2
+                },
+                itemStyle: {
+                    color: '#4CAF50'
+                },
+                areaStyle: {
+                    color: {
+                        type: 'linear',
+                        x: 0,
+                        y: 0,
+                        x2: 0,
+                        y2: 1,
+                        colorStops: [
+                            { offset: 0, color: 'rgba(76, 175, 80, 0.3)' },
+                            { offset: 1, color: 'rgba(76, 175, 80, 0.05)' }
+                        ]
+                    }
+                }
+            },
+            {
+                name: 'Expense',
+                type: 'line',
+                smooth: true,
+                data: data.expense,
+                lineStyle: {
+                    color: '#f44336',
+                    width: 2
+                },
+                itemStyle: {
+                    color: '#f44336'
+                },
+                areaStyle: {
+                    color: {
+                        type: 'linear',
+                        x: 0,
+                        y: 0,
+                        x2: 0,
+                        y2: 1,
+                        colorStops: [
+                            { offset: 0, color: 'rgba(244, 67, 54, 0.3)' },
+                            { offset: 1, color: 'rgba(244, 67, 54, 0.05)' }
+                        ]
+                    }
+                }
+            }
+        ]
+    };
+
+    trendsChart.setOption(option);
+}
+
+// Update trends days filter
+function updateTrendsDays() {
+    const select = document.getElementById('trends-days');
+    currentTrendsDays = parseInt(select.value);
+    loadTrendsData(currentTrendsDays);
+}
+
 // Responsive chart resize
 window.addEventListener('resize', function() {
     if (planFactChart) {
         planFactChart.resize();
+    }
+    if (trendsChart) {
+        trendsChart.resize();
     }
 });
 </script>

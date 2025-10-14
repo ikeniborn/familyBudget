@@ -255,6 +255,25 @@ main {
     margin-bottom: 1rem;
 }
 
+.trends-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.trends-controls label {
+    font-weight: 500;
+}
+
+.trends-controls select {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: white;
+    cursor: pointer;
+}
+
 /* Alerts */
 .alert {
     padding: 1rem;
