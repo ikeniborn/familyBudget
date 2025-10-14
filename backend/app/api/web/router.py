@@ -101,3 +101,26 @@ async def admin_articles(
             "page_title": "Articles Management"
         }
     )
+
+
+@web_router.get("/admin/facts", response_class=HTMLResponse)
+async def admin_facts(
+    request: Request,
+    current_admin: CurrentAdmin
+):
+    """
+    Admin facts management page (admin only).
+
+    Provides interface for viewing, editing, and deleting financial facts
+    with pagination and filtering capabilities.
+    """
+    from backend.app.main import templates
+
+    return templates.TemplateResponse(
+        "admin_facts.html",
+        {
+            "request": request,
+            "user": current_admin,
+            "page_title": "Facts Management"
+        }
+    )

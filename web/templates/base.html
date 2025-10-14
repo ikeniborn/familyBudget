@@ -34,6 +34,7 @@
                     {% if user and user.is_admin %}
                         <li role="none"><a href="/admin/users" role="menuitem" class="{% if '/admin/users' in request.url.path %}active{% endif %}" aria-current="{% if '/admin/users' in request.url.path %}page{% endif %}">Admin: Users</a></li>
                         <li role="none"><a href="/admin/articles" role="menuitem" class="{% if '/admin/articles' in request.url.path %}active{% endif %}" aria-current="{% if '/admin/articles' in request.url.path %}page{% endif %}">Admin: Articles</a></li>
+                        <li role="none"><a href="/admin/facts" role="menuitem" class="{% if '/admin/facts' in request.url.path %}active{% endif %}" aria-current="{% if '/admin/facts' in request.url.path %}page{% endif %}">Admin: Facts</a></li>
                     {% endif %}
 
                     {% if user %}

@@ -1,0 +1,553 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-page">
+    <div class="page-header">
+        <h1>📊 Facts Management</h1>
+        <p class="page-description">View, edit, and delete financial transactions with advanced filtering</p>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="card">
+        <div class="card-header">
+            <h2>Filters</h2>
+            <button class="btn-secondary btn-small" onclick="resetFilters()">Reset</button>
+        </div>
+        <div class="filter-grid">
+            <div class="form-group">
+                <label for="filter-user">User</label>
+                <select id="filter-user">
+                    <option value="">-- All Users --</option>
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="filter-article">Article</label>
+                <select id="filter-article">
+                    <option value="">-- All Articles --</option>
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="filter-date-from">Date From</label>
+                <input type="date" id="filter-date-from">
+            </div>
+            <div class="form-group">
+                <label for="filter-date-to">Date To</label>
+                <input type="date" id="filter-date-to">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-primary" onclick="applyFilters()">Apply Filters</button>
+        </div>
+    </div>
+
+    <!-- Stats Section -->
+    <div class="stats-grid" style="margin-top: 1.5rem;">
+        <div class="stat-card">
+            <div class="stat-icon">📊</div>
+            <div>
+                <div class="stat-value" id="stat-total">0</div>
+                <div class="stat-label">Total Facts</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📄</div>
+            <div>
+                <div class="stat-value" id="stat-page-info">0-0 of 0</div>
+                <div class="stat-label">Current Page</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Facts Table -->
+    <div class="card admin-table-card" style="margin-top: 1.5rem;">
+        <div class="card-header">
+            <h2>Facts</h2>
+            <div class="table-actions">
+                <button class="btn-secondary btn-small" id="batch-delete-btn" onclick="batchDelete()" disabled>Delete Selected</button>
+            </div>
+        </div>
+
+        <div id="facts-table-container">
+            <div class="loading">Loading facts...</div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination-controls" id="pagination-controls" style="display: none;">
+            <button class="btn-secondary btn-small" id="prev-btn" onclick="previousPage()" disabled>← Previous</button>
+            <span id="page-info">Page 1</span>
+            <button class="btn-secondary btn-small" id="next-btn" onclick="nextPage()" disabled>Next →</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Fact Modal -->
+<div id="edit-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Edit Fact</h3>
+            <span class="modal-close" onclick="closeEditModal()">&times;</span>
+        </div>
+        <form id="edit-form" onsubmit="updateFact(event)">
+            <input type="hidden" id="edit-id" name="id">
+            <div class="form-group">
+                <label for="edit-amount">Amount*</label>
+                <input type="number" id="edit-amount" name="amount" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label for="edit-date">Date*</label>
+                <input type="date" id="edit-date" name="fact_date" required>
+            </div>
+            <div class="form-group">
+                <label for="edit-article">Article*</label>
+                <select id="edit-article" name="article_id" required>
+                    <option value="">-- Select Article --</option>
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="edit-description">Description</label>
+                <textarea id="edit-description" name="description" rows="3" maxlength="500"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn-primary">Update</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Global state
+let currentPage = 0;
+let pageSize = 50;
+let totalFacts = 0;
+let factsData = [];
+let selectedFactIds = new Set();
+
+// Filter state
+let filters = {
+    user_id: null,
+    article_id: null,
+    date_from: null,
+    date_to: null
+};
+
+// Load data on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadUsers();
+    loadArticles();
+    loadFacts();
+});
+
+// Load users for filter dropdown
+async function loadUsers() {
+    try {
+        const response = await fetch('/api/v1/admin/users?is_current=true');
+        const users = await response.json();
+
+        const select = document.getElementById('filter-user');
+        users.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user.id;
+            option.textContent = user.username || user.first_name || `User ${user.telegram_id}`;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading users:', error);
+    }
+}
+
+// Load articles for filter and edit dropdowns
+async function loadArticles() {
+    try {
+        const response = await fetch('/api/v1/admin/articles?is_current=true');
+        const articles = await response.json();
+
+        // Populate filter dropdown
+        const filterSelect = document.getElementById('filter-article');
+        articles.forEach(article => {
+            const option = document.createElement('option');
+            option.value = article.id;
+            option.textContent = `${article.name} (${article.type})`;
+            filterSelect.appendChild(option);
+        });
+
+        // Populate edit dropdown
+        const editSelect = document.getElementById('edit-article');
+        articles.forEach(article => {
+            const option = document.createElement('option');
+            option.value = article.id;
+            option.textContent = `${article.name} (${article.type})`;
+            editSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading articles:', error);
+    }
+}
+
+// Apply filters
+function applyFilters() {
+    filters.user_id = document.getElementById('filter-user').value || null;
+    filters.article_id = document.getElementById('filter-article').value || null;
+    filters.date_from = document.getElementById('filter-date-from').value || null;
+    filters.date_to = document.getElementById('filter-date-to').value || null;
+
+    currentPage = 0;
+    loadFacts();
+}
+
+// Reset filters
+function resetFilters() {
+    document.getElementById('filter-user').value = '';
+    document.getElementById('filter-article').value = '';
+    document.getElementById('filter-date-from').value = '';
+    document.getElementById('filter-date-to').value = '';
+
+    filters = {
+        user_id: null,
+        article_id: null,
+        date_from: null,
+        date_to: null
+    };
+
+    currentPage = 0;
+    loadFacts();
+}
+
+// Load facts from API
+async function loadFacts() {
+    const container = document.getElementById('facts-table-container');
+    container.innerHTML = '<div class="loading">Loading facts...</div>';
+
+    try {
+        // Build query params
+        let params = new URLSearchParams({
+            limit: pageSize,
+            offset: currentPage * pageSize
+        });
+
+        if (filters.user_id) params.append('user_id', filters.user_id);
+        if (filters.article_id) params.append('article_id', filters.article_id);
+        if (filters.date_from) params.append('date_from', filters.date_from);
+        if (filters.date_to) params.append('date_to', filters.date_to);
+
+        // Load facts and count in parallel
+        const [factsResponse, countResponse] = await Promise.all([
+            fetch(`/api/v1/admin/facts?${params}`),
+            fetch(`/api/v1/admin/facts/count?${params}`)
+        ]);
+
+        if (!factsResponse.ok || !countResponse.ok) {
+            throw new Error('Failed to load facts');
+        }
+
+        factsData = await factsResponse.json();
+        const countData = await countResponse.json();
+        totalFacts = countData.total;
+
+        renderFactsTable(factsData);
+        updateStats();
+        updatePagination();
+    } catch (error) {
+        console.error('Error loading facts:', error);
+        container.innerHTML = `<div class="error-message">Failed to load facts: ${error.message}</div>`;
+    }
+}
+
+// Render facts table
+function renderFactsTable(facts) {
+    const container = document.getElementById('facts-table-container');
+    selectedFactIds.clear();
+    updateBatchDeleteButton();
+
+    if (facts.length === 0) {
+        container.innerHTML = '<p class="info-text">No facts found with the current filters.</p>';
+        return;
+    }
+
+    let html = `
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)"></th>
+                        <th>ID</th>
+                        <th>User</th>
+                        <th>Article</th>
+                        <th>Amount</th>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    facts.forEach(fact => {
+        const amountClass = fact.amount >= 0 ? 'amount-positive' : 'amount-negative';
+        const description = fact.description || '—';
+
+        html += `
+            <tr>
+                <td><input type="checkbox" class="fact-checkbox" value="${fact.id}" onchange="updateBatchDeleteButton()"></td>
+                <td>${fact.id}</td>
+                <td>${fact.user_name || '—'}</td>
+                <td>${fact.article_name || '—'}</td>
+                <td class="${amountClass}">${parseFloat(fact.amount).toFixed(2)}</td>
+                <td>${fact.fact_date}</td>
+                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${description}</td>
+                <td>
+                    <button class="btn-primary btn-small" onclick="showEditModal(${fact.id})">Edit</button>
+                    <button class="btn-secondary btn-small" onclick="deleteFact(${fact.id})">Delete</button>
+                </td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+// Toggle select all checkboxes
+function toggleSelectAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.fact-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+        if (checkbox.checked) {
+            selectedFactIds.add(parseInt(cb.value));
+        } else {
+            selectedFactIds.delete(parseInt(cb.value));
+        }
+    });
+    updateBatchDeleteButton();
+}
+
+// Update batch delete button state
+function updateBatchDeleteButton() {
+    const checkboxes = document.querySelectorAll('.fact-checkbox:checked');
+    selectedFactIds = new Set(Array.from(checkboxes).map(cb => parseInt(cb.value)));
+
+    const btn = document.getElementById('batch-delete-btn');
+    btn.disabled = selectedFactIds.size === 0;
+    btn.textContent = selectedFactIds.size > 0 ? `Delete Selected (${selectedFactIds.size})` : 'Delete Selected';
+}
+
+// Update statistics
+function updateStats() {
+    document.getElementById('stat-total').textContent = totalFacts;
+
+    const startIdx = currentPage * pageSize + 1;
+    const endIdx = Math.min((currentPage + 1) * pageSize, totalFacts);
+    document.getElementById('stat-page-info').textContent = totalFacts > 0 ? `${startIdx}-${endIdx} of ${totalFacts}` : '0-0 of 0';
+}
+
+// Update pagination controls
+function updatePagination() {
+    const controls = document.getElementById('pagination-controls');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const pageInfo = document.getElementById('page-info');
+
+    if (totalFacts > pageSize) {
+        controls.style.display = 'flex';
+
+        prevBtn.disabled = currentPage === 0;
+        nextBtn.disabled = (currentPage + 1) * pageSize >= totalFacts;
+
+        const totalPages = Math.ceil(totalFacts / pageSize);
+        pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
+    } else {
+        controls.style.display = 'none';
+    }
+}
+
+// Pagination functions
+function previousPage() {
+    if (currentPage > 0) {
+        currentPage--;
+        loadFacts();
+    }
+}
+
+function nextPage() {
+    if ((currentPage + 1) * pageSize < totalFacts) {
+        currentPage++;
+        loadFacts();
+    }
+}
+
+// Show edit modal
+function showEditModal(factId) {
+    const fact = factsData.find(f => f.id === factId);
+    if (!fact) return;
+
+    document.getElementById('edit-id').value = fact.id;
+    document.getElementById('edit-amount').value = parseFloat(fact.amount);
+    document.getElementById('edit-date').value = fact.fact_date;
+    document.getElementById('edit-article').value = fact.article_id;
+    document.getElementById('edit-description').value = fact.description || '';
+
+    document.getElementById('edit-modal').style.display = 'block';
+}
+
+// Close edit modal
+function closeEditModal() {
+    document.getElementById('edit-modal').style.display = 'none';
+    document.getElementById('edit-form').reset();
+}
+
+// Update fact
+async function updateFact(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const factId = formData.get('id');
+    const data = {
+        amount: parseFloat(formData.get('amount')),
+        fact_date: formData.get('fact_date'),
+        article_id: parseInt(formData.get('article_id')),
+        description: formData.get('description') || null
+    };
+
+    try {
+        const response = await fetch(`/api/v1/admin/facts/${factId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        closeEditModal();
+        await loadFacts();
+        showNotification('Fact updated successfully', 'success');
+    } catch (error) {
+        console.error('Error updating fact:', error);
+        showNotification(`Failed: ${error.message}`, 'error');
+    }
+}
+
+// Delete single fact
+async function deleteFact(factId) {
+    if (!confirm('Are you sure you want to delete this fact? This action cannot be undone.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/facts/${factId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        await loadFacts();
+        showNotification('Fact deleted successfully', 'success');
+    } catch (error) {
+        console.error('Error deleting fact:', error);
+        showNotification(`Failed: ${error.message}`, 'error');
+    }
+}
+
+// Batch delete facts
+async function batchDelete() {
+    if (selectedFactIds.size === 0) return;
+
+    if (!confirm(`Are you sure you want to delete ${selectedFactIds.size} facts? This action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/v1/admin/facts/batch-delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(Array.from(selectedFactIds))
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        await loadFacts();
+        showNotification(`${result.deleted_count} facts deleted successfully`, 'success');
+    } catch (error) {
+        console.error('Error batch deleting facts:', error);
+        showNotification(`Failed: ${error.message}`, 'error');
+    }
+}
+
+// Utility: Show notification
+function showNotification(message, type) {
+    if (type === 'error') {
+        alert('❌ ' + message);
+    } else {
+        alert('✅ ' + message);
+    }
+}
+
+// Close modals when clicking outside
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
+    }
+}
+</script>
+
+<style>
+.filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.pagination-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.amount-positive {
+    color: var(--success-color);
+    font-weight: 500;
+}
+
+.amount-negative {
+    color: var(--danger-color);
+    font-weight: 500;
+}
+
+textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-family: inherit;
+    resize: vertical;
+}
+
+textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+</style>
+{% endblock %}
