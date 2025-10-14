@@ -80,6 +80,10 @@ class BotApplication:
         from bot.handlers.help import help_handler
         from bot.handlers.settings import settings_conversation_handler
         from bot.handlers.export import export_handler
+        from bot.handlers.list import list_conversation_handler
+        from bot.handlers.delete import delete_conversation_handler
+        from bot.handlers.search import search_conversation_handler
+        from bot.handlers.edit import edit_conversation_handler
 
         # Register command handlers
         self.application.add_handler(CommandHandler("start", start_handler))
@@ -103,6 +107,18 @@ class BotApplication:
 
         self.application.add_handler(settings_conversation_handler)
         logger.info("Registered /settings conversation handler")
+
+        self.application.add_handler(list_conversation_handler)
+        logger.info("Registered /list conversation handler")
+
+        self.application.add_handler(delete_conversation_handler)
+        logger.info("Registered /delete conversation handler")
+
+        self.application.add_handler(search_conversation_handler)
+        logger.info("Registered /search conversation handler")
+
+        self.application.add_handler(edit_conversation_handler)
+        logger.info("Registered /edit conversation handler")
 
         logger.info("All handlers registered")
 
