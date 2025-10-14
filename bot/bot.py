@@ -77,10 +77,16 @@ class BotApplication:
         from bot.handlers.add import add_conversation_handler
         from bot.handlers.today import today_handler
         from bot.handlers.stats import stats_handler
+        from bot.handlers.help import help_handler
+        from bot.handlers.settings import settings_conversation_handler
+        from bot.handlers.export import export_handler
 
         # Register command handlers
         self.application.add_handler(CommandHandler("start", start_handler))
         logger.info("Registered /start handler")
+
+        self.application.add_handler(CommandHandler("help", help_handler))
+        logger.info("Registered /help handler")
 
         self.application.add_handler(CommandHandler("today", today_handler))
         logger.info("Registered /today handler")
@@ -88,9 +94,15 @@ class BotApplication:
         self.application.add_handler(CommandHandler("stats", stats_handler))
         logger.info("Registered /stats handler")
 
+        self.application.add_handler(CommandHandler("export", export_handler))
+        logger.info("Registered /export handler")
+
         # Register conversation handlers
         self.application.add_handler(add_conversation_handler)
         logger.info("Registered /add conversation handler")
+
+        self.application.add_handler(settings_conversation_handler)
+        logger.info("Registered /settings conversation handler")
 
         logger.info("All handlers registered")
 
