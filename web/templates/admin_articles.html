@@ -1,0 +1,430 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-page">
+    <div class="page-header">
+        <h1>📁 Articles Management</h1>
+        <p class="page-description">Manage income and expense categories with hierarchical structure</p>
+    </div>
+
+    <!-- Articles Table -->
+    <div class="card admin-table-card">
+        <div class="card-header">
+            <h2>Categories</h2>
+            <div class="table-actions">
+                <button class="filter-btn active" id="filter-income" onclick="toggleTypeFilter('income')">Income</button>
+                <button class="filter-btn" id="filter-expense" onclick="toggleTypeFilter('expense')">Expense</button>
+                <button class="filter-btn" id="filter-global" onclick="toggleGlobalFilter()">Global Only</button>
+                <button class="btn-primary btn-small" onclick="showCreateModal()">+ New Article</button>
+            </div>
+        </div>
+
+        <div id="articles-table-container">
+            <div class="loading">Loading articles...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Article Modal -->
+<div id="create-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Create New Article</h3>
+            <span class="modal-close" onclick="closeCreateModal()">&times;</span>
+        </div>
+        <form id="create-form" onsubmit="createArticle(event)">
+            <div class="form-group">
+                <label for="create-name">Name*</label>
+                <input type="text" id="create-name" name="name" required maxlength="255" placeholder="Enter article name">
+            </div>
+            <div class="form-group">
+                <label for="create-type">Type*</label>
+                <select id="create-type" name="type" required>
+                    <option value="income">Income</option>
+                    <option value="expense">Expense</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="create-parent">Parent Category</label>
+                <select id="create-parent" name="parent_id">
+                    <option value="">-- Root Level --</option>
+                    <!-- Will be populated dynamically -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="create-global" name="is_global">
+                    Global (available to all users)
+                </label>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeCreateModal()">Cancel</button>
+                <button type="submit" class="btn-primary">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Article Modal -->
+<div id="edit-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Edit Article</h3>
+            <span class="modal-close" onclick="closeEditModal()">&times;</span>
+        </div>
+        <form id="edit-form" onsubmit="updateArticle(event)">
+            <input type="hidden" id="edit-id" name="id">
+            <div class="form-group">
+                <label for="edit-name">Name*</label>
+                <input type="text" id="edit-name" name="name" required maxlength="255">
+            </div>
+            <div class="form-group">
+                <label for="edit-parent">Parent Category</label>
+                <select id="edit-parent" name="parent_id">
+                    <option value="">-- Root Level --</option>
+                    <!-- Will be populated dynamically -->
+                </select>
+            </div>
+            <div class="form-group">
+                <p class="info-note">Type and Global flag cannot be changed (SCD Type 2)</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn-primary">Update</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Global state
+let currentType = 'income';
+let showGlobalOnly = false;
+let articlesData = [];
+
+// Load articles on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadArticles();
+});
+
+// Toggle type filter (income/expense)
+function toggleTypeFilter(type) {
+    currentType = type;
+
+    // Update active button
+    document.getElementById('filter-income').classList.toggle('active', type === 'income');
+    document.getElementById('filter-expense').classList.toggle('active', type === 'expense');
+
+    // Reload articles
+    loadArticles();
+}
+
+// Toggle global filter
+function toggleGlobalFilter() {
+    showGlobalOnly = !showGlobalOnly;
+    document.getElementById('filter-global').classList.toggle('active', showGlobalOnly);
+    loadArticles();
+}
+
+// Load articles from API
+async function loadArticles() {
+    const container = document.getElementById('articles-table-container');
+    container.innerHTML = '<div class="loading">Loading articles...</div>';
+
+    try {
+        let url = `/api/v1/admin/articles?is_current=true`;
+        if (showGlobalOnly) {
+            url += '&is_global=true';
+        }
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        articlesData = await response.json();
+        renderArticlesTable(articlesData);
+    } catch (error) {
+        console.error('Error loading articles:', error);
+        container.innerHTML = `<div class="error-message">Failed to load articles: ${error.message}</div>`;
+    }
+}
+
+// Render articles table with hierarchy
+function renderArticlesTable(articles) {
+    const container = document.getElementById('articles-table-container');
+
+    // Filter by current type
+    const filtered = articles.filter(a => a.type === currentType);
+
+    if (filtered.length === 0) {
+        container.innerHTML = '<p class="info-text">No articles found. Click "+ New Article" to create one.</p>';
+        return;
+    }
+
+    // Build hierarchy tree
+    const tree = buildTree(filtered);
+
+    let html = `
+        <div class="table-responsive">
+            <table class="data-table articles-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Scope</th>
+                        <th>Owner</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    // Render tree recursively
+    html += renderTreeNodes(tree, 0);
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+// Build hierarchy tree
+function buildTree(articles) {
+    const map = {};
+    const roots = [];
+
+    // Create map
+    articles.forEach(article => {
+        map[article.id] = { ...article, children: [] };
+    });
+
+    // Build tree
+    articles.forEach(article => {
+        if (article.parent_id && map[article.parent_id]) {
+            map[article.parent_id].children.push(map[article.id]);
+        } else {
+            roots.push(map[article.id]);
+        }
+    });
+
+    return roots;
+}
+
+// Render tree nodes recursively
+function renderTreeNodes(nodes, level) {
+    let html = '';
+
+    nodes.forEach(node => {
+        const indent = '&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(level);
+        const prefix = level > 0 ? '↳ ' : '';
+        const scopeLabel = node.is_global ? '<span class="badge success">Global</span>' : '<span class="badge user">User</span>';
+        const ownerLabel = node.user_name || '—';
+
+        html += `
+            <tr data-article-id="${node.id}" class="tree-level-${level}">
+                <td>${indent}${prefix}${node.name}</td>
+                <td><span class="badge ${node.type === 'income' ? 'success' : 'inactive'}">${node.type}</span></td>
+                <td>${scopeLabel}</td>
+                <td>${ownerLabel}</td>
+                <td>
+                    <button class="btn-primary btn-small" onclick="showEditModal(${node.id})">Edit</button>
+                    <button class="btn-secondary btn-small" onclick="deactivateArticle(${node.id})">Deactivate</button>
+                </td>
+            </tr>
+        `;
+
+        // Render children recursively
+        if (node.children.length > 0) {
+            html += renderTreeNodes(node.children, level + 1);
+        }
+    });
+
+    return html;
+}
+
+// Show create modal
+function showCreateModal() {
+    document.getElementById('create-modal').style.display = 'block';
+    document.getElementById('create-type').value = currentType;
+    populateParentSelect('create-parent', currentType);
+}
+
+// Close create modal
+function closeCreateModal() {
+    document.getElementById('create-modal').style.display = 'none';
+    document.getElementById('create-form').reset();
+}
+
+// Populate parent select dropdown
+function populateParentSelect(selectId, type) {
+    const select = document.getElementById(selectId);
+    const currentArticleId = document.getElementById('edit-id')?.value;
+
+    // Clear existing options (except first)
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+
+    // Get articles of same type
+    const sameType = articlesData.filter(a => a.type === type && a.id != currentArticleId);
+
+    // Build tree for proper ordering
+    const tree = buildTree(sameType);
+
+    // Add options with hierarchy
+    function addOptions(nodes, level) {
+        nodes.forEach(node => {
+            const indent = '  '.repeat(level);
+            const option = document.createElement('option');
+            option.value = node.id;
+            option.textContent = indent + node.name;
+            select.appendChild(option);
+
+            if (node.children.length > 0) {
+                addOptions(node.children, level + 1);
+            }
+        });
+    }
+
+    addOptions(tree, 0);
+}
+
+// Create article
+async function createArticle(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const data = {
+        name: formData.get('name'),
+        type: formData.get('type'),
+        parent_id: formData.get('parent_id') ? parseInt(formData.get('parent_id')) : null,
+        is_global: formData.get('is_global') === 'on'
+    };
+
+    try {
+        const response = await fetch('/api/v1/admin/articles', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success
+        closeCreateModal();
+        await loadArticles();
+        showNotification('Article created successfully', 'success');
+    } catch (error) {
+        console.error('Error creating article:', error);
+        showNotification(`Failed: ${error.message}`, 'error');
+    }
+}
+
+// Show edit modal
+function showEditModal(articleId) {
+    const article = articlesData.find(a => a.id === articleId);
+    if (!article) return;
+
+    document.getElementById('edit-id').value = article.id;
+    document.getElementById('edit-name').value = article.name;
+    populateParentSelect('edit-parent', article.type);
+    document.getElementById('edit-parent').value = article.parent_id || '';
+
+    document.getElementById('edit-modal').style.display = 'block';
+}
+
+// Close edit modal
+function closeEditModal() {
+    document.getElementById('edit-modal').style.display = 'none';
+    document.getElementById('edit-form').reset();
+}
+
+// Update article
+async function updateArticle(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const articleId = formData.get('id');
+    const data = {
+        name: formData.get('name'),
+        parent_id: formData.get('parent_id') ? parseInt(formData.get('parent_id')) : null
+    };
+
+    try {
+        const response = await fetch(`/api/v1/admin/articles/${articleId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success
+        closeEditModal();
+        await loadArticles();
+        showNotification('Article updated successfully', 'success');
+    } catch (error) {
+        console.error('Error updating article:', error);
+        showNotification(`Failed: ${error.message}`, 'error');
+    }
+}
+
+// Deactivate article
+async function deactivateArticle(articleId) {
+    if (!confirm('Are you sure you want to deactivate this article? This will close it with valid_to=NOW() (SCD Type 2).')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/articles/${articleId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success
+        await loadArticles();
+        showNotification('Article deactivated successfully', 'success');
+    } catch (error) {
+        console.error('Error deactivating article:', error);
+        showNotification(`Failed: ${error.message}`, 'error');
+    }
+}
+
+// Utility: Show notification
+function showNotification(message, type) {
+    if (type === 'error') {
+        alert('❌ ' + message);
+    } else {
+        alert('✅ ' + message);
+    }
+}
+
+// Close modals when clicking outside
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

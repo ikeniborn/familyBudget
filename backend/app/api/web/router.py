@@ -78,3 +78,26 @@ async def admin_users(
             "page_title": "User Management"
         }
     )
+
+
+@web_router.get("/admin/articles", response_class=HTMLResponse)
+async def admin_articles(
+    request: Request,
+    current_admin: CurrentAdmin
+):
+    """
+    Admin articles management page (admin only).
+
+    Provides interface for managing income/expense categories
+    with hierarchical tree structure.
+    """
+    from backend.app.main import templates
+
+    return templates.TemplateResponse(
+        "admin_articles.html",
+        {
+            "request": request,
+            "user": current_admin,
+            "page_title": "Articles Management"
+        }
+    )

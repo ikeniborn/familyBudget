@@ -29,10 +29,11 @@
 
                 <ul class="nav-menu" role="menubar">
                     <li role="none"><a href="/" role="menuitem" class="{% if request.url.path == '/' %}active{% endif %}" aria-current="{% if request.url.path == '/' %}page{% endif %}">Dashboard</a></li>
-                    <li role="none"><a href="/analytics" role="menuitem" class="{% if '/analytics' in request.url.path %}active{% endif %}" aria-current="{% if '/analytics' in request.url.path %}page{% endif %}">Analytics</a></li>
+                    <li role="none"><a href="/analytics" role="menuitem" class="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">Analytics</a></li>
 
                     {% if user and user.is_admin %}
-                        <li role="none"><a href="/admin/users" role="menuitem" class="{% if '/admin' in request.url.path %}active{% endif %}" aria-current="{% if '/admin' in request.url.path %}page{% endif %}">Admin</a></li>
+                        <li role="none"><a href="/admin/users" role="menuitem" class="{% if '/admin/users' in request.url.path %}active{% endif %}" aria-current="{% if '/admin/users' in request.url.path %}page{% endif %}">Admin: Users</a></li>
+                        <li role="none"><a href="/admin/articles" role="menuitem" class="{% if '/admin/articles' in request.url.path %}active{% endif %}" aria-current="{% if '/admin/articles' in request.url.path %}page{% endif %}">Admin: Articles</a></li>
                     {% endif %}
 
                     {% if user %}
