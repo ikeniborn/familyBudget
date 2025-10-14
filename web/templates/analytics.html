@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<!-- ECharts library -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="analytics-page">
+    <h1>📊 Analytics Dashboard</h1>
+
+    {% if not user %}
+        <div class="alert alert-warning">
+            <p>Please <a href="/api/v1/auth/telegram-login">log in</a> to view analytics.</p>
+        </div>
+    {% else %}
+        <!-- Period Filter -->
+        <div class="filter-bar">
+            <label>Period:</label>
+            <button class="filter-btn active" data-period="week">Week</button>
+            <button class="filter-btn" data-period="month">Month</button>
+            <button class="filter-btn" data-period="year">Year</button>
+            <button class="filter-btn" data-period="all">All Time</button>
+        </div>
+
+        <!-- Charts Container -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h2>Plan vs Fact</h2>
+                <div id="chart-plan-fact" style="width: 100%; height: 400px;"></div>
+            </div>
+
+            <div class="chart-card">
+                <h2>Spending Trends</h2>
+                <div id="chart-trends" style="width: 100%; height: 400px;"></div>
+            </div>
+
+            <div class="chart-card">
+                <h2>Category Breakdown</h2>
+                <div id="chart-pie" style="width: 100%; height: 400px;"></div>
+            </div>
+        </div>
+
+        <p class="info-text">Charts will be implemented in TASK-041 through TASK-045</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Chart initialization will be added in upcoming tasks
+console.log('Analytics page loaded. Charts will be implemented in TASK-041 to TASK-045.');
+</script>
+{% endblock %}

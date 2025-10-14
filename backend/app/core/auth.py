@@ -127,6 +127,51 @@ async def get_current_admin(
     return current_user
 
 
+async def get_current_user_optional(
+    request: Request,
+    session: AsyncSession = Depends(get_session)
+) -> User | None:
+    """
+    Get currently authenticated user if available, None otherwise.
+
+    This is a non-blocking version of get_current_user for public pages that
+    can optionally show user-specific content if authenticated.
+
+    Args:
+        request: HTTP request with optional user_id in state
+        session: Async database session
+
+    Returns:
+        User | None: Current user if authenticated, None otherwise
+
+    Example:
+        ```python
+        @app.get("/")
+        async def home(user: User | None = Depends(get_current_user_optional)):
+            if user:
+                return {"message": f"Welcome back, {user.username}"}
+            return {"message": "Welcome, please log in"}
+        ```
+    """
+    # Extract user_id from request state (set by JWT middleware)
+    user_id = getattr(request.state, "user_id", None)
+
+    if user_id is None:
+        # No authentication - return None for public access
+        return None
+
+    # Load user from database (current version only)
+    statement = select(User).where(
+        User.id == user_id,
+        User.is_current == True  # noqa: E712
+    )
+    result = await session.execute(statement)
+    user = result.scalar_one_or_none()
+
+    return user  # May be None if user was deleted
+
+
 # Type aliases for cleaner endpoint signatures
 CurrentUser = Annotated[User, Depends(get_current_user)]
 CurrentAdmin = Annotated[User, Depends(get_current_admin)]
+CurrentUserOptional = Annotated[User | None, Depends(get_current_user_optional)]

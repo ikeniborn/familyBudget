@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ page_title }}{% endblock %} - Family Budget</title>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/style.css') }}">
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+    <!-- ECharts (for analytics pages) -->
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="/">💰 Family Budget</a>
+                </div>
+
+                <ul class="nav-menu">
+                    <li><a href="/" class="{% if request.url.path == '/' %}active{% endif %}">Dashboard</a></li>
+                    <li><a href="/analytics" class="{% if '/analytics' in request.url.path %}active{% endif %}">Analytics</a></li>
+
+                    {% if user %}
+                        <li class="user-info">
+                            <span class="user-name">{{ user.first_name or user.username }}</span>
+                            {% if user.is_admin %}
+                                <span class="badge admin">Admin</span>
+                            {% endif %}
+                        </li>
+                    {% else %}
+                        <li><a href="/api/v1/auth/telegram-login" class="btn-primary">Login</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Family Budget. Built with FastAPI + HTMX + ECharts</p>
+        </div>
+    </footer>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

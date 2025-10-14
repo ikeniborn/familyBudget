@@ -1,12 +1,16 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.exceptions import HTTPException, RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
 from backend.app.api.v1.router import api_router
+from backend.app.api.web.router import web_router
 from backend.app.core.config import get_settings
 from backend.app.core.exceptions import APIException
 from backend.app.core.logging import setup_logging, get_logger
@@ -210,5 +214,17 @@ async def health_check() -> dict[str, str | bool]:
     }
 
 
-# Include API v1 router
-app.include_router(api_router)
+# Configure static files and templates
+BASE_DIR = Path(__file__).resolve().parent.parent.parent  # familyBudget root
+STATIC_DIR = BASE_DIR / "web" / "static"
+TEMPLATES_DIR = BASE_DIR / "web" / "templates"
+
+# Mount static files
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+# Setup Jinja2 templates
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+# Include routers
+app.include_router(api_router)  # API endpoints at /api/v1
+app.include_router(web_router)  # Web pages at /

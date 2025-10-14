@@ -14,8 +14,10 @@ from backend.app.db.session import get_session
 from backend.app.core.auth import (
     CurrentAdmin,
     CurrentUser,
+    CurrentUserOptional,
     get_current_admin,
     get_current_user,
+    get_current_user_optional,
 )
 
 # User isolation helpers (TASK-014)
@@ -33,8 +35,10 @@ __all__ = [
     "get_session",
     # Authentication
     "get_current_user",
+    "get_current_user_optional",
     "get_current_admin",
     "CurrentUser",
+    "CurrentUserOptional",
     "CurrentAdmin",
     # User isolation
     "apply_user_filter",

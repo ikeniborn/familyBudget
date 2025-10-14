@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="hero">
+    <h1>Welcome to Family Budget</h1>
+
+    {% if user %}
+        <p class="hero-subtitle">Track your expenses, analyze spending patterns, and manage your family budget.</p>
+
+        <div class="dashboard-grid">
+            <div class="card">
+                <h2>📊 Quick Stats</h2>
+                <div id="quick-stats" hx-get="/api/v1/analytics/quick-stats" hx-trigger="load" hx-swap="innerHTML">
+                    <p class="loading">Loading...</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>📈 Recent Transactions</h2>
+                <div id="recent-transactions" hx-get="/api/v1/facts?limit=5" hx-trigger="load" hx-swap="innerHTML">
+                    <p class="loading">Loading...</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>💡 Quick Actions</h2>
+                <ul class="action-list">
+                    <li><a href="/analytics">View Analytics</a></li>
+                    <li><a href="/api/v1/facts/new">Add Transaction</a></li>
+                    <li><a href="/api/v1/articles">Manage Categories</a></li>
+                </ul>
+            </div>
+        </div>
+    {% else %}
+        <p class="hero-subtitle">Please log in with Telegram to access your budget data.</p>
+
+        <div class="login-section">
+            <a href="/api/v1/auth/telegram-login" class="btn-primary btn-large">
+                Login with Telegram
+            </a>
+
+            <p class="help-text">
+                Secure authentication via Telegram OAuth with HMAC-SHA256 validation
+            </p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
