@@ -274,6 +274,37 @@ main {
     cursor: pointer;
 }
 
+.pie-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.pie-controls label {
+    font-weight: 500;
+}
+
+.filter-btn-small {
+    padding: 0.4rem 0.8rem;
+    border: 1px solid var(--border-color);
+    background-color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 0.9rem;
+}
+
+.filter-btn-small:hover {
+    background-color: var(--bg-color);
+}
+
+.filter-btn-small.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
 /* Alerts */
 .alert {
     padding: 1rem;
