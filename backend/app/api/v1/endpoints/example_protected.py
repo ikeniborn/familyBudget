@@ -15,7 +15,7 @@ from backend.app.core.dependencies import (
     apply_user_filter,
     get_session,
 )
-from backend.app.models.fact import Fact
+from backend.app.models.fact import BudgetFact as Fact
 
 router = APIRouter(prefix="/example", tags=["Examples"])
 

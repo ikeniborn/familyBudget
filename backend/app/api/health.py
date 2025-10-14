@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import psutil
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Depends, Response, status
 from pydantic import BaseModel
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -18,7 +18,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from backend.app.core.config import get_settings
 from backend.app.core.dependencies import get_session
 from backend.app.db.health import check_db_connection
-from backend.app.models.fact import Fact
+from backend.app.models.fact import BudgetFact as Fact
 from backend.app.models.user import User
 
 router = APIRouter(tags=["Health"])
@@ -253,7 +253,7 @@ async def health_check(response: Response) -> HealthStatus:
     """,
 )
 async def readiness_check(
-    response: Response, session: AsyncSession = get_session
+    response: Response, session: AsyncSession = Depends(get_session)
 ) -> ReadinessResponse:
     """
     Readiness check endpoint.
@@ -308,7 +308,7 @@ async def readiness_check(
     """,
 )
 async def detailed_health_check(
-    session: AsyncSession = get_session,
+    session: AsyncSession = Depends(get_session),
 ) -> DetailedHealthResponse:
     """
     Detailed health check with component breakdown.

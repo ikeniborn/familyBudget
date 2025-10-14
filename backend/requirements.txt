@@ -30,7 +30,7 @@ python-telegram-bot==20.7
 pytest==7.4.4
 pytest-asyncio==0.23.3
 pytest-cov==4.1.0
-httpx==0.26.0
+httpx==0.25.2
 
 # Development
 black==24.1.1

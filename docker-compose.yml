@@ -59,10 +59,6 @@ services:
       - "-c"
       - "log_destination=stderr"
       - "-c"
-      - "logging_collector=on"
-      - "-c"
-      - "log_directory=/var/log/postgresql"
-      - "-c"
       - "log_min_duration_statement=1000"
 
   # Backend Application (FastAPI + HTMX)

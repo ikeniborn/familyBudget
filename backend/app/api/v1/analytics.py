@@ -13,7 +13,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.dependencies import CurrentUser, get_session
 from backend.app.models.article import Article
-from backend.app.models.fact import Fact
+from backend.app.models.fact import BudgetFact as Fact
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 

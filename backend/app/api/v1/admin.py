@@ -14,7 +14,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.dependencies import CurrentAdmin, get_session
 from backend.app.models.article import Article
-from backend.app.models.fact import Fact
+from backend.app.models.fact import BudgetFact as Fact
 from backend.app.models.user import User
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
