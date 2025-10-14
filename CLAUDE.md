@@ -8,6 +8,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Tech Stack:** FastAPI (backend) + PostgreSQL (database) + HTMX/ECharts (frontend) + Docker (deployment)
 
+**For complete project requirements and architecture details, see:**
+- **[Product Requirements Document (PRD)](docs/prd/README.md)** - Complete product specification
+- **[System Architecture](docs/prd/03-system-architecture.md)** - Detailed architecture documentation
+- **[Functional Requirements](docs/prd/04-functional-requirements.md)** - 21 functional requirements with acceptance criteria
+
 ## Development Commands
 
 ### Local Development
@@ -504,6 +509,10 @@ Key fixtures from `backend/tests/conftest.py`:
 All documentation is in `docs/` directory:
 
 - **docs/README.md** - Master documentation index
+- **docs/prd/** - Product Requirements Document (PRD)
+  - **docs/prd/README.md** - PRD master index with navigation
+  - 13 modular PRD documents (Executive Summary, Architecture, Requirements, etc.)
+  - Critical for understanding project vision, architecture decisions, and requirements
 - **docs/api/API_DOCUMENTATION.md** - Complete API reference (40+ endpoints)
 - **docs/testing/E2E_TESTS.md** - E2E test documentation
 - **docs/deployment/** - Deployment guides and reports

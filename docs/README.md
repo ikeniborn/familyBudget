@@ -8,11 +8,12 @@
 ## 📑 Содержание
 
 1. [Структура документации](#структура-документации)
-2. [API Documentation](#api-documentation)
-3. [Deployment & Operations](#deployment--operations)
-4. [Testing Documentation](#testing-documentation)
-5. [Task Completion Reports](#task-completion-reports)
-6. [Scripts Documentation](#scripts-documentation)
+2. [Product Requirements Document (PRD)](#product-requirements-document-prd)
+3. [API Documentation](#api-documentation)
+4. [Deployment & Operations](#deployment--operations)
+5. [Testing Documentation](#testing-documentation)
+6. [Task Completion Reports](#task-completion-reports)
+7. [Scripts Documentation](#scripts-documentation)
 
 ---
 
@@ -21,6 +22,21 @@
 ```
 docs/
 ├── README.md                    # Этот файл - главная навигация
+├── prd/                         # Product Requirements Document (PRD)
+│   ├── README.md                # PRD навигация и саммари
+│   ├── 01-executive-summary.md  # Executive Summary
+│   ├── 02-product-overview.md   # Product Overview
+│   ├── 03-system-architecture.md # System Architecture
+│   ├── 04-functional-requirements.md # Functional Requirements
+│   ├── 05-non-functional-requirements.md # NFR
+│   ├── 06-database-design.md    # Database Design
+│   ├── 07-api-specification.md  # API Specification
+│   ├── 08-ui-design.md          # UI Design
+│   ├── 09-security-authentication.md # Security
+│   ├── 10-deployment-operations.md # Deployment & Operations
+│   ├── 11-testing-strategy.md   # Testing Strategy
+│   ├── 12-risk-management.md    # Risk Management
+│   └── 13-appendices.md         # Appendices
 ├── api/                         # API документация
 │   └── API_DOCUMENTATION.md     # Полная документация API (40+ endpoints)
 ├── deployment/                  # Документация по развертыванию
@@ -35,6 +51,48 @@ docs/
     ├── TASK-051 to TASK-057    # Epic-005: Admin & System Management
     └── TASK-058 to TASK-064    # Epic-006: Deployment & Operations
 ```
+
+---
+
+## 📋 Product Requirements Document (PRD)
+
+### 📄 [prd/README.md](prd/README.md)
+
+**Полная Product Requirements Document**
+
+**Содержание:**
+- ✅ Executive Summary - Обзор проекта и ключевые функции
+- ✅ Product Overview - Видение продукта и целевая аудитория
+- ✅ System Architecture - Детальная архитектура (SCD Type 2, Closure Table)
+- ✅ Functional Requirements - 21 функциональное требование
+- ✅ Non-Functional Requirements - Производительность, безопасность, масштабируемость
+- ✅ Database Design - Схема БД с DDL, индексами, триггерами
+- ✅ API Specification - 40+ endpoints
+- ✅ UI Design - Дизайн-система, страницы, графики
+- ✅ Security & Authentication - Telegram OAuth, JWT, UFW
+- ✅ Deployment & Operations - Bash скрипты, Docker, мониторинг
+- ✅ Testing Strategy - Unit, Integration, E2E тесты
+- ✅ Risk Management - 8 идентифицированных рисков
+- ✅ Appendices - Глоссарий, аббревиатуры, конфигурации
+
+**Модульная структура:**
+PRD разбит на 13 логических модулей для удобства навигации и сопровождения. Каждый модуль можно читать независимо.
+
+**Навигация по ролям:**
+- **Product Manager**: Executive Summary, Product Overview, Functional Requirements
+- **Tech Lead/Architect**: System Architecture, Database Design, NFR, Security
+- **Backend Developer**: Functional Requirements, API Spec, Database Design, Security
+- **Frontend Developer**: UI Design, API Spec, Functional Requirements
+- **DevOps**: Deployment & Operations, Security, NFR
+- **QA Engineer**: Testing Strategy, Functional Requirements, NFR
+
+**Ключевые метрики:**
+- Функциональных требований: 21
+- API endpoints: 40+
+- Таблиц БД: 4
+- Типов графиков: 6
+- Bash скриптов: 3
+- Идентифицированных рисков: 8
 
 ---
 
@@ -237,6 +295,7 @@ sudo ./install.sh
 ## 📊 Статистика документации
 
 ### По типам:
+- **PRD (Product Requirements):** 14 файлов (3188 строк, разбито на модули)
 - **API Documentation:** 1 файл (879+ строк)
 - **Deployment Docs:** 2 файла
 - **Testing Docs:** 1 файл (300+ строк)
