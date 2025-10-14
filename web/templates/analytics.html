@@ -15,53 +15,53 @@
         </div>
     {% else %}
         <!-- Period Filter -->
-        <div class="filter-bar">
-            <label>Period:</label>
-            <button class="filter-btn active" id="filter-week" data-period="week" onclick="updatePeriod('week')">Week</button>
-            <button class="filter-btn" id="filter-month" data-period="month" onclick="updatePeriod('month')">Month</button>
-            <button class="filter-btn" id="filter-year" data-period="year" onclick="updatePeriod('year')">Year</button>
+        <div class="filter-bar" role="group" aria-label="Time period filter">
+            <label id="period-label">Period:</label>
+            <button class="filter-btn active" id="filter-week" data-period="week" onclick="updatePeriod('week')" aria-pressed="true" aria-labelledby="period-label filter-week">Week</button>
+            <button class="filter-btn" id="filter-month" data-period="month" onclick="updatePeriod('month')" aria-pressed="false" aria-labelledby="period-label filter-month">Month</button>
+            <button class="filter-btn" id="filter-year" data-period="year" onclick="updatePeriod('year')" aria-pressed="false" aria-labelledby="period-label filter-year">Year</button>
         </div>
 
         <!-- Charts Container -->
         <div class="charts-grid">
-            <div class="chart-card">
-                <h2>📊 Plan vs Fact</h2>
-                <div id="chart-plan-fact" style="width: 100%; height: 400px;"></div>
-            </div>
+            <section class="chart-card" aria-labelledby="chart-title-planfact">
+                <h2 id="chart-title-planfact">📊 Plan vs Fact</h2>
+                <div id="chart-plan-fact" style="width: 100%; height: 400px;" role="img" aria-label="Bar chart comparing planned versus actual spending"></div>
+            </section>
 
-            <div class="chart-card">
-                <h2>📈 Spending Trends</h2>
-                <div class="trends-controls">
-                    <label>Days:</label>
-                    <select id="trends-days" onchange="updateTrendsDays()">
+            <section class="chart-card" aria-labelledby="chart-title-trends">
+                <h2 id="chart-title-trends">📈 Spending Trends</h2>
+                <div class="trends-controls" role="group" aria-label="Trends time range selector">
+                    <label for="trends-days">Days:</label>
+                    <select id="trends-days" onchange="updateTrendsDays()" aria-label="Select number of days to display">
                         <option value="7">Last 7 days</option>
                         <option value="30" selected>Last 30 days</option>
                         <option value="90">Last 90 days</option>
                         <option value="365">Last year</option>
                     </select>
                 </div>
-                <div id="chart-trends" style="width: 100%; height: 400px;"></div>
-            </div>
+                <div id="chart-trends" style="width: 100%; height: 400px;" role="img" aria-label="Line chart showing income and expense trends over time"></div>
+            </section>
 
-            <div class="chart-card">
-                <h2>🥧 Category Breakdown</h2>
-                <div class="pie-controls">
-                    <label>Type:</label>
-                    <button class="filter-btn-small active" id="pie-expense" onclick="updatePieType('expense')">Expense</button>
-                    <button class="filter-btn-small" id="pie-income" onclick="updatePieType('income')">Income</button>
+            <section class="chart-card" aria-labelledby="chart-title-pie">
+                <h2 id="chart-title-pie">🥧 Category Breakdown</h2>
+                <div class="pie-controls" role="group" aria-label="Category type selector">
+                    <label id="pie-type-label">Type:</label>
+                    <button class="filter-btn-small active" id="pie-expense" onclick="updatePieType('expense')" aria-pressed="true" aria-labelledby="pie-type-label pie-expense">Expense</button>
+                    <button class="filter-btn-small" id="pie-income" onclick="updatePieType('income')" aria-pressed="false" aria-labelledby="pie-type-label pie-income">Income</button>
                 </div>
-                <div id="chart-pie" style="width: 100%; height: 400px;"></div>
-            </div>
+                <div id="chart-pie" style="width: 100%; height: 400px;" role="img" aria-label="Donut chart showing spending breakdown by category"></div>
+            </section>
 
-            <div class="chart-card">
-                <h2>💧 Cumulative Flow</h2>
-                <div id="chart-waterfall" style="width: 100%; height: 400px;"></div>
-            </div>
+            <section class="chart-card" aria-labelledby="chart-title-waterfall">
+                <h2 id="chart-title-waterfall">💧 Cumulative Flow</h2>
+                <div id="chart-waterfall" style="width: 100%; height: 400px;" role="img" aria-label="Waterfall chart showing cumulative cash flow over time"></div>
+            </section>
 
-            <div class="chart-card">
-                <h2>🔥 Spending Heatmap</h2>
-                <div id="chart-heatmap" style="width: 100%; height: 400px;"></div>
-            </div>
+            <section class="chart-card" aria-labelledby="chart-title-heatmap">
+                <h2 id="chart-title-heatmap">🔥 Spending Heatmap</h2>
+                <div id="chart-heatmap" style="width: 100%; height: 400px;" role="img" aria-label="Heatmap showing spending patterns by day of week"></div>
+            </section>
         </div>
     {% endif %}
 </div>
@@ -532,11 +532,14 @@ function updatePieChart(data) {
 function updatePieType(type) {
     currentPieType = type;
 
-    // Update active button
+    // Update active button and ARIA states
     document.querySelectorAll('.pie-controls .filter-btn-small').forEach(btn => {
         btn.classList.remove('active');
+        btn.setAttribute('aria-pressed', 'false');
     });
-    document.getElementById(`pie-${type}`).classList.add('active');
+    const activeBtn = document.getElementById(`pie-${type}`);
+    activeBtn.classList.add('active');
+    activeBtn.setAttribute('aria-pressed', 'true');
 
     // Reload chart data
     loadPieData(type, currentPeriod);
@@ -546,11 +549,14 @@ function updatePieType(type) {
 function updatePeriod(period) {
     currentPeriod = period;
 
-    // Update active button
+    // Update active button and ARIA states
     document.querySelectorAll('.filter-bar .filter-btn').forEach(btn => {
         btn.classList.remove('active');
+        btn.setAttribute('aria-pressed', 'false');
     });
-    document.getElementById(`filter-${period}`).classList.add('active');
+    const activeBtn = document.getElementById(`filter-${period}`);
+    activeBtn.classList.add('active');
+    activeBtn.setAttribute('aria-pressed', 'true');
 
     // Reload charts
     loadPlanFactData(period);

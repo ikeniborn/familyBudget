@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Family Budget - Track your income and expenses with powerful analytics">
+    <meta name="theme-color" content="#4CAF50">
     <title>{% block title %}{{ page_title }}{% endblock %} - Family Budget</title>
 
     <!-- CSS -->
@@ -15,33 +17,36 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body>
-    <header>
-        <nav class="navbar">
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-link" style="position: absolute; left: -9999px; z-index: 999;">Skip to main content</a>
+
+    <header role="banner">
+        <nav class="navbar" role="navigation" aria-label="Main navigation">
             <div class="container">
                 <div class="nav-brand">
-                    <a href="/">💰 Family Budget</a>
+                    <a href="/" aria-label="Family Budget home">💰 Family Budget</a>
                 </div>
 
-                <ul class="nav-menu">
-                    <li><a href="/" class="{% if request.url.path == '/' %}active{% endif %}">Dashboard</a></li>
-                    <li><a href="/analytics" class="{% if '/analytics' in request.url.path %}active{% endif %}">Analytics</a></li>
+                <ul class="nav-menu" role="menubar">
+                    <li role="none"><a href="/" role="menuitem" class="{% if request.url.path == '/' %}active{% endif %}" aria-current="{% if request.url.path == '/' %}page{% endif %}">Dashboard</a></li>
+                    <li role="none"><a href="/analytics" role="menuitem" class="{% if '/analytics' in request.url.path %}active{% endif %}" aria-current="{% if '/analytics' in request.url.path %}page{% endif %}">Analytics</a></li>
 
                     {% if user %}
-                        <li class="user-info">
-                            <span class="user-name">{{ user.first_name or user.username }}</span>
+                        <li class="user-info" role="none">
+                            <span class="user-name" aria-label="Current user">{{ user.first_name or user.username }}</span>
                             {% if user.is_admin %}
-                                <span class="badge admin">Admin</span>
+                                <span class="badge admin" role="status">Admin</span>
                             {% endif %}
                         </li>
                     {% else %}
-                        <li><a href="/api/v1/auth/telegram-login" class="btn-primary">Login</a></li>
+                        <li role="none"><a href="/api/v1/auth/telegram-login" role="menuitem" class="btn-primary">Login</a></li>
                     {% endif %}
                 </ul>
             </div>
         </nav>
     </header>
 
-    <main class="container">
+    <main id="main-content" class="container" role="main">
         {% block content %}{% endblock %}
     </main>
 
