@@ -1,0 +1,896 @@
+# Family Budget 💰
+
+> **Personal family budget management system with Telegram bot integration and web analytics dashboard**
+
+![Version](https://img.shields.io/badge/version-4.3.0-blue)
+![Python](https://img.shields.io/badge/python-3.11+-green)
+![PostgreSQL](https://img.shields.io/badge/postgresql-16+-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
+---
+
+## 📋 Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Technology Stack](#technology-stack)
+- [Quick Start](#quick-start)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Architecture](#architecture)
+- [Security](#security)
+- [Development](#development)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## 🎯 Overview
+
+**Family Budget** is a comprehensive personal finance management system designed for families and individuals to track income and expenses through a convenient Telegram bot interface with powerful web analytics.
+
+### Key Highlights
+
+- 💬 **Telegram Bot Interface** - Add transactions on the go with simple commands
+- 📊 **Web Analytics Dashboard** - Beautiful charts and reports powered by ECharts
+- 🔐 **Secure Authentication** - Telegram OAuth with JWT tokens
+- 📂 **Hierarchical Categories** - Organize expenses with parent-child relationships
+- 👥 **Multi-user Support** - Each family member has isolated data
+- 🔄 **Historical Tracking** - SCD Type 2 dimension tables for audit trail
+- 🚀 **One-Command Deployment** - Three scripts for complete setup
+- 🔒 **Production-Ready Security** - UFW firewall, encrypted secrets, non-root containers
+
+---
+
+## ✨ Features
+
+### Telegram Bot
+
+- `/start` - Registration and authorization
+- `/add` - Quick expense/income entry
+- `/today` - Today's transactions summary
+- `/stats` - Weekly statistics
+- Inline keyboard for fast category selection
+- Transaction editing and deletion
+- Balance notifications
+
+### Web Analytics
+
+- **Interactive Charts:**
+  - Bar charts (monthly expenses by category)
+  - Line charts (trend analysis)
+  - Pie charts (expense distribution)
+  - Waterfall charts (cash flow analysis)
+  - Heatmap (spending patterns)
+
+- **Filtering Options:**
+  - Date range selection
+  - Category filtering
+  - Transaction type (income/expense)
+  - Period comparison (month-over-month, year-over-year)
+
+### Administration
+
+- User management (admin panel)
+- Global categories management
+- Automatic database backups to S3
+- Health checks and monitoring
+- Structured logging
+
+---
+
+## 🛠️ Technology Stack
+
+### Backend
+
+- **FastAPI** 0.104+ - Modern Python web framework
+- **SQLModel** - SQL database models with Pydantic validation
+- **PostgreSQL** 16+ - Database with SCD Type 2 and Closure Table
+- **Alembic** - Database migrations
+- **python-telegram-bot** 20.x - Telegram bot framework
+
+### Frontend
+
+- **HTMX** - Dynamic UI without complex JavaScript
+- **Jinja2** - Server-side templating
+- **ECharts** 5.5+ - Beautiful interactive charts
+- **TailwindCSS** - Utility-first CSS framework
+
+### Infrastructure
+
+- **Docker** & **Docker Compose** - Containerization
+- **Nginx** - Reverse proxy and SSL termination
+- **UFW** - Firewall with IP restrictions
+- **Certbot** - Automatic SSL certificates (Let's Encrypt)
+- **systemd** & **cron** - Backup automation
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Ubuntu 20.04+ or Debian 11+
+- Telegram bot token (from [@BotFather](https://t.me/BotFather))
+- Your Telegram ID (from [@userinfobot](https://t.me/userinfobot))
+- Root/sudo access
+- Internet connection
+
+### Three-Command Deployment
+
+```bash
+# 1. Install Docker, UFW, and system dependencies
+sudo ./install.sh
+
+# 2. Configure application (interactive setup)
+./setup.sh
+
+# 3. Deploy application
+./deploy.sh
+```
+
+**That's it!** Your Family Budget system is now running.
+
+---
+
+## 📦 Installation
+
+### Step 1: System Preparation (`install.sh`)
+
+This script installs all required system dependencies.
+
+```bash
+sudo ./install.sh
+```
+
+**What it does:**
+- ✅ Installs Docker Engine and Docker Compose
+- ✅ Configures UFW firewall (allows SSH, HTTP, HTTPS)
+- ✅ Installs utilities (curl, git, jq, vim, etc.)
+- ✅ Creates project directory structure
+- ✅ Adds user to docker group
+- ✅ Verifies installation with hello-world container
+
+**Duration:** 5-10 minutes
+
+**Output:**
+```
+[INFO] Detected OS: ubuntu 22.04
+[INFO] Installing Docker...
+[SUCCESS] Docker installed successfully (version: 24.0.7)
+[INFO] Configuring UFW firewall...
+[SUCCESS] UFW configured successfully
+[SUCCESS] Installation Complete!
+```
+
+**After installation:**
+```bash
+# Log out and log in (for docker group activation)
+# Or run:
+newgrp docker
+
+# Verify Docker works
+docker ps
+```
+
+---
+
+### Step 2: Application Configuration (`setup.sh`)
+
+This script provides an interactive configuration wizard.
+
+```bash
+./setup.sh
+```
+
+**What it configures:**
+
+1. **Database Settings:**
+   - PostgreSQL database name (default: `familybudget`)
+   - PostgreSQL username (default: `familybudget`)
+   - PostgreSQL password (auto-generated or custom)
+
+2. **Security:**
+   - JWT secret key (auto-generated 64 hex chars)
+   - JWT expiration period (default: 7 days)
+
+3. **Telegram Bot:**
+   - Bot token (from @BotFather) ⚠️ **REQUIRED**
+   - Bot username (optional)
+   - Admin Telegram ID (from @userinfobot) ⚠️ **REQUIRED**
+
+4. **Application Settings:**
+   - Environment (development/staging/production)
+   - Domain name (or localhost)
+   - Backend port (default: 8000)
+   - Number of workers (default: 4)
+   - Log level (default: INFO)
+
+5. **🔒 CRITICAL: PostgreSQL External Access** (optional)
+   - **Default:** Disabled (most secure)
+   - **If enabled:** UFW IP restriction configured
+   - Only specified IP can access PostgreSQL
+   - All other IPs blocked by firewall
+
+**Interactive Example:**
+
+```
+▶ Database Configuration
+PostgreSQL database name [familybudget]: <Enter>
+PostgreSQL password [auto-generated]: <Enter>
+
+▶ Telegram Bot Configuration
+Telegram bot token: 1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
+Admin Telegram ID: 123456789
+
+▶ PostgreSQL External Access Configuration (CRITICAL SECURITY)
+
+[WARNING] SECURITY WARNING:
+  By default, PostgreSQL is NOT accessible from outside the Docker network.
+  This is the most secure configuration.
+
+Enable PostgreSQL external access? [y/N]: n
+
+[SUCCESS] PostgreSQL external access disabled (most secure)
+```
+
+**Security Features:**
+- 🔐 Auto-generates strong passwords (32 characters)
+- 🔐 Auto-generates JWT secrets (64 hex characters)
+- 🔐 IP validation for PostgreSQL access
+- 🔐 .env file permissions set to 600 (owner read/write only)
+- 🔐 UFW firewall configuration for database protection
+
+**Duration:** 2-5 minutes
+
+---
+
+### Step 3: Application Deployment (`deploy.sh`)
+
+This script deploys and starts all services.
+
+```bash
+./deploy.sh
+```
+
+**What it does:**
+
+1. **Validation:**
+   - Checks Docker installation
+   - Validates .env file exists
+   - Checks required environment variables
+   - Verifies no default placeholders
+
+2. **Deployment:**
+   - Builds Docker images (if needed)
+   - Stops existing services (if running)
+   - Starts all services with Docker Compose
+   - Waits for services to become healthy (max 120s each)
+   - Runs database migrations (Alembic)
+
+3. **Verification:**
+   - Displays service statuses
+   - Shows access URLs
+   - Provides useful commands
+
+**Output:**
+
+```
+========================================================================
+           Family Budget - Deployment Status
+========================================================================
+
+Services:
+  ✓ postgres: healthy
+  ✓ backend: healthy
+
+Access URLs:
+  Backend:     http://localhost:8000
+
+Useful commands:
+  View logs:           docker compose logs -f
+  View service logs:   docker compose logs -f <service>
+  Restart service:     docker compose restart <service>
+  Stop all:            docker compose down
+========================================================================
+```
+
+**Duration:** 3-5 minutes
+
+---
+
+### Deployment Options
+
+```bash
+# Build images before deploying
+./deploy.sh --build
+
+# Deploy with all services (nginx, certbot, bot)
+./deploy.sh --profile full
+
+# Clean deployment (removes all data!)
+./deploy.sh --clean
+
+# Show logs in foreground
+./deploy.sh --foreground
+
+# Skip database migrations
+./deploy.sh --no-migrate
+```
+
+---
+
+## ⚙️ Configuration
+
+### Environment Variables
+
+All configuration is stored in `.env` file (created by `setup.sh`).
+
+**Required Variables:**
+
+```bash
+# Database
+POSTGRES_PASSWORD=<strong-password>
+
+# Security
+JWT_SECRET=<generated-secret>
+
+# Telegram
+TELEGRAM_BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
+ADMIN_TELEGRAM_ID=123456789
+```
+
+**Optional Variables:**
+
+```bash
+# Application
+APP_ENV=production
+DOMAIN=localhost
+BACKEND_PORT=8000
+WORKERS=4
+LOG_LEVEL=INFO
+
+# PostgreSQL External Access (CRITICAL)
+POSTGRES_EXTERNAL_ACCESS=false
+POSTGRES_ALLOWED_IP=
+POSTGRES_PORT_MAPPING=
+
+# S3 Backup (optional)
+S3_ENDPOINT_URL=https://nyc3.digitaloceanspaces.com
+S3_ACCESS_KEY_ID=<access-key>
+S3_SECRET_ACCESS_KEY=<secret-key>
+S3_BUCKET_NAME=familybudget-backups
+
+# Nginx (for --profile full)
+HTTP_PORT=80
+HTTPS_PORT=443
+SSL_TYPE=letsencrypt
+LETSENCRYPT_EMAIL=admin@example.com
+```
+
+### Editing Configuration
+
+```bash
+# Edit .env file
+nano .env
+
+# Restart services after changes
+docker compose restart backend
+```
+
+### Generating Secrets
+
+```bash
+# Generate JWT secret
+openssl rand -hex 32
+
+# Generate strong password
+openssl rand -base64 32
+```
+
+---
+
+## 📱 Usage
+
+### Telegram Bot
+
+1. **Start bot:**
+   - Open Telegram
+   - Search for your bot username
+   - Send `/start`
+   - Click "Login with Telegram" button
+   - Authorize
+
+2. **Add transaction:**
+   ```
+   /add Groceries 50.00
+   ```
+   or use inline keyboard for quick category selection
+
+3. **View today's transactions:**
+   ```
+   /today
+   ```
+
+4. **View statistics:**
+   ```
+   /stats
+   ```
+
+### Web Interface
+
+1. **Access dashboard:**
+   ```
+   http://your-domain:8000
+   ```
+   or
+   ```
+   http://localhost:8000
+   ```
+
+2. **Login:**
+   - Click "Login with Telegram"
+   - Authorize in Telegram
+   - Redirected to dashboard
+
+3. **View analytics:**
+   - Navigate to "Analytics" tab
+   - Select date range
+   - View charts (bar, line, pie, waterfall, heatmap)
+   - Filter by category
+
+4. **Manage transactions:**
+   - Navigate to "Transactions" tab
+   - View all transactions
+   - Edit or delete transactions
+
+### Admin Panel
+
+**Access:** `http://your-domain:8000/admin` (admin users only)
+
+**Features:**
+- User management (create, edit, deactivate)
+- Global categories management
+- System statistics
+- Database backup status
+
+---
+
+## 🏗️ Architecture
+
+### System Overview
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                      Internet                             │
+└────────────────────┬────────────────────────────────────┘
+                     │
+              ┌──────▼──────┐
+              │    Nginx    │ (optional, --profile full)
+              │  :80, :443  │ SSL termination, reverse proxy
+              └──────┬──────┘
+                     │
+         ┌───────────┼───────────┐
+         │                       │
+    ┌────▼─────┐         ┌──────▼──────┐
+    │ Backend  │         │ Telegram    │
+    │ :8000    │         │     Bot     │
+    └────┬─────┘         └──────┬──────┘
+         │                      │
+         └───────────┬──────────┘
+                     │
+              ┌──────▼──────┐
+              │  PostgreSQL │
+              │    :5432    │ (internal network only)
+              └─────────────┘
+```
+
+### Network Segmentation
+
+**External Network (`172.29.0.0/16`):**
+- nginx (public-facing)
+- backend (API endpoints)
+- bot (Telegram integration)
+
+**Internal Network (`172.28.0.0/16`):**
+- postgres (no internet access)
+- backend (database access)
+- bot (database access)
+
+**Security:** PostgreSQL isolated from internet, accessible only from backend/bot containers.
+
+---
+
+### Database Schema
+
+**Dimension Tables (SCD Type 2):**
+
+- `t_d_user` - Users with historical tracking
+- `t_d_article` - Categories with hierarchical structure
+- `t_d_article_hierarchy` - Closure Table for category hierarchy
+
+**Fact Table:**
+
+- `t_f_fact` - Income/expense transactions
+
+**Key Features:**
+- SCD Type 2: Tracks all changes to users and categories
+- Closure Table: Enables efficient hierarchical queries
+- Partitioning: Fact table partitioned by month for performance
+- Indexes: Optimized for common query patterns
+
+---
+
+## 🔒 Security
+
+### Security Features Implemented
+
+1. **🔥 UFW Firewall:**
+   - Default deny incoming
+   - SSH (22), HTTP (80), HTTPS (443) allowed
+   - PostgreSQL (5432) blocked by default
+   - Optional: PostgreSQL access from single IP only
+
+2. **🔐 Authentication:**
+   - Telegram OAuth with HMAC-SHA256 validation
+   - JWT tokens (httpOnly cookies)
+   - 7-day token expiration
+   - No password storage
+
+3. **🏗️ Network Isolation:**
+   - PostgreSQL on internal network (no internet)
+   - Backend/bot on both networks
+   - Network segmentation
+
+4. **🐳 Container Security:**
+   - Non-root user in containers
+   - Multi-stage Docker builds (minimal attack surface)
+   - Read-only root filesystem where possible
+   - Resource limits (CPU, memory)
+
+5. **🔑 Secrets Management:**
+   - .env file with 600 permissions
+   - Auto-generated strong passwords (32 chars)
+   - Auto-generated JWT secrets (64 hex chars)
+   - No secrets in code or docker-compose.yml
+
+6. **📊 Data Isolation:**
+   - User-based data isolation (WHERE user_id = current_user)
+   - Admin role separation
+   - SCD Type 2 audit trail
+
+### Security Best Practices
+
+**Production Checklist:**
+
+- [ ] Run `setup.sh` interactively (not `--yes`)
+- [ ] Disable PostgreSQL external access if not needed
+- [ ] If external access needed, use specific IP (not 0.0.0.0/0)
+- [ ] Verify UFW rules: `sudo ufw status`
+- [ ] Review .env permissions: `ls -la .env` (should be 600)
+- [ ] Never commit .env to git
+- [ ] Use strong passwords (32+ characters)
+- [ ] Rotate secrets every 90 days
+- [ ] Enable HTTPS (use `--profile full` with SSL)
+
+**UFW Configuration Example:**
+
+```bash
+# View current rules
+sudo ufw status numbered
+
+# Add PostgreSQL rule for specific IP
+sudo ufw allow from 203.0.113.50 to any port 5432 comment "PostgreSQL from office"
+
+# Remove rule if IP changes
+sudo ufw delete <rule-number>
+```
+
+---
+
+## 👨‍💻 Development
+
+### Local Development Setup
+
+```bash
+# Clone repository
+git clone <repository-url>
+cd familyBudget
+
+# Create Python virtual environment
+python3.11 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r backend/requirements.txt
+
+# Start PostgreSQL (Docker)
+docker run -d --name familybudget-postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=familybudget \
+  -p 5432:5432 \
+  postgres:16-alpine
+
+# Run database migrations
+cd backend
+alembic upgrade head
+
+# Start backend development server
+uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### Running Tests
+
+```bash
+# Unit tests
+pytest backend/tests/unit
+
+# Integration tests
+pytest backend/tests/integration
+
+# E2E tests
+pytest backend/tests/e2e
+
+# Coverage report
+pytest --cov=backend --cov-report=html
+```
+
+### Code Quality
+
+```bash
+# Linting
+ruff check backend/
+
+# Formatting
+black backend/
+
+# Type checking
+mypy backend/
+```
+
+### Database Migrations
+
+```bash
+# Create new migration
+alembic revision --autogenerate -m "Add new feature"
+
+# Apply migrations
+alembic upgrade head
+
+# Rollback migration
+alembic downgrade -1
+
+# View migration history
+alembic history
+```
+
+---
+
+## 🔧 Troubleshooting
+
+### Service Won't Start
+
+```bash
+# Check service logs
+docker compose logs backend
+
+# Check service status
+docker compose ps
+
+# Restart service
+docker compose restart backend
+
+# Rebuild and restart
+docker compose down
+./deploy.sh --build
+```
+
+### Database Connection Failed
+
+```bash
+# Check PostgreSQL health
+docker compose exec postgres pg_isready -U familybudget
+
+# Check DATABASE_URL in .env
+grep DATABASE_URL .env
+
+# Restart PostgreSQL
+docker compose restart postgres
+
+# Check PostgreSQL logs
+docker compose logs postgres
+```
+
+### Port Already in Use
+
+```bash
+# Find what's using port
+sudo lsof -i :8000
+
+# Kill process
+sudo kill -9 <PID>
+
+# Or change port in .env
+nano .env
+# Set BACKEND_PORT=8001
+
+# Restart
+docker compose down
+docker compose up -d
+```
+
+### UFW Blocking Connection
+
+```bash
+# Check UFW status
+sudo ufw status verbose
+
+# Allow custom port
+sudo ufw allow 8000/tcp comment "Backend"
+
+# Reload UFW
+sudo ufw reload
+```
+
+### Telegram Bot Not Responding
+
+```bash
+# Check bot logs
+docker compose logs bot
+
+# Verify bot token
+grep TELEGRAM_BOT_TOKEN .env
+
+# Test webhook (if using webhook mode)
+curl https://api.telegram.org/bot<BOT_TOKEN>/getWebhookInfo
+
+# Restart bot
+docker compose restart bot
+```
+
+### Clean Restart
+
+```bash
+# Stop all services
+docker compose down
+
+# Remove volumes (WARNING: deletes data!)
+docker compose down -v
+
+# Clean deployment
+./deploy.sh --clean --build
+```
+
+---
+
+## 📊 Monitoring
+
+### Service Health Checks
+
+```bash
+# Check all services
+docker compose ps
+
+# Backend health endpoint
+curl http://localhost:8000/health
+
+# PostgreSQL connection
+docker compose exec postgres psql -U familybudget -d familybudget -c "SELECT 1"
+```
+
+### Logs
+
+```bash
+# View all logs
+docker compose logs -f
+
+# View specific service logs
+docker compose logs -f backend
+
+# Last 100 lines
+docker compose logs --tail=100 backend
+
+# Follow specific service
+docker compose logs -f backend | grep ERROR
+```
+
+### Resource Usage
+
+```bash
+# Docker stats
+docker stats
+
+# Disk usage
+df -h
+
+# Check Docker disk usage
+docker system df
+```
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow these guidelines:
+
+1. **Fork the repository**
+
+2. **Create a feature branch:**
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+
+3. **Make your changes:**
+   - Follow code style (black, ruff)
+   - Add tests for new features
+   - Update documentation
+
+4. **Test your changes:**
+   ```bash
+   pytest
+   ```
+
+5. **Commit your changes:**
+   ```bash
+   git commit -m "feat: Add amazing feature"
+   ```
+
+6. **Push to your fork:**
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+
+7. **Open a Pull Request**
+
+### Code Style
+
+- Python: PEP 8, black formatter, ruff linter
+- SQL: Lowercase keywords, snake_case identifiers
+- Bash: Google Shell Style Guide
+- Commit messages: Conventional Commits
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
+- [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot) - Telegram bot framework
+- [ECharts](https://echarts.apache.org/) - Beautiful charts
+- [HTMX](https://htmx.org/) - Dynamic UI
+- [PostgreSQL](https://www.postgresql.org/) - Powerful database
+- [Docker](https://www.docker.com/) - Containerization
+
+---
+
+## 📞 Support
+
+- **Issues:** [GitHub Issues](https://github.com/your-repo/issues)
+- **Telegram:** [@your_support_bot](https://t.me/your_support_bot)
+- **Email:** support@example.com
+
+---
+
+## 📈 Roadmap
+
+- [ ] Mobile app (React Native)
+- [ ] Multi-currency support
+- [ ] Recurring transactions
+- [ ] Budget goals and alerts
+- [ ] Family budget sharing
+- [ ] CSV/Excel import/export
+- [ ] Bank integration (Plaid)
+- [ ] AI-powered expense categorization
+
+---
+
+**Made with ❤️ by Family Budget Team**
+
+**Version:** 4.3.0 | **Last Updated:** 2025-10-14
