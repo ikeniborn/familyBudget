@@ -56,7 +56,6 @@
             <div class="chart-card">
                 <h2>💧 Cumulative Flow</h2>
                 <div id="chart-waterfall" style="width: 100%; height: 400px;"></div>
-                <p class="info-text">Will be implemented in TASK-044</p>
             </div>
 
             <div class="chart-card">
@@ -75,6 +74,7 @@
 let planFactChart = null;
 let trendsChart = null;
 let pieChart = null;
+let waterfallChart = null;
 let currentPeriod = 'week';
 let currentTrendsDays = 30;
 let currentPieType = 'expense';
@@ -89,6 +89,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     initPieChart();
     loadPieData('expense', 'month');
+
+    initWaterfallChart();
+    loadWaterfallData();
 });
 
 // Initialize Plan vs Fact chart
@@ -551,6 +554,175 @@ function updatePeriod(period) {
     loadPieData(currentPieType, period);
 }
 
+// Initialize Waterfall chart
+function initWaterfallChart() {
+    const chartDom = document.getElementById('chart-waterfall');
+    waterfallChart = echarts.init(chartDom);
+    waterfallChart.showLoading();
+}
+
+// Load Waterfall data from API
+async function loadWaterfallData() {
+    try {
+        const response = await fetch('/api/v1/analytics/waterfall');
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        updateWaterfallChart(data);
+    } catch (error) {
+        console.error('Error loading waterfall data:', error);
+        waterfallChart.hideLoading();
+
+        waterfallChart.setOption({
+            title: {
+                text: 'Error loading data',
+                subtext: error.message,
+                left: 'center',
+                top: 'middle',
+                textStyle: { color: '#f44336' }
+            }
+        });
+    }
+}
+
+// Update Waterfall chart with data
+function updateWaterfallChart(data) {
+    waterfallChart.hideLoading();
+
+    // Calculate waterfall values (start from 0, show increments)
+    const waterfallData = [];
+    let cumulativeBalance = 0;
+
+    data.labels.forEach((label, index) => {
+        const income = data.income[index];
+        const expense = data.expense[index];
+        const net = income - expense;
+
+        // Add income bar (positive)
+        if (income > 0) {
+            waterfallData.push({
+                name: label,
+                type: 'income',
+                value: income,
+                itemStyle: { color: '#4CAF50' }
+            });
+        }
+
+        // Add expense bar (negative)
+        if (expense > 0) {
+            waterfallData.push({
+                name: label,
+                type: 'expense',
+                value: -expense,
+                itemStyle: { color: '#f44336' }
+            });
+        }
+
+        cumulativeBalance += net;
+    });
+
+    const option = {
+        title: {
+            text: `Cumulative Cash Flow (${data.year})`,
+            left: 'center',
+            textStyle: {
+                fontSize: 16,
+                fontWeight: 'normal'
+            }
+        },
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'shadow'
+            },
+            formatter: function(params) {
+                const month = params[0].axisValue;
+                const monthIndex = data.labels.indexOf(month);
+
+                if (monthIndex === -1) return '';
+
+                const income = data.income[monthIndex];
+                const expense = data.expense[monthIndex];
+                const balance = data.balance[monthIndex];
+
+                return `<strong>${month}</strong><br/>` +
+                       `Income: ${income.toFixed(2)} ₽<br/>` +
+                       `Expense: ${expense.toFixed(2)} ₽<br/>` +
+                       `<hr style="margin: 5px 0"/>` +
+                       `<strong>Cumulative: ${balance.toFixed(2)} ₽</strong>`;
+            }
+        },
+        legend: {
+            data: ['Income', 'Expense', 'Balance'],
+            bottom: 10
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '15%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            data: data.labels,
+            axisLabel: {
+                rotate: 0
+            }
+        },
+        yAxis: {
+            type: 'value',
+            name: 'Amount (₽)',
+            axisLabel: {
+                formatter: function(value) {
+                    return value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value;
+                }
+            }
+        },
+        series: [
+            {
+                name: 'Income',
+                type: 'bar',
+                stack: 'total',
+                data: data.income,
+                itemStyle: {
+                    color: '#4CAF50',
+                    borderRadius: [4, 4, 0, 0]
+                }
+            },
+            {
+                name: 'Expense',
+                type: 'bar',
+                stack: 'total',
+                data: data.expense.map(v => -v),
+                itemStyle: {
+                    color: '#f44336',
+                    borderRadius: [4, 4, 0, 0]
+                }
+            },
+            {
+                name: 'Balance',
+                type: 'line',
+                data: data.balance,
+                lineStyle: {
+                    color: '#2196F3',
+                    width: 3
+                },
+                itemStyle: {
+                    color: '#2196F3'
+                },
+                symbol: 'circle',
+                symbolSize: 8,
+                z: 10
+            }
+        ]
+    };
+
+    waterfallChart.setOption(option);
+}
+
 // Responsive chart resize
 window.addEventListener('resize', function() {
     if (planFactChart) {
@@ -561,6 +733,9 @@ window.addEventListener('resize', function() {
     }
     if (pieChart) {
         pieChart.resize();
+    }
+    if (waterfallChart) {
+        waterfallChart.resize();
     }
 });
 </script>
