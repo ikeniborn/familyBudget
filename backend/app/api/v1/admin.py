@@ -601,3 +601,329 @@ async def deactivate_article(
     await session.commit()
 
     return {"message": "Article deactivated successfully", "article_id": article_id}
+
+
+# ============================================================================
+# Facts Management Endpoints
+# ============================================================================
+
+class FactResponse(BaseModel):
+    """Fact response model for admin."""
+    id: int
+    user_id: int
+    article_id: int
+    amount: float
+    fact_date: str
+    description: str | None
+    user_name: str | None = None
+    article_name: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class FactUpdateRequest(BaseModel):
+    """Fact update request model."""
+    amount: float | None = None
+    fact_date: str | None = None  # ISO date string
+    description: str | None = None
+    article_id: int | None = None
+
+
+@router.get("/facts", response_model=List[FactResponse])
+async def get_all_facts(
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session),
+    user_id: int | None = Query(None, description="Filter by user ID"),
+    article_id: int | None = Query(None, description="Filter by article ID"),
+    date_from: str | None = Query(None, description="Filter by date from (ISO format)"),
+    date_to: str | None = Query(None, description="Filter by date to (ISO format)"),
+    limit: int = Query(50, ge=1, le=500, description="Results per page"),
+    offset: int = Query(0, ge=0, description="Pagination offset")
+):
+    """
+    Get all facts (admin only).
+
+    Returns paginated list of all facts with filtering options.
+
+    Args:
+        current_admin: Current admin user (from dependency)
+        session: Database session
+        user_id: Filter by specific user
+        article_id: Filter by specific article
+        date_from: Filter by start date
+        date_to: Filter by end date
+        limit: Number of results per page (max 500)
+        offset: Pagination offset
+
+    Returns:
+        List[FactResponse]: List of facts
+    """
+    from datetime import date
+
+    # Build query with joins
+    query = select(Fact, User, Article).join(
+        User, Fact.user_id == User.id
+    ).join(
+        Article, Fact.article_id == Article.id
+    )
+
+    # Apply filters
+    if user_id is not None:
+        query = query.where(Fact.user_id == user_id)
+
+    if article_id is not None:
+        query = query.where(Fact.article_id == article_id)
+
+    if date_from is not None:
+        try:
+            start_date = date.fromisoformat(date_from)
+            query = query.where(Fact.fact_date >= start_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date_from format. Use ISO format (YYYY-MM-DD)")
+
+    if date_to is not None:
+        try:
+            end_date = date.fromisoformat(date_to)
+            query = query.where(Fact.fact_date <= end_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date_to format. Use ISO format (YYYY-MM-DD)")
+
+    # Order and paginate
+    query = query.order_by(Fact.fact_date.desc(), Fact.id.desc()).limit(limit).offset(offset)
+
+    result = await session.execute(query)
+    rows = result.all()
+
+    return [
+        FactResponse(
+            id=fact.id,
+            user_id=fact.user_id,
+            article_id=fact.article_id,
+            amount=float(fact.amount),
+            fact_date=fact.fact_date.isoformat(),
+            description=fact.description,
+            user_name=user.username if user else None,
+            article_name=article.name if article else None
+        )
+        for fact, user, article in rows
+    ]
+
+
+@router.get("/facts/count")
+async def get_facts_count(
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session),
+    user_id: int | None = Query(None, description="Filter by user ID"),
+    article_id: int | None = Query(None, description="Filter by article ID"),
+    date_from: str | None = Query(None, description="Filter by date from (ISO format)"),
+    date_to: str | None = Query(None, description="Filter by date to (ISO format)")
+):
+    """
+    Get total facts count with filters (admin only).
+
+    Useful for pagination - returns total count matching the filters.
+
+    Args:
+        current_admin: Current admin user (from dependency)
+        session: Database session
+        user_id: Filter by specific user
+        article_id: Filter by specific article
+        date_from: Filter by start date
+        date_to: Filter by end date
+
+    Returns:
+        dict: Total count
+    """
+    from datetime import date
+
+    query = select(func.count(Fact.id))
+
+    # Apply same filters as get_all_facts
+    if user_id is not None:
+        query = query.where(Fact.user_id == user_id)
+
+    if article_id is not None:
+        query = query.where(Fact.article_id == article_id)
+
+    if date_from is not None:
+        try:
+            start_date = date.fromisoformat(date_from)
+            query = query.where(Fact.fact_date >= start_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date_from format. Use ISO format (YYYY-MM-DD)")
+
+    if date_to is not None:
+        try:
+            end_date = date.fromisoformat(date_to)
+            query = query.where(Fact.fact_date <= end_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date_to format. Use ISO format (YYYY-MM-DD)")
+
+    result = await session.execute(query)
+    total = result.scalar()
+
+    return {"total": total}
+
+
+@router.put("/facts/{fact_id}", response_model=FactResponse)
+async def update_fact(
+    fact_id: int,
+    update_data: FactUpdateRequest,
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Update fact (admin only).
+
+    Allows admin to update any fact (amount, date, description, article).
+
+    Args:
+        fact_id: Fact ID to update
+        update_data: Update request data
+        current_admin: Current admin user (from dependency)
+        session: Database session
+
+    Returns:
+        FactResponse: Updated fact
+
+    Raises:
+        HTTPException: 404 if fact not found
+        HTTPException: 400 if article_id invalid
+    """
+    from datetime import date as date_type
+
+    # Get fact
+    query = select(Fact).where(Fact.id == fact_id)
+    result = await session.execute(query)
+    fact = result.scalar_one_or_none()
+
+    if not fact:
+        raise HTTPException(status_code=404, detail="Fact not found")
+
+    # Validate article_id if changing
+    if update_data.article_id is not None and update_data.article_id != fact.article_id:
+        article_query = select(Article).where(
+            Article.id == update_data.article_id,
+            Article.is_current == True  # noqa: E712
+        )
+        article_result = await session.execute(article_query)
+        article = article_result.scalar_one_or_none()
+
+        if not article:
+            raise HTTPException(status_code=400, detail="Article not found")
+
+    # Update fields
+    if update_data.amount is not None:
+        fact.amount = update_data.amount
+
+    if update_data.fact_date is not None:
+        try:
+            fact.fact_date = date_type.fromisoformat(update_data.fact_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use ISO format (YYYY-MM-DD)")
+
+    if update_data.description is not None:
+        fact.description = update_data.description
+
+    if update_data.article_id is not None:
+        fact.article_id = update_data.article_id
+
+    session.add(fact)
+    await session.commit()
+    await session.refresh(fact)
+
+    # Get user and article for response
+    user_query = select(User).where(User.id == fact.user_id)
+    user_result = await session.execute(user_query)
+    user = user_result.scalar_one_or_none()
+
+    article_query = select(Article).where(Article.id == fact.article_id)
+    article_result = await session.execute(article_query)
+    article = article_result.scalar_one_or_none()
+
+    return FactResponse(
+        id=fact.id,
+        user_id=fact.user_id,
+        article_id=fact.article_id,
+        amount=float(fact.amount),
+        fact_date=fact.fact_date.isoformat(),
+        description=fact.description,
+        user_name=user.username if user else None,
+        article_name=article.name if article else None
+    )
+
+
+@router.delete("/facts/{fact_id}")
+async def delete_fact(
+    fact_id: int,
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Delete fact (admin only).
+
+    Physical delete (not soft delete like articles/users).
+
+    Args:
+        fact_id: Fact ID to delete
+        current_admin: Current admin user (from dependency)
+        session: Database session
+
+    Returns:
+        dict: Success message
+
+    Raises:
+        HTTPException: 404 if fact not found
+    """
+    # Get fact
+    query = select(Fact).where(Fact.id == fact_id)
+    result = await session.execute(query)
+    fact = result.scalar_one_or_none()
+
+    if not fact:
+        raise HTTPException(status_code=404, detail="Fact not found")
+
+    # Delete
+    await session.delete(fact)
+    await session.commit()
+
+    return {"message": "Fact deleted successfully", "fact_id": fact_id}
+
+
+@router.post("/facts/batch-delete")
+async def batch_delete_facts(
+    fact_ids: List[int],
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Batch delete facts (admin only).
+
+    Deletes multiple facts in one request.
+
+    Args:
+        fact_ids: List of fact IDs to delete
+        current_admin: Current admin user (from dependency)
+        session: Database session
+
+    Returns:
+        dict: Number of deleted facts
+
+    Raises:
+        HTTPException: 400 if fact_ids list is empty or too large
+    """
+    if not fact_ids:
+        raise HTTPException(status_code=400, detail="fact_ids list cannot be empty")
+
+    if len(fact_ids) > 500:
+        raise HTTPException(status_code=400, detail="Cannot delete more than 500 facts at once")
+
+    # Delete facts
+    from sqlmodel import delete
+
+    stmt = delete(Fact).where(Fact.id.in_(fact_ids))
+    result = await session.execute(stmt)
+    await session.commit()
+
+    return {"message": f"Deleted {result.rowcount} facts", "deleted_count": result.rowcount}
