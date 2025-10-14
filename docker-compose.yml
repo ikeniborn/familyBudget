@@ -18,10 +18,10 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/db/migrations:/docker-entrypoint-initdb.d:ro
       - postgres_backups:/backups
-    ports:
-      # External port mapping - conditional (see setup.sh)
-      # Only expose if POSTGRES_EXTERNAL_ACCESS=true in .env
-      ${POSTGRES_PORT_MAPPING:-}
+    # External port mapping - conditional (see setup.sh)
+    # Uncomment and set POSTGRES_PORT_MAPPING=5432:5432 in .env if needed
+    # ports:
+    #   - "${POSTGRES_PORT_MAPPING}"
     networks:
       - familybudget_internal
     healthcheck:
