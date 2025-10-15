@@ -317,13 +317,14 @@ start_services() {
         compose_args="--profile $COMPOSE_PROFILE"
     fi
 
+    local detach_flag=""
     if [[ "$DETACH_MODE" == "true" ]]; then
-        compose_args="$compose_args -d"
+        detach_flag="-d"
     fi
 
-    info "Running: docker compose $compose_args up"
+    info "Running: docker compose $compose_args up $detach_flag"
 
-    if docker compose $compose_args up $compose_args >> "$LOG_FILE" 2>&1; then
+    if docker compose $compose_args up $detach_flag >> "$LOG_FILE" 2>&1; then
         success "Services started"
     else
         error "Failed to start services. Check $LOG_FILE for details."
