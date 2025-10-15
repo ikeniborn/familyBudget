@@ -2,9 +2,25 @@
 
 {% block content %}
 <div class="admin-page">
-    <div class="page-header">
-        <h1>📊 Facts Management</h1>
-        <p class="page-description">View, edit, and delete financial transactions with advanced filtering</p>
+    <div class="page-header-container">
+        <div class="page-header-text">
+            <h1>📊 Facts Management</h1>
+            <p class="page-description">View, edit, and delete financial transactions with advanced filtering</p>
+        </div>
+        <div class="export-buttons">
+            <button class="btn-secondary btn-small" onclick="exportFilteredFacts('csv')"
+                    title="Export filtered facts to CSV">
+                📄 Export CSV
+            </button>
+            <button class="btn-secondary btn-small" onclick="exportFilteredFacts('excel')"
+                    title="Export filtered facts to Excel">
+                📊 Export Excel
+            </button>
+            <button class="btn-secondary btn-small" onclick="exportFilteredFacts('pdf')"
+                    title="Export filtered facts to PDF">
+                📑 Export PDF
+            </button>
+        </div>
     </div>
 
     <!-- Filters Section -->
@@ -581,6 +597,32 @@ function showNotification(message, type) {
     }
 }
 
+// Export filtered facts (system-wide for admins)
+function exportFilteredFacts(format) {
+    // Build admin export URL with current filters
+    let url = `/api/v1/admin/export/all-facts/${format}?`;
+
+    // Add all filters if set
+    if (filters.user_id) {
+        url += `user_id=${filters.user_id}&`;
+    }
+    if (filters.article_id) {
+        url += `article_id=${filters.article_id}&`;
+    }
+    if (filters.date_from) {
+        url += `start_date=${filters.date_from}&`;
+    }
+    if (filters.date_to) {
+        url += `end_date=${filters.date_to}&`;
+    }
+
+    // Remove trailing '&' or '?'
+    url = url.replace(/[&?]$/, '');
+
+    // Open in new tab to trigger download
+    window.open(url, '_blank');
+}
+
 // Close modals when clicking outside
 window.onclick = function(event) {
     if (event.target.classList.contains('modal')) {
@@ -590,6 +632,27 @@ window.onclick = function(event) {
 </script>
 
 <style>
+/* Page Header with Export Buttons */
+.page-header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.page-header-text {
+    flex: 1;
+}
+
+.export-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
 .filter-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -628,6 +691,22 @@ textarea {
 textarea:focus {
     outline: none;
     border-color: var(--primary-color);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .page-header-container {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .export-buttons {
+        width: 100%;
+    }
+
+    .export-buttons button {
+        flex: 1;
+    }
 }
 </style>
 {% endblock %}

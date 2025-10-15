@@ -7,7 +7,22 @@
 
 {% block content %}
 <div class="analytics-page">
-    <h1>📊 Analytics Dashboard</h1>
+    <div class="page-header">
+        <h1>📊 Analytics Dashboard</h1>
+        {% if user %}
+        <div class="export-buttons">
+            <button class="btn-secondary btn-small" onclick="exportAllTransactions('csv')" title="Export all transactions to CSV">
+                📄 Export CSV
+            </button>
+            <button class="btn-secondary btn-small" onclick="exportAllTransactions('excel')" title="Export all transactions to Excel">
+                📊 Export Excel
+            </button>
+            <button class="btn-secondary btn-small" onclick="exportAllTransactions('pdf')" title="Export all transactions to PDF">
+                📑 Export PDF
+            </button>
+        </div>
+        {% endif %}
+    </div>
 
     {% if not user %}
         <div class="alert alert-warning">
@@ -30,7 +45,13 @@
             </section>
 
             <section class="chart-card" aria-labelledby="chart-title-trends">
-                <h2 id="chart-title-trends">📈 Spending Trends</h2>
+                <div class="chart-header">
+                    <h2 id="chart-title-trends">📈 Spending Trends</h2>
+                    <div class="chart-actions">
+                        <button class="btn-icon" onclick="exportTrendsData('csv')" title="Export trends to CSV">📄</button>
+                        <button class="btn-icon" onclick="exportTrendsData('excel')" title="Export trends to Excel">📊</button>
+                    </div>
+                </div>
                 <div class="trends-controls" role="group" aria-label="Trends time range selector">
                     <label for="trends-days">Days:</label>
                     <select id="trends-days" onchange="updateTrendsDays()" aria-label="Select number of days to display">
@@ -1089,5 +1110,110 @@ window.addEventListener('resize', function() {
         heatmapChart.resize();
     }
 });
+
+// ============================================================================
+// Export Functions
+// ============================================================================
+
+/**
+ * Export all transactions to specified format
+ * @param {string} format - 'csv', 'excel', or 'pdf'
+ */
+function exportAllTransactions(format) {
+    // Build export URL
+    let url = `/api/v1/export/facts/${format}`;
+
+    // Open in new tab to trigger download
+    window.open(url, '_blank');
+}
+
+/**
+ * Export trends data to specified format
+ * @param {string} format - 'csv' or 'excel'
+ */
+function exportTrendsData(format) {
+    // Get current days setting
+    const days = currentTrendsDays;
+
+    // Build export URL
+    let url = `/api/v1/export/analytics/trends/${format}?days=${days}`;
+
+    // Open in new tab to trigger download
+    window.open(url, '_blank');
+}
 </script>
+
+<style>
+/* Export buttons styling */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.page-header h1 {
+    margin: 0;
+}
+
+.export-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.chart-header h2 {
+    margin: 0;
+}
+
+.chart-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-icon {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.4rem 0.6rem;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: all 0.2s ease;
+}
+
+.btn-icon:hover {
+    background-color: var(--bg-color);
+    border-color: var(--primary-color);
+    transform: scale(1.1);
+}
+
+.btn-icon:active {
+    transform: scale(0.95);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .export-buttons {
+        width: 100%;
+    }
+
+    .export-buttons button {
+        flex: 1;
+    }
+}
+</style>
 {% endblock %}

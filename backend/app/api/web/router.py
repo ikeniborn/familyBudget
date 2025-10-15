@@ -153,6 +153,36 @@ async def admin_monitoring(
     )
 
 
+@web_router.get("/admin/dashboard", response_class=HTMLResponse)
+async def admin_dashboard(
+    request: Request,
+    current_admin: CurrentAdmin
+):
+    """
+    Admin analytics dashboard (admin only).
+
+    Provides system-wide analytics and insights:
+    - User registration trends
+    - Transaction volume analysis
+    - Top users by activity
+    - Popular categories breakdown
+    - ЦФО/МВЗ usage statistics
+    - Financial summary (total income/expense/balance)
+
+    Uses ECharts for interactive data visualizations.
+    """
+    from backend.app.main import templates
+
+    return templates.TemplateResponse(
+        "admin_dashboard.html",
+        {
+            "request": request,
+            "user": current_admin,
+            "page_title": "Admin Analytics Dashboard"
+        }
+    )
+
+
 @web_router.get("/admin/financial-centers", response_class=HTMLResponse)
 async def admin_financial_centers(
     request: Request,

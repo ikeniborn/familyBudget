@@ -64,7 +64,7 @@ async def api_exception_handler(
         exception_type=type(exc).__name__,
         status_code=exc.status_code,
         error_code=exc.error_code,
-        message=exc.message,
+        error_message=exc.message,
         details=exc.details,
     )
 
@@ -109,7 +109,7 @@ async def http_exception_handler(
         request_method=request.method,
         request_path=request.url.path,
         status_code=exc.status_code,
-        message=exc.detail,
+        error_message=exc.detail,
     )
 
     return JSONResponse(

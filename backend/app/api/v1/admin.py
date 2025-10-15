@@ -75,6 +75,7 @@ class ArticleResponse(BaseModel):
 class ArticleCreateRequest(BaseModel):
     """Article create request model."""
     parent_id: int | None = None
+    code: str | None = None
     name: str
     type: str  # "income" or "expense"
     is_global: bool = False
@@ -233,10 +234,10 @@ async def update_user(
             )
 
     # Apply SCD Type 2 update
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     # Close old record
-    user.valid_to = datetime.now(timezone.utc)
+    user.valid_to = datetime.utcnow()
     user.is_current = False
     session.add(user)
 
@@ -247,7 +248,7 @@ async def update_user(
         first_name=user.first_name,
         last_name=user.last_name,
         is_admin=update_data.is_admin if update_data.is_admin is not None else user.is_admin,
-        valid_from=datetime.now(timezone.utc),
+        valid_from=datetime.utcnow(),
         valid_to=None,
         is_current=True
     )
@@ -382,7 +383,7 @@ async def get_all_articles(
     ]
 
 
-@router.post("/articles", response_model=ArticleResponse)
+@router.post("/articles", response_model=ArticleResponse, status_code=201)
 async def create_article(
     create_data: ArticleCreateRequest,
     current_admin: CurrentAdmin,
@@ -404,7 +405,7 @@ async def create_article(
     Raises:
         HTTPException: 400 if parent_id invalid or type mismatch
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     # Validate parent_id if provided
     if create_data.parent_id is not None:
@@ -429,10 +430,11 @@ async def create_article(
     new_article = Article(
         user_id=None if create_data.is_global else current_admin.id,
         parent_id=create_data.parent_id,
+        code=create_data.code,
         name=create_data.name,
         type=create_data.type,
         is_global=create_data.is_global,
-        valid_from=datetime.now(timezone.utc),
+        valid_from=datetime.utcnow(),
         valid_to=None,
         is_current=True
     )
@@ -479,7 +481,7 @@ async def update_article(
         HTTPException: 404 if article not found
         HTTPException: 400 if parent_id invalid or creates circular reference
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     # Get current article version
     query = select(Article).where(
@@ -510,7 +512,7 @@ async def update_article(
             raise HTTPException(status_code=400, detail="Cannot set article as its own parent")
 
     # Close old record
-    article.valid_to = datetime.now(timezone.utc)
+    article.valid_to = datetime.utcnow()
     article.is_current = False
     session.add(article)
 
@@ -518,10 +520,11 @@ async def update_article(
     new_article = Article(
         user_id=article.user_id,
         parent_id=update_data.parent_id if update_data.parent_id is not None else article.parent_id,
+        code=article.code,  # Code cannot be changed
         name=update_data.name if update_data.name is not None else article.name,
         type=article.type,  # Type cannot be changed
         is_global=article.is_global,  # is_global cannot be changed
-        valid_from=datetime.now(timezone.utc),
+        valid_from=datetime.utcnow(),
         valid_to=None,
         is_current=True
     )
@@ -567,7 +570,7 @@ async def deactivate_article(
         HTTPException: 404 if article not found
         HTTPException: 400 if article has active children
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     # Get current article version
     query = select(Article).where(
@@ -595,7 +598,7 @@ async def deactivate_article(
         )
 
     # Deactivate article
-    article.valid_to = datetime.now(timezone.utc)
+    article.valid_to = datetime.utcnow()
     article.is_current = False
     session.add(article)
     await session.commit()

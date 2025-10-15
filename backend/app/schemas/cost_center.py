@@ -84,17 +84,19 @@ class CostCenterCreate(BaseModel):
         Validate and normalize cost center code.
 
         Rules:
+        - Can be None (optional field)
+        - If provided, cannot be empty or whitespace only
         - Must contain only letters, digits, and underscores
         - Converted to uppercase
         - Leading/trailing whitespace is trimmed
         """
-        if not v:
+        if v is None:
             return None
 
         trimmed = v.strip()
 
         if not trimmed:
-            return None
+            raise ValueError("Cost center code cannot be empty")
 
         # Check for valid characters (letters, digits, underscores only)
         if not re.match(r'^[a-zA-Z0-9_]+$', trimmed):
@@ -168,13 +170,13 @@ class CostCenterUpdate(BaseModel):
     @classmethod
     def code_validation(cls, v: Optional[str]) -> Optional[str]:
         """Validate and normalize cost center code if provided."""
-        if not v:
+        if v is None:
             return None
 
         trimmed = v.strip()
 
         if not trimmed:
-            return None
+            raise ValueError("Cost center code cannot be empty")
 
         # Check for valid characters
         if not re.match(r'^[a-zA-Z0-9_]+$', trimmed):

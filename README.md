@@ -2,7 +2,7 @@
 
 > **Personal family budget management system with Telegram bot integration and web analytics dashboard**
 
-![Version](https://img.shields.io/badge/version-4.3.0-blue)
+![Version](https://img.shields.io/badge/version-5.0.0--beta-blue)
 ![Python](https://img.shields.io/badge/python-3.11+-green)
 ![PostgreSQL](https://img.shields.io/badge/postgresql-16+-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -46,15 +46,46 @@
 
 ## ✨ Features
 
-### Telegram Bot
+### Telegram Bot (Phase 2 - NEW!)
 
-- `/start` - Registration and authorization
-- `/add` - Quick expense/income entry
-- `/today` - Today's transactions summary
-- `/stats` - Weekly statistics
-- Inline keyboard for fast category selection
-- Transaction editing and deletion
-- Balance notifications
+**8 Bot Commands:**
+
+- `/start` - **Telegram OAuth authentication** - Instant registration with JWT tokens
+- `/add` - **Add transaction (expense/income)** - Multi-step conversation with inline keyboards
+  - Select category (hierarchical with parent/child support)
+  - Enter amount (validated, up to 2 decimal places)
+  - Choose date (calendar picker, cannot be future for facts)
+  - Add description (optional)
+  - Select ЦФО (Financial Center) - optional
+  - Select МВЗ (Cost Center) - optional
+  - Review and confirm
+- `/addplan` - **Add budget plan** - Same UX as `/add` but for future planning
+  - Supports future dates
+  - Creates record_type="plan"
+- `/summary` - **Plan vs Fact comparison** - View budget performance
+  - Period selection: today, week, month, quarter, year
+  - Shows: plan, fact, deviation (amount + percentage)
+  - Grouped by top-level categories
+- `/edit` - **Edit/delete transactions** - Manage last 10 transactions
+  - Inline keyboard to select transaction
+  - Edit any field (amount, category, date, etc.)
+  - Delete with confirmation
+  - Security: only your own transactions
+- `/today` - **Today's statistics** - Quick summary for current day
+- `/stats` - **All-time statistics** - Historical overview with category breakdown
+- `/settings` - **User settings** - Configure notifications and reports
+  - Enable/disable weekly reports
+  - Set notification threshold (default 90%)
+  - Choose report schedule
+
+**Automated Features:**
+
+- 📧 **Weekly budget reports** - Every Sunday 20:00 (configurable)
+  - Plan vs Fact summary
+  - Top-3 expense categories
+  - Deviation analysis
+- 🚨 **Budget threshold notifications** - Real-time alerts when spending exceeds 90% of plan
+- 🔔 **Notification history** - No duplicate alerts for same category/period
 
 ### Web Analytics
 
@@ -71,13 +102,34 @@
   - Transaction type (income/expense)
   - Period comparison (month-over-month, year-over-year)
 
+### Financial/Cost Centers (Phase 2 - NEW!)
+
+- **ЦФО (Financial Centers)** - Track accounts, wallets, cash
+  - Bank accounts
+  - Cash wallets
+  - Credit cards
+  - Investment accounts
+- **МВЗ (Cost Centers)** - Track projects, departments, budget groups
+  - Family members
+  - Projects/goals
+  - Business departments
+  - Budget categories
+- **Features:**
+  - Full CRUD via REST API (10 endpoints)
+  - Admin panel UI management
+  - SCD Type 2 historical tracking
+  - Integration in transaction creation (Web + Telegram Bot)
+  - Optional fields - backward compatible with existing data
+
 ### Administration
 
 - User management (admin panel)
 - Global categories management
+- ЦФО/МВЗ management (Financial and Cost Centers)
 - Automatic database backups to S3
 - Health checks and monitoring
 - Structured logging
+- System statistics dashboard
 
 ---
 
@@ -396,28 +448,89 @@ openssl rand -base64 32
 
 ### Telegram Bot
 
-1. **Start bot:**
+#### Setup (First Time)
+
+1. **Create Telegram Bot** (if you haven't):
+   - Open Telegram and find [@BotFather](https://t.me/BotFather)
+   - Send `/newbot` command
+   - Follow instructions to create your bot
+   - Save the **bot token** (format: `1234567890:ABCdefGHIjklMNOpqrsTUVwxyz`)
+   - (Optional) Set bot description, about text, and profile picture
+
+2. **Get Your Telegram ID**:
+   - Open [@userinfobot](https://t.me/userinfobot) in Telegram
+   - Send `/start` to get your Telegram User ID
+   - Save this ID (format: `123456789`)
+
+3. **Configure Application** (during `setup.sh`):
+   ```bash
+   ./setup.sh
+   ```
+   When prompted, enter:
+   - Telegram bot token: `1234567890:ABCdefGHIjklMNOpqrsTUVwxyz`
+   - Admin Telegram ID: `123456789`
+
+4. **Deploy and Start Bot:**
+   ```bash
+   ./deploy.sh --profile full
+   ```
+
+5. **First Login:**
    - Open Telegram
-   - Search for your bot username
+   - Search for your bot username (e.g., `@FamilyBudgetBot`)
    - Send `/start`
-   - Click "Login with Telegram" button
-   - Authorize
+   - Bot will respond with authentication button
+   - Click "Login with Telegram"
+   - You're authenticated! 🎉
 
-2. **Add transaction:**
-   ```
-   /add Groceries 50.00
-   ```
-   or use inline keyboard for quick category selection
+#### Daily Usage
 
-3. **View today's transactions:**
-   ```
-   /today
-   ```
+**Add Expense (Full Flow):**
+1. Send `/add` command
+2. Select category from inline keyboard (e.g., "Food → Groceries")
+3. Enter amount: `50.75`
+4. Choose date or skip for today
+5. Add description (optional): `Weekly shopping`
+6. Select ЦФО (optional): `Main Bank Account`
+7. Select МВЗ (optional): `Family Budget`
+8. Review and confirm
+9. Done! Transaction saved ✅
 
-4. **View statistics:**
-   ```
-   /stats
-   ```
+**Add Budget Plan:**
+1. Send `/addplan` command
+2. Follow same steps as `/add`
+3. Can select future dates
+4. Plan vs Fact comparison available later
+
+**View Summary:**
+1. Send `/summary` command
+2. Choose period: today, week, month, quarter, year
+3. View:
+   - Total plan
+   - Total fact
+   - Deviation (₽ and %)
+   - Per-category breakdown
+
+**Edit/Delete Transaction:**
+1. Send `/edit` command
+2. Select transaction from last 10
+3. Choose action:
+   - Edit amount
+   - Edit category
+   - Edit date
+   - Edit description
+   - **Delete** (with confirmation)
+
+**Quick Statistics:**
+- `/today` - Today's income/expenses
+- `/stats` - All-time statistics with charts
+
+**Configure Settings:**
+1. Send `/settings` command
+2. Options:
+   - Enable/disable weekly reports
+   - Set notification threshold (default 90%)
+   - Choose report day/time
 
 ### Web Interface
 
@@ -510,16 +623,22 @@ openssl rand -base64 32
 - `t_d_user` - Users with historical tracking
 - `t_d_article` - Categories with hierarchical structure
 - `t_d_article_hierarchy` - Closure Table for category hierarchy
+- `t_d_financial_center` - Financial Centers (ЦФО) - Phase 2
+- `t_d_cost_center` - Cost Centers (МВЗ) - Phase 2
 
-**Fact Table:**
+**Fact Tables:**
 
-- `t_f_fact` - Income/expense transactions
+- `t_f_budget_fact` - Income/expense transactions with plan/fact support
+  - Includes `record_type` (fact/plan)
+  - Optional `financial_center_id` and `cost_center_id`
+- `t_notification` - Notification history for budget alerts
 
 **Key Features:**
-- SCD Type 2: Tracks all changes to users and categories
+- SCD Type 2: Tracks all changes to users, categories, and centers
 - Closure Table: Enables efficient hierarchical queries
+- Plan vs Fact: Single table for both actual and planned transactions
 - Partitioning: Fact table partitioned by month for performance
-- Indexes: Optimized for common query patterns
+- Indexes: Optimized for common query patterns and joins
 
 ---
 
@@ -880,17 +999,32 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📈 Roadmap
 
+### ✅ Completed (v5.0.0-beta)
+- [x] **Telegram Bot** - Full-featured bot with 8 commands
+- [x] **ЦФО/МВЗ Integration** - Financial and Cost Centers
+- [x] **Advanced Analytics** - Waterfall and Heatmap charts
+- [x] **Budget Planning** - Plan vs Fact comparison
+- [x] **Automated Notifications** - Budget threshold alerts and weekly reports
+
+### 🚧 In Progress (v5.1.0 - v5.2.0)
+- [ ] **Database Performance Optimization** - Indexes, query tuning
+- [ ] **JWT Refresh Token** - Auto token renewal
+- [ ] **Admin Dashboard Analytics** - System statistics
+- [ ] **CSV/Excel/PDF Export** - Data export functionality
+- [ ] **Load Testing** - Performance and stress testing
+
+### 🔮 Future (v6.0+)
 - [ ] Mobile app (React Native)
 - [ ] Multi-currency support
-- [ ] Recurring transactions
-- [ ] Budget goals and alerts
-- [ ] Family budget sharing
-- [ ] CSV/Excel import/export
-- [ ] Bank integration (Plaid)
+- [ ] Recurring transactions automation
+- [ ] Family budget sharing (multi-user budgets)
+- [ ] Bank integration (Open Banking API)
 - [ ] AI-powered expense categorization
+- [ ] Receipt OCR scanning
+- [ ] Voice commands via Telegram
 
 ---
 
 **Made with ❤️ by Family Budget Team**
 
-**Version:** 4.3.0 | **Last Updated:** 2025-10-14
+**Version:** 5.0.0-beta | **Last Updated:** 2025-10-15

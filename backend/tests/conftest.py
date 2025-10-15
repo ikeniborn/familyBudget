@@ -12,19 +12,28 @@ from typing import AsyncGenerator, Generator
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 from sqlmodel import SQLModel
 
 from backend.app.main import app
+from backend.app import models  # Import models module to ensure all are registered
 from backend.app.models.article import Article
+from backend.app.models.cost_center import CostCenter
 from backend.app.models.fact import BudgetFact
+from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.hierarchy import ArticleHierarchy
+from backend.app.models.refresh_token import RefreshToken
 from backend.app.models.user import User
 from backend.app.services.jwt import create_access_token
 
-# Test database URL (SQLite in-memory for fast tests)
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+# Test database URL (PostgreSQL test database)
+# Uses 'postgres' hostname (Docker service name) when running in container
+# Uses 'localhost' when running locally outside Docker
+import os
+_db_host = os.getenv("POSTGRES_HOST", "postgres")  # Default to Docker service name
+TEST_DATABASE_URL = f"postgresql+asyncpg://familybudget:test_password_12345678901234567890@{_db_host}:5432/familybudget_test"
 
 
 @pytest.fixture(scope="session")
@@ -45,7 +54,8 @@ async def engine():
     Create async database engine for tests.
 
     Scope: function - new engine for each test (isolation).
-    Uses in-memory SQLite for fast tests.
+    Uses PostgreSQL test database with migrations already applied.
+    Data is cleaned up after each test via session rollback.
     """
     engine = create_async_engine(
         TEST_DATABASE_URL,
@@ -53,16 +63,9 @@ async def engine():
         poolclass=NullPool,  # Disable connection pooling for tests
     )
 
-    # Create all tables
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
-
     yield engine
 
-    # Cleanup: drop all tables
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.drop_all)
-
+    # Cleanup: dispose engine
     await engine.dispose()
 
 
@@ -77,6 +80,52 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSession(engine, expire_on_commit=False) as session:
         yield session
         await session.rollback()
+
+
+@pytest_asyncio.fixture(scope="function", autouse=True)
+async def cleanup_database():
+    """
+    Automatically clean up database after each test.
+
+    This fixture runs after every test function to ensure test isolation.
+    Truncates all tables in reverse dependency order to avoid FK violations.
+
+    Scope: function - runs after each test
+    Autouse: True - runs automatically without explicit dependency
+    """
+    yield  # Test runs here
+
+    # Cleanup: truncate all tables after test
+    # Create independent engine for cleanup to avoid fixture conflicts
+    cleanup_engine = create_async_engine(
+        TEST_DATABASE_URL,
+        echo=False,
+        poolclass=NullPool,
+    )
+
+    try:
+        async with cleanup_engine.begin() as conn:
+            # Disable FK checks temporarily for cleanup
+            await conn.execute(text("SET session_replication_role = 'replica';"))
+
+            # Truncate all tables (order doesn't matter with FK disabled)
+            await conn.execute(text("""
+                TRUNCATE TABLE
+                    t_f_refresh_token,
+                    t_notification,
+                    t_f_budget_fact,
+                    t_d_article_hierarchy,
+                    t_d_financial_center,
+                    t_d_cost_center,
+                    t_d_article,
+                    t_d_user
+                RESTART IDENTITY CASCADE;
+            """))
+
+            # Re-enable FK checks
+            await conn.execute(text("SET session_replication_role = 'origin';"))
+    finally:
+        await cleanup_engine.dispose()
 
 
 # ============================================================================

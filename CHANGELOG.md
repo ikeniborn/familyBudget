@@ -7,6 +7,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.0] - 2025-10-15
+
+### Added
+
+#### Admin Dashboard Analytics (TASK-021)
+- 6 new admin analytics endpoints for system-wide monitoring
+- `/api/v1/admin/analytics/overview` - Overall system statistics
+- `/api/v1/admin/analytics/users/growth` - User growth trends
+- `/api/v1/admin/analytics/transactions/trends` - Transaction trends
+- `/api/v1/admin/analytics/users/top` - Top users by transactions/amount
+- `/api/v1/admin/analytics/categories/breakdown` - Category breakdown by type
+- `/api/v1/admin/analytics/centers/usage` - ЦФО/МВЗ usage statistics
+- Admin analytics dashboard UI with 6 interactive charts
+- Integration tests for all admin analytics endpoints
+
+#### Export Functionality (TASK-022)
+- **User Export Endpoints** (5 endpoints)
+  - `/api/v1/export/facts/{format}` - Personal facts export (CSV, Excel, PDF)
+  - `/api/v1/export/analytics/trends/{format}` - Analytics trends export (CSV, Excel)
+  - Date range filtering support
+  - Data isolation enforced (users only export own data)
+- **Admin Export Endpoints** (3 endpoints)
+  - `/api/v1/admin/export/all-facts/{format}` - System-wide facts export (CSV, Excel, PDF)
+  - Advanced filtering: user_id, article_id, start_date, end_date
+  - Includes "User" column to identify data sources
+- **Export Utilities** (`backend/app/utils/export.py`)
+  - `export_to_csv()` - CSV generation with streaming response
+  - `export_to_excel()` - Excel (XLSX) generation with openpyxl
+  - `export_to_pdf()` - PDF generation with reportlab
+  - `generate_filename()` - Timestamp-based filename generation
+- **UI Integration**
+  - Export buttons on analytics.html (3 formats × 2 charts)
+  - Export buttons on admin_facts.html with filter support
+  - Export buttons on admin_analytics.html
+  - Window.open() based download mechanism
+- **Testing**
+  - 28 integration tests covering all export endpoints
+  - Tests verify: authentication, data isolation, file formats, filtering, filenames
+
+#### JWT Refresh Token (TASK-020)
+- Refresh token mechanism for extended sessions
+- `/api/v1/auth/refresh` endpoint
+- `t_d_refresh_token` table for token storage
+- HTTP-only cookie support for refresh tokens
+- Token rotation on refresh
+- Automatic cleanup of expired tokens
+
+### Changed
+
+#### Database Performance Tuning (TASK-015)
+- Optimized 9 critical queries from 50-300ms → <2ms average
+- Added strategic indexes for fact queries
+- Query plan analysis and optimization
+- Performance test suite with load testing
+- Documented results in `PERFORMANCE_ANALYSIS_REPORT.md`
+
+#### Dependencies
+- Added `openpyxl==3.1.2` for Excel export
+- Added `reportlab==4.0.9` for PDF export
+
+#### API Structure
+- Backend API expanded to 66+ endpoints (from 58)
+- New `/admin/export` prefix for admin-scoped exports
+- Enhanced filtering capabilities on admin endpoints
+
+### Fixed
+- Export utilities module import error (added `__init__.py`)
+- Content-Type header handling in export tests
+- Error message format in admin access tests
+
+### Performance
+- Query performance improvements: 9/9 critical queries now <2ms
+- Database indexes optimized for fact filtering
+- Efficient JOIN queries for admin exports
+
+---
+
 ## [5.0.0-beta] - 2025-10-15
 
 ### Added
@@ -142,12 +219,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Upcoming Features
 
-### v5.1.0 (Planned)
-- Performance optimizations (TASK-015, TASK-016, TASK-017)
-- JWT Refresh Token mechanism (TASK-020)
-- Admin Dashboard Analytics (TASK-021)
-- Export functionality (CSV/Excel/PDF) (TASK-022)
-
 ### v5.2.0 (Planned)
 - Multi-currency support (TASK-023)
 - Alembic migration framework (TASK-024)
@@ -163,6 +234,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
+- **5.1.0** (2025-10-15) - Performance + JWT Refresh + Admin Analytics + Export
 - **5.0.0-beta** (2025-10-15) - Telegram Bot + ЦФО/МВЗ + Advanced Analytics
 - **4.4.0** (2025-10-09) - Documentation + E2E Tests
 - **4.3.0** (2025-10-08) - Advanced Analytics Backend

@@ -1,0 +1,1116 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<!-- ECharts library -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="admin-page">
+    <div class="page-header-container">
+        <div class="page-header-text">
+            <h1>📊 Admin Analytics Dashboard</h1>
+            <p class="page-description">System-wide analytics and insights</p>
+        </div>
+        {% if user and user.is_admin %}
+        <div class="export-buttons">
+            <button class="btn-secondary btn-small" onclick="exportPersonalData('csv')"
+                    title="Export your personal transactions to CSV">
+                📄 Export CSV
+            </button>
+            <button class="btn-secondary btn-small" onclick="exportPersonalData('excel')"
+                    title="Export your personal transactions to Excel">
+                📊 Export Excel
+            </button>
+            <button class="btn-secondary btn-small" onclick="exportPersonalData('pdf')"
+                    title="Export your personal transactions to PDF">
+                📑 Export PDF
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if not user or not user.is_admin %}
+        <div class="alert alert-warning">
+            <p>⚠️ Admin access required to view this page.</p>
+            <p><a href="/api/v1/auth/telegram-login">Log in</a> as an administrator.</p>
+        </div>
+    {% else %}
+        <!-- System Overview -->
+        <div class="card" id="overview-card">
+            <div class="card-header">
+                <h2>System Overview</h2>
+                <button class="btn-secondary btn-small" onclick="refreshOverview()">🔄 Refresh</button>
+            </div>
+            <div class="stats-grid" id="overview-stats">
+                <div class="loading">Loading overview...</div>
+            </div>
+            <div class="financial-summary" id="financial-summary" style="margin-top: 1.5rem; display: none;">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="charts-grid" style="margin-top: 1.5rem;">
+            <!-- Users Growth Chart -->
+            <section class="chart-card">
+                <h2>👥 User Registration Trends</h2>
+                <div class="chart-controls">
+                    <label for="users-days">Period:</label>
+                    <select id="users-days" onchange="updateUsersGrowthDays()">
+                        <option value="30">Last 30 days</option>
+                        <option value="90" selected>Last 90 days</option>
+                        <option value="180">Last 180 days</option>
+                        <option value="365">Last year</option>
+                    </select>
+                </div>
+                <div id="chart-users-growth" style="width: 100%; height: 400px;"></div>
+            </section>
+
+            <!-- Transactions Trends Chart -->
+            <section class="chart-card">
+                <h2>📈 Transaction Volume Trends</h2>
+                <div class="chart-controls">
+                    <label for="transactions-days">Period:</label>
+                    <select id="transactions-days" onchange="updateTransactionsDays()">
+                        <option value="30">Last 30 days</option>
+                        <option value="90" selected>Last 90 days</option>
+                        <option value="180">Last 180 days</option>
+                        <option value="365">Last year</option>
+                    </select>
+                </div>
+                <div id="chart-transactions-trends" style="width: 100%; height: 400px;"></div>
+            </section>
+
+            <!-- Top Users -->
+            <section class="chart-card">
+                <h2>🏆 Top Users</h2>
+                <div class="chart-controls">
+                    <label for="top-users-metric">Sort by:</label>
+                    <select id="top-users-metric" onchange="updateTopUsersMetric()">
+                        <option value="transactions" selected>Transaction Count</option>
+                        <option value="amount">Total Amount</option>
+                    </select>
+                    <label for="top-users-limit" style="margin-left: 1rem;">Show:</label>
+                    <select id="top-users-limit" onchange="updateTopUsersLimit()">
+                        <option value="5">Top 5</option>
+                        <option value="10" selected>Top 10</option>
+                        <option value="20">Top 20</option>
+                    </select>
+                </div>
+                <div id="chart-top-users" style="width: 100%; height: 400px;"></div>
+            </section>
+
+            <!-- Categories Breakdown -->
+            <section class="chart-card">
+                <h2>🥧 Popular Categories</h2>
+                <div class="chart-controls">
+                    <label for="categories-type">Type:</label>
+                    <select id="categories-type" onchange="updateCategoriesType()">
+                        <option value="expense" selected>Expense</option>
+                        <option value="income">Income</option>
+                    </select>
+                    <label for="categories-limit" style="margin-left: 1rem;">Show:</label>
+                    <select id="categories-limit" onchange="updateCategoriesLimit()">
+                        <option value="10">Top 10</option>
+                        <option value="15" selected>Top 15</option>
+                        <option value="20">Top 20</option>
+                    </select>
+                </div>
+                <div id="chart-categories-breakdown" style="width: 100%; height: 400px;"></div>
+            </section>
+        </div>
+
+        <!-- Centers Usage -->
+        <div class="card" style="margin-top: 1.5rem;">
+            <div class="card-header">
+                <h2>🏢 ЦФО and МВЗ Usage Statistics</h2>
+                <button class="btn-secondary btn-small" onclick="refreshCentersUsage()">🔄 Refresh</button>
+            </div>
+            <div class="charts-grid-horizontal">
+                <div>
+                    <h3 style="text-align: center; margin-bottom: 1rem;">Financial Centers (ЦФО)</h3>
+                    <div id="chart-financial-centers" style="width: 100%; height: 400px;"></div>
+                </div>
+                <div>
+                    <h3 style="text-align: center; margin-bottom: 1rem;">Cost Centers (МВЗ)</h3>
+                    <div id="chart-cost-centers" style="width: 100%; height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Global variables
+let usersGrowthChart = null;
+let transactionsTrendsChart = null;
+let topUsersChart = null;
+let categoriesChart = null;
+let financialCentersChart = null;
+let costCentersChart = null;
+
+let currentUsersGrowthDays = 90;
+let currentTransactionsDays = 90;
+let currentTopUsersMetric = 'transactions';
+let currentTopUsersLimit = 10;
+let currentCategoriesType = 'expense';
+let currentCategoriesLimit = 15;
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadOverview();
+    initUsersGrowthChart();
+    initTransactionsTrendsChart();
+    initTopUsersChart();
+    initCategoriesChart();
+    initCentersCharts();
+});
+
+// ============================================================
+// System Overview
+// ============================================================
+async function loadOverview() {
+    try {
+        const response = await fetch('/api/v1/admin/analytics/overview');
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        renderOverview(data);
+    } catch (error) {
+        console.error('Error loading overview:', error);
+        document.getElementById('overview-stats').innerHTML = `
+            <div class="error-message">
+                <p>❌ Failed to load overview data</p>
+                <p class="error-details">${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+function renderOverview(data) {
+    const statsHtml = `
+        <div class="stat-card">
+            <div class="stat-icon">👥</div>
+            <div>
+                <div class="stat-value">${data.total_users}</div>
+                <div class="stat-label">Total Users</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📊</div>
+            <div>
+                <div class="stat-value">${data.total_transactions.toLocaleString()}</div>
+                <div class="stat-label">Total Transactions</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📁</div>
+            <div>
+                <div class="stat-value">${data.total_articles}</div>
+                <div class="stat-label">Total Categories</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🏢</div>
+            <div>
+                <div class="stat-value">${data.total_financial_centers}</div>
+                <div class="stat-label">ЦФО</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">💼</div>
+            <div>
+                <div class="stat-value">${data.total_cost_centers}</div>
+                <div class="stat-label">МВЗ</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📈</div>
+            <div>
+                <div class="stat-value">${data.recent_activity.new_users_30d}</div>
+                <div class="stat-label">New Users (30d)</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">💰</div>
+            <div>
+                <div class="stat-value">${data.recent_activity.transactions_30d}</div>
+                <div class="stat-label">Transactions (30d)</div>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('overview-stats').innerHTML = statsHtml;
+
+    // Render financial summary
+    const income = data.financial_summary.total_income;
+    const expense = data.financial_summary.total_expense;
+    const balance = data.financial_summary.balance;
+    const balanceColor = balance >= 0 ? '#4CAF50' : '#EF5350';
+
+    const summaryHtml = `
+        <div class="financial-summary-grid">
+            <div class="summary-card income">
+                <div class="summary-icon">📈</div>
+                <div>
+                    <div class="summary-label">Total Income</div>
+                    <div class="summary-value">${income.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ₽</div>
+                </div>
+            </div>
+            <div class="summary-card expense">
+                <div class="summary-icon">📉</div>
+                <div>
+                    <div class="summary-label">Total Expense</div>
+                    <div class="summary-value">${expense.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ₽</div>
+                </div>
+            </div>
+            <div class="summary-card balance" style="border-left-color: ${balanceColor}">
+                <div class="summary-icon">💰</div>
+                <div>
+                    <div class="summary-label">Net Balance</div>
+                    <div class="summary-value" style="color: ${balanceColor}">${balance.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ₽</div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const summaryContainer = document.getElementById('financial-summary');
+    summaryContainer.innerHTML = summaryHtml;
+    summaryContainer.style.display = 'block';
+}
+
+function refreshOverview() {
+    loadOverview();
+}
+
+// ============================================================
+// Users Growth Chart
+// ============================================================
+function initUsersGrowthChart() {
+    const chartDom = document.getElementById('chart-users-growth');
+    usersGrowthChart = echarts.init(chartDom);
+    usersGrowthChart.showLoading();
+    loadUsersGrowthData(currentUsersGrowthDays);
+}
+
+async function loadUsersGrowthData(days) {
+    try {
+        const response = await fetch(`/api/v1/admin/analytics/users-growth?days=${days}`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        updateUsersGrowthChart(data);
+    } catch (error) {
+        console.error('Error loading users growth data:', error);
+        usersGrowthChart.hideLoading();
+        usersGrowthChart.setOption({
+            title: {
+                text: 'Error loading data',
+                subtext: error.message,
+                left: 'center',
+                top: 'middle',
+                textStyle: { color: '#f44336' }
+            }
+        });
+    }
+}
+
+function updateUsersGrowthChart(data) {
+    usersGrowthChart.hideLoading();
+
+    const dates = data.data.map(d => d.date);
+    const counts = data.data.map(d => d.count);
+    const cumulative = data.data.map(d => d.cumulative);
+
+    const option = {
+        title: {
+            text: `User Registration Trends (${data.period_days} days)`,
+            subtext: `Total registrations: ${data.total_registrations}`,
+            left: 'center',
+            textStyle: { fontSize: 16, fontWeight: 'normal' }
+        },
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'cross' }
+        },
+        legend: {
+            data: ['Daily Registrations', 'Cumulative Total'],
+            bottom: 10
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '15%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            data: dates,
+            axisLabel: {
+                rotate: dates.length > 30 ? 45 : 0,
+                interval: Math.max(1, Math.floor(dates.length / 20))
+            }
+        },
+        yAxis: [
+            {
+                type: 'value',
+                name: 'Daily Count',
+                position: 'left'
+            },
+            {
+                type: 'value',
+                name: 'Cumulative',
+                position: 'right'
+            }
+        ],
+        series: [
+            {
+                name: 'Daily Registrations',
+                type: 'bar',
+                data: counts,
+                itemStyle: { color: '#2196F3' }
+            },
+            {
+                name: 'Cumulative Total',
+                type: 'line',
+                yAxisIndex: 1,
+                data: cumulative,
+                smooth: true,
+                lineStyle: { color: '#4CAF50', width: 3 },
+                itemStyle: { color: '#4CAF50' }
+            }
+        ]
+    };
+
+    usersGrowthChart.setOption(option);
+}
+
+function updateUsersGrowthDays() {
+    currentUsersGrowthDays = parseInt(document.getElementById('users-days').value);
+    loadUsersGrowthData(currentUsersGrowthDays);
+}
+
+// ============================================================
+// Transactions Trends Chart
+// ============================================================
+function initTransactionsTrendsChart() {
+    const chartDom = document.getElementById('chart-transactions-trends');
+    transactionsTrendsChart = echarts.init(chartDom);
+    transactionsTrendsChart.showLoading();
+    loadTransactionsTrendsData(currentTransactionsDays);
+}
+
+async function loadTransactionsTrendsData(days) {
+    try {
+        const response = await fetch(`/api/v1/admin/analytics/transactions-trends?days=${days}`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        updateTransactionsTrendsChart(data);
+    } catch (error) {
+        console.error('Error loading transactions trends data:', error);
+        transactionsTrendsChart.hideLoading();
+        transactionsTrendsChart.setOption({
+            title: {
+                text: 'Error loading data',
+                subtext: error.message,
+                left: 'center',
+                top: 'middle',
+                textStyle: { color: '#f44336' }
+            }
+        });
+    }
+}
+
+function updateTransactionsTrendsChart(data) {
+    transactionsTrendsChart.hideLoading();
+
+    const dates = data.data.map(d => d.date);
+    const incomeAmounts = data.data.map(d => d.income_amount);
+    const expenseAmounts = data.data.map(d => d.expense_amount);
+
+    const option = {
+        title: {
+            text: `Transaction Volume (${data.period_days} days)`,
+            subtext: `Total: ${data.total_transactions} transactions | Income: ${data.total_income.toFixed(2)} ₽ | Expense: ${data.total_expense.toFixed(2)} ₽`,
+            left: 'center',
+            textStyle: { fontSize: 16, fontWeight: 'normal' }
+        },
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'cross' }
+        },
+        legend: {
+            data: ['Income', 'Expense'],
+            bottom: 10
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '15%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            data: dates,
+            axisLabel: {
+                rotate: dates.length > 30 ? 45 : 0,
+                interval: Math.max(1, Math.floor(dates.length / 20))
+            }
+        },
+        yAxis: {
+            type: 'value',
+            name: 'Amount (₽)',
+            axisLabel: {
+                formatter: value => value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value
+            }
+        },
+        series: [
+            {
+                name: 'Income',
+                type: 'line',
+                smooth: true,
+                data: incomeAmounts,
+                lineStyle: { color: '#4CAF50', width: 2 },
+                itemStyle: { color: '#4CAF50' },
+                areaStyle: {
+                    color: {
+                        type: 'linear',
+                        x: 0, y: 0, x2: 0, y2: 1,
+                        colorStops: [
+                            { offset: 0, color: 'rgba(76, 175, 80, 0.3)' },
+                            { offset: 1, color: 'rgba(76, 175, 80, 0.05)' }
+                        ]
+                    }
+                }
+            },
+            {
+                name: 'Expense',
+                type: 'line',
+                smooth: true,
+                data: expenseAmounts,
+                lineStyle: { color: '#f44336', width: 2 },
+                itemStyle: { color: '#f44336' },
+                areaStyle: {
+                    color: {
+                        type: 'linear',
+                        x: 0, y: 0, x2: 0, y2: 1,
+                        colorStops: [
+                            { offset: 0, color: 'rgba(244, 67, 54, 0.3)' },
+                            { offset: 1, color: 'rgba(244, 67, 54, 0.05)' }
+                        ]
+                    }
+                }
+            }
+        ]
+    };
+
+    transactionsTrendsChart.setOption(option);
+}
+
+function updateTransactionsDays() {
+    currentTransactionsDays = parseInt(document.getElementById('transactions-days').value);
+    loadTransactionsTrendsData(currentTransactionsDays);
+}
+
+// ============================================================
+// Top Users Chart
+// ============================================================
+function initTopUsersChart() {
+    const chartDom = document.getElementById('chart-top-users');
+    topUsersChart = echarts.init(chartDom);
+    topUsersChart.showLoading();
+    loadTopUsersData(currentTopUsersMetric, currentTopUsersLimit);
+}
+
+async function loadTopUsersData(metric, limit) {
+    try {
+        const response = await fetch(`/api/v1/admin/analytics/top-users?metric=${metric}&limit=${limit}`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        updateTopUsersChart(data);
+    } catch (error) {
+        console.error('Error loading top users data:', error);
+        topUsersChart.hideLoading();
+        topUsersChart.setOption({
+            title: {
+                text: 'Error loading data',
+                subtext: error.message,
+                left: 'center',
+                top: 'middle',
+                textStyle: { color: '#f44336' }
+            }
+        });
+    }
+}
+
+function updateTopUsersChart(data) {
+    topUsersChart.hideLoading();
+
+    const userNames = data.data.map(u => {
+        const name = u.first_name + (u.last_name ? ' ' + u.last_name : '');
+        const username = u.username !== 'N/A' ? `@${u.username}` : '';
+        return username || name || `User ${u.user_id}`;
+    });
+
+    const values = data.data.map(u =>
+        data.metric === 'transactions' ? u.transaction_count : u.total_amount
+    );
+
+    const metricLabel = data.metric === 'transactions' ? 'Transactions' : 'Total Amount (₽)';
+
+    const option = {
+        title: {
+            text: `Top ${data.limit} Users by ${data.metric === 'transactions' ? 'Activity' : 'Amount'}`,
+            left: 'center',
+            textStyle: { fontSize: 16, fontWeight: 'normal' }
+        },
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'shadow' },
+            formatter: function(params) {
+                const index = params[0].dataIndex;
+                const user = data.data[index];
+                let tooltip = `<strong>${params[0].axisValue}</strong><br/>`;
+                tooltip += `Transactions: ${user.transaction_count}<br/>`;
+                tooltip += `Total Amount: ${user.total_amount.toFixed(2)} ₽`;
+                return tooltip;
+            }
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            top: '15%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'value',
+            name: metricLabel
+        },
+        yAxis: {
+            type: 'category',
+            data: userNames,
+            inverse: true
+        },
+        series: [
+            {
+                type: 'bar',
+                data: values,
+                itemStyle: {
+                    color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [
+                        { offset: 0, color: '#2196F3' },
+                        { offset: 1, color: '#4CAF50' }
+                    ])
+                },
+                label: {
+                    show: true,
+                    position: 'right',
+                    formatter: data.metric === 'transactions' ? '{c}' : '{c} ₽'
+                }
+            }
+        ]
+    };
+
+    topUsersChart.setOption(option);
+}
+
+function updateTopUsersMetric() {
+    currentTopUsersMetric = document.getElementById('top-users-metric').value;
+    loadTopUsersData(currentTopUsersMetric, currentTopUsersLimit);
+}
+
+function updateTopUsersLimit() {
+    currentTopUsersLimit = parseInt(document.getElementById('top-users-limit').value);
+    loadTopUsersData(currentTopUsersMetric, currentTopUsersLimit);
+}
+
+// ============================================================
+// Categories Breakdown Chart
+// ============================================================
+function initCategoriesChart() {
+    const chartDom = document.getElementById('chart-categories-breakdown');
+    categoriesChart = echarts.init(chartDom);
+    categoriesChart.showLoading();
+    loadCategoriesData(currentCategoriesType, currentCategoriesLimit);
+}
+
+async function loadCategoriesData(type, limit) {
+    try {
+        const response = await fetch(`/api/v1/admin/analytics/categories-breakdown?type=${type}&limit=${limit}`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        updateCategoriesChart(data);
+    } catch (error) {
+        console.error('Error loading categories data:', error);
+        categoriesChart.hideLoading();
+        categoriesChart.setOption({
+            title: {
+                text: 'Error loading data',
+                subtext: error.message,
+                left: 'center',
+                top: 'middle',
+                textStyle: { color: '#f44336' }
+            }
+        });
+    }
+}
+
+function updateCategoriesChart(data) {
+    categoriesChart.hideLoading();
+
+    const chartData = data.data.map(cat => ({
+        name: cat.name,
+        value: cat.total_amount
+    }));
+
+    const typeLabel = data.type.charAt(0).toUpperCase() + data.type.slice(1);
+
+    const option = {
+        title: {
+            text: `Top ${data.limit} ${typeLabel} Categories`,
+            subtext: `Total: ${data.total_amount.toFixed(2)} ₽`,
+            left: 'center',
+            textStyle: { fontSize: 16, fontWeight: 'normal' }
+        },
+        tooltip: {
+            trigger: 'item',
+            formatter: function(params) {
+                const cat = data.data[params.dataIndex];
+                return `<strong>${params.name}</strong><br/>` +
+                       `Amount: ${params.value.toFixed(2)} ₽<br/>` +
+                       `Transactions: ${cat.transaction_count}<br/>` +
+                       `Percentage: ${cat.percentage.toFixed(1)}%`;
+            }
+        },
+        legend: {
+            orient: 'vertical',
+            left: 'left',
+            top: 'middle',
+            formatter: name => name.length > 15 ? name.substring(0, 15) + '...' : name
+        },
+        series: [
+            {
+                name: typeLabel,
+                type: 'pie',
+                radius: ['40%', '70%'],
+                avoidLabelOverlap: true,
+                itemStyle: {
+                    borderRadius: 10,
+                    borderColor: '#fff',
+                    borderWidth: 2
+                },
+                label: {
+                    show: true,
+                    formatter: '{d}%',
+                    fontSize: 12
+                },
+                emphasis: {
+                    label: {
+                        show: true,
+                        fontSize: 14,
+                        fontWeight: 'bold'
+                    },
+                    itemStyle: {
+                        shadowBlur: 10,
+                        shadowOffsetX: 0,
+                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                    }
+                },
+                data: chartData
+            }
+        ]
+    };
+
+    categoriesChart.setOption(option);
+}
+
+function updateCategoriesType() {
+    currentCategoriesType = document.getElementById('categories-type').value;
+    loadCategoriesData(currentCategoriesType, currentCategoriesLimit);
+}
+
+function updateCategoriesLimit() {
+    currentCategoriesLimit = parseInt(document.getElementById('categories-limit').value);
+    loadCategoriesData(currentCategoriesType, currentCategoriesLimit);
+}
+
+// ============================================================
+// Centers Usage Charts
+// ============================================================
+function initCentersCharts() {
+    const fcChartDom = document.getElementById('chart-financial-centers');
+    const ccChartDom = document.getElementById('chart-cost-centers');
+
+    financialCentersChart = echarts.init(fcChartDom);
+    costCentersChart = echarts.init(ccChartDom);
+
+    financialCentersChart.showLoading();
+    costCentersChart.showLoading();
+
+    loadCentersUsageData();
+}
+
+async function loadCentersUsageData() {
+    try {
+        const response = await fetch('/api/v1/admin/analytics/centers-usage');
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        updateCentersCharts(data);
+    } catch (error) {
+        console.error('Error loading centers usage data:', error);
+        financialCentersChart.hideLoading();
+        costCentersChart.hideLoading();
+
+        const errorOption = {
+            title: {
+                text: 'Error loading data',
+                subtext: error.message,
+                left: 'center',
+                top: 'middle',
+                textStyle: { color: '#f44336' }
+            }
+        };
+
+        financialCentersChart.setOption(errorOption);
+        costCentersChart.setOption(errorOption);
+    }
+}
+
+function updateCentersCharts(data) {
+    financialCentersChart.hideLoading();
+    costCentersChart.hideLoading();
+
+    // Financial Centers Chart
+    const fcNames = data.financial_centers.map(fc => `${fc.code} - ${fc.name}`);
+    const fcValues = data.financial_centers.map(fc => fc.total_amount);
+
+    const fcOption = {
+        title: {
+            text: 'ЦФО Usage',
+            left: 'center',
+            textStyle: { fontSize: 14, fontWeight: 'normal' }
+        },
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'shadow' },
+            formatter: function(params) {
+                const index = params[0].dataIndex;
+                const fc = data.financial_centers[index];
+                return `<strong>${fc.code} - ${fc.name}</strong><br/>` +
+                       `Transactions: ${fc.transaction_count}<br/>` +
+                       `Total Amount: ${fc.total_amount.toFixed(2)} ₽`;
+            }
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            top: '15%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'value',
+            name: 'Amount (₽)'
+        },
+        yAxis: {
+            type: 'category',
+            data: fcNames,
+            inverse: true,
+            axisLabel: {
+                formatter: name => name.length > 25 ? name.substring(0, 25) + '...' : name
+            }
+        },
+        series: [
+            {
+                type: 'bar',
+                data: fcValues,
+                itemStyle: { color: '#2196F3' },
+                label: {
+                    show: true,
+                    position: 'right',
+                    formatter: '{c} ₽'
+                }
+            }
+        ]
+    };
+
+    financialCentersChart.setOption(fcOption);
+
+    // Cost Centers Chart
+    const ccNames = data.cost_centers.map(cc => `${cc.code} - ${cc.name}`);
+    const ccValues = data.cost_centers.map(cc => cc.total_amount);
+
+    const ccOption = {
+        title: {
+            text: 'МВЗ Usage',
+            left: 'center',
+            textStyle: { fontSize: 14, fontWeight: 'normal' }
+        },
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'shadow' },
+            formatter: function(params) {
+                const index = params[0].dataIndex;
+                const cc = data.cost_centers[index];
+                return `<strong>${cc.code} - ${cc.name}</strong><br/>` +
+                       `Transactions: ${cc.transaction_count}<br/>` +
+                       `Total Amount: ${cc.total_amount.toFixed(2)} ₽`;
+            }
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            top: '15%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'value',
+            name: 'Amount (₽)'
+        },
+        yAxis: {
+            type: 'category',
+            data: ccNames,
+            inverse: true,
+            axisLabel: {
+                formatter: name => name.length > 25 ? name.substring(0, 25) + '...' : name
+            }
+        },
+        series: [
+            {
+                type: 'bar',
+                data: ccValues,
+                itemStyle: { color: '#4CAF50' },
+                label: {
+                    show: true,
+                    position: 'right',
+                    formatter: '{c} ₽'
+                }
+            }
+        ]
+    };
+
+    costCentersChart.setOption(ccOption);
+}
+
+function refreshCentersUsage() {
+    loadCentersUsageData();
+}
+
+// ============================================================
+// Export Functions
+// ============================================================
+function exportPersonalData(format) {
+    // Export admin's personal transaction data
+    let url = `/api/v1/export/facts/${format}`;
+
+    // Open in new tab to trigger download
+    window.open(url, '_blank');
+}
+
+// Responsive chart resize
+window.addEventListener('resize', function() {
+    if (usersGrowthChart) usersGrowthChart.resize();
+    if (transactionsTrendsChart) transactionsTrendsChart.resize();
+    if (topUsersChart) topUsersChart.resize();
+    if (categoriesChart) categoriesChart.resize();
+    if (financialCentersChart) financialCentersChart.resize();
+    if (costCentersChart) costCentersChart.resize();
+});
+</script>
+
+<style>
+/* Page Header with Export Buttons */
+.page-header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.page-header-text {
+    flex: 1;
+}
+
+.export-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+/* Charts Grid */
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    gap: 1.5rem;
+}
+
+.charts-grid-horizontal {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+.chart-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.chart-card h2, .chart-card h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.chart-controls {
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.chart-controls label {
+    font-weight: 500;
+    color: var(--text-color-secondary);
+}
+
+.chart-controls select {
+    padding: 0.4rem 0.8rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+/* Financial Summary */
+.financial-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.summary-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid;
+    border-radius: 4px;
+}
+
+.summary-card.income {
+    border-left-color: #4CAF50;
+}
+
+.summary-card.expense {
+    border-left-color: #f44336;
+}
+
+.summary-card.balance {
+    border-left-color: #2196F3;
+}
+
+.summary-icon {
+    font-size: 2rem;
+}
+
+.summary-label {
+    font-size: 0.85rem;
+    color: var(--text-color-secondary);
+    margin-bottom: 0.25rem;
+}
+
+.summary-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+/* Loading & Error */
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-color-secondary);
+}
+
+.error-message {
+    text-align: center;
+    padding: 2rem;
+    color: #f44336;
+}
+
+.error-details {
+    font-size: 0.9rem;
+    color: var(--text-color-secondary);
+    margin-top: 0.5rem;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .charts-grid-horizontal {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .page-header-container {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .export-buttons {
+        width: 100%;
+    }
+
+    .export-buttons button {
+        flex: 1;
+    }
+
+    .chart-controls {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .financial-summary-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

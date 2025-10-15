@@ -75,14 +75,14 @@ async def get_quick_stats(
 @router.get("/plan-fact")
 async def get_plan_fact_data(
     current_user: CurrentUser,
-    period: str = Query("month", regex="^(week|month|year)$"),
+    period: str = Query("month", regex="^(week|month|quarter|year)$"),
     session: AsyncSession = Depends(get_session)
 ):
     """
     Get plan vs fact comparison data for bar chart.
 
     Args:
-        period: Time period (week, month, year)
+        period: Time period (week, month, quarter, year)
 
     Returns:
         Dict with categories and plan/fact amounts for each period
@@ -98,6 +98,13 @@ async def get_plan_fact_data(
         start_date = date(today.year, today.month, 1)
         periods_count = (date(today.year, today.month + 1, 1) - start_date).days if today.month < 12 else 31
         date_format = "%d"  # 1, 2, 3, ...
+    elif period == "quarter":
+        # Current quarter (Q1: Jan-Mar, Q2: Apr-Jun, Q3: Jul-Sep, Q4: Oct-Dec)
+        current_quarter = (today.month - 1) // 3
+        quarter_start_month = current_quarter * 3 + 1
+        start_date = date(today.year, quarter_start_month, 1)
+        periods_count = 3  # 3 months in quarter
+        date_format = "%b"  # Jan, Feb, Mar
     else:  # year
         start_date = date(today.year, 1, 1)
         periods_count = 12
@@ -121,8 +128,16 @@ async def get_plan_fact_data(
     fact_data = []
 
     current_date = start_date
-    for _ in range(min(periods_count, (today - start_date).days + 1)):
-        if period == "year":
+    # For week period, show full 7 days (for plan-vs-fact comparison)
+    # For quarter/year, show full periods for planning
+    # For month, show only days up to today
+    if period in ["week", "quarter", "year"]:
+        loop_count = periods_count  # Full period for planning
+    else:
+        loop_count = min(periods_count, (today - start_date).days + 1)
+
+    for _ in range(loop_count):
+        if period in ["quarter", "year"]:
             # For year, group by month
             month_total = sum(
                 amount for d, amount in data_by_date.items()
@@ -344,7 +359,16 @@ async def get_waterfall_data(
     articles_info = {}  # Track articles for drill-down
 
     for row in rows:
-        period_key = int(row.period_key) if row.period_key else 0
+        # Handle different period_key types based on period
+        if isinstance(row.period_key, date):
+            # For month period, period_key is a date object - extract day of month
+            period_key = row.period_key.day
+        elif row.period_key:
+            # For quarter/year, period_key is an int (week or month number)
+            period_key = int(row.period_key)
+        else:
+            period_key = 0
+
         if period_key not in period_data:
             period_data[period_key] = {"income": 0.0, "expense": 0.0, "articles": []}
 
@@ -409,7 +433,8 @@ async def get_waterfall_data(
 
     else:  # year
         month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-        for month in range(1, today.month + 1):
+        # Show all 12 months for planning/forecasting purposes
+        for month in range(1, 13):
             period_info = period_data.get(month, {"income": 0.0, "expense": 0.0, "articles": []})
             income = period_info["income"]
             expense = period_info["expense"]
@@ -450,19 +475,27 @@ async def get_heatmap_data(
     Returns:
         Heatmap data showing expense patterns by day of week over time
     """
-    end_date = date.today()
+    today = date.today()
 
     # Calculate date range based on period
     if period == "month":
-        start_date = date(end_date.year, end_date.month, 1)
+        start_date = date(today.year, today.month, 1)
+        end_date = today  # Show only up to today for month
         weeks_to_show = 4
     elif period == "quarter":
-        current_quarter = (end_date.month - 1) // 3
+        current_quarter = (today.month - 1) // 3
         quarter_start_month = current_quarter * 3 + 1
-        start_date = date(end_date.year, quarter_start_month, 1)
-        weeks_to_show = 12
+        quarter_end_month = quarter_start_month + 2
+        start_date = date(today.year, quarter_start_month, 1)
+        # End date is last day of quarter (for planning purposes)
+        if quarter_end_month == 12:
+            end_date = date(today.year, 12, 31)
+        else:
+            end_date = date(today.year, quarter_end_month + 1, 1) - timedelta(days=1)
+        weeks_to_show = 13  # ~13 weeks in a quarter
     else:  # year
-        start_date = date(end_date.year, 1, 1)
+        start_date = date(today.year, 1, 1)
+        end_date = date(today.year, 12, 31)  # Full year for planning
         weeks_to_show = 52
 
     # Query all facts
@@ -483,29 +516,39 @@ async def get_heatmap_data(
     # Build heatmap data (day of week × week of period)
     data_by_date = {row.fact_date: float(row.total) for row in rows}
 
-    # Calculate weeks
-    weeks = []
+    # Calculate weeks with structured format
+    weeks_data = []
     week_start = start_date - timedelta(days=start_date.weekday())  # Start from Monday
 
     current_date = week_start
+    week_num = 1
     while current_date <= end_date:
-        week_data = []
+        week_days = []
         for day in range(7):  # Mon-Sun
             date_to_check = current_date + timedelta(days=day)
-            amount = data_by_date.get(date_to_check, 0.0)
-            week_data.append(amount)
-        weeks.append(week_data)
+            if date_to_check > end_date or date_to_check < start_date:
+                # Future or past dates outside period
+                amount = None
+            else:
+                amount = data_by_date.get(date_to_check, 0.0)
+            week_days.append(amount)
+
+        weeks_data.append({
+            "label": f"Week {week_num}",
+            "days": week_days
+        })
         current_date += timedelta(days=7)
+        week_num += 1
 
     # Limit weeks based on period
-    weeks = weeks[-weeks_to_show:]
+    weeks_data = weeks_data[-weeks_to_show:]
 
     period_days = (end_date - start_date).days
 
     return {
-        "weeks": weeks,
+        "weeks": weeks_data,
         "day_labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-        "week_count": len(weeks),
+        "week_count": len(weeks_data),
         "period_days": period_days,
         "period": period,
         "start_date": start_date.isoformat(),
