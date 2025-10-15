@@ -151,3 +151,59 @@ async def admin_monitoring(
             "page_title": "System Monitoring"
         }
     )
+
+
+@web_router.get("/admin/financial-centers", response_class=HTMLResponse)
+async def admin_financial_centers(
+    request: Request,
+    current_admin: CurrentAdmin
+):
+    """
+    Admin financial centers management page (admin only).
+
+    Provides interface for managing financial centers (ЦФО):
+    - Bank accounts
+    - Wallets
+    - Cash
+    - Other financial entities
+
+    Uses REST API endpoints for CRUD operations.
+    """
+    from backend.app.main import templates
+
+    return templates.TemplateResponse(
+        "admin_financial_centers.html",
+        {
+            "request": request,
+            "user": current_admin,
+            "page_title": "Financial Centers Management"
+        }
+    )
+
+
+@web_router.get("/admin/cost-centers", response_class=HTMLResponse)
+async def admin_cost_centers(
+    request: Request,
+    current_admin: CurrentAdmin
+):
+    """
+    Admin cost centers management page (admin only).
+
+    Provides interface for managing cost centers (МВЗ):
+    - Projects
+    - Departments
+    - Budget groups
+    - Other cost allocation entities
+
+    Uses REST API endpoints for CRUD operations.
+    """
+    from backend.app.main import templates
+
+    return templates.TemplateResponse(
+        "admin_cost_centers.html",
+        {
+            "request": request,
+            "user": current_admin,
+            "page_title": "Cost Centers Management"
+        }
+    )

@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-page">
+    <div class="page-header">
+        <h1>📊 Cost Centers Management</h1>
+        <p class="page-description">Manage cost centers (МВЗ): projects, departments, budget groups, and other cost allocation entities</p>
+    </div>
+
+    <!-- Cost Centers Table -->
+    <div class="card admin-table-card">
+        <div class="card-header">
+            <h2>Cost Centers</h2>
+            <div class="table-actions">
+                <button class="filter-btn active" id="filter-all" onclick="toggleScopeFilter('all')">All</button>
+                <button class="filter-btn" id="filter-user" onclick="toggleScopeFilter('user')">My Centers</button>
+                <button class="filter-btn" id="filter-global" onclick="toggleScopeFilter('global')">Global Only</button>
+                <button class="btn-primary btn-small" onclick="showCreateModal()">+ New Cost Center</button>
+            </div>
+        </div>
+
+        <div id="centers-table-container">
+            <div class="loading">Loading cost centers...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Cost Center Modal -->
+<div id="create-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Create New Cost Center</h3>
+            <span class="modal-close" onclick="closeCreateModal()">&times;</span>
+        </div>
+        <form id="create-form" onsubmit="createCenter(event)">
+            <div class="form-group">
+                <label for="create-name">Name*</label>
+                <input type="text" id="create-name" name="name" required maxlength="255" placeholder="e.g., Marketing Department">
+            </div>
+            <div class="form-group">
+                <label for="create-code">Code (optional)</label>
+                <input type="text" id="create-code" name="code" maxlength="50" placeholder="e.g., DEPT_MARKETING">
+                <small>Letters, digits, and underscores only. Will be auto-uppercased.</small>
+            </div>
+            <div class="form-group">
+                <label for="create-description">Description (optional)</label>
+                <textarea id="create-description" name="description" rows="3" placeholder="Enter description..."></textarea>
+            </div>
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="create-global" name="is_global">
+                    Global (available to all users)
+                </label>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeCreateModal()">Cancel</button>
+                <button type="submit" class="btn-primary">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Cost Center Modal -->
+<div id="edit-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Edit Cost Center</h3>
+            <span class="modal-close" onclick="closeEditModal()">&times;</span>
+        </div>
+        <form id="edit-form" onsubmit="updateCenter(event)">
+            <input type="hidden" id="edit-id" name="id">
+            <div class="form-group">
+                <label for="edit-name">Name*</label>
+                <input type="text" id="edit-name" name="name" required maxlength="255">
+            </div>
+            <div class="form-group">
+                <label for="edit-code">Code (optional)</label>
+                <input type="text" id="edit-code" name="code" maxlength="50">
+                <small>Letters, digits, and underscores only. Will be auto-uppercased.</small>
+            </div>
+            <div class="form-group">
+                <label for="edit-description">Description (optional)</label>
+                <textarea id="edit-description" name="description" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <p class="info-note">Global flag cannot be changed (SCD Type 2 constraint)</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn-primary">Update</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Global state
+let scopeFilter = 'all'; // 'all', 'user', 'global'
+let centersData = [];
+
+// Load centers on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadCenters();
+});
+
+// Toggle scope filter
+function toggleScopeFilter(scope) {
+    scopeFilter = scope;
+
+    // Update active button
+    document.getElementById('filter-all').classList.toggle('active', scope === 'all');
+    document.getElementById('filter-user').classList.toggle('active', scope === 'user');
+    document.getElementById('filter-global').classList.toggle('active', scope === 'global');
+
+    // Reload centers
+    loadCenters();
+}
+
+// Load cost centers from API
+async function loadCenters() {
+    const container = document.getElementById('centers-table-container');
+    container.innerHTML = '<div class="loading">Loading cost centers...</div>';
+
+    try {
+        let url = '/api/v1/cost-centers?limit=1000';
+
+        if (scopeFilter === 'user') {
+            url += '&include_global=false';
+        } else if (scopeFilter === 'global') {
+            // We'll filter client-side since API doesn't have global-only filter
+            url += '&include_global=true';
+        }
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        centersData = data.cost_centers || [];
+
+        renderCentersTable(centersData);
+    } catch (error) {
+        console.error('Error loading cost centers:', error);
+        container.innerHTML = `<div class="error-message">Failed to load cost centers: ${error.message}</div>`;
+    }
+}
+
+// Render centers table
+function renderCentersTable(centers) {
+    const container = document.getElementById('centers-table-container');
+
+    // Filter by scope
+    let filtered = centers;
+    if (scopeFilter === 'global') {
+        filtered = centers.filter(c => c.is_global);
+    } else if (scopeFilter === 'user') {
+        filtered = centers.filter(c => !c.is_global);
+    }
+
+    if (filtered.length === 0) {
+        container.innerHTML = '<p class="info-text">No cost centers found. Click "+ New Cost Center" to create one.</p>';
+        return;
+    }
+
+    let html = `
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Code</th>
+                        <th>Description</th>
+                        <th>Scope</th>
+                        <th>Valid From</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    filtered.forEach(center => {
+        const scopeLabel = center.is_global
+            ? '<span class="badge success">Global</span>'
+            : '<span class="badge user">User</span>';
+        const code = center.code || '—';
+        const description = center.description || '—';
+        const validFrom = new Date(center.valid_from).toLocaleDateString();
+
+        html += `
+            <tr data-center-id="${center.id}">
+                <td><strong>${center.name}</strong></td>
+                <td><code>${code}</code></td>
+                <td>${description}</td>
+                <td>${scopeLabel}</td>
+                <td>${validFrom}</td>
+                <td>
+                    <button class="btn-primary btn-small" onclick="showEditModal(${center.id})">Edit</button>
+                    <button class="btn-secondary btn-small" onclick="deleteCenter(${center.id})">Delete</button>
+                </td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+// Show create modal
+function showCreateModal() {
+    document.getElementById('create-modal').style.display = 'block';
+}
+
+// Close create modal
+function closeCreateModal() {
+    document.getElementById('create-modal').style.display = 'none';
+    document.getElementById('create-form').reset();
+}
+
+// Create cost center
+async function createCenter(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const data = {
+        name: formData.get('name'),
+        code: formData.get('code') || null,
+        description: formData.get('description') || null,
+        is_global: formData.get('is_global') === 'on'
+    };
+
+    try {
+        const response = await fetch('/api/v1/cost-centers', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success
+        closeCreateModal();
+        await loadCenters();
+        showNotification('Cost center created successfully', 'success');
+    } catch (error) {
+        console.error('Error creating cost center:', error);
+        showNotification(`Failed: ${error.message}`, 'error');
+    }
+}
+
+// Show edit modal
+function showEditModal(centerId) {
+    const center = centersData.find(c => c.id === centerId);
+    if (!center) return;
+
+    document.getElementById('edit-id').value = center.id;
+    document.getElementById('edit-name').value = center.name;
+    document.getElementById('edit-code').value = center.code || '';
+    document.getElementById('edit-description').value = center.description || '';
+
+    document.getElementById('edit-modal').style.display = 'block';
+}
+
+// Close edit modal
+function closeEditModal() {
+    document.getElementById('edit-modal').style.display = 'none';
+    document.getElementById('edit-form').reset();
+}
+
+// Update cost center
+async function updateCenter(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const centerId = formData.get('id');
+    const data = {
+        name: formData.get('name'),
+        code: formData.get('code') || null,
+        description: formData.get('description') || null
+    };
+
+    try {
+        const response = await fetch(`/api/v1/cost-centers/${centerId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success
+        closeEditModal();
+        await loadCenters();
+        showNotification('Cost center updated successfully (new SCD2 version created)', 'success');
+    } catch (error) {
+        console.error('Error updating cost center:', error);
+        showNotification(`Failed: ${error.message}`, 'error');
+    }
+}
+
+// Delete cost center
+async function deleteCenter(centerId) {
+    if (!confirm('Are you sure you want to delete this cost center? This will set is_current=FALSE and valid_to=NOW() (SCD Type 2 soft delete).')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/cost-centers/${centerId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success
+        await loadCenters();
+        showNotification('Cost center deleted successfully', 'success');
+    } catch (error) {
+        console.error('Error deleting cost center:', error);
+        showNotification(`Failed: ${error.message}`, 'error');
+    }
+}
+
+// Utility: Show notification
+function showNotification(message, type) {
+    if (type === 'error') {
+        alert('❌ ' + message);
+    } else {
+        alert('✅ ' + message);
+    }
+}
+
+// Close modals when clicking outside
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

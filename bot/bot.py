@@ -32,6 +32,7 @@ class BotApplication:
         """Initialize bot application."""
         self.application: Optional[Application] = None
         self.settings = settings
+        self.scheduler = None  # Will be initialized when bot starts
         logger.info("BotApplication initialized")
 
     def build_application(self) -> Application:
@@ -75,8 +76,10 @@ class BotApplication:
         # Import handlers
         from bot.handlers.start import start_handler
         from bot.handlers.add import add_conversation_handler
+        from bot.handlers.add_plan import addplan_conversation_handler
         from bot.handlers.today import today_handler
         from bot.handlers.stats import stats_handler
+        from bot.handlers.summary import summary_conversation_handler
         from bot.handlers.help import help_handler
         from bot.handlers.settings import settings_conversation_handler
         from bot.handlers.export import export_handler
@@ -104,6 +107,12 @@ class BotApplication:
         # Register conversation handlers
         self.application.add_handler(add_conversation_handler)
         logger.info("Registered /add conversation handler")
+
+        self.application.add_handler(addplan_conversation_handler)
+        logger.info("Registered /addplan conversation handler")
+
+        self.application.add_handler(summary_conversation_handler)
+        logger.info("Registered /summary conversation handler")
 
         self.application.add_handler(settings_conversation_handler)
         logger.info("Registered /settings conversation handler")
@@ -148,6 +157,19 @@ class BotApplication:
         # Initialize application
         await self.application.initialize()
         logger.info("Bot initialized")
+
+        # Initialize and start scheduler
+        from bot.utils.scheduler import init_scheduler
+        self.scheduler = init_scheduler(self.application.bot)
+        self.scheduler.start()
+        logger.info("Scheduler started")
+
+        # Initialize notification service
+        from bot.utils.notification_service import init_notification_service
+        from bot.utils.api_client import get_api_client
+        api_client = await get_api_client()
+        init_notification_service(self.application.bot, api_client)
+        logger.info("Notification service initialized")
 
         # Start application
         if self.settings.USE_WEBHOOK:
@@ -194,6 +216,11 @@ class BotApplication:
             return
 
         logger.info("Stopping bot...")
+
+        # Stop scheduler
+        if self.scheduler:
+            self.scheduler.shutdown(wait=True)
+            logger.info("Scheduler stopped")
 
         # Stop updater
         if self.application.updater:

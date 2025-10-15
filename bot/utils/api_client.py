@@ -77,6 +77,58 @@ class APIClient:
             logger.error(f"Authentication error: {str(e)}")
             raise
 
+    async def list_facts(
+        self,
+        token: str,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+        article_id: Optional[int] = None,
+        limit: int = 1000
+    ) -> Dict[str, Any]:
+        """
+        List user's facts with filtering.
+
+        Args:
+            token: JWT access token
+            date_from: Start date filter (ISO format: YYYY-MM-DD)
+            date_to: End date filter (ISO format: YYYY-MM-DD)
+            article_id: Filter by article ID
+            limit: Maximum number of records to return
+
+        Returns:
+            Dict containing facts list and pagination info
+
+        Raises:
+            httpx.HTTPStatusError: If request fails
+        """
+        try:
+            params = {}
+            if date_from:
+                params["date_from"] = date_from
+            if date_to:
+                params["date_to"] = date_to
+            if article_id:
+                params["article_id"] = article_id
+            if limit:
+                params["limit"] = limit
+
+            response = await self.client.get(
+                "/facts",
+                params=params,
+                cookies={"access_token": token}
+            )
+            response.raise_for_status()
+
+            return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"List facts failed: {e.response.status_code}")
+            raise
+
+        except Exception as e:
+            logger.error(f"List facts error: {str(e)}")
+            raise
+
     async def get_user_facts(
         self,
         token: str,
@@ -175,17 +227,19 @@ class APIClient:
         article_id: int,
         fact_date: str,
         amount: str,
-        description: Optional[str] = None
+        description: Optional[str] = None,
+        record_type: str = "fact"
     ) -> Dict[str, Any]:
         """
-        Create new fact (income/expense record).
+        Create new fact (income/expense record or budget plan).
 
         Args:
             token: JWT access token
             article_id: Article ID
             fact_date: Fact date (ISO format: YYYY-MM-DD)
-            amount: Amount (decimal string)
+            amount: Amount (decimal string, with sign: + for income, - for expense)
             description: Optional description
+            record_type: 'fact' for actual transactions, 'plan' for budget plans (default: 'fact')
 
         Returns:
             Dict containing created fact data
@@ -197,7 +251,8 @@ class APIClient:
             fact_data = {
                 "article_id": article_id,
                 "fact_date": fact_date,
-                "amount": amount
+                "amount": amount,
+                "record_type": record_type
             }
             if description:
                 fact_data["description"] = description
@@ -258,6 +313,187 @@ class APIClient:
 
         except Exception as e:
             logger.error(f"Get articles error: {str(e)}")
+            raise
+
+    async def list_articles(
+        self,
+        token: str,
+        limit: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        List user's articles (alias for get_articles with pagination).
+
+        Args:
+            token: JWT access token
+            limit: Maximum number of articles to return
+
+        Returns:
+            Dict containing articles list
+
+        Raises:
+            httpx.HTTPStatusError: If request fails
+        """
+        try:
+            params = {}
+            if limit:
+                params["limit"] = limit
+
+            response = await self.client.get(
+                "/articles",
+                params=params,
+                cookies={"access_token": token}
+            )
+            response.raise_for_status()
+
+            return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"List articles failed: {e.response.status_code}")
+            raise
+
+        except Exception as e:
+            logger.error(f"List articles error: {str(e)}")
+            raise
+
+    async def get_article(
+        self,
+        token: str,
+        article_id: int
+    ) -> Dict[str, Any]:
+        """
+        Get single article by ID.
+
+        Args:
+            token: JWT access token
+            article_id: Article ID
+
+        Returns:
+            Dict containing article data
+
+        Raises:
+            httpx.HTTPStatusError: If request fails
+        """
+        try:
+            response = await self.client.get(
+                f"/articles/{article_id}",
+                cookies={"access_token": token}
+            )
+            response.raise_for_status()
+
+            return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Get article failed: {e.response.status_code}")
+            raise
+
+        except Exception as e:
+            logger.error(f"Get article error: {str(e)}")
+            raise
+
+    async def get_fact(
+        self,
+        token: str,
+        fact_id: int
+    ) -> Dict[str, Any]:
+        """
+        Get single fact by ID.
+
+        Args:
+            token: JWT access token
+            fact_id: Fact ID
+
+        Returns:
+            Dict containing fact data
+
+        Raises:
+            httpx.HTTPStatusError: If request fails
+        """
+        try:
+            response = await self.client.get(
+                f"/facts/{fact_id}",
+                cookies={"access_token": token}
+            )
+            response.raise_for_status()
+
+            return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Get fact failed: {e.response.status_code}")
+            raise
+
+        except Exception as e:
+            logger.error(f"Get fact error: {str(e)}")
+            raise
+
+    async def update_fact(
+        self,
+        token: str,
+        fact_id: int,
+        **update_data
+    ) -> Dict[str, Any]:
+        """
+        Update fact fields.
+
+        Args:
+            token: JWT access token
+            fact_id: Fact ID
+            **update_data: Fields to update (amount, fact_date, description, article_id, etc.)
+
+        Returns:
+            Dict containing updated fact data
+
+        Raises:
+            httpx.HTTPStatusError: If request fails
+        """
+        try:
+            response = await self.client.put(
+                f"/facts/{fact_id}",
+                json=update_data,
+                cookies={"access_token": token}
+            )
+            response.raise_for_status()
+
+            logger.info(f"Fact {fact_id} updated")
+            return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Update fact failed: {e.response.status_code} - {e.response.text}")
+            raise
+
+        except Exception as e:
+            logger.error(f"Update fact error: {str(e)}")
+            raise
+
+    async def delete_fact(
+        self,
+        token: str,
+        fact_id: int
+    ) -> None:
+        """
+        Delete fact by ID.
+
+        Args:
+            token: JWT access token
+            fact_id: Fact ID
+
+        Raises:
+            httpx.HTTPStatusError: If request fails
+        """
+        try:
+            response = await self.client.delete(
+                f"/facts/{fact_id}",
+                cookies={"access_token": token}
+            )
+            response.raise_for_status()
+
+            logger.info(f"Fact {fact_id} deleted")
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Delete fact failed: {e.response.status_code} - {e.response.text}")
+            raise
+
+        except Exception as e:
+            logger.error(f"Delete fact error: {str(e)}")
             raise
 
 

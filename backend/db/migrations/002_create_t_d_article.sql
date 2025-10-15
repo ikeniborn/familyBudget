@@ -38,16 +38,6 @@ CREATE TABLE IF NOT EXISTS t_d_article (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     -- Constraints
-    -- Only one current record per user + code combination (for user articles)
-    CONSTRAINT unique_article_user_code_current
-        UNIQUE (user_id, code, is_current)
-        WHERE is_current = TRUE AND user_id IS NOT NULL,
-
-    -- Only one current record per code for global articles
-    CONSTRAINT unique_article_global_code_current
-        UNIQUE (code, is_current)
-        WHERE is_current = TRUE AND is_global = TRUE,
-
     -- Valid date range check
     CONSTRAINT check_article_valid_dates
         CHECK (valid_from < valid_to),
@@ -68,6 +58,22 @@ CREATE TABLE IF NOT EXISTS t_d_article (
     CONSTRAINT check_article_no_self_reference
         CHECK (parent_id IS NULL OR parent_id != id)
 );
+
+-- ============================================================================
+-- PARTIAL UNIQUE INDEXES (replace inline constraints with WHERE clauses)
+-- ============================================================================
+-- PostgreSQL does not support partial unique constraints as inline table constraints.
+-- We must create partial unique indexes separately.
+
+-- Only one current record per user + code combination (for user articles)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_article_user_code_current
+    ON t_d_article(user_id, code, is_current)
+    WHERE is_current = TRUE AND user_id IS NOT NULL;
+
+-- Only one current record per code for global articles
+CREATE UNIQUE INDEX IF NOT EXISTS idx_article_global_code_current
+    ON t_d_article(code, is_current)
+    WHERE is_current = TRUE AND is_global = TRUE;
 
 -- ============================================================================
 -- INDEXES

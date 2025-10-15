@@ -9,7 +9,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class FactCreate(BaseModel):
@@ -70,29 +70,52 @@ class FactCreate(BaseModel):
         examples=[None, 1]
     )
 
-    @field_validator("fact_date")
+    record_type: str = Field(
+        default="fact",
+        max_length=10,
+        description="Record type: 'fact' for actual transactions, 'plan' for budget plans",
+        examples=["fact", "plan"]
+    )
+
+    @field_validator("record_type")
     @classmethod
-    def date_validation(cls, v: date) -> date:
+    def record_type_validation(cls, v: str) -> str:
         """
-        Validate transaction date.
+        Validate record_type.
 
         Rules:
-        - Cannot be in the future
-        - Cannot be more than 10 years in the past (configurable)
+        - Must be either 'fact' or 'plan'
         """
+        if v not in ("fact", "plan"):
+            raise ValueError("record_type must be either 'fact' or 'plan'")
+        return v
+
+    @model_validator(mode='after')
+    def validate_date_by_record_type(self):
+        """
+        Validate transaction date based on record_type.
+
+        Rules:
+        - For 'fact' (actual transactions): date cannot be in the future
+        - For 'plan' (budget plans): date can be in future
+        - Both: date must be within reasonable range (not more than 10 years in past)
+        """
+        fact_date = self.fact_date
+        record_type = self.record_type
         today = date.today()
 
-        if v > today:
-            raise ValueError("Fact date cannot be in the future")
-
-        # Check if date is too old (more than 10 years ago)
+        # Check if date is too old (more than 10 years ago) - applies to both fact and plan
         ten_years_ago = today - timedelta(days=365 * 10)
-        if v < ten_years_ago:
+        if fact_date < ten_years_ago:
             raise ValueError(
-                f"Fact date cannot be more than 10 years in the past (earliest: {ten_years_ago.isoformat()})"
+                f"Date cannot be more than 10 years in the past (earliest: {ten_years_ago.isoformat()})"
             )
 
-        return v
+        # For 'fact' records: date cannot be in future
+        if record_type == "fact" and fact_date > today:
+            raise ValueError("Fact date cannot be in the future for actual transactions")
+
+        return self
 
     @field_validator("amount")
     @classmethod
@@ -197,6 +220,21 @@ class FactUpdate(BaseModel):
         description="Cost center ID",
         examples=[1]
     )
+
+    record_type: Optional[str] = Field(
+        default=None,
+        max_length=10,
+        description="Record type: 'fact' or 'plan'",
+        examples=["fact", "plan"]
+    )
+
+    @field_validator("record_type")
+    @classmethod
+    def record_type_validation(cls, v: Optional[str]) -> Optional[str]:
+        """Validate record_type if provided."""
+        if v is not None and v not in ("fact", "plan"):
+            raise ValueError("record_type must be either 'fact' or 'plan'")
+        return v
 
     @field_validator("fact_date")
     @classmethod
@@ -310,6 +348,11 @@ class FactResponse(BaseModel):
         examples=[None, 1]
     )
 
+    record_type: str = Field(
+        description="Record type: 'fact' for actual transactions, 'plan' for budget plans",
+        examples=["fact", "plan"]
+    )
+
     # Audit fields
     created_at: datetime = Field(
         description="Record creation timestamp",
@@ -333,6 +376,7 @@ class FactResponse(BaseModel):
                 "description": "Weekly groceries at supermarket",
                 "financial_center_id": None,
                 "cost_center_id": None,
+                "record_type": "fact",
                 "created_at": "2025-10-13T12:00:00Z",
                 "updated_at": "2025-10-13T12:00:00Z"
             }

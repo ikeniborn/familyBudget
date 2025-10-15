@@ -24,6 +24,7 @@ KEY_LANGUAGE = "settings_language"
 KEY_CURRENCY = "settings_currency"
 KEY_DATE_FORMAT = "settings_date_format"
 KEY_NOTIFICATIONS = "settings_notifications"
+KEY_BUDGET_THRESHOLD = "settings_budget_threshold"
 
 # Default settings
 DEFAULT_SETTINGS = {
@@ -31,6 +32,7 @@ DEFAULT_SETTINGS = {
     KEY_CURRENCY: "₽",
     KEY_DATE_FORMAT: "DD.MM.YYYY",
     KEY_NOTIFICATIONS: True,
+    KEY_BUDGET_THRESHOLD: 90,  # 90% threshold by default
 }
 
 
@@ -111,6 +113,7 @@ def build_settings_menu(current_settings: dict) -> InlineKeyboardMarkup:
     currency = current_settings[KEY_CURRENCY]
     date_format = current_settings[KEY_DATE_FORMAT]
     notifications = current_settings[KEY_NOTIFICATIONS]
+    budget_threshold = current_settings[KEY_BUDGET_THRESHOLD]
 
     keyboard = [
         [InlineKeyboardButton(
@@ -128,6 +131,10 @@ def build_settings_menu(current_settings: dict) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(
             f"🔔 Уведомления: {'Вкл' if notifications else 'Выкл'}",
             callback_data="setting:notifications"
+        )],
+        [InlineKeyboardButton(
+            f"⚠️ Порог бюджета: {budget_threshold}%",
+            callback_data="setting:budget_threshold"
         )],
         [InlineKeyboardButton("✅ Готово", callback_data="settings:done")],
     ]
@@ -158,6 +165,7 @@ def format_settings_display(settings: dict) -> str:
     currency = settings[KEY_CURRENCY]
     date_format = settings[KEY_DATE_FORMAT]
     notifications = "Включены" if settings[KEY_NOTIFICATIONS] else "Выключены"
+    budget_threshold = settings[KEY_BUDGET_THRESHOLD]
 
     return f"""⚙️ **Настройки профиля**
 
@@ -167,6 +175,7 @@ def format_settings_display(settings: dict) -> str:
 💱 Валюта: **{currency}**
 📅 Формат даты: **{date_format}**
 🔔 Уведомления: **{notifications}**
+⚠️ Порог бюджета: **{budget_threshold}%**
 
 Выберите настройку для изменения:"""
 
@@ -267,6 +276,26 @@ async def setting_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             parse_mode="Markdown"
         )
 
+    elif setting_key == "budget_threshold":
+        current_threshold = context.user_data.get(KEY_BUDGET_THRESHOLD, DEFAULT_SETTINGS[KEY_BUDGET_THRESHOLD])
+        keyboard = [
+            [InlineKeyboardButton("⚠️ 50%", callback_data="set:budget_threshold:50")],
+            [InlineKeyboardButton("⚠️ 70%", callback_data="set:budget_threshold:70")],
+            [InlineKeyboardButton("⚠️ 80%", callback_data="set:budget_threshold:80")],
+            [InlineKeyboardButton("⚠️ 90% (рекомендуется)", callback_data="set:budget_threshold:90")],
+            [InlineKeyboardButton("⚠️ 95%", callback_data="set:budget_threshold:95")],
+            [InlineKeyboardButton("« Назад", callback_data="settings:back")],
+        ]
+        await query.edit_message_text(
+            f"⚠️ **Порог уведомлений о бюджете**\n\n"
+            f"Текущий порог: **{current_threshold}%**\n\n"
+            f"Вы получите уведомление, когда расходы достигнут\n"
+            f"указанного процента от запланированного бюджета.\n\n"
+            f"Выберите порог уведомлений:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+
     return SELECT_SETTING
 
 
@@ -317,6 +346,8 @@ async def setting_value_selected(update: Update, context: ContextTypes.DEFAULT_T
         context.user_data[KEY_DATE_FORMAT] = value
     elif setting_key == "notifications":
         context.user_data[KEY_NOTIFICATIONS] = (value == "on")
+    elif setting_key == "budget_threshold":
+        context.user_data[KEY_BUDGET_THRESHOLD] = int(value)
 
     logger.info(f"Setting updated: {setting_key} = {value}")
 

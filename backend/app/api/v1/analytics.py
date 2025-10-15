@@ -282,81 +282,188 @@ async def get_category_breakdown(
 @router.get("/waterfall")
 async def get_waterfall_data(
     current_user: CurrentUser,
+    period: str = Query("year", regex="^(month|quarter|year)$"),
+    article_id: int | None = Query(None, description="Filter by specific article (for drill-down)"),
     session: AsyncSession = Depends(get_session)
 ):
     """
     Get cumulative flow data for waterfall chart.
 
     Shows monthly income, expense, and cumulative balance for current year.
+
+    Args:
+        period: Time aggregation (month, quarter, year)
+        article_id: Optional article filter for drill-down
+
+    Returns:
+        Dict with labels, income/expense data, balance, and metadata
     """
     today = date.today()
-    year_start = date(today.year, 1, 1)
 
-    # Query monthly totals
+    # Calculate date range and grouping based on period
+    if period == "month":
+        start_date = date(today.year, today.month, 1)
+        group_by_expr = Fact.fact_date
+        label_format = "%d"  # Day of month
+    elif period == "quarter":
+        current_quarter = (today.month - 1) // 3
+        quarter_start_month = current_quarter * 3 + 1
+        start_date = date(today.year, quarter_start_month, 1)
+        group_by_expr = func.extract("week", Fact.fact_date)
+        label_format = "W%W"  # Week number
+    else:  # year
+        start_date = date(today.year, 1, 1)
+        group_by_expr = func.extract("month", Fact.fact_date)
+        label_format = "month"
+
+    # Build base query
     query = select(
-        func.extract("month", Fact.fact_date).label("month"),
+        group_by_expr.label("period_key"),
         Article.type,
+        Article.id.label("article_id"),
+        Article.name.label("article_name"),
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
         Fact.user_id == current_user.id,
-        Fact.fact_date >= year_start,
+        Fact.fact_date >= start_date,
         Fact.fact_date <= today,
         Article.is_current == True  # noqa: E712
-    ).group_by(func.extract("month", Fact.fact_date), Article.type).order_by(func.extract("month", Fact.fact_date))
+    )
+
+    # Add article filter if specified (for drill-down)
+    if article_id:
+        query = query.where(Article.id == article_id)
+
+    query = query.group_by(group_by_expr, Article.type, Article.id, Article.name).order_by(group_by_expr)
 
     result = await session.execute(query)
     rows = result.all()
 
     # Build data structure
-    months_data = {}
-    for row in rows:
-        month = int(row.month)
-        if month not in months_data:
-            months_data[month] = {"income": 0.0, "expense": 0.0}
-        months_data[month][row.type] = float(row.total)
+    period_data = {}
+    articles_info = {}  # Track articles for drill-down
 
-    # Generate arrays
-    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    for row in rows:
+        period_key = int(row.period_key) if row.period_key else 0
+        if period_key not in period_data:
+            period_data[period_key] = {"income": 0.0, "expense": 0.0, "articles": []}
+
+        amount = float(row.total)
+        period_data[period_key][row.type] += amount
+
+        # Store article info for potential drill-down
+        if not article_id:  # Only track articles when not in drill-down mode
+            articles_info[row.article_id] = row.article_name
+            period_data[period_key]["articles"].append({
+                "id": row.article_id,
+                "name": row.article_name,
+                "type": row.type,
+                "amount": amount
+            })
+
+    # Generate arrays based on period type
     labels = []
     income_data = []
     expense_data = []
     balance_data = []
+    categories_data = []  # For drill-down links
 
     cumulative_balance = 0.0
-    for month in range(1, today.month + 1):
-        month_info = months_data.get(month, {"income": 0.0, "expense": 0.0})
-        income = month_info["income"]
-        expense = month_info["expense"]
-        month_balance = income - expense
-        cumulative_balance += month_balance
 
-        labels.append(month_names[month - 1])
-        income_data.append(income)
-        expense_data.append(expense)
-        balance_data.append(cumulative_balance)
+    if period == "month":
+        # Days in current month
+        month_days = (date(today.year, today.month + 1, 1) - start_date).days if today.month < 12 else 31
+        for day in range(1, min(month_days, today.day) + 1):
+            period_info = period_data.get(day, {"income": 0.0, "expense": 0.0, "articles": []})
+            income = period_info["income"]
+            expense = period_info["expense"]
+            day_balance = income - expense
+            cumulative_balance += day_balance
+
+            labels.append(f"Day {day}")
+            income_data.append(income)
+            expense_data.append(expense)
+            balance_data.append(cumulative_balance)
+            categories_data.append(period_info.get("articles", []))
+
+    elif period == "quarter":
+        # Weeks in current quarter
+        current_date = start_date
+        week_num = 1
+        while current_date <= today:
+            week_key = current_date.isocalendar()[1]  # ISO week number
+            period_info = period_data.get(week_key, {"income": 0.0, "expense": 0.0, "articles": []})
+            income = period_info["income"]
+            expense = period_info["expense"]
+            week_balance = income - expense
+            cumulative_balance += week_balance
+
+            labels.append(f"W{week_num}")
+            income_data.append(income)
+            expense_data.append(expense)
+            balance_data.append(cumulative_balance)
+            categories_data.append(period_info.get("articles", []))
+
+            current_date += timedelta(days=7)
+            week_num += 1
+
+    else:  # year
+        month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        for month in range(1, today.month + 1):
+            period_info = period_data.get(month, {"income": 0.0, "expense": 0.0, "articles": []})
+            income = period_info["income"]
+            expense = period_info["expense"]
+            month_balance = income - expense
+            cumulative_balance += month_balance
+
+            labels.append(month_names[month - 1])
+            income_data.append(income)
+            expense_data.append(expense)
+            balance_data.append(cumulative_balance)
+            categories_data.append(period_info.get("articles", []))
 
     return {
         "labels": labels,
         "income": income_data,
         "expense": expense_data,
         "balance": balance_data,
-        "year": today.year
+        "categories": categories_data,  # For drill-down
+        "period": period,
+        "year": today.year,
+        "article_id": article_id,
+        "article_name": articles_info.get(article_id) if article_id else None
     }
 
 
 @router.get("/heatmap")
 async def get_heatmap_data(
     current_user: CurrentUser,
+    period: str = Query("quarter", regex="^(month|quarter|year)$"),
     session: AsyncSession = Depends(get_session)
 ):
     """
     Get spending patterns data for heatmap.
 
-    Shows expense amounts by day of week and hour of day (uses fact_date for day, assumes midday for hour).
+    Args:
+        period: Time range (month, quarter, year)
+
+    Returns:
+        Heatmap data showing expense patterns by day of week over time
     """
-    # Get last 90 days
     end_date = date.today()
-    start_date = end_date - timedelta(days=90)
+
+    # Calculate date range based on period
+    if period == "month":
+        start_date = date(end_date.year, end_date.month, 1)
+        weeks_to_show = 4
+    elif period == "quarter":
+        current_quarter = (end_date.month - 1) // 3
+        quarter_start_month = current_quarter * 3 + 1
+        start_date = date(end_date.year, quarter_start_month, 1)
+        weeks_to_show = 12
+    else:  # year
+        start_date = date(end_date.year, 1, 1)
+        weeks_to_show = 52
 
     # Query all facts
     query = select(
@@ -390,12 +497,17 @@ async def get_heatmap_data(
         weeks.append(week_data)
         current_date += timedelta(days=7)
 
-    # Limit to last 12 weeks for visualization
-    weeks = weeks[-12:]
+    # Limit weeks based on period
+    weeks = weeks[-weeks_to_show:]
+
+    period_days = (end_date - start_date).days
 
     return {
         "weeks": weeks,
         "day_labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
         "week_count": len(weeks),
-        "period_days": 90
+        "period_days": period_days,
+        "period": period,
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat()
     }

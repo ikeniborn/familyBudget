@@ -25,6 +25,7 @@ from telegram.ext import (
 
 from bot.utils.api_client import get_api_client
 from bot.utils.logger import get_logger
+from bot.utils.notification_service import get_notification_service
 from bot.utils.session import SessionManager
 from bot.utils.validators import (
     ValidationError,
@@ -39,7 +40,7 @@ from bot.utils.validators import (
 logger = get_logger(__name__)
 
 # Conversation states
-SELECT_ARTICLE, ENTER_AMOUNT, ENTER_DATE, ENTER_DESCRIPTION, CONFIRM = range(5)
+SELECT_ARTICLE, ENTER_AMOUNT, ENTER_DATE, ENTER_DESCRIPTION, SELECT_FINANCIAL_CENTER, SELECT_COST_CENTER, CONFIRM = range(7)
 
 # Context keys for storing conversation data
 KEY_ARTICLE_ID = "article_id"
@@ -48,6 +49,10 @@ KEY_ARTICLE_TYPE = "article_type"
 KEY_AMOUNT = "amount"
 KEY_DATE = "date"
 KEY_DESCRIPTION = "description"
+KEY_FINANCIAL_CENTER_ID = "financial_center_id"
+KEY_FINANCIAL_CENTER_NAME = "financial_center_name"
+KEY_COST_CENTER_ID = "cost_center_id"
+KEY_COST_CENTER_NAME = "cost_center_name"
 
 
 async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -441,9 +446,9 @@ async def description_entered(update: Update, context: ContextTypes.DEFAULT_TYPE
             context.user_data[KEY_DESCRIPTION] = None
             logger.info("Description skipped")
 
-            # Show confirmation
-            await show_confirmation(query, context, edit_message=True)
-            return CONFIRM
+            # Proceed to financial center selection
+            await show_financial_center_selection(query, context, edit_message=True)
+            return SELECT_FINANCIAL_CENTER
 
     # Handle text input
     elif update.message:
@@ -458,9 +463,9 @@ async def description_entered(update: Update, context: ContextTypes.DEFAULT_TYPE
 
             logger.info(f"Description entered: {description}")
 
-            # Show confirmation
-            await show_confirmation(update.message, context, edit_message=False)
-            return CONFIRM
+            # Proceed to financial center selection
+            await show_financial_center_selection(update.message, context, edit_message=False)
+            return SELECT_FINANCIAL_CENTER
 
         except ValidationError as e:
             # Validation failed - show error and stay in same state
@@ -471,6 +476,278 @@ async def description_entered(update: Update, context: ContextTypes.DEFAULT_TYPE
             return ENTER_DESCRIPTION
 
     return ENTER_DESCRIPTION
+
+
+async def show_financial_center_selection(
+    message_or_query,
+    context: ContextTypes.DEFAULT_TYPE,
+    edit_message: bool = False
+):
+    """
+    Show financial center selection with skip button.
+
+    Args:
+        message_or_query: Message or CallbackQuery object
+        context: Bot context
+        edit_message: Whether to edit existing message (for callback queries)
+    """
+    try:
+        # Fetch financial centers from backend
+        token = SessionManager.get_access_token(context)
+        api_client = await get_api_client()
+        response = await api_client.get(
+            "/financial-centers",
+            token=token,
+            params={"limit": 1000, "include_global": "true"}
+        )
+
+        centers = response.get("financial_centers", [])
+
+        # Build inline keyboard
+        keyboard = []
+
+        if centers:
+            # Add center buttons (2 per row)
+            center_buttons = [
+                InlineKeyboardButton(
+                    f"{c['name']}" + (" 🌐" if c.get('is_global') else ""),
+                    callback_data=f"fc:{c['id']}"
+                )
+                for c in centers
+            ]
+
+            # Split into rows of 2
+            for i in range(0, len(center_buttons), 2):
+                keyboard.append(center_buttons[i:i + 2])
+
+        # Skip button
+        keyboard.append([
+            InlineKeyboardButton("⏭️ Пропустить ЦФО", callback_data="skip_financial_center")
+        ])
+
+        keyboard_markup = InlineKeyboardMarkup(keyboard)
+
+        message_text = (
+            f"💰 **Добавление транзакции**\n\n"
+            f"📋 Шаг 5/6: Выберите ЦФО (необязательно)\n\n"
+            f"Финансовый центр (ЦФО) - счет, кошелек, наличные:\n\n"
+            f"Или нажмите \"Пропустить\", чтобы не указывать.\n"
+            f"Отправьте /cancel для отмены"
+        )
+
+        # Send or edit message
+        if edit_message and hasattr(message_or_query, "edit_message_text"):
+            await message_or_query.edit_message_text(
+                message_text,
+                reply_markup=keyboard_markup,
+                parse_mode="Markdown"
+            )
+        else:
+            await message_or_query.reply_text(
+                message_text,
+                reply_markup=keyboard_markup,
+                parse_mode="Markdown"
+            )
+
+    except Exception as e:
+        logger.error(f"Error fetching financial centers: {e}", exc_info=True)
+
+        # Fallback: show skip button only
+        keyboard = InlineKeyboardMarkup([[
+            InlineKeyboardButton("⏭️ Пропустить ЦФО", callback_data="skip_financial_center")
+        ]])
+
+        error_text = (
+            "⚠️ Не удалось загрузить список ЦФО.\n\n"
+            "Нажмите \"Пропустить\", чтобы продолжить без указания ЦФО."
+        )
+
+        if edit_message and hasattr(message_or_query, "edit_message_text"):
+            await message_or_query.edit_message_text(error_text, reply_markup=keyboard)
+        else:
+            await message_or_query.reply_text(error_text, reply_markup=keyboard)
+
+
+async def financial_center_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Handle financial center selection or skip.
+
+    Returns:
+        int: Next state (SELECT_COST_CENTER)
+    """
+    query = update.callback_query
+    await query.answer()
+
+    callback_data = query.data
+
+    # Handle skip
+    if callback_data == "skip_financial_center":
+        context.user_data[KEY_FINANCIAL_CENTER_ID] = None
+        context.user_data[KEY_FINANCIAL_CENTER_NAME] = None
+        logger.info("Financial center skipped")
+
+    # Handle selection
+    elif callback_data.startswith("fc:"):
+        try:
+            center_id = int(callback_data.split(":")[1])
+
+            # Fetch center details
+            token = SessionManager.get_access_token(context)
+            api_client = await get_api_client()
+            center = await api_client.get(
+                f"/financial-centers/{center_id}",
+                token=token
+            )
+
+            context.user_data[KEY_FINANCIAL_CENTER_ID] = center["id"]
+            context.user_data[KEY_FINANCIAL_CENTER_NAME] = center["name"]
+
+            logger.info(f"Financial center selected: {center['name']} (ID: {center_id})")
+
+        except Exception as e:
+            logger.error(f"Error fetching financial center: {e}", exc_info=True)
+            context.user_data[KEY_FINANCIAL_CENTER_ID] = None
+            context.user_data[KEY_FINANCIAL_CENTER_NAME] = None
+
+    # Proceed to cost center selection
+    await show_cost_center_selection(query, context, edit_message=True)
+    return SELECT_COST_CENTER
+
+
+async def show_cost_center_selection(
+    message_or_query,
+    context: ContextTypes.DEFAULT_TYPE,
+    edit_message: bool = False
+):
+    """
+    Show cost center selection with skip button.
+
+    Args:
+        message_or_query: Message or CallbackQuery object
+        context: Bot context
+        edit_message: Whether to edit existing message (for callback queries)
+    """
+    try:
+        # Fetch cost centers from backend
+        token = SessionManager.get_access_token(context)
+        api_client = await get_api_client()
+        response = await api_client.get(
+            "/cost-centers",
+            token=token,
+            params={"limit": 1000, "include_global": "true"}
+        )
+
+        centers = response.get("cost_centers", [])
+
+        # Build inline keyboard
+        keyboard = []
+
+        if centers:
+            # Add center buttons (2 per row)
+            center_buttons = [
+                InlineKeyboardButton(
+                    f"{c['name']}" + (" 🌐" if c.get('is_global') else ""),
+                    callback_data=f"cc:{c['id']}"
+                )
+                for c in centers
+            ]
+
+            # Split into rows of 2
+            for i in range(0, len(center_buttons), 2):
+                keyboard.append(center_buttons[i:i + 2])
+
+        # Skip button
+        keyboard.append([
+            InlineKeyboardButton("⏭️ Пропустить МВЗ", callback_data="skip_cost_center")
+        ])
+
+        keyboard_markup = InlineKeyboardMarkup(keyboard)
+
+        message_text = (
+            f"💰 **Добавление транзакции**\n\n"
+            f"📋 Шаг 6/6: Выберите МВЗ (необязательно)\n\n"
+            f"Место возникновения затрат (МВЗ) - проект, отдел, группа:\n\n"
+            f"Или нажмите \"Пропустить\", чтобы не указывать.\n"
+            f"Отправьте /cancel для отмены"
+        )
+
+        # Send or edit message
+        if edit_message and hasattr(message_or_query, "edit_message_text"):
+            await message_or_query.edit_message_text(
+                message_text,
+                reply_markup=keyboard_markup,
+                parse_mode="Markdown"
+            )
+        else:
+            await message_or_query.reply_text(
+                message_text,
+                reply_markup=keyboard_markup,
+                parse_mode="Markdown"
+            )
+
+    except Exception as e:
+        logger.error(f"Error fetching cost centers: {e}", exc_info=True)
+
+        # Fallback: show skip button only
+        keyboard = InlineKeyboardMarkup([[
+            InlineKeyboardButton("⏭️ Пропустить МВЗ", callback_data="skip_cost_center")
+        ]])
+
+        error_text = (
+            "⚠️ Не удалось загрузить список МВЗ.\n\n"
+            "Нажмите \"Пропустить\", чтобы продолжить без указания МВЗ."
+        )
+
+        if edit_message and hasattr(message_or_query, "edit_message_text"):
+            await message_or_query.edit_message_text(error_text, reply_markup=keyboard)
+        else:
+            await message_or_query.reply_text(error_text, reply_markup=keyboard)
+
+
+async def cost_center_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Handle cost center selection or skip.
+
+    Returns:
+        int: Next state (CONFIRM)
+    """
+    query = update.callback_query
+    await query.answer()
+
+    callback_data = query.data
+
+    # Handle skip
+    if callback_data == "skip_cost_center":
+        context.user_data[KEY_COST_CENTER_ID] = None
+        context.user_data[KEY_COST_CENTER_NAME] = None
+        logger.info("Cost center skipped")
+
+    # Handle selection
+    elif callback_data.startswith("cc:"):
+        try:
+            center_id = int(callback_data.split(":")[1])
+
+            # Fetch center details
+            token = SessionManager.get_access_token(context)
+            api_client = await get_api_client()
+            center = await api_client.get(
+                f"/cost-centers/{center_id}",
+                token=token
+            )
+
+            context.user_data[KEY_COST_CENTER_ID] = center["id"]
+            context.user_data[KEY_COST_CENTER_NAME] = center["name"]
+
+            logger.info(f"Cost center selected: {center['name']} (ID: {center_id})")
+
+        except Exception as e:
+            logger.error(f"Error fetching cost center: {e}", exc_info=True)
+            context.user_data[KEY_COST_CENTER_ID] = None
+            context.user_data[KEY_COST_CENTER_NAME] = None
+
+    # Proceed to confirmation
+    await show_confirmation(query, context, edit_message=True)
+    return CONFIRM
 
 
 async def show_confirmation(
@@ -492,6 +769,8 @@ async def show_confirmation(
     amount_str = context.user_data.get(KEY_AMOUNT, "0")
     date_str = context.user_data.get(KEY_DATE, "")
     description = context.user_data.get(KEY_DESCRIPTION)
+    financial_center_name = context.user_data.get(KEY_FINANCIAL_CENTER_NAME)
+    cost_center_name = context.user_data.get(KEY_COST_CENTER_NAME)
 
     # Format values
     amount = Decimal(amount_str)
@@ -499,6 +778,8 @@ async def show_confirmation(
 
     article_type_ru = "💵 Доход" if article_type == "income" else "💸 Расход"
     description_display = description if description else "_не указано_"
+    fc_display = financial_center_name if financial_center_name else "_не указано_"
+    cc_display = cost_center_name if cost_center_name else "_не указано_"
 
     # Build confirmation message
     confirmation_text = (
@@ -507,7 +788,9 @@ async def show_confirmation(
         f"Категория: **{article_name}** ({article_type_ru})\n"
         f"Сумма: **{format_amount(amount)}** ₽\n"
         f"Дата: **{format_date(fact_date)}**\n"
-        f"Описание: {description_display}\n\n"
+        f"Описание: {description_display}\n"
+        f"ЦФО: {fc_display}\n"
+        f"МВЗ: {cc_display}\n\n"
         f"Сохранить транзакцию?"
     )
 
@@ -572,30 +855,37 @@ async def confirmation_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         try:
             # Gather data
             article_id = context.user_data.get(KEY_ARTICLE_ID)
+            article_type = context.user_data.get(KEY_ARTICLE_TYPE)
             amount_str = context.user_data.get(KEY_AMOUNT)
             date_str = context.user_data.get(KEY_DATE)
             description = context.user_data.get(KEY_DESCRIPTION)
+            financial_center_id = context.user_data.get(KEY_FINANCIAL_CENTER_ID)
+            cost_center_id = context.user_data.get(KEY_COST_CENTER_ID)
 
-            if not all([article_id, amount_str, date_str]):
+            if not all([article_id, article_type, amount_str, date_str]):
                 raise ValueError("Missing required data")
+
+            # Apply sign to amount based on article type
+            # Convention: income = positive (+), expense = negative (-)
+            amount_value = Decimal(amount_str)
+            if article_type == "expense":
+                amount_value = -abs(amount_value)  # Make negative for expenses
+            elif article_type == "income":
+                amount_value = abs(amount_value)   # Keep positive for income
 
             # Create fact via API
             token = SessionManager.get_access_token(context)
             api_client = await get_api_client()
 
-            fact_data = {
-                "article_id": article_id,
-                "amount": amount_str,
-                "fact_date": date_str,
-                "description": description
-            }
-
             fact = await api_client.create_fact(
                 token=token,
                 article_id=article_id,
                 fact_date=date_str,
-                amount=amount_str,
-                description=description
+                amount=str(amount_value),  # Send signed amount
+                description=description,
+                record_type="fact",  # Explicit: this is actual transaction
+                financial_center_id=financial_center_id,  # Optional ЦФО
+                cost_center_id=cost_center_id  # Optional МВЗ
             )
 
             # Show success message
@@ -615,6 +905,47 @@ async def confirmation_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             )
 
             logger.info(f"Fact created successfully: ID={fact['id']}")
+
+            # Check budget threshold for expenses (if notifications enabled)
+            if article_type == "expense":
+                try:
+                    # Get user's notification settings
+                    from bot.handlers.settings import KEY_NOTIFICATIONS, KEY_BUDGET_THRESHOLD, DEFAULT_SETTINGS
+
+                    notifications_enabled = context.user_data.get(
+                        KEY_NOTIFICATIONS,
+                        DEFAULT_SETTINGS[KEY_NOTIFICATIONS]
+                    )
+
+                    if notifications_enabled:
+                        threshold_percent = context.user_data.get(
+                            KEY_BUDGET_THRESHOLD,
+                            DEFAULT_SETTINGS[KEY_BUDGET_THRESHOLD]
+                        )
+
+                        # Get notification service
+                        notification_service = get_notification_service()
+
+                        if notification_service:
+                            user_telegram_id = update.effective_user.id
+
+                            # Check threshold (async, non-blocking)
+                            await notification_service.check_budget_threshold(
+                                token=token,
+                                telegram_id=user_telegram_id,
+                                article_id=article_id,
+                                threshold_percent=threshold_percent
+                            )
+
+                            logger.debug(
+                                f"Budget threshold check completed for article {article_id}"
+                            )
+                        else:
+                            logger.warning("Notification service not initialized")
+
+                except Exception as e:
+                    # Don't fail transaction if notification check fails
+                    logger.error(f"Error checking budget threshold: {e}", exc_info=True)
 
             return ConversationHandler.END
 
@@ -666,6 +997,12 @@ add_conversation_handler = ConversationHandler(
         ENTER_DESCRIPTION: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, description_entered),
             CallbackQueryHandler(description_entered, pattern="^skip_description$")
+        ],
+        SELECT_FINANCIAL_CENTER: [
+            CallbackQueryHandler(financial_center_selected, pattern="^(fc:|skip_financial_center)"),
+        ],
+        SELECT_COST_CENTER: [
+            CallbackQueryHandler(cost_center_selected, pattern="^(cc:|skip_cost_center)"),
         ],
         CONFIRM: [
             CallbackQueryHandler(confirmation_handler, pattern="^confirm_")

@@ -2,12 +2,14 @@
 Pydantic schemas package.
 
 This package contains all Pydantic schemas for request/response validation.
-Schemas are organized by domain (auth, users, articles, facts).
+Schemas are organized by domain (auth, users, articles, facts, financial centers, cost centers).
 
 Schemas:
     Auth: TelegramAuthData, UserResponse, AuthResponse
     Users: UserUpdate, UserDetailResponse, UserListResponse
     Articles: ArticleCreate, ArticleUpdate, ArticleResponse, ArticleListResponse
+    FinancialCenters: FinancialCenterCreate, FinancialCenterUpdate, FinancialCenterResponse, FinancialCenterListResponse
+    CostCenters: CostCenterCreate, CostCenterUpdate, CostCenterResponse, CostCenterListResponse
     Facts: FactCreate, FactUpdate, FactResponse, FactListResponse, FactSummary
     Errors: ErrorResponse, ValidationErrorResponse, get_common_responses
 """
@@ -20,6 +22,12 @@ from backend.app.schemas.article import (
     ArticleResponse,
     ArticleUpdate,
 )
+from backend.app.schemas.cost_center import (
+    CostCenterCreate,
+    CostCenterListResponse,
+    CostCenterResponse,
+    CostCenterUpdate,
+)
 from backend.app.schemas.errors import (
     ErrorResponse,
     ValidationErrorResponse,
@@ -31,6 +39,12 @@ from backend.app.schemas.fact import (
     FactResponse,
     FactSummary,
     FactUpdate,
+)
+from backend.app.schemas.financial_center import (
+    FinancialCenterCreate,
+    FinancialCenterListResponse,
+    FinancialCenterResponse,
+    FinancialCenterUpdate,
 )
 from backend.app.schemas.user import (
     UserDetailResponse,
@@ -53,6 +67,16 @@ __all__ = [
     "ArticleResponse",
     "ArticleHierarchyInfo",
     "ArticleListResponse",
+    # Financial Center schemas
+    "FinancialCenterCreate",
+    "FinancialCenterUpdate",
+    "FinancialCenterResponse",
+    "FinancialCenterListResponse",
+    # Cost Center schemas
+    "CostCenterCreate",
+    "CostCenterUpdate",
+    "CostCenterResponse",
+    "CostCenterListResponse",
     # Fact schemas
     "FactCreate",
     "FactUpdate",

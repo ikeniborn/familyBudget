@@ -1,0 +1,634 @@
+============================================================================
+PERFORMANCE ANALYSIS REPORT
+============================================================================
+
+1. DATABASE SIZE ANALYSIS
+-----------------------------------
+
+ schemaname |       tablename       | total_size | table_size | indexes_size | row_count 
+------------+-----------------------+------------+------------+--------------+-----------
+ public     | t_d_article           | 264 kB     | 8192 bytes | 256 kB       |        28
+ public     | t_d_financial_center  | 208 kB     | 8192 bytes | 200 kB       |         9
+ public     | t_d_cost_center       | 208 kB     | 8192 bytes | 200 kB       |         9
+ public     | t_d_user              | 144 kB     | 8192 bytes | 136 kB       |        10
+ public     | t_d_article_hierarchy | 136 kB     | 8192 bytes | 128 kB       |        34
+ public     | t_notification        | 48 kB      | 0 bytes    | 48 kB        |         0
+ public     | t_f_budget_fact       | 0 bytes    | 0 bytes    | 0 bytes      |         0
+(7 rows)
+
+
+2. INDEX USAGE STATISTICS
+-----------------------------------
+
+
+ERROR:  column "tablename" does not exist
+LINE 3:     tablename,
+            ^
+3. QUERY 1: WATERFALL CHART (Year Aggregation)
+-----------------------------------
+
+NOTICE:  Testing with user_id: 11, date range: 2025-01-01 to 2025-10-14
+DO
+                                                                                                              QUERY PLAN                                                                                                              
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ GroupAggregate  (cost=124.82..131.14 rows=253 width=642) (actual time=0.989..1.139 rows=192 loops=1)
+   Output: (EXTRACT(month FROM f.fact_date)), a.type, a.id, a.name, sum(f.amount)
+   Group Key: (EXTRACT(month FROM f.fact_date)), a.id
+   Buffers: shared hit=55
+   InitPlan 1 (returns $0)
+     ->  Limit  (cost=0.00..0.42 rows=1 width=4) (actual time=0.005..0.005 rows=1 loops=1)
+           Output: t_d_user.id
+           Buffers: shared hit=1
+           ->  Seq Scan on public.t_d_user  (cost=0.00..10.50 rows=25 width=4) (actual time=0.004..0.004 rows=1 loops=1)
+                 Output: t_d_user.id
+                 Filter: t_d_user.is_current
+                 Buffers: shared hit=1
+   ->  Sort  (cost=124.40..125.03 rows=253 width=617) (actual time=0.984..1.007 rows=969 loops=1)
+         Output: (EXTRACT(month FROM f.fact_date)), a.id, a.type, a.name, f.amount
+         Sort Key: (EXTRACT(month FROM f.fact_date)), a.id
+         Sort Method: quicksort  Memory: 86kB
+         Buffers: shared hit=55
+         ->  Hash Join  (cost=11.90..114.30 rows=253 width=617) (actual time=0.086..0.644 rows=969 loops=1)
+               Output: EXTRACT(month FROM f.fact_date), a.id, a.type, a.name, f.amount
+               Inner Unique: true
+               Hash Cond: (f.article_id = a.id)
+               Buffers: shared hit=49
+               ->  Append  (cost=0.28..99.33 rows=1013 width=15) (actual time=0.051..0.450 rows=969 loops=1)
+                     Buffers: shared hit=48
+                     Subplans Removed: 14
+                     ->  Index Only Scan using t_f_budget_fact_2025_01_user_id_article_id_fact_date_amount_idx on public.t_f_budget_fact_2025_01 f_1  (cost=0.28..4.89 rows=107 width=15) (actual time=0.051..0.063 rows=97 loops=1)
+                           Output: f_1.fact_date, f_1.amount, f_1.article_id
+                           Index Cond: ((f_1.user_id = $0) AND (f_1.fact_date >= '2025-01-01'::date) AND (f_1.fact_date <= CURRENT_DATE))
+                           Heap Fetches: 0
+                           Buffers: shared hit=5
+                     ->  Bitmap Heap Scan on public.t_f_budget_fact_2025_02 f_2  (cost=2.01..17.97 rows=98 width=15) (actual time=0.023..0.085 rows=78 loops=1)
+                           Output: f_2.fact_date, f_2.amount, f_2.article_id
+                           Recheck Cond: (f_2.user_id = $0)
+                           Filter: ((f_2.fact_date >= '2025-01-01'::date) AND (f_2.fact_date <= CURRENT_DATE))
+                           Heap Blocks: exact=14
+                           Buffers: shared hit=15
+                           ->  Bitmap Index Scan on t_f_budget_fact_2025_02_user_id_idx  (cost=0.00..1.98 rows=98 width=0) (actual time=0.018..0.018 rows=78 loops=1)
+                                 Index Cond: (f_2.user_id = $0)
+                                 Buffers: shared hit=1
+                     ->  Index Only Scan using t_f_budget_fact_2025_03_user_id_article_id_fact_date_amount_idx on public.t_f_budget_fact_2025_03 f_3  (cost=0.28..5.00 rows=112 width=15) (actual time=0.033..0.040 rows=123 loops=1)
+                           Output: f_3.fact_date, f_3.amount, f_3.article_id
+                           Index Cond: ((f_3.user_id = $0) AND (f_3.fact_date >= '2025-01-01'::date) AND (f_3.fact_date <= CURRENT_DATE))
+                           Heap Fetches: 0
+                           Buffers: shared hit=3
+                     ->  Index Only Scan using t_f_budget_fact_2025_04_user_id_fact_date_amount_article_id_idx on public.t_f_budget_fact_2025_04 f_4  (cost=0.28..3.65 rows=101 width=15) (actual time=0.028..0.032 rows=95 loops=1)
+                           Output: f_4.fact_date, f_4.amount, f_4.article_id
+                           Index Cond: ((f_4.user_id = $0) AND (f_4.fact_date >= '2025-01-01'::date) AND (f_4.fact_date <= CURRENT_DATE))
+                           Heap Fetches: 0
+                           Buffers: shared hit=3
+                     ->  Index Only Scan using t_f_budget_fact_2025_05_user_id_fact_date_amount_article_id_idx on public.t_f_budget_fact_2025_05 f_5  (cost=0.28..3.70 rows=103 width=15) (actual time=0.020..0.026 rows=89 loops=1)
+                           Output: f_5.fact_date, f_5.amount, f_5.article_id
+                           Index Cond: ((f_5.user_id = $0) AND (f_5.fact_date >= '2025-01-01'::date) AND (f_5.fact_date <= CURRENT_DATE))
+                           Heap Fetches: 0
+                           Buffers: shared hit=3
+                     ->  Index Only Scan using t_f_budget_fact_2025_06_user_id_fact_date_amount_article_id_idx on public.t_f_budget_fact_2025_06 f_6  (cost=0.28..3.74 rows=105 width=15) (actual time=0.028..0.033 rows=106 loops=1)
+                           Output: f_6.fact_date, f_6.amount, f_6.article_id
+                           Index Cond: ((f_6.user_id = $0) AND (f_6.fact_date >= '2025-01-01'::date) AND (f_6.fact_date <= CURRENT_DATE))
+                           Heap Fetches: 0
+                           Buffers: shared hit=3
+                     ->  Index Only Scan using t_f_budget_fact_2025_07_user_id_article_id_fact_date_amount_idx on public.t_f_budget_fact_2025_07 f_7  (cost=0.28..4.91 rows=108 width=15) (actual time=0.030..0.038 rows=122 loops=1)
+                           Output: f_7.fact_date, f_7.amount, f_7.article_id
+                           Index Cond: ((f_7.user_id = $0) AND (f_7.fact_date >= '2025-01-01'::date) AND (f_7.fact_date <= CURRENT_DATE))
+                           Heap Fetches: 0
+                           Buffers: shared hit=3
+                     ->  Index Only Scan using t_f_budget_fact_2025_08_user_id_fact_date_amount_article_id_idx on public.t_f_budget_fact_2025_08 f_8  (cost=0.28..4.01 rows=117 width=15) (actual time=0.024..0.030 rows=125 loops=1)
+                           Output: f_8.fact_date, f_8.amount, f_8.article_id
+                           Index Cond: ((f_8.user_id = $0) AND (f_8.fact_date >= '2025-01-01'::date) AND (f_8.fact_date <= CURRENT_DATE))
+                           Heap Fetches: 0
+                           Buffers: shared hit=3
+                     ->  Index Only Scan using t_f_budget_fact_2025_09_user_id_fact_date_amount_article_id_idx on public.t_f_budget_fact_2025_09 f_9  (cost=0.28..3.76 rows=106 width=15) (actual time=0.024..0.029 rows=99 loops=1)
+                           Output: f_9.fact_date, f_9.amount, f_9.article_id
+                           Index Cond: ((f_9.user_id = $0) AND (f_9.fact_date >= '2025-01-01'::date) AND (f_9.fact_date <= CURRENT_DATE))
+                           Heap Fetches: 0
+                           Buffers: shared hit=3
+                     ->  Bitmap Heap Scan on public.t_f_budget_fact_2025_10 f_10  (cost=1.57..9.41 rows=42 width=15) (actual time=0.015..0.033 rows=35 loops=1)
+                           Output: f_10.fact_date, f_10.amount, f_10.article_id
+                           Recheck Cond: (f_10.user_id = $0)
+                           Filter: ((f_10.fact_date >= '2025-01-01'::date) AND (f_10.fact_date <= CURRENT_DATE))
+                           Heap Blocks: exact=6
+                           Buffers: shared hit=7
+                           ->  Bitmap Index Scan on t_f_budget_fact_2025_10_user_id_idx  (cost=0.00..1.56 rows=42 width=0) (actual time=0.012..0.012 rows=35 loops=1)
+                                 Index Cond: (f_10.user_id = $0)
+                                 Buffers: shared hit=1
+               ->  Hash  (cost=11.00..11.00 rows=50 width=578) (actual time=0.015..0.015 rows=28 loops=1)
+                     Output: a.type, a.id, a.name
+                     Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                     Buffers: shared hit=1
+                     ->  Seq Scan on public.t_d_article a  (cost=0.00..11.00 rows=50 width=578) (actual time=0.004..0.006 rows=28 loops=1)
+                           Output: a.type, a.id, a.name
+                           Filter: a.is_current
+                           Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=9753
+ Planning Time: 41.116 ms
+ Execution Time: 1.444 ms
+(95 rows)
+
+
+4. QUERY 2: HEATMAP QUERY (Daily Expenses)
+-----------------------------------
+
+                                                                                                            QUERY PLAN                                                                                                             
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ GroupAggregate  (cost=53.98..54.02 rows=2 width=36) (actual time=0.405..0.445 rows=87 loops=1)
+   Output: f.fact_date, sum(f.amount)
+   Group Key: f.fact_date
+   Buffers: shared hit=200
+   InitPlan 1 (returns $0)
+     ->  Limit  (cost=0.00..0.42 rows=1 width=4) (actual time=0.005..0.006 rows=1 loops=1)
+           Output: t_d_user.id
+           Buffers: shared hit=1
+           ->  Seq Scan on public.t_d_user  (cost=0.00..10.50 rows=25 width=4) (actual time=0.004..0.004 rows=1 loops=1)
+                 Output: t_d_user.id
+                 Filter: t_d_user.is_current
+                 Buffers: shared hit=1
+   ->  Sort  (cost=53.56..53.57 rows=2 width=11) (actual time=0.400..0.406 rows=243 loops=1)
+         Output: f.fact_date, f.amount
+         Sort Key: f.fact_date
+         Sort Method: quicksort  Memory: 34kB
+         Buffers: shared hit=200
+         ->  Nested Loop  (cost=0.43..53.55 rows=2 width=11) (actual time=0.041..0.349 rows=243 loops=1)
+               Output: f.fact_date, f.amount
+               Buffers: shared hit=197
+               ->  Index Scan using idx_article_type on public.t_d_article a  (cost=0.14..2.36 rows=1 width=4) (actual time=0.017..0.022 rows=21 loops=1)
+                     Output: a.id, a.user_id, a.parent_id, a.code, a.name, a.type, a.is_global, a.valid_from, a.valid_to, a.is_current, a.created_at, a.updated_at
+                     Index Cond: ((a.type)::text = 'expense'::text)
+                     Filter: a.is_current
+                     Buffers: shared hit=2
+               ->  Append  (cost=0.29..50.87 rows=32 width=15) (actual time=0.003..0.015 rows=12 loops=21)
+                     Buffers: shared hit=195
+                     Subplans Removed: 20
+                     ->  Index Only Scan using t_f_budget_fact_2025_07_user_id_article_id_fact_date_amount_idx on public.t_f_budget_fact_2025_07 f_1  (cost=0.29..1.44 rows=2 width=15) (actual time=0.001..0.002 rows=2 loops=21)
+                           Output: f_1.fact_date, f_1.amount, f_1.article_id
+                           Index Cond: ((f_1.user_id = $0) AND (f_1.article_id = a.id) AND (f_1.fact_date >= (CURRENT_DATE - '90 days'::interval)) AND (f_1.fact_date <= CURRENT_DATE))
+                           Heap Fetches: 0
+                           Buffers: shared hit=43
+                     ->  Index Only Scan using t_f_budget_fact_2025_08_user_id_article_id_fact_date_amount_idx on public.t_f_budget_fact_2025_08 f_2  (cost=0.29..1.49 rows=4 width=15) (actual time=0.002..0.002 rows=4 loops=21)
+                           Output: f_2.fact_date, f_2.amount, f_2.article_id
+                           Index Cond: ((f_2.user_id = $0) AND (f_2.article_id = a.id) AND (f_2.fact_date >= (CURRENT_DATE - '90 days'::interval)) AND (f_2.fact_date <= CURRENT_DATE))
+                           Heap Fetches: 0
+                           Buffers: shared hit=43
+                     ->  Index Only Scan using t_f_budget_fact_2025_09_user_id_article_id_fact_date_amount_idx on public.t_f_budget_fact_2025_09 f_3  (cost=0.29..1.49 rows=4 width=15) (actual time=0.001..0.002 rows=4 loops=21)
+                           Output: f_3.fact_date, f_3.amount, f_3.article_id
+                           Index Cond: ((f_3.user_id = $0) AND (f_3.article_id = a.id) AND (f_3.fact_date >= (CURRENT_DATE - '90 days'::interval)) AND (f_3.fact_date <= CURRENT_DATE))
+                           Heap Fetches: 0
+                           Buffers: shared hit=43
+                     ->  Bitmap Heap Scan on public.t_f_budget_fact_2025_10 f_4  (cost=1.41..3.56 rows=2 width=15) (actual time=0.005..0.006 rows=1 loops=21)
+                           Output: f_4.fact_date, f_4.amount, f_4.article_id
+                           Recheck Cond: ((f_4.user_id = $0) AND (a.id = f_4.article_id) AND (f_4.fact_date >= (CURRENT_DATE - '90 days'::interval)) AND (f_4.fact_date <= CURRENT_DATE))
+                           Heap Blocks: exact=23
+                           Buffers: shared hit=65
+                           ->  Bitmap Index Scan on t_f_budget_fact_2025_10_user_id_article_id_fact_date_amount_idx  (cost=0.00..1.41 rows=2 width=0) (actual time=0.005..0.005 rows=1 loops=21)
+                                 Index Cond: ((f_4.user_id = $0) AND (f_4.article_id = a.id) AND (f_4.fact_date >= (CURRENT_DATE - '90 days'::interval)) AND (f_4.fact_date <= CURRENT_DATE))
+                                 Buffers: shared hit=42
+ Planning:
+   Buffers: shared hit=291
+ Planning Time: 3.062 ms
+ Execution Time: 0.606 ms
+(55 rows)
+
+
+5. QUERY 3: CATEGORY BREAKDOWN
+-----------------------------------
+
+                                                                                                                  QUERY PLAN                                                                                                                   
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=56.96..56.96 rows=1 width=614) (actual time=1.052..1.055 rows=15 loops=1)
+   Output: a.name, a.type, (sum(f.amount)), (count(*))
+   Buffers: shared hit=513
+   InitPlan 1 (returns $0)
+     ->  Limit  (cost=0.00..0.42 rows=1 width=4) (actual time=0.003..0.003 rows=1 loops=1)
+           Output: t_d_user.id
+           Buffers: shared hit=1
+           ->  Seq Scan on public.t_d_user  (cost=0.00..10.50 rows=25 width=4) (actual time=0.003..0.003 rows=1 loops=1)
+                 Output: t_d_user.id
+                 Filter: t_d_user.is_current
+                 Buffers: shared hit=1
+   ->  Sort  (cost=56.54..56.54 rows=1 width=614) (actual time=1.052..1.053 rows=15 loops=1)
+         Output: a.name, a.type, (sum(f.amount)), (count(*))
+         Sort Key: (sum(f.amount)) DESC
+         Sort Method: quicksort  Memory: 26kB
+         Buffers: shared hit=513
+         ->  GroupAggregate  (cost=56.47..56.53 rows=1 width=614) (actual time=0.966..1.040 rows=15 loops=1)
+               Output: a.name, a.type, sum(f.amount), count(*)
+               Group Key: a.name
+               Buffers: shared hit=513
+               ->  Sort  (cost=56.47..56.48 rows=5 width=581) (actual time=0.955..0.974 rows=727 loops=1)
+                     Output: a.name, a.type, f.amount
+                     Sort Key: a.name
+                     Sort Method: quicksort  Memory: 62kB
+                     Buffers: shared hit=513
+                     ->  Nested Loop  (cost=0.42..56.41 rows=5 width=581) (actual time=0.026..0.795 rows=727 loops=1)
+                           Output: a.name, a.type, f.amount
+                           Buffers: shared hit=510
+                           ->  Index Scan using idx_article_type on public.t_d_article a  (cost=0.14..2.36 rows=1 width=578) (actual time=0.008..0.013 rows=21 loops=1)
+                                 Output: a.id, a.user_id, a.parent_id, a.code, a.name, a.type, a.is_global, a.valid_from, a.valid_to, a.is_current, a.created_at, a.updated_at
+                                 Index Cond: ((a.type)::text = 'expense'::text)
+                                 Filter: a.is_current
+                                 Buffers: shared hit=2
+                           ->  Append  (cost=0.28..53.54 rows=51 width=11) (actual time=0.004..0.035 rows=35 loops=21)
+                                 Buffers: shared hit=508
+                                 Subplans Removed: 14
+                                 ->  Index Only Scan using t_f_budget_fact_2025_01_user_id_article_id_fact_date_amount_idx on public.t_f_budget_fact_2025_01 f_1  (cost=0.28..1.48 rows=4 width=11) (actual time=0.001..0.002 rows=3 loops=21)
+                                       Output: f_1.amount, f_1.article_id
+                                       Index Cond: ((f_1.user_id = $0) AND (f_1.article_id = a.id) AND (f_1.fact_date >= '2025-01-01'::date) AND (f_1.fact_date <= CURRENT_DATE))
+                                       Heap Fetches: 0
+                                       Buffers: shared hit=43
+                                 ->  Bitmap Heap Scan on public.t_f_budget_fact_2025_02 f_2  (cost=1.42..4.65 rows=3 width=11) (actual time=0.007..0.008 rows=3 loops=21)
+                                       Output: f_2.amount, f_2.article_id
+                                       Recheck Cond: ((f_2.user_id = $0) AND (a.id = f_2.article_id) AND (f_2.fact_date >= '2025-01-01'::date) AND (f_2.fact_date <= CURRENT_DATE))
+                                       Heap Blocks: exact=56
+                                       Buffers: shared hit=98
+                                       ->  Bitmap Index Scan on t_f_budget_fact_2025_02_user_id_article_id_fact_date_amount_idx  (cost=0.00..1.42 rows=3 width=0) (actual time=0.006..0.006 rows=3 loops=21)
+                                             Index Cond: ((f_2.user_id = $0) AND (f_2.article_id = a.id) AND (f_2.fact_date >= '2025-01-01'::date) AND (f_2.fact_date <= CURRENT_DATE))
+                                             Buffers: shared hit=42
+                                 ->  Index Only Scan using t_f_budget_fact_2025_03_user_id_article_id_fact_date_amount_idx on public.t_f_budget_fact_2025_03 f_3  (cost=0.28..1.48 rows=4 width=11) (actual time=0.002..0.002 rows=5 loops=21)
+                                       Output: f_3.amount, f_3.article_id
+                                       Index Cond: ((f_3.user_id = $0) AND (f_3.article_id = a.id) AND (f_3.fact_date >= '2025-01-01'::date) AND (f_3.fact_date <= CURRENT_DATE))
+                                       Heap Fetches: 0
+                                       Buffers: shared hit=43
+                                 ->  Index Only Scan using t_f_budget_fact_2025_04_user_id_article_id_fact_date_amount_idx on public.t_f_budget_fact_2025_04 f_4  (cost=0.28..1.48 rows=4 width=11) (actual time=0.001..0.001 rows=3 loops=21)
+                                       Output: f_4.amount, f_4.article_id
+                                       Index Cond: ((f_4.user_id = $0) AND (f_4.article_id = a.id) AND (f_4.fact_date >= '2025-01-01'::date) AND (f_4.fact_date <= CURRENT_DATE))
+                                       Heap Fetches: 0
+                                       Buffers: shared hit=43
+                                 ->  Index Only Scan using t_f_budget_fact_2025_05_user_id_article_id_fact_date_amount_idx on public.t_f_budget_fact_2025_05 f_5  (cost=0.28..1.48 rows=4 width=11) (actual time=0.001..0.002 rows=3 loops=21)
+                                       Output: f_5.amount, f_5.article_id
+                                       Index Cond: ((f_5.user_id = $0) AND (f_5.article_id = a.id) AND (f_5.fact_date >= '2025-01-01'::date) AND (f_5.fact_date <= CURRENT_DATE))
+                                       Heap Fetches: 0
+                                       Buffers: shared hit=43
+                                 ->  Index Only Scan using t_f_budget_fact_2025_06_user_id_article_id_fact_date_amount_idx on public.t_f_budget_fact_2025_06 f_6  (cost=0.28..1.48 rows=4 width=11) (actual time=0.002..0.002 rows=4 loops=21)
+                                       Output: f_6.amount, f_6.article_id
+                                       Index Cond: ((f_6.user_id = $0) AND (f_6.article_id = a.id) AND (f_6.fact_date >= '2025-01-01'::date) AND (f_6.fact_date <= CURRENT_DATE))
+                                       Heap Fetches: 0
+                                       Buffers: shared hit=43
+                                 ->  Index Only Scan using t_f_budget_fact_2025_07_user_id_article_id_fact_date_amount_idx on public.t_f_budget_fact_2025_07 f_7  (cost=0.28..1.48 rows=4 width=11) (actual time=0.002..0.002 rows=4 loops=21)
+                                       Output: f_7.amount, f_7.article_id
+                                       Index Cond: ((f_7.user_id = $0) AND (f_7.article_id = a.id) AND (f_7.fact_date >= '2025-01-01'::date) AND (f_7.fact_date <= CURRENT_DATE))
+                                       Heap Fetches: 0
+                                       Buffers: shared hit=43
+                                 ->  Index Only Scan using t_f_budget_fact_2025_08_user_id_article_id_fact_date_amount_idx on public.t_f_budget_fact_2025_08 f_8  (cost=0.28..1.48 rows=4 width=11) (actual time=0.001..0.002 rows=4 loops=21)
+                                       Output: f_8.amount, f_8.article_id
+                                       Index Cond: ((f_8.user_id = $0) AND (f_8.article_id = a.id) AND (f_8.fact_date >= '2025-01-01'::date) AND (f_8.fact_date <= CURRENT_DATE))
+                                       Heap Fetches: 0
+                                       Buffers: shared hit=43
+                                 ->  Index Only Scan using t_f_budget_fact_2025_09_user_id_article_id_fact_date_amount_idx on public.t_f_budget_fact_2025_09 f_9  (cost=0.28..1.48 rows=4 width=11) (actual time=0.001..0.002 rows=4 loops=21)
+                                       Output: f_9.amount, f_9.article_id
+                                       Index Cond: ((f_9.user_id = $0) AND (f_9.article_id = a.id) AND (f_9.fact_date >= '2025-01-01'::date) AND (f_9.fact_date <= CURRENT_DATE))
+                                       Heap Fetches: 0
+                                       Buffers: shared hit=43
+                                 ->  Bitmap Heap Scan on public.t_f_budget_fact_2025_10 f_10  (cost=1.41..3.54 rows=2 width=11) (actual time=0.004..0.005 rows=1 loops=21)
+                                       Output: f_10.amount, f_10.article_id
+                                       Recheck Cond: ((f_10.user_id = $0) AND (a.id = f_10.article_id) AND (f_10.fact_date >= '2025-01-01'::date) AND (f_10.fact_date <= CURRENT_DATE))
+                                       Heap Blocks: exact=23
+                                       Buffers: shared hit=65
+                                       ->  Bitmap Index Scan on t_f_budget_fact_2025_10_user_id_article_id_fact_date_amount_idx  (cost=0.00..1.41 rows=2 width=0) (actual time=0.004..0.004 rows=1 loops=21)
+                                             Index Cond: ((f_10.user_id = $0) AND (f_10.article_id = a.id) AND (f_10.fact_date >= '2025-01-01'::date) AND (f_10.fact_date <= CURRENT_DATE))
+                                             Buffers: shared hit=42
+ Planning:
+   Buffers: shared hit=298
+ Planning Time: 2.712 ms
+ Execution Time: 1.295 ms
+(96 rows)
+
+
+6. QUERY 4: ARTICLE SUBTREE (Hierarchy Query)
+-----------------------------------
+
+DO
+NOTICE:  Testing with article_id: 29
+                                                                         QUERY PLAN                                                                          
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=20.07..20.08 rows=4 width=586) (actual time=0.041..0.042 rows=1 loops=1)
+   Output: a.id, a.name, a.type, a.parent_id, h.depth
+   Sort Key: h.depth, a.name
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=6
+   InitPlan 1 (returns $0)
+     ->  Limit  (cost=0.14..2.36 rows=1 width=4) (actual time=0.008..0.008 rows=1 loops=1)
+           Output: t_d_article.id
+           Buffers: shared hit=2
+           ->  Index Scan using idx_article_parent_id on public.t_d_article  (cost=0.14..2.36 rows=1 width=4) (actual time=0.007..0.007 rows=1 loops=1)
+                 Output: t_d_article.id
+                 Index Cond: (t_d_article.parent_id IS NULL)
+                 Filter: (t_d_article.is_current AND t_d_article.is_global)
+                 Buffers: shared hit=2
+   ->  Nested Loop  (cost=1.46..17.67 rows=4 width=586) (actual time=0.028..0.029 rows=1 loops=1)
+         Output: a.id, a.name, a.type, a.parent_id, h.depth
+         Inner Unique: true
+         Buffers: shared hit=6
+         ->  Bitmap Heap Scan on public.t_d_article_hierarchy h  (cost=1.31..7.55 rows=8 width=8) (actual time=0.016..0.016 rows=1 loops=1)
+               Output: h.ancestor_id, h.descendant_id, h.depth, h.created_at
+               Recheck Cond: (h.ancestor_id = $0)
+               Heap Blocks: exact=1
+               Buffers: shared hit=4
+               ->  Bitmap Index Scan on idx_hierarchy_ancestor_depth_covering  (cost=0.00..1.31 rows=8 width=0) (actual time=0.010..0.010 rows=1 loops=1)
+                     Index Cond: (h.ancestor_id = $0)
+                     Buffers: shared hit=3
+         ->  Index Scan using t_d_article_pkey on public.t_d_article a  (cost=0.14..1.26 rows=1 width=582) (actual time=0.012..0.012 rows=1 loops=1)
+               Output: a.id, a.user_id, a.parent_id, a.code, a.name, a.type, a.is_global, a.valid_from, a.valid_to, a.is_current, a.created_at, a.updated_at
+               Index Cond: (a.id = h.descendant_id)
+               Filter: a.is_current
+               Buffers: shared hit=2
+ Planning:
+   Buffers: shared hit=29
+ Planning Time: 0.340 ms
+ Execution Time: 0.092 ms
+(35 rows)
+
+
+7. QUERY 5: FACT LIST PAGINATED (With Joins)
+-----------------------------------
+
+                                                                                     QUERY PLAN                                                                                     
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=268.17..268.29 rows=50 width=1646) (actual time=1.095..1.101 rows=50 loops=1)
+   Output: f.id, f.fact_date, f.amount, f.description, a.name, a.type, fc.name, cc.name
+   Buffers: shared hit=159
+   InitPlan 1 (returns $0)
+     ->  Limit  (cost=0.00..0.42 rows=1 width=4) (actual time=0.004..0.004 rows=1 loops=1)
+           Output: t_d_user.id
+           Buffers: shared hit=1
+           ->  Seq Scan on public.t_d_user  (cost=0.00..10.50 rows=25 width=4) (actual time=0.004..0.004 rows=1 loops=1)
+                 Output: t_d_user.id
+                 Filter: t_d_user.is_current
+                 Buffers: shared hit=1
+   ->  Sort  (cost=267.75..267.91 rows=64 width=1646) (actual time=1.094..1.098 rows=50 loops=1)
+         Output: f.id, f.fact_date, f.amount, f.description, a.name, a.type, fc.name, cc.name
+         Sort Key: f.fact_date DESC
+         Sort Method: top-N heapsort  Memory: 36kB
+         Buffers: shared hit=159
+         ->  Hash Left Join  (cost=38.66..265.83 rows=64 width=1646) (actual time=0.099..0.926 rows=969 loops=1)
+               Output: f.id, f.fact_date, f.amount, f.description, a.name, a.type, fc.name, cc.name
+               Inner Unique: true
+               Hash Cond: (f.cost_center_id = cc.id)
+               Filter: (cc.is_current OR (cc.id IS NULL))
+               Buffers: shared hit=159
+               ->  Hash Left Join  (cost=26.18..253.01 rows=127 width=1134) (actual time=0.075..0.814 rows=969 loops=1)
+                     Output: f.id, f.fact_date, f.amount, f.description, f.cost_center_id, a.name, a.type, fc.name
+                     Inner Unique: true
+                     Hash Cond: (f.financial_center_id = fc.id)
+                     Filter: (fc.is_current OR (fc.id IS NULL))
+                     Buffers: shared hit=158
+                     ->  Hash Join  (cost=13.71..239.86 rows=253 width=622) (actual time=0.051..0.695 rows=969 loops=1)
+                           Output: f.id, f.fact_date, f.amount, f.description, f.financial_center_id, f.cost_center_id, a.name, a.type
+                           Inner Unique: true
+                           Hash Cond: (f.article_id = a.id)
+                           Buffers: shared hit=157
+                           ->  Append  (cost=2.08..225.52 rows=1013 width=52) (actual time=0.026..0.569 rows=969 loops=1)
+                                 Buffers: shared hit=156
+                                 Subplans Removed: 14
+                                 ->  Bitmap Heap Scan on public.t_f_budget_fact_2025_01 f_1  (cost=2.08..20.22 rows=107 width=52) (actual time=0.026..0.077 rows=97 loops=1)
+                                       Output: f_1.id, f_1.fact_date, f_1.amount, f_1.description, f_1.article_id, f_1.financial_center_id, f_1.cost_center_id
+                                       Recheck Cond: (f_1.user_id = $0)
+                                       Filter: ((f_1.fact_date >= '2025-01-01'::date) AND (f_1.fact_date <= CURRENT_DATE))
+                                       Heap Blocks: exact=16
+                                       Buffers: shared hit=18
+                                       ->  Bitmap Index Scan on t_f_budget_fact_2025_01_user_id_idx  (cost=0.00..2.06 rows=107 width=0) (actual time=0.020..0.020 rows=97 loops=1)
+                                             Index Cond: (f_1.user_id = $0)
+                                             Buffers: shared hit=2
+                                 ->  Bitmap Heap Scan on public.t_f_budget_fact_2025_02 f_2  (cost=2.01..17.97 rows=98 width=52) (actual time=0.013..0.039 rows=78 loops=1)
+                                       Output: f_2.id, f_2.fact_date, f_2.amount, f_2.description, f_2.article_id, f_2.financial_center_id, f_2.cost_center_id
+                                       Recheck Cond: (f_2.user_id = $0)
+                                       Filter: ((f_2.fact_date >= '2025-01-01'::date) AND (f_2.fact_date <= CURRENT_DATE))
+                                       Heap Blocks: exact=14
+                                       Buffers: shared hit=15
+                                       ->  Bitmap Index Scan on t_f_budget_fact_2025_02_user_id_idx  (cost=0.00..1.98 rows=98 width=0) (actual time=0.010..0.010 rows=78 loops=1)
+                                             Index Cond: (f_2.user_id = $0)
+                                             Buffers: shared hit=1
+                                 ->  Bitmap Heap Scan on public.t_f_budget_fact_2025_03 f_3  (cost=2.12..20.36 rows=112 width=52) (actual time=0.016..0.065 rows=123 loops=1)
+                                       Output: f_3.id, f_3.fact_date, f_3.amount, f_3.description, f_3.article_id, f_3.financial_center_id, f_3.cost_center_id
+                                       Recheck Cond: (f_3.user_id = $0)
+                                       Filter: ((f_3.fact_date >= '2025-01-01'::date) AND (f_3.fact_date <= CURRENT_DATE))
+                                       Heap Blocks: exact=16
+                                       Buffers: shared hit=17
+                                       ->  Bitmap Index Scan on t_f_budget_fact_2025_03_user_id_idx  (cost=0.00..2.09 rows=112 width=0) (actual time=0.013..0.013 rows=123 loops=1)
+                                             Index Cond: (f_3.user_id = $0)
+                                             Buffers: shared hit=1
+                                 ->  Bitmap Heap Scan on public.t_f_budget_fact_2025_04 f_4  (cost=2.03..19.05 rows=101 width=52) (actual time=0.013..0.059 rows=95 loops=1)
+                                       Output: f_4.id, f_4.fact_date, f_4.amount, f_4.description, f_4.article_id, f_4.financial_center_id, f_4.cost_center_id
+                                       Recheck Cond: (f_4.user_id = $0)
+                                       Filter: ((f_4.fact_date >= '2025-01-01'::date) AND (f_4.fact_date <= CURRENT_DATE))
+                                       Heap Blocks: exact=15
+                                       Buffers: shared hit=16
+                                       ->  Bitmap Index Scan on t_f_budget_fact_2025_04_user_id_idx  (cost=0.00..2.01 rows=101 width=0) (actual time=0.010..0.010 rows=95 loops=1)
+                                             Index Cond: (f_4.user_id = $0)
+                                             Buffers: shared hit=1
+                                 ->  Bitmap Heap Scan on public.t_f_budget_fact_2025_05 f_5  (cost=2.05..19.11 rows=103 width=52) (actual time=0.014..0.050 rows=89 loops=1)
+                                       Output: f_5.id, f_5.fact_date, f_5.amount, f_5.description, f_5.article_id, f_5.financial_center_id, f_5.cost_center_id
+                                       Recheck Cond: (f_5.user_id = $0)
+                                       Filter: ((f_5.fact_date >= '2025-01-01'::date) AND (f_5.fact_date <= CURRENT_DATE))
+                                       Heap Blocks: exact=15
+                                       Buffers: shared hit=16
+                                       ->  Bitmap Index Scan on t_f_budget_fact_2025_05_user_id_idx  (cost=0.00..2.03 rows=103 width=0) (actual time=0.012..0.012 rows=89 loops=1)
+                                             Index Cond: (f_5.user_id = $0)
+                                             Buffers: shared hit=1
+                                 ->  Bitmap Heap Scan on public.t_f_budget_fact_2025_06 f_6  (cost=2.07..19.17 rows=105 width=52) (actual time=0.015..0.060 rows=106 loops=1)
+                                       Output: f_6.id, f_6.fact_date, f_6.amount, f_6.description, f_6.article_id, f_6.financial_center_id, f_6.cost_center_id
+                                       Recheck Cond: (f_6.user_id = $0)
+                                       Filter: ((f_6.fact_date >= '2025-01-01'::date) AND (f_6.fact_date <= CURRENT_DATE))
+                                       Heap Blocks: exact=15
+                                       Buffers: shared hit=16
+                                       ->  Bitmap Index Scan on t_f_budget_fact_2025_06_user_id_idx  (cost=0.00..2.04 rows=105 width=0) (actual time=0.013..0.013 rows=106 loops=1)
+                                             Index Cond: (f_6.user_id = $0)
+                                             Buffers: shared hit=1
+                                 ->  Bitmap Heap Scan on public.t_f_budget_fact_2025_07 f_7  (cost=2.09..20.25 rows=108 width=52) (actual time=0.015..0.058 rows=122 loops=1)
+                                       Output: f_7.id, f_7.fact_date, f_7.amount, f_7.description, f_7.article_id, f_7.financial_center_id, f_7.cost_center_id
+                                       Recheck Cond: (f_7.user_id = $0)
+                                       Filter: ((f_7.fact_date >= '2025-01-01'::date) AND (f_7.fact_date <= CURRENT_DATE))
+                                       Heap Blocks: exact=16
+                                       Buffers: shared hit=17
+                                       ->  Bitmap Index Scan on t_f_budget_fact_2025_07_user_id_idx  (cost=0.00..2.06 rows=108 width=0) (actual time=0.013..0.013 rows=122 loops=1)
+                                             Index Cond: (f_7.user_id = $0)
+                                             Buffers: shared hit=1
+                                 ->  Bitmap Heap Scan on public.t_f_budget_fact_2025_08 f_8  (cost=2.16..21.50 rows=117 width=52) (actual time=0.012..0.057 rows=125 loops=1)
+                                       Output: f_8.id, f_8.fact_date, f_8.amount, f_8.description, f_8.article_id, f_8.financial_center_id, f_8.cost_center_id
+                                       Recheck Cond: (f_8.user_id = $0)
+                                       Filter: ((f_8.fact_date >= '2025-01-01'::date) AND (f_8.fact_date <= CURRENT_DATE))
+                                       Heap Blocks: exact=17
+                                       Buffers: shared hit=18
+                                       ->  Bitmap Index Scan on t_f_budget_fact_2025_08_user_id_idx  (cost=0.00..2.13 rows=117 width=0) (actual time=0.010..0.010 rows=125 loops=1)
+                                             Index Cond: (f_8.user_id = $0)
+                                             Buffers: shared hit=1
+                                 ->  Bitmap Heap Scan on public.t_f_budget_fact_2025_09 f_9  (cost=2.07..20.19 rows=106 width=52) (actual time=0.015..0.042 rows=99 loops=1)
+                                       Output: f_9.id, f_9.fact_date, f_9.amount, f_9.description, f_9.article_id, f_9.financial_center_id, f_9.cost_center_id
+                                       Recheck Cond: (f_9.user_id = $0)
+                                       Filter: ((f_9.fact_date >= '2025-01-01'::date) AND (f_9.fact_date <= CURRENT_DATE))
+                                       Heap Blocks: exact=15
+                                       Buffers: shared hit=16
+                                       ->  Bitmap Index Scan on t_f_budget_fact_2025_09_user_id_idx  (cost=0.00..2.05 rows=106 width=0) (actual time=0.013..0.013 rows=99 loops=1)
+                                             Index Cond: (f_9.user_id = $0)
+                                             Buffers: shared hit=1
+                                 ->  Bitmap Heap Scan on public.t_f_budget_fact_2025_10 f_10  (cost=1.57..9.41 rows=42 width=52) (actual time=0.012..0.021 rows=35 loops=1)
+                                       Output: f_10.id, f_10.fact_date, f_10.amount, f_10.description, f_10.article_id, f_10.financial_center_id, f_10.cost_center_id
+                                       Recheck Cond: (f_10.user_id = $0)
+                                       Filter: ((f_10.fact_date >= '2025-01-01'::date) AND (f_10.fact_date <= CURRENT_DATE))
+                                       Heap Blocks: exact=6
+                                       Buffers: shared hit=7
+                                       ->  Bitmap Index Scan on t_f_budget_fact_2025_10_user_id_idx  (cost=0.00..1.56 rows=42 width=0) (actual time=0.010..0.010 rows=35 loops=1)
+                                             Index Cond: (f_10.user_id = $0)
+                                             Buffers: shared hit=1
+                           ->  Hash  (cost=11.00..11.00 rows=50 width=578) (actual time=0.012..0.012 rows=28 loops=1)
+                                 Output: a.name, a.type, a.id
+                                 Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                                 Buffers: shared hit=1
+                                 ->  Seq Scan on public.t_d_article a  (cost=0.00..11.00 rows=50 width=578) (actual time=0.002..0.004 rows=28 loops=1)
+                                       Output: a.name, a.type, a.id
+                                       Filter: a.is_current
+                                       Buffers: shared hit=1
+                     ->  Hash  (cost=11.10..11.10 rows=110 width=521) (actual time=0.011..0.011 rows=9 loops=1)
+                           Output: fc.name, fc.is_current, fc.id
+                           Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                           Buffers: shared hit=1
+                           ->  Seq Scan on public.t_d_financial_center fc  (cost=0.00..11.10 rows=110 width=521) (actual time=0.006..0.006 rows=9 loops=1)
+                                 Output: fc.name, fc.is_current, fc.id
+                                 Buffers: shared hit=1
+               ->  Hash  (cost=11.10..11.10 rows=110 width=521) (actual time=0.010..0.010 rows=9 loops=1)
+                     Output: cc.name, cc.is_current, cc.id
+                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                     Buffers: shared hit=1
+                     ->  Seq Scan on public.t_d_cost_center cc  (cost=0.00..11.10 rows=110 width=521) (actual time=0.005..0.005 rows=9 loops=1)
+                           Output: cc.name, cc.is_current, cc.id
+                           Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=533
+ Planning Time: 4.374 ms
+ Execution Time: 1.398 ms
+(152 rows)
+
+
+8. PARTITION PRUNING TEST
+-----------------------------------
+Checking if PostgreSQL is using partition pruning for date-filtered queries
+
+                                                                    QUERY PLAN                                                                     
+---------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=14.42..14.43 rows=1 width=8) (actual time=0.050..0.050 rows=1 loops=1)
+   Output: count(*)
+   Buffers: shared hit=7
+   ->  Seq Scan on public.t_f_budget_fact_2025_10 t_f_budget_fact  (cost=0.00..13.36 rows=424 width=0) (actual time=0.003..0.037 rows=424 loops=1)
+         Filter: ((t_f_budget_fact.fact_date >= '2025-10-01'::date) AND (t_f_budget_fact.fact_date < '2025-11-01'::date))
+         Buffers: shared hit=7
+ Planning:
+   Buffers: shared hit=6
+ Planning Time: 0.159 ms
+ Execution Time: 0.057 ms
+(10 rows)
+
+
+9. INDEX SCAN VS SEQUENTIAL SCAN
+-----------------------------------
+
+                                                                                                                                                                                QUERY PLAN                                                                                                                                                                                
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=4.12..64.63 rows=47 width=93) (actual time=0.114..0.123 rows=21 loops=1)
+   Output: t_f_budget_fact.id, t_f_budget_fact.user_id, t_f_budget_fact.article_id, t_f_budget_fact.financial_center_id, t_f_budget_fact.cost_center_id, t_f_budget_fact.fact_date, t_f_budget_fact.amount, t_f_budget_fact.description, t_f_budget_fact.created_at, t_f_budget_fact.updated_at, t_f_budget_fact.record_type
+   Buffers: shared hit=47
+   InitPlan 1 (returns $0)
+     ->  Limit  (cost=0.00..0.42 rows=1 width=4) (actual time=0.003..0.004 rows=1 loops=1)
+           Output: t_d_user.id
+           Buffers: shared hit=1
+           ->  Seq Scan on public.t_d_user  (cost=0.00..10.50 rows=25 width=4) (actual time=0.003..0.003 rows=1 loops=1)
+                 Output: t_d_user.id
+                 Filter: t_d_user.is_current
+                 Buffers: shared hit=1
+   ->  Append  (cost=3.70..64.21 rows=47 width=93) (actual time=0.114..0.122 rows=21 loops=1)
+         Buffers: shared hit=47
+         Subplans Removed: 9
+         ->  Index Scan using t_f_budget_fact_2026_12_user_id_fact_date_amount_article_id_idx on public.t_f_budget_fact_2026_12 t_f_budget_fact_15  (cost=0.15..2.37 rows=1 width=132) (actual time=0.014..0.014 rows=0 loops=1)
+               Output: t_f_budget_fact_15.id, t_f_budget_fact_15.user_id, t_f_budget_fact_15.article_id, t_f_budget_fact_15.financial_center_id, t_f_budget_fact_15.cost_center_id, t_f_budget_fact_15.fact_date, t_f_budget_fact_15.amount, t_f_budget_fact_15.description, t_f_budget_fact_15.created_at, t_f_budget_fact_15.updated_at, t_f_budget_fact_15.record_type
+               Index Cond: ((t_f_budget_fact_15.user_id = $0) AND (t_f_budget_fact_15.fact_date >= (CURRENT_DATE - '7 days'::interval)))
+               Buffers: shared hit=3
+         ->  Index Scan using t_f_budget_fact_2026_11_user_id_fact_date_amount_article_id_idx on public.t_f_budget_fact_2026_11 t_f_budget_fact_14  (cost=0.15..2.37 rows=1 width=132) (actual time=0.007..0.007 rows=0 loops=1)
+               Output: t_f_budget_fact_14.id, t_f_budget_fact_14.user_id, t_f_budget_fact_14.article_id, t_f_budget_fact_14.financial_center_id, t_f_budget_fact_14.cost_center_id, t_f_budget_fact_14.fact_date, t_f_budget_fact_14.amount, t_f_budget_fact_14.description, t_f_budget_fact_14.created_at, t_f_budget_fact_14.updated_at, t_f_budget_fact_14.record_type
+               Index Cond: ((t_f_budget_fact_14.user_id = $0) AND (t_f_budget_fact_14.fact_date >= (CURRENT_DATE - '7 days'::interval)))
+               Buffers: shared hit=2
+         ->  Index Scan using t_f_budget_fact_2026_10_user_id_fact_date_amount_article_id_idx on public.t_f_budget_fact_2026_10 t_f_budget_fact_13  (cost=0.15..2.37 rows=1 width=132) (actual time=0.007..0.007 rows=0 loops=1)
+               Output: t_f_budget_fact_13.id, t_f_budget_fact_13.user_id, t_f_budget_fact_13.article_id, t_f_budget_fact_13.financial_center_id, t_f_budget_fact_13.cost_center_id, t_f_budget_fact_13.fact_date, t_f_budget_fact_13.amount, t_f_budget_fact_13.description, t_f_budget_fact_13.created_at, t_f_budget_fact_13.updated_at, t_f_budget_fact_13.record_type
+               Index Cond: ((t_f_budget_fact_13.user_id = $0) AND (t_f_budget_fact_13.fact_date >= (CURRENT_DATE - '7 days'::interval)))
+               Buffers: shared hit=2
+         ->  Index Scan using t_f_budget_fact_2026_09_user_id_fact_date_amount_article_id_idx on public.t_f_budget_fact_2026_09 t_f_budget_fact_12  (cost=0.15..2.37 rows=1 width=132) (actual time=0.009..0.009 rows=0 loops=1)
+               Output: t_f_budget_fact_12.id, t_f_budget_fact_12.user_id, t_f_budget_fact_12.article_id, t_f_budget_fact_12.financial_center_id, t_f_budget_fact_12.cost_center_id, t_f_budget_fact_12.fact_date, t_f_budget_fact_12.amount, t_f_budget_fact_12.description, t_f_budget_fact_12.created_at, t_f_budget_fact_12.updated_at, t_f_budget_fact_12.record_type
+               Index Cond: ((t_f_budget_fact_12.user_id = $0) AND (t_f_budget_fact_12.fact_date >= (CURRENT_DATE - '7 days'::interval)))
+               Buffers: shared hit=2
+         ->  Index Scan using t_f_budget_fact_2026_08_user_id_fact_date_amount_article_id_idx on public.t_f_budget_fact_2026_08 t_f_budget_fact_11  (cost=0.15..2.37 rows=1 width=132) (actual time=0.008..0.008 rows=0 loops=1)
+               Output: t_f_budget_fact_11.id, t_f_budget_fact_11.user_id, t_f_budget_fact_11.article_id, t_f_budget_fact_11.financial_center_id, t_f_budget_fact_11.cost_center_id, t_f_budget_fact_11.fact_date, t_f_budget_fact_11.amount, t_f_budget_fact_11.description, t_f_budget_fact_11.created_at, t_f_budget_fact_11.updated_at, t_f_budget_fact_11.record_type
+               Index Cond: ((t_f_budget_fact_11.user_id = $0) AND (t_f_budget_fact_11.fact_date >= (CURRENT_DATE - '7 days'::interval)))
+               Buffers: shared hit=2
+         ->  Index Scan using t_f_budget_fact_2026_07_user_id_fact_date_amount_article_id_idx on public.t_f_budget_fact_2026_07 t_f_budget_fact_10  (cost=0.15..2.37 rows=1 width=132) (actual time=0.006..0.006 rows=0 loops=1)
+               Output: t_f_budget_fact_10.id, t_f_budget_fact_10.user_id, t_f_budget_fact_10.article_id, t_f_budget_fact_10.financial_center_id, t_f_budget_fact_10.cost_center_id, t_f_budget_fact_10.fact_date, t_f_budget_fact_10.amount, t_f_budget_fact_10.description, t_f_budget_fact_10.created_at, t_f_budget_fact_10.updated_at, t_f_budget_fact_10.record_type
+               Index Cond: ((t_f_budget_fact_10.user_id = $0) AND (t_f_budget_fact_10.fact_date >= (CURRENT_DATE - '7 days'::interval)))
+               Buffers: shared hit=2
+         ->  Index Scan using t_f_budget_fact_2026_06_user_id_fact_date_amount_article_id_idx on public.t_f_budget_fact_2026_06 t_f_budget_fact_9  (cost=0.15..2.37 rows=1 width=132) (actual time=0.005..0.005 rows=0 loops=1)
+               Output: t_f_budget_fact_9.id, t_f_budget_fact_9.user_id, t_f_budget_fact_9.article_id, t_f_budget_fact_9.financial_center_id, t_f_budget_fact_9.cost_center_id, t_f_budget_fact_9.fact_date, t_f_budget_fact_9.amount, t_f_budget_fact_9.description, t_f_budget_fact_9.created_at, t_f_budget_fact_9.updated_at, t_f_budget_fact_9.record_type
+               Index Cond: ((t_f_budget_fact_9.user_id = $0) AND (t_f_budget_fact_9.fact_date >= (CURRENT_DATE - '7 days'::interval)))
+               Buffers: shared hit=2
+         ->  Index Scan using t_f_budget_fact_2026_05_user_id_fact_date_amount_article_id_idx on public.t_f_budget_fact_2026_05 t_f_budget_fact_8  (cost=0.15..2.37 rows=1 width=132) (actual time=0.006..0.006 rows=0 loops=1)
+               Output: t_f_budget_fact_8.id, t_f_budget_fact_8.user_id, t_f_budget_fact_8.article_id, t_f_budget_fact_8.financial_center_id, t_f_budget_fact_8.cost_center_id, t_f_budget_fact_8.fact_date, t_f_budget_fact_8.amount, t_f_budget_fact_8.description, t_f_budget_fact_8.created_at, t_f_budget_fact_8.updated_at, t_f_budget_fact_8.record_type
+               Index Cond: ((t_f_budget_fact_8.user_id = $0) AND (t_f_budget_fact_8.fact_date >= (CURRENT_DATE - '7 days'::interval)))
+               Buffers: shared hit=2
+         ->  Index Scan using t_f_budget_fact_2026_04_user_id_fact_date_amount_article_id_idx on public.t_f_budget_fact_2026_04 t_f_budget_fact_7  (cost=0.15..2.37 rows=1 width=132) (actual time=0.006..0.006 rows=0 loops=1)
+               Output: t_f_budget_fact_7.id, t_f_budget_fact_7.user_id, t_f_budget_fact_7.article_id, t_f_budget_fact_7.financial_center_id, t_f_budget_fact_7.cost_center_id, t_f_budget_fact_7.fact_date, t_f_budget_fact_7.amount, t_f_budget_fact_7.description, t_f_budget_fact_7.created_at, t_f_budget_fact_7.updated_at, t_f_budget_fact_7.record_type
+               Index Cond: ((t_f_budget_fact_7.user_id = $0) AND (t_f_budget_fact_7.fact_date >= (CURRENT_DATE - '7 days'::interval)))
+               Buffers: shared hit=2
+         ->  Index Scan using t_f_budget_fact_2026_03_user_id_fact_date_amount_article_id_idx on public.t_f_budget_fact_2026_03 t_f_budget_fact_6  (cost=0.15..2.37 rows=1 width=132) (actual time=0.007..0.007 rows=0 loops=1)
+               Output: t_f_budget_fact_6.id, t_f_budget_fact_6.user_id, t_f_budget_fact_6.article_id, t_f_budget_fact_6.financial_center_id, t_f_budget_fact_6.cost_center_id, t_f_budget_fact_6.fact_date, t_f_budget_fact_6.amount, t_f_budget_fact_6.description, t_f_budget_fact_6.created_at, t_f_budget_fact_6.updated_at, t_f_budget_fact_6.record_type
+               Index Cond: ((t_f_budget_fact_6.user_id = $0) AND (t_f_budget_fact_6.fact_date >= (CURRENT_DATE - '7 days'::interval)))
+               Buffers: shared hit=2
+         ->  Index Scan using t_f_budget_fact_2026_02_user_id_fact_date_amount_article_id_idx on public.t_f_budget_fact_2026_02 t_f_budget_fact_5  (cost=0.15..2.37 rows=1 width=132) (actual time=0.006..0.006 rows=0 loops=1)
+               Output: t_f_budget_fact_5.id, t_f_budget_fact_5.user_id, t_f_budget_fact_5.article_id, t_f_budget_fact_5.financial_center_id, t_f_budget_fact_5.cost_center_id, t_f_budget_fact_5.fact_date, t_f_budget_fact_5.amount, t_f_budget_fact_5.description, t_f_budget_fact_5.created_at, t_f_budget_fact_5.updated_at, t_f_budget_fact_5.record_type
+               Index Cond: ((t_f_budget_fact_5.user_id = $0) AND (t_f_budget_fact_5.fact_date >= (CURRENT_DATE - '7 days'::interval)))
+               Buffers: shared hit=2
+         ->  Index Scan using t_f_budget_fact_2026_01_user_id_fact_date_amount_article_id_idx on public.t_f_budget_fact_2026_01 t_f_budget_fact_4  (cost=0.15..2.37 rows=1 width=132) (actual time=0.006..0.006 rows=0 loops=1)
+               Output: t_f_budget_fact_4.id, t_f_budget_fact_4.user_id, t_f_budget_fact_4.article_id, t_f_budget_fact_4.financial_center_id, t_f_budget_fact_4.cost_center_id, t_f_budget_fact_4.fact_date, t_f_budget_fact_4.amount, t_f_budget_fact_4.description, t_f_budget_fact_4.created_at, t_f_budget_fact_4.updated_at, t_f_budget_fact_4.record_type
+               Index Cond: ((t_f_budget_fact_4.user_id = $0) AND (t_f_budget_fact_4.fact_date >= (CURRENT_DATE - '7 days'::interval)))
+               Buffers: shared hit=2
+         ->  Index Scan using t_f_budget_fact_2025_12_user_id_fact_date_amount_article_id_idx on public.t_f_budget_fact_2025_12 t_f_budget_fact_3  (cost=0.15..2.37 rows=1 width=132) (actual time=0.006..0.006 rows=0 loops=1)
+               Output: t_f_budget_fact_3.id, t_f_budget_fact_3.user_id, t_f_budget_fact_3.article_id, t_f_budget_fact_3.financial_center_id, t_f_budget_fact_3.cost_center_id, t_f_budget_fact_3.fact_date, t_f_budget_fact_3.amount, t_f_budget_fact_3.description, t_f_budget_fact_3.created_at, t_f_budget_fact_3.updated_at, t_f_budget_fact_3.record_type
+               Index Cond: ((t_f_budget_fact_3.user_id = $0) AND (t_f_budget_fact_3.fact_date >= (CURRENT_DATE - '7 days'::interval)))
+               Buffers: shared hit=2
+         ->  Index Scan using t_f_budget_fact_2025_11_user_id_fact_date_amount_article_id_idx on public.t_f_budget_fact_2025_11 t_f_budget_fact_2  (cost=0.15..2.37 rows=1 width=132) (actual time=0.008..0.008 rows=0 loops=1)
+               Output: t_f_budget_fact_2.id, t_f_budget_fact_2.user_id, t_f_budget_fact_2.article_id, t_f_budget_fact_2.financial_center_id, t_f_budget_fact_2.cost_center_id, t_f_budget_fact_2.fact_date, t_f_budget_fact_2.amount, t_f_budget_fact_2.description, t_f_budget_fact_2.created_at, t_f_budget_fact_2.updated_at, t_f_budget_fact_2.record_type
+               Index Cond: ((t_f_budget_fact_2.user_id = $0) AND (t_f_budget_fact_2.fact_date >= (CURRENT_DATE - '7 days'::interval)))
+               Buffers: shared hit=2
+         ->  Index Scan using t_f_budget_fact_2025_10_user_id_fact_date_idx on public.t_f_budget_fact_2025_10 t_f_budget_fact_1  (cost=0.15..9.37 rows=24 width=77) (actual time=0.012..0.018 rows=21 loops=1)
+               Output: t_f_budget_fact_1.id, t_f_budget_fact_1.user_id, t_f_budget_fact_1.article_id, t_f_budget_fact_1.financial_center_id, t_f_budget_fact_1.cost_center_id, t_f_budget_fact_1.fact_date, t_f_budget_fact_1.amount, t_f_budget_fact_1.description, t_f_budget_fact_1.created_at, t_f_budget_fact_1.updated_at, t_f_budget_fact_1.record_type
+               Index Cond: ((t_f_budget_fact_1.user_id = $0) AND (t_f_budget_fact_1.fact_date >= (CURRENT_DATE - '7 days'::interval)))
+               Buffers: shared hit=18
+ Planning:
+   Buffers: shared hit=370
+ Planning Time: 2.042 ms
+ Execution Time: 0.299 ms
+(78 rows)
+
+
+10. TABLE STATISTICS
+-----------------------------------
+
+ERROR:  column "tablename" does not exist
+LINE 3:     tablename,
+            ^
+
+11. PERFORMANCE RECOMMENDATIONS
+-----------------------------------
+
+NOTICE:  Database Statistics:
+NOTICE:    - Total Facts: 10000
+NOTICE:    - Total Size: 0 MB
+NOTICE:  
+NOTICE:  Recommendations:
+NOTICE:    ✓ Current partitioning strategy is sufficient (10000 rows)
+NOTICE:    ✓ Database size is manageable (0 MB)
+NOTICE:    ✓ All critical indexes are in place
+NOTICE:    ✓ Partial unique indexes working correctly
+NOTICE:    ✓ SCD Type 2 triggers functional
+NOTICE:    ✓ Closure table hierarchy maintained
+DO
+
+============================================================================
+END OF PERFORMANCE ANALYSIS
+============================================================================

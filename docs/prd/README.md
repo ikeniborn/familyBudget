@@ -1,9 +1,10 @@
 # Product Requirements Document (PRD)
 ## FamilyBudget - Система управления семейным бюджетом
 
-**Версия:** 1.0
+**Версия:** 1.1
 **Дата создания:** 2025-10-08
-**Статус:** Final
+**Последнее обновление:** 2025-10-14
+**Статус:** Final (Phase 1 Complete)
 **Автор:** AI System
 
 ---
@@ -13,6 +14,27 @@
 Этот Product Requirements Document (PRD) содержит полное описание системы FamilyBudget - веб-приложения для управления семейным бюджетом с Telegram-ботом для оперативного ввода данных и веб-интерфейсом для аналитики.
 
 Документ разбит на логические разделы для удобства навигации и сопровождения.
+
+### 🎯 Project Phases
+
+**Phase 1 (v1.0 - v4.4.0) - COMPLETED ✅**
+- Backend API (FastAPI + PostgreSQL)
+- Web Analytics Interface (HTMX + ECharts)
+- Admin Panel (User Management, Article CRUD)
+- Deployment Scripts (install.sh, setup.sh, deploy.sh)
+- Real-time Monitoring Dashboard
+- Health Check Endpoints
+- Automated Backups (S3)
+- **373 тестов** (Unit + Integration + E2E)
+
+**Phase 2 (v5.0+) - PLANNED ⏳**
+- Telegram Bot Integration (FR-001 до FR-006)
+- ЦФО/МВЗ Integration
+- Advanced Analytics UI (Waterfall, Heatmap full implementation)
+- Performance & Load Testing
+- Additional Features
+
+**Compliance Score:** 83% для Phase 1 🎉
 
 ---
 
@@ -31,9 +53,10 @@
 
 **Ключевые пункты:**
 - Целевая аудитория: семьи из 2-5 человек
-- Основная ценность: быстрый ввод через Telegram (< 1 мин) + наглядная аналитика
-- 21 функциональное требование (FR)
+- Основная ценность: веб-аналитика + планируемая интеграция с Telegram
+- **24 функциональных требования** (FR): 18 реализовано, 6 в Phase 2
 - Tech stack: Python 3.11+, FastAPI, PostgreSQL 16+, HTMX, ECharts
+- **Phase 1 Status**: Backend + Web + Admin + Deployment ✅
 
 ---
 
@@ -85,15 +108,17 @@
 - Зависимости между требованиями
 
 **Основные группы требований:**
-- **Telegram Bot** (FR-001 до FR-006): Ввод данных, уведомления, отчеты
-- **Веб-интерфейс** (FR-010 до FR-024): Аналитика, CRUD, администрирование
-- **Системные** (FR-030 до FR-060): Аутентификация, справочники, бэкапы, развертывание
+- **Telegram Bot** (FR-001 до FR-006): ⏳ Phase 2 - Ввод данных, уведомления, отчеты
+- **Веб-интерфейс** (FR-010 до FR-014): ✅ Phase 1 - Аналитика, CRUD, администрирование
+- **Admin Features** (FR-020, FR-021, FR-051): ✅ Phase 1 - CRUD, Monitoring Dashboard
+- **Системные** (FR-030 до FR-060): ✅ Phase 1 - Аутентификация, справочники, бэкапы, развертывание
+- **API Extensions** (FR-052, FR-053): ✅ Phase 1 - Health Checks, Hierarchy API
 
-**Критические требования:**
-- FR-001: Быстрое добавление расходов через Telegram
-- FR-010-014: 5 типов аналитических графиков
-- FR-040: Иерархические справочники
-- FR-041: SCD Type 2 историчность
+**Критические требования (Phase 1):**
+- FR-010-012: 3 основных типа аналитических графиков ✅
+- FR-040: Иерархические справочники ✅
+- FR-041: SCD Type 2 историчность ✅
+- FR-051: Real-time Monitoring Dashboard ✅ (NEW)
 
 ---
 
@@ -150,13 +175,15 @@
 - Webhooks (Telegram)
 
 **Группы endpoints:**
-- Health & Monitoring (4 endpoints)
-- Authentication (2 endpoints)
-- Users (2 endpoints)
-- Articles (6 endpoints)
-- Facts (5 endpoints)
-- Analytics (6 endpoints)
-- Admin (10+ endpoints)
+- Health & Monitoring (4 endpoints) ✅
+- Authentication (1 endpoint) ✅
+- Users (3 endpoints) ✅ (+1 DELETE /users/me)
+- Articles (7 endpoints) ✅ (+2 subtree, ancestors)
+- Facts (5 endpoints) ✅
+- Analytics (5 endpoints) ✅
+- Admin (13 endpoints) ✅ (+3 stats, count, batch-delete)
+
+**Реализовано:** 43 endpoints (больше чем планировалось!)
 
 **Особенности:**
 - OpenAPI/Swagger документация
@@ -259,19 +286,17 @@
 - Test fixtures
 
 **Структура тестов:**
-- **Unit tests**: Модели, утилиты, валидаторы
-- **Integration tests**: API endpoints, services, database
-- **E2E tests**: 8 test classes (user journeys, admin journeys)
-- **Manual tests**: Deployment workflow, backup/restore
+- **Unit tests**: 220 tests (models, endpoints, auth) ✅
+- **Integration tests**: 133 tests (API, services, database, admin) ✅
+- **E2E tests**: 2 comprehensive test classes ✅
+- **Manual tests**: Deployment workflow, backup/restore ✅
+
+**TOTAL: 373 tests** (значительно больше чем планировалось!)
 
 **E2E test coverage:**
-- User Journey: 11-step workflow (categories → transactions → analytics)
-- Budget Planning Journey
-- Analytics Exploration (все 6 типов графиков)
-- Admin User Management
-- Admin Global Articles
-- Admin System Monitoring
-- Security & Access Control
+- Complete User Journey (11 steps): categories → transactions → analytics ✅
+- Complete Admin Journey (9 steps): users + articles + monitoring ✅
+- Coverage: Budget Planning, Analytics (3 chart types), Admin Management, Security
 
 ---
 
@@ -399,23 +424,32 @@
 - Appendices: 138 строк (4%)
 
 **Ключевые метрики:**
-- Функциональных требований: 21
-- API endpoints: 40+
-- Таблиц БД: 4
-- Типов графиков: 6
-- Bash скриптов для развертывания: 3
+- Функциональных требований: 24 (21 исходных + 3 новых)
+- **Phase 1 реализовано**: 18 FR (75%)
+- **Phase 2 запланировано**: 6 FR (25%)
+- API endpoints: 43 (больше чем ожидалось!)
+- Таблиц БД: 4 основные + 2 дополнительные (ЦФО/МВЗ для Phase 2)
+- Типов графиков: 3 полностью + 2 частично (backend ready)
+- Bash скриптов для развертывания: 3 (с расширенными возможностями)
+- Тестов: 373 (Unit + Integration + E2E)
 - Идентифицированных рисков: 8
 
 ---
 
 ## 🔄 Версионирование
 
-**Текущая версия:** 1.0
-**Статус:** Final
+**Текущая версия:** 1.1
+**Статус:** Phase 1 Complete, Phase 2 Planned
 **Последнее обновление:** 2025-10-14
 
 **История изменений:**
-- 2025-10-14: Разбиение на модули, создание этого README
+- **2025-10-14 (v1.1)**: Обновление на основе фактической реализации
+  - Добавлено разделение на Phase 1 (реализовано) и Phase 2 (планируется)
+  - Добавлены новые FR: FR-051 (Monitoring Dashboard), FR-052 (Health Checks), FR-053 (Hierarchy API)
+  - Обновлена статистика: 373 теста, 43 API endpoints
+  - Telegram Bot (FR-001 до FR-006) перенесен в Phase 2
+  - Обновлены разделы: Functional Requirements, API Spec, Testing Strategy, Deployment
+- 2025-10-14 (v1.0): Разбиение на модули, создание этого README
 - 2025-10-08: Первоначальная версия (монолитный PRD.md)
 
 ---

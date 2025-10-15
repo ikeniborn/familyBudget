@@ -36,22 +36,28 @@ CREATE TABLE IF NOT EXISTS t_d_user (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
     -- Constraints
-    -- Only one current record per telegram_id
-    CONSTRAINT unique_user_telegram_current 
-        UNIQUE (telegram_id, is_current) 
-        WHERE is_current = TRUE,
-    
     -- Valid date range check
-    CONSTRAINT check_user_valid_dates 
+    CONSTRAINT check_user_valid_dates
         CHECK (valid_from < valid_to)
 );
+
+-- ============================================================================
+-- PARTIAL UNIQUE INDEX (replaces inline constraint with WHERE clause)
+-- ============================================================================
+-- PostgreSQL does not support partial unique constraints as inline table constraints.
+-- We must create partial unique indexes separately.
+
+-- Only one current record per telegram_id
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_telegram_current
+    ON t_d_user(telegram_id, is_current)
+    WHERE is_current = TRUE;
 
 -- ============================================================================
 -- INDEXES
 -- ============================================================================
 
 -- Index on telegram_id for fast lookups
-CREATE INDEX IF NOT EXISTS idx_user_telegram_id 
+CREATE INDEX IF NOT EXISTS idx_user_telegram_id
     ON t_d_user(telegram_id);
 
 -- Index on current records only

@@ -37,16 +37,6 @@ CREATE TABLE IF NOT EXISTS t_d_cost_center (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     -- Constraints
-    -- Only one current record per user + code combination (for user cost centers)
-    CONSTRAINT unique_cost_center_user_code_current
-        UNIQUE (user_id, code, is_current)
-        WHERE is_current = TRUE AND user_id IS NOT NULL,
-
-    -- Only one current record per code for global cost centers
-    CONSTRAINT unique_cost_center_global_code_current
-        UNIQUE (code, is_current)
-        WHERE is_current = TRUE AND is_global = TRUE,
-
     -- Valid date range check
     CONSTRAINT check_cost_center_valid_dates
         CHECK (valid_from < valid_to),
@@ -63,6 +53,22 @@ CREATE TABLE IF NOT EXISTS t_d_cost_center (
     CONSTRAINT check_cost_center_user_ownership
         CHECK (is_global OR (NOT is_global AND user_id IS NOT NULL))
 );
+
+-- ============================================================================
+-- PARTIAL UNIQUE INDEXES (replace inline constraints with WHERE clauses)
+-- ============================================================================
+-- PostgreSQL does not support partial unique constraints as inline table constraints.
+-- We must create partial unique indexes separately.
+
+-- Only one current record per user + code combination (for user cost centers)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cost_center_user_code_current
+    ON t_d_cost_center(user_id, code, is_current)
+    WHERE is_current = TRUE AND user_id IS NOT NULL;
+
+-- Only one current record per code for global cost centers
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cost_center_global_code_current
+    ON t_d_cost_center(code, is_current)
+    WHERE is_current = TRUE AND is_global = TRUE;
 
 -- ============================================================================
 -- INDEXES

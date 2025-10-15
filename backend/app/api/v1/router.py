@@ -11,7 +11,9 @@ from backend.app.api.v1.analytics import router as analytics_router
 from backend.app.api.v1.endpoints import (
     articles_router,
     auth_router,
+    cost_centers_router,
     facts_router,
+    financial_centers_router,
     users_router,
 )
 
@@ -22,6 +24,12 @@ api_router.include_router(auth_router)
 
 # Articles endpoints (TASK-015) ✅
 api_router.include_router(articles_router)
+
+# Financial Centers endpoints (TASK-007) ✅
+api_router.include_router(financial_centers_router)
+
+# Cost Centers endpoints (TASK-007) ✅
+api_router.include_router(cost_centers_router)
 
 # Facts endpoints (TASK-016) ✅
 api_router.include_router(facts_router)

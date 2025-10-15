@@ -54,12 +54,25 @@
             </section>
 
             <section class="chart-card" aria-labelledby="chart-title-waterfall">
-                <h2 id="chart-title-waterfall">💧 Cumulative Flow</h2>
-                <div id="chart-waterfall" style="width: 100%; height: 400px;" role="img" aria-label="Waterfall chart showing cumulative cash flow over time"></div>
+                <h2 id="chart-title-waterfall">💧 Waterfall Chart</h2>
+                <div class="waterfall-controls" role="group" aria-label="Waterfall period selector">
+                    <label id="waterfall-period-label">Period:</label>
+                    <button class="filter-btn-small" id="waterfall-month" onclick="updateWaterfallPeriod('month')" aria-pressed="false" aria-labelledby="waterfall-period-label waterfall-month">Month</button>
+                    <button class="filter-btn-small" id="waterfall-quarter" onclick="updateWaterfallPeriod('quarter')" aria-pressed="false" aria-labelledby="waterfall-period-label waterfall-quarter">Quarter</button>
+                    <button class="filter-btn-small active" id="waterfall-year" onclick="updateWaterfallPeriod('year')" aria-pressed="true" aria-labelledby="waterfall-period-label waterfall-year">Year</button>
+                    <button class="filter-btn-small" id="waterfall-reset" onclick="resetWaterfallDrilldown()" style="display:none; margin-left: 10px;" aria-label="Reset drill-down">↩️ Reset</button>
+                </div>
+                <div id="chart-waterfall" style="width: 100%; height: 400px;" role="img" aria-label="Waterfall chart showing cumulative cash flow with drill-down capability"></div>
             </section>
 
             <section class="chart-card" aria-labelledby="chart-title-heatmap">
                 <h2 id="chart-title-heatmap">🔥 Spending Heatmap</h2>
+                <div class="heatmap-controls" role="group" aria-label="Heatmap period selector">
+                    <label id="heatmap-period-label">Period:</label>
+                    <button class="filter-btn-small" id="heatmap-month" onclick="updateHeatmapPeriod('month')" aria-pressed="false" aria-labelledby="heatmap-period-label heatmap-month">Month</button>
+                    <button class="filter-btn-small active" id="heatmap-quarter" onclick="updateHeatmapPeriod('quarter')" aria-pressed="true" aria-labelledby="heatmap-period-label heatmap-quarter">Quarter</button>
+                    <button class="filter-btn-small" id="heatmap-year" onclick="updateHeatmapPeriod('year')" aria-pressed="false" aria-labelledby="heatmap-period-label heatmap-year">Year</button>
+                </div>
                 <div id="chart-heatmap" style="width: 100%; height: 400px;" role="img" aria-label="Heatmap showing spending patterns by day of week"></div>
             </section>
         </div>
@@ -78,6 +91,10 @@ let heatmapChart = null;
 let currentPeriod = 'week';
 let currentTrendsDays = 30;
 let currentPieType = 'expense';
+let currentWaterfallPeriod = 'year';
+let currentWaterfallArticleId = null;
+let waterfallCategoriesData = [];
+let currentHeatmapPeriod = 'quarter';
 
 // Initialize charts on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -571,16 +588,30 @@ function initWaterfallChart() {
 }
 
 // Load Waterfall data from API
-async function loadWaterfallData() {
+async function loadWaterfallData(period = 'year', articleId = null) {
     try {
-        const response = await fetch('/api/v1/analytics/waterfall');
+        let url = `/api/v1/analytics/waterfall?period=${period}`;
+        if (articleId) {
+            url += `&article_id=${articleId}`;
+        }
+
+        const response = await fetch(url);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
+        waterfallCategoriesData = data.categories || [];
         updateWaterfallChart(data);
+
+        // Show/hide reset button based on drill-down state
+        const resetBtn = document.getElementById('waterfall-reset');
+        if (articleId) {
+            resetBtn.style.display = 'inline-block';
+        } else {
+            resetBtn.style.display = 'none';
+        }
     } catch (error) {
         console.error('Error loading waterfall data:', error);
         waterfallChart.hideLoading();
@@ -601,41 +632,50 @@ async function loadWaterfallData() {
 function updateWaterfallChart(data) {
     waterfallChart.hideLoading();
 
-    // Calculate waterfall values (start from 0, show increments)
+    // Build proper waterfall data structure
+    // Waterfall shows: Start -> +Income -> -Expense -> End (cumulative)
     const waterfallData = [];
-    let cumulativeBalance = 0;
+    const labels = [];
 
+    // Add starting point
+    labels.push('Start');
+    waterfallData.push({
+        value: 0,
+        itemStyle: { color: '#90CAF9' }
+    });
+
+    // Add each period's net change
     data.labels.forEach((label, index) => {
         const income = data.income[index];
         const expense = data.expense[index];
         const net = income - expense;
 
-        // Add income bar (positive)
-        if (income > 0) {
-            waterfallData.push({
-                name: label,
-                type: 'income',
-                value: income,
-                itemStyle: { color: '#4CAF50' }
-            });
-        }
-
-        // Add expense bar (negative)
-        if (expense > 0) {
-            waterfallData.push({
-                name: label,
-                type: 'expense',
-                value: -expense,
-                itemStyle: { color: '#f44336' }
-            });
-        }
-
-        cumulativeBalance += net;
+        labels.push(label);
+        waterfallData.push({
+            value: net,
+            itemStyle: {
+                color: net >= 0 ? '#4CAF50' : '#f44336'  // Green for positive, red for negative
+            }
+        });
     });
+
+    // Add final cumulative balance
+    labels.push('Total');
+    waterfallData.push({
+        value: data.balance[data.balance.length - 1],
+        itemStyle: { color: '#2196F3' }
+    });
+
+    // Build subtitle
+    let subtitle = `${data.period.charAt(0).toUpperCase() + data.period.slice(1)} view`;
+    if (data.article_name) {
+        subtitle += ` - ${data.article_name}`;
+    }
 
     const option = {
         title: {
-            text: `Cumulative Cash Flow (${data.year})`,
+            text: `Waterfall Chart (${data.year})`,
+            subtext: subtitle,
             left: 'center',
             textStyle: {
                 fontSize: 16,
@@ -648,37 +688,54 @@ function updateWaterfallChart(data) {
                 type: 'shadow'
             },
             formatter: function(params) {
-                const month = params[0].axisValue;
-                const monthIndex = data.labels.indexOf(month);
+                const labelIndex = params[0].dataIndex;
 
-                if (monthIndex === -1) return '';
+                // Skip first (Start) and last (Total)
+                if (labelIndex === 0) {
+                    return '<strong>Start</strong><br/>Starting balance: 0 ₽';
+                }
 
-                const income = data.income[monthIndex];
-                const expense = data.expense[monthIndex];
-                const balance = data.balance[monthIndex];
+                if (labelIndex === labels.length - 1) {
+                    const finalBalance = data.balance[data.balance.length - 1];
+                    return `<strong>Total</strong><br/>Final balance: ${finalBalance.toFixed(2)} ₽`;
+                }
 
-                return `<strong>${month}</strong><br/>` +
-                       `Income: ${income.toFixed(2)} ₽<br/>` +
-                       `Expense: ${expense.toFixed(2)} ₽<br/>` +
-                       `<hr style="margin: 5px 0"/>` +
-                       `<strong>Cumulative: ${balance.toFixed(2)} ₽</strong>`;
+                // Regular period data
+                const dataIndex = labelIndex - 1;
+                const label = data.labels[dataIndex];
+                const income = data.income[dataIndex];
+                const expense = data.expense[dataIndex];
+                const net = income - expense;
+                const cumulative = data.balance[dataIndex];
+
+                let tooltip = `<strong>${label}</strong><br/>`;
+                tooltip += `Income: ${income.toFixed(2)} ₽<br/>`;
+                tooltip += `Expense: ${expense.toFixed(2)} ₽<br/>`;
+                tooltip += `<hr style="margin: 5px 0"/>`;
+                tooltip += `Net: <span style="color: ${net >= 0 ? '#4CAF50' : '#f44336'}">${net.toFixed(2)} ₽</span><br/>`;
+                tooltip += `Cumulative: ${cumulative.toFixed(2)} ₽`;
+
+                // Show categories for drill-down
+                if (!data.article_id && waterfallCategoriesData[dataIndex]?.length > 0) {
+                    tooltip += `<br/><br/><em style="color: #999; font-size: 11px;">Click to drill down by category</em>`;
+                }
+
+                return tooltip;
             }
         },
-        legend: {
-            data: ['Income', 'Expense', 'Balance'],
-            bottom: 10
-        },
         grid: {
-            left: '3%',
-            right: '4%',
-            bottom: '15%',
+            left: '5%',
+            right: '5%',
+            bottom: '12%',
+            top: '20%',
             containLabel: true
         },
         xAxis: {
             type: 'category',
-            data: data.labels,
+            data: labels,
             axisLabel: {
-                rotate: 0
+                rotate: data.labels.length > 8 ? 45 : 0,
+                fontSize: 11
             }
         },
         yAxis: {
@@ -692,44 +749,158 @@ function updateWaterfallChart(data) {
         },
         series: [
             {
-                name: 'Income',
+                name: 'Waterfall',
                 type: 'bar',
-                stack: 'total',
-                data: data.income,
-                itemStyle: {
-                    color: '#4CAF50',
-                    borderRadius: [4, 4, 0, 0]
-                }
-            },
-            {
-                name: 'Expense',
-                type: 'bar',
-                stack: 'total',
-                data: data.expense.map(v => -v),
-                itemStyle: {
-                    color: '#f44336',
-                    borderRadius: [4, 4, 0, 0]
-                }
-            },
-            {
-                name: 'Balance',
-                type: 'line',
-                data: data.balance,
-                lineStyle: {
-                    color: '#2196F3',
-                    width: 3
+                data: waterfallData,
+                label: {
+                    show: false
                 },
-                itemStyle: {
-                    color: '#2196F3'
-                },
-                symbol: 'circle',
-                symbolSize: 8,
-                z: 10
+                emphasis: {
+                    focus: 'series',
+                    itemStyle: {
+                        shadowBlur: 10,
+                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                    }
+                }
             }
         ]
     };
 
-    waterfallChart.setOption(option);
+    waterfallChart.setOption(option, true);  // true = notMerge for clean refresh
+
+    // Add click event for drill-down
+    waterfallChart.off('click');  // Remove previous listeners
+    waterfallChart.on('click', function(params) {
+        // Skip Start and Total bars
+        if (params.dataIndex === 0 || params.dataIndex === labels.length - 1) {
+            return;
+        }
+
+        // Already in drill-down mode - do nothing
+        if (data.article_id) {
+            return;
+        }
+
+        // Get the actual data index (subtract 1 for Start bar)
+        const dataIndex = params.dataIndex - 1;
+        const categories = waterfallCategoriesData[dataIndex];
+
+        if (!categories || categories.length === 0) {
+            return;
+        }
+
+        // Show drill-down modal with categories
+        showWaterfallDrilldownModal(data.labels[dataIndex], categories);
+    });
+}
+
+// Update waterfall period filter
+function updateWaterfallPeriod(period) {
+    currentWaterfallPeriod = period;
+
+    // Update active button and ARIA states
+    document.getElementById('waterfall-month').classList.remove('active');
+    document.getElementById('waterfall-month').setAttribute('aria-pressed', 'false');
+    document.getElementById('waterfall-quarter').classList.remove('active');
+    document.getElementById('waterfall-quarter').setAttribute('aria-pressed', 'false');
+    document.getElementById('waterfall-year').classList.remove('active');
+    document.getElementById('waterfall-year').setAttribute('aria-pressed', 'false');
+
+    const activeBtn = document.getElementById(`waterfall-${period}`);
+    activeBtn.classList.add('active');
+    activeBtn.setAttribute('aria-pressed', 'true');
+
+    // Reload chart data with current drill-down state
+    loadWaterfallData(period, currentWaterfallArticleId);
+}
+
+// Reset waterfall drill-down to main view
+function resetWaterfallDrilldown() {
+    currentWaterfallArticleId = null;
+    loadWaterfallData(currentWaterfallPeriod, null);
+}
+
+// Show drill-down modal with category list
+function showWaterfallDrilldownModal(periodLabel, categories) {
+    // Build modal HTML
+    let modalHtml = `
+        <div id="waterfall-drilldown-modal" class="modal" style="display: block;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Drill Down: ${periodLabel}</h3>
+                    <span class="modal-close" onclick="closeWaterfallDrilldownModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <p>Select a category to view detailed breakdown:</p>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+    `;
+
+    categories.forEach(cat => {
+        const typeLabel = cat.type === 'income' ? 'Income' : 'Expense';
+        const typeColor = cat.type === 'income' ? '#4CAF50' : '#f44336';
+        const amountFormatted = cat.amount.toFixed(2);
+
+        modalHtml += `
+            <tr>
+                <td><strong>${cat.name}</strong></td>
+                <td><span style="color: ${typeColor}">${typeLabel}</span></td>
+                <td>${amountFormatted} ₽</td>
+                <td>
+                    <button class="btn-primary btn-small" onclick="selectWaterfallArticle(${cat.id}, '${cat.name.replace(/'/g, "\\'")}')">
+                        View
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    modalHtml += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeWaterfallDrilldownModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Insert modal into DOM
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Close modal on outside click
+    const modal = document.getElementById('waterfall-drilldown-modal');
+    window.onclick = function(event) {
+        if (event.target === modal) {
+            closeWaterfallDrilldownModal();
+        }
+    };
+}
+
+// Close drill-down modal
+function closeWaterfallDrilldownModal() {
+    const modal = document.getElementById('waterfall-drilldown-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// Select article for drill-down
+function selectWaterfallArticle(articleId, articleName) {
+    currentWaterfallArticleId = articleId;
+    closeWaterfallDrilldownModal();
+    loadWaterfallData(currentWaterfallPeriod, articleId);
 }
 
 // Initialize Heatmap chart
@@ -740,9 +911,9 @@ function initHeatmapChart() {
 }
 
 // Load Heatmap data from API
-async function loadHeatmapData() {
+async function loadHeatmapData(period = 'quarter') {
     try {
-        const response = await fetch('/api/v1/analytics/heatmap');
+        const response = await fetch(`/api/v1/analytics/heatmap?period=${period}`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -784,9 +955,23 @@ function updateHeatmapChart(data) {
     // Find max value for visualMap
     const maxValue = Math.max(...data.weeks.flat());
 
+    // Dynamic chart height based on number of weeks
+    const chartDom = document.getElementById('chart-heatmap');
+    const minHeight = 400;
+    const rowHeight = 30;
+    const dynamicHeight = Math.max(minHeight, data.week_count * rowHeight + 150);
+    chartDom.style.height = `${dynamicHeight}px`;
+
+    // Rebuild chart with new height
+    heatmapChart.dispose();
+    heatmapChart = echarts.init(chartDom);
+
+    const periodLabel = data.period.charAt(0).toUpperCase() + data.period.slice(1);
+
     const option = {
         title: {
-            text: 'Spending Heatmap (Last 90 Days)',
+            text: `Spending Heatmap (${periodLabel})`,
+            subtext: `${data.start_date} to ${data.end_date}`,
             left: 'center',
             textStyle: {
                 fontSize: 16,
@@ -864,6 +1049,26 @@ function updateHeatmapChart(data) {
     };
 
     heatmapChart.setOption(option);
+}
+
+// Update heatmap period filter
+function updateHeatmapPeriod(period) {
+    currentHeatmapPeriod = period;
+
+    // Update active button and ARIA states
+    document.getElementById('heatmap-month').classList.remove('active');
+    document.getElementById('heatmap-month').setAttribute('aria-pressed', 'false');
+    document.getElementById('heatmap-quarter').classList.remove('active');
+    document.getElementById('heatmap-quarter').setAttribute('aria-pressed', 'false');
+    document.getElementById('heatmap-year').classList.remove('active');
+    document.getElementById('heatmap-year').setAttribute('aria-pressed', 'false');
+
+    const activeBtn = document.getElementById(`heatmap-${period}`);
+    activeBtn.classList.add('active');
+    activeBtn.setAttribute('aria-pressed', 'true');
+
+    // Reload chart data
+    loadHeatmapData(period);
 }
 
 // Responsive chart resize

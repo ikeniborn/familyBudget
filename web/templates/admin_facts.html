@@ -110,6 +110,20 @@
                 <label for="edit-description">Description</label>
                 <textarea id="edit-description" name="description" rows="3" maxlength="500"></textarea>
             </div>
+            <div class="form-group">
+                <label for="edit-financial-center">Financial Center (ЦФО)</label>
+                <select id="edit-financial-center" name="financial_center_id">
+                    <option value="">-- Not Specified --</option>
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="edit-cost-center">Cost Center (МВЗ)</label>
+                <select id="edit-cost-center" name="cost_center_id">
+                    <option value="">-- Not Specified --</option>
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
             <div class="modal-footer">
                 <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancel</button>
                 <button type="submit" class="btn-primary">Update</button>
@@ -140,6 +154,8 @@ let filters = {
 document.addEventListener('DOMContentLoaded', function() {
     loadUsers();
     loadArticles();
+    loadFinancialCenters();
+    loadCostCenters();
     loadFacts();
 });
 
@@ -186,6 +202,54 @@ async function loadArticles() {
         });
     } catch (error) {
         console.error('Error loading articles:', error);
+    }
+}
+
+// Load financial centers for edit dropdown
+async function loadFinancialCenters() {
+    try {
+        const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const centers = data.financial_centers || [];
+
+        const editSelect = document.getElementById('edit-financial-center');
+        centers.forEach(center => {
+            const option = document.createElement('option');
+            option.value = center.id;
+            const scope = center.is_global ? ' (Global)' : '';
+            option.textContent = `${center.name}${scope}`;
+            editSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading financial centers:', error);
+    }
+}
+
+// Load cost centers for edit dropdown
+async function loadCostCenters() {
+    try {
+        const response = await fetch('/api/v1/cost-centers?limit=1000&include_global=true');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const centers = data.cost_centers || [];
+
+        const editSelect = document.getElementById('edit-cost-center');
+        centers.forEach(center => {
+            const option = document.createElement('option');
+            option.value = center.id;
+            const scope = center.is_global ? ' (Global)' : '';
+            option.textContent = `${center.name}${scope}`;
+            editSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading cost centers:', error);
     }
 }
 
@@ -395,6 +459,8 @@ function showEditModal(factId) {
     document.getElementById('edit-date').value = fact.fact_date;
     document.getElementById('edit-article').value = fact.article_id;
     document.getElementById('edit-description').value = fact.description || '';
+    document.getElementById('edit-financial-center').value = fact.financial_center_id || '';
+    document.getElementById('edit-cost-center').value = fact.cost_center_id || '';
 
     document.getElementById('edit-modal').style.display = 'block';
 }
@@ -411,12 +477,26 @@ async function updateFact(event) {
 
     const formData = new FormData(event.target);
     const factId = formData.get('id');
+
+    // Build data object with optional center fields
     const data = {
         amount: parseFloat(formData.get('amount')),
         fact_date: formData.get('fact_date'),
         article_id: parseInt(formData.get('article_id')),
         description: formData.get('description') || null
     };
+
+    // Add center fields if selected
+    const financialCenterId = formData.get('financial_center_id');
+    const costCenterId = formData.get('cost_center_id');
+
+    if (financialCenterId) {
+        data.financial_center_id = parseInt(financialCenterId);
+    }
+
+    if (costCenterId) {
+        data.cost_center_id = parseInt(costCenterId);
+    }
 
     try {
         const response = await fetch(`/api/v1/admin/facts/${factId}`, {

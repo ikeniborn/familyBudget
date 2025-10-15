@@ -99,13 +99,20 @@ class BudgetFact(SQLModel, table=True):
         nullable=False,
         max_digits=15,
         decimal_places=2,
-        description="Transaction amount (positive for income/expenses, negative for corrections)"
+        description="Transaction amount with sign: positive for income, negative for expense"
     )
 
     description: Optional[str] = Field(
         default=None,
         max_length=None,  # TEXT field in PostgreSQL
         description="Optional transaction description/notes"
+    )
+
+    record_type: str = Field(
+        default="fact",
+        max_length=10,
+        nullable=False,
+        description="Record type: 'fact' for actual transactions, 'plan' for budget plans"
     )
 
     # Audit fields
@@ -129,6 +136,7 @@ class BudgetFact(SQLModel, table=True):
             f"user_id={self.user_id}, "
             f"article_id={self.article_id}, "
             f"fact_date={self.fact_date}, "
-            f"amount={self.amount}"
+            f"amount={self.amount}, "
+            f"record_type={self.record_type}"
             f")"
         )

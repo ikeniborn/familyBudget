@@ -1,20 +1,49 @@
 ## 4. Functional Requirements
 
-### 4.1 Telegram Bot Features
+### 📊 Project Phases Overview
 
-| ID | Название | Приоритет | Acceptance Criteria Count |
-|----|----------|-----------|---------------------------|
-| FR-001 | Добавление расхода | Critical | 7 |
-| FR-002 | Добавление плана | Critical | 3 |
-| FR-003 | Просмотр итогов | High | 4 |
-| FR-004 | Корректировка записей | High | 5 |
-| FR-005 | Еженедельные отчеты | High | 4 |
-| FR-006 | Уведомления о превышении бюджета | High | 4 |
+| Phase | Status | FR Count | Description |
+|-------|--------|----------|-------------|
+| **Phase 1 (v1.0-v4.4.0)** | ✅ COMPLETED | 18 FR | Backend API + Web Analytics + Admin + Deployment |
+| **Phase 2 (v5.0+)** | ⏳ PLANNED | 6 FR | Telegram Bot + ЦФО/МВЗ + Advanced Analytics UI |
+
+### Phase 1 Implementation Summary (COMPLETED ✅)
+
+**Web Analytics:** FR-010, FR-011, FR-012 (fully), FR-013, FR-014 (backend ready)
+**Admin Features:** FR-020, FR-021, FR-051 (Monitoring Dashboard - NEW)
+**Auth & Data:** FR-030, FR-031, FR-040, FR-041, FR-042
+**Operations:** FR-050, FR-060
+**API Extensions:** FR-052 (Health Checks - NEW), FR-053 (Hierarchy API - NEW)
+
+**Total Phase 1:** 18 FR реализовано (75%)
+
+### Phase 2 Roadmap (PLANNED ⏳)
+
+**Telegram Bot:** FR-001, FR-002, FR-003, FR-004, FR-005, FR-006
+
+**Total Phase 2:** 6 FR запланировано (25%)
+
+---
+
+### 4.1 Telegram Bot Features (⏳ PHASE 2 - PLANNED)
+
+**СТАТУС:** Все FR в этом разделе отложены до Phase 2. Backend API полностью готов для интеграции.
+
+| ID | Название | Phase | Приоритет | Acceptance Criteria Count |
+|----|----------|-------|-----------|---------------------------|
+| FR-001 | Добавление расхода | Phase 2 | Critical | 7 |
+| FR-002 | Добавление плана | Phase 2 | Critical | 3 |
+| FR-003 | Просмотр итогов | Phase 2 | High | 4 |
+| FR-004 | Корректировка записей | Phase 2 | High | 5 |
+| FR-005 | Еженедельные отчеты | Phase 2 | High | 4 |
+| FR-006 | Уведомления о превышении бюджета | Phase 2 | High | 4 |
 
 #### FR-001: Telegram Bot - Добавление расхода
 
-**Приоритет:** Critical  
+**Phase:** 2 (PLANNED ⏳)
+**Приоритет:** Critical
 **Категория:** telegram_bot
+**Backend Status:** ✅ API Ready (POST /api/v1/facts)
 
 **Описание:**
 Пользователь через Telegram бота может добавить фактический расход с указанием:
@@ -149,11 +178,14 @@
 
 ---
 
-### 4.2 Web Analytics Features
+---
+
+### 4.2 Web Analytics Features (✅ PHASE 1 - COMPLETED)
 
 #### FR-010: Веб - План-факт анализ (столбчатая диаграмма)
 
-**Приоритет:** Critical  
+**Phase:** 1 ✅ **РЕАЛИЗОВАНО**
+**Приоритет:** Critical
 **Категория:** web_analytics
 
 **Описание:**
@@ -204,7 +236,8 @@
 
 #### FR-013: Веб - Waterfall для бюджета
 
-**Приоритет:** High  
+**Phase:** 1/2 ⚠️ **ЧАСТИЧНО РЕАЛИЗОВАНО** (Backend ready, UI частично)
+**Приоритет:** High
 **Категория:** web_analytics
 
 **Описание:**
@@ -234,7 +267,9 @@ Waterfall диаграмма показывает последовательно
 
 ---
 
-### 4.3 Admin CRUD Features
+---
+
+### 4.3 Admin CRUD Features (✅ PHASE 1 - COMPLETED)
 
 #### FR-020: Веб - CRUD справочников (только для администратора)
 
