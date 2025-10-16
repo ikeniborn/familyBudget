@@ -26,4 +26,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # Placeholder command until bot is fully implemented
 # This keeps the container running and allows for future bot integration
-CMD ["python", "-c", "import time; print('Telegram Bot container started'); print('Bot implementation pending - container running as placeholder'); print('Ready for bot integration...'); while True: time.sleep(3600)"]
+CMD ["sh", "-c", "echo 'Telegram Bot container started' && echo 'Bot implementation pending - container running as placeholder' && echo 'Ready for bot integration...' && while true; do sleep 3600; done"]

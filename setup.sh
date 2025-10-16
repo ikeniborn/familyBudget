@@ -682,6 +682,10 @@ configure_postgres_access() {
         # Set port mapping
         CONFIG["POSTGRES_PORT_MAPPING"]="5432:5432"
 
+        # Uncomment ports section in docker-compose.yml
+        info "Enabling PostgreSQL port in docker-compose.yml..."
+        sed -i '/# External port mapping - conditional/,/# *- "\${POSTGRES_PORT_MAPPING}"/s/# *//' docker-compose.yml
+
         echo ""
         success "PostgreSQL external access configured with IP restriction"
         echo ""
@@ -701,6 +705,10 @@ configure_postgres_access() {
         CONFIG["POSTGRES_EXTERNAL_ACCESS"]="false"
         CONFIG["POSTGRES_ALLOWED_IP"]=""
         CONFIG["POSTGRES_PORT_MAPPING"]=""
+
+        # Ensure ports section is commented in docker-compose.yml
+        info "Ensuring PostgreSQL port is disabled in docker-compose.yml..."
+        sed -i '/# External port mapping - conditional/,/- "\${POSTGRES_PORT_MAPPING}"/s/^\([[:space:]]*\)\(ports:\|- "\${POSTGRES_PORT_MAPPING}"\)/\1# \2/' docker-compose.yml
 
         echo ""
         success "PostgreSQL external access disabled (most secure)"
