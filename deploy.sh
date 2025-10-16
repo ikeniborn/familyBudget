@@ -299,7 +299,7 @@ cleanup_full() {
     # Remove data directories
     if [[ -d "$SCRIPT_DIR/data/postgres" ]]; then
         warning "Removing PostgreSQL data directory..."
-        rm -rf "$SCRIPT_DIR/data/postgres"/* >> "$LOG_FILE" 2>&1 || true
+        sudo rm -rf "$SCRIPT_DIR/data/postgres"/* >> "$LOG_FILE" 2>&1 || true
     fi
 
     success "Full cleanup completed (ALL DATA DELETED)"
@@ -580,7 +580,7 @@ clean_deployment() {
             # Remove data directories
             if [[ -d "$SCRIPT_DIR/data/postgres" ]]; then
                 warning "Removing PostgreSQL data directory..."
-                rm -rf "$SCRIPT_DIR/data/postgres"/*
+                sudo rm -rf "$SCRIPT_DIR/data/postgres"/*
             fi
         else
             info "Clean deployment cancelled"
