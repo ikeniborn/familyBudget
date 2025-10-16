@@ -151,6 +151,7 @@ install_utilities() {
         "htop"
         "net-tools"
         "ufw"  # Firewall
+        "certbot"  # Let's Encrypt SSL certificates
     )
 
     for package in "${packages[@]}"; do
@@ -303,6 +304,7 @@ create_directories() {
         "$SCRIPT_DIR/uploads"
         "$SCRIPT_DIR/certbot/conf"
         "$SCRIPT_DIR/certbot/www"
+        "$SCRIPT_DIR/nginx/conf.d"
     )
 
     for dir in "${dirs[@]}"; do
@@ -359,7 +361,8 @@ print_summary() {
     echo "  ✓ Docker Engine: $(docker --version | awk '{print $3}' | sed 's/,//')"
     echo "  ✓ Docker Compose: $(docker compose version | awk '{print $4}')"
     echo "  ✓ UFW Firewall: $(ufw --version | head -1)"
-    echo "  ✓ Basic utilities"
+    echo "  ✓ Certbot: $(certbot --version 2>&1 | head -1)"
+    echo "  ✓ Basic utilities (curl, git, jq, etc.)"
     echo ""
     echo "Created directories:"
     echo "  ✓ $SCRIPT_DIR/data/postgres"

@@ -381,9 +381,210 @@ collect_configuration() {
     prompt "Domain name (or localhost)" "DOMAIN" "localhost"
     prompt "Backend port" "BACKEND_PORT" "8000"
     prompt "Number of Uvicorn workers" "WORKERS" "4"
-    prompt "Log level (DEBUG/INFO/WARNING/ERROR)" "LOG_LEVEL" "INFO"
+    prompt "Log level (debug/info/warning/error)" "LOG_LEVEL" "info"
 
     success "Configuration collected"
+}
+
+# Configure deployment profile (basic or full)
+configure_deployment_profile() {
+    section "Deployment Profile Selection"
+
+    echo ""
+    info "Choose deployment profile:"
+    echo ""
+    echo "  [1] Basic (default)"
+    echo "      - PostgreSQL + Backend API"
+    echo "      - Direct access via port 8000"
+    echo "      - No SSL/HTTPS"
+    echo "      - Suitable for: development, testing, internal networks"
+    echo ""
+    echo "  [2] Full (production)"
+    echo "      - PostgreSQL + Backend API + Nginx + Bot + Certbot"
+    echo "      - Reverse proxy with Nginx"
+    echo "      - Automatic SSL via Let's Encrypt"
+    echo "      - Telegram Bot for data entry"
+    echo "      - Suitable for: production, public access"
+    echo ""
+
+    if [[ "$NON_INTERACTIVE" == "true" ]]; then
+        CONFIG["DEPLOYMENT_PROFILE"]="basic"
+        info "Using default profile: basic"
+        return
+    fi
+
+    while true; do
+        read -p "Select profile [1/2] (default: 1): " profile_choice
+
+        case "${profile_choice:-1}" in
+            1)
+                CONFIG["DEPLOYMENT_PROFILE"]="basic"
+                CONFIG["SSL_TYPE"]="none"
+                success "Selected profile: basic"
+                break
+                ;;
+            2)
+                CONFIG["DEPLOYMENT_PROFILE"]="full"
+                CONFIG["SSL_TYPE"]="letsencrypt"
+                success "Selected profile: full"
+                break
+                ;;
+            *)
+                error "Invalid choice. Please enter 1 or 2."
+                ;;
+        esac
+    done
+}
+
+# Validate domain name format
+validate_domain() {
+    local domain=$1
+
+    # Allow localhost
+    if [[ "$domain" == "localhost" ]]; then
+        return 0
+    fi
+
+    # Check domain format (basic validation)
+    if [[ $domain =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$ ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Configure domain and SSL (for full profile)
+configure_domain_ssl() {
+    # Skip if basic profile
+    if [[ "${CONFIG[DEPLOYMENT_PROFILE]}" != "full" ]]; then
+        info "Basic profile selected - skipping domain/SSL configuration"
+        CONFIG["DOMAIN"]="localhost"
+        CONFIG["SSL_TYPE"]="none"
+        CONFIG["LETSENCRYPT_EMAIL"]=""
+        return
+    fi
+
+    section "Domain & SSL Configuration"
+
+    echo ""
+    warning "IMPORTANT: Domain Configuration"
+    echo "  For SSL to work, your domain must:"
+    echo "  1. Point to this server's public IP address (A record in DNS)"
+    echo "  2. Be accessible from the internet (ports 80 and 443 open)"
+    echo ""
+    info "To find your server's public IP: curl ifconfig.me"
+    echo ""
+
+    # Get domain
+    while true; do
+        prompt "Domain name (e.g., budget.example.com)" "DOMAIN" ""
+
+        if [[ -z "${CONFIG[DOMAIN]}" ]]; then
+            error "Domain name is required for full profile!"
+            echo ""
+            continue
+        fi
+
+        if validate_domain "${CONFIG[DOMAIN]}"; then
+            break
+        else
+            error "Invalid domain name format!"
+            echo "  Valid examples: budget.example.com, my-budget.org"
+            echo ""
+        fi
+    done
+
+    # Check DNS (optional but recommended)
+    echo ""
+    info "Checking DNS configuration for ${CONFIG[DOMAIN]}..."
+
+    if command_exists dig; then
+        local dns_ip
+        dns_ip=$(dig +short "${CONFIG[DOMAIN]}" | tail -1)
+
+        if [[ -n "$dns_ip" ]]; then
+            info "Domain resolves to: $dns_ip"
+            local server_ip
+            server_ip=$(curl -s ifconfig.me 2>/dev/null || echo "unknown")
+
+            if [[ "$dns_ip" != "$server_ip" && "$server_ip" != "unknown" ]]; then
+                warning "DNS IP ($dns_ip) doesn't match server IP ($server_ip)"
+                warning "SSL certificate generation may fail if DNS is incorrect"
+                echo ""
+
+                prompt_yes_no "Continue anyway?" "CONTINUE_WITH_DNS_MISMATCH" "n"
+
+                if [[ "${CONFIG[CONTINUE_WITH_DNS_MISMATCH]}" != "y" ]]; then
+                    error "Please update DNS and run setup.sh again"
+                fi
+            else
+                success "DNS configuration looks correct"
+            fi
+        else
+            warning "Could not resolve domain. SSL may fail if DNS is not configured."
+        fi
+    else
+        warning "dig command not available - skipping DNS check"
+    fi
+
+    # Get Let's Encrypt email
+    echo ""
+    info "Let's Encrypt email for certificate notifications"
+
+    while true; do
+        prompt "Email address" "LETSENCRYPT_EMAIL" "admin@${CONFIG[DOMAIN]}"
+
+        if [[ -n "${CONFIG[LETSENCRYPT_EMAIL]}" ]]; then
+            # Basic email validation
+            if [[ "${CONFIG[LETSENCRYPT_EMAIL]}" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
+                break
+            else
+                error "Invalid email format!"
+                echo ""
+            fi
+        else
+            error "Email is required for Let's Encrypt!"
+            echo ""
+        fi
+    done
+
+    # Set webhook URL for bot
+    CONFIG["TELEGRAM_WEBHOOK_URL"]="https://${CONFIG[DOMAIN]}/api/v1/telegram/webhook"
+
+    echo ""
+    success "Domain and SSL configured"
+    echo ""
+    info "Configuration:"
+    echo "  ✓ Domain: ${CONFIG[DOMAIN]}"
+    echo "  ✓ SSL Type: letsencrypt (automatic)"
+    echo "  ✓ Email: ${CONFIG[LETSENCRYPT_EMAIL]}"
+    echo "  ✓ Webhook: ${CONFIG[TELEGRAM_WEBHOOK_URL]}"
+}
+
+# Generate nginx configuration from template
+generate_nginx_config() {
+    # Skip if basic profile
+    if [[ "${CONFIG[DEPLOYMENT_PROFILE]}" != "full" ]]; then
+        return
+    fi
+
+    section "Generating Nginx Configuration"
+
+    info "Creating nginx configuration for ${CONFIG[DOMAIN]}..."
+
+    # Check if template exists
+    if [[ ! -f "$SCRIPT_DIR/nginx/conf.d/app.conf.template" ]]; then
+        error "Nginx template not found: nginx/conf.d/app.conf.template"
+    fi
+
+    # Copy template and replace domain
+    cp "$SCRIPT_DIR/nginx/conf.d/app.conf.template" "$SCRIPT_DIR/nginx/conf.d/app.conf"
+
+    # Replace {{DOMAIN}} with actual domain
+    sed -i "s/{{DOMAIN}}/${CONFIG[DOMAIN]}/g" "$SCRIPT_DIR/nginx/conf.d/app.conf"
+
+    success "Nginx configuration generated"
+    info "Configuration file: nginx/conf.d/app.conf"
 }
 
 # Configure PostgreSQL external access with UFW
@@ -554,6 +755,16 @@ create_env_file() {
     sed -i "s/^POSTGRES_ALLOWED_IP=.*/POSTGRES_ALLOWED_IP=${CONFIG[POSTGRES_ALLOWED_IP]}/" .env
     sed -i "s/^POSTGRES_PORT_MAPPING=.*/POSTGRES_PORT_MAPPING=${CONFIG[POSTGRES_PORT_MAPPING]}/" .env
 
+    # Deployment profile and SSL
+    sed -i "s/^DEPLOYMENT_PROFILE=.*/DEPLOYMENT_PROFILE=${CONFIG[DEPLOYMENT_PROFILE]}/" .env
+    sed -i "s/^SSL_TYPE=.*/SSL_TYPE=${CONFIG[SSL_TYPE]}/" .env
+    sed -i "s/^LETSENCRYPT_EMAIL=.*/LETSENCRYPT_EMAIL=${CONFIG[LETSENCRYPT_EMAIL]}/" .env
+
+    # Telegram webhook URL (for full profile)
+    if [[ -n "${CONFIG[TELEGRAM_WEBHOOK_URL]:-}" ]]; then
+        sed -i "s|^TELEGRAM_WEBHOOK_URL=.*|TELEGRAM_WEBHOOK_URL=${CONFIG[TELEGRAM_WEBHOOK_URL]}|" .env
+    fi
+
     # Set secure permissions
     chmod 600 .env
 
@@ -608,12 +819,14 @@ validate_configuration() {
 
     echo ""
     info "Configuration summary:"
+    echo "  ✓ Deployment profile: ${DEPLOYMENT_PROFILE}"
     echo "  ✓ Database: ${POSTGRES_USER}@${POSTGRES_DB}"
     echo "  ✓ Telegram bot: ${TELEGRAM_BOT_USERNAME:-<not set>}"
     echo "  ✓ Admin Telegram ID: ${ADMIN_TELEGRAM_ID}"
     echo "  ✓ Domain: ${DOMAIN}"
     echo "  ✓ Backend port: ${BACKEND_PORT}"
     echo "  ✓ Environment: ${APP_ENV}"
+    echo "  ✓ SSL Type: ${SSL_TYPE}"
 
     if [[ "$POSTGRES_EXTERNAL_ACCESS" == "true" ]]; then
         echo "  ✓ PostgreSQL external access: ENABLED (IP: ${POSTGRES_ALLOWED_IP})"
@@ -659,6 +872,12 @@ print_final_instructions() {
     echo ""
     echo "✅ Configuration file created: .env"
     echo "✅ Secrets generated securely"
+    echo "✅ Deployment profile: ${CONFIG[DEPLOYMENT_PROFILE]}"
+
+    if [[ "${CONFIG[DEPLOYMENT_PROFILE]}" == "full" ]]; then
+        echo "✅ Nginx configuration generated"
+        echo "✅ SSL configured (Let's Encrypt)"
+    fi
 
     if [[ "${CONFIG[POSTGRES_EXTERNAL_ACCESS]}" == "true" ]]; then
         echo "✅ UFW configured for PostgreSQL (IP: ${CONFIG[POSTGRES_ALLOWED_IP]})"
@@ -673,10 +892,20 @@ print_final_instructions() {
     echo "     cat .env"
     echo ""
     echo "  2. Deploy the application:"
-    echo "     ./deploy.sh"
+    if [[ "${CONFIG[DEPLOYMENT_PROFILE]}" == "full" ]]; then
+        echo "     ./deploy.sh --profile full"
+    else
+        echo "     ./deploy.sh"
+    fi
     echo ""
     echo "  3. Access the application:"
-    echo "     http://${CONFIG[DOMAIN]}:${CONFIG[BACKEND_PORT]}"
+    if [[ "${CONFIG[DEPLOYMENT_PROFILE]}" == "full" && "${CONFIG[SSL_TYPE]}" == "letsencrypt" ]]; then
+        echo "     https://${CONFIG[DOMAIN]}"
+    elif [[ "${CONFIG[DEPLOYMENT_PROFILE]}" == "full" ]]; then
+        echo "     http://${CONFIG[DOMAIN]}"
+    else
+        echo "     http://${CONFIG[DOMAIN]}:${CONFIG[BACKEND_PORT]}"
+    fi
     echo ""
 
     if [[ "${CONFIG[POSTGRES_EXTERNAL_ACCESS]}" == "true" ]]; then
@@ -757,6 +986,15 @@ main() {
     echo ""
 
     collect_configuration
+    echo ""
+
+    configure_deployment_profile
+    echo ""
+
+    configure_domain_ssl
+    echo ""
+
+    generate_nginx_config
     echo ""
 
     configure_postgres_access

@@ -428,6 +428,173 @@ run_migrations() {
 }
 
 # =============================================================================
+# SSL CERTIFICATE FUNCTIONS
+# =============================================================================
+
+# Setup SSL certificates with Let's Encrypt
+setup_ssl_certificates() {
+    # Source .env to check SSL_TYPE
+    set -a
+    source "$SCRIPT_DIR/.env" 2>/dev/null || true
+    set +a
+
+    local ssl_type="${SSL_TYPE:-none}"
+    local domain="${DOMAIN:-localhost}"
+
+    # Skip if SSL is not letsencrypt
+    if [[ "$ssl_type" != "letsencrypt" ]]; then
+        info "SSL type is '$ssl_type' - skipping certificate setup"
+        return 0
+    fi
+
+    # Skip if domain is localhost
+    if [[ "$domain" == "localhost" ]]; then
+        info "Domain is localhost - skipping SSL certificate setup"
+        return 0
+    fi
+
+    # Check if certificate already exists
+    local cert_path="$SCRIPT_DIR/certbot/conf/live/$domain/fullchain.pem"
+    if [[ -f "$cert_path" ]]; then
+        success "SSL certificate already exists for $domain"
+        info "Certificate path: $cert_path"
+        return 0
+    fi
+
+    step "Setting up SSL certificate for $domain..."
+
+    # Check if nginx is running
+    if ! docker compose ps -q nginx >/dev/null 2>&1; then
+        error "Nginx service is not running. Cannot obtain SSL certificate."
+    fi
+
+    # Wait for nginx to be ready
+    info "Waiting for nginx to be ready..."
+    sleep 5
+
+    # Check if certbot directory exists
+    if [[ ! -d "$SCRIPT_DIR/certbot/www" ]]; then
+        warning "certbot/www directory not found, creating..."
+        mkdir -p "$SCRIPT_DIR/certbot/www"
+    fi
+
+    # Get Let's Encrypt email
+    local email="${LETSENCRYPT_EMAIL:-}"
+    if [[ -z "$email" ]]; then
+        error "LETSENCRYPT_EMAIL is not set in .env file"
+    fi
+
+    info "Obtaining SSL certificate from Let's Encrypt..."
+    info "Domain: $domain"
+    info "Email: $email"
+    echo ""
+
+    # Run certbot in webroot mode
+    if docker compose run --rm certbot certonly \
+        --webroot \
+        --webroot-path=/var/www/certbot \
+        --email "$email" \
+        --agree-tos \
+        --no-eff-email \
+        --force-renewal \
+        -d "$domain" >> "$LOG_FILE" 2>&1; then
+
+        success "SSL certificate obtained successfully!"
+
+        # Update nginx configuration to enable HTTPS
+        update_nginx_for_https "$domain"
+
+        # Reload nginx
+        info "Reloading nginx with new configuration..."
+        if docker compose exec nginx nginx -s reload >> "$LOG_FILE" 2>&1; then
+            success "Nginx reloaded successfully"
+        else
+            warning "Failed to reload nginx. Restarting..."
+            docker compose restart nginx >> "$LOG_FILE" 2>&1
+        fi
+
+    else
+        error "Failed to obtain SSL certificate. Check $LOG_FILE for details."
+    fi
+}
+
+# Update nginx configuration to enable HTTPS
+update_nginx_for_https() {
+    local domain=$1
+    local nginx_conf="$SCRIPT_DIR/nginx/conf.d/app.conf"
+
+    if [[ ! -f "$nginx_conf" ]]; then
+        error "Nginx configuration not found: $nginx_conf"
+    fi
+
+    info "Updating nginx configuration to enable HTTPS..."
+
+    # Uncomment HTTPS server block
+    sed -i '/# SSL_HTTPS_START/,/# SSL_HTTPS_END/{
+        s/^# //g
+    }' "$nginx_conf"
+
+    # Uncomment HTTP to HTTPS redirect
+    sed -i '/# SSL_REDIRECT_START/,/# SSL_REDIRECT_END/{
+        s/^# //g
+    }' "$nginx_conf"
+
+    # Comment out initial HTTP server block (will be replaced by redirect)
+    sed -i '/^server {/,/^}$/{
+        /# SSL_REDIRECT_START/b
+        /server_name {{DOMAIN}};/!b
+        s/^/# /
+    }' "$nginx_conf" || true
+
+    success "Nginx configuration updated for HTTPS"
+    info "Configuration file: $nginx_conf"
+}
+
+# Verify SSL certificate
+verify_ssl() {
+    set -a
+    source "$SCRIPT_DIR/.env" 2>/dev/null || true
+    set +a
+
+    local ssl_type="${SSL_TYPE:-none}"
+    local domain="${DOMAIN:-localhost}"
+
+    if [[ "$ssl_type" != "letsencrypt" || "$domain" == "localhost" ]]; then
+        return 0
+    fi
+
+    step "Verifying SSL certificate..."
+
+    # Check certificate file exists
+    local cert_path="$SCRIPT_DIR/certbot/conf/live/$domain/fullchain.pem"
+    if [[ ! -f "$cert_path" ]]; then
+        warning "Certificate file not found: $cert_path"
+        return 0
+    fi
+
+    # Check certificate expiry
+    if command_exists openssl; then
+        local expiry_date
+        expiry_date=$(openssl x509 -enddate -noout -in "$cert_path" | cut -d= -f2)
+        info "Certificate expires: $expiry_date"
+    fi
+
+    # Test HTTPS connectivity
+    info "Testing HTTPS connectivity..."
+    if command_exists curl; then
+        if curl -Is --max-time 10 "https://$domain/health" >/dev/null 2>&1; then
+            success "HTTPS is working correctly!"
+            info "URL: https://$domain"
+        else
+            warning "HTTPS test failed. Certificate may need time to propagate."
+            info "Try accessing: https://$domain in a few minutes"
+        fi
+    else
+        info "curl not available - skipping HTTPS test"
+    fi
+}
+
+# =============================================================================
 # STATUS FUNCTIONS
 # =============================================================================
 
@@ -608,6 +775,19 @@ main() {
     echo "========================================================================"
     echo ""
 
+    # Load .env to check deployment profile
+    if [[ -f "$SCRIPT_DIR/.env" ]]; then
+        set -a
+        source "$SCRIPT_DIR/.env" 2>/dev/null || true
+        set +a
+
+        # Auto-detect profile from .env if not specified
+        if [[ -z "$COMPOSE_PROFILE" && "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
+            COMPOSE_PROFILE="full"
+            info "Auto-detected profile from .env: full"
+        fi
+    fi
+
     # Display deployment configuration
     info "Deployment configuration:"
     echo "  Build images:     $BUILD_IMAGES"
@@ -618,6 +798,12 @@ main() {
         echo "  Profile:          $COMPOSE_PROFILE"
     else
         echo "  Profile:          none (basic: postgres + backend)"
+    fi
+    if [[ -n "${DEPLOYMENT_PROFILE:-}" ]]; then
+        echo "  Deployment type:  ${DEPLOYMENT_PROFILE}"
+        if [[ "${SSL_TYPE:-none}" == "letsencrypt" ]]; then
+            echo "  SSL:              Automatic (Let's Encrypt)"
+        fi
     fi
     echo ""
 
@@ -645,6 +831,12 @@ main() {
         echo ""
 
         run_migrations
+        echo ""
+
+        setup_ssl_certificates
+        echo ""
+
+        verify_ssl
         echo ""
 
         print_status
