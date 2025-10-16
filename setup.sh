@@ -773,6 +773,20 @@ create_env_file() {
         sed -i "s|^TELEGRAM_WEBHOOK_URL=.*|TELEGRAM_WEBHOOK_URL=${CONFIG[TELEGRAM_WEBHOOK_URL]}|" .env
     fi
 
+    # CORS - Allowed Origins (based on deployment profile and SSL)
+    local allowed_origins
+    if [[ "${CONFIG[DEPLOYMENT_PROFILE]}" == "full" && "${CONFIG[SSL_TYPE]}" == "letsencrypt" ]]; then
+        # Full profile with SSL: HTTPS domain
+        allowed_origins="https://${CONFIG[DOMAIN]}"
+    elif [[ "${CONFIG[DEPLOYMENT_PROFILE]}" == "full" ]]; then
+        # Full profile without SSL: HTTP domain
+        allowed_origins="http://${CONFIG[DOMAIN]}"
+    else
+        # Basic profile: localhost with backend port
+        allowed_origins="http://localhost:${CONFIG[BACKEND_PORT]}"
+    fi
+    sed -i "s|^ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=${allowed_origins}|" .env
+
     # Set secure permissions
     chmod 600 .env
 
