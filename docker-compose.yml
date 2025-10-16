@@ -19,10 +19,9 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/db/migrations:/docker-entrypoint-initdb.d:ro
       - postgres_backups:/backups
-    # External port mapping - conditional (see setup.sh)
-    # Uncomment and set POSTGRES_PORT_MAPPING=5432:5432 in .env if needed
-    # ports:
-    #   - "${POSTGRES_PORT_MAPPING}"
+    # External port mapping - DISABLED by default for security
+    # To enable: create docker-compose.override.yml with ports section
+    # setup.sh will create override file automatically if external access enabled
     networks:
       - familybudget_internal
     healthcheck:
