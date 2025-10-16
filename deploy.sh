@@ -232,6 +232,287 @@ validate_env() {
 }
 
 # =============================================================================
+# NETWORK AND CLEANUP FUNCTIONS
+# =============================================================================
+
+# Cleanup containers and networks only (safe - keeps data)
+cleanup_containers_networks() {
+    info "Stopping and removing old containers and networks..."
+
+    # Stop all familybudget containers
+    local containers=$(docker ps -a --filter "name=familybudget" --format "{{.Names}}" 2>/dev/null || echo "")
+    if [[ -n "$containers" ]]; then
+        info "Stopping containers: $containers"
+        echo "$containers" | xargs docker stop >> "$LOG_FILE" 2>&1 || true
+        echo "$containers" | xargs docker rm >> "$LOG_FILE" 2>&1 || true
+        success "Containers removed"
+    fi
+
+    # Remove all familybudget networks
+    local networks=$(docker network ls --filter "name=familybudget" --format "{{.Name}}" 2>/dev/null || echo "")
+    if [[ -n "$networks" ]]; then
+        info "Removing networks: $networks"
+        echo "$networks" | xargs docker network rm >> "$LOG_FILE" 2>&1 || true
+        success "Networks removed"
+    fi
+
+    success "Safe cleanup completed (data volumes preserved)"
+}
+
+# Full cleanup - containers + networks + volumes (DELETES DATA!)
+cleanup_full() {
+    warning "Full cleanup will DELETE ALL DATA including database!"
+    echo ""
+    read -p "Type 'DELETE' to confirm full cleanup: " confirm
+    echo ""
+
+    if [[ "$confirm" != "DELETE" ]]; then
+        info "Full cleanup cancelled"
+        return 0
+    fi
+
+    info "Performing full cleanup..."
+
+    # Stop and remove containers
+    local containers=$(docker ps -a --filter "name=familybudget" --format "{{.Names}}" 2>/dev/null || echo "")
+    if [[ -n "$containers" ]]; then
+        info "Stopping containers..."
+        echo "$containers" | xargs docker stop >> "$LOG_FILE" 2>&1 || true
+        info "Removing containers..."
+        echo "$containers" | xargs docker rm >> "$LOG_FILE" 2>&1 || true
+    fi
+
+    # Remove networks
+    local networks=$(docker network ls --filter "name=familybudget" --format "{{.Name}}" 2>/dev/null || echo "")
+    if [[ -n "$networks" ]]; then
+        info "Removing networks..."
+        echo "$networks" | xargs docker network rm >> "$LOG_FILE" 2>&1 || true
+    fi
+
+    # Remove volumes
+    local volumes=$(docker volume ls --filter "name=familybudget" --format "{{.Name}}" 2>/dev/null || echo "")
+    if [[ -n "$volumes" ]]; then
+        warning "Removing volumes (DATA DELETION)..."
+        echo "$volumes" | xargs docker volume rm >> "$LOG_FILE" 2>&1 || true
+    fi
+
+    # Remove data directories
+    if [[ -d "$SCRIPT_DIR/data/postgres" ]]; then
+        warning "Removing PostgreSQL data directory..."
+        rm -rf "$SCRIPT_DIR/data/postgres"/* >> "$LOG_FILE" 2>&1 || true
+    fi
+
+    success "Full cleanup completed (ALL DATA DELETED)"
+}
+
+# Check for old deployments and offer cleanup options
+cleanup_old_deployment() {
+    step "Checking for Old Deployments"
+
+    # Count old artifacts
+    local old_containers=$(docker ps -a --filter "name=familybudget" --format "{{.Names}}" 2>/dev/null | wc -l)
+    local old_networks=$(docker network ls --filter "name=familybudget" --format "{{.Name}}" 2>/dev/null | wc -l)
+    local old_volumes=$(docker volume ls --filter "name=familybudget" --format "{{.Name}}" 2>/dev/null | wc -l)
+
+    # If nothing found, skip
+    if [[ $old_containers -eq 0 && $old_networks -eq 0 && $old_volumes -eq 0 ]]; then
+        info "No old deployments found"
+        return 0
+    fi
+
+    # Display findings
+    warning "Found old deployment artifacts:"
+    if [[ $old_containers -gt 0 ]]; then
+        echo "  - Containers: $old_containers"
+        docker ps -a --filter "name=familybudget" --format "    {{.Names}} ({{.Status}})" 2>/dev/null
+    fi
+    if [[ $old_networks -gt 0 ]]; then
+        echo "  - Networks: $old_networks"
+        docker network ls --filter "name=familybudget" --format "    {{.Name}}" 2>/dev/null
+    fi
+    if [[ $old_volumes -gt 0 ]]; then
+        echo "  - Volumes: $old_volumes"
+        docker volume ls --filter "name=familybudget" --format "    {{.Name}}" 2>/dev/null
+    fi
+    echo ""
+
+    # Offer cleanup options
+    warning "Old deployments may cause network conflicts!"
+    echo "Choose cleanup action:"
+    echo "  [1] Skip - deploy alongside old deployment (may cause subnet conflicts)"
+    echo "  [2] Safe cleanup - stop & remove containers + networks (KEEPS data)"
+    echo "  [3] Full cleanup - containers + networks + volumes (DELETES ALL DATA!)"
+    echo ""
+
+    read -p "Select [1-3]: " choice
+    echo ""
+
+    case $choice in
+        1)
+            info "Skipping cleanup (network conflicts may occur)"
+            return 0
+            ;;
+        2)
+            cleanup_containers_networks
+            ;;
+        3)
+            cleanup_full
+            ;;
+        *)
+            error "Invalid choice. Please select 1, 2, or 3."
+            ;;
+    esac
+}
+
+# Find free subnets in range 172.20-172.30
+find_free_subnets() {
+    info "Scanning Docker networks for used subnets..."
+
+    # Get all used subnets in 172.X.0.0/16 format
+    local used_subnets=$(docker network ls --format "{{.Name}}" 2>/dev/null | while read net; do
+        docker network inspect "$net" -f '{{range .IPAM.Config}}{{.Subnet}}{{end}}' 2>/dev/null
+    done | grep -E '^172\.[0-9]+\.0\.0/16' | sort -u)
+
+    if [[ -n "$used_subnets" ]]; then
+        info "Used subnets in 172.X.0.0/16 range:"
+        echo "$used_subnets" | sed 's/^/  - /'
+        echo ""
+    fi
+
+    # Find 2 free consecutive subnets in 172.20-172.30 range
+    local free_internal=""
+    local free_external=""
+
+    for i in {20..30}; do
+        local subnet="172.$i.0.0/16"
+        if ! echo "$used_subnets" | grep -q "$subnet"; then
+            if [[ -z "$free_internal" ]]; then
+                free_internal="$subnet"
+            elif [[ -z "$free_external" ]]; then
+                free_external="$subnet"
+                break
+            fi
+        fi
+    done
+
+    # Return found subnets (or empty if not found)
+    echo "$free_internal|$free_external"
+}
+
+# Prompt for manual subnet input
+prompt_manual_subnets() {
+    warning "Manual subnet configuration"
+    echo ""
+    echo "Enter custom subnets (format: 172.X.0.0/16):"
+    echo ""
+
+    read -p "Internal network subnet [172.20.0.0/16]: " internal_subnet
+    internal_subnet=${internal_subnet:-172.20.0.0/16}
+
+    read -p "External network subnet [172.21.0.0/16]: " external_subnet
+    external_subnet=${external_subnet:-172.21.0.0/16}
+
+    echo ""
+    info "Selected subnets:"
+    echo "  Internal: $internal_subnet"
+    echo "  External: $external_subnet"
+    echo ""
+
+    read -p "Confirm these subnets? [Y/n]: " confirm
+
+    if [[ "${confirm,,}" == "n" ]]; then
+        error "Subnet configuration cancelled by user"
+    fi
+
+    create_networks_override "$internal_subnet" "$external_subnet"
+}
+
+# Create docker-compose.networks.yml with specified subnets
+create_networks_override() {
+    local internal_subnet=$1
+    local external_subnet=$2
+
+    local networks_file="$SCRIPT_DIR/docker-compose.networks.yml"
+
+    info "Creating network configuration: $networks_file"
+
+    cat > "$networks_file" << EOF
+# Docker Compose Networks Override - Auto-generated by deploy.sh
+# Contains network subnet configuration to avoid conflicts
+# DO NOT EDIT MANUALLY - regenerated on each deployment
+
+networks:
+  familybudget_internal:
+    driver: bridge
+    internal: true
+    ipam:
+      driver: default
+      config:
+        - subnet: $internal_subnet
+
+  familybudget_external:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: $external_subnet
+EOF
+
+    success "Network configuration created"
+    info "  Internal subnet: $internal_subnet"
+    info "  External subnet: $external_subnet"
+    info "  Config file: $networks_file"
+}
+
+# Check and select available subnets
+check_and_select_subnets() {
+    step "Network Subnet Configuration"
+
+    # Find free subnets
+    local subnets=$(find_free_subnets)
+    local free_internal=$(echo "$subnets" | cut -d'|' -f1)
+    local free_external=$(echo "$subnets" | cut -d'|' -f2)
+
+    # Check if we found 2 free subnets
+    if [[ -z "$free_internal" || -z "$free_external" ]]; then
+        error "Could not find 2 free subnets in range 172.20-172.30. Please use manual configuration."
+    fi
+
+    echo ""
+    success "Available subnets detected:"
+    echo "  Internal network: $free_internal"
+    echo "  External network: $free_external"
+    echo ""
+
+    read -p "Use these subnets? [Y/n]: " use_auto
+    echo ""
+
+    if [[ "${use_auto,,}" == "n" ]]; then
+        prompt_manual_subnets
+    else
+        create_networks_override "$free_internal" "$free_external"
+    fi
+}
+
+# Helper function to run docker compose with all override files
+compose_cmd() {
+    local compose_files="-f docker-compose.yml"
+
+    # Add PostgreSQL port override if exists (created by setup.sh)
+    if [[ -f "$SCRIPT_DIR/docker-compose.override.yml" ]]; then
+        compose_files="$compose_files -f docker-compose.override.yml"
+    fi
+
+    # Add network subnet override if exists (created by deploy.sh)
+    if [[ -f "$SCRIPT_DIR/docker-compose.networks.yml" ]]; then
+        compose_files="$compose_files -f docker-compose.networks.yml"
+    fi
+
+    # Execute docker compose with all override files
+    docker compose $compose_files "$@"
+}
+
+# =============================================================================
 # DEPLOYMENT FUNCTIONS
 # =============================================================================
 
@@ -245,7 +526,7 @@ build_images() {
             build_args="--profile $COMPOSE_PROFILE"
         fi
 
-        if docker compose $build_args build >> "$LOG_FILE" 2>&1; then
+        if compose_cmd $build_args build >> "$LOG_FILE" 2>&1; then
             success "Docker images built successfully"
         else
             error "Failed to build Docker images. Check $LOG_FILE for details."
@@ -260,12 +541,12 @@ stop_services() {
     info "Checking for running services..."
 
     local running_containers
-    running_containers=$(docker compose ps -q 2>/dev/null || echo "")
+    running_containers=$(compose_cmd ps -q 2>/dev/null || echo "")
 
     if [[ -n "$running_containers" ]]; then
         warning "Found running services, stopping..."
 
-        if docker compose down >> "$LOG_FILE" 2>&1; then
+        if compose_cmd down >> "$LOG_FILE" 2>&1; then
             success "Services stopped"
         else
             warning "Failed to stop some services (continuing anyway)"
@@ -287,10 +568,10 @@ clean_deployment() {
             step "Removing volumes and data..."
 
             # Stop services
-            docker compose down >> "$LOG_FILE" 2>&1 || true
+            compose_cmd down >> "$LOG_FILE" 2>&1 || true
 
             # Remove volumes
-            if docker compose down -v >> "$LOG_FILE" 2>&1; then
+            if compose_cmd down -v >> "$LOG_FILE" 2>&1; then
                 success "Volumes removed"
             else
                 warning "Failed to remove some volumes"
@@ -324,7 +605,7 @@ start_services() {
 
     info "Running: docker compose $compose_args up $detach_flag"
 
-    if docker compose $compose_args up $detach_flag >> "$LOG_FILE" 2>&1; then
+    if compose_cmd $compose_args up $detach_flag >> "$LOG_FILE" 2>&1; then
         success "Services started"
     else
         error "Failed to start services. Check $LOG_FILE for details."
@@ -341,7 +622,7 @@ wait_for_service() {
 
     while [[ $elapsed -lt $max_wait ]]; do
         local health_status
-        health_status=$(docker compose ps -q "$service_name" 2>/dev/null | xargs docker inspect --format='{{.State.Health.Status}}' 2>/dev/null || echo "none")
+        health_status=$(compose_cmd ps -q "$service_name" 2>/dev/null | xargs docker inspect --format='{{.State.Health.Status}}' 2>/dev/null || echo "none")
 
         case "$health_status" in
             "healthy")
@@ -357,7 +638,7 @@ wait_for_service() {
             "none")
                 # Service has no health check, check if it's running
                 local running_status
-                running_status=$(docker compose ps -q "$service_name" 2>/dev/null | xargs docker inspect --format='{{.State.Status}}' 2>/dev/null || echo "not_running")
+                running_status=$(compose_cmd ps -q "$service_name" 2>/dev/null | xargs docker inspect --format='{{.State.Status}}' 2>/dev/null || echo "not_running")
 
                 if [[ "$running_status" == "running" ]]; then
                     success "$service_name is running (no health check)"
@@ -384,7 +665,7 @@ wait_for_services() {
 
     # Get list of running services
     local services
-    services=$(docker compose ps --services 2>/dev/null || echo "")
+    services=$(compose_cmd ps --services 2>/dev/null || echo "")
 
     if [[ -z "$services" ]]; then
         error "No services found. Deployment may have failed."
@@ -405,7 +686,7 @@ run_migrations() {
         step "Running database migrations..."
 
         # Check if backend service is running
-        if ! docker compose ps -q backend >/dev/null 2>&1; then
+        if ! compose_cmd ps -q backend >/dev/null 2>&1; then
             warning "Backend service not running, skipping migrations"
             return 0
         fi
@@ -417,7 +698,7 @@ run_migrations() {
         fi
 
         # Run migrations
-        if docker compose exec -T backend alembic upgrade head >> "$LOG_FILE" 2>&1; then
+        if compose_cmd exec -T backend alembic upgrade head >> "$LOG_FILE" 2>&1; then
             success "Database migrations completed"
         else
             warning "Database migrations failed (this may be expected for first deployment)"
@@ -464,7 +745,7 @@ setup_ssl_certificates() {
     step "Setting up SSL certificate for $domain..."
 
     # Check if nginx is running
-    if ! docker compose ps -q nginx >/dev/null 2>&1; then
+    if ! compose_cmd ps -q nginx >/dev/null 2>&1; then
         error "Nginx service is not running. Cannot obtain SSL certificate."
     fi
 
@@ -490,7 +771,7 @@ setup_ssl_certificates() {
     echo ""
 
     # Run certbot in webroot mode
-    if docker compose run --rm certbot certonly \
+    if compose_cmd run --rm certbot certonly \
         --webroot \
         --webroot-path=/var/www/certbot \
         --email "$email" \
@@ -506,11 +787,11 @@ setup_ssl_certificates() {
 
         # Reload nginx
         info "Reloading nginx with new configuration..."
-        if docker compose exec nginx nginx -s reload >> "$LOG_FILE" 2>&1; then
+        if compose_cmd exec nginx nginx -s reload >> "$LOG_FILE" 2>&1; then
             success "Nginx reloaded successfully"
         else
             warning "Failed to reload nginx. Restarting..."
-            docker compose restart nginx >> "$LOG_FILE" 2>&1
+            compose_cmd restart nginx >> "$LOG_FILE" 2>&1
         fi
 
     else
@@ -603,7 +884,7 @@ get_service_status() {
     local service=$1
 
     local container_id
-    container_id=$(docker compose ps -q "$service" 2>/dev/null || echo "")
+    container_id=$(compose_cmd ps -q "$service" 2>/dev/null || echo "")
 
     if [[ -z "$container_id" ]]; then
         echo "not_running"
@@ -633,7 +914,7 @@ print_status() {
     # Services status
     echo "Services:"
     local services
-    services=$(docker compose ps --services 2>/dev/null || echo "")
+    services=$(compose_cmd ps --services 2>/dev/null || echo "")
 
     if [[ -z "$services" ]]; then
         print_message "$RED" "  ✗ No services running"
@@ -679,7 +960,7 @@ print_status() {
     local domain="${DOMAIN:-localhost}"
 
     # Backend URL
-    if docker compose ps -q backend >/dev/null 2>&1; then
+    if compose_cmd ps -q backend >/dev/null 2>&1; then
         if [[ "$domain" == "localhost" ]]; then
             print_message "$CYAN" "  Backend:     http://localhost:$backend_port"
         else
@@ -688,7 +969,7 @@ print_status() {
     fi
 
     # Nginx URLs
-    if docker compose ps -q nginx >/dev/null 2>&1; then
+    if compose_cmd ps -q nginx >/dev/null 2>&1; then
         if [[ "$domain" == "localhost" ]]; then
             print_message "$CYAN" "  HTTP:        http://localhost:$http_port"
             if [[ "$https_port" != "443" ]]; then
@@ -814,14 +1095,21 @@ main() {
     validate_env
     echo ""
 
+    # NEW: Check for old deployments and cleanup if needed
+    cleanup_old_deployment
+    echo ""
+
+    # NEW: Ensure we have free network subnets
+    check_and_select_subnets
+    echo ""
+
     clean_deployment
     echo ""
 
     build_images
     echo ""
 
-    stop_services
-    echo ""
+    # stop_services removed - redundant after cleanup_old_deployment
 
     start_services
     echo ""
