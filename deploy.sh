@@ -366,7 +366,7 @@ cleanup_old_deployment() {
 
 # Find free subnets in range 172.20-172.30
 find_free_subnets() {
-    info "Scanning Docker networks for used subnets..."
+    info "Scanning Docker networks for used subnets..." >&2
 
     # Get all used subnets in 172.X.0.0/16 format
     local used_subnets=$(docker network ls --format "{{.Name}}" 2>/dev/null | while read net; do
@@ -374,9 +374,9 @@ find_free_subnets() {
     done | grep -E '^172\.[0-9]+\.0\.0/16' | sort -u)
 
     if [[ -n "$used_subnets" ]]; then
-        info "Used subnets in 172.X.0.0/16 range:"
-        echo "$used_subnets" | sed 's/^/  - /'
-        echo ""
+        info "Used subnets in 172.X.0.0/16 range:" >&2
+        echo "$used_subnets" | sed 's/^/  - /' >&2
+        echo "" >&2
     fi
 
     # Find 2 free consecutive subnets in 172.20-172.30 range
