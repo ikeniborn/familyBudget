@@ -219,7 +219,7 @@ install_docker() {
     fi
 }
 
-# Add user to docker group
+# Add user to docker group and apply permissions
 add_user_to_docker_group() {
     local username="${SUDO_USER:-$USER}"
 
@@ -235,9 +235,37 @@ add_user_to_docker_group() {
     else
         usermod -aG docker "$username"
         success "User '$username' added to docker group"
-        warning "Log out and log back in for group changes to take effect"
-        warning "Or run: newgrp docker"
     fi
+
+    # Fix Docker directory permissions for the user
+    info "Applying Docker permissions for user '$username'..."
+
+    # Create .docker directory if it doesn't exist
+    local docker_dir="/home/$username/.docker"
+    if [[ ! -d "$docker_dir" ]]; then
+        mkdir -p "$docker_dir"
+    fi
+
+    # Set correct ownership and permissions
+    chown -R "$username:$username" "$docker_dir" 2>/dev/null || true
+    chmod -R 755 "$docker_dir" 2>/dev/null || true
+
+    # Fix Docker socket permissions
+    if [[ -S /var/run/docker.sock ]]; then
+        chmod 666 /var/run/docker.sock 2>/dev/null || true
+    fi
+
+    # Clean up any problematic buildx cache
+    if [[ -d "$docker_dir/buildx" ]]; then
+        rm -rf "$docker_dir/buildx" 2>/dev/null || true
+        info "Cleaned up Docker buildx cache"
+    fi
+
+    success "Docker permissions configured for user '$username'"
+    echo ""
+    info "User can now use Docker without sudo"
+    info "Note: If you're currently logged in as $username, run: newgrp docker"
+    info "Or log out and log back in for changes to take full effect"
 }
 
 # Configure UFW firewall
