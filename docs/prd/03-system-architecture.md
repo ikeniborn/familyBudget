@@ -410,6 +410,218 @@ volumes:
    - AWS S3-compatible API
    - s3cmd или aws-cli для взаимодействия
 
+### 3.7 Deployment Structure
+
+**Проблема:** При традиционном подходе (развертывание из Git-репозитория) возникают конфликты при `git pull` из-за runtime файлов (.env, docker-compose.override.yml, data/, logs/).
+
+**Решение:** Разделение исходного кода и рабочей директории развертывания.
+
+#### 3.7.1 Directory Structure
+
+**Структура директорий:**
+
+```
+Repository (~/familyBudget)          Deployment (/opt/budget)
+├── backend/                         ├── backend/              [copied]
+├── bot/                             ├── bot/                  [copied]
+├── nginx/                           ├── nginx/                [copied]
+├── web/                             ├── web/                  [copied]
+├── scripts/                         ├── scripts/              [copied]
+├── docker-compose.yml               ├── docker-compose.yml    [copied]
+├── .env.example                     ├── .env.example          [copied]
+├── deploy.sh                        ├── deploy.sh             [copied]
+├── install.sh                       │
+├── setup.sh                         ├── .env                  [generated]
+├── README.md                        ├── docker-compose.override.yml [generated]
+├── .git/                            ├── data/                 [runtime]
+└── docs/                            ├── logs/                 [runtime]
+                                     ├── backups/              [runtime]
+                                     ├── uploads/              [runtime]
+                                     ├── certbot/              [runtime]
+                                     └── nginx/conf.d/         [runtime configs]
+```
+
+**Принципы разделения:**
+
+| Тип файла | Где находится | Описание |
+|-----------|---------------|----------|
+| **Исходный код** | Repository (~familyBudget) | Python, конфиги, шаблоны - под git |
+| **Runtime конфиги** | Deployment (/opt/budget) | .env, override файлы - НЕ в git |
+| **Данные** | Deployment (/opt/budget) | PostgreSQL data, logs, backups |
+| **Деплой скрипты** | Repository (запускаются оттуда) | install.sh, setup.sh |
+| **Деплой скрипт** | Deployment (копируется туда) | deploy.sh |
+
+#### 3.7.2 Deployment Workflow
+
+**Шаг 1: Установка системных зависимостей (один раз)**
+
+```bash
+cd ~/familyBudget
+sudo ./install.sh
+```
+
+**Что делает install.sh:**
+- Устанавливает Docker Engine + Docker Compose
+- Устанавливает утилиты (curl, git, jq, vim, etc.)
+- Настраивает UFW firewall (SSH, HTTP, HTTPS)
+- Создает структуру директорий в `/opt/budget`:
+  - data/postgres/
+  - backups/
+  - logs/ (setup.log, deploy.log, nginx/)
+  - uploads/
+  - certbot/conf/, certbot/www/
+  - nginx/conf.d/
+- Устанавливает права доступа (owner: текущий пользователь)
+- Добавляет пользователя в группу `docker`
+
+**Шаг 2: Настройка приложения**
+
+```bash
+cd ~/familyBudget
+./setup.sh [--clean]
+```
+
+**Что делает setup.sh:**
+1. **Проверяет `/opt/budget`** - директория должна существовать
+2. **Опционально очищает** (если `--clean`):
+   - Интерактивное меню с 3 опциями:
+     - [1] Cancel - отмена
+     - [2] Backup - копирует /opt/budget в timestamped backup
+     - [3] Delete - удаляет без backup (требует подтверждение "DELETE")
+3. **Копирует исходный код** из ~/familyBudget в /opt/budget:
+   - backend/, bot/, nginx/, web/, scripts/
+   - docker-compose.yml, .env.example, deploy.sh
+4. **Создает .env файл** в /opt/budget/.env:
+   - Интерактивный промпт или использует defaults
+   - Генерирует секреты (JWT_SECRET, passwords)
+   - Настраивает PostgreSQL external access (опционально)
+5. **Генерирует nginx config** (для full profile):
+   - Копирует template → /opt/budget/nginx/conf.d/app.conf
+   - Заменяет {{DOMAIN}} на реальный домен
+6. **Создает docker-compose.override.yml** (если PostgreSQL external access):
+   - Прописывает port mapping для PostgreSQL
+   - Настраивает UFW rule для IP restriction
+7. **Валидирует конфигурацию**
+8. **Опционально собирает Docker images**
+
+**Опции setup.sh:**
+- `-h, --help` - справка
+- `-y, --yes` - non-interactive mode (все defaults)
+- `--skip-ufw` - пропустить UFW конфигурацию
+- `--skip-build` - не собирать Docker images
+- `--clean` - очистить /opt/budget перед setup (интерактивное меню)
+
+**Шаг 3: Развертывание приложения**
+
+```bash
+cd /opt/budget
+./deploy.sh [--profile full] [--build]
+```
+
+**Что делает deploy.sh:**
+- Проверяет prerequisites (Docker running, .env exists)
+- Валидирует environment variables
+- Опционально собирает images (`--build`)
+- Останавливает старые сервисы
+- Запускает новые сервисы (`docker compose up -d`)
+- Ждет health checks
+- Запускает database migrations
+- Настраивает SSL certificates (для full profile + letsencrypt)
+- Выводит статус и URLs
+
+**Опции deploy.sh:**
+- `-h, --help` - справка
+- `-b, --build` - force rebuild images
+- `-d, --detach` - detached mode (default)
+- `-f, --foreground` - foreground mode (show logs)
+- `-p, --profile PROFILE` - Docker Compose profile (none|full)
+- `--no-migrate` - skip database migrations
+- `--clean` - clean deployment (удаляет volumes)
+
+#### 3.7.3 Update Workflow
+
+**Обновление приложения после изменений в Git:**
+
+```bash
+# 1. Pull latest code в repository
+cd ~/familyBudget
+git pull origin master
+
+# 2. Re-run setup для копирования обновленного кода
+./setup.sh
+
+# 3. Deploy из /opt/budget
+cd /opt/budget
+./deploy.sh --build
+```
+
+**Важно:** Git repository остается чистым - все runtime файлы находятся в /opt/budget.
+
+#### 3.7.4 Security Considerations
+
+**PostgreSQL External Access:**
+
+По умолчанию PostgreSQL НЕ доступна извне Docker network (самая безопасная конфигурация).
+
+Если требуется внешний доступ (pgAdmin, backup tools):
+
+1. **setup.sh спрашивает IP адрес** клиента
+2. **Создает UFW rule:**
+   ```bash
+   ufw allow from <ALLOWED_IP> to any port 5432
+   ```
+3. **Создает docker-compose.override.yml:**
+   ```yaml
+   services:
+     postgres:
+       ports:
+         - "${POSTGRES_PORT_MAPPING}"
+   ```
+4. **Все остальные IP блокируются UFW**
+
+**Файл .env permissions:**
+- Автоматически устанавливается `chmod 600` (только owner read/write)
+- Никогда не коммитится в git
+- Содержит все секреты (passwords, JWT_SECRET, bot token)
+
+**UFW Firewall Rules:**
+- SSH (22) - всегда открыт
+- HTTP (80) - открыт если full profile
+- HTTPS (443) - открыт если full profile
+- PostgreSQL (5432) - только для указанного IP (опционально)
+
+#### 3.7.5 Directory Ownership
+
+**После install.sh:**
+```bash
+/opt/budget/
+  owner: <user>:<user>  # пользователь, запустивший sudo ./install.sh
+  permissions: 755 (directories), 644 (files)
+```
+
+**После setup.sh:**
+```bash
+/opt/budget/.env
+  permissions: 600 (только owner read/write)
+
+/opt/budget/data/postgres/
+  permissions: 700 (PostgreSQL контейнер имеет доступ через volumes)
+
+/opt/budget/backups/
+  permissions: 700 (только для backup скриптов)
+```
+
+#### 3.7.6 Advantages of This Structure
+
+**Преимущества разделения Repository / Deployment:**
+
+1. **Нет git конфликтов** - runtime файлы не мешают `git pull`
+2. **Чистый repository** - только source code под версионным контролем
+3. **Изоляция окружений** - можно иметь несколько deployments из одного repo
+4. **Упрощенные rollback** - просто запускаем deploy.sh с другим тегом
+5. **Безопасность** - .env и secrets не попадают в git случайно
+6. **Централизованные данные** - все runtime данные в одном месте (/opt/budget)
+
 ---
 
 _Продолжение следует..._

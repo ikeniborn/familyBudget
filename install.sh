@@ -33,6 +33,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_NAME="familybudget"
 LOG_FILE="/var/log/${PROJECT_NAME}_install.log"
 
+# Deployment directory (where the application will be deployed)
+DEPLOY_DIR="/opt/budget"
+REPO_DIR="$SCRIPT_DIR"  # Repository directory (source code)
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -319,20 +323,29 @@ configure_ufw() {
     warning "PostgreSQL port (5432) will be configured later by setup.sh if needed"
 }
 
-# Create project directories
+# Create deployment directory structure
 create_directories() {
-    info "Creating project directories..."
+    info "Creating deployment directory structure in $DEPLOY_DIR..."
 
+    # Create deployment directory if it doesn't exist
+    if [[ ! -d "$DEPLOY_DIR" ]]; then
+        mkdir -p "$DEPLOY_DIR"
+        info "Created deployment directory: $DEPLOY_DIR"
+    else
+        info "Deployment directory already exists: $DEPLOY_DIR"
+    fi
+
+    # Create subdirectories
     local dirs=(
-        "$SCRIPT_DIR/data"
-        "$SCRIPT_DIR/data/postgres"
-        "$SCRIPT_DIR/backups"
-        "$SCRIPT_DIR/logs"
-        "$SCRIPT_DIR/logs/nginx"
-        "$SCRIPT_DIR/uploads"
-        "$SCRIPT_DIR/certbot/conf"
-        "$SCRIPT_DIR/certbot/www"
-        "$SCRIPT_DIR/nginx/conf.d"
+        "$DEPLOY_DIR/data"
+        "$DEPLOY_DIR/data/postgres"
+        "$DEPLOY_DIR/backups"
+        "$DEPLOY_DIR/logs"
+        "$DEPLOY_DIR/logs/nginx"
+        "$DEPLOY_DIR/uploads"
+        "$DEPLOY_DIR/certbot/conf"
+        "$DEPLOY_DIR/certbot/www"
+        "$DEPLOY_DIR/nginx/conf.d"
     )
 
     for dir in "${dirs[@]}"; do
@@ -346,21 +359,19 @@ create_directories() {
 
     # Set permissions
     info "Setting directory permissions..."
-    chmod 700 "$SCRIPT_DIR/data/postgres"
-    chmod 700 "$SCRIPT_DIR/backups"
-    chmod 755 "$SCRIPT_DIR/logs"
-    chmod 755 "$SCRIPT_DIR/uploads"
+    chmod 700 "$DEPLOY_DIR/data/postgres"
+    chmod 700 "$DEPLOY_DIR/backups"
+    chmod 755 "$DEPLOY_DIR/logs"
+    chmod 755 "$DEPLOY_DIR/uploads"
 
     # Set ownership (to the user who ran sudo)
     local username="${SUDO_USER:-$USER}"
     if [[ "$username" != "root" ]]; then
-        chown -R "$username:$username" "$SCRIPT_DIR/data"
-        chown -R "$username:$username" "$SCRIPT_DIR/backups"
-        chown -R "$username:$username" "$SCRIPT_DIR/logs"
-        chown -R "$username:$username" "$SCRIPT_DIR/uploads"
+        chown -R "$username:$username" "$DEPLOY_DIR"
+        info "Set ownership: $username:$username on $DEPLOY_DIR"
     fi
 
-    success "Directories created and configured"
+    success "Deployment directory structure created: $DEPLOY_DIR"
 }
 
 # Test Docker installation
@@ -392,21 +403,34 @@ print_summary() {
     echo "  ✓ Certbot: $(certbot --version 2>&1 | head -1)"
     echo "  ✓ Basic utilities (curl, git, jq, etc.)"
     echo ""
-    echo "Created directories:"
-    echo "  ✓ $SCRIPT_DIR/data/postgres"
-    echo "  ✓ $SCRIPT_DIR/backups"
-    echo "  ✓ $SCRIPT_DIR/logs"
-    echo "  ✓ $SCRIPT_DIR/uploads"
+    echo "Deployment structure:"
+    echo "  ✓ Repository (source code): $REPO_DIR"
+    echo "  ✓ Deployment directory:     $DEPLOY_DIR"
+    echo ""
+    echo "Created directories in $DEPLOY_DIR:"
+    echo "  ✓ data/postgres  (PostgreSQL data)"
+    echo "  ✓ backups/       (Database backups)"
+    echo "  ✓ logs/          (Application logs)"
+    echo "  ✓ uploads/       (User uploads)"
+    echo "  ✓ certbot/       (SSL certificates)"
     echo ""
     echo "Next steps:"
     echo "  1. Log out and log back in (for docker group to take effect)"
     echo "     Or run: newgrp docker"
     echo ""
     echo "  2. Run setup script to configure the application:"
+    echo "     cd $REPO_DIR"
     echo "     ./setup.sh"
+    echo "     (This will copy code to $DEPLOY_DIR and create .env)"
     echo ""
     echo "  3. Deploy the application:"
+    echo "     cd $DEPLOY_DIR"
     echo "     ./deploy.sh"
+    echo ""
+    echo "Important notes:"
+    echo "  • Repository ($REPO_DIR) - contains source code (use git pull)"
+    echo "  • Deployment ($DEPLOY_DIR) - contains running application"
+    echo "  • Never modify files in $DEPLOY_DIR manually - use setup.sh"
     echo ""
     echo "Security notes:"
     echo "  • UFW firewall is enabled"

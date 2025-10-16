@@ -37,7 +37,12 @@ set -u  # Exit on undefined variable
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_NAME="familybudget"
-LOG_FILE="./logs/setup.log"
+
+# Deployment directory (where the application will be deployed)
+DEPLOY_DIR="/opt/budget"
+REPO_DIR="$SCRIPT_DIR"  # Repository directory (source code)
+
+LOG_FILE="$DEPLOY_DIR/logs/setup.log"
 
 # Colors for output
 RED='\033[0;31m'
@@ -52,6 +57,7 @@ NC='\033[0m' # No Color
 NON_INTERACTIVE=false
 SKIP_UFW=false
 SKIP_BUILD=false
+CLEAN_DEPLOY=false
 
 # Configuration values (will be populated)
 declare -A CONFIG
@@ -106,6 +112,169 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# =============================================================================
+# DEPLOYMENT DIRECTORY MANAGEMENT
+# =============================================================================
+
+# Check and prepare deployment directory
+check_deploy_dir() {
+    section "Checking Deployment Directory"
+
+    info "Repository directory: $REPO_DIR"
+    info "Deployment directory: $DEPLOY_DIR"
+    echo ""
+
+    # Check if deployment directory exists
+    if [[ ! -d "$DEPLOY_DIR" ]]; then
+        error "Deployment directory $DEPLOY_DIR does not exist"
+        echo ""
+        info "Please run install.sh first:"
+        echo "  sudo ./install.sh"
+        echo ""
+        exit 1
+    fi
+
+    # Check if it's writable
+    if [[ ! -w "$DEPLOY_DIR" ]]; then
+        error "Deployment directory $DEPLOY_DIR is not writable"
+        echo ""
+        info "Fix permissions with:"
+        echo "  sudo chown -R \$USER:\$USER $DEPLOY_DIR"
+        echo ""
+        exit 1
+    fi
+
+    success "Deployment directory OK: $DEPLOY_DIR"
+}
+
+# Interactive cleanup of deployment directory
+cleanup_deploy_dir() {
+    if [[ "$CLEAN_DEPLOY" != "true" ]]; then
+        return 0
+    fi
+
+    section "Clean Deployment (DESTRUCTIVE)"
+
+    echo ""
+    warning "This will DELETE all data in $DEPLOY_DIR"
+    echo ""
+    echo "What will be deleted:"
+    echo "  ✗ .env file (secrets will be lost!)"
+    echo "  ✗ docker-compose.override.yml"
+    echo "  ✗ data/postgres/ (DATABASE WILL BE LOST!)"
+    echo "  ✗ logs/"
+    echo "  ✗ backups/"
+    echo ""
+    echo "What will be preserved:"
+    echo "  ✓ Docker volumes (unless you also run: docker compose down -v)"
+    echo "  ✓ Source code in repository: $REPO_DIR"
+    echo ""
+
+    # Interactive menu for cleanup
+    echo "Choose cleanup option:"
+    echo "  [1] Cancel (do nothing)"
+    echo "  [2] Backup old files to $DEPLOY_DIR.backup.$(date +%Y%m%d_%H%M%S)"
+    echo "  [3] Delete without backup (DANGEROUS!)"
+    echo ""
+
+    local choice
+    read -p "Select [1-3]: " choice
+
+    case "$choice" in
+        1)
+            info "Cleanup cancelled"
+            CLEAN_DEPLOY=false
+            return 0
+            ;;
+        2)
+            local backup_dir="$DEPLOY_DIR.backup.$(date +%Y%m%d_%H%M%S)"
+            info "Creating backup: $backup_dir"
+
+            # Create backup
+            sudo cp -a "$DEPLOY_DIR" "$backup_dir" || error "Failed to create backup"
+
+            # List what will be in backup
+            success "Backup created: $backup_dir"
+            info "Backup contains:"
+            du -sh "$backup_dir"/.env "$backup_dir"/data "$backup_dir"/logs "$backup_dir"/backups 2>/dev/null || true
+
+            # Now clean
+            info "Cleaning deployment directory..."
+            sudo rm -rf "$DEPLOY_DIR"/.env
+            sudo rm -rf "$DEPLOY_DIR"/docker-compose.override.yml
+            sudo rm -rf "$DEPLOY_DIR"/data/*
+            sudo rm -rf "$DEPLOY_DIR"/logs/*
+            sudo rm -rf "$DEPLOY_DIR"/backups/*
+
+            success "Deployment directory cleaned (backup preserved)"
+            ;;
+        3)
+            echo ""
+            warning "You selected: Delete without backup"
+            read -p "Type 'DELETE' to confirm (all caps): " confirm
+
+            if [[ "$confirm" == "DELETE" ]]; then
+                info "Cleaning deployment directory..."
+                sudo rm -rf "$DEPLOY_DIR"/.env
+                sudo rm -rf "$DEPLOY_DIR"/docker-compose.override.yml
+                sudo rm -rf "$DEPLOY_DIR"/data/*
+                sudo rm -rf "$DEPLOY_DIR"/logs/*
+                sudo rm -rf "$DEPLOY_DIR"/backups/*
+
+                success "Deployment directory cleaned (NO BACKUP!)"
+            else
+                info "Cleanup cancelled (confirmation failed)"
+                CLEAN_DEPLOY=false
+                return 0
+            fi
+            ;;
+        *)
+            error "Invalid choice. Cleanup cancelled."
+            CLEAN_DEPLOY=false
+            return 0
+            ;;
+    esac
+}
+
+# Copy source code to deployment directory
+copy_source_to_deploy() {
+    section "Copying Source Code to Deployment Directory"
+
+    info "Copying from: $REPO_DIR"
+    info "Copying to:   $DEPLOY_DIR"
+    echo ""
+
+    # List of directories/files to copy
+    local items=(
+        "backend"
+        "bot"
+        "nginx"
+        "web"
+        "scripts"
+        "docker-compose.yml"
+        ".env.example"
+        "deploy.sh"
+    )
+
+    # Copy each item
+    for item in "${items[@]}"; do
+        if [[ -e "$REPO_DIR/$item" ]]; then
+            info "Copying $item..."
+            cp -r "$REPO_DIR/$item" "$DEPLOY_DIR/" || error "Failed to copy $item"
+        else
+            warning "Item not found: $item (skipping)"
+        fi
+    done
+
+    # Make deploy.sh executable
+    chmod +x "$DEPLOY_DIR/deploy.sh" 2>/dev/null || true
+
+    success "Source code copied to $DEPLOY_DIR"
+    echo ""
+    info "Deployment directory now contains:"
+    ls -1 "$DEPLOY_DIR" | head -10
+}
+
 # Print help message
 print_help() {
     cat << EOF
@@ -119,6 +288,14 @@ Options:
   -y, --yes               Accept all defaults (non-interactive)
   --skip-ufw              Skip UFW configuration
   --skip-build            Skip Docker image building
+  --clean                 Clean deployment directory before setup (interactive menu)
+
+Workflow:
+  1. Copies source code from repository to $DEPLOY_DIR
+  2. Creates .env configuration file in $DEPLOY_DIR
+  3. Generates nginx config (if full profile)
+  4. Configures UFW firewall (if PostgreSQL external access enabled)
+  5. Optionally builds Docker images
 
 Interactive Prompts:
   - PostgreSQL password (or auto-generate)
@@ -141,9 +318,16 @@ UFW Configuration (CRITICAL SECURITY):
 
   This prevents unauthorized access to your database!
 
+Deployment Structure:
+  - Repository: source code (git pull updates here)
+  - Deployment: $DEPLOY_DIR (running application)
+  - All runtime files (.env, data, logs) are in $DEPLOY_DIR
+  - Repository stays clean (no git conflicts)
+
 Prerequisites:
   - Docker and Docker Compose installed (run install.sh)
   - UFW firewall enabled (install.sh does this)
+  - Deployment directory created: sudo ./install.sh
 
 For more information, see TASK-061_COMPLETION.md
 EOF
@@ -572,19 +756,19 @@ generate_nginx_config() {
 
     info "Creating nginx configuration for ${CONFIG[DOMAIN]}..."
 
-    # Check if template exists
-    if [[ ! -f "$SCRIPT_DIR/nginx/conf.d/app.conf.template" ]]; then
-        error "Nginx template not found: nginx/conf.d/app.conf.template"
+    # Check if template exists in deployment directory
+    if [[ ! -f "$DEPLOY_DIR/nginx/conf.d/app.conf.template" ]]; then
+        error "Nginx template not found: $DEPLOY_DIR/nginx/conf.d/app.conf.template"
     fi
 
     # Copy template and replace domain
-    cp "$SCRIPT_DIR/nginx/conf.d/app.conf.template" "$SCRIPT_DIR/nginx/conf.d/app.conf"
+    cp "$DEPLOY_DIR/nginx/conf.d/app.conf.template" "$DEPLOY_DIR/nginx/conf.d/app.conf"
 
     # Replace {{DOMAIN}} with actual domain
-    sed -i "s/{{DOMAIN}}/${CONFIG[DOMAIN]}/g" "$SCRIPT_DIR/nginx/conf.d/app.conf"
+    sed -i "s/{{DOMAIN}}/${CONFIG[DOMAIN]}/g" "$DEPLOY_DIR/nginx/conf.d/app.conf"
 
     success "Nginx configuration generated"
-    info "Configuration file: nginx/conf.d/app.conf"
+    info "Configuration file: $DEPLOY_DIR/nginx/conf.d/app.conf"
 }
 
 # Configure PostgreSQL external access with UFW
@@ -684,7 +868,7 @@ configure_postgres_access() {
 
         # Create docker-compose.override.yml to expose PostgreSQL port
         info "Creating docker-compose.override.yml to expose PostgreSQL port..."
-        cat > "$SCRIPT_DIR/docker-compose.override.yml" << 'OVERRIDE_EOF'
+        cat > "$DEPLOY_DIR/docker-compose.override.yml" << 'OVERRIDE_EOF'
 # Docker Compose Override - PostgreSQL External Access
 # This file is auto-generated by setup.sh when PostgreSQL external access is enabled
 # DO NOT edit manually - changes will be overwritten
@@ -694,7 +878,7 @@ services:
     ports:
       - "${POSTGRES_PORT_MAPPING}"
 OVERRIDE_EOF
-        success "Created docker-compose.override.yml"
+        success "Created docker-compose.override.yml in $DEPLOY_DIR"
 
         echo ""
         success "PostgreSQL external access configured with IP restriction"
@@ -717,10 +901,10 @@ OVERRIDE_EOF
         CONFIG["POSTGRES_PORT_MAPPING"]=""
 
         # Remove docker-compose.override.yml if it exists
-        if [[ -f "$SCRIPT_DIR/docker-compose.override.yml" ]]; then
+        if [[ -f "$DEPLOY_DIR/docker-compose.override.yml" ]]; then
             info "Removing docker-compose.override.yml (external access disabled)..."
-            rm -f "$SCRIPT_DIR/docker-compose.override.yml"
-            success "Removed docker-compose.override.yml"
+            rm -f "$DEPLOY_DIR/docker-compose.override.yml"
+            success "Removed docker-compose.override.yml from $DEPLOY_DIR"
         fi
 
         echo ""
@@ -733,8 +917,10 @@ OVERRIDE_EOF
 create_env_file() {
     section "Creating .env File"
 
-    if [[ -f "$SCRIPT_DIR/.env" ]]; then
-        warning ".env file already exists"
+    local env_file="$DEPLOY_DIR/.env"
+
+    if [[ -f "$env_file" ]]; then
+        warning ".env file already exists in $DEPLOY_DIR"
         echo ""
         prompt_yes_no "Overwrite existing .env file?" "OVERWRITE_ENV" "n"
 
@@ -744,46 +930,46 @@ create_env_file() {
         fi
 
         # Backup existing .env
-        local backup_file=".env.backup.$(date +%Y%m%d_%H%M%S)"
-        cp "$SCRIPT_DIR/.env" "$SCRIPT_DIR/$backup_file"
+        local backup_file="$DEPLOY_DIR/.env.backup.$(date +%Y%m%d_%H%M%S)"
+        cp "$env_file" "$backup_file"
         success "Existing .env backed up to $backup_file"
     fi
 
     info "Creating .env file from template..."
 
     # Copy template
-    cp "$SCRIPT_DIR/.env.example" "$SCRIPT_DIR/.env"
+    cp "$DEPLOY_DIR/.env.example" "$env_file"
 
     # Replace values
-    sed -i "s/^POSTGRES_DB=.*/POSTGRES_DB=${CONFIG[POSTGRES_DB]}/" .env
-    sed -i "s/^POSTGRES_USER=.*/POSTGRES_USER=${CONFIG[POSTGRES_USER]}/" .env
-    sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=${CONFIG[POSTGRES_PASSWORD]}/" .env
+    sed -i "s/^POSTGRES_DB=.*/POSTGRES_DB=${CONFIG[POSTGRES_DB]}/" "$env_file"
+    sed -i "s/^POSTGRES_USER=.*/POSTGRES_USER=${CONFIG[POSTGRES_USER]}/" "$env_file"
+    sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=${CONFIG[POSTGRES_PASSWORD]}/" "$env_file"
 
-    sed -i "s/^JWT_SECRET=.*/JWT_SECRET=${CONFIG[JWT_SECRET]}/" .env
-    sed -i "s/^JWT_EXPIRE_DAYS=.*/JWT_EXPIRE_DAYS=${CONFIG[JWT_EXPIRE_DAYS]}/" .env
+    sed -i "s/^JWT_SECRET=.*/JWT_SECRET=${CONFIG[JWT_SECRET]}/" "$env_file"
+    sed -i "s/^JWT_EXPIRE_DAYS=.*/JWT_EXPIRE_DAYS=${CONFIG[JWT_EXPIRE_DAYS]}/" "$env_file"
 
-    sed -i "s/^TELEGRAM_BOT_TOKEN=.*/TELEGRAM_BOT_TOKEN=${CONFIG[TELEGRAM_BOT_TOKEN]}/" .env
-    sed -i "s/^TELEGRAM_BOT_USERNAME=.*/TELEGRAM_BOT_USERNAME=${CONFIG[TELEGRAM_BOT_USERNAME]}/" .env
-    sed -i "s/^ADMIN_TELEGRAM_ID=.*/ADMIN_TELEGRAM_ID=${CONFIG[ADMIN_TELEGRAM_ID]}/" .env
+    sed -i "s/^TELEGRAM_BOT_TOKEN=.*/TELEGRAM_BOT_TOKEN=${CONFIG[TELEGRAM_BOT_TOKEN]}/" "$env_file"
+    sed -i "s/^TELEGRAM_BOT_USERNAME=.*/TELEGRAM_BOT_USERNAME=${CONFIG[TELEGRAM_BOT_USERNAME]}/" "$env_file"
+    sed -i "s/^ADMIN_TELEGRAM_ID=.*/ADMIN_TELEGRAM_ID=${CONFIG[ADMIN_TELEGRAM_ID]}/" "$env_file"
 
-    sed -i "s/^APP_ENV=.*/APP_ENV=${CONFIG[APP_ENV]}/" .env
-    sed -i "s/^DOMAIN=.*/DOMAIN=${CONFIG[DOMAIN]}/" .env
-    sed -i "s/^BACKEND_PORT=.*/BACKEND_PORT=${CONFIG[BACKEND_PORT]}/" .env
-    sed -i "s/^WORKERS=.*/WORKERS=${CONFIG[WORKERS]}/" .env
-    sed -i "s/^LOG_LEVEL=.*/LOG_LEVEL=${CONFIG[LOG_LEVEL]}/" .env
+    sed -i "s/^APP_ENV=.*/APP_ENV=${CONFIG[APP_ENV]}/" "$env_file"
+    sed -i "s/^DOMAIN=.*/DOMAIN=${CONFIG[DOMAIN]}/" "$env_file"
+    sed -i "s/^BACKEND_PORT=.*/BACKEND_PORT=${CONFIG[BACKEND_PORT]}/" "$env_file"
+    sed -i "s/^WORKERS=.*/WORKERS=${CONFIG[WORKERS]}/" "$env_file"
+    sed -i "s/^LOG_LEVEL=.*/LOG_LEVEL=${CONFIG[LOG_LEVEL]}/" "$env_file"
 
-    sed -i "s/^POSTGRES_EXTERNAL_ACCESS=.*/POSTGRES_EXTERNAL_ACCESS=${CONFIG[POSTGRES_EXTERNAL_ACCESS]}/" .env
-    sed -i "s/^POSTGRES_ALLOWED_IP=.*/POSTGRES_ALLOWED_IP=${CONFIG[POSTGRES_ALLOWED_IP]}/" .env
-    sed -i "s/^POSTGRES_PORT_MAPPING=.*/POSTGRES_PORT_MAPPING=${CONFIG[POSTGRES_PORT_MAPPING]}/" .env
+    sed -i "s/^POSTGRES_EXTERNAL_ACCESS=.*/POSTGRES_EXTERNAL_ACCESS=${CONFIG[POSTGRES_EXTERNAL_ACCESS]}/" "$env_file"
+    sed -i "s/^POSTGRES_ALLOWED_IP=.*/POSTGRES_ALLOWED_IP=${CONFIG[POSTGRES_ALLOWED_IP]}/" "$env_file"
+    sed -i "s/^POSTGRES_PORT_MAPPING=.*/POSTGRES_PORT_MAPPING=${CONFIG[POSTGRES_PORT_MAPPING]}/" "$env_file"
 
     # Deployment profile and SSL
-    sed -i "s/^DEPLOYMENT_PROFILE=.*/DEPLOYMENT_PROFILE=${CONFIG[DEPLOYMENT_PROFILE]}/" .env
-    sed -i "s/^SSL_TYPE=.*/SSL_TYPE=${CONFIG[SSL_TYPE]}/" .env
-    sed -i "s/^LETSENCRYPT_EMAIL=.*/LETSENCRYPT_EMAIL=${CONFIG[LETSENCRYPT_EMAIL]}/" .env
+    sed -i "s/^DEPLOYMENT_PROFILE=.*/DEPLOYMENT_PROFILE=${CONFIG[DEPLOYMENT_PROFILE]}/" "$env_file"
+    sed -i "s/^SSL_TYPE=.*/SSL_TYPE=${CONFIG[SSL_TYPE]}/" "$env_file"
+    sed -i "s/^LETSENCRYPT_EMAIL=.*/LETSENCRYPT_EMAIL=${CONFIG[LETSENCRYPT_EMAIL]}/" "$env_file"
 
     # Telegram webhook URL (for full profile)
     if [[ -n "${CONFIG[TELEGRAM_WEBHOOK_URL]:-}" ]]; then
-        sed -i "s|^TELEGRAM_WEBHOOK_URL=.*|TELEGRAM_WEBHOOK_URL=${CONFIG[TELEGRAM_WEBHOOK_URL]}|" .env
+        sed -i "s|^TELEGRAM_WEBHOOK_URL=.*|TELEGRAM_WEBHOOK_URL=${CONFIG[TELEGRAM_WEBHOOK_URL]}|" "$env_file"
     fi
 
     # CORS - Allowed Origins (based on deployment profile and SSL)
@@ -798,10 +984,10 @@ create_env_file() {
         # Basic profile: localhost with backend port
         allowed_origins="http://localhost:${CONFIG[BACKEND_PORT]}"
     fi
-    sed -i "s|^ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=${allowed_origins}|" .env
+    sed -i "s|^ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=${allowed_origins}|" "$env_file"
 
     # Set secure permissions
-    chmod 600 .env
+    chmod 600 "$env_file"
 
     success ".env file created"
     info "File permissions set to 600 (read/write for owner only)"
@@ -811,15 +997,17 @@ create_env_file() {
 validate_configuration() {
     section "Validating Configuration"
 
-    info "Checking .env file..."
+    local env_file="$DEPLOY_DIR/.env"
 
-    if [[ ! -f "$SCRIPT_DIR/.env" ]]; then
-        error ".env file not found"
+    info "Checking .env file in $DEPLOY_DIR..."
+
+    if [[ ! -f "$env_file" ]]; then
+        error ".env file not found in $DEPLOY_DIR"
     fi
 
     # Source .env
     set -a
-    source "$SCRIPT_DIR/.env"
+    source "$env_file"
     set +a
 
     # Check required variables
@@ -884,17 +1072,22 @@ build_docker_images() {
 
     if [[ "${CONFIG[BUILD_IMAGES]}" == "y" ]]; then
         info "Building Docker images (this may take several minutes)..."
+        info "Running docker compose build in $DEPLOY_DIR"
         echo ""
 
-        if docker compose build >> "$LOG_FILE" 2>&1; then
+        if (cd "$DEPLOY_DIR" && docker compose build >> "$LOG_FILE" 2>&1); then
             success "Docker images built successfully"
         else
             warning "Docker image build failed. Check $LOG_FILE for details."
-            info "You can build images later with: docker compose build"
+            info "You can build images later with:"
+            echo "  cd $DEPLOY_DIR"
+            echo "  docker compose build"
         fi
     else
         info "Skipping Docker image build"
-        info "Build images later with: docker compose build"
+        info "Build images later with:"
+        echo "  cd $DEPLOY_DIR"
+        echo "  docker compose build"
     fi
 }
 
@@ -924,9 +1117,10 @@ print_final_instructions() {
     echo "Next steps:"
     echo ""
     echo "  1. Review configuration:"
-    echo "     cat .env"
+    echo "     cat $DEPLOY_DIR/.env"
     echo ""
     echo "  2. Deploy the application:"
+    echo "     cd $DEPLOY_DIR"
     if [[ "${CONFIG[DEPLOYMENT_PROFILE]}" == "full" ]]; then
         echo "     ./deploy.sh --profile full"
     else
@@ -995,6 +1189,10 @@ parse_args() {
                 SKIP_BUILD=true
                 shift
                 ;;
+            --clean)
+                CLEAN_DEPLOY=true
+                shift
+                ;;
             *)
                 error "Unknown option: $1 (use --help for usage)"
                 ;;
@@ -1016,10 +1214,23 @@ main() {
     echo "========================================================================"
     echo ""
 
-    # Setup steps
+    # Check deployment directory
+    check_deploy_dir
+    echo ""
+
+    # Optional: cleanup deployment directory
+    cleanup_deploy_dir
+    echo ""
+
+    # Copy source code to deployment directory
+    copy_source_to_deploy
+    echo ""
+
+    # Check prerequisites
     check_prerequisites
     echo ""
 
+    # Collect configuration
     collect_configuration
     echo ""
 
