@@ -304,10 +304,11 @@ configure_ufw() {
     info "Allowing SSH (port 22)..."
     ufw allow 22/tcp comment 'SSH' >> "$LOG_FILE" 2>&1
 
-    # Allow HTTP and HTTPS
-    info "Allowing HTTP (port 80) and HTTPS (port 443)..."
-    ufw allow 80/tcp comment 'HTTP' >> "$LOG_FILE" 2>&1
-    ufw allow 443/tcp comment 'HTTPS' >> "$LOG_FILE" 2>&1
+    # HTTP/HTTPS ports will be configured during deployment
+    info "HTTP/HTTPS ports (80/443) will be configured by deploy.sh based on deployment profile"
+    echo ""
+    warning "Note: Ports 80/443 are NOT open yet. They will be opened by deploy.sh if needed."
+    echo ""
 
     # Enable UFW
     info "Enabling UFW..."
@@ -435,7 +436,8 @@ print_summary() {
     echo "Security notes:"
     echo "  • UFW firewall is enabled"
     echo "  • SSH (port 22) is allowed"
-    echo "  • HTTP (port 80) and HTTPS (port 443) are allowed"
+    echo "  • HTTP (port 80) and HTTPS (port 443) are NOT open yet"
+    echo "    (will be configured by deploy.sh based on deployment profile)"
     echo "  • PostgreSQL (port 5432) is NOT exposed (will be configured by setup.sh if needed)"
     echo ""
     echo "Logs: $LOG_FILE"

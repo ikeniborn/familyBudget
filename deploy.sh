@@ -876,6 +876,150 @@ verify_ssl() {
 }
 
 # =============================================================================
+# FIREWALL MANAGEMENT FOR SSL
+# =============================================================================
+
+# Check and open firewall ports for SSL
+configure_firewall_for_ssl() {
+    # Source .env to check SSL_TYPE and DOMAIN
+    set -a
+    source "$SCRIPT_DIR/.env" 2>/dev/null || true
+    set +a
+
+    local ssl_type="${SSL_TYPE:-none}"
+    local domain="${DOMAIN:-localhost}"
+
+    # Skip if no SSL or localhost
+    if [[ "$ssl_type" == "none" || "$domain" == "localhost" ]]; then
+        info "No SSL configuration needed (type: $ssl_type, domain: $domain)"
+        return 0
+    fi
+
+    step "Configuring firewall for SSL..."
+
+    # Check if UFW is installed and active
+    if ! command_exists ufw; then
+        warning "UFW not installed, skipping firewall configuration"
+        return 0
+    fi
+
+    if ! sudo ufw status 2>/dev/null | grep -q "Status: active"; then
+        warning "UFW is not active, skipping firewall configuration"
+        return 0
+    fi
+
+    # Check current port status
+    local port_80_status=$(sudo ufw status 2>/dev/null | grep "80/tcp" || echo "❌ not configured")
+    local port_443_status=$(sudo ufw status 2>/dev/null | grep "443/tcp" || echo "❌ not configured")
+
+    info "Current firewall status:"
+    echo "  Port 80:  $port_80_status"
+    echo "  Port 443: $port_443_status"
+    echo ""
+
+    # Ask user what to do
+    warning "SSL Certificate requires firewall configuration"
+    echo "Options:"
+    echo "  [1] Open ports 80 and 443 (required for new SSL certificate)"
+    echo "  [2] Open port 443 only (if certificate already exists)"
+    echo "  [3] Skip firewall configuration (manual setup required)"
+    echo ""
+    read -p "Select [1-3]: " fw_choice
+    echo ""
+
+    case $fw_choice in
+        1)
+            info "Opening ports 80 and 443..."
+            sudo ufw allow 80/tcp comment 'HTTP for SSL challenge' >> "$LOG_FILE" 2>&1 || true
+            sudo ufw allow 443/tcp comment 'HTTPS' >> "$LOG_FILE" 2>&1 || true
+            success "Ports 80 and 443 are now open in firewall"
+            ;;
+        2)
+            info "Opening port 443 only..."
+            sudo ufw allow 443/tcp comment 'HTTPS' >> "$LOG_FILE" 2>&1 || true
+            success "Port 443 is now open in firewall"
+            warning "Port 80 is closed - certificate renewal may fail if not already configured"
+            ;;
+        3)
+            info "Skipping firewall configuration"
+            warning "Make sure ports 80 and 443 are accessible for SSL to work!"
+            warning "You can manually open ports with:"
+            echo "  sudo ufw allow 80/tcp"
+            echo "  sudo ufw allow 443/tcp"
+            ;;
+        *)
+            warning "Invalid choice, skipping firewall configuration"
+            ;;
+    esac
+}
+
+# Close port 80 after SSL certificate is obtained (optional)
+close_http_port() {
+    # Source .env to check SSL_TYPE
+    set -a
+    source "$SCRIPT_DIR/.env" 2>/dev/null || true
+    set +a
+
+    local ssl_type="${SSL_TYPE:-none}"
+
+    # Only relevant for letsencrypt
+    if [[ "$ssl_type" != "letsencrypt" ]]; then
+        return 0
+    fi
+
+    # Check if UFW is available
+    if ! command_exists ufw; then
+        return 0
+    fi
+
+    if ! sudo ufw status 2>/dev/null | grep -q "Status: active"; then
+        return 0
+    fi
+
+    # Check if port 80 is currently open
+    if ! sudo ufw status 2>/dev/null | grep -q "80/tcp"; then
+        info "Port 80 is not open in firewall"
+        return 0
+    fi
+
+    echo ""
+    step "Post-SSL Security Configuration"
+    echo ""
+    info "SSL certificate obtained successfully!"
+    echo ""
+    warning "Security recommendation: Close HTTP port 80 in firewall"
+    echo ""
+    echo "What this means:"
+    echo "  ✓ Nginx will still listen on port 80 inside Docker (for HTTP→HTTPS redirect)"
+    echo "  ✓ UFW will block external access to port 80 (only 443 accessible from internet)"
+    echo "  ✓ Certbot renewal will still work (through Docker network)"
+    echo "  ✓ Maximum security: HTTPS-only external access"
+    echo ""
+    echo "  ✗ Direct HTTP access from internet will be blocked"
+    echo "  ✗ HTTP→HTTPS redirect won't work from outside (browser will show connection refused)"
+    echo ""
+    info "Recommended for: High-security production environments"
+    info "Not recommended for: Sites requiring HTTP→HTTPS auto-redirect from external sources"
+    echo ""
+    read -p "Close port 80 in UFW firewall? [y/N]: " close_80
+    echo ""
+
+    if [[ "${close_80,,}" == "y" ]]; then
+        info "Closing port 80 in UFW..."
+        sudo ufw delete allow 80/tcp >> "$LOG_FILE" 2>&1 || true
+        success "Port 80 closed in firewall"
+        success "External access: HTTPS only (port 443)"
+        info "HTTP→HTTPS redirect still works inside Docker network"
+        echo ""
+        warning "To re-open port 80 later (for certificate renewal or HTTP access):"
+        echo "  sudo ufw allow 80/tcp"
+    else
+        info "Port 80 remains open for HTTP→HTTPS redirect"
+        success "External access: Both HTTP (80) and HTTPS (443)"
+    fi
+}
+
+# =============================================================================
 # STATUS FUNCTIONS
 # =============================================================================
 
@@ -1121,7 +1265,15 @@ main() {
         run_migrations
         echo ""
 
+        # Configure firewall before SSL certificate setup
+        configure_firewall_for_ssl
+        echo ""
+
         setup_ssl_certificates
+        echo ""
+
+        # Optionally close HTTP port after SSL certificate is obtained
+        close_http_port
         echo ""
 
         verify_ssl
