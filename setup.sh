@@ -562,7 +562,7 @@ collect_configuration() {
     # Application settings
     print_message "$CYAN" "▶ Application Settings"
     prompt "Environment (development/staging/production)" "APP_ENV" "production"
-    prompt "Domain name (or localhost)" "DOMAIN" "localhost"
+    # Domain will be set based on deployment profile (localhost for basic, prompted for full)
     prompt "Backend port" "BACKEND_PORT" "8000"
     prompt "Number of Uvicorn workers" "WORKERS" "4"
     prompt "Log level (debug/info/warning/error)" "LOG_LEVEL" "info"
@@ -604,13 +604,18 @@ configure_deployment_profile() {
             1)
                 CONFIG["DEPLOYMENT_PROFILE"]="basic"
                 CONFIG["SSL_TYPE"]="none"
+                CONFIG["DOMAIN"]="localhost"
                 success "Selected profile: basic"
+                info "Domain set to: localhost"
                 break
                 ;;
             2)
                 CONFIG["DEPLOYMENT_PROFILE"]="full"
                 CONFIG["SSL_TYPE"]="letsencrypt"
+                # DOMAIN will be prompted in configure_domain_ssl()
                 success "Selected profile: full"
+                echo ""
+                info "Next: Domain & SSL configuration"
                 break
                 ;;
             *)
