@@ -81,9 +81,8 @@ CREATE INDEX IF NOT EXISTS idx_user_admin_current
 -- COMMENTS
 -- ============================================================================
 
-COMMENT ON TABLE t_d_user IS 
-    'User dimension table with SCD Type 2 for tracking historical changes. ' ||
-    'Stores Telegram user information and admin status.';
+COMMENT ON TABLE t_d_user IS
+    'User dimension table with SCD Type 2 for tracking historical changes. Stores Telegram user information and admin status.';
 
 COMMENT ON COLUMN t_d_user.id IS 
     'Surrogate key (auto-increment primary key)';
