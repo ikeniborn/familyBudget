@@ -240,6 +240,12 @@ services:
       - familybudget_external
     profiles:
       - full  # Only start if 'full' profile is active
+    healthcheck:
+      test: ["CMD", "certbot", "certificates", "--quiet"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 volumes:
   postgres_data:
