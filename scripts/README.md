@@ -14,6 +14,110 @@ This directory contains automation scripts for the Family Budget application, in
 
 ## Scripts
 
+### ssl_certificate_manager.sh
+
+**Purpose:** Comprehensive SSL certificate management using certbot on host system
+
+**Features:**
+- DNS validation before certificate acquisition
+- Automatic UFW firewall management (port 80 temporary access)
+- Standalone mode (HTTP-01 challenge)
+- Certificate validation and expiry checking
+- Auto-renewal setup with cron (twice daily)
+- Deploy hook for automatic nginx reload
+- Graceful nginx container management (temporary stop during acquisition)
+
+**Architecture:**
+- Based on VLESS v4.2 implementation patterns
+- Certbot installed on **HOST system** (NOT in Docker container)
+- Certificates stored in `/etc/letsencrypt/` on host
+- Mounted read-only to nginx container via Docker volume
+- Eliminates Docker entrypoint issues and hanging problems
+
+**Usage:**
+
+```bash
+# Obtain new SSL certificate
+sudo ./scripts/ssl_certificate_manager.sh obtain <domain> <email> <server_ip>
+
+# Example
+sudo ./scripts/ssl_certificate_manager.sh obtain budget.example.com admin@example.com 1.2.3.4
+
+# Renew existing certificate
+sudo ./scripts/ssl_certificate_manager.sh renew <domain>
+
+# Check certificate status
+sudo ./scripts/ssl_certificate_manager.sh check <domain>
+
+# Setup auto-renewal (cron + deploy hook)
+sudo ./scripts/ssl_certificate_manager.sh setup-cron
+
+# Remove certificate
+sudo ./scripts/ssl_certificate_manager.sh cleanup <domain>
+
+# Install certbot on host
+sudo ./scripts/ssl_certificate_manager.sh install
+```
+
+**How it works:**
+
+1. **DNS Validation:** Verifies domain points to server IP using `dig`
+2. **Firewall Management:** Opens port 80 temporarily via UFW
+3. **Nginx Stop:** Gracefully stops nginx container (port 80 must be free)
+4. **Certificate Acquisition:** Runs `certbot certonly --standalone` on host
+5. **Nginx Restart:** Starts nginx and reloads configuration
+6. **Deploy Hook:** Sets up `/usr/local/bin/familybudget-cert-renew` for auto-renewal
+7. **Cron Job:** Creates `/etc/cron.d/familybudget-certbot-renew` (runs 00:00 and 12:00 UTC)
+
+**Auto-Renewal:**
+- Cron runs twice daily (midnight and noon UTC)
+- Certbot checks if certificate < 30 days from expiry
+- Deploy hook reloads nginx after successful renewal
+- All operations logged to `/var/log/letsencrypt/`
+
+**Firewall Configuration:**
+- Port 80: Opened temporarily during acquisition, then closed
+- Port 443: Remains open for HTTPS traffic
+- Certbot renewal works even with port 80 closed (standalone mode handles it)
+
+**Integration:**
+- Automatically called by `deploy.sh` when `SSL_TYPE=letsencrypt`
+- Replaces old Docker-based certbot container
+- No more entrypoint override issues or 140s hangs
+
+**Exit Codes:**
+- `0` - Success
+- `1` - Error (validation failed, acquisition failed, etc.)
+
+**Logs:**
+- Certificate operations: `/var/log/letsencrypt/letsencrypt.log`
+- Deploy hook: `/var/log/letsencrypt/deploy-hook.log`
+- Cron renewals: `/var/log/letsencrypt/certbot-renew.log`
+
+**Troubleshooting:**
+
+```bash
+# Check DNS resolution
+dig +short budget.example.com
+
+# Test certbot manually
+sudo certbot certonly --standalone -d budget.example.com --dry-run
+
+# Check certificate status
+sudo certbot certificates
+
+# View renewal logs
+sudo tail -f /var/log/letsencrypt/certbot-renew.log
+
+# Test renewal
+sudo certbot renew --dry-run
+
+# Check cron job
+sudo cat /etc/cron.d/familybudget-certbot-renew
+```
+
+---
+
 ### clean_old_certificates.sh
 
 **Purpose:** Clean old SSL certificates from certbot configuration

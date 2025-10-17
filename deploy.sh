@@ -712,7 +712,7 @@ run_migrations() {
 # SSL CERTIFICATE FUNCTIONS
 # =============================================================================
 
-# Setup SSL certificates with Let's Encrypt
+# Setup SSL certificates with Let's Encrypt (using host certbot)
 setup_ssl_certificates() {
     # Source .env to check SSL_TYPE
     set -a
@@ -734,35 +734,12 @@ setup_ssl_certificates() {
         return 0
     fi
 
-    # Check existing SSL certificates and offer cleanup if needed
-    if [[ -f "$SCRIPT_DIR/scripts/check_certificates.sh" ]]; then
-        source "$SCRIPT_DIR/scripts/check_certificates.sh"
-        check_and_offer_certificate_cleanup "$domain" "$SCRIPT_DIR/certbot/conf"
-    fi
-
-    # Check if certificate already exists
-    local cert_path="$SCRIPT_DIR/certbot/conf/live/$domain/fullchain.pem"
-    if [[ -f "$cert_path" ]]; then
-        success "SSL certificate already exists for $domain"
-        info "Certificate path: $cert_path"
-        return 0
-    fi
-
     step "Setting up SSL certificate for $domain..."
 
-    # Check if nginx is running
-    if ! compose_cmd ps -q nginx >/dev/null 2>&1; then
-        error "Nginx service is not running. Cannot obtain SSL certificate."
-    fi
-
-    # Wait for nginx to be ready
-    info "Waiting for nginx to be ready..."
-    sleep 5
-
-    # Check if certbot directory exists
-    if [[ ! -d "$SCRIPT_DIR/certbot/www" ]]; then
-        warning "certbot/www directory not found, creating..."
-        mkdir -p "$SCRIPT_DIR/certbot/www"
+    # Check if ssl_certificate_manager.sh exists
+    local ssl_manager="$SCRIPT_DIR/scripts/ssl_certificate_manager.sh"
+    if [[ ! -f "$ssl_manager" ]]; then
+        error "SSL certificate manager script not found: $ssl_manager"
     fi
 
     # Get Let's Encrypt email
@@ -771,37 +748,74 @@ setup_ssl_certificates() {
         error "LETSENCRYPT_EMAIL is not set in .env file"
     fi
 
-    info "Obtaining SSL certificate from Let's Encrypt..."
+    # Get server IP (try to detect automatically)
+    local server_ip="${SERVER_IP:-}"
+    if [[ -z "$server_ip" ]]; then
+        # Try to detect public IP
+        server_ip=$(curl -s ifconfig.me 2>/dev/null || echo "")
+        if [[ -z "$server_ip" ]]; then
+            error "SERVER_IP not set in .env and auto-detection failed. Please set SERVER_IP in .env file."
+        fi
+        info "Auto-detected server IP: $server_ip"
+    fi
+
+    # Check if certificate already exists
+    if [ -d "/etc/letsencrypt/live/$domain" ]; then
+        success "SSL certificate already exists for $domain"
+
+        # Validate certificate
+        if sudo "$ssl_manager" check "$domain" >> "$LOG_FILE" 2>&1; then
+            info "Certificate is valid"
+
+            # Update nginx configuration to enable HTTPS if not already done
+            update_nginx_for_https "$domain"
+
+            # Reload nginx to pick up certificates
+            if compose_cmd ps -q nginx >/dev/null 2>&1; then
+                info "Reloading nginx with certificates..."
+                if compose_cmd exec nginx nginx -s reload >> "$LOG_FILE" 2>&1; then
+                    success "Nginx reloaded successfully"
+                else
+                    warning "Failed to reload nginx"
+                fi
+            fi
+
+            return 0
+        else
+            warning "Certificate validation failed, will obtain new certificate"
+        fi
+    fi
+
+    # Obtain new certificate using ssl_certificate_manager.sh
+    info "Obtaining SSL certificate from Let's Encrypt (host certbot)..."
     info "Domain: $domain"
     info "Email: $email"
+    info "Server IP: $server_ip"
     echo ""
 
-    # Run certbot in webroot mode
-    # ВАЖНО: --entrypoint "" переопределяет entrypoint из docker-compose.yml
-    # Иначе будет выполняться 'certbot renew' (из entrypoint) вместо 'certbot certonly'
-    if compose_cmd run --rm --entrypoint "" certbot certbot certonly \
-        --webroot \
-        --webroot-path=/var/www/certbot \
-        --email "$email" \
-        --agree-tos \
-        --no-eff-email \
-        --force-renewal \
-        -d "$domain" >> "$LOG_FILE" 2>&1; then
-
+    if sudo "$ssl_manager" obtain "$domain" "$email" "$server_ip" >> "$LOG_FILE" 2>&1; then
         success "SSL certificate obtained successfully!"
 
         # Update nginx configuration to enable HTTPS
         update_nginx_for_https "$domain"
 
-        # Reload nginx
+        # Start nginx if not running (may have been stopped by ssl_certificate_manager)
+        if ! compose_cmd ps -q nginx >/dev/null 2>&1; then
+            info "Starting nginx..."
+            compose_cmd start nginx >> "$LOG_FILE" 2>&1 || true
+            sleep 3
+        fi
+
+        # Reload nginx with new configuration
         info "Reloading nginx with new configuration..."
         if compose_cmd exec nginx nginx -s reload >> "$LOG_FILE" 2>&1; then
             success "Nginx reloaded successfully"
         else
             warning "Failed to reload nginx. Restarting..."
-            compose_cmd restart nginx >> "$LOG_FILE" 2>&1
+            compose_cmd restart nginx >> "$LOG_FILE" 2>&1 || true
         fi
 
+        success "SSL certificate setup completed!"
     else
         error "Failed to obtain SSL certificate. Check $LOG_FILE for details."
     fi
@@ -854,8 +868,8 @@ verify_ssl() {
 
     step "Verifying SSL certificate..."
 
-    # Check certificate file exists
-    local cert_path="$SCRIPT_DIR/certbot/conf/live/$domain/fullchain.pem"
+    # Check certificate file exists (now on host system)
+    local cert_path="/etc/letsencrypt/live/$domain/fullchain.pem"
     if [[ ! -f "$cert_path" ]]; then
         warning "Certificate file not found: $cert_path"
         return 0

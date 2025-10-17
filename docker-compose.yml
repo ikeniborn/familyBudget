@@ -205,8 +205,8 @@ services:
       - ./web/static:/usr/share/nginx/html/static:ro
       - nginx_cache:/var/cache/nginx
       - ./logs/nginx:/var/log/nginx
-      - ./certbot/conf:/etc/letsencrypt:ro
-      - ./certbot/www:/var/www/certbot:ro
+      # SSL certificates from host system (managed by scripts/ssl_certificate_manager.sh)
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     ports:
       - "${HTTP_PORT:-80}:80"
       - "${HTTPS_PORT:-443}:443"
@@ -228,24 +228,9 @@ services:
           cpus: '0.1'
           memory: 64M
 
-  # Certbot for SSL certificates (Optional)
-  certbot:
-    image: certbot/certbot
-    container_name: familybudget-certbot
-    volumes:
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-    networks:
-      - familybudget_external
-    profiles:
-      - full  # Only start if 'full' profile is active
-    healthcheck:
-      test: ["CMD", "certbot", "certificates", "--quiet"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+  # Certbot removed - SSL certificates now managed on host system
+  # See scripts/ssl_certificate_manager.sh for certificate management
+  # Auto-renewal configured via cron (twice daily)
 
 volumes:
   postgres_data:

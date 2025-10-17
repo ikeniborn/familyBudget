@@ -247,6 +247,7 @@ Found the following certs:
 | 2025-10-16 | 4.4.0  | ✅ Создан скрипт scripts/clean_old_certificates.sh   |
 | 2025-10-16 | 4.4.0  | ✅ Обновлена документация .env для SSL       |
 | 2025-10-17 | 4.5.0  | ✅ Исправлено зависание при получении сертификата (--entrypoint fix) |
+| 2025-10-17 | 5.0.0  | ✅ ПОЛНОЕ РЕШЕНИЕ: Переход на host-based certbot (scripts/ssl_certificate_manager.sh) |
 
 ---
 
@@ -323,3 +324,232 @@ A: Проверьте:
 1. Логи: `docker logs familybudget-certbot`
 2. Работает ли контейнер: `docker ps -a | grep certbot`
 3. Ошибки healthcheck: `docker inspect familybudget-certbot | grep -A 10 Health`
+
+---
+
+## ПОЛНОЕ РЕШЕНИЕ (v5.0.0) - Host-Based Certbot
+
+**Дата:** 2025-10-17
+**Статус:** ✅ ОКОНЧАТЕЛЬНОЕ РЕШЕНИЕ
+**Версия:** 5.0.0+
+
+### Проблема
+
+Все предыдущие попытки исправить Docker-based certbot (healthcheck, --entrypoint fix) решали симптомы, но не устраняли корневую причину:
+- Сложность управления Docker entrypoint
+- Зависание при получении сертификатов
+- Проблемы с webroot mode и nginx взаимодействием
+- Необходимость временных хаков и workarounds
+
+### Окончательное решение: Certbot на хосте
+
+**Архитектурное решение:**
+1. **Удалён** сервис `certbot` из `docker-compose.yml`
+2. **Установлен** certbot напрямую на хост-систему
+3. **Создан** `scripts/ssl_certificate_manager.sh` для управления сертификатами
+4. **Сертификаты** хранятся в `/etc/letsencrypt/` на хосте
+5. **Nginx** монтирует `/etc/letsencrypt/` как read-only volume
+6. **Автообновление** через cron (дважды в день)
+
+### Преимущества нового подхода
+
+✅ **Простота:**
+- Нет Docker entrypoint конфликтов
+- Стандартный certbot workflow
+- Понятная отладка (логи в /var/log/letsencrypt/)
+
+✅ **Надёжность:**
+- Проверенный паттерн (из проекта VLESS v4.2)
+- Standalone mode (HTTP-01 challenge)
+- Автоматическое управление UFW firewall
+- Graceful nginx stop/start
+
+✅ **Поддерживаемость:**
+- DNS валидация перед получением сертификата
+- Deploy hook для автоматического перезапуска nginx
+- Централизованное управление через один скрипт
+- Стандартные команды certbot доступны
+
+### Новая архитектура
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ HOST SYSTEM                                                  │
+│                                                              │
+│  /etc/letsencrypt/                                          │
+│  ├── live/                                                  │
+│  │   └── budget.example.com/                               │
+│  │       ├── fullchain.pem                                  │
+│  │       └── privkey.pem                                    │
+│  └── renewal/                                               │
+│      └── budget.example.com.conf                            │
+│                                                              │
+│  /usr/local/bin/familybudget-cert-renew  (deploy hook)     │
+│  /etc/cron.d/familybudget-certbot-renew  (auto-renewal)    │
+│                                                              │
+│  scripts/ssl_certificate_manager.sh  (management script)    │
+│                                                              │
+│  ┌────────────────────────────────────────────────┐         │
+│  │ Docker Container: nginx                        │         │
+│  │                                                │         │
+│  │  Volume mount:                                 │         │
+│  │  /etc/letsencrypt:/etc/letsencrypt:ro         │         │
+│  │                                                │         │
+│  │  → Reads certificates from host                │         │
+│  └────────────────────────────────────────────────┘         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Использование
+
+#### Первоначальное получение сертификата
+
+```bash
+# Через deploy.sh (автоматически)
+./deploy.sh --build --profile full
+
+# Или вручную
+sudo ./scripts/ssl_certificate_manager.sh obtain budget.example.com admin@example.com 1.2.3.4
+```
+
+#### Управление сертификатами
+
+```bash
+# Проверить статус
+sudo ./scripts/ssl_certificate_manager.sh check budget.example.com
+
+# Обновить сертификат
+sudo ./scripts/ssl_certificate_manager.sh renew budget.example.com
+
+# Настроить автообновление
+sudo ./scripts/ssl_certificate_manager.sh setup-cron
+
+# Удалить сертификат
+sudo ./scripts/ssl_certificate_manager.sh cleanup budget.example.com
+```
+
+#### Автообновление
+
+Cron job создаётся автоматически:
+
+```bash
+# /etc/cron.d/familybudget-certbot-renew
+0 0,12 * * * root certbot renew --quiet --deploy-hook "/usr/local/bin/familybudget-cert-renew"
+```
+
+**Как работает:**
+1. Дважды в день (00:00 и 12:00 UTC) запускается `certbot renew`
+2. Certbot проверяет срок действия сертификата
+3. Если < 30 дней до истечения → обновление
+4. После успешного обновления вызывается deploy hook
+5. Deploy hook перезагружает nginx в Docker контейнере
+
+### Изменения в кодовой базе
+
+**docker-compose.yml:**
+- Удалён сервис `certbot`
+- Обновлён volume для nginx: `/etc/letsencrypt:/etc/letsencrypt:ro`
+
+**deploy.sh:**
+- Функция `setup_ssl_certificates()` переписана для использования `ssl_certificate_manager.sh`
+- Добавлена автодетекция SERVER_IP
+- Улучшена обработка ошибок
+
+**Новые файлы:**
+- `scripts/ssl_certificate_manager.sh` - главный скрипт управления
+- `/usr/local/bin/familybudget-cert-renew` - deploy hook (создаётся автоматически)
+- `/etc/cron.d/familybudget-certbot-renew` - cron job (создаётся автоматически)
+
+### Миграция с Docker-based certbot
+
+Если у вас уже были сертификаты в Docker контейнере:
+
+```bash
+# 1. Скопировать существующие сертификаты на хост (если нужно)
+sudo cp -r ./certbot/conf/* /etc/letsencrypt/
+
+# 2. Удалить старые Docker volumes certbot
+docker volume rm familybudget_certbot_conf 2>/dev/null || true
+docker volume rm familybudget_certbot_www 2>/dev/null || true
+
+# 3. Удалить старые директории (опционально)
+rm -rf ./certbot/
+
+# 4. Переdeploить с новой версией
+./deploy.sh --build --profile full
+```
+
+### Проверка работоспособности
+
+```bash
+# 1. Проверить certbot на хосте
+certbot certificates
+
+# 2. Проверить nginx mount
+docker exec familybudget-nginx ls -la /etc/letsencrypt/live/
+
+# 3. Проверить cron job
+sudo cat /etc/cron.d/familybudget-certbot-renew
+
+# 4. Проверить deploy hook
+sudo cat /usr/local/bin/familybudget-cert-renew
+
+# 5. Тест обновления (dry-run)
+sudo certbot renew --dry-run
+
+# 6. Проверить HTTPS
+curl -I https://budget.example.com/health
+```
+
+### Troubleshooting
+
+**Проблема:** DNS не резолвится
+```bash
+# Проверка
+dig +short budget.example.com
+
+# Решение: Настроить DNS A-record
+```
+
+**Проблема:** Port 80 занят
+```bash
+# Проверка
+sudo ss -tulnp | grep :80
+
+# Решение: ssl_certificate_manager.sh автоматически останавливает nginx
+```
+
+**Проблема:** Firewall блокирует порт 80
+```bash
+# Проверка
+sudo ufw status | grep 80
+
+# Решение: ssl_certificate_manager.sh автоматически управляет UFW
+```
+
+**Проблема:** Certbot не установлен
+```bash
+# Решение
+sudo ./scripts/ssl_certificate_manager.sh install
+```
+
+### FAQ
+
+**Q: Почему переход на host-based решение?**
+A: Docker-based подход имел фундаментальные проблемы с entrypoint конфликтами. Host-based - проверенный индустриальный стандарт.
+
+**Q: Безопасно ли монтировать /etc/letsencrypt/ в контейнер?**
+A: Да, монтирование в режиме read-only (`:ro`) безопасно и является стандартной практикой.
+
+**Q: Что если у меня уже есть другие certbot сертификаты на хосте?**
+A: Никаких конфликтов, certbot управляет несколькими доменами независимо.
+
+**Q: Будет ли работать автообновление?**
+A: Да, cron job создаётся автоматически при первом получении сертификата.
+
+**Q: Что если nginx контейнер перезапустится?**
+A: Сертификаты на хосте, nginx просто перечитает их при старте.
+
+---
+
+**ИТОГ:** Версия 5.0.0 полностью решает все проблемы с SSL сертификатами, используя простой и надёжный host-based подход. Все предыдущие workarounds (healthcheck, --entrypoint) больше не нужны.
