@@ -110,6 +110,14 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Check if running with root/sudo privileges
+check_root_privileges() {
+    if [[ $EUID -ne 0 ]]; then
+        return 1
+    fi
+    return 0
+}
+
 # Print help message
 print_help() {
     cat << EOF
@@ -263,6 +271,20 @@ cleanup_containers_networks() {
 cleanup_full() {
     warning "Full cleanup will DELETE ALL DATA including database!"
     echo ""
+
+    # Check for root privileges (required for PostgreSQL data deletion)
+    if ! check_root_privileges; then
+        error "Full cleanup requires root privileges to delete PostgreSQL data!"
+        echo ""
+        echo "Please run deploy.sh with sudo:"
+        echo "  sudo ./deploy.sh [OPTIONS]"
+        echo ""
+        echo "Or manually delete PostgreSQL data after deployment:"
+        echo "  sudo rm -rf $SCRIPT_DIR/data/postgres/*"
+        echo ""
+        exit 1
+    fi
+
     read -p "Type 'DELETE' to confirm full cleanup: " confirm
     echo ""
 
@@ -299,7 +321,9 @@ cleanup_full() {
     # Remove data directories
     if [[ -d "$SCRIPT_DIR/data/postgres" ]]; then
         warning "Removing PostgreSQL data directory..."
-        sudo rm -rf "$SCRIPT_DIR/data/postgres"/* >> "$LOG_FILE" 2>&1 || true
+        if ! sudo rm -rf "$SCRIPT_DIR/data/postgres"/* >> "$LOG_FILE" 2>&1; then
+            error "Failed to remove PostgreSQL data directory. Check sudo privileges."
+        fi
     fi
 
     success "Full cleanup completed (ALL DATA DELETED)"
@@ -342,6 +366,7 @@ cleanup_old_deployment() {
     echo "  [1] Skip - deploy alongside old deployment (may cause subnet conflicts)"
     echo "  [2] Safe cleanup - stop & remove containers + networks (KEEPS data)"
     echo "  [3] Full cleanup - containers + networks + volumes (DELETES ALL DATA!)"
+    echo "      ⚠️  Requires sudo/root privileges"
     echo ""
 
     read -p "Select [1-3]: " choice
@@ -580,7 +605,9 @@ clean_deployment() {
             # Remove data directories
             if [[ -d "$SCRIPT_DIR/data/postgres" ]]; then
                 warning "Removing PostgreSQL data directory..."
-                sudo rm -rf "$SCRIPT_DIR/data/postgres"/*
+                if ! sudo rm -rf "$SCRIPT_DIR/data/postgres"/* >> "$LOG_FILE" 2>&1; then
+                    error "Failed to remove PostgreSQL data directory. Check sudo privileges."
+                fi
             fi
         else
             info "Clean deployment cancelled"
