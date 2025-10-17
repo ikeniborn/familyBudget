@@ -734,6 +734,12 @@ setup_ssl_certificates() {
         return 0
     fi
 
+    # Check existing SSL certificates and offer cleanup if needed
+    if [[ -f "$SCRIPT_DIR/scripts/check_certificates.sh" ]]; then
+        source "$SCRIPT_DIR/scripts/check_certificates.sh"
+        check_and_offer_certificate_cleanup "$domain" "$SCRIPT_DIR/certbot/conf"
+    fi
+
     # Check if certificate already exists
     local cert_path="$SCRIPT_DIR/certbot/conf/live/$domain/fullchain.pem"
     if [[ -f "$cert_path" ]]; then

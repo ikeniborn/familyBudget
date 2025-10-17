@@ -683,6 +683,12 @@ configure_domain_ssl() {
         fi
     done
 
+    # Check existing SSL certificates
+    if [[ -f "$REPO_DIR/scripts/check_certificates.sh" ]]; then
+        source "$REPO_DIR/scripts/check_certificates.sh"
+        check_and_offer_certificate_cleanup "${CONFIG[DOMAIN]}" "$REPO_DIR/certbot/conf"
+    fi
+
     # Check DNS (optional but recommended)
     echo ""
     info "Checking DNS configuration for ${CONFIG[DOMAIN]}..."
