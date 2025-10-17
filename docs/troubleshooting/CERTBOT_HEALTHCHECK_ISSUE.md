@@ -246,6 +246,59 @@ Found the following certs:
 | 2025-10-16 | 4.4.0  | ✅ Добавлен healthcheck для certbot          |
 | 2025-10-16 | 4.4.0  | ✅ Создан скрипт scripts/clean_old_certificates.sh   |
 | 2025-10-16 | 4.4.0  | ✅ Обновлена документация .env для SSL       |
+| 2025-10-17 | 4.5.0  | ✅ Исправлено зависание при получении сертификата (--entrypoint fix) |
+
+---
+
+## Известные проблемы и решения
+
+### Проблема: Зависание при получении сертификата (140+ секунд)
+
+**Дата обнаружения:** 2025-10-17
+**Версия:** 4.5.0+
+**Статус:** ✅ ИСПРАВЛЕНО
+
+**Симптомы:**
+- Команда `./deploy.sh --profile full` зависает на этапе получения SSL сертификата
+- В логах появляется сообщение `No renewals were attempted.`
+- Зависание длится 140+ секунд (до timeout или Ctrl+C)
+- Сертификат не создается
+
+**Причина:**
+
+Docker Compose entrypoint контейнера certbot переопределяет команду `certbot certonly`.
+
+**docker-compose.yml строка 238:**
+```yaml
+entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+```
+
+**Что происходит:**
+1. deploy.sh запускает: `docker compose run --rm certbot certonly --webroot ...`
+2. Docker использует entrypoint из docker-compose.yml
+3. Выполняется `certbot renew` (а не `certbot certonly`!)
+4. `certbot renew` не находит сертификатов → "No renewals were attempted"
+5. Запускается `sleep 12h` → зависание
+
+**Решение:**
+
+В deploy.sh (строка 782) добавлен флаг `--entrypoint ""` для переопределения entrypoint:
+
+```bash
+compose_cmd run --rm --entrypoint "" certbot certbot certonly \
+    --webroot \
+    --webroot-path=/var/www/certbot \
+    --email "$email" \
+    --agree-tos \
+    --no-eff-email \
+    --force-renewal \
+    -d "$domain"
+```
+
+**Результат:**
+- ✅ Получение сертификата работает корректно
+- ✅ Время выполнения: ~10-30 секунд (вместо 140+)
+- ✅ Правильная команда: `certbot certonly` (а не `certbot renew`)
 
 ---
 

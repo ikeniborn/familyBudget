@@ -777,7 +777,9 @@ setup_ssl_certificates() {
     echo ""
 
     # Run certbot in webroot mode
-    if compose_cmd run --rm certbot certonly \
+    # ВАЖНО: --entrypoint "" переопределяет entrypoint из docker-compose.yml
+    # Иначе будет выполняться 'certbot renew' (из entrypoint) вместо 'certbot certonly'
+    if compose_cmd run --rm --entrypoint "" certbot certbot certonly \
         --webroot \
         --webroot-path=/var/www/certbot \
         --email "$email" \
