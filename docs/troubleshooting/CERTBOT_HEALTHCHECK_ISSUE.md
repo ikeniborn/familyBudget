@@ -108,11 +108,11 @@ DOMAIN=localhost
 
 ### 3. Создан скрипт очистки старых сертификатов
 
-**Скрипт:** `clean_old_certificates.sh`
+**Скрипт:** `scripts/clean_old_certificates.sh`
 
 **Использование:**
 ```bash
-./clean_old_certificates.sh
+./scripts/clean_old_certificates.sh
 ```
 
 **Что делает:**
@@ -142,7 +142,7 @@ DOMAIN=localhost
 
 1. **Очистите старые сертификаты:**
    ```bash
-   ./clean_old_certificates.sh
+   ./scripts/clean_old_certificates.sh
    # Введите DELETE для подтверждения
    ```
 
@@ -244,7 +244,7 @@ Found the following certs:
 | Дата       | Версия | Изменения                                    |
 |------------|--------|----------------------------------------------|
 | 2025-10-16 | 4.4.0  | ✅ Добавлен healthcheck для certbot          |
-| 2025-10-16 | 4.4.0  | ✅ Создан скрипт clean_old_certificates.sh   |
+| 2025-10-16 | 4.4.0  | ✅ Создан скрипт scripts/clean_old_certificates.sh   |
 | 2025-10-16 | 4.4.0  | ✅ Обновлена документация .env для SSL       |
 
 ---

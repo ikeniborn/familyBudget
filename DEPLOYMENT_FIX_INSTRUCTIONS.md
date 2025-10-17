@@ -48,7 +48,7 @@ DOMAIN=localhost  # Для продакшн измените на ваш дом�
 # DEPLOYMENT_PROFILE=full
 ```
 
-### 3. **clean_old_certificates.sh** - Скрипт очистки сертификатов с автоматическим режимом
+### 3. **scripts/clean_old_certificates.sh** - Скрипт очистки сертификатов с автоматическим режимом
 
 Интерактивный скрипт для удаления старых сертификатов с поддержкой автоматического режима (`--auto`).
 
@@ -137,7 +137,7 @@ docker logs familybudget-certbot
 # Проверьте логи certbot
 ```
 
-**Примечание:** Скрипты `setup.sh` и `deploy.sh` теперь автоматически проверяют существующие сертификаты и предлагают их очистку если нужно. Ручная очистка через `./clean_old_certificates.sh` больше не требуется в большинстве случаев!
+**Примечание:** Скрипты `setup.sh` и `deploy.sh` теперь автоматически проверяют существующие сертификаты и предлагают их очистку если нужно. Ручная очистка через `./scripts/clean_old_certificates.sh` больше не требуется в большинстве случаев!
 
 ### Вариант C: Продакшн без автоматического SSL
 
@@ -211,7 +211,7 @@ HTTP/2 200
 |------|-----------|--------|
 | `docker-compose.yml` | Добавлен healthcheck для certbot | ✅ Изменен |
 | `.env` | Добавлены комментарии и примеры SSL | ✅ Изменен |
-| `clean_old_certificates.sh` | Добавлен флаг --auto, exit codes | ✅ Изменен |
+| `scripts/clean_old_certificates.sh` | Добавлен флаг --auto, exit codes | ✅ Изменен |
 | `scripts/check_certificates.sh` | Интеллектуальная проверка сертификатов | ✅ Создан |
 | `setup.sh` | Интегрирована проверка сертификатов | ✅ Изменен |
 | `deploy.sh` | Интегрирована проверка сертификатов | ✅ Изменен |
@@ -239,7 +239,7 @@ HTTP/2 200
 
 3. **Очистите старые сертификаты**
    ```bash
-   ./clean_old_certificates.sh
+   ./scripts/clean_old_certificates.sh
    ```
 
 4. **Передеплойте с исправлениями**
@@ -292,7 +292,7 @@ A:
 ```bash
 git checkout HEAD~1 docker-compose.yml
 git checkout HEAD~1 .env
-git checkout HEAD~1 clean_old_certificates.sh
+git checkout HEAD~1 scripts/clean_old_certificates.sh
 git checkout HEAD~1 setup.sh
 git checkout HEAD~1 deploy.sh
 rm scripts/check_certificates.sh
@@ -303,7 +303,7 @@ rm scripts/check_certificates.sh
 ## 📚 Дополнительные ресурсы
 
 - **Детальная документация:** `docs/troubleshooting/CERTBOT_HEALTHCHECK_ISSUE.md`
-- **Скрипт очистки:** `./clean_old_certificates.sh --help`
+- **Скрипт очистки:** `./scripts/clean_old_certificates.sh --help`
 - **Скрипт проверки сертификатов:** `scripts/check_certificates.sh` (используется в setup.sh и deploy.sh)
 - **Логи деплоя:** `./logs/deploy.log`
 - **Документация Docker Health Checks:** https://docs.docker.com/compose/compose-file/compose-file-v3/#healthcheck

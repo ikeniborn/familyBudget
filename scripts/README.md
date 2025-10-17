@@ -14,6 +14,121 @@ This directory contains automation scripts for the Family Budget application, in
 
 ## Scripts
 
+### clean_old_certificates.sh
+
+**Purpose:** Clean old SSL certificates from certbot configuration
+
+**Features:**
+- Interactive mode with confirmation prompts
+- Automatic mode (`--auto`) for script integration
+- Displays existing certificates before cleanup
+- Proper exit codes (0=success, 1=cancelled/error)
+- Safe deletion with user confirmation
+- Optional host system cleanup (`/etc/letsencrypt/`)
+
+**Usage:**
+
+```bash
+# Interactive mode (with prompts)
+./scripts/clean_old_certificates.sh
+
+# Automatic mode (no prompts, for scripts)
+./scripts/clean_old_certificates.sh --auto
+```
+
+**What it cleans:**
+- `certbot/conf/live/` - active certificate symlinks
+- `certbot/conf/archive/` - archived certificates
+- `certbot/conf/renewal/` - renewal configurations
+- `certbot/conf/accounts/` - Let's Encrypt accounts
+- Optionally: `/etc/letsencrypt/*` on host system (with confirmation)
+
+**Exit Codes:**
+- `0` - Success (cleanup completed or nothing to clean)
+- `1` - Error or user cancelled
+
+**Examples:**
+
+```bash
+# Check and clean certificates interactively
+./scripts/clean_old_certificates.sh
+# Type 'DELETE' to confirm
+
+# Use in scripts (automatic mode)
+./scripts/clean_old_certificates.sh --auto && echo "Cleaned!"
+
+# Called from check_certificates.sh
+# (happens automatically during setup/deploy)
+```
+
+**Integration:**
+- Used by `scripts/check_certificates.sh` when domain mismatch detected
+- Automatically invoked during `setup.sh` and `deploy.sh` if needed
+
+---
+
+### check_certificates.sh
+
+**Purpose:** Intelligent SSL certificate checking and management helper
+
+**Features:**
+- Detects existing SSL certificates
+- Compares existing domain with new domain
+- Smart scenarios handling:
+  - Same domain → reuse certificate (saves Let's Encrypt limits)
+  - Different domain → offer cleanup with confirmation
+  - Localhost → optional cleanup for tidiness
+- Never deletes automatically - always asks for confirmation
+- Integration with `clean_old_certificates.sh`
+
+**Usage:**
+
+```bash
+# Source in other scripts
+source scripts/check_certificates.sh
+
+# Use the main function
+check_and_offer_certificate_cleanup "domain.com" "/path/to/certbot/conf"
+```
+
+**Functions:**
+- `get_existing_domains(certbot_conf_dir)` - List certificate domains
+- `get_cert_expiry(certbot_conf_dir, domain)` - Get expiration date
+- `check_and_offer_certificate_cleanup(new_domain, certbot_conf_dir)` - Main logic
+
+**Return Codes:**
+- `0` - Success (no action needed or cleanup completed)
+- `1` - Cleanup was offered but declined
+
+**Scenarios:**
+
+1. **Same Domain:**
+   ```
+   [SUCCESS] Найден сертификат для domain.com
+   [SUCCESS] Сертификат будет переиспользован (экономия лимитов Let's Encrypt)
+   ```
+
+2. **Different Domain:**
+   ```
+   [WARNING] Несоответствие доменов:
+     Существующие: old-domain.com
+     Новый:        new-domain.com
+
+   Очистить старые сертификаты сейчас? [Y/n]:
+   ```
+
+3. **Localhost:**
+   ```
+   [INFO] Выбрана локальная разработка (localhost)
+   Очистить неиспользуемые сертификаты для порядка? [y/N]:
+   ```
+
+**Integration:**
+- Automatically used by `setup.sh` in `configure_domain_ssl()`
+- Automatically used by `deploy.sh` in `setup_ssl_certificates()`
+
+---
+
 ### backup.sh
 
 **Purpose:** Automated PostgreSQL backup with local storage and S3 upload

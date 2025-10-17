@@ -154,7 +154,7 @@ check_and_offer_certificate_cleanup() {
         if [[ "${cleanup_choice,,}" != "n" ]]; then
             # Call cleanup script
             local cleanup_script
-            cleanup_script="$(dirname "$certbot_conf_dir")/clean_old_certificates.sh"
+            cleanup_script="$(cd "$(dirname "$certbot_conf_dir")/.." && pwd)/scripts/clean_old_certificates.sh"
 
             if [[ -x "$cleanup_script" ]]; then
                 print_cert_message "$BLUE" "[INFO] Запуск скрипта очистки..."
@@ -205,7 +205,7 @@ check_and_offer_certificate_cleanup() {
         if [[ "${cleanup_choice,,}" == "y" ]]; then
             # Call cleanup script
             local cleanup_script
-            cleanup_script="$(dirname "$certbot_conf_dir")/clean_old_certificates.sh"
+            cleanup_script="$(cd "$(dirname "$certbot_conf_dir")/.." && pwd)/scripts/clean_old_certificates.sh"
 
             if [[ -x "$cleanup_script" ]]; then
                 if "$cleanup_script" --auto; then
