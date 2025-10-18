@@ -1245,33 +1245,14 @@ update_nginx_for_https() {
 
     info "Processing nginx configuration with Perl..."
 
+    # Uncomment HTTPS and HTTP redirect blocks using Perl
+    # Perl with -0777 reads entire file at once for multi-line regex
     perl -i -0777 -pe '
         # Uncomment HTTPS server block (contains "listen 443 ssl")
-        # Pattern: # server { ... #     listen 443 ssl; ... # }
-        s{
-            (^# [ ]server [ ]\{\n          # Match: "# server {"
-             (?:\#.*\n)*?                  # Skip comment lines
-             \#[ ]+listen[ ]+443[ ]+ssl;   # Match: "#     listen 443 ssl;"
-             .*?                           # Match rest of block (non-greedy)
-             ^# [ ]\}$)                    # Match: "# }" at line start
-        }{
-            my $block = $1;
-            $block =~ s/^# ?//gm;          # Remove leading "# " from all lines
-            $block;
-        }xsme;                             # x=extended, s=dotall, m=multiline, e=eval
+        s/(^#\s+server\s+\{\n(?:\#.*\n)*?\#\s+listen\s+443\s+ssl;.*?^#\s+\}$)/my $b=$1; $b=~s\/^#\s?\/\/gm; $b/mse;
 
         # Uncomment HTTP redirect block (contains "listen 80" and "return 301")
-        # Pattern: # server { ... listen 80 ... return 301 ... # }
-        s{
-            (^# [ ]server [ ]\{\n          # Match: "# server {"
-             \#[ ]+listen[ ]+80;.*?        # Match: "#     listen 80;"
-             return[ ]+301.*?              # Must contain: "return 301"
-             ^# [ ]\}$)                    # Match: "# }" at line start
-        }{
-            my $block = $1;
-            $block =~ s/^# ?//gm;          # Remove leading "# " from all lines
-            $block;
-        }xsme;
+        s/(^#\s+server\s+\{\n\#\s+listen\s+80;.*?return\s+301.*?^#\s+\}$)/my $b=$1; $b=~s\/^#\s?\/\/gm; $b/mse;
     ' "$nginx_conf" || {
         error "Perl processing failed"
         mv "$nginx_conf.backup" "$nginx_conf" 2>/dev/null || true
