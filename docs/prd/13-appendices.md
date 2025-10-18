@@ -88,7 +88,7 @@
 | `POSTGRES_PASSWORD` | Required | PostgreSQL password | `strong_password` |
 | `POSTGRES_DB` | Required | PostgreSQL database name | `familybudget` |
 | `ADMIN_TELEGRAM_ID` | Required | Telegram ID администратора | `123456789` |
-| `BACKEND_API_URL` | Required | URL FastAPI backend для бота | `http://backend:8000` |
+| `BACKEND_API_URL` | Required | URL FastAPI backend для бота | `http://backend:8000/api/v1` |
 | `POSTGRES_EXTERNAL_ACCESS` | Optional | Разрешить внешний доступ к PostgreSQL | `false` |
 | `POSTGRES_ALLOWED_IP` | Optional | IP адрес для внешнего доступа | `192.168.1.100` |
 | `AWS_ACCESS_KEY_ID` | Optional | Яндекс Object Storage access key | - |

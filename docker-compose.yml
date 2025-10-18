@@ -170,7 +170,7 @@ services:
       TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
 
       # Backend API
-      BACKEND_API_URL: http://backend:8000
+      BACKEND_API_URL: http://backend:8000/api/v1
       BACKEND_API_KEY: ${BACKEND_API_KEY:-}
 
       # Logging

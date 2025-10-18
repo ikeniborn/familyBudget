@@ -357,7 +357,7 @@ services:
       - backend
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      BACKEND_API_URL: http://backend:8000
+      BACKEND_API_URL: http://backend:8000/api/v1
 
   nginx:
     image: nginx:alpine
