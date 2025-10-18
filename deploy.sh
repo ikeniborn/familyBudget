@@ -1318,6 +1318,87 @@ verify_ssl() {
 }
 
 # =============================================================================
+# BACKUP CRON JOB SETUP
+# =============================================================================
+
+# Setup automatic daily backups via cron
+setup_backup_cron() {
+    step "Setting up automatic backups..."
+
+    # Check if cron is installed
+    if ! command_exists crontab; then
+        warning "cron not installed, skipping backup cron setup"
+        info "Install with: sudo apt-get install cron"
+        return 0
+    fi
+
+    # Create log directory for cron logs
+    local log_dir="/var/log/familybudget"
+    if [[ ! -d "$log_dir" ]]; then
+        info "Creating log directory: $log_dir"
+        if sudo mkdir -p "$log_dir" >> "$LOG_FILE" 2>&1; then
+            sudo chown ${USER}:${USER} "$log_dir" >> "$LOG_FILE" 2>&1 || true
+            sudo chmod 755 "$log_dir" >> "$LOG_FILE" 2>&1 || true
+            success "Log directory created: $log_dir"
+        else
+            warning "Failed to create log directory (continuing anyway)"
+        fi
+    fi
+
+    # Prepare cron file with correct project path
+    local cron_source="${DEPLOY_DIR}/scripts/cron/familybudget-backup.cron"
+    local cron_dest="/etc/cron.d/familybudget-backup"
+
+    if [[ ! -f "$cron_source" ]]; then
+        warning "Cron template not found: $cron_source"
+        info "Skipping backup cron setup"
+        return 0
+    fi
+
+    # Replace /opt/familybudget with actual DEPLOY_DIR
+    info "Installing cron job to: $cron_dest"
+
+    # Create temporary file with updated path
+    local temp_cron="/tmp/familybudget-backup.cron.tmp"
+    sed "s|/opt/familybudget|${DEPLOY_DIR}|g" "$cron_source" > "$temp_cron"
+
+    # Copy to /etc/cron.d/ (requires sudo)
+    if sudo cp "$temp_cron" "$cron_dest" >> "$LOG_FILE" 2>&1; then
+        sudo chmod 644 "$cron_dest" >> "$LOG_FILE" 2>&1
+        sudo chown root:root "$cron_dest" >> "$LOG_FILE" 2>&1
+        rm -f "$temp_cron"
+
+        success "Backup cron job installed"
+        info "Schedule: Daily at 2:00 AM"
+        info "Logs: $log_dir/cron.log"
+        info "Backup logs: ${DEPLOY_DIR}/backups/logs/"
+
+        # Check if S3 is configured
+        set -a
+        source "$DEPLOY_DIR/.env" 2>/dev/null || true
+        set +a
+
+        if [[ -n "${S3_BUCKET_NAME:-}" && -n "${AWS_ACCESS_KEY_ID:-}" ]]; then
+            info "S3 uploads: Weekly on Sundays to s3://${S3_BUCKET_NAME}/"
+        else
+            warning "S3 not configured - backups will be local only"
+            info "To enable S3: Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_BUCKET_NAME in .env"
+        fi
+
+        # Display cron job
+        info "Installed cron job:"
+        sudo cat "$cron_dest" | grep -v "^#" | grep -v "^$" | tail -1 | sed 's/^/  /' || true
+
+    else
+        warning "Failed to install cron job (requires sudo)"
+        info "You can manually install with:"
+        echo "  sudo cp $cron_source $cron_dest"
+        echo "  sudo chmod 644 $cron_dest"
+        rm -f "$temp_cron"
+    fi
+}
+
+# =============================================================================
 # FIREWALL MANAGEMENT FOR SSL
 # =============================================================================
 
@@ -1729,6 +1810,9 @@ main() {
         echo ""
 
         run_migrations
+        echo ""
+
+        setup_backup_cron
         echo ""
 
         # Configure firewall before SSL certificate setup

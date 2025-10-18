@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block title %}Login with Telegram{% endblock %}
+
+{% block content %}
+<div class="login-page">
+    <div class="login-container">
+        <div class="login-header">
+            <h1>Welcome to Family Budget</h1>
+            <p class="subtitle">Track your expenses, analyze spending patterns, and manage your family budget.</p>
+        </div>
+
+        <div class="login-card">
+            <div class="login-icon">
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#0088cc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M16 8L8 16M8 8L16 16" stroke="#0088cc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M9.663 17L12 14.663L14.337 17M9.663 7L12 9.337L14.337 7" stroke="#0088cc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+
+            <h2>Login with Telegram</h2>
+            <p class="login-description">
+                Use your Telegram account to securely access Family Budget.
+                No password required!
+            </p>
+
+            <div class="telegram-widget-container">
+                <!-- Telegram Login Widget -->
+                <script async src="https://telegram.org/js/telegram-widget.js?22"
+                        data-telegram-login="{{ bot_username }}"
+                        data-size="large"
+                        data-auth-url="{{ callback_url }}"
+                        data-request-access="write">
+                </script>
+            </div>
+
+            <div class="login-features">
+                <h3>Why Telegram Login?</h3>
+                <ul>
+                    <li>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                        <span>Secure authentication with HMAC-SHA256 validation</span>
+                    </li>
+                    <li>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                        <span>No need to remember another password</span>
+                    </li>
+                    <li>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                        <span>Instant access with your Telegram account</span>
+                    </li>
+                    <li>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                        <span>Use the bot (@{{ bot_username }}) to manage budget on the go</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="login-help">
+                <p><strong>Don't have Telegram?</strong></p>
+                <p>
+                    Download Telegram from
+                    <a href="https://telegram.org/" target="_blank" rel="noopener noreferrer">telegram.org</a>
+                    and create your free account.
+                </p>
+            </div>
+        </div>
+
+        <div class="login-security">
+            <h3>Security & Privacy</h3>
+            <div class="security-grid">
+                <div class="security-item">
+                    <strong>🔒 Encrypted Communication</strong>
+                    <p>All data transmitted via HTTPS/TLS encryption</p>
+                </div>
+                <div class="security-item">
+                    <strong>🛡️ No Password Storage</strong>
+                    <p>We never store your Telegram password</p>
+                </div>
+                <div class="security-item">
+                    <strong>🔐 JWT Tokens</strong>
+                    <p>Secure session management with refresh tokens</p>
+                </div>
+                <div class="security-item">
+                    <strong>👤 Data Isolation</strong>
+                    <p>Your budget data is private and never shared</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.login-page {
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.login-container {
+    max-width: 600px;
+    width: 100%;
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.login-header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    color: #2c3e50;
+}
+
+.login-header .subtitle {
+    font-size: 1.1rem;
+    color: #7f8c8d;
+}
+
+.login-card {
+    background: white;
+    border-radius: 12px;
+    padding: 3rem 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.login-icon {
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: center;
+}
+
+.login-card h2 {
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+    color: #2c3e50;
+}
+
+.login-description {
+    color: #7f8c8d;
+    margin-bottom: 2rem;
+    font-size: 1.05rem;
+}
+
+.telegram-widget-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 50px;
+    margin: 2rem 0;
+}
+
+.login-features {
+    text-align: left;
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid #ecf0f1;
+}
+
+.login-features h3 {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    color: #2c3e50;
+}
+
+.login-features ul {
+    list-style: none;
+    padding: 0;
+}
+
+.login-features li {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+    gap: 0.5rem;
+}
+
+.login-features li svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.login-features li span {
+    color: #34495e;
+}
+
+.login-help {
+    margin-top: 2rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.login-help p {
+    margin: 0.5rem 0;
+    color: #34495e;
+}
+
+.login-help a {
+    color: #0088cc;
+    text-decoration: none;
+}
+
+.login-help a:hover {
+    text-decoration: underline;
+}
+
+.login-security {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 2rem;
+}
+
+.login-security h3 {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    color: #2c3e50;
+}
+
+.security-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.security-item {
+    text-align: center;
+}
+
+.security-item strong {
+    display: block;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+    color: #2c3e50;
+}
+
+.security-item p {
+    font-size: 0.9rem;
+    color: #7f8c8d;
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    .login-header h1 {
+        font-size: 2rem;
+    }
+
+    .login-card {
+        padding: 2rem 1.5rem;
+    }
+
+    .security-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

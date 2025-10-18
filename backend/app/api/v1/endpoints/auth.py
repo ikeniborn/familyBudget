@@ -19,10 +19,12 @@ Security Features:
     - Refresh tokens hashed in database (SHA-256, like password hashing)
 """
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from backend.app.core.config import get_settings
 from backend.app.core.dependencies import get_session
 from backend.app.models.refresh_token import RefreshToken
 from backend.app.models.user import User
@@ -38,6 +40,209 @@ from backend.app.services.jwt import (
 from backend.app.services.telegram_auth import validate_telegram_auth
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+settings = get_settings()
+
+
+@router.get(
+    "/telegram-login",
+    response_class=HTMLResponse,
+    summary="Telegram Login Page",
+    description="""
+    Display Telegram Login Widget page for web authentication.
+
+    This page renders the official Telegram Login Widget which allows users
+    to authenticate using their Telegram account.
+
+    Process:
+    1. User visits this page
+    2. Telegram Widget is displayed
+    3. User clicks "Login with Telegram"
+    4. Telegram authenticates user
+    5. Widget redirects to /auth/telegram-callback with auth data
+    6. Callback processes auth and sets JWT cookies
+    7. User is redirected to dashboard
+
+    Security:
+    - Uses official Telegram Login Widget
+    - Callback validates HMAC-SHA256 hash
+    - No credentials stored on our servers
+
+    Related:
+    - GET /auth/telegram-callback - Handles widget callback
+    - POST /auth/telegram - API endpoint for direct auth
+    """,
+)
+async def telegram_login_page(request: Request) -> HTMLResponse:
+    """
+    Display Telegram Login Widget page.
+
+    Args:
+        request: FastAPI request object
+
+    Returns:
+        HTMLResponse: Telegram login page with widget
+
+    Example:
+        GET /api/v1/auth/telegram-login
+        Returns HTML page with Telegram Login Widget
+    """
+    from backend.app.main import templates
+
+    # Build callback URL (full URL including domain)
+    # In production: https://your-domain.com/api/v1/auth/telegram-callback
+    # In development: http://localhost:8000/api/v1/auth/telegram-callback
+    callback_url = str(request.url_for("telegram_callback"))
+
+    return templates.TemplateResponse(
+        "telegram_login.html",
+        {
+            "request": request,
+            "bot_username": settings.TELEGRAM_BOT_USERNAME,
+            "callback_url": callback_url,
+            "page_title": "Login with Telegram",
+        },
+    )
+
+
+@router.get(
+    "/telegram-callback",
+    response_class=RedirectResponse,
+    summary="Telegram Widget Callback",
+    description="""
+    Handle callback from Telegram Login Widget.
+
+    ⚠️ SECURITY CRITICAL ENDPOINT ⚠️
+
+    This endpoint is called by the Telegram Login Widget after user authentication.
+    It receives user data as query parameters and validates the HMAC hash.
+
+    Process:
+    1. Extract auth data from query parameters
+    2. Validate Telegram OAuth hash (HMAC-SHA256)
+    3. Create or update user in database
+    4. Generate JWT access + refresh tokens
+    5. Set tokens in httpOnly cookies
+    6. Redirect to dashboard
+
+    Query Parameters (from Telegram Widget):
+        id: Telegram user ID
+        first_name: User's first name
+        last_name: User's last name (optional)
+        username: Telegram username (optional)
+        photo_url: Profile photo URL (optional)
+        auth_date: Authentication timestamp
+        hash: HMAC-SHA256 hash for validation
+
+    Security:
+    - Validates HMAC-SHA256 hash using bot token
+    - Prevents authentication bypass (RISK-002)
+    - Sets httpOnly cookies (XSS protection)
+    - SameSite=Lax (CSRF protection)
+
+    Related:
+    - GET /auth/telegram-login - Login page with widget
+    - POST /auth/telegram - Direct API authentication
+    """,
+)
+async def telegram_callback(
+    request: Request,
+    response: Response,
+    session: AsyncSession = Depends(get_session),
+) -> RedirectResponse:
+    """
+    Handle Telegram Login Widget callback.
+
+    ⚠️ CRITICAL SECURITY ENDPOINT ⚠️
+
+    Args:
+        request: FastAPI request object (contains query params from widget)
+        response: FastAPI response object (for setting cookies)
+        session: Async database session
+
+    Returns:
+        RedirectResponse: Redirect to dashboard on success
+
+    Raises:
+        HTTPException: 401 if hash validation fails
+        HTTPException: 500 if database error occurs
+
+    Example:
+        GET /api/v1/auth/telegram-callback?id=123456789&first_name=John&username=johndoe&auth_date=1699999999&hash=abc123...
+        -> Validates auth data
+        -> Sets JWT cookies
+        -> Redirects to /
+    """
+    # Step 1: Extract auth data from query parameters
+    query_params = dict(request.query_params)
+
+    # Validate required parameters
+    required_fields = ["id", "first_name", "auth_date", "hash"]
+    missing_fields = [field for field in required_fields if field not in query_params]
+
+    if missing_fields:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Missing required parameters: {', '.join(missing_fields)}",
+        )
+
+    # Step 2: Validate Telegram OAuth hash (CRITICAL SECURITY)
+    is_valid = validate_telegram_auth(query_params)
+
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication data - hash validation failed",
+        )
+
+    # Step 3: Get or create user (SCD Type 2 pattern)
+    user = await get_or_create_user(
+        session=session,
+        telegram_id=int(query_params["id"]),
+        first_name=query_params["first_name"],
+        last_name=query_params.get("last_name"),
+        username=query_params.get("username"),
+    )
+
+    # Step 4: Generate JWT access token
+    access_token = create_access_token(user_id=user.id)
+
+    # Step 5: Generate JWT refresh token (30-day expiry)
+    refresh_token, refresh_expires = create_refresh_token(user_id=user.id)
+    refresh_token_hash = hash_token(refresh_token)
+
+    # Step 6: Store refresh token in database
+    db_refresh_token = RefreshToken(
+        user_id=user.id,
+        token_hash=refresh_token_hash,
+        expires_at=refresh_expires,
+    )
+    session.add(db_refresh_token)
+    await session.commit()
+
+    # Step 7: Create redirect response to dashboard
+    redirect = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+
+    # Step 8: Set JWT access token in httpOnly cookie
+    redirect.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,  # Prevent JavaScript access (XSS protection)
+        secure=True,  # HTTPS only (set to False for local development if needed)
+        samesite="lax",  # CSRF protection
+        max_age=60 * 60 * 24 * 7,  # 7 days in seconds
+    )
+
+    # Step 9: Set JWT refresh token in httpOnly cookie
+    redirect.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,  # Prevent JavaScript access (XSS protection)
+        secure=True,  # HTTPS only
+        samesite="lax",  # CSRF protection
+        max_age=60 * 60 * 24 * 30,  # 30 days in seconds
+    )
+
+    return redirect
 
 
 @router.post(

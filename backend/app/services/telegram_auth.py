@@ -18,11 +18,70 @@ Security Requirements:
 
 import hashlib
 import hmac
-from typing import Dict
+import httpx
+from typing import Dict, Optional
 
 from backend.app.core.config import get_settings
 
 settings = get_settings()
+
+
+async def get_bot_username() -> Optional[str]:
+    """
+    Get bot username from Telegram API using bot token.
+
+    Uses Telegram Bot API method getMe to retrieve bot information.
+    This is useful for automatically configuring TELEGRAM_BOT_USERNAME
+    instead of requiring manual configuration.
+
+    Returns:
+        Optional[str]: Bot username (without @ prefix) or None if failed
+
+    Example:
+        >>> bot_username = await get_bot_username()
+        >>> print(f"Bot username: @{bot_username}")
+        Bot username: @ikenibornbudgetbot
+
+    Raises:
+        No exceptions raised - returns None on failure
+
+    Security Notes:
+        - Only requires bot token (no additional credentials)
+        - Uses official Telegram Bot API
+        - Safe to call at application startup
+
+    Related:
+        - TELEGRAM_BOT_USERNAME configuration
+        - Telegram Login Widget setup
+    """
+    try:
+        # Telegram Bot API endpoint
+        url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/getMe"
+
+        # Make request to Telegram API
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, timeout=10.0)
+
+        # Check if request was successful
+        if response.status_code != 200:
+            return None
+
+        # Parse response
+        data = response.json()
+
+        # Validate response structure
+        if not data.get("ok"):
+            return None
+
+        # Extract username from result
+        result = data.get("result", {})
+        username = result.get("username")
+
+        return username
+
+    except Exception:
+        # Silently fail - username can be configured manually if needed
+        return None
 
 
 def validate_telegram_auth(data: Dict[str, any]) -> bool:

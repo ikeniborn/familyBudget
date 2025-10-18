@@ -39,13 +39,42 @@ async def lifespan(app: FastAPI):
     """
     Lifespan context manager for startup and shutdown events.
 
-    Startup: Initialize database connection
-    Shutdown: Clean up database connections
+    Startup:
+        - Initialize database connection
+        - Auto-fetch bot username if not configured
+    Shutdown:
+        - Clean up database connections
     """
     # Startup
     logger.info("Application starting up")
+
+    # Initialize database
     await init_db()
     logger.info("Database initialized successfully")
+
+    # Auto-fetch Telegram bot username if not configured
+    if settings.TELEGRAM_BOT_USERNAME is None:
+        logger.info("TELEGRAM_BOT_USERNAME not configured, fetching from Telegram API...")
+        from backend.app.services.telegram_auth import get_bot_username
+
+        try:
+            bot_username = await get_bot_username()
+            if bot_username:
+                # Update settings with fetched username
+                settings.TELEGRAM_BOT_USERNAME = bot_username
+                logger.info(f"Bot username auto-configured: @{bot_username}")
+            else:
+                logger.warning(
+                    "Failed to auto-fetch bot username. "
+                    "Please set TELEGRAM_BOT_USERNAME in .env file for web login to work."
+                )
+        except Exception as e:
+            logger.error(f"Error fetching bot username: {e}")
+            logger.warning(
+                "Please set TELEGRAM_BOT_USERNAME in .env file for web login to work."
+            )
+    else:
+        logger.info(f"Using configured bot username: @{settings.TELEGRAM_BOT_USERNAME}")
 
     yield
 
