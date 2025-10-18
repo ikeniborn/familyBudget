@@ -128,9 +128,7 @@ CREATE INDEX IF NOT EXISTS idx_article_valid_to
 -- ============================================================================
 
 COMMENT ON TABLE t_d_article IS
-    'Articles/categories dimension table with SCD Type 2 for tracking historical changes. ' ||
-    'Supports hierarchical structure via parent_id (adjacency list). ' ||
-    'Articles can be user-specific or global (shared across all users).';
+    'Articles/categories dimension table with SCD Type 2 for tracking historical changes. Supports hierarchical structure via parent_id (adjacency list). Articles can be user-specific or global (shared across all users).';
 
 COMMENT ON COLUMN t_d_article.id IS
     'Surrogate key (auto-increment primary key)';

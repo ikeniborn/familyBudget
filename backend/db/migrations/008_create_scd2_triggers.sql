@@ -87,9 +87,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION trg_scd2_user() IS
-    'SCD Type 2 trigger for t_d_user. ' ||
-    'Tracks changes to: username, first_name, last_name, is_admin. ' ||
-    'Automatically closes current version and creates new version on change.';
+    'SCD Type 2 trigger for t_d_user. Tracks changes to: username, first_name, last_name, is_admin. Automatically closes current version and creates new version on change.';
 
 -- ============================================================================
 -- TRIGGER FUNCTION: SCD2 for t_d_article
@@ -156,9 +154,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION trg_scd2_article() IS
-    'SCD Type 2 trigger for t_d_article. ' ||
-    'Tracks changes to: name, type, code, is_global. ' ||
-    'parent_id changes handled by hierarchy triggers.';
+    'SCD Type 2 trigger for t_d_article. Tracks changes to: name, type, code, is_global. parent_id changes handled by hierarchy triggers.';
 
 -- ============================================================================
 -- TRIGGER FUNCTION: SCD2 for t_d_financial_center
@@ -222,8 +218,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION trg_scd2_financial_center() IS
-    'SCD Type 2 trigger for t_d_financial_center. ' ||
-    'Tracks changes to: name, description, code, is_global.';
+    'SCD Type 2 trigger for t_d_financial_center. Tracks changes to: name, description, code, is_global.';
 
 -- ============================================================================
 -- TRIGGER FUNCTION: SCD2 for t_d_cost_center
@@ -287,8 +282,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION trg_scd2_cost_center() IS
-    'SCD Type 2 trigger for t_d_cost_center. ' ||
-    'Tracks changes to: name, description, code, is_global.';
+    'SCD Type 2 trigger for t_d_cost_center. Tracks changes to: name, description, code, is_global.';
 
 -- ============================================================================
 -- CREATE TRIGGERS

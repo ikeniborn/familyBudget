@@ -35,9 +35,7 @@ CREATE INDEX IF NOT EXISTS idx_budget_fact_user_date_amount_covering
     INCLUDE (amount, article_id);
 
 COMMENT ON INDEX idx_budget_fact_user_date_amount_covering IS
-    'Covering index for monthly user analytics queries. ' ||
-    'Supports: SELECT user_id, fact_date, SUM(amount) FROM t_f_budget_fact ' ||
-    'WHERE user_id = ? AND fact_date BETWEEN ? AND ? GROUP BY user_id, fact_date';
+    'Covering index for monthly user analytics queries. Supports: SELECT user_id, fact_date, SUM(amount) FROM t_f_budget_fact WHERE user_id = ? AND fact_date BETWEEN ? AND ? GROUP BY user_id, fact_date';
 
 -- Covering index for article analytics
 -- Query: Category breakdown (group by article)
@@ -46,9 +44,7 @@ CREATE INDEX IF NOT EXISTS idx_budget_fact_article_date_amount_covering
     INCLUDE (amount, user_id);
 
 COMMENT ON INDEX idx_budget_fact_article_date_amount_covering IS
-    'Covering index for article/category analytics. ' ||
-    'Supports: SELECT article_id, SUM(amount) FROM t_f_budget_fact ' ||
-    'WHERE article_id IN (...) AND fact_date BETWEEN ? AND ? GROUP BY article_id';
+    'Covering index for article/category analytics. Supports: SELECT article_id, SUM(amount) FROM t_f_budget_fact WHERE article_id IN (...) AND fact_date BETWEEN ? AND ? GROUP BY article_id';
 
 -- Index for financial center filtering
 -- Query: Facts by financial center (bank account)
@@ -57,9 +53,7 @@ CREATE INDEX IF NOT EXISTS idx_budget_fact_fc_date
     WHERE financial_center_id IS NOT NULL;
 
 COMMENT ON INDEX idx_budget_fact_fc_date IS
-    'Partial index for financial center queries. ' ||
-    'Supports: SELECT * FROM t_f_budget_fact ' ||
-    'WHERE financial_center_id = ? AND fact_date BETWEEN ? AND ?';
+    'Partial index for financial center queries. Supports: SELECT * FROM t_f_budget_fact WHERE financial_center_id = ? AND fact_date BETWEEN ? AND ?';
 
 -- Index for cost center filtering
 -- Query: Facts by cost center (project)
@@ -68,9 +62,7 @@ CREATE INDEX IF NOT EXISTS idx_budget_fact_cc_date
     WHERE cost_center_id IS NOT NULL;
 
 COMMENT ON INDEX idx_budget_fact_cc_date IS
-    'Partial index for cost center queries. ' ||
-    'Supports: SELECT * FROM t_f_budget_fact ' ||
-    'WHERE cost_center_id = ? AND fact_date BETWEEN ? AND ?';
+    'Partial index for cost center queries. Supports: SELECT * FROM t_f_budget_fact WHERE cost_center_id = ? AND fact_date BETWEEN ? AND ?';
 
 -- Covering index for user + article + date range queries
 -- Query: User's transactions for specific category
@@ -79,9 +71,7 @@ CREATE INDEX IF NOT EXISTS idx_budget_fact_user_article_date_covering
     INCLUDE (amount, description, financial_center_id);
 
 COMMENT ON INDEX idx_budget_fact_user_article_date_covering IS
-    'Covering index for user + article queries. ' ||
-    'Supports: SELECT * FROM t_f_budget_fact ' ||
-    'WHERE user_id = ? AND article_id = ? AND fact_date BETWEEN ? AND ?';
+    'Covering index for user + article queries. Supports: SELECT * FROM t_f_budget_fact WHERE user_id = ? AND article_id = ? AND fact_date BETWEEN ? AND ?';
 
 -- Index for amount-based queries (e.g., large transactions)
 -- Query: Find large expenses/incomes
@@ -89,9 +79,7 @@ CREATE INDEX IF NOT EXISTS idx_budget_fact_amount_date
     ON t_f_budget_fact(amount, fact_date DESC);
 
 COMMENT ON INDEX idx_budget_fact_amount_date IS
-    'Index for amount-based filtering. ' ||
-    'Supports: SELECT * FROM t_f_budget_fact ' ||
-    'WHERE amount > ? OR amount < ? ORDER BY fact_date DESC';
+    'Index for amount-based filtering. Supports: SELECT * FROM t_f_budget_fact WHERE amount > ? OR amount < ? ORDER BY fact_date DESC';
 
 -- ============================================================================
 -- INDEXES FOR t_d_article (Article/Category Dimension)
@@ -105,9 +93,7 @@ CREATE INDEX IF NOT EXISTS idx_article_user_current_type_name_covering
     WHERE is_current = TRUE;
 
 COMMENT ON INDEX idx_article_user_current_type_name_covering IS
-    'Covering index for user article lists. ' ||
-    'Supports: SELECT id, name, type, parent_id FROM t_d_article ' ||
-    'WHERE user_id = ? AND is_current = TRUE AND type = ?';
+    'Covering index for user article lists. Supports: SELECT id, name, type, parent_id FROM t_d_article WHERE user_id = ? AND is_current = TRUE AND type = ?';
 
 -- Index for global articles lookup
 CREATE INDEX IF NOT EXISTS idx_article_global_current_type
@@ -116,9 +102,7 @@ CREATE INDEX IF NOT EXISTS idx_article_global_current_type
     WHERE is_global = TRUE AND is_current = TRUE;
 
 COMMENT ON INDEX idx_article_global_current_type IS
-    'Covering index for global articles. ' ||
-    'Supports: SELECT id, name, code FROM t_d_article ' ||
-    'WHERE is_global = TRUE AND is_current = TRUE';
+    'Covering index for global articles. Supports: SELECT id, name, code FROM t_d_article WHERE is_global = TRUE AND is_current = TRUE';
 
 -- Index for article code lookup
 CREATE INDEX IF NOT EXISTS idx_article_code_current
@@ -127,8 +111,7 @@ CREATE INDEX IF NOT EXISTS idx_article_code_current
     WHERE code IS NOT NULL AND is_current = TRUE;
 
 COMMENT ON INDEX idx_article_code_current IS
-    'Index for article lookup by code. ' ||
-    'Supports: SELECT * FROM t_d_article WHERE code = ? AND is_current = TRUE';
+    'Index for article lookup by code. Supports: SELECT * FROM t_d_article WHERE code = ? AND is_current = TRUE';
 
 -- ============================================================================
 -- INDEXES FOR t_d_user (User Dimension)
@@ -141,9 +124,7 @@ CREATE INDEX IF NOT EXISTS idx_user_telegram_current_covering
     WHERE is_current = TRUE;
 
 COMMENT ON INDEX idx_user_telegram_current_covering IS
-    'Covering index for Telegram OAuth. ' ||
-    'Supports: SELECT id, username, first_name, last_name, is_admin ' ||
-    'FROM t_d_user WHERE telegram_id = ? AND is_current = TRUE';
+    'Covering index for Telegram OAuth. Supports: SELECT id, username, first_name, last_name, is_admin FROM t_d_user WHERE telegram_id = ? AND is_current = TRUE';
 
 -- ============================================================================
 -- INDEXES FOR t_d_financial_center (Financial Center Dimension)
@@ -156,9 +137,7 @@ CREATE INDEX IF NOT EXISTS idx_fc_user_current_covering
     WHERE is_current = TRUE;
 
 COMMENT ON INDEX idx_fc_user_current_covering IS
-    'Covering index for user financial centers. ' ||
-    'Supports: SELECT id, name, code, description FROM t_d_financial_center ' ||
-    'WHERE user_id = ? AND is_current = TRUE';
+    'Covering index for user financial centers. Supports: SELECT id, name, code, description FROM t_d_financial_center WHERE user_id = ? AND is_current = TRUE';
 
 -- ============================================================================
 -- INDEXES FOR t_d_cost_center (Cost Center Dimension)
@@ -171,9 +150,7 @@ CREATE INDEX IF NOT EXISTS idx_cc_user_current_covering
     WHERE is_current = TRUE;
 
 COMMENT ON INDEX idx_cc_user_current_covering IS
-    'Covering index for user cost centers. ' ||
-    'Supports: SELECT id, name, code, description FROM t_d_cost_center ' ||
-    'WHERE user_id = ? AND is_current = TRUE';
+    'Covering index for user cost centers. Supports: SELECT id, name, code, description FROM t_d_cost_center WHERE user_id = ? AND is_current = TRUE';
 
 -- ============================================================================
 -- INDEXES FOR t_d_article_hierarchy (Closure Table)
@@ -185,9 +162,7 @@ CREATE INDEX IF NOT EXISTS idx_hierarchy_ancestor_depth_covering
     INCLUDE (descendant_id);
 
 COMMENT ON INDEX idx_hierarchy_ancestor_depth_covering IS
-    'Covering index for subtree queries. ' ||
-    'Supports: SELECT descendant_id FROM t_d_article_hierarchy ' ||
-    'WHERE ancestor_id = ? AND depth > 0';
+    'Covering index for subtree queries. Supports: SELECT descendant_id FROM t_d_article_hierarchy WHERE ancestor_id = ? AND depth > 0';
 
 -- Covering index for ancestor queries
 CREATE INDEX IF NOT EXISTS idx_hierarchy_descendant_depth_covering
@@ -195,9 +170,7 @@ CREATE INDEX IF NOT EXISTS idx_hierarchy_descendant_depth_covering
     INCLUDE (ancestor_id);
 
 COMMENT ON INDEX idx_hierarchy_descendant_depth_covering IS
-    'Covering index for ancestor queries. ' ||
-    'Supports: SELECT ancestor_id FROM t_d_article_hierarchy ' ||
-    'WHERE descendant_id = ? AND depth > 0';
+    'Covering index for ancestor queries. Supports: SELECT ancestor_id FROM t_d_article_hierarchy WHERE descendant_id = ? AND depth > 0';
 
 -- ============================================================================
 -- EXAMPLE QUERIES OPTIMIZED BY THESE INDEXES

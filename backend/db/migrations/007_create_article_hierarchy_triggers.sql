@@ -44,8 +44,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION get_article_depth(INT) IS
-    'Returns the maximum depth of an article in the hierarchy. ' ||
-    'Returns -1 if article not found in hierarchy.';
+    'Returns the maximum depth of an article in the hierarchy. Returns -1 if article not found in hierarchy.';
 
 -- ============================================================================
 -- HELPER FUNCTION: Check if adding parent would create circular reference
@@ -73,8 +72,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION would_create_circular_reference(INT, INT) IS
-    'Checks if setting parent_id would create a circular reference. ' ||
-    'Returns TRUE if circular, FALSE otherwise.';
+    'Checks if setting parent_id would create a circular reference. Returns TRUE if circular, FALSE otherwise.';
 
 -- ============================================================================
 -- TRIGGER FUNCTION: Insert article hierarchy paths
@@ -125,9 +123,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION trg_article_hierarchy_insert() IS
-    'Trigger function to maintain Closure Table on INSERT. ' ||
-    'Adds self-reference and copies all ancestor paths from parent. ' ||
-    'Validates circular references and max depth (10 levels).';
+    'Trigger function to maintain Closure Table on INSERT. Adds self-reference and copies all ancestor paths from parent. Validates circular references and max depth (10 levels).';
 
 -- ============================================================================
 -- TRIGGER FUNCTION: Update article hierarchy paths
@@ -208,9 +204,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION trg_article_hierarchy_update() IS
-    'Trigger function to maintain Closure Table on UPDATE. ' ||
-    'Rebuilds all paths when parent_id changes. ' ||
-    'Validates circular references and max depth.';
+    'Trigger function to maintain Closure Table on UPDATE. Rebuilds all paths when parent_id changes. Validates circular references and max depth.';
 
 -- ============================================================================
 -- TRIGGER FUNCTION: Clean up hierarchy on article deletion
@@ -232,9 +226,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION trg_article_hierarchy_delete() IS
-    'Trigger function on DELETE. ' ||
-    'Cascade deletion handled by FK constraint. ' ||
-    'This trigger exists for explicitness and future extensibility.';
+    'Trigger function on DELETE. Cascade deletion handled by FK constraint. This trigger exists for explicitness and future extensibility.';
 
 -- ============================================================================
 -- CREATE TRIGGERS

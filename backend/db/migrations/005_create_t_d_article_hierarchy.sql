@@ -85,9 +85,7 @@ CREATE INDEX IF NOT EXISTS idx_hierarchy_direct_parent
 -- ============================================================================
 
 COMMENT ON TABLE t_d_article_hierarchy IS
-    'Closure Table for efficient hierarchical queries on t_d_article. ' ||
-    'Stores all ancestor-descendant relationships with depth information. ' ||
-    'Maintained automatically via triggers on t_d_article (TASK-005).';
+    'Closure Table for efficient hierarchical queries on t_d_article. Stores all ancestor-descendant relationships with depth information. Maintained automatically via triggers on t_d_article (TASK-005).';
 
 COMMENT ON COLUMN t_d_article_hierarchy.ancestor_id IS
     'Foreign key to t_d_article. The ancestor (parent/grandparent/etc) in the relationship.';

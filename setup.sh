@@ -253,7 +253,6 @@ copy_source_to_deploy() {
         "scripts"
         "docker-compose.yml"
         ".env.example"
-        "deploy.sh"
     )
 
     # Copy each item
@@ -265,9 +264,6 @@ copy_source_to_deploy() {
             warning "Item not found: $item (skipping)"
         fi
     done
-
-    # Make deploy.sh executable
-    chmod +x "$DEPLOY_DIR/deploy.sh" 2>/dev/null || true
 
     success "Source code copied to $DEPLOY_DIR"
     echo ""
@@ -291,11 +287,13 @@ Options:
   --clean                 Clean deployment directory before setup (interactive menu)
 
 Workflow:
-  1. Copies source code from repository to $DEPLOY_DIR
+  1. Copies source code from repository to $DEPLOY_DIR (except deploy.sh)
   2. Creates .env configuration file in $DEPLOY_DIR
   3. Generates nginx config (if full profile)
   4. Configures UFW firewall (if PostgreSQL external access enabled)
   5. Optionally builds Docker images
+
+After setup, run deploy.sh from repository directory ($REPO_DIR)
 
 Interactive Prompts:
   - PostgreSQL password (or auto-generate)
@@ -1130,8 +1128,8 @@ print_final_instructions() {
     echo "  1. Review configuration:"
     echo "     cat $DEPLOY_DIR/.env"
     echo ""
-    echo "  2. Deploy the application:"
-    echo "     cd $DEPLOY_DIR"
+    echo "  2. Deploy the application (from repository):"
+    echo "     cd $REPO_DIR"
     if [[ "${CONFIG[DEPLOYMENT_PROFILE]}" == "full" ]]; then
         echo "     ./deploy.sh --profile full"
     else

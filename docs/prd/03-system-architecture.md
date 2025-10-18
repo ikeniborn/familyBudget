@@ -514,9 +514,10 @@ cd ~/familyBudget
 **Шаг 3: Развертывание приложения**
 
 ```bash
-cd /opt/budget
 ./deploy.sh [--profile full] [--build]
 ```
+
+**Примечание:** deploy.sh запускается из репозитория, работает с файлами в /opt/budget
 
 **Что делает deploy.sh:**
 - Проверяет prerequisites (Docker running, .env exists)
@@ -550,8 +551,7 @@ git pull origin master
 # 2. Re-run setup для копирования обновленного кода
 ./setup.sh
 
-# 3. Deploy из /opt/budget
-cd /opt/budget
+# 3. Deploy из репозитория (работает с /opt/budget)
 ./deploy.sh --build
 ```
 

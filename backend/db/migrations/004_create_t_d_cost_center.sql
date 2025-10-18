@@ -115,9 +115,7 @@ CREATE INDEX IF NOT EXISTS idx_cost_center_valid_to
 -- ============================================================================
 
 COMMENT ON TABLE t_d_cost_center IS
-    'Cost centers dimension table with SCD Type 2 for tracking historical changes. ' ||
-    'Stores projects, departments, budget groups, and other cost allocation entities. ' ||
-    'Can be user-specific or global (shared across all users).';
+    'Cost centers dimension table with SCD Type 2 for tracking historical changes. Stores projects, departments, budget groups, and other cost allocation entities. Can be user-specific or global (shared across all users).';
 
 COMMENT ON COLUMN t_d_cost_center.id IS
     'Surrogate key (auto-increment primary key)';

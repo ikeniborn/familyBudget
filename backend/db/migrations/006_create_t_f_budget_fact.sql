@@ -119,9 +119,7 @@ CREATE INDEX IF NOT EXISTS idx_budget_fact_created_at
 -- ============================================================================
 
 COMMENT ON TABLE t_f_budget_fact IS
-    'Budget transactions fact table with monthly RANGE partitioning. ' ||
-    'Stores all income and expense records. ' ||
-    'References dimension tables at the time of transaction (SCD2 aware).';
+    'Budget transactions fact table with monthly RANGE partitioning. Stores all income and expense records. References dimension tables at the time of transaction (SCD2 aware).';
 
 COMMENT ON COLUMN t_f_budget_fact.id IS
     'Surrogate key (auto-increment primary key)';
@@ -277,8 +275,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION create_budget_fact_partition(INT, INT) IS
-    'Creates a new monthly partition for t_f_budget_fact table. ' ||
-    'Usage: SELECT create_budget_fact_partition(2027, 1); -- Creates partition for Jan 2027';
+    'Creates a new monthly partition for t_f_budget_fact table. Usage: SELECT create_budget_fact_partition(2027, 1); -- Creates partition for Jan 2027';
 
 -- ============================================================================
 -- EXAMPLE USAGE

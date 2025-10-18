@@ -41,8 +41,9 @@ set -u  # Exit on undefined variable
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEPLOY_DIR="/opt/budget"  # Deployment directory (runtime files)
 PROJECT_NAME="familybudget"
-LOG_FILE="./logs/deploy.log"
+LOG_FILE="$DEPLOY_DIR/logs/deploy.log"
 
 # Colors for output
 RED='\033[0;31m'
@@ -178,21 +179,21 @@ check_prerequisites() {
     fi
 
     # Check if .env file exists
-    if [[ ! -f "$SCRIPT_DIR/.env" ]]; then
-        error ".env file not found. Please run setup.sh or copy from .env.example"
+    if [[ ! -f "$DEPLOY_DIR/.env" ]]; then
+        error ".env file not found in $DEPLOY_DIR. Please run setup.sh or copy from .env.example"
     fi
 
     # Check if docker-compose.yml exists
-    if [[ ! -f "$SCRIPT_DIR/docker-compose.yml" ]]; then
-        error "docker-compose.yml not found"
+    if [[ ! -f "$DEPLOY_DIR/docker-compose.yml" ]]; then
+        error "docker-compose.yml not found in $DEPLOY_DIR"
     fi
 
     # Check required directories
     local required_dirs=("data" "backups" "logs")
     for dir in "${required_dirs[@]}"; do
-        if [[ ! -d "$SCRIPT_DIR/$dir" ]]; then
-            warning "Directory $dir not found, creating..."
-            mkdir -p "$SCRIPT_DIR/$dir"
+        if [[ ! -d "$DEPLOY_DIR/$dir" ]]; then
+            warning "Directory $dir not found in $DEPLOY_DIR, creating..."
+            mkdir -p "$DEPLOY_DIR/$dir"
         fi
     done
 
@@ -205,7 +206,7 @@ validate_env() {
 
     # Source .env file
     set -a
-    source "$SCRIPT_DIR/.env"
+    source "$DEPLOY_DIR/.env"
     set +a
 
     # Check required variables
@@ -277,10 +278,10 @@ cleanup_full() {
         error "Full cleanup requires root privileges to delete PostgreSQL data!"
         echo ""
         echo "Please run deploy.sh with sudo:"
-        echo "  sudo ./deploy.sh [OPTIONS]"
+        echo "  sudo $SCRIPT_DIR/deploy.sh [OPTIONS]"
         echo ""
         echo "Or manually delete PostgreSQL data after deployment:"
-        echo "  sudo rm -rf $SCRIPT_DIR/data/postgres/*"
+        echo "  sudo rm -rf $DEPLOY_DIR/data/postgres/*"
         echo ""
         exit 1
     fi
@@ -319,9 +320,9 @@ cleanup_full() {
     fi
 
     # Remove data directories
-    if [[ -d "$SCRIPT_DIR/data/postgres" ]]; then
+    if [[ -d "$DEPLOY_DIR/data/postgres" ]]; then
         warning "Removing PostgreSQL data directory..."
-        if ! sudo rm -rf "$SCRIPT_DIR/data/postgres"/* >> "$LOG_FILE" 2>&1; then
+        if ! sudo rm -rf "$DEPLOY_DIR/data/postgres"/* >> "$LOG_FILE" 2>&1; then
             error "Failed to remove PostgreSQL data directory. Check sudo privileges."
         fi
     fi
@@ -457,7 +458,7 @@ create_networks_override() {
     local internal_subnet=$1
     local external_subnet=$2
 
-    local networks_file="$SCRIPT_DIR/docker-compose.networks.yml"
+    local networks_file="$DEPLOY_DIR/docker-compose.networks.yml"
 
     info "Creating network configuration: $networks_file"
 
@@ -524,17 +525,17 @@ compose_cmd() {
     local compose_files="-f docker-compose.yml"
 
     # Add PostgreSQL port override if exists (created by setup.sh)
-    if [[ -f "$SCRIPT_DIR/docker-compose.override.yml" ]]; then
+    if [[ -f "$DEPLOY_DIR/docker-compose.override.yml" ]]; then
         compose_files="$compose_files -f docker-compose.override.yml"
     fi
 
     # Add network subnet override if exists (created by deploy.sh)
-    if [[ -f "$SCRIPT_DIR/docker-compose.networks.yml" ]]; then
+    if [[ -f "$DEPLOY_DIR/docker-compose.networks.yml" ]]; then
         compose_files="$compose_files -f docker-compose.networks.yml"
     fi
 
-    # Execute docker compose with all override files
-    docker compose $compose_files "$@"
+    # Change to deployment directory and execute docker compose with all override files
+    (cd "$DEPLOY_DIR" && docker compose $compose_files "$@")
 }
 
 # =============================================================================
@@ -603,9 +604,9 @@ clean_deployment() {
             fi
 
             # Remove data directories
-            if [[ -d "$SCRIPT_DIR/data/postgres" ]]; then
+            if [[ -d "$DEPLOY_DIR/data/postgres" ]]; then
                 warning "Removing PostgreSQL data directory..."
-                if ! sudo rm -rf "$SCRIPT_DIR/data/postgres"/* >> "$LOG_FILE" 2>&1; then
+                if ! sudo rm -rf "$DEPLOY_DIR/data/postgres"/* >> "$LOG_FILE" 2>&1; then
                     error "Failed to remove PostgreSQL data directory. Check sudo privileges."
                 fi
             fi
@@ -719,7 +720,7 @@ run_migrations() {
         fi
 
         # Check if alembic is configured
-        if [[ ! -f "$SCRIPT_DIR/backend/alembic.ini" ]]; then
+        if [[ ! -f "$DEPLOY_DIR/backend/alembic.ini" ]]; then
             warning "Alembic not configured, skipping migrations"
             return 0
         fi
@@ -743,7 +744,7 @@ run_migrations() {
 setup_ssl_certificates() {
     # Source .env to check SSL_TYPE
     set -a
-    source "$SCRIPT_DIR/.env" 2>/dev/null || true
+    source "$DEPLOY_DIR/.env" 2>/dev/null || true
     set +a
 
     local ssl_type="${SSL_TYPE:-none}"
@@ -764,7 +765,7 @@ setup_ssl_certificates() {
     step "Setting up SSL certificate for $domain..."
 
     # Check if ssl_certificate_manager.sh exists
-    local ssl_manager="$SCRIPT_DIR/scripts/ssl_certificate_manager.sh"
+    local ssl_manager="$DEPLOY_DIR/scripts/ssl_certificate_manager.sh"
     if [[ ! -f "$ssl_manager" ]]; then
         error "SSL certificate manager script not found: $ssl_manager"
     fi
@@ -851,7 +852,7 @@ setup_ssl_certificates() {
 # Update nginx configuration to enable HTTPS
 update_nginx_for_https() {
     local domain=$1
-    local nginx_conf="$SCRIPT_DIR/nginx/conf.d/app.conf"
+    local nginx_conf="$DEPLOY_DIR/nginx/conf.d/app.conf"
 
     if [[ ! -f "$nginx_conf" ]]; then
         error "Nginx configuration not found: $nginx_conf"
@@ -883,7 +884,7 @@ update_nginx_for_https() {
 # Verify SSL certificate
 verify_ssl() {
     set -a
-    source "$SCRIPT_DIR/.env" 2>/dev/null || true
+    source "$DEPLOY_DIR/.env" 2>/dev/null || true
     set +a
 
     local ssl_type="${SSL_TYPE:-none}"
@@ -932,7 +933,7 @@ verify_ssl() {
 configure_firewall_for_ssl() {
     # Source .env to check SSL_TYPE and DOMAIN
     set -a
-    source "$SCRIPT_DIR/.env" 2>/dev/null || true
+    source "$DEPLOY_DIR/.env" 2>/dev/null || true
     set +a
 
     local ssl_type="${SSL_TYPE:-none}"
@@ -1006,7 +1007,7 @@ configure_firewall_for_ssl() {
 close_http_port() {
     # Source .env to check SSL_TYPE
     set -a
-    source "$SCRIPT_DIR/.env" 2>/dev/null || true
+    source "$DEPLOY_DIR/.env" 2>/dev/null || true
     set +a
 
     local ssl_type="${SSL_TYPE:-none}"
@@ -1144,7 +1145,7 @@ print_status() {
 
     # Source .env to get ports
     set -a
-    source "$SCRIPT_DIR/.env" 2>/dev/null || true
+    source "$DEPLOY_DIR/.env" 2>/dev/null || true
     set +a
 
     local backend_port="${BACKEND_PORT:-8000}"
@@ -1250,9 +1251,9 @@ main() {
     echo ""
 
     # Load .env to check deployment profile
-    if [[ -f "$SCRIPT_DIR/.env" ]]; then
+    if [[ -f "$DEPLOY_DIR/.env" ]]; then
         set -a
-        source "$SCRIPT_DIR/.env" 2>/dev/null || true
+        source "$DEPLOY_DIR/.env" 2>/dev/null || true
         set +a
 
         # Auto-detect profile from .env if not specified

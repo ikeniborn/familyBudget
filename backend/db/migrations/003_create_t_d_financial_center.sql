@@ -115,9 +115,7 @@ CREATE INDEX IF NOT EXISTS idx_financial_center_valid_to
 -- ============================================================================
 
 COMMENT ON TABLE t_d_financial_center IS
-    'Financial centers dimension table with SCD Type 2 for tracking historical changes. ' ||
-    'Stores bank accounts, wallets, cash, and other financial entities. ' ||
-    'Can be user-specific or global (shared across all users).';
+    'Financial centers dimension table with SCD Type 2 for tracking historical changes. Stores bank accounts, wallets, cash, and other financial entities. Can be user-specific or global (shared across all users).';
 
 COMMENT ON COLUMN t_d_financial_center.id IS
     'Surrogate key (auto-increment primary key)';
