@@ -1243,10 +1243,21 @@ update_nginx_for_https() {
     # - Lines 50-137: HTTPS Server (listen 443) - COMMENTED, uncomment this
     # - Lines 140-154: HTTP Redirect (listen 80 + return 301) - COMMENTED, uncomment this
 
-    info "Processing nginx configuration with Python..."
+    info "Processing nginx configuration with sed..."
 
-    # Use Python for reliable block detection with proper state tracking
-    # Note: heredoc without quotes allows bash variable interpolation
+    # SIMPLE APPROACH: Use line number ranges from template
+    # We know EXACTLY which lines to uncomment:
+    # Lines 50-137: HTTPS server block
+    # Lines 140-154: HTTP redirect block
+
+    # Uncomment lines 50-137 (HTTPS block)
+    sed -i '50,137 s/^#\s\?//' "$nginx_conf"
+
+    # Uncomment lines 140-154 (HTTP redirect block)
+    sed -i '140,154 s/^#\s\?//' "$nginx_conf"
+
+    # ALTERNATIVE if above doesn't work - restore backup and try Python
+    if false; then
     python3 <<PYTHON_SCRIPT
 import sys
 import re
@@ -1360,13 +1371,13 @@ with open(config_file, 'w') as f:
 
 sys.exit(0)
 PYTHON_SCRIPT
-
-    # Check if Python script succeeded
-    if [[ $? -ne 0 ]]; then
-        error "Python processing failed"
-        mv "$nginx_conf.backup" "$nginx_conf" 2>/dev/null || true
-        return 1
-    fi
+        # Check if Python script succeeded
+        if [[ $? -ne 0 ]]; then
+            error "Python processing failed"
+            mv "$nginx_conf.backup" "$nginx_conf" 2>/dev/null || true
+            return 1
+        fi
+    fi  # End of if false block
 
     # Verify the result is not empty
     if [[ ! -s "$nginx_conf" ]]; then
