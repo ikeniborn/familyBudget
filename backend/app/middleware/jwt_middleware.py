@@ -59,6 +59,16 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         """
         Process each request through JWT authentication.
 
+        IMPORTANT: This middleware ALWAYS attempts to extract and validate JWT tokens,
+        even for public endpoints. This allows public endpoints using CurrentUserOptional
+        to access authenticated user data from cookies when available.
+
+        Logic:
+        1. Always try to extract token from Cookie or Authorization header
+        2. If token found and valid -> set request.state.user_id
+        3. For public endpoints -> continue even if no valid token
+        4. For protected endpoints -> return 401 if no valid token
+
         Args:
             request: Incoming HTTP request
             call_next: Next middleware/endpoint in chain
@@ -66,39 +76,34 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         Returns:
             Response: HTTP response from endpoint or 401 error
         """
-        # Check if endpoint is public (no authentication required)
-        if self._is_public_endpoint(request.url.path):
-            # Skip authentication for public endpoints
-            return await call_next(request)
-
-        # Extract JWT token from request
+        # Always try to extract JWT token (even for public endpoints)
         token = self._extract_token(request)
 
-        if token is None:
-            # No token provided for protected endpoint
+        if token is not None:
+            # Validate token and extract user_id
+            user_id = decode_access_token(token)
+
+            if user_id is not None:
+                # Token is valid - inject user_id into request state
+                # This allows CurrentUserOptional to access authenticated user
+                request.state.user_id = user_id
+
+        # Check if endpoint is public
+        is_public = self._is_public_endpoint(request.url.path)
+
+        # For protected endpoints, require valid authentication
+        if not is_public and not hasattr(request.state, 'user_id'):
+            # No valid token for protected endpoint
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 content={
-                    "detail": "Authentication required - No token provided"
+                    "detail": "Authentication required - No token provided or token invalid"
                 }
             )
-
-        # Validate token and extract user_id
-        user_id = decode_access_token(token)
-
-        if user_id is None:
-            # Token is invalid, expired, or malformed
-            return JSONResponse(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                content={
-                    "detail": "Authentication failed - Invalid or expired token"
-                }
-            )
-
-        # Inject user_id into request state for downstream use
-        request.state.user_id = user_id
 
         # Continue to next middleware/endpoint
+        # For public endpoints: may or may not have user_id set
+        # For protected endpoints: guaranteed to have user_id set
         return await call_next(request)
 
     def _is_public_endpoint(self, path: str) -> bool:

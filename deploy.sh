@@ -765,7 +765,8 @@ compose_cmd() {
     fi
 
     # Change to deployment directory and execute docker compose with all override files
-    (cd "$DEPLOY_DIR" && docker compose $compose_files "$@")
+    # --profile full: Start ALL services including nginx and bot (they have profiles: [full] in docker-compose.yml)
+    (cd "$DEPLOY_DIR" && docker compose --profile full $compose_files "$@")
 }
 
 # =============================================================================
@@ -1234,114 +1235,55 @@ update_nginx_for_https() {
     # Create backup before modification
     cp "$nginx_conf" "$nginx_conf.backup" || true
 
-    # New approach: Use awk for precise block detection and uncommenting
-    # This replaces the old marker-based approach with direct pattern matching
-    awk '
-    BEGIN {
-        in_https_block = 0
-        in_redirect_block = 0
-        in_initial_http = 0
-        https_block_started = 0
-        redirect_block_started = 0
-        line_count = 0
+    # Use Perl for reliable multi-line block processing
+    # Perl with -0777 flag reads entire file at once, enabling multi-line regex
+    #
+    # Template structure (from app.conf.template):
+    # - Lines 14-46: HTTP Server (listen 80 + proxy_pass) - ALREADY UNCOMMENTED, leave as-is
+    # - Lines 50-137: HTTPS Server (listen 443) - COMMENTED, uncomment this
+    # - Lines 140-154: HTTP Redirect (listen 80 + return 301) - COMMENTED, uncomment this
+
+    info "Processing nginx configuration with Perl..."
+
+    perl -i -0777 -pe '
+        # Uncomment HTTPS server block (contains "listen 443 ssl")
+        # Pattern: # server { ... #     listen 443 ssl; ... # }
+        s{
+            (^# [ ]server [ ]\{\n          # Match: "# server {"
+             (?:\#.*\n)*?                  # Skip comment lines
+             \#[ ]+listen[ ]+443[ ]+ssl;   # Match: "#     listen 443 ssl;"
+             .*?                           # Match rest of block (non-greedy)
+             ^# [ ]\}$)                    # Match: "# }" at line start
+        }{
+            my $block = $1;
+            $block =~ s/^# ?//gm;          # Remove leading "# " from all lines
+            $block;
+        }xsme;                             # x=extended, s=dotall, m=multiline, e=eval
+
+        # Uncomment HTTP redirect block (contains "listen 80" and "return 301")
+        # Pattern: # server { ... listen 80 ... return 301 ... # }
+        s{
+            (^# [ ]server [ ]\{\n          # Match: "# server {"
+             \#[ ]+listen[ ]+80;.*?        # Match: "#     listen 80;"
+             return[ ]+301.*?              # Must contain: "return 301"
+             ^# [ ]\}$)                    # Match: "# }" at line start
+        }{
+            my $block = $1;
+            $block =~ s/^# ?//gm;          # Remove leading "# " from all lines
+            $block;
+        }xsme;
+    ' "$nginx_conf" || {
+        error "Perl processing failed"
+        mv "$nginx_conf.backup" "$nginx_conf" 2>/dev/null || true
+        return 1
     }
 
-    # Detect HTTPS server block (listen 443)
-    /^# server \{/ {
-        getline nextline
-        if (nextline ~ /^#     listen 443/) {
-            in_https_block = 1
-            https_block_started = 1
-            print "server {"
-            print "    listen 443 ssl;"
-            next
-        } else {
-            print
-            print nextline
-            next
-        }
-    }
-
-    # Detect HTTP redirect block (after HTTPS block)
-    /^# server \{/ && https_block_started && !in_https_block {
-        getline nextline
-        if (nextline ~ /^#     listen 80/) {
-            getline thirdline
-            if (thirdline ~ /return 301/) {
-                in_redirect_block = 1
-                redirect_block_started = 1
-                print "server {"
-                print "    listen 80;"
-                next
-            }
-        }
-        print
-        print nextline
-        if (thirdline) print thirdline
-        next
-    }
-
-    # Inside HTTPS block - uncomment all lines
-    in_https_block && /^# \}/ {
-        in_https_block = 0
-        print "}"
-        next
-    }
-
-    in_https_block && /^#/ {
-        sub(/^# ?/, "")
-        print
-        next
-    }
-
-    # Inside redirect block - uncomment all lines
-    in_redirect_block && /^# \}/ {
-        in_redirect_block = 0
-        print "}"
-        next
-    }
-
-    in_redirect_block && /^#/ {
-        sub(/^# ?/, "")
-        print
-        next
-    }
-
-    # Detect initial HTTP server block (first server block, listen 80, with proxy_pass)
-    /^server \{/ && !https_block_started {
-        in_initial_http = 1
-        print "# " $0
-        next
-    }
-
-    in_initial_http && /^\}/ {
-        in_initial_http = 0
-        print "# }"
-        next
-    }
-
-    in_initial_http {
-        print "# " $0
-        next
-    }
-
-    # Default: print line as-is
-    { print }
-    ' "$nginx_conf" > "$nginx_conf.tmp"
-
-    # Check if awk succeeded
-    if [[ $? -ne 0 || ! -s "$nginx_conf.tmp" ]]; then
-        error "Failed to process nginx configuration with awk"
+    # Verify the result is not empty
+    if [[ ! -s "$nginx_conf" ]]; then
+        error "Nginx configuration became empty after processing"
         mv "$nginx_conf.backup" "$nginx_conf" 2>/dev/null || true
         return 1
     fi
-
-    # Move temp file to actual config
-    mv "$nginx_conf.tmp" "$nginx_conf" || {
-        error "Failed to update nginx configuration file"
-        mv "$nginx_conf.backup" "$nginx_conf" 2>/dev/null || true
-        return 1
-    }
 
     # Validate nginx configuration (if container is running)
     if compose_cmd ps -q nginx >/dev/null 2>&1 && compose_cmd ps nginx | grep -q "Up"; then
@@ -1554,121 +1496,43 @@ configure_firewall_for_ssl() {
     local port_443_status=$(sudo ufw status 2>/dev/null | grep "443/tcp" || echo "❌ not configured")
 
     info "Current firewall status:"
-    echo "  Port 80:  $port_80_status"
-    echo "  Port 443: $port_443_status"
+    echo "  Port 80 (HTTP):   $port_80_status"
+    echo "  Port 443 (HTTPS): $port_443_status"
     echo ""
 
-    # Ask user what to do
-    warning "SSL Certificate requires firewall configuration"
-    echo "Options:"
-    echo "  [1] Open ports 80 and 443 (required for new SSL certificate)"
-    echo "  [2] Open port 443 only (if certificate already exists)"
-    echo "  [3] Skip firewall configuration (manual setup required)"
-    echo ""
-    read -p "Select [1-3]: " fw_choice
-    echo ""
+    # IMPORTANT: Automatically open both ports 80 and 443
+    # Port 80 is required for:
+    # - Let's Encrypt ACME HTTP-01 challenge
+    # - HTTP→HTTPS redirect from external sources
+    # - Certificate auto-renewal
+    # Port 443 is required for:
+    # - HTTPS traffic
+    info "Automatically opening ports 80 and 443 for SSL and HTTP→HTTPS redirect..."
 
-    case $fw_choice in
-        1)
-            info "Opening ports 80 and 443..."
-            sudo ufw allow 80/tcp comment 'HTTP for SSL challenge' >> "$LOG_FILE" 2>&1 || true
-            sudo ufw allow 443/tcp comment 'HTTPS' >> "$LOG_FILE" 2>&1 || true
-            success "Ports 80 and 443 are now open in firewall"
-            ;;
-        2)
-            info "Opening port 443 only..."
-            sudo ufw allow 443/tcp comment 'HTTPS' >> "$LOG_FILE" 2>&1 || true
-            success "Port 443 is now open in firewall"
-            warning "Port 80 is closed - certificate renewal may fail if not already configured"
-            ;;
-        3)
-            info "Skipping firewall configuration"
-            warning "Make sure ports 80 and 443 are accessible for SSL to work!"
-            warning "You can manually open ports with:"
-            echo "  sudo ufw allow 80/tcp"
-            echo "  sudo ufw allow 443/tcp"
-            ;;
-        *)
-            warning "Invalid choice, skipping firewall configuration"
-            ;;
-    esac
-}
-
-# Close port 80 after SSL certificate is obtained (optional)
-close_http_port() {
-    # Source .env to check SSL_TYPE
-    set -a
-    source "$DEPLOY_DIR/.env" 2>/dev/null || true
-    set +a
-
-    local ssl_type="${SSL_TYPE:-none}"
-
-    # Only relevant for letsencrypt
-    if [[ "$ssl_type" != "letsencrypt" ]]; then
-        return 0
-    fi
-
-    # Check if UFW is available
-    if ! command_exists ufw; then
-        return 0
-    fi
-
-    if ! sudo ufw status 2>/dev/null | grep -q "Status: active"; then
-        return 0
-    fi
-
-    # Check if port 80 is currently open
-    if ! sudo ufw status 2>/dev/null | grep -q "80/tcp"; then
-        info "Port 80 is not open in firewall"
-        return 0
-    fi
-
-    # Check if HTTPS is working before offering to close port 80
-    # This variable is set by verify_ssl() function
-    if [[ "${HTTPS_WORKING:-false}" != "true" ]]; then
-        warning "HTTPS is not verified to be working"
-        info "Keeping port 80 open until HTTPS is confirmed working"
-        info "Port 80 (HTTP) will remain accessible for troubleshooting"
-        return 0
-    fi
-
-    echo ""
-    step "Post-SSL Security Configuration"
-    echo ""
-    info "SSL certificate obtained successfully!"
-    success "HTTPS connectivity verified"
-    echo ""
-    warning "Security recommendation: Close HTTP port 80 in firewall"
-    echo ""
-    echo "What this means:"
-    echo "  ✓ Nginx will still listen on port 80 inside Docker (for HTTP→HTTPS redirect)"
-    echo "  ✓ UFW will block external access to port 80 (only 443 accessible from internet)"
-    echo "  ✓ Certbot renewal will still work (through Docker network)"
-    echo "  ✓ Maximum security: HTTPS-only external access"
-    echo ""
-    echo "  ✗ Direct HTTP access from internet will be blocked"
-    echo "  ✗ HTTP→HTTPS redirect won't work from outside (browser will show connection refused)"
-    echo ""
-    info "Recommended for: High-security production environments"
-    info "Not recommended for: Sites requiring HTTP→HTTPS auto-redirect from external sources"
-    echo ""
-    read -p "Close port 80 in UFW firewall? [y/N]: " close_80
-    echo ""
-
-    if [[ "${close_80,,}" == "y" ]]; then
-        info "Closing port 80 in UFW..."
-        sudo ufw delete allow 80/tcp >> "$LOG_FILE" 2>&1 || true
-        success "Port 80 closed in firewall"
-        success "External access: HTTPS only (port 443)"
-        info "HTTP→HTTPS redirect still works inside Docker network"
-        echo ""
-        warning "To re-open port 80 later (for certificate renewal or HTTP access):"
-        echo "  sudo ufw allow 80/tcp"
+    # Open port 80 (HTTP) - required for Let's Encrypt and redirect
+    if ! sudo ufw status 2>/dev/null | grep -q "80/tcp.*ALLOW"; then
+        sudo ufw allow 80/tcp comment 'HTTP for Family Budget' >> "$LOG_FILE" 2>&1 || true
+        success "✓ Port 80 (HTTP) opened in firewall"
     else
-        info "Port 80 remains open for HTTP→HTTPS redirect"
-        success "External access: Both HTTP (80) and HTTPS (443)"
+        info "✓ Port 80 (HTTP) already open"
     fi
+
+    # Open port 443 (HTTPS)
+    if ! sudo ufw status 2>/dev/null | grep -q "443/tcp.*ALLOW"; then
+        sudo ufw allow 443/tcp comment 'HTTPS for Family Budget' >> "$LOG_FILE" 2>&1 || true
+        success "✓ Port 443 (HTTPS) opened in firewall"
+    else
+        info "✓ Port 443 (HTTPS) already open"
+    fi
+
+    echo ""
+    success "Firewall configured for SSL: Ports 80 and 443 are open"
+    info "This enables:"
+    echo "  ✓ Let's Encrypt certificate issuance and renewal"
+    echo "  ✓ HTTP→HTTPS automatic redirect"
+    echo "  ✓ Secure HTTPS access"
 }
+
 
 # =============================================================================
 # STATUS FUNCTIONS
@@ -1951,10 +1815,6 @@ main() {
         echo ""
 
         verify_ssl
-        echo ""
-
-        # Optionally close HTTP port ONLY if HTTPS is working
-        close_http_port
         echo ""
 
         print_status
