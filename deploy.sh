@@ -1246,11 +1246,8 @@ update_nginx_for_https() {
     info "Processing nginx configuration with Python..."
 
     # Use Python for reliable block detection with proper state tracking
-    python3 <<PYTHON_SCRIPT || {
-        error "Python processing failed"
-        mv "$nginx_conf.backup" "$nginx_conf" 2>/dev/null || true
-        return 1
-    }
+    # Note: heredoc without quotes allows bash variable interpolation
+    python3 <<PYTHON_SCRIPT
 import sys
 
 config_file = "$nginx_conf"
@@ -1333,6 +1330,13 @@ with open(config_file, 'w') as f:
 
 sys.exit(0)
 PYTHON_SCRIPT
+
+    # Check if Python script succeeded
+    if [[ $? -ne 0 ]]; then
+        error "Python processing failed"
+        mv "$nginx_conf.backup" "$nginx_conf" 2>/dev/null || true
+        return 1
+    fi
 
     # Verify the result is not empty
     if [[ ! -s "$nginx_conf" ]]; then
