@@ -920,9 +920,10 @@ configure_postgres_access() {
 services:
   postgres:
     ports:
-      - "${POSTGRES_PORT_MAPPING}"
+      - "5432:5432"
 OVERRIDE_EOF
         success "Created docker-compose.override.yml in $DEPLOY_DIR"
+        info "PostgreSQL will be accessible on port 5432 (restricted by UFW to ${CONFIG[POSTGRES_ALLOWED_IP]})"
 
         echo ""
         success "PostgreSQL external access configured with IP restriction"

@@ -1231,42 +1231,135 @@ update_nginx_for_https() {
 
     info "Updating nginx configuration to enable HTTPS..."
 
-    # Uncomment HTTPS server block and remove markers
-    sed -i '/# SSL_HTTPS_START/,/# SSL_HTTPS_END/{
-        /# SSL_HTTPS_START/d
-        /# SSL_HTTPS_END/d
-        s/^# //
-    }' "$nginx_conf"
+    # Create backup before modification
+    cp "$nginx_conf" "$nginx_conf.backup" || true
 
-    # Uncomment HTTP to HTTPS redirect and remove markers
-    sed -i '/# SSL_REDIRECT_START/,/# SSL_REDIRECT_END/{
-        /# SSL_REDIRECT_START/d
-        /# SSL_REDIRECT_END/d
-        s/^# //
-    }' "$nginx_conf"
-
-    # Comment out initial HTTP server block (will be replaced by redirect)
-    # Find and comment the first server block (before SSL_HTTPS_START marker)
-    # This is the initial HTTP-only block that will be replaced by HTTPS redirect
+    # New approach: Use awk for precise block detection and uncommenting
+    # This replaces the old marker-based approach with direct pattern matching
     awk '
-    BEGIN { in_first_server=0; found_ssl_marker=0; }
-    /^# SSL_HTTPS_START/ { found_ssl_marker=1; }
-    /^server \{/ && !found_ssl_marker && !in_first_server { in_first_server=1; }
-    in_first_server && /^\}/ { in_first_server=0; print "# " $0; next; }
-    in_first_server { print "# " $0; next; }
-    { print; }
-    ' "$nginx_conf" > "$nginx_conf.tmp" && mv "$nginx_conf.tmp" "$nginx_conf" || true
+    BEGIN {
+        in_https_block = 0
+        in_redirect_block = 0
+        in_initial_http = 0
+        https_block_started = 0
+        redirect_block_started = 0
+        line_count = 0
+    }
+
+    # Detect HTTPS server block (listen 443)
+    /^# server \{/ {
+        getline nextline
+        if (nextline ~ /^#     listen 443/) {
+            in_https_block = 1
+            https_block_started = 1
+            print "server {"
+            print "    listen 443 ssl;"
+            next
+        } else {
+            print
+            print nextline
+            next
+        }
+    }
+
+    # Detect HTTP redirect block (after HTTPS block)
+    /^# server \{/ && https_block_started && !in_https_block {
+        getline nextline
+        if (nextline ~ /^#     listen 80/) {
+            getline thirdline
+            if (thirdline ~ /return 301/) {
+                in_redirect_block = 1
+                redirect_block_started = 1
+                print "server {"
+                print "    listen 80;"
+                next
+            }
+        }
+        print
+        print nextline
+        if (thirdline) print thirdline
+        next
+    }
+
+    # Inside HTTPS block - uncomment all lines
+    in_https_block && /^# \}/ {
+        in_https_block = 0
+        print "}"
+        next
+    }
+
+    in_https_block && /^#/ {
+        sub(/^# ?/, "")
+        print
+        next
+    }
+
+    # Inside redirect block - uncomment all lines
+    in_redirect_block && /^# \}/ {
+        in_redirect_block = 0
+        print "}"
+        next
+    }
+
+    in_redirect_block && /^#/ {
+        sub(/^# ?/, "")
+        print
+        next
+    }
+
+    # Detect initial HTTP server block (first server block, listen 80, with proxy_pass)
+    /^server \{/ && !https_block_started {
+        in_initial_http = 1
+        print "# " $0
+        next
+    }
+
+    in_initial_http && /^\}/ {
+        in_initial_http = 0
+        print "# }"
+        next
+    }
+
+    in_initial_http {
+        print "# " $0
+        next
+    }
+
+    # Default: print line as-is
+    { print }
+    ' "$nginx_conf" > "$nginx_conf.tmp"
+
+    # Check if awk succeeded
+    if [[ $? -ne 0 || ! -s "$nginx_conf.tmp" ]]; then
+        error "Failed to process nginx configuration with awk"
+        mv "$nginx_conf.backup" "$nginx_conf" 2>/dev/null || true
+        return 1
+    fi
+
+    # Move temp file to actual config
+    mv "$nginx_conf.tmp" "$nginx_conf" || {
+        error "Failed to update nginx configuration file"
+        mv "$nginx_conf.backup" "$nginx_conf" 2>/dev/null || true
+        return 1
+    }
 
     # Validate nginx configuration (if container is running)
     if compose_cmd ps -q nginx >/dev/null 2>&1 && compose_cmd ps nginx | grep -q "Up"; then
         info "Validating nginx configuration..."
         if compose_cmd exec nginx nginx -t >> "$LOG_FILE" 2>&1; then
             success "Nginx configuration is valid"
+            # Remove backup on success
+            rm -f "$nginx_conf.backup"
         else
-            error "Nginx configuration is invalid. Check $LOG_FILE for details."
+            error "Nginx configuration is invalid after update"
+            warning "Restoring previous configuration..."
+            mv "$nginx_conf.backup" "$nginx_conf" 2>/dev/null || true
+            error "Configuration validation failed. Check $LOG_FILE for details."
         fi
     else
         info "Nginx container not running, skipping validation (will be validated on start)"
+        # Still remove backup
+        rm -f "$nginx_conf.backup"
     fi
 
     success "Nginx configuration updated for HTTPS"
@@ -1308,12 +1401,18 @@ verify_ssl() {
         if curl -Is --max-time 10 "https://$domain/health" >/dev/null 2>&1; then
             success "HTTPS is working correctly!"
             info "URL: https://$domain"
+            # Set global variable for close_http_port() function
+            export HTTPS_WORKING="true"
         else
             warning "HTTPS test failed. Certificate may need time to propagate."
             info "Try accessing: https://$domain in a few minutes"
+            # Set global variable for close_http_port() function
+            export HTTPS_WORKING="false"
         fi
     else
         info "curl not available - skipping HTTPS test"
+        # Cannot verify, assume HTTPS not working
+        export HTTPS_WORKING="false"
     fi
 }
 
@@ -1327,9 +1426,28 @@ setup_backup_cron() {
 
     # Check if cron is installed
     if ! command_exists crontab; then
-        warning "cron not installed, skipping backup cron setup"
-        info "Install with: sudo apt-get install cron"
-        return 0
+        warning "cron not installed"
+        info "Installing cron package..."
+
+        # Try to install cron automatically
+        if sudo apt-get update >> "$LOG_FILE" 2>&1 && \
+           sudo apt-get install -y cron >> "$LOG_FILE" 2>&1; then
+            success "cron installed successfully"
+
+            # Enable and start cron service
+            if sudo systemctl enable cron >> "$LOG_FILE" 2>&1; then
+                info "cron service enabled"
+            fi
+
+            if sudo systemctl start cron >> "$LOG_FILE" 2>&1; then
+                success "cron service started"
+            fi
+        else
+            warning "Failed to install cron automatically"
+            info "Install manually with: sudo apt-get install cron"
+            info "Then run deploy.sh again to setup backup cron job"
+            return 0
+        fi
     fi
 
     # Create log directory for cron logs
@@ -1505,10 +1623,20 @@ close_http_port() {
         return 0
     fi
 
+    # Check if HTTPS is working before offering to close port 80
+    # This variable is set by verify_ssl() function
+    if [[ "${HTTPS_WORKING:-false}" != "true" ]]; then
+        warning "HTTPS is not verified to be working"
+        info "Keeping port 80 open until HTTPS is confirmed working"
+        info "Port 80 (HTTP) will remain accessible for troubleshooting"
+        return 0
+    fi
+
     echo ""
     step "Post-SSL Security Configuration"
     echo ""
     info "SSL certificate obtained successfully!"
+    success "HTTPS connectivity verified"
     echo ""
     warning "Security recommendation: Close HTTP port 80 in firewall"
     echo ""
@@ -1822,11 +1950,11 @@ main() {
         setup_ssl_certificates
         echo ""
 
-        # Optionally close HTTP port after SSL certificate is obtained
-        close_http_port
+        verify_ssl
         echo ""
 
-        verify_ssl
+        # Optionally close HTTP port ONLY if HTTPS is working
+        close_http_port
         echo ""
 
         print_status
