@@ -1297,8 +1297,13 @@ while i < len(lines):
         if line.strip() == '# }':
             # End of HTTPS block - uncomment all and output
             for buffered_line in https_buffer:
-                # Remove leading "# " or "#"
-                uncommented = buffered_line.lstrip('#').lstrip(' ', 1) if buffered_line.startswith('#') else buffered_line
+                # Remove leading "# " or "#" using string slicing
+                if buffered_line.startswith('# '):
+                    uncommented = buffered_line[2:]  # Remove "# " (2 chars)
+                elif buffered_line.startswith('#'):
+                    uncommented = buffered_line[1:]  # Remove "#" (1 char)
+                else:
+                    uncommented = buffered_line
                 output_lines.append(uncommented)
             https_buffer = []
             in_https_block = False
@@ -1311,7 +1316,13 @@ while i < len(lines):
         if line.strip() == '# }':
             # End of redirect block - uncomment all and output
             for buffered_line in redirect_buffer:
-                uncommented = buffered_line.lstrip('#').lstrip(' ', 1) if buffered_line.startswith('#') else buffered_line
+                # Remove leading "# " or "#" using string slicing
+                if buffered_line.startswith('# '):
+                    uncommented = buffered_line[2:]  # Remove "# " (2 chars)
+                elif buffered_line.startswith('#'):
+                    uncommented = buffered_line[1:]  # Remove "#" (1 char)
+                else:
+                    uncommented = buffered_line
                 output_lines.append(uncommented)
             redirect_buffer = []
             in_redirect_block = False
