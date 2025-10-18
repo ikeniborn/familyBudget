@@ -204,6 +204,20 @@ check_prerequisites() {
 validate_env() {
     info "Validating environment variables..."
 
+    # Check if .env file is readable
+    if [[ ! -r "$DEPLOY_DIR/.env" ]]; then
+        error ".env file is not readable. Please check file permissions."
+        echo ""
+        echo "File: $DEPLOY_DIR/.env"
+        echo "Current user: $(whoami)"
+        echo ""
+        echo "To fix:"
+        echo "  1. Run deploy.sh as the same user who ran setup.sh"
+        echo "  2. Or fix permissions: chmod 640 $DEPLOY_DIR/.env"
+        echo "  3. Ensure you're in the docker group: groups | grep docker"
+        exit 1
+    fi
+
     # Source .env file
     set -a
     source "$DEPLOY_DIR/.env"

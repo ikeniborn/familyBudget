@@ -995,11 +995,11 @@ create_env_file() {
     fi
     sed -i "s|^ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=${allowed_origins}|" "$env_file"
 
-    # Set secure permissions
-    chmod 600 "$env_file"
+    # Set secure permissions (640: owner read/write, group read)
+    chmod 640 "$env_file"
 
     success ".env file created"
-    info "File permissions set to 600 (read/write for owner only)"
+    info "File permissions set to 640 (read/write for owner, read for group)"
 }
 
 # Validate configuration
