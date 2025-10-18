@@ -966,6 +966,31 @@ run_migrations() {
     fi
 }
 
+# Clean up old nginx configuration markers (from previous deployments)
+cleanup_nginx_markers() {
+    local nginx_conf="$DEPLOY_DIR/nginx/conf.d/app.conf"
+
+    # Check if nginx config exists
+    if [[ ! -f "$nginx_conf" ]]; then
+        # No config yet, nothing to clean
+        return 0
+    fi
+
+    # Check if file contains old markers (from previous deployments)
+    if grep -q "^SSL_HTTPS_START$\|^SSL_HTTPS_END$\|^SSL_REDIRECT_START$\|^SSL_REDIRECT_END$" "$nginx_conf"; then
+        info "Detected old SSL markers in nginx config, cleaning up..."
+
+        # Remove marker lines (they should have been removed by update_nginx_for_https)
+        sed -i '/^SSL_HTTPS_START$/d' "$nginx_conf"
+        sed -i '/^SSL_HTTPS_END$/d' "$nginx_conf"
+        sed -i '/^SSL_REDIRECT_START$/d' "$nginx_conf"
+        sed -i '/^SSL_REDIRECT_END$/d' "$nginx_conf"
+
+        success "Old SSL markers removed from nginx config"
+        info "Configuration file: $nginx_conf"
+    fi
+}
+
 # =============================================================================
 # SSL CERTIFICATE FUNCTIONS
 # =============================================================================
@@ -1570,6 +1595,10 @@ main() {
     echo ""
 
     # stop_services removed - redundant after cleanup_old_deployment
+
+    # Clean up old nginx markers from previous deployments
+    cleanup_nginx_markers
+    echo ""
 
     start_services
     echo ""
