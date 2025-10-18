@@ -1090,14 +1090,18 @@ update_nginx_for_https() {
 
     info "Updating nginx configuration to enable HTTPS..."
 
-    # Uncomment HTTPS server block
+    # Uncomment HTTPS server block and remove markers
     sed -i '/# SSL_HTTPS_START/,/# SSL_HTTPS_END/{
-        s/^# //g
+        /# SSL_HTTPS_START/d
+        /# SSL_HTTPS_END/d
+        s/^# //
     }' "$nginx_conf"
 
-    # Uncomment HTTP to HTTPS redirect
+    # Uncomment HTTP to HTTPS redirect and remove markers
     sed -i '/# SSL_REDIRECT_START/,/# SSL_REDIRECT_END/{
-        s/^# //g
+        /# SSL_REDIRECT_START/d
+        /# SSL_REDIRECT_END/d
+        s/^# //
     }' "$nginx_conf"
 
     # Comment out initial HTTP server block (will be replaced by redirect)
@@ -1106,6 +1110,18 @@ update_nginx_for_https() {
         /server_name {{DOMAIN}};/!b
         s/^/# /
     }' "$nginx_conf" || true
+
+    # Validate nginx configuration (if container is running)
+    if compose_cmd ps -q nginx >/dev/null 2>&1 && compose_cmd ps nginx | grep -q "Up"; then
+        info "Validating nginx configuration..."
+        if compose_cmd exec nginx nginx -t >> "$LOG_FILE" 2>&1; then
+            success "Nginx configuration is valid"
+        else
+            error "Nginx configuration is invalid. Check $LOG_FILE for details."
+        fi
+    else
+        info "Nginx container not running, skipping validation (will be validated on start)"
+    fi
 
     success "Nginx configuration updated for HTTPS"
     info "Configuration file: $nginx_conf"
