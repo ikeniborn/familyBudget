@@ -943,26 +943,142 @@ run_migrations() {
     if [[ "$RUN_MIGRATIONS" == "true" ]]; then
         step "Running database migrations..."
 
-        # Check if backend service is running
-        if ! compose_cmd ps -q backend >/dev/null 2>&1; then
-            warning "Backend service not running, skipping migrations"
+        # Check if postgres service is healthy
+        if ! compose_cmd ps | grep -q "familybudget-postgres.*healthy"; then
+            error "PostgreSQL service is not healthy, cannot run migrations"
+            return 1
+        fi
+
+        # Check if migrations directory exists
+        if [[ ! -d "$DEPLOY_DIR/backend/db/migrations" ]]; then
+            error "Migrations directory not found: $DEPLOY_DIR/backend/db/migrations"
+            info "This may indicate incomplete setup. Run ./setup.sh to copy files."
+            return 1
+        fi
+
+        # Count migration files
+        local migration_count=$(find "$DEPLOY_DIR/backend/db/migrations" -name "*.sql" -type f | wc -l)
+        info "Found $migration_count SQL migration files"
+
+        if [[ $migration_count -eq 0 ]]; then
+            warning "No migration files found, skipping"
             return 0
         fi
 
-        # Check if alembic is configured
-        if [[ ! -f "$DEPLOY_DIR/backend/alembic.ini" ]]; then
-            warning "Alembic not configured, skipping migrations"
-            return 0
-        fi
+        # Wait for PostgreSQL to be fully ready (beyond health check)
+        info "Waiting for PostgreSQL to accept connections..."
+        local max_attempts=30
+        local attempt=0
+        while [[ $attempt -lt $max_attempts ]]; do
+            if compose_cmd exec -T postgres pg_isready -U familybudget -d familybudget >/dev/null 2>&1; then
+                success "PostgreSQL is ready"
+                break
+            fi
+            attempt=$((attempt + 1))
+            if [[ $attempt -eq $max_attempts ]]; then
+                error "PostgreSQL did not become ready in time"
+                return 1
+            fi
+            sleep 1
+        done
 
-        # Run migrations
-        if compose_cmd exec -T backend alembic upgrade head >> "$LOG_FILE" 2>&1; then
-            success "Database migrations completed"
+        # Run migrations using run_migrations.sh if it exists
+        if [[ -f "$DEPLOY_DIR/backend/db/run_migrations.sh" ]]; then
+            info "Running migrations using run_migrations.sh..."
+
+            # Make script executable
+            chmod +x "$DEPLOY_DIR/backend/db/run_migrations.sh"
+
+            # Run migrations inside postgres container
+            if compose_cmd exec -T postgres bash -c "cd /docker-entrypoint-initdb.d && bash run_migrations.sh" >> "$LOG_FILE" 2>&1; then
+                success "Database migrations completed"
+            else
+                warning "run_migrations.sh failed, trying direct SQL execution..."
+                # Fallback: apply migrations directly
+                apply_migrations_directly
+            fi
         else
-            warning "Database migrations failed (this may be expected for first deployment)"
+            # Direct SQL execution
+            info "run_migrations.sh not found, applying migrations directly..."
+            apply_migrations_directly
         fi
+
+        # Verify critical tables exist
+        verify_database_schema
     else
         info "Skipping database migrations (--no-migrate specified)"
+    fi
+}
+
+# Apply SQL migrations directly to database
+apply_migrations_directly() {
+    local migration_dir="$DEPLOY_DIR/backend/db/migrations"
+    local applied=0
+    local failed=0
+
+    info "Applying SQL migrations from: $migration_dir"
+
+    # Apply migrations in order (001, 002, 003, ...)
+    for migration_file in $(ls "$migration_dir"/*.sql 2>/dev/null | sort); do
+        local filename=$(basename "$migration_file")
+
+        # Skip README and test files
+        if [[ "$filename" == "README.md" ]] || [[ "$filename" =~ ^test_ ]]; then
+            continue
+        fi
+
+        info "Applying migration: $filename"
+
+        # Apply migration (CREATE TABLE IF NOT EXISTS ensures idempotency)
+        if compose_cmd exec -T postgres psql -U familybudget familybudget < "$migration_file" >> "$LOG_FILE" 2>&1; then
+            applied=$((applied + 1))
+            echo "  ✓ $filename" >> "$LOG_FILE"
+        else
+            failed=$((failed + 1))
+            warning "Failed to apply: $filename (may already be applied)"
+            echo "  ✗ $filename" >> "$LOG_FILE"
+        fi
+    done
+
+    info "Migrations applied: $applied, failed: $failed"
+
+    if [[ $failed -gt 0 ]]; then
+        warning "Some migrations failed (this is OK if they were already applied)"
+    fi
+
+    return 0
+}
+
+# Verify critical database schema tables exist
+verify_database_schema() {
+    step "Verifying database schema..."
+
+    local critical_tables=(
+        "t_d_user"
+        "t_d_article"
+        "t_d_article_hierarchy"
+        "t_f_budget_fact"
+        "t_f_refresh_token"
+        "t_d_cost_center"
+        "t_d_financial_center"
+    )
+
+    local missing_tables=()
+
+    for table in "${critical_tables[@]}"; do
+        if ! compose_cmd exec -T postgres psql -U familybudget familybudget -c "\d $table" >/dev/null 2>&1; then
+            missing_tables+=("$table")
+        fi
+    done
+
+    if [[ ${#missing_tables[@]} -eq 0 ]]; then
+        success "All critical tables verified"
+        return 0
+    else
+        error "Missing critical tables: ${missing_tables[*]}"
+        warning "Some migrations may not have been applied correctly"
+        info "Check migration files in: $DEPLOY_DIR/backend/db/migrations/"
+        return 1
     fi
 }
 

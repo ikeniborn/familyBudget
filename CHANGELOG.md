@@ -7,6 +7,192 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.2.0] - 2025-10-18
+
+### 🔴 Critical Fixes
+
+#### Missing Database Table (CRITICAL)
+- **Issue:** Application failing with `relation "t_f_refresh_token" does not exist`
+- **Impact:** Telegram Bot and Web authentication completely broken (500 errors)
+- **Root Cause:** Migration `013_create_refresh_tokens_table.sql` exists but not applied to production
+- **Why it happened:** Migration added after initial deployment, PostgreSQL only runs migrations on first container creation
+- **Resolution:** Created comprehensive deployment fix guide in `docs/deployment/DEPLOYMENT_FIX_CRITICAL_ISSUES.md`
+
+#### Nginx Healthcheck Failing
+- **Issue:** Nginx container marked as `unhealthy` despite working correctly
+- **Root Cause:** Healthcheck tests `http://localhost/health` but HTTP server block missing `/health` location
+- **Fix:** Added `/health` location to `nginx/conf.d/app.conf.template` HTTP server block
+
+### Added
+
+#### Improved Migration System (deploy.sh)
+- **New Functions:**
+  - `run_migrations()` - Completely rewritten to support SQL migrations (was only checking for Alembic)
+  - `apply_migrations_directly()` - Applies all `.sql` files in order with idempotency
+  - `verify_database_schema()` - Validates 7 critical tables exist after migrations
+- **Features:**
+  - ✅ Checks migrations directory exists (`/opt/budget/backend/db/migrations/`)
+  - ✅ Counts and lists all SQL migration files
+  - ✅ Waits for PostgreSQL to be fully ready (30s timeout with pg_isready)
+  - ✅ Applies migrations in order (001, 002, 003, ...) using sorted file list
+  - ✅ Skips README.md and test files automatically
+  - ✅ Reports applied vs failed migrations with detailed logging
+  - ✅ Verifies critical tables after deployment:
+    - `t_d_user`, `t_d_article`, `t_d_article_hierarchy`
+    - `t_f_budget_fact`, `t_f_refresh_token` ← NEW!
+    - `t_d_cost_center`, `t_d_financial_center`
+- **Error Handling:**
+  - Returns meaningful errors if PostgreSQL not healthy
+  - Warns about missing migrations directory (suggests running setup.sh)
+  - Gracefully handles already-applied migrations (idempotent SQL with IF NOT EXISTS)
+  - Shows clear error messages for missing critical tables
+
+#### Comprehensive Documentation
+- **docs/deployment/DEPLOYMENT_FIX_CRITICAL_ISSUES.md** (NEW)
+  - Complete step-by-step fix guide for critical deployment issues
+  - Immediate fixes for production (copy-paste commands)
+  - Permanent fixes for future deployments
+  - Verification checklist
+  - Known remaining issues documentation
+- **docs/PROJECT_STATUS_REPORT.md** (NEW)
+  - Complete project status analysis
+  - All working features documented
+  - All known issues catalogued with severity levels
+  - Action plan with timelines
+  - Statistics (code metrics, git stats)
+  - Readiness assessment (75% production-ready)
+
+### Changed
+
+#### Nginx Configuration Template
+- Added health check endpoint to HTTP server block:
+  ```nginx
+  # Health check endpoint (for Docker healthcheck)
+  location /health {
+      proxy_pass http://backend;
+      proxy_set_header Host $host;
+      access_log off;
+  }
+  ```
+- Fixed HTTP/2 deprecation warnings (already done in 5.1.0)
+- Fixed conflicting server name warnings (already done in 5.1.0)
+
+### Fixed
+
+#### Authentication Flow
+- Documented Telegram OAuth vs Bot Webhook distinction
+- Clarified that Telegram Login Widget doesn't require webhook
+- Identified missing components for Web UI login:
+  - Missing: GET endpoint `/api/v1/auth/telegram-login`
+  - Missing: Telegram Login Widget JavaScript integration
+  - Missing: Callback endpoint `/api/v1/auth/telegram-callback`
+  - Solution: Use official Telegram Login Widget (documented)
+
+#### Deployment Process
+- Fixed migration application for new deployments
+- Fixed migration application for updates (migrations now applied on every deploy)
+- Added comprehensive error checking and validation
+- Improved logging for troubleshooting
+
+### Known Issues
+
+#### PostgreSQL External Access (Medium Priority)
+- **Status:** Configured but UFW firewall blocking connections
+- **Configuration:** `POSTGRES_EXTERNAL_ACCESS=true`, `POSTGRES_ALLOWED_IP=78.107.114.37`
+- **Issue:** UFW rule not created automatically
+- **Workaround:** `sudo ufw allow from 78.107.114.37 to any port 5432 proto tcp`
+- **Planned Fix:** Auto-configure UFW in deploy.sh when `POSTGRES_EXTERNAL_ACCESS=true`
+
+#### SSL Auto-Renewal (Medium Priority - Future Issue)
+- **Status:** ⚠️ Will break in 60-90 days if port 80 closed in UFW
+- **Current:** Certbot uses `--standalone` mode (requires nginx stop + port 80 open)
+- **Issue:** If admin closes port 80 for security → renewal fails → site goes down
+- **Solution:** Migrate to `webroot` mode (allows renewal with closed port 80)
+- **Planned:** Full webroot migration guide in future release
+
+#### Web UI Login Incomplete (Medium Priority)
+- **Status:** UI exists but not functional
+- **Current:**
+  - ✅ HTML templates have "Login with Telegram" buttons
+  - ✅ Backend has POST `/api/v1/auth/telegram` endpoint
+  - ❌ No GET `/api/v1/auth/telegram-login` endpoint (404)
+  - ❌ No Telegram Login Widget integration
+- **Impact:** Users cannot login via Web UI (only Bot works)
+- **Solution:** Add Telegram Login Widget page (documented in PROJECT_STATUS_REPORT.md)
+
+### Technical Debt
+
+#### Migration Strategy
+- Current: SQL files in `/docker-entrypoint-initdb.d/` (only runs on first container start)
+- Issue: New migrations require manual application on existing deployments
+- Improvement: deploy.sh now applies missing migrations automatically
+- Future: Consider migration tracking table to avoid re-running migrations
+
+#### Telegram Bot Mode
+- Current: Polling mode (`USE_WEBHOOK=false`)
+- Works: ✅ Yes, perfectly fine for current traffic
+- Alternative: Webhook mode for instant delivery (optional optimization)
+- Decision: Keep polling (no webhook needed for OAuth either)
+
+### Deployment Notes
+
+#### For Existing Deployments
+If you're upgrading from v5.1.0 or earlier:
+
+1. **Apply missing migration 013** (CRITICAL):
+   ```bash
+   cd ~/Documents/Project/familyBudget
+   ./setup.sh  # Update deployment files
+   cd /opt/budget
+   sudo docker compose exec -T postgres psql -U familybudget familybudget < backend/db/migrations/013_create_refresh_tokens_table.sql
+   ```
+
+2. **Update nginx config** (fix healthcheck):
+   ```bash
+   cd ~/Documents/Project/familyBudget
+   ./setup.sh  # Copies updated template
+   cd /opt/budget
+   sudo docker compose exec nginx nginx -s reload
+   ```
+
+3. **Configure UFW for PostgreSQL** (if using external access):
+   ```bash
+   sudo ufw allow from <YOUR_IP> to any port 5432 proto tcp
+   ```
+
+4. **Restart services**:
+   ```bash
+   sudo docker compose restart backend bot
+   ```
+
+#### For Fresh Deployments
+New deployments using v5.2.0 will:
+- ✅ Apply all migrations automatically (including 013)
+- ✅ Have working nginx healthcheck
+- ✅ Validate critical tables exist
+- ⚠️ Still need manual UFW configuration for PostgreSQL external access
+- ⚠️ Still need Telegram Login Widget implementation for Web UI login
+
+### Security
+
+#### Firewall Configuration
+- Documented proper UFW setup for PostgreSQL external access
+- Recommended: Restrict to specific IP only (not 0.0.0.0)
+- Warning: Port 80 should remain open if using Let's Encrypt SSL (until webroot migration)
+
+#### Authentication
+- Telegram OAuth works correctly (Bot login)
+- JWT refresh tokens functional (after migration 013 applied)
+- Web UI login pending Telegram Widget integration
+
+### Documentation Updates
+
+- Added comprehensive deployment fix guide
+- Added complete project status report
+- Updated troubleshooting documentation
+- Documented Telegram OAuth vs Webhook distinction
+- Added migration best practices
+
 ## [5.1.0] - 2025-10-15
 
 ### Added

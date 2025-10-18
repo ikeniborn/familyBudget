@@ -25,6 +25,13 @@ server {
         root /var/www/certbot;
     }
 
+    # Health check endpoint (for Docker healthcheck)
+    location /health {
+        proxy_pass http://backend;
+        proxy_set_header Host $host;
+        access_log off;
+    }
+
     # Initial configuration - proxy to backend
     # This will be replaced with redirect after SSL setup
     location / {
