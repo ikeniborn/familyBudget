@@ -1243,21 +1243,96 @@ update_nginx_for_https() {
     # - Lines 50-137: HTTPS Server (listen 443) - COMMENTED, uncomment this
     # - Lines 140-154: HTTP Redirect (listen 80 + return 301) - COMMENTED, uncomment this
 
-    info "Processing nginx configuration with Perl..."
+    info "Processing nginx configuration with Python..."
 
-    # Uncomment HTTPS and HTTP redirect blocks using Perl
-    # Perl with -0777 reads entire file at once for multi-line regex
-    perl -i -0777 -pe '
-        # Uncomment HTTPS server block (contains "listen 443 ssl")
-        s/(^#\s+server\s+\{\n(?:\#.*\n)*?\#\s+listen\s+443\s+ssl;.*?^#\s+\}$)/my $b=$1; $b=~s\/^#\s?\/\/gm; $b/mse;
-
-        # Uncomment HTTP redirect block (contains "listen 80" and "return 301")
-        s/(^#\s+server\s+\{\n\#\s+listen\s+80;.*?return\s+301.*?^#\s+\}$)/my $b=$1; $b=~s\/^#\s?\/\/gm; $b/mse;
-    ' "$nginx_conf" || {
-        error "Perl processing failed"
+    # Use Python for reliable block detection with proper state tracking
+    python3 <<PYTHON_SCRIPT || {
+        error "Python processing failed"
         mv "$nginx_conf.backup" "$nginx_conf" 2>/dev/null || true
         return 1
     }
+import sys
+
+config_file = "$nginx_conf"
+
+# Read file
+with open(config_file, 'r') as f:
+    lines = f.readlines()
+
+# State tracking
+in_https_block = False
+in_redirect_block = False
+https_buffer = []
+redirect_buffer = []
+
+output_lines = []
+
+i = 0
+while i < len(lines):
+    line = lines[i]
+
+    # Detect HTTPS server block: "# server {" followed by "#     listen 443 ssl;"
+    if line.strip() == '# server {' and i+1 < len(lines):
+        next_line = lines[i+1]
+        if 'listen 443 ssl' in next_line:
+            # Start HTTPS block
+            in_https_block = True
+            https_buffer = [line]
+            i += 1
+            continue
+
+    # Detect HTTP redirect block: "# server {" followed by listen 80 and later has return 301
+    if line.strip() == '# server {' and i+1 < len(lines) and not in_https_block:
+        next_line = lines[i+1]
+        if 'listen 80' in next_line:
+            # Check if return 301 exists in next 15 lines
+            has_redirect = any('return 301' in lines[j] for j in range(i, min(i+15, len(lines))))
+            if has_redirect:
+                # Start redirect block
+                in_redirect_block = True
+                redirect_buffer = [line]
+                i += 1
+                continue
+
+    # Collect HTTPS block
+    if in_https_block:
+        https_buffer.append(line)
+        if line.strip() == '# }':
+            # End of HTTPS block - uncomment all and output
+            for buffered_line in https_buffer:
+                # Remove leading "# " or "#"
+                uncommented = buffered_line.lstrip('#').lstrip(' ', 1) if buffered_line.startswith('#') else buffered_line
+                output_lines.append(uncommented)
+            https_buffer = []
+            in_https_block = False
+            i += 1
+            continue
+
+    # Collect redirect block
+    if in_redirect_block:
+        redirect_buffer.append(line)
+        if line.strip() == '# }':
+            # End of redirect block - uncomment all and output
+            for buffered_line in redirect_buffer:
+                uncommented = buffered_line.lstrip('#').lstrip(' ', 1) if buffered_line.startswith('#') else buffered_line
+                output_lines.append(uncommented)
+            redirect_buffer = []
+            in_redirect_block = False
+            i += 1
+            continue
+
+    # Normal line - output as-is
+    if not in_https_block and not in_redirect_block:
+        output_lines.append(line)
+
+    i += 1
+
+# Write result
+with open(config_file, 'w') as f:
+    f.writelines(output_lines)
+
+sys.exit(0)
+PYTHON_SCRIPT
 
     # Verify the result is not empty
     if [[ ! -s "$nginx_conf" ]]; then
