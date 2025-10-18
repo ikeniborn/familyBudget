@@ -619,7 +619,37 @@ check_port_available() {
 
                     # Verify port is free
                     if command_exists lsof && sudo lsof -i :"$port" >/dev/null 2>&1; then
-                        error "Не удалось освободить порт $port. Процесс certbot всё ещё запущен."
+                        warning "systemctl stop не освободил порт. Процесс certbot запущен вне systemd."
+                        echo ""
+
+                        # Get PIDs still holding the port
+                        local remaining_pids=$(sudo lsof -i :"$port" -t 2>/dev/null || true)
+
+                        if [[ -n "$remaining_pids" ]]; then
+                            info "Попытка завершить процесс certbot (PID: $remaining_pids)..."
+
+                            # Try graceful SIGTERM first
+                            sudo kill -TERM $remaining_pids 2>/dev/null || true
+                            sleep 3
+
+                            # Check if still running
+                            if sudo lsof -i :"$port" >/dev/null 2>&1; then
+                                warning "Процесс не завершился. Принудительное завершение (SIGKILL)..."
+                                sudo kill -9 $remaining_pids 2>/dev/null || true
+                                sleep 2
+                            fi
+
+                            # Final verification
+                            if command_exists lsof && sudo lsof -i :"$port" >/dev/null 2>&1; then
+                                error "Не удалось освободить порт $port. Процесс certbot всё ещё запущен. Попробуйте вручную: sudo kill -9 $remaining_pids"
+                            else
+                                success "Host certbot остановлен."
+                                info "Контейнеризованный certbot возьмёт на себя управление SSL сертификатами."
+                                echo ""
+                                warning "ПРИМЕЧАНИЕ: certbot.timer может автоматически запуститься при следующей перезагрузке."
+                                info "Для постоянного отключения выберите опцию [2] при следующем деплое."
+                            fi
+                        fi
                     else
                         success "Host certbot остановлен."
                         info "Контейнеризованный certbot возьмёт на себя управление SSL сертификатами."
@@ -638,7 +668,34 @@ check_port_available() {
 
                     # Verify port is free
                     if command_exists lsof && sudo lsof -i :"$port" >/dev/null 2>&1; then
-                        error "Не удалось освободить порт $port. Процесс certbot всё ещё запущен."
+                        warning "systemctl stop не освободил порт. Процесс certbot запущен вне systemd."
+                        echo ""
+
+                        # Get PIDs still holding the port
+                        local remaining_pids=$(sudo lsof -i :"$port" -t 2>/dev/null || true)
+
+                        if [[ -n "$remaining_pids" ]]; then
+                            info "Попытка завершить процесс certbot (PID: $remaining_pids)..."
+
+                            # Try graceful SIGTERM first
+                            sudo kill -TERM $remaining_pids 2>/dev/null || true
+                            sleep 3
+
+                            # Check if still running
+                            if sudo lsof -i :"$port" >/dev/null 2>&1; then
+                                warning "Процесс не завершился. Принудительное завершение (SIGKILL)..."
+                                sudo kill -9 $remaining_pids 2>/dev/null || true
+                                sleep 2
+                            fi
+
+                            # Final verification
+                            if command_exists lsof && sudo lsof -i :"$port" >/dev/null 2>&1; then
+                                error "Не удалось освободить порт $port. Процесс certbot всё ещё запущен. Попробуйте вручную: sudo kill -9 $remaining_pids"
+                            else
+                                success "Host certbot отключён навсегда."
+                                info "Контейнеризованный certbot будет управлять SSL сертификатами."
+                            fi
+                        fi
                     else
                         success "Host certbot отключён навсегда."
                         info "Контейнеризованный certbot будет управлять SSL сертификатами."
