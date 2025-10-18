@@ -1262,11 +1262,10 @@ in_https_block = False
 in_redirect_block = False
 https_buffer = []
 redirect_buffer = []
+https_brace_depth = 0
+redirect_brace_depth = 0
 
 output_lines = []
-
-# Regex pattern for closing brace: "# }" with any number of spaces between # and }
-closing_brace_pattern = re.compile(r'^\s*#\s*\}\s*$')
 
 i = 0
 while i < len(lines):
@@ -1279,6 +1278,7 @@ while i < len(lines):
             # Start HTTPS block
             in_https_block = True
             https_buffer = [line]
+            https_brace_depth = 1  # "# server {" открыл 1 скобку
             i += 1
             continue
 
@@ -1292,14 +1292,21 @@ while i < len(lines):
                 # Start redirect block
                 in_redirect_block = True
                 redirect_buffer = [line]
+                redirect_brace_depth = 1  # "# server {" открыл 1 скобку
                 i += 1
                 continue
 
-    # Collect HTTPS block
+    # Collect HTTPS block with brace depth tracking
     if in_https_block:
         https_buffer.append(line)
-        # Check for closing brace with regex: "# }" with any spaces
-        if closing_brace_pattern.match(line):
+
+        # Count opening and closing braces in commented lines
+        if line.lstrip().startswith('#'):
+            https_brace_depth += line.count('{')
+            https_brace_depth -= line.count('}')
+
+        # When brace depth reaches 0, block is complete
+        if https_brace_depth == 0:
             # End of HTTPS block - uncomment all and output
             for buffered_line in https_buffer:
                 # Remove leading "# " or "#" using string slicing
@@ -1315,11 +1322,17 @@ while i < len(lines):
             i += 1
             continue
 
-    # Collect redirect block
+    # Collect redirect block with brace depth tracking
     if in_redirect_block:
         redirect_buffer.append(line)
-        # Check for closing brace with regex: "# }" with any spaces
-        if closing_brace_pattern.match(line):
+
+        # Count opening and closing braces in commented lines
+        if line.lstrip().startswith('#'):
+            redirect_brace_depth += line.count('{')
+            redirect_brace_depth -= line.count('}')
+
+        # When brace depth reaches 0, block is complete
+        if redirect_brace_depth == 0:
             # End of redirect block - uncomment all and output
             for buffered_line in redirect_buffer:
                 # Remove leading "# " or "#" using string slicing
