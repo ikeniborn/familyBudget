@@ -1249,6 +1249,7 @@ update_nginx_for_https() {
     # Note: heredoc without quotes allows bash variable interpolation
     python3 <<PYTHON_SCRIPT
 import sys
+import re
 
 config_file = "$nginx_conf"
 
@@ -1263,6 +1264,9 @@ https_buffer = []
 redirect_buffer = []
 
 output_lines = []
+
+# Regex pattern for closing brace: "# }" with any number of spaces between # and }
+closing_brace_pattern = re.compile(r'^\s*#\s*\}\s*$')
 
 i = 0
 while i < len(lines):
@@ -1294,7 +1298,8 @@ while i < len(lines):
     # Collect HTTPS block
     if in_https_block:
         https_buffer.append(line)
-        if line.strip() == '# }':
+        # Check for closing brace with regex: "# }" with any spaces
+        if closing_brace_pattern.match(line):
             # End of HTTPS block - uncomment all and output
             for buffered_line in https_buffer:
                 # Remove leading "# " or "#" using string slicing
@@ -1313,7 +1318,8 @@ while i < len(lines):
     # Collect redirect block
     if in_redirect_block:
         redirect_buffer.append(line)
-        if line.strip() == '# }':
+        # Check for closing brace with regex: "# }" with any spaces
+        if closing_brace_pattern.match(line):
             # End of redirect block - uncomment all and output
             for buffered_line in redirect_buffer:
                 # Remove leading "# " or "#" using string slicing
