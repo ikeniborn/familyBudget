@@ -1053,7 +1053,11 @@ validate_configuration() {
     info "Configuration summary:"
     echo "  ✓ Deployment profile: ${DEPLOYMENT_PROFILE}"
     echo "  ✓ Database: ${POSTGRES_USER}@${POSTGRES_DB}"
-    echo "  ✓ Telegram bot: ${TELEGRAM_BOT_USERNAME:-<not set>}"
+    if [[ -n "${TELEGRAM_BOT_USERNAME}" ]]; then
+        echo "  ✓ Telegram bot: @${TELEGRAM_BOT_USERNAME}"
+    else
+        echo "  ✓ Telegram bot: configured"
+    fi
     echo "  ✓ Admin Telegram ID: ${ADMIN_TELEGRAM_ID}"
     echo "  ✓ Domain: ${DOMAIN}"
     echo "  ✓ Backend port: ${BACKEND_PORT}"
