@@ -560,42 +560,136 @@ check_port_available() {
             sudo netstat -tulpn 2>/dev/null | grep ":$port " || true
         fi
         echo ""
-        warning "This will prevent $service_name from starting."
-        echo ""
-        echo "Options:"
-        echo "  [1] Stop the process and continue"
-        echo "  [2] Change port in .env file"
-        echo "  [3] Cancel deployment"
-        echo ""
 
-        read -p "Select [1-3]: " choice
-        echo ""
+        # Detect if process is certbot
+        local process_name=""
+        local is_certbot=false
 
-        case $choice in
-            1)
-                info "Attempting to stop process on port $port..."
-                if [[ -n "$process_info" ]]; then
-                    sudo kill -9 $process_info 2>/dev/null || true
+        if command_exists lsof; then
+            # Get process name from lsof output
+            process_name=$(sudo lsof -i :"$port" 2>/dev/null | grep -v "COMMAND" | awk '{print $1}' | head -1 || true)
+        fi
+
+        if [[ "$process_name" == "certbot" ]] || sudo lsof -i :"$port" 2>/dev/null | grep -q certbot; then
+            is_certbot=true
+        fi
+
+        # Special handling for certbot
+        if [[ "$is_certbot" == "true" ]]; then
+            warning "ОБНАРУЖЕН CERTBOT НА ХОСТЕ!"
+            echo ""
+            info "Проверка systemd сервисов certbot..."
+            echo ""
+
+            # Check certbot.service status
+            if systemctl is-active --quiet certbot.service 2>/dev/null; then
+                echo "  certbot.service: ${GREEN}active${NC}"
+            else
+                echo "  certbot.service: inactive"
+            fi
+
+            # Check certbot.timer status
+            if systemctl is-active --quiet certbot.timer 2>/dev/null; then
+                echo "  certbot.timer: ${GREEN}active${NC}"
+            else
+                echo "  certbot.timer: inactive"
+            fi
+
+            echo ""
+            warning "ВАЖНО: Этот деплой использует контейнеризованный certbot."
+            warning "Host certbot конфликтует с портом $port, необходимым для nginx/SSL."
+            echo ""
+            info "Рекомендация: Остановить host certbot и использовать контейнерную версию."
+            echo ""
+            echo "Опции:"
+            echo "  [1] Остановить host certbot (временно) и продолжить деплой (рекомендуется)"
+            echo "  [2] Отключить host certbot навсегда и продолжить"
+            echo "  [3] Отменить деплой"
+            echo ""
+
+            read -p "Выберите [1-3]: " choice
+            echo ""
+
+            case $choice in
+                1)
+                    info "Остановка certbot.service и certbot.timer..."
+                    sudo systemctl stop certbot.service 2>/dev/null || true
+                    sudo systemctl stop certbot.timer 2>/dev/null || true
                     sleep 2
 
                     # Verify port is free
                     if command_exists lsof && sudo lsof -i :"$port" >/dev/null 2>&1; then
-                        error "Failed to free port $port. Please stop the process manually."
+                        error "Не удалось освободить порт $port. Процесс certbot всё ещё запущен."
                     else
-                        success "Port $port is now available"
+                        success "Host certbot остановлен."
+                        info "Контейнеризованный certbot возьмёт на себя управление SSL сертификатами."
+                        echo ""
+                        warning "ПРИМЕЧАНИЕ: certbot.timer может автоматически запуститься при следующей перезагрузке."
+                        info "Для постоянного отключения выберите опцию [2] при следующем деплое."
                     fi
-                fi
-                ;;
-            2)
-                error "Please edit $DEPLOY_DIR/.env and change ${service_name}_PORT, then run deploy.sh again"
-                ;;
-            3)
-                error "Deployment cancelled"
-                ;;
-            *)
-                error "Invalid choice"
-                ;;
-        esac
+                    ;;
+                2)
+                    info "Отключение certbot.service и certbot.timer навсегда..."
+                    sudo systemctl stop certbot.service 2>/dev/null || true
+                    sudo systemctl stop certbot.timer 2>/dev/null || true
+                    sudo systemctl disable certbot.service 2>/dev/null || true
+                    sudo systemctl disable certbot.timer 2>/dev/null || true
+                    sleep 2
+
+                    # Verify port is free
+                    if command_exists lsof && sudo lsof -i :"$port" >/dev/null 2>&1; then
+                        error "Не удалось освободить порт $port. Процесс certbot всё ещё запущен."
+                    else
+                        success "Host certbot отключён навсегда."
+                        info "Контейнеризованный certbot будет управлять SSL сертификатами."
+                    fi
+                    ;;
+                3)
+                    error "Деплой отменён пользователем"
+                    ;;
+                *)
+                    error "Неверный выбор"
+                    ;;
+            esac
+        else
+            # Standard handling for non-certbot processes
+            warning "This will prevent $service_name from starting."
+            echo ""
+            echo "Опции:"
+            echo "  [1] Остановить процесс и продолжить"
+            echo "  [2] Изменить порт в .env файле"
+            echo "  [3] Отменить деплой"
+            echo ""
+
+            read -p "Выберите [1-3]: " choice
+            echo ""
+
+            case $choice in
+                1)
+                    info "Попытка остановить процесс на порту $port..."
+                    if [[ -n "$process_info" ]]; then
+                        sudo kill -9 $process_info 2>/dev/null || true
+                        sleep 2
+
+                        # Verify port is free
+                        if command_exists lsof && sudo lsof -i :"$port" >/dev/null 2>&1; then
+                            error "Не удалось освободить порт $port. Пожалуйста, остановите процесс вручную."
+                        else
+                            success "Порт $port теперь свободен"
+                        fi
+                    fi
+                    ;;
+                2)
+                    error "Пожалуйста, отредактируйте $DEPLOY_DIR/.env и измените ${service_name}_PORT, затем запустите deploy.sh снова"
+                    ;;
+                3)
+                    error "Деплой отменён"
+                    ;;
+                *)
+                    error "Неверный выбор"
+                    ;;
+            esac
+        fi
     fi
 }
 

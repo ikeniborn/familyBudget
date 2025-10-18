@@ -358,11 +358,19 @@ REINDEX DATABASE familybudget;
 **Certificate Renewal (Let's Encrypt):**
 
 ```bash
-# Автоматическое обновление через certbot
-certbot renew --nginx
+# ВАЖНО: Деплой использует контейнеризованный certbot (НЕ host certbot)
+# Автоматическое обновление происходит внутри Docker контейнера
 
-# Добавить в cron
-0 3 * * * certbot renew --quiet
+# Просмотр логов certbot
+docker compose logs certbot
+
+# Ручное обновление через контейнер
+docker compose run --rm certbot renew
+
+# Host certbot НЕ ДОЛЖЕН быть активен (конфликт портов)
+# Проверка:
+systemctl status certbot.service
+systemctl status certbot.timer
 ```
 
 **Troubleshooting Guide:**
@@ -373,6 +381,8 @@ certbot renew --nginx
 | PostgreSQL недоступна | `docker compose exec postgres pg_isready` | Проверить логи, перезапустить |
 | Бот не отвечает | `docker compose logs telegram-bot` | Проверить BOT_TOKEN |
 | Графики не загружаются | Проверить console в браузере | Проверить CORS, API endpoints |
+| Порт 80/443 занят certbot | `sudo lsof -i :80`, `systemctl status certbot.service` | `deploy.sh` автоматически предложит остановить host certbot. Опция [1] - временно, [2] - навсегда |
+| Certbot контейнер не запускается | `docker compose logs certbot` | Проверить что host certbot отключен: `sudo systemctl stop certbot.timer` |
 
 ---
 

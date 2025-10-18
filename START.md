@@ -391,6 +391,76 @@ groups | grep docker
 
 **Важно:** НЕ используйте sudo для deploy.sh - запускайте от обычного пользователя!
 
+### Ошибка: "Port 80/443 is already in use" - Certbot блокирует порт
+
+**Симптомы:**
+- При деплое ошибка "address already in use" на порту 80 или 443
+- `lsof -i :80` показывает процесс `certbot`
+- `systemctl status certbot.service` показывает failed или running
+
+**Причина:** На хосте установлен standalone certbot, который конфликтует с контейнеризованным certbot в деплое.
+
+**Автоматическое решение:**
+
+Скрипт `deploy.sh` автоматически обнаруживает certbot и предлагает интерактивные опции:
+
+```bash
+./deploy.sh
+
+# При обнаружении certbot на порту 80/443 вы увидите:
+# [1] Остановить host certbot (временно) - рекомендуется
+# [2] Отключить host certbot навсегда
+# [3] Отменить деплой
+```
+
+**Рекомендация:** Выберите опцию [1] для первого деплоя, чтобы проверить работу контейнеризованного certbot.
+
+**Ручное решение:**
+
+```bash
+# 1. Проверить что блокирует порт
+sudo lsof -i :80
+sudo lsof -i :443
+
+# 2. Проверить статус certbot
+systemctl status certbot.service
+systemctl status certbot.timer
+
+# 3. Остановить host certbot (временно)
+sudo systemctl stop certbot.service
+sudo systemctl stop certbot.timer
+
+# 4. Отключить host certbot навсегда (если нужно)
+sudo systemctl disable certbot.service
+sudo systemctl disable certbot.timer
+
+# 5. Продолжить деплой
+./deploy.sh
+```
+
+**Важные замечания:**
+
+- **Host certbot vs Контейнерный certbot:** Этот деплой использует certbot внутри Docker контейнера. Host certbot больше не нужен.
+- **Автозапуск после перезагрузки:** Если вы выбрали опцию [1] (временная остановка), `certbot.timer` может автоматически запуститься при перезагрузке. Для постоянного отключения используйте опцию [2].
+- **SSL сертификаты:** Контейнеризованный certbot будет автоматически получать и обновлять SSL сертификаты через порт 80 (HTTP-01 challenge).
+- **Сохранение существующих сертификатов:** Если у вас уже есть SSL сертификаты от host certbot в `/etc/letsencrypt/`, вы можете скопировать их в `/opt/budget/certbot/conf/` перед деплоем.
+
+**Проверка после деплоя:**
+
+```bash
+# Проверить что nginx слушает на портах 80/443
+docker compose ps nginx
+sudo lsof -i :80
+sudo lsof -i :443
+
+# Проверить логи nginx
+docker compose logs nginx
+
+# Проверить что certbot контейнер работает
+docker compose ps certbot
+docker compose logs certbot
+```
+
 ### Контейнер постоянно перезапускается
 
 **Диагностика:**
