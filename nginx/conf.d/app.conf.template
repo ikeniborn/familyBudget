@@ -42,8 +42,9 @@ server {
 # This section will be uncommented after SSL certificate is obtained
 # SSL_HTTPS_START
 # server {
-#     listen 443 ssl http2;
-#     listen [::]:443 ssl http2;
+#     listen 443 ssl;
+#     listen [::]:443 ssl;
+#     http2 on;
 #     server_name {{DOMAIN}};
 #
 #     # SSL Configuration

@@ -44,11 +44,15 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         "/docs",
         "/openapi.json",
         "/redoc",
+        "/",  # Home page (uses CurrentUserOptional)
+        "/analytics",  # Analytics page (uses CurrentUserOptional)
+        "/favicon.ico",  # Browser favicon
     }
 
     # Public path prefixes (startswith check)
     PUBLIC_PREFIXES = [
         "/api/v1/auth/",
+        "/static/",  # Static files (CSS, JS, images)
     ]
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:

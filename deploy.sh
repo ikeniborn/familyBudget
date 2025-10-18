@@ -1130,11 +1130,16 @@ update_nginx_for_https() {
     }' "$nginx_conf"
 
     # Comment out initial HTTP server block (will be replaced by redirect)
-    sed -i '/^server {/,/^}$/{
-        /# SSL_REDIRECT_START/b
-        /server_name {{DOMAIN}};/!b
-        s/^/# /
-    }' "$nginx_conf" || true
+    # Find and comment the first server block (before SSL_HTTPS_START marker)
+    # This is the initial HTTP-only block that will be replaced by HTTPS redirect
+    awk '
+    BEGIN { in_first_server=0; found_ssl_marker=0; }
+    /^# SSL_HTTPS_START/ { found_ssl_marker=1; }
+    /^server \{/ && !found_ssl_marker && !in_first_server { in_first_server=1; }
+    in_first_server && /^\}/ { in_first_server=0; print "# " $0; next; }
+    in_first_server { print "# " $0; next; }
+    { print; }
+    ' "$nginx_conf" > "$nginx_conf.tmp" && mv "$nginx_conf.tmp" "$nginx_conf" || true
 
     # Validate nginx configuration (if container is running)
     if compose_cmd ps -q nginx >/dev/null 2>&1 && compose_cmd ps nginx | grep -q "Up"; then
