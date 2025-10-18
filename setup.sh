@@ -419,6 +419,29 @@ generate_jwt_secret() {
     fi
 }
 
+# Get bot information from Telegram API
+get_bot_info() {
+    local token=$1
+
+    if ! command_exists curl; then
+        return 1
+    fi
+
+    local response
+    response=$(curl -s --max-time 10 "https://api.telegram.org/bot${token}/getMe" 2>/dev/null)
+
+    if [[ $? -eq 0 && -n "$response" ]]; then
+        # Check if response is valid JSON with "ok":true
+        if echo "$response" | grep -q '"ok":true'; then
+            # Extract username using grep and sed
+            echo "$response" | grep -o '"username":"[^"]*"' | sed 's/"username":"//;s/"$//'
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
 # =============================================================================
 # CONFIGURATION FUNCTIONS
 # =============================================================================
@@ -534,7 +557,19 @@ collect_configuration() {
         fi
     done
 
-    prompt "Telegram bot username (optional)" "TELEGRAM_BOT_USERNAME" ""
+    # Automatically get bot username from Telegram API
+    echo ""
+    info "Получение информации о боте..."
+    local bot_username
+    bot_username=$(get_bot_info "${CONFIG[TELEGRAM_BOT_TOKEN]}")
+
+    if [[ -n "$bot_username" ]]; then
+        CONFIG["TELEGRAM_BOT_USERNAME"]="$bot_username"
+        success "Бот найден: @${bot_username}"
+    else
+        warning "Не удалось получить username бота автоматически"
+        CONFIG["TELEGRAM_BOT_USERNAME"]=""
+    fi
 
     echo ""
     info "Get your Telegram ID from @userinfobot on Telegram"

@@ -534,6 +534,71 @@ check_and_select_subnets() {
     fi
 }
 
+# Check if port is available
+check_port_available() {
+    local port=$1
+    local service_name=$2
+
+    # Check if port is in use
+    local process_info=""
+    if command_exists lsof; then
+        process_info=$(sudo lsof -i :"$port" -t 2>/dev/null || true)
+    elif command_exists netstat; then
+        process_info=$(sudo netstat -tulpn 2>/dev/null | grep ":$port " | awk '{print $7}' || true)
+    else
+        warning "Cannot check port availability (lsof/netstat not found)"
+        return 0
+    fi
+
+    if [[ -n "$process_info" ]]; then
+        warning "Port $port is already in use!"
+        echo ""
+        echo "Process using port $port:"
+        if command_exists lsof; then
+            sudo lsof -i :"$port" 2>/dev/null || true
+        else
+            sudo netstat -tulpn 2>/dev/null | grep ":$port " || true
+        fi
+        echo ""
+        warning "This will prevent $service_name from starting."
+        echo ""
+        echo "Options:"
+        echo "  [1] Stop the process and continue"
+        echo "  [2] Change port in .env file"
+        echo "  [3] Cancel deployment"
+        echo ""
+
+        read -p "Select [1-3]: " choice
+        echo ""
+
+        case $choice in
+            1)
+                info "Attempting to stop process on port $port..."
+                if [[ -n "$process_info" ]]; then
+                    sudo kill -9 $process_info 2>/dev/null || true
+                    sleep 2
+
+                    # Verify port is free
+                    if command_exists lsof && sudo lsof -i :"$port" >/dev/null 2>&1; then
+                        error "Failed to free port $port. Please stop the process manually."
+                    else
+                        success "Port $port is now available"
+                    fi
+                fi
+                ;;
+            2)
+                error "Please edit $DEPLOY_DIR/.env and change ${service_name}_PORT, then run deploy.sh again"
+                ;;
+            3)
+                error "Deployment cancelled"
+                ;;
+            *)
+                error "Invalid choice"
+                ;;
+        esac
+    fi
+}
+
 # Helper function to run docker compose with all override files
 compose_cmd() {
     local compose_files="-f docker-compose.yml"
@@ -1295,6 +1360,26 @@ main() {
         fi
     fi
     echo ""
+
+    # Check if HTTP/HTTPS ports are available (for full profile with nginx)
+    if [[ "$COMPOSE_PROFILE" == "full" || "${DEPLOYMENT_PROFILE:-}" == "full" ]]; then
+        step "Checking Port Availability"
+
+        # Load .env if not already loaded
+        if [[ -z "${HTTP_PORT:-}" ]]; then
+            set -a
+            source "$DEPLOY_DIR/.env" 2>/dev/null || true
+            set +a
+        fi
+
+        local http_port="${HTTP_PORT:-80}"
+        local https_port="${HTTPS_PORT:-443}"
+
+        info "Checking if ports are available for nginx..."
+        check_port_available "$http_port" "HTTP"
+        check_port_available "$https_port" "HTTPS"
+        echo ""
+    fi
 
     # Deployment steps
     check_prerequisites
