@@ -164,16 +164,24 @@ class AuthResponse(BaseModel):
     Complete authentication response.
 
     Returned after successful Telegram OAuth authentication.
-    JWT token is set in httpOnly cookie separately.
+    JWT tokens are returned in BOTH response body and httpOnly cookies for compatibility:
+    - Response body: For bot clients (Telegram bot needs tokens for API calls)
+    - httpOnly cookies: For web clients (secure browser-based authentication)
 
     Attributes:
         user: User data
         message: Success message
+        access_token: JWT access token (7-day expiry, also in httpOnly cookie)
+        refresh_token: JWT refresh token (30-day expiry, also in httpOnly cookie)
+        token_type: Token type (always "bearer")
 
     Example:
         >>> response = AuthResponse(
         ...     user=UserResponse(...),
-        ...     message="Authentication successful"
+        ...     message="Authentication successful",
+        ...     access_token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        ...     refresh_token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        ...     token_type="bearer"
         ... )
     """
 
@@ -184,6 +192,21 @@ class AuthResponse(BaseModel):
         default="Authentication successful",
         description="Success message",
         examples=["Authentication successful"]
+    )
+    access_token: Optional[str] = Field(
+        default=None,
+        description="JWT access token (7-day expiry). Also set in httpOnly cookie.",
+        examples=["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."]
+    )
+    refresh_token: Optional[str] = Field(
+        default=None,
+        description="JWT refresh token (30-day expiry). Also set in httpOnly cookie.",
+        examples=["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."]
+    )
+    token_type: str = Field(
+        default="bearer",
+        description="Token type for Authorization header",
+        examples=["bearer"]
     )
 
     model_config = {
@@ -197,7 +220,10 @@ class AuthResponse(BaseModel):
                     "last_name": "Doe",
                     "is_admin": False
                 },
-                "message": "Authentication successful"
+                "message": "Authentication successful",
+                "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                "token_type": "bearer"
             }
         }
     }

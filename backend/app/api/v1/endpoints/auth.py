@@ -322,12 +322,16 @@ async def telegram_login(
                 "last_name": "Doe",
                 "is_admin": false
             },
-            "message": "Authentication successful"
+            "message": "Authentication successful",
+            "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            "token_type": "bearer"
         }
 
     Security Notes:
-        - Both access_token and refresh_token set in httpOnly cookies
-        - Tokens NOT returned in response body (only in cookies)
+        - Both access_token and refresh_token returned in BOTH response body AND httpOnly cookies
+        - Response body: For bot clients (bot needs tokens for API calls)
+        - httpOnly cookies: For web clients (secure browser-based authentication)
         - access_token: 7-day expiry
         - refresh_token: 30-day expiry, hashed in database
         - Cookie attributes: httpOnly=True, secure=True, samesite="lax"
@@ -403,7 +407,9 @@ async def telegram_login(
         max_age=60 * 60 * 24 * 30,  # 30 days in seconds
     )
 
-    # Step 9: Return user data (tokens are in cookies, not in response body)
+    # Step 9: Return user data with tokens in BOTH response body AND cookies
+    # Response body: For bot clients (bot needs tokens for API calls)
+    # httpOnly cookies: For web clients (secure browser-based auth)
     user_response = UserResponse(
         id=user.id,
         telegram_id=user.telegram_id,
@@ -415,7 +421,10 @@ async def telegram_login(
 
     return AuthResponse(
         user=user_response,
-        message="Authentication successful"
+        message="Authentication successful",
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer"
     )
 
 
