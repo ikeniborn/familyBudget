@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: str
     TELEGRAM_BOT_USERNAME: str | None = None  # Bot username for Telegram Login Widget (e.g., "ikenibornbudgetbot")
     # Note: If not provided, will be auto-fetched from Telegram API at startup
+    ADMIN_TELEGRAM_ID: int  # Telegram ID of the admin user
 
     # CORS
     CORS_ORIGINS: list[str] = ["*"]
