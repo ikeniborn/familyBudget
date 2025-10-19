@@ -860,9 +860,14 @@ start_services() {
         detach_flag="-d"
     fi
 
-    info "Running: docker compose $compose_args up $detach_flag"
+    # Add --build flag to automatically rebuild images if code changed
+    # Docker will use cache and skip rebuild if nothing changed
+    local build_flag="--build"
 
-    if compose_cmd $compose_args up $detach_flag >> "$LOG_FILE" 2>&1; then
+    info "Running: docker compose $compose_args up $detach_flag $build_flag"
+    info "Note: Docker will rebuild only changed images (uses cache for unchanged layers)"
+
+    if compose_cmd $compose_args up $detach_flag $build_flag >> "$LOG_FILE" 2>&1; then
         success "Services started"
     else
         error "Failed to start services. Check $LOG_FILE for details."
