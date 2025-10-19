@@ -37,6 +37,7 @@ services:
       - "5432:5432"
     networks:
       - familybudget_internal
+      - familybudget_external
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-familybudget} -d ${POSTGRES_DB:-familybudget}"]
       interval: 10s
