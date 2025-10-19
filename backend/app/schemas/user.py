@@ -11,6 +11,58 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
+class UserCreate(BaseModel):
+    """
+    Schema for creating a new user (admin only).
+
+    Admin users can manually create new users without Telegram OAuth.
+    Useful for pre-registering users or testing purposes.
+
+    Validation Rules:
+        - telegram_id: Required, positive integer
+        - username, first_name, last_name: Optional strings
+        - is_admin: Optional, defaults to False
+
+    Notes:
+        - Creates initial SCD Type 2 version
+        - valid_from=now(), valid_to=9999-12-31, is_current=True
+    """
+
+    telegram_id: int = Field(
+        ...,
+        gt=0,
+        description="User's Telegram ID (must be unique)",
+        examples=[123456789]
+    )
+
+    username: Optional[str] = Field(
+        default=None,
+        max_length=255,
+        description="Telegram username (optional)",
+        examples=["johndoe", None]
+    )
+
+    first_name: Optional[str] = Field(
+        default=None,
+        max_length=255,
+        description="User's first name (optional)",
+        examples=["John", None]
+    )
+
+    last_name: Optional[str] = Field(
+        default=None,
+        max_length=255,
+        description="User's last name (optional)",
+        examples=["Doe", None]
+    )
+
+    is_admin: bool = Field(
+        default=False,
+        description="Admin status flag (default: False)",
+        examples=[False, True]
+    )
+
+
 class UserUpdate(BaseModel):
     """
     Schema for updating user data (admin only).

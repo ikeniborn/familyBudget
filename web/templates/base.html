@@ -34,6 +34,8 @@
                     {% if user and user.is_admin %}
                         <li role="none"><a href="/admin/users" role="menuitem" class="{% if '/admin/users' in request.url.path %}active{% endif %}" aria-current="{% if '/admin/users' in request.url.path %}page{% endif %}">Admin: Users</a></li>
                         <li role="none"><a href="/admin/articles" role="menuitem" class="{% if '/admin/articles' in request.url.path %}active{% endif %}" aria-current="{% if '/admin/articles' in request.url.path %}page{% endif %}">Admin: Articles</a></li>
+                        <li role="none"><a href="/admin/financial-centers" role="menuitem" class="{% if '/admin/financial-centers' in request.url.path %}active{% endif %}" aria-current="{% if '/admin/financial-centers' in request.url.path %}page{% endif %}">Admin: ЦФО</a></li>
+                        <li role="none"><a href="/admin/cost-centers" role="menuitem" class="{% if '/admin/cost-centers' in request.url.path %}active{% endif %}" aria-current="{% if '/admin/cost-centers' in request.url.path %}page{% endif %}">Admin: МВЗ</a></li>
                         <li role="none"><a href="/admin/facts" role="menuitem" class="{% if '/admin/facts' in request.url.path %}active{% endif %}" aria-current="{% if '/admin/facts' in request.url.path %}page{% endif %}">Admin: Facts</a></li>
                         <li role="none"><a href="/admin/monitoring" role="menuitem" class="{% if '/admin/monitoring' in request.url.path %}active{% endif %}" aria-current="{% if '/admin/monitoring' in request.url.path %}page{% endif %}">Admin: Monitoring</a></li>
                     {% endif %}

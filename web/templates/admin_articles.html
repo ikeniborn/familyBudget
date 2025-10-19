@@ -3,24 +3,23 @@
 {% block content %}
 <div class="admin-page">
     <div class="page-header">
-        <h1>📁 Articles Management</h1>
-        <p class="page-description">Manage income and expense categories with hierarchical structure</p>
+        <h1>📁 Управление категориями бюджета</h1>
+        <p class="page-description">Создавайте и редактируйте категории доходов и расходов с иерархической структурой</p>
     </div>
 
     <!-- Articles Table -->
     <div class="card admin-table-card">
         <div class="card-header">
-            <h2>Categories</h2>
+            <h2>📊 Категории</h2>
             <div class="table-actions">
-                <button class="filter-btn active" id="filter-income" onclick="toggleTypeFilter('income')">Income</button>
-                <button class="filter-btn" id="filter-expense" onclick="toggleTypeFilter('expense')">Expense</button>
-                <button class="filter-btn" id="filter-global" onclick="toggleGlobalFilter()">Global Only</button>
-                <button class="btn-primary btn-small" onclick="showCreateModal()">+ New Article</button>
+                <button class="filter-btn active" id="filter-income" onclick="toggleTypeFilter('income')">💰 Доходы</button>
+                <button class="filter-btn" id="filter-expense" onclick="toggleTypeFilter('expense')">💸 Расходы</button>
+                <button class="btn-primary btn-small" onclick="showCreateModal()">➕ Новая категория</button>
             </div>
         </div>
 
         <div id="articles-table-container">
-            <div class="loading">Loading articles...</div>
+            <div class="loading">⏳ Загрузка категорий...</div>
         </div>
     </div>
 </div>
@@ -29,37 +28,31 @@
 <div id="create-modal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>Create New Article</h3>
+            <h3>✨ Создать новую категорию</h3>
             <span class="modal-close" onclick="closeCreateModal()">&times;</span>
         </div>
         <form id="create-form" onsubmit="createArticle(event)">
             <div class="form-group">
-                <label for="create-name">Name*</label>
-                <input type="text" id="create-name" name="name" required maxlength="255" placeholder="Enter article name">
+                <label for="create-name">📝 Название*</label>
+                <input type="text" id="create-name" name="name" required maxlength="255" placeholder="Введите название категории">
             </div>
             <div class="form-group">
-                <label for="create-type">Type*</label>
+                <label for="create-type">🏷️ Тип*</label>
                 <select id="create-type" name="type" required>
-                    <option value="income">Income</option>
-                    <option value="expense">Expense</option>
+                    <option value="income">💰 Доход</option>
+                    <option value="expense">💸 Расход</option>
                 </select>
             </div>
             <div class="form-group">
-                <label for="create-parent">Parent Category</label>
+                <label for="create-parent">📂 Родительская категория</label>
                 <select id="create-parent" name="parent_id">
-                    <option value="">-- Root Level --</option>
+                    <option value="">-- Корневой уровень --</option>
                     <!-- Will be populated dynamically -->
                 </select>
             </div>
-            <div class="form-group">
-                <label class="checkbox-label">
-                    <input type="checkbox" id="create-global" name="is_global">
-                    Global (available to all users)
-                </label>
-            </div>
             <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeCreateModal()">Cancel</button>
-                <button type="submit" class="btn-primary">Create</button>
+                <button type="button" class="btn-secondary" onclick="closeCreateModal()">❌ Отмена</button>
+                <button type="submit" class="btn-primary">✅ Создать</button>
             </div>
         </form>
     </div>
@@ -69,28 +62,28 @@
 <div id="edit-modal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>Edit Article</h3>
+            <h3>✏️ Редактировать категорию</h3>
             <span class="modal-close" onclick="closeEditModal()">&times;</span>
         </div>
         <form id="edit-form" onsubmit="updateArticle(event)">
             <input type="hidden" id="edit-id" name="id">
             <div class="form-group">
-                <label for="edit-name">Name*</label>
+                <label for="edit-name">📝 Название*</label>
                 <input type="text" id="edit-name" name="name" required maxlength="255">
             </div>
             <div class="form-group">
-                <label for="edit-parent">Parent Category</label>
+                <label for="edit-parent">📂 Родительская категория</label>
                 <select id="edit-parent" name="parent_id">
-                    <option value="">-- Root Level --</option>
+                    <option value="">-- Корневой уровень --</option>
                     <!-- Will be populated dynamically -->
                 </select>
             </div>
             <div class="form-group">
-                <p class="info-note">Type and Global flag cannot be changed (SCD Type 2)</p>
+                <p class="info-note">ℹ️ Тип категории нельзя изменить (SCD Type 2)</p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancel</button>
-                <button type="submit" class="btn-primary">Update</button>
+                <button type="button" class="btn-secondary" onclick="closeEditModal()">❌ Отмена</button>
+                <button type="submit" class="btn-primary">💾 Сохранить</button>
             </div>
         </form>
     </div>
@@ -101,7 +94,6 @@
 <script>
 // Global state
 let currentType = 'income';
-let showGlobalOnly = false;
 let articlesData = [];
 
 // Load articles on page load
@@ -121,23 +113,13 @@ function toggleTypeFilter(type) {
     loadArticles();
 }
 
-// Toggle global filter
-function toggleGlobalFilter() {
-    showGlobalOnly = !showGlobalOnly;
-    document.getElementById('filter-global').classList.toggle('active', showGlobalOnly);
-    loadArticles();
-}
-
 // Load articles from API
 async function loadArticles() {
     const container = document.getElementById('articles-table-container');
-    container.innerHTML = '<div class="loading">Loading articles...</div>';
+    container.innerHTML = '<div class="loading">⏳ Загрузка категорий...</div>';
 
     try {
         let url = `/api/v1/admin/articles?is_current=true`;
-        if (showGlobalOnly) {
-            url += '&is_global=true';
-        }
 
         const response = await fetch(url);
 
@@ -149,7 +131,7 @@ async function loadArticles() {
         renderArticlesTable(articlesData);
     } catch (error) {
         console.error('Error loading articles:', error);
-        container.innerHTML = `<div class="error-message">Failed to load articles: ${error.message}</div>`;
+        container.innerHTML = `<div class="error-message">❌ Ошибка загрузки категорий: ${error.message}</div>`;
     }
 }
 
@@ -161,7 +143,7 @@ function renderArticlesTable(articles) {
     const filtered = articles.filter(a => a.type === currentType);
 
     if (filtered.length === 0) {
-        container.innerHTML = '<p class="info-text">No articles found. Click "+ New Article" to create one.</p>';
+        container.innerHTML = '<p class="info-text">📝 Категории не найдены. Нажмите "➕ Новая категория" для создания.</p>';
         return;
     }
 
@@ -173,11 +155,11 @@ function renderArticlesTable(articles) {
             <table class="data-table articles-table">
                 <thead>
                     <tr>
-                        <th>Name</th>
-                        <th>Type</th>
-                        <th>Scope</th>
-                        <th>Owner</th>
-                        <th>Actions</th>
+                        <th>📝 Название</th>
+                        <th>🏷️ Тип</th>
+                        <th>🌍 Область</th>
+                        <th>👤 Владелец</th>
+                        <th>⚙️ Действия</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -224,18 +206,19 @@ function renderTreeNodes(nodes, level) {
     nodes.forEach(node => {
         const indent = '&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(level);
         const prefix = level > 0 ? '↳ ' : '';
-        const scopeLabel = node.is_global ? '<span class="badge success">Global</span>' : '<span class="badge user">User</span>';
+        const scopeLabel = node.is_global ? '<span class="badge success">🌍 Глобальная</span>' : '<span class="badge user">👤 Личная</span>';
         const ownerLabel = node.user_name || '—';
+        const typeLabel = node.type === 'income' ? '💰 Доход' : '💸 Расход';
 
         html += `
             <tr data-article-id="${node.id}" class="tree-level-${level}">
                 <td>${indent}${prefix}${node.name}</td>
-                <td><span class="badge ${node.type === 'income' ? 'success' : 'inactive'}">${node.type}</span></td>
+                <td><span class="badge ${node.type === 'income' ? 'success' : 'inactive'}">${typeLabel}</span></td>
                 <td>${scopeLabel}</td>
                 <td>${ownerLabel}</td>
                 <td>
-                    <button class="btn-primary btn-small" onclick="showEditModal(${node.id})">Edit</button>
-                    <button class="btn-secondary btn-small" onclick="deactivateArticle(${node.id})">Deactivate</button>
+                    <button class="btn-primary btn-small" onclick="showEditModal(${node.id})">✏️ Изменить</button>
+                    <button class="btn-secondary btn-small" onclick="deactivateArticle(${node.id})">🗑️ Удалить</button>
                 </td>
             </tr>
         `;
@@ -305,7 +288,7 @@ async function createArticle(event) {
         name: formData.get('name'),
         type: formData.get('type'),
         parent_id: formData.get('parent_id') ? parseInt(formData.get('parent_id')) : null,
-        is_global: formData.get('is_global') === 'on'
+        is_global: true  // All articles are now global by default
     };
 
     try {
@@ -325,10 +308,10 @@ async function createArticle(event) {
         // Success
         closeCreateModal();
         await loadArticles();
-        showNotification('Article created successfully', 'success');
+        showNotification('✅ Категория успешно создана!', 'success');
     } catch (error) {
         console.error('Error creating article:', error);
-        showNotification(`Failed: ${error.message}`, 'error');
+        showNotification(`❌ Ошибка: ${error.message}`, 'error');
     }
 }
 
@@ -379,16 +362,16 @@ async function updateArticle(event) {
         // Success
         closeEditModal();
         await loadArticles();
-        showNotification('Article updated successfully', 'success');
+        showNotification('✅ Категория успешно обновлена!', 'success');
     } catch (error) {
         console.error('Error updating article:', error);
-        showNotification(`Failed: ${error.message}`, 'error');
+        showNotification(`❌ Ошибка: ${error.message}`, 'error');
     }
 }
 
 // Deactivate article
 async function deactivateArticle(articleId) {
-    if (!confirm('Are you sure you want to deactivate this article? This will close it with valid_to=NOW() (SCD Type 2).')) {
+    if (!confirm('🗑️ Вы уверены, что хотите удалить эту категорию? Она будет закрыта с valid_to=NOW() (SCD Type 2).')) {
         return;
     }
 
@@ -404,20 +387,17 @@ async function deactivateArticle(articleId) {
 
         // Success
         await loadArticles();
-        showNotification('Article deactivated successfully', 'success');
+        showNotification('✅ Категория успешно удалена!', 'success');
     } catch (error) {
         console.error('Error deactivating article:', error);
-        showNotification(`Failed: ${error.message}`, 'error');
+        showNotification(`❌ Ошибка: ${error.message}`, 'error');
     }
 }
 
 // Utility: Show notification
 function showNotification(message, type) {
-    if (type === 'error') {
-        alert('❌ ' + message);
-    } else {
-        alert('✅ ' + message);
-    }
+    // Simple alert for now - можно заменить на красивые toast уведомления
+    alert(message);
 }
 
 // Close modals when clicking outside

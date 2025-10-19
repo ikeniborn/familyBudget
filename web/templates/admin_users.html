@@ -3,28 +3,68 @@
 {% block content %}
 <div class="admin-page">
     <div class="page-header">
-        <h1>👥 User Management</h1>
-        <p class="page-description">View and manage user accounts and permissions</p>
+        <h1>👥 Управление пользователями</h1>
+        <p class="page-description">Просматривайте и управляйте учетными записями пользователей и правами доступа</p>
     </div>
 
     <!-- Stats Summary -->
     <div class="stats-grid" id="stats-container">
-        <div class="loading">Loading statistics...</div>
+        <div class="loading">⏳ Загрузка статистики...</div>
     </div>
 
     <!-- Users Table -->
     <div class="card admin-table-card">
         <div class="card-header">
-            <h2>Registered Users</h2>
+            <h2>👤 Зарегистрированные пользователи</h2>
             <div class="table-actions">
-                <button class="filter-btn active" id="filter-current" onclick="toggleUserFilter('current')">Current Only</button>
-                <button class="filter-btn" id="filter-all" onclick="toggleUserFilter('all')">All History</button>
+                <button class="filter-btn active" id="filter-current" onclick="toggleUserFilter('current')">✅ Текущие</button>
+                <button class="filter-btn" id="filter-all" onclick="toggleUserFilter('all')">📜 Вся история</button>
+                <button class="btn-primary btn-small" onclick="showCreateModal()">➕ Добавить пользователя</button>
             </div>
         </div>
 
         <div id="users-table-container">
-            <div class="loading">Loading users...</div>
+            <div class="loading">⏳ Загрузка пользователей...</div>
         </div>
+    </div>
+</div>
+
+<!-- Create User Modal -->
+<div id="create-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>✨ Добавить нового пользователя</h3>
+            <span class="modal-close" onclick="closeCreateModal()">&times;</span>
+        </div>
+        <form id="create-form" onsubmit="createUser(event)">
+            <div class="form-group">
+                <label for="create-telegram-id">📱 Telegram ID*</label>
+                <input type="number" id="create-telegram-id" name="telegram_id" required placeholder="Введите Telegram ID">
+                <small>Числовой ID пользователя в Telegram</small>
+            </div>
+            <div class="form-group">
+                <label for="create-username">👤 Username</label>
+                <input type="text" id="create-username" name="username" maxlength="255" placeholder="@username (необязательно)">
+            </div>
+            <div class="form-group">
+                <label for="create-first-name">📝 Имя</label>
+                <input type="text" id="create-first-name" name="first_name" maxlength="255" placeholder="Введите имя">
+            </div>
+            <div class="form-group">
+                <label for="create-last-name">📝 Фамилия</label>
+                <input type="text" id="create-last-name" name="last_name" maxlength="255" placeholder="Введите фамилию">
+            </div>
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="create-is-admin" name="is_admin">
+                    🔑 Администратор
+                </label>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeCreateModal()">❌ Отмена</button>
+                <button type="submit" class="btn-primary">✅ Создать</button>
+            </div>
+        </form>
     </div>
 </div>
 {% endblock %}
@@ -57,7 +97,7 @@ function toggleUserFilter(filter) {
 // Load users from API
 async function loadUsers() {
     const container = document.getElementById('users-table-container');
-    container.innerHTML = '<div class="loading">Loading users...</div>';
+    container.innerHTML = '<div class="loading">⏳ Загрузка пользователей...</div>';
 
     try {
         const isCurrent = currentFilter === 'current';
@@ -71,7 +111,7 @@ async function loadUsers() {
         renderUsersTable(users);
     } catch (error) {
         console.error('Error loading users:', error);
-        container.innerHTML = `<div class="error-message">Failed to load users: ${error.message}</div>`;
+        container.innerHTML = `<div class="error-message">❌ Ошибка загрузки пользователей: ${error.message}</div>`;
     }
 }
 
@@ -80,7 +120,7 @@ function renderUsersTable(users) {
     const container = document.getElementById('users-table-container');
 
     if (users.length === 0) {
-        container.innerHTML = '<p class="info-text">No users found</p>';
+        container.innerHTML = '<p class="info-text">👤 Пользователи не найдены</p>';
         return;
     }
 
@@ -89,14 +129,14 @@ function renderUsersTable(users) {
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>Telegram ID</th>
-                        <th>Username</th>
-                        <th>Name</th>
-                        <th>Role</th>
-                        <th>Status</th>
-                        <th>Valid From</th>
-                        <th>Valid To</th>
-                        <th>Actions</th>
+                        <th>📱 Telegram ID</th>
+                        <th>👤 Username</th>
+                        <th>📝 Имя</th>
+                        <th>🔑 Роль</th>
+                        <th>✅ Статус</th>
+                        <th>📅 Создан</th>
+                        <th>📅 Закрыт</th>
+                        <th>⚙️ Действия</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -104,8 +144,8 @@ function renderUsersTable(users) {
 
     users.forEach(user => {
         const displayName = user.first_name || user.username || `User ${user.telegram_id}`;
-        const roleLabel = user.is_admin ? '<span class="badge admin">Admin</span>' : '<span class="badge user">User</span>';
-        const statusLabel = user.is_current ? '<span class="badge success">Current</span>' : '<span class="badge inactive">Historical</span>';
+        const roleLabel = user.is_admin ? '<span class="badge admin">🔑 Админ</span>' : '<span class="badge user">👤 Пользователь</span>';
+        const statusLabel = user.is_current ? '<span class="badge success">✅ Активен</span>' : '<span class="badge inactive">📜 История</span>';
         const validFrom = formatDate(user.valid_from);
         const validTo = user.valid_to ? formatDate(user.valid_to) : '—';
 
@@ -137,15 +177,16 @@ function renderUsersTable(users) {
 // Render action buttons for user
 function renderActions(user) {
     if (user.is_admin) {
-        return `<button class="btn-secondary btn-small" onclick="toggleAdmin(${user.id}, false)">Revoke Admin</button>`;
+        return `<button class="btn-secondary btn-small" onclick="toggleAdmin(${user.id}, false)">🔓 Снять админа</button>`;
     } else {
-        return `<button class="btn-primary btn-small" onclick="toggleAdmin(${user.id}, true)">Grant Admin</button>`;
+        return `<button class="btn-primary btn-small" onclick="toggleAdmin(${user.id}, true)">🔑 Сделать админом</button>`;
     }
 }
 
 // Toggle admin privileges
 async function toggleAdmin(userId, makeAdmin) {
-    if (!confirm(`Are you sure you want to ${makeAdmin ? 'grant' : 'revoke'} admin privileges?`)) {
+    const action = makeAdmin ? 'выдать' : 'забрать';
+    if (!confirm(`🔑 Вы уверены, что хотите ${action} права администратора?`)) {
         return;
     }
 
@@ -170,10 +211,60 @@ async function toggleAdmin(userId, makeAdmin) {
         await loadStats();
 
         // Show success message
-        showNotification(`Admin privileges ${makeAdmin ? 'granted' : 'revoked'} successfully`, 'success');
+        const message = makeAdmin ? '✅ Права администратора выданы!' : '✅ Права администратора сняты!';
+        showNotification(message, 'success');
     } catch (error) {
         console.error('Error toggling admin:', error);
-        showNotification(`Failed: ${error.message}`, 'error');
+        showNotification(`❌ Ошибка: ${error.message}`, 'error');
+    }
+}
+
+// Show create modal
+function showCreateModal() {
+    document.getElementById('create-modal').style.display = 'block';
+}
+
+// Close create modal
+function closeCreateModal() {
+    document.getElementById('create-modal').style.display = 'none';
+    document.getElementById('create-form').reset();
+}
+
+// Create user
+async function createUser(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const data = {
+        telegram_id: parseInt(formData.get('telegram_id')),
+        username: formData.get('username') || null,
+        first_name: formData.get('first_name') || null,
+        last_name: formData.get('last_name') || null,
+        is_admin: formData.get('is_admin') === 'on'
+    };
+
+    try {
+        const response = await fetch('/api/v1/admin/users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success
+        closeCreateModal();
+        await loadUsers();
+        await loadStats();
+        showNotification('✅ Пользователь успешно создан!', 'success');
+    } catch (error) {
+        console.error('Error creating user:', error);
+        showNotification(`❌ Ошибка: ${error.message}`, 'error');
     }
 }
 
@@ -192,7 +283,7 @@ async function loadStats() {
         renderStats(stats);
     } catch (error) {
         console.error('Error loading stats:', error);
-        container.innerHTML = `<div class="error-message">Failed to load statistics</div>`;
+        container.innerHTML = `<div class="error-message">❌ Ошибка загрузки статистики</div>`;
     }
 }
 
@@ -210,28 +301,28 @@ function renderStats(stats) {
             <div class="stat-icon">👥</div>
             <div class="stat-content">
                 <div class="stat-value">${totalUsers}</div>
-                <div class="stat-label">Total Users</div>
+                <div class="stat-label">Всего пользователей</div>
             </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon">✅</div>
             <div class="stat-content">
                 <div class="stat-value">${activeUsers}</div>
-                <div class="stat-label">Active Users</div>
+                <div class="stat-label">Активных</div>
             </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon">📝</div>
             <div class="stat-content">
                 <div class="stat-value">${totalFacts}</div>
-                <div class="stat-label">Total Facts</div>
+                <div class="stat-label">Всего транзакций</div>
             </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon">📁</div>
             <div class="stat-content">
                 <div class="stat-value">${totalArticles}</div>
-                <div class="stat-label">Total Articles</div>
+                <div class="stat-label">Всего категорий</div>
             </div>
         </div>
     `;
@@ -245,11 +336,14 @@ function formatDate(isoString) {
 
 // Utility: Show notification
 function showNotification(message, type) {
-    // Simple alert for now - can be replaced with toast notification
-    if (type === 'error') {
-        alert('❌ ' + message);
-    } else {
-        alert('✅ ' + message);
+    // Simple alert for now - можно заменить на красивые toast уведомления
+    alert(message);
+}
+
+// Close modals when clicking outside
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
     }
 }
 </script>

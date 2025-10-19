@@ -28,6 +28,7 @@ from backend.app.models.user import User
 from backend.app.schemas import get_common_responses
 from backend.app.schemas.auth import UserResponse
 from backend.app.schemas.user import (
+    UserCreate,
     UserDetailResponse,
     UserListResponse,
     UserUpdate,
@@ -150,6 +151,75 @@ async def get_user(
         )
 
     return user
+
+
+@router.post(
+    "",
+    response_model=UserDetailResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses=get_common_responses(include_403=True, include_409=True),
+)
+async def create_user(
+    user_data: UserCreate,
+    admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session),
+) -> User:
+    """
+    Create a new user (admin only).
+
+    **Admin Only:** Only admin users can manually create users.
+
+    **SCD Type 2 Behavior:**
+    - Creates initial version with is_current=True
+    - valid_from=now(), valid_to=9999-12-31
+
+    **Use Cases:**
+    - Pre-register users before Telegram OAuth
+    - Testing and development
+    - Manual user creation
+
+    **Returns:**
+    - 201 Created: User successfully created
+    - 403 Forbidden: User is not admin
+    - 409 Conflict: User with this telegram_id already exists
+    """
+    # Check if user with this telegram_id already exists
+    statement = select(User).where(
+        User.telegram_id == user_data.telegram_id,
+        User.is_current == True  # noqa: E712
+    )
+    result = await session.execute(statement)
+    existing_user = result.scalar_one_or_none()
+
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"User with telegram_id={user_data.telegram_id} "
+                "already exists"
+            )
+        )
+
+    # Create new user (initial SCD Type 2 version)
+    now = datetime.utcnow()
+    new_user = User(
+        telegram_id=user_data.telegram_id,
+        username=user_data.username,
+        first_name=user_data.first_name,
+        last_name=user_data.last_name,
+        is_admin=user_data.is_admin,
+        valid_from=now,
+        valid_to=datetime(9999, 12, 31, 23, 59, 59),
+        is_current=True,
+        created_at=now,
+        updated_at=now,
+    )
+
+    session.add(new_user)
+    await session.commit()
+    await session.refresh(new_user)
+
+    return new_user
 
 
 @router.put(
