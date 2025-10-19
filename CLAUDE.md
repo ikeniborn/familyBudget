@@ -13,6 +13,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **[System Architecture](docs/prd/03-system-architecture.md)** - Detailed architecture documentation
 - **[Functional Requirements](docs/prd/04-functional-requirements.md)** - 21 functional requirements with acceptance criteria
 
+## ⚠️ ВАЖНО: Деплой только на удаленном сервере
+
+**КРИТИЧЕСКОЕ ПРАВИЛО:**
+- ✅ **Деплой и установка производятся ТОЛЬКО на удаленном сервере**
+- ❌ **НЕ запускайте** `./install.sh`, `./setup.sh`, `./deploy.sh` **локально**
+- ✅ **Правильный workflow:** commit → push → на сервере: `git pull && ./deploy.sh --build`
+
+**Локальная разработка:**
+- ✅ Используйте `uvicorn backend.app.main:app --reload` для backend
+- ✅ Используйте `pytest` для тестирования
+- ✅ Используйте `black`, `ruff` для code quality
+- ❌ **НЕ запускайте Docker деплой локально**
+
+**Причина:**
+- Deployment scripts настроены для production окружения (Linux server, systemd, UFW firewall)
+- Локальный запуск может привести к конфликтам портов и некорректной конфигурации
+- `.env` файл генерируется на сервере с production настройками
+
 ## Development Commands
 
 ### Local Development

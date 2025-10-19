@@ -227,9 +227,11 @@ app.add_exception_handler(Exception, generic_exception_handler)
 
 
 # Configure static files and templates
-BASE_DIR = Path(__file__).resolve().parent.parent.parent  # familyBudget root
-STATIC_DIR = BASE_DIR / "web" / "static"
-TEMPLATES_DIR = BASE_DIR / "web" / "templates"
+# In Docker container: __file__ = /app/backend/app/main.py
+# parent = /app/backend/app → parent = /app/backend → parent = /app
+BASE_DIR = Path(__file__).resolve().parent.parent.parent  # /app in Docker
+STATIC_DIR = BASE_DIR / "web" / "static"  # /app/web/static
+TEMPLATES_DIR = BASE_DIR / "web" / "templates"  # /app/web/templates
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

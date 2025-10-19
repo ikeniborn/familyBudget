@@ -18,6 +18,7 @@ from typing import Optional
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from backend.app.core.config import get_settings
 from backend.app.models.user import User
 
 
@@ -76,12 +77,16 @@ async def get_or_create_user(
 
     # Step 2: If user doesn't exist, create new
     if existing_user is None:
+        # Check if user is admin (compare telegram_id with ADMIN_TELEGRAM_ID from settings)
+        settings = get_settings()
+        is_admin = (telegram_id == settings.ADMIN_TELEGRAM_ID)
+
         new_user = User(
             telegram_id=telegram_id,
             username=username,
             first_name=first_name,
             last_name=last_name,
-            is_admin=False,  # Default to non-admin
+            is_admin=is_admin,  # Auto-detect admin based on ADMIN_TELEGRAM_ID
             valid_from=datetime.utcnow(),
             valid_to=datetime(9999, 12, 31, 23, 59, 59),
             is_current=True,
@@ -116,13 +121,17 @@ async def get_or_create_user(
     existing_user.updated_at = now
     session.add(existing_user)
 
+    # Check if user is admin (in case ADMIN_TELEGRAM_ID changed in settings)
+    settings = get_settings()
+    is_admin = (telegram_id == settings.ADMIN_TELEGRAM_ID)
+
     # Create new version
     new_version = User(
         telegram_id=telegram_id,
         username=username,
         first_name=first_name,
         last_name=last_name,
-        is_admin=existing_user.is_admin,  # Preserve admin status
+        is_admin=is_admin,  # Re-check admin status against current settings
         valid_from=now,
         valid_to=datetime(9999, 12, 31, 23, 59, 59),
         is_current=True,
