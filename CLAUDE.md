@@ -352,6 +352,45 @@ API Client автоматически повторяет запросы (3 по�
 
 ## Deployment и конфигурация
 
+### Правильный Workflow
+
+#### Первоначальная установка:
+```bash
+# На сервере
+git clone https://github.com/user/familyBudget.git ~/familyBudget
+cd ~/familyBudget
+
+sudo ./install.sh     # Один раз - зависимости
+./setup.sh            # Копирует в /opt/budget + настраивает .env
+./deploy.sh           # Запускает контейнеры из /opt/budget
+```
+
+#### Обновление кода:
+```bash
+cd ~/familyBudget     # Репозиторий (НЕ /opt/budget!)
+git pull
+./setup.sh            # Синхронизирует код в /opt/budget
+./deploy.sh           # Пересобирает и перезапускает
+```
+
+#### Изменение только конфигурации (.env):
+```bash
+cd /opt/budget        # В этом случае можно из deployment
+nano .env             # Ручное редактирование
+./deploy.sh           # Применить
+# Или:
+cd ~/familyBudget
+./setup.sh            # Интерактивная настройка
+./deploy.sh
+```
+
+**ВАЖНО:**
+- setup.sh копирует файлы только если `REPO_DIR != DEPLOY_DIR`
+- deploy.sh всегда работает с `/opt/budget` независимо от того откуда запущен
+- При запуске setup.sh из `/opt/budget` файлы НЕ обновятся (source = destination)
+
+---
+
 ### Три скрипта деплоя
 
 1. **install.sh** - Установка системных зависимостей (Docker, UFW, утилиты)
@@ -359,17 +398,17 @@ API Client автоматически повторяет запросы (3 по�
    sudo ./install.sh
    ```
 
-2. **setup.sh** - Интерактивная настройка окружения
+2. **setup.sh** - Синхронизация репозиторий → /opt/budget + настройка .env
    ```bash
+   # Запускать из репозитория (~/familyBudget), НЕ из /opt/budget!
    ./setup.sh
-   # Создает .env файл с паролями, токенами, настройками
    ```
 
-3. **deploy.sh** - Деплой приложения
+3. **deploy.sh** - Деплой приложения из /opt/budget
    ```bash
+   # Можно запускать откуда угодно - всегда работает с /opt/budget
    ./deploy.sh                  # Basic profile (postgres + backend)
    ./deploy.sh --profile full   # Full profile (+ bot + nginx + ssl)
-   ./deploy.sh --build          # Rebuild images
    ./deploy.sh --clean          # Clean restart (DELETES DATA!)
    ```
 

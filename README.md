@@ -231,11 +231,26 @@ docker ps
 
 ### Step 2: Application Configuration (`setup.sh`)
 
-This script provides an interactive configuration wizard.
+This script copies source code to `/opt/budget` and provides interactive configuration.
+
+**IMPORTANT:** Run setup.sh from your git repository directory (NOT from /opt/budget).
 
 ```bash
+# Clone repository to your preferred location
+git clone https://github.com/yourusername/familyBudget.git ~/familyBudget
+cd ~/familyBudget
+
+# Run setup from repository
 ./setup.sh
 ```
+
+**What it does:**
+- ✅ Copies source code from repository to `/opt/budget`
+- ✅ Creates `.env` file with configuration
+- ✅ Generates secure passwords and JWT secrets
+- ✅ Configures PostgreSQL access and firewall (UFW)
+- ✅ Optionally configures domain and SSL
+- ✅ Validates Telegram bot token
 
 **What it configures:**
 
@@ -297,14 +312,20 @@ Enable PostgreSQL external access? [y/N]: n
 
 **Duration:** 2-5 minutes
 
+**Note:** deploy.sh can be run from anywhere - it always deploys from `/opt/budget`
+
 ---
 
 ### Step 3: Application Deployment (`deploy.sh`)
 
-This script deploys and starts all services.
+This script deploys and starts all services from `/opt/budget`.
+
+**Note:** Can be run from repository or from `/opt/budget` - always deploys from `/opt/budget`.
 
 ```bash
 ./deploy.sh
+# Or with full profile (includes nginx, bot, certbot)
+./deploy.sh --profile full
 ```
 
 **What it does:**

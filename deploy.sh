@@ -181,6 +181,20 @@ check_prerequisites() {
         error "Docker daemon is not running. Please start Docker service."
     fi
 
+    # Check deployment directory structure
+    if [[ ! -d "$DEPLOY_DIR" ]]; then
+        error "Deployment directory $DEPLOY_DIR does not exist."
+        echo ""
+        echo "Have you run setup.sh yet?"
+        echo ""
+        echo "Expected workflow:"
+        echo "  1. git clone/pull repository to your preferred location (e.g., ~/familyBudget)"
+        echo "  2. cd ~/familyBudget"
+        echo "  3. ./setup.sh    # Copies code to $DEPLOY_DIR + configures .env"
+        echo "  4. ./deploy.sh   # Deploys from $DEPLOY_DIR (can be run from anywhere)"
+        exit 1
+    fi
+
     # Check if .env file exists
     if [[ ! -f "$DEPLOY_DIR/.env" ]]; then
         error ".env file not found in $DEPLOY_DIR. Please run setup.sh or copy from .env.example"
@@ -189,6 +203,13 @@ check_prerequisites() {
     # Check if docker-compose.yml exists
     if [[ ! -f "$DEPLOY_DIR/docker-compose.yml" ]]; then
         error "docker-compose.yml not found in $DEPLOY_DIR"
+        echo ""
+        echo "This file should have been copied by setup.sh."
+        echo ""
+        echo "To fix:"
+        echo "  cd ~/familyBudget  # Your git repository directory"
+        echo "  ./setup.sh         # This will copy files to $DEPLOY_DIR"
+        exit 1
     fi
 
     # Check required directories
@@ -199,6 +220,14 @@ check_prerequisites() {
             mkdir -p "$DEPLOY_DIR/$dir"
         fi
     done
+
+    # Inform about deployment source
+    if [[ "$SCRIPT_DIR" == "$DEPLOY_DIR" ]]; then
+        info "deploy.sh running from deployment directory ($DEPLOY_DIR)"
+    else
+        info "deploy.sh running from: $SCRIPT_DIR"
+        info "Will deploy from: $DEPLOY_DIR"
+    fi
 
     success "Prerequisites check passed"
 }

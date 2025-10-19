@@ -237,6 +237,25 @@ cleanup_deploy_dir() {
 copy_source_to_deploy() {
     section "Copying Source Code to Deployment Directory"
 
+    # Check if source and destination are the same
+    if [[ "$REPO_DIR" == "$DEPLOY_DIR" ]]; then
+        warning "Already in deployment directory ($DEPLOY_DIR)"
+        warning "Cannot copy from deployment directory to itself"
+        echo ""
+        info "If you want to update code:"
+        echo "  1. Clone/pull repository to separate directory (e.g., ~/familyBudget)"
+        echo "  2. Run setup.sh from repository directory"
+        echo ""
+        info "Expected workflow:"
+        echo "  cd ~/familyBudget    # Your git repository"
+        echo "  git pull             # Get latest changes"
+        echo "  ./setup.sh           # Sync to /opt/budget + configure"
+        echo "  ./deploy.sh          # Deploy from /opt/budget"
+        echo ""
+        info "For now: Skipping file copy, will only update .env configuration"
+        return 0
+    fi
+
     info "Copying from: $REPO_DIR"
     info "Copying to:   $DEPLOY_DIR"
     echo ""
