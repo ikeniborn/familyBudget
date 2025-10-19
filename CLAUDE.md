@@ -361,33 +361,33 @@ git clone https://github.com/user/familyBudget.git ~/familyBudget
 cd ~/familyBudget
 
 sudo ./install.sh     # Один раз - зависимости
-./setup.sh            # Копирует в /opt/budget + настраивает .env
-./deploy.sh           # Запускает контейнеры из /opt/budget
+./setup.sh            # Настраивает .env в /opt/budget
+./deploy.sh           # Синхронизирует код + запускает контейнеры
 ```
 
 #### Обновление кода:
 ```bash
-cd ~/familyBudget     # Репозиторий (НЕ /opt/budget!)
+cd ~/familyBudget     # Репозиторий
 git pull
-./setup.sh            # Синхронизирует код в /opt/budget
-./deploy.sh           # Пересобирает и перезапускает
+./deploy.sh           # Автоматически синхронизирует в /opt/budget + деплоит
 ```
 
 #### Изменение только конфигурации (.env):
 ```bash
-cd /opt/budget        # В этом случае можно из deployment
+cd /opt/budget        # Deployment директория
 nano .env             # Ручное редактирование
-./deploy.sh           # Применить
+./deploy.sh --sync-mode skip  # Деплой без синхронизации кода
 # Или:
 cd ~/familyBudget
-./setup.sh            # Интерактивная настройка
-./deploy.sh
+./setup.sh            # Интерактивная перенастройка .env
+./deploy.sh --sync-mode skip
 ```
 
 **ВАЖНО:**
-- setup.sh копирует файлы только если `REPO_DIR != DEPLOY_DIR`
-- deploy.sh всегда работает с `/opt/budget` независимо от того откуда запущен
-- При запуске setup.sh из `/opt/budget` файлы НЕ обновятся (source = destination)
+- setup.sh - ТОЛЬКО настройка .env и конфигураций (больше НЕ копирует код)
+- deploy.sh - синхронизация кода из репозитория в /opt/budget + деплой
+- deploy.sh автоматически определяет репозиторий (текущая директория или ~/familyBudget)
+- Можно запускать deploy.sh откуда угодно - он найдет репозиторий и синхронизирует
 
 ---
 
@@ -398,19 +398,32 @@ cd ~/familyBudget
    sudo ./install.sh
    ```
 
-2. **setup.sh** - Синхронизация репозиторий → /opt/budget + настройка .env
+2. **setup.sh** - Настройка .env и конфигураций (НЕ копирует код!)
    ```bash
-   # Запускать из репозитория (~/familyBudget), НЕ из /opt/budget!
-   ./setup.sh
+   ./setup.sh                   # Можно запускать откуда угодно
    ```
 
-3. **deploy.sh** - Деплой приложения из /opt/budget
+   Что делает:
+   - Создает/обновляет .env файл в /opt/budget
+   - Генерирует секреты (JWT_SECRET, passwords)
+   - Настраивает UFW firewall для PostgreSQL
+   - Генерирует nginx конфигурацию (для full profile)
+
+3. **deploy.sh** - Синхронизация кода + деплой приложения
    ```bash
-   # Можно запускать откуда угодно - всегда работает с /opt/budget
-   ./deploy.sh                  # Basic profile (postgres + backend)
-   ./deploy.sh --profile full   # Full profile (+ bot + nginx + ssl)
-   ./deploy.sh --clean          # Clean restart (DELETES DATA!)
+   ./deploy.sh                           # Интерактивный выбор режима синхронизации
+   ./deploy.sh --sync-mode mirror        # Зеркало (rsync --delete)
+   ./deploy.sh --sync-mode update        # Только обновление
+   ./deploy.sh --sync-mode clean         # Полная очистка + копирование
+   ./deploy.sh --sync-mode skip          # Деплой без синхронизации кода
+   ./deploy.sh --repo-dir ~/myrepo       # Указать путь к репозиторию
    ```
+
+   Режимы синхронизации:
+   - **mirror** (рекомендуется): rsync --delete, защищены .env, backups/, data/, logs/
+   - **update**: только обновление/добавление файлов (старые не удаляются)
+   - **clean**: удаляет ВСЁ кроме .env и backups/, затем копирует из репозитория
+   - **skip**: деплой без синхронизации кода (использует текущий код в /opt/budget)
 
 ### Переменные окружения (.env)
 

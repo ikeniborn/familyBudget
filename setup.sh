@@ -3,12 +3,15 @@
 # Family Budget - Interactive Setup Script
 #
 # This script provides interactive configuration for Family Budget application:
-# - Creates .env file from template
+# - Creates .env file from template in /opt/budget
 # - Generates secure secrets (JWT_SECRET, passwords)
 # - Prompts for required configuration (Telegram bot token, admin ID)
 # - Configures UFW firewall with IP restriction for PostgreSQL (CRITICAL SECURITY)
+# - Generates nginx configuration (for full profile)
 # - Validates configuration
 # - Optionally builds Docker images
+#
+# NOTE: This script does NOT copy source code. Use deploy.sh for code synchronization.
 #
 # Usage:
 #   ./setup.sh [OPTIONS]
@@ -24,8 +27,8 @@
 #   to a specific IP address. This is CRITICAL for production security.
 #
 # Author: Family Budget Team
-# Version: 1.0.0
-# Date: 2025-10-14
+# Version: 2.0.0
+# Date: 2025-10-19
 #
 
 set -e  # Exit on error
@@ -57,7 +60,6 @@ NC='\033[0m' # No Color
 NON_INTERACTIVE=false
 SKIP_UFW=false
 SKIP_BUILD=false
-CLEAN_DEPLOY=false
 
 # Configuration values (will be populated)
 declare -A CONFIG
@@ -113,14 +115,13 @@ command_exists() {
 }
 
 # =============================================================================
-# DEPLOYMENT DIRECTORY MANAGEMENT
+# DEPLOYMENT DIRECTORY VALIDATION
 # =============================================================================
 
-# Check and prepare deployment directory
+# Check that deployment directory exists and is writable
 check_deploy_dir() {
     section "Checking Deployment Directory"
 
-    info "Repository directory: $REPO_DIR"
     info "Deployment directory: $DEPLOY_DIR"
     echo ""
 
@@ -144,147 +145,16 @@ check_deploy_dir() {
         exit 1
     fi
 
-    success "Deployment directory OK: $DEPLOY_DIR"
-}
-
-# Interactive cleanup of deployment directory
-cleanup_deploy_dir() {
-    if [[ "$CLEAN_DEPLOY" != "true" ]]; then
-        return 0
-    fi
-
-    section "Clean Deployment (DESTRUCTIVE)"
-
-    echo ""
-    warning "This will DELETE all data in $DEPLOY_DIR"
-    echo ""
-    echo "What will be deleted:"
-    echo "  ✗ .env file (secrets will be lost!)"
-    echo "  ✗ data/postgres/ (DATABASE WILL BE LOST!)"
-    echo "  ✗ logs/"
-    echo "  ✗ backups/"
-    echo ""
-    echo "What will be preserved:"
-    echo "  ✓ Docker volumes (unless you also run: docker compose down -v)"
-    echo "  ✓ Source code in repository: $REPO_DIR"
-    echo ""
-
-    # Interactive menu for cleanup
-    echo "Choose cleanup option:"
-    echo "  [1] Cancel (do nothing)"
-    echo "  [2] Backup old files to $DEPLOY_DIR.backup.$(date +%Y%m%d_%H%M%S)"
-    echo "  [3] Delete without backup (DANGEROUS!)"
-    echo ""
-
-    local choice
-    read -p "Select [1-3]: " choice
-
-    case "$choice" in
-        1)
-            info "Cleanup cancelled"
-            CLEAN_DEPLOY=false
-            return 0
-            ;;
-        2)
-            local backup_dir="$DEPLOY_DIR.backup.$(date +%Y%m%d_%H%M%S)"
-            info "Creating backup: $backup_dir"
-
-            # Create backup
-            sudo cp -a "$DEPLOY_DIR" "$backup_dir" || error "Failed to create backup"
-
-            # List what will be in backup
-            success "Backup created: $backup_dir"
-            info "Backup contains:"
-            du -sh "$backup_dir"/.env "$backup_dir"/data "$backup_dir"/logs "$backup_dir"/backups 2>/dev/null || true
-
-            # Now clean
-            info "Cleaning deployment directory..."
-            sudo rm -rf "$DEPLOY_DIR"/.env
-            sudo rm -rf "$DEPLOY_DIR"/data/*
-            sudo rm -rf "$DEPLOY_DIR"/logs/*
-            sudo rm -rf "$DEPLOY_DIR"/backups/*
-
-            success "Deployment directory cleaned (backup preserved)"
-            ;;
-        3)
-            echo ""
-            warning "You selected: Delete without backup"
-            read -p "Type 'DELETE' to confirm (all caps): " confirm
-
-            if [[ "$confirm" == "DELETE" ]]; then
-                info "Cleaning deployment directory..."
-                sudo rm -rf "$DEPLOY_DIR"/.env
-                sudo rm -rf "$DEPLOY_DIR"/data/*
-                sudo rm -rf "$DEPLOY_DIR"/logs/*
-                sudo rm -rf "$DEPLOY_DIR"/backups/*
-
-                success "Deployment directory cleaned (NO BACKUP!)"
-            else
-                info "Cleanup cancelled (confirmation failed)"
-                CLEAN_DEPLOY=false
-                return 0
-            fi
-            ;;
-        *)
-            error "Invalid choice. Cleanup cancelled."
-            CLEAN_DEPLOY=false
-            return 0
-            ;;
-    esac
-}
-
-# Copy source code to deployment directory
-copy_source_to_deploy() {
-    section "Copying Source Code to Deployment Directory"
-
-    # Check if source and destination are the same
-    if [[ "$REPO_DIR" == "$DEPLOY_DIR" ]]; then
-        warning "Already in deployment directory ($DEPLOY_DIR)"
-        warning "Cannot copy from deployment directory to itself"
-        echo ""
-        info "If you want to update code:"
-        echo "  1. Clone/pull repository to separate directory (e.g., ~/familyBudget)"
-        echo "  2. Run setup.sh from repository directory"
-        echo ""
-        info "Expected workflow:"
-        echo "  cd ~/familyBudget    # Your git repository"
-        echo "  git pull             # Get latest changes"
-        echo "  ./setup.sh           # Sync to /opt/budget + configure"
-        echo "  ./deploy.sh          # Deploy from /opt/budget"
-        echo ""
-        info "For now: Skipping file copy, will only update .env configuration"
-        return 0
-    fi
-
-    info "Copying from: $REPO_DIR"
-    info "Copying to:   $DEPLOY_DIR"
-    echo ""
-
-    # List of directories/files to copy
-    local items=(
-        "backend"
-        "bot"
-        "nginx"
-        "web"
-        "scripts"
-        "docker-compose.yml"
-        ".env.example"
-    )
-
-    # Copy each item
-    for item in "${items[@]}"; do
-        if [[ -e "$REPO_DIR/$item" ]]; then
-            info "Copying $item..."
-            cp -r "$REPO_DIR/$item" "$DEPLOY_DIR/" || error "Failed to copy $item"
-        else
-            warning "Item not found: $item (skipping)"
+    # Ensure required subdirectories exist
+    local required_dirs=("data" "backups" "logs" "nginx/conf.d")
+    for dir in "${required_dirs[@]}"; do
+        if [[ ! -d "$DEPLOY_DIR/$dir" ]]; then
+            info "Creating directory: $DEPLOY_DIR/$dir"
+            mkdir -p "$DEPLOY_DIR/$dir" || error "Failed to create directory: $dir"
         fi
     done
 
-    success "Source code copied to $DEPLOY_DIR"
-    echo ""
-    info "Deployment directory now contains:"
-    ls -1 "$DEPLOY_DIR" | head -10
+    success "Deployment directory OK: $DEPLOY_DIR"
 }
 
 # Print help message
@@ -300,24 +170,31 @@ Options:
   -y, --yes               Accept all defaults (non-interactive)
   --skip-ufw              Skip UFW configuration
   --skip-build            Skip Docker image building
-  --clean                 Clean deployment directory before setup (interactive menu)
 
-Workflow:
-  1. Copies source code from repository to $DEPLOY_DIR (except deploy.sh)
-  2. Creates .env configuration file in $DEPLOY_DIR
+What this script does:
+  1. Creates .env configuration file in $DEPLOY_DIR
+  2. Generates secure secrets (JWT_SECRET, passwords)
   3. Generates nginx config (if full profile)
   4. Configures UFW firewall (if PostgreSQL external access enabled)
   5. Optionally builds Docker images
 
-After setup, run deploy.sh from repository directory ($REPO_DIR)
+NOTE: This script does NOT copy source code.
+      Use deploy.sh for code synchronization and deployment.
+
+Recommended Workflow:
+  1. sudo ./install.sh              # One-time: system dependencies
+  2. ./setup.sh                     # Configure .env and secrets
+  3. ./deploy.sh                    # Sync code + deploy containers
 
 Interactive Prompts:
   - PostgreSQL password (or auto-generate)
   - JWT secret key (auto-generated)
   - Telegram bot token
   - Admin Telegram ID
-  - Domain name (optional)
+  - Deployment profile (basic/full)
+  - Domain name (for full profile)
   - PostgreSQL external access (with IP restriction)
+  - S3 backup configuration (optional)
 
 UFW Configuration (CRITICAL SECURITY):
   If PostgreSQL external access is enabled, this script configures
@@ -332,18 +209,12 @@ UFW Configuration (CRITICAL SECURITY):
 
   This prevents unauthorized access to your database!
 
-Deployment Structure:
-  - Repository: source code (git pull updates here)
-  - Deployment: $DEPLOY_DIR (running application)
-  - All runtime files (.env, data, logs) are in $DEPLOY_DIR
-  - Repository stays clean (no git conflicts)
-
 Prerequisites:
   - Docker and Docker Compose installed (run install.sh)
   - UFW firewall enabled (install.sh does this)
   - Deployment directory created: sudo ./install.sh
 
-For more information, see TASK-061_COMPLETION.md
+For more information, see CLAUDE.md
 EOF
 }
 
@@ -1228,7 +1099,7 @@ print_final_instructions() {
     print_message "$GREEN" "           Family Budget - Setup Complete!"
     echo "========================================================================"
     echo ""
-    echo "✅ Configuration file created: .env"
+    echo "✅ Configuration file created: $DEPLOY_DIR/.env"
     echo "✅ Secrets generated securely"
     echo "✅ Deployment profile: ${CONFIG[DEPLOYMENT_PROFILE]}"
 
@@ -1249,13 +1120,11 @@ print_final_instructions() {
     echo "  1. Review configuration:"
     echo "     cat $DEPLOY_DIR/.env"
     echo ""
-    echo "  2. Deploy the application (from repository):"
-    echo "     cd $REPO_DIR"
-    if [[ "${CONFIG[DEPLOYMENT_PROFILE]}" == "full" ]]; then
-        echo "     ./deploy.sh --profile full"
-    else
-        echo "     ./deploy.sh"
-    fi
+    echo "  2. Deploy the application:"
+    echo "     ./deploy.sh"
+    echo ""
+    echo "     NOTE: deploy.sh will automatically sync code from repository"
+    echo "           to $DEPLOY_DIR before deployment"
     echo ""
     echo "  3. Access the application:"
     if [[ "${CONFIG[DEPLOYMENT_PROFILE]}" == "full" && "${CONFIG[SSL_TYPE]}" == "letsencrypt" ]]; then
@@ -1281,7 +1150,7 @@ print_final_instructions() {
     fi
 
     echo "Security reminders:"
-    echo "  • .env file permissions: 600 (owner read/write only)"
+    echo "  • .env file permissions: 640 (owner read/write, group read)"
     echo "  • Never commit .env file to git"
     echo "  • Change secrets if .env is exposed"
 
@@ -1319,10 +1188,6 @@ parse_args() {
                 SKIP_BUILD=true
                 shift
                 ;;
-            --clean)
-                CLEAN_DEPLOY=true
-                shift
-                ;;
             *)
                 error "Unknown option: $1 (use --help for usage)"
                 ;;
@@ -1344,16 +1209,8 @@ main() {
     echo "========================================================================"
     echo ""
 
-    # Check deployment directory
+    # Check deployment directory and create subdirectories
     check_deploy_dir
-    echo ""
-
-    # Optional: cleanup deployment directory
-    cleanup_deploy_dir
-    echo ""
-
-    # Copy source code to deployment directory
-    copy_source_to_deploy
     echo ""
 
     # Check prerequisites

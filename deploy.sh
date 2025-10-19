@@ -60,6 +60,8 @@ DETACH_MODE=true
 RUN_MIGRATIONS=true
 CLEAN_DEPLOY=false
 COMPOSE_PROFILE=""
+SYNC_MODE=""  # mirror|update|clean|skip (empty = interactive)
+REPO_DIR_OVERRIDE=""  # User-specified repository directory
 # Note: BUILD_IMAGES removed - now always enabled via 'docker compose up --build'
 
 # Service health check configuration
@@ -129,21 +131,35 @@ Usage:
   ./deploy.sh [OPTIONS]
 
 Options:
-  -h, --help              Show this help message
-  -d, --detach            Run in detached mode (default)
-  -f, --foreground        Run in foreground (show logs)
-  -p, --profile PROFILE   Docker Compose profile (default: none, full: all services)
-  --no-migrate            Skip database migrations
-  --clean                 Clean deployment (remove volumes) - WARNING: DELETES DATA!
+  -h, --help                      Show this help message
+  -d, --detach                    Run in detached mode (default)
+  -f, --foreground                Run in foreground (show logs)
+  -p, --profile PROFILE           Docker Compose profile (default: auto-detect from .env)
+  --no-migrate                    Skip database migrations
+  --clean                         Clean deployment (remove volumes) - WARNING: DELETES DATA!
+  --sync-mode MODE                Code sync mode: mirror|update|clean|skip (default: interactive)
+  --repo-dir PATH                 Repository directory path (default: auto-detect)
+
+Sync Modes:
+  mirror   - Full sync with --delete (removes files not in repository)
+             Protected: .env, backups/, data/, logs/, .git/
+  update   - Only update/add files (keeps old files)
+  clean    - Full cleanup + copy (DELETES everything except .env and backups/)
+  skip     - No code synchronization (use current code in /opt/budget)
 
 Examples:
-  ./deploy.sh                    # Basic deployment (postgres + backend)
-  ./deploy.sh --profile full     # Full deployment (+ nginx + bot + certbot)
-  ./deploy.sh --foreground       # Deploy and show logs
+  ./deploy.sh                            # Interactive sync mode + deploy
+  ./deploy.sh --sync-mode mirror         # Mirror sync + deploy
+  ./deploy.sh --sync-mode skip           # Deploy without code sync
+  ./deploy.sh --repo-dir ~/familyBudget  # Specify repository path
 
-Note:
-  Docker images are automatically rebuilt when code changes.
-  Docker uses layer cache for fast rebuilds (only changed layers are rebuilt).
+Workflow:
+  1. Detects repository directory (current dir, ~/familyBudget, or ask)
+  2. Syncs code from repository to /opt/budget (unless --sync-mode skip)
+  3. Builds Docker images (only changed layers)
+  4. Starts services with Docker Compose
+  5. Runs database migrations
+  6. Sets up SSL certificates (if configured)
 
 Profiles:
   none (default)   - PostgreSQL + Backend only
@@ -151,10 +167,10 @@ Profiles:
 
 Prerequisites:
   - Docker and Docker Compose installed (run install.sh)
-  - .env file configured (run setup.sh or copy from .env.example)
-  - Proper directory structure (data/, backups/, logs/)
+  - .env file configured in /opt/budget (run setup.sh)
+  - Repository with latest code (git pull before deploy)
 
-For more information, see TASK-060_COMPLETION.md
+For more information, see CLAUDE.md
 EOF
 }
 
@@ -284,6 +300,422 @@ validate_env() {
     fi
 
     success "Environment variables validated"
+}
+
+# =============================================================================
+# CODE SYNCHRONIZATION FUNCTIONS
+# =============================================================================
+
+# Detect repository directory
+detect_repository_dir() {
+    local detected_dir=""
+
+    # Option 1: User specified via --repo-dir
+    if [[ -n "$REPO_DIR_OVERRIDE" ]]; then
+        if [[ -d "$REPO_DIR_OVERRIDE/.git" && -f "$REPO_DIR_OVERRIDE/docker-compose.yml" ]]; then
+            detected_dir="$REPO_DIR_OVERRIDE"
+            info "Using specified repository: $detected_dir"
+            return 0
+        else
+            error "Specified repository directory is invalid: $REPO_DIR_OVERRIDE"
+            echo ""
+            echo "Repository must contain:"
+            echo "  - .git directory (git repository)"
+            echo "  - docker-compose.yml file"
+            exit 1
+        fi
+    fi
+
+    # Option 2: Current directory
+    if [[ -d "$SCRIPT_DIR/.git" && -f "$SCRIPT_DIR/docker-compose.yml" ]]; then
+        detected_dir="$SCRIPT_DIR"
+        info "Repository detected in current directory: $detected_dir"
+        echo "$detected_dir"
+        return 0
+    fi
+
+    # Option 3: ~/familyBudget
+    if [[ -d "$HOME/familyBudget/.git" && -f "$HOME/familyBudget/docker-compose.yml" ]]; then
+        detected_dir="$HOME/familyBudget"
+        info "Repository detected at: $detected_dir"
+        echo "$detected_dir"
+        return 0
+    fi
+
+    # Option 4: SCRIPT_DIR == DEPLOY_DIR (running from /opt/budget)
+    if [[ "$SCRIPT_DIR" == "$DEPLOY_DIR" ]]; then
+        warning "deploy.sh running from deployment directory ($DEPLOY_DIR)"
+        warning "This is NOT a development repository!"
+        echo ""
+        info "Recommended workflow:"
+        echo "  1. Clone repository: git clone <url> ~/familyBudget"
+        echo "  2. Update code: cd ~/familyBudget && git pull"
+        echo "  3. Deploy: ./deploy.sh"
+        echo ""
+        echo "Choose action:"
+        echo "  [1] Skip code synchronization (deploy current code in /opt/budget)"
+        echo "  [2] Specify repository path manually"
+        echo "  [3] Cancel deployment"
+        echo ""
+
+        read -p "Select [1-3]: " choice
+        echo ""
+
+        case $choice in
+            1)
+                info "Skipping code synchronization"
+                SYNC_MODE="skip"
+                echo ""
+                return 1
+                ;;
+            2)
+                read -p "Enter repository path: " repo_path
+                if [[ -d "$repo_path/.git" && -f "$repo_path/docker-compose.yml" ]]; then
+                    detected_dir="$repo_path"
+                    info "Using repository: $detected_dir"
+                    echo "$detected_dir"
+                    return 0
+                else
+                    error "Invalid repository path: $repo_path"
+                    exit 1
+                fi
+                ;;
+            3)
+                error "Deployment cancelled by user"
+                ;;
+            *)
+                error "Invalid choice"
+                ;;
+        esac
+    fi
+
+    # Option 5: Interactive prompt
+    warning "Repository directory not found automatically"
+    echo ""
+    echo "Checked locations:"
+    echo "  - Current directory: $SCRIPT_DIR"
+    echo "  - Home directory: ~/familyBudget"
+    echo ""
+    echo "Options:"
+    echo "  [1] Enter repository path manually"
+    echo "  [2] Skip code synchronization (deploy current code)"
+    echo "  [3] Cancel deployment"
+    echo ""
+
+    read -p "Select [1-3]: " choice
+    echo ""
+
+    case $choice in
+        1)
+            read -p "Enter repository path: " repo_path
+            if [[ -d "$repo_path/.git" && -f "$repo_path/docker-compose.yml" ]]; then
+                detected_dir="$repo_path"
+                info "Using repository: $detected_dir"
+                echo "$detected_dir"
+                return 0
+            else
+                error "Invalid repository path: $repo_path"
+                exit 1
+            fi
+            ;;
+        2)
+            info "Skipping code synchronization"
+            SYNC_MODE="skip"
+            return 1
+            ;;
+        3)
+            error "Deployment cancelled by user"
+            ;;
+        *)
+            error "Invalid choice"
+            ;;
+    esac
+}
+
+# Check if there are code changes to sync
+check_code_changes() {
+    local repo_dir=$1
+
+    # Use rsync --dry-run to detect changes
+    local changes=$(rsync -avn \
+        --exclude='.env' \
+        --exclude='data/' \
+        --exclude='logs/' \
+        --exclude='backups/' \
+        --exclude='.git/' \
+        --exclude='__pycache__/' \
+        --exclude='*.pyc' \
+        --exclude='node_modules/' \
+        --exclude='docker-compose.networks.yml' \
+        "$repo_dir/" "$DEPLOY_DIR/" 2>/dev/null | grep -v "/$" | grep -v "^sending\|^sent\|^total" | wc -l)
+
+    if [[ $changes -gt 0 ]]; then
+        info "Detected $changes changed files"
+        return 0  # Changes exist
+    else
+        info "No code changes detected"
+        return 1  # No changes
+    fi
+}
+
+# Sync code using mirror mode (rsync --delete)
+sync_mirror() {
+    local repo_dir=$1
+
+    info "Syncing code: mirror mode (rsync --delete)"
+    info "From: $repo_dir"
+    info "To:   $DEPLOY_DIR"
+    echo ""
+
+    # Show preview of changes
+    info "Preview of changes (first 20 files):"
+    rsync -avn \
+        --exclude='.env' \
+        --exclude='data/' \
+        --exclude='logs/' \
+        --exclude='backups/' \
+        --exclude='.git/' \
+        --exclude='__pycache__/' \
+        --exclude='*.pyc' \
+        --exclude='node_modules/' \
+        --exclude='docker-compose.networks.yml' \
+        "$repo_dir/" "$DEPLOY_DIR/" 2>/dev/null | grep -v "/$" | grep -v "^sending\|^sent\|^total" | head -20
+
+    echo ""
+    read -p "Continue with mirror sync? [Y/n]: " confirm
+
+    if [[ "${confirm,,}" == "n" ]]; then
+        warning "Sync cancelled by user"
+        return 1
+    fi
+
+    # Perform sync
+    if rsync -av --delete \
+        --exclude='.env' \
+        --exclude='data/' \
+        --exclude='logs/' \
+        --exclude='backups/' \
+        --exclude='.git/' \
+        --exclude='__pycache__/' \
+        --exclude='*.pyc' \
+        --exclude='node_modules/' \
+        --exclude='docker-compose.networks.yml' \
+        "$repo_dir/" "$DEPLOY_DIR/" >> "$LOG_FILE" 2>&1; then
+        success "Code synced successfully (mirror mode)"
+        return 0
+    else
+        error "Failed to sync code. Check $LOG_FILE for details."
+        return 1
+    fi
+}
+
+# Sync code using update mode (rsync without --delete)
+sync_update() {
+    local repo_dir=$1
+
+    info "Syncing code: update mode (no deletion)"
+    info "From: $repo_dir"
+    info "To:   $DEPLOY_DIR"
+    echo ""
+
+    # Show preview
+    info "Preview of changes (first 20 files):"
+    rsync -avn \
+        --exclude='.env' \
+        --exclude='data/' \
+        --exclude='logs/' \
+        --exclude='backups/' \
+        --exclude='.git/' \
+        --exclude='__pycache__/' \
+        --exclude='*.pyc' \
+        --exclude='node_modules/' \
+        --exclude='docker-compose.networks.yml' \
+        "$repo_dir/" "$DEPLOY_DIR/" 2>/dev/null | grep -v "/$" | grep -v "^sending\|^sent\|^total" | head -20
+
+    echo ""
+    read -p "Continue with update sync? [Y/n]: " confirm
+
+    if [[ "${confirm,,}" == "n" ]]; then
+        warning "Sync cancelled by user"
+        return 1
+    fi
+
+    # Perform sync
+    if rsync -av \
+        --exclude='.env' \
+        --exclude='data/' \
+        --exclude='logs/' \
+        --exclude='backups/' \
+        --exclude='.git/' \
+        --exclude='__pycache__/' \
+        --exclude='*.pyc' \
+        --exclude='node_modules/' \
+        --exclude='docker-compose.networks.yml' \
+        "$repo_dir/" "$DEPLOY_DIR/" >> "$LOG_FILE" 2>&1; then
+        success "Code synced successfully (update mode)"
+        warning "Old files were NOT deleted (may have artifacts)"
+        return 0
+    else
+        error "Failed to sync code. Check $LOG_FILE for details."
+        return 1
+    fi
+}
+
+# Sync code using clean mode (full cleanup + copy)
+sync_clean() {
+    local repo_dir=$1
+
+    warning "Clean sync: DELETES everything in $DEPLOY_DIR except .env and backups/"
+    echo ""
+    read -p "Type 'CLEAN' to confirm (all caps): " confirm
+    echo ""
+
+    if [[ "$confirm" != "CLEAN" ]]; then
+        warning "Clean sync cancelled"
+        return 1
+    fi
+
+    info "Performing clean sync..."
+
+    # Remove all code directories
+    local dirs_to_remove=("backend" "bot" "nginx" "web" "scripts")
+    for dir in "${dirs_to_remove[@]}"; do
+        if [[ -d "$DEPLOY_DIR/$dir" ]]; then
+            info "Removing $DEPLOY_DIR/$dir"
+            rm -rf "$DEPLOY_DIR/$dir" || warning "Failed to remove $dir"
+        fi
+    done
+
+    # Remove docker-compose.yml
+    if [[ -f "$DEPLOY_DIR/docker-compose.yml" ]]; then
+        info "Removing docker-compose.yml"
+        rm -f "$DEPLOY_DIR/docker-compose.yml"
+    fi
+
+    # Copy everything from repository
+    info "Copying code from $repo_dir to $DEPLOY_DIR"
+    if rsync -av \
+        --exclude='.env' \
+        --exclude='data/' \
+        --exclude='logs/' \
+        --exclude='backups/' \
+        --exclude='.git/' \
+        --exclude='__pycache__/' \
+        --exclude='*.pyc' \
+        --exclude='node_modules/' \
+        --exclude='docker-compose.networks.yml' \
+        "$repo_dir/" "$DEPLOY_DIR/" >> "$LOG_FILE" 2>&1; then
+        success "Code synced successfully (clean mode)"
+        return 0
+    else
+        error "Failed to sync code. Check $LOG_FILE for details."
+        return 1
+    fi
+}
+
+# Main code synchronization function
+sync_code_to_deploy() {
+    step "Code Synchronization"
+
+    # Check if sync should be skipped
+    if [[ "$SYNC_MODE" == "skip" ]]; then
+        info "Skipping code synchronization (--sync-mode skip)"
+        info "Using current code in: $DEPLOY_DIR"
+        return 0
+    fi
+
+    # Detect repository directory
+    local repo_dir=$(detect_repository_dir)
+    if [[ $? -ne 0 || -z "$repo_dir" ]]; then
+        # detect_repository_dir already set SYNC_MODE=skip if user chose to skip
+        if [[ "$SYNC_MODE" == "skip" ]]; then
+            return 0
+        fi
+        error "Failed to detect repository directory"
+        exit 1
+    fi
+
+    # Check for code changes
+    if ! check_code_changes "$repo_dir"; then
+        info "No code changes detected. Skipping synchronization."
+        echo ""
+        read -p "Force sync anyway? [y/N]: " force
+        if [[ "${force,,}" != "y" ]]; then
+            info "Skipping code synchronization"
+            return 0
+        fi
+    fi
+
+    # Interactive mode selection (if not specified via CLI)
+    if [[ -z "$SYNC_MODE" ]]; then
+        echo ""
+        info "Code synchronization required"
+        echo ""
+        echo "Select sync mode:"
+        echo "  [1] Mirror (rsync --delete) - RECOMMENDED"
+        echo "      Removes files from /opt/budget not in repository"
+        echo "      Protected: .env, backups/, data/, logs/"
+        echo ""
+        echo "  [2] Update only (rsync)"
+        echo "      Updates existing + adds new files"
+        echo "      Old files NOT deleted (may leave artifacts)"
+        echo ""
+        echo "  [3] Clean + copy (DANGEROUS!)"
+        echo "      Deletes ALL code in /opt/budget, then copies from repository"
+        echo "      Protected: .env, backups/ only"
+        echo ""
+        echo "  [4] Skip synchronization"
+        echo "      Deploy without updating code"
+        echo ""
+
+        read -p "Select [1-4]: " mode_choice
+        echo ""
+
+        case $mode_choice in
+            1)
+                SYNC_MODE="mirror"
+                ;;
+            2)
+                SYNC_MODE="update"
+                ;;
+            3)
+                SYNC_MODE="clean"
+                ;;
+            4)
+                SYNC_MODE="skip"
+                info "Skipping code synchronization"
+                return 0
+                ;;
+            *)
+                error "Invalid choice"
+                exit 1
+                ;;
+        esac
+    fi
+
+    # Execute sync based on selected mode
+    case "$SYNC_MODE" in
+        mirror)
+            sync_mirror "$repo_dir" || exit 1
+            ;;
+        update)
+            sync_update "$repo_dir" || exit 1
+            ;;
+        clean)
+            sync_clean "$repo_dir" || exit 1
+            ;;
+        skip)
+            info "Skipping code synchronization"
+            return 0
+            ;;
+        *)
+            error "Invalid sync mode: $SYNC_MODE"
+            exit 1
+            ;;
+    esac
+
+    # Log synchronization
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] [INFO] Code synchronized from $repo_dir (mode: $SYNC_MODE)" >> "$LOG_FILE"
 }
 
 # =============================================================================
@@ -1696,6 +2128,18 @@ parse_args() {
                 CLEAN_DEPLOY=true
                 shift
                 ;;
+            --sync-mode)
+                SYNC_MODE="$2"
+                # Validate sync mode
+                if [[ ! "$SYNC_MODE" =~ ^(mirror|update|clean|skip)$ ]]; then
+                    error "Invalid sync mode: $SYNC_MODE. Must be: mirror, update, clean, or skip"
+                fi
+                shift 2
+                ;;
+            --repo-dir)
+                REPO_DIR_OVERRIDE="$2"
+                shift 2
+                ;;
             *)
                 error "Unknown option: $1 (use --help for usage)"
                 ;;
@@ -1775,7 +2219,11 @@ main() {
     validate_env
     echo ""
 
-    # NEW: Check for old deployments and cleanup if needed
+    # NEW: Synchronize code from repository to /opt/budget
+    sync_code_to_deploy
+    echo ""
+
+    # Check for old deployments and cleanup if needed
     cleanup_old_deployment
     echo ""
 
