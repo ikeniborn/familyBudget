@@ -456,8 +456,11 @@ LETSENCRYPT_EMAIL=admin@example.com
 
 ### Networks
 
-- `familybudget_internal` (172.28.0.0/16) - Изолированная сеть (postgres, backend, bot)
-- `familybudget_external` (172.29.0.0/16) - Внешняя сеть (nginx, backend, bot)
+- `familybudget` (172.28.0.0/16) - Единая bridge сеть для всех контейнеров
+  - Все сервисы (postgres, backend, bot, nginx) в одной сети для упрощения
+  - Безопасность контролируется через UFW firewall на хосте
+  - Порт 5432 (PostgreSQL) закрыт по умолчанию, открывается только для разрешенных IP
+  - Порты 80/443 (HTTP/HTTPS) открыты для nginx
 
 ### PostgreSQL External Access
 
