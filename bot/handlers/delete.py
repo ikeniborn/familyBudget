@@ -277,4 +277,5 @@ delete_conversation_handler = ConversationHandler(
     fallbacks=[CommandHandler("cancel", cancel_delete)],
     name="delete_conversation",
     persistent=False,
+    per_message=True,  # Track conversation state per message for CallbackQueryHandler
 )

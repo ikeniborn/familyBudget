@@ -516,29 +516,24 @@ async def get_heatmap_data(
     # Build heatmap data (day of week × week of period)
     data_by_date = {row.fact_date: float(row.total) for row in rows}
 
-    # Calculate weeks with structured format
+    # Calculate weeks as simple 2D array: weeks[weekIndex][dayIndex]
     weeks_data = []
     week_start = start_date - timedelta(days=start_date.weekday())  # Start from Monday
 
     current_date = week_start
-    week_num = 1
     while current_date <= end_date:
         week_days = []
         for day in range(7):  # Mon-Sun
             date_to_check = current_date + timedelta(days=day)
             if date_to_check > end_date or date_to_check < start_date:
-                # Future or past dates outside period
-                amount = None
+                # Future or past dates outside period - use 0 instead of None for heatmap
+                amount = 0.0
             else:
                 amount = data_by_date.get(date_to_check, 0.0)
             week_days.append(amount)
 
-        weeks_data.append({
-            "label": f"Week {week_num}",
-            "days": week_days
-        })
+        weeks_data.append(week_days)
         current_date += timedelta(days=7)
-        week_num += 1
 
     # Limit weeks based on period
     weeks_data = weeks_data[-weeks_to_show:]
@@ -546,7 +541,7 @@ async def get_heatmap_data(
     period_days = (end_date - start_date).days
 
     return {
-        "weeks": weeks_data,
+        "weeks": weeks_data,  # Now a simple 2D array: [[Mon, Tue, ..., Sun], ...]
         "day_labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
         "week_count": len(weeks_data),
         "period_days": period_days,

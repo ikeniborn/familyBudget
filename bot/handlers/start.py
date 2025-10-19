@@ -4,7 +4,7 @@
 Handles user authentication via Telegram OAuth and welcomes new users.
 """
 
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from bot.utils.api_client import get_api_client
@@ -13,6 +13,33 @@ from bot.utils.session import SessionManager
 from bot.utils.telegram_auth import is_user_allowed, prepare_telegram_auth_data
 
 logger = get_logger(__name__)
+
+
+def create_main_menu_keyboard() -> InlineKeyboardMarkup:
+    """
+    Create main menu keyboard with bot commands.
+
+    Returns:
+        InlineKeyboardMarkup: Keyboard with 9 command buttons in 3 rows
+    """
+    keyboard = [
+        [
+            InlineKeyboardButton("💰 Добавить", callback_data="menu:add"),
+            InlineKeyboardButton("📅 Сегодня", callback_data="menu:today"),
+            InlineKeyboardButton("📈 Статистика", callback_data="menu:stats"),
+        ],
+        [
+            InlineKeyboardButton("📋 Список", callback_data="menu:list"),
+            InlineKeyboardButton("✏️ Редактировать", callback_data="menu:edit"),
+            InlineKeyboardButton("🗑️ Удалить", callback_data="menu:delete"),
+        ],
+        [
+            InlineKeyboardButton("📊 План", callback_data="menu:addplan"),
+            InlineKeyboardButton("📉 Сравнение", callback_data="menu:summary"),
+            InlineKeyboardButton("🔍 Поиск", callback_data="menu:search"),
+        ],
+    ]
+    return InlineKeyboardMarkup(keyboard)
 
 
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -53,12 +80,11 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Check if already authenticated
     if SessionManager.is_authenticated(context):
         user_name = SessionManager.get_user_display_name(context)
+        keyboard = create_main_menu_keyboard()
         await update.message.reply_text(
             f"✅ Вы уже авторизованы, {user_name}!\n\n"
-            f"Доступные команды:\n"
-            f"/add - Добавить расход/доход\n"
-            f"/today - Статистика за сегодня\n"
-            f"/stats - Общая статистика"
+            f"Выберите команду из меню ниже:",
+            reply_markup=keyboard
         )
         logger.info(f"User {user.id} already authenticated")
         return
@@ -98,9 +124,10 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         is_admin = user_info.get("is_admin", False)
 
         welcome_text = format_welcome_message(first_name, is_admin)
+        keyboard = create_main_menu_keyboard()
 
         # Update the "authenticating" message
-        await auth_message.edit_text(welcome_text)
+        await auth_message.edit_text(welcome_text, reply_markup=keyboard)
 
         logger.info(f"User {user.id} authenticated successfully")
 
@@ -137,11 +164,60 @@ def format_welcome_message(first_name: str, is_admin: bool = False) -> str:
     message = (
         f"✅ Добро пожаловать, {first_name}!\n\n"
         f"Роль: {role_text}\n\n"
-        f"📊 **Доступные команды:**\n\n"
-        f"💰 /add - Добавить расход или доход\n"
-        f"📅 /today - Статистика за сегодня\n"
-        f"📈 /stats - Общая статистика\n\n"
-        f"Начните с команды /add, чтобы зафиксировать транзакцию!"
+        f"Выберите команду из меню ниже:"
     )
 
     return message
+
+
+async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handle main menu button clicks.
+
+    Maps menu button callback_data to corresponding bot commands.
+    Sends command text as a message to user's chat, which triggers the command handler.
+
+    Args:
+        update: Telegram update with callback query
+        context: Bot context
+
+    Returns:
+        None
+    """
+    query = update.callback_query
+    await query.answer()
+
+    callback_data = query.data
+
+    # Map callback_data to command text
+    command_map = {
+        "menu:add": "/add",
+        "menu:today": "/today",
+        "menu:stats": "/stats",
+        "menu:list": "/list",
+        "menu:edit": "/edit",
+        "menu:delete": "/delete",
+        "menu:addplan": "/addplan",
+        "menu:summary": "/summary",
+        "menu:search": "/search",
+    }
+
+    command = command_map.get(callback_data)
+
+    if not command:
+        logger.warning(f"Unknown menu callback: {callback_data}")
+        await query.edit_message_text(
+            "❌ Неизвестная команда. Используйте /start для повторного вывода меню."
+        )
+        return
+
+    # Log the command execution
+    user_id = query.from_user.id
+    logger.info(f"Menu button '{callback_data}' clicked by user {user_id}, triggering command '{command}'")
+
+    # Send command text to user's chat
+    # This will trigger the corresponding command handler
+    await context.bot.send_message(
+        chat_id=query.message.chat_id,
+        text=command
+    )

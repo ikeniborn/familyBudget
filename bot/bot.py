@@ -10,6 +10,7 @@ from telegram import Update
 from telegram.ext import (
     Application,
     ApplicationBuilder,
+    CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
 )
@@ -74,7 +75,7 @@ class BotApplication:
             raise RuntimeError("Application not built. Call build_application() first.")
 
         # Import handlers
-        from bot.handlers.start import start_handler
+        from bot.handlers.start import start_handler, menu_callback_handler
         from bot.handlers.add import add_conversation_handler
         from bot.handlers.add_plan import addplan_conversation_handler
         from bot.handlers.today import today_handler
@@ -91,6 +92,10 @@ class BotApplication:
         # Register command handlers
         self.application.add_handler(CommandHandler("start", start_handler))
         logger.info("Registered /start handler")
+
+        # Register callback query handler for main menu buttons
+        self.application.add_handler(CallbackQueryHandler(menu_callback_handler, pattern="^menu:"))
+        logger.info("Registered menu callback handler")
 
         self.application.add_handler(CommandHandler("help", help_handler))
         logger.info("Registered /help handler")

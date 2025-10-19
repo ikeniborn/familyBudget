@@ -41,6 +41,9 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
     # Public endpoints that don't require authentication
     PUBLIC_PATHS = {
         "/health",
+        "/ready",  # Readiness probe for load balancers
+        "/ping",  # Simple ping for liveness checks
+        "/health/detailed",  # Detailed health check for monitoring
         "/docs",
         "/openapi.json",
         "/redoc",

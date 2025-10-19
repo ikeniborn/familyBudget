@@ -9,7 +9,7 @@ Implements multi-step conversation flow:
 5. Confirmation (summary + create fact)
 """
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import Dict, Optional
 
@@ -330,18 +330,29 @@ async def amount_entered(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # Store in context
         context.user_data[KEY_AMOUNT] = str(amount)
 
-        # Ask for date
+        # Ask for date with quick buttons
         article_name = context.user_data.get(KEY_ARTICLE_NAME, "категория")
+
+        # Create inline keyboard with quick date options
+        keyboard = [
+            [
+                InlineKeyboardButton("📅 Сегодня", callback_data="date:today"),
+                InlineKeyboardButton("🕐 Вчера", callback_data="date:yesterday"),
+            ],
+            [
+                InlineKeyboardButton("✏️ Ввести дату вручную", callback_data="date:manual"),
+            ],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
 
         await update.message.reply_text(
             f"💰 **Добавление транзакции**\n\n"
             f"📋 Шаг 3/4: Введите дату\n\n"
             f"Категория: **{article_name}**\n"
             f"Сумма: **{format_amount(amount)}** ₽\n\n"
-            f"Введите дату транзакции:\n\n"
-            f"_Примеры: сегодня, вчера, 13.10.2025, 13.10_\n\n"
-            f"Отправьте /cancel для отмены",
-            parse_mode="Markdown"
+            f"Выберите дату транзакции:",
+            parse_mode="Markdown",
+            reply_markup=reply_markup
         )
 
         logger.info(f"Amount entered: {amount}")
@@ -357,9 +368,117 @@ async def amount_entered(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return ENTER_AMOUNT
 
 
+async def date_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Handle date quick selection buttons (Today, Yesterday, Manual).
+
+    Args:
+        update: Telegram update (callback query)
+        context: Bot context
+
+    Returns:
+        int: Next conversation state (ENTER_DESCRIPTION or stay in ENTER_DATE)
+    """
+    query = update.callback_query
+    await query.answer()
+
+    callback_data = query.data
+
+    # Handle "Today" button
+    if callback_data == "date:today":
+        fact_date = date.today()
+        context.user_data[KEY_DATE] = fact_date.isoformat()
+
+        logger.info(f"Date selected (today): {fact_date}")
+
+        # Proceed to description
+        await proceed_to_description(query, context, fact_date, edit_message=True)
+        return ENTER_DESCRIPTION
+
+    # Handle "Yesterday" button
+    elif callback_data == "date:yesterday":
+        fact_date = date.today() - timedelta(days=1)
+        context.user_data[KEY_DATE] = fact_date.isoformat()
+
+        logger.info(f"Date selected (yesterday): {fact_date}")
+
+        # Proceed to description
+        await proceed_to_description(query, context, fact_date, edit_message=True)
+        return ENTER_DESCRIPTION
+
+    # Handle "Manual entry" button
+    elif callback_data == "date:manual":
+        await query.edit_message_text(
+            f"💰 **Добавление транзакции**\n\n"
+            f"📋 Шаг 3/4: Введите дату\n\n"
+            f"Введите дату в одном из форматов:\n\n"
+            f"• `ДД.ММ.ГГГГ` (например: 15.10.2025)\n"
+            f"• `ДД.ММ` (например: 15.10 - текущий год)\n"
+            f"• `ДД` (например: 15 - текущий месяц)\n"
+            f"• Или текстом: `сегодня`, `вчера`\n\n"
+            f"Отправьте /cancel для отмены",
+            parse_mode="Markdown"
+        )
+        logger.info("Date manual entry requested")
+        return ENTER_DATE
+
+    return ENTER_DATE
+
+
+async def proceed_to_description(
+    message_or_query,
+    context: ContextTypes.DEFAULT_TYPE,
+    fact_date: date,
+    edit_message: bool = False
+):
+    """
+    Proceed to description step.
+
+    Args:
+        message_or_query: Message or CallbackQuery object
+        context: Bot context
+        fact_date: Selected date
+        edit_message: Whether to edit existing message (for callback queries)
+    """
+    article_name = context.user_data.get(KEY_ARTICLE_NAME, "категория")
+    amount_str = context.user_data.get(KEY_AMOUNT, "0")
+    amount = Decimal(amount_str)
+
+    # Create inline keyboard with skip button
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("⏭️ Пропустить описание", callback_data="skip_description")]
+    ])
+
+    message_text = (
+        f"💰 **Добавление транзакции**\n\n"
+        f"📋 Шаг 4/4: Добавьте описание (необязательно)\n\n"
+        f"Категория: **{article_name}**\n"
+        f"Сумма: **{format_amount(amount)}** ₽\n"
+        f"Дата: **{format_date(fact_date)}**\n\n"
+        f"Введите описание транзакции (до 1000 символов):\n\n"
+        f"_Например: Еженедельные покупки продуктов_\n\n"
+        f"Или нажмите кнопку ниже, чтобы пропустить.\n"
+        f"Отправьте /cancel для отмены"
+    )
+
+    # Send or edit message
+    if edit_message and hasattr(message_or_query, "edit_message_text"):
+        await message_or_query.edit_message_text(
+            message_text,
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+    else:
+        await message_or_query.reply_text(
+            message_text,
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+
+
 async def date_entered(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
-    Handle date input.
+    Handle date input (text).
 
     Workflow:
     1. Validate date format
@@ -383,32 +502,10 @@ async def date_entered(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         # Store in context
         context.user_data[KEY_DATE] = fact_date.isoformat()
 
-        # Ask for description
-        article_name = context.user_data.get(KEY_ARTICLE_NAME, "категория")
-        amount_str = context.user_data.get(KEY_AMOUNT, "0")
-        amount = Decimal(amount_str)
-
-        # Create inline keyboard with skip button
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("⏭️ Пропустить описание", callback_data="skip_description")]
-        ])
-
-        await update.message.reply_text(
-            f"💰 **Добавление транзакции**\n\n"
-            f"📋 Шаг 4/4: Добавьте описание (необязательно)\n\n"
-            f"Категория: **{article_name}**\n"
-            f"Сумма: **{format_amount(amount)}** ₽\n"
-            f"Дата: **{format_date(fact_date)}**\n\n"
-            f"Введите описание транзакции (до 1000 символов):\n\n"
-            f"_Например: Еженедельные покупки продуктов_\n\n"
-            f"Или нажмите кнопку ниже, чтобы пропустить.\n"
-            f"Отправьте /cancel для отмены",
-            reply_markup=keyboard,
-            parse_mode="Markdown"
-        )
-
         logger.info(f"Date entered: {fact_date}")
 
+        # Proceed to description
+        await proceed_to_description(update.message, context, fact_date, edit_message=False)
         return ENTER_DESCRIPTION
 
     except ValidationError as e:
@@ -992,6 +1089,7 @@ add_conversation_handler = ConversationHandler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, amount_entered)
         ],
         ENTER_DATE: [
+            CallbackQueryHandler(date_button_handler, pattern="^date:(today|yesterday|manual)$"),
             MessageHandler(filters.TEXT & ~filters.COMMAND, date_entered)
         ],
         ENTER_DESCRIPTION: [
@@ -1011,4 +1109,5 @@ add_conversation_handler = ConversationHandler(
     fallbacks=[CommandHandler("cancel", cancel_command)],
     name="add_fact_conversation",
     persistent=False,
+    per_message=True,  # Track conversation state per message for CallbackQueryHandler
 )
