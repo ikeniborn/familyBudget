@@ -931,6 +931,89 @@ configure_postgres_access() {
     fi
 }
 
+# Configure S3 backup
+configure_s3_backup() {
+    section "S3 Backup Configuration (Optional)"
+
+    echo ""
+    info "S3-compatible storage can be used for automated database backups"
+    info "Supported providers: AWS S3, DigitalOcean Spaces, Backblaze B2, etc."
+    echo ""
+    warning "You can skip this now and configure later by editing .env file"
+    echo ""
+
+    prompt_yes_no "Configure S3 backup now?" "CONFIGURE_S3" "n"
+
+    if [[ "${CONFIG[CONFIGURE_S3]}" == "y" ]]; then
+        echo ""
+        info "S3 Configuration"
+        echo ""
+
+        # S3 Endpoint URL
+        echo "S3 Endpoint URL (leave empty for AWS S3):"
+        echo "  Examples:"
+        echo "    - AWS S3: (leave empty)"
+        echo "    - DigitalOcean Spaces: https://nyc3.digitaloceanspaces.com"
+        echo "    - Backblaze B2: https://s3.us-west-002.backblazeb2.com"
+        echo ""
+        read -p "S3 Endpoint URL [default: empty for AWS]: " s3_endpoint
+        CONFIG["S3_ENDPOINT_URL"]="${s3_endpoint:-}"
+
+        # S3 Access Key
+        echo ""
+        read -p "S3 Access Key ID: " s3_access_key
+        if [[ -z "$s3_access_key" ]]; then
+            error "S3 Access Key ID is required"
+        fi
+        CONFIG["S3_ACCESS_KEY_ID"]="$s3_access_key"
+
+        # S3 Secret Key
+        echo ""
+        read -s -p "S3 Secret Access Key: " s3_secret_key
+        echo ""
+        if [[ -z "$s3_secret_key" ]]; then
+            error "S3 Secret Access Key is required"
+        fi
+        CONFIG["S3_SECRET_ACCESS_KEY"]="$s3_secret_key"
+
+        # S3 Bucket Name
+        echo ""
+        read -p "S3 Bucket Name: " s3_bucket
+        if [[ -z "$s3_bucket" ]]; then
+            error "S3 Bucket Name is required"
+        fi
+        CONFIG["S3_BUCKET_NAME"]="$s3_bucket"
+
+        # S3 Region
+        echo ""
+        read -p "S3 Region [default: us-east-1]: " s3_region
+        CONFIG["S3_REGION"]="${s3_region:-us-east-1}"
+
+        echo ""
+        success "S3 backup configured"
+        echo ""
+        info "Summary:"
+        echo "  ✓ Endpoint: ${CONFIG[S3_ENDPOINT_URL]:-AWS S3 (default)}"
+        echo "  ✓ Bucket: ${CONFIG[S3_BUCKET_NAME]}"
+        echo "  ✓ Region: ${CONFIG[S3_REGION]}"
+        echo ""
+        warning "Backups will be stored in S3 bucket: ${CONFIG[S3_BUCKET_NAME]}"
+        echo ""
+    else
+        # User skipped S3 configuration
+        CONFIG["S3_ENDPOINT_URL"]=""
+        CONFIG["S3_ACCESS_KEY_ID"]=""
+        CONFIG["S3_SECRET_ACCESS_KEY"]=""
+        CONFIG["S3_BUCKET_NAME"]=""
+        CONFIG["S3_REGION"]="us-east-1"
+
+        echo ""
+        success "S3 backup skipped"
+        info "You can configure S3 later by editing .env file"
+        info "Required variables: S3_ENDPOINT_URL, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET_NAME"
+    fi
+}
+
 # Create .env file
 create_env_file() {
     section "Creating .env File"
@@ -983,6 +1066,13 @@ create_env_file() {
     sed -i "s/^DEPLOYMENT_PROFILE=.*/DEPLOYMENT_PROFILE=${CONFIG[DEPLOYMENT_PROFILE]}/" "$env_file"
     sed -i "s/^SSL_TYPE=.*/SSL_TYPE=${CONFIG[SSL_TYPE]}/" "$env_file"
     sed -i "s/^LETSENCRYPT_EMAIL=.*/LETSENCRYPT_EMAIL=${CONFIG[LETSENCRYPT_EMAIL]}/" "$env_file"
+
+    # S3 Backup configuration
+    sed -i "s|^S3_ENDPOINT_URL=.*|S3_ENDPOINT_URL=${CONFIG[S3_ENDPOINT_URL]}|" "$env_file"
+    sed -i "s|^S3_ACCESS_KEY_ID=.*|S3_ACCESS_KEY_ID=${CONFIG[S3_ACCESS_KEY_ID]}|" "$env_file"
+    sed -i "s|^S3_SECRET_ACCESS_KEY=.*|S3_SECRET_ACCESS_KEY=${CONFIG[S3_SECRET_ACCESS_KEY]}|" "$env_file"
+    sed -i "s|^S3_BUCKET_NAME=.*|S3_BUCKET_NAME=${CONFIG[S3_BUCKET_NAME]}|" "$env_file"
+    sed -i "s|^S3_REGION=.*|S3_REGION=${CONFIG[S3_REGION]}|" "$env_file"
 
     # Telegram webhook URL (for full profile)
     if [[ -n "${CONFIG[TELEGRAM_WEBHOOK_URL]:-}" ]]; then
@@ -1265,6 +1355,9 @@ main() {
     echo ""
 
     configure_postgres_access
+    echo ""
+
+    configure_s3_backup
     echo ""
 
     create_env_file
