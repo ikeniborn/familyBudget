@@ -178,9 +178,9 @@ EOF
 # VALIDATION FUNCTIONS
 # =============================================================================
 
-# Check prerequisites
-check_prerequisites() {
-    info "Checking prerequisites..."
+# Check prerequisites (early stage - before code sync)
+check_prerequisites_early() {
+    info "Checking prerequisites (early stage)..."
 
     # Check if Docker is installed
     if ! command_exists docker; then
@@ -197,34 +197,45 @@ check_prerequisites() {
         error "Docker daemon is not running. Please start Docker service."
     fi
 
-    # Check deployment directory structure
+    # Check deployment directory exists
     if [[ ! -d "$DEPLOY_DIR" ]]; then
         error "Deployment directory $DEPLOY_DIR does not exist."
         echo ""
-        echo "Have you run setup.sh yet?"
-        echo ""
-        echo "Expected workflow:"
-        echo "  1. git clone/pull repository to your preferred location (e.g., ~/familyBudget)"
-        echo "  2. cd ~/familyBudget"
-        echo "  3. ./setup.sh    # Copies code to $DEPLOY_DIR + configures .env"
-        echo "  4. ./deploy.sh   # Deploys from $DEPLOY_DIR (can be run from anywhere)"
+        echo "Please run install.sh first:"
+        echo "  sudo ./install.sh"
         exit 1
     fi
 
     # Check if .env file exists
     if [[ ! -f "$DEPLOY_DIR/.env" ]]; then
-        error ".env file not found in $DEPLOY_DIR. Please run setup.sh or copy from .env.example"
+        error ".env file not found in $DEPLOY_DIR."
+        echo ""
+        echo "Please run setup.sh first to configure environment:"
+        echo "  ./setup.sh"
+        exit 1
     fi
 
-    # Check if docker-compose.yml exists
+    success "Early prerequisites check passed"
+}
+
+# Check prerequisites (late stage - after code sync)
+check_prerequisites_late() {
+    info "Checking prerequisites (after code sync)..."
+
+    # Check if docker-compose.yml exists (should be copied by sync_code_to_deploy)
     if [[ ! -f "$DEPLOY_DIR/docker-compose.yml" ]]; then
         error "docker-compose.yml not found in $DEPLOY_DIR"
         echo ""
-        echo "This file should have been copied by setup.sh."
+        echo "This file should have been synchronized from repository."
+        echo ""
+        echo "Possible causes:"
+        echo "  1. Code synchronization failed"
+        echo "  2. Repository doesn't contain docker-compose.yml"
+        echo "  3. You skipped code synchronization but /opt/budget is empty"
         echo ""
         echo "To fix:"
-        echo "  cd ~/familyBudget  # Your git repository directory"
-        echo "  ./setup.sh         # This will copy files to $DEPLOY_DIR"
+        echo "  cd ~/familyBudget  # Your git repository"
+        echo "  ./deploy.sh        # Try deployment again"
         exit 1
     fi
 
@@ -232,20 +243,12 @@ check_prerequisites() {
     local required_dirs=("data" "backups" "logs")
     for dir in "${required_dirs[@]}"; do
         if [[ ! -d "$DEPLOY_DIR/$dir" ]]; then
-            warning "Directory $dir not found in $DEPLOY_DIR, creating..."
+            info "Creating directory: $DEPLOY_DIR/$dir"
             mkdir -p "$DEPLOY_DIR/$dir"
         fi
     done
 
-    # Inform about deployment source
-    if [[ "$SCRIPT_DIR" == "$DEPLOY_DIR" ]]; then
-        info "deploy.sh running from deployment directory ($DEPLOY_DIR)"
-    else
-        info "deploy.sh running from: $SCRIPT_DIR"
-        info "Will deploy from: $DEPLOY_DIR"
-    fi
-
-    success "Prerequisites check passed"
+    success "All prerequisites verified"
 }
 
 # Validate environment variables
@@ -2213,14 +2216,20 @@ main() {
     fi
 
     # Deployment steps
-    check_prerequisites
+
+    # EARLY checks (before code sync): Docker, .env
+    check_prerequisites_early
     echo ""
 
     validate_env
     echo ""
 
-    # NEW: Synchronize code from repository to /opt/budget
+    # Synchronize code from repository to /opt/budget
     sync_code_to_deploy
+    echo ""
+
+    # LATE checks (after code sync): docker-compose.yml, directories
+    check_prerequisites_late
     echo ""
 
     # Check for old deployments and cleanup if needed
