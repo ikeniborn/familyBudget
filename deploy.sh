@@ -317,14 +317,15 @@ detect_repository_dir() {
     if [[ -n "$REPO_DIR_OVERRIDE" ]]; then
         if [[ -d "$REPO_DIR_OVERRIDE/.git" && -f "$REPO_DIR_OVERRIDE/docker-compose.yml" ]]; then
             detected_dir="$REPO_DIR_OVERRIDE"
-            info "Using specified repository: $detected_dir"
+            info "Using specified repository: $detected_dir" >&2
+            echo "$detected_dir"
             return 0
         else
             error "Specified repository directory is invalid: $REPO_DIR_OVERRIDE"
-            echo ""
-            echo "Repository must contain:"
-            echo "  - .git directory (git repository)"
-            echo "  - docker-compose.yml file"
+            echo "" >&2
+            echo "Repository must contain:" >&2
+            echo "  - .git directory (git repository)" >&2
+            echo "  - docker-compose.yml file" >&2
             exit 1
         fi
     fi
@@ -332,7 +333,7 @@ detect_repository_dir() {
     # Option 2: Current directory
     if [[ -d "$SCRIPT_DIR/.git" && -f "$SCRIPT_DIR/docker-compose.yml" ]]; then
         detected_dir="$SCRIPT_DIR"
-        info "Repository detected in current directory: $detected_dir"
+        info "Repository detected in current directory: $detected_dir" >&2
         echo "$detected_dir"
         return 0
     fi
@@ -340,42 +341,42 @@ detect_repository_dir() {
     # Option 3: ~/familyBudget
     if [[ -d "$HOME/familyBudget/.git" && -f "$HOME/familyBudget/docker-compose.yml" ]]; then
         detected_dir="$HOME/familyBudget"
-        info "Repository detected at: $detected_dir"
+        info "Repository detected at: $detected_dir" >&2
         echo "$detected_dir"
         return 0
     fi
 
     # Option 4: SCRIPT_DIR == DEPLOY_DIR (running from /opt/budget)
     if [[ "$SCRIPT_DIR" == "$DEPLOY_DIR" ]]; then
-        warning "deploy.sh running from deployment directory ($DEPLOY_DIR)"
-        warning "This is NOT a development repository!"
-        echo ""
-        info "Recommended workflow:"
-        echo "  1. Clone repository: git clone <url> ~/familyBudget"
-        echo "  2. Update code: cd ~/familyBudget && git pull"
-        echo "  3. Deploy: ./deploy.sh"
-        echo ""
-        echo "Choose action:"
-        echo "  [1] Skip code synchronization (deploy current code in /opt/budget)"
-        echo "  [2] Specify repository path manually"
-        echo "  [3] Cancel deployment"
-        echo ""
+        warning "deploy.sh running from deployment directory ($DEPLOY_DIR)" >&2
+        warning "This is NOT a development repository!" >&2
+        echo "" >&2
+        info "Recommended workflow:" >&2
+        echo "  1. Clone repository: git clone <url> ~/familyBudget" >&2
+        echo "  2. Update code: cd ~/familyBudget && git pull" >&2
+        echo "  3. Deploy: ./deploy.sh" >&2
+        echo "" >&2
+        echo "Choose action:" >&2
+        echo "  [1] Skip code synchronization (deploy current code in /opt/budget)" >&2
+        echo "  [2] Specify repository path manually" >&2
+        echo "  [3] Cancel deployment" >&2
+        echo "" >&2
 
         read -p "Select [1-3]: " choice
-        echo ""
+        echo "" >&2
 
         case $choice in
             1)
-                info "Skipping code synchronization"
+                info "Skipping code synchronization" >&2
                 SYNC_MODE="skip"
-                echo ""
+                echo "" >&2
                 return 1
                 ;;
             2)
                 read -p "Enter repository path: " repo_path
                 if [[ -d "$repo_path/.git" && -f "$repo_path/docker-compose.yml" ]]; then
                     detected_dir="$repo_path"
-                    info "Using repository: $detected_dir"
+                    info "Using repository: $detected_dir" >&2
                     echo "$detected_dir"
                     return 0
                 else
@@ -393,27 +394,27 @@ detect_repository_dir() {
     fi
 
     # Option 5: Interactive prompt
-    warning "Repository directory not found automatically"
-    echo ""
-    echo "Checked locations:"
-    echo "  - Current directory: $SCRIPT_DIR"
-    echo "  - Home directory: ~/familyBudget"
-    echo ""
-    echo "Options:"
-    echo "  [1] Enter repository path manually"
-    echo "  [2] Skip code synchronization (deploy current code)"
-    echo "  [3] Cancel deployment"
-    echo ""
+    warning "Repository directory not found automatically" >&2
+    echo "" >&2
+    echo "Checked locations:" >&2
+    echo "  - Current directory: $SCRIPT_DIR" >&2
+    echo "  - Home directory: ~/familyBudget" >&2
+    echo "" >&2
+    echo "Options:" >&2
+    echo "  [1] Enter repository path manually" >&2
+    echo "  [2] Skip code synchronization (deploy current code)" >&2
+    echo "  [3] Cancel deployment" >&2
+    echo "" >&2
 
     read -p "Select [1-3]: " choice
-    echo ""
+    echo "" >&2
 
     case $choice in
         1)
             read -p "Enter repository path: " repo_path
             if [[ -d "$repo_path/.git" && -f "$repo_path/docker-compose.yml" ]]; then
                 detected_dir="$repo_path"
-                info "Using repository: $detected_dir"
+                info "Using repository: $detected_dir" >&2
                 echo "$detected_dir"
                 return 0
             else
@@ -422,7 +423,7 @@ detect_repository_dir() {
             fi
             ;;
         2)
-            info "Skipping code synchronization"
+            info "Skipping code synchronization" >&2
             SYNC_MODE="skip"
             return 1
             ;;
@@ -568,7 +569,8 @@ sync_update() {
 sync_clean() {
     local repo_dir=$1
 
-    warning "Clean sync: DELETES everything in $DEPLOY_DIR except .env and backups/"
+    warning "Clean sync: DELETES everything in $DEPLOY_DIR except .env"
+    warning "This will also DELETE backups/ directory!"
     echo ""
     read -p "Type 'CLEAN' to confirm (all caps): " confirm
     echo ""
@@ -580,8 +582,8 @@ sync_clean() {
 
     info "Performing clean sync..."
 
-    # Remove all code directories
-    local dirs_to_remove=("backend" "bot" "nginx" "web" "scripts")
+    # Remove all directories except .env, data/, logs/
+    local dirs_to_remove=("backend" "bot" "nginx" "web" "scripts" "backups")
     for dir in "${dirs_to_remove[@]}"; do
         if [[ -d "$DEPLOY_DIR/$dir" ]]; then
             info "Removing $DEPLOY_DIR/$dir"
@@ -601,7 +603,6 @@ sync_clean() {
         --exclude='.env' \
         --exclude='data/' \
         --exclude='logs/' \
-        --exclude='backups/' \
         --exclude='.git/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
@@ -664,8 +665,8 @@ sync_code_to_deploy() {
         echo "      Old files NOT deleted (may leave artifacts)"
         echo ""
         echo "  [3] Clean + copy (DANGEROUS!)"
-        echo "      Deletes ALL code in /opt/budget, then copies from repository"
-        echo "      Protected: .env, backups/ only"
+        echo "      Deletes ALL code AND backups in /opt/budget, then copies from repository"
+        echo "      Protected: .env, data/, logs/ only"
         echo ""
         echo "  [4] Skip synchronization"
         echo "      Deploy without updating code"
