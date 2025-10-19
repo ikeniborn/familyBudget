@@ -45,6 +45,46 @@ class APIClient:
         await self.client.aclose()
         logger.info("API Client closed")
 
+    async def get(
+        self,
+        endpoint: str,
+        token: Optional[str] = None,
+        params: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Universal GET request method.
+
+        Args:
+            endpoint: API endpoint path (e.g., "/articles" or "/api/v1/articles")
+            token: JWT access token (optional)
+            params: Query parameters (optional)
+
+        Returns:
+            Dict containing response data
+
+        Raises:
+            httpx.HTTPStatusError: If request fails
+        """
+        try:
+            kwargs = {}
+            if params:
+                kwargs["params"] = params
+            if token:
+                kwargs["cookies"] = {"access_token": token}
+
+            response = await self.client.get(endpoint, **kwargs)
+            response.raise_for_status()
+
+            return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"GET {endpoint} failed: {e.response.status_code} - {e.response.text}")
+            raise
+
+        except Exception as e:
+            logger.error(f"GET {endpoint} error: {str(e)}")
+            raise
+
     async def authenticate_telegram_user(self, telegram_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Authenticate user via Telegram OAuth.
@@ -228,7 +268,9 @@ class APIClient:
         fact_date: str,
         amount: str,
         description: Optional[str] = None,
-        record_type: str = "fact"
+        record_type: str = "fact",
+        financial_center_id: Optional[int] = None,
+        cost_center_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Create new fact (income/expense record or budget plan).
@@ -240,6 +282,8 @@ class APIClient:
             amount: Amount (decimal string, with sign: + for income, - for expense)
             description: Optional description
             record_type: 'fact' for actual transactions, 'plan' for budget plans (default: 'fact')
+            financial_center_id: Optional financial center ID (ЦФО)
+            cost_center_id: Optional cost center ID (МВЗ)
 
         Returns:
             Dict containing created fact data
@@ -256,6 +300,10 @@ class APIClient:
             }
             if description:
                 fact_data["description"] = description
+            if financial_center_id:
+                fact_data["financial_center_id"] = financial_center_id
+            if cost_center_id:
+                fact_data["cost_center_id"] = cost_center_id
 
             response = await self.client.post(
                 "/facts",
@@ -264,7 +312,7 @@ class APIClient:
             )
             response.raise_for_status()
 
-            logger.info(f"Fact created: amount={amount}, article_id={article_id}")
+            logger.info(f"Fact created: amount={amount}, article_id={article_id}, fin_center={financial_center_id}, cost_center={cost_center_id}")
             return response.json()
 
         except httpx.HTTPStatusError as e:
@@ -494,6 +542,92 @@ class APIClient:
 
         except Exception as e:
             logger.error(f"Delete fact error: {str(e)}")
+            raise
+
+    async def get_financial_centers(
+        self,
+        token: str,
+        limit: int = 1000,
+        include_global: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Get user's financial centers (ЦФО - Центры финансового учета).
+
+        Args:
+            token: JWT access token
+            limit: Maximum number of results (default: 1000)
+            include_global: Include global centers (default: True)
+
+        Returns:
+            Dict containing financial centers list
+
+        Raises:
+            httpx.HTTPStatusError: If request fails
+        """
+        try:
+            params = {
+                "limit": limit,
+                "include_global": str(include_global).lower()
+            }
+
+            response = await self.client.get(
+                "/financial-centers",
+                params=params,
+                cookies={"access_token": token}
+            )
+            response.raise_for_status()
+
+            return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Get financial centers failed: {e.response.status_code}")
+            raise
+
+        except Exception as e:
+            logger.error(f"Get financial centers error: {str(e)}")
+            raise
+
+    async def get_cost_centers(
+        self,
+        token: str,
+        limit: int = 1000,
+        include_global: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Get user's cost centers (МВЗ - Места возникновения затрат).
+
+        Args:
+            token: JWT access token
+            limit: Maximum number of results (default: 1000)
+            include_global: Include global centers (default: True)
+
+        Returns:
+            Dict containing cost centers list
+
+        Raises:
+            httpx.HTTPStatusError: If request fails
+        """
+        try:
+            params = {
+                "limit": limit,
+                "include_global": str(include_global).lower()
+            }
+
+            response = await self.client.get(
+                "/cost-centers",
+                params=params,
+                cookies={"access_token": token}
+            )
+            response.raise_for_status()
+
+            return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Get cost centers failed: {e.response.status_code}")
+            raise
+
+        except Exception as e:
+            logger.error(f"Get cost centers error: {str(e)}")
             raise
 
 
