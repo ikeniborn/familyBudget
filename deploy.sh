@@ -1233,149 +1233,28 @@ update_nginx_for_https() {
     # Create backup before modification
     cp "$nginx_conf" "$nginx_conf.backup" || true
 
-    # Use Perl for reliable multi-line block processing
-    # Perl with -0777 flag reads entire file at once, enabling multi-line regex
-    #
-    # Template structure (from app.conf.template):
-    # - Lines 14-46: HTTP Server (listen 80 + proxy_pass) - ALREADY UNCOMMENTED, leave as-is
-    # - Lines 50-137: HTTPS Server (listen 443) - COMMENTED, uncomment this
-    # - Lines 140-154: HTTP Redirect (listen 80 + return 301) - COMMENTED, uncomment this
+    # Check if markers exist
+    if ! grep -q "SSL_HTTPS_START" "$nginx_conf"; then
+        warning "SSL markers not found in nginx config - configuration may already be updated"
+        return 0
+    fi
 
-    info "Processing nginx configuration with sed..."
+    info "Processing nginx configuration using SSL markers..."
 
-    # SIMPLE APPROACH: Use line number ranges from template
-    # We know EXACTLY which lines to uncomment:
-    # Lines 50-137: HTTPS server block
-    # Lines 140-154: HTTP redirect block
+    # Uncomment HTTPS block (between SSL_HTTPS_START and SSL_HTTPS_END)
+    # This removes "# " from the beginning of lines, but preserves "# #" comments
+    sed -i '/^# SSL_HTTPS_START$/,/^# SSL_HTTPS_END$/{
+        /^# SSL_HTTPS_START$/d
+        /^# SSL_HTTPS_END$/d
+        s/^# \(.*\)/\1/
+    }' "$nginx_conf"
 
-    # Uncomment lines 50-137 (HTTPS block)
-    sed -i '50,137 s/^#\s\?//' "$nginx_conf"
-
-    # Uncomment lines 140-154 (HTTP redirect block)
-    sed -i '140,154 s/^#\s\?//' "$nginx_conf"
-
-    # ALTERNATIVE if above doesn't work - restore backup and try Python
-    if false; then
-    python3 <<PYTHON_SCRIPT
-import sys
-import re
-
-config_file = "$nginx_conf"
-
-# Read file
-with open(config_file, 'r') as f:
-    lines = f.readlines()
-
-# State tracking
-in_https_block = False
-in_redirect_block = False
-https_buffer = []
-redirect_buffer = []
-https_brace_depth = 0
-redirect_brace_depth = 0
-
-output_lines = []
-
-i = 0
-while i < len(lines):
-    line = lines[i]
-
-    # Detect HTTPS server block: "# server {" followed by "#     listen 443 ssl;"
-    if line.strip() == '# server {' and i+1 < len(lines):
-        next_line = lines[i+1]
-        if 'listen 443 ssl' in next_line:
-            # Start HTTPS block
-            in_https_block = True
-            https_buffer = [line]
-            https_brace_depth = 1  # "# server {" открыл 1 скобку
-            i += 1
-            continue
-
-    # Detect HTTP redirect block: "# server {" followed by listen 80 and later has return 301
-    if line.strip() == '# server {' and i+1 < len(lines) and not in_https_block:
-        next_line = lines[i+1]
-        if 'listen 80' in next_line:
-            # Check if return 301 exists in next 15 lines
-            has_redirect = any('return 301' in lines[j] for j in range(i, min(i+15, len(lines))))
-            if has_redirect:
-                # Start redirect block
-                in_redirect_block = True
-                redirect_buffer = [line]
-                redirect_brace_depth = 1  # "# server {" открыл 1 скобку
-                i += 1
-                continue
-
-    # Collect HTTPS block with brace depth tracking
-    if in_https_block:
-        https_buffer.append(line)
-
-        # Count opening and closing braces in commented lines
-        if line.lstrip().startswith('#'):
-            https_brace_depth += line.count('{')
-            https_brace_depth -= line.count('}')
-
-        # When brace depth reaches 0, block is complete
-        if https_brace_depth == 0:
-            # End of HTTPS block - uncomment all and output
-            for buffered_line in https_buffer:
-                # Remove leading "# " or "#" using string slicing
-                if buffered_line.startswith('# '):
-                    uncommented = buffered_line[2:]  # Remove "# " (2 chars)
-                elif buffered_line.startswith('#'):
-                    uncommented = buffered_line[1:]  # Remove "#" (1 char)
-                else:
-                    uncommented = buffered_line
-                output_lines.append(uncommented)
-            https_buffer = []
-            in_https_block = False
-            i += 1
-            continue
-
-    # Collect redirect block with brace depth tracking
-    if in_redirect_block:
-        redirect_buffer.append(line)
-
-        # Count opening and closing braces in commented lines
-        if line.lstrip().startswith('#'):
-            redirect_brace_depth += line.count('{')
-            redirect_brace_depth -= line.count('}')
-
-        # When brace depth reaches 0, block is complete
-        if redirect_brace_depth == 0:
-            # End of redirect block - uncomment all and output
-            for buffered_line in redirect_buffer:
-                # Remove leading "# " or "#" using string slicing
-                if buffered_line.startswith('# '):
-                    uncommented = buffered_line[2:]  # Remove "# " (2 chars)
-                elif buffered_line.startswith('#'):
-                    uncommented = buffered_line[1:]  # Remove "#" (1 char)
-                else:
-                    uncommented = buffered_line
-                output_lines.append(uncommented)
-            redirect_buffer = []
-            in_redirect_block = False
-            i += 1
-            continue
-
-    # Normal line - output as-is
-    if not in_https_block and not in_redirect_block:
-        output_lines.append(line)
-
-    i += 1
-
-# Write result
-with open(config_file, 'w') as f:
-    f.writelines(output_lines)
-
-sys.exit(0)
-PYTHON_SCRIPT
-        # Check if Python script succeeded
-        if [[ $? -ne 0 ]]; then
-            error "Python processing failed"
-            mv "$nginx_conf.backup" "$nginx_conf" 2>/dev/null || true
-            return 1
-        fi
-    fi  # End of if false block
+    # Uncomment HTTP redirect block (between SSL_REDIRECT_START and SSL_REDIRECT_END)
+    sed -i '/^# SSL_REDIRECT_START$/,/^# SSL_REDIRECT_END$/{
+        /^# SSL_REDIRECT_START$/d
+        /^# SSL_REDIRECT_END$/d
+        s/^# \(.*\)/\1/
+    }' "$nginx_conf"
 
     # Verify the result is not empty
     if [[ ! -s "$nginx_conf" ]]; then
