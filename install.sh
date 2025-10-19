@@ -150,6 +150,7 @@ install_utilities() {
         "apt-transport-https"
         "bc"  # For version comparison
         "jq"  # JSON processor
+        "rsync"  # Required for deploy.sh code synchronization
         "vim"
         "nano"
         "htop"
