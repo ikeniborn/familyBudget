@@ -6,23 +6,24 @@
 {% endblock %}
 
 {% block content %}
-<div class="admin-page">
-    <div class="page-header-container">
-        <div class="page-header-text">
-            <h1>📊 Admin Analytics Dashboard</h1>
-            <p class="page-description">System-wide analytics and insights</p>
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 class="text-3xl font-bold">📊 Admin Analytics Dashboard</h1>
+            <p class="text-base-content/70 mt-1">System-wide analytics and insights</p>
         </div>
         {% if user and user.is_admin %}
-        <div class="export-buttons">
-            <button class="btn-secondary btn-small" onclick="exportPersonalData('csv')"
+        <div class="flex flex-wrap gap-2">
+            <button class="btn btn-secondary btn-sm gap-1" onclick="exportPersonalData('csv')"
                     title="Export your personal transactions to CSV">
                 📄 Export CSV
             </button>
-            <button class="btn-secondary btn-small" onclick="exportPersonalData('excel')"
+            <button class="btn btn-secondary btn-sm gap-1" onclick="exportPersonalData('excel')"
                     title="Export your personal transactions to Excel">
                 📊 Export Excel
             </button>
-            <button class="btn-secondary btn-small" onclick="exportPersonalData('pdf')"
+            <button class="btn btn-secondary btn-sm gap-1" onclick="exportPersonalData('pdf')"
                     title="Export your personal transactions to PDF">
                 📑 Export PDF
             </button>
@@ -31,110 +32,147 @@
     </div>
 
     {% if not user or not user.is_admin %}
-        <div class="alert alert-warning">
-            <p>⚠️ Admin access required to view this page.</p>
-            <p><a href="/api/v1/auth/telegram-login">Log in</a> as an administrator.</p>
+        <div class="alert alert-warning shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+                <p class="font-semibold">⚠️ Admin access required to view this page.</p>
+                <p><a href="/api/v1/auth/telegram-login" class="link link-hover">Log in</a> as an administrator.</p>
+            </div>
         </div>
     {% else %}
         <!-- System Overview -->
-        <div class="card" id="overview-card">
-            <div class="card-header">
-                <h2>System Overview</h2>
-                <button class="btn-secondary btn-small" onclick="refreshOverview()">🔄 Refresh</button>
-            </div>
-            <div class="stats-grid" id="overview-stats">
-                <div class="loading">Loading overview...</div>
-            </div>
-            <div class="financial-summary" id="financial-summary" style="margin-top: 1.5rem; display: none;">
-                <!-- Populated dynamically -->
+        <div class="card bg-base-100 shadow-lg" id="overview-card">
+            <div class="card-body">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="card-title">System Overview</h2>
+                    <button class="btn btn-secondary btn-sm gap-1" onclick="refreshOverview()">🔄 Refresh</button>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="overview-stats">
+                    <div class="loading">Loading overview...</div>
+                </div>
+                <div id="financial-summary" class="mt-6 hidden">
+                    <!-- Populated dynamically -->
+                </div>
             </div>
         </div>
 
         <!-- Charts Grid -->
-        <div class="charts-grid" style="margin-top: 1.5rem;">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <!-- Users Growth Chart -->
-            <section class="chart-card">
-                <h2>👥 User Registration Trends</h2>
-                <div class="chart-controls">
-                    <label for="users-days">Period:</label>
-                    <select id="users-days" onchange="updateUsersGrowthDays()">
-                        <option value="30">Last 30 days</option>
-                        <option value="90" selected>Last 90 days</option>
-                        <option value="180">Last 180 days</option>
-                        <option value="365">Last year</option>
-                    </select>
+            <div class="card bg-base-100 shadow-lg">
+                <div class="card-body">
+                    <h2 class="card-title text-lg">👥 User Registration Trends</h2>
+                    <div class="form-control mb-4">
+                        <div class="flex items-center gap-2">
+                            <label for="users-days" class="label-text font-semibold">Period:</label>
+                            <select id="users-days" class="select select-bordered select-sm" onchange="updateUsersGrowthDays()">
+                                <option value="30">Last 30 days</option>
+                                <option value="90" selected>Last 90 days</option>
+                                <option value="180">Last 180 days</option>
+                                <option value="365">Last year</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="chart-users-growth" style="width: 100%; height: 400px;"></div>
                 </div>
-                <div id="chart-users-growth" style="width: 100%; height: 400px;"></div>
-            </section>
+            </div>
 
             <!-- Transactions Trends Chart -->
-            <section class="chart-card">
-                <h2>📈 Transaction Volume Trends</h2>
-                <div class="chart-controls">
-                    <label for="transactions-days">Period:</label>
-                    <select id="transactions-days" onchange="updateTransactionsDays()">
-                        <option value="30">Last 30 days</option>
-                        <option value="90" selected>Last 90 days</option>
-                        <option value="180">Last 180 days</option>
-                        <option value="365">Last year</option>
-                    </select>
+            <div class="card bg-base-100 shadow-lg">
+                <div class="card-body">
+                    <h2 class="card-title text-lg">📈 Transaction Volume Trends</h2>
+                    <div class="form-control mb-4">
+                        <div class="flex items-center gap-2">
+                            <label for="transactions-days" class="label-text font-semibold">Period:</label>
+                            <select id="transactions-days" class="select select-bordered select-sm" onchange="updateTransactionsDays()">
+                                <option value="30">Last 30 days</option>
+                                <option value="90" selected>Last 90 days</option>
+                                <option value="180">Last 180 days</option>
+                                <option value="365">Last year</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="chart-transactions-trends" style="width: 100%; height: 400px;"></div>
                 </div>
-                <div id="chart-transactions-trends" style="width: 100%; height: 400px;"></div>
-            </section>
+            </div>
 
             <!-- Top Users -->
-            <section class="chart-card">
-                <h2>🏆 Top Users</h2>
-                <div class="chart-controls">
-                    <label for="top-users-metric">Sort by:</label>
-                    <select id="top-users-metric" onchange="updateTopUsersMetric()">
-                        <option value="transactions" selected>Transaction Count</option>
-                        <option value="amount">Total Amount</option>
-                    </select>
-                    <label for="top-users-limit" style="margin-left: 1rem;">Show:</label>
-                    <select id="top-users-limit" onchange="updateTopUsersLimit()">
-                        <option value="5">Top 5</option>
-                        <option value="10" selected>Top 10</option>
-                        <option value="20">Top 20</option>
-                    </select>
+            <div class="card bg-base-100 shadow-lg">
+                <div class="card-body">
+                    <h2 class="card-title text-lg">🏆 Top Users</h2>
+                    <div class="flex flex-wrap items-center gap-4 mb-4">
+                        <div class="form-control">
+                            <div class="flex items-center gap-2">
+                                <label for="top-users-metric" class="label-text font-semibold">Sort by:</label>
+                                <select id="top-users-metric" class="select select-bordered select-sm" onchange="updateTopUsersMetric()">
+                                    <option value="transactions" selected>Transaction Count</option>
+                                    <option value="amount">Total Amount</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-control">
+                            <div class="flex items-center gap-2">
+                                <label for="top-users-limit" class="label-text font-semibold">Show:</label>
+                                <select id="top-users-limit" class="select select-bordered select-sm" onchange="updateTopUsersLimit()">
+                                    <option value="5">Top 5</option>
+                                    <option value="10" selected>Top 10</option>
+                                    <option value="20">Top 20</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="chart-top-users" style="width: 100%; height: 400px;"></div>
                 </div>
-                <div id="chart-top-users" style="width: 100%; height: 400px;"></div>
-            </section>
+            </div>
 
             <!-- Categories Breakdown -->
-            <section class="chart-card">
-                <h2>🥧 Popular Categories</h2>
-                <div class="chart-controls">
-                    <label for="categories-type">Type:</label>
-                    <select id="categories-type" onchange="updateCategoriesType()">
-                        <option value="expense" selected>Expense</option>
-                        <option value="income">Income</option>
-                    </select>
-                    <label for="categories-limit" style="margin-left: 1rem;">Show:</label>
-                    <select id="categories-limit" onchange="updateCategoriesLimit()">
-                        <option value="10">Top 10</option>
-                        <option value="15" selected>Top 15</option>
-                        <option value="20">Top 20</option>
-                    </select>
+            <div class="card bg-base-100 shadow-lg">
+                <div class="card-body">
+                    <h2 class="card-title text-lg">🥧 Popular Categories</h2>
+                    <div class="flex flex-wrap items-center gap-4 mb-4">
+                        <div class="form-control">
+                            <div class="flex items-center gap-2">
+                                <label for="categories-type" class="label-text font-semibold">Type:</label>
+                                <select id="categories-type" class="select select-bordered select-sm" onchange="updateCategoriesType()">
+                                    <option value="expense" selected>Expense</option>
+                                    <option value="income">Income</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-control">
+                            <div class="flex items-center gap-2">
+                                <label for="categories-limit" class="label-text font-semibold">Show:</label>
+                                <select id="categories-limit" class="select select-bordered select-sm" onchange="updateCategoriesLimit()">
+                                    <option value="10">Top 10</option>
+                                    <option value="15" selected>Top 15</option>
+                                    <option value="20">Top 20</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="chart-categories-breakdown" style="width: 100%; height: 400px;"></div>
                 </div>
-                <div id="chart-categories-breakdown" style="width: 100%; height: 400px;"></div>
-            </section>
+            </div>
         </div>
 
         <!-- Centers Usage -->
-        <div class="card" style="margin-top: 1.5rem;">
-            <div class="card-header">
-                <h2>🏢 ЦФО and МВЗ Usage Statistics</h2>
-                <button class="btn-secondary btn-small" onclick="refreshCentersUsage()">🔄 Refresh</button>
-            </div>
-            <div class="charts-grid-horizontal">
-                <div>
-                    <h3 style="text-align: center; margin-bottom: 1rem;">Financial Centers (ЦФО)</h3>
-                    <div id="chart-financial-centers" style="width: 100%; height: 400px;"></div>
+        <div class="card bg-base-100 shadow-lg">
+            <div class="card-body">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="card-title">🏢 ЦФО and МВЗ Usage Statistics</h2>
+                    <button class="btn btn-secondary btn-sm gap-1" onclick="refreshCentersUsage()">🔄 Refresh</button>
                 </div>
-                <div>
-                    <h3 style="text-align: center; margin-bottom: 1rem;">Cost Centers (МВЗ)</h3>
-                    <div id="chart-cost-centers" style="width: 100%; height: 400px;"></div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-center font-semibold text-lg mb-4">Financial Centers (ЦФО)</h3>
+                        <div id="chart-financial-centers" style="width: 100%; height: 400px;"></div>
+                    </div>
+                    <div>
+                        <h3 class="text-center font-semibold text-lg mb-4">Cost Centers (МВЗ)</h3>
+                        <div id="chart-cost-centers" style="width: 100%; height: 400px;"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -195,53 +233,53 @@ async function loadOverview() {
 
 function renderOverview(data) {
     const statsHtml = `
-        <div class="stat-card">
-            <div class="stat-icon">👥</div>
-            <div>
-                <div class="stat-value">${data.total_users}</div>
-                <div class="stat-label">Total Users</div>
+        <div class="stats shadow-sm">
+            <div class="stat">
+                <div class="stat-figure text-primary text-3xl">👥</div>
+                <div class="stat-title">Total Users</div>
+                <div class="stat-value text-primary">${data.total_users}</div>
             </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon">📊</div>
-            <div>
-                <div class="stat-value">${data.total_transactions.toLocaleString()}</div>
-                <div class="stat-label">Total Transactions</div>
+        <div class="stats shadow-sm">
+            <div class="stat">
+                <div class="stat-figure text-secondary text-3xl">📊</div>
+                <div class="stat-title">Total Transactions</div>
+                <div class="stat-value text-secondary">${data.total_transactions.toLocaleString()}</div>
             </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon">📁</div>
-            <div>
-                <div class="stat-value">${data.total_articles}</div>
-                <div class="stat-label">Total Categories</div>
+        <div class="stats shadow-sm">
+            <div class="stat">
+                <div class="stat-figure text-accent text-3xl">📁</div>
+                <div class="stat-title">Total Categories</div>
+                <div class="stat-value text-accent">${data.total_articles}</div>
             </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon">🏢</div>
-            <div>
-                <div class="stat-value">${data.total_financial_centers}</div>
-                <div class="stat-label">ЦФО</div>
+        <div class="stats shadow-sm">
+            <div class="stat">
+                <div class="stat-figure text-info text-3xl">🏢</div>
+                <div class="stat-title">ЦФО</div>
+                <div class="stat-value text-info">${data.total_financial_centers}</div>
             </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon">💼</div>
-            <div>
-                <div class="stat-value">${data.total_cost_centers}</div>
-                <div class="stat-label">МВЗ</div>
+        <div class="stats shadow-sm">
+            <div class="stat">
+                <div class="stat-figure text-success text-3xl">💼</div>
+                <div class="stat-title">МВЗ</div>
+                <div class="stat-value text-success">${data.total_cost_centers}</div>
             </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon">📈</div>
-            <div>
-                <div class="stat-value">${data.recent_activity.new_users_30d}</div>
-                <div class="stat-label">New Users (30d)</div>
+        <div class="stats shadow-sm">
+            <div class="stat">
+                <div class="stat-figure text-warning text-3xl">📈</div>
+                <div class="stat-title">New Users (30d)</div>
+                <div class="stat-value text-warning">${data.recent_activity.new_users_30d}</div>
             </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon">💰</div>
-            <div>
-                <div class="stat-value">${data.recent_activity.transactions_30d}</div>
-                <div class="stat-label">Transactions (30d)</div>
+        <div class="stats shadow-sm col-span-2">
+            <div class="stat">
+                <div class="stat-figure text-primary text-3xl">💰</div>
+                <div class="stat-title">Transactions (30d)</div>
+                <div class="stat-value text-primary">${data.recent_activity.transactions_30d}</div>
             </div>
         </div>
     `;
@@ -252,29 +290,29 @@ function renderOverview(data) {
     const income = data.financial_summary.total_income;
     const expense = data.financial_summary.total_expense;
     const balance = data.financial_summary.balance;
-    const balanceColor = balance >= 0 ? '#4CAF50' : '#EF5350';
+    const balanceClass = balance >= 0 ? 'text-success' : 'text-error';
 
     const summaryHtml = `
-        <div class="financial-summary-grid">
-            <div class="summary-card income">
-                <div class="summary-icon">📈</div>
-                <div>
-                    <div class="summary-label">Total Income</div>
-                    <div class="summary-value">${income.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ₽</div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="stats shadow-md bg-success/10">
+                <div class="stat">
+                    <div class="stat-figure text-success text-3xl">📈</div>
+                    <div class="stat-title">Total Income</div>
+                    <div class="stat-value text-success">${income.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ₽</div>
                 </div>
             </div>
-            <div class="summary-card expense">
-                <div class="summary-icon">📉</div>
-                <div>
-                    <div class="summary-label">Total Expense</div>
-                    <div class="summary-value">${expense.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ₽</div>
+            <div class="stats shadow-md bg-error/10">
+                <div class="stat">
+                    <div class="stat-figure text-error text-3xl">📉</div>
+                    <div class="stat-title">Total Expense</div>
+                    <div class="stat-value text-error">${expense.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ₽</div>
                 </div>
             </div>
-            <div class="summary-card balance" style="border-left-color: ${balanceColor}">
-                <div class="summary-icon">💰</div>
-                <div>
-                    <div class="summary-label">Net Balance</div>
-                    <div class="summary-value" style="color: ${balanceColor}">${balance.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ₽</div>
+            <div class="stats shadow-md ${balance >= 0 ? 'bg-success/10' : 'bg-error/10'}">
+                <div class="stat">
+                    <div class="stat-figure ${balanceClass} text-3xl">💰</div>
+                    <div class="stat-title">Net Balance</div>
+                    <div class="stat-value ${balanceClass}">${balance.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ₽</div>
                 </div>
             </div>
         </div>
@@ -282,7 +320,7 @@ function renderOverview(data) {
 
     const summaryContainer = document.getElementById('financial-summary');
     summaryContainer.innerHTML = summaryHtml;
-    summaryContainer.style.display = 'block';
+    summaryContainer.classList.remove('hidden');
 }
 
 function refreshOverview() {
@@ -944,172 +982,19 @@ window.addEventListener('resize', function() {
 });
 </script>
 
+
 <style>
-/* Page Header with Export Buttons */
-.page-header-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap;
-    gap: 1rem;
-}
-
-.page-header-text {
-    flex: 1;
-}
-
-.export-buttons {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    align-items: flex-start;
-}
-
-/* Charts Grid */
-.charts-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-    gap: 1.5rem;
-}
-
-.charts-grid-horizontal {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-}
-
-.chart-card {
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 1.5rem;
-}
-
-.chart-card h2, .chart-card h3 {
-    margin: 0 0 1rem 0;
-    font-size: 1.2rem;
-    font-weight: 600;
-}
-
-.chart-controls {
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-}
-
-.chart-controls label {
-    font-weight: 500;
-    color: var(--text-color-secondary);
-}
-
-.chart-controls select {
-    padding: 0.4rem 0.8rem;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    font-size: 0.9rem;
-}
-
-/* Financial Summary */
-.financial-summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1rem;
-}
-
-.summary-card {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-left: 4px solid;
-    border-radius: 4px;
-}
-
-.summary-card.income {
-    border-left-color: #4CAF50;
-}
-
-.summary-card.expense {
-    border-left-color: #f44336;
-}
-
-.summary-card.balance {
-    border-left-color: #2196F3;
-}
-
-.summary-icon {
-    font-size: 2rem;
-}
-
-.summary-label {
-    font-size: 0.85rem;
-    color: var(--text-color-secondary);
-    margin-bottom: 0.25rem;
-}
-
-.summary-value {
-    font-size: 1.3rem;
-    font-weight: 700;
-}
-
-/* Loading & Error */
+/* Custom styles for ECharts and stats */
 .loading {
     text-align: center;
     padding: 2rem;
-    color: var(--text-color-secondary);
+    color: oklch(var(--bc) / 0.5);
 }
 
-.error-message {
-    text-align: center;
-    padding: 2rem;
-    color: #f44336;
-}
-
-.error-details {
-    font-size: 0.9rem;
-    color: var(--text-color-secondary);
-    margin-top: 0.5rem;
-}
-
-/* Responsive */
-@media (max-width: 1200px) {
-    .charts-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .charts-grid-horizontal {
-        grid-template-columns: 1fr;
-    }
-}
-
+/* Mobile responsive для charts */
 @media (max-width: 768px) {
-    .page-header-container {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .export-buttons {
-        width: 100%;
-    }
-
-    .export-buttons button {
-        flex: 1;
-    }
-
-    .chart-controls {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .financial-summary-grid {
-        grid-template-columns: 1fr;
+    [id^="chart-"] {
+        height: 300px !important;
     }
 }
 </style>

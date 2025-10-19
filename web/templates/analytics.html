@@ -6,18 +6,19 @@
 {% endblock %}
 
 {% block content %}
-<div class="analytics-page">
-    <div class="page-header">
-        <h1>📊 Analytics Dashboard</h1>
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 class="text-3xl font-bold">📊 Analytics Dashboard</h1>
         {% if user %}
-        <div class="export-buttons">
-            <button class="btn-secondary btn-small" onclick="exportAllTransactions('csv')" title="Export all transactions to CSV">
+        <div class="flex flex-wrap gap-2">
+            <button class="btn btn-secondary btn-sm gap-1" onclick="exportAllTransactions('csv')" title="Export all transactions to CSV">
                 📄 Export CSV
             </button>
-            <button class="btn-secondary btn-small" onclick="exportAllTransactions('excel')" title="Export all transactions to Excel">
+            <button class="btn btn-secondary btn-sm gap-1" onclick="exportAllTransactions('excel')" title="Export all transactions to Excel">
                 📊 Export Excel
             </button>
-            <button class="btn-secondary btn-small" onclick="exportAllTransactions('pdf')" title="Export all transactions to PDF">
+            <button class="btn btn-secondary btn-sm gap-1" onclick="exportAllTransactions('pdf')" title="Export all transactions to PDF">
                 📑 Export PDF
             </button>
         </div>
@@ -25,77 +26,109 @@
     </div>
 
     {% if not user %}
-        <div class="alert alert-warning">
-            <p>Please <a href="/api/v1/auth/telegram-login">log in</a> to view analytics.</p>
+        <div class="alert alert-warning shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>Please <a href="/api/v1/auth/telegram-login" class="link link-hover font-semibold">log in</a> to view analytics.</span>
         </div>
     {% else %}
         <!-- Period Filter -->
-        <div class="filter-bar" role="group" aria-label="Time period filter">
-            <label id="period-label">Period:</label>
-            <button class="filter-btn active" id="filter-week" data-period="week" onclick="updatePeriod('week')" aria-pressed="true" aria-labelledby="period-label filter-week">Week</button>
-            <button class="filter-btn" id="filter-month" data-period="month" onclick="updatePeriod('month')" aria-pressed="false" aria-labelledby="period-label filter-month">Month</button>
-            <button class="filter-btn" id="filter-year" data-period="year" onclick="updatePeriod('year')" aria-pressed="false" aria-labelledby="period-label filter-year">Year</button>
-        </div>
-
-        <!-- Charts Container -->
-        <div class="charts-grid">
-            <section class="chart-card" aria-labelledby="chart-title-planfact">
-                <h2 id="chart-title-planfact">📊 Plan vs Fact</h2>
-                <div id="chart-plan-fact" style="width: 100%; height: 400px;" role="img" aria-label="Bar chart comparing planned versus actual spending"></div>
-            </section>
-
-            <section class="chart-card" aria-labelledby="chart-title-trends">
-                <div class="chart-header">
-                    <h2 id="chart-title-trends">📈 Spending Trends</h2>
-                    <div class="chart-actions">
-                        <button class="btn-icon" onclick="exportTrendsData('csv')" title="Export trends to CSV">📄</button>
-                        <button class="btn-icon" onclick="exportTrendsData('excel')" title="Export trends to Excel">📊</button>
+        <div class="card bg-base-100 shadow-md" role="group" aria-label="Time period filter">
+            <div class="card-body p-4">
+                <div class="flex flex-wrap items-center gap-3">
+                    <label id="period-label" class="font-semibold text-sm">Period:</label>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-primary" id="filter-week" data-period="week" onclick="updatePeriod('week')" aria-pressed="true" aria-labelledby="period-label filter-week">Week</button>
+                        <button class="btn btn-sm btn-outline" id="filter-month" data-period="month" onclick="updatePeriod('month')" aria-pressed="false" aria-labelledby="period-label filter-month">Month</button>
+                        <button class="btn btn-sm btn-outline" id="filter-year" data-period="year" onclick="updatePeriod('year')" aria-pressed="false" aria-labelledby="period-label filter-year">Year</button>
                     </div>
                 </div>
-                <div class="trends-controls" role="group" aria-label="Trends time range selector">
-                    <label for="trends-days">Days:</label>
-                    <select id="trends-days" onchange="updateTrendsDays()" aria-label="Select number of days to display">
-                        <option value="7">Last 7 days</option>
-                        <option value="30" selected>Last 30 days</option>
-                        <option value="90">Last 90 days</option>
-                        <option value="365">Last year</option>
-                    </select>
-                </div>
-                <div id="chart-trends" style="width: 100%; height: 400px;" role="img" aria-label="Line chart showing income and expense trends over time"></div>
-            </section>
+            </div>
+        </div>
 
-            <section class="chart-card" aria-labelledby="chart-title-pie">
-                <h2 id="chart-title-pie">🥧 Category Breakdown</h2>
-                <div class="pie-controls" role="group" aria-label="Category type selector">
-                    <label id="pie-type-label">Type:</label>
-                    <button class="filter-btn-small active" id="pie-expense" onclick="updatePieType('expense')" aria-pressed="true" aria-labelledby="pie-type-label pie-expense">Expense</button>
-                    <button class="filter-btn-small" id="pie-income" onclick="updatePieType('income')" aria-pressed="false" aria-labelledby="pie-type-label pie-income">Income</button>
+        <!-- Charts Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Plan vs Fact Chart -->
+            <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-planfact">
+                <div class="card-body">
+                    <h2 id="chart-title-planfact" class="card-title text-lg">📊 Plan vs Fact</h2>
+                    <div id="chart-plan-fact" style="width: 100%; height: 400px;" role="img" aria-label="Bar chart comparing planned versus actual spending"></div>
                 </div>
-                <div id="chart-pie" style="width: 100%; height: 400px;" role="img" aria-label="Donut chart showing spending breakdown by category"></div>
-            </section>
+            </div>
 
-            <section class="chart-card" aria-labelledby="chart-title-waterfall">
-                <h2 id="chart-title-waterfall">💧 Waterfall Chart</h2>
-                <div class="waterfall-controls" role="group" aria-label="Waterfall period selector">
-                    <label id="waterfall-period-label">Period:</label>
-                    <button class="filter-btn-small" id="waterfall-month" onclick="updateWaterfallPeriod('month')" aria-pressed="false" aria-labelledby="waterfall-period-label waterfall-month">Month</button>
-                    <button class="filter-btn-small" id="waterfall-quarter" onclick="updateWaterfallPeriod('quarter')" aria-pressed="false" aria-labelledby="waterfall-period-label waterfall-quarter">Quarter</button>
-                    <button class="filter-btn-small active" id="waterfall-year" onclick="updateWaterfallPeriod('year')" aria-pressed="true" aria-labelledby="waterfall-period-label waterfall-year">Year</button>
-                    <button class="filter-btn-small" id="waterfall-reset" onclick="resetWaterfallDrilldown()" style="display:none; margin-left: 10px;" aria-label="Reset drill-down">↩️ Reset</button>
+            <!-- Spending Trends Chart -->
+            <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-trends">
+                <div class="card-body">
+                    <div class="flex justify-between items-start mb-4">
+                        <h2 id="chart-title-trends" class="card-title text-lg">📈 Spending Trends</h2>
+                        <div class="flex gap-1">
+                            <button class="btn btn-ghost btn-xs" onclick="exportTrendsData('csv')" title="Export trends to CSV">📄</button>
+                            <button class="btn btn-ghost btn-xs" onclick="exportTrendsData('excel')" title="Export trends to Excel">📊</button>
+                        </div>
+                    </div>
+                    <div class="form-control mb-4" role="group" aria-label="Trends time range selector">
+                        <div class="flex items-center gap-2">
+                            <label for="trends-days" class="label-text font-semibold">Days:</label>
+                            <select id="trends-days" class="select select-bordered select-sm" onchange="updateTrendsDays()" aria-label="Select number of days to display">
+                                <option value="7">Last 7 days</option>
+                                <option value="30" selected>Last 30 days</option>
+                                <option value="90">Last 90 days</option>
+                                <option value="365">Last year</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="chart-trends" style="width: 100%; height: 400px;" role="img" aria-label="Line chart showing income and expense trends over time"></div>
                 </div>
-                <div id="chart-waterfall" style="width: 100%; height: 400px;" role="img" aria-label="Waterfall chart showing cumulative cash flow with drill-down capability"></div>
-            </section>
+            </div>
 
-            <section class="chart-card" aria-labelledby="chart-title-heatmap">
-                <h2 id="chart-title-heatmap">🔥 Spending Heatmap</h2>
-                <div class="heatmap-controls" role="group" aria-label="Heatmap period selector">
-                    <label id="heatmap-period-label">Period:</label>
-                    <button class="filter-btn-small" id="heatmap-month" onclick="updateHeatmapPeriod('month')" aria-pressed="false" aria-labelledby="heatmap-period-label heatmap-month">Month</button>
-                    <button class="filter-btn-small active" id="heatmap-quarter" onclick="updateHeatmapPeriod('quarter')" aria-pressed="true" aria-labelledby="heatmap-period-label heatmap-quarter">Quarter</button>
-                    <button class="filter-btn-small" id="heatmap-year" onclick="updateHeatmapPeriod('year')" aria-pressed="false" aria-labelledby="heatmap-period-label heatmap-year">Year</button>
+            <!-- Category Breakdown Chart -->
+            <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-pie">
+                <div class="card-body">
+                    <h2 id="chart-title-pie" class="card-title text-lg">🥧 Category Breakdown</h2>
+                    <div class="flex items-center gap-3 mb-4" role="group" aria-label="Category type selector">
+                        <label id="pie-type-label" class="label-text font-semibold">Type:</label>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-primary" id="pie-expense" onclick="updatePieType('expense')" aria-pressed="true" aria-labelledby="pie-type-label pie-expense">Expense</button>
+                            <button class="btn btn-sm btn-outline" id="pie-income" onclick="updatePieType('income')" aria-pressed="false" aria-labelledby="pie-type-label pie-income">Income</button>
+                        </div>
+                    </div>
+                    <div id="chart-pie" style="width: 100%; height: 400px;" role="img" aria-label="Donut chart showing spending breakdown by category"></div>
                 </div>
-                <div id="chart-heatmap" style="width: 100%; height: 400px;" role="img" aria-label="Heatmap showing spending patterns by day of week"></div>
-            </section>
+            </div>
+
+            <!-- Waterfall Chart -->
+            <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-waterfall">
+                <div class="card-body">
+                    <h2 id="chart-title-waterfall" class="card-title text-lg">💧 Waterfall Chart</h2>
+                    <div class="flex flex-wrap items-center gap-3 mb-4" role="group" aria-label="Waterfall period selector">
+                        <label id="waterfall-period-label" class="label-text font-semibold">Period:</label>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline" id="waterfall-month" onclick="updateWaterfallPeriod('month')" aria-pressed="false" aria-labelledby="waterfall-period-label waterfall-month">Month</button>
+                            <button class="btn btn-sm btn-outline" id="waterfall-quarter" onclick="updateWaterfallPeriod('quarter')" aria-pressed="false" aria-labelledby="waterfall-period-label waterfall-quarter">Quarter</button>
+                            <button class="btn btn-sm btn-primary" id="waterfall-year" onclick="updateWaterfallPeriod('year')" aria-pressed="true" aria-labelledby="waterfall-period-label waterfall-year">Year</button>
+                        </div>
+                        <button class="btn btn-sm btn-ghost gap-1 hidden" id="waterfall-reset" onclick="resetWaterfallDrilldown()" aria-label="Reset drill-down">↩️ Reset</button>
+                    </div>
+                    <div id="chart-waterfall" style="width: 100%; height: 400px;" role="img" aria-label="Waterfall chart showing cumulative cash flow with drill-down capability"></div>
+                </div>
+            </div>
+
+            <!-- Heatmap Chart -->
+            <div class="card bg-base-100 shadow-lg col-span-full" aria-labelledby="chart-title-heatmap">
+                <div class="card-body">
+                    <h2 id="chart-title-heatmap" class="card-title text-lg">🔥 Spending Heatmap</h2>
+                    <div class="flex items-center gap-3 mb-4" role="group" aria-label="Heatmap period selector">
+                        <label id="heatmap-period-label" class="label-text font-semibold">Period:</label>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline" id="heatmap-month" onclick="updateHeatmapPeriod('month')" aria-pressed="false" aria-labelledby="heatmap-period-label heatmap-month">Month</button>
+                            <button class="btn btn-sm btn-primary" id="heatmap-quarter" onclick="updateHeatmapPeriod('quarter')" aria-pressed="true" aria-labelledby="heatmap-period-label heatmap-quarter">Quarter</button>
+                            <button class="btn btn-sm btn-outline" id="heatmap-year" onclick="updateHeatmapPeriod('year')" aria-pressed="false" aria-labelledby="heatmap-period-label heatmap-year">Year</button>
+                        </div>
+                    </div>
+                    <div id="chart-heatmap" style="width: 100%; height: 400px;" role="img" aria-label="Heatmap showing spending patterns by day of week"></div>
+                </div>
+            </div>
         </div>
     {% endif %}
 </div>
@@ -273,14 +306,20 @@ function updatePlanFactChart(data) {
 function updatePeriod(period) {
     currentPeriod = period;
 
-    // Update active button
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.remove('active');
+    // Update active button (DaisyUI btn-group)
+    document.querySelectorAll('#filter-week, #filter-month, #filter-year').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+        btn.setAttribute('aria-pressed', 'false');
     });
-    document.getElementById(`filter-${period}`).classList.add('active');
+    const activeBtn = document.getElementById(`filter-${period}`);
+    activeBtn.classList.remove('btn-outline');
+    activeBtn.classList.add('btn-primary');
+    activeBtn.setAttribute('aria-pressed', 'true');
 
     // Reload chart data
     loadPlanFactData(period);
+    loadPieData(currentPieType, period);
 }
 
 // Initialize Trends chart
@@ -570,36 +609,22 @@ function updatePieChart(data) {
 function updatePieType(type) {
     currentPieType = type;
 
-    // Update active button and ARIA states
-    document.querySelectorAll('.pie-controls .filter-btn-small').forEach(btn => {
-        btn.classList.remove('active');
+    // Update active button and ARIA states (DaisyUI btn-group)
+    document.querySelectorAll('#pie-expense, #pie-income').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
         btn.setAttribute('aria-pressed', 'false');
     });
     const activeBtn = document.getElementById(`pie-${type}`);
-    activeBtn.classList.add('active');
+    activeBtn.classList.remove('btn-outline');
+    activeBtn.classList.add('btn-primary');
     activeBtn.setAttribute('aria-pressed', 'true');
 
     // Reload chart data
     loadPieData(type, currentPeriod);
 }
 
-// Update pie period when main period changes
-function updatePeriod(period) {
-    currentPeriod = period;
-
-    // Update active button and ARIA states
-    document.querySelectorAll('.filter-bar .filter-btn').forEach(btn => {
-        btn.classList.remove('active');
-        btn.setAttribute('aria-pressed', 'false');
-    });
-    const activeBtn = document.getElementById(`filter-${period}`);
-    activeBtn.classList.add('active');
-    activeBtn.setAttribute('aria-pressed', 'true');
-
-    // Reload charts
-    loadPlanFactData(period);
-    loadPieData(currentPieType, period);
-}
+// Note: updatePeriod function is defined earlier in the file
 
 // Initialize Waterfall chart
 function initWaterfallChart() {
@@ -819,16 +844,16 @@ function updateWaterfallChart(data) {
 function updateWaterfallPeriod(period) {
     currentWaterfallPeriod = period;
 
-    // Update active button and ARIA states
-    document.getElementById('waterfall-month').classList.remove('active');
-    document.getElementById('waterfall-month').setAttribute('aria-pressed', 'false');
-    document.getElementById('waterfall-quarter').classList.remove('active');
-    document.getElementById('waterfall-quarter').setAttribute('aria-pressed', 'false');
-    document.getElementById('waterfall-year').classList.remove('active');
-    document.getElementById('waterfall-year').setAttribute('aria-pressed', 'false');
+    // Update active button and ARIA states (DaisyUI btn-group)
+    document.querySelectorAll('#waterfall-month, #waterfall-quarter, #waterfall-year').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+        btn.setAttribute('aria-pressed', 'false');
+    });
 
     const activeBtn = document.getElementById(`waterfall-${period}`);
-    activeBtn.classList.add('active');
+    activeBtn.classList.remove('btn-outline');
+    activeBtn.classList.add('btn-primary');
     activeBtn.setAttribute('aria-pressed', 'true');
 
     // Reload chart data with current drill-down state
@@ -1076,16 +1101,16 @@ function updateHeatmapChart(data) {
 function updateHeatmapPeriod(period) {
     currentHeatmapPeriod = period;
 
-    // Update active button and ARIA states
-    document.getElementById('heatmap-month').classList.remove('active');
-    document.getElementById('heatmap-month').setAttribute('aria-pressed', 'false');
-    document.getElementById('heatmap-quarter').classList.remove('active');
-    document.getElementById('heatmap-quarter').setAttribute('aria-pressed', 'false');
-    document.getElementById('heatmap-year').classList.remove('active');
-    document.getElementById('heatmap-year').setAttribute('aria-pressed', 'false');
+    // Update active button and ARIA states (DaisyUI btn-group)
+    document.querySelectorAll('#heatmap-month, #heatmap-quarter, #heatmap-year').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+        btn.setAttribute('aria-pressed', 'false');
+    });
 
     const activeBtn = document.getElementById(`heatmap-${period}`);
-    activeBtn.classList.add('active');
+    activeBtn.classList.remove('btn-outline');
+    activeBtn.classList.add('btn-primary');
     activeBtn.setAttribute('aria-pressed', 'true');
 
     // Reload chart data
@@ -1144,75 +1169,26 @@ function exportTrendsData(format) {
 </script>
 
 <style>
-/* Export buttons styling */
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap;
-    gap: 1rem;
+/* Custom styles for ECharts integration with Tailwind/DaisyUI */
+#waterfall-reset.hidden {
+    display: none !important;
 }
 
-.page-header h1 {
-    margin: 0;
+/* Smooth transitions for button state changes */
+.btn-group .btn {
+    transition: all 0.2s ease-in-out;
 }
 
-.export-buttons {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
+/* Ensure chart containers maintain aspect ratio */
+[id^="chart-"] {
+    min-height: 400px;
 }
 
-.chart-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-}
-
-.chart-header h2 {
-    margin: 0;
-}
-
-.chart-actions {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.btn-icon {
-    background: none;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 0.4rem 0.6rem;
-    cursor: pointer;
-    font-size: 1.2rem;
-    transition: all 0.2s ease;
-}
-
-.btn-icon:hover {
-    background-color: var(--bg-color);
-    border-color: var(--primary-color);
-    transform: scale(1.1);
-}
-
-.btn-icon:active {
-    transform: scale(0.95);
-}
-
-/* Responsive adjustments */
+/* Mobile responsive adjustments for charts */
 @media (max-width: 768px) {
-    .page-header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .export-buttons {
-        width: 100%;
-    }
-
-    .export-buttons button {
-        flex: 1;
+    [id^="chart-"] {
+        height: 300px !important;
+        min-height: 300px;
     }
 }
 </style>

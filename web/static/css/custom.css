@@ -1,0 +1,71 @@
+/**
+ * Family Budget - Custom Tailwind/DaisyUI Styles
+ *
+ * This file contains custom styles that extend Tailwind CSS and DaisyUI.
+ * Use this for project-specific styling that can't be achieved with utility classes.
+ */
+
+/* Custom theme adjustments */
+:root {
+    --chart-bg: #ffffff;
+    --chart-text: #333333;
+}
+
+[data-theme="dark"] {
+    --chart-bg: #1e1e1e;
+    --chart-text: #e0e0e0;
+}
+
+/* ECharts custom styles */
+.echarts-container {
+    @apply w-full;
+}
+
+/* Loading animation for charts */
+.chart-loading {
+    @apply flex items-center justify-center min-h-[400px] text-primary text-lg;
+}
+
+.chart-loading::after {
+    content: '...';
+    animation: dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes dots {
+    0%, 20% { content: ''; }
+    40% { content: '.'; }
+    60% { content: '..'; }
+    80%, 100% { content: '...'; }
+}
+
+/* Smooth card hover effects */
+.card-hoverable {
+    @apply transition-all duration-200 ease-in-out;
+}
+
+.card-hoverable:hover {
+    @apply -translate-y-1 shadow-xl;
+}
+
+/* Active menu item indicator */
+.menu li > a.active {
+    @apply bg-primary text-primary-content;
+}
+
+/* Custom scrollbar for dark mode */
+[data-theme="dark"] ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+    @apply bg-base-200;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    @apply bg-base-content/20 rounded-lg;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    @apply bg-base-content/30;
+}
