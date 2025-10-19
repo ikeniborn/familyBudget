@@ -15,7 +15,6 @@
 #
 # Options:
 #   -h, --help              Show this help message
-#   -b, --build             Force rebuild of Docker images
 #   -d, --detach            Run in detached mode (default)
 #   -f, --foreground        Run in foreground (show logs)
 #   -p, --profile PROFILE   Docker Compose profile (default: none, full: all services)
@@ -25,8 +24,10 @@
 # Examples:
 #   ./deploy.sh                    # Basic deployment (postgres + backend)
 #   ./deploy.sh --profile full     # Full deployment (+ nginx + bot + certbot)
-#   ./deploy.sh --build            # Rebuild images and deploy
 #   ./deploy.sh --clean            # Clean deployment (removes data!)
+#
+# Note: Docker images are automatically rebuilt when code changes (using --build flag).
+#       Docker uses layer cache, so rebuilds are fast when nothing changed.
 #
 # Author: Family Budget Team
 # Version: 1.0.0
@@ -55,11 +56,11 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Default options
-BUILD_IMAGES=false
 DETACH_MODE=true
 RUN_MIGRATIONS=true
 CLEAN_DEPLOY=false
 COMPOSE_PROFILE=""
+# Note: BUILD_IMAGES removed - now always enabled via 'docker compose up --build'
 
 # Service health check configuration
 MAX_WAIT_TIME=120  # Maximum wait time for services (seconds)
@@ -129,7 +130,6 @@ Usage:
 
 Options:
   -h, --help              Show this help message
-  -b, --build             Force rebuild of Docker images
   -d, --detach            Run in detached mode (default)
   -f, --foreground        Run in foreground (show logs)
   -p, --profile PROFILE   Docker Compose profile (default: none, full: all services)
@@ -139,8 +139,11 @@ Options:
 Examples:
   ./deploy.sh                    # Basic deployment (postgres + backend)
   ./deploy.sh --profile full     # Full deployment (+ nginx + bot + certbot)
-  ./deploy.sh --build            # Rebuild images and deploy
   ./deploy.sh --foreground       # Deploy and show logs
+
+Note:
+  Docker images are automatically rebuilt when code changes.
+  Docker uses layer cache for fast rebuilds (only changed layers are rebuilt).
 
 Profiles:
   none (default)   - PostgreSQL + Backend only
@@ -771,25 +774,8 @@ compose_cmd() {
 # DEPLOYMENT FUNCTIONS
 # =============================================================================
 
-# Build Docker images
-build_images() {
-    if [[ "$BUILD_IMAGES" == "true" ]]; then
-        step "Building Docker images..."
-
-        local build_args=""
-        if [[ -n "$COMPOSE_PROFILE" ]]; then
-            build_args="--profile $COMPOSE_PROFILE"
-        fi
-
-        if compose_cmd $build_args build >> "$LOG_FILE" 2>&1; then
-            success "Docker images built successfully"
-        else
-            error "Failed to build Docker images. Check $LOG_FILE for details."
-        fi
-    else
-        info "Skipping image build (use --build to force rebuild)"
-    fi
-}
+# Note: Image building is now handled automatically by 'docker compose up --build'
+# which rebuilds only changed images using Docker's layer cache for speed
 
 # Stop existing services
 stop_services() {
@@ -1661,10 +1647,6 @@ parse_args() {
                 print_help
                 exit 0
                 ;;
-            -b|--build)
-                BUILD_IMAGES=true
-                shift
-                ;;
             -d|--detach)
                 DETACH_MODE=true
                 shift
@@ -1721,7 +1703,6 @@ main() {
 
     # Display deployment configuration
     info "Deployment configuration:"
-    echo "  Build images:     $BUILD_IMAGES"
     echo "  Detach mode:      $DETACH_MODE"
     echo "  Run migrations:   $RUN_MIGRATIONS"
     echo "  Clean deploy:     $CLEAN_DEPLOY"
@@ -1776,8 +1757,8 @@ main() {
     clean_deployment
     echo ""
 
-    build_images
-    echo ""
+    # Note: Image building now happens automatically in start_services()
+    # via 'docker compose up --build' which uses cache for unchanged images
 
     # stop_services removed - redundant after cleanup_old_deployment
 
