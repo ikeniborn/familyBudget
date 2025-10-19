@@ -495,10 +495,10 @@ async def show_financial_center_selection(
         # Fetch financial centers from backend
         token = SessionManager.get_access_token(context)
         api_client = await get_api_client()
-        response = await api_client.get(
-            "/financial-centers",
+        response = await api_client.get_financial_centers(
             token=token,
-            params={"limit": 1000, "include_global": "true"}
+            limit=1000,
+            include_global=True
         )
 
         centers = response.get("financial_centers", [])
@@ -631,10 +631,10 @@ async def show_cost_center_selection(
         # Fetch cost centers from backend
         token = SessionManager.get_access_token(context)
         api_client = await get_api_client()
-        response = await api_client.get(
-            "/cost-centers",
+        response = await api_client.get_cost_centers(
             token=token,
-            params={"limit": 1000, "include_global": "true"}
+            limit=1000,
+            include_global=True
         )
 
         centers = response.get("cost_centers", [])
