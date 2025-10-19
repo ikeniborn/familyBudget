@@ -63,10 +63,14 @@ ADD CONSTRAINT check_record_type
 ALTER TABLE t_f_budget_fact
 DROP CONSTRAINT IF EXISTS check_budget_fact_date_range;
 
--- Add new conditional date constraint
+-- Add new conditional date constraint (idempotent)
 -- - For 'fact': date cannot be in future (realistic constraint)
 -- - For 'plan': date can be in future (budget planning)
 -- - Both: date must be within reasonable range (2020-2099)
+
+-- Drop constraint if exists (for idempotency)
+ALTER TABLE t_f_budget_fact
+DROP CONSTRAINT IF EXISTS check_budget_fact_date_range_by_type;
 
 ALTER TABLE t_f_budget_fact
 ADD CONSTRAINT check_budget_fact_date_range_by_type

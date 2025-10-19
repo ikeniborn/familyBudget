@@ -672,12 +672,14 @@ main() {
         [ "${cpu_usage%\%}" != "N/A" ] && (( $(echo "${cpu_usage%\%} > 80" | bc -l 2>/dev/null || echo 0) )) && cpu_color="$RED"
 
         local mem_color="$GREEN"
-        [ "$mem_percent" != "N/A" ] && (( mem_percent > 80 )) && mem_color="$RED"
-        [ "$mem_percent" != "N/A" ] && (( mem_percent > 60 )) && (( mem_percent <= 80 )) && mem_color="$YELLOW"
+        local mem_percent_num="${mem_percent%\%}"
+        [ "$mem_percent_num" != "N/A" ] && (( mem_percent_num > 80 )) && mem_color="$RED"
+        [ "$mem_percent_num" != "N/A" ] && (( mem_percent_num > 60 )) && (( mem_percent_num <= 80 )) && mem_color="$YELLOW"
 
         local disk_color="$GREEN"
-        [ "$disk_usage" != "N/A" ] && (( disk_usage > 80 )) && disk_color="$RED"
-        [ "$disk_usage" != "N/A" ] && (( disk_usage > 60 )) && (( disk_usage <= 80 )) && disk_color="$YELLOW"
+        local disk_usage_num="${disk_usage%\%}"
+        [ "$disk_usage_num" != "N/A" ] && (( disk_usage_num > 80 )) && disk_color="$RED"
+        [ "$disk_usage_num" != "N/A" ] && (( disk_usage_num > 60 )) && (( disk_usage_num <= 80 )) && disk_color="$YELLOW"
 
         print_status "    CPU Usage:" "$cpu_usage" "$cpu_color"
         print_status "    Memory Usage:" "$mem_percent" "$mem_color"

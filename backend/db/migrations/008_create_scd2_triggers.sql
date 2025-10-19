@@ -289,24 +289,28 @@ COMMENT ON FUNCTION trg_scd2_cost_center() IS
 -- ============================================================================
 
 -- Trigger for t_d_user
+DROP TRIGGER IF EXISTS trg_scd2_user_before_update ON t_d_user;
 CREATE TRIGGER trg_scd2_user_before_update
     BEFORE UPDATE ON t_d_user
     FOR EACH ROW
     EXECUTE FUNCTION trg_scd2_user();
 
 -- Trigger for t_d_article
+DROP TRIGGER IF EXISTS trg_scd2_article_before_update ON t_d_article;
 CREATE TRIGGER trg_scd2_article_before_update
     BEFORE UPDATE ON t_d_article
     FOR EACH ROW
     EXECUTE FUNCTION trg_scd2_article();
 
 -- Trigger for t_d_financial_center
+DROP TRIGGER IF EXISTS trg_scd2_financial_center_before_update ON t_d_financial_center;
 CREATE TRIGGER trg_scd2_financial_center_before_update
     BEFORE UPDATE ON t_d_financial_center
     FOR EACH ROW
     EXECUTE FUNCTION trg_scd2_financial_center();
 
 -- Trigger for t_d_cost_center
+DROP TRIGGER IF EXISTS trg_scd2_cost_center_before_update ON t_d_cost_center;
 CREATE TRIGGER trg_scd2_cost_center_before_update
     BEFORE UPDATE ON t_d_cost_center
     FOR EACH ROW

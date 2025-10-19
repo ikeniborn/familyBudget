@@ -233,12 +233,14 @@ COMMENT ON FUNCTION trg_article_hierarchy_delete() IS
 -- ============================================================================
 
 -- Trigger for INSERT
+DROP TRIGGER IF EXISTS trg_article_hierarchy_insert_after ON t_d_article;
 CREATE TRIGGER trg_article_hierarchy_insert_after
     AFTER INSERT ON t_d_article
     FOR EACH ROW
     EXECUTE FUNCTION trg_article_hierarchy_insert();
 
 -- Trigger for UPDATE
+DROP TRIGGER IF EXISTS trg_article_hierarchy_update_after ON t_d_article;
 CREATE TRIGGER trg_article_hierarchy_update_after
     AFTER UPDATE ON t_d_article
     FOR EACH ROW
@@ -246,6 +248,7 @@ CREATE TRIGGER trg_article_hierarchy_update_after
     EXECUTE FUNCTION trg_article_hierarchy_update();
 
 -- Trigger for DELETE (optional, for explicitness)
+DROP TRIGGER IF EXISTS trg_article_hierarchy_delete_before ON t_d_article;
 CREATE TRIGGER trg_article_hierarchy_delete_before
     BEFORE DELETE ON t_d_article
     FOR EACH ROW

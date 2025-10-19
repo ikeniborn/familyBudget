@@ -10,7 +10,8 @@ upstream backend {
 
 # HTTP Server - Port 80
 # Initially serves content and ACME challenges
-# After SSL setup, redirects to HTTPS
+# After SSL setup, this block will be commented out and replaced with redirect
+# SSL_HTTP_INITIAL_START
 server {
     listen 80;
     listen [::]:80;
@@ -37,6 +38,7 @@ server {
         proxy_connect_timeout 75s;
     }
 }
+# SSL_HTTP_INITIAL_END
 
 # HTTPS Server - Port 443
 # This section will be uncommented after SSL certificate is obtained

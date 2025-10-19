@@ -19,10 +19,14 @@ ALTER TABLE t_f_budget_fact
 ADD COLUMN IF NOT EXISTS cost_center_id INTEGER;
 
 -- ============================================================================
--- STEP 2: Add foreign key constraints
+-- STEP 2: Add foreign key constraints (idempotent)
 -- ============================================================================
 
 -- Foreign key to t_d_financial_center
+-- Drop constraint if exists (for idempotency)
+ALTER TABLE t_f_budget_fact
+DROP CONSTRAINT IF EXISTS fk_fact_financial_center;
+
 ALTER TABLE t_f_budget_fact
 ADD CONSTRAINT fk_fact_financial_center
     FOREIGN KEY (financial_center_id)
@@ -30,6 +34,10 @@ ADD CONSTRAINT fk_fact_financial_center
     ON DELETE SET NULL;
 
 -- Foreign key to t_d_cost_center
+-- Drop constraint if exists (for idempotency)
+ALTER TABLE t_f_budget_fact
+DROP CONSTRAINT IF EXISTS fk_fact_cost_center;
+
 ALTER TABLE t_f_budget_fact
 ADD CONSTRAINT fk_fact_cost_center
     FOREIGN KEY (cost_center_id)

@@ -1256,6 +1256,14 @@ update_nginx_for_https() {
         s/^# \(.*\)/\1/
     }' "$nginx_conf"
 
+    # Comment out initial HTTP block (between SSL_HTTP_INITIAL_START and SSL_HTTP_INITIAL_END)
+    # to prevent conflicting server names after enabling SSL redirect
+    sed -i '/^# SSL_HTTP_INITIAL_START$/,/^# SSL_HTTP_INITIAL_END$/{
+        /^# SSL_HTTP_INITIAL_START$/d
+        /^# SSL_HTTP_INITIAL_END$/d
+        s/^\([^#]\)/# \1/
+    }' "$nginx_conf"
+
     # Verify the result is not empty
     if [[ ! -s "$nginx_conf" ]]; then
         error "Nginx configuration became empty after processing"
