@@ -405,9 +405,9 @@ WORKERS=4
 LOG_LEVEL=INFO
 
 # PostgreSQL External Access (CRITICAL)
+# Port 5432 is exposed in Docker but blocked by UFW firewall by default
 POSTGRES_EXTERNAL_ACCESS=false
 POSTGRES_ALLOWED_IP=
-POSTGRES_PORT_MAPPING=
 
 # S3 Backup (optional)
 S3_ENDPOINT_URL=https://nyc3.digitaloceanspaces.com

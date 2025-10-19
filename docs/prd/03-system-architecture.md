@@ -332,7 +332,7 @@ services:
   postgres:
     image: postgres:16-alpine
     ports:
-      - "${POSTGRES_EXTERNAL_ACCESS:+5432:}5432"  # Conditional
+      - "5432:5432"  # Exposed but access controlled by UFW
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backups:/backups
@@ -412,7 +412,7 @@ volumes:
 
 ### 3.7 Deployment Structure
 
-**Проблема:** При традиционном подходе (развертывание из Git-репозитория) возникают конфликты при `git pull` из-за runtime файлов (.env, docker-compose.override.yml, data/, logs/).
+**Проблема:** При традиционном подходе (развертывание из Git-репозитория) возникают конфликты при `git pull` из-за runtime файлов (.env, data/, logs/).
 
 **Решение:** Разделение исходного кода и рабочей директории развертывания.
 
@@ -432,10 +432,9 @@ Repository (~/familyBudget)          Deployment (/opt/budget)
 ├── deploy.sh                        ├── deploy.sh             [copied]
 ├── install.sh                       │
 ├── setup.sh                         ├── .env                  [generated]
-├── README.md                        ├── docker-compose.override.yml [generated]
-├── .git/                            ├── data/                 [runtime]
-└── docs/                            ├── logs/                 [runtime]
-                                     ├── backups/              [runtime]
+├── README.md                        ├── data/                 [runtime]
+├── .git/                            ├── logs/                 [runtime]
+└── docs/                            ├── backups/              [runtime]
                                      ├── uploads/              [runtime]
                                      ├── certbot/              [runtime]
                                      └── nginx/conf.d/         [runtime configs]
@@ -498,9 +497,10 @@ cd ~/familyBudget
 5. **Генерирует nginx config** (для full profile):
    - Копирует template → /opt/budget/nginx/conf.d/app.conf
    - Заменяет {{DOMAIN}} на реальный домен
-6. **Создает docker-compose.override.yml** (если PostgreSQL external access):
-   - Прописывает port mapping для PostgreSQL
-   - Настраивает UFW rule для IP restriction
+6. **Настраивает PostgreSQL external access** (если выбрано):
+   - Добавляет UFW правило: `ufw allow from <IP> to any port 5432`
+   - Порт 5432 уже exposed в docker-compose.yml
+   - Без UFW правила порт заблокирован firewall'ом
 7. **Валидирует конфигурацию**
 8. **Опционально собирает Docker images**
 
@@ -570,14 +570,13 @@ git pull origin master
    ```bash
    ufw allow from <ALLOWED_IP> to any port 5432
    ```
-3. **Создает docker-compose.override.yml:**
+3. **Порт 5432 уже exposed** в docker-compose.yml (постоянно):
    ```yaml
-   services:
-     postgres:
-       ports:
-         - "${POSTGRES_PORT_MAPPING}"
+   postgres:
+     ports:
+       - "5432:5432"  # Exposed but access controlled by UFW
    ```
-4. **Все остальные IP блокируются UFW**
+4. **Все остальные IP блокируются UFW** (firewall активен по умолчанию)
 
 **Файл .env permissions:**
 - Автоматически устанавливается `chmod 600` (только owner read/write)

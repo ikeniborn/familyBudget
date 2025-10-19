@@ -24,10 +24,14 @@
 services:
   postgres:
     ports:
-      - "${POSTGRES_EXTERNAL_ACCESS:+5432:}5432"
+      - "5432:5432"  # Exposed but access controlled by UFW firewall
 ```
 
-Логика: если `POSTGRES_EXTERNAL_ACCESS=true`, то порт открыт наружу, иначе - только internal.
+**Логика безопасности:**
+- Порт 5432 всегда exposed на хосте в docker-compose.yml
+- По умолчанию UFW firewall блокирует все внешние подключения
+- setup.sh добавляет UFW правило только при `POSTGRES_EXTERNAL_ACCESS=true`
+- Нет необходимости пересоздавать контейнеры при изменении доступа
 
 ### 10.3 Deployment Scripts
 
@@ -108,12 +112,15 @@ if [ "$EXTERNAL_ACCESS" = "y" ]; then
   fi
   
   # UFW правило с IP restriction (НЕ просто allow 5432)
-  ufw allow from $ALLOWED_IP to any port 5432
+  # Порт 5432 уже exposed в docker-compose.yml, просто разрешаем доступ с IP
+  ufw allow from $ALLOWED_IP to any port 5432 comment "PostgreSQL external access"
   echo "✅ PostgreSQL external access enabled for $ALLOWED_IP"
-  
+  echo "   Port 5432 exposed + UFW allows $ALLOWED_IP"
+
   POSTGRES_EXTERNAL_ACCESS=true
 else
-  echo "✅ PostgreSQL will be internal only"
+  echo "✅ PostgreSQL access blocked by UFW"
+  echo "   Port 5432 exposed but firewall blocks all external connections"
   POSTGRES_EXTERNAL_ACCESS=false
   ALLOWED_IP=""
 fi

@@ -164,13 +164,14 @@ ufw allow 22   # SSH
 ufw allow 80   # HTTP
 ufw allow 443  # HTTPS
 
-# Условный доступ к PostgreSQL (из setup.sh)
+# PostgreSQL доступ (порт 5432 exposed в docker-compose.yml, но контролируется UFW)
+# По умолчанию UFW блокирует все внешние подключения к порту 5432
 if [ "$POSTGRES_EXTERNAL_ACCESS" = "true" ]; then
-  # IP-based restriction (НЕ просто allow 5432)
-  ufw allow from $POSTGRES_ALLOWED_IP to any port 5432
+  # Разрешаем доступ ТОЛЬКО с конкретного IP
+  ufw allow from $POSTGRES_ALLOWED_IP to any port 5432 comment "PostgreSQL external access"
   echo "PostgreSQL external access enabled for $POSTGRES_ALLOWED_IP"
 else
-  echo "PostgreSQL internal only"
+  echo "PostgreSQL blocked by UFW (port exposed but not accessible)"
 fi
 
 ufw enable

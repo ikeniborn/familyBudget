@@ -404,10 +404,37 @@ LETSENCRYPT_EMAIL=admin@example.com
 
 ### Networks
 
-- `familybudget_internal` (172.28.0.0/16) - Изолированная сеть (postgres только здесь)
+- `familybudget_internal` (172.28.0.0/16) - Изолированная сеть (postgres, backend, bot)
 - `familybudget_external` (172.29.0.0/16) - Внешняя сеть (nginx, backend, bot)
 
-**Security:** PostgreSQL НЕ доступен из интернета, только через Docker internal network.
+### PostgreSQL External Access
+
+**Архитектура безопасности:**
+- Порт 5432 всегда пробрасывается на хост в `docker-compose.yml`
+- По умолчанию UFW firewall блокирует все внешние подключения
+- Доступ к PostgreSQL изнутри Docker network всегда работает (для backend/bot)
+
+**Включение внешнего доступа (например, для pgAdmin, DBeaver):**
+
+1. Запустите `./setup.sh` и выберите "Enable PostgreSQL external access"
+2. Укажите разрешенный IP адрес (например, ваш рабочий компьютер)
+3. setup.sh автоматически добавит UFW правило: `ufw allow from <IP> to any port 5432`
+
+**Отключение внешнего доступа:**
+
+```bash
+# Удалить UFW правило
+sudo ufw delete allow from <IP> to any port 5432
+
+# Или запустить setup.sh повторно с POSTGRES_EXTERNAL_ACCESS=false
+./setup.sh
+```
+
+**Безопасность:**
+- ✅ Порт 5432 на хосте доступен, но заблокирован UFW
+- ✅ Доступ разрешен ТОЛЬКО с конкретного IP
+- ✅ Все остальные IP блокируются автоматически
+- ✅ Нет необходимости пересоздавать контейнеры при изменении доступа
 
 ---
 

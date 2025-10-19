@@ -19,9 +19,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/db/migrations:/docker-entrypoint-initdb.d:ro
       - postgres_backups:/backups
-    # External port mapping - DISABLED by default for security
-    # To enable: create docker-compose.override.yml with ports section
-    # setup.sh will create override file automatically if external access enabled
+    # Port 5432 is exposed on host, but access is controlled by UFW firewall
+    # By default, UFW blocks all external connections to port 5432
+    # To enable access: run setup.sh and configure POSTGRES_EXTERNAL_ACCESS
+    ports:
+      - "5432:5432"
     networks:
       - familybudget_internal
     healthcheck:

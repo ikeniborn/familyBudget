@@ -754,10 +754,8 @@ check_port_available() {
 compose_cmd() {
     local compose_files="-f docker-compose.yml"
 
-    # Add PostgreSQL port override if exists (created by setup.sh)
-    if [[ -f "$DEPLOY_DIR/docker-compose.override.yml" ]]; then
-        compose_files="$compose_files -f docker-compose.override.yml"
-    fi
+    # PostgreSQL port 5432 is exposed in docker-compose.yml
+    # Access is controlled by UFW firewall (configured in setup.sh)
 
     # Add network subnet override if exists (created by deploy.sh)
     if [[ -f "$DEPLOY_DIR/docker-compose.networks.yml" ]]; then
