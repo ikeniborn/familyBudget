@@ -2,628 +2,583 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
+---
 
-**Family Budget** is a production-ready personal finance management system with Telegram bot integration and web analytics. The system uses advanced database patterns (SCD Type 2 + Closure Table) for historical tracking and efficient hierarchical queries.
+## Проект: Family Budget
 
-**Tech Stack:** FastAPI (backend) + PostgreSQL (database) + HTMX/ECharts (frontend) + Docker (deployment)
+Полнофункциональная система управления семейным бюджетом с Telegram Bot интерфейсом и веб-аналитикой.
 
-**For complete project requirements and architecture details, see:**
-- **[Product Requirements Document (PRD)](docs/prd/README.md)** - Complete product specification
-- **[System Architecture](docs/prd/03-system-architecture.md)** - Detailed architecture documentation
-- **[Functional Requirements](docs/prd/04-functional-requirements.md)** - 21 functional requirements with acceptance criteria
+**Версия:** 5.0.0-beta
+**Архитектура:** FastAPI (Backend) + Telegram Bot + PostgreSQL + HTMX (Frontend)
 
-## ⚠️ ВАЖНО: Деплой только на удаленном сервере
+---
 
-**КРИТИЧЕСКОЕ ПРАВИЛО:**
-- ✅ **Деплой и установка производятся ТОЛЬКО на удаленном сервере**
-- ❌ **НЕ запускайте** `./install.sh`, `./setup.sh`, `./deploy.sh` **локально**
-- ✅ **Правильный workflow:** commit → push → на сервере: `git pull && ./deploy.sh --build`
+## Команды для разработки
 
-**Локальная разработка:**
-- ✅ Используйте `uvicorn backend.app.main:app --reload` для backend
-- ✅ Используйте `pytest` для тестирования
-- ✅ Используйте `black`, `ruff` для code quality
-- ❌ **НЕ запускайте Docker деплой локально**
-
-**Причина:**
-- Deployment scripts настроены для production окружения (Linux server, systemd, UFW firewall)
-- Локальный запуск может привести к конфликтам портов и некорректной конфигурации
-- `.env` файл генерируется на сервере с production настройками
-
-## Development Commands
-
-### Local Development
+### Запуск локальной разработки
 
 ```bash
 # Backend development server
+cd backend
 uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
 
-# Access Swagger docs
-open http://localhost:8000/docs
-
-# Access ReDoc
-open http://localhost:8000/redoc
+# Telegram Bot (требует запущенный backend)
+cd bot
+python main.py
 ```
 
-### Testing
+### Docker деплой (production)
 
 ```bash
-# Run all tests
-pytest backend/tests/
+# Базовый деплой (PostgreSQL + Backend)
+./deploy.sh
 
-# Unit tests only
-pytest backend/tests/unit -v
+# Полный деплой (+ Bot + Nginx + SSL)
+./deploy.sh --profile full
 
-# Integration tests
-pytest backend/tests/integration -v
+# Пересборка образов
+./deploy.sh --build
 
-# E2E tests (comprehensive user workflows)
-pytest backend/tests/e2e -v
-
-# Run single test file
-pytest backend/tests/e2e/test_user_journey.py -v
-
-# Run specific test class
-pytest backend/tests/e2e/test_user_journey.py::TestCompleteUserJourney -v
-
-# Run with coverage
-pytest --cov=backend/app --cov-report=html
-
-# Run with detailed output
-pytest backend/tests/e2e/ -v -s
+# Чистый деплой (УДАЛЯЕТ ВСЕ ДАННЫЕ!)
+./deploy.sh --clean
 ```
 
-### Database Migrations
+### Управление сервисами
 
 ```bash
-# Run all migrations (from backend/db/)
-./run_migrations.sh
+# Просмотр статуса
+docker compose ps
 
-# Check migration status
-./check_migrations.sh
+# Логи конкретного сервиса
+docker compose logs -f backend
+docker compose logs -f bot
+docker compose logs -f postgres
 
-# Create new Alembic migration (when using Alembic in future)
-alembic revision --autogenerate -m "Description"
+# Перезапуск сервиса
+docker compose restart backend
+
+# Остановка всех сервисов
+docker compose down
+```
+
+### База данных
+
+```bash
+# Применить миграции (Alembic)
+cd backend
 alembic upgrade head
+
+# Создать новую миграцию
+alembic revision --autogenerate -m "Description"
+
+# Откатить миграцию
+alembic downgrade -1
+
+# Просмотр истории миграций
+alembic history
+
+# Доступ к PostgreSQL shell
+docker compose exec postgres psql -U familybudget -d familybudget
+```
+
+### Тестирование
+
+```bash
+# Backend тесты
+cd backend
+pytest                                    # Все тесты
+pytest tests/unit                         # Unit тесты
+pytest tests/integration                  # Integration тесты
+pytest tests/e2e                          # E2E тесты
+pytest --cov=backend --cov-report=html    # С coverage
+
+# Bot валидация синтаксиса
+cd bot
+python3 -m py_compile bot/handlers/*.py
+python3 -m py_compile bot/utils/*.py
+
+# Bot интеграционные тесты
+cd bot/tests/integration
+pytest -v
 ```
 
 ### Code Quality
 
 ```bash
-# Format code
-black backend/
+# Linting (backend)
+cd backend
+ruff check .
 
-# Lint code
-ruff check backend/
+# Formatting
+black .
 
-# Type checking (when mypy config is added)
-mypy backend/
+# Type checking
+mypy .
 ```
 
-### Docker Deployment
+---
+
+## Архитектура проекта
+
+### Общая структура
+
+```
+familyBudget/
+├── backend/          # FastAPI приложение (REST API + Web UI)
+├── bot/              # Telegram Bot (python-telegram-bot)
+├── web/              # Статические файлы и шаблоны (HTMX)
+├── docs/             # Документация (PRD, API docs)
+├── scripts/          # Automation scripts (backup, SSL)
+├── .env              # Конфигурация (создается setup.sh)
+├── docker-compose.yml
+├── install.sh        # Установка системных зависимостей
+├── setup.sh          # Интерактивная настройка окружения
+└── deploy.sh         # Деплой с Docker Compose
+```
+
+### Backend (FastAPI + SQLModel)
+
+**Ключевые компоненты:**
+
+- `backend/app/main.py` - Точка входа, middleware, exception handlers
+- `backend/app/api/v1/router.py` - API роутер (объединяет все endpoints)
+- `backend/app/api/v1/endpoints/` - REST API endpoints (auth, facts, articles, users, centers)
+- `backend/app/api/web/router.py` - Web UI endpoints (HTMX + Jinja2)
+- `backend/app/models/` - SQLModel модели (User, Article, Fact, FinancialCenter, CostCenter)
+- `backend/app/schemas/` - Pydantic схемы для валидации
+- `backend/app/services/` - Бизнес-логика (SCD Type 2, Hierarchy, JWT, TelegramAuth)
+- `backend/app/core/` - Конфигурация, аутентификация, исключения, логирование
+- `backend/app/middleware/` - JWT auth, logging, error handling, validation
+- `backend/app/db/session.py` - Управление сессиями БД (async)
+
+**Паттерны:**
+
+- **SCD Type 2** для dimension таблиц (t_d_user, t_d_article, t_d_financial_center, t_d_cost_center)
+- **Closure Table** для иерархии категорий (t_d_article_hierarchy)
+- **User Data Isolation** - каждый пользователь видит только свои данные
+- **JWT в httpOnly cookies** для аутентификации
+- **Telegram OAuth** с HMAC-SHA256 валидацией
+- **Async SQLAlchemy** через asyncpg
+
+### Telegram Bot (python-telegram-bot 20.x)
+
+**Структура:**
+
+- `bot/bot.py` - Класс BotApplication (регистрация handlers, scheduler)
+- `bot/main.py` - Точка входа, graceful shutdown
+- `bot/handlers/` - Command handlers (start, add, edit, summary, stats, settings, etc.)
+- `bot/utils/` - API client, session, auth, scheduler, notification service
+- `bot/jobs/` - Background jobs (weekly reports)
+- `bot/config/settings.py` - Pydantic Settings
+
+**Основные команды:**
+
+- `/start` - Telegram OAuth аутентификация
+- `/add` - Добавить транзакцию (multi-step conversation)
+- `/addplan` - Добавить плановую запись
+- `/edit` - Редактировать/удалить транзакции
+- `/summary` - План vs Факт сравнение
+- `/today` / `/stats` - Статистика
+- `/settings` - Настройки (еженедельные отчеты, уведомления)
+
+**ConversationHandler:**
+
+Все multi-step команды используют ConversationHandler с states. При добавлении новой команды:
+
+1. Определите states как константы
+2. Создайте handler функции для каждого state
+3. Зарегистрируйте ConversationHandler в `bot/bot.py`
+4. Добавьте fallback для `/cancel`
+
+### База данных (PostgreSQL 16)
+
+**Dimension таблицы (SCD Type 2):**
+
+- `t_d_user` - Пользователи (с историей изменений)
+- `t_d_article` - Категории бюджета (иерархические)
+- `t_d_article_hierarchy` - Closure Table для категорий
+- `t_d_financial_center` - Финансовые центры (ЦФО)
+- `t_d_cost_center` - Центры возникновения затрат (МВЗ)
+
+**Fact таблицы:**
+
+- `t_f_budget_fact` - Транзакции (доходы/расходы, факт/план)
+  - `record_type`: 'fact' | 'plan'
+  - `financial_center_id`: опционально (FK на t_d_financial_center)
+  - `cost_center_id`: опционально (FK на t_d_cost_center)
+- `t_notification` - История уведомлений о превышении бюджета
+
+**Особенности SCD Type 2:**
+
+- `valid_from` / `valid_to` - период валидности версии
+- `is_active` - текущая версия (только одна для каждого business key)
+- При UPDATE - старая версия закрывается, создается новая
+- Полная история изменений для аудита
+
+**Миграции:**
+
+Используем Alembic. При изменении моделей:
 
 ```bash
-# Full production deployment (3 steps)
-sudo ./install.sh     # Install Docker, UFW (one-time)
-./setup.sh            # Configure environment (interactive)
-./deploy.sh           # Deploy services
-
-# Build and deploy
-./deploy.sh --build
-
-# Deploy without migrations
-./deploy.sh --no-migrate
-
-# View logs
-docker compose logs -f
-docker compose logs -f backend
-docker compose logs -f postgres
-
-# Restart service
-docker compose restart backend
-
-# Stop all services
-docker compose down
-
-# Clean restart (DELETES DATA!)
-docker compose down -v
-./deploy.sh --clean --build
+cd backend
+alembic revision --autogenerate -m "Add new column"
+# Проверьте migration file в backend/db/migrations/versions/
+alembic upgrade head
 ```
 
-### Health Checks
+---
 
-```bash
-# Basic health check
-curl http://localhost:8000/health
+## Критически важная информация
 
-# Detailed health check
-curl http://localhost:8000/health/detailed
+### Аутентификация и безопасность
 
-# Readiness check
-curl http://localhost:8000/ready
+**Telegram OAuth (используется везде):**
 
-# Ping
-curl http://localhost:8000/ping
-```
+1. User отправляет `/start` в боте или нажимает "Login with Telegram" на веб-сайте
+2. Telegram отправляет auth данные с hash (HMAC-SHA256)
+3. Backend валидирует hash через `backend/app/services/telegram_auth.py`
+4. Создается/обновляется User в БД (SCD Type 2)
+5. Возвращается JWT токен в httpOnly cookie
+6. Bot сохраняет токен в `context.user_data` для API запросов
 
-## Architecture Highlights
+**JWT токены:**
 
-### Database Design Patterns
+- Срок действия: 7 дней (настраиваемо через `JWT_EXPIRE_DAYS`)
+- Хранятся в httpOnly cookies (защита от XSS)
+- Генерируются в `backend/app/services/jwt.py`
+- Middleware проверяет в `backend/app/middleware/jwt_middleware.py`
 
-This project uses two advanced database patterns that work together:
+**User Data Isolation:**
 
-#### 1. SCD Type 2 (Slowly Changing Dimension Type 2)
-
-**Applied to:** `t_d_user` (users) and `t_d_article` (budget categories)
-
-**Purpose:** Track historical changes while preserving audit trail.
-
-**Key fields:**
-- `is_current`: `true` for current version, `false` for historical
-- `valid_from`: When this version became active
-- `valid_to`: When this version expired (`9999-12-31` for current)
-
-**Important:** When updating an Article or User:
-- Do NOT modify the existing record
-- Create a NEW record with updated data
-- Set old record's `is_current = false` and `valid_to = NOW()`
-- Set new record's `is_current = true` and `valid_from = NOW()`
-
-**Why it matters:** Provides complete audit trail of all changes. Never lose historical data. Required for compliance and debugging.
-
-#### 2. Closure Table Pattern
-
-**Applied to:** `t_d_article_hierarchy` (article hierarchy paths)
-
-**Purpose:** Efficient hierarchical queries on article tree structure.
-
-**How it works:**
-- Stores ALL ancestor-descendant paths in the hierarchy
-- Maintained automatically by database triggers (do NOT modify directly)
-- Enables O(1) query complexity for finding descendants/ancestors
-
-**Example:**
-```
-Food (id=1)
-  +-- Groceries (id=2)
-      +-- Organic (id=3)
-  +-- Dining Out (id=5)
-```
-
-Closure table contains:
-- Self-references: `(1,1,0)`, `(2,2,0)`, `(3,3,0)`, `(5,5,0)`
-- Direct children: `(1,2,1)`, `(1,5,1)`, `(2,3,1)`
-- Transitive paths: `(1,3,2)` (Food -> Organic via Groceries)
-
-**Query patterns:**
-```sql
--- All descendants of Food (id=1)
-SELECT descendant_id FROM t_d_article_hierarchy
-WHERE ancestor_id = 1 AND depth > 0;
-
--- Direct children only
-SELECT descendant_id FROM t_d_article_hierarchy
-WHERE ancestor_id = 1 AND depth = 1;
-
--- All ancestors of Organic (id=3)
-SELECT ancestor_id FROM t_d_article_hierarchy
-WHERE descendant_id = 3 AND depth > 0;
-```
-
-**Why it matters:** Makes complex hierarchy queries trivial. No recursive CTEs needed. Critical for performance when users have deep category trees.
-
-### Model Import Patterns
-
-**CRITICAL:** There's a circular import issue between models. Always use this pattern:
-
-```python
-# CORRECT - Use alias to avoid circular import
-from backend.app.models.fact import Fact as FactModel
-
-# WRONG - Direct import conflicts with pydantic schemas
-from backend.app.models.fact import Fact
-```
-
-**Files affected:**
-- `backend/app/api/v1/facts.py`
-- `backend/app/api/v1/analytics.py`
-- `backend/app/services/fact_service.py`
-
-### Middleware Stack Order
-
-Middleware order matters! Current stack (from `backend/app/main.py`):
-
-1. **CORSMiddleware** - CORS handling
-2. **LoggingMiddleware** - Request/response logging with correlation IDs
-3. **JWTAuthMiddleware** - JWT token validation
-
-**Why this order:** Logging must come before JWT so we can log auth failures. CORS must be outermost.
-
-### Exception Handler Order
-
-Exception handlers are registered in specific order (specific -> generic):
-
-1. `RequestValidationError` / `ValidationError` - Pydantic validation
-2. `APIException` - Custom API exceptions
-3. `HTTPException` - FastAPI HTTP exceptions
-4. `SQLAlchemyError` - Database errors
-5. `ValueError` - Generic value errors
-6. `Exception` - Catch-all (last resort)
-
-**Why it matters:** FastAPI checks handlers in registration order. More specific handlers must come first.
-
-### Logging
-
-**Use StructuredLogger, NOT get_logger:**
-
-```python
-# CORRECT - Supports extra kwargs like correlation_id
-from backend.app.core.logging import StructuredLogger
-logger = StructuredLogger(__name__)
-logger.info("Message", correlation_id="123", user_id=456)
-
-# WRONG - Standard logger doesn't support kwargs
-from backend.app.core.logging import get_logger
-logger = get_logger(__name__)
-logger.info("Message", correlation_id="123")  # ERROR!
-```
-
-**Files using StructuredLogger:**
-- `backend/app/middleware/error_handler.py`
-- `backend/app/middleware/logging_middleware.py`
-
-## API Architecture
-
-### Authentication Flow
-
-1. User authenticates via Telegram OAuth (`/api/v1/auth/telegram`)
-2. Backend validates Telegram hash using HMAC-SHA256
-3. JWT token issued and stored in HTTP-only cookie (`access_token`)
-4. All subsequent requests automatically include cookie
-5. `JWTAuthMiddleware` validates token on each request
-
-**Security features:**
-- HTTP-only cookies (no JavaScript access)
-- HMAC-SHA256 hash validation
-- JWT with 7-day expiration
-- User isolation enforced at database query level
-
-### Data Isolation Pattern
-
-**Critical:** All user data must be isolated by `user_id`.
-
-```python
-# CORRECT - Filter by current user
-articles = await session.execute(
-    select(Article).where(
-        Article.user_id == current_user.id,
-        Article.is_current == True
-    )
-)
-
-# WRONG - Returns all users' data!
-articles = await session.execute(
-    select(Article).where(Article.is_current == True)
-)
-```
-
-**Exception:** Global articles (`is_global=True`) are visible to all users.
-
-### Admin vs Regular User Permissions
-
-Admin endpoints (prefix `/api/v1/admin/`) require `is_admin=True`:
-
-```python
-from backend.app.core.dependencies import get_current_admin
-
-@router.get("/admin/users")
-async def list_users(current_admin: User = Depends(get_current_admin)):
-    # Only admins can access
-    ...
-```
-
-Regular endpoints use `get_current_user`:
+ВСЕ endpoints должны фильтровать данные по `current_user.id`:
 
 ```python
 from backend.app.core.dependencies import get_current_user
 
-@router.get("/articles")
-async def list_articles(current_user: User = Depends(get_current_user)):
-    # Any authenticated user
-    ...
-```
-
-## Database Schema Summary
-
-### Tables
-
-- **t_d_user** - Users (SCD Type 2)
-  - Business key: `telegram_id`
-  - Tracks user profile changes over time
-
-- **t_d_article** - Budget categories (SCD Type 2 + Adjacency List)
-  - Business key: `(user_id, code)` or `code` for global
-  - Supports hierarchy via `parent_id`
-  - Can be global (`is_global=true`) or user-specific
-
-- **t_d_article_hierarchy** - Closure table (auto-maintained by triggers)
-  - Stores all ancestor-descendant paths
-  - Do NOT modify directly - update `Article.parent_id` instead
-
-- **t_f_fact** - Transactions (NO SCD Type 2)
-  - Simple transactional records
-  - Links to `Article` and `User`
-  - Partitioned by month for performance
-
-### Indexes
-
-Critical indexes for query performance:
-
-- `t_d_user`: `(telegram_id)`, `(is_current)`
-- `t_d_article`: `(user_id)`, `(parent_id)`, `(is_current)`, `(type)`
-- `t_d_article_hierarchy`: `(ancestor_id, descendant_id)` [PRIMARY], `(descendant_id)`, `(depth)`
-- `t_f_fact`: `(user_id)`, `(article_id)`, `(fact_date)`
-
-## Common Patterns and Gotchas
-
-### Working with SCD Type 2
-
-```python
-# Get current version only (most common)
-article = await session.execute(
-    select(Article).where(
-        Article.id == article_id,
-        Article.is_current == True
-    )
-)
-
-# Get all versions (for audit/history)
-versions = await session.execute(
-    select(Article).where(Article.id == article_id)
-    .order_by(Article.valid_from.desc())
-)
-
-# Update article (create new version)
-async def update_article(article_id: int, updates: dict):
-    # 1. Expire old version
-    old.is_current = False
-    old.valid_to = datetime.utcnow()
-
-    # 2. Create new version
-    new = Article(**old.dict(), **updates)
-    new.id = None  # Will get new ID
-    new.is_current = True
-    new.valid_from = datetime.utcnow()
-    new.valid_to = datetime(9999, 12, 31, 23, 59, 59)
-
-    session.add(new)
-    await session.commit()
-```
-
-### Working with Hierarchies
-
-```python
-# Get article with all descendants (subtree)
-descendants = await session.execute(
-    select(Article)
-    .join(ArticleHierarchy, Article.id == ArticleHierarchy.descendant_id)
-    .where(
-        ArticleHierarchy.ancestor_id == root_id,
-        Article.is_current == True
-    )
-)
-
-# Get direct children only
-children = await session.execute(
-    select(Article)
-    .join(ArticleHierarchy, Article.id == ArticleHierarchy.descendant_id)
-    .where(
-        ArticleHierarchy.ancestor_id == parent_id,
-        ArticleHierarchy.depth == 1,
-        Article.is_current == True
-    )
-)
-
-# Get breadcrumb path to root
-path = await session.execute(
-    select(Article)
-    .join(ArticleHierarchy, Article.id == ArticleHierarchy.ancestor_id)
-    .where(
-        ArticleHierarchy.descendant_id == child_id,
-        Article.is_current == True
-    )
-    .order_by(ArticleHierarchy.depth.desc())
-)
-```
-
-### Dependency Injection Pattern
-
-FastAPI dependencies are used extensively:
-
-```python
-# Database session
-async def get_session() -> AsyncSession:
-    async with engine.begin() as session:
-        yield session
-
-# Current user (regular)
-async def get_current_user(
-    session: AsyncSession = Depends(get_session),
-    token: str = Cookie(None, alias="access_token")
-) -> User:
-    # Validate JWT, return user
-    ...
-
-# Current admin
-async def get_current_admin(
-    current_user: User = Depends(get_current_user)
-) -> User:
-    if not current_user.is_admin:
-        raise HTTPException(403, "Admin access required")
-    return current_user
-```
-
-**Critical:** Always use `Depends()` wrapper in endpoint signatures:
-
-```python
-# CORRECT
 @router.get("/facts")
-async def list_facts(
-    session: AsyncSession = Depends(get_session),
+async def get_facts(
+    db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    ...
-
-# WRONG - Missing Depends()
-@router.get("/facts")
-async def list_facts(
-    session: AsyncSession = get_session,  # ERROR!
-    current_user: User = get_current_user  # ERROR!
-):
-    ...
+    # ОБЯЗАТЕЛЬНО фильтровать по user_id!
+    stmt = select(Fact).where(Fact.user_id == current_user.id)
+    # ...
 ```
 
-## Testing Strategy
+### Работа с SCD Type 2
 
-### Test Structure
+При создании/обновлении dimension записей используйте `SCD2Service`:
 
-- **Unit tests** (`backend/tests/unit/`) - Model logic, utilities
-- **Integration tests** (`backend/tests/integration/`) - API endpoints, services, database
-- **E2E tests** (`backend/tests/e2e/`) - Complete user workflows
+```python
+from backend.app.services.scd2_service import SCD2Service
 
-### E2E Test Coverage
+# Создание новой записи
+new_article = await SCD2Service.create_dimension(
+    db=db,
+    model=Article,
+    business_key_fields={"user_id": user_id, "article_name": name},
+    data={"description": "...", "is_income": True}
+)
 
-The E2E tests simulate real-world workflows:
+# Обновление (создаст новую версию)
+updated = await SCD2Service.update_dimension(
+    db=db,
+    model=Article,
+    business_key_fields={"user_id": user_id, "article_name": name},
+    data={"description": "Updated"}
+)
 
-**User Journeys** (`test_user_journey.py`):
-- Complete 11-step user workflow (categories -> transactions -> analytics)
-- Budget planning and plan-vs-fact comparison
-- Analytics exploration (all 6 chart types)
+# Получение активной версии
+current = await SCD2Service.get_active_version(
+    db=db,
+    model=Article,
+    business_key_fields={"user_id": user_id, "article_name": name}
+)
+```
 
-**Admin Journeys** (`test_admin_journey.py`):
-- User management and search
-- Global articles CRUD
-- System monitoring and statistics
-- Security and access control
+**ВАЖНО:** Никогда не делайте UPDATE напрямую через SQLAlchemy для SCD Type 2 таблиц!
 
-**Run specific journey:**
+### Иерархия категорий (Closure Table)
+
+Для работы с иерархией используйте `HierarchyService`:
+
+```python
+from backend.app.services.hierarchy_service import HierarchyService
+
+# Создание связи parent-child
+await HierarchyService.add_relationship(
+    db=db,
+    parent_id=parent.id,
+    child_id=child.id
+)
+
+# Получение всех потомков (рекурсивно)
+descendants = await HierarchyService.get_descendants(db=db, article_id=root.id)
+
+# Получение предков (для breadcrumbs)
+ancestors = await HierarchyService.get_ancestors(db=db, article_id=leaf.id)
+
+# Получение корневых категорий (без родителя)
+roots = await HierarchyService.get_root_articles(db=db, user_id=user.id)
+```
+
+### API Client в боте
+
+Bot взаимодействует с backend через `bot/utils/api_client.py`:
+
+```python
+from bot.utils.api_client import get_api_client
+from bot.utils.session import SessionManager
+
+api_client = await get_api_client()
+token = SessionManager.get_token(context)
+
+# GET запрос
+response = await api_client.get("/facts", token=token)
+
+# POST запрос
+response = await api_client.post(
+    "/facts",
+    data={"amount": 100.50, "article_id": 1, ...},
+    token=token
+)
+```
+
+**Retry logic:**
+
+API Client автоматически повторяет запросы (3 попытки с экспоненциальной задержкой) при 5xx ошибках.
+
+---
+
+## Deployment и конфигурация
+
+### Три скрипта деплоя
+
+1. **install.sh** - Установка системных зависимостей (Docker, UFW, утилиты)
+   ```bash
+   sudo ./install.sh
+   ```
+
+2. **setup.sh** - Интерактивная настройка окружения
+   ```bash
+   ./setup.sh
+   # Создает .env файл с паролями, токенами, настройками
+   ```
+
+3. **deploy.sh** - Деплой приложения
+   ```bash
+   ./deploy.sh                  # Basic profile (postgres + backend)
+   ./deploy.sh --profile full   # Full profile (+ bot + nginx + ssl)
+   ./deploy.sh --build          # Rebuild images
+   ./deploy.sh --clean          # Clean restart (DELETES DATA!)
+   ```
+
+### Переменные окружения (.env)
+
+**Обязательные:**
+
 ```bash
-pytest backend/tests/e2e/test_user_journey.py::TestCompleteUserJourney -v -s
+POSTGRES_PASSWORD=<strong-password>
+JWT_SECRET=<generated-secret>
+TELEGRAM_BOT_TOKEN=<from-botfather>
+ADMIN_TELEGRAM_ID=<your-telegram-id>
 ```
 
-### Test Fixtures
+**Опциональные:**
 
-Key fixtures from `backend/tests/conftest.py`:
-
-- `auth_client` - Authenticated HTTP client (regular user)
-- `admin_client` - Authenticated HTTP client (admin user)
-- `test_user` - Pre-created test user
-- `test_admin` - Pre-created admin user
-- `session` - Database session with automatic rollback
-
-## Documentation
-
-All documentation is in `docs/` directory:
-
-- **docs/README.md** - Master documentation index
-- **docs/prd/** - Product Requirements Document (PRD)
-  - **docs/prd/README.md** - PRD master index with navigation
-  - 13 modular PRD documents (Executive Summary, Architecture, Requirements, etc.)
-  - Critical for understanding project vision, architecture decisions, and requirements
-- **docs/api/API_DOCUMENTATION.md** - Complete API reference (40+ endpoints)
-- **docs/testing/E2E_TESTS.md** - E2E test documentation
-- **docs/deployment/** - Deployment guides and reports
-- **docs/tasks/** - Task completion reports (35 files, organized by Epic)
-- **docs/scripts/** - Deployment scripts documentation
-
-## Deployment
-
-### Security Configuration
-
-**PostgreSQL External Access:**
-- Default: DISABLED (most secure)
-- If enabled: UFW firewall restricts access to single IP
-- Never expose PostgreSQL to 0.0.0.0 in production
-
-**Environment Variables:**
-- `.env` file has 600 permissions (owner read/write only)
-- Never commit `.env` to git
-- Use auto-generated secrets (32+ chars for passwords, 64 hex for JWT)
-
-### Container Architecture
-
-**Network segmentation:**
-- External network (`172.29.0.0/16`): nginx, backend, bot (public-facing)
-- Internal network (`172.28.0.0/16`): postgres, backend, bot (isolated)
-
-**PostgreSQL isolation:**
-- Only accessible from backend/bot containers
-- No direct internet access
-- Port 5432 NOT exposed to host (unless explicitly configured with IP whitelist)
-
-## Project-Specific Conventions
-
-### Commit Messages
-
-Follow Conventional Commits format:
-
-```
-feat: Add waterfall chart endpoint
-fix: Resolve correlation_id logging error
-docs: Update API documentation
-test: Add E2E test for budget planning
-chore: Update dependencies
+```bash
+APP_ENV=production
+DOMAIN=localhost
+BACKEND_PORT=8000
+WORKERS=4
+LOG_LEVEL=INFO
+POSTGRES_EXTERNAL_ACCESS=false
+SSL_TYPE=letsencrypt
+LETSENCRYPT_EMAIL=admin@example.com
 ```
 
-Include co-author footer:
-```
-feat: Add amazing feature
+### Docker Compose профили
 
-> Generated with [Claude Code](https://claude.com/claude-code)
+- **default** (no profile): postgres + backend
+- **full**: postgres + backend + bot + nginx + certbot
 
-Co-Authored-By: Claude <noreply@anthropic.com>
-```
+### Networks
 
-### Code Organization
+- `familybudget_internal` (172.28.0.0/16) - Изолированная сеть (postgres только здесь)
+- `familybudget_external` (172.29.0.0/16) - Внешняя сеть (nginx, backend, bot)
 
-**Backend structure:**
-```
-backend/app/
- main.py              # FastAPI app, middleware, exception handlers
- api/
-    health.py        # Health check endpoints
-    v1/              # API v1 endpoints
-    web/             # Web pages (HTMX)
- core/
-    config.py        # Settings (Pydantic)
-    dependencies.py  # FastAPI dependencies
-    exceptions.py    # Custom exceptions
-    logging.py       # Structured logging
- models/              # SQLModel models
- schemas/             # Pydantic schemas
- services/            # Business logic
- middleware/          # Custom middleware
-```
+**Security:** PostgreSQL НЕ доступен из интернета, только через Docker internal network.
 
-**Database structure:**
-```
-backend/db/
- migrations/          # SQL migration scripts (9 files)
- run_migrations.sh    # Execute all migrations
- check_migrations.sh  # Verify migration status
+---
+
+## Типичные задачи и как их решать
+
+### Добавить новый REST API endpoint
+
+1. Создайте endpoint в `backend/app/api/v1/endpoints/`:
+
+```python
+from fastapi import APIRouter, Depends
+from backend.app.core.dependencies import get_current_user, get_async_session
+
+router = APIRouter()
+
+@router.get("/my-endpoint")
+async def my_endpoint(
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    # Ваша логика
+    return {"status": "ok"}
 ```
 
-### Version Numbers
+2. Зарегистрируйте router в `backend/app/api/v1/router.py`:
 
-Current version: **4.4.0**
+```python
+from backend.app.api.v1.endpoints import my_endpoint
 
-Version scheme: `MAJOR.MINOR.PATCH`
-- MAJOR: Breaking changes
-- MINOR: New features (backward compatible)
-- PATCH: Bug fixes
+api_router.include_router(
+    my_endpoint.router,
+    prefix="/my-endpoint",
+    tags=["MyTag"]
+)
+```
 
-Updated in:
-- `backend/app/main.py` (FastAPI app version)
-- `docs/README.md` (documentation version)
-- `README.md` (project version)
+3. Проверьте в Swagger: http://localhost:8000/docs
+
+### Добавить новую команду в бота
+
+1. Создайте handler в `bot/handlers/my_command.py`
+2. Зарегистрируйте в `bot/bot.py`:
+
+```python
+from bot.handlers.my_command import my_command_handler
+
+self.application.add_handler(
+    CommandHandler("mycommand", my_command_handler)
+)
+```
+
+3. Для multi-step команд используйте ConversationHandler (см. примеры в `bot/handlers/add.py`)
+
+### Изменить схему БД
+
+1. Обновите SQLModel модель в `backend/app/models/`
+2. Создайте миграцию:
+   ```bash
+   cd backend
+   alembic revision --autogenerate -m "Add column X to table Y"
+   ```
+3. Проверьте generated migration file
+4. Примените:
+   ```bash
+   alembic upgrade head
+   ```
+
+**ВАЖНО:** Для production используйте `deploy.sh` который автоматически применяет миграции.
+
+### Добавить новую dimension таблицу (SCD Type 2)
+
+1. Создайте SQLModel модель с SCD Type 2 полями:
+
+```python
+from backend.app.models.base import DimensionBase
+
+class MyDimension(DimensionBase, table=True):
+    __tablename__ = "t_d_my_dimension"
+
+    # Business key fields
+    user_id: int = Field(foreign_key="t_d_user.id")
+    name: str
+
+    # Additional fields
+    description: str | None = None
+```
+
+2. Используйте `SCD2Service` для CRUD операций
+3. Создайте миграцию Alembic
+
+### Работа с иерархией
+
+При работе с `t_d_article` помните:
+
+- Используйте `HierarchyService` для добавления parent-child связей
+- Closure Table автоматически поддерживает транзитивные связи
+- Для breadcrumbs: `get_ancestors()`
+- Для subtree: `get_descendants()`
+
+### Troubleshooting
+
+**Backend не запускается:**
+
+```bash
+docker compose logs backend
+# Проверьте DATABASE_URL, JWT_SECRET, TELEGRAM_BOT_TOKEN
+```
+
+**Bot не отвечает:**
+
+```bash
+docker compose logs bot
+# Проверьте TELEGRAM_BOT_TOKEN, доступность backend API
+```
+
+**База данных недоступна:**
+
+```bash
+docker compose exec postgres pg_isready -U familybudget
+# Проверьте healthcheck, логи postgres
+```
+
+**Миграции не применяются:**
+
+```bash
+docker compose exec backend alembic upgrade head
+# Проверьте connection string, права доступа
+```
+
+---
+
+## Дополнительные ресурсы
+
+- **README.md** - Полная документация проекта
+- **START.md** - Quick start guide на русском
+- **docs/prd/** - Product Requirements Documents
+- **backend/README.md** - Backend документация
+- **bot/README.md** - Bot документация
+- **scripts/README.md** - Scripts документация
+
+---
+
+## Стиль кода и конвенции
+
+**Python:**
+
+- PEP 8 style guide
+- Type hints обязательны
+- Async/await для всех I/O операций
+- Black formatter (line length 100)
+- Ruff linter
+
+**Commits:**
+
+- Conventional Commits: `feat:`, `fix:`, `docs:`, `refactor:`, etc.
+- Включайте Co-Authored-By для Claude Code commits
+
+**Naming:**
+
+- Таблицы: `t_d_*` (dimension), `t_f_*` (fact)
+- API endpoints: kebab-case (`/budget-facts`)
+- Python: snake_case
+- SQLModel классы: PascalCase
+
+**Error handling:**
+
+- Используйте custom exceptions из `backend/app/core/exceptions.py`
+- Логируйте все errors с контекстом
+- Graceful degradation в боте при ошибках API
+
+---
+
+**Версия документа:** 1.0
+**Последнее обновление:** 2025-10-19
