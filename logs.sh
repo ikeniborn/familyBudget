@@ -23,8 +23,19 @@
 #   ./logs.sh --quick              # Только статус сервисов
 #
 # Author: Family Budget Team
-# Version: 1.0.0
+# Version: 1.1.0
 # Date: 2025-10-19
+#
+# Changelog v1.1.0:
+#   - Fixed container name detection (removed hardcoded -1 suffix)
+#   - Replaced Unicode box characters with ASCII for better compatibility
+#   - Removed /ping endpoint check (not implemented)
+#   - Added /ready endpoint check
+#   - Fixed PostgreSQL health check
+#   - Added database size reporting
+#   - Added network ports analysis (ss/netstat)
+#   - Improved diagnostic summary with container stats
+#   - Better error handling for missing containers
 #
 
 set -e  # Exit on error
@@ -55,15 +66,15 @@ CYAN='\033[0;36m'
 WHITE='\033[1;37m'
 NC='\033[0m' # No Color
 
-# Box drawing characters
-BOX_HORIZONTAL="━"
-BOX_VERTICAL="┃"
-BOX_TOP_LEFT="┏"
-BOX_TOP_RIGHT="┓"
-BOX_BOTTOM_LEFT="┗"
-BOX_BOTTOM_RIGHT="┛"
-BOX_T_RIGHT="┣"
-BOX_T_LEFT="┫"
+# Box drawing characters (ASCII-safe)
+BOX_HORIZONTAL="="
+BOX_VERTICAL="|"
+BOX_TOP_LEFT="+"
+BOX_TOP_RIGHT="+"
+BOX_BOTTOM_LEFT="+"
+BOX_BOTTOM_RIGHT="+"
+BOX_T_RIGHT="+"
+BOX_T_LEFT="+"
 
 # =============================================================================
 # HELPER FUNCTIONS
@@ -93,8 +104,8 @@ print_header() {
 print_subheader() {
     local text="$1"
     echo
-    print_color "$BLUE" "▸ $text"
-    print_color "$BLUE" "$(printf '%*s' 78 | tr ' ' '─')"
+    print_color "$BLUE" "> $text"
+    print_color "$BLUE" "$(printf '%*s' 78 | tr ' ' '-')"
 }
 
 # Print status line
@@ -253,40 +264,44 @@ check_services_health() {
 
     if curl -f -s "${backend_url}/health" >/dev/null 2>&1; then
         print_status "API Health (/health):" "✓ OK" "$GREEN"
+
+        # Get basic health info
+        local health_data=$(curl -s "${backend_url}/health" 2>/dev/null)
+        if [ -n "$health_data" ]; then
+            echo
+            echo "$health_data" | python3 -m json.tool 2>/dev/null | sed 's/^/    /' || echo "    $health_data"
+        fi
     else
         print_status "API Health (/health):" "✗ FAILED" "$RED"
     fi
 
-    if curl -f -s "${backend_url}/ping" >/dev/null 2>&1; then
-        print_status "API Ping (/ping):" "✓ OK" "$GREEN"
+    # Check /ready endpoint
+    if curl -f -s "${backend_url}/ready" >/dev/null 2>&1; then
+        print_status "API Ready (/ready):" "✓ OK" "$GREEN"
     else
-        print_status "API Ping (/ping):" "✗ FAILED" "$RED"
-    fi
-
-    # Detailed health check
-    local health_detailed=$(curl -s "${backend_url}/health/detailed" 2>/dev/null)
-    if [ -n "$health_detailed" ]; then
-        print_status "Detailed Health:" "✓ Available" "$GREEN"
-        echo
-        echo "$health_detailed" | python3 -m json.tool 2>/dev/null | sed 's/^/    /' || echo "    $health_detailed"
-    else
-        print_status "Detailed Health:" "✗ Not Available" "$RED"
+        print_status "API Ready (/ready):" "✗ FAILED" "$RED"
     fi
 
     echo
     print_subheader "Database"
 
-    # Check PostgreSQL
-    if docker exec "${PROJECT_NAME}-postgres-1" pg_isready -U familybudget >/dev/null 2>&1; then
-        print_status "PostgreSQL Status:" "✓ Ready" "$GREEN"
-    else
-        print_status "PostgreSQL Status:" "✗ Not Ready" "$RED"
-    fi
+    # Check PostgreSQL - find container dynamically
+    local postgres_container=$(docker ps --filter "name=${PROJECT_NAME}-postgres" --format "{{.Names}}" | head -1)
 
-    # Connection pool info (if backend is running)
-    local db_health=$(curl -s "${backend_url}/health/detailed" 2>/dev/null | grep -o '"database":[^}]*}')
-    if [ -n "$db_health" ]; then
-        echo "    $db_health"
+    if [ -n "$postgres_container" ]; then
+        if docker exec "$postgres_container" pg_isready -U familybudget >/dev/null 2>&1; then
+            print_status "PostgreSQL Status:" "✓ Ready" "$GREEN"
+
+            # Get database size
+            local db_size=$(docker exec "$postgres_container" psql -U familybudget -d familybudget -t -c "SELECT pg_size_pretty(pg_database_size('familybudget'));" 2>/dev/null | xargs)
+            if [ -n "$db_size" ]; then
+                print_status "Database Size:" "$db_size" "$WHITE"
+            fi
+        else
+            print_status "PostgreSQL Status:" "✗ Not Ready" "$RED"
+        fi
+    else
+        print_status "PostgreSQL Status:" "✗ Container not found" "$RED"
     fi
 }
 
@@ -320,6 +335,91 @@ collect_firewall_status() {
     sudo ufw status numbered | sed 's/^/    /'
 }
 
+# Collect network ports information
+collect_network_ports() {
+    print_header "NETWORK PORTS"
+
+    print_subheader "Listening Ports (ss)"
+
+    if ! command_exists ss; then
+        print_color "$YELLOW" "  ss command not available, trying netstat..."
+
+        if command_exists netstat; then
+            echo
+            printf "  %-10s %-25s %-25s %-s\n" "PROTO" "LOCAL ADDRESS" "PEER ADDRESS" "PROCESS"
+            printf "  %s\n" "$(printf '%*s' 78 | tr ' ' '-')"
+            sudo netstat -tulpn | grep LISTEN | awk '{printf "  %-10s %-25s %-25s %s\n", $1, $4, $5, $7}' | sed 's|/| |'
+        else
+            print_color "$RED" "  Neither ss nor netstat available"
+        fi
+        return
+    fi
+
+    echo
+    printf "  %-10s %-6s %-25s %-25s %-s\n" "PROTO" "STATE" "LOCAL ADDRESS" "PEER ADDRESS" "PROCESS"
+    printf "  %s\n" "$(printf '%*s' 78 | tr ' ' '-')"
+
+    # Get listening ports with process info
+    sudo ss -tulpn | grep LISTEN | while IFS= read -r line; do
+        proto=$(echo "$line" | awk '{print $1}')
+        state=$(echo "$line" | awk '{print $2}')
+        local_addr=$(echo "$line" | awk '{print $5}')
+        peer_addr=$(echo "$line" | awk '{print $6}')
+        process=$(echo "$line" | awk '{print $7}' | sed 's/users:(("//' | sed 's/")).*//' | cut -d'"' -f2)
+
+        # Highlight critical ports
+        local color="$WHITE"
+        if echo "$local_addr" | grep -q ":80\|:443\|:8000"; then
+            color="$GREEN"
+        elif echo "$local_addr" | grep -q ":5432"; then
+            color="$YELLOW"
+        fi
+
+        print_color "$color" "  $(printf '%-10s %-6s %-25s %-25s %s' "$proto" "$state" "$local_addr" "$peer_addr" "$process")"
+    done
+
+    echo
+    print_subheader "Expected Services"
+
+    # Check expected ports
+    local expected_ports=(
+        "80:HTTP (Nginx)"
+        "443:HTTPS (Nginx)"
+        "8000:Backend API"
+        "5432:PostgreSQL"
+    )
+
+    for port_info in "${expected_ports[@]}"; do
+        IFS=':' read -r port desc <<< "$port_info"
+
+        if sudo ss -tulpn | grep -q ":${port} "; then
+            print_status "  Port $port ($desc):" "✓ LISTENING" "$GREEN"
+        else
+            print_status "  Port $port ($desc):" "✗ NOT LISTENING" "$YELLOW"
+        fi
+    done
+
+    echo
+    print_subheader "Docker Published Ports"
+
+    # Get Docker container ports
+    if docker ps >/dev/null 2>&1; then
+        echo
+        printf "  %-30s %-40s\n" "CONTAINER" "PORTS"
+        printf "  %s\n" "$(printf '%*s' 78 | tr ' ' '-')"
+
+        docker ps --filter "name=${PROJECT_NAME}" --format "{{.Names}}\t{{.Ports}}" | while IFS=$'\t' read -r name ports; do
+            if [ -n "$ports" ]; then
+                printf "  %-30s %s\n" "$name" "$ports"
+            else
+                printf "  %-30s %s\n" "$name" "(no published ports)"
+            fi
+        done
+    else
+        print_color "$YELLOW" "  Docker not accessible"
+    fi
+}
+
 # Collect service logs
 collect_service_logs() {
     local service="$1"
@@ -327,10 +427,17 @@ collect_service_logs() {
 
     print_subheader "Logs: $service (last $lines lines)"
 
-    if docker logs --tail "$lines" "${PROJECT_NAME}-${service}-1" 2>&1; then
-        :
+    # Find container dynamically
+    local container_name=$(docker ps -a --filter "name=${PROJECT_NAME}-${service}" --format "{{.Names}}" | head -1)
+
+    if [ -n "$container_name" ]; then
+        if docker logs --tail "$lines" "$container_name" 2>&1; then
+            :
+        else
+            print_color "$RED" "  Failed to get logs for $container_name"
+        fi
     else
-        print_color "$RED" "  Failed to get logs for $service"
+        print_color "$YELLOW" "  Container not found for service: $service"
     fi
 }
 
@@ -341,7 +448,10 @@ collect_all_logs() {
     local services=("postgres" "backend" "bot" "nginx")
 
     for service in "${services[@]}"; do
-        if docker ps --filter "name=${PROJECT_NAME}-${service}-1" --format "{{.Names}}" | grep -q "${PROJECT_NAME}-${service}-1"; then
+        # Find container dynamically
+        local container_name=$(docker ps --filter "name=${PROJECT_NAME}-${service}" --format "{{.Names}}" | head -1)
+
+        if [ -n "$container_name" ]; then
             echo
             collect_service_logs "$service" "$TAIL_LINES"
         else
@@ -379,10 +489,13 @@ check_recent_errors() {
     local error_count=0
 
     for service in "${services[@]}"; do
-        if docker ps --filter "name=${PROJECT_NAME}-${service}-1" --format "{{.Names}}" | grep -q "${PROJECT_NAME}-${service}-1"; then
+        # Find container dynamically
+        local container_name=$(docker ps --filter "name=${PROJECT_NAME}-${service}" --format "{{.Names}}" | head -1)
+
+        if [ -n "$container_name" ]; then
             print_subheader "$service errors"
 
-            local errors=$(docker logs --tail 200 "${PROJECT_NAME}-${service}-1" 2>&1 | grep -i "error\|exception\|failed\|critical" | tail -n 10)
+            local errors=$(docker logs --tail 200 "$container_name" 2>&1 | grep -i "error\|exception\|failed\|critical" | tail -n 10)
 
             if [ -n "$errors" ]; then
                 echo "$errors" | sed 's/^/    /' | head -n 10
@@ -442,10 +555,19 @@ parse_args() {
 follow_logs() {
     local service="$1"
 
-    print_color "$CYAN" "Following logs for: $service (Ctrl+C to stop)"
-    echo
+    # Find container dynamically
+    local container_name=$(docker ps --filter "name=${PROJECT_NAME}-${service}" --format "{{.Names}}" | head -1)
 
-    docker logs -f --tail 50 "${PROJECT_NAME}-${service}-1" 2>&1
+    if [ -n "$container_name" ]; then
+        print_color "$CYAN" "Following logs for: $container_name (Ctrl+C to stop)"
+        echo
+        docker logs -f --tail 50 "$container_name" 2>&1
+    else
+        print_color "$RED" "ERROR: Container not found for service: $service"
+        print_color "$YELLOW" "Available containers:"
+        docker ps --filter "name=${PROJECT_NAME}" --format "  - {{.Names}}"
+        exit 1
+    fi
 }
 
 # Main execution
@@ -472,11 +594,11 @@ main() {
 
     # Main diagnostic collection
     {
-        print_color "$MAGENTA" "╔══════════════════════════════════════════════════════════════════════════════╗"
-        print_color "$MAGENTA" "║                                                                              ║"
-        print_color "$MAGENTA" "║              FAMILY BUDGET - SYSTEM DIAGNOSTICS & LOG COLLECTION             ║"
-        print_color "$MAGENTA" "║                                                                              ║"
-        print_color "$MAGENTA" "╚══════════════════════════════════════════════════════════════════════════════╝"
+        print_color "$MAGENTA" "================================================================================"
+        print_color "$MAGENTA" "|                                                                              |"
+        print_color "$MAGENTA" "|              FAMILY BUDGET - SYSTEM DIAGNOSTICS & LOG COLLECTION             |"
+        print_color "$MAGENTA" "|                                                                              |"
+        print_color "$MAGENTA" "================================================================================"
         echo
         print_color "$WHITE" "Generated: $(date '+%Y-%m-%d %H:%M:%S')"
         print_color "$WHITE" "Deployment: $DEPLOY_DIR"
@@ -494,6 +616,9 @@ main() {
         # Firewall
         collect_firewall_status
 
+        # Network ports
+        collect_network_ports
+
         if [ "$QUICK_MODE" = false ]; then
             # Recent errors
             check_recent_errors
@@ -507,12 +632,63 @@ main() {
 
         # Summary
         print_header "DIAGNOSTIC SUMMARY"
-        print_color "$WHITE" "  Timestamp:     $(date '+%Y-%m-%d %H:%M:%S')"
-        print_color "$WHITE" "  Deployment:    $DEPLOY_DIR"
-        print_color "$WHITE" "  Mode:          $([ "$QUICK_MODE" = true ] && echo "Quick" || echo "Full")"
+
+        # Count running/healthy containers
+        local total_containers=$(docker ps -a --filter "name=${PROJECT_NAME}" --format "{{.Names}}" | wc -l)
+        local running_containers=$(docker ps --filter "name=${PROJECT_NAME}" --format "{{.Names}}" | wc -l)
+        local healthy_containers=$(docker ps --filter "name=${PROJECT_NAME}" --filter "health=healthy" --format "{{.Names}}" | wc -l)
+
+        # System metrics
+        local mem_percent=$(free | awk 'NR==2{printf "%.0f", $3*100/$2}')
+        local disk_usage=$(df -h "$DEPLOY_DIR" | awk 'NR==2{print $5}' | sed 's/%//')
+        local cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)
+
+        # Health status colors
+        local container_color="$GREEN"
+        [ "$running_containers" -lt "$total_containers" ] && container_color="$YELLOW"
+
+        local health_color="$GREEN"
+        [ "$healthy_containers" -lt "$running_containers" ] && health_color="$YELLOW"
+
+        echo
+        print_color "$CYAN" "  SYSTEM STATUS"
+        print_status "    Timestamp:" "$(date '+%Y-%m-%d %H:%M:%S')" "$WHITE"
+        print_status "    Deployment:" "$DEPLOY_DIR" "$WHITE"
+        print_status "    Mode:" "$([ "$QUICK_MODE" = true ] && echo "Quick" || echo "Full")" "$WHITE"
+
+        echo
+        print_color "$CYAN" "  CONTAINERS"
+        print_status "    Total:" "$total_containers containers" "$WHITE"
+        print_status "    Running:" "$running_containers / $total_containers" "$container_color"
+        print_status "    Healthy:" "$healthy_containers / $running_containers" "$health_color"
+
+        echo
+        print_color "$CYAN" "  RESOURCES"
+        [ "$cpu_usage" = "" ] && cpu_usage="N/A" || cpu_usage="${cpu_usage}%"
+        [ "$mem_percent" = "" ] && mem_percent="N/A" || mem_percent="${mem_percent}%"
+        [ "$disk_usage" = "" ] && disk_usage="N/A" || disk_usage="${disk_usage}%"
+
+        local cpu_color="$GREEN"
+        [ "${cpu_usage%\%}" != "N/A" ] && (( $(echo "${cpu_usage%\%} > 80" | bc -l 2>/dev/null || echo 0) )) && cpu_color="$RED"
+
+        local mem_color="$GREEN"
+        [ "$mem_percent" != "N/A" ] && (( mem_percent > 80 )) && mem_color="$RED"
+        [ "$mem_percent" != "N/A" ] && (( mem_percent > 60 )) && (( mem_percent <= 80 )) && mem_color="$YELLOW"
+
+        local disk_color="$GREEN"
+        [ "$disk_usage" != "N/A" ] && (( disk_usage > 80 )) && disk_color="$RED"
+        [ "$disk_usage" != "N/A" ] && (( disk_usage > 60 )) && (( disk_usage <= 80 )) && disk_color="$YELLOW"
+
+        print_status "    CPU Usage:" "$cpu_usage" "$cpu_color"
+        print_status "    Memory Usage:" "$mem_percent" "$mem_color"
+        print_status "    Disk Usage:" "$disk_usage" "$disk_color"
+
         if [ "$SAVE_TO_FILE" = true ]; then
-            print_color "$WHITE" "  Saved to:      $log_file"
+            echo
+            print_color "$CYAN" "  OUTPUT"
+            print_status "    Saved to:" "$log_file" "$GREEN"
         fi
+
         echo
 
     } | if [ "$SAVE_TO_FILE" = true ]; then
