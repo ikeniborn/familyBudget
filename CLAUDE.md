@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with code in this repository.
 
 ---
 
@@ -13,654 +13,346 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## 🎯 Claude Skills
+
+Для автоматизации типичных задач используй **Claude Skills** - специализированные инструкции и шаблоны кода:
+
+📚 **[Полная документация по Skills](./SKILLS.md)**
+
+### Доступные Skills:
+
+| Skill | Описание | Когда использовать |
+|-------|----------|-------------------|
+| **[api-development](/.claude/skills/api-development/SKILL.md)** | Создание REST API endpoints | Создание CRUD endpoints, Pydantic схем, SCD Type 2 интеграция |
+| **[db-management](/.claude/skills/db-management/SKILL.md)** | Управление БД и миграциями | Миграции Alembic, dimension модели, Closure Table, backup |
+| **[testing](/.claude/skills/testing/SKILL.md)** | Тестирование и quality | Unit/integration/e2e тесты, coverage, linting |
+| **[bot-development](/.claude/skills/bot-development/SKILL.md)** | Telegram bot команды | Простые команды, ConversationHandler, inline keyboards |
+| **[deployment](/.claude/skills/deployment/SKILL.md)** | Deployment и DevOps | Production deploy, Docker управление, health checks |
+| **[monitoring](/.claude/skills/monitoring/SKILL.md)** | Мониторинг и диагностика | Логи, performance, troubleshooting |
+
+**Использование:**
+
+```
+Создай REST API endpoint для модели "Budget" используя api-development skill.
+```
+
+Claude автоматически вызовет нужный skill на основе запроса.
+
+---
+
 ## Команды для разработки
 
-### Запуск локальной разработки
+### Быстрый старт
 
 ```bash
 # Backend development server
-cd backend
-uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+cd backend && uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
 
 # Telegram Bot (требует запущенный backend)
-cd bot
-python main.py
-```
+cd bot && python main.py
 
-### Docker деплой (production)
-
-```bash
-# Базовый деплой (PostgreSQL + Backend)
-./deploy.sh
-
-# Полный деплой (+ Bot + Nginx + SSL)
+# Docker (production)
 ./deploy.sh --profile full
-
-# Пересборка образов
-./deploy.sh --build
-
-# Чистый деплой (УДАЛЯЕТ ВСЕ ДАННЫЕ!)
-./deploy.sh --clean
 ```
 
-### Управление сервисами
+### Основные команды
 
+**Docker управление:**
 ```bash
-# Просмотр статуса
-docker compose ps
-
-# Логи конкретного сервиса
-docker compose logs -f backend
-docker compose logs -f bot
-docker compose logs -f postgres
-
-# Перезапуск сервиса
-docker compose restart backend
-
-# Остановка всех сервисов
-docker compose down
+docker compose ps                    # Статус сервисов
+docker compose logs -f backend       # Логи
+docker compose restart backend       # Перезапуск
 ```
 
-### База данных
-
+**База данных:**
 ```bash
-# Применить миграции (Alembic)
-cd backend
-alembic upgrade head
-
-# Создать новую миграцию
-alembic revision --autogenerate -m "Description"
-
-# Откатить миграцию
-alembic downgrade -1
-
-# Просмотр истории миграций
-alembic history
-
-# Доступ к PostgreSQL shell
-docker compose exec postgres psql -U familybudget -d familybudget
+alembic upgrade head                 # Применить миграции
+alembic revision --autogenerate -m "Description"  # Создать миграцию
 ```
 
-### Тестирование
-
+**Тестирование:**
 ```bash
-# Backend тесты
-cd backend
-pytest                                    # Все тесты
-pytest tests/unit                         # Unit тесты
-pytest tests/integration                  # Integration тесты
-pytest tests/e2e                          # E2E тесты
-pytest --cov=backend --cov-report=html    # С coverage
-
-# Bot валидация синтаксиса
-cd bot
-python3 -m py_compile bot/handlers/*.py
-python3 -m py_compile bot/utils/*.py
-
-# Bot интеграционные тесты
-cd bot/tests/integration
-pytest -v
+pytest                               # Все тесты
+pytest --cov=backend --cov-report=html  # С coverage
+ruff check . && black . && mypy .    # Quality checks
 ```
 
-### Code Quality
-
-```bash
-# Linting (backend)
-cd backend
-ruff check .
-
-# Formatting
-black .
-
-# Type checking
-mypy .
-```
+📖 **Детальные инструкции:** См. соответствующие [Skills](#-claude-skills)
 
 ---
 
 ## Архитектура проекта
 
-### Общая структура
+### Структура
 
 ```
 familyBudget/
-├── backend/          # FastAPI приложение (REST API + Web UI)
-├── bot/              # Telegram Bot (python-telegram-bot)
-├── web/              # Статические файлы и шаблоны (HTMX)
-├── docs/             # Документация (PRD, API docs)
-├── scripts/          # Automation scripts (backup, SSL)
-├── .env              # Конфигурация (создается setup.sh)
+├── .claude/skills/      # Claude Skills для автоматизации
+├── backend/             # FastAPI (REST API + Web UI)
+│   ├── app/
+│   │   ├── api/v1/endpoints/  # REST API endpoints
+│   │   ├── models/            # SQLModel модели
+│   │   ├── schemas/           # Pydantic схемы
+│   │   ├── services/          # Бизнес-логика (SCD2, Hierarchy, JWT)
+│   │   └── core/              # Config, auth, exceptions
+│   └── db/migrations/   # Alembic миграции
+├── bot/                 # Telegram Bot (python-telegram-bot 20.x)
+│   ├── handlers/        # Command handlers
+│   ├── utils/           # API client, session, validators
+│   └── jobs/            # Background jobs
+├── scripts/             # Automation (backup, SSL)
 ├── docker-compose.yml
-├── install.sh        # Установка системных зависимостей
-├── setup.sh          # Интерактивная настройка окружения
-└── deploy.sh         # Деплой с Docker Compose
+└── deploy.sh            # Deployment script
 ```
 
-### Backend (FastAPI + SQLModel)
+### Ключевые технологии
 
-**Ключевые компоненты:**
+**Backend:**
+- FastAPI + SQLModel + PostgreSQL 16
+- Async SQLAlchemy (asyncpg)
+- JWT в httpOnly cookies
+- HTMX для Web UI
 
-- `backend/app/main.py` - Точка входа, middleware, exception handlers
-- `backend/app/api/v1/router.py` - API роутер (объединяет все endpoints)
-- `backend/app/api/v1/endpoints/` - REST API endpoints (auth, facts, articles, users, centers)
-- `backend/app/api/web/router.py` - Web UI endpoints (HTMX + Jinja2)
-- `backend/app/models/` - SQLModel модели (User, Article, Fact, FinancialCenter, CostCenter)
-- `backend/app/schemas/` - Pydantic схемы для валидации
-- `backend/app/services/` - Бизнес-логика (SCD Type 2, Hierarchy, JWT, TelegramAuth)
-- `backend/app/core/` - Конфигурация, аутентификация, исключения, логирование
-- `backend/app/middleware/` - JWT auth, logging, error handling, validation
-- `backend/app/db/session.py` - Управление сессиями БД (async)
+**Bot:**
+- python-telegram-bot 20.x
+- ConversationHandler для multi-step команд
+- API client для взаимодействия с backend
 
-**Паттерны:**
+**Infrastructure:**
+- Docker & Docker Compose
+- UFW firewall
+- Alembic для миграций
 
-- **SCD Type 2** для dimension таблиц (t_d_user, t_d_article, t_d_financial_center, t_d_cost_center)
-- **Closure Table** для иерархии категорий (t_d_article_hierarchy)
-- **User Data Isolation** - каждый пользователь видит только свои данные
-- **JWT в httpOnly cookies** для аутентификации
-- **Telegram OAuth** с HMAC-SHA256 валидацией
-- **Async SQLAlchemy** через asyncpg
+### Архитектурные паттерны
 
-### Telegram Bot (python-telegram-bot 20.x)
+⚠️ **Критично важные паттерны:**
 
-**Структура:**
+1. **SCD Type 2** для dimension таблиц
+   - `t_d_user`, `t_d_article`, `t_d_financial_center`, `t_d_cost_center`
+   - Полная история изменений: `valid_from`, `valid_to`, `is_current`
+   - 📖 **Детали:** [db-management skill](/.claude/skills/db-management/SKILL.md)
 
-- `bot/bot.py` - Класс BotApplication (регистрация handlers, scheduler)
-- `bot/main.py` - Точка входа, graceful shutdown
-- `bot/handlers/` - Command handlers (start, add, edit, summary, stats, settings, etc.)
-- `bot/utils/` - API client, session, auth, scheduler, notification service
-- `bot/jobs/` - Background jobs (weekly reports)
-- `bot/config/settings.py` - Pydantic Settings
+2. **Closure Table** для иерархий
+   - `t_d_article_hierarchy` - хранит все ancestor-descendant пары
+   - O(1) сложность для иерархических запросов
+   - 📖 **Детали:** [db-management skill](/.claude/skills/db-management/SKILL.md)
 
-**Основные команды:**
+3. **User Data Isolation**
+   - Каждый endpoint фильтрует по `current_user.id`
+   - Используй `apply_user_filter()` или `WHERE user_id = current_user.id`
+   - 📖 **Детали:** [api-development skill](/.claude/skills/api-development/SKILL.md)
 
-- `/start` - Telegram OAuth аутентификация
-- `/add` - Добавить транзакцию (multi-step conversation)
-- `/addplan` - Добавить плановую запись
-- `/edit` - Редактировать/удалить транзакции
-- `/summary` - План vs Факт сравнение
-- `/today` / `/stats` - Статистика
-- `/settings` - Настройки (еженедельные отчеты, уведомления)
-
-**ConversationHandler:**
-
-Все multi-step команды используют ConversationHandler с states. При добавлении новой команды:
-
-1. Определите states как константы
-2. Создайте handler функции для каждого state
-3. Зарегистрируйте ConversationHandler в `bot/bot.py`
-4. Добавьте fallback для `/cancel`
-
-### База данных (PostgreSQL 16)
-
-**Dimension таблицы (SCD Type 2):**
-
-- `t_d_user` - Пользователи (с историей изменений)
-- `t_d_article` - Категории бюджета (иерархические)
-- `t_d_article_hierarchy` - Closure Table для категорий
-- `t_d_financial_center` - Финансовые центры (ЦФО)
-- `t_d_cost_center` - Центры возникновения затрат (МВЗ)
-
-**Fact таблицы:**
-
-- `t_f_budget_fact` - Транзакции (доходы/расходы, факт/план)
-  - `record_type`: 'fact' | 'plan'
-  - `financial_center_id`: опционально (FK на t_d_financial_center)
-  - `cost_center_id`: опционально (FK на t_d_cost_center)
-- `t_notification` - История уведомлений о превышении бюджета
-
-**Особенности SCD Type 2:**
-
-- `valid_from` / `valid_to` - период валидности версии
-- `is_active` - текущая версия (только одна для каждого business key)
-- При UPDATE - старая версия закрывается, создается новая
-- Полная история изменений для аудита
-
-**Миграции:**
-
-Используем Alembic. При изменении моделей:
-
-```bash
-cd backend
-alembic revision --autogenerate -m "Add new column"
-# Проверьте migration file в backend/db/migrations/versions/
-alembic upgrade head
-```
+4. **Telegram OAuth**
+   - Аутентификация через Telegram с HMAC-SHA256
+   - JWT tokens в httpOnly cookies (7 дней)
+   - Bot использует `SessionManager` для хранения токенов
 
 ---
 
 ## Критически важная информация
 
-### Аутентификация и безопасность
+### Security Guidelines (ОБЯЗАТЕЛЬНО)
 
-**Telegram OAuth (используется везде):**
+✅ **ВСЕГДА делать:**
 
-1. User отправляет `/start` в боте или нажимает "Login with Telegram" на веб-сайте
-2. Telegram отправляет auth данные с hash (HMAC-SHA256)
-3. Backend валидирует hash через `backend/app/services/telegram_auth.py`
-4. Создается/обновляется User в БД (SCD Type 2)
-5. Возвращается JWT токен в httpOnly cookie
-6. Bot сохраняет токен в `context.user_data` для API запросов
+1. **User isolation** - фильтровать по `current_user.id`:
+   ```python
+   stmt = select(Model).where(Model.user_id == current_user.id)
+   ```
 
-**JWT токены:**
+2. **SCD Type 2** - использовать `SCD2Service` для updates:
+   ```python
+   from backend.app.services.scd2_service import create_new_version
+   new_version = await create_new_version(session, old_instance, updates)
+   ```
 
-- Срок действия: 7 дней (настраиваемо через `JWT_EXPIRE_DAYS`)
-- Хранятся в httpOnly cookies (защита от XSS)
-- Генерируются в `backend/app/services/jwt.py`
-- Middleware проверяет в `backend/app/middleware/jwt_middleware.py`
+3. **Authentication** - использовать `CurrentUser` dependency:
+   ```python
+   from backend.app.core.dependencies import CurrentUser
+   async def endpoint(current_user: CurrentUser):
+       # endpoint code
+   ```
 
-**User Data Isolation:**
+4. **Validation** - использовать Pydantic схемы для всех inputs
 
-ВСЕ endpoints должны фильтровать данные по `current_user.id`:
+❌ **НИКОГДА не делать:**
 
-```python
-from backend.app.core.dependencies import get_current_user
+1. **Прямой UPDATE** для SCD Type 2 таблиц - ТОЛЬКО через `SCD2Service`
+2. **Пропуск user_id фильтра** - ВСЕГДА проверяй user isolation
+3. **Хранение JWT в localStorage** - ТОЛЬКО httpOnly cookies
+4. **Прямая работа с Closure Table** - ТОЛЬКО через `HierarchyService`
 
-@router.get("/facts")
-async def get_facts(
-    db: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(get_current_user)
-):
-    # ОБЯЗАТЕЛЬНО фильтровать по user_id!
-    stmt = select(Fact).where(Fact.user_id == current_user.id)
-    # ...
+📖 **Подробнее:** См. соответствующие [Skills](#-claude-skills)
+
+---
+
+## Быстрые ссылки на типичные задачи
+
+| Задача | Где найти инструкцию |
+|--------|---------------------|
+| Создать REST API endpoint | [api-development skill](/.claude/skills/api-development/SKILL.md) |
+| Создать миграцию БД | [db-management skill](/.claude/skills/db-management/SKILL.md) |
+| Создать dimension таблицу | [db-management skill](/.claude/skills/db-management/SKILL.md) |
+| Работа с SCD Type 2 | [db-management skill](/.claude/skills/db-management/SKILL.md) |
+| Работа с Closure Table | [db-management skill](/.claude/skills/db-management/SKILL.md) |
+| Создать unit тесты | [testing skill](/.claude/skills/testing/SKILL.md) |
+| Запустить тесты с coverage | [testing skill](/.claude/skills/testing/SKILL.md) |
+| Создать bot команду | [bot-development skill](/.claude/skills/bot-development/SKILL.md) |
+| ConversationHandler | [bot-development skill](/.claude/skills/bot-development/SKILL.md) |
+| Задеплоить на production | [deployment skill](/.claude/skills/deployment/SKILL.md) |
+| Управление Docker сервисами | [deployment skill](/.claude/skills/deployment/SKILL.md) |
+| Просмотр логов | [monitoring skill](/.claude/skills/monitoring/SKILL.md) |
+| Troubleshooting | [monitoring skill](/.claude/skills/monitoring/SKILL.md) |
+| Performance анализ | [monitoring skill](/.claude/skills/monitoring/SKILL.md) |
+
+---
+
+## Deployment (Quick Reference)
+
+### Первоначальная установка
+
+```bash
+git clone <repo-url> ~/familyBudget && cd ~/familyBudget
+sudo ./install.sh     # Системные зависимости (один раз)
+./setup.sh            # Настройка .env
+./deploy.sh           # Деплой
 ```
 
-### Работа с SCD Type 2
+### Обновление кода
 
-При создании/обновлении dimension записей используйте `SCD2Service`:
-
-```python
-from backend.app.services.scd2_service import SCD2Service
-
-# Создание новой записи
-new_article = await SCD2Service.create_dimension(
-    db=db,
-    model=Article,
-    business_key_fields={"user_id": user_id, "article_name": name},
-    data={"description": "...", "is_income": True}
-)
-
-# Обновление (создаст новую версию)
-updated = await SCD2Service.update_dimension(
-    db=db,
-    model=Article,
-    business_key_fields={"user_id": user_id, "article_name": name},
-    data={"description": "Updated"}
-)
-
-# Получение активной версии
-current = await SCD2Service.get_active_version(
-    db=db,
-    model=Article,
-    business_key_fields={"user_id": user_id, "article_name": name}
-)
+```bash
+cd ~/familyBudget && git pull
+./deploy.sh --sync-mode mirror
 ```
 
-**ВАЖНО:** Никогда не делайте UPDATE напрямую через SQLAlchemy для SCD Type 2 таблиц!
+### Deployment опции
 
-### Иерархия категорий (Closure Table)
+```bash
+./deploy.sh --profile full          # Full stack (+ bot + nginx)
+./deploy.sh --build                 # Rebuild images
+./deploy.sh --sync-mode skip        # Deploy без синхронизации кода
+```
 
-Для работы с иерархией используйте `HierarchyService`:
+📖 **Полное руководство:** [deployment skill](/.claude/skills/deployment/SKILL.md)
+
+---
+
+## База данных (Quick Reference)
+
+### Структура
+
+**Dimension таблицы (SCD Type 2):**
+- `t_d_user` - Пользователи
+- `t_d_article` - Категории (с иерархией)
+- `t_d_financial_center` - Финансовые центры (ЦФО)
+- `t_d_cost_center` - Центры затрат (МВЗ)
+
+**Fact таблицы:**
+- `t_f_budget_fact` - Транзакции (record_type: 'fact' | 'plan')
+- `t_notification` - История уведомлений
+
+**Иерархия:**
+- `t_d_article_hierarchy` - Closure Table для категорий
+
+### Основные сервисы
 
 ```python
+# SCD Type 2
+from backend.app.services.scd2_service import (
+    create_new_version,
+    get_current_version,
+    has_changes
+)
+
+# Hierarchy (Closure Table)
 from backend.app.services.hierarchy_service import HierarchyService
-
-# Создание связи parent-child
-await HierarchyService.add_relationship(
-    db=db,
-    parent_id=parent.id,
-    child_id=child.id
-)
-
-# Получение всех потомков (рекурсивно)
-descendants = await HierarchyService.get_descendants(db=db, article_id=root.id)
-
-# Получение предков (для breadcrumbs)
-ancestors = await HierarchyService.get_ancestors(db=db, article_id=leaf.id)
-
-# Получение корневых категорий (без родителя)
-roots = await HierarchyService.get_root_articles(db=db, user_id=user.id)
 ```
 
-### API Client в боте
-
-Bot взаимодействует с backend через `bot/utils/api_client.py`:
-
-```python
-from bot.utils.api_client import get_api_client
-from bot.utils.session import SessionManager
-
-api_client = await get_api_client()
-token = SessionManager.get_token(context)
-
-# GET запрос
-response = await api_client.get("/facts", token=token)
-
-# POST запрос
-response = await api_client.post(
-    "/facts",
-    data={"amount": 100.50, "article_id": 1, ...},
-    token=token
-)
-```
-
-**Retry logic:**
-
-API Client автоматически повторяет запросы (3 попытки с экспоненциальной задержкой) при 5xx ошибках.
-
----
-
-## Deployment и конфигурация
-
-### Правильный Workflow
-
-#### Первоначальная установка:
-```bash
-# На сервере
-git clone https://github.com/user/familyBudget.git ~/familyBudget
-cd ~/familyBudget
-
-sudo ./install.sh     # Один раз - зависимости
-./setup.sh            # Настраивает .env в /opt/budget
-./deploy.sh           # Синхронизирует код + запускает контейнеры
-```
-
-#### Обновление кода:
-```bash
-cd ~/familyBudget     # Репозиторий
-git pull
-./deploy.sh           # Автоматически синхронизирует в /opt/budget + деплоит
-```
-
-#### Изменение только конфигурации (.env):
-```bash
-cd /opt/budget        # Deployment директория
-nano .env             # Ручное редактирование
-./deploy.sh --sync-mode skip  # Деплой без синхронизации кода
-# Или:
-cd ~/familyBudget
-./setup.sh            # Интерактивная перенастройка .env
-./deploy.sh --sync-mode skip
-```
-
-**ВАЖНО:**
-- setup.sh - ТОЛЬКО настройка .env и конфигураций (больше НЕ копирует код)
-- deploy.sh - синхронизация кода из репозитория в /opt/budget + деплой
-- deploy.sh автоматически определяет репозиторий (текущая директория или ~/familyBudget)
-- Можно запускать deploy.sh откуда угодно - он найдет репозиторий и синхронизирует
-
----
-
-### Три скрипта деплоя
-
-1. **install.sh** - Установка системных зависимостей (Docker, UFW, утилиты)
-   ```bash
-   sudo ./install.sh
-   ```
-
-2. **setup.sh** - Настройка .env и конфигураций (НЕ копирует код!)
-   ```bash
-   ./setup.sh                   # Можно запускать откуда угодно
-   ```
-
-   Что делает:
-   - Создает/обновляет .env файл в /opt/budget
-   - Генерирует секреты (JWT_SECRET, passwords)
-   - Настраивает UFW firewall для PostgreSQL
-   - Генерирует nginx конфигурацию (для full profile)
-
-3. **deploy.sh** - Синхронизация кода + деплой приложения
-   ```bash
-   ./deploy.sh                           # Интерактивный выбор режима синхронизации
-   ./deploy.sh --sync-mode mirror        # Зеркало (rsync --delete)
-   ./deploy.sh --sync-mode update        # Только обновление
-   ./deploy.sh --sync-mode clean         # Полная очистка + копирование
-   ./deploy.sh --sync-mode skip          # Деплой без синхронизации кода
-   ./deploy.sh --repo-dir ~/myrepo       # Указать путь к репозиторию
-   ```
-
-   Режимы синхронизации:
-   - **mirror** (рекомендуется): rsync --delete, защищены .env, backups/, data/, logs/
-   - **update**: только обновление/добавление файлов (старые не удаляются)
-   - **clean**: удаляет ВСЁ кроме .env и backups/, затем копирует из репозитория
-   - **skip**: деплой без синхронизации кода (использует текущий код в /opt/budget)
-
-### Переменные окружения (.env)
-
-**Обязательные:**
-
-```bash
-POSTGRES_PASSWORD=<strong-password>
-JWT_SECRET=<generated-secret>
-TELEGRAM_BOT_TOKEN=<from-botfather>
-ADMIN_TELEGRAM_ID=<your-telegram-id>
-```
-
-**Опциональные:**
-
-```bash
-APP_ENV=production
-DOMAIN=localhost
-BACKEND_PORT=8000
-WORKERS=4
-LOG_LEVEL=INFO
-POSTGRES_EXTERNAL_ACCESS=false
-SSL_TYPE=letsencrypt
-LETSENCRYPT_EMAIL=admin@example.com
-```
-
-### Docker Compose профили
-
-- **default** (no profile): postgres + backend
-- **full**: postgres + backend + bot + nginx + certbot
-
-### Networks
-
-- `familybudget` (172.28.0.0/16) - Единая bridge сеть для всех контейнеров
-  - Все сервисы (postgres, backend, bot, nginx) в одной сети для упрощения
-  - Безопасность контролируется через UFW firewall на хосте
-  - Порт 5432 (PostgreSQL) закрыт по умолчанию, открывается только для разрешенных IP
-  - Порты 80/443 (HTTP/HTTPS) открыты для nginx
-
-### PostgreSQL External Access
-
-**Архитектура безопасности:**
-- Порт 5432 всегда пробрасывается на хост в `docker-compose.yml`
-- По умолчанию UFW firewall блокирует все внешние подключения
-- Доступ к PostgreSQL изнутри Docker network всегда работает (для backend/bot)
-
-**Включение внешнего доступа (например, для pgAdmin, DBeaver):**
-
-1. Запустите `./setup.sh` и выберите "Enable PostgreSQL external access"
-2. Укажите разрешенный IP адрес (например, ваш рабочий компьютер)
-3. setup.sh автоматически добавит UFW правило: `ufw allow from <IP> to any port 5432`
-
-**Отключение внешнего доступа:**
-
-```bash
-# Удалить UFW правило
-sudo ufw delete allow from <IP> to any port 5432
-
-# Или запустить setup.sh повторно с POSTGRES_EXTERNAL_ACCESS=false
-./setup.sh
-```
-
-**Безопасность:**
-- ✅ Порт 5432 на хосте доступен, но заблокирован UFW
-- ✅ Доступ разрешен ТОЛЬКО с конкретного IP
-- ✅ Все остальные IP блокируются автоматически
-- ✅ Нет необходимости пересоздавать контейнеры при изменении доступа
-
----
-
-## Типичные задачи и как их решать
-
-### Добавить новый REST API endpoint
-
-1. Создайте endpoint в `backend/app/api/v1/endpoints/`:
-
-```python
-from fastapi import APIRouter, Depends
-from backend.app.core.dependencies import get_current_user, get_async_session
-
-router = APIRouter()
-
-@router.get("/my-endpoint")
-async def my_endpoint(
-    db: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(get_current_user)
-):
-    # Ваша логика
-    return {"status": "ok"}
-```
-
-2. Зарегистрируйте router в `backend/app/api/v1/router.py`:
-
-```python
-from backend.app.api.v1.endpoints import my_endpoint
-
-api_router.include_router(
-    my_endpoint.router,
-    prefix="/my-endpoint",
-    tags=["MyTag"]
-)
-```
-
-3. Проверьте в Swagger: http://localhost:8000/docs
-
-### Добавить новую команду в бота
-
-1. Создайте handler в `bot/handlers/my_command.py`
-2. Зарегистрируйте в `bot/bot.py`:
-
-```python
-from bot.handlers.my_command import my_command_handler
-
-self.application.add_handler(
-    CommandHandler("mycommand", my_command_handler)
-)
-```
-
-3. Для multi-step команд используйте ConversationHandler (см. примеры в `bot/handlers/add.py`)
-
-### Изменить схему БД
-
-1. Обновите SQLModel модель в `backend/app/models/`
-2. Создайте миграцию:
-   ```bash
-   cd backend
-   alembic revision --autogenerate -m "Add column X to table Y"
-   ```
-3. Проверьте generated migration file
-4. Примените:
-   ```bash
-   alembic upgrade head
-   ```
-
-**ВАЖНО:** Для production используйте `deploy.sh` который автоматически применяет миграции.
-
-### Добавить новую dimension таблицу (SCD Type 2)
-
-1. Создайте SQLModel модель с SCD Type 2 полями:
-
-```python
-from backend.app.models.base import DimensionBase
-
-class MyDimension(DimensionBase, table=True):
-    __tablename__ = "t_d_my_dimension"
-
-    # Business key fields
-    user_id: int = Field(foreign_key="t_d_user.id")
-    name: str
-
-    # Additional fields
-    description: str | None = None
-```
-
-2. Используйте `SCD2Service` для CRUD операций
-3. Создайте миграцию Alembic
-
-### Работа с иерархией
-
-При работе с `t_d_article` помните:
-
-- Используйте `HierarchyService` для добавления parent-child связей
-- Closure Table автоматически поддерживает транзитивные связи
-- Для breadcrumbs: `get_ancestors()`
-- Для subtree: `get_descendants()`
-
-### Troubleshooting
-
-**Backend не запускается:**
-
-```bash
-docker compose logs backend
-# Проверьте DATABASE_URL, JWT_SECRET, TELEGRAM_BOT_TOKEN
-```
-
-**Bot не отвечает:**
-
-```bash
-docker compose logs bot
-# Проверьте TELEGRAM_BOT_TOKEN, доступность backend API
-```
-
-**База данных недоступна:**
-
-```bash
-docker compose exec postgres pg_isready -U familybudget
-# Проверьте healthcheck, логи postgres
-```
-
-**Миграции не применяются:**
-
-```bash
-docker compose exec backend alembic upgrade head
-# Проверьте connection string, права доступа
-```
-
----
-
-## Дополнительные ресурсы
-
-- **README.md** - Полная документация проекта
-- **START.md** - Quick start guide на русском
-- **docs/prd/** - Product Requirements Documents
-- **backend/README.md** - Backend документация
-- **bot/README.md** - Bot документация
-- **scripts/README.md** - Scripts документация
+📖 **Детальное руководство:** [db-management skill](/.claude/skills/db-management/SKILL.md)
 
 ---
 
 ## Стиль кода и конвенции
 
 **Python:**
-
-- PEP 8 style guide
-- Type hints обязательны
-- Async/await для всех I/O операций
-- Black formatter (line length 100)
-- Ruff linter
-
-**Commits:**
-
-- Conventional Commits: `feat:`, `fix:`, `docs:`, `refactor:`, etc.
-- Включайте Co-Authored-By для Claude Code commits
+- PEP 8, type hints обязательны
+- Async/await для I/O
+- Black (line length 100) + Ruff + mypy
 
 **Naming:**
-
 - Таблицы: `t_d_*` (dimension), `t_f_*` (fact)
 - API endpoints: kebab-case (`/budget-facts`)
-- Python: snake_case
-- SQLModel классы: PascalCase
+- Python: snake_case, SQLModel: PascalCase
 
-**Error handling:**
-
-- Используйте custom exceptions из `backend/app/core/exceptions.py`
-- Логируйте все errors с контекстом
-- Graceful degradation в боте при ошибках API
+**Commits:**
+- Conventional Commits: `feat:`, `fix:`, `docs:`, etc.
+- Co-Authored-By: Claude для Claude Code commits
 
 ---
 
-**Версия документа:** 1.0
-**Последнее обновление:** 2025-10-19
+## Дополнительные ресурсы
+
+- **[SKILLS.md](./SKILLS.md)** - Comprehensive Skills guide
+- **[README.md](./README.md)** - Полная документация проекта
+- **[START.md](./START.md)** - Quick start guide
+- **backend/README.md** - Backend документация
+- **bot/README.md** - Bot документация
+
+---
+
+## Примеры использования Skills
+
+### Пример 1: Новый feature (end-to-end)
+
+```
+Создай feature "Recurring Transactions":
+1. Dimension таблица с SCD Type 2 (db-management)
+2. REST API endpoint (api-development)
+3. Unit и integration тесты (testing)
+4. Bot команда /recurring (bot-development)
+```
+
+Claude автоматически использует нужные skills.
+
+### Пример 2: Bug fix workflow
+
+```
+Backend медленно работает:
+1. Проанализируй slow queries (monitoring)
+2. Добавь indexes (db-management)
+3. Оптимизируй код (api-development)
+4. Создай performance тест (testing)
+5. Задеплой hotfix (deployment)
+```
+
+### Пример 3: Production incident
+
+```
+Backend упал на production:
+1. Диагностируй проблему (monitoring)
+2. Проверь health всех сервисов (deployment)
+3. Восстанови сервис (deployment)
+```
+
+---
+
+## Важные напоминания
+
+⚠️ **При разработке всегда:**
+
+1. Используй **Claude Skills** для типичных задач (см. [таблицу выше](#-claude-skills))
+2. Соблюдай **User Data Isolation** - фильтруй по `current_user.id`
+3. Используй **SCD2Service** для dimension таблиц
+4. Используй **HierarchyService** для работы с иерархиями
+5. Добавляй **тесты** для всех новых features
+6. Проверяй **security** - JWT, user isolation, validation
+7. Проверяй **performance** - indexes, N+1 queries
+8. Документируй **breaking changes**
+
+💡 **Не уверен как сделать?** → Посмотри соответствующий [Skill](#-claude-skills)
+
+---
+
+**Версия документа:** 2.0 (оптимизированная)
+**Последнее обновление:** 2025-10-22
+**Формат:** Компактный + ссылки на Skills
