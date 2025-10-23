@@ -1,88 +1,113 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="admin-page">
-    <div class="page-header">
-        <h1>🏦 Управление финансовыми центрами (ЦФО)</h1>
-        <p class="page-description">Управляйте банковскими счетами, кошельками, наличными и другими финансовыми активами</p>
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold mb-2">🏦 Управление финансовыми центрами (ЦФО)</h1>
+        <p class="text-base-content/70">Управляйте банковскими счетами, кошельками, наличными и другими финансовыми активами</p>
     </div>
 
     <!-- Financial Centers Table -->
-    <div class="card admin-table-card">
-        <div class="card-header">
-            <h2>🏦 Финансовые центры</h2>
-            <div class="table-actions">
-                <button class="btn-primary btn-small" onclick="showCreateModal()">➕ Новый ЦФО</button>
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <h2 class="card-title text-2xl">🏦 Финансовые центры</h2>
+                <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    Новый ЦФО
+                </button>
             </div>
-        </div>
 
-        <div id="centers-table-container">
-            <div class="loading">⏳ Загрузка ЦФО...</div>
+            <div id="centers-table-container" class="min-h-[200px]">
+                <div class="flex items-center justify-center py-8">
+                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- Create Financial Center Modal -->
-<div id="create-modal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>✨ Создать новый ЦФО</h3>
-            <span class="modal-close" onclick="closeCreateModal()">&times;</span>
-        </div>
-        <form id="create-form" onsubmit="createCenter(event)">
-            <div class="form-group">
-                <label for="create-name">📝 Название*</label>
-                <input type="text" id="create-name" name="name" required maxlength="255" placeholder="Например: Сбербанк Текущий счет">
+<dialog id="create-modal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">✨ Создать новый ЦФО</h3>
+        <form id="create-form" onsubmit="createCenter(event)" class="space-y-4">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📝 Название*</span>
+                </label>
+                <input type="text" id="create-name" name="name" required maxlength="255" placeholder="Например: Сбербанк Текущий счет" class="input input-bordered" />
             </div>
-            <div class="form-group">
-                <label for="create-code">🏷️ Код (необязательно)</label>
-                <input type="text" id="create-code" name="code" maxlength="50" placeholder="Например: SBER_CURR">
-                <small>Только буквы, цифры и подчеркивания. Автоматически в верхнем регистре.</small>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">🏷️ Код</span>
+                </label>
+                <input type="text" id="create-code" name="code" maxlength="50" placeholder="Например: SBER_CURR" class="input input-bordered" />
+                <label class="label">
+                    <span class="label-text-alt">Только буквы, цифры и подчеркивания. Автоматически в верхнем регистре.</span>
+                </label>
             </div>
-            <div class="form-group">
-                <label for="create-description">📄 Описание (необязательно)</label>
-                <textarea id="create-description" name="description" rows="3" placeholder="Введите описание..."></textarea>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📄 Описание</span>
+                </label>
+                <textarea id="create-description" name="description" rows="3" placeholder="Введите описание..." class="textarea textarea-bordered"></textarea>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeCreateModal()">❌ Отмена</button>
-                <button type="submit" class="btn-primary">✅ Создать</button>
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="closeCreateModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-primary">✅ Создать</button>
             </div>
         </form>
     </div>
-</div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
 
 <!-- Edit Financial Center Modal -->
-<div id="edit-modal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>✏️ Редактировать ЦФО</h3>
-            <span class="modal-close" onclick="closeEditModal()">&times;</span>
-        </div>
-        <form id="edit-form" onsubmit="updateCenter(event)">
+<dialog id="edit-modal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">✏️ Редактировать ЦФО</h3>
+        <form id="edit-form" onsubmit="updateCenter(event)" class="space-y-4">
             <input type="hidden" id="edit-id" name="id">
-            <div class="form-group">
-                <label for="edit-name">📝 Название*</label>
-                <input type="text" id="edit-name" name="name" required maxlength="255">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📝 Название*</span>
+                </label>
+                <input type="text" id="edit-name" name="name" required maxlength="255" class="input input-bordered" />
             </div>
-            <div class="form-group">
-                <label for="edit-code">🏷️ Код (необязательно)</label>
-                <input type="text" id="edit-code" name="code" maxlength="50">
-                <small>Только буквы, цифры и подчеркивания. Автоматически в верхнем регистре.</small>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">🏷️ Код</span>
+                </label>
+                <input type="text" id="edit-code" name="code" maxlength="50" class="input input-bordered" />
+                <label class="label">
+                    <span class="label-text-alt">Только буквы, цифры и подчеркивания. Автоматически в верхнем регистре.</span>
+                </label>
             </div>
-            <div class="form-group">
-                <label for="edit-description">📄 Описание (необязательно)</label>
-                <textarea id="edit-description" name="description" rows="3"></textarea>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📄 Описание</span>
+                </label>
+                <textarea id="edit-description" name="description" rows="3" class="textarea textarea-bordered"></textarea>
             </div>
-            <div class="form-group">
-                <p class="info-note">ℹ️ Изменения создадут новую версию записи (SCD Type 2)</p>
+            <div class="alert alert-info">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span>Изменения создадут новую версию записи (SCD Type 2)</span>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeEditModal()">❌ Отмена</button>
-                <button type="submit" class="btn-primary">💾 Сохранить</button>
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-primary">💾 Сохранить</button>
             </div>
         </form>
     </div>
-</div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -98,7 +123,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load financial centers from API
 async function loadCenters() {
     const container = document.getElementById('centers-table-container');
-    container.innerHTML = '<div class="loading">⏳ Загрузка ЦФО...</div>';
+    container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
 
     try {
         let url = '/api/v1/financial-centers?limit=1000';
@@ -115,7 +140,7 @@ async function loadCenters() {
         renderCentersTable(centersData);
     } catch (error) {
         console.error('Error loading financial centers:', error);
-        container.innerHTML = `<div class="error-message">❌ Ошибка загрузки ЦФО: ${error.message}</div>`;
+        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки ЦФО: ${error.message}</span></div>`;
     }
 }
 
@@ -124,13 +149,13 @@ function renderCentersTable(centers) {
     const container = document.getElementById('centers-table-container');
 
     if (centers.length === 0) {
-        container.innerHTML = '<p class="info-text">🏦 ЦФО не найдены. Нажмите "➕ Новый ЦФО" для создания.</p>';
+        container.innerHTML = '<div class="text-center py-8 text-base-content/60">🏦 ЦФО не найдены. Нажмите "➕ Новый ЦФО" для создания.</div>';
         return;
     }
 
     let html = `
-        <div class="table-responsive">
-            <table class="data-table">
+        <div class="overflow-x-auto">
+            <table class="table table-zebra table-sm">
                 <thead>
                     <tr>
                         <th>📝 Название</th>
@@ -146,22 +171,24 @@ function renderCentersTable(centers) {
 
     centers.forEach(center => {
         const scopeLabel = center.is_global
-            ? '<span class="badge success">🌍 Глобальный</span>'
-            : '<span class="badge user">👤 Личный</span>';
+            ? '<span class="badge badge-success gap-1">🌍 Глобальный</span>'
+            : '<span class="badge badge-info gap-1">👤 Личный</span>';
         const code = center.code || '—';
         const description = center.description || '—';
         const validFrom = new Date(center.valid_from).toLocaleDateString('ru-RU');
 
         html += `
             <tr data-center-id="${center.id}">
-                <td><strong>${center.name}</strong></td>
-                <td><code>${code}</code></td>
+                <td class="font-medium">${center.name}</td>
+                <td><code class="badge badge-ghost">${code}</code></td>
                 <td>${description}</td>
                 <td>${scopeLabel}</td>
                 <td>${validFrom}</td>
                 <td>
-                    <button class="btn-primary btn-small" onclick="showEditModal(${center.id})">✏️ Изменить</button>
-                    <button class="btn-secondary btn-small" onclick="deleteCenter(${center.id})">🗑️ Удалить</button>
+                    <div class="flex gap-1">
+                        <button class="btn btn-sm btn-primary gap-1" onclick="showEditModal(${center.id})">✏️ Изменить</button>
+                        <button class="btn btn-sm btn-outline btn-error gap-1" onclick="deleteCenter(${center.id})">🗑️</button>
+                    </div>
                 </td>
             </tr>
         `;
@@ -178,12 +205,12 @@ function renderCentersTable(centers) {
 
 // Show create modal
 function showCreateModal() {
-    document.getElementById('create-modal').style.display = 'block';
+    document.getElementById('create-modal').showModal();
 }
 
 // Close create modal
 function closeCreateModal() {
-    document.getElementById('create-modal').style.display = 'none';
+    document.getElementById('create-modal').close();
     document.getElementById('create-form').reset();
 }
 
@@ -233,12 +260,12 @@ function showEditModal(centerId) {
     document.getElementById('edit-code').value = center.code || '';
     document.getElementById('edit-description').value = center.description || '';
 
-    document.getElementById('edit-modal').style.display = 'block';
+    document.getElementById('edit-modal').showModal();
 }
 
 // Close edit modal
 function closeEditModal() {
-    document.getElementById('edit-modal').style.display = 'none';
+    document.getElementById('edit-modal').close();
     document.getElementById('edit-form').reset();
 }
 
@@ -305,15 +332,8 @@ async function deleteCenter(centerId) {
 
 // Utility: Show notification
 function showNotification(message, type) {
-    // Simple alert for now - можно заменить на красивые toast уведомления
+    // Simple alert for now - можно заменить на DaisyUI toast
     alert(message);
-}
-
-// Close modals when clicking outside
-window.onclick = function(event) {
-    if (event.target.classList.contains('modal')) {
-        event.target.style.display = 'none';
-    }
 }
 </script>
 {% endblock %}

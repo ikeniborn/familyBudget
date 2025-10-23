@@ -1,93 +1,114 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="admin-page">
-    <div class="page-header">
-        <h1>📁 Управление категориями бюджета</h1>
-        <p class="page-description">Создавайте и редактируйте категории доходов и расходов с иерархической структурой</p>
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold mb-2">📁 Управление категориями бюджета</h1>
+        <p class="text-base-content/70">Создавайте и редактируйте категории доходов и расходов с иерархической структурой</p>
     </div>
 
     <!-- Articles Table -->
-    <div class="card admin-table-card">
-        <div class="card-header">
-            <h2>📊 Категории</h2>
-            <div class="table-actions">
-                <button class="filter-btn active" id="filter-income" onclick="toggleTypeFilter('income')">💰 Доходы</button>
-                <button class="filter-btn" id="filter-expense" onclick="toggleTypeFilter('expense')">💸 Расходы</button>
-                <button class="btn-primary btn-small" onclick="showCreateModal()">➕ Новая категория</button>
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <h2 class="card-title text-2xl">📊 Категории</h2>
+                <div class="flex flex-wrap gap-2">
+                    <button class="btn btn-sm btn-primary" id="filter-income" onclick="toggleTypeFilter('income')">💰 Доходы</button>
+                    <button class="btn btn-sm btn-outline" id="filter-expense" onclick="toggleTypeFilter('expense')">💸 Расходы</button>
+                    <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Новая категория
+                    </button>
+                </div>
             </div>
-        </div>
 
-        <div id="articles-table-container">
-            <div class="loading">⏳ Загрузка категорий...</div>
+            <div id="articles-table-container" class="min-h-[200px]">
+                <div class="flex items-center justify-center py-8">
+                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- Create Article Modal -->
-<div id="create-modal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>✨ Создать новую категорию</h3>
-            <span class="modal-close" onclick="closeCreateModal()">&times;</span>
-        </div>
-        <form id="create-form" onsubmit="createArticle(event)">
-            <div class="form-group">
-                <label for="create-name">📝 Название*</label>
-                <input type="text" id="create-name" name="name" required maxlength="255" placeholder="Введите название категории">
+<dialog id="create-modal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">✨ Создать новую категорию</h3>
+        <form id="create-form" onsubmit="createArticle(event)" class="space-y-4">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📝 Название*</span>
+                </label>
+                <input type="text" id="create-name" name="name" required maxlength="255" placeholder="Введите название категории" class="input input-bordered" />
             </div>
-            <div class="form-group">
-                <label for="create-type">🏷️ Тип*</label>
-                <select id="create-type" name="type" required>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">🏷️ Тип*</span>
+                </label>
+                <select id="create-type" name="type" required class="select select-bordered">
                     <option value="income">💰 Доход</option>
                     <option value="expense">💸 Расход</option>
                 </select>
             </div>
-            <div class="form-group">
-                <label for="create-parent">📂 Родительская категория</label>
-                <select id="create-parent" name="parent_id">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📂 Родительская категория</span>
+                </label>
+                <select id="create-parent" name="parent_id" class="select select-bordered">
                     <option value="">-- Корневой уровень --</option>
                     <!-- Will be populated dynamically -->
                 </select>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeCreateModal()">❌ Отмена</button>
-                <button type="submit" class="btn-primary">✅ Создать</button>
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="closeCreateModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-primary">✅ Создать</button>
             </div>
         </form>
     </div>
-</div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
 
 <!-- Edit Article Modal -->
-<div id="edit-modal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>✏️ Редактировать категорию</h3>
-            <span class="modal-close" onclick="closeEditModal()">&times;</span>
-        </div>
-        <form id="edit-form" onsubmit="updateArticle(event)">
+<dialog id="edit-modal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">✏️ Редактировать категорию</h3>
+        <form id="edit-form" onsubmit="updateArticle(event)" class="space-y-4">
             <input type="hidden" id="edit-id" name="id">
-            <div class="form-group">
-                <label for="edit-name">📝 Название*</label>
-                <input type="text" id="edit-name" name="name" required maxlength="255">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📝 Название*</span>
+                </label>
+                <input type="text" id="edit-name" name="name" required maxlength="255" class="input input-bordered" />
             </div>
-            <div class="form-group">
-                <label for="edit-parent">📂 Родительская категория</label>
-                <select id="edit-parent" name="parent_id">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📂 Родительская категория</span>
+                </label>
+                <select id="edit-parent" name="parent_id" class="select select-bordered">
                     <option value="">-- Корневой уровень --</option>
                     <!-- Will be populated dynamically -->
                 </select>
             </div>
-            <div class="form-group">
-                <p class="info-note">ℹ️ Тип категории нельзя изменить (SCD Type 2)</p>
+            <div class="alert alert-info">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span>Тип категории нельзя изменить (SCD Type 2)</span>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeEditModal()">❌ Отмена</button>
-                <button type="submit" class="btn-primary">💾 Сохранить</button>
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-primary">💾 Сохранить</button>
             </div>
         </form>
     </div>
-</div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -105,9 +126,14 @@ document.addEventListener('DOMContentLoaded', function() {
 function toggleTypeFilter(type) {
     currentType = type;
 
-    // Update active button
-    document.getElementById('filter-income').classList.toggle('active', type === 'income');
-    document.getElementById('filter-expense').classList.toggle('active', type === 'expense');
+    // Update active button (DaisyUI)
+    document.querySelectorAll('#filter-income, #filter-expense').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+    });
+    const activeBtn = document.getElementById(`filter-${type}`);
+    activeBtn.classList.remove('btn-outline');
+    activeBtn.classList.add('btn-primary');
 
     // Reload articles
     loadArticles();
@@ -116,7 +142,7 @@ function toggleTypeFilter(type) {
 // Load articles from API
 async function loadArticles() {
     const container = document.getElementById('articles-table-container');
-    container.innerHTML = '<div class="loading">⏳ Загрузка категорий...</div>';
+    container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
 
     try {
         let url = `/api/v1/admin/articles?is_current=true`;
@@ -131,7 +157,7 @@ async function loadArticles() {
         renderArticlesTable(articlesData);
     } catch (error) {
         console.error('Error loading articles:', error);
-        container.innerHTML = `<div class="error-message">❌ Ошибка загрузки категорий: ${error.message}</div>`;
+        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки категорий: ${error.message}</span></div>`;
     }
 }
 
@@ -143,7 +169,7 @@ function renderArticlesTable(articles) {
     const filtered = articles.filter(a => a.type === currentType);
 
     if (filtered.length === 0) {
-        container.innerHTML = '<p class="info-text">📝 Категории не найдены. Нажмите "➕ Новая категория" для создания.</p>';
+        container.innerHTML = '<div class="text-center py-8 text-base-content/60">📝 Категории не найдены. Нажмите "➕ Новая категория" для создания.</div>';
         return;
     }
 
@@ -151,8 +177,8 @@ function renderArticlesTable(articles) {
     const tree = buildTree(filtered);
 
     let html = `
-        <div class="table-responsive">
-            <table class="data-table articles-table">
+        <div class="overflow-x-auto">
+            <table class="table table-zebra table-sm">
                 <thead>
                     <tr>
                         <th>📝 Название</th>
@@ -206,19 +232,26 @@ function renderTreeNodes(nodes, level) {
     nodes.forEach(node => {
         const indent = '&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(level);
         const prefix = level > 0 ? '↳ ' : '';
-        const scopeLabel = node.is_global ? '<span class="badge success">🌍 Глобальная</span>' : '<span class="badge user">👤 Личная</span>';
+        const scopeLabel = node.is_global
+            ? '<span class="badge badge-success gap-1">🌍 Глобальная</span>'
+            : '<span class="badge badge-info gap-1">👤 Личная</span>';
         const ownerLabel = node.user_name || '—';
         const typeLabel = node.type === 'income' ? '💰 Доход' : '💸 Расход';
+        const typeBadge = node.type === 'income'
+            ? '<span class="badge badge-success gap-1">' + typeLabel + '</span>'
+            : '<span class="badge badge-ghost gap-1">' + typeLabel + '</span>';
 
         html += `
-            <tr data-article-id="${node.id}" class="tree-level-${level}">
-                <td>${indent}${prefix}${node.name}</td>
-                <td><span class="badge ${node.type === 'income' ? 'success' : 'inactive'}">${typeLabel}</span></td>
+            <tr data-article-id="${node.id}">
+                <td class="font-medium">${indent}${prefix}${node.name}</td>
+                <td>${typeBadge}</td>
                 <td>${scopeLabel}</td>
                 <td>${ownerLabel}</td>
                 <td>
-                    <button class="btn-primary btn-small" onclick="showEditModal(${node.id})">✏️ Изменить</button>
-                    <button class="btn-secondary btn-small" onclick="deactivateArticle(${node.id})">🗑️ Удалить</button>
+                    <div class="flex gap-1">
+                        <button class="btn btn-sm btn-primary gap-1" onclick="showEditModal(${node.id})">✏️ Изменить</button>
+                        <button class="btn btn-sm btn-outline btn-error gap-1" onclick="deactivateArticle(${node.id})">🗑️</button>
+                    </div>
                 </td>
             </tr>
         `;
@@ -234,14 +267,14 @@ function renderTreeNodes(nodes, level) {
 
 // Show create modal
 function showCreateModal() {
-    document.getElementById('create-modal').style.display = 'block';
+    document.getElementById('create-modal').showModal();
     document.getElementById('create-type').value = currentType;
     populateParentSelect('create-parent', currentType);
 }
 
 // Close create modal
 function closeCreateModal() {
-    document.getElementById('create-modal').style.display = 'none';
+    document.getElementById('create-modal').close();
     document.getElementById('create-form').reset();
 }
 
@@ -325,12 +358,12 @@ function showEditModal(articleId) {
     populateParentSelect('edit-parent', article.type);
     document.getElementById('edit-parent').value = article.parent_id || '';
 
-    document.getElementById('edit-modal').style.display = 'block';
+    document.getElementById('edit-modal').showModal();
 }
 
 // Close edit modal
 function closeEditModal() {
-    document.getElementById('edit-modal').style.display = 'none';
+    document.getElementById('edit-modal').close();
     document.getElementById('edit-form').reset();
 }
 
@@ -396,15 +429,8 @@ async function deactivateArticle(articleId) {
 
 // Utility: Show notification
 function showNotification(message, type) {
-    // Simple alert for now - можно заменить на красивые toast уведомления
+    // Simple alert for now - можно заменить на DaisyUI toast
     alert(message);
-}
-
-// Close modals when clicking outside
-window.onclick = function(event) {
-    if (event.target.classList.contains('modal')) {
-        event.target.style.display = 'none';
-    }
 }
 </script>
 {% endblock %}

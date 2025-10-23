@@ -1,72 +1,94 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="admin-page">
-    <div class="page-header">
-        <h1>👥 Управление пользователями</h1>
-        <p class="page-description">Просматривайте и управляйте учетными записями пользователей и правами доступа</p>
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold mb-2">👥 Управление пользователями</h1>
+        <p class="text-base-content/70">Просматривайте и управляйте учетными записями пользователей и правами доступа</p>
     </div>
 
     <!-- Stats Summary -->
-    <div class="stats-grid" id="stats-container">
-        <div class="loading">⏳ Загрузка статистики...</div>
+    <div class="stats stats-vertical lg:stats-horizontal shadow-lg w-full" id="stats-container">
+        <div class="stat flex items-center justify-center min-h-[100px]">
+            <span class="loading loading-spinner loading-lg text-primary"></span>
+        </div>
     </div>
 
     <!-- Users Table -->
-    <div class="card admin-table-card">
-        <div class="card-header">
-            <h2>👤 Зарегистрированные пользователи</h2>
-            <div class="table-actions">
-                <button class="filter-btn active" id="filter-current" onclick="toggleUserFilter('current')">✅ Текущие</button>
-                <button class="filter-btn" id="filter-all" onclick="toggleUserFilter('all')">📜 Вся история</button>
-                <button class="btn-primary btn-small" onclick="showCreateModal()">➕ Добавить пользователя</button>
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <h2 class="card-title text-2xl">👤 Зарегистрированные пользователи</h2>
+                <div class="flex flex-wrap gap-2">
+                    <button class="btn btn-sm btn-primary" id="filter-current" onclick="toggleUserFilter('current')">✅ Текущие</button>
+                    <button class="btn btn-sm btn-outline" id="filter-all" onclick="toggleUserFilter('all')">📜 Вся история</button>
+                    <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Добавить пользователя
+                    </button>
+                </div>
             </div>
-        </div>
 
-        <div id="users-table-container">
-            <div class="loading">⏳ Загрузка пользователей...</div>
+            <div id="users-table-container" class="min-h-[200px]">
+                <div class="flex items-center justify-center py-8">
+                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- Create User Modal -->
-<div id="create-modal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>✨ Добавить нового пользователя</h3>
-            <span class="modal-close" onclick="closeCreateModal()">&times;</span>
-        </div>
-        <form id="create-form" onsubmit="createUser(event)">
-            <div class="form-group">
-                <label for="create-telegram-id">📱 Telegram ID*</label>
-                <input type="number" id="create-telegram-id" name="telegram_id" required placeholder="Введите Telegram ID">
-                <small>Числовой ID пользователя в Telegram</small>
-            </div>
-            <div class="form-group">
-                <label for="create-username">👤 Username</label>
-                <input type="text" id="create-username" name="username" maxlength="255" placeholder="@username (необязательно)">
-            </div>
-            <div class="form-group">
-                <label for="create-first-name">📝 Имя</label>
-                <input type="text" id="create-first-name" name="first_name" maxlength="255" placeholder="Введите имя">
-            </div>
-            <div class="form-group">
-                <label for="create-last-name">📝 Фамилия</label>
-                <input type="text" id="create-last-name" name="last_name" maxlength="255" placeholder="Введите фамилию">
-            </div>
-            <div class="form-group">
-                <label class="checkbox-label">
-                    <input type="checkbox" id="create-is-admin" name="is_admin">
-                    🔑 Администратор
+<dialog id="create-modal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">✨ Добавить нового пользователя</h3>
+        <form id="create-form" onsubmit="createUser(event)" class="space-y-4">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📱 Telegram ID*</span>
+                </label>
+                <input type="number" id="create-telegram-id" name="telegram_id" required placeholder="Введите Telegram ID" class="input input-bordered" />
+                <label class="label">
+                    <span class="label-text-alt">Числовой ID пользователя в Telegram</span>
                 </label>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeCreateModal()">❌ Отмена</button>
-                <button type="submit" class="btn-primary">✅ Создать</button>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">👤 Username</span>
+                </label>
+                <input type="text" id="create-username" name="username" maxlength="255" placeholder="@username (необязательно)" class="input input-bordered" />
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📝 Имя</span>
+                </label>
+                <input type="text" id="create-first-name" name="first_name" maxlength="255" placeholder="Введите имя" class="input input-bordered" />
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📝 Фамилия</span>
+                </label>
+                <input type="text" id="create-last-name" name="last_name" maxlength="255" placeholder="Введите фамилию" class="input input-bordered" />
+            </div>
+            <div class="form-control">
+                <label class="label cursor-pointer justify-start gap-3">
+                    <input type="checkbox" id="create-is-admin" name="is_admin" class="checkbox" />
+                    <span class="label-text">🔑 Администратор</span>
+                </label>
+            </div>
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="closeCreateModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-primary">✅ Создать</button>
             </div>
         </form>
     </div>
-</div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -84,11 +106,14 @@ document.addEventListener('DOMContentLoaded', function() {
 function toggleUserFilter(filter) {
     currentFilter = filter;
 
-    // Update active button
-    document.querySelectorAll('.table-actions .filter-btn').forEach(btn => {
-        btn.classList.remove('active');
+    // Update active button (DaisyUI)
+    document.querySelectorAll('#filter-current, #filter-all').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
     });
-    document.getElementById(`filter-${filter}`).classList.add('active');
+    const activeBtn = document.getElementById(`filter-${filter}`);
+    activeBtn.classList.remove('btn-outline');
+    activeBtn.classList.add('btn-primary');
 
     // Reload users
     loadUsers();
@@ -97,7 +122,7 @@ function toggleUserFilter(filter) {
 // Load users from API
 async function loadUsers() {
     const container = document.getElementById('users-table-container');
-    container.innerHTML = '<div class="loading">⏳ Загрузка пользователей...</div>';
+    container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
 
     try {
         const isCurrent = currentFilter === 'current';
@@ -111,7 +136,7 @@ async function loadUsers() {
         renderUsersTable(users);
     } catch (error) {
         console.error('Error loading users:', error);
-        container.innerHTML = `<div class="error-message">❌ Ошибка загрузки пользователей: ${error.message}</div>`;
+        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки пользователей: ${error.message}</span></div>`;
     }
 }
 
@@ -120,13 +145,13 @@ function renderUsersTable(users) {
     const container = document.getElementById('users-table-container');
 
     if (users.length === 0) {
-        container.innerHTML = '<p class="info-text">👤 Пользователи не найдены</p>';
+        container.innerHTML = '<div class="text-center py-8 text-base-content/60">👤 Пользователи не найдены</div>';
         return;
     }
 
     let html = `
-        <div class="table-responsive">
-            <table class="data-table">
+        <div class="overflow-x-auto">
+            <table class="table table-zebra table-sm">
                 <thead>
                     <tr>
                         <th>📱 Telegram ID</th>
@@ -144,16 +169,20 @@ function renderUsersTable(users) {
 
     users.forEach(user => {
         const displayName = user.first_name || user.username || `User ${user.telegram_id}`;
-        const roleLabel = user.is_admin ? '<span class="badge admin">🔑 Админ</span>' : '<span class="badge user">👤 Пользователь</span>';
-        const statusLabel = user.is_current ? '<span class="badge success">✅ Активен</span>' : '<span class="badge inactive">📜 История</span>';
+        const roleLabel = user.is_admin
+            ? '<span class="badge badge-warning gap-1">🔑 Админ</span>'
+            : '<span class="badge badge-info gap-1">👤 Пользователь</span>';
+        const statusLabel = user.is_current
+            ? '<span class="badge badge-success gap-1">✅ Активен</span>'
+            : '<span class="badge badge-ghost gap-1">📜 История</span>';
         const validFrom = formatDate(user.valid_from);
         const validTo = user.valid_to ? formatDate(user.valid_to) : '—';
 
         html += `
-            <tr data-user-id="${user.id}">
-                <td>${user.telegram_id}</td>
+            <tr>
+                <td class="font-mono">${user.telegram_id}</td>
                 <td>${user.username || '—'}</td>
-                <td>${displayName}</td>
+                <td class="font-medium">${displayName}</td>
                 <td>${roleLabel}</td>
                 <td>${statusLabel}</td>
                 <td>${validFrom}</td>
@@ -177,9 +206,9 @@ function renderUsersTable(users) {
 // Render action buttons for user
 function renderActions(user) {
     if (user.is_admin) {
-        return `<button class="btn-secondary btn-small" onclick="toggleAdmin(${user.id}, false)">🔓 Снять админа</button>`;
+        return `<button class="btn btn-sm btn-outline btn-warning gap-1" onclick="toggleAdmin(${user.id}, false)">🔓 Снять админа</button>`;
     } else {
-        return `<button class="btn-primary btn-small" onclick="toggleAdmin(${user.id}, true)">🔑 Сделать админом</button>`;
+        return `<button class="btn btn-sm btn-primary gap-1" onclick="toggleAdmin(${user.id}, true)">🔑 Сделать админом</button>`;
     }
 }
 
@@ -221,12 +250,12 @@ async function toggleAdmin(userId, makeAdmin) {
 
 // Show create modal
 function showCreateModal() {
-    document.getElementById('create-modal').style.display = 'block';
+    document.getElementById('create-modal').showModal();
 }
 
 // Close create modal
 function closeCreateModal() {
-    document.getElementById('create-modal').style.display = 'none';
+    document.getElementById('create-modal').close();
     document.getElementById('create-form').reset();
 }
 
@@ -283,7 +312,7 @@ async function loadStats() {
         renderStats(stats);
     } catch (error) {
         console.error('Error loading stats:', error);
-        container.innerHTML = `<div class="error-message">❌ Ошибка загрузки статистики</div>`;
+        container.innerHTML = '<div class="stat"><div class="stat-title text-error">❌ Ошибка загрузки статистики</div></div>';
     }
 }
 
@@ -297,33 +326,36 @@ function renderStats(stats) {
     const activeUsers = stats.filter(user => user.total_facts > 0).length;
 
     container.innerHTML = `
-        <div class="stat-card">
-            <div class="stat-icon">👥</div>
-            <div class="stat-content">
-                <div class="stat-value">${totalUsers}</div>
-                <div class="stat-label">Всего пользователей</div>
+        <div class="stat">
+            <div class="stat-figure text-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
             </div>
+            <div class="stat-title">Всего пользователей</div>
+            <div class="stat-value text-primary">${totalUsers}</div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon">✅</div>
-            <div class="stat-content">
-                <div class="stat-value">${activeUsers}</div>
-                <div class="stat-label">Активных</div>
+
+        <div class="stat">
+            <div class="stat-figure text-success">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             </div>
+            <div class="stat-title">Активных</div>
+            <div class="stat-value text-success">${activeUsers}</div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon">📝</div>
-            <div class="stat-content">
-                <div class="stat-value">${totalFacts}</div>
-                <div class="stat-label">Всего транзакций</div>
+
+        <div class="stat">
+            <div class="stat-figure text-secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
             </div>
+            <div class="stat-title">Всего транзакций</div>
+            <div class="stat-value text-secondary">${totalFacts}</div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon">📁</div>
-            <div class="stat-content">
-                <div class="stat-value">${totalArticles}</div>
-                <div class="stat-label">Всего категорий</div>
+
+        <div class="stat">
+            <div class="stat-figure text-accent">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
             </div>
+            <div class="stat-title">Всего категорий</div>
+            <div class="stat-value text-accent">${totalArticles}</div>
         </div>
     `;
 }
@@ -336,15 +368,8 @@ function formatDate(isoString) {
 
 // Utility: Show notification
 function showNotification(message, type) {
-    // Simple alert for now - можно заменить на красивые toast уведомления
+    // Simple alert for now - можно заменить на DaisyUI toast
     alert(message);
-}
-
-// Close modals when clicking outside
-window.onclick = function(event) {
-    if (event.target.classList.contains('modal')) {
-        event.target.style.display = 'none';
-    }
 }
 </script>
 {% endblock %}
