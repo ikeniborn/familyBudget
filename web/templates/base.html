@@ -71,14 +71,14 @@
                 {% if user and user.is_admin %}
                 <li>
                     <details>
-                        <summary>Admin</summary>
+                        <summary>Администратор</summary>
                         <ul class="bg-base-100 rounded-t-none p-2 w-56 shadow-xl z-50">
-                            <li><a href="/admin/users" class="{% if '/admin/users' in request.url.path %}active{% endif %}">👥 Users</a></li>
-                            <li><a href="/admin/articles" class="{% if '/admin/articles' in request.url.path %}active{% endif %}">📁 Articles</a></li>
+                            <li><a href="/admin/users" class="{% if '/admin/users' in request.url.path %}active{% endif %}">👥 Пользователи</a></li>
+                            <li><a href="/admin/articles" class="{% if '/admin/articles' in request.url.path %}active{% endif %}">📁 Категории</a></li>
                             <li><a href="/admin/financial-centers" class="{% if '/admin/financial-centers' in request.url.path %}active{% endif %}">🏢 ЦФО</a></li>
                             <li><a href="/admin/cost-centers" class="{% if '/admin/cost-centers' in request.url.path %}active{% endif %}">💼 МВЗ</a></li>
-                            <li><a href="/admin/facts" class="{% if '/admin/facts' in request.url.path %}active{% endif %}">📊 Facts</a></li>
-                            <li><a href="/admin/monitoring" class="{% if '/admin/monitoring' in request.url.path %}active{% endif %}">🔍 Monitoring</a></li>
+                            <li><a href="/admin/facts" class="{% if '/admin/facts' in request.url.path %}active{% endif %}">📊 Транзакции</a></li>
+                            <li><a href="/admin/monitoring" class="{% if '/admin/monitoring' in request.url.path %}active{% endif %}">🔍 Мониторинг</a></li>
                         </ul>
                     </details>
                 </li>
@@ -122,13 +122,13 @@
                     <li><a href="/">Dashboard</a></li>
                     <li><a href="/analytics">Analytics</a></li>
                     {% if user and user.is_admin %}
-                        <li class="menu-title"><span>Admin</span></li>
-                        <li><a href="/admin/users">👥 Users</a></li>
-                        <li><a href="/admin/articles">📁 Articles</a></li>
+                        <li class="menu-title"><span>Администратор</span></li>
+                        <li><a href="/admin/users">👥 Пользователи</a></li>
+                        <li><a href="/admin/articles">📁 Категории</a></li>
                         <li><a href="/admin/financial-centers">🏢 ЦФО</a></li>
                         <li><a href="/admin/cost-centers">💼 МВЗ</a></li>
-                        <li><a href="/admin/facts">📊 Facts</a></li>
-                        <li><a href="/admin/monitoring">🔍 Monitoring</a></li>
+                        <li><a href="/admin/facts">📊 Транзакции</a></li>
+                        <li><a href="/admin/monitoring">🔍 Мониторинг</a></li>
                     {% endif %}
                 </ul>
             </div>

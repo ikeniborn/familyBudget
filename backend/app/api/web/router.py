@@ -7,7 +7,7 @@ Handles web interface routes with Jinja2 templates and HTMX integration.
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
-from backend.app.core.dependencies import CurrentAdmin, CurrentUserOptional
+from backend.app.core.dependencies import CurrentAdmin, CurrentUser, CurrentUserOptional
 from backend.app.models.user import User
 
 web_router = APIRouter(tags=["Web UI"])
@@ -106,10 +106,10 @@ async def admin_articles(
 @web_router.get("/admin/facts", response_class=HTMLResponse)
 async def admin_facts(
     request: Request,
-    current_admin: CurrentAdmin
+    current_user: CurrentUser
 ):
     """
-    Admin facts management page (admin only).
+    Facts management page (accessible to all authenticated users).
 
     Provides interface for viewing, editing, and deleting financial facts
     with pagination and filtering capabilities.
@@ -120,7 +120,7 @@ async def admin_facts(
         "admin_facts.html",
         {
             "request": request,
-            "user": current_admin,
+            "user": current_user,
             "page_title": "Facts Management"
         }
     )

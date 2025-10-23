@@ -332,8 +332,16 @@ async function deleteCenter(centerId) {
 
 // Utility: Show notification
 function showNotification(message, type) {
-    // Simple alert for now - можно заменить на DaisyUI toast
-    alert(message);
+    // Handle error objects properly
+    if (typeof message === 'object' && message !== null) {
+        message = message.detail || message.message || JSON.stringify(message);
+    }
+
+    if (type === 'error') {
+        alert('❌ ' + message);
+    } else {
+        alert(message);
+    }
 }
 </script>
 {% endblock %}

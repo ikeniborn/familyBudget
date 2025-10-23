@@ -69,3 +69,26 @@
 [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
     @apply bg-base-content/30;
 }
+
+/* Improved contrast for dark theme */
+[data-theme="dark"] .card-title {
+    @apply text-base-content;
+    font-weight: 600;
+}
+
+[data-theme="dark"] .card-body {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="dark"] .label-text {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+/* Better visibility for chart titles in dark mode */
+[data-theme="dark"] #chart-plan-fact,
+[data-theme="dark"] #chart-trends,
+[data-theme="dark"] #chart-pie,
+[data-theme="dark"] #chart-waterfall,
+[data-theme="dark"] #chart-heatmap {
+    color: var(--chart-text);
+}
