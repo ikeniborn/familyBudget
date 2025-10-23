@@ -17,6 +17,7 @@ from decimal import Decimal
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import HTMLResponse
 from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -201,6 +202,120 @@ async def new_fact_info() -> dict:
         },
         "documentation": "/docs#/Facts/create_fact_facts_post"
     }
+
+
+@router.get("/recent-html", response_class=HTMLResponse)
+async def get_recent_facts_html(
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    limit: Annotated[int, Query(ge=1, le=20)] = 5,
+) -> str:
+    """
+    Get recent budget facts (HTML formatted for dashboard).
+
+    Returns the most recent transactions as an HTML table.
+    Uses DaisyUI table components for beautiful display.
+
+    **User Isolation:**
+    - Regular users see only their own facts
+    - Admins see all facts
+
+    **Parameters:**
+    - limit: Maximum number of results (1-20, default: 5)
+
+    **Returns:**
+    - HTML table with recent transactions
+    """
+    # Base query
+    statement = select(BudgetFact)
+
+    # Apply user isolation
+    statement = apply_user_filter(statement, current_user, user_id_column="user_id")
+
+    # Order by most recent and limit
+    statement = statement.order_by(BudgetFact.fact_date.desc(), BudgetFact.id.desc())
+    statement = statement.limit(limit)
+
+    # Execute query
+    result = await session.execute(statement)
+    facts = result.scalars().all()
+
+    # If no facts, return empty state message
+    if not facts:
+        return """
+        <div class="alert alert-info">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <span>Транзакции не найдены. Добавьте первую транзакцию!</span>
+        </div>
+        """
+
+    # Load articles for fact details
+    article_ids = {fact.article_id for fact in facts}
+    articles_stmt = select(Article).where(
+        Article.id.in_(article_ids),
+        Article.is_current == True  # noqa: E712
+    )
+    articles_result = await session.execute(articles_stmt)
+    articles = {a.id: a for a in articles_result.scalars().all()}
+
+    # Format money helper
+    def format_money(amount: Decimal) -> str:
+        return f"{float(amount):,.2f}".replace(",", " ")
+
+    # Build HTML table
+    html = """
+    <div class="overflow-x-auto">
+        <table class="table table-zebra table-sm">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Категория</th>
+                    <th>Сумма</th>
+                    <th>Описание</th>
+                </tr>
+            </thead>
+            <tbody>
+    """
+
+    for fact in facts:
+        article = articles.get(fact.article_id)
+        if not article:
+            continue
+
+        # Format date
+        fact_date_str = fact.fact_date.strftime("%d.%m.%Y")
+
+        # Determine color based on article type
+        amount_class = "text-success font-bold" if article.type == "income" else "text-error font-bold"
+        amount_prefix = "+" if article.type == "income" else "-"
+
+        # Article icon based on type
+        article_icon = "💰" if article.type == "income" else "💸"
+
+        # Description (truncate if too long)
+        description = fact.description if fact.description else "—"
+        if len(description) > 50:
+            description = description[:47] + "..."
+
+        html += f"""
+                <tr>
+                    <td class="whitespace-nowrap">{fact_date_str}</td>
+                    <td>{article_icon} {article.name}</td>
+                    <td class="{amount_class} whitespace-nowrap">{amount_prefix}{format_money(fact.amount)} ₽</td>
+                    <td class="max-w-xs truncate">{description}</td>
+                </tr>
+        """
+
+    html += """
+            </tbody>
+        </table>
+    </div>
+    <div class="mt-4 text-center">
+        <a href="/analytics" class="link link-primary">Посмотреть все транзакции →</a>
+    </div>
+    """
+
+    return html
 
 
 @router.get(

@@ -8,6 +8,7 @@ from datetime import date, datetime, timedelta
 from typing import List
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import HTMLResponse
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -70,6 +71,96 @@ async def get_quick_stats(
             "balance": month_data.get("income", 0.0) - month_data.get("expense", 0.0)
         }
     }
+
+
+@router.get("/quick-stats-html", response_class=HTMLResponse)
+async def get_quick_stats_html(
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session)
+) -> str:
+    """
+    Get quick statistics for dashboard (HTML formatted).
+
+    Returns today's and current month's income/expense summary as HTML.
+    Uses DaisyUI stats components for beautiful display.
+    """
+    today = date.today()
+    month_start = date(today.year, today.month, 1)
+
+    # Today's stats
+    today_query = select(
+        Article.type.label("type"),
+        func.sum(Fact.amount).label("total")
+    ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
+        Fact.user_id == current_user.id,
+        Fact.fact_date == today,
+        Article.is_current == True  # noqa: E712
+    ).group_by(Article.type)
+
+    today_result = await session.execute(today_query)
+    today_data = {row.type: float(row.total) for row in today_result.all()}
+
+    # This month's stats
+    month_query = select(
+        Article.type.label("type"),
+        func.sum(Fact.amount).label("total")
+    ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
+        Fact.user_id == current_user.id,
+        Fact.fact_date >= month_start,
+        Fact.fact_date <= today,
+        Article.is_current == True  # noqa: E712
+    ).group_by(Article.type)
+
+    month_result = await session.execute(month_query)
+    month_data = {row.type: float(row.total) for row in month_result.all()}
+
+    # Calculate stats
+    today_income = today_data.get("income", 0.0)
+    today_expense = today_data.get("expense", 0.0)
+    today_balance = today_income - today_expense
+
+    month_income = month_data.get("income", 0.0)
+    month_expense = month_data.get("expense", 0.0)
+    month_balance = month_income - month_expense
+
+    # Format numbers with thousands separator
+    def format_money(amount: float) -> str:
+        return f"{amount:,.2f}".replace(",", " ")
+
+    # Generate HTML using DaisyUI stats components
+    html = f"""
+    <div class="stats stats-vertical lg:stats-horizontal shadow w-full">
+        <div class="stat">
+            <div class="stat-figure text-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <div class="stat-title">Сегодня</div>
+            <div class="stat-value text-sm lg:text-2xl">
+                <span class="text-success">+{format_money(today_income)}</span> /
+                <span class="text-error">-{format_money(today_expense)}</span>
+            </div>
+            <div class="stat-desc">
+                Баланс: <span class="font-bold {'text-success' if today_balance >= 0 else 'text-error'}">{format_money(abs(today_balance))} ₽</span>
+            </div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-figure text-secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+            </div>
+            <div class="stat-title">Текущий месяц</div>
+            <div class="stat-value text-sm lg:text-2xl">
+                <span class="text-success">+{format_money(month_income)}</span> /
+                <span class="text-error">-{format_money(month_expense)}</span>
+            </div>
+            <div class="stat-desc">
+                Баланс: <span class="font-bold {'text-success' if month_balance >= 0 else 'text-error'}">{format_money(abs(month_balance))} ₽</span>
+            </div>
+        </div>
+    </div>
+    """
+
+    return html
 
 
 @router.get("/plan-fact")

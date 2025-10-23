@@ -9,25 +9,25 @@
 
         <div class="dashboard-grid">
             <div class="card">
-                <h2>📊 Quick Stats</h2>
-                <div id="quick-stats" hx-get="/api/v1/analytics/quick-stats" hx-trigger="load" hx-swap="innerHTML">
-                    <p class="loading">Loading...</p>
+                <h2>📊 Быстрая статистика</h2>
+                <div id="quick-stats" hx-get="/api/v1/analytics/quick-stats-html" hx-trigger="load" hx-swap="innerHTML">
+                    <p class="loading">Загрузка...</p>
                 </div>
             </div>
 
             <div class="card">
-                <h2>📈 Recent Transactions</h2>
-                <div id="recent-transactions" hx-get="/api/v1/facts?limit=5" hx-trigger="load" hx-swap="innerHTML">
-                    <p class="loading">Loading...</p>
+                <h2>📈 Последние транзакции</h2>
+                <div id="recent-transactions" hx-get="/api/v1/facts/recent-html?limit=5" hx-trigger="load" hx-swap="innerHTML">
+                    <p class="loading">Загрузка...</p>
                 </div>
             </div>
 
             <div class="card">
-                <h2>💡 Quick Actions</h2>
+                <h2>💡 Быстрые действия</h2>
                 <ul class="action-list">
-                    <li><a href="/analytics">View Analytics</a></li>
-                    <li><a href="/api/v1/facts/new">Add Transaction</a></li>
-                    <li><a href="/api/v1/articles">Manage Categories</a></li>
+                    <li><a href="/analytics">Просмотр аналитики</a></li>
+                    <li><a href="/api/v1/facts/new">Добавить транзакцию</a></li>
+                    <li><a href="/api/v1/articles">Управление категориями</a></li>
                 </ul>
             </div>
         </div>
