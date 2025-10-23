@@ -246,7 +246,8 @@ async function createCenter(event) {
         showNotification('✅ МВЗ успешно создан!', 'success');
     } catch (error) {
         console.error('Error creating cost center:', error);
-        showNotification(`❌ Ошибка: ${error.message}`, 'error');
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }
 }
 
@@ -301,7 +302,8 @@ async function updateCenter(event) {
         showNotification('✅ МВЗ успешно обновлен (создана новая версия SCD2)!', 'success');
     } catch (error) {
         console.error('Error updating cost center:', error);
-        showNotification(`❌ Ошибка: ${error.message}`, 'error');
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }
 }
 
@@ -326,7 +328,8 @@ async function deleteCenter(centerId) {
         showNotification('✅ МВЗ успешно удален!', 'success');
     } catch (error) {
         console.error('Error deleting cost center:', error);
-        showNotification(`❌ Ошибка: ${error.message}`, 'error');
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }
 }
 

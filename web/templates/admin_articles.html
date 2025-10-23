@@ -344,7 +344,8 @@ async function createArticle(event) {
         showNotification('✅ Категория успешно создана!', 'success');
     } catch (error) {
         console.error('Error creating article:', error);
-        showNotification(`❌ Ошибка: ${error.message}`, 'error');
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }
 }
 
@@ -398,7 +399,8 @@ async function updateArticle(event) {
         showNotification('✅ Категория успешно обновлена!', 'success');
     } catch (error) {
         console.error('Error updating article:', error);
-        showNotification(`❌ Ошибка: ${error.message}`, 'error');
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }
 }
 
@@ -423,7 +425,8 @@ async function deactivateArticle(articleId) {
         showNotification('✅ Категория успешно удалена!', 'success');
     } catch (error) {
         console.error('Error deactivating article:', error);
-        showNotification(`❌ Ошибка: ${error.message}`, 'error');
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }
 }
 

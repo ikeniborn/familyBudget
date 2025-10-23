@@ -103,13 +103,13 @@ async def admin_articles(
     )
 
 
-@web_router.get("/admin/facts", response_class=HTMLResponse)
-async def admin_facts(
+@web_router.get("/facts", response_class=HTMLResponse)
+async def facts(
     request: Request,
-    current_user: CurrentUser
+    current_user: CurrentUserOptional = None
 ):
     """
-    Facts management page (accessible to all authenticated users).
+    Facts management page (accessible to all users).
 
     Provides interface for viewing, editing, and deleting financial facts
     with pagination and filtering capabilities.
@@ -121,7 +121,7 @@ async def admin_facts(
         {
             "request": request,
             "user": current_user,
-            "page_title": "Facts Management"
+            "page_title": "Транзакции"
         }
     )
 

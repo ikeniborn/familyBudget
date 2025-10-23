@@ -136,7 +136,8 @@ async function loadUsers() {
         renderUsersTable(users);
     } catch (error) {
         console.error('Error loading users:', error);
-        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки пользователей: ${error.message}</span></div>`;
+        const errorMessage = error?.message || String(error);
+        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки пользователей: ${errorMessage}</span></div>`;
     }
 }
 
@@ -244,7 +245,8 @@ async function toggleAdmin(userId, makeAdmin) {
         showNotification(message, 'success');
     } catch (error) {
         console.error('Error toggling admin:', error);
-        showNotification(`❌ Ошибка: ${error.message}`, 'error');
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }
 }
 
@@ -293,7 +295,8 @@ async function createUser(event) {
         showNotification('✅ Пользователь успешно создан!', 'success');
     } catch (error) {
         console.error('Error creating user:', error);
-        showNotification(`❌ Ошибка: ${error.message}`, 'error');
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }
 }
 

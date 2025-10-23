@@ -1,152 +1,182 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="admin-page">
-    <div class="page-header-container">
-        <div class="page-header-text">
-            <h1>📊 Управление транзакциями</h1>
-            <p class="page-description">Просмотр, редактирование и удаление финансовых транзакций с расширенными фильтрами</p>
-        </div>
-        <div class="export-buttons">
-            <button class="btn-secondary btn-small" onclick="exportFilteredFacts('csv')"
-                    title="Экспорт отфильтрованных транзакций в CSV">
-                📄 Экспорт CSV
-            </button>
-            <button class="btn-secondary btn-small" onclick="exportFilteredFacts('excel')"
-                    title="Экспорт отфильтрованных транзакций в Excel">
-                📊 Экспорт Excel
-            </button>
-            <button class="btn-secondary btn-small" onclick="exportFilteredFacts('pdf')"
-                    title="Экспорт отфильтрованных транзакций в PDF">
-                📑 Экспорт PDF
-            </button>
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <h1 class="text-3xl font-bold mb-2">📊 Управление транзакциями</h1>
+                <p class="text-base-content/70">Просмотр, редактирование и удаление финансовых транзакций с расширенными фильтрами</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных транзакций в CSV">
+                    📄 CSV
+                </button>
+                <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('excel')" title="Экспорт отфильтрованных транзакций в Excel">
+                    📊 Excel
+                </button>
+                <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('pdf')" title="Экспорт отфильтрованных транзакций в PDF">
+                    📑 PDF
+                </button>
+            </div>
         </div>
     </div>
 
     <!-- Filters Section -->
-    <div class="card">
-        <div class="card-header">
-            <h2>Фильтры</h2>
-            <button class="btn-secondary btn-small" onclick="resetFilters()">Сбросить</button>
-        </div>
-        <div class="filter-grid">
-            <div class="form-group">
-                <label for="filter-user">Пользователь</label>
-                <select id="filter-user">
-                    <option value="">-- Все пользователи --</option>
-                    <!-- Populated dynamically -->
-                </select>
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <h2 class="card-title text-2xl">🔍 Фильтры</h2>
+                <button class="btn btn-sm btn-ghost" onclick="resetFilters()">Сбросить</button>
             </div>
-            <div class="form-group">
-                <label for="filter-article">Категория</label>
-                <select id="filter-article">
-                    <option value="">-- Все категории --</option>
-                    <!-- Populated dynamically -->
-                </select>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">👤 Пользователь</span>
+                    </label>
+                    <select id="filter-user" class="select select-bordered select-sm">
+                        <option value="">-- Все пользователи --</option>
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">📁 Категория</span>
+                    </label>
+                    <select id="filter-article" class="select select-bordered select-sm">
+                        <option value="">-- Все категории --</option>
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">📅 Дата с</span>
+                    </label>
+                    <input type="date" id="filter-date-from" class="input input-bordered input-sm">
+                </div>
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">📅 Дата по</span>
+                    </label>
+                    <input type="date" id="filter-date-to" class="input input-bordered input-sm">
+                </div>
             </div>
-            <div class="form-group">
-                <label for="filter-date-from">Дата с</label>
-                <input type="date" id="filter-date-from">
+            <div class="flex justify-end">
+                <button class="btn btn-primary btn-sm" onclick="applyFilters()">Применить фильтры</button>
             </div>
-            <div class="form-group">
-                <label for="filter-date-to">Дата по</label>
-                <input type="date" id="filter-date-to">
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn-primary" onclick="applyFilters()">Применить фильтры</button>
         </div>
     </div>
 
     <!-- Stats Section -->
-    <div class="stats-grid" style="margin-top: 1.5rem;">
-        <div class="stat-card">
-            <div class="stat-icon">📊</div>
-            <div>
-                <div class="stat-value" id="stat-total">0</div>
-                <div class="stat-label">Всего транзакций</div>
+    <div class="stats shadow w-full">
+        <div class="stat">
+            <div class="stat-figure text-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
             </div>
+            <div class="stat-title">Всего транзакций</div>
+            <div class="stat-value text-primary" id="stat-total">0</div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon">📄</div>
-            <div>
-                <div class="stat-value" id="stat-page-info">0-0 из 0</div>
-                <div class="stat-label">Текущая страница</div>
+        <div class="stat">
+            <div class="stat-figure text-secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
             </div>
+            <div class="stat-title">Текущая страница</div>
+            <div class="stat-value text-secondary" id="stat-page-info">0-0 из 0</div>
         </div>
     </div>
 
     <!-- Facts Table -->
-    <div class="card admin-table-card" style="margin-top: 1.5rem;">
-        <div class="card-header">
-            <h2>Транзакции</h2>
-            <div class="table-actions">
-                <button class="btn-secondary btn-small" id="batch-delete-btn" onclick="batchDelete()" disabled>Удалить выбранные</button>
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <h2 class="card-title text-2xl">📋 Транзакции</h2>
+                <button class="btn btn-sm btn-error gap-1" id="batch-delete-btn" onclick="batchDelete()" disabled>
+                    🗑️ Удалить выбранные
+                </button>
             </div>
-        </div>
 
-        <div id="facts-table-container">
-            <div class="loading">Загрузка транзакций...</div>
-        </div>
+            <div id="facts-table-container" class="min-h-[200px]">
+                <div class="flex items-center justify-center py-8">
+                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                </div>
+            </div>
 
-        <!-- Pagination -->
-        <div class="pagination-controls" id="pagination-controls" style="display: none;">
-            <button class="btn-secondary btn-small" id="prev-btn" onclick="previousPage()" disabled>← Предыдущая</button>
-            <span id="page-info">Страница 1</span>
-            <button class="btn-secondary btn-small" id="next-btn" onclick="nextPage()" disabled>Следующая →</button>
+            <!-- Pagination -->
+            <div class="flex justify-center items-center gap-4 mt-4" id="pagination-controls" style="display: none;">
+                <button class="btn btn-sm btn-outline" id="prev-btn" onclick="previousPage()" disabled>← Предыдущая</button>
+                <span class="font-medium" id="page-info">Страница 1</span>
+                <button class="btn btn-sm btn-outline" id="next-btn" onclick="nextPage()" disabled>Следующая →</button>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- Edit Fact Modal -->
-<div id="edit-modal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>Редактировать транзакцию</h3>
-            <span class="modal-close" onclick="closeEditModal()">&times;</span>
-        </div>
-        <form id="edit-form" onsubmit="updateFact(event)">
+<dialog id="edit-modal" class="modal">
+    <div class="modal-box max-w-2xl">
+        <h3 class="font-bold text-lg mb-4">✏️ Редактировать транзакцию</h3>
+        <form id="edit-form" onsubmit="updateFact(event)" class="space-y-4">
             <input type="hidden" id="edit-id" name="id">
-            <div class="form-group">
-                <label for="edit-amount">Сумма*</label>
-                <input type="number" id="edit-amount" name="amount" step="0.01" required>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">💵 Сумма*</span>
+                </label>
+                <input type="number" id="edit-amount" name="amount" step="0.01" required class="input input-bordered" />
             </div>
-            <div class="form-group">
-                <label for="edit-date">Дата*</label>
-                <input type="date" id="edit-date" name="fact_date" required>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📅 Дата*</span>
+                </label>
+                <input type="date" id="edit-date" name="fact_date" required class="input input-bordered" />
             </div>
-            <div class="form-group">
-                <label for="edit-article">Категория*</label>
-                <select id="edit-article" name="article_id" required>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📁 Категория*</span>
+                </label>
+                <select id="edit-article" name="article_id" required class="select select-bordered">
                     <option value="">-- Выберите категорию --</option>
                     <!-- Populated dynamically -->
                 </select>
             </div>
-            <div class="form-group">
-                <label for="edit-description">Описание</label>
-                <textarea id="edit-description" name="description" rows="3" maxlength="500"></textarea>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📝 Описание</span>
+                </label>
+                <textarea id="edit-description" name="description" rows="3" maxlength="500" class="textarea textarea-bordered"></textarea>
             </div>
-            <div class="form-group">
-                <label for="edit-financial-center">Финансовый центр (ЦФО)</label>
-                <select id="edit-financial-center" name="financial_center_id">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">🏦 Финансовый центр (ЦФО)</span>
+                </label>
+                <select id="edit-financial-center" name="financial_center_id" class="select select-bordered">
                     <option value="">-- Не указано --</option>
                     <!-- Populated dynamically -->
                 </select>
             </div>
-            <div class="form-group">
-                <label for="edit-cost-center">Центр затрат (МВЗ)</label>
-                <select id="edit-cost-center" name="cost_center_id">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">💼 Центр затрат (МВЗ)</span>
+                </label>
+                <select id="edit-cost-center" name="cost_center_id" class="select select-bordered">
                     <option value="">-- Не указано --</option>
                     <!-- Populated dynamically -->
                 </select>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeEditModal()">Отмена</button>
-                <button type="submit" class="btn-primary">Обновить</button>
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-primary">💾 Сохранить</button>
             </div>
         </form>
     </div>
-</div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -301,7 +331,7 @@ function resetFilters() {
 // Load facts from API
 async function loadFacts() {
     const container = document.getElementById('facts-table-container');
-    container.innerHTML = '<div class="loading">Loading facts...</div>';
+    container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
 
     try {
         // Build query params
@@ -334,7 +364,8 @@ async function loadFacts() {
         updatePagination();
     } catch (error) {
         console.error('Error loading facts:', error);
-        container.innerHTML = `<div class="error-message">Failed to load facts: ${error.message}</div>`;
+        const errorMessage = error?.message || String(error);
+        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки: ${errorMessage}</span></div>`;
     }
 }
 
@@ -345,44 +376,46 @@ function renderFactsTable(facts) {
     updateBatchDeleteButton();
 
     if (facts.length === 0) {
-        container.innerHTML = '<p class="info-text">No facts found with the current filters.</p>';
+        container.innerHTML = '<div class="text-center py-8 text-base-content/60">📊 Транзакции не найдены. Измените фильтры или добавьте новые транзакции.</div>';
         return;
     }
 
     let html = `
-        <div class="table-responsive">
-            <table class="data-table">
+        <div class="overflow-x-auto">
+            <table class="table table-zebra table-sm">
                 <thead>
                     <tr>
-                        <th><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)"></th>
+                        <th><input type="checkbox" class="checkbox checkbox-sm" id="select-all" onchange="toggleSelectAll(this)"></th>
                         <th>ID</th>
-                        <th>User</th>
-                        <th>Article</th>
-                        <th>Amount</th>
-                        <th>Date</th>
-                        <th>Description</th>
-                        <th>Actions</th>
+                        <th>👤 Пользователь</th>
+                        <th>📁 Категория</th>
+                        <th>💵 Сумма</th>
+                        <th>📅 Дата</th>
+                        <th>📝 Описание</th>
+                        <th>⚙️ Действия</th>
                     </tr>
                 </thead>
                 <tbody>
     `;
 
     facts.forEach(fact => {
-        const amountClass = fact.amount >= 0 ? 'amount-positive' : 'amount-negative';
+        const amountClass = fact.amount >= 0 ? 'text-success font-bold' : 'text-error font-bold';
         const description = fact.description || '—';
 
         html += `
             <tr>
-                <td><input type="checkbox" class="fact-checkbox" value="${fact.id}" onchange="updateBatchDeleteButton()"></td>
-                <td>${fact.id}</td>
+                <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" value="${fact.id}" onchange="updateBatchDeleteButton()"></td>
+                <td><code class="badge badge-ghost">${fact.id}</code></td>
                 <td>${fact.user_name || '—'}</td>
                 <td>${fact.article_name || '—'}</td>
                 <td class="${amountClass}">${parseFloat(fact.amount).toFixed(2)}</td>
                 <td>${fact.fact_date}</td>
-                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${description}</td>
+                <td class="max-w-xs truncate">${description}</td>
                 <td>
-                    <button class="btn-primary btn-small" onclick="showEditModal(${fact.id})">Edit</button>
-                    <button class="btn-secondary btn-small" onclick="deleteFact(${fact.id})">Delete</button>
+                    <div class="flex gap-1">
+                        <button class="btn btn-xs btn-primary gap-1" onclick="showEditModal(${fact.id})">✏️</button>
+                        <button class="btn btn-xs btn-outline btn-error gap-1" onclick="deleteFact(${fact.id})">🗑️</button>
+                    </div>
                 </td>
             </tr>
         `;
@@ -418,7 +451,7 @@ function updateBatchDeleteButton() {
 
     const btn = document.getElementById('batch-delete-btn');
     btn.disabled = selectedFactIds.size === 0;
-    btn.textContent = selectedFactIds.size > 0 ? `Delete Selected (${selectedFactIds.size})` : 'Delete Selected';
+    btn.textContent = selectedFactIds.size > 0 ? `🗑️ Удалить выбранные (${selectedFactIds.size})` : '🗑️ Удалить выбранные';
 }
 
 // Update statistics
@@ -427,7 +460,7 @@ function updateStats() {
 
     const startIdx = currentPage * pageSize + 1;
     const endIdx = Math.min((currentPage + 1) * pageSize, totalFacts);
-    document.getElementById('stat-page-info').textContent = totalFacts > 0 ? `${startIdx}-${endIdx} of ${totalFacts}` : '0-0 of 0';
+    document.getElementById('stat-page-info').textContent = totalFacts > 0 ? `${startIdx}-${endIdx} из ${totalFacts}` : '0-0 из 0';
 }
 
 // Update pagination controls
@@ -444,7 +477,7 @@ function updatePagination() {
         nextBtn.disabled = (currentPage + 1) * pageSize >= totalFacts;
 
         const totalPages = Math.ceil(totalFacts / pageSize);
-        pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
+        pageInfo.textContent = `Страница ${currentPage + 1} из ${totalPages}`;
     } else {
         controls.style.display = 'none';
     }
@@ -478,12 +511,12 @@ function showEditModal(factId) {
     document.getElementById('edit-financial-center').value = fact.financial_center_id || '';
     document.getElementById('edit-cost-center').value = fact.cost_center_id || '';
 
-    document.getElementById('edit-modal').style.display = 'block';
+    document.getElementById('edit-modal').showModal();
 }
 
 // Close edit modal
 function closeEditModal() {
-    document.getElementById('edit-modal').style.display = 'none';
+    document.getElementById('edit-modal').close();
     document.getElementById('edit-form').reset();
 }
 
@@ -528,16 +561,17 @@ async function updateFact(event) {
 
         closeEditModal();
         await loadFacts();
-        showNotification('Fact updated successfully', 'success');
+        showNotification('✅ Транзакция успешно обновлена!', 'success');
     } catch (error) {
         console.error('Error updating fact:', error);
-        showNotification(`Failed: ${error.message}`, 'error');
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }
 }
 
 // Delete single fact
 async function deleteFact(factId) {
-    if (!confirm('Are you sure you want to delete this fact? This action cannot be undone.')) {
+    if (!confirm('🗑️ Вы уверены, что хотите удалить эту транзакцию? Это действие необратимо.')) {
         return;
     }
 
@@ -552,10 +586,11 @@ async function deleteFact(factId) {
         }
 
         await loadFacts();
-        showNotification('Fact deleted successfully', 'success');
+        showNotification('✅ Транзакция успешно удалена!', 'success');
     } catch (error) {
         console.error('Error deleting fact:', error);
-        showNotification(`Failed: ${error.message}`, 'error');
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }
 }
 
@@ -563,7 +598,7 @@ async function deleteFact(factId) {
 async function batchDelete() {
     if (selectedFactIds.size === 0) return;
 
-    if (!confirm(`Are you sure you want to delete ${selectedFactIds.size} facts? This action cannot be undone.`)) {
+    if (!confirm(`🗑️ Вы уверены, что хотите удалить ${selectedFactIds.size} транзакций? Это действие необратимо.`)) {
         return;
     }
 
@@ -581,10 +616,11 @@ async function batchDelete() {
 
         const result = await response.json();
         await loadFacts();
-        showNotification(`${result.deleted_count} facts deleted successfully`, 'success');
+        showNotification(`✅ Удалено транзакций: ${result.deleted_count}`, 'success');
     } catch (error) {
         console.error('Error batch deleting facts:', error);
-        showNotification(`Failed: ${error.message}`, 'error');
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }
 }
 
@@ -598,7 +634,7 @@ function showNotification(message, type) {
     if (type === 'error') {
         alert('❌ ' + message);
     } else {
-        alert('✅ ' + message);
+        alert(message);
     }
 }
 
@@ -627,91 +663,5 @@ function exportFilteredFacts(format) {
     // Open in new tab to trigger download
     window.open(url, '_blank');
 }
-
-// Close modals when clicking outside
-window.onclick = function(event) {
-    if (event.target.classList.contains('modal')) {
-        event.target.style.display = 'none';
-    }
-}
 </script>
-
-<style>
-/* Page Header with Export Buttons */
-.page-header-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap;
-    gap: 1rem;
-}
-
-.page-header-text {
-    flex: 1;
-}
-
-.export-buttons {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    align-items: flex-start;
-}
-
-.filter-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1rem;
-}
-
-.pagination-controls {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    border-top: 1px solid var(--border-color);
-}
-
-.amount-positive {
-    color: var(--success-color);
-    font-weight: 500;
-}
-
-.amount-negative {
-    color: var(--danger-color);
-    font-weight: 500;
-}
-
-textarea {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    font-family: inherit;
-    resize: vertical;
-}
-
-textarea:focus {
-    outline: none;
-    border-color: var(--primary-color);
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .page-header-container {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .export-buttons {
-        width: 100%;
-    }
-
-    .export-buttons button {
-        flex: 1;
-    }
-}
-</style>
 {% endblock %}
