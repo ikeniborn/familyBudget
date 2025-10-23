@@ -65,8 +65,8 @@
 
         <div class="navbar-center hidden lg:flex">
             <ul class="menu menu-horizontal px-1" role="menubar">
-                <li><a href="/" class="{% if request.url.path == '/' %}active{% endif %}" aria-current="{% if request.url.path == '/' %}page{% endif %}">Dashboard</a></li>
-                <li><a href="/analytics" class="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">Analytics</a></li>
+                <li><a href="/" class="{% if request.url.path == '/' %}active{% endif %}" aria-current="{% if request.url.path == '/' %}page{% endif %}">Главная</a></li>
+                <li><a href="/analytics" class="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">Аналитика</a></li>
 
                 {% if user and user.is_admin %}
                 <li>
@@ -119,8 +119,8 @@
                     </svg>
                 </label>
                 <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-50 p-2 shadow-xl bg-base-100 rounded-box w-52">
-                    <li><a href="/">Dashboard</a></li>
-                    <li><a href="/analytics">Analytics</a></li>
+                    <li><a href="/">Главная</a></li>
+                    <li><a href="/analytics">Аналитика</a></li>
                     {% if user and user.is_admin %}
                         <li class="menu-title"><span>Администратор</span></li>
                         <li><a href="/admin/users">👥 Пользователи</a></li>

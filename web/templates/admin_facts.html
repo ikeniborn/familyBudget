@@ -4,21 +4,21 @@
 <div class="admin-page">
     <div class="page-header-container">
         <div class="page-header-text">
-            <h1>📊 Facts Management</h1>
-            <p class="page-description">View, edit, and delete financial transactions with advanced filtering</p>
+            <h1>📊 Управление транзакциями</h1>
+            <p class="page-description">Просмотр, редактирование и удаление финансовых транзакций с расширенными фильтрами</p>
         </div>
         <div class="export-buttons">
             <button class="btn-secondary btn-small" onclick="exportFilteredFacts('csv')"
-                    title="Export filtered facts to CSV">
-                📄 Export CSV
+                    title="Экспорт отфильтрованных транзакций в CSV">
+                📄 Экспорт CSV
             </button>
             <button class="btn-secondary btn-small" onclick="exportFilteredFacts('excel')"
-                    title="Export filtered facts to Excel">
-                📊 Export Excel
+                    title="Экспорт отфильтрованных транзакций в Excel">
+                📊 Экспорт Excel
             </button>
             <button class="btn-secondary btn-small" onclick="exportFilteredFacts('pdf')"
-                    title="Export filtered facts to PDF">
-                📑 Export PDF
+                    title="Экспорт отфильтрованных транзакций в PDF">
+                📑 Экспорт PDF
             </button>
         </div>
     </div>
@@ -26,35 +26,35 @@
     <!-- Filters Section -->
     <div class="card">
         <div class="card-header">
-            <h2>Filters</h2>
-            <button class="btn-secondary btn-small" onclick="resetFilters()">Reset</button>
+            <h2>Фильтры</h2>
+            <button class="btn-secondary btn-small" onclick="resetFilters()">Сбросить</button>
         </div>
         <div class="filter-grid">
             <div class="form-group">
-                <label for="filter-user">User</label>
+                <label for="filter-user">Пользователь</label>
                 <select id="filter-user">
-                    <option value="">-- All Users --</option>
+                    <option value="">-- Все пользователи --</option>
                     <!-- Populated dynamically -->
                 </select>
             </div>
             <div class="form-group">
-                <label for="filter-article">Article</label>
+                <label for="filter-article">Категория</label>
                 <select id="filter-article">
-                    <option value="">-- All Articles --</option>
+                    <option value="">-- Все категории --</option>
                     <!-- Populated dynamically -->
                 </select>
             </div>
             <div class="form-group">
-                <label for="filter-date-from">Date From</label>
+                <label for="filter-date-from">Дата с</label>
                 <input type="date" id="filter-date-from">
             </div>
             <div class="form-group">
-                <label for="filter-date-to">Date To</label>
+                <label for="filter-date-to">Дата по</label>
                 <input type="date" id="filter-date-to">
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn-primary" onclick="applyFilters()">Apply Filters</button>
+            <button class="btn-primary" onclick="applyFilters()">Применить фильтры</button>
         </div>
     </div>
 
@@ -64,14 +64,14 @@
             <div class="stat-icon">📊</div>
             <div>
                 <div class="stat-value" id="stat-total">0</div>
-                <div class="stat-label">Total Facts</div>
+                <div class="stat-label">Всего транзакций</div>
             </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon">📄</div>
             <div>
-                <div class="stat-value" id="stat-page-info">0-0 of 0</div>
-                <div class="stat-label">Current Page</div>
+                <div class="stat-value" id="stat-page-info">0-0 из 0</div>
+                <div class="stat-label">Текущая страница</div>
             </div>
         </div>
     </div>
@@ -79,21 +79,21 @@
     <!-- Facts Table -->
     <div class="card admin-table-card" style="margin-top: 1.5rem;">
         <div class="card-header">
-            <h2>Facts</h2>
+            <h2>Транзакции</h2>
             <div class="table-actions">
-                <button class="btn-secondary btn-small" id="batch-delete-btn" onclick="batchDelete()" disabled>Delete Selected</button>
+                <button class="btn-secondary btn-small" id="batch-delete-btn" onclick="batchDelete()" disabled>Удалить выбранные</button>
             </div>
         </div>
 
         <div id="facts-table-container">
-            <div class="loading">Loading facts...</div>
+            <div class="loading">Загрузка транзакций...</div>
         </div>
 
         <!-- Pagination -->
         <div class="pagination-controls" id="pagination-controls" style="display: none;">
-            <button class="btn-secondary btn-small" id="prev-btn" onclick="previousPage()" disabled>← Previous</button>
-            <span id="page-info">Page 1</span>
-            <button class="btn-secondary btn-small" id="next-btn" onclick="nextPage()" disabled>Next →</button>
+            <button class="btn-secondary btn-small" id="prev-btn" onclick="previousPage()" disabled>← Предыдущая</button>
+            <span id="page-info">Страница 1</span>
+            <button class="btn-secondary btn-small" id="next-btn" onclick="nextPage()" disabled>Следующая →</button>
         </div>
     </div>
 </div>
@@ -102,47 +102,47 @@
 <div id="edit-modal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>Edit Fact</h3>
+            <h3>Редактировать транзакцию</h3>
             <span class="modal-close" onclick="closeEditModal()">&times;</span>
         </div>
         <form id="edit-form" onsubmit="updateFact(event)">
             <input type="hidden" id="edit-id" name="id">
             <div class="form-group">
-                <label for="edit-amount">Amount*</label>
+                <label for="edit-amount">Сумма*</label>
                 <input type="number" id="edit-amount" name="amount" step="0.01" required>
             </div>
             <div class="form-group">
-                <label for="edit-date">Date*</label>
+                <label for="edit-date">Дата*</label>
                 <input type="date" id="edit-date" name="fact_date" required>
             </div>
             <div class="form-group">
-                <label for="edit-article">Article*</label>
+                <label for="edit-article">Категория*</label>
                 <select id="edit-article" name="article_id" required>
-                    <option value="">-- Select Article --</option>
+                    <option value="">-- Выберите категорию --</option>
                     <!-- Populated dynamically -->
                 </select>
             </div>
             <div class="form-group">
-                <label for="edit-description">Description</label>
+                <label for="edit-description">Описание</label>
                 <textarea id="edit-description" name="description" rows="3" maxlength="500"></textarea>
             </div>
             <div class="form-group">
-                <label for="edit-financial-center">Financial Center (ЦФО)</label>
+                <label for="edit-financial-center">Финансовый центр (ЦФО)</label>
                 <select id="edit-financial-center" name="financial_center_id">
-                    <option value="">-- Not Specified --</option>
+                    <option value="">-- Не указано --</option>
                     <!-- Populated dynamically -->
                 </select>
             </div>
             <div class="form-group">
-                <label for="edit-cost-center">Cost Center (МВЗ)</label>
+                <label for="edit-cost-center">Центр затрат (МВЗ)</label>
                 <select id="edit-cost-center" name="cost_center_id">
-                    <option value="">-- Not Specified --</option>
+                    <option value="">-- Не указано --</option>
                     <!-- Populated dynamically -->
                 </select>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancel</button>
-                <button type="submit" class="btn-primary">Update</button>
+                <button type="button" class="btn-secondary" onclick="closeEditModal()">Отмена</button>
+                <button type="submit" class="btn-primary">Обновить</button>
             </div>
         </form>
     </div>
@@ -590,6 +590,11 @@ async function batchDelete() {
 
 // Utility: Show notification
 function showNotification(message, type) {
+    // Handle error objects properly
+    if (typeof message === 'object' && message !== null) {
+        message = message.detail || message.message || JSON.stringify(message);
+    }
+
     if (type === 'error') {
         alert('❌ ' + message);
     } else {

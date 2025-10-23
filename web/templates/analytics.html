@@ -9,17 +9,17 @@
 <div class="space-y-6">
     <!-- Page Header -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 class="text-3xl font-bold">📊 Analytics Dashboard</h1>
+        <h1 class="text-3xl font-bold">📊 Панель аналитики</h1>
         {% if user %}
         <div class="flex flex-wrap gap-2">
-            <button class="btn btn-secondary btn-sm gap-1" onclick="exportAllTransactions('csv')" title="Export all transactions to CSV">
-                📄 Export CSV
+            <button class="btn btn-secondary btn-sm gap-1" onclick="exportAllTransactions('csv')" title="Экспорт всех транзакций в CSV">
+                📄 Экспорт CSV
             </button>
-            <button class="btn btn-secondary btn-sm gap-1" onclick="exportAllTransactions('excel')" title="Export all transactions to Excel">
-                📊 Export Excel
+            <button class="btn btn-secondary btn-sm gap-1" onclick="exportAllTransactions('excel')" title="Экспорт всех транзакций в Excel">
+                📊 Экспорт Excel
             </button>
-            <button class="btn btn-secondary btn-sm gap-1" onclick="exportAllTransactions('pdf')" title="Export all transactions to PDF">
-                📑 Export PDF
+            <button class="btn btn-secondary btn-sm gap-1" onclick="exportAllTransactions('pdf')" title="Экспорт всех транзакций в PDF">
+                📑 Экспорт PDF
             </button>
         </div>
         {% endif %}
@@ -30,18 +30,18 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
-            <span>Please <a href="/api/v1/auth/telegram-login" class="link link-hover font-semibold">log in</a> to view analytics.</span>
+            <span>Пожалуйста, <a href="/api/v1/auth/telegram-login" class="link link-hover font-semibold">войдите</a> для просмотра аналитики.</span>
         </div>
     {% else %}
         <!-- Period Filter -->
-        <div class="card bg-base-100 shadow-md" role="group" aria-label="Time period filter">
+        <div class="card bg-base-100 shadow-md" role="group" aria-label="Фильтр периода">
             <div class="card-body p-4">
                 <div class="flex flex-wrap items-center gap-3">
-                    <label id="period-label" class="font-semibold text-sm">Period:</label>
+                    <label id="period-label" class="font-semibold text-sm">Период:</label>
                     <div class="btn-group">
-                        <button class="btn btn-sm btn-primary" id="filter-week" data-period="week" onclick="updatePeriod('week')" aria-pressed="true" aria-labelledby="period-label filter-week">Week</button>
-                        <button class="btn btn-sm btn-outline" id="filter-month" data-period="month" onclick="updatePeriod('month')" aria-pressed="false" aria-labelledby="period-label filter-month">Month</button>
-                        <button class="btn btn-sm btn-outline" id="filter-year" data-period="year" onclick="updatePeriod('year')" aria-pressed="false" aria-labelledby="period-label filter-year">Year</button>
+                        <button class="btn btn-sm btn-primary" id="filter-week" data-period="week" onclick="updatePeriod('week')" aria-pressed="true" aria-labelledby="period-label filter-week">Неделя</button>
+                        <button class="btn btn-sm btn-outline" id="filter-month" data-period="month" onclick="updatePeriod('month')" aria-pressed="false" aria-labelledby="period-label filter-month">Месяц</button>
+                        <button class="btn btn-sm btn-outline" id="filter-year" data-period="year" onclick="updatePeriod('year')" aria-pressed="false" aria-labelledby="period-label filter-year">Год</button>
                     </div>
                 </div>
             </div>
@@ -52,8 +52,8 @@
             <!-- Plan vs Fact Chart -->
             <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-planfact">
                 <div class="card-body p-3">
-                    <h2 id="chart-title-planfact" class="card-title text-base mb-1">📊 Plan vs Fact</h2>
-                    <div id="chart-plan-fact" style="width: 100%; height: 400px;" role="img" aria-label="Bar chart comparing planned versus actual spending"></div>
+                    <h2 id="chart-title-planfact" class="card-title text-base mb-1">📊 План vs Факт</h2>
+                    <div id="chart-plan-fact" style="width: 100%; height: 400px;" role="img" aria-label="Гистограмма сравнения плановых и фактических расходов"></div>
                 </div>
             </div>
 
@@ -61,72 +61,72 @@
             <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-trends">
                 <div class="card-body p-3">
                     <div class="flex justify-between items-start mb-1">
-                        <h2 id="chart-title-trends" class="card-title text-base mb-0">📈 Spending Trends</h2>
+                        <h2 id="chart-title-trends" class="card-title text-base mb-0">📈 Динамика расходов</h2>
                         <div class="flex gap-1">
-                            <button class="btn btn-ghost btn-xs" onclick="exportTrendsData('csv')" title="Export trends to CSV">📄</button>
-                            <button class="btn btn-ghost btn-xs" onclick="exportTrendsData('excel')" title="Export trends to Excel">📊</button>
+                            <button class="btn btn-ghost btn-xs" onclick="exportTrendsData('csv')" title="Экспорт динамики в CSV">📄</button>
+                            <button class="btn btn-ghost btn-xs" onclick="exportTrendsData('excel')" title="Экспорт динамики в Excel">📊</button>
                         </div>
                     </div>
-                    <div class="form-control mb-1" role="group" aria-label="Trends time range selector">
+                    <div class="form-control mb-1" role="group" aria-label="Выбор периода динамики">
                         <div class="flex items-center gap-2">
-                            <label for="trends-days" class="label-text font-semibold">Days:</label>
-                            <select id="trends-days" class="select select-bordered select-sm" onchange="updateTrendsDays()" aria-label="Select number of days to display">
-                                <option value="7">Last 7 days</option>
-                                <option value="30" selected>Last 30 days</option>
-                                <option value="90">Last 90 days</option>
-                                <option value="365">Last year</option>
+                            <label for="trends-days" class="label-text font-semibold">Дни:</label>
+                            <select id="trends-days" class="select select-bordered select-sm" onchange="updateTrendsDays()" aria-label="Выберите количество дней для отображения">
+                                <option value="7">Последние 7 дней</option>
+                                <option value="30" selected>Последние 30 дней</option>
+                                <option value="90">Последние 90 дней</option>
+                                <option value="365">Последний год</option>
                             </select>
                         </div>
                     </div>
-                    <div id="chart-trends" style="width: 100%; height: 400px;" role="img" aria-label="Line chart showing income and expense trends over time"></div>
+                    <div id="chart-trends" style="width: 100%; height: 400px;" role="img" aria-label="Линейный график динамики доходов и расходов"></div>
                 </div>
             </div>
 
             <!-- Category Breakdown Chart -->
             <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-pie">
                 <div class="card-body p-3">
-                    <h2 id="chart-title-pie" class="card-title text-base mb-1">🥧 Category Breakdown</h2>
-                    <div class="flex items-center gap-3 mb-1" role="group" aria-label="Category type selector">
-                        <label id="pie-type-label" class="label-text font-semibold">Type:</label>
+                    <h2 id="chart-title-pie" class="card-title text-base mb-1">🥧 Разбивка по категориям</h2>
+                    <div class="flex items-center gap-3 mb-1" role="group" aria-label="Выбор типа категорий">
+                        <label id="pie-type-label" class="label-text font-semibold">Тип:</label>
                         <div class="btn-group">
-                            <button class="btn btn-sm btn-primary" id="pie-expense" onclick="updatePieType('expense')" aria-pressed="true" aria-labelledby="pie-type-label pie-expense">Expense</button>
-                            <button class="btn btn-sm btn-outline" id="pie-income" onclick="updatePieType('income')" aria-pressed="false" aria-labelledby="pie-type-label pie-income">Income</button>
+                            <button class="btn btn-sm btn-primary" id="pie-expense" onclick="updatePieType('expense')" aria-pressed="true" aria-labelledby="pie-type-label pie-expense">Расходы</button>
+                            <button class="btn btn-sm btn-outline" id="pie-income" onclick="updatePieType('income')" aria-pressed="false" aria-labelledby="pie-type-label pie-income">Доходы</button>
                         </div>
                     </div>
-                    <div id="chart-pie" style="width: 100%; height: 400px;" role="img" aria-label="Donut chart showing spending breakdown by category"></div>
+                    <div id="chart-pie" style="width: 100%; height: 400px;" role="img" aria-label="Круговая диаграмма разбивки расходов по категориям"></div>
                 </div>
             </div>
 
             <!-- Waterfall Chart -->
             <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-waterfall">
                 <div class="card-body p-3">
-                    <h2 id="chart-title-waterfall" class="card-title text-base mb-1">💧 Waterfall Chart</h2>
-                    <div class="flex flex-wrap items-center gap-3 mb-1" role="group" aria-label="Waterfall period selector">
-                        <label id="waterfall-period-label" class="label-text font-semibold">Period:</label>
+                    <h2 id="chart-title-waterfall" class="card-title text-base mb-1">💧 Каскадная диаграмма</h2>
+                    <div class="flex flex-wrap items-center gap-3 mb-1" role="group" aria-label="Выбор периода каскадной диаграммы">
+                        <label id="waterfall-period-label" class="label-text font-semibold">Период:</label>
                         <div class="btn-group">
-                            <button class="btn btn-sm btn-outline" id="waterfall-month" onclick="updateWaterfallPeriod('month')" aria-pressed="false" aria-labelledby="waterfall-period-label waterfall-month">Month</button>
-                            <button class="btn btn-sm btn-outline" id="waterfall-quarter" onclick="updateWaterfallPeriod('quarter')" aria-pressed="false" aria-labelledby="waterfall-period-label waterfall-quarter">Quarter</button>
-                            <button class="btn btn-sm btn-primary" id="waterfall-year" onclick="updateWaterfallPeriod('year')" aria-pressed="true" aria-labelledby="waterfall-period-label waterfall-year">Year</button>
+                            <button class="btn btn-sm btn-outline" id="waterfall-month" onclick="updateWaterfallPeriod('month')" aria-pressed="false" aria-labelledby="waterfall-period-label waterfall-month">Месяц</button>
+                            <button class="btn btn-sm btn-outline" id="waterfall-quarter" onclick="updateWaterfallPeriod('quarter')" aria-pressed="false" aria-labelledby="waterfall-period-label waterfall-quarter">Квартал</button>
+                            <button class="btn btn-sm btn-primary" id="waterfall-year" onclick="updateWaterfallPeriod('year')" aria-pressed="true" aria-labelledby="waterfall-period-label waterfall-year">Год</button>
                         </div>
-                        <button class="btn btn-sm btn-ghost gap-1 hidden" id="waterfall-reset" onclick="resetWaterfallDrilldown()" aria-label="Reset drill-down">↩️ Reset</button>
+                        <button class="btn btn-sm btn-ghost gap-1 hidden" id="waterfall-reset" onclick="resetWaterfallDrilldown()" aria-label="Сбросить детализацию">↩️ Сбросить</button>
                     </div>
-                    <div id="chart-waterfall" style="width: 100%; height: 400px;" role="img" aria-label="Waterfall chart showing cumulative cash flow with drill-down capability"></div>
+                    <div id="chart-waterfall" style="width: 100%; height: 400px;" role="img" aria-label="Каскадная диаграмма кумулятивного денежного потока с детализацией"></div>
                 </div>
             </div>
 
             <!-- Heatmap Chart -->
             <div class="card bg-base-100 shadow-lg col-span-full" aria-labelledby="chart-title-heatmap">
                 <div class="card-body p-3">
-                    <h2 id="chart-title-heatmap" class="card-title text-base mb-1">🔥 Spending Heatmap</h2>
-                    <div class="flex items-center gap-3 mb-1" role="group" aria-label="Heatmap period selector">
-                        <label id="heatmap-period-label" class="label-text font-semibold">Period:</label>
+                    <h2 id="chart-title-heatmap" class="card-title text-base mb-1">🔥 Тепловая карта расходов</h2>
+                    <div class="flex items-center gap-3 mb-1" role="group" aria-label="Выбор периода тепловой карты">
+                        <label id="heatmap-period-label" class="label-text font-semibold">Период:</label>
                         <div class="btn-group">
-                            <button class="btn btn-sm btn-outline" id="heatmap-month" onclick="updateHeatmapPeriod('month')" aria-pressed="false" aria-labelledby="heatmap-period-label heatmap-month">Month</button>
-                            <button class="btn btn-sm btn-primary" id="heatmap-quarter" onclick="updateHeatmapPeriod('quarter')" aria-pressed="true" aria-labelledby="heatmap-period-label heatmap-quarter">Quarter</button>
-                            <button class="btn btn-sm btn-outline" id="heatmap-year" onclick="updateHeatmapPeriod('year')" aria-pressed="false" aria-labelledby="heatmap-period-label heatmap-year">Year</button>
+                            <button class="btn btn-sm btn-outline" id="heatmap-month" onclick="updateHeatmapPeriod('month')" aria-pressed="false" aria-labelledby="heatmap-period-label heatmap-month">Месяц</button>
+                            <button class="btn btn-sm btn-primary" id="heatmap-quarter" onclick="updateHeatmapPeriod('quarter')" aria-pressed="true" aria-labelledby="heatmap-period-label heatmap-quarter">Квартал</button>
+                            <button class="btn btn-sm btn-outline" id="heatmap-year" onclick="updateHeatmapPeriod('year')" aria-pressed="false" aria-labelledby="heatmap-period-label heatmap-year">Год</button>
                         </div>
                     </div>
-                    <div id="chart-heatmap" style="width: 100%; height: 400px;" role="img" aria-label="Heatmap showing spending patterns by day of week"></div>
+                    <div id="chart-heatmap" style="width: 100%; height: 400px;" role="img" aria-label="Тепловая карта паттернов расходов по дням недели"></div>
                 </div>
             </div>
         </div>
