@@ -117,7 +117,7 @@ async def admin_facts(
     from backend.app.main import templates
 
     return templates.TemplateResponse(
-        "admin_facts.html",
+        "facts.html",
         {
             "request": request,
             "user": current_user,
