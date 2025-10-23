@@ -1,6 +1,8 @@
 /* Family Budget - Base Styles */
 
-:root {
+/* Light theme variables (default) */
+:root,
+[data-theme="light"] {
     --primary-color: #4CAF50;
     --secondary-color: #2196F3;
     --danger-color: #f44336;
@@ -10,6 +12,19 @@
     --card-bg: #ffffff;
     --border-color: #ddd;
     --shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Dark theme variables */
+[data-theme="dark"] {
+    --primary-color: #4CAF50;
+    --secondary-color: #2196F3;
+    --danger-color: #f44336;
+    --warning-color: #ff9800;
+    --text-color: #e0e0e0;
+    --bg-color: #1a1a1a;
+    --card-bg: #2a2a2a;
+    --border-color: #404040;
+    --shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
 * {
@@ -29,7 +44,7 @@ body {
 .skip-link {
     position: absolute;
     left: -9999px;
-    z-index: 999;
+    z-index: 1000;  /* Higher than modals (999) to ensure visibility */
     padding: 1rem;
     background-color: var(--primary-color);
     color: white;
@@ -55,7 +70,7 @@ body {
     padding: 1rem 0;
     position: sticky;
     top: 0;
-    z-index: 100;
+    /* z-index removed - using DaisyUI/Tailwind z-40 instead */
 }
 
 .navbar .container {
@@ -590,25 +605,18 @@ button:focus:not(:focus-visible) {
     }
 }
 
-/* Dark Mode Support (Optional) */
-@media (prefers-color-scheme: dark) {
-    :root {
-        --text-color: #e0e0e0;
-        --bg-color: #121212;
-        --card-bg: #1e1e1e;
-        --border-color: #333;
-    }
+/* Dark theme specific overrides */
+[data-theme="dark"] .filter-btn,
+[data-theme="dark"] .filter-btn-small,
+[data-theme="dark"] .trends-controls select {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+}
 
-    .filter-btn, .filter-btn-small, .trends-controls select {
-        background-color: var(--card-bg);
-        color: var(--text-color);
-    }
-
-    .alert-warning {
-        background-color: #3e2723;
-        border-color: #ff9800;
-        color: #ffb74d;
-    }
+[data-theme="dark"] .alert-warning {
+    background-color: #3e2723;
+    border-color: #ff9800;
+    color: #ffb74d;
 }
 
 /* Reduced Motion for Accessibility */
@@ -790,7 +798,7 @@ button:focus:not(:focus-visible) {
 .modal {
     display: none;
     position: fixed;
-    z-index: 9999;
+    z-index: 999;  /* Reduced from 9999 to avoid conflicts with DaisyUI modals */
     left: 0;
     top: 0;
     width: 100%;

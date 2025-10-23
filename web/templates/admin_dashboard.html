@@ -388,6 +388,7 @@ function updateUsersGrowthChart(data) {
             left: '3%',
             right: '4%',
             bottom: '15%',
+            top: '8%',
             containLabel: true
         },
         xAxis: {
@@ -498,6 +499,7 @@ function updateTransactionsTrendsChart(data) {
             left: '3%',
             right: '4%',
             bottom: '15%',
+            top: '8%',
             containLabel: true
         },
         xAxis: {
@@ -635,7 +637,7 @@ function updateTopUsersChart(data) {
             left: '3%',
             right: '4%',
             bottom: '3%',
-            top: '15%',
+            top: '8%',
             containLabel: true
         },
         xAxis: {
@@ -868,7 +870,7 @@ function updateCentersCharts(data) {
             left: '3%',
             right: '4%',
             bottom: '3%',
-            top: '15%',
+            top: '8%',
             containLabel: true
         },
         xAxis: {
@@ -924,7 +926,7 @@ function updateCentersCharts(data) {
             left: '3%',
             right: '4%',
             bottom: '3%',
-            top: '15%',
+            top: '8%',
             containLabel: true
         },
         xAxis: {
@@ -965,10 +967,29 @@ function refreshCentersUsage() {
 // ============================================================
 function exportPersonalData(format) {
     // Export admin's personal transaction data
-    let url = `/api/v1/export/facts/${format}`;
+    const validFormats = ['csv', 'excel', 'pdf'];
 
-    // Open in new tab to trigger download
-    window.open(url, '_blank');
+    if (!validFormats.includes(format)) {
+        console.error('Invalid export format:', format);
+        alert('Неверный формат экспорта');
+        return;
+    }
+
+    try {
+        let url = `/api/v1/export/facts/${format}`;
+        console.log('Exporting data to:', url);
+
+        // Open in new tab to trigger download
+        const newWindow = window.open(url, '_blank');
+
+        if (!newWindow) {
+            // Popup blocked
+            alert('Пожалуйста, разрешите всплывающие окна для экспорта данных');
+        }
+    } catch (error) {
+        console.error('Export error:', error);
+        alert('Ошибка при экспорте данных');
+    }
 }
 
 // Responsive chart resize

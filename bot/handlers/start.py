@@ -174,8 +174,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     """
     Handle main menu button clicks.
 
-    Maps menu button callback_data to corresponding bot commands.
-    Sends command text as a message to user's chat, which triggers the command handler.
+    Maps menu button callback_data to corresponding bot handlers and executes them directly.
 
     Args:
         update: Telegram update with callback query
@@ -189,22 +188,33 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     callback_data = query.data
 
-    # Map callback_data to command text
-    command_map = {
-        "menu:add": "/add",
-        "menu:today": "/today",
-        "menu:stats": "/stats",
-        "menu:list": "/list",
-        "menu:edit": "/edit",
-        "menu:delete": "/delete",
-        "menu:addplan": "/addplan",
-        "menu:summary": "/summary",
-        "menu:search": "/search",
+    # Import handlers
+    from bot.handlers.add import add_command
+    from bot.handlers.today import today_handler
+    from bot.handlers.stats import stats_handler
+    from bot.handlers.list import list_handler
+    from bot.handlers.edit import edit_handler
+    from bot.handlers.delete import delete_handler
+    from bot.handlers.add_plan import addplan_command
+    from bot.handlers.summary import summary_command
+    from bot.handlers.search import search_handler
+
+    # Map callback_data to handlers
+    handler_map = {
+        "menu:add": add_command,
+        "menu:today": today_handler,
+        "menu:stats": stats_handler,
+        "menu:list": list_handler,
+        "menu:edit": edit_handler,
+        "menu:delete": delete_handler,
+        "menu:addplan": addplan_command,
+        "menu:summary": summary_command,
+        "menu:search": search_handler,
     }
 
-    command = command_map.get(callback_data)
+    handler = handler_map.get(callback_data)
 
-    if not command:
+    if not handler:
         logger.warning(f"Unknown menu callback: {callback_data}")
         await query.edit_message_text(
             "❌ Неизвестная команда. Используйте /start для повторного вывода меню."
@@ -213,11 +223,27 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     # Log the command execution
     user_id = query.from_user.id
-    logger.info(f"Menu button '{callback_data}' clicked by user {user_id}, triggering command '{command}'")
+    logger.info(f"Menu button '{callback_data}' clicked by user {user_id}, executing handler directly")
 
-    # Send command text to user's chat
-    # This will trigger the corresponding command handler
-    await context.bot.send_message(
-        chat_id=query.message.chat_id,
-        text=command
-    )
+    # Create a modified update where message comes from the callback query
+    # This allows handlers to use update.message.reply_text() normally
+    class UpdateWrapper:
+        """Wrapper to make callback query work with command handlers."""
+        def __init__(self, original_update, query_message):
+            self.update_id = original_update.update_id
+            self.message = query_message  # Use query's message for replies
+            self.effective_user = original_update.effective_user
+            self.effective_chat = original_update.effective_chat
+            self.callback_query = None  # Hide callback_query from handler
+
+    fake_update = UpdateWrapper(update, query.message)
+
+    # Call handler directly
+    try:
+        await handler(fake_update, context)
+    except Exception as e:
+        logger.error(f"Error executing handler for {callback_data}: {e}", exc_info=True)
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text="❌ Произошла ошибка при выполнении команды. Попробуйте еще раз."
+        )
