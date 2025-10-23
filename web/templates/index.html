@@ -1,47 +1,164 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="hero">
-    <h1>Welcome to Family Budget</h1>
-
+<div class="space-y-6">
     {% if user %}
-        <p class="hero-subtitle">Track your expenses, analyze spending patterns, and manage your family budget.</p>
-
-        <div class="dashboard-grid">
-            <div class="card">
-                <h2>📊 Быстрая статистика</h2>
-                <div id="quick-stats" hx-get="/api/v1/analytics/quick-stats-html" hx-trigger="load" hx-swap="innerHTML">
-                    <p class="loading">Загрузка...</p>
+        <!-- Welcome Section -->
+        <div class="hero bg-gradient-to-r from-primary/10 to-secondary/10 rounded-box">
+            <div class="hero-content text-center py-12">
+                <div class="max-w-md">
+                    <h1 class="text-4xl font-bold mb-4">👋 Welcome, {{ user.first_name or user.username }}!</h1>
+                    <p class="text-lg opacity-80">Track your expenses, analyze spending patterns, and manage your family budget.</p>
                 </div>
-            </div>
-
-            <div class="card">
-                <h2>📈 Последние транзакции</h2>
-                <div id="recent-transactions" hx-get="/api/v1/facts/recent-html?limit=5" hx-trigger="load" hx-swap="innerHTML">
-                    <p class="loading">Загрузка...</p>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>💡 Быстрые действия</h2>
-                <ul class="action-list">
-                    <li><a href="/analytics">Просмотр аналитики</a></li>
-                    <li><a href="/api/v1/facts/new">Добавить транзакцию</a></li>
-                    <li><a href="/api/v1/articles">Управление категориями</a></li>
-                </ul>
             </div>
         </div>
+
+        <!-- Quick Stats Section -->
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title text-2xl mb-4">📊 Quick Statistics</h2>
+                <div id="quick-stats"
+                     hx-get="/api/v1/analytics/quick-stats-html"
+                     hx-trigger="load"
+                     hx-swap="innerHTML"
+                     class="min-h-[200px] flex items-center justify-center">
+                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Two Column Layout: Recent Transactions + Quick Actions -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Recent Transactions -->
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title text-xl mb-4">📈 Recent Transactions</h2>
+                    <div id="recent-transactions"
+                         hx-get="/api/v1/facts/recent-html?limit=5"
+                         hx-trigger="load"
+                         hx-swap="innerHTML"
+                         class="min-h-[200px]">
+                        <div class="flex items-center justify-center py-8">
+                            <span class="loading loading-spinner loading-lg text-primary"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title text-xl mb-4">💡 Quick Actions</h2>
+                    <div class="space-y-3">
+                        <a href="/analytics" class="btn btn-outline btn-primary w-full justify-start gap-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            View Analytics Dashboard
+                        </a>
+
+                        <a href="/api/docs" class="btn btn-outline btn-secondary w-full justify-start gap-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            API Documentation
+                        </a>
+
+                        <div class="divider my-2">Telegram Bot</div>
+
+                        <div class="alert alert-info shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <div>
+                                <div class="text-sm font-semibold">Use Telegram Bot for quick access</div>
+                                <div class="text-xs opacity-80">Send /start to @FamilyBudgetBot to manage transactions</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features Overview -->
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title text-xl mb-4">✨ Features</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Feature 1 -->
+                    <div class="flex flex-col items-center text-center p-4 hover:bg-base-200 rounded-lg transition-colors">
+                        <div class="text-4xl mb-3">📊</div>
+                        <h3 class="font-bold text-lg mb-2">Analytics</h3>
+                        <p class="text-sm opacity-70">Interactive charts with Plan vs Fact, trends, and category breakdowns</p>
+                    </div>
+
+                    <!-- Feature 2 -->
+                    <div class="flex flex-col items-center text-center p-4 hover:bg-base-200 rounded-lg transition-colors">
+                        <div class="text-4xl mb-3">🤖</div>
+                        <h3 class="font-bold text-lg mb-2">Telegram Bot</h3>
+                        <p class="text-sm opacity-70">Add transactions, view stats, and get insights via Telegram</p>
+                    </div>
+
+                    <!-- Feature 3 -->
+                    <div class="flex flex-col items-center text-center p-4 hover:bg-base-200 rounded-lg transition-colors">
+                        <div class="text-4xl mb-3">🔐</div>
+                        <h3 class="font-bold text-lg mb-2">Secure</h3>
+                        <p class="text-sm opacity-70">Telegram OAuth authentication with JWT tokens in httpOnly cookies</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     {% else %}
-        <p class="hero-subtitle">Please log in with Telegram to access your budget data.</p>
+        <!-- Login Section (Not Authenticated) -->
+        <div class="hero min-h-[60vh] bg-gradient-to-r from-primary/20 to-secondary/20 rounded-box">
+            <div class="hero-content text-center">
+                <div class="max-w-md">
+                    <h1 class="text-5xl font-bold mb-6">💰 Family Budget</h1>
+                    <p class="text-xl mb-8">
+                        Track your expenses, analyze spending patterns, and manage your family budget with ease.
+                    </p>
 
-        <div class="login-section">
-            <a href="/api/v1/auth/telegram-login" class="btn-primary btn-large">
-                Login with Telegram
-            </a>
+                    <a href="/api/v1/auth/telegram-login" class="btn btn-primary btn-lg gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.053 5.56-5.023c.242-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.654-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.941z"/>
+                        </svg>
+                        Login with Telegram
+                    </a>
 
-            <p class="help-text">
-                Secure authentication via Telegram OAuth with HMAC-SHA256 validation
-            </p>
+                    <div class="mt-6 text-sm opacity-70">
+                        <p>Secure authentication via Telegram OAuth</p>
+                        <p class="mt-1">with HMAC-SHA256 validation</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features for Non-Authenticated Users -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body items-center text-center">
+                    <div class="text-5xl mb-4">📊</div>
+                    <h2 class="card-title">Analytics</h2>
+                    <p class="opacity-70">Beautiful interactive charts powered by ECharts</p>
+                </div>
+            </div>
+
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body items-center text-center">
+                    <div class="text-5xl mb-4">🤖</div>
+                    <h2 class="card-title">Telegram Bot</h2>
+                    <p class="opacity-70">Manage your budget directly from Telegram</p>
+                </div>
+            </div>
+
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body items-center text-center">
+                    <div class="text-5xl mb-4">🔒</div>
+                    <h2 class="card-title">Privacy First</h2>
+                    <p class="opacity-70">Your data is secure and isolated</p>
+                </div>
+            </div>
         </div>
     {% endif %}
 </div>
