@@ -258,14 +258,14 @@ async def test_article_versioning_code_change(auth_client: AsyncClient, session:
     # Create article
     create_response = await auth_client.post(
         "/api/v1/articles",
-        json={"code": "TRANS", "name": "Transport", "type": "expense", "parent_id": None},
+        json={"name": "Transport", "type": "expense", "parent_id": None},
     )
     article_id = create_response.json()["id"]
 
-    # Update code
+    # Update name
     update_response = await auth_client.put(
         f"/api/v1/articles/{article_id}",
-        json={"code": "TRANSPORT"},
+        json={"name": "Transportation"},
     )
 
     assert update_response.status_code == 200

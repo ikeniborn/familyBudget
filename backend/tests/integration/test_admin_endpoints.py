@@ -227,10 +227,8 @@ async def test_get_users_stats_summary(admin_client: AsyncClient, session: Async
     article2 = Article(
         user_id=test_user.id,
         parent_id=None,
-        code="TRANSP",
         name="Transport",
         type="expense",
-        is_global=False,
         is_current=True,
         valid_from=datetime.utcnow(),
         valid_to=datetime(9999, 12, 31, 23, 59, 59),
@@ -328,31 +326,31 @@ async def test_get_all_articles_as_admin(admin_client: AsyncClient, test_article
 
 
 @pytest.mark.asyncio
-async def test_get_all_articles_filter_by_global(admin_client: AsyncClient, test_article_root: Article, test_global_article: Article):
+async def test_get_all_articles_filter_by_type(admin_client: AsyncClient, test_article_root: Article, test_global_article: Article):
     """
-    Test GET /admin/articles with is_global filter.
+    Test GET /admin/articles with type filter.
 
     Flow:
-    1. Request with is_global=True
-    2. Verify only global articles returned
-    3. Request with is_global=False
-    4. Verify only user-specific articles returned
+    1. Request with type=income
+    2. Verify only income articles returned
+    3. Request with type=expense
+    4. Verify only expense articles returned
     """
-    # Test global articles
-    response_global = await admin_client.get("/api/v1/admin/articles?is_global=true")
-    assert response_global.status_code == 200
-    global_articles = response_global.json()
+    # Test income articles
+    response_income = await admin_client.get("/api/v1/admin/articles?type=income")
+    assert response_income.status_code == 200
+    income_articles = response_income.json()
 
-    assert all(a["is_global"] == True for a in global_articles)
-    assert test_global_article.id in [a["id"] for a in global_articles]
+    assert all(a["type"] == "income" for a in income_articles)
+    assert test_global_article.id in [a["id"] for a in income_articles]
 
-    # Test user-specific articles
-    response_user = await admin_client.get("/api/v1/admin/articles?is_global=false")
-    assert response_user.status_code == 200
-    user_articles = response_user.json()
+    # Test expense articles
+    response_expense = await admin_client.get("/api/v1/admin/articles?type=expense")
+    assert response_expense.status_code == 200
+    expense_articles = response_expense.json()
 
-    assert all(a["is_global"] == False for a in user_articles)
-    assert test_article_root.id in [a["id"] for a in user_articles]
+    assert all(a["type"] == "expense" for a in expense_articles)
+    assert test_article_root.id in [a["id"] for a in expense_articles]
 
 
 @pytest.mark.asyncio

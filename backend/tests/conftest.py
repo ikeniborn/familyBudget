@@ -197,10 +197,8 @@ async def test_article_root(session: AsyncSession, test_user: User) -> Article:
     article = Article(
         user_id=test_user.id,
         parent_id=None,
-        code="FOOD",
         name="Food",
         type="expense",
-        is_global=False,
         is_current=True,
         valid_from=datetime.utcnow(),
         valid_to=datetime(9999, 12, 31, 23, 59, 59),
@@ -224,10 +222,8 @@ async def test_article_child(
     article = Article(
         user_id=test_user.id,
         parent_id=test_article_root.id,
-        code="GROCERIES",
         name="Groceries",
         type="expense",
-        is_global=False,
         is_current=True,
         valid_from=datetime.utcnow(),
         valid_to=datetime(9999, 12, 31, 23, 59, 59),
@@ -239,20 +235,20 @@ async def test_article_child(
 
 
 @pytest_asyncio.fixture
-async def test_global_article(session: AsyncSession) -> Article:
+async def test_global_article(session: AsyncSession, test_user: User) -> Article:
     """
-    Create test global article (shared across users).
+    Create test income article.
 
     Returns:
-        Article: Salary category (income, global, current version)
+        Article: Salary category (income, current version)
+
+    Note: Previously was "global" article, now all articles are user-specific
     """
     article = Article(
-        user_id=None,  # NULL for global articles
+        user_id=test_user.id,
         parent_id=None,
-        code="SALARY",
         name="Salary",
         type="income",
-        is_global=True,
         is_current=True,
         valid_from=datetime.utcnow(),
         valid_to=datetime(9999, 12, 31, 23, 59, 59),

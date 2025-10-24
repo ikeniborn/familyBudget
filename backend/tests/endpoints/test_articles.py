@@ -237,20 +237,16 @@ async def test_list_articles_filter_by_type(auth_client: AsyncClient, session: A
 
     expense_article = Article(
         user_id=1,  # Assuming test_user has id=1
-        code="EXP1",
         name="Expense 1",
         type="expense",
-        is_global=False,
         is_current=True,
         valid_from=datetime.utcnow(),
         valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     income_article = Article(
         user_id=1,
-        code="INC1",
         name="Income 1",
         type="income",
-        is_global=False,
         is_current=True,
         valid_from=datetime.utcnow(),
         valid_to=datetime(9999, 12, 31, 23, 59, 59),
@@ -306,10 +302,8 @@ async def test_list_articles_pagination(auth_client: AsyncClient, session: Async
     for i in range(10):
         article = Article(
             user_id=1,
-            code=f"ART{i}",
             name=f"Article {i}",
             type="expense",
-            is_global=False,
             is_current=True,
             valid_from=datetime.utcnow(),
             valid_to=datetime(9999, 12, 31, 23, 59, 59),
@@ -344,11 +338,11 @@ async def test_list_articles_as_admin_sees_all(
     # Create article for another user
     other_article = Article(
         user_id=999,  # Different user
-        code="OTHER",
         name="Other User Article",
         type="expense",
-        is_global=False,
         is_current=True,
+        valid_from=datetime.utcnow(),
+        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     session.add(other_article)
     await session.commit()
@@ -413,10 +407,8 @@ async def test_get_article_by_id_other_user(auth_client: AsyncClient, session: A
 
     other_article = Article(
         user_id=999,  # Different user
-        code="OTHER",
         name="Other Article",
         type="expense",
-        is_global=False,
         is_current=True,
         valid_from=datetime.utcnow(),
         valid_to=datetime(9999, 12, 31, 23, 59, 59),
@@ -537,10 +529,8 @@ async def test_update_article_change_parent(
 
     new_parent = Article(
         user_id=1,
-        code="NEWPARENT",
         name="New Parent",
         type="expense",
-        is_global=False,
         is_current=True,
         valid_from=datetime.utcnow(),
         valid_to=datetime(9999, 12, 31, 23, 59, 59),
@@ -781,10 +771,8 @@ async def test_get_article_subtree_max_depth(
     level1 = Article(
         user_id=1,
         parent_id=test_article_root.id,
-        code="LVL1",
         name="Level 1",
         type="expense",
-        is_global=False,
         is_current=True,
         valid_from=datetime.utcnow(),
         valid_to=datetime(9999, 12, 31, 23, 59, 59),
@@ -796,10 +784,8 @@ async def test_get_article_subtree_max_depth(
     level2 = Article(
         user_id=1,
         parent_id=level1.id,
-        code="LVL2",
         name="Level 2",
         type="expense",
-        is_global=False,
         is_current=True,
         valid_from=datetime.utcnow(),
         valid_to=datetime(9999, 12, 31, 23, 59, 59),

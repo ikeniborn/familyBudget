@@ -114,10 +114,8 @@ async def test_create_fact_article_not_accessible(
     # Create article for another user
     other_article = Article(
         user_id=999,
-        code="OTHER",
         name="Other Article",
         type="expense",
-        is_global=False,
         is_current=True,
         valid_from=datetime.utcnow(),
         valid_to=datetime(9999, 12, 31, 23, 59, 59),
@@ -702,10 +700,8 @@ async def test_update_fact_article_not_accessible(
     # Create article for another user
     other_article = Article(
         user_id=999,
-        code="OTHER",
         name="Other Article",
         type="expense",
-        is_global=False,
         is_current=True,
         valid_from=datetime.utcnow(),
         valid_to=datetime(9999, 12, 31, 23, 59, 59),

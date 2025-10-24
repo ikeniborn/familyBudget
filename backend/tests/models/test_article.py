@@ -26,7 +26,6 @@ async def test_create_article_basic(session: AsyncSession, test_user: User):
         user_id=test_user.id,
         name="Food",
         type="expense",
-        is_global=False,
     )
 
     session.add(article)
@@ -37,7 +36,6 @@ async def test_create_article_basic(session: AsyncSession, test_user: User):
     assert article.name == "Food"
     assert article.type == "expense"
     assert article.user_id == test_user.id
-    assert article.is_global is False
     assert article.is_current is True
 
 
@@ -46,7 +44,6 @@ async def test_create_article_with_code(session: AsyncSession, test_user: User):
     """Test creating article with business code."""
     article = Article(
         user_id=test_user.id,
-        code="FOOD",
         name="Food",
         type="expense",
     )
@@ -62,19 +59,17 @@ async def test_create_article_with_code(session: AsyncSession, test_user: User):
 async def test_create_global_article(session: AsyncSession):
     """Test creating global article (no user_id)."""
     article = Article(
-        user_id=None,
-        code="SALARY",
+        user_id=test_user.id,
         name="Salary",
         type="income",
-        is_global=True,
     )
 
     session.add(article)
     await session.commit()
     await session.refresh(article)
 
-    assert article.user_id is None
-    assert article.is_global is True
+    assert article.user_id == test_user.id
+    assert article.type == "income"
 
 
 @pytest.mark.asyncio
@@ -140,7 +135,6 @@ async def test_article_scd2_versioning(session: AsyncSession, test_user: User):
     # Version 1: Create initial article
     article_v1 = Article(
         user_id=test_user.id,
-        code="FOOD",
         name="Food",
         type="expense",
         is_current=True,
@@ -157,7 +151,6 @@ async def test_article_scd2_versioning(session: AsyncSession, test_user: User):
 
     article_v2 = Article(
         user_id=test_user.id,
-        code="FOOD",
         name="Food and Drinks",  # Name changed
         type="expense",
         is_current=True,
@@ -185,7 +178,6 @@ async def test_article_scd2_query_current_only(session: AsyncSession, test_user:
     # Create two versions
     article_v1 = Article(
         user_id=test_user.id,
-        code="FOOD",
         name="Food",
         type="expense",
         is_current=False,  # Old version
@@ -193,7 +185,6 @@ async def test_article_scd2_query_current_only(session: AsyncSession, test_user:
 
     article_v2 = Article(
         user_id=test_user.id,
-        code="FOOD",
         name="Food and Drinks",
         type="expense",
         is_current=True,  # Current version
@@ -307,21 +298,20 @@ async def test_create_multi_level_hierarchy(session: AsyncSession, test_user: Us
 
 
 @pytest.mark.asyncio
-async def test_global_article_null_user_id(session: AsyncSession):
-    """Test global article has NULL user_id."""
+async def test_article_has_user_id(session: AsyncSession, test_user):
+    """Test article has required user_id."""
     article = Article(
-        user_id=None,
+        user_id=test_user.id,
         name="Salary",
         type="income",
-        is_global=True,
     )
 
     session.add(article)
     await session.commit()
     await session.refresh(article)
 
-    assert article.user_id is None
-    assert article.is_global is True
+    assert article.user_id is not None
+    assert article.user_id == test_user.id
 
 
 @pytest.mark.asyncio
@@ -331,7 +321,6 @@ async def test_user_article_has_user_id(session: AsyncSession, test_user: User):
         user_id=test_user.id,
         name="Food",
         type="expense",
-        is_global=False,
     )
 
     session.add(article)
@@ -339,7 +328,7 @@ async def test_user_article_has_user_id(session: AsyncSession, test_user: User):
     await session.refresh(article)
 
     assert article.user_id == test_user.id
-    assert article.is_global is False
+    assert article.type == "expense"
 
 
 # ============================================================================
@@ -405,7 +394,6 @@ async def test_article_repr(session: AsyncSession, test_user: User):
         parent_id=None,
         name="Food",
         type="expense",
-        is_global=False,
     )
 
     session.add(article)
@@ -420,7 +408,7 @@ async def test_article_repr(session: AsyncSession, test_user: User):
     assert "type='expense'" in repr_str
     assert f"user_id={test_user.id}" in repr_str
     assert "parent_id=None" in repr_str
-    assert "is_global=False" in repr_str
+    assert "is_current=True" in repr_str
     assert "is_current=True" in repr_str
 
 
@@ -470,18 +458,19 @@ async def test_query_articles_by_type(session: AsyncSession, test_user: User):
 
 
 @pytest.mark.asyncio
-async def test_query_global_articles(session: AsyncSession):
-    """Test querying global articles only."""
-    # Create global and user articles
-    global_article = Article(user_id=None, name="Salary", type="income", is_global=True)
-    session.add(global_article)
+async def test_query_income_articles_by_type(session: AsyncSession, test_user):
+    """Test querying income articles only."""
+    # Create income article
+    income_article = Article(user_id=test_user.id, name="Salary", type="income")
+    session.add(income_article)
     await session.commit()
 
-    # Query global articles
-    stmt = select(Article).where(Article.is_global == True)  # noqa: E712
+    # Query income articles
+    stmt = select(Article).where(Article.type == "income")
     result = await session.execute(stmt)
     articles = result.scalars().all()
 
     assert len(articles) == 1
     assert articles[0].name == "Salary"
-    assert articles[0].is_global is True
+    assert articles[0].type == "income"
+    assert articles[0].user_id == test_user.id

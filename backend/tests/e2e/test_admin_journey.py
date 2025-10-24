@@ -105,63 +105,59 @@ class TestAdminGlobalArticles:
         # ===== STEP 1: Create Global Income Categories =====
         print("\n📂 Step 1: Creating global income categories...")
 
-        global_incomes = [
-            ("SALARY", "Salary"),
-            ("BONUS", "Bonus"),
-            ("INVESTMENT", "Investment Income")
+        incomes = [
+            "Salary",
+            "Bonus",
+            "Investment Income"
         ]
 
         created_ids = []
-        for code, name in global_incomes:
+        for name in incomes:
             response = await admin_client.post(
-                "/api/v1/admin/articles",  # Use /articles with is_global=True
+                "/api/v1/admin/articles",
                 json={
                     "name": name,
                     "type": "income",
-                    "code": code,  # Code is REQUIRED for global articles
                     "parent_id": None,
-                    "is_global": True  # Mark as global
                 }
             )
             assert response.status_code == 201
             created_ids.append(response.json()["id"])
 
-        print(f"✅ Created {len(global_incomes)} global income categories")
+        print(f"✅ Created {len(incomes)} income categories")
 
         # ===== STEP 2: Create Global Expense Categories =====
         print("\n📂 Step 2: Creating global expense categories...")
 
-        global_expenses = [
-            ("HOUSING", "Housing"),
-            ("UTILITIES", "Utilities"),
-            ("INSURANCE", "Insurance")
+        expenses = [
+            "Housing",
+            "Utilities",
+            "Insurance"
         ]
 
-        for code, name in global_expenses:
+        for name in expenses:
             response = await admin_client.post(
-                "/api/v1/admin/articles",  # Use /articles with is_global=True
+                "/api/v1/admin/articles",
                 json={
                     "name": name,
                     "type": "expense",
-                    "code": code,  # Code is REQUIRED for global articles
                     "parent_id": None,
-                    "is_global": True  # Mark as global
                 }
             )
             assert response.status_code == 201
             created_ids.append(response.json()["id"])
 
-        print(f"✅ Created {len(global_expenses)} global expense categories")
+        print(f"✅ Created {len(expenses)} expense categories")
 
-        # ===== STEP 3: List All Global Articles =====
-        print("\n📂 Step 3: Listing all global articles...")
+        # ===== STEP 3: List All Articles =====
+        print("\n📂 Step 3: Listing all articles...")
 
-        list_response = await admin_client.get("/api/v1/admin/articles?is_global=true")
+        list_response = await admin_client.get("/api/v1/admin/articles")
         assert list_response.status_code == 200
-        global_articles = list_response.json()
+        articles = list_response.json()
 
-        assert len(global_articles) >= 6  # Our created articles
-        print(f"✅ Retrieved {len(global_articles)} global articles")
+        assert len(articles) >= 6  # Our created articles
+        print(f"✅ Retrieved {len(articles)} articles")
 
         # ===== STEP 4: Update a Global Article =====
         print("\n📂 Step 4: Updating a global article...")
@@ -188,10 +184,10 @@ class TestAdminGlobalArticles:
         print(f"✅ Deleted global article")
 
         # Verify deletion
-        verify_response = await admin_client.get("/api/v1/admin/articles?is_global=true")
+        verify_response = await admin_client.get("/api/v1/admin/articles")
         assert verify_response.status_code == 200
         remaining = verify_response.json()
-        assert len(remaining) == len(global_articles) - 1
+        assert len(remaining) == len(articles) - 1
         print(f"✅ Deletion verified")
 
         print("\n" + "="*60)
