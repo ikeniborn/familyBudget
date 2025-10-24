@@ -320,8 +320,7 @@ async function createArticle(event) {
     const data = {
         name: formData.get('name'),
         type: formData.get('type'),
-        parent_id: formData.get('parent_id') ? parseInt(formData.get('parent_id')) : null,
-        is_global: true  // All articles are now global by default
+        parent_id: formData.get('parent_id') ? parseInt(formData.get('parent_id')) : null
     };
 
     try {

@@ -24,11 +24,11 @@ class CostCenter(SQLModel, table=True):
     Table: t_d_cost_center
     Pattern: SCD Type 2
 
-    Business Key: user_id + code (for user cost centers) or code (for global)
+    Business Key: user_id + name (for uniqueness)
 
-    Global vs User Cost Centers:
-        - Global cost centers (is_global=True): Shared across all users, user_id=NULL
-        - User cost centers (is_global=False): Specific to a user, user_id=<user_id>
+    User-specific Cost Centers:
+        - All cost centers are user-specific with required user_id
+        - Each user maintains their own set of cost centers
 
     SCD Type 2 Pattern:
         Each cost center can have multiple versions over time:
@@ -38,11 +38,9 @@ class CostCenter(SQLModel, table=True):
 
     Attributes:
         id: Surrogate primary key (auto-generated)
-        user_id: Owner user ID (NULL for global cost centers)
-        code: Business key for the cost center (optional, max 50 chars)
+        user_id: Owner user ID (required)
         name: Cost center display name (required, max 255 chars)
         description: Optional description or notes (text field)
-        is_global: Flag indicating if cost center is shared across all users
         valid_from: Start of validity period for this record
         valid_to: End of validity period (9999-12-31 for current records)
         is_current: Flag indicating if this is the current version
@@ -50,27 +48,24 @@ class CostCenter(SQLModel, table=True):
         updated_at: Timestamp when record was last updated
 
     Examples:
-        # Global cost center (shared across users)
+        # Home expenses cost center
         >>> cc = CostCenter(
-        ...     code="PROJ_HOME",
+        ...     user_id=123,
         ...     name="Home Expenses",
-        ...     description="General home budget project",
-        ...     is_global=True
+        ...     description="General home budget project"
         ... )
 
-        # User-specific cost center
+        # Vacation project cost center
         >>> vacation = CostCenter(
         ...     user_id=123,
         ...     name="Summer Vacation 2025",
-        ...     description="Vacation trip to Europe",
-        ...     is_global=False
+        ...     description="Vacation trip to Europe"
         ... )
 
     Notes:
-        - Global cost centers (is_global=True) must have user_id=NULL
-        - User cost centers (is_global=False) must have user_id set
+        - All cost centers must have user_id (required field)
         - When updating, create new version and set old version's is_current=False
-        - code is required for global cost centers
+        - Unique constraint: (user_id, name, is_current) for current records
     """
 
     __tablename__ = "t_d_cost_center"
@@ -83,19 +78,14 @@ class CostCenter(SQLModel, table=True):
     )
 
     # Foreign keys
-    user_id: Optional[int] = Field(
-        default=None,
+    user_id: int = Field(
         foreign_key="t_d_user.id",
         index=True,
-        description="Owner user ID (NULL for global cost centers)"
+        nullable=False,
+        description="Owner user ID (required - all cost centers are user-specific)"
     )
 
     # Business keys and attributes
-    code: Optional[str] = Field(
-        default=None,
-        max_length=50,
-        description="Business key for cost center identification"
-    )
     name: str = Field(
         nullable=False,
         max_length=255,
@@ -104,11 +94,6 @@ class CostCenter(SQLModel, table=True):
     description: Optional[str] = Field(
         default=None,
         description="Optional description or notes about the cost center"
-    )
-    is_global: bool = Field(
-        default=False,
-        nullable=False,
-        description="Global cost centers are shared across all users (user_id must be NULL)"
     )
 
     # SCD Type 2 fields
@@ -145,6 +130,5 @@ class CostCenter(SQLModel, table=True):
         """String representation of CostCenter model."""
         return (
             f"CostCenter(id={self.id}, name='{self.name}', "
-            f"user_id={self.user_id}, is_global={self.is_global}, "
-            f"is_current={self.is_current})"
+            f"user_id={self.user_id}, is_current={self.is_current})"
         )

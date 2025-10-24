@@ -99,7 +99,7 @@ async def telegram_login_page(request: Request) -> HTMLResponse:
             "request": request,
             "bot_username": settings.TELEGRAM_BOT_USERNAME,
             "callback_url": callback_url,
-            "page_title": "Login with Telegram",
+            "page_title": "Вход через Telegram",
         },
     )
 

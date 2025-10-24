@@ -20,13 +20,10 @@ class ArticleCreate(BaseModel):
         - name: Required, max 255 characters
         - type: Must be 'income' or 'expense'
         - parent_id: Optional, must exist if provided
-        - code: Optional, max 50 characters
-        - is_global: Optional, defaults to False
 
     Notes:
         - user_id is set automatically from current_user
-        - Global articles (is_global=True) should only be created by admins
-        - Parent article must exist and belong to same user (or be global)
+        - Parent article must exist and belong to same user
     """
 
     name: str = Field(
@@ -47,18 +44,6 @@ class ArticleCreate(BaseModel):
         default=None,
         description="Parent article ID for hierarchy (NULL for root articles)",
         examples=[1, None]
-    )
-
-    code: Optional[str] = Field(
-        default=None,
-        max_length=50,
-        description="Business key for article identification (optional)",
-        examples=["FOOD", "SAL_BASE", None]
-    )
-
-    is_global: bool = Field(
-        default=False,
-        description="Global articles are shared across all users (admin only)"
     )
 
     @field_validator("name")
@@ -85,33 +70,6 @@ class ArticleCreate(BaseModel):
 
         return trimmed
 
-    @field_validator("code")
-    @classmethod
-    def code_validation(cls, v: Optional[str]) -> Optional[str]:
-        """
-        Validate and normalize article code.
-
-        Rules:
-        - Must contain only letters, digits, and underscores
-        - Converted to uppercase
-        - Leading/trailing whitespace is trimmed
-        """
-        if not v:
-            return None
-
-        trimmed = v.strip()
-
-        if not trimmed:
-            return None
-
-        # Check for valid characters (letters, digits, underscores only)
-        if not re.match(r'^[a-zA-Z0-9_]+$', trimmed):
-            raise ValueError(
-                "Article code must contain only letters, digits, and underscores"
-            )
-
-        return trimmed.upper()
-
     @field_validator("parent_id")
     @classmethod
     def parent_id_positive(cls, v: Optional[int]) -> Optional[int]:
@@ -136,7 +94,6 @@ class ArticleUpdate(BaseModel):
         - Update creates NEW version with is_current=True
         - Old version gets is_current=False, valid_to=now()
         - Cannot change user_id (articles belong to creator)
-        - Global articles can only be updated by admins
     """
 
     name: Optional[str] = Field(
@@ -159,13 +116,6 @@ class ArticleUpdate(BaseModel):
         examples=[2]
     )
 
-    code: Optional[str] = Field(
-        default=None,
-        max_length=50,
-        description="Business key for article",
-        examples=["FOOD_NEW"]
-    )
-
     @field_validator("name")
     @classmethod
     def name_not_empty(cls, v: Optional[str]) -> Optional[str]:
@@ -185,26 +135,6 @@ class ArticleUpdate(BaseModel):
             )
 
         return trimmed
-
-    @field_validator("code")
-    @classmethod
-    def code_validation(cls, v: Optional[str]) -> Optional[str]:
-        """Validate and normalize article code if provided."""
-        if not v:
-            return None
-
-        trimmed = v.strip()
-
-        if not trimmed:
-            return None
-
-        # Check for valid characters
-        if not re.match(r'^[a-zA-Z0-9_]+$', trimmed):
-            raise ValueError(
-                "Article code must contain only letters, digits, and underscores"
-            )
-
-        return trimmed.upper()
 
     @field_validator("parent_id")
     @classmethod
@@ -256,19 +186,14 @@ class ArticleResponse(BaseModel):
         examples=[1]
     )
 
-    user_id: Optional[int] = Field(
-        description="Owner user ID (NULL for global articles)",
-        examples=[123, None]
+    user_id: int = Field(
+        description="Owner user ID",
+        examples=[123]
     )
 
     parent_id: Optional[int] = Field(
         description="Parent article ID (NULL for root)",
         examples=[1, None]
-    )
-
-    code: Optional[str] = Field(
-        description="Business key",
-        examples=["FOOD", None]
     )
 
     name: str = Field(
@@ -279,11 +204,6 @@ class ArticleResponse(BaseModel):
     type: str = Field(
         description="Article type: income or expense",
         examples=["expense"]
-    )
-
-    is_global: bool = Field(
-        description="True if article is shared across all users",
-        examples=[False]
     )
 
     # SCD Type 2 fields
@@ -326,10 +246,8 @@ class ArticleResponse(BaseModel):
                 "id": 1,
                 "user_id": 123,
                 "parent_id": None,
-                "code": "FOOD",
                 "name": "Food",
                 "type": "expense",
-                "is_global": False,
                 "valid_from": "2025-10-13T12:00:00Z",
                 "valid_to": "9999-12-31T23:59:59Z",
                 "is_current": True,

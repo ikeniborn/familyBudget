@@ -18,13 +18,10 @@ class CostCenterCreate(BaseModel):
 
     Validation Rules:
         - name: Required, max 255 characters
-        - code: Optional, max 50 characters
         - description: Optional
-        - is_global: Optional, defaults to False
 
     Notes:
         - user_id is set automatically from current_user
-        - Global cost centers (is_global=True) should only be created by admins
     """
 
     name: str = Field(
@@ -35,22 +32,10 @@ class CostCenterCreate(BaseModel):
         examples=["Home Renovation", "Marketing Department", "Vacation 2025"]
     )
 
-    code: Optional[str] = Field(
-        default=None,
-        max_length=50,
-        description="Business key for cost center identification (optional)",
-        examples=["PROJ_HOME", "DEPT_MKT", None]
-    )
-
     description: Optional[str] = Field(
         default=None,
         description="Optional description or notes",
         examples=["Kitchen and bathroom renovation project", None]
-    )
-
-    is_global: bool = Field(
-        default=False,
-        description="Global cost centers are shared across all users (admin only)"
     )
 
     @field_validator("name")
@@ -77,35 +62,6 @@ class CostCenterCreate(BaseModel):
 
         return trimmed
 
-    @field_validator("code")
-    @classmethod
-    def code_validation(cls, v: Optional[str]) -> Optional[str]:
-        """
-        Validate and normalize cost center code.
-
-        Rules:
-        - Can be None (optional field)
-        - If provided, cannot be empty or whitespace only
-        - Must contain only letters, digits, and underscores
-        - Converted to uppercase
-        - Leading/trailing whitespace is trimmed
-        """
-        if v is None:
-            return None
-
-        trimmed = v.strip()
-
-        if not trimmed:
-            raise ValueError("Cost center code cannot be empty")
-
-        # Check for valid characters (letters, digits, underscores only)
-        if not re.match(r'^[a-zA-Z0-9_]+$', trimmed):
-            raise ValueError(
-                "Cost center code must contain only letters, digits, and underscores"
-            )
-
-        return trimmed.upper()
-
 
 class CostCenterUpdate(BaseModel):
     """
@@ -122,7 +78,6 @@ class CostCenterUpdate(BaseModel):
         - Update creates NEW version with is_current=True
         - Old version gets is_current=False, valid_to=now()
         - Cannot change user_id (cost centers belong to creator)
-        - Global cost centers can only be updated by admins
     """
 
     name: Optional[str] = Field(
@@ -131,13 +86,6 @@ class CostCenterUpdate(BaseModel):
         min_length=1,
         description="Cost center display name",
         examples=["Updated Home Renovation"]
-    )
-
-    code: Optional[str] = Field(
-        default=None,
-        max_length=50,
-        description="Business key for cost center",
-        examples=["PROJ_HOME_NEW"]
     )
 
     description: Optional[str] = Field(
@@ -166,26 +114,6 @@ class CostCenterUpdate(BaseModel):
 
         return trimmed
 
-    @field_validator("code")
-    @classmethod
-    def code_validation(cls, v: Optional[str]) -> Optional[str]:
-        """Validate and normalize cost center code if provided."""
-        if v is None:
-            return None
-
-        trimmed = v.strip()
-
-        if not trimmed:
-            raise ValueError("Cost center code cannot be empty")
-
-        # Check for valid characters
-        if not re.match(r'^[a-zA-Z0-9_]+$', trimmed):
-            raise ValueError(
-                "Cost center code must contain only letters, digits, and underscores"
-            )
-
-        return trimmed.upper()
-
 
 class CostCenterResponse(BaseModel):
     """
@@ -203,14 +131,9 @@ class CostCenterResponse(BaseModel):
         examples=[1]
     )
 
-    user_id: Optional[int] = Field(
-        description="Owner user ID (NULL for global cost centers)",
-        examples=[123, None]
-    )
-
-    code: Optional[str] = Field(
-        description="Business key",
-        examples=["PROJ_HOME", None]
+    user_id: int = Field(
+        description="Owner user ID",
+        examples=[123]
     )
 
     name: str = Field(
@@ -221,11 +144,6 @@ class CostCenterResponse(BaseModel):
     description: Optional[str] = Field(
         description="Optional description",
         examples=["Kitchen and bathroom renovation", None]
-    )
-
-    is_global: bool = Field(
-        description="True if cost center is shared across all users",
-        examples=[False]
     )
 
     # SCD Type 2 fields

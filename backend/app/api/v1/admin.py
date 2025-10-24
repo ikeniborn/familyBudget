@@ -58,11 +58,10 @@ class UserStatsResponse(BaseModel):
 class ArticleResponse(BaseModel):
     """Article response model for admin."""
     id: int
-    user_id: int | None
+    user_id: int
     parent_id: int | None
     name: str
     type: str
-    is_global: bool
     is_current: bool
     valid_from: str
     valid_to: str | None
@@ -75,10 +74,8 @@ class ArticleResponse(BaseModel):
 class ArticleCreateRequest(BaseModel):
     """Article create request model."""
     parent_id: int | None = None
-    code: str | None = None
     name: str
     type: str  # "income" or "expense"
-    is_global: bool = False
 
 
 class ArticleUpdateRequest(BaseModel):
@@ -335,20 +332,18 @@ async def get_users_stats(
 async def get_all_articles(
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session),
-    is_current: bool = Query(True, description="Filter by current articles only"),
-    is_global: bool | None = Query(None, description="Filter by global articles")
+    is_current: bool = Query(True, description="Filter by current articles only")
 ):
     """
     Get all articles (admin only).
 
-    Returns list of all articles (user-specific and global).
-    Can filter by is_current and is_global flags.
+    Returns list of all articles.
+    Can filter by is_current flag.
 
     Args:
         current_admin: Current admin user (from dependency)
         session: Database session
         is_current: Whether to show only current (active) articles
-        is_global: Filter by global articles (None = all, True = global only, False = user-specific only)
 
     Returns:
         List[ArticleResponse]: List of articles
@@ -357,9 +352,6 @@ async def get_all_articles(
 
     if is_current:
         query = query.where(Article.is_current == True)  # noqa: E712
-
-    if is_global is not None:
-        query = query.where(Article.is_global == is_global)
 
     query = query.order_by(Article.type, Article.name)
 
@@ -373,7 +365,6 @@ async def get_all_articles(
             parent_id=article.parent_id,
             name=article.name,
             type=article.type,
-            is_global=article.is_global,
             is_current=article.is_current,
             valid_from=article.valid_from.isoformat(),
             valid_to=article.valid_to.isoformat() if article.valid_to else None,
@@ -428,12 +419,10 @@ async def create_article(
 
     # Create new article
     new_article = Article(
-        user_id=None if create_data.is_global else current_admin.id,
+        user_id=current_admin.id,
         parent_id=create_data.parent_id,
-        code=create_data.code,
         name=create_data.name,
         type=create_data.type,
-        is_global=create_data.is_global,
         valid_from=datetime.utcnow(),
         valid_to=None,
         is_current=True
@@ -448,7 +437,6 @@ async def create_article(
         parent_id=new_article.parent_id,
         name=new_article.name,
         type=new_article.type,
-        is_global=new_article.is_global,
         is_current=new_article.is_current,
         valid_from=new_article.valid_from.isoformat(),
         valid_to=new_article.valid_to.isoformat() if new_article.valid_to else None,
@@ -520,10 +508,8 @@ async def update_article(
     new_article = Article(
         user_id=article.user_id,
         parent_id=update_data.parent_id if update_data.parent_id is not None else article.parent_id,
-        code=article.code,  # Code cannot be changed
         name=update_data.name if update_data.name is not None else article.name,
         type=article.type,  # Type cannot be changed
-        is_global=article.is_global,  # is_global cannot be changed
         valid_from=datetime.utcnow(),
         valid_to=None,
         is_current=True
@@ -538,7 +524,6 @@ async def update_article(
         parent_id=new_article.parent_id,
         name=new_article.name,
         type=new_article.type,
-        is_global=new_article.is_global,
         is_current=new_article.is_current,
         valid_from=new_article.valid_from.isoformat(),
         valid_to=new_article.valid_to.isoformat() if new_article.valid_to else None,

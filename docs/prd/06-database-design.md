@@ -37,74 +37,98 @@ CREATE INDEX idx_user_telegram_id ON t_d_user(telegram_id);
 ```sql
 CREATE TABLE t_d_article (
     id SERIAL PRIMARY KEY,
-    code VARCHAR(50) NOT NULL,
     name VARCHAR(255) NOT NULL,
+    type VARCHAR(20) NOT NULL CHECK (type IN ('income', 'expense')),
     parent_id INTEGER REFERENCES t_d_article(id),
-    user_id INTEGER REFERENCES t_d_user(id),
-    
+    user_id INTEGER NOT NULL REFERENCES t_d_user(id),
+    description TEXT,
+
     -- SCD2 fields
     valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     valid_to TIMESTAMP DEFAULT '9999-12-31'::TIMESTAMP,
     is_current BOOLEAN DEFAULT true,
-    
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    CONSTRAINT unique_article_code_current UNIQUE (code, user_id, is_current)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Unique index ensuring one active article per user/name/type combination
+CREATE UNIQUE INDEX idx_article_user_name_type_current
+    ON t_d_article(user_id, name, type, is_current)
+    WHERE is_current = true;
 
 CREATE INDEX idx_article_current ON t_d_article(is_current) WHERE is_current = true;
 CREATE INDEX idx_article_user ON t_d_article(user_id);
 CREATE INDEX idx_article_parent ON t_d_article(parent_id);
+CREATE INDEX idx_article_type ON t_d_article(type);
 ```
+
+**Notes:**
+- All articles are user-specific (user_id is required)
+- No shared/global articles - each user has their own categories
+- Unique constraint on (user_id, name, type) ensures no duplicate active categories per user
 
 #### t_d_financial_center (SCD2)
 
 ```sql
 CREATE TABLE t_d_financial_center (
     id SERIAL PRIMARY KEY,
-    code VARCHAR(50) NOT NULL,
     name VARCHAR(255) NOT NULL,
-    user_id INTEGER REFERENCES t_d_user(id),
-    
+    user_id INTEGER NOT NULL REFERENCES t_d_user(id),
+    description TEXT,
+
     -- SCD2 fields
     valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     valid_to TIMESTAMP DEFAULT '9999-12-31'::TIMESTAMP,
     is_current BOOLEAN DEFAULT true,
-    
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    CONSTRAINT unique_fc_code_current UNIQUE (code, user_id, is_current)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Unique index ensuring one active financial center per user/name combination
+CREATE UNIQUE INDEX idx_fc_user_name_current
+    ON t_d_financial_center(user_id, name, is_current)
+    WHERE is_current = true;
 
 CREATE INDEX idx_fc_current ON t_d_financial_center(is_current) WHERE is_current = true;
 CREATE INDEX idx_fc_user ON t_d_financial_center(user_id);
 ```
+
+**Notes:**
+- All financial centers (ЦФО) are user-specific (user_id is required)
+- No shared/global financial centers - each user manages their own accounts
 
 #### t_d_cost_center (SCD2)
 
 ```sql
 CREATE TABLE t_d_cost_center (
     id SERIAL PRIMARY KEY,
-    code VARCHAR(50) NOT NULL,
     name VARCHAR(255) NOT NULL,
-    user_id INTEGER REFERENCES t_d_user(id),
-    
+    user_id INTEGER NOT NULL REFERENCES t_d_user(id),
+    description TEXT,
+
     -- SCD2 fields
     valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     valid_to TIMESTAMP DEFAULT '9999-12-31'::TIMESTAMP,
     is_current BOOLEAN DEFAULT true,
-    
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    CONSTRAINT unique_cc_code_current UNIQUE (code, user_id, is_current)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Unique index ensuring one active cost center per user/name combination
+CREATE UNIQUE INDEX idx_cc_user_name_current
+    ON t_d_cost_center(user_id, name, is_current)
+    WHERE is_current = true;
 
 CREATE INDEX idx_cc_current ON t_d_cost_center(is_current) WHERE is_current = true;
 CREATE INDEX idx_cc_user ON t_d_cost_center(user_id);
 ```
+
+**Notes:**
+- All cost centers (МВЗ) are user-specific (user_id is required)
+- No shared/global cost centers - each user manages their own budget groups
 
 #### t_d_period (SCD2)
 
@@ -241,8 +265,8 @@ SET valid_to = CURRENT_TIMESTAMP,
 WHERE id = 5;
 
 -- 2. Вставить новую запись
-INSERT INTO t_d_article (code, name, parent_id, user_id, valid_from, is_current)
-VALUES ('PROD', 'Продукты питания', NULL, 1, CURRENT_TIMESTAMP, true);
+INSERT INTO t_d_article (name, type, parent_id, user_id, valid_from, is_current)
+VALUES ('Продукты питания', 'expense', NULL, 1, CURRENT_TIMESTAMP, true);
 
 COMMIT;
 ```
@@ -295,6 +319,36 @@ alembic revision -m "initial schema"
 # Применение миграции
 alembic upgrade head
 ```
+
+---
+
+### 6.8 Changelog
+
+#### Migration 014 (2025-10-24) - Remove code and is_global fields
+
+**Changes:**
+- **Removed fields from all dimension tables:**
+  - `code` field removed from t_d_article, t_d_financial_center, t_d_cost_center
+  - `is_global` field removed from t_d_article, t_d_financial_center, t_d_cost_center
+
+- **Data ownership simplified:**
+  - All dimension records are now user-specific (user_id is NOT NULL)
+  - Removed concept of "global" shared records
+  - Former global records migrated to admin user
+
+- **Unique constraints updated:**
+  - t_d_article: `(user_id, name, type, is_current)` WHERE is_current = true
+  - t_d_financial_center: `(user_id, name, is_current)` WHERE is_current = true
+  - t_d_cost_center: `(user_id, name, is_current)` WHERE is_current = true
+
+**Rationale:**
+- The `code` field was optional in UI but caused validation errors when left empty
+- The `code` field was not in original PRD requirements
+- The `is_global` field was not in original PRD requirements
+- Simplified data model - each user has complete control over their own dimension records
+- Improved data integrity with name-based uniqueness per user
+
+**Migration script:** `backend/db/migrations/014_remove_code_and_is_global_fields.sql`
 
 ---
 

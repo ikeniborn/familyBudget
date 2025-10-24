@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Login with Telegram{% endblock %}
+{% block title %}Вход через Telegram{% endblock %}
 
 {% block content %}
 <div class="login-page">
     <div class="login-container">
         <div class="login-header">
-            <h1>Welcome to Family Budget</h1>
-            <p class="subtitle">Track your expenses, analyze spending patterns, and manage your family budget.</p>
+            <h1>Добро пожаловать в Family Budget</h1>
+            <p class="subtitle">Отслеживайте расходы, анализируйте траты и управляйте семейным бюджетом.</p>
         </div>
 
         <div class="login-card">
@@ -19,10 +19,10 @@
                 </svg>
             </div>
 
-            <h2>Login with Telegram</h2>
+            <h2>Вход через Telegram</h2>
             <p class="login-description">
-                Use your Telegram account to securely access Family Budget.
-                No password required!
+                Используйте свой аккаунт Telegram для безопасного доступа к Family Budget.
+                Пароль не требуется!
             </p>
 
             <div class="telegram-widget-container">
@@ -36,67 +36,67 @@
             </div>
 
             <div class="login-features">
-                <h3>Why Telegram Login?</h3>
+                <h3>Почему вход через Telegram?</h3>
                 <ul>
                     <li>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" stroke-width="2">
                             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                             <polyline points="22 4 12 14.01 9 11.01"></polyline>
                         </svg>
-                        <span>Secure authentication with HMAC-SHA256 validation</span>
+                        <span>Безопасная аутентификация с валидацией HMAC-SHA256</span>
                     </li>
                     <li>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" stroke-width="2">
                             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                             <polyline points="22 4 12 14.01 9 11.01"></polyline>
                         </svg>
-                        <span>No need to remember another password</span>
+                        <span>Не нужно запоминать еще один пароль</span>
                     </li>
                     <li>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" stroke-width="2">
                             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                             <polyline points="22 4 12 14.01 9 11.01"></polyline>
                         </svg>
-                        <span>Instant access with your Telegram account</span>
+                        <span>Мгновенный доступ с вашим аккаунтом Telegram</span>
                     </li>
                     <li>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" stroke-width="2">
                             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                             <polyline points="22 4 12 14.01 9 11.01"></polyline>
                         </svg>
-                        <span>Use the bot (@{{ bot_username }}) to manage budget on the go</span>
+                        <span>Используйте бота (@{{ bot_username }}) для управления бюджетом</span>
                     </li>
                 </ul>
             </div>
 
             <div class="login-help">
-                <p><strong>Don't have Telegram?</strong></p>
+                <p><strong>Нет Telegram?</strong></p>
                 <p>
-                    Download Telegram from
+                    Скачайте Telegram с
                     <a href="https://telegram.org/" target="_blank" rel="noopener noreferrer">telegram.org</a>
-                    and create your free account.
+                    и создайте бесплатный аккаунт.
                 </p>
             </div>
         </div>
 
         <div class="login-security">
-            <h3>Security & Privacy</h3>
+            <h3>Безопасность и Конфиденциальность</h3>
             <div class="security-grid">
                 <div class="security-item">
-                    <strong>🔒 Encrypted Communication</strong>
-                    <p>All data transmitted via HTTPS/TLS encryption</p>
+                    <strong>🔒 Зашифрованная связь</strong>
+                    <p>Все данные передаются через HTTPS/TLS шифрование</p>
                 </div>
                 <div class="security-item">
-                    <strong>🛡️ No Password Storage</strong>
-                    <p>We never store your Telegram password</p>
+                    <strong>🛡️ Пароли не хранятся</strong>
+                    <p>Мы никогда не храним ваш пароль Telegram</p>
                 </div>
                 <div class="security-item">
-                    <strong>🔐 JWT Tokens</strong>
-                    <p>Secure session management with refresh tokens</p>
+                    <strong>🔐 JWT токены</strong>
+                    <p>Безопасное управление сессией с refresh токенами</p>
                 </div>
                 <div class="security-item">
-                    <strong>👤 Data Isolation</strong>
-                    <p>Your budget data is private and never shared</p>
+                    <strong>👤 Изоляция данных</strong>
+                    <p>Ваши данные бюджета приватны и никогда не передаются третьим лицам</p>
                 </div>
             </div>
         </div>

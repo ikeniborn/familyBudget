@@ -18,13 +18,10 @@ class FinancialCenterCreate(BaseModel):
 
     Validation Rules:
         - name: Required, max 255 characters
-        - code: Optional, max 50 characters
         - description: Optional
-        - is_global: Optional, defaults to False
 
     Notes:
         - user_id is set automatically from current_user
-        - Global financial centers (is_global=True) should only be created by admins
     """
 
     name: str = Field(
@@ -35,22 +32,10 @@ class FinancialCenterCreate(BaseModel):
         examples=["Sberbank Account", "Cash Wallet", "Tinkoff Card"]
     )
 
-    code: Optional[str] = Field(
-        default=None,
-        max_length=50,
-        description="Business key for financial center identification (optional)",
-        examples=["BANK_SBER", "CASH", None]
-    )
-
     description: Optional[str] = Field(
         default=None,
         description="Optional description or notes",
         examples=["Main checking account", None]
-    )
-
-    is_global: bool = Field(
-        default=False,
-        description="Global financial centers are shared across all users (admin only)"
     )
 
     @field_validator("name")
@@ -77,35 +62,6 @@ class FinancialCenterCreate(BaseModel):
 
         return trimmed
 
-    @field_validator("code")
-    @classmethod
-    def code_validation(cls, v: Optional[str]) -> Optional[str]:
-        """
-        Validate and normalize financial center code.
-
-        Rules:
-        - Can be None (optional field)
-        - If provided, cannot be empty or whitespace only
-        - Must contain only letters, digits, and underscores
-        - Converted to uppercase
-        - Leading/trailing whitespace is trimmed
-        """
-        if v is None:
-            return None
-
-        trimmed = v.strip()
-
-        if not trimmed:
-            raise ValueError("Financial center code cannot be empty")
-
-        # Check for valid characters (letters, digits, underscores only)
-        if not re.match(r'^[a-zA-Z0-9_]+$', trimmed):
-            raise ValueError(
-                "Financial center code must contain only letters, digits, and underscores"
-            )
-
-        return trimmed.upper()
-
 
 class FinancialCenterUpdate(BaseModel):
     """
@@ -122,7 +78,6 @@ class FinancialCenterUpdate(BaseModel):
         - Update creates NEW version with is_current=True
         - Old version gets is_current=False, valid_to=now()
         - Cannot change user_id (financial centers belong to creator)
-        - Global financial centers can only be updated by admins
     """
 
     name: Optional[str] = Field(
@@ -131,13 +86,6 @@ class FinancialCenterUpdate(BaseModel):
         min_length=1,
         description="Financial center display name",
         examples=["Updated Sberbank Account"]
-    )
-
-    code: Optional[str] = Field(
-        default=None,
-        max_length=50,
-        description="Business key for financial center",
-        examples=["BANK_SBER_NEW"]
     )
 
     description: Optional[str] = Field(
@@ -166,26 +114,6 @@ class FinancialCenterUpdate(BaseModel):
 
         return trimmed
 
-    @field_validator("code")
-    @classmethod
-    def code_validation(cls, v: Optional[str]) -> Optional[str]:
-        """Validate and normalize financial center code if provided."""
-        if v is None:
-            return None
-
-        trimmed = v.strip()
-
-        if not trimmed:
-            raise ValueError("Financial center code cannot be empty")
-
-        # Check for valid characters
-        if not re.match(r'^[a-zA-Z0-9_]+$', trimmed):
-            raise ValueError(
-                "Financial center code must contain only letters, digits, and underscores"
-            )
-
-        return trimmed.upper()
-
 
 class FinancialCenterResponse(BaseModel):
     """
@@ -203,14 +131,9 @@ class FinancialCenterResponse(BaseModel):
         examples=[1]
     )
 
-    user_id: Optional[int] = Field(
-        description="Owner user ID (NULL for global financial centers)",
-        examples=[123, None]
-    )
-
-    code: Optional[str] = Field(
-        description="Business key",
-        examples=["BANK_SBER", None]
+    user_id: int = Field(
+        description="Owner user ID",
+        examples=[123]
     )
 
     name: str = Field(
@@ -221,11 +144,6 @@ class FinancialCenterResponse(BaseModel):
     description: Optional[str] = Field(
         description="Optional description",
         examples=["Main checking account", None]
-    )
-
-    is_global: bool = Field(
-        description="True if financial center is shared across all users",
-        examples=[False]
     )
 
     # SCD Type 2 fields

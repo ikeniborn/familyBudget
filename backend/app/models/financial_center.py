@@ -24,11 +24,11 @@ class FinancialCenter(SQLModel, table=True):
     Table: t_d_financial_center
     Pattern: SCD Type 2
 
-    Business Key: user_id + code (for user financial centers) or code (for global)
+    Business Key: user_id + name (for uniqueness)
 
-    Global vs User Financial Centers:
-        - Global financial centers (is_global=True): Shared across all users, user_id=NULL
-        - User financial centers (is_global=False): Specific to a user, user_id=<user_id>
+    User-specific Financial Centers:
+        - All financial centers are user-specific with required user_id
+        - Each user maintains their own set of financial centers
 
     SCD Type 2 Pattern:
         Each financial center can have multiple versions over time:
@@ -38,11 +38,9 @@ class FinancialCenter(SQLModel, table=True):
 
     Attributes:
         id: Surrogate primary key (auto-generated)
-        user_id: Owner user ID (NULL for global financial centers)
-        code: Business key for the financial center (optional, max 50 chars)
+        user_id: Owner user ID (required)
         name: Financial center display name (required, max 255 chars)
         description: Optional description or notes (text field)
-        is_global: Flag indicating if financial center is shared across all users
         valid_from: Start of validity period for this record
         valid_to: End of validity period (9999-12-31 for current records)
         is_current: Flag indicating if this is the current version
@@ -50,27 +48,24 @@ class FinancialCenter(SQLModel, table=True):
         updated_at: Timestamp when record was last updated
 
     Examples:
-        # Global financial center (shared across users)
+        # Bank account
         >>> fc = FinancialCenter(
-        ...     code="BANK_SBER",
+        ...     user_id=123,
         ...     name="Sberbank",
-        ...     description="Main Sberbank account",
-        ...     is_global=True
+        ...     description="Main Sberbank account"
         ... )
 
-        # User-specific financial center
+        # Cash wallet
         >>> cash = FinancialCenter(
         ...     user_id=123,
         ...     name="Cash Wallet",
-        ...     description="Physical cash",
-        ...     is_global=False
+        ...     description="Physical cash"
         ... )
 
     Notes:
-        - Global financial centers (is_global=True) must have user_id=NULL
-        - User financial centers (is_global=False) must have user_id set
+        - All financial centers must have user_id (required field)
         - When updating, create new version and set old version's is_current=False
-        - code is required for global financial centers
+        - Unique constraint: (user_id, name, is_current) for current records
     """
 
     __tablename__ = "t_d_financial_center"
@@ -83,19 +78,14 @@ class FinancialCenter(SQLModel, table=True):
     )
 
     # Foreign keys
-    user_id: Optional[int] = Field(
-        default=None,
+    user_id: int = Field(
         foreign_key="t_d_user.id",
         index=True,
-        description="Owner user ID (NULL for global financial centers)"
+        nullable=False,
+        description="Owner user ID (required - all financial centers are user-specific)"
     )
 
     # Business keys and attributes
-    code: Optional[str] = Field(
-        default=None,
-        max_length=50,
-        description="Business key for financial center identification"
-    )
     name: str = Field(
         nullable=False,
         max_length=255,
@@ -104,11 +94,6 @@ class FinancialCenter(SQLModel, table=True):
     description: Optional[str] = Field(
         default=None,
         description="Optional description or notes about the financial center"
-    )
-    is_global: bool = Field(
-        default=False,
-        nullable=False,
-        description="Global financial centers are shared across all users (user_id must be NULL)"
     )
 
     # SCD Type 2 fields
@@ -145,6 +130,5 @@ class FinancialCenter(SQLModel, table=True):
         """String representation of FinancialCenter model."""
         return (
             f"FinancialCenter(id={self.id}, name='{self.name}', "
-            f"user_id={self.user_id}, is_global={self.is_global}, "
-            f"is_current={self.is_current})"
+            f"user_id={self.user_id}, is_current={self.is_current})"
         )

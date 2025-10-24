@@ -41,35 +41,25 @@ router = APIRouter(
     "",
     response_model=CostCenterListResponse,
     summary="List cost centers",
-    description="Get list of cost centers (user-specific + global)",
+    description="Get list of user's cost centers",
 )
 async def list_cost_centers(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
-    include_global: bool = Query(True, description="Include global cost centers"),
 ) -> CostCenterListResponse:
     """
     List cost centers for current user.
 
-    Returns user-specific cost centers and optionally global cost centers.
+    Returns user-specific cost centers.
     Only current versions (is_current=True) are returned.
     """
-    # Build query
-    conditions = [CostCenter.is_current == True]
-
-    if include_global:
-        # User cost centers OR global cost centers
-        conditions.append(
-            or_(
-                CostCenter.user_id == current_user.id,
-                CostCenter.is_global == True
-            )
-        )
-    else:
-        # Only user cost centers
-        conditions.append(CostCenter.user_id == current_user.id)
+    # Build query - only user's cost centers
+    conditions = [
+        CostCenter.is_current == True,
+        CostCenter.user_id == current_user.id
+    ]
 
     # Count total
     count_query = select(CostCenter).where(*conditions)
@@ -113,23 +103,13 @@ async def create_cost_center(
     """
     Create a new cost center.
 
-    - Global cost centers (is_global=True) can only be created by admins
-    - User cost centers are automatically assigned to current_user
+    Cost center is automatically assigned to current_user.
     """
-    # Check admin permissions for global cost centers
-    if cost_center_data.is_global and not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can create global cost centers",
-        )
-
     # Create cost center
     cost_center = CostCenter(
-        user_id=None if cost_center_data.is_global else current_user.id,
-        code=cost_center_data.code,
+        user_id=current_user.id,
         name=cost_center_data.name,
         description=cost_center_data.description,
-        is_global=cost_center_data.is_global,
         is_current=True,
         valid_from=datetime.utcnow(),
         valid_to=datetime(9999, 12, 31, 23, 59, 59),
@@ -172,8 +152,8 @@ async def get_cost_center(
             detail=f"Cost center {cost_center_id} not found",
         )
 
-    # Check access: user can access their own cost centers or global cost centers
-    if not cost_center.is_global and cost_center.user_id != current_user.id:
+    # Check access: user can only access their own cost centers
+    if cost_center.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied to this cost center",
@@ -218,14 +198,8 @@ async def update_cost_center(
             detail=f"Cost center {cost_center_id} not found",
         )
 
-    # Check permissions
-    if old_cost_center.is_global and not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can update global cost centers",
-        )
-
-    if not old_cost_center.is_global and old_cost_center.user_id != current_user.id:
+    # Check permissions - only owner can update
+    if old_cost_center.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied to this cost center",
@@ -275,14 +249,8 @@ async def delete_cost_center(
             detail=f"Cost center {cost_center_id} not found",
         )
 
-    # Check permissions
-    if cost_center.is_global and not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can delete global cost centers",
-        )
-
-    if not cost_center.is_global and cost_center.user_id != current_user.id:
+    # Check permissions - only owner can delete
+    if cost_center.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied to this cost center",
