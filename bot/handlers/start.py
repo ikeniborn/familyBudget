@@ -223,27 +223,57 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     # Log the command execution
     user_id = query.from_user.id
-    logger.info(f"Menu button '{callback_data}' clicked by user {user_id}, executing handler directly")
+    logger.info(f"Menu button '{callback_data}' clicked by user {user_id}, executing handler")
 
-    # Create a modified update where message comes from the callback query
-    # This allows handlers to use update.message.reply_text() normally
+    # Answer callback query
+    await query.answer()
+
+    # Edit the menu message to show loading
+    # This gives user immediate feedback and provides a message for the handler to use
+    try:
+        edited_message = await query.edit_message_text("⏳ Загружаю...")
+        # Store flag that we edited the message to show loading
+        context.user_data["_menu_loading_message"] = True
+        context.user_data["_menu_loading_message_id"] = query.message.message_id
+    except Exception as e:
+        logger.warning(f"Could not edit menu message: {e}")
+        # If edit fails, delete and create new message
+        try:
+            await query.delete_message()
+            new_message = await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text="⏳ Загружаю..."
+            )
+            context.user_data["_menu_loading_message"] = True
+            context.user_data["_menu_loading_message_id"] = new_message.message_id
+        except Exception as e2:
+            logger.error(f"Could not create loading message: {e2}")
+            return
+
+    # Create Update wrapper with the edited/new message
+    # This allows ConversationHandler to work with the REAL message object
     class UpdateWrapper:
         """Wrapper to make callback query work with command handlers."""
-        def __init__(self, original_update, query_message):
+        def __init__(self, original_update, message_obj):
             self.update_id = original_update.update_id
-            self.message = query_message  # Use query's message for replies
+            self.message = message_obj
             self.effective_user = original_update.effective_user
             self.effective_chat = original_update.effective_chat
-            self.callback_query = None  # Hide callback_query from handler
+            self.callback_query = None
 
-    fake_update = UpdateWrapper(update, query.message)
+    wrapped_update = UpdateWrapper(update, query.message)
 
-    # Call handler directly
+    # Call handler with the message object
     try:
-        await handler(fake_update, context)
+        await handler(wrapped_update, context)
     except Exception as e:
         logger.error(f"Error executing handler for {callback_data}: {e}", exc_info=True)
-        await context.bot.send_message(
-            chat_id=query.message.chat_id,
-            text="❌ Произошла ошибка при выполнении команды. Попробуйте еще раз."
-        )
+        try:
+            await query.message.edit_text(
+                "❌ Произошла ошибка при выполнении команды. Попробуйте еще раз."
+            )
+        except:
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text="❌ Произошла ошибка при выполнении команды. Попробуйте еще раз."
+            )

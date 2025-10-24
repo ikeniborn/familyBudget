@@ -89,9 +89,27 @@ async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         logger.warning(f"Unauthenticated /add attempt from user {user.id}")
         return ConversationHandler.END
 
-    # Send "loading" message
-    loading_msg = await update.message.reply_text(
-        "⏳ Загружаю список категорий..."
+    # Check if message already shows loading (from menu button)
+    # If coming from menu button, delete the loading message and create new one
+    if context.user_data.get("_menu_loading_message"):
+        message_id = context.user_data.get("_menu_loading_message_id")
+        chat_id = update.effective_chat.id
+
+        # Delete the old loading message
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
+            logger.info(f"Deleted menu loading message {message_id}")
+        except Exception as e:
+            logger.warning(f"Could not delete menu loading message: {e}")
+
+        # Clear the flags
+        context.user_data.pop("_menu_loading_message", None)
+        context.user_data.pop("_menu_loading_message_id", None)
+
+    # Always create a new loading message (whether from menu or direct command)
+    loading_msg = await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="⏳ Загружаю список категорий..."
     )
 
     try:
@@ -1109,5 +1127,5 @@ add_conversation_handler = ConversationHandler(
     fallbacks=[CommandHandler("cancel", cancel_command)],
     name="add_fact_conversation",
     persistent=False,
-    per_message=True,  # Track conversation state per message for CallbackQueryHandler
+    # per_message defaults to False, which is correct for CommandHandler entry points
 )
