@@ -53,6 +53,24 @@ KEY_FINANCIAL_CENTER_ID = "financial_center_id"
 KEY_FINANCIAL_CENTER_NAME = "financial_center_name"
 KEY_COST_CENTER_ID = "cost_center_id"
 KEY_COST_CENTER_NAME = "cost_center_name"
+KEY_ARTICLE_NAVIGATION_PATH = "article_navigation_path"  # Stack of parent articles for "Back" button
+
+
+async def check_article_has_children(article_id: int, token: str) -> bool:
+    """
+    Check if article has children (subcategories).
+
+    Args:
+        article_id: Article ID to check
+        token: JWT access token
+
+    Returns:
+        bool: True if article has children, False otherwise
+    """
+    api_client = await get_api_client()
+    response = await api_client.get_articles(token, parent_id=article_id)
+    articles = response.get("articles", [])
+    return len(articles) > 0
 
 
 async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -78,14 +96,25 @@ async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         logger.warning("/add called without user context")
         return ConversationHandler.END
 
-    logger.info(f"/add command from user {user.id} (@{user.username})")
+    # If called from callback query (menu button), answer it
+    if update.callback_query:
+        await update.callback_query.answer()
+        logger.info(f"/add command from menu button, user {user.id} (@{user.username})")
+    else:
+        logger.info(f"/add command from user {user.id} (@{user.username})")
 
     # Check authentication
     if not SessionManager.is_authenticated(context):
-        await update.message.reply_text(
-            "❌ Требуется авторизация.\n\n"
-            "Используйте /start для входа в систему."
-        )
+        if update.callback_query:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text="❌ Требуется авторизация.\n\nИспользуйте /start для входа в систему."
+            )
+        else:
+            await update.message.reply_text(
+                "❌ Требуется авторизация.\n\n"
+                "Используйте /start для входа в систему."
+            )
         logger.warning(f"Unauthenticated /add attempt from user {user.id}")
         return ConversationHandler.END
 
@@ -107,18 +136,35 @@ async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         context.user_data.pop("_menu_loading_message_id", None)
 
     # Always create a new loading message (whether from menu or direct command)
-    loading_msg = await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text="⏳ Загружаю список категорий..."
-    )
+    try:
+        chat_id = update.effective_chat.id
+        logger.info(f"[ADD] About to create loading message, chat_id={chat_id}, update type={type(update).__name__}")
+        loading_msg = await context.bot.send_message(
+            chat_id=chat_id,
+            text="⏳ Загружаю список категорий..."
+        )
+        logger.info(f"[ADD] Created loading message: id={loading_msg.message_id}, chat={loading_msg.chat_id}, text={loading_msg.text[:30]}")
+    except Exception as e:
+        logger.error(f"[ADD] FAILED to create loading message: {e}", exc_info=True)
+        logger.error(f"[ADD] update.effective_chat = {update.effective_chat}")
+        logger.error(f"[ADD] update type = {type(update)}, update.__dict__ = {update.__dict__ if hasattr(update, '__dict__') else 'NO __dict__'}")
+        raise
 
     try:
         # Fetch articles from backend
         token = SessionManager.get_access_token(context)
         api_client = await get_api_client()
-        response = await api_client.list_articles(token, limit=1000)
+
+        # Initialize navigation path (empty = root level)
+        context.user_data[KEY_ARTICLE_NAVIGATION_PATH] = []
+
+        # Fetch only root articles (parent_id=None)
+        logger.info(f"[ADD] Fetching root articles for user {user.id}")
+        response = await api_client.get_articles(token, parent_id=None)
+        logger.info(f"[ADD] API response received, status: success")
 
         articles = response.get("articles", [])
+        logger.info(f"[ADD] Found {len(articles)} root articles")
 
         if not articles:
             await loading_msg.edit_text(
@@ -129,7 +175,9 @@ async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             return ConversationHandler.END
 
         # Build inline keyboard grouped by type (income/expense)
+        logger.info(f"[ADD] Building article keyboard")
         keyboard = build_article_keyboard(articles)
+        logger.info(f"[ADD] Keyboard built successfully, buttons count: {sum(len(row) for row in keyboard.inline_keyboard)}")
 
         # Clear previous conversation data
         context.user_data.pop(KEY_ARTICLE_ID, None)
@@ -140,14 +188,21 @@ async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         context.user_data.pop(KEY_DESCRIPTION, None)
 
         # Show article selection keyboard
-        await loading_msg.edit_text(
-            "💰 **Добавление транзакции**\n\n"
-            "📋 Шаг 1/4: Выберите категорию\n\n"
-            "Выберите категорию расхода или дохода:",
-            reply_markup=keyboard,
-            parse_mode="Markdown"
-        )
+        logger.info(f"[ADD] About to edit loading message {loading_msg.message_id} with article selection keyboard")
+        try:
+            await loading_msg.edit_text(
+                "💰 **Добавление транзакции**\n\n"
+                "📋 Шаг 1/4: Выберите категорию\n\n"
+                "Выберите категорию расхода или дохода:",
+                reply_markup=keyboard,
+                parse_mode="Markdown"
+            )
+            logger.info(f"[ADD] Successfully edited loading message {loading_msg.message_id} with article selection")
+        except Exception as edit_error:
+            logger.error(f"[ADD] FAILED to edit loading message: {edit_error}", exc_info=True)
+            raise
 
+        logger.info(f"[ADD] Returning state: SELECT_ARTICLE")
         return SELECT_ARTICLE
 
     except Exception as e:
@@ -267,6 +322,56 @@ async def article_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.answer("Выберите категорию из списка ниже", show_alert=False)
         return SELECT_ARTICLE
 
+    # Handle "Back" button
+    if callback_data == "back_to_parent":
+        nav_path = context.user_data.get(KEY_ARTICLE_NAVIGATION_PATH, [])
+
+        if not nav_path:
+            # Already at root level, show root articles
+            token = SessionManager.get_access_token(context)
+            api_client = await get_api_client()
+            response = await api_client.get_articles(token, parent_id=None)
+            articles = response.get("articles", [])
+        else:
+            # Remove last item from path
+            nav_path.pop()
+            context.user_data[KEY_ARTICLE_NAVIGATION_PATH] = nav_path
+
+            if not nav_path:
+                # Back to root
+                token = SessionManager.get_access_token(context)
+                api_client = await get_api_client()
+                response = await api_client.get_articles(token, parent_id=None)
+                articles = response.get("articles", [])
+            else:
+                # Back to parent
+                parent_id = nav_path[-1]["id"]
+                token = SessionManager.get_access_token(context)
+                api_client = await get_api_client()
+                response = await api_client.get_articles(token, parent_id=parent_id)
+                articles = response.get("articles", [])
+
+        keyboard = build_article_keyboard(articles)
+
+        # Add "Back" button if not at root
+        if nav_path:
+            keyboard.inline_keyboard.append([
+                InlineKeyboardButton("◀️ Назад", callback_data="back_to_parent")
+            ])
+
+        level_text = " → ".join([item["name"] for item in nav_path]) if nav_path else "Корневой уровень"
+
+        await query.edit_message_text(
+            f"💰 **Добавление транзакции**\n\n"
+            f"📋 Шаг 1/4: Выберите категорию\n\n"
+            f"Уровень: {level_text}\n\n"
+            f"Выберите категорию:",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+
+        return SELECT_ARTICLE
+
     # Parse article selection
     try:
         action, article_id = parse_article_callback(callback_data)
@@ -290,6 +395,52 @@ async def article_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         token = SessionManager.get_access_token(context)
         api_client = await get_api_client()
         article = await api_client.get_article(token, article_id)
+
+        # Check if article has children (subcategories)
+        has_children = await check_article_has_children(article_id, token)
+
+        if has_children:
+            # Article has children - show subcategories instead of proceeding to amount
+            logger.info(f"Article {article['name']} (ID: {article_id}) has children, showing subcategories")
+
+            # Add current article to navigation path
+            nav_path = context.user_data.get(KEY_ARTICLE_NAVIGATION_PATH, [])
+            nav_path.append({"id": article_id, "name": article["name"]})
+            context.user_data[KEY_ARTICLE_NAVIGATION_PATH] = nav_path
+
+            # Fetch child articles
+            response = await api_client.get_articles(token, parent_id=article_id)
+            children = response.get("articles", [])
+
+            if not children:
+                # No children found (should not happen if has_children=True)
+                await query.edit_message_text(
+                    f"❌ Категория '{article['name']}' не содержит подкатегорий.\n\n"
+                    f"Попробуйте еще раз: /add"
+                )
+                return ConversationHandler.END
+
+            # Build keyboard with children + "Back" button
+            keyboard = build_article_keyboard(children)
+
+            # Add "Back" button
+            keyboard.inline_keyboard.append([
+                InlineKeyboardButton("◀️ Назад", callback_data=f"back_to_parent")
+            ])
+
+            await query.edit_message_text(
+                f"💰 **Добавление транзакции**\n\n"
+                f"📋 Шаг 1/4: Выберите подкатегорию\n\n"
+                f"Категория: **{article['name']}**\n\n"
+                f"Выберите подкатегорию:",
+                reply_markup=keyboard,
+                parse_mode="Markdown"
+            )
+
+            return SELECT_ARTICLE  # Stay in SELECT_ARTICLE state for next selection
+
+        # No children - this is a leaf node, proceed to amount input
+        logger.info(f"Article {article['name']} (ID: {article_id}) is a leaf node, proceeding to amount")
 
         # Store article info in context
         context.user_data[KEY_ARTICLE_ID] = article["id"]
@@ -1098,7 +1249,10 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 # Build ConversationHandler
 add_conversation_handler = ConversationHandler(
-    entry_points=[CommandHandler("add", add_command)],
+    entry_points=[
+        CommandHandler("add", add_command),
+        CallbackQueryHandler(add_command, pattern="^menu:add$")
+    ],
     states={
         SELECT_ARTICLE: [
             CallbackQueryHandler(article_selected)

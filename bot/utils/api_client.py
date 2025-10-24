@@ -326,7 +326,8 @@ class APIClient:
     async def get_articles(
         self,
         token: str,
-        article_type: Optional[str] = None
+        article_type: Optional[str] = None,
+        parent_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Get user's articles (categories).
@@ -334,6 +335,7 @@ class APIClient:
         Args:
             token: JWT access token
             article_type: Filter by type ('income' or 'expense')
+            parent_id: Filter by parent article ID (None for root articles)
 
         Returns:
             Dict containing articles data
@@ -345,6 +347,8 @@ class APIClient:
             params = {}
             if article_type:
                 params["type"] = article_type
+            if parent_id is not None:
+                params["parent_id"] = parent_id
 
             response = await self.client.get(
                 "/articles",
