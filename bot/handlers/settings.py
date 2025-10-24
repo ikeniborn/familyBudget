@@ -395,5 +395,5 @@ settings_conversation_handler = ConversationHandler(
     fallbacks=[CommandHandler("cancel", cancel_settings)],
     name="settings_conversation",
     persistent=False,
-    per_message=True,  # Track conversation state per message for CallbackQueryHandler
+    # per_message defaults to False, which is correct for CommandHandler entry points
 )
