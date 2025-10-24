@@ -14,7 +14,8 @@
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                 <h2 class="card-title text-2xl">📊 Категории</h2>
                 <div class="flex flex-wrap gap-2">
-                    <button class="btn btn-sm btn-primary" id="filter-income" onclick="toggleTypeFilter('income')">💰 Доходы</button>
+                    <button class="btn btn-sm btn-primary" id="filter-all" onclick="toggleTypeFilter('all')">📋 Все</button>
+                    <button class="btn btn-sm btn-outline" id="filter-income" onclick="toggleTypeFilter('income')">💰 Доходы</button>
                     <button class="btn btn-sm btn-outline" id="filter-expense" onclick="toggleTypeFilter('expense')">💸 Расходы</button>
                     <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -114,7 +115,7 @@
 {% block extra_scripts %}
 <script>
 // Global state
-let currentType = 'income';
+let currentType = 'all';
 let articlesData = [];
 
 // Load articles on page load
@@ -122,12 +123,12 @@ document.addEventListener('DOMContentLoaded', function() {
     loadArticles();
 });
 
-// Toggle type filter (income/expense)
+// Toggle type filter (all/income/expense)
 function toggleTypeFilter(type) {
     currentType = type;
 
     // Update active button (DaisyUI)
-    document.querySelectorAll('#filter-income, #filter-expense').forEach(btn => {
+    document.querySelectorAll('#filter-all, #filter-income, #filter-expense').forEach(btn => {
         btn.classList.remove('btn-primary');
         btn.classList.add('btn-outline');
     });
@@ -165,8 +166,10 @@ async function loadArticles() {
 function renderArticlesTable(articles) {
     const container = document.getElementById('articles-table-container');
 
-    // Filter by current type
-    const filtered = articles.filter(a => a.type === currentType);
+    // Filter by current type (all/income/expense)
+    const filtered = currentType === 'all'
+        ? articles
+        : articles.filter(a => a.type === currentType);
 
     if (filtered.length === 0) {
         container.innerHTML = '<div class="text-center py-8 text-base-content/60">📝 Категории не найдены. Нажмите "➕ Новая категория" для создания.</div>';
