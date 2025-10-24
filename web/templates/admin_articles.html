@@ -183,7 +183,6 @@ function renderArticlesTable(articles) {
                     <tr>
                         <th>📝 Название</th>
                         <th>🏷️ Тип</th>
-                        <th>🌍 Область</th>
                         <th>👤 Владелец</th>
                         <th>⚙️ Действия</th>
                     </tr>
@@ -232,9 +231,6 @@ function renderTreeNodes(nodes, level) {
     nodes.forEach(node => {
         const indent = '&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(level);
         const prefix = level > 0 ? '↳ ' : '';
-        const scopeLabel = node.is_global
-            ? '<span class="badge badge-success gap-1">🌍 Глобальная</span>'
-            : '<span class="badge badge-info gap-1">👤 Личная</span>';
         const ownerLabel = node.user_name || '—';
         const typeLabel = node.type === 'income' ? '💰 Доход' : '💸 Расход';
         const typeBadge = node.type === 'income'
@@ -245,7 +241,6 @@ function renderTreeNodes(nodes, level) {
             <tr data-article-id="${node.id}">
                 <td class="font-medium">${indent}${prefix}${node.name}</td>
                 <td>${typeBadge}</td>
-                <td>${scopeLabel}</td>
                 <td>${ownerLabel}</td>
                 <td>
                     <div class="flex gap-1">

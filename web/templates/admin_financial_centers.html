@@ -43,15 +43,6 @@
             </div>
             <div class="form-control">
                 <label class="label">
-                    <span class="label-text">🏷️ Код</span>
-                </label>
-                <input type="text" id="create-code" name="code" maxlength="50" placeholder="Например: SBER_CURR" class="input input-bordered" />
-                <label class="label">
-                    <span class="label-text-alt">Только буквы, цифры и подчеркивания. Автоматически в верхнем регистре.</span>
-                </label>
-            </div>
-            <div class="form-control">
-                <label class="label">
                     <span class="label-text">📄 Описание</span>
                 </label>
                 <textarea id="create-description" name="description" rows="3" placeholder="Введите описание..." class="textarea textarea-bordered"></textarea>
@@ -78,15 +69,6 @@
                     <span class="label-text">📝 Название*</span>
                 </label>
                 <input type="text" id="edit-name" name="name" required maxlength="255" class="input input-bordered" />
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">🏷️ Код</span>
-                </label>
-                <input type="text" id="edit-code" name="code" maxlength="50" class="input input-bordered" />
-                <label class="label">
-                    <span class="label-text-alt">Только буквы, цифры и подчеркивания. Автоматически в верхнем регистре.</span>
-                </label>
             </div>
             <div class="form-control">
                 <label class="label">
@@ -159,9 +141,7 @@ function renderCentersTable(centers) {
                 <thead>
                     <tr>
                         <th>📝 Название</th>
-                        <th>🏷️ Код</th>
                         <th>📄 Описание</th>
-                        <th>🌍 Область</th>
                         <th>📅 Создан</th>
                         <th>⚙️ Действия</th>
                     </tr>
@@ -170,19 +150,13 @@ function renderCentersTable(centers) {
     `;
 
     centers.forEach(center => {
-        const scopeLabel = center.is_global
-            ? '<span class="badge badge-success gap-1">🌍 Глобальный</span>'
-            : '<span class="badge badge-info gap-1">👤 Личный</span>';
-        const code = center.code || '—';
         const description = center.description || '—';
         const validFrom = new Date(center.valid_from).toLocaleDateString('ru-RU');
 
         html += `
             <tr data-center-id="${center.id}">
                 <td class="font-medium">${center.name}</td>
-                <td><code class="badge badge-ghost">${code}</code></td>
                 <td>${description}</td>
-                <td>${scopeLabel}</td>
                 <td>${validFrom}</td>
                 <td>
                     <div class="flex gap-1">
@@ -221,9 +195,7 @@ async function createCenter(event) {
     const formData = new FormData(event.target);
     const data = {
         name: formData.get('name'),
-        code: formData.get('code') || null,
-        description: formData.get('description') || null,
-        is_global: true  // All financial centers are now global by default
+        description: formData.get('description') || null
     };
 
     try {
@@ -258,7 +230,6 @@ function showEditModal(centerId) {
 
     document.getElementById('edit-id').value = center.id;
     document.getElementById('edit-name').value = center.name;
-    document.getElementById('edit-code').value = center.code || '';
     document.getElementById('edit-description').value = center.description || '';
 
     document.getElementById('edit-modal').showModal();
@@ -278,7 +249,6 @@ async function updateCenter(event) {
     const centerId = formData.get('id');
     const data = {
         name: formData.get('name'),
-        code: formData.get('code') || null,
         description: formData.get('description') || null
     };
 
