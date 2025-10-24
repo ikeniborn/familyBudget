@@ -268,6 +268,10 @@ async def update_article(
     - 404 Not Found: Article not found
     - 400 Bad Request: No fields provided for update
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"[UPDATE_ARTICLE] ENTRY: article_id={article_id}")
+
     # Validate: At least one field provided
     update_data = article_data.model_dump(exclude_unset=True)
     if not update_data:
@@ -317,17 +321,25 @@ async def update_article(
 
     # Check if any fields actually changed
     changed, changed_fields = has_changes(old_article, update_data)
+
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"[ARTICLE UPDATE] article_id={article_id}, changed={changed}, changed_fields={changed_fields}, update_data={update_data}")
+
     if not changed:
         # No changes, return existing article
+        logger.info(f"[ARTICLE UPDATE] No changes detected, returning old article")
         return old_article
 
     # Create new version using SCD2 service
+    logger.info(f"[ARTICLE UPDATE] Calling create_new_version for article_id={article_id}")
     new_article = await create_new_version(
         session=session,
         old_instance=old_article,
         updates=update_data,
         changed_fields=changed_fields,
     )
+    logger.info(f"[ARTICLE UPDATE] Created new version: old_id={article_id}, new_id={new_article.id}")
 
     return new_article
 

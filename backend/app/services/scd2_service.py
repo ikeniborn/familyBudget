@@ -88,6 +88,9 @@ async def create_new_version(
     # Get current timestamp
     now = datetime.utcnow()
 
+    # Save old instance ID before any modifications (for Article children update)
+    old_instance_id = old_instance.id
+
     # Step 1: Close old version
     old_instance.is_current = False
     old_instance.valid_to = now
@@ -121,6 +124,37 @@ async def create_new_version(
     session.add(new_instance)
     await session.commit()
     await session.refresh(new_instance)
+
+    # Step 5: For Article model - redirect children to new parent version
+    # This maintains parent-child relationships across SCD Type 2 versioning
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"[SCD2] After commit: instance type={type(new_instance).__name__}, is Article? {isinstance(new_instance, Article)}")
+
+    if isinstance(new_instance, Article):
+        # Update parent_id for all direct children pointing to old version
+        from sqlmodel import update
+
+        # Debug log
+        logger.info(f"[SCD2] Processing article version: old_id={old_instance_id}, new_id={new_instance.id}")
+
+        update_stmt = (
+            update(Article)
+            .where(
+                Article.parent_id == old_instance_id,  # Use saved ID
+                Article.is_current == True  # noqa: E712
+            )
+            .values(
+                parent_id=new_instance.id,
+                updated_at=datetime.utcnow()
+            )
+        )
+        result = await session.execute(update_stmt)
+        await session.commit()
+
+        # Log result
+        children_updated = result.rowcount
+        logger.info(f"[SCD2] Redirected {children_updated} children from article {old_instance_id} to {new_instance.id}")
 
     return new_instance
 

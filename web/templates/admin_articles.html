@@ -121,6 +121,12 @@ let articlesData = [];
 // Load articles on page load
 document.addEventListener('DOMContentLoaded', function() {
     loadArticles();
+
+    // Добавляем обработчик изменения типа в модальном окне создания
+    // для динамического обновления списка родительских статей
+    document.getElementById('create-type').addEventListener('change', function() {
+        populateParentSelect('create-parent', this.value);
+    });
 });
 
 // Toggle type filter (all/income/expense)
@@ -266,8 +272,10 @@ function renderTreeNodes(nodes, level) {
 // Show create modal
 function showCreateModal() {
     document.getElementById('create-modal').showModal();
-    document.getElementById('create-type').value = currentType;
-    populateParentSelect('create-parent', currentType);
+    // Устанавливаем тип на основе фильтра, если он не 'all'
+    const initialType = currentType !== 'all' ? currentType : 'expense';
+    document.getElementById('create-type').value = initialType;
+    populateParentSelect('create-parent', initialType);
 }
 
 // Close create modal

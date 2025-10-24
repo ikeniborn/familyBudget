@@ -469,7 +469,7 @@ async def update_article(
         HTTPException: 404 if article not found
         HTTPException: 400 if parent_id invalid or creates circular reference
     """
-    from datetime import datetime
+    from backend.app.services.scd2_service import create_new_version, has_changes
 
     # Get current article version
     query = select(Article).where(
@@ -482,11 +482,18 @@ async def update_article(
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
 
+    # Prepare update data
+    updates = {}
+    if update_data.name is not None:
+        updates["name"] = update_data.name
+    if update_data.parent_id is not None:
+        updates["parent_id"] = update_data.parent_id
+
     # Validate parent_id if changing
-    if update_data.parent_id is not None and update_data.parent_id != article.parent_id:
+    if "parent_id" in updates and updates["parent_id"] != article.parent_id:
         # Check parent exists
         parent_query = select(Article).where(
-            Article.id == update_data.parent_id,
+            Article.id == updates["parent_id"],
             Article.is_current == True  # noqa: E712
         )
         parent_result = await session.execute(parent_query)
@@ -496,27 +503,31 @@ async def update_article(
             raise HTTPException(status_code=400, detail="Parent article not found")
 
         # Cannot set self as parent
-        if update_data.parent_id == article_id:
+        if updates["parent_id"] == article_id:
             raise HTTPException(status_code=400, detail="Cannot set article as its own parent")
 
-    # Close old record
-    article.valid_to = datetime.utcnow()
-    article.is_current = False
-    session.add(article)
+    # Check if anything changed
+    changed, changed_fields = has_changes(article, updates)
+    if not changed:
+        # No changes, return existing article
+        return ArticleResponse(
+            id=article.id,
+            user_id=article.user_id,
+            parent_id=article.parent_id,
+            name=article.name,
+            type=article.type,
+            valid_from=article.valid_from,
+            valid_to=article.valid_to,
+            is_current=article.is_current
+        )
 
-    # Create new record
-    new_article = Article(
-        user_id=article.user_id,
-        parent_id=update_data.parent_id if update_data.parent_id is not None else article.parent_id,
-        name=update_data.name if update_data.name is not None else article.name,
-        type=article.type,  # Type cannot be changed
-        valid_from=datetime.utcnow(),
-        valid_to=None,
-        is_current=True
+    # Use SCD2Service to create new version (includes automatic child redirection)
+    new_article = await create_new_version(
+        session=session,
+        old_instance=article,
+        updates=updates,
+        changed_fields=changed_fields
     )
-    session.add(new_article)
-    await session.commit()
-    await session.refresh(new_article)
 
     return ArticleResponse(
         id=new_article.id,

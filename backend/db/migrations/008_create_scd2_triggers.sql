@@ -95,6 +95,9 @@ COMMENT ON FUNCTION trg_scd2_user() IS
 
 CREATE OR REPLACE FUNCTION trg_scd2_article()
 RETURNS TRIGGER AS $$
+DECLARE
+    new_article_id INT;
+    children_updated INT;
 BEGIN
     -- Only process if this is the current record
     IF OLD.is_current = FALSE THEN
@@ -102,28 +105,26 @@ BEGIN
     END IF;
 
     -- Check if any tracked business attributes changed
-    -- Tracked: name, type, code, is_global
+    -- Tracked: name, type
     -- Not tracked: parent_id (handled by hierarchy triggers), SCD2 fields, audit fields
+    -- Note: code and is_global fields were removed in migration 014
     IF (OLD.name IS DISTINCT FROM NEW.name)
        OR (OLD.type IS DISTINCT FROM NEW.type)
-       OR (OLD.code IS DISTINCT FROM NEW.code)
-       OR (OLD.is_global IS DISTINCT FROM NEW.is_global)
     THEN
         -- Step 1: Close current version
+        -- Use clock_timestamp() to ensure valid_from < valid_to constraint
         UPDATE t_d_article
         SET is_current = FALSE,
-            valid_to = NOW(),
-            updated_at = NOW()
+            valid_to = clock_timestamp(),
+            updated_at = clock_timestamp()
         WHERE id = OLD.id;
 
         -- Step 2: Insert new version
         INSERT INTO t_d_article (
             user_id,
             parent_id,
-            code,
             name,
             type,
-            is_global,
             valid_from,
             valid_to,
             is_current,
@@ -132,29 +133,44 @@ BEGIN
         ) VALUES (
             NEW.user_id,
             NEW.parent_id,
-            NEW.code,
             NEW.name,
             NEW.type,
-            NEW.is_global,
-            NOW(),
+            clock_timestamp(),
             '9999-12-31 23:59:59'::TIMESTAMP,
             TRUE,
             NOW(),
-            NOW()
-        );
+            clock_timestamp()
+        )
+        RETURNING id INTO new_article_id;
+
+        -- Step 3: Update parent_id for all direct children
+        -- When parent is versioned (new ID), redirect children to new version
+        -- This maintains parent-child relationships across SCD Type 2 versioning
+        UPDATE t_d_article
+        SET parent_id = new_article_id,
+            updated_at = clock_timestamp()
+        WHERE parent_id = OLD.id
+          AND is_current = TRUE;
+
+        -- Get count of updated children (for logging)
+        GET DIAGNOSTICS children_updated = ROW_COUNT;
+
+        -- Log the version creation (useful for debugging)
+        RAISE NOTICE 'Created new article version: old_id=%, new_id=%, updated % children',
+            OLD.id, new_article_id, children_updated;
 
         -- Prevent the original UPDATE from executing
         RETURN NULL;
     ELSE
         -- No tracked attributes changed, allow update
-        NEW.updated_at := NOW();
+        NEW.updated_at := clock_timestamp();
         RETURN NEW;
     END IF;
 END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION trg_scd2_article() IS
-    'SCD Type 2 trigger for t_d_article. Tracks changes to: name, type, code, is_global. parent_id changes handled by hierarchy triggers.';
+    'SCD Type 2 trigger for t_d_article. Tracks changes to: name, type. parent_id changes handled by hierarchy triggers. Children automatically follow parent to new version.';
 
 -- ============================================================================
 -- TRIGGER FUNCTION: SCD2 for t_d_financial_center
