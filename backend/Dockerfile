@@ -58,6 +58,7 @@ WORKDIR $APP_HOME
 # Copy application code
 COPY --chown=appuser:appuser backend/ $APP_HOME/backend/
 COPY --chown=appuser:appuser web/ $APP_HOME/web/
+COPY --chown=appuser:appuser bot/webapp/ $APP_HOME/bot/webapp/
 
 # Create directories for logs and uploads
 RUN mkdir -p $APP_HOME/logs $APP_HOME/uploads && \
