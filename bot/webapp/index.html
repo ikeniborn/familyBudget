@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Family Budget</title>
+
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/webapp/static/css/telegram-theme.css">
+    <link rel="stylesheet" href="/webapp/static/css/app.css">
+    <link rel="stylesheet" href="/webapp/static/css/forms.css">
+
+    <style>
+        /* Main menu specific styles */
+        .menu-header {
+            text-align: center;
+            padding: 24px 0;
+            border-bottom: 1px solid var(--tg-theme-section-separator-color);
+            margin-bottom: 24px;
+        }
+
+        .menu-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--tg-theme-text-color);
+            margin-bottom: 8px;
+        }
+
+        .menu-subtitle {
+            font-size: 14px;
+            color: var(--tg-theme-hint-color);
+        }
+
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .menu-item {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--tg-theme-bg-color);
+            border: 1px solid var(--tg-theme-section-separator-color);
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .menu-item:active {
+            background-color: var(--tg-theme-secondary-bg-color);
+            transform: scale(0.95);
+        }
+
+        .menu-item-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .menu-item-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--tg-theme-text-color);
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        .menu-item.primary {
+            background: linear-gradient(135deg, var(--tg-theme-button-color), var(--tg-theme-link-color));
+            border: none;
+        }
+
+        .menu-item.primary .menu-item-icon,
+        .menu-item.primary .menu-item-label {
+            color: var(--tg-theme-button-text-color);
+        }
+
+        .quick-stats {
+            background-color: var(--tg-theme-secondary-bg-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .quick-stats-title {
+            font-size: 14px;
+            color: var(--tg-theme-hint-color);
+            margin-bottom: 12px;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--tg-theme-section-separator-color);
+        }
+
+        .stats-row:last-child {
+            border-bottom: none;
+        }
+
+        .stats-label {
+            font-size: 14px;
+            color: var(--tg-theme-text-color);
+        }
+
+        .stats-value {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .stats-value.income {
+            color: #34c759;
+        }
+
+        .stats-value.expense {
+            color: var(--tg-theme-destructive-text-color);
+        }
+
+        .stats-value.balance {
+            color: var(--tg-theme-link-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="menu-header">
+            <div class="menu-title">💰 Family Budget</div>
+            <div class="menu-subtitle" id="user-greeting">Добро пожаловать!</div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="quick-stats" id="quick-stats" style="display: none;">
+            <div class="quick-stats-title">Сегодня</div>
+            <div class="stats-row">
+                <span class="stats-label">Доходы</span>
+                <span class="stats-value income" id="today-income">+0.00 ₽</span>
+            </div>
+            <div class="stats-row">
+                <span class="stats-label">Расходы</span>
+                <span class="stats-value expense" id="today-expense">-0.00 ₽</span>
+            </div>
+            <div class="stats-row">
+                <span class="stats-label">Баланс</span>
+                <span class="stats-value balance" id="today-balance">0.00 ₽</span>
+            </div>
+        </div>
+
+        <!-- Menu Grid (3x3 for Phase 3) -->
+        <div class="menu-grid">
+            <!-- Primary action: Add transaction -->
+            <a href="/webapp/add.html" class="menu-item primary">
+                <div class="menu-item-icon">➕</div>
+                <div class="menu-item-label">Добавить</div>
+            </a>
+
+            <!-- Today's transactions -->
+            <a href="/webapp/today.html" class="menu-item">
+                <div class="menu-item-icon">📅</div>
+                <div class="menu-item-label">Сегодня</div>
+            </a>
+
+            <!-- List all transactions -->
+            <a href="/webapp/list.html" class="menu-item">
+                <div class="menu-item-icon">📋</div>
+                <div class="menu-item-label">Список</div>
+            </a>
+
+            <!-- Statistics -->
+            <a href="/webapp/stats.html" class="menu-item">
+                <div class="menu-item-icon">📊</div>
+                <div class="menu-item-label">Статистика</div>
+            </a>
+
+            <!-- Add Plan -->
+            <a href="/webapp/addplan.html" class="menu-item">
+                <div class="menu-item-icon">📝</div>
+                <div class="menu-item-label">План</div>
+            </a>
+
+            <!-- Summary -->
+            <a href="/webapp/summary.html" class="menu-item">
+                <div class="menu-item-icon">📊</div>
+                <div class="menu-item-label">Сводка</div>
+            </a>
+
+            <!-- Search -->
+            <a href="/webapp/search.html" class="menu-item">
+                <div class="menu-item-icon">🔍</div>
+                <div class="menu-item-label">Поиск</div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Core JS modules -->
+    <script src="/webapp/static/js/storage.js"></script>
+    <script src="/webapp/static/js/theme.js"></script>
+    <script src="/webapp/static/js/validators.js"></script>
+    <script src="/webapp/static/js/ui.js"></script>
+    <script src="/webapp/static/js/auth.js"></script>
+    <script src="/webapp/static/js/api.js"></script>
+    <script src="/webapp/static/js/app.js"></script>
+
+    <script>
+        // Page-specific initialization
+        window.pageInit = async function(app) {
+            console.log('Main menu page init');
+
+            // Update user greeting
+            const user = app.auth.getUser();
+            if (user) {
+                const greeting = user.first_name
+                    ? `Привет, ${user.first_name}!`
+                    : 'Добро пожаловать!';
+                document.getElementById('user-greeting').textContent = greeting;
+            }
+
+            // Load today's quick stats
+            await loadQuickStats(app);
+
+            // Add haptic feedback to menu items
+            const menuItems = document.querySelectorAll('.menu-item');
+            menuItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    app.ui.hapticLight();
+                });
+            });
+
+            console.log('Main menu ready');
+        };
+
+        async function loadQuickStats(app) {
+            try {
+                // Get today's date range
+                const today = new Date();
+                const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                const todayEnd = new Date(todayStart);
+                todayEnd.setDate(todayEnd.getDate() + 1);
+
+                // Format dates for API
+                const dateFrom = todayStart.toISOString().split('T')[0];
+                const dateTo = todayEnd.toISOString().split('T')[0];
+
+                // Fetch today's facts
+                const result = await app.api.listFacts({
+                    date_from: dateFrom,
+                    date_to: dateTo,
+                    limit: 1000
+                });
+
+                const facts = result.facts || [];
+
+                if (facts.length > 0) {
+                    // Calculate summary
+                    let income = 0;
+                    let expense = 0;
+
+                    facts.forEach(fact => {
+                        if (fact.amount > 0) {
+                            income += fact.amount;
+                        } else {
+                            expense += Math.abs(fact.amount);
+                        }
+                    });
+
+                    const balance = income - expense;
+
+                    // Update display
+                    document.getElementById('today-income').textContent = `+${app.ui.formatAmount(income)} ₽`;
+                    document.getElementById('today-expense').textContent = `-${app.ui.formatAmount(expense)} ₽`;
+
+                    const balanceElement = document.getElementById('today-balance');
+                    const sign = balance >= 0 ? '+' : '-';
+                    balanceElement.textContent = `${sign}${app.ui.formatAmount(Math.abs(balance))} ₽`;
+
+                    // Show stats
+                    document.getElementById('quick-stats').style.display = 'block';
+                }
+
+            } catch (error) {
+                console.error('Failed to load quick stats:', error);
+                // Don't show stats if loading failed
+            }
+        }
+    </script>
+</body>
+</html>

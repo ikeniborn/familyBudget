@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>>1028BL ?;0= - Family Budget</title>
+
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/webapp/static/css/telegram-theme.css">
+    <link rel="stylesheet" href="/webapp/static/css/app.css">
+    <link rel="stylesheet" href="/webapp/static/css/forms.css">
+
+    <style>
+        /* Add plan specific styles */
+        .page-header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--tg-theme-section-separator-color);
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--tg-theme-text-color);
+        }
+
+        .amount-input-wrapper {
+            position: relative;
+            margin-bottom: 24px;
+        }
+
+        .amount-input {
+            width: 100%;
+            font-size: 32px;
+            font-weight: 700;
+            text-align: center;
+            padding: 16px;
+            border: 2px solid var(--tg-theme-link-color);
+            border-radius: 12px;
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-link-color);
+        }
+
+        .amount-input:focus {
+            outline: none;
+            border-color: var(--tg-theme-button-color);
+        }
+
+        .currency-label {
+            position: absolute;
+            right: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 20px;
+            color: var(--tg-theme-hint-color);
+            pointer-events: none;
+        }
+
+        .category-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--tg-theme-section-separator-color);
+            border-radius: 12px;
+            background-color: var(--tg-theme-bg-color);
+        }
+
+        .category-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--tg-theme-section-separator-color);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .category-item:last-child {
+            border-bottom: none;
+        }
+
+        .category-item:active {
+            background-color: var(--tg-theme-secondary-bg-color);
+        }
+
+        .category-item.selected {
+            background-color: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+        }
+
+        .category-item-name {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .category-loading {
+            padding: 16px;
+            text-align: center;
+            color: var(--tg-theme-hint-color);
+        }
+
+        .quick-amount-buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .quick-amount-btn {
+            padding: 8px;
+            font-size: 14px;
+            background-color: var(--tg-theme-secondary-bg-color);
+            border: 1px solid var(--tg-theme-section-separator-color);
+            border-radius: 8px;
+            color: var(--tg-theme-text-color);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-amount-btn:active {
+            background-color: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+        }
+
+        /* Period selector */
+        .period-selector {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .period-btn {
+            padding: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 8px;
+            border: 1px solid var(--tg-theme-section-separator-color);
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .period-btn.active {
+            background-color: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            border-color: var(--tg-theme-button-color);
+        }
+
+        .period-btn:active {
+            opacity: 0.8;
+        }
+
+        /* Custom period section */
+        .custom-period-section {
+            display: none;
+            margin-top: 16px;
+        }
+
+        .custom-period-section.active {
+            display: block;
+        }
+
+        .date-range-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .date-range-row input {
+            flex: 1;
+        }
+
+        .date-range-separator {
+            color: var(--tg-theme-hint-color);
+            font-size: 14px;
+        }
+
+        /* Recurring checkbox */
+        .recurring-option {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+        }
+
+        .recurring-checkbox {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            cursor: pointer;
+        }
+
+        .recurring-label {
+            font-size: 14px;
+            color: var(--tg-theme-text-color);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="page-title">=Ý >1028BL ?;0=</div>
+        </div>
+
+        <!-- Quick Amount Buttons -->
+        <div class="form-group">
+            <label class="form-label">KAB@K9 2K1>@ AC<<K</label>
+            <div class="quick-amount-buttons">
+                <button type="button" class="quick-amount-btn" data-amount="5000">5000 ½</button>
+                <button type="button" class="quick-amount-btn" data-amount="10000">10k ½</button>
+                <button type="button" class="quick-amount-btn" data-amount="20000">20k ½</button>
+                <button type="button" class="quick-amount-btn" data-amount="50000">50k ½</button>
+            </div>
+        </div>
+
+        <!-- Amount Input -->
+        <div class="form-group">
+            <label class="form-label form-label-required">;0=>20O AC<<0</label>
+            <div class="amount-input-wrapper">
+                <input
+                    type="number"
+                    id="amount"
+                    class="amount-input"
+                    placeholder="0.00"
+                    step="0.01"
+                    min="0.01"
+                    max="9999999.99"
+                    inputmode="decimal"
+                    required
+                >
+                <span class="currency-label">½</span>
+            </div>
+            <span class="error-message" id="amount-error"></span>
+        </div>
+
+        <!-- Category Select -->
+        <div class="form-group">
+            <label class="form-label form-label-required">0B53>@8O</label>
+            <div class="category-list" id="category-list">
+                <div class="category-loading">03@C7:0 :0B53>@89...</div>
+            </div>
+            <span class="error-message" id="category-error"></span>
+        </div>
+
+        <!-- Period Selector -->
+        <div class="form-group">
+            <label class="form-label form-label-required">5@8>4 ?;0=8@>20=8O</label>
+            <div class="period-selector">
+                <button class="period-btn active" data-period="month">5AOF</button>
+                <button class="period-btn" data-period="quarter">20@B0;</button>
+                <button class="period-btn" data-period="year">>4</button>
+                <button class="period-btn" data-period="custom">!2>9</button>
+            </div>
+
+            <!-- Custom Period Section -->
+            <div class="custom-period-section" id="custom-period-section">
+                <div class="date-range-row">
+                    <input type="date" id="period-start" class="form-input" placeholder="B">
+                    <span class="date-range-separator"></span>
+                    <input type="date" id="period-end" class="form-input" placeholder=">">
+                </div>
+            </div>
+
+            <span class="error-message" id="period-error"></span>
+        </div>
+
+        <!-- Description (optional) -->
+        <div class="form-group">
+            <label class="form-label">?8A0=85 (=5>1O70B5;L=>)</label>
+            <textarea
+                id="description"
+                class="form-textarea"
+                placeholder="><<5=B0@89 : ?;0=C..."
+                maxlength="200"
+                rows="3"
+            ></textarea>
+            <span class="char-counter" id="description-counter">0 / 200</span>
+        </div>
+
+        <!-- Recurring Option -->
+        <div class="form-group">
+            <div class="recurring-option">
+                <input type="checkbox" id="recurring" class="recurring-checkbox">
+                <label for="recurring" class="recurring-label">
+                    !>74020BL 02B><0B8G5A:8 :064K9 ?5@8>4
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core JS modules -->
+    <script src="/webapp/static/js/storage.js"></script>
+    <script src="/webapp/static/js/theme.js"></script>
+    <script src="/webapp/static/js/validators.js"></script>
+    <script src="/webapp/static/js/ui.js"></script>
+    <script src="/webapp/static/js/auth.js"></script>
+    <script src="/webapp/static/js/api.js"></script>
+    <script src="/webapp/static/js/app.js"></script>
+
+    <script>
+        let formState = {
+            amount: null,
+            categoryId: null,
+            description: '',
+            period: 'month',
+            periodStart: null,
+            periodEnd: null,
+            recurring: false
+        };
+
+        let categories = [];
+        let app = null;
+
+        // Page-specific initialization
+        window.pageInit = async function(budgetApp) {
+            console.log('Add plan page init');
+            app = budgetApp;
+
+            // Setup quick amount buttons
+            setupQuickAmountButtons();
+
+            // Setup amount input
+            setupAmountInput();
+
+            // Setup description counter
+            setupDescriptionCounter();
+
+            // Setup period selector
+            setupPeriodSelector();
+
+            // Setup recurring checkbox
+            setupRecurringCheckbox();
+
+            // Setup date inputs for current period
+            updatePeriodDates();
+
+            // Load categories
+            await loadCategories();
+
+            // Setup MainButton for save
+            setupMainButton();
+
+            // Setup BackButton
+            app.setupBackButton(() => {
+                app.tg.close();
+            });
+
+            console.log('Add plan page ready');
+        };
+
+        function setupQuickAmountButtons() {
+            const buttons = document.querySelectorAll('.quick-amount-btn');
+
+            buttons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const amount = parseFloat(button.dataset.amount);
+                    document.getElementById('amount').value = amount.toFixed(2);
+                    formState.amount = amount;
+                    app.ui.hapticLight();
+                });
+            });
+        }
+
+        function setupAmountInput() {
+            const amountInput = document.getElementById('amount');
+
+            amountInput.addEventListener('input', () => {
+                const value = parseFloat(amountInput.value);
+                formState.amount = isNaN(value) ? null : value;
+
+                // Clear error on input
+                document.getElementById('amount-error').textContent = '';
+                amountInput.classList.remove('input-error');
+            });
+        }
+
+        function setupDescriptionCounter() {
+            const textarea = document.getElementById('description');
+            const counter = document.getElementById('description-counter');
+
+            textarea.addEventListener('input', () => {
+                const length = textarea.value.length;
+                counter.textContent = `${length} / 200`;
+
+                if (length > 200) {
+                    counter.classList.add('over-limit');
+                } else {
+                    counter.classList.remove('over-limit');
+                }
+
+                formState.description = textarea.value;
+            });
+        }
+
+        function setupPeriodSelector() {
+            const buttons = document.querySelectorAll('.period-btn');
+            const customSection = document.getElementById('custom-period-section');
+
+            buttons.forEach(button => {
+                button.addEventListener('click', () => {
+                    // Update active state
+                    buttons.forEach(b => b.classList.remove('active'));
+                    button.classList.add('active');
+
+                    // Update form state
+                    formState.period = button.dataset.period;
+
+                    // Show/hide custom period section
+                    if (formState.period === 'custom') {
+                        customSection.classList.add('active');
+                    } else {
+                        customSection.classList.remove('active');
+                        updatePeriodDates();
+                    }
+
+                    // Haptic feedback
+                    app.ui.hapticLight();
+                });
+            });
+
+            // Setup custom date inputs
+            document.getElementById('period-start').addEventListener('change', (e) => {
+                formState.periodStart = e.target.value;
+            });
+
+            document.getElementById('period-end').addEventListener('change', (e) => {
+                formState.periodEnd = e.target.value;
+            });
+        }
+
+        function setupRecurringCheckbox() {
+            const checkbox = document.getElementById('recurring');
+
+            checkbox.addEventListener('change', () => {
+                formState.recurring = checkbox.checked;
+                app.ui.hapticLight();
+            });
+        }
+
+        function updatePeriodDates() {
+            const now = new Date();
+            let startDate, endDate;
+
+            switch (formState.period) {
+                case 'month':
+                    // Current month
+                    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                    break;
+
+                case 'quarter':
+                    // Current quarter
+                    const quarter = Math.floor(now.getMonth() / 3);
+                    startDate = new Date(now.getFullYear(), quarter * 3, 1);
+                    endDate = new Date(now.getFullYear(), quarter * 3 + 3, 0);
+                    break;
+
+                case 'year':
+                    // Current year
+                    startDate = new Date(now.getFullYear(), 0, 1);
+                    endDate = new Date(now.getFullYear(), 11, 31);
+                    break;
+
+                default:
+                    return; // custom period
+            }
+
+            formState.periodStart = startDate.toISOString().split('T')[0];
+            formState.periodEnd = endDate.toISOString().split('T')[0];
+        }
+
+        async function loadCategories() {
+            const categoryList = document.getElementById('category-list');
+            categoryList.innerHTML = '<div class="category-loading">03@C7:0 :0B53>@89...</div>';
+
+            try {
+                const result = await app.api.listArticles({
+                    is_current: true
+                });
+                categories = result.articles || [];
+
+                if (categories.length === 0) {
+                    categoryList.innerHTML = '<div class="category-loading">0B53>@88 =5 =0945=K</div>';
+                    return;
+                }
+
+                // Render categories
+                categoryList.innerHTML = '';
+                categories.forEach(category => {
+                    const item = document.createElement('div');
+                    item.className = 'category-item';
+                    item.dataset.categoryId = category.id;
+
+                    item.innerHTML = `<div class="category-item-name">${category.name}</div>`;
+
+                    item.addEventListener('click', () => {
+                        // Update selected state
+                        document.querySelectorAll('.category-item').forEach(i => {
+                            i.classList.remove('selected');
+                        });
+                        item.classList.add('selected');
+
+                        // Update form state
+                        formState.categoryId = category.id;
+
+                        // Clear error
+                        document.getElementById('category-error').textContent = '';
+
+                        // Haptic feedback
+                        app.ui.hapticLight();
+                    });
+
+                    categoryList.appendChild(item);
+                });
+
+            } catch (error) {
+                console.error('Failed to load categories:', error);
+                categoryList.innerHTML = '<div class="category-loading">H81:0 703@C7:8 :0B53>@89</div>';
+            }
+        }
+
+        function setupMainButton() {
+            const mainButton = app.tg.MainButton;
+
+            mainButton.setText('!>E@0=8BL ?;0=');
+            mainButton.show();
+            mainButton.enable();
+
+            mainButton.onClick(async () => {
+                await handleSave();
+            });
+        }
+
+        async function handleSave() {
+            console.log('Saving plan...', formState);
+
+            // Validate form
+            const errors = validateForm();
+            if (Object.keys(errors).length > 0) {
+                app.ui.hapticError();
+                return;
+            }
+
+            // Show loading
+            app.ui.showLoading('!>E@0=5=85...');
+
+            try {
+                // Create plan
+                const result = await app.api.createFact({
+                    article_id: formState.categoryId,
+                    amount: formState.amount,
+                    fact_date: formState.periodStart,
+                    description: formState.description,
+                    record_type: 'plan'
+                    // TODO: Add support for recurring plans when backend is ready
+                    // recurring: formState.recurring,
+                    // period_type: formState.period,
+                    // period_end: formState.periodEnd
+                });
+
+                app.ui.hideLoading();
+                app.ui.hapticSuccess();
+                app.ui.showSuccess(';0= A>E@0=5=!', () => {
+                    // Go back to main menu
+                    app.tg.close();
+                });
+
+            } catch (error) {
+                app.ui.hideLoading();
+                app.ui.showError(`H81:0: ${error.message}`);
+            }
+        }
+
+        function validateForm() {
+            const errors = {};
+
+            // Amount validation
+            const amountInput = document.getElementById('amount');
+            const amountError = Validators.amount(formState.amount);
+            if (amountError) {
+                errors.amount = amountError;
+                document.getElementById('amount-error').textContent = amountError;
+                amountInput.classList.add('input-error');
+            }
+
+            // Category validation
+            if (!formState.categoryId) {
+                errors.category = 'K15@8B5 :0B53>@8N';
+                document.getElementById('category-error').textContent = 'K15@8B5 :0B53>@8N';
+            }
+
+            // Period validation
+            if (formState.period === 'custom') {
+                if (!formState.periodStart || !formState.periodEnd) {
+                    errors.period = '#:068B5 ?5@8>4 ?;0=8@>20=8O';
+                    document.getElementById('period-error').textContent = '#:068B5 ?5@8>4 ?;0=8@>20=8O';
+                } else if (new Date(formState.periodStart) > new Date(formState.periodEnd)) {
+                    errors.period = '0B0 =0G0;0 4>;6=0 1KBL @0=LH5 40BK >:>=G0=8O';
+                    document.getElementById('period-error').textContent = '0B0 =0G0;0 4>;6=0 1KBL @0=LH5 40BK >:>=G0=8O';
+                }
+            } else {
+                updatePeriodDates(); // Ensure dates are set for preset periods
+            }
+
+            return errors;
+        }
+    </script>
+</body>
+</html>

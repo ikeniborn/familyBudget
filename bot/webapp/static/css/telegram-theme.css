@@ -1,0 +1,102 @@
+/**
+ * Telegram Web Apps theme variables.
+ *
+ * CSS variables are set dynamically by theme.js from Telegram.WebApp.themeParams.
+ * These are fallback values for development.
+ */
+
+:root {
+  /* Primary colors */
+  --tg-theme-bg-color: #ffffff;
+  --tg-theme-text-color: #000000;
+  --tg-theme-hint-color: #999999;
+  --tg-theme-link-color: #2678b6;
+
+  /* Button colors */
+  --tg-theme-button-color: #2678b6;
+  --tg-theme-button-text-color: #ffffff;
+
+  /* Secondary colors */
+  --tg-theme-secondary-bg-color: #f0f0f0;
+
+  /* Header colors */
+  --tg-theme-header-bg-color: #ffffff;
+
+  /* Section colors */
+  --tg-theme-section-bg-color: #ffffff;
+  --tg-theme-section-header-text-color: #6d6d72;
+
+  /* Accent colors */
+  --tg-theme-accent-text-color: #2678b6;
+
+  /* Destructive colors */
+  --tg-theme-destructive-text-color: #ff3b30;
+
+  /* Subtitle colors */
+  --tg-theme-subtitle-text-color: #999999;
+}
+
+/* Dark theme overrides (for testing) */
+body.theme-dark {
+  --tg-theme-bg-color: #18222d;
+  --tg-theme-text-color: #ffffff;
+  --tg-theme-hint-color: #7d8b99;
+  --tg-theme-link-color: #5ea3d6;
+  --tg-theme-button-color: #5ea3d6;
+  --tg-theme-button-text-color: #ffffff;
+  --tg-theme-secondary-bg-color: #131e29;
+  --tg-theme-header-bg-color: #18222d;
+  --tg-theme-section-bg-color: #18222d;
+  --tg-theme-section-header-text-color: #7d8b99;
+  --tg-theme-accent-text-color: #5ea3d6;
+  --tg-theme-destructive-text-color: #ff4d4d;
+  --tg-theme-subtitle-text-color: #7d8b99;
+}
+
+/* Theme application */
+body {
+  background-color: var(--tg-theme-bg-color);
+  color: var(--tg-theme-text-color);
+}
+
+a {
+  color: var(--tg-theme-link-color);
+}
+
+/* Utility classes for theme colors */
+.bg-primary {
+  background-color: var(--tg-theme-bg-color);
+}
+
+.bg-secondary {
+  background-color: var(--tg-theme-secondary-bg-color);
+}
+
+.bg-button {
+  background-color: var(--tg-theme-button-color);
+  color: var(--tg-theme-button-text-color);
+}
+
+.text-primary {
+  color: var(--tg-theme-text-color);
+}
+
+.text-hint {
+  color: var(--tg-theme-hint-color);
+}
+
+.text-link {
+  color: var(--tg-theme-link-color);
+}
+
+.text-accent {
+  color: var(--tg-theme-accent-text-color);
+}
+
+.text-destructive {
+  color: var(--tg-theme-destructive-text-color);
+}
+
+.text-subtitle {
+  color: var(--tg-theme-subtitle-text-color);
+}

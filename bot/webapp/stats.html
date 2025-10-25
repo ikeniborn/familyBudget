@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>!B0B8AB8:0 - Family Budget</title>
+
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/webapp/static/css/telegram-theme.css">
+    <link rel="stylesheet" href="/webapp/static/css/app.css">
+    <link rel="stylesheet" href="/webapp/static/css/forms.css">
+
+    <style>
+        /* Stats page specific styles */
+        .page-header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--tg-theme-section-separator-color);
+            margin-bottom: 16px;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--tg-theme-text-color);
+        }
+
+        /* Period selector */
+        .period-selector {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 24px;
+            padding: 0 16px;
+        }
+
+        .period-btn {
+            padding: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 8px;
+            border: 1px solid var(--tg-theme-section-separator-color);
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .period-btn.active {
+            background-color: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            border-color: var(--tg-theme-button-color);
+        }
+
+        .period-btn:active {
+            opacity: 0.8;
+        }
+
+        /* Summary card */
+        .summary-card {
+            background-color: var(--tg-theme-secondary-bg-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .summary-title {
+            font-size: 14px;
+            color: var(--tg-theme-hint-color);
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--tg-theme-section-separator-color);
+        }
+
+        .summary-row:last-child {
+            border-bottom: none;
+        }
+
+        .summary-label {
+            font-size: 16px;
+            color: var(--tg-theme-text-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .summary-value {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .summary-value.income {
+            color: #34c759;
+        }
+
+        .summary-value.expense {
+            color: var(--tg-theme-destructive-text-color);
+        }
+
+        .summary-value.balance {
+            color: var(--tg-theme-link-color);
+        }
+
+        /* Category breakdown */
+        .breakdown-section {
+            margin-bottom: 24px;
+        }
+
+        .breakdown-header {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--tg-theme-text-color);
+            margin-bottom: 12px;
+            padding: 0 4px;
+        }
+
+        .category-breakdown-list {
+            background-color: var(--tg-theme-secondary-bg-color);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .category-breakdown-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--tg-theme-section-separator-color);
+        }
+
+        .category-breakdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .category-icon {
+            font-size: 24px;
+            margin-right: 12px;
+        }
+
+        .category-info {
+            flex: 1;
+        }
+
+        .category-name {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--tg-theme-text-color);
+            margin-bottom: 4px;
+        }
+
+        .category-percentage {
+            font-size: 12px;
+            color: var(--tg-theme-hint-color);
+        }
+
+        .category-amount {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--tg-theme-text-color);
+        }
+
+        .category-amount.expense {
+            color: var(--tg-theme-destructive-text-color);
+        }
+
+        .category-amount.income {
+            color: #34c759;
+        }
+
+        /* Progress bar */
+        .category-progress {
+            height: 4px;
+            background-color: var(--tg-theme-section-separator-color);
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .category-progress-bar {
+            height: 100%;
+            background-color: var(--tg-theme-link-color);
+            border-radius: 2px;
+            transition: width 0.3s;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state-text {
+            font-size: 16px;
+            color: var(--tg-theme-hint-color);
+            margin-bottom: 24px;
+        }
+
+        /* Loading state */
+        .loading-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--tg-theme-hint-color);
+        }
+
+        .loading-spinner {
+            font-size: 48px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="page-title">!B0B8AB8:0</div>
+        </div>
+
+        <!-- Period Selector -->
+        <div class="period-selector">
+            <button class="period-btn active" data-period="today">5=L</button>
+            <button class="period-btn" data-period="week">545;O</button>
+            <button class="period-btn" data-period="month">5AOF</button>
+            <button class="period-btn" data-period="year">>4</button>
+        </div>
+
+        <!-- Loading State -->
+        <div class="loading-state" id="loading-state">
+            <div class="loading-spinner">ó</div>
+            <div style="margin-top: 16px;">03@C7:0 AB0B8AB8:8...</div>
+        </div>
+
+        <!-- Content (hidden initially) -->
+        <div id="stats-content" style="display: none;">
+            <!-- Summary Card -->
+            <div class="summary-card">
+                <div class="summary-title" id="period-title">0 A53>4=O</div>
+
+                <div class="summary-row">
+                    <span class="summary-label">=¸  0AE>4K:</span>
+                    <span class="summary-value expense" id="summary-expense">0.00 ½</span>
+                </div>
+
+                <div class="summary-row">
+                    <span class="summary-label">=° >E>4K:</span>
+                    <span class="summary-value income" id="summary-income">+0.00 ½</span>
+                </div>
+
+                <div class="summary-row">
+                    <span class="summary-label">=µ 0;0=A:</span>
+                    <span class="summary-value balance" id="summary-balance">0.00 ½</span>
+                </div>
+            </div>
+
+            <!-- Expense Breakdown -->
+            <div class="breakdown-section" id="expense-breakdown-section" style="display: none;">
+                <div class="breakdown-header"> 0AE>4K ?> :0B53>@8O<</div>
+                <div class="category-breakdown-list" id="expense-breakdown">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Income Breakdown -->
+            <div class="breakdown-section" id="income-breakdown-section" style="display: none;">
+                <div class="breakdown-header">>E>4K ?> :0B53>@8O<</div>
+                <div class="category-breakdown-list" id="income-breakdown">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="empty-state" style="display: none;">
+            <div class="empty-state-icon">=Ê</div>
+            <div class="empty-state-text">5B 40==KE 70 2K1@0==K9 ?5@8>4</div>
+            <button class="btn btn-primary" onclick="window.location.href='/webapp/add.html'">
+                >1028BL B@0=70:F8N
+            </button>
+        </div>
+    </div>
+
+    <!-- Core JS modules -->
+    <script src="/webapp/static/js/storage.js"></script>
+    <script src="/webapp/static/js/theme.js"></script>
+    <script src="/webapp/static/js/validators.js"></script>
+    <script src="/webapp/static/js/ui.js"></script>
+    <script src="/webapp/static/js/auth.js"></script>
+    <script src="/webapp/static/js/api.js"></script>
+    <script src="/webapp/static/js/app.js"></script>
+
+    <script>
+        let app = null;
+        let facts = [];
+        let categories = [];
+        let currentPeriod = 'today';
+
+        // Page-specific initialization
+        window.pageInit = async function(budgetApp) {
+            console.log('Stats page init');
+            app = budgetApp;
+
+            // Setup period selector
+            setupPeriodSelector();
+
+            // Load categories
+            await loadCategories();
+
+            // Load stats for default period
+            await loadStats(currentPeriod);
+
+            // Setup BackButton
+            app.setupBackButton(() => {
+                window.location.href = '/webapp/index.html';
+            });
+
+            console.log('Stats page ready');
+        };
+
+        function setupPeriodSelector() {
+            const buttons = document.querySelectorAll('.period-btn');
+
+            buttons.forEach(button => {
+                button.addEventListener('click', async () => {
+                    // Update active state
+                    buttons.forEach(b => b.classList.remove('active'));
+                    button.classList.add('active');
+
+                    // Update current period
+                    currentPeriod = button.dataset.period;
+
+                    // Reload stats
+                    app.ui.hapticLight();
+                    await loadStats(currentPeriod);
+                });
+            });
+        }
+
+        async function loadCategories() {
+            try {
+                const result = await app.api.listArticles({ is_current: true });
+                categories = result.articles || [];
+            } catch (error) {
+                console.error('Failed to load categories:', error);
+            }
+        }
+
+        async function loadStats(period) {
+            const loadingState = document.getElementById('loading-state');
+            const statsContent = document.getElementById('stats-content');
+            const emptyState = document.getElementById('empty-state');
+
+            try {
+                // Show loading
+                loadingState.style.display = 'block';
+                statsContent.style.display = 'none';
+                emptyState.style.display = 'none';
+
+                // Get date range for period
+                const { dateFrom, dateTo } = getDateRange(period);
+
+                // Fetch facts for period
+                // TODO: Replace with backend stats endpoint when available
+                const result = await app.api.listFacts({
+                    date_from: dateFrom,
+                    date_to: dateTo,
+                    limit: 10000  // Get all facts for aggregation
+                });
+
+                facts = result.facts || [];
+
+                // Hide loading
+                loadingState.style.display = 'none';
+
+                if (facts.length === 0) {
+                    // Show empty state
+                    emptyState.style.display = 'block';
+                } else {
+                    // Calculate and display stats
+                    displayStats(facts, period);
+                    statsContent.style.display = 'block';
+                }
+
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+                loadingState.innerHTML = `<div style="color: var(--tg-theme-destructive-text-color);">H81:0 703@C7:8: ${error.message}</div>`;
+            }
+        }
+
+        function getDateRange(period) {
+            const now = new Date();
+            let dateFrom, dateTo;
+
+            switch (period) {
+                case 'today':
+                    dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    dateTo = new Date(dateFrom);
+                    dateTo.setDate(dateTo.getDate() + 1);
+                    break;
+
+                case 'week':
+                    // Last 7 days
+                    dateFrom = new Date(now);
+                    dateFrom.setDate(dateFrom.getDate() - 7);
+                    dateTo = new Date(now);
+                    dateTo.setDate(dateTo.getDate() + 1);
+                    break;
+
+                case 'month':
+                    // Current month
+                    dateFrom = new Date(now.getFullYear(), now.getMonth(), 1);
+                    dateTo = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                    break;
+
+                case 'year':
+                    // Current year
+                    dateFrom = new Date(now.getFullYear(), 0, 1);
+                    dateTo = new Date(now.getFullYear() + 1, 0, 1);
+                    break;
+            }
+
+            return {
+                dateFrom: dateFrom.toISOString().split('T')[0],
+                dateTo: dateTo.toISOString().split('T')[0]
+            };
+        }
+
+        function displayStats(facts, period) {
+            // Update period title
+            const periodTitles = {
+                'today': '0 A53>4=O',
+                'week': '0 =545;N',
+                'month': '0 <5AOF',
+                'year': '0 3>4'
+            };
+            document.getElementById('period-title').textContent = periodTitles[period];
+
+            // Calculate summary
+            const summary = calculateSummary(facts);
+            updateSummary(summary);
+
+            // Calculate category breakdown
+            const expenseByCategory = calculateCategoryBreakdown(facts, 'expense');
+            const incomeByCategory = calculateCategoryBreakdown(facts, 'income');
+
+            // Display breakdowns
+            displayCategoryBreakdown('expense', expenseByCategory, summary.expense);
+            displayCategoryBreakdown('income', incomeByCategory, summary.income);
+        }
+
+        function calculateSummary(facts) {
+            let income = 0;
+            let expense = 0;
+
+            facts.forEach(fact => {
+                if (fact.amount > 0) {
+                    income += fact.amount;
+                } else {
+                    expense += Math.abs(fact.amount);
+                }
+            });
+
+            const balance = income - expense;
+
+            return { income, expense, balance };
+        }
+
+        function updateSummary(summary) {
+            document.getElementById('summary-expense').textContent = `-${app.ui.formatAmount(summary.expense)} ½`;
+            document.getElementById('summary-income').textContent = `+${app.ui.formatAmount(summary.income)} ½`;
+
+            const balanceElement = document.getElementById('summary-balance');
+            const balanceFormatted = app.ui.formatAmount(Math.abs(summary.balance));
+            const sign = summary.balance >= 0 ? '+' : '-';
+            balanceElement.textContent = `${sign}${balanceFormatted} ½`;
+        }
+
+        function calculateCategoryBreakdown(facts, type) {
+            const breakdown = {};
+
+            facts.forEach(fact => {
+                const isIncome = fact.amount > 0;
+                const isExpense = fact.amount < 0;
+
+                if ((type === 'income' && isIncome) || (type === 'expense' && isExpense)) {
+                    const categoryId = fact.article_id;
+                    const amount = Math.abs(fact.amount);
+
+                    if (!breakdown[categoryId]) {
+                        breakdown[categoryId] = {
+                            categoryId,
+                            total: 0,
+                            count: 0
+                        };
+                    }
+
+                    breakdown[categoryId].total += amount;
+                    breakdown[categoryId].count += 1;
+                }
+            });
+
+            // Convert to array and sort by total descending
+            const breakdownArray = Object.values(breakdown);
+            breakdownArray.sort((a, b) => b.total - a.total);
+
+            return breakdownArray;
+        }
+
+        function displayCategoryBreakdown(type, breakdown, totalAmount) {
+            const sectionId = `${type}-breakdown-section`;
+            const listId = `${type}-breakdown`;
+            const section = document.getElementById(sectionId);
+            const list = document.getElementById(listId);
+
+            if (breakdown.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            list.innerHTML = '';
+
+            // Show top 5 categories
+            const topCategories = breakdown.slice(0, 5);
+
+            topCategories.forEach(item => {
+                const category = categories.find(c => c.id === item.categoryId);
+                const categoryName = category ? category.name : `0B53>@8O #${item.categoryId}`;
+                const percentage = totalAmount > 0 ? (item.total / totalAmount * 100).toFixed(1) : 0;
+
+                const element = createCategoryBreakdownItem(
+                    categoryName,
+                    item.total,
+                    percentage,
+                    type
+                );
+
+                list.appendChild(element);
+            });
+        }
+
+        function createCategoryBreakdownItem(name, amount, percentage, type) {
+            const item = document.createElement('div');
+            item.className = 'category-breakdown-item';
+
+            const icon = document.createElement('div');
+            icon.className = 'category-icon';
+            icon.textContent = type === 'expense' ? '=¸' : '=°';
+
+            const info = document.createElement('div');
+            info.className = 'category-info';
+
+            const nameEl = document.createElement('div');
+            nameEl.className = 'category-name';
+            nameEl.textContent = name;
+
+            const percentageEl = document.createElement('div');
+            percentageEl.className = 'category-percentage';
+            percentageEl.textContent = `${percentage}% >B ${type === 'expense' ? '@0AE>4>2' : '4>E>4>2'}`;
+
+            const progress = document.createElement('div');
+            progress.className = 'category-progress';
+
+            const progressBar = document.createElement('div');
+            progressBar.className = 'category-progress-bar';
+            progressBar.style.width = `${percentage}%`;
+
+            progress.appendChild(progressBar);
+
+            info.appendChild(nameEl);
+            info.appendChild(percentageEl);
+            info.appendChild(progress);
+
+            const amountEl = document.createElement('div');
+            amountEl.className = `category-amount ${type}`;
+            amountEl.textContent = `${type === 'expense' ? '-' : '+'}${app.ui.formatAmount(amount)} ½`;
+
+            item.appendChild(icon);
+            item.appendChild(info);
+            item.appendChild(amountEl);
+
+            return item;
+        }
+    </script>
+</body>
+</html>

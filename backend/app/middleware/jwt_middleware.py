@@ -55,7 +55,9 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
     # Public path prefixes (startswith check)
     PUBLIC_PREFIXES = [
         "/api/v1/auth/",
+        "/api/v1/webapp/validate",  # Web Apps initData validation (no token required)
         "/static/",  # Static files (CSS, JS, images)
+        "/webapp/",  # Web Apps static files (HTML, JS, CSS)
     ]
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:

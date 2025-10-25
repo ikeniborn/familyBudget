@@ -19,11 +19,15 @@ from backend.app.api.v1.endpoints import (
     users_router,
 )
 from backend.app.api.v1.export import router as export_router
+from backend.app.api.v1.webapp import router as webapp_router
 
 api_router = APIRouter(prefix="/api/v1")
 
 # Authentication endpoints (TASK-012) ✅
 api_router.include_router(auth_router)
+
+# Web Apps endpoints (Telegram Web Apps Migration) ✅
+api_router.include_router(webapp_router)
 
 # Articles endpoints (TASK-015) ✅
 api_router.include_router(articles_router)

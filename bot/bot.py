@@ -6,7 +6,7 @@ Initializes the bot application with handlers, middleware, and error handling.
 
 from typing import Optional
 
-from telegram import Update
+from telegram import MenuButtonWebApp, Update, WebAppInfo
 from telegram.ext import (
     Application,
     ApplicationBuilder,
@@ -150,6 +150,43 @@ class BotApplication:
         if update:
             logger.error(f"Update: {update}")
 
+    async def setup_menu_button(self):
+        """
+        Setup Telegram Menu Button for Web Apps access.
+
+        Configures the bot's menu button to open the Web App interface.
+        This replaces the traditional bot commands with a modern Web App UI.
+        """
+        if not self.application:
+            raise RuntimeError("Application not built. Call build_application() first.")
+
+        try:
+            # Extract base URL from BACKEND_API_URL
+            # Example: "http://localhost:8000/api/v1" -> "http://localhost:8000"
+            backend_base_url = self.settings.BACKEND_API_URL.rstrip("/api/v1").rstrip("/")
+
+            # Build Web App URL
+            webapp_url = f"{backend_base_url}/webapp/index.html"
+
+            # Create Web App info
+            web_app_info = WebAppInfo(url=webapp_url)
+
+            # Create Menu Button
+            menu_button = MenuButtonWebApp(
+                text="📱 Открыть приложение",
+                web_app=web_app_info
+            )
+
+            # Set Menu Button for all users
+            await self.application.bot.set_chat_menu_button(menu_button=menu_button)
+
+            logger.info(f"Menu Button configured successfully: {webapp_url}")
+
+        except Exception as e:
+            logger.error(f"Failed to setup Menu Button: {e}")
+            # Don't raise - this is not critical for bot operation
+            # Bot can still work with commands even if Menu Button setup fails
+
     async def start(self):
         """
         Start the bot application.
@@ -162,6 +199,9 @@ class BotApplication:
         # Initialize application
         await self.application.initialize()
         logger.info("Bot initialized")
+
+        # Setup Menu Button for Web Apps
+        await self.setup_menu_button()
 
         # Initialize and start scheduler
         from bot.utils.scheduler import init_scheduler

@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title> 0AH8@5==K9 ?>8A: - Family Budget</title>
+
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/webapp/static/css/telegram-theme.css">
+    <link rel="stylesheet" href="/webapp/static/css/app.css">
+    <link rel="stylesheet" href="/webapp/static/css/forms.css">
+
+    <style>
+        /* Search page specific styles */
+        .page-header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--tg-theme-section-separator-color);
+            margin-bottom: 16px;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--tg-theme-text-color);
+        }
+
+        /* Filters section */
+        .filters-container {
+            background-color: var(--tg-theme-secondary-bg-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .filter-group {
+            margin-bottom: 16px;
+        }
+
+        .filter-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .filter-label {
+            font-size: 14px;
+            color: var(--tg-theme-hint-color);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-row input,
+        .filter-row select {
+            flex: 1;
+        }
+
+        /* Type checkboxes */
+        .type-checkboxes {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .type-checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            background-color: var(--tg-theme-bg-color);
+            border: 1px solid var(--tg-theme-section-separator-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .type-checkbox-item:active {
+            opacity: 0.8;
+        }
+
+        .type-checkbox-item.checked {
+            background-color: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            border-color: var(--tg-theme-button-color);
+        }
+
+        .type-checkbox {
+            margin-right: 8px;
+        }
+
+        .type-label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* Search button */
+        .search-button {
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 12px;
+            background-color: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            border: none;
+            cursor: pointer;
+            margin-bottom: 16px;
+            transition: opacity 0.2s;
+        }
+
+        .search-button:active {
+            opacity: 0.8;
+        }
+
+        /* Results section */
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            margin-bottom: 12px;
+        }
+
+        .results-count {
+            font-size: 14px;
+            color: var(--tg-theme-hint-color);
+        }
+
+        .export-button {
+            padding: 6px 12px;
+            font-size: 14px;
+            background-color: var(--tg-theme-secondary-bg-color);
+            color: var(--tg-theme-text-color);
+            border: 1px solid var(--tg-theme-section-separator-color);
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .export-button:active {
+            opacity: 0.8;
+        }
+
+        /* Transactions list (same as list.html) */
+        .transactions-list {
+            margin-bottom: 80px;
+        }
+
+        .transaction-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid var(--tg-theme-section-separator-color);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .transaction-item:last-child {
+            border-bottom: none;
+        }
+
+        .transaction-item:active {
+            background-color: var(--tg-theme-secondary-bg-color);
+        }
+
+        .transaction-icon {
+            font-size: 32px;
+            margin-right: 12px;
+        }
+
+        .transaction-details {
+            flex: 1;
+        }
+
+        .transaction-category {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--tg-theme-text-color);
+            margin-bottom: 2px;
+        }
+
+        .transaction-description {
+            font-size: 14px;
+            color: var(--tg-theme-hint-color);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .transaction-time {
+            font-size: 12px;
+            color: var(--tg-theme-hint-color);
+            margin-top: 2px;
+        }
+
+        .transaction-amount {
+            font-size: 18px;
+            font-weight: 600;
+            margin-left: 12px;
+        }
+
+        .transaction-amount.income {
+            color: #34c759;
+        }
+
+        .transaction-amount.expense {
+            color: var(--tg-theme-destructive-text-color);
+        }
+
+        /* States */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state-text {
+            font-size: 16px;
+            color: var(--tg-theme-hint-color);
+        }
+
+        .loading-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--tg-theme-hint-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="page-title">=  0AH8@5==K9 ?>8A:</div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters-container">
+            <!-- Date Range -->
+            <div class="filter-group">
+                <label class="filter-label">5@8>4</label>
+                <div class="filter-row">
+                    <input type="date" id="date-from" class="form-input" placeholder="B">
+                    <input type="date" id="date-to" class="form-input" placeholder=">">
+                </div>
+            </div>
+
+            <!-- Type -->
+            <div class="filter-group">
+                <label class="filter-label">"8? B@0=70:F88</label>
+                <div class="type-checkboxes">
+                    <div class="type-checkbox-item checked" data-type="expense">
+                        <input type="checkbox" class="type-checkbox" checked>
+                        <span class="type-label"> 0AE>4</span>
+                    </div>
+                    <div class="type-checkbox-item checked" data-type="income">
+                        <input type="checkbox" class="type-checkbox" checked>
+                        <span class="type-label">>E>4</span>
+                    </div>
+                    <div class="type-checkbox-item checked" data-type="plan">
+                        <input type="checkbox" class="type-checkbox" checked>
+                        <span class="type-label">;0=</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Category -->
+            <div class="filter-group">
+                <label class="filter-label">0B53>@8O</label>
+                <select id="category-filter" class="form-input">
+                    <option value="">A5 :0B53>@88</option>
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+
+            <!-- Amount Range -->
+            <div class="filter-group">
+                <label class="filter-label">!C<<0</label>
+                <div class="filter-row">
+                    <input type="number" id="amount-min" class="form-input" placeholder="B" step="0.01">
+                    <input type="number" id="amount-max" class="form-input" placeholder=">" step="0.01">
+                </div>
+            </div>
+
+            <!-- Description Search -->
+            <div class="filter-group">
+                <label class="filter-label">>8A: ?> >?8A0=8N</label>
+                <input type="text" id="description-search" class="form-input" placeholder="2548B5 B5:AB...">
+            </div>
+        </div>
+
+        <!-- Search Button -->
+        <button class="search-button" id="search-button">
+            = 09B8 B@0=70:F88
+        </button>
+
+        <!-- Loading State -->
+        <div class="loading-state" id="loading-state" style="display: none;">
+            <div>>8A:...</div>
+        </div>
+
+        <!-- Results Header -->
+        <div class="results-header" id="results-header" style="display: none;">
+            <span class="results-count" id="results-count">0945=>: 0</span>
+            <button class="export-button" id="export-button">=å -:A?>@B</button>
+        </div>
+
+        <!-- Transactions List -->
+        <div class="transactions-list" id="transactions-list" style="display: none;">
+            <!-- Results will be inserted here -->
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="empty-state" style="display: none;">
+            <div class="empty-state-icon">=</div>
+            <div class="empty-state-text">5B @57C;LB0B>2 ?> 7040==K< :@8B5@8O<</div>
+        </div>
+    </div>
+
+    <!-- Core JS modules -->
+    <script src="/webapp/static/js/storage.js"></script>
+    <script src="/webapp/static/js/theme.js"></script>
+    <script src="/webapp/static/js/validators.js"></script>
+    <script src="/webapp/static/js/ui.js"></script>
+    <script src="/webapp/static/js/auth.js"></script>
+    <script src="/webapp/static/js/api.js"></script>
+    <script src="/webapp/static/js/app.js"></script>
+
+    <script>
+        let app = null;
+        let categories = [];
+        let searchResults = [];
+
+        // Search filters state
+        let searchFilters = {
+            dateFrom: null,
+            dateTo: null,
+            types: ['expense', 'income', 'plan'],
+            categoryId: null,
+            amountMin: null,
+            amountMax: null,
+            descriptionSearch: null
+        };
+
+        // Page-specific initialization
+        window.pageInit = async function(budgetApp) {
+            console.log('Search page init');
+            app = budgetApp;
+
+            // Load categories
+            await loadCategories();
+
+            // Setup type checkboxes
+            setupTypeCheckboxes();
+
+            // Setup search button
+            setupSearchButton();
+
+            // Setup export button
+            setupExportButton();
+
+            // Setup BackButton
+            app.setupBackButton(() => {
+                window.location.href = '/webapp/index.html';
+            });
+
+            console.log('Search page ready');
+        };
+
+        async function loadCategories() {
+            try {
+                const result = await app.api.listArticles({ is_current: true });
+                categories = result.articles || [];
+
+                const categorySelect = document.getElementById('category-filter');
+                categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category.id;
+                    option.textContent = category.name;
+                    categorySelect.appendChild(option);
+                });
+
+            } catch (error) {
+                console.error('Failed to load categories:', error);
+            }
+        }
+
+        function setupTypeCheckboxes() {
+            const items = document.querySelectorAll('.type-checkbox-item');
+
+            items.forEach(item => {
+                item.addEventListener('click', () => {
+                    const checkbox = item.querySelector('.type-checkbox');
+                    checkbox.checked = !checkbox.checked;
+                    item.classList.toggle('checked');
+
+                    // Update filters
+                    updateTypeFilters();
+                    app.ui.hapticLight();
+                });
+            });
+        }
+
+        function updateTypeFilters() {
+            searchFilters.types = [];
+            document.querySelectorAll('.type-checkbox-item').forEach(item => {
+                const checkbox = item.querySelector('.type-checkbox');
+                if (checkbox.checked) {
+                    searchFilters.types.push(item.dataset.type);
+                }
+            });
+        }
+
+        function setupSearchButton() {
+            const searchButton = document.getElementById('search-button');
+
+            searchButton.addEventListener('click', async () => {
+                app.ui.hapticLight();
+                await performSearch();
+            });
+        }
+
+        function setupExportButton() {
+            const exportButton = document.getElementById('export-button');
+
+            exportButton.addEventListener('click', () => {
+                app.ui.hapticLight();
+                exportToCSV();
+            });
+        }
+
+        async function performSearch() {
+            // Update filters from inputs
+            searchFilters.dateFrom = document.getElementById('date-from').value || null;
+            searchFilters.dateTo = document.getElementById('date-to').value || null;
+            searchFilters.categoryId = document.getElementById('category-filter').value || null;
+            searchFilters.amountMin = parseFloat(document.getElementById('amount-min').value) || null;
+            searchFilters.amountMax = parseFloat(document.getElementById('amount-max').value) || null;
+            searchFilters.descriptionSearch = document.getElementById('description-search').value.trim() || null;
+
+            const loadingState = document.getElementById('loading-state');
+            const resultsHeader = document.getElementById('results-header');
+            const transactionsList = document.getElementById('transactions-list');
+            const emptyState = document.getElementById('empty-state');
+
+            try {
+                // Show loading
+                loadingState.style.display = 'block';
+                resultsHeader.style.display = 'none';
+                transactionsList.style.display = 'none';
+                emptyState.style.display = 'none';
+
+                // Build query params
+                const params = {
+                    limit: 10000 // Get all for client-side filtering
+                };
+
+                if (searchFilters.dateFrom) params.date_from = searchFilters.dateFrom;
+                if (searchFilters.dateTo) params.date_to = searchFilters.dateTo;
+                if (searchFilters.categoryId) params.article_id = searchFilters.categoryId;
+
+                // Fetch facts
+                const result = await app.api.listFacts(params);
+                let facts = result.facts || [];
+
+                // Client-side filtering
+                facts = applyClientFilters(facts);
+
+                searchResults = facts;
+
+                // Hide loading
+                loadingState.style.display = 'none';
+
+                if (facts.length === 0) {
+                    emptyState.style.display = 'block';
+                } else {
+                    // Show results
+                    document.getElementById('results-count').textContent = `0945=>: ${facts.length}`;
+                    resultsHeader.style.display = 'flex';
+                    renderResults(facts);
+                    transactionsList.style.display = 'block';
+                }
+
+            } catch (error) {
+                console.error('Search failed:', error);
+                loadingState.innerHTML = `<div style="color: var(--tg-theme-destructive-text-color);">H81:0 ?>8A:0: ${error.message}</div>`;
+            }
+        }
+
+        function applyClientFilters(facts) {
+            return facts.filter(fact => {
+                // Type filter
+                const factType = fact.record_type || 'fact';
+                const isIncome = fact.amount > 0;
+                const visualType = factType === 'plan' ? 'plan' : (isIncome ? 'income' : 'expense');
+
+                if (!searchFilters.types.includes(visualType)) {
+                    return false;
+                }
+
+                // Amount range filter
+                const amount = Math.abs(fact.amount);
+                if (searchFilters.amountMin !== null && amount < searchFilters.amountMin) {
+                    return false;
+                }
+                if (searchFilters.amountMax !== null && amount > searchFilters.amountMax) {
+                    return false;
+                }
+
+                // Description search (case-insensitive)
+                if (searchFilters.descriptionSearch) {
+                    const description = (fact.description || '').toLowerCase();
+                    const search = searchFilters.descriptionSearch.toLowerCase();
+                    if (!description.includes(search)) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+        }
+
+        function renderResults(facts) {
+            const list = document.getElementById('transactions-list');
+            list.innerHTML = '';
+
+            // Sort by date descending
+            const sortedFacts = [...facts].sort((a, b) => {
+                const dateA = new Date(a.created_at || a.fact_date);
+                const dateB = new Date(b.created_at || b.fact_date);
+                return dateB - dateA;
+            });
+
+            sortedFacts.forEach(fact => {
+                const item = createTransactionItem(fact);
+                list.appendChild(item);
+            });
+        }
+
+        function createTransactionItem(fact) {
+            const item = document.createElement('div');
+            item.className = 'transaction-item';
+            item.dataset.factId = fact.id;
+
+            // Determine type
+            const recordType = fact.record_type || 'fact';
+            const isIncome = fact.amount > 0;
+            const icon = recordType === 'plan' ? '=Ý' : (isIncome ? '=°' : '=¸');
+
+            // Icon
+            const iconEl = document.createElement('div');
+            iconEl.className = 'transaction-icon';
+            iconEl.textContent = icon;
+
+            // Details
+            const details = document.createElement('div');
+            details.className = 'transaction-details';
+
+            const category = document.createElement('div');
+            category.className = 'transaction-category';
+            const categoryObj = categories.find(c => c.id === fact.article_id);
+            const typeLabel = recordType === 'plan' ? ' (?;0=)' : '';
+            category.textContent = (categoryObj ? categoryObj.name : `0B53>@8O #${fact.article_id}`) + typeLabel;
+
+            const description = document.createElement('div');
+            description.className = 'transaction-description';
+            description.textContent = fact.description || '57 >?8A0=8O';
+
+            const time = document.createElement('div');
+            time.className = 'transaction-time';
+            time.textContent = formatDateTime(new Date(fact.created_at || fact.fact_date));
+
+            details.appendChild(category);
+            details.appendChild(description);
+            details.appendChild(time);
+
+            // Amount
+            const amount = document.createElement('div');
+            amount.className = `transaction-amount ${isIncome ? 'income' : 'expense'}`;
+            const amountValue = Math.abs(fact.amount);
+            amount.textContent = `${isIncome ? '+' : '-'}${app.ui.formatAmount(amountValue)} ½`;
+
+            // Assemble
+            item.appendChild(iconEl);
+            item.appendChild(details);
+            item.appendChild(amount);
+
+            // Click handler
+            item.addEventListener('click', () => {
+                app.ui.hapticLight();
+                window.location.href = `/webapp/edit.html?id=${fact.id}`;
+            });
+
+            return item;
+        }
+
+        function exportToCSV() {
+            if (searchResults.length === 0) {
+                app.ui.showError('5B 40==KE 4;O M:A?>@B0');
+                return;
+            }
+
+            // Prepare CSV data
+            const headers = ['0B0', '0B53>@8O', '?8A0=85', '"8?', '!C<<0'];
+            const rows = searchResults.map(fact => {
+                const category = categories.find(c => c.id === fact.article_id);
+                const categoryName = category ? category.name : `0B53>@8O #${fact.article_id}`;
+                const recordType = fact.record_type || 'fact';
+                const isIncome = fact.amount > 0;
+                const type = recordType === 'plan' ? ';0=' : (isIncome ? '>E>4' : ' 0AE>4');
+                const date = new Date(fact.created_at || fact.fact_date).toLocaleDateString('ru-RU');
+
+                return [
+                    date,
+                    categoryName,
+                    fact.description || '',
+                    type,
+                    fact.amount
+                ];
+            });
+
+            const csv = [headers, ...rows]
+                .map(row => row.map(cell => `"${cell}"`).join(','))
+                .join('\n');
+
+            // Download
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `search_results_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+
+            app.ui.showSuccess('CSV D09; 703@C65=');
+        }
+
+        function formatDateTime(date) {
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+
+            return `${day}.${month}.${year} ${hours}:${minutes}`;
+        }
+    </script>
+</body>
+</html>

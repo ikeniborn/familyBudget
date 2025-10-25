@@ -17,6 +17,7 @@ from backend.app.core.exceptions import APIException
 from backend.app.core.logging import setup_logging, get_logger
 from backend.app.db.session import close_db, init_db
 from backend.app.middleware import JWTAuthMiddleware
+from backend.app.middleware.csp_middleware import CSPMiddleware
 from backend.app.middleware.error_handler import (
     api_exception_handler,
     database_exception_handler,
@@ -199,6 +200,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Security middleware (CSP, XSS protection, etc.)
+app.add_middleware(CSPMiddleware)
+
 # Logging middleware (before JWT for request tracing)
 app.add_middleware(LoggingMiddleware)
 
@@ -232,9 +236,14 @@ app.add_exception_handler(Exception, generic_exception_handler)
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  # /app in Docker
 STATIC_DIR = BASE_DIR / "web" / "static"  # /app/web/static
 TEMPLATES_DIR = BASE_DIR / "web" / "templates"  # /app/web/templates
+WEBAPP_DIR = BASE_DIR / "bot" / "webapp"  # /app/bot/webapp (Telegram Web Apps - part of bot)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+# Mount webapp files (Telegram Web Apps)
+# Serves HTML, JS, CSS for Web Apps at /webapp/*
+app.mount("/webapp", StaticFiles(directory=str(WEBAPP_DIR), html=True), name="webapp")
 
 # Setup Jinja2 templates
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))

@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>!53>4=O - Family Budget</title>
+
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/webapp/static/css/telegram-theme.css">
+    <link rel="stylesheet" href="/webapp/static/css/app.css">
+    <link rel="stylesheet" href="/webapp/static/css/forms.css">
+
+    <style>
+        /* Today page specific styles */
+        .page-header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--tg-theme-section-separator-color);
+            margin-bottom: 16px;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--tg-theme-text-color);
+            margin-bottom: 4px;
+        }
+
+        .page-subtitle {
+            font-size: 14px;
+            color: var(--tg-theme-hint-color);
+        }
+
+        .summary-card {
+            background-color: var(--tg-theme-secondary-bg-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+        }
+
+        .summary-label {
+            font-size: 14px;
+            color: var(--tg-theme-text-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .summary-value {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .summary-value.income {
+            color: #34c759;
+        }
+
+        .summary-value.expense {
+            color: var(--tg-theme-destructive-text-color);
+        }
+
+        .summary-value.balance {
+            color: var(--tg-theme-link-color);
+        }
+
+        .transactions-list {
+            margin-bottom: 80px;
+        }
+
+        .transaction-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid var(--tg-theme-section-separator-color);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .transaction-item:last-child {
+            border-bottom: none;
+        }
+
+        .transaction-item:active {
+            background-color: var(--tg-theme-secondary-bg-color);
+        }
+
+        .transaction-icon {
+            font-size: 32px;
+            margin-right: 12px;
+        }
+
+        .transaction-details {
+            flex: 1;
+        }
+
+        .transaction-category {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--tg-theme-text-color);
+            margin-bottom: 2px;
+        }
+
+        .transaction-description {
+            font-size: 14px;
+            color: var(--tg-theme-hint-color);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .transaction-time {
+            font-size: 12px;
+            color: var(--tg-theme-hint-color);
+            margin-top: 2px;
+        }
+
+        .transaction-amount {
+            font-size: 18px;
+            font-weight: 600;
+            margin-left: 12px;
+        }
+
+        .transaction-amount.income {
+            color: #34c759;
+        }
+
+        .transaction-amount.expense {
+            color: var(--tg-theme-destructive-text-color);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state-text {
+            font-size: 16px;
+            color: var(--tg-theme-hint-color);
+            margin-bottom: 24px;
+        }
+
+        .loading-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--tg-theme-hint-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="page-title">=Å "@0=70:F88 A53>4=O</div>
+            <div class="page-subtitle" id="today-date">03@C7:0...</div>
+        </div>
+
+        <!-- Summary Card -->
+        <div class="summary-card" id="summary-card" style="display: none;">
+            <div class="summary-row">
+                <span class="summary-label">=¸  0AE>4K:</span>
+                <span class="summary-value expense" id="summary-expense">0.00 ½</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">=° >E>4K:</span>
+                <span class="summary-value income" id="summary-income">+0.00 ½</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">=Ê 0;0=A:</span>
+                <span class="summary-value balance" id="summary-balance">0.00 ½</span>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div class="loading-state" id="loading-state">
+            <div>03@C7:0 B@0=70:F89...</div>
+        </div>
+
+        <!-- Transactions List -->
+        <div class="transactions-list" id="transactions-list" style="display: none;">
+            <!-- Transactions will be inserted here -->
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="empty-state" style="display: none;">
+            <div class="empty-state-icon">=í</div>
+            <div class="empty-state-text">5B B@0=70:F89 70 A53>4=O</div>
+            <button class="btn btn-primary" onclick="window.location.href='/webapp/add.html'">
+                >1028BL B@0=70:F8N
+            </button>
+        </div>
+    </div>
+
+    <!-- Core JS modules -->
+    <script src="/webapp/static/js/storage.js"></script>
+    <script src="/webapp/static/js/theme.js"></script>
+    <script src="/webapp/static/js/validators.js"></script>
+    <script src="/webapp/static/js/ui.js"></script>
+    <script src="/webapp/static/js/auth.js"></script>
+    <script src="/webapp/static/js/api.js"></script>
+    <script src="/webapp/static/js/app.js"></script>
+
+    <script>
+        let app = null;
+        let facts = [];
+
+        // Page-specific initialization
+        window.pageInit = async function(budgetApp) {
+            console.log('Today page init');
+            app = budgetApp;
+
+            // Set today's date
+            const today = new Date();
+            document.getElementById('today-date').textContent = formatDate(today);
+
+            // Load today's transactions
+            await loadTodayTransactions();
+
+            // Setup BackButton
+            app.setupBackButton(() => {
+                window.location.href = '/webapp/index.html';
+            });
+
+            console.log('Today page ready');
+        };
+
+        async function loadTodayTransactions() {
+            const loadingState = document.getElementById('loading-state');
+            const summaryCard = document.getElementById('summary-card');
+            const transactionsList = document.getElementById('transactions-list');
+            const emptyState = document.getElementById('empty-state');
+
+            try {
+                // Get today's date range
+                const today = new Date();
+                const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                const todayEnd = new Date(todayStart);
+                todayEnd.setDate(todayEnd.getDate() + 1);
+
+                // Format dates for API
+                const dateFrom = todayStart.toISOString().split('T')[0];
+                const dateTo = todayEnd.toISOString().split('T')[0];
+
+                // Fetch facts
+                const result = await app.api.listFacts({
+                    date_from: dateFrom,
+                    date_to: dateTo,
+                    limit: 1000  // All transactions for today
+                });
+
+                facts = result.facts || [];
+
+                // Hide loading
+                loadingState.style.display = 'none';
+
+                if (facts.length === 0) {
+                    // Show empty state
+                    emptyState.style.display = 'block';
+                } else {
+                    // Calculate summary
+                    const summary = calculateSummary(facts);
+                    updateSummary(summary);
+                    summaryCard.style.display = 'block';
+
+                    // Render transactions
+                    renderTransactions(facts);
+                    transactionsList.style.display = 'block';
+                }
+
+            } catch (error) {
+                console.error('Failed to load transactions:', error);
+                loadingState.innerHTML = `<div style="color: var(--tg-theme-destructive-text-color);">H81:0 703@C7:8: ${error.message}</div>`;
+            }
+        }
+
+        function calculateSummary(facts) {
+            let income = 0;
+            let expense = 0;
+
+            facts.forEach(fact => {
+                if (fact.amount > 0) {
+                    income += fact.amount;
+                } else {
+                    expense += Math.abs(fact.amount);
+                }
+            });
+
+            const balance = income - expense;
+
+            return { income, expense, balance };
+        }
+
+        function updateSummary(summary) {
+            document.getElementById('summary-expense').textContent = `-${app.ui.formatAmount(summary.expense)} ½`;
+            document.getElementById('summary-income').textContent = `+${app.ui.formatAmount(summary.income)} ½`;
+
+            const balanceElement = document.getElementById('summary-balance');
+            const balanceFormatted = app.ui.formatAmount(summary.balance);
+            balanceElement.textContent = `${summary.balance >= 0 ? '+' : '-'}${balanceFormatted} ½`;
+        }
+
+        function renderTransactions(facts) {
+            const list = document.getElementById('transactions-list');
+            list.innerHTML = '';
+
+            // Sort by created_at descending (most recent first)
+            const sortedFacts = [...facts].sort((a, b) => {
+                const dateA = new Date(a.created_at || a.fact_date);
+                const dateB = new Date(b.created_at || b.fact_date);
+                return dateB - dateA;
+            });
+
+            sortedFacts.forEach(fact => {
+                const item = createTransactionItem(fact);
+                list.appendChild(item);
+            });
+        }
+
+        function createTransactionItem(fact) {
+            const item = document.createElement('div');
+            item.className = 'transaction-item';
+            item.dataset.factId = fact.id;
+
+            // Icon (placeholder - will be from article data in future)
+            const icon = document.createElement('div');
+            icon.className = 'transaction-icon';
+            icon.textContent = fact.amount > 0 ? '=°' : '=¸';
+
+            // Details
+            const details = document.createElement('div');
+            details.className = 'transaction-details';
+
+            const category = document.createElement('div');
+            category.className = 'transaction-category';
+            category.textContent = `0B53>@8O #${fact.article_id}`;  // TODO: Load article name
+
+            const description = document.createElement('div');
+            description.className = 'transaction-description';
+            description.textContent = fact.description || '57 >?8A0=8O';
+
+            const time = document.createElement('div');
+            time.className = 'transaction-time';
+            time.textContent = formatTime(new Date(fact.created_at || fact.fact_date));
+
+            details.appendChild(category);
+            details.appendChild(description);
+            details.appendChild(time);
+
+            // Amount
+            const amount = document.createElement('div');
+            amount.className = `transaction-amount ${fact.amount > 0 ? 'income' : 'expense'}`;
+            const amountValue = Math.abs(fact.amount);
+            amount.textContent = `${fact.amount > 0 ? '+' : '-'}${app.ui.formatAmount(amountValue)} ½`;
+
+            // Assemble
+            item.appendChild(icon);
+            item.appendChild(details);
+            item.appendChild(amount);
+
+            // Click handler - show edit/delete menu
+            item.addEventListener('click', () => {
+                app.ui.hapticLight();
+                showTransactionMenu(fact);
+            });
+
+            return item;
+        }
+
+        function showTransactionMenu(fact) {
+            // TODO: Show action sheet with Edit/Delete options
+            // For now, just navigate to edit
+            window.location.href = `/webapp/edit.html?id=${fact.id}`;
+        }
+
+        function formatDate(date) {
+            const day = date.getDate();
+            const months = ['O=2', 'D52', '<0@', '0?@', '<09', '8N=', '8N;', '023', 'A5=', '>:B', '=>O', '45:'];
+            const month = months[date.getMonth()];
+            const year = date.getFullYear();
+            return `${day} ${month} ${year}`;
+        }
+
+        function formatTime(date) {
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${hours}:${minutes}`;
+        }
+    </script>
+</body>
+</html>

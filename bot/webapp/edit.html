@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title> 540:B8@>20BL B@0=70:F8N - Family Budget</title>
+
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/webapp/static/css/telegram-theme.css">
+    <link rel="stylesheet" href="/webapp/static/css/app.css">
+    <link rel="stylesheet" href="/webapp/static/css/forms.css">
+
+    <style>
+        /* Edit transaction specific styles */
+        .page-header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--tg-theme-section-separator-color);
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--tg-theme-text-color);
+        }
+
+        .amount-input-wrapper {
+            position: relative;
+            margin-bottom: 24px;
+        }
+
+        .amount-input {
+            width: 100%;
+            font-size: 32px;
+            font-weight: 700;
+            text-align: center;
+            padding: 16px;
+            border: 2px solid var(--tg-theme-button-color);
+            border-radius: 12px;
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+        }
+
+        .amount-input:focus {
+            outline: none;
+            border-color: var(--tg-theme-link-color);
+        }
+
+        .amount-input.expense {
+            border-color: var(--tg-theme-destructive-text-color);
+            color: var(--tg-theme-destructive-text-color);
+        }
+
+        .amount-input.income {
+            border-color: #34c759;
+            color: #34c759;
+        }
+
+        .currency-label {
+            position: absolute;
+            right: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 20px;
+            color: var(--tg-theme-hint-color);
+            pointer-events: none;
+        }
+
+        .category-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--tg-theme-section-separator-color);
+            border-radius: 12px;
+            background-color: var(--tg-theme-bg-color);
+        }
+
+        .category-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--tg-theme-section-separator-color);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .category-item:last-child {
+            border-bottom: none;
+        }
+
+        .category-item:active {
+            background-color: var(--tg-theme-secondary-bg-color);
+        }
+
+        .category-item.selected {
+            background-color: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+        }
+
+        .category-item-name {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .category-loading {
+            padding: 16px;
+            text-align: center;
+            color: var(--tg-theme-hint-color);
+        }
+
+        .quick-amount-buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .quick-amount-btn {
+            padding: 8px;
+            font-size: 14px;
+            background-color: var(--tg-theme-secondary-bg-color);
+            border: 1px solid var(--tg-theme-section-separator-color);
+            border-radius: 8px;
+            color: var(--tg-theme-text-color);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-amount-btn:active {
+            background-color: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+        }
+
+        /* Delete button */
+        .delete-section {
+            margin-top: 32px;
+            padding-top: 32px;
+            border-top: 1px solid var(--tg-theme-section-separator-color);
+        }
+
+        .btn-delete {
+            width: 100%;
+            padding: 14px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 12px;
+            border: none;
+            background-color: var(--tg-theme-destructive-text-color);
+            color: white;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-delete:active {
+            opacity: 0.8;
+        }
+
+        /* Loading state */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--tg-theme-bg-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .loading-spinner {
+            font-size: 48px;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            margin-top: 16px;
+            font-size: 16px;
+            color: var(--tg-theme-hint-color);
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner">ó</div>
+        <div class="loading-text">03@C7:0 B@0=70:F88...</div>
+    </div>
+
+    <div class="container" id="main-content" style="display: none;">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="page-title"> 540:B8@>20BL B@0=70:F8N</div>
+        </div>
+
+        <!-- Transaction Type Selector -->
+        <div class="form-group">
+            <label class="form-label">"8? >?5@0F88</label>
+            <div class="segmented-control">
+                <button type="button" class="segmented-control-item" data-type="expense">
+                     0AE>4
+                </button>
+                <button type="button" class="segmented-control-item active" data-type="income">
+                    >E>4
+                </button>
+            </div>
+        </div>
+
+        <!-- Quick Amount Buttons -->
+        <div class="form-group">
+            <label class="form-label">KAB@K9 2K1>@ AC<<K</label>
+            <div class="quick-amount-buttons">
+                <button type="button" class="quick-amount-btn" data-amount="100">100 ½</button>
+                <button type="button" class="quick-amount-btn" data-amount="500">500 ½</button>
+                <button type="button" class="quick-amount-btn" data-amount="1000">1000 ½</button>
+                <button type="button" class="quick-amount-btn" data-amount="5000">5000 ½</button>
+            </div>
+        </div>
+
+        <!-- Amount Input -->
+        <div class="form-group">
+            <label class="form-label form-label-required">!C<<0</label>
+            <div class="amount-input-wrapper">
+                <input
+                    type="number"
+                    id="amount"
+                    class="amount-input income"
+                    placeholder="0.00"
+                    step="0.01"
+                    min="0.01"
+                    max="9999999.99"
+                    inputmode="decimal"
+                    required
+                >
+                <span class="currency-label">½</span>
+            </div>
+            <span class="error-message" id="amount-error"></span>
+        </div>
+
+        <!-- Category Select -->
+        <div class="form-group">
+            <label class="form-label form-label-required">0B53>@8O</label>
+            <div class="category-list" id="category-list">
+                <div class="category-loading">03@C7:0 :0B53>@89...</div>
+            </div>
+            <span class="error-message" id="category-error"></span>
+        </div>
+
+        <!-- Description (optional) -->
+        <div class="form-group">
+            <label class="form-label">?8A0=85 (=5>1O70B5;L=>)</label>
+            <textarea
+                id="description"
+                class="form-textarea"
+                placeholder=">102LB5 :><<5=B0@89..."
+                maxlength="200"
+                rows="3"
+            ></textarea>
+            <span class="char-counter" id="description-counter">0 / 200</span>
+        </div>
+
+        <!-- Date Select -->
+        <div class="form-group">
+            <label class="form-label form-label-required">0B0</label>
+            <input
+                type="date"
+                id="fact-date"
+                class="form-input"
+                required
+            >
+            <span class="error-message" id="date-error"></span>
+        </div>
+
+        <!-- Delete Section -->
+        <div class="delete-section">
+            <button type="button" class="btn-delete" id="delete-btn">
+                =Ñ #40;8BL B@0=70:F8N
+            </button>
+        </div>
+    </div>
+
+    <!-- Core JS modules -->
+    <script src="/webapp/static/js/storage.js"></script>
+    <script src="/webapp/static/js/theme.js"></script>
+    <script src="/webapp/static/js/validators.js"></script>
+    <script src="/webapp/static/js/ui.js"></script>
+    <script src="/webapp/static/js/auth.js"></script>
+    <script src="/webapp/static/js/api.js"></script>
+    <script src="/webapp/static/js/app.js"></script>
+
+    <script>
+        let formState = {
+            factId: null,
+            factType: 'income',  // 'income' or 'expense'
+            amount: null,
+            categoryId: null,
+            description: '',
+            factDate: null
+        };
+
+        let categories = [];
+        let app = null;
+        let originalFact = null;  // Original fact data for comparison
+
+        // Page-specific initialization
+        window.pageInit = async function(budgetApp) {
+            console.log('Edit transaction page init');
+            app = budgetApp;
+
+            // Get fact ID from URL query params
+            const urlParams = new URLSearchParams(window.location.search);
+            const factId = urlParams.get('id');
+
+            if (!factId) {
+                app.ui.showError('ID B@0=70:F88 =5 C:070=', () => {
+                    window.location.href = '/webapp/index.html';
+                });
+                return;
+            }
+
+            formState.factId = parseInt(factId);
+
+            // Load transaction data
+            await loadTransaction(formState.factId);
+
+            // Setup form controls
+            setupTypeSelector();
+            setupQuickAmountButtons();
+            setupAmountInput();
+            setupDescriptionCounter();
+            setupDateInput();
+
+            // Load categories
+            await loadCategories();
+
+            // Setup delete button
+            setupDeleteButton();
+
+            // Setup MainButton for save
+            setupMainButton();
+
+            // Setup BackButton
+            app.setupBackButton(() => {
+                window.history.back();
+            });
+
+            console.log('Edit transaction page ready');
+        };
+
+        async function loadTransaction(factId) {
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const mainContent = document.getElementById('main-content');
+
+            try {
+                // Fetch fact details
+                const result = await app.api.listFacts({ limit: 1000 });
+                const facts = result.facts || [];
+
+                // Find the fact by ID
+                originalFact = facts.find(f => f.id === factId);
+
+                if (!originalFact) {
+                    throw new Error('"@0=70:F8O =5 =0945=0');
+                }
+
+                // Populate form state
+                formState.factType = originalFact.amount > 0 ? 'income' : 'expense';
+                formState.amount = Math.abs(originalFact.amount);
+                formState.categoryId = originalFact.article_id;
+                formState.description = originalFact.description || '';
+                formState.factDate = originalFact.fact_date;
+
+                // Populate form fields
+                populateFormFields();
+
+                // Hide loading, show content
+                loadingOverlay.style.display = 'none';
+                mainContent.style.display = 'block';
+
+            } catch (error) {
+                console.error('Failed to load transaction:', error);
+                app.ui.showError(`H81:0 703@C7:8: ${error.message}`, () => {
+                    window.history.back();
+                });
+            }
+        }
+
+        function populateFormFields() {
+            // Type selector
+            const typeButtons = document.querySelectorAll('.segmented-control-item');
+            typeButtons.forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.type === formState.factType) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Amount
+            const amountInput = document.getElementById('amount');
+            amountInput.value = formState.amount.toFixed(2);
+            amountInput.classList.remove('income', 'expense');
+            amountInput.classList.add(formState.factType);
+
+            // Description
+            const descriptionInput = document.getElementById('description');
+            descriptionInput.value = formState.description;
+            const counter = document.getElementById('description-counter');
+            counter.textContent = `${formState.description.length} / 200`;
+
+            // Date
+            const dateInput = document.getElementById('fact-date');
+            dateInput.value = formState.factDate;
+
+            // Category will be selected after categories are loaded
+        }
+
+        function setupTypeSelector() {
+            const buttons = document.querySelectorAll('.segmented-control-item');
+
+            buttons.forEach(button => {
+                button.addEventListener('click', () => {
+                    // Update active state
+                    buttons.forEach(b => b.classList.remove('active'));
+                    button.classList.add('active');
+
+                    // Update form state
+                    formState.factType = button.dataset.type;
+
+                    // Update amount input style
+                    const amountInput = document.getElementById('amount');
+                    amountInput.classList.remove('income', 'expense');
+                    amountInput.classList.add(formState.factType);
+
+                    // Reload categories for selected type
+                    loadCategories();
+
+                    // Haptic feedback
+                    app.ui.hapticLight();
+                });
+            });
+        }
+
+        function setupQuickAmountButtons() {
+            const buttons = document.querySelectorAll('.quick-amount-btn');
+
+            buttons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const amount = parseFloat(button.dataset.amount);
+                    document.getElementById('amount').value = amount.toFixed(2);
+                    formState.amount = amount;
+                    app.ui.hapticLight();
+                });
+            });
+        }
+
+        function setupAmountInput() {
+            const amountInput = document.getElementById('amount');
+
+            amountInput.addEventListener('input', () => {
+                const value = parseFloat(amountInput.value);
+                formState.amount = isNaN(value) ? null : value;
+
+                // Clear error on input
+                document.getElementById('amount-error').textContent = '';
+                amountInput.classList.remove('input-error');
+            });
+        }
+
+        function setupDescriptionCounter() {
+            const textarea = document.getElementById('description');
+            const counter = document.getElementById('description-counter');
+
+            textarea.addEventListener('input', () => {
+                const length = textarea.value.length;
+                counter.textContent = `${length} / 200`;
+
+                if (length > 200) {
+                    counter.classList.add('over-limit');
+                } else {
+                    counter.classList.remove('over-limit');
+                }
+
+                formState.description = textarea.value;
+            });
+        }
+
+        function setupDateInput() {
+            const dateInput = document.getElementById('fact-date');
+
+            // Set max date to today (no future dates)
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            dateInput.max = todayStr;
+
+            dateInput.addEventListener('change', () => {
+                formState.factDate = dateInput.value;
+
+                // Clear error on change
+                document.getElementById('date-error').textContent = '';
+                dateInput.classList.remove('input-error');
+            });
+        }
+
+        async function loadCategories() {
+            const categoryList = document.getElementById('category-list');
+            categoryList.innerHTML = '<div class="category-loading">03@C7:0 :0B53>@89...</div>';
+
+            try {
+                const result = await app.api.listArticles({
+                    type: formState.factType,
+                    is_current: true
+                });
+                categories = result.articles || [];
+
+                if (categories.length === 0) {
+                    categoryList.innerHTML = '<div class="category-loading">0B53>@88 =5 =0945=K</div>';
+                    return;
+                }
+
+                // Render categories
+                categoryList.innerHTML = '';
+                categories.forEach(category => {
+                    const item = document.createElement('div');
+                    item.className = 'category-item';
+                    item.dataset.categoryId = category.id;
+
+                    // Pre-select if matches current category
+                    if (category.id === formState.categoryId) {
+                        item.classList.add('selected');
+                    }
+
+                    item.innerHTML = `<div class="category-item-name">${category.name}</div>`;
+
+                    item.addEventListener('click', () => {
+                        // Update selected state
+                        document.querySelectorAll('.category-item').forEach(i => {
+                            i.classList.remove('selected');
+                        });
+                        item.classList.add('selected');
+
+                        // Update form state
+                        formState.categoryId = category.id;
+
+                        // Clear error
+                        document.getElementById('category-error').textContent = '';
+
+                        // Haptic feedback
+                        app.ui.hapticLight();
+                    });
+
+                    categoryList.appendChild(item);
+                });
+
+            } catch (error) {
+                console.error('Failed to load categories:', error);
+                categoryList.innerHTML = '<div class="category-loading">H81:0 703@C7:8 :0B53>@89</div>';
+            }
+        }
+
+        function setupDeleteButton() {
+            const deleteBtn = document.getElementById('delete-btn');
+
+            deleteBtn.addEventListener('click', async () => {
+                app.ui.hapticLight();
+
+                // Show confirmation dialog
+                const confirmed = confirm('K C25@5=K, GB> E>B8B5 C40;8BL MBC B@0=70:F8N? -B> 459AB285 =5;L7O >B<5=8BL.');
+
+                if (!confirmed) {
+                    return;
+                }
+
+                // Show loading
+                app.ui.showLoading('#40;5=85...');
+
+                try {
+                    await app.api.deleteFact(formState.factId);
+
+                    app.ui.hideLoading();
+                    app.ui.hapticSuccess();
+                    app.ui.showSuccess('"@0=70:F8O C40;5=0', () => {
+                        window.location.href = '/webapp/index.html';
+                    });
+
+                } catch (error) {
+                    app.ui.hideLoading();
+                    app.ui.showError(`H81:0 C40;5=8O: ${error.message}`);
+                }
+            });
+        }
+
+        function setupMainButton() {
+            const mainButton = app.tg.MainButton;
+
+            mainButton.setText('!>E@0=8BL 87<5=5=8O');
+            mainButton.show();
+            mainButton.enable();
+
+            mainButton.onClick(async () => {
+                await handleSave();
+            });
+        }
+
+        async function handleSave() {
+            console.log('Saving transaction...', formState);
+
+            // Validate form
+            const errors = validateForm();
+            if (Object.keys(errors).length > 0) {
+                app.ui.hapticError();
+                return;
+            }
+
+            // Show loading
+            app.ui.showLoading('!>E@0=5=85...');
+
+            try {
+                // Prepare update data
+                const updateData = {
+                    amount: formState.factType === 'income' ? formState.amount : -formState.amount,
+                    article_id: formState.categoryId,
+                    description: formState.description,
+                    fact_date: formState.factDate
+                };
+
+                // Update fact
+                const result = await app.api.updateFact(formState.factId, updateData);
+
+                app.ui.hideLoading();
+                app.ui.hapticSuccess();
+                app.ui.showSuccess('"@0=70:F8O >1=>2;5=0!', () => {
+                    window.history.back();
+                });
+
+            } catch (error) {
+                app.ui.hideLoading();
+                app.ui.showError(`H81:0: ${error.message}`);
+            }
+        }
+
+        function validateForm() {
+            const errors = {};
+
+            // Amount validation
+            const amountInput = document.getElementById('amount');
+            const amountError = Validators.amount(formState.amount);
+            if (amountError) {
+                errors.amount = amountError;
+                document.getElementById('amount-error').textContent = amountError;
+                amountInput.classList.add('input-error');
+            }
+
+            // Category validation
+            if (!formState.categoryId) {
+                errors.category = 'K15@8B5 :0B53>@8N';
+                document.getElementById('category-error').textContent = 'K15@8B5 :0B53>@8N';
+            }
+
+            // Date validation
+            const dateInput = document.getElementById('fact-date');
+            const dateError = Validators.date(formState.factDate);
+            if (dateError) {
+                errors.date = dateError;
+                document.getElementById('date-error').textContent = dateError;
+                dateInput.classList.add('input-error');
+            }
+
+            return errors;
+        }
+    </script>
+</body>
+</html>
