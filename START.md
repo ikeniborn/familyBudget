@@ -214,6 +214,15 @@ docker compose logs -f bot
 - HTTPS: `https://your-domain` (если настроен SSL)
 - Backend API: проксируется через nginx
 
+**Telegram Bot:**
+- Text commands: Отправьте `/start` в bot для регистрации
+- Web Apps (Menu Button): Click Menu Button (≡) в чате бота → 8 interactive forms
+  - Main Menu с Quick Stats
+  - Add Transaction форма
+  - Transaction history и filters
+  - Statistics и Plan vs Fact
+  - Advanced Search с CSV export
+
 ### Полезные команды
 
 ```bash
@@ -234,6 +243,11 @@ docker compose exec backend bash
 
 # Просмотр логов PostgreSQL
 docker compose logs postgres
+
+# Проверка Menu Button (Telegram Web Apps)
+# 1. Откройте бота в Telegram
+# 2. Найдите Menu Button (три горизонтальные линии возле поля ввода)
+# 3. Click → откроется Web Apps интерфейс с формами
 ```
 
 ---

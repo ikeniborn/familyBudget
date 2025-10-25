@@ -33,7 +33,8 @@
 
 ### Key Highlights
 
-- 💬 **Telegram Bot Interface** - Add transactions on the go with simple commands
+- 💬 **Telegram Bot Commands** - Add transactions on the go with simple text commands
+- 📱 **Telegram Web Apps** - 8 interactive web forms via Menu Button (Phase 3 - NEW!)
 - 📊 **Web Analytics Dashboard** - Beautiful charts and reports powered by ECharts
 - 🔐 **Secure Authentication** - Telegram OAuth with JWT tokens
 - 📂 **Hierarchical Categories** - Organize expenses with parent-child relationships
@@ -46,7 +47,7 @@
 
 ## ✨ Features
 
-### Telegram Bot (Phase 2 - NEW!)
+### Telegram Bot Commands
 
 **8 Bot Commands:**
 
@@ -86,6 +87,83 @@
   - Deviation analysis
 - 🚨 **Budget threshold notifications** - Real-time alerts when spending exceeds 90% of plan
 - 🔔 **Notification history** - No duplicate alerts for same category/period
+
+### Telegram Web Apps (Phase 3 - READY!)
+
+**8 Interactive Web Forms** accessible via **Menu Button** in the bot:
+
+- 📋 **Main Menu (index.html)** - Dashboard with 3x3 grid navigation
+  - Quick Stats widget (today's income/expense/balance)
+  - Fast access to all 7 forms
+  - User personalization with greeting
+
+- ➕ **Add Transaction (add.html)** - Quick expense/income entry
+  - Segmented control for type selection
+  - Quick amount buttons (100, 500, 1000, 5000)
+  - Hierarchical category selection
+  - Client-side validation
+  - Date picker (max: today)
+
+- 📅 **Today's View (today.html)** - Daily transaction summary
+  - Summary card (income/expense/balance)
+  - Transaction list grouped by time
+  - Color-coded amounts (green/red)
+  - Click to edit
+
+- 📋 **Transaction List (list.html)** - Full history with filters
+  - Collapsible filters panel
+  - Date range filter
+  - Type & category filters
+  - Pagination (20 items/page)
+
+- ✏️ **Edit Transaction (edit.html)** - Modify or delete
+  - Pre-filled form
+  - Delete button with confirmation
+  - Same validation as add form
+  - History navigation support
+
+- 📊 **Statistics (stats.html)** - Category breakdown
+  - Period selector (Today/Week/Month/Year)
+  - Top 5 expense categories
+  - Top 5 income categories
+  - Progress bars with percentages
+
+- 📝 **Add Plan (addplan.html)** - Budget planning
+  - Quick amount buttons (5k, 10k, 20k, 50k)
+  - Period selector (Month/Quarter/Year/Custom)
+  - Auto date calculation
+  - Recurring plans UI (backend support TODO)
+
+- 📊 **Plan vs Fact Summary (summary.html)** - Budget performance
+  - Total summary card (plan/fact/diff)
+  - Category-level comparison
+  - Progress bars with color indicators
+  - Economy vs overspending highlights
+
+- 🔍 **Advanced Search (search.html)** - Filter & export
+  - 5 filter types (date, type, category, amount, description)
+  - CSV export with BOM (Excel compatible)
+  - Hybrid filtering (backend + client)
+  - Results count display
+
+**Technology:**
+- **Telegram Web Apps SDK** - Native integration with Menu Button
+- **Vanilla JavaScript ES6+** - No frameworks, modular architecture
+- **7 Core Modules:** app.js, api.js, auth.js, ui.js, validators.js, theme.js, storage.js
+- **Telegram Theme Support** - Auto light/dark mode
+- **Bundle Size:** ~190KB total (HTML + JS + CSS) - excellent for mobile
+
+**Key Features:**
+- ✅ JWT Bearer token authentication
+- ✅ Period selectors (Month/Quarter/Year/Custom)
+- ✅ CSV export (Excel compatible with BOM)
+- ✅ Hybrid filtering (backend reduces data, client filters)
+- ✅ Client-side aggregation & grouping
+- ✅ Haptic feedback (via Telegram SDK)
+- ✅ Responsive design for all devices
+- ✅ User data isolation (current_user.id filter)
+
+**Status:** Phase 0-3 Complete | Ready for Manual Testing
 
 ### Web Analytics
 
@@ -145,10 +223,17 @@
 
 ### Frontend
 
+**Web Analytics:**
 - **HTMX** - Dynamic UI without complex JavaScript
 - **Jinja2** - Server-side templating
 - **ECharts** 5.5+ - Beautiful interactive charts
 - **TailwindCSS** - Utility-first CSS framework
+
+**Telegram Web Apps:**
+- **Telegram Web Apps SDK** - Native integration with Menu Button
+- **Vanilla JavaScript ES6+** - Modular architecture (7 core modules)
+- **Telegram Theme API** - Auto light/dark mode support
+- **CSS Variables** - Responsive design with Telegram theme integration
 
 ### Infrastructure
 
@@ -552,6 +637,52 @@ openssl rand -base64 32
    - Enable/disable weekly reports
    - Set notification threshold (default 90%)
    - Choose report day/time
+
+### Telegram Web Apps (Menu Button)
+
+**Access Interactive Forms:**
+1. Open bot chat in Telegram
+2. Click **Menu Button** (three horizontal lines icon near message input)
+3. Web Apps interface opens with 3x3 grid menu
+4. Select any form to use
+
+**Available Forms:**
+- **📋 Main Menu** - Dashboard with Quick Stats (today's balance)
+- **➕ Add Transaction** - Quick expense/income entry form
+- **📅 Today** - View all today's transactions with summary
+- **📋 List** - Full transaction history with filters and pagination
+- **✏️ Edit** - Modify or delete any transaction
+- **📊 Statistics** - Category breakdown with period selector
+- **📝 Add Plan** - Create budget plans for month/quarter/year
+- **📊 Summary** - Compare plan vs fact by categories
+- **🔍 Search** - Advanced search with CSV export
+
+**Example Workflow (Add Transaction via Web App):**
+1. Click Menu Button → Select "Add Transaction"
+2. Choose type (Expense/Income) with segmented control
+3. Click quick amount button (100/500/1000/5000) or enter custom
+4. Select category from scrollable list
+5. Choose date (max: today) or keep default
+6. Add description (optional)
+7. Click "Save" button
+8. Done! Web Apps closes automatically
+
+**Example Workflow (CSV Export):**
+1. Click Menu Button → Select "Search"
+2. Set filters (date range, category, amount, etc.)
+3. Click "🔍 Find Transactions"
+4. Review results (count displayed)
+5. Click "📥 Export to CSV"
+6. File downloads automatically (Excel compatible with Cyrillic support)
+
+**Key Advantages:**
+- ✅ Faster than bot commands (no typing)
+- ✅ Visual interface with quick buttons
+- ✅ Auto theme (light/dark follows Telegram)
+- ✅ Full keyboard support for amounts
+- ✅ Native validation with error messages
+- ✅ Haptic feedback on actions
+- ✅ Works offline after initial load
 
 ### Web Interface
 
