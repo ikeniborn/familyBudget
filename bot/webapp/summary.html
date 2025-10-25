@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>;0= vs $0:B - Family Budget</title>
+    <title>План vs Факт - Family Budget</title>
 
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -262,40 +262,40 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
-            <div class="page-title">=� ;0= vs $0:B</div>
+            <div class="page-title">н План vs Факт</div>
         </div>
 
         <!-- Period Selector -->
         <div class="period-selector">
-            <button class="period-btn active" data-period="month">5AOF</button>
-            <button class="period-btn" data-period="quarter">20@B0;</button>
-            <button class="period-btn" data-period="year">>4</button>
+            <button class="period-btn active" data-period="month">Месяц</button>
+            <button class="period-btn" data-period="quarter">Квартал</button>
+            <button class="period-btn" data-period="year">Год</button>
         </div>
 
         <!-- Loading State -->
         <div class="loading-state" id="loading-state">
-            <div class="loading-spinner">�</div>
-            <div style="margin-top: 16px;">03@C7:0 40==KE...</div>
+            <div class="loading-spinner"></div>
+            <div style="margin-top: 16px;">Загрузка данныхЮЮЮ</div>
         </div>
 
         <!-- Content -->
         <div id="summary-content" style="display: none;">
             <!-- Total Summary -->
             <div class="total-summary">
-                <div class="total-summary-title" id="period-title">0 <5AOF</div>
+                <div class="total-summary-title" id="period-title">За <5AOF</div>
 
                 <div class="total-row">
-                    <span class="total-label">=�  0AE>4K</span>
+                    <span class="total-label">н  асходы</span>
                     <div class="total-values">
-                        <div class="total-value" id="total-expense-fact">0 �</div>
+                        <div class="total-value" id="total-expense-fact">а </div>
                         <div class="total-diff" id="total-expense-diff"></div>
                     </div>
                 </div>
 
                 <div class="total-row">
-                    <span class="total-label">=� >E>4K</span>
+                    <span class="total-label">н Доходы</span>
                     <div class="total-values">
-                        <div class="total-value" id="total-income-fact">0 �</div>
+                        <div class="total-value" id="total-income-fact">а </div>
                         <div class="total-diff" id="total-income-diff"></div>
                     </div>
                 </div>
@@ -303,7 +303,7 @@
 
             <!-- Expenses Breakdown -->
             <div class="comparison-section" id="expense-section" style="display: none;">
-                <div class="comparison-header">=�  0AE>4K ?> :0B53>@8O<</div>
+                <div class="comparison-header">н  асходы по категория<</div>
                 <div class="comparison-list" id="expense-list">
                     <!-- Populated dynamically -->
                 </div>
@@ -311,7 +311,7 @@
 
             <!-- Income Breakdown -->
             <div class="comparison-section" id="income-section" style="display: none;">
-                <div class="comparison-header">=� >E>4K ?> :0B53>@8O<</div>
+                <div class="comparison-header">н Доходы по категория<</div>
                 <div class="comparison-list" id="income-list">
                     <!-- Populated dynamically -->
                 </div>
@@ -320,10 +320,10 @@
 
         <!-- Empty State -->
         <div class="empty-state" id="empty-state" style="display: none;">
-            <div class="empty-state-icon">=�</div>
-            <div class="empty-state-text">5B 40==KE 70 2K1@0==K9 ?5@8>4<br>!>7409B5 ?;0= 4;O A@02=5=8O</div>
+            <div class="empty-state-icon">н</div>
+            <div class="empty-state-text">Нет данных за выбранный период<br>Создайте план для сравнения</div>
             <button class="btn btn-primary" onclick="window.location.href='/webapp/addplan.html'">
-                !>740BL ?;0=
+                Создать план
             </button>
         </div>
     </div>
@@ -430,7 +430,7 @@
 
             } catch (error) {
                 console.error('Failed to load summary:', error);
-                loadingState.innerHTML = `<div style="color: var(--tg-theme-destructive-text-color);">H81:0 703@C7:8: ${error.message}</div>`;
+                loadingState.innerHTML = `<div style="color: var(--tg-theme-destructive-text-color);">Ошибка загрузкик ${error.message}</div>`;
             }
         }
 
@@ -468,9 +468,9 @@
         function displaySummary(facts, period) {
             // Update period title
             const periodTitles = {
-                'month': '0 <5AOF',
-                'quarter': '0 :20@B0;',
-                'year': '0 3>4'
+                'month': 'За <есяц',
+                'quarter': 'За квартал',
+                'year': 'За год'
             };
             document.getElementById('period-title').textContent = periodTitles[period];
 
@@ -530,18 +530,18 @@
 
         function updateTotals(totals) {
             // Expenses
-            document.getElementById('total-expense-fact').textContent = `${app.ui.formatAmount(totals.expense.fact)} �`;
+            document.getElementById('total-expense-fact').textContent = `${app.ui.formatAmount(totals.expense.fact)} `;
             const expenseDiffEl = document.getElementById('total-expense-diff');
-            const expenseSign = totals.expense.diff >= 0 ? '+' : '';
-            expenseDiffEl.textContent = `;0=: ${app.ui.formatAmount(totals.expense.plan)} � (${expenseSign}${app.ui.formatAmount(totals.expense.diff)} �)`;
-            expenseDiffEl.className = `total-diff ${totals.expense.diff >= 0 ? 'positive' : 'negative'}`;
+            const expenseSign = totals.expense.diff >= 0 ? 'Ы' : '';
+            expenseDiffEl.textContent = `Планк ${app.ui.formatAmount(totals.expense.plan)}  (${expenseSign}${app.ui.formatAmount(totals.expense.diff)} Щ`;
+            expenseDiffEl.className = `total-diff ${totals.expense.diff он а п 'positive' к 'negative'}`;
 
             // Income
-            document.getElementById('total-income-fact').textContent = `${app.ui.formatAmount(totals.income.fact)} �`;
+            document.getElementById('total-income-fact').textContent = `${app.ui.formatAmount(totals.income.fact)} `;
             const incomeDiffEl = document.getElementById('total-income-diff');
-            const incomeSign = totals.income.diff >= 0 ? '+' : '';
-            incomeDiffEl.textContent = `;0=: ${app.ui.formatAmount(totals.income.plan)} � (${incomeSign}${app.ui.formatAmount(totals.income.diff)} �)`;
-            incomeDiffEl.className = `total-diff ${totals.income.diff >= 0 ? 'positive' : 'negative'}`;
+            const incomeSign = totals.income.diff >= 0 ? 'Ы' : '';
+            incomeDiffEl.textContent = `Планк ${app.ui.formatAmount(totals.income.plan)}  (${incomeSign}${app.ui.formatAmount(totals.income.diff)} Щ`;
+            incomeDiffEl.className = `total-diff ${totals.income.diff он а п 'positive' к 'negative'}`;
         }
 
         function displayCategoryBreakdown(type, grouped) {
@@ -581,7 +581,7 @@
 
             items.forEach(item => {
                 const category = categories.find(c => c.id === item.categoryId);
-                const categoryName = category ? category.name : `0B53>@8O #${item.categoryId}`;
+                const categoryName = category ? category.name : `Категория #${item.categoryId}`;
 
                 const element = createComparisonItem(categoryName, item, type);
                 list.appendChild(element);
@@ -602,11 +602,11 @@
 
             const diffEl = document.createElement('div');
             diffEl.className = 'category-diff';
-            const diffSign = data.diff >= 0 ? ' +' : '� ';
+            const diffSign = data.diff >= 0 ? 'Ѕ Ы' : 'Џ ';
             const diffText = type === 'expense'
-                ? (data.diff >= 0 ? '-:>=><8O' : '@52KH5=85')
-                : (data.diff >= 0 ? '@52KH5=85' : '54>1>@');
-            diffEl.textContent = `${diffSign}${diffText}: ${app.ui.formatAmount(Math.abs(data.diff))} �`;
+                ? (data.diff >= 0 ? '-коно<ия' : 'Превышение')
+                : (data.diff >= 0 ? 'Превышение' : 'Недобор');
+            diffEl.textContent = `${diffSign}${diffText}: ${app.ui.formatAmount(Math.abs(data.diff))} `;
             diffEl.classList.add(data.diff >= 0 ? 'positive' : 'negative');
 
             header.appendChild(categoryName);
@@ -619,15 +619,15 @@
             const planBox = document.createElement('div');
             planBox.className = 'value-box';
             planBox.innerHTML = `
-                <div class="value-label">;0=</div>
-                <div class="value-amount">${app.ui.formatAmount(data.plan)} �</div>
+                <div class="value-label">План</div>
+                <div class="value-amount">${app.ui.formatAmount(data.plan)} </div>
             `;
 
             const factBox = document.createElement('div');
             factBox.className = 'value-box';
             factBox.innerHTML = `
-                <div class="value-label">$0:B</div>
-                <div class="value-amount">${app.ui.formatAmount(data.fact)} �</div>
+                <div class="value-label">Факт</div>
+                <div class="value-amount">${app.ui.formatAmount(data.fact)} </div>
             `;
 
             values.appendChild(planBox);
@@ -654,7 +654,7 @@
 
             const progressLabel = document.createElement('div');
             progressLabel.className = 'progress-label';
-            progressLabel.textContent = `${data.percent.toFixed(1)}% >B ?;0=0`;
+            progressLabel.textContent = `${data.percent.toFixed(1)}% от плана`;
 
             // Assemble
             item.appendChild(header);

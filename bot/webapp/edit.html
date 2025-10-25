@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title> 540:B8@>20BL B@0=70:F8N - Family Budget</title>
+    <title> едактировать транзакцию - Family Budget</title>
 
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -192,37 +192,37 @@
 <body>
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loading-overlay">
-        <div class="loading-spinner">�</div>
-        <div class="loading-text">03@C7:0 B@0=70:F88...</div>
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Загрузка транзакцииЮЮЮ</div>
     </div>
 
     <div class="container" id="main-content" style="display: none;">
         <!-- Header -->
         <div class="page-header">
-            <div class="page-title"> 540:B8@>20BL B@0=70:F8N</div>
+            <div class="page-title"> едактировать транзакцию</div>
         </div>
 
         <!-- Transaction Type Selector -->
         <div class="form-group">
-            <label class="form-label">"8? >?5@0F88</label>
+            <label class="form-label">Тип операции</label>
             <div class="segmented-control">
                 <button type="button" class="segmented-control-item" data-type="expense">
-                     0AE>4
+                     асход
                 </button>
                 <button type="button" class="segmented-control-item active" data-type="income">
-                    >E>4
+                    Доход
                 </button>
             </div>
         </div>
 
         <!-- Quick Amount Buttons -->
         <div class="form-group">
-            <label class="form-label">KAB@K9 2K1>@ AC<<K</label>
+            <label class="form-label">Быстрый выбор суммы</label>
             <div class="quick-amount-buttons">
-                <button type="button" class="quick-amount-btn" data-amount="100">100 �</button>
-                <button type="button" class="quick-amount-btn" data-amount="500">500 �</button>
-                <button type="button" class="quick-amount-btn" data-amount="1000">1000 �</button>
-                <button type="button" class="quick-amount-btn" data-amount="5000">5000 �</button>
+                <button type="button" class="quick-amount-btn" data-amount="100">100 </button>
+                <button type="button" class="quick-amount-btn" data-amount="500">500 </button>
+                <button type="button" class="quick-amount-btn" data-amount="1000">1000 </button>
+                <button type="button" class="quick-amount-btn" data-amount="5000">5000 </button>
             </div>
         </div>
 
@@ -241,36 +241,36 @@
                     inputmode="decimal"
                     required
                 >
-                <span class="currency-label">�</span>
+                <span class="currency-label"></span>
             </div>
             <span class="error-message" id="amount-error"></span>
         </div>
 
         <!-- Category Select -->
         <div class="form-group">
-            <label class="form-label form-label-required">0B53>@8O</label>
+            <label class="form-label form-label-required">Категория</label>
             <div class="category-list" id="category-list">
-                <div class="category-loading">03@C7:0 :0B53>@89...</div>
+                <div class="category-loading">Загрузка категорийЮЮЮ</div>
             </div>
             <span class="error-message" id="category-error"></span>
         </div>
 
         <!-- Description (optional) -->
         <div class="form-group">
-            <label class="form-label">?8A0=85 (=5>1O70B5;L=>)</label>
+            <label class="form-label">Описание ШнеобязательноЩ</label>
             <textarea
                 id="description"
                 class="form-textarea"
-                placeholder=">102LB5 :><<5=B0@89..."
+                placeholder=">бавьте ко<<5=B0@89..."
                 maxlength="200"
                 rows="3"
             ></textarea>
-            <span class="char-counter" id="description-counter">0 / 200</span>
+            <span class="char-counter" id="description-counter">а Я ваа</span>
         </div>
 
         <!-- Date Select -->
         <div class="form-group">
-            <label class="form-label form-label-required">0B0</label>
+            <label class="form-label form-label-required">Дата</label>
             <input
                 type="date"
                 id="fact-date"
@@ -283,7 +283,7 @@
         <!-- Delete Section -->
         <div class="delete-section">
             <button type="button" class="btn-delete" id="delete-btn">
-                =� #40;8BL B@0=70:F8N
+                н Удалить транзакцию
             </button>
         </div>
     </div>
@@ -321,7 +321,7 @@
             const factId = urlParams.get('id');
 
             if (!factId) {
-                app.ui.showError('ID B@0=70:F88 =5 C:070=', () => {
+                app.ui.showError('ID транзакции не указан', () => {
                     window.location.href = '/webapp/index.html';
                 });
                 return;
@@ -369,7 +369,7 @@
                 originalFact = facts.find(f => f.id === factId);
 
                 if (!originalFact) {
-                    throw new Error('"@0=70:F8O =5 =0945=0');
+                    throw new Error('Транзакция не найдена');
                 }
 
                 // Populate form state
@@ -388,7 +388,7 @@
 
             } catch (error) {
                 console.error('Failed to load transaction:', error);
-                app.ui.showError(`H81:0 703@C7:8: ${error.message}`, () => {
+                app.ui.showError(`Ошибка загрузкик ${error.message}`, () => {
                     window.history.back();
                 });
             }
@@ -414,7 +414,7 @@
             const descriptionInput = document.getElementById('description');
             descriptionInput.value = formState.description;
             const counter = document.getElementById('description-counter');
-            counter.textContent = `${formState.description.length} / 200`;
+            counter.textContent = `${formState.description.length} Я ваа`;
 
             // Date
             const dateInput = document.getElementById('fact-date');
@@ -481,7 +481,7 @@
 
             textarea.addEventListener('input', () => {
                 const length = textarea.value.length;
-                counter.textContent = `${length} / 200`;
+                counter.textContent = `${length} Я ваа`;
 
                 if (length > 200) {
                     counter.classList.add('over-limit');
@@ -512,7 +512,7 @@
 
         async function loadCategories() {
             const categoryList = document.getElementById('category-list');
-            categoryList.innerHTML = '<div class="category-loading">03@C7:0 :0B53>@89...</div>';
+            categoryList.innerHTML = '<div class="category-loading">Загрузка категорийЮЮЮ</div>';
 
             try {
                 const result = await app.api.listArticles({
@@ -522,7 +522,7 @@
                 categories = result.articles || [];
 
                 if (categories.length === 0) {
-                    categoryList.innerHTML = '<div class="category-loading">0B53>@88 =5 =0945=K</div>';
+                    categoryList.innerHTML = '<div class="category-loading">Категории не найдены</div>';
                     return;
                 }
 
@@ -562,7 +562,7 @@
 
             } catch (error) {
                 console.error('Failed to load categories:', error);
-                categoryList.innerHTML = '<div class="category-loading">H81:0 703@C7:8 :0B53>@89</div>';
+                categoryList.innerHTML = '<div class="category-loading">Ошибка загрузки категорий</div>';
             }
         }
 
@@ -573,27 +573,27 @@
                 app.ui.hapticLight();
 
                 // Show confirmation dialog
-                const confirmed = confirm('K C25@5=K, GB> E>B8B5 C40;8BL MBC B@0=70:F8N? -B> 459AB285 =5;L7O >B<5=8BL.');
+                const confirmed = confirm('Вы увереныЬ что хотите удалить MBC транзакциюп -то действие нельзя от<енитьЮ');
 
                 if (!confirmed) {
                     return;
                 }
 
                 // Show loading
-                app.ui.showLoading('#40;5=85...');
+                app.ui.showLoading('УдалениеЮЮЮ');
 
                 try {
                     await app.api.deleteFact(formState.factId);
 
                     app.ui.hideLoading();
                     app.ui.hapticSuccess();
-                    app.ui.showSuccess('"@0=70:F8O C40;5=0', () => {
+                    app.ui.showSuccess('Транзакция удалена', () => {
                         window.location.href = '/webapp/index.html';
                     });
 
                 } catch (error) {
                     app.ui.hideLoading();
-                    app.ui.showError(`H81:0 C40;5=8O: ${error.message}`);
+                    app.ui.showError(`Ошибка удаленияк ${error.message}`);
                 }
             });
         }
@@ -601,7 +601,7 @@
         function setupMainButton() {
             const mainButton = app.tg.MainButton;
 
-            mainButton.setText('!>E@0=8BL 87<5=5=8O');
+            mainButton.setText('Сохранить из<енения');
             mainButton.show();
             mainButton.enable();
 
@@ -621,7 +621,7 @@
             }
 
             // Show loading
-            app.ui.showLoading('!>E@0=5=85...');
+            app.ui.showLoading('СохранениеЮЮЮ');
 
             try {
                 // Prepare update data
@@ -637,13 +637,13 @@
 
                 app.ui.hideLoading();
                 app.ui.hapticSuccess();
-                app.ui.showSuccess('"@0=70:F8O >1=>2;5=0!', () => {
+                app.ui.showSuccess('Транзакция обновленаС', () => {
                     window.history.back();
                 });
 
             } catch (error) {
                 app.ui.hideLoading();
-                app.ui.showError(`H81:0: ${error.message}`);
+                app.ui.showError(`Ошибкак ${error.message}`);
             }
         }
 
@@ -661,8 +661,8 @@
 
             // Category validation
             if (!formState.categoryId) {
-                errors.category = 'K15@8B5 :0B53>@8N';
-                document.getElementById('category-error').textContent = 'K15@8B5 :0B53>@8N';
+                errors.category = 'Выберите категорию';
+                document.getElementById('category-error').textContent = 'Выберите категорию';
             }
 
             // Date validation

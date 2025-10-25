@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>>1028BL B@0=70:F8N - Family Budget</title>
+    <title>Добавить транзакцию - Family Budget</title>
 
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -138,30 +138,30 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
-            <div class="page-title">>1028BL B@0=70:F8N</div>
+            <div class="page-title">Добавить транзакцию</div>
         </div>
 
         <!-- Transaction Type Selector -->
         <div class="form-group">
-            <label class="form-label">"8? >?5@0F88</label>
+            <label class="form-label">Тип операции</label>
             <div class="segmented-control">
                 <button type="button" class="segmented-control-item" data-type="expense">
-                     0AE>4
+                     асход
                 </button>
                 <button type="button" class="segmented-control-item active" data-type="income">
-                    >E>4
+                    Доход
                 </button>
             </div>
         </div>
 
         <!-- Quick Amount Buttons -->
         <div class="form-group">
-            <label class="form-label">KAB@K9 2K1>@ AC<<K</label>
+            <label class="form-label">Быстрый выбор суммы</label>
             <div class="quick-amount-buttons">
-                <button type="button" class="quick-amount-btn" data-amount="100">100 �</button>
-                <button type="button" class="quick-amount-btn" data-amount="500">500 �</button>
-                <button type="button" class="quick-amount-btn" data-amount="1000">1000 �</button>
-                <button type="button" class="quick-amount-btn" data-amount="5000">5000 �</button>
+                <button type="button" class="quick-amount-btn" data-amount="100">100 </button>
+                <button type="button" class="quick-amount-btn" data-amount="500">500 </button>
+                <button type="button" class="quick-amount-btn" data-amount="1000">1000 </button>
+                <button type="button" class="quick-amount-btn" data-amount="5000">5000 </button>
             </div>
         </div>
 
@@ -180,36 +180,36 @@
                     inputmode="decimal"
                     required
                 >
-                <span class="currency-label">�</span>
+                <span class="currency-label"></span>
             </div>
             <span class="error-message" id="amount-error"></span>
         </div>
 
         <!-- Category Select -->
         <div class="form-group">
-            <label class="form-label form-label-required">0B53>@8O</label>
+            <label class="form-label form-label-required">Категория</label>
             <div class="category-list" id="category-list">
-                <div class="category-loading">03@C7:0 :0B53>@89...</div>
+                <div class="category-loading">Загрузка категорийЮЮЮ</div>
             </div>
             <span class="error-message" id="category-error"></span>
         </div>
 
         <!-- Description (optional) -->
         <div class="form-group">
-            <label class="form-label">?8A0=85 (=5>1O70B5;L=>)</label>
+            <label class="form-label">Описание ШнеобязательноЩ</label>
             <textarea
                 id="description"
                 class="form-textarea"
-                placeholder=">102LB5 :><<5=B0@89..."
+                placeholder=">бавьте ко<<5=B0@89..."
                 maxlength="200"
                 rows="3"
             ></textarea>
-            <span class="char-counter" id="description-counter">0 / 200</span>
+            <span class="char-counter" id="description-counter">а Я ваа</span>
         </div>
 
         <!-- Date Select -->
         <div class="form-group">
-            <label class="form-label form-label-required">0B0</label>
+            <label class="form-label form-label-required">Дата</label>
             <input
                 type="date"
                 id="fact-date"
@@ -333,7 +333,7 @@
 
             textarea.addEventListener('input', () => {
                 const length = textarea.value.length;
-                counter.textContent = `${length} / 200`;
+                counter.textContent = `${length} Я ваа`;
 
                 if (length > 200) {
                     counter.classList.add('over-limit');
@@ -368,7 +368,7 @@
 
         async function loadCategories() {
             const categoryList = document.getElementById('category-list');
-            categoryList.innerHTML = '<div class="category-loading">03@C7:0 :0B53>@89...</div>';
+            categoryList.innerHTML = '<div class="category-loading">Загрузка категорийЮЮЮ</div>';
 
             try {
                 // TODO: Implement when /api/v1/webapp/articles GET endpoint is ready
@@ -380,15 +380,15 @@
 
                 // Placeholder categories for now
                 categories = [
-                    { id: 1, name: '@>4C:BK' },
-                    { id: 2, name: '"@0=A?>@B' },
-                    { id: 3, name: ' 072;5G5=8O' },
-                    { id: 4, name: '4>@>2L5' },
-                    { id: 5, name: '45640' },
+                    { id: 1, name: 'Продукты' },
+                    { id: 2, name: 'Транспорт' },
+                    { id: 3, name: ' азвлечения' },
+                    { id: 4, name: 'Здоровье' },
+                    { id: 5, name: 'Одежда' },
                 ];
 
                 if (categories.length === 0) {
-                    categoryList.innerHTML = '<div class="category-loading">0B53>@88 =5 =0945=K</div>';
+                    categoryList.innerHTML = '<div class="category-loading">Категории не найдены</div>';
                     return;
                 }
 
@@ -423,14 +423,14 @@
 
             } catch (error) {
                 console.error('Failed to load categories:', error);
-                categoryList.innerHTML = '<div class="category-loading">H81:0 703@C7:8 :0B53>@89</div>';
+                categoryList.innerHTML = '<div class="category-loading">Ошибка загрузки категорий</div>';
             }
         }
 
         function setupMainButton() {
             const mainButton = app.tg.MainButton;
 
-            mainButton.setText('!>E@0=8BL');
+            mainButton.setText('Сохранить');
             mainButton.show();
             mainButton.enable();
 
@@ -450,7 +450,7 @@
             }
 
             // Show loading
-            app.ui.showLoading('!>E@0=5=85...');
+            app.ui.showLoading('СохранениеЮЮЮ');
 
             try {
                 // TODO: Implement when /api/v1/webapp/facts POST endpoint is ready
@@ -466,14 +466,14 @@
                 await new Promise(resolve => setTimeout(resolve, 1000));
 
                 app.ui.hideLoading();
-                app.ui.showSuccess('"@0=70:F8O A>E@0=5=0!', () => {
+                app.ui.showSuccess('Транзакция сохраненаС', () => {
                     // Go back to main menu
                     app.tg.close();
                 });
 
             } catch (error) {
                 app.ui.hideLoading();
-                app.ui.showError(`H81:0: ${error.message}`);
+                app.ui.showError(`Ошибкак ${error.message}`);
             }
         }
 
@@ -491,8 +491,8 @@
 
             // Category validation
             if (!formState.categoryId) {
-                errors.category = 'K15@8B5 :0B53>@8N';
-                document.getElementById('category-error').textContent = 'K15@8B5 :0B53>@8N';
+                errors.category = 'Выберите категорию';
+                document.getElementById('category-error').textContent = 'Выберите категорию';
             }
 
             // Date validation

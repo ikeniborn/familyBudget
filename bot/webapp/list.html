@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>A5 B@0=70:F88 - Family Budget</title>
+    <title>Все транзакции - Family Budget</title>
 
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -254,23 +254,23 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
-            <div class="page-title">A5 B@0=70:F88</div>
+            <div class="page-title">Все транзакции</div>
         </div>
 
         <!-- Filters Section -->
         <div class="filters-section">
             <div class="filters-header" id="filters-header">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <span class="filters-title">$8;LB@K</span>
-                    <span class="filters-badge" id="filters-badge" style="display: none;">0</span>
+                    <span class="filters-title">Фильтры</span>
+                    <span class="filters-badge" id="filters-badge" style="display: none;">а</span>
                 </div>
-                <span class="filters-toggle">�</span>
+                <span class="filters-toggle"></span>
             </div>
             <div class="filters-content" id="filters-content">
                 <div class="filters-body">
                     <!-- Date Range -->
                     <div class="filter-group">
-                        <label class="filter-label">5@8>4</label>
+                        <label class="filter-label">Период</label>
                         <div class="filter-row">
                             <input type="date" id="filter-date-from" class="input">
                             <input type="date" id="filter-date-to" class="input">
@@ -279,33 +279,33 @@
 
                     <!-- Transaction Type -->
                     <div class="filter-group">
-                        <label class="filter-label">"8?</label>
+                        <label class="filter-label">Тип</label>
                         <select id="filter-type" class="input">
-                            <option value="">A5</option>
-                            <option value="expense"> 0AE>4K</option>
-                            <option value="income">>E>4K</option>
+                            <option value="">Все</option>
+                            <option value="expense"> асходы</option>
+                            <option value="income">Доходы</option>
                         </select>
                     </div>
 
                     <!-- Category -->
                     <div class="filter-group">
-                        <label class="filter-label">0B53>@8O</label>
+                        <label class="filter-label">Категория</label>
                         <select id="filter-category" class="input">
-                            <option value="">A5 :0B53>@88</option>
+                            <option value="">Все категории</option>
                             <!-- Categories will be loaded dynamically -->
                         </select>
                     </div>
 
                     <!-- Search -->
                     <div class="filter-group">
-                        <label class="filter-label">>8A: ?> >?8A0=8N</label>
+                        <label class="filter-label">Поиск по описанию</label>
                         <input type="text" id="filter-search" class="input" placeholder="2548B5 B5:AB...">
                     </div>
 
                     <!-- Actions -->
                     <div class="filter-actions">
-                        <button class="btn btn-secondary" id="clear-filters-btn">!1@>A8BL</button>
-                        <button class="btn btn-primary" id="apply-filters-btn">@8<5=8BL</button>
+                        <button class="btn btn-secondary" id="clear-filters-btn">Сбросить</button>
+                        <button class="btn btn-primary" id="apply-filters-btn">При<5=8BL</button>
                     </div>
                 </div>
             </div>
@@ -313,7 +313,7 @@
 
         <!-- Loading State -->
         <div class="loading-state" id="loading-state">
-            <div>03@C7:0 B@0=70:F89...</div>
+            <div>Загрузка транзакцийЮЮЮ</div>
         </div>
 
         <!-- Transactions List -->
@@ -323,16 +323,16 @@
 
         <!-- Empty State -->
         <div class="empty-state" id="empty-state" style="display: none;">
-            <div class="empty-state-icon">=�</div>
-            <div class="empty-state-text">5B B@0=70:F89 ?> 2K1@0==K< D8;LB@0<</div>
-            <button class="btn btn-secondary" id="reset-filters-btn">!1@>A8BL D8;LB@K</button>
+            <div class="empty-state-icon">н</div>
+            <div class="empty-state-text">Нет транзакций по выбранны< D8;LB@0<</div>
+            <button class="btn btn-secondary" id="reset-filters-btn">Сбросить фильтры</button>
         </div>
 
         <!-- Pagination -->
         <div class="pagination" id="pagination" style="display: none;">
-            <button class="pagination-button" id="prev-page-btn" disabled>� 0704</button>
-            <span class="pagination-info" id="pagination-info">1 / 1</span>
-            <button class="pagination-button" id="next-page-btn" disabled>?5@54 �</button>
+            <button class="pagination-button" id="prev-page-btn" disabled> Назад</button>
+            <span class="pagination-info" id="pagination-info">б Я б</span>
+            <button class="pagination-button" id="next-page-btn" disabled>Вперед </button>
         </div>
     </div>
 
@@ -509,7 +509,7 @@
 
             } catch (error) {
                 console.error('Failed to load transactions:', error);
-                loadingState.innerHTML = `<div style="color: var(--tg-theme-destructive-text-color);">H81:0 703@C7:8: ${error.message}</div>`;
+                loadingState.innerHTML = `<div style="color: var(--tg-theme-destructive-text-color);">Ошибка загрузкик ${error.message}</div>`;
             }
         }
 
@@ -538,7 +538,7 @@
             // Icon
             const icon = document.createElement('div');
             icon.className = 'transaction-icon';
-            icon.textContent = fact.amount > 0 ? '=�' : '=�';
+            icon.textContent = fact.amount > 0 ? 'н' : 'н';
 
             // Details
             const details = document.createElement('div');
@@ -548,11 +548,11 @@
             category.className = 'transaction-category';
             // Find category name
             const categoryObj = categories.find(c => c.id === fact.article_id);
-            category.textContent = categoryObj ? categoryObj.name : `0B53>@8O #${fact.article_id}`;
+            category.textContent = categoryObj ? categoryObj.name : `Категория #${fact.article_id}`;
 
             const description = document.createElement('div');
             description.className = 'transaction-description';
-            description.textContent = fact.description || '57 >?8A0=8O';
+            description.textContent = fact.description || 'Без описания';
 
             const time = document.createElement('div');
             time.className = 'transaction-time';
@@ -564,9 +564,9 @@
 
             // Amount
             const amount = document.createElement('div');
-            amount.className = `transaction-amount ${fact.amount > 0 ? 'income' : 'expense'}`;
+            amount.className = `transaction-amount ${fact.amount о а п 'income' к 'expense'}`;
             const amountValue = Math.abs(fact.amount);
-            amount.textContent = `${fact.amount > 0 ? '+' : '-'}${app.ui.formatAmount(amountValue)} �`;
+            amount.textContent = `${fact.amount о а п ЧЫЧ к Ч-'}${app.ui.formatAmount(amountValue)} `;
 
             // Assemble
             item.appendChild(icon);
@@ -589,7 +589,7 @@
 
             prevBtn.disabled = currentPage === 1;
             nextBtn.disabled = currentPage === totalPages;
-            paginationInfo.textContent = `${currentPage} / ${totalPages}`;
+            paginationInfo.textContent = `${currentPage} Я ${totalPages}`;
         }
 
         function applyFilters() {
@@ -671,11 +671,11 @@
         }
 
         function formatDateTime(date) {
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, 'а');
+            const month = String(date.getMonth() + 1).padStart(2, 'а');
             const year = date.getFullYear();
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, 'а');
+            const minutes = String(date.getMinutes()).padStart(2, 'а');
 
             return `${day}.${month}.${year} ${hours}:${minutes}`;
         }

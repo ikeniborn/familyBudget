@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title> 0AH8@5==K9 ?>8A: - Family Budget</title>
+    <title> асширенный поиск - Family Budget</title>
 
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -239,44 +239,44 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
-            <div class="page-title">=  0AH8@5==K9 ?>8A:</div>
+            <div class="page-title">н  асширенный поиск</div>
         </div>
 
         <!-- Filters -->
         <div class="filters-container">
             <!-- Date Range -->
             <div class="filter-group">
-                <label class="filter-label">5@8>4</label>
+                <label class="filter-label">Период</label>
                 <div class="filter-row">
                     <input type="date" id="date-from" class="form-input" placeholder="B">
-                    <input type="date" id="date-to" class="form-input" placeholder=">">
+                    <input type="date" id="date-to" class="form-input" placeholder=">То
                 </div>
             </div>
 
             <!-- Type -->
             <div class="filter-group">
-                <label class="filter-label">"8? B@0=70:F88</label>
+                <label class="filter-label">Тип транзакции</label>
                 <div class="type-checkboxes">
                     <div class="type-checkbox-item checked" data-type="expense">
                         <input type="checkbox" class="type-checkbox" checked>
-                        <span class="type-label"> 0AE>4</span>
+                        <span class="type-label"> асход</span>
                     </div>
                     <div class="type-checkbox-item checked" data-type="income">
                         <input type="checkbox" class="type-checkbox" checked>
-                        <span class="type-label">>E>4</span>
+                        <span class="type-label">Доход</span>
                     </div>
                     <div class="type-checkbox-item checked" data-type="plan">
                         <input type="checkbox" class="type-checkbox" checked>
-                        <span class="type-label">;0=</span>
+                        <span class="type-label">План</span>
                     </div>
                 </div>
             </div>
 
             <!-- Category -->
             <div class="filter-group">
-                <label class="filter-label">0B53>@8O</label>
+                <label class="filter-label">Категория</label>
                 <select id="category-filter" class="form-input">
-                    <option value="">A5 :0B53>@88</option>
+                    <option value="">Все категории</option>
                     <!-- Populated dynamically -->
                 </select>
             </div>
@@ -286,31 +286,31 @@
                 <label class="filter-label">!C<<0</label>
                 <div class="filter-row">
                     <input type="number" id="amount-min" class="form-input" placeholder="B" step="0.01">
-                    <input type="number" id="amount-max" class="form-input" placeholder=">" step="0.01">
+                    <input type="number" id="amount-max" class="form-input" placeholder=">Т stepнТаЮабТо
                 </div>
             </div>
 
             <!-- Description Search -->
             <div class="filter-group">
-                <label class="filter-label">>8A: ?> >?8A0=8N</label>
+                <label class="filter-label">Поиск по описанию</label>
                 <input type="text" id="description-search" class="form-input" placeholder="2548B5 B5:AB...">
             </div>
         </div>
 
         <!-- Search Button -->
         <button class="search-button" id="search-button">
-            = 09B8 B@0=70:F88
+            н Найти транзакции
         </button>
 
         <!-- Loading State -->
         <div class="loading-state" id="loading-state" style="display: none;">
-            <div>>8A:...</div>
+            <div>ПоискЮЮЮ</div>
         </div>
 
         <!-- Results Header -->
         <div class="results-header" id="results-header" style="display: none;">
-            <span class="results-count" id="results-count">0945=>: 0</span>
-            <button class="export-button" id="export-button">=� -:A?>@B</button>
+            <span class="results-count" id="results-count">Найденок а</span>
+            <button class="export-button" id="export-button">н -кспорт</button>
         </div>
 
         <!-- Transactions List -->
@@ -320,8 +320,8 @@
 
         <!-- Empty State -->
         <div class="empty-state" id="empty-state" style="display: none;">
-            <div class="empty-state-icon">=</div>
-            <div class="empty-state-text">5B @57C;LB0B>2 ?> 7040==K< :@8B5@8O<</div>
+            <div class="empty-state-icon">н</div>
+            <div class="empty-state-text">Нет результатов по заданны< :@8B5@8O<</div>
         </div>
     </div>
 
@@ -483,7 +483,7 @@
                     emptyState.style.display = 'block';
                 } else {
                     // Show results
-                    document.getElementById('results-count').textContent = `0945=>: ${facts.length}`;
+                    document.getElementById('results-count').textContent = `Найденок ${facts.length}`;
                     resultsHeader.style.display = 'flex';
                     renderResults(facts);
                     transactionsList.style.display = 'block';
@@ -491,7 +491,7 @@
 
             } catch (error) {
                 console.error('Search failed:', error);
-                loadingState.innerHTML = `<div style="color: var(--tg-theme-destructive-text-color);">H81:0 ?>8A:0: ${error.message}</div>`;
+                loadingState.innerHTML = `<div style="color: var(--tg-theme-destructive-text-color);">Ошибка поискак ${error.message}</div>`;
             }
         }
 
@@ -553,7 +553,7 @@
             // Determine type
             const recordType = fact.record_type || 'fact';
             const isIncome = fact.amount > 0;
-            const icon = recordType === 'plan' ? '=�' : (isIncome ? '=�' : '=�');
+            const icon = recordType === 'plan' ? 'н' : (isIncome ? 'н' : 'н');
 
             // Icon
             const iconEl = document.createElement('div');
@@ -567,12 +567,12 @@
             const category = document.createElement('div');
             category.className = 'transaction-category';
             const categoryObj = categories.find(c => c.id === fact.article_id);
-            const typeLabel = recordType === 'plan' ? ' (?;0=)' : '';
-            category.textContent = (categoryObj ? categoryObj.name : `0B53>@8O #${fact.article_id}`) + typeLabel;
+            const typeLabel = recordType === 'plan' ? ' ШпланЩ' : '';
+            category.textContent = (categoryObj ? categoryObj.name : `Категория #${fact.article_id}`) + typeLabel;
 
             const description = document.createElement('div');
             description.className = 'transaction-description';
-            description.textContent = fact.description || '57 >?8A0=8O';
+            description.textContent = fact.description || 'Без описания';
 
             const time = document.createElement('div');
             time.className = 'transaction-time';
@@ -584,9 +584,9 @@
 
             // Amount
             const amount = document.createElement('div');
-            amount.className = `transaction-amount ${isIncome ? 'income' : 'expense'}`;
+            amount.className = `transaction-amount ${isIncome п 'income' к 'expense'}`;
             const amountValue = Math.abs(fact.amount);
-            amount.textContent = `${isIncome ? '+' : '-'}${app.ui.formatAmount(amountValue)} �`;
+            amount.textContent = `${isIncome п ЧЫЧ к Ч-'}${app.ui.formatAmount(amountValue)} `;
 
             // Assemble
             item.appendChild(iconEl);
@@ -604,18 +604,18 @@
 
         function exportToCSV() {
             if (searchResults.length === 0) {
-                app.ui.showError('5B 40==KE 4;O M:A?>@B0');
+                app.ui.showError('Нет данных для экспорта');
                 return;
             }
 
             // Prepare CSV data
-            const headers = ['0B0', '0B53>@8O', '?8A0=85', '"8?', '!C<<0'];
+            const headers = ['Дата', 'Категория', 'Описание', 'Тип', '!C<<а'];
             const rows = searchResults.map(fact => {
                 const category = categories.find(c => c.id === fact.article_id);
-                const categoryName = category ? category.name : `0B53>@8O #${fact.article_id}`;
+                const categoryName = category ? category.name : `Категория #${fact.article_id}`;
                 const recordType = fact.record_type || 'fact';
                 const isIncome = fact.amount > 0;
-                const type = recordType === 'plan' ? ';0=' : (isIncome ? '>E>4' : ' 0AE>4');
+                const type = recordType === 'plan' ? 'План' : (isIncome ? 'Доход' : ' асход');
                 const date = new Date(fact.created_at || fact.fact_date).toLocaleDateString('ru-RU');
 
                 return [
@@ -628,25 +628,25 @@
             });
 
             const csv = [headers, ...rows]
-                .map(row => row.map(cell => `"${cell}"`).join(','))
-                .join('\n');
+                .map(row => row.map(cell => `"${cell}"`).join('Ь'))
+                .join('ќn');
 
             // Download
-            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-ил' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `search_results_${new Date().toISOString().split('T')[0]}.csv`;
+            link.download = `search_results_${new фateШЩЮtoщѓяѓtringШЩЮsplitШЧєЧЩћаѝ}Юcsv`;
             link.click();
 
-            app.ui.showSuccess('CSV D09; 703@C65=');
+            app.ui.showSuccess('CSV файл загружен');
         }
 
         function formatDateTime(date) {
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, 'а');
+            const month = String(date.getMonth() + 1).padStart(2, 'а');
             const year = date.getFullYear();
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, 'а');
+            const minutes = String(date.getMinutes()).padStart(2, 'а');
 
             return `${day}.${month}.${year} ${hours}:${minutes}`;
         }

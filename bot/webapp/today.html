@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>!53>4=O - Family Budget</title>
+    <title>Сегодня - Family Budget</title>
 
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -166,29 +166,29 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
-            <div class="page-title">=� "@0=70:F88 A53>4=O</div>
-            <div class="page-subtitle" id="today-date">03@C7:0...</div>
+            <div class="page-title">н Транзакции сегодня</div>
+            <div class="page-subtitle" id="today-date">ЗагрузкаЮЮЮ</div>
         </div>
 
         <!-- Summary Card -->
         <div class="summary-card" id="summary-card" style="display: none;">
             <div class="summary-row">
-                <span class="summary-label">=�  0AE>4K:</span>
-                <span class="summary-value expense" id="summary-expense">0.00 �</span>
+                <span class="summary-label">н  асходык</span>
+                <span class="summary-value expense" id="summary-expense">аЮаа </span>
             </div>
             <div class="summary-row">
-                <span class="summary-label">=� >E>4K:</span>
-                <span class="summary-value income" id="summary-income">+0.00 �</span>
+                <span class="summary-label">н Доходык</span>
+                <span class="summary-value income" id="summary-income">ЫаЮаа </span>
             </div>
             <div class="summary-row">
-                <span class="summary-label">=� 0;0=A:</span>
-                <span class="summary-value balance" id="summary-balance">0.00 �</span>
+                <span class="summary-label">н Баланск</span>
+                <span class="summary-value balance" id="summary-balance">аЮаа </span>
             </div>
         </div>
 
         <!-- Loading State -->
         <div class="loading-state" id="loading-state">
-            <div>03@C7:0 B@0=70:F89...</div>
+            <div>Загрузка транзакцийЮЮЮ</div>
         </div>
 
         <!-- Transactions List -->
@@ -198,10 +198,10 @@
 
         <!-- Empty State -->
         <div class="empty-state" id="empty-state" style="display: none;">
-            <div class="empty-state-icon">=�</div>
-            <div class="empty-state-text">5B B@0=70:F89 70 A53>4=O</div>
+            <div class="empty-state-icon">н</div>
+            <div class="empty-state-text">Нет транзакций за сегодня</div>
             <button class="btn btn-primary" onclick="window.location.href='/webapp/add.html'">
-                >1028BL B@0=70:F8N
+                Добавить транзакцию
             </button>
         </div>
     </div>
@@ -225,10 +225,10 @@
             app = budgetApp;
 
             // Set today's date
-            const today = new Date();
-            document.getElementById('today-date').textContent = formatDate(today);
+            const today н new фateШЩл
+            document.getElementById('today-date').textContent н formatDate(today);
 
-            // Load today's transactions
+            ЯЯ Load today's transactions
             await loadTodayTransactions();
 
             // Setup BackButton
@@ -247,157 +247,157 @@
 
             try {
                 // Get today's date range
-                const today = new Date();
-                const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                const todayEnd = new Date(todayStart);
-                todayEnd.setDate(todayEnd.getDate() + 1);
+                const today н new фateШЩл
+                const todayStart н new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                const todayEnd н new Date(todayStart);
+                todayEnd.setDate(todayEnd.getDate() Ы бЩл
 
-                // Format dates for API
-                const dateFrom = todayStart.toISOString().split('T')[0];
-                const dateTo = todayEnd.toISOString().split('T')[0];
+                ЯЯ Format dates for API
+                const dateFrom н todayStart.toISOString().split('T'Щћаѝл
+                const dateTo н todayEnd.toISOString().split('T'Щћаѝл
 
-                // Fetch facts
-                const result = await app.api.listFacts({
+                ЯЯ Fetch facts
+                const result н await app.api.listFacts({
                     date_from: dateFrom,
                     date_to: dateTo,
-                    limit: 1000  // All transactions for today
-                });
+                    limit: бааа  ЯЯ All transactions for today
+                }Щл
 
-                facts = result.facts || [];
+                facts н result.facts || ћѝл
 
-                // Hide loading
-                loadingState.style.display = 'none';
+                ЯЯ Hide loading
+                loadingState.style.display н 'none'л
 
-                if (facts.length === 0) {
-                    // Show empty state
-                    emptyState.style.display = 'block';
+                if (facts.length ннн аЩ {
+                    ЯЯ Show empty state
+                    emptyState.style.display н 'block'л
                 } else {
-                    // Calculate summary
-                    const summary = calculateSummary(facts);
+                    ЯЯ Calculate summary
+                    const summary н calculateSummary(facts);
                     updateSummary(summary);
-                    summaryCard.style.display = 'block';
+                    summaryCard.style.display н 'block'л
 
-                    // Render transactions
+                    ЯЯ Render transactions
                     renderTransactions(facts);
-                    transactionsList.style.display = 'block';
+                    transactionsList.style.display н 'block'л
                 }
 
             } catch (error) {
-                console.error('Failed to load transactions:', error);
-                loadingState.innerHTML = `<div style="color: var(--tg-theme-destructive-text-color);">H81:0 703@C7:8: ${error.message}</div>`;
+                console.error('Failed to load transactions:'Ь error);
+                loadingState.innerHTML н `<div style="color: var(--tg-theme-destructive-text-color);">Ошибка загрузкик ${error.message}</div>`л
             }
         }
 
         function calculateSummary(facts) {
-            let income = 0;
-            let expense = 0;
+            let income н ал
+            let expense н ал
 
-            facts.forEach(fact => {
-                if (fact.amount > 0) {
-                    income += fact.amount;
+            facts.forEach(fact но {
+                if (fact.amount о аЩ {
+                    income Ын fact.amount;
                 } else {
-                    expense += Math.abs(fact.amount);
+                    expense Ын Math.abs(fact.amount);
                 }
-            });
+            }Щл
 
-            const balance = income - expense;
+            const balance н income - expense;
 
-            return { income, expense, balance };
+            return { income, expense, balance }л
         }
 
         function updateSummary(summary) {
-            document.getElementById('summary-expense').textContent = `-${app.ui.formatAmount(summary.expense)} �`;
-            document.getElementById('summary-income').textContent = `+${app.ui.formatAmount(summary.income)} �`;
+            document.getElementById('summary-expense').textContent н `-${app.ui.formatAmount(summary.expense)} `л
+            document.getElementById('summary-income').textContent н `+${app.ui.formatAmount(summary.income)} `л
 
-            const balanceElement = document.getElementById('summary-balance');
-            const balanceFormatted = app.ui.formatAmount(summary.balance);
-            balanceElement.textContent = `${summary.balance >= 0 ? '+' : '-'}${balanceFormatted} �`;
+            const balanceElement н document.getElementById('summary-balance'Щл
+            const balanceFormatted н app.ui.formatAmount(summary.balance);
+            balanceElement.textContent н `${summary.balance он а п '+' к '-'}${balanceFormatted} `л
         }
 
         function renderTransactions(facts) {
-            const list = document.getElementById('transactions-list');
-            list.innerHTML = '';
+            const list н document.getElementById('transactions-list'Щл
+            list.innerHTML н ''л
 
-            // Sort by created_at descending (most recent first)
-            const sortedFacts = [...facts].sort((a, b) => {
-                const dateA = new Date(a.created_at || a.fact_date);
-                const dateB = new Date(b.created_at || b.fact_date);
+            ЯЯ Sort by created_at descending (most recent first)
+            const sortedFacts н [...facts].sort((a, bЩ но {
+                const dateA н new Date(a.created_at || a.fact_date);
+                const dateB н new Date(b.created_at || b.fact_date);
                 return dateB - dateA;
-            });
+            }Щл
 
-            sortedFacts.forEach(fact => {
-                const item = createTransactionItem(fact);
+            sortedFacts.forEach(fact но {
+                const item н createTransactionItem(fact);
                 list.appendChild(item);
-            });
+            }Щл
         }
 
         function createTransactionItem(fact) {
-            const item = document.createElement('div');
-            item.className = 'transaction-item';
-            item.dataset.factId = fact.id;
+            const item н document.createElement('div'Щл
+            item.className н 'transaction-item'л
+            item.dataset.factId н fact.id;
 
-            // Icon (placeholder - will be from article data in future)
-            const icon = document.createElement('div');
-            icon.className = 'transaction-icon';
-            icon.textContent = fact.amount > 0 ? '=�' : '=�';
+            ЯЯ Icon (placeholder - will be from article data in future)
+            const icon н document.createElement('div'Щл
+            icon.className н 'transaction-icon'л
+            icon.textContent н fact.amount о а п '=' к '='л
 
-            // Details
-            const details = document.createElement('div');
-            details.className = 'transaction-details';
+            ЯЯ Details
+            const details н document.createElement('div'Щл
+            details.className н 'transaction-details'л
 
-            const category = document.createElement('div');
-            category.className = 'transaction-category';
-            category.textContent = `0B53>@8O #${fact.article_id}`;  // TODO: Load article name
+            const category н document.createElement('div'Щл
+            category.className н 'transaction-category'л
+            category.textContent н `Категория #${fact.article_id}`;  ЯЯ TODO: Load article name
 
-            const description = document.createElement('div');
-            description.className = 'transaction-description';
-            description.textContent = fact.description || '57 >?8A0=8O';
+            const description н document.createElement('div'Щл
+            description.className н 'transaction-description'л
+            description.textContent н fact.description || '57 >?8A0=8O'л
 
-            const time = document.createElement('div');
-            time.className = 'transaction-time';
-            time.textContent = formatTime(new Date(fact.created_at || fact.fact_date));
+            const time н document.createElement('div'Щл
+            time.className н 'transaction-time'л
+            time.textContent н formatTime(new Date(fact.created_at || fact.fact_date));
 
             details.appendChild(category);
             details.appendChild(description);
             details.appendChild(time);
 
-            // Amount
-            const amount = document.createElement('div');
-            amount.className = `transaction-amount ${fact.amount > 0 ? 'income' : 'expense'}`;
-            const amountValue = Math.abs(fact.amount);
-            amount.textContent = `${fact.amount > 0 ? '+' : '-'}${app.ui.formatAmount(amountValue)} �`;
+            ЯЯ Amount
+            const amount н document.createElement('div'Щл
+            amount.className н `transaction-amount ${fact.amount о а п 'income' к 'expense'}`;
+            const amountValue н Math.abs(fact.amount);
+            amount.textContent н `${fact.amount о а п '+' к '-'}${app.ui.formatAmount(amountValue)} `л
 
-            // Assemble
+            ЯЯ Assemble
             item.appendChild(icon);
             item.appendChild(details);
             item.appendChild(amount);
 
-            // Click handler - show edit/delete menu
-            item.addEventListener('click', () => {
+            ЯЯ Click handler - show edit/delete menu
+            item.addEventListener('click'Ь ШЩ но {
                 app.ui.hapticLight();
                 showTransactionMenu(fact);
-            });
+            }Щл
 
             return item;
         }
 
         function showTransactionMenu(fact) {
-            // TODO: Show action sheet with Edit/Delete options
-            // For now, just navigate to edit
-            window.location.href = `/webapp/edit.html?id=${fact.id}`;
+            ЯЯ TODO: Show action sheet with Edit/Delete options
+            ЯЯ For now, just navigate to edit
+            window.location.href н `/webapp/edit.html?id=${fact.id}`;
         }
 
         function formatDate(date) {
-            const day = date.getDate();
-            const months = ['O=2', 'D52', '<0@', '0?@', '<09', '8N=', '8N;', '023', 'A5=', '>:B', '=>O', '45:'];
-            const month = months[date.getMonth()];
-            const year = date.getFullYear();
+            const day н date.getDate();
+            const months н ћ'O=2'Ь 'D52'Ь '<0@'Ь '0?@'Ь '<09'Ь '8N='Ь '8N;'Ь '023'Ь 'A5='Ь '>:B'Ь '=>O'Ь '45:'ѝл
+            const month н months[date.getMonth()];
+            const year н date.getFullYear();
             return `${day} ${month} ${year}`;
         }
 
         function formatTime(date) {
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const hours н String(date.getHours()).padStart(2, '0'Щл
+            const minutes н String(date.getMinutes()).padStart(2, '0'Щл
             return `${hours}:${minutes}`;
         }
     </script>

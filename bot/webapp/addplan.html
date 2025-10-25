@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>>1028BL ?;0= - Family Budget</title>
+    <title>Добавить план - Family Budget</title>
 
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -203,23 +203,23 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
-            <div class="page-title">=� >1028BL ?;0=</div>
+            <div class="page-title">н Добавить план</div>
         </div>
 
         <!-- Quick Amount Buttons -->
         <div class="form-group">
-            <label class="form-label">KAB@K9 2K1>@ AC<<K</label>
+            <label class="form-label">Быстрый выбор суммы</label>
             <div class="quick-amount-buttons">
-                <button type="button" class="quick-amount-btn" data-amount="5000">5000 �</button>
-                <button type="button" class="quick-amount-btn" data-amount="10000">10k �</button>
-                <button type="button" class="quick-amount-btn" data-amount="20000">20k �</button>
-                <button type="button" class="quick-amount-btn" data-amount="50000">50k �</button>
+                <button type="button" class="quick-amount-btn" data-amount="5000">5000 </button>
+                <button type="button" class="quick-amount-btn" data-amount="10000">баk </button>
+                <button type="button" class="quick-amount-btn" data-amount="20000">ваk </button>
+                <button type="button" class="quick-amount-btn" data-amount="50000">еаk </button>
             </div>
         </div>
 
         <!-- Amount Input -->
         <div class="form-group">
-            <label class="form-label form-label-required">;0=>20O AC<<0</label>
+            <label class="form-label form-label-required">Плановая AC<<0</label>
             <div class="amount-input-wrapper">
                 <input
                     type="number"
@@ -232,36 +232,36 @@
                     inputmode="decimal"
                     required
                 >
-                <span class="currency-label">�</span>
+                <span class="currency-label"></span>
             </div>
             <span class="error-message" id="amount-error"></span>
         </div>
 
         <!-- Category Select -->
         <div class="form-group">
-            <label class="form-label form-label-required">0B53>@8O</label>
+            <label class="form-label form-label-required">Категория</label>
             <div class="category-list" id="category-list">
-                <div class="category-loading">03@C7:0 :0B53>@89...</div>
+                <div class="category-loading">Загрузка категорийЮЮЮ</div>
             </div>
             <span class="error-message" id="category-error"></span>
         </div>
 
         <!-- Period Selector -->
         <div class="form-group">
-            <label class="form-label form-label-required">5@8>4 ?;0=8@>20=8O</label>
+            <label class="form-label form-label-required">Период планирования</label>
             <div class="period-selector">
-                <button class="period-btn active" data-period="month">5AOF</button>
-                <button class="period-btn" data-period="quarter">20@B0;</button>
-                <button class="period-btn" data-period="year">>4</button>
-                <button class="period-btn" data-period="custom">!2>9</button>
+                <button class="period-btn active" data-period="month">Месяц</button>
+                <button class="period-btn" data-period="quarter">Квартал</button>
+                <button class="period-btn" data-period="year">Год</button>
+                <button class="period-btn" data-period="custom">Свой</button>
             </div>
 
             <!-- Custom Period Section -->
             <div class="custom-period-section" id="custom-period-section">
                 <div class="date-range-row">
                     <input type="date" id="period-start" class="form-input" placeholder="B">
-                    <span class="date-range-separator"></span>
-                    <input type="date" id="period-end" class="form-input" placeholder=">">
+                    <span class="date-range-separator">Д</span>
+                    <input type="date" id="period-end" class="form-input" placeholder=">То
                 </div>
             </div>
 
@@ -270,7 +270,7 @@
 
         <!-- Description (optional) -->
         <div class="form-group">
-            <label class="form-label">?8A0=85 (=5>1O70B5;L=>)</label>
+            <label class="form-label">Описание ШнеобязательноЩ</label>
             <textarea
                 id="description"
                 class="form-textarea"
@@ -278,7 +278,7 @@
                 maxlength="200"
                 rows="3"
             ></textarea>
-            <span class="char-counter" id="description-counter">0 / 200</span>
+            <span class="char-counter" id="description-counter">а Я ваа</span>
         </div>
 
         <!-- Recurring Option -->
@@ -286,7 +286,7 @@
             <div class="recurring-option">
                 <input type="checkbox" id="recurring" class="recurring-checkbox">
                 <label for="recurring" class="recurring-label">
-                    !>74020BL 02B><0B8G5A:8 :064K9 ?5@8>4
+                    Создавать авто<0B8G5A:8 :064K9 ?5@8>д
                 </label>
             </div>
         </div>
@@ -384,7 +384,7 @@
 
             textarea.addEventListener('input', () => {
                 const length = textarea.value.length;
-                counter.textContent = `${length} / 200`;
+                counter.textContent = `${length} Я ваа`;
 
                 if (length > 200) {
                     counter.classList.add('over-limit');
@@ -475,7 +475,7 @@
 
         async function loadCategories() {
             const categoryList = document.getElementById('category-list');
-            categoryList.innerHTML = '<div class="category-loading">03@C7:0 :0B53>@89...</div>';
+            categoryList.innerHTML = '<div class="category-loading">Загрузка категорийЮЮЮ</div>';
 
             try {
                 const result = await app.api.listArticles({
@@ -484,7 +484,7 @@
                 categories = result.articles || [];
 
                 if (categories.length === 0) {
-                    categoryList.innerHTML = '<div class="category-loading">0B53>@88 =5 =0945=K</div>';
+                    categoryList.innerHTML = '<div class="category-loading">Категории не найдены</div>';
                     return;
                 }
 
@@ -519,14 +519,14 @@
 
             } catch (error) {
                 console.error('Failed to load categories:', error);
-                categoryList.innerHTML = '<div class="category-loading">H81:0 703@C7:8 :0B53>@89</div>';
+                categoryList.innerHTML = '<div class="category-loading">Ошибка загрузки категорий</div>';
             }
         }
 
         function setupMainButton() {
             const mainButton = app.tg.MainButton;
 
-            mainButton.setText('!>E@0=8BL ?;0=');
+            mainButton.setText('Сохранить план');
             mainButton.show();
             mainButton.enable();
 
@@ -546,7 +546,7 @@
             }
 
             // Show loading
-            app.ui.showLoading('!>E@0=5=85...');
+            app.ui.showLoading('СохранениеЮЮЮ');
 
             try {
                 // Create plan
@@ -564,14 +564,14 @@
 
                 app.ui.hideLoading();
                 app.ui.hapticSuccess();
-                app.ui.showSuccess(';0= A>E@0=5=!', () => {
+                app.ui.showSuccess('План сохраненС', () => {
                     // Go back to main menu
                     app.tg.close();
                 });
 
             } catch (error) {
                 app.ui.hideLoading();
-                app.ui.showError(`H81:0: ${error.message}`);
+                app.ui.showError(`Ошибкак ${error.message}`);
             }
         }
 
@@ -589,18 +589,18 @@
 
             // Category validation
             if (!formState.categoryId) {
-                errors.category = 'K15@8B5 :0B53>@8N';
-                document.getElementById('category-error').textContent = 'K15@8B5 :0B53>@8N';
+                errors.category = 'Выберите категорию';
+                document.getElementById('category-error').textContent = 'Выберите категорию';
             }
 
             // Period validation
             if (formState.period === 'custom') {
                 if (!formState.periodStart || !formState.periodEnd) {
-                    errors.period = '#:068B5 ?5@8>4 ?;0=8@>20=8O';
-                    document.getElementById('period-error').textContent = '#:068B5 ?5@8>4 ?;0=8@>20=8O';
+                    errors.period = 'Укажите период планирования';
+                    document.getElementById('period-error').textContent = 'Укажите период планирования';
                 } else if (new Date(formState.periodStart) > new Date(formState.periodEnd)) {
-                    errors.period = '0B0 =0G0;0 4>;6=0 1KBL @0=LH5 40BK >:>=G0=8O';
-                    document.getElementById('period-error').textContent = '0B0 =0G0;0 4>;6=0 1KBL @0=LH5 40BK >:>=G0=8O';
+                    errors.period = 'Дата начала должна быть раньше даты окончания';
+                    document.getElementById('period-error').textContent = 'Дата начала должна быть раньше даты окончания';
                 }
             } else {
                 updatePeriodDates(); // Ensure dates are set for preset periods
