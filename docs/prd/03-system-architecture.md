@@ -10,8 +10,11 @@
 **Слои архитектуры:**
 
 #### 1. Presentation Layer
-- **Компоненты:** Telegram Bot (python-telegram-bot), HTMX Web Interface (Jinja2 templates)
-- **Ответственность:** Взаимодействие с пользователем
+- **Компоненты:**
+  - Telegram Bot Commands (python-telegram-bot) - текстовые команды
+  - Telegram Web Apps (Vanilla JS ES6+ + Telegram SDK) - интерактивные HTML формы через Menu Button
+  - HTMX Web Interface (Jinja2 templates) - веб-аналитика через браузер
+- **Ответственность:** Взаимодействие с пользователем через разные каналы
 
 #### 2. Business Logic Layer
 - **Компоненты:** FastAPI Backend
@@ -190,6 +193,69 @@
 - **deploy.sh** - Запуск Docker Compose, health checks
 - **backup.sh** - Резервное копирование с S3 upload
 - **update.sh** - Pull latest code, rebuild, restart
+
+#### Component 8: Telegram Web Apps (NEW - Phase 3)
+
+**Назначение:** Интерактивные HTML формы через Menu Button в Telegram боте
+
+**Технологии:** Telegram Web Apps SDK, Vanilla JavaScript ES6+, Telegram Theme API
+
+**Ключевые страницы:**
+
+| Путь | Описание | Size |
+|------|----------|------|
+| `/webapp/index.html` | Main Menu (3x3 grid) + Quick Stats | 9.8KB |
+| `/webapp/add.html` | Add Transaction form | 17KB |
+| `/webapp/today.html` | Today's transactions | 14KB |
+| `/webapp/list.html` | Transaction list + filters | 23KB |
+| `/webapp/edit.html` | Edit/Delete transaction (unified) | 23KB |
+| `/webapp/stats.html` | Statistics by category | 20KB |
+| `/webapp/addplan.html` | Create budget plan | 21KB |
+| `/webapp/summary.html` | Plan vs Fact comparison | 23KB |
+| `/webapp/search.html` | Advanced search + CSV export | 22KB |
+
+**JavaScript Modules (7 core):**
+1. **app.js** - Core initialization, BackButton setup
+2. **api.js** - API client с JWT Bearer token auth
+3. **auth.js** - InitData validation, token management
+4. **ui.js** - Haptic feedback, loading states, messages
+5. **validators.js** - Client-side validation (amount, date, required)
+6. **theme.js** - Telegram theme integration (light/dark)
+7. **storage.js** - CloudStorage wrapper
+
+**CSS Modules (3):**
+1. **telegram-theme.css** - Theme variables от Telegram
+2. **app.css** - Main styles
+3. **forms.css** - Form components
+
+**Bundle Size:** ~190KB total (HTML + JS + CSS) - excellent для mobile
+
+**Ключевые особенности:**
+- **Menu Button integration** - запуск через Menu Button (≡) в чате бота
+- **JWT Bearer token auth** - `Authorization: Bearer <token>` header
+- **Telegram theme support** - Auto light/dark mode
+- **Haptic feedback** - через Telegram SDK
+- **Period selectors** - Month/Quarter/Year/Custom с auto date calculation
+- **Hybrid filtering** - Backend reduces data, client filters
+- **CSV export** - Client-side generation с BOM для Excel
+- **Client-side aggregation** - Statistics и Summary без backend overload
+
+**Интерфейсы:**
+- **Вход:** Telegram Web Apps SDK (Menu Button)
+- **Выход:** HTTP REST к FastAPI Backend (`/api/v1/facts`, `/api/v1/articles`, `/api/v1/webapp/validate`)
+
+**Развертывание:** Static files в `/bot/webapp/`, serve через FastAPI StaticFiles
+
+**Authentication Flow:**
+1. Telegram SDK provides `initData` (HMAC-SHA256 signed)
+2. POST `/api/v1/webapp/validate` → Backend validates, returns JWT token
+3. Frontend stores token в `auth.js`, uses `Authorization: Bearer <token>` для всех API calls
+
+**Architecture Decisions:**
+- **No endpoint duplication** - использует существующие `/api/v1/facts` и `/api/v1/articles`
+- **Single new endpoint** - `/api/v1/webapp/validate` (только initData validation)
+- **Delete integrated** - в edit.html (no separate delete.html)
+- **Client-side aggregation** - для statistics и summary (no backend stats endpoints needed)
 
 ### 3.3 Data Flow
 
