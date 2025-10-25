@@ -11,9 +11,10 @@
 .form-label {
   display: block;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   margin-bottom: 8px;
   color: var(--tg-theme-text-color);
+  letter-spacing: 0.01em;
 }
 
 .form-label-required::after {
@@ -27,11 +28,12 @@
   width: 100%;
   padding: 12px 16px;
   font-size: 16px;
-  border: 1px solid var(--tg-theme-hint-color);
+  border: 2px solid rgba(0, 0, 0, 0.12);
   border-radius: 8px;
   background-color: var(--tg-theme-bg-color);
   color: var(--tg-theme-text-color);
-  transition: border-color 0.2s;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .form-input:focus,
@@ -39,6 +41,8 @@
 .form-textarea:focus {
   outline: none;
   border-color: var(--tg-theme-button-color);
+  border-width: 2px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1), 0 0 0 3px rgba(38, 120, 182, 0.1);
 }
 
 .form-textarea {

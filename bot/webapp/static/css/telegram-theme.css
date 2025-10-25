@@ -6,51 +6,53 @@
  */
 
 :root {
-  /* Primary colors */
+  /* Primary colors - increased contrast */
   --tg-theme-bg-color: #ffffff;
-  --tg-theme-text-color: #000000;
-  --tg-theme-hint-color: #999999;
-  --tg-theme-link-color: #2678b6;
+  --tg-theme-text-color: #1a1a1a;
+  --tg-theme-hint-color: #757575;
+  --tg-theme-link-color: #1e5a8e;
 
-  /* Button colors */
-  --tg-theme-button-color: #2678b6;
+  /* Button colors - more vibrant */
+  --tg-theme-button-color: #1e88e5;
   --tg-theme-button-text-color: #ffffff;
 
-  /* Secondary colors */
-  --tg-theme-secondary-bg-color: #f0f0f0;
+  /* Secondary colors - better contrast */
+  --tg-theme-secondary-bg-color: #f5f5f7;
 
   /* Header colors */
   --tg-theme-header-bg-color: #ffffff;
 
   /* Section colors */
   --tg-theme-section-bg-color: #ffffff;
-  --tg-theme-section-header-text-color: #6d6d72;
+  --tg-theme-section-header-text-color: #424242;
+  --tg-theme-section-separator-color: rgba(0, 0, 0, 0.1);
 
   /* Accent colors */
-  --tg-theme-accent-text-color: #2678b6;
+  --tg-theme-accent-text-color: #1e88e5;
 
   /* Destructive colors */
-  --tg-theme-destructive-text-color: #ff3b30;
+  --tg-theme-destructive-text-color: #d32f2f;
 
   /* Subtitle colors */
-  --tg-theme-subtitle-text-color: #999999;
+  --tg-theme-subtitle-text-color: #757575;
 }
 
-/* Dark theme overrides (for testing) */
+/* Dark theme overrides (for testing) - improved contrast */
 body.theme-dark {
-  --tg-theme-bg-color: #18222d;
-  --tg-theme-text-color: #ffffff;
-  --tg-theme-hint-color: #7d8b99;
-  --tg-theme-link-color: #5ea3d6;
-  --tg-theme-button-color: #5ea3d6;
+  --tg-theme-bg-color: #0d1117;
+  --tg-theme-text-color: #f0f0f0;
+  --tg-theme-hint-color: #8b949e;
+  --tg-theme-link-color: #58a6ff;
+  --tg-theme-button-color: #1f6feb;
   --tg-theme-button-text-color: #ffffff;
-  --tg-theme-secondary-bg-color: #131e29;
-  --tg-theme-header-bg-color: #18222d;
-  --tg-theme-section-bg-color: #18222d;
-  --tg-theme-section-header-text-color: #7d8b99;
-  --tg-theme-accent-text-color: #5ea3d6;
-  --tg-theme-destructive-text-color: #ff4d4d;
-  --tg-theme-subtitle-text-color: #7d8b99;
+  --tg-theme-secondary-bg-color: #161b22;
+  --tg-theme-header-bg-color: #0d1117;
+  --tg-theme-section-bg-color: #0d1117;
+  --tg-theme-section-header-text-color: #8b949e;
+  --tg-theme-section-separator-color: rgba(255, 255, 255, 0.15);
+  --tg-theme-accent-text-color: #58a6ff;
+  --tg-theme-destructive-text-color: #f85149;
+  --tg-theme-subtitle-text-color: #8b949e;
 }
 
 /* Theme application */
