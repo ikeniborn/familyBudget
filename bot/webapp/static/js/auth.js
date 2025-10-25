@@ -28,12 +28,19 @@ class Auth {
       const tg = window.Telegram.WebApp;
       const initData = tg.initData;
 
+      console.log('Auth: Starting validation...');
+      console.log('Auth: Telegram WebApp version:', tg.version);
+      console.log('Auth: initData length:', initData ? initData.length : 0);
+      console.log('Auth: initData preview:', initData ? initData.substring(0, 100) + '...' : 'EMPTY');
+
       if (!initData) {
-        console.error('Auth: initData is empty');
+        console.error('Auth: initData is empty - WebApp not launched from Telegram?');
+        alert('Ошибка: initData пустой. Откройте WebApp через Telegram бота.');
         return false;
       }
 
       // Call backend validation endpoint
+      console.log('Auth: Calling /api/v1/webapp/validate...');
       const response = await fetch('/api/v1/webapp/validate', {
         method: 'POST',
         headers: {
@@ -42,12 +49,17 @@ class Auth {
         body: JSON.stringify({ initData })
       });
 
+      console.log('Auth: Response status:', response.status);
+
       if (!response.ok) {
-        console.error('Auth: Validation failed', response.status);
+        const errorText = await response.text();
+        console.error('Auth: Validation failed', response.status, errorText);
+        alert(`Ошибка авторизации: ${response.status}\n${errorText}`);
         return false;
       }
 
       const data = await response.json();
+      console.log('Auth: Validation successful, user:', data.user);
 
       // Store token and user data
       this.token = data.access_token;
@@ -60,6 +72,7 @@ class Auth {
 
     } catch (error) {
       console.error('Auth: Validation error', error);
+      alert(`Ошибка инициализации: ${error.message}`);
       return false;
     }
   }

@@ -2,9 +2,10 @@
 /start command handler.
 
 Handles user authentication via Telegram OAuth and welcomes new users.
+Uses Menu Button (WebApp) instead of inline keyboard.
 """
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import Update
 from telegram.ext import ContextTypes
 
 from bot.utils.api_client import get_api_client
@@ -13,33 +14,6 @@ from bot.utils.session import SessionManager
 from bot.utils.telegram_auth import is_user_allowed, prepare_telegram_auth_data
 
 logger = get_logger(__name__)
-
-
-def create_main_menu_keyboard() -> InlineKeyboardMarkup:
-    """
-    Create main menu keyboard with bot commands.
-
-    Returns:
-        InlineKeyboardMarkup: Keyboard with 9 command buttons in 3 rows
-    """
-    keyboard = [
-        [
-            InlineKeyboardButton("💰 Добавить", callback_data="menu:add"),
-            InlineKeyboardButton("📅 Сегодня", callback_data="menu:today"),
-            InlineKeyboardButton("📈 Статистика", callback_data="menu:stats"),
-        ],
-        [
-            InlineKeyboardButton("📋 Список", callback_data="menu:list"),
-            InlineKeyboardButton("✏️ Редактировать", callback_data="menu:edit"),
-            InlineKeyboardButton("🗑️ Удалить", callback_data="menu:delete"),
-        ],
-        [
-            InlineKeyboardButton("📊 План", callback_data="menu:addplan"),
-            InlineKeyboardButton("📉 Сравнение", callback_data="menu:summary"),
-            InlineKeyboardButton("🔍 Поиск", callback_data="menu:search"),
-        ],
-    ]
-    return InlineKeyboardMarkup(keyboard)
 
 
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -80,11 +54,9 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Check if already authenticated
     if SessionManager.is_authenticated(context):
         user_name = SessionManager.get_user_display_name(context)
-        keyboard = create_main_menu_keyboard()
         await update.message.reply_text(
             f"✅ Вы уже авторизованы, {user_name}!\n\n"
-            f"Выберите команду из меню ниже:",
-            reply_markup=keyboard
+            f"Используйте кнопку Menu в нижней части экрана для доступа к WebApp."
         )
         logger.info(f"User {user.id} already authenticated")
         return
@@ -124,10 +96,9 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         is_admin = user_info.get("is_admin", False)
 
         welcome_text = format_welcome_message(first_name, is_admin)
-        keyboard = create_main_menu_keyboard()
 
         # Update the "authenticating" message
-        await auth_message.edit_text(welcome_text, reply_markup=keyboard)
+        await auth_message.edit_text(welcome_text)
 
         logger.info(f"User {user.id} authenticated successfully")
 
@@ -164,7 +135,12 @@ def format_welcome_message(first_name: str, is_admin: bool = False) -> str:
     message = (
         f"✅ Добро пожаловать, {first_name}!\n\n"
         f"Роль: {role_text}\n\n"
-        f"Выберите команду из меню ниже:"
+        f"💡 Используйте кнопку Menu (📱) в нижней части экрана для доступа к приложению.\n\n"
+        f"📊 Все функции доступны через удобный WebApp интерфейс:\n"
+        f"• Добавление транзакций\n"
+        f"• Просмотр статистики\n"
+        f"• Планирование бюджета\n"
+        f"• И многое другое..."
     )
 
     return message
@@ -172,108 +148,16 @@ def format_welcome_message(first_name: str, is_admin: bool = False) -> str:
 
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    Handle main menu button clicks.
+    Legacy menu callback handler - no longer used.
 
-    Maps menu button callback_data to corresponding bot handlers and executes them directly.
-
-    Args:
-        update: Telegram update with callback query
-        context: Bot context
-
-    Returns:
-        None
+    Inline keyboard menu was replaced with Telegram Menu Button (WebApp).
+    This handler is kept for backwards compatibility but should not be triggered.
     """
     query = update.callback_query
     await query.answer()
 
-    callback_data = query.data
-
-    # Import handlers
-    from bot.handlers.add import add_command
-    from bot.handlers.today import today_handler
-    from bot.handlers.stats import stats_handler
-    from bot.handlers.list import list_handler
-    from bot.handlers.edit import edit_handler
-    from bot.handlers.delete import delete_handler
-    from bot.handlers.add_plan import addplan_command
-    from bot.handlers.summary import summary_command
-    from bot.handlers.search import search_handler
-
-    # Map callback_data to handlers
-    handler_map = {
-        "menu:add": add_command,
-        "menu:today": today_handler,
-        "menu:stats": stats_handler,
-        "menu:list": list_handler,
-        "menu:edit": edit_handler,
-        "menu:delete": delete_handler,
-        "menu:addplan": addplan_command,
-        "menu:summary": summary_command,
-        "menu:search": search_handler,
-    }
-
-    handler = handler_map.get(callback_data)
-
-    if not handler:
-        logger.warning(f"Unknown menu callback: {callback_data}")
-        await query.edit_message_text(
-            "❌ Неизвестная команда. Используйте /start для повторного вывода меню."
-        )
-        return
-
-    # Log the command execution
-    user_id = query.from_user.id
-    logger.info(f"Menu button '{callback_data}' clicked by user {user_id}, executing handler")
-
-    # Answer callback query
-    await query.answer()
-
-    # Edit the menu message to show loading
-    # This gives user immediate feedback and provides a message for the handler to use
-    try:
-        edited_message = await query.edit_message_text("⏳ Загружаю...")
-        # Store flag that we edited the message to show loading
-        context.user_data["_menu_loading_message"] = True
-        context.user_data["_menu_loading_message_id"] = query.message.message_id
-    except Exception as e:
-        logger.warning(f"Could not edit menu message: {e}")
-        # If edit fails, delete and create new message
-        try:
-            await query.delete_message()
-            new_message = await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text="⏳ Загружаю..."
-            )
-            context.user_data["_menu_loading_message"] = True
-            context.user_data["_menu_loading_message_id"] = new_message.message_id
-        except Exception as e2:
-            logger.error(f"Could not create loading message: {e2}")
-            return
-
-    # Create Update wrapper with the edited/new message
-    # This allows ConversationHandler to work with the REAL message object
-    class UpdateWrapper:
-        """Wrapper to make callback query work with command handlers."""
-        def __init__(self, original_update, message_obj):
-            self.update_id = original_update.update_id
-            self.message = message_obj
-            self.effective_user = original_update.effective_user
-            self.effective_chat = original_update.effective_chat
-            self.callback_query = None
-
-    wrapped_update = UpdateWrapper(update, query.message)
-
-    # Call handler with the message object
-    try:
-        await handler(wrapped_update, context)
-    except Exception as e:
-        logger.error(f"Error executing handler for {callback_data}: {e}", exc_info=True)
-        try:
-            await query.message.edit_text(
-                "❌ Произошла ошибка при выполнении команды. Попробуйте еще раз."
-            )
-        except:
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text="❌ Произошла ошибка при выполнении команды. Попробуйте еще раз."
-            )
+    logger.warning(f"Legacy menu callback triggered: {query.data}")
+    await query.edit_message_text(
+        "⚠️ Этот интерфейс устарел.\n\n"
+        "Используйте кнопку Menu (📱) в нижней части экрана для доступа к WebApp."
+    )

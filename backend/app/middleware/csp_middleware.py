@@ -38,14 +38,14 @@ class CSPMiddleware(BaseHTTPMiddleware):
                 "form-action 'self'"
             )
         else:
-            # Strict CSP for other endpoints
+            # CSP for Web UI with CDN support (Tailwind, DaisyUI, HTMX, ECharts)
             csp = (
                 "default-src 'self'; "
-                "script-src 'self'; "
-                "style-src 'self' 'unsafe-inline'; "
+                "script-src 'self' https://cdn.tailwindcss.com https://unpkg.com https://cdn.jsdelivr.net 'unsafe-inline'; "  # Allow CDN and inline scripts for Tailwind config
+                "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "  # Allow DaisyUI and inline styles
                 "img-src 'self' data: https:; "
                 "connect-src 'self'; "
-                "font-src 'self'; "
+                "font-src 'self' https://cdn.jsdelivr.net; "  # Allow DaisyUI fonts
                 "frame-ancestors 'none'; "
                 "base-uri 'self'; "
                 "form-action 'self'"
