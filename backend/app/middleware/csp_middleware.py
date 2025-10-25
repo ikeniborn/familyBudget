@@ -46,6 +46,7 @@ class CSPMiddleware(BaseHTTPMiddleware):
                 "img-src 'self' data: https:; "
                 "connect-src 'self'; "
                 "font-src 'self' https://cdn.jsdelivr.net; "  # Allow DaisyUI fonts
+                "frame-src https://oauth.telegram.org https://*.telegram.org; "  # Allow Telegram OAuth iframe
                 "frame-ancestors 'none'; "
                 "base-uri 'self'; "
                 "form-action 'self'"
