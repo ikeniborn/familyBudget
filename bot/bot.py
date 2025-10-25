@@ -161,12 +161,12 @@ class BotApplication:
             raise RuntimeError("Application not built. Call build_application() first.")
 
         try:
-            # Extract base URL from BACKEND_API_URL
-            # Example: "http://localhost:8000/api/v1" -> "http://localhost:8000"
-            backend_base_url = self.settings.BACKEND_API_URL.rstrip("/api/v1").rstrip("/")
-
-            # Build Web App URL
-            webapp_url = f"{backend_base_url}/webapp/index.html"
+            # Build Web App URL using DOMAIN (public URL accessible from Telegram)
+            # IMPORTANT: Cannot use BACKEND_API_URL as it's internal Docker network name
+            # Example: https://budget-dev.ikeniborn.ru/webapp/index.html
+            protocol = "https" if self.settings.DOMAIN != "localhost" else "http"
+            port_suffix = ":8000" if self.settings.DOMAIN == "localhost" else ""
+            webapp_url = f"{protocol}://{self.settings.DOMAIN}{port_suffix}/webapp/index.html"
 
             # Create Web App info
             web_app_info = WebAppInfo(url=webapp_url)

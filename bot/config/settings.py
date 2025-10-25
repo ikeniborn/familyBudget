@@ -23,6 +23,9 @@ class Settings:
     BACKEND_API_URL: str = os.getenv("BACKEND_API_URL", "http://localhost:8000/api/v1")
     BACKEND_TIMEOUT: int = int(os.getenv("BACKEND_TIMEOUT", "30"))
 
+    # Domain (for WebApp URL generation)
+    DOMAIN: str = os.getenv("DOMAIN", "localhost")
+
     # Bot Behavior
     USE_WEBHOOK: bool = os.getenv("USE_WEBHOOK", "false").lower() == "true"
     WEBHOOK_URL: Optional[str] = os.getenv("WEBHOOK_URL", None)
