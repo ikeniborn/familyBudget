@@ -132,6 +132,7 @@ services:
     volumes:
       - ./backend:/app/backend:ro
       - ./web:/app/web:ro
+      - ./bot/webapp:/app/bot/webapp:ro  # Telegram Web Apps static files
       - ./logs:/app/logs
       - ./uploads:/app/uploads
     ports:
