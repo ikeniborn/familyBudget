@@ -25,15 +25,15 @@ class CSPMiddleware(BaseHTTPMiddleware):
 
         if is_webapp:
             # CSP for Telegram Web Apps
-            # Allow Telegram scripts and styles
+            # Allow Telegram to embed WebApp in iframe
             csp = (
                 "default-src 'self'; "
-                "script-src 'self' https://telegram.org 'unsafe-inline'; "  # unsafe-inline for inline scripts
+                "script-src 'self' https://telegram.org https://*.telegram.org 'unsafe-inline'; "  # unsafe-inline for inline scripts
                 "style-src 'self' 'unsafe-inline'; "  # unsafe-inline for inline styles
                 "img-src 'self' data: https:; "
                 "connect-src 'self' https://api.telegram.org; "
                 "font-src 'self'; "
-                "frame-ancestors 'none'; "
+                "frame-ancestors https://web.telegram.org https://*.telegram.org; "  # Allow Telegram to embed in iframe
                 "base-uri 'self'; "
                 "form-action 'self'"
             )
@@ -56,7 +56,15 @@ class CSPMiddleware(BaseHTTPMiddleware):
 
         # Additional security headers
         response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
+
+        # X-Frame-Options: Allow Telegram to embed /webapp/* in iframe
+        if is_webapp:
+            # Don't set X-Frame-Options for webapp (CSP frame-ancestors is sufficient)
+            # Setting both can cause conflicts and browsers prefer CSP
+            pass
+        else:
+            response.headers["X-Frame-Options"] = "DENY"
+
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
