@@ -134,7 +134,7 @@ async def validate_initdata(
 
     # Step 4: Create JWT access token (7-day expiry)
     # Note: No refresh token for Web Apps (Telegram handles re-auth)
-    access_token = create_access_token(data={"sub": str(user.telegram_id)})
+    access_token = create_access_token(user_id=user.id)
 
     # Step 5: Build response
     web_app_user = WebAppUser(
