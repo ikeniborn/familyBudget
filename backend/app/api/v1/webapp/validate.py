@@ -124,7 +124,13 @@ async def validate_initdata(
     user_dict = extract_user_from_initdata(user_data)
 
     # Step 3: Get or create user (reuse existing auth service)
-    user = await get_or_create_user(session, user_dict)
+    user = await get_or_create_user(
+        session,
+        telegram_id=user_dict["id"],
+        first_name=user_dict.get("first_name"),
+        last_name=user_dict.get("last_name"),
+        username=user_dict.get("username"),
+    )
 
     # Step 4: Create JWT access token (7-day expiry)
     # Note: No refresh token for Web Apps (Telegram handles re-auth)
