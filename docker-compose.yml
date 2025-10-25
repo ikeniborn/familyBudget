@@ -186,6 +186,9 @@ services:
       BACKEND_API_URL: http://backend:8000/api/v1
       BACKEND_API_KEY: ${BACKEND_API_KEY:-}
 
+      # Domain (for WebApp URL generation)
+      DOMAIN: ${DOMAIN:-localhost}
+
       # Logging
       LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
