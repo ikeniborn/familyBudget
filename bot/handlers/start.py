@@ -5,7 +5,7 @@ Handles user authentication via Telegram OAuth and welcomes new users.
 Uses Menu Button (WebApp) instead of inline keyboard.
 """
 
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, WebAppInfo
 from telegram.ext import ContextTypes
 
 from bot.utils.api_client import get_api_client
@@ -14,6 +14,38 @@ from bot.utils.session import SessionManager
 from bot.utils.telegram_auth import is_user_allowed, prepare_telegram_auth_data
 
 logger = get_logger(__name__)
+
+
+def get_webapp_url() -> str:
+    """
+    Get WebApp URL from settings.
+
+    Returns:
+        str: Public WebApp URL (e.g., https://budget-dev.ikeniborn.ru/webapp/index.html)
+    """
+    from bot.config.settings import get_settings
+
+    settings = get_settings()
+    protocol = "https" if settings.DOMAIN != "localhost" else "http"
+    port_suffix = ":8000" if settings.DOMAIN == "localhost" else ""
+    return f"{protocol}://{settings.DOMAIN}{port_suffix}/webapp/index.html"
+
+
+def create_webapp_keyboard() -> InlineKeyboardMarkup:
+    """
+    Create inline keyboard with WebApp button.
+
+    Returns:
+        InlineKeyboardMarkup: Keyboard with single WebApp button
+    """
+    webapp_url = get_webapp_url()
+    web_app_info = WebAppInfo(url=webapp_url)
+
+    keyboard = [[
+        InlineKeyboardButton(text="🚀 Открыть приложение", web_app=web_app_info)
+    ]]
+
+    return InlineKeyboardMarkup(keyboard)
 
 
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -56,7 +88,8 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_name = SessionManager.get_user_display_name(context)
         await update.message.reply_text(
             f"✅ Вы уже авторизованы, {user_name}!\n\n"
-            f"Используйте кнопку Menu в нижней части экрана для доступа к WebApp."
+            f"Используйте кнопку ниже или кнопку Меню в нижней части экрана.",
+            reply_markup=create_webapp_keyboard()
         )
         logger.info(f"User {user.id} already authenticated")
         return
@@ -98,7 +131,10 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         welcome_text = format_welcome_message(first_name, is_admin)
 
         # Update the "authenticating" message
-        await auth_message.edit_text(welcome_text)
+        await auth_message.edit_text(
+            welcome_text,
+            reply_markup=create_webapp_keyboard()
+        )
 
         logger.info(f"User {user.id} authenticated successfully")
 

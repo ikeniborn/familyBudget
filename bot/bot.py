@@ -173,7 +173,7 @@ class BotApplication:
 
             # Create Menu Button
             menu_button = MenuButtonWebApp(
-                text="📱 Открыть приложение",
+                text="Меню",
                 web_app=web_app_info
             )
 
