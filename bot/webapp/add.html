@@ -331,7 +331,7 @@
 
             textarea.addEventListener('input', () => {
                 const length = textarea.value.length;
-                counter.textContent = `${length} Я ваа`;
+                counter.textContent = `${length} / 200`;
 
                 if (length > 200) {
                     counter.classList.add('over-limit');
@@ -380,7 +380,7 @@
                 categories = [
                     { id: 1, name: 'Продукты' },
                     { id: 2, name: 'Транспорт' },
-                    { id: 3, name: ' азвлечения' },
+                    { id: 3, name: 'Развлечения' },
                     { id: 4, name: 'Здоровье' },
                     { id: 5, name: 'Одежда' },
                 ];
@@ -464,14 +464,14 @@
                 await new Promise(resolve => setTimeout(resolve, 1000));
 
                 app.ui.hideLoading();
-                app.ui.showSuccess('Транзакция сохраненаС', () => {
+                app.ui.showSuccess('Транзакция сохранена', () => {
                     // Go back to main menu
                     app.tg.close();
                 });
 
             } catch (error) {
                 app.ui.hideLoading();
-                app.ui.showError(`Ошибкак ${error.message}`);
+                app.ui.showError(`Ошибка: ${error.message}`);
             }
         }
 
