@@ -239,7 +239,8 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
-            <div class="page-title">н  асширенный поиск</div>
+            <div class="page-title">н
+  асширенный поиск</div>
         </div>
 
         <!-- Filters -->
@@ -259,7 +260,7 @@
                 <div class="type-checkboxes">
                     <div class="type-checkbox-item checked" data-type="expense">
                         <input type="checkbox" class="type-checkbox" checked>
-                        <span class="type-label"> асход</span>
+                        <span class="type-label">Расход</span>
                     </div>
                     <div class="type-checkbox-item checked" data-type="income">
                         <input type="checkbox" class="type-checkbox" checked>
@@ -293,18 +294,19 @@
             <!-- Description Search -->
             <div class="filter-group">
                 <label class="filter-label">Поиск по описанию</label>
-                <input type="text" id="description-search" class="form-input" placeholder="2548B5 B5:AB...">
+                <input type="text" id="description-search" class="form-input" placeholder="Введите текст...">
             </div>
         </div>
 
         <!-- Search Button -->
         <button class="search-button" id="search-button">
-            н Найти транзакции
+            н
+ Найти транзакции
         </button>
 
         <!-- Loading State -->
         <div class="loading-state" id="loading-state" style="display: none;">
-            <div>ПоискЮЮЮ</div>
+            <div>Поиск...</div>
         </div>
 
         <!-- Results Header -->
@@ -320,7 +322,8 @@
 
         <!-- Empty State -->
         <div class="empty-state" id="empty-state" style="display: none;">
-            <div class="empty-state-icon">н</div>
+            <div class="empty-state-icon">н
+</div>
             <div class="empty-state-text">Нет результатов по заданны< :@8B5@8O<</div>
         </div>
     </div>
@@ -567,7 +570,7 @@
             const category = document.createElement('div');
             category.className = 'transaction-category';
             const categoryObj = categories.find(c => c.id === fact.article_id);
-            const typeLabel = recordType === 'plan' ? ' ШпланЩ' : '';
+            const typeLabel = recordType === 'plan' ? ' (план)' : '';
             category.textContent = (categoryObj ? categoryObj.name : `Категория #${fact.article_id}`) + typeLabel;
 
             const description = document.createElement('div');
@@ -635,7 +638,7 @@
             const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-ил' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `search_results_${new фateШЩЮtoщѓяѓtringШЩЮsplitШЧєЧЩћаѝ}Юcsv`;
+            link.download = `search_results_${new фateШЩЮtoщѓяѓtringШЩЮsplit(ЧєЧ)ћаѝ}Юcsv`;
             link.click();
 
             app.ui.showSuccess('CSV файл загружен');

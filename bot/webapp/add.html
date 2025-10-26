@@ -145,9 +145,7 @@
         <div class="form-group">
             <label class="form-label">Тип операции</label>
             <div class="segmented-control">
-                <button type="button" class="segmented-control-item" data-type="expense">
-                     асход
-                </button>
+                <button type="button" class="segmented-control-item" data-type="expense">Расход</button>
                 <button type="button" class="segmented-control-item active" data-type="income">
                     Доход
                 </button>
@@ -189,22 +187,22 @@
         <div class="form-group">
             <label class="form-label form-label-required">Категория</label>
             <div class="category-list" id="category-list">
-                <div class="category-loading">Загрузка категорийЮЮЮ</div>
+                <div class="category-loading">Загрузка категорий...</div>
             </div>
             <span class="error-message" id="category-error"></span>
         </div>
 
         <!-- Description (optional) -->
         <div class="form-group">
-            <label class="form-label">Описание ШнеобязательноЩ</label>
+            <label class="form-label">Описание (необязательно)</label>
             <textarea
                 id="description"
                 class="form-textarea"
-                placeholder=">бавьте ко<<5=B0@89..."
+                placeholder="Добавьте комментарий..."
                 maxlength="200"
                 rows="3"
             ></textarea>
-            <span class="char-counter" id="description-counter">а Я ваа</span>
+            <span class="char-counter" id="description-counter">0 / 200</span>
         </div>
 
         <!-- Date Select -->
@@ -368,7 +366,7 @@
 
         async function loadCategories() {
             const categoryList = document.getElementById('category-list');
-            categoryList.innerHTML = '<div class="category-loading">Загрузка категорийЮЮЮ</div>';
+            categoryList.innerHTML = '<div class="category-loading">Загрузка категорий...</div>';
 
             try {
                 // TODO: Implement when /api/v1/webapp/articles GET endpoint is ready
@@ -450,7 +448,7 @@
             }
 
             // Show loading
-            app.ui.showLoading('СохранениеЮЮЮ');
+            app.ui.showLoading('Сохранение...');
 
             try {
                 // TODO: Implement when /api/v1/webapp/facts POST endpoint is ready

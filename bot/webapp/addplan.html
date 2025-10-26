@@ -241,7 +241,7 @@
         <div class="form-group">
             <label class="form-label form-label-required">Категория</label>
             <div class="category-list" id="category-list">
-                <div class="category-loading">Загрузка категорийЮЮЮ</div>
+                <div class="category-loading">Загрузка категорий...</div>
             </div>
             <span class="error-message" id="category-error"></span>
         </div>
@@ -270,15 +270,15 @@
 
         <!-- Description (optional) -->
         <div class="form-group">
-            <label class="form-label">Описание ШнеобязательноЩ</label>
+            <label class="form-label">Описание (необязательно)</label>
             <textarea
                 id="description"
                 class="form-textarea"
-                placeholder="><<5=B0@89 : ?;0=C..."
+                placeholder="Комментарий к плану..."
                 maxlength="200"
                 rows="3"
             ></textarea>
-            <span class="char-counter" id="description-counter">а Я ваа</span>
+            <span class="char-counter" id="description-counter">0 / 200</span>
         </div>
 
         <!-- Recurring Option -->
@@ -475,7 +475,7 @@
 
         async function loadCategories() {
             const categoryList = document.getElementById('category-list');
-            categoryList.innerHTML = '<div class="category-loading">Загрузка категорийЮЮЮ</div>';
+            categoryList.innerHTML = '<div class="category-loading">Загрузка категорий...</div>';
 
             try {
                 const result = await app.api.listArticles({
@@ -546,7 +546,7 @@
             }
 
             // Show loading
-            app.ui.showLoading('СохранениеЮЮЮ');
+            app.ui.showLoading('Сохранение...');
 
             try {
                 // Create plan
