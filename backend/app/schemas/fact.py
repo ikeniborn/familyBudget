@@ -299,11 +299,12 @@ class FactResponse(BaseModel):
     """
     Schema for budget fact responses.
 
-    Includes all fact fields including audit timestamps.
+    Includes all fact fields including audit timestamps and article details.
 
     Notes:
         - No SCD Type 2 fields (is_current, valid_from, valid_to)
         - Facts are simple transactional records
+        - Includes article_type and article_name for frontend convenience
     """
 
     id: int = Field(
@@ -319,6 +320,16 @@ class FactResponse(BaseModel):
     article_id: int = Field(
         description="Budget category/article ID",
         examples=[1]
+    )
+
+    article_type: str = Field(
+        description="Article type (income or expense)",
+        examples=["expense", "income"]
+    )
+
+    article_name: str = Field(
+        description="Article name for display",
+        examples=["Groceries", "Salary"]
     )
 
     fact_date: date = Field(

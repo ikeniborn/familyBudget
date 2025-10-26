@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Сег>дня - Family Budget</title>
+    <title>Сегодня - Family Budget</title>
 
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -216,7 +216,7 @@
     <script src="/webapp/static/js/app.js"></script>
 
     <script>
-        let app = null;
+        // app is already declared globally in app.js
         let facts = [];
 
         // Page-specific initialization
@@ -351,7 +351,7 @@
 
             const description = document.createElement('div');
             description.className = 'transaction-description';
-            description.textContent = fact.description || '57 >?8A0=8O';
+            description.textContent = fact.description || 'Без описания';
 
             const time = document.createElement('div');
             time.className = 'transaction-time';

@@ -145,8 +145,8 @@
         <div class="form-group">
             <label class="form-label">Тип операции</label>
             <div class="segmented-control">
-                <button type="button" class="segmented-control-item" data-type="expense">Расход</button>
-                <button type="button" class="segmented-control-item active" data-type="income">
+                <button type="button" class="segmented-control-item active" data-type="expense">Расход</button>
+                <button type="button" class="segmented-control-item" data-type="income">
                     Доход
                 </button>
             </div>
@@ -170,7 +170,7 @@
                 <input
                     type="number"
                     id="amount"
-                    class="amount-input income"
+                    class="amount-input expense"
                     placeholder="0.00"
                     step="0.01"
                     min="0.01"
@@ -208,6 +208,11 @@
         <!-- Date Select -->
         <div class="form-group">
             <label class="form-label form-label-required">Дата</label>
+            <div class="quick-amount-buttons" style="margin-bottom: 8px;">
+                <button type="button" class="quick-amount-btn" data-days="0">Сегодня</button>
+                <button type="button" class="quick-amount-btn" data-days="-1">Вчера</button>
+                <button type="button" class="quick-amount-btn" data-days="-2">Позавчера</button>
+            </div>
             <input
                 type="date"
                 id="fact-date"
@@ -229,7 +234,7 @@
 
     <script>
         let formState = {
-            factType: 'income',  // 'income' or 'expense'
+            factType: 'expense',  // 'income' or 'expense'
             amount: null,
             categoryId: null,
             description: '',
@@ -237,7 +242,7 @@
         };
 
         let categories = [];
-        let app = null;
+        // app is already declared globally in app.js
 
         // Page-specific initialization
         window.pageInit = async function(budgetApp) {
@@ -259,16 +264,21 @@
             // Setup date input (default: today)
             setupDateInput();
 
+            // Setup quick date buttons
+            setupQuickDateButtons();
+
             // Load categories
             await loadCategories();
 
             // Setup MainButton for save
             setupMainButton();
 
-            // Setup BackButton
+            // Setup BackButton to return to main menu
             app.setupBackButton(() => {
-                app.tg.close();
+                window.location.href = '/webapp/index.html';
             });
+            // Explicitly show BackButton
+            app.tg.BackButton.show();
 
             console.log('Add transaction page ready');
         };
@@ -300,7 +310,7 @@
         }
 
         function setupQuickAmountButtons() {
-            const buttons = document.querySelectorAll('.quick-amount-btn');
+            const buttons = document.querySelectorAll('.quick-amount-btn[data-amount]');
 
             buttons.forEach(button => {
                 button.addEventListener('click', () => {
@@ -364,26 +374,41 @@
             });
         }
 
+        function setupQuickDateButtons() {
+            const buttons = document.querySelectorAll('.quick-amount-buttons button[data-days]');
+            const dateInput = document.getElementById('fact-date');
+
+            buttons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const daysOffset = parseInt(button.dataset.days);
+                    const date = new Date();
+                    date.setDate(date.getDate() + daysOffset);
+
+                    const dateStr = date.toISOString().split('T')[0];
+                    dateInput.value = dateStr;
+                    formState.factDate = dateStr;
+
+                    // Clear error
+                    document.getElementById('date-error').textContent = '';
+                    dateInput.classList.remove('input-error');
+
+                    // Haptic feedback
+                    app.ui.hapticLight();
+                });
+            });
+        }
+
         async function loadCategories() {
             const categoryList = document.getElementById('category-list');
             categoryList.innerHTML = '<div class="category-loading">Загрузка категорий...</div>';
 
             try {
-                // TODO: Implement when /api/v1/webapp/articles GET endpoint is ready
-                // const result = await app.api.listArticles({
-                //     type: formState.factType,
-                //     is_current: true
-                // });
-                // categories = result.articles || [];
-
-                // Placeholder categories for now
-                categories = [
-                    { id: 1, name: 'Продукты' },
-                    { id: 2, name: 'Транспорт' },
-                    { id: 3, name: 'Развлечения' },
-                    { id: 4, name: 'Здоровье' },
-                    { id: 5, name: 'Одежда' },
-                ];
+                // Load categories from API
+                const result = await app.api.listArticles({
+                    type: formState.factType,
+                    is_current: true
+                });
+                categories = result.articles || [];
 
                 if (categories.length === 0) {
                     categoryList.innerHTML = '<div class="category-loading">Категории не найдены</div>';
@@ -451,28 +476,57 @@
             app.ui.showLoading('Сохранение...');
 
             try {
-                // TODO: Implement when /api/v1/webapp/facts POST endpoint is ready
-                // const result = await app.api.createFact({
-                //     fact_type: formState.factType,
-                //     amount: formState.amount,
-                //     article_id: formState.categoryId,
-                //     description: formState.description,
-                //     fact_date: formState.factDate
-                // });
-
-                // Simulate API call
-                await new Promise(resolve => setTimeout(resolve, 1000));
-
-                app.ui.hideLoading();
-                app.ui.showSuccess('Транзакция сохранена', () => {
-                    // Go back to main menu
-                    app.tg.close();
+                // Save to database via API
+                const result = await app.api.createFact({
+                    article_id: formState.categoryId,
+                    fact_date: formState.factDate,
+                    amount: formState.amount,
+                    description: formState.description || null,
+                    record_type: 'fact'
                 });
 
-            } catch (error) {
+                console.log('Fact created:', result);
+
                 app.ui.hideLoading();
-                app.ui.showError(`Ошибка: ${error.message}`);
+                app.ui.showSuccess('Транзакция добавлена!', () => {
+                    // Reset form for next entry
+                    resetForm();
+                    // Focus on amount input
+                    document.getElementById('amount').focus();
+                });
+
+                // Haptic feedback
+                app.ui.hapticSuccess();
+
+            } catch (error) {
+                console.error('Save error:', error);
+                app.ui.hideLoading();
+                app.ui.showError(`Ошибка: ${error.detail || error.message}`);
             }
+        }
+
+        function resetForm() {
+            // Reset form state
+            formState.amount = null;
+            formState.categoryId = null;
+            formState.description = '';
+
+            // Clear inputs
+            document.getElementById('amount').value = '';
+            document.getElementById('description').value = '';
+            document.getElementById('description-counter').textContent = '0 / 200';
+
+            // Clear selected category
+            document.querySelectorAll('.category-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+
+            // Clear errors
+            document.getElementById('amount-error').textContent = '';
+            document.getElementById('category-error').textContent = '';
+            document.getElementById('amount').classList.remove('input-error');
+
+            console.log('Form reset');
         }
 
         function validateForm() {

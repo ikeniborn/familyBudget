@@ -77,6 +77,55 @@ pytest --cov=backend --cov-report=html  # С coverage
 ruff check . && black . && mypy .    # Quality checks
 ```
 
+### Production Environment (Docker)
+
+**Рабочие каталоги:**
+- `/opt/budget` - Production код (используется Docker контейнерами)
+- `~/familyBudget` - Development код (для разработки)
+
+**ВАЖНО:** Все изменения нужно вносить в `/opt/budget`, так как именно этот каталог монтируется в Docker контейнеры!
+
+**Применение изменений:**
+
+1. **WebApp файлы** (bot/webapp/*.html, bot/webapp/static/*)
+   - Монтируются как volume (read_only)
+   - Изменения применяются **сразу** (без пересборки)
+   - Но требуется очистка кэша браузера (Ctrl+F5)
+
+2. **Python код** (backend/, bot/)
+   - Требуется **пересборка образа** и **перезапуск контейнеров**
+   ```bash
+   cd /opt/budget
+   ./deploy.sh --build --sync-mode skip
+   ```
+
+3. **Docker конфигурация** (docker-compose.yml, Dockerfile)
+   - Требуется **пересборка** и **перезапуск**
+
+**Логи контейнеров:**
+```bash
+# В production (рабочий каталог /opt/budget)
+cd /opt/budget
+docker compose logs -f backend       # Backend логи
+docker compose logs -f bot           # Bot логи
+docker compose logs --tail=100 backend  # Последние 100 строк
+
+# Из любого каталога
+docker compose -f /opt/budget/docker-compose.yml logs -f backend
+docker exec familybudget-backend cat /app/logs/backend.log
+
+# Все сервисы
+docker compose -f /opt/budget/docker-compose.yml logs -f
+```
+
+**Проверка статуса:**
+```bash
+cd /opt/budget
+docker compose ps                    # Статус всех контейнеров
+docker compose ps backend            # Статус backend
+docker exec familybudget-backend cat /app/bot/webapp/add.html | head -20  # Проверка файла в контейнере
+```
+
 📖 **Детальные инструкции:** См. соответствующие [Skills](#-claude-skills)
 
 ---

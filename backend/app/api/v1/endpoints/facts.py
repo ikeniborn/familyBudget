@@ -106,7 +106,22 @@ async def create_fact(
     await session.commit()
     await session.refresh(fact)
 
-    return fact
+    # Return enriched response with article data
+    return {
+        "id": fact.id,
+        "user_id": fact.user_id,
+        "article_id": fact.article_id,
+        "article_type": article.type,
+        "article_name": article.name,
+        "fact_date": fact.fact_date,
+        "amount": fact.amount,
+        "description": fact.description,
+        "financial_center_id": fact.financial_center_id,
+        "cost_center_id": fact.cost_center_id,
+        "record_type": fact.record_type,
+        "created_at": fact.created_at,
+        "updated_at": fact.updated_at,
+    }
 
 
 @router.get(
@@ -140,13 +155,16 @@ async def list_facts(
     - offset: Number of results to skip (default: 0)
 
     **Returns:**
-    - 200 OK: List of facts with pagination info
+    - 200 OK: List of facts with pagination info (includes article_type and article_name)
     """
-    # Base query
-    statement = select(BudgetFact)
+    # Base query with join to Article for enriched response
+    statement = select(BudgetFact, Article).join(
+        Article,
+        (BudgetFact.article_id == Article.id) & (Article.is_current == True)  # noqa: E712
+    )
 
     # Apply user isolation (admins see all, users see only theirs)
-    statement = apply_user_filter(statement, current_user, user_id_column="user_id")
+    statement = apply_user_filter(statement, current_user, user_id_column=BudgetFact.user_id)
 
     # Apply filters
     if date_from:
@@ -169,10 +187,30 @@ async def list_facts(
 
     # Execute query
     result = await session.execute(statement)
-    facts = result.scalars().all()
+    rows = result.all()
+
+    # Enrich facts with article data
+    enriched_facts = []
+    for fact, article in rows:
+        fact_dict = {
+            "id": fact.id,
+            "user_id": fact.user_id,
+            "article_id": fact.article_id,
+            "article_type": article.type,
+            "article_name": article.name,
+            "fact_date": fact.fact_date,
+            "amount": fact.amount,
+            "description": fact.description,
+            "financial_center_id": fact.financial_center_id,
+            "cost_center_id": fact.cost_center_id,
+            "record_type": fact.record_type,
+            "created_at": fact.created_at,
+            "updated_at": fact.updated_at,
+        }
+        enriched_facts.append(fact_dict)
 
     return FactListResponse(
-        facts=facts,
+        facts=enriched_facts,
         total=total,
         limit=limit,
         offset=offset,

@@ -263,15 +263,16 @@
                 const facts = result.facts || [];
 
                 if (facts.length > 0) {
-                    // Calculate summary
+                    // Calculate summary based on article_type
                     let income = 0;
                     let expense = 0;
 
                     facts.forEach(fact => {
-                        if (fact.amount > 0) {
-                            income += fact.amount;
-                        } else {
-                            expense += Math.abs(fact.amount);
+                        const amount = parseFloat(fact.amount);
+                        if (fact.article_type === 'income') {
+                            income += amount;
+                        } else if (fact.article_type === 'expense') {
+                            expense += amount;
                         }
                     });
 
