@@ -1281,5 +1281,5 @@ add_conversation_handler = ConversationHandler(
     fallbacks=[CommandHandler("cancel", cancel_command)],
     name="add_fact_conversation",
     persistent=False,
-    # per_message defaults to False, which is correct for CommandHandler entry points
+    per_message=True,
 )
