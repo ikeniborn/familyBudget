@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title> асширенный поиск - Family Budget</title>
+    <title>Расширенный поиск - Family Budget</title>
 
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -21,6 +21,20 @@
             padding: 20px 0;
             border-bottom: 1px solid var(--tg-theme-section-separator-color);
             margin-bottom: 16px;
+            position: relative;
+        }
+
+        .back-button {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--tg-theme-link-color);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 8px;
         }
 
         .page-title {
@@ -239,8 +253,8 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
-            <div class="page-title">н
-  асширенный поиск</div>
+            <button class="back-button" onclick="window.location.href='/webapp/index.html'">← Назад</button>
+            <div class="page-title">🔍 Расширенный поиск</div>
         </div>
 
         <!-- Filters -->
@@ -300,8 +314,7 @@
 
         <!-- Search Button -->
         <button class="search-button" id="search-button">
-            н
- Найти транзакции
+            🔍 Найти транзакции
         </button>
 
         <!-- Loading State -->
@@ -311,8 +324,8 @@
 
         <!-- Results Header -->
         <div class="results-header" id="results-header" style="display: none;">
-            <span class="results-count" id="results-count">Найденок а</span>
-            <button class="export-button" id="export-button">н -кспорт</button>
+            <span class="results-count" id="results-count">Найдено: 0</span>
+            <button class="export-button" id="export-button">📥 Экспорт</button>
         </div>
 
         <!-- Transactions List -->
@@ -322,9 +335,8 @@
 
         <!-- Empty State -->
         <div class="empty-state" id="empty-state" style="display: none;">
-            <div class="empty-state-icon">н
-</div>
-            <div class="empty-state-text">Нет результатов по заданны< :@8B5@8O<</div>
+            <div class="empty-state-icon">🔍</div>
+            <div class="empty-state-text">Нет результатов по заданным критериям</div>
         </div>
     </div>
 
@@ -486,7 +498,7 @@
                     emptyState.style.display = 'block';
                 } else {
                     // Show results
-                    document.getElementById('results-count').textContent = `Найденок ${facts.length}`;
+                    document.getElementById('results-count').textContent = `Найдено: ${facts.length}`;
                     resultsHeader.style.display = 'flex';
                     renderResults(facts);
                     transactionsList.style.display = 'block';
@@ -494,7 +506,7 @@
 
             } catch (error) {
                 console.error('Search failed:', error);
-                loadingState.innerHTML = `<div style="color: var(--tg-theme-destructive-text-color);">Ошибка поискак ${error.message}</div>`;
+                loadingState.innerHTML = `<div style="color: var(--tg-theme-destructive-text-color);">Ошибка поиска: ${error.message}</div>`;
             }
         }
 
@@ -556,7 +568,7 @@
             // Determine type
             const recordType = fact.record_type || 'fact';
             const isIncome = fact.amount > 0;
-            const icon = recordType === 'plan' ? 'н' : (isIncome ? 'н' : 'н');
+            const icon = recordType === 'plan' ? '📝' : (isIncome ? '💰' : '💸');
 
             // Icon
             const iconEl = document.createElement('div');
@@ -587,9 +599,9 @@
 
             // Amount
             const amount = document.createElement('div');
-            amount.className = `transaction-amount ${isIncome п 'income' к 'expense'}`;
+            amount.className = `transaction-amount ${isIncome ? 'income' : 'expense'}`;
             const amountValue = Math.abs(fact.amount);
-            amount.textContent = `${isIncome п ЧЫЧ к Ч-'}${app.ui.formatAmount(amountValue)} `;
+            amount.textContent = `${isIncome ? '+' : '-'}${app.ui.formatAmount(amountValue)} ₽`;
 
             // Assemble
             item.appendChild(iconEl);
@@ -612,13 +624,13 @@
             }
 
             // Prepare CSV data
-            const headers = ['Дата', 'Категория', 'Описание', 'Тип', '!C<<а'];
+            const headers = ['Дата', 'Категория', 'Описание', 'Тип', 'Сумма'];
             const rows = searchResults.map(fact => {
                 const category = categories.find(c => c.id === fact.article_id);
                 const categoryName = category ? category.name : `Категория #${fact.article_id}`;
                 const recordType = fact.record_type || 'fact';
                 const isIncome = fact.amount > 0;
-                const type = recordType === 'plan' ? 'План' : (isIncome ? 'Доход' : ' асход');
+                const type = recordType === 'plan' ? 'План' : (isIncome ? 'Доход' : 'Расход');
                 const date = new Date(fact.created_at || fact.fact_date).toLocaleDateString('ru-RU');
 
                 return [
@@ -631,25 +643,25 @@
             });
 
             const csv = [headers, ...rows]
-                .map(row => row.map(cell => `"${cell}"`).join('Ь'))
-                .join('ќn');
+                .map(row => row.map(cell => `"${cell}"`).join(','))
+                .join('\n');
 
             // Download
-            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-ил' });
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `search_results_${new фateШЩЮtoщѓяѓtringШЩЮsplit(ЧєЧ)ћаѝ}Юcsv`;
+            link.download = `search_results_${new Date().toISOString().split('T')[0]}.csv`;
             link.click();
 
             app.ui.showSuccess('CSV файл загружен');
         }
 
         function formatDateTime(date) {
-            const day = String(date.getDate()).padStart(2, 'а');
-            const month = String(date.getMonth() + 1).padStart(2, 'а');
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
             const year = date.getFullYear();
-            const hours = String(date.getHours()).padStart(2, 'а');
-            const minutes = String(date.getMinutes()).padStart(2, 'а');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
 
             return `${day}.${month}.${year} ${hours}:${minutes}`;
         }

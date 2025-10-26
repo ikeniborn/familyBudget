@@ -117,8 +117,19 @@ Current migrations:
 3. `003_create_t_d_financial_center.sql` - Financial centers dimension with SCD2
 4. `004_create_t_d_cost_center.sql` - Cost centers dimension with SCD2
 5. `005_create_t_d_article_hierarchy.sql` - Closure Table for article hierarchy
-6. `006_create_indexes.sql` - All indexes for performance
-7. `007_create_views.sql` - Views for current SCD2 records
+6. `006_create_t_f_budget_fact.sql` - Budget fact table with partitioning and FK
+7. `007_create_article_hierarchy_triggers.sql` - Triggers for closure table maintenance
+8. `008_create_scd2_triggers.sql` - SCD2 automation triggers
+9. `009_create_additional_indexes.sql` - Performance indexes
+10. `010_add_record_type_to_budget_fact.sql` - Add record_type field (fact/plan)
+11. `011_create_notifications_table.sql` - Notifications table
+12. `013_create_refresh_tokens_table.sql` - JWT refresh tokens table
+
+**Total:** 12 migrations
+
+**Removed (optimization):**
+- `012_add_centers_fk.sql` - Duplicate (FK already in 006)
+- `014_remove_code_and_is_global_fields.sql` - Removed unused fields
 
 ## Design Decisions
 

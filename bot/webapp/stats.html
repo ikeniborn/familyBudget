@@ -21,6 +21,20 @@
             padding: 20px 0;
             border-bottom: 1px solid var(--tg-theme-section-separator-color);
             margin-bottom: 16px;
+            position: relative;
+        }
+
+        .back-button {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--tg-theme-link-color);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 8px;
         }
 
         .page-title {
@@ -232,6 +246,7 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
+            <button class="back-button" onclick="window.location.href='/webapp/index.html'">← Назад</button>
             <div class="page-title">Статистика</div>
         </div>
 
@@ -256,24 +271,24 @@
                 <div class="summary-title" id="period-title">За сегодня</div>
 
                 <div class="summary-row">
-                    <span class="summary-label">н  асходык</span>
-                    <span class="summary-value expense" id="summary-expense">аЮаа </span>
+                    <span class="summary-label">📉 Расходы</span>
+                    <span class="summary-value expense" id="summary-expense">0.00 ₽</span>
                 </div>
 
                 <div class="summary-row">
-                    <span class="summary-label">н Доходык</span>
-                    <span class="summary-value income" id="summary-income">ЫаЮаа </span>
+                    <span class="summary-label">📈 Доходы</span>
+                    <span class="summary-value income" id="summary-income">0.00 ₽</span>
                 </div>
 
                 <div class="summary-row">
-                    <span class="summary-label">н Баланск</span>
-                    <span class="summary-value balance" id="summary-balance">аЮаа </span>
+                    <span class="summary-label">💰 Баланс</span>
+                    <span class="summary-value balance" id="summary-balance">0.00 ₽</span>
                 </div>
             </div>
 
             <!-- Expense Breakdown -->
             <div class="breakdown-section" id="expense-breakdown-section" style="display: none;">
-                <div class="breakdown-header"> асходы по категория<</div>
+                <div class="breakdown-header">Расходы по категориям</div>
                 <div class="category-breakdown-list" id="expense-breakdown">
                     <!-- Populated dynamically -->
                 </div>
@@ -281,7 +296,7 @@
 
             <!-- Income Breakdown -->
             <div class="breakdown-section" id="income-breakdown-section" style="display: none;">
-                <div class="breakdown-header">Доходы по категория<</div>
+                <div class="breakdown-header">Доходы по категориям</div>
                 <div class="category-breakdown-list" id="income-breakdown">
                     <!-- Populated dynamically -->
                 </div>
@@ -290,7 +305,7 @@
 
         <!-- Empty State -->
         <div class="empty-state" id="empty-state" style="display: none;">
-            <div class="empty-state-icon">н</div>
+            <div class="empty-state-icon">📊</div>
             <div class="empty-state-text">Нет данных за выбранный период</div>
             <button class="btn btn-primary" onclick="window.location.href='/webapp/add.html'">
                 Добавить транзакцию
@@ -401,7 +416,7 @@
 
             } catch (error) {
                 console.error('Failed to load stats:', error);
-                loadingState.innerHTML = `<div style="color: var(--tg-theme-destructive-text-color);">Ошибка загрузкик ${error.message}</div>`;
+                loadingState.innerHTML = `<div style="color: var(--tg-theme-destructive-text-color);">Ошибка загрузки: ${error.message}</div>`;
             }
         }
 
@@ -448,7 +463,7 @@
             const periodTitles = {
                 'today': 'За сегодня',
                 'week': 'За неделю',
-                'month': 'За <есяц',
+                'month': 'За месяц',
                 'year': 'За год'
             };
             document.getElementById('period-title').textContent = periodTitles[period];
@@ -484,13 +499,13 @@
         }
 
         function updateSummary(summary) {
-            document.getElementById('summary-expense').textContent = `-${app.ui.formatAmount(summary.expense)} `;
-            document.getElementById('summary-income').textContent = `+${app.ui.formatAmount(summary.income)} `;
+            document.getElementById('summary-expense').textContent = `-${app.ui.formatAmount(summary.expense)} ₽`;
+            document.getElementById('summary-income').textContent = `+${app.ui.formatAmount(summary.income)} ₽`;
 
             const balanceElement = document.getElementById('summary-balance');
             const balanceFormatted = app.ui.formatAmount(Math.abs(summary.balance));
-            const sign = summary.balance >= 0 ? 'Ы' : '-';
-            balanceElement.textContent = `${sign}${balanceFormatted} `;
+            const sign = summary.balance >= 0 ? '+' : '-';
+            balanceElement.textContent = `${sign}${balanceFormatted} ₽`;
         }
 
         function calculateCategoryBreakdown(facts, type) {
@@ -563,7 +578,7 @@
 
             const icon = document.createElement('div');
             icon.className = 'category-icon';
-            icon.textContent = type === 'expense' ? 'н' : 'н';
+            icon.textContent = type === 'expense' ? '💸' : '💰';
 
             const info = document.createElement('div');
             info.className = 'category-info';
@@ -574,7 +589,7 @@
 
             const percentageEl = document.createElement('div');
             percentageEl.className = 'category-percentage';
-            percentageEl.textContent = `${percentage}% от ${type ннн 'expense' п ЧрасходовЧ к ЧдоходовЧ}`;
+            percentageEl.textContent = `${percentage}% от ${type === 'expense' ? 'расходов' : 'доходов'}`;
 
             const progress = document.createElement('div');
             progress.className = 'category-progress';
@@ -591,7 +606,7 @@
 
             const amountEl = document.createElement('div');
             amountEl.className = `category-amount ${type}`;
-            amountEl.textContent = `${type ннн 'expense' п Ч-Ч к '+'}${app.ui.formatAmount(amount)} `;
+            amountEl.textContent = `${type === 'expense' ? '-' : '+'}${app.ui.formatAmount(amount)} ₽`;
 
             item.appendChild(icon);
             item.appendChild(info);

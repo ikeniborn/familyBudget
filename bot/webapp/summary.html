@@ -21,6 +21,20 @@
             padding: 20px 0;
             border-bottom: 1px solid var(--tg-theme-section-separator-color);
             margin-bottom: 16px;
+            position: relative;
+        }
+
+        .back-button {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--tg-theme-link-color);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 8px;
         }
 
         .page-title {
@@ -262,7 +276,8 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
-            <div class="page-title">н План vs Факт</div>
+            <button class="back-button" onclick="window.location.href='/webapp/index.html'">← Назад</button>
+            <div class="page-title">📊 План vs Факт</div>
         </div>
 
         <!-- Period Selector -->
@@ -282,20 +297,20 @@
         <div id="summary-content" style="display: none;">
             <!-- Total Summary -->
             <div class="total-summary">
-                <div class="total-summary-title" id="period-title">За <5AOF</div>
+                <div class="total-summary-title" id="period-title">За месяц</div>
 
                 <div class="total-row">
-                    <span class="total-label">н  асходы</span>
+                    <span class="total-label">📉 Расходы</span>
                     <div class="total-values">
-                        <div class="total-value" id="total-expense-fact">а </div>
+                        <div class="total-value" id="total-expense-fact">0 ₽</div>
                         <div class="total-diff" id="total-expense-diff"></div>
                     </div>
                 </div>
 
                 <div class="total-row">
-                    <span class="total-label">н Доходы</span>
+                    <span class="total-label">📈 Доходы</span>
                     <div class="total-values">
-                        <div class="total-value" id="total-income-fact">а </div>
+                        <div class="total-value" id="total-income-fact">0 ₽</div>
                         <div class="total-diff" id="total-income-diff"></div>
                     </div>
                 </div>
@@ -303,7 +318,7 @@
 
             <!-- Expenses Breakdown -->
             <div class="comparison-section" id="expense-section" style="display: none;">
-                <div class="comparison-header">н  асходы по категория<</div>
+                <div class="comparison-header">📉 Расходы по категориям</div>
                 <div class="comparison-list" id="expense-list">
                     <!-- Populated dynamically -->
                 </div>
@@ -311,7 +326,7 @@
 
             <!-- Income Breakdown -->
             <div class="comparison-section" id="income-section" style="display: none;">
-                <div class="comparison-header">н Доходы по категория<</div>
+                <div class="comparison-header">📈 Доходы по категориям</div>
                 <div class="comparison-list" id="income-list">
                     <!-- Populated dynamically -->
                 </div>
@@ -320,7 +335,7 @@
 
         <!-- Empty State -->
         <div class="empty-state" id="empty-state" style="display: none;">
-            <div class="empty-state-icon">н</div>
+            <div class="empty-state-icon">📊</div>
             <div class="empty-state-text">Нет данных за выбранный период<br>Создайте план для сравнения</div>
             <button class="btn btn-primary" onclick="window.location.href='/webapp/addplan.html'">
                 Создать план
@@ -430,7 +445,7 @@
 
             } catch (error) {
                 console.error('Failed to load summary:', error);
-                loadingState.innerHTML = `<div style="color: var(--tg-theme-destructive-text-color);">Ошибка загрузкик ${error.message}</div>`;
+                loadingState.innerHTML = `<div style="color: var(--tg-theme-destructive-text-color);">Ошибка загрузки: ${error.message}</div>`;
             }
         }
 
@@ -468,7 +483,7 @@
         function displaySummary(facts, period) {
             // Update period title
             const periodTitles = {
-                'month': 'За <есяц',
+                'month': 'За месяц',
                 'quarter': 'За квартал',
                 'year': 'За год'
             };
@@ -530,18 +545,18 @@
 
         function updateTotals(totals) {
             // Expenses
-            document.getElementById('total-expense-fact').textContent = `${app.ui.formatAmount(totals.expense.fact)} `;
+            document.getElementById('total-expense-fact').textContent = `${app.ui.formatAmount(totals.expense.fact)} ₽`;
             const expenseDiffEl = document.getElementById('total-expense-diff');
-            const expenseSign = totals.expense.diff >= 0 ? 'Ы' : '';
-            expenseDiffEl.textContent = `Планк ${app.ui.formatAmount(totals.expense.plan)}  (${expenseSign}${app.ui.formatAmount(totals.expense.diff)} Щ`;
-            expenseDiffEl.className = `total-diff ${totals.expense.diff он а п 'positive' к 'negative'}`;
+            const expenseSign = totals.expense.diff >= 0 ? '+' : '';
+            expenseDiffEl.textContent = `План: ${app.ui.formatAmount(totals.expense.plan)} ₽ (${expenseSign}${app.ui.formatAmount(totals.expense.diff)} ₽)`;
+            expenseDiffEl.className = `total-diff ${totals.expense.diff >= 0 ? 'positive' : 'negative'}`;
 
             // Income
-            document.getElementById('total-income-fact').textContent = `${app.ui.formatAmount(totals.income.fact)} `;
+            document.getElementById('total-income-fact').textContent = `${app.ui.formatAmount(totals.income.fact)} ₽`;
             const incomeDiffEl = document.getElementById('total-income-diff');
-            const incomeSign = totals.income.diff >= 0 ? 'Ы' : '';
-            incomeDiffEl.textContent = `Планк ${app.ui.formatAmount(totals.income.plan)}  (${incomeSign}${app.ui.formatAmount(totals.income.diff)} Щ`;
-            incomeDiffEl.className = `total-diff ${totals.income.diff он а п 'positive' к 'negative'}`;
+            const incomeSign = totals.income.diff >= 0 ? '+' : '';
+            incomeDiffEl.textContent = `План: ${app.ui.formatAmount(totals.income.plan)} ₽ (${incomeSign}${app.ui.formatAmount(totals.income.diff)} ₽)`;
+            incomeDiffEl.className = `total-diff ${totals.income.diff >= 0 ? 'positive' : 'negative'}`;
         }
 
         function displayCategoryBreakdown(type, grouped) {
@@ -602,11 +617,11 @@
 
             const diffEl = document.createElement('div');
             diffEl.className = 'category-diff';
-            const diffSign = data.diff >= 0 ? 'Ѕ Ы' : 'Џ ';
+            const diffSign = data.diff >= 0 ? '✅ +' : '⚠️ ';
             const diffText = type === 'expense'
-                ? (data.diff >= 0 ? '-коно<ия' : 'Превышение')
+                ? (data.diff >= 0 ? 'Экономия' : 'Превышение')
                 : (data.diff >= 0 ? 'Превышение' : 'Недобор');
-            diffEl.textContent = `${diffSign}${diffText}: ${app.ui.formatAmount(Math.abs(data.diff))} `;
+            diffEl.textContent = `${diffSign}${diffText}: ${app.ui.formatAmount(Math.abs(data.diff))} ₽`;
             diffEl.classList.add(data.diff >= 0 ? 'positive' : 'negative');
 
             header.appendChild(categoryName);
@@ -620,14 +635,14 @@
             planBox.className = 'value-box';
             planBox.innerHTML = `
                 <div class="value-label">План</div>
-                <div class="value-amount">${app.ui.formatAmount(data.plan)} </div>
+                <div class="value-amount">${app.ui.formatAmount(data.plan)} ₽</div>
             `;
 
             const factBox = document.createElement('div');
             factBox.className = 'value-box';
             factBox.innerHTML = `
                 <div class="value-label">Факт</div>
-                <div class="value-amount">${app.ui.formatAmount(data.fact)} </div>
+                <div class="value-amount">${app.ui.formatAmount(data.fact)} ₽</div>
             `;
 
             values.appendChild(planBox);
