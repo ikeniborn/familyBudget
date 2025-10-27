@@ -781,11 +781,19 @@ sync_code_to_deploy() {
 cleanup_containers_networks() {
     info "Stopping and removing old containers and networks..."
 
-    # Stop all familybudget containers
+    # Use docker compose stop for graceful shutdown (respects stop_grace_period and stop_signal)
+    # This prevents PostgreSQL data corruption by allowing proper cleanup
+    if compose_cmd ps -q 2>/dev/null | grep -q .; then
+        info "Gracefully stopping services with extended timeout..."
+        # Use 90s timeout: gives PostgreSQL 60s (stop_grace_period) + 30s buffer
+        compose_cmd stop --timeout 90 >> "$LOG_FILE" 2>&1 || true
+        success "Services stopped gracefully"
+    fi
+
+    # Remove stopped containers
     local containers=$(docker ps -a --filter "name=familybudget" --format "{{.Names}}" 2>/dev/null || echo "")
     if [[ -n "$containers" ]]; then
-        info "Stopping containers: $containers"
-        echo "$containers" | xargs docker stop >> "$LOG_FILE" 2>&1 || true
+        info "Removing containers: $containers"
         echo "$containers" | xargs docker rm >> "$LOG_FILE" 2>&1 || true
         success "Containers removed"
     fi
