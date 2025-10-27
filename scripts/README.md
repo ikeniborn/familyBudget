@@ -1,14 +1,14 @@
 # Family Budget - Scripts Directory
 
-**Version:** 1.0
+**Version:** 1.1
 **Task:** TASK-051 (EPIC-005)
-**Date:** 2025-10-14
+**Date:** 2025-10-27
 
 ---
 
 ## Overview
 
-This directory contains automation scripts for the Family Budget application, including backup, deployment, and maintenance utilities.
+This directory contains automation scripts for the Family Budget application, including backup, deployment, maintenance, and troubleshooting utilities.
 
 ---
 
@@ -332,6 +332,79 @@ Or using environment file:
 ```bash
 0 2 * * * cd /path/to/project && set -a && source .env && set +a && ./scripts/backup.sh >> backups/logs/cron.log 2>&1
 ```
+
+---
+
+### fix_postgres_volume.sh
+
+**Purpose:** Fix corrupted PostgreSQL volume after unsafe shutdown or crash
+
+**Features:**
+- Gracefully stops all Docker services (90s timeout)
+- Removes corrupted postgres_data volume
+- Cleans up containers and networks
+- Interactive confirmation (type 'DELETE')
+- Comprehensive status reporting
+- Safe execution with error handling
+
+**Usage:**
+
+```bash
+# Fix corrupted PostgreSQL volume
+cd /opt/budget
+sudo bash scripts/fix_postgres_volume.sh
+# Type 'DELETE' to confirm
+```
+
+**When to use:**
+- PostgreSQL fails to start with "could not open directory pg_notify" error
+- Database container is in unhealthy/restarting state
+- After unsafe shutdown or system crash
+- When `docker logs familybudget-postgres` shows corruption errors
+
+**What it does:**
+1. Stops all familybudget services with extended timeout (graceful shutdown)
+2. Removes stopped containers
+3. Deletes corrupted `budget_postgres_data` volume
+4. Removes networks to prevent conflicts
+5. Prepares system for clean deployment
+
+**⚠️ WARNING:** This will DELETE all data in PostgreSQL!
+
+**Integration:**
+- Used after deployment failures with PostgreSQL corruption
+- Called manually when database is in unhealthy state
+- Prepares for clean deploy after volume corruption
+- Complements the fixed `deploy.sh` Safe cleanup (option 2)
+
+**Exit Codes:**
+- `0` - Success (volume fixed, ready for deployment)
+- `1` - Error or user cancelled
+
+**Examples:**
+
+```bash
+# Check if volume is corrupted
+sudo docker logs familybudget-postgres
+# Output: "FATAL: could not open directory pg_notify"
+
+# Run fix script
+cd /opt/budget
+sudo bash scripts/fix_postgres_volume.sh
+# Type 'DELETE' when prompted
+
+# After fix, run deployment
+sudo bash deploy.sh
+# Choose: Sync mode = skip, Cleanup = skip (already cleaned)
+```
+
+**Related fixes:**
+- `docker-compose.yml`: Added `stop_grace_period: 60s` and `stop_signal: SIGINT` for PostgreSQL
+- `deploy.sh`: Updated Safe cleanup to use `docker compose stop --timeout 90` (prevents corruption)
+
+**Prevention:**
+After applying fixes in docker-compose.yml and deploy.sh, this corruption should not occur anymore.
+Use this script only to fix legacy corrupted volumes.
 
 ---
 
