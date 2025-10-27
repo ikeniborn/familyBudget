@@ -37,7 +37,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-MIGRATION_FILE="backend/db/migrations/013_create_refresh_tokens_table.sql"
+MIGRATION_FILE="backend/db/migrations/012_create_refresh_tokens_table.sql"
 POSTGRES_ALLOWED_IP="${POSTGRES_ALLOWED_IP:-78.107.114.37}"
 
 # Colors
@@ -117,11 +117,11 @@ check_postgres_running() {
 }
 
 # ============================================================================
-# Fix 1: Apply Migration 013
+# Fix 1: Apply Migration 012
 # ============================================================================
 
-apply_migration_013() {
-    print_section "FIX 1: Applying Migration 013"
+apply_migration_012() {
+    print_section "FIX 1: Applying Migration 012"
 
     local migration_path="${PROJECT_ROOT}/${MIGRATION_FILE}"
 
@@ -140,12 +140,12 @@ apply_migration_013() {
         return 0
     fi
 
-    log "Applying migration: 013_create_refresh_tokens_table.sql"
+    log "Applying migration: 012_create_refresh_tokens_table.sql"
 
     if docker compose exec -T postgres psql -U familybudget familybudget < "$migration_path"; then
-        log_success "Migration 013 applied successfully"
+        log_success "Migration 012 applied successfully"
     else
-        log_error "Migration 013 failed"
+        log_error "Migration 012 failed"
         exit 2
     fi
 
@@ -361,7 +361,7 @@ print_summary() {
     echo "========================================"
     echo ""
     echo "Fixes Applied:"
-    echo "  ✓ Migration 013 (t_f_refresh_token table)"
+    echo "  ✓ Migration 012 (t_f_refresh_token table)"
     echo "  ✓ Nginx healthcheck configuration"
     echo "  ✓ UFW firewall rules (80, 443, 5432)"
     echo "  ✓ Backend and Bot containers restarted"
@@ -393,7 +393,7 @@ main() {
     check_postgres_running
 
     # Apply fixes
-    apply_migration_013
+    apply_migration_012
     reload_nginx
     configure_ufw
     restart_containers

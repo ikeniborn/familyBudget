@@ -1,0 +1,670 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <h1 class="text-3xl font-bold mb-2">📅 Управление планом</h1>
+                <p class="text-base-content/70">Просмотр, редактирование и удаление планируемых транзакций</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных транзакций в CSV">
+                    📄 CSV
+                </button>
+                <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('excel')" title="Экспорт отфильтрованных транзакций в Excel">
+                    📊 Excel
+                </button>
+                <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('pdf')" title="Экспорт отфильтрованных транзакций в PDF">
+                    📑 PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <h2 class="card-title text-2xl">🔍 Фильтры</h2>
+                <button class="btn btn-sm btn-ghost" onclick="resetFilters()">Сбросить</button>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">👤 Пользователь</span>
+                    </label>
+                    <select id="filter-user" class="select select-bordered select-sm">
+                        <option value="">-- Все пользователи --</option>
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">📁 Категория</span>
+                    </label>
+                    <select id="filter-article" class="select select-bordered select-sm">
+                        <option value="">-- Все категории --</option>
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">📅 Дата с</span>
+                    </label>
+                    <input type="date" id="filter-date-from" class="input input-bordered input-sm">
+                </div>
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">📅 Дата по</span>
+                    </label>
+                    <input type="date" id="filter-date-to" class="input input-bordered input-sm">
+                </div>
+            </div>
+            <div class="flex justify-end">
+                <button class="btn btn-primary btn-sm" onclick="applyFilters()">Применить фильтры</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Section -->
+    <div class="stats shadow w-full">
+        <div class="stat">
+            <div class="stat-figure text-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Всего плановых записей</div>
+            <div class="stat-value text-primary" id="stat-total">0</div>
+        </div>
+        <div class="stat">
+            <div class="stat-figure text-secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Текущая страница</div>
+            <div class="stat-value text-secondary" id="stat-page-info">0-0 из 0</div>
+        </div>
+    </div>
+
+    <!-- Facts Table -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <h2 class="card-title text-2xl">📋 Плановые записи</h2>
+                <button class="btn btn-sm btn-error gap-1" id="batch-delete-btn" onclick="batchDelete()" disabled>
+                    🗑️ Удалить выбранные
+                </button>
+            </div>
+
+            <div id="facts-table-container" class="min-h-[200px]">
+                <div class="flex items-center justify-center py-8">
+                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div class="flex justify-center items-center gap-4 mt-4" id="pagination-controls" style="display: none;">
+                <button class="btn btn-sm btn-outline" id="prev-btn" onclick="previousPage()" disabled>← Предыдущая</button>
+                <span class="font-medium" id="page-info">Страница 1</span>
+                <button class="btn btn-sm btn-outline" id="next-btn" onclick="nextPage()" disabled>Следующая →</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Fact Modal -->
+<dialog id="edit-modal" class="modal">
+    <div class="modal-box max-w-2xl">
+        <h3 class="font-bold text-lg mb-4">✏️ Редактировать плановую запись</h3>
+        <form id="edit-form" onsubmit="updateFact(event)" class="space-y-4">
+            <input type="hidden" id="edit-id" name="id">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">💵 Сумма*</span>
+                </label>
+                <input type="number" id="edit-amount" name="amount" step="0.01" required class="input input-bordered" />
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📅 Дата*</span>
+                </label>
+                <input type="date" id="edit-date" name="fact_date" required class="input input-bordered" />
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📁 Категория*</span>
+                </label>
+                <select id="edit-article" name="article_id" required class="select select-bordered">
+                    <option value="">-- Выберите категорию --</option>
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📝 Описание</span>
+                </label>
+                <textarea id="edit-description" name="description" rows="3" maxlength="500" class="textarea textarea-bordered"></textarea>
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">🏦 Финансовый центр (ЦФО)</span>
+                </label>
+                <select id="edit-financial-center" name="financial_center_id" class="select select-bordered">
+                    <option value="">-- Не указано --</option>
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">💼 Центр затрат (МВЗ)</span>
+                </label>
+                <select id="edit-cost-center" name="cost_center_id" class="select select-bordered">
+                    <option value="">-- Не указано --</option>
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-primary">💾 Сохранить</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Global state
+let currentPage = 0;
+let pageSize = 50;
+let totalFacts = 0;
+let factsData = [];
+let selectedFactIds = new Set();
+
+// Filter state
+let filters = {
+    user_id: null,
+    article_id: null,
+    date_from: null,
+    date_to: null
+};
+
+// Load data on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadUsers();
+    loadArticles();
+    loadFinancialCenters();
+    loadCostCenters();
+    loadFacts();
+});
+
+// Load users for filter dropdown
+async function loadUsers() {
+    try {
+        const response = await fetch('/api/v1/admin/users?is_current=true');
+        const users = await response.json();
+
+        const select = document.getElementById('filter-user');
+        users.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user.id;
+            option.textContent = user.username || user.first_name || `User ${user.telegram_id}`;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading users:', error);
+    }
+}
+
+// Load articles for filter and edit dropdowns
+async function loadArticles() {
+    try {
+        const response = await fetch('/api/v1/admin/articles?is_current=true');
+        const articles = await response.json();
+
+        // Populate filter dropdown
+        const filterSelect = document.getElementById('filter-article');
+        articles.forEach(article => {
+            const option = document.createElement('option');
+            option.value = article.id;
+            option.textContent = `${article.name} (${article.type})`;
+            filterSelect.appendChild(option);
+        });
+
+        // Populate edit dropdown
+        const editSelect = document.getElementById('edit-article');
+        articles.forEach(article => {
+            const option = document.createElement('option');
+            option.value = article.id;
+            option.textContent = `${article.name} (${article.type})`;
+            editSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading articles:', error);
+    }
+}
+
+// Load financial centers for edit dropdown
+async function loadFinancialCenters() {
+    try {
+        const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const centers = data.financial_centers || [];
+
+        const editSelect = document.getElementById('edit-financial-center');
+        centers.forEach(center => {
+            const option = document.createElement('option');
+            option.value = center.id;
+            const scope = center.is_global ? ' (Global)' : '';
+            option.textContent = `${center.name}${scope}`;
+            editSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading financial centers:', error);
+    }
+}
+
+// Load cost centers for edit dropdown
+async function loadCostCenters() {
+    try {
+        const response = await fetch('/api/v1/cost-centers?limit=1000&include_global=true');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const centers = data.cost_centers || [];
+
+        const editSelect = document.getElementById('edit-cost-center');
+        centers.forEach(center => {
+            const option = document.createElement('option');
+            option.value = center.id;
+            const scope = center.is_global ? ' (Global)' : '';
+            option.textContent = `${center.name}${scope}`;
+            editSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading cost centers:', error);
+    }
+}
+
+// Apply filters
+function applyFilters() {
+    filters.user_id = document.getElementById('filter-user').value || null;
+    filters.article_id = document.getElementById('filter-article').value || null;
+    filters.date_from = document.getElementById('filter-date-from').value || null;
+    filters.date_to = document.getElementById('filter-date-to').value || null;
+
+    currentPage = 0;
+    loadFacts();
+}
+
+// Reset filters
+function resetFilters() {
+    document.getElementById('filter-user').value = '';
+    document.getElementById('filter-article').value = '';
+    document.getElementById('filter-date-from').value = '';
+    document.getElementById('filter-date-to').value = '';
+
+    filters = {
+        user_id: null,
+        article_id: null,
+        date_from: null,
+        date_to: null
+    };
+
+    currentPage = 0;
+    loadFacts();
+}
+
+// Load facts from API
+async function loadFacts() {
+    const container = document.getElementById('facts-table-container');
+    container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
+
+    try {
+        // Build query params
+        let params = new URLSearchParams({
+            limit: pageSize,
+            offset: currentPage * pageSize
+        });
+
+        // Filter by record_type='plan'
+        params.append('record_type', 'plan');
+
+        if (filters.user_id) params.append('user_id', filters.user_id);
+        if (filters.article_id) params.append('article_id', filters.article_id);
+        if (filters.date_from) params.append('date_from', filters.date_from);
+        if (filters.date_to) params.append('date_to', filters.date_to);
+
+        // Load facts and count in parallel
+        const [factsResponse, countResponse] = await Promise.all([
+            fetch(`/api/v1/admin/facts?${params}`),
+            fetch(`/api/v1/admin/facts/count?${params}`)
+        ]);
+
+        if (!factsResponse.ok || !countResponse.ok) {
+            throw new Error('Failed to load facts');
+        }
+
+        factsData = await factsResponse.json();
+        const countData = await countResponse.json();
+        totalFacts = countData.total;
+
+        renderFactsTable(factsData);
+        updateStats();
+        updatePagination();
+    } catch (error) {
+        console.error('Error loading facts:', error);
+        const errorMessage = error?.message || String(error);
+        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки: ${errorMessage}</span></div>`;
+    }
+}
+
+// Render facts table
+function renderFactsTable(facts) {
+    const container = document.getElementById('facts-table-container');
+    selectedFactIds.clear();
+    updateBatchDeleteButton();
+
+    if (facts.length === 0) {
+        container.innerHTML = '<div class="text-center py-8 text-base-content/60">📅 Плановые записи не найдены. Измените фильтры или добавьте новые плановые записи.</div>';
+        return;
+    }
+
+    let html = `
+        <div class="overflow-x-auto">
+            <table class="table table-zebra table-sm">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" class="checkbox checkbox-sm" id="select-all" onchange="toggleSelectAll(this)"></th>
+                        <th>ID</th>
+                        <th>👤 Пользователь</th>
+                        <th>📁 Категория</th>
+                        <th>💵 Сумма</th>
+                        <th>📅 Дата</th>
+                        <th>📝 Описание</th>
+                        <th>⚙️ Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    facts.forEach(fact => {
+        const amountClass = fact.amount >= 0 ? 'text-success font-bold' : 'text-error font-bold';
+        const description = fact.description || '—';
+
+        html += `
+            <tr>
+                <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" value="${fact.id}" onchange="updateBatchDeleteButton()"></td>
+                <td><code class="badge badge-ghost">${fact.id}</code></td>
+                <td>${fact.user_name || '—'}</td>
+                <td>${fact.article_name || '—'}</td>
+                <td class="${amountClass}">${parseFloat(fact.amount).toFixed(2)}</td>
+                <td>${fact.fact_date}</td>
+                <td class="max-w-xs truncate">${description}</td>
+                <td>
+                    <div class="flex gap-1">
+                        <button class="btn btn-xs btn-primary gap-1" onclick="showEditModal(${fact.id})">✏️</button>
+                        <button class="btn btn-xs btn-outline btn-error gap-1" onclick="deleteFact(${fact.id})">🗑️</button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+// Toggle select all checkboxes
+function toggleSelectAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.fact-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+        if (checkbox.checked) {
+            selectedFactIds.add(parseInt(cb.value));
+        } else {
+            selectedFactIds.delete(parseInt(cb.value));
+        }
+    });
+    updateBatchDeleteButton();
+}
+
+// Update batch delete button state
+function updateBatchDeleteButton() {
+    const checkboxes = document.querySelectorAll('.fact-checkbox:checked');
+    selectedFactIds = new Set(Array.from(checkboxes).map(cb => parseInt(cb.value)));
+
+    const btn = document.getElementById('batch-delete-btn');
+    btn.disabled = selectedFactIds.size === 0;
+    btn.textContent = selectedFactIds.size > 0 ? `🗑️ Удалить выбранные (${selectedFactIds.size})` : '🗑️ Удалить выбранные';
+}
+
+// Update statistics
+function updateStats() {
+    document.getElementById('stat-total').textContent = totalFacts;
+
+    const startIdx = currentPage * pageSize + 1;
+    const endIdx = Math.min((currentPage + 1) * pageSize, totalFacts);
+    document.getElementById('stat-page-info').textContent = totalFacts > 0 ? `${startIdx}-${endIdx} из ${totalFacts}` : '0-0 из 0';
+}
+
+// Update pagination controls
+function updatePagination() {
+    const controls = document.getElementById('pagination-controls');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const pageInfo = document.getElementById('page-info');
+
+    if (totalFacts > pageSize) {
+        controls.style.display = 'flex';
+
+        prevBtn.disabled = currentPage === 0;
+        nextBtn.disabled = (currentPage + 1) * pageSize >= totalFacts;
+
+        const totalPages = Math.ceil(totalFacts / pageSize);
+        pageInfo.textContent = `Страница ${currentPage + 1} из ${totalPages}`;
+    } else {
+        controls.style.display = 'none';
+    }
+}
+
+// Pagination functions
+function previousPage() {
+    if (currentPage > 0) {
+        currentPage--;
+        loadFacts();
+    }
+}
+
+function nextPage() {
+    if ((currentPage + 1) * pageSize < totalFacts) {
+        currentPage++;
+        loadFacts();
+    }
+}
+
+// Show edit modal
+function showEditModal(factId) {
+    const fact = factsData.find(f => f.id === factId);
+    if (!fact) return;
+
+    document.getElementById('edit-id').value = fact.id;
+    document.getElementById('edit-amount').value = parseFloat(fact.amount);
+    document.getElementById('edit-date').value = fact.fact_date;
+    document.getElementById('edit-article').value = fact.article_id;
+    document.getElementById('edit-description').value = fact.description || '';
+    document.getElementById('edit-financial-center').value = fact.financial_center_id || '';
+    document.getElementById('edit-cost-center').value = fact.cost_center_id || '';
+
+    document.getElementById('edit-modal').showModal();
+}
+
+// Close edit modal
+function closeEditModal() {
+    document.getElementById('edit-modal').close();
+    document.getElementById('edit-form').reset();
+}
+
+// Update fact
+async function updateFact(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const factId = formData.get('id');
+
+    // Build data object with optional center fields
+    const data = {
+        amount: parseFloat(formData.get('amount')),
+        fact_date: formData.get('fact_date'),
+        article_id: parseInt(formData.get('article_id')),
+        description: formData.get('description') || null
+    };
+
+    // Add center fields if selected
+    const financialCenterId = formData.get('financial_center_id');
+    const costCenterId = formData.get('cost_center_id');
+
+    if (financialCenterId) {
+        data.financial_center_id = parseInt(financialCenterId);
+    }
+
+    if (costCenterId) {
+        data.cost_center_id = parseInt(costCenterId);
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/facts/${factId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        closeEditModal();
+        await loadFacts();
+        showNotification('✅ Транзакция успешно обновлена!', 'success');
+    } catch (error) {
+        console.error('Error updating fact:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Delete single fact
+async function deleteFact(factId) {
+    if (!confirm('🗑️ Вы уверены, что хотите удалить эту транзакцию? Это действие необратимо.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/facts/${factId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        await loadFacts();
+        showNotification('✅ Транзакция успешно удалена!', 'success');
+    } catch (error) {
+        console.error('Error deleting fact:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Batch delete facts
+async function batchDelete() {
+    if (selectedFactIds.size === 0) return;
+
+    if (!confirm(`🗑️ Вы уверены, что хотите удалить ${selectedFactIds.size} транзакций? Это действие необратимо.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/v1/admin/facts/batch-delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(Array.from(selectedFactIds))
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        await loadFacts();
+        showNotification(`✅ Удалено транзакций: ${result.deleted_count}`, 'success');
+    } catch (error) {
+        console.error('Error batch deleting facts:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Utility: Show notification
+function showNotification(message, type) {
+    // Handle error objects properly
+    if (typeof message === 'object' && message !== null) {
+        message = message.detail || message.message || JSON.stringify(message);
+    }
+
+    if (type === 'error') {
+        alert('❌ ' + message);
+    } else {
+        alert(message);
+    }
+}
+
+// Export filtered facts (system-wide for admins)
+function exportFilteredFacts(format) {
+    // Build admin export URL with current filters
+    let url = `/api/v1/admin/export/all-facts/${format}?`;
+
+    // Add all filters if set
+    if (filters.user_id) {
+        url += `user_id=${filters.user_id}&`;
+    }
+    if (filters.article_id) {
+        url += `article_id=${filters.article_id}&`;
+    }
+    if (filters.date_from) {
+        url += `start_date=${filters.date_from}&`;
+    }
+    if (filters.date_to) {
+        url += `end_date=${filters.date_to}&`;
+    }
+
+    // Remove trailing '&' or '?'
+    url = url.replace(/[&?]$/, '');
+
+    // Open in new tab to trigger download
+    window.open(url, '_blank');
+}
+</script>
+{% endblock %}

@@ -126,6 +126,29 @@ async def facts(
     )
 
 
+@web_router.get("/plan", response_class=HTMLResponse)
+async def plan(
+    request: Request,
+    current_user: CurrentUserOptional = None
+):
+    """
+    Plan management page (accessible to all users).
+
+    Provides interface for viewing, editing, and deleting planned financial transactions
+    with pagination and filtering capabilities. Shows only record_type='plan' entries.
+    """
+    from backend.app.main import templates
+
+    return templates.TemplateResponse(
+        "plan.html",
+        {
+            "request": request,
+            "user": current_user,
+            "page_title": "План"
+        }
+    )
+
+
 @web_router.get("/admin/monitoring", response_class=HTMLResponse)
 async def admin_monitoring(
     request: Request,

@@ -67,17 +67,6 @@
                             <button class="btn btn-ghost btn-xs" onclick="exportTrendsData('excel')" title="Экспорт динамики в Excel">📊</button>
                         </div>
                     </div>
-                    <div class="form-control mb-1" role="group" aria-label="Выбор периода динамики">
-                        <div class="flex items-center gap-2">
-                            <label for="trends-days" class="label-text font-semibold">Дни:</label>
-                            <select id="trends-days" class="select select-bordered select-sm" onchange="updateTrendsDays()" aria-label="Выберите количество дней для отображения">
-                                <option value="7">Последние 7 дней</option>
-                                <option value="30" selected>Последние 30 дней</option>
-                                <option value="90">Последние 90 дней</option>
-                                <option value="365">Последний год</option>
-                            </select>
-                        </div>
-                    </div>
                     <div id="chart-trends" class="chart-container" role="img" aria-label="Линейный график динамики доходов и расходов"></div>
                 </div>
             </div>

@@ -1,5 +1,5 @@
 -- ============================================================================
--- Migration: 013_create_refresh_tokens_table.sql
+-- Migration: 012_create_refresh_tokens_table.sql
 -- Description: Create refresh tokens table for JWT refresh token mechanism
 -- Author: ClaudeCode Implementation System
 -- Date: 2025-10-14
