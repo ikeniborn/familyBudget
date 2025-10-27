@@ -83,7 +83,6 @@ ruff check . && black . && mypy .    # Quality checks
 - `/opt/budget` - Production код (используется Docker контейнерами)
 - `~/familyBudget` - Development код (для разработки)
 
-**ВАЖНО:** Все изменения нужно вносить в `/opt/budget`, так как именно этот каталог монтируется в Docker контейнеры!
 
 **Применение изменений:**
 

@@ -203,23 +203,23 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
-            <div class="page-title">н Добавить план</div>
+            <div class="page-title">📝 Добавить план</div>
         </div>
 
         <!-- Quick Amount Buttons -->
         <div class="form-group">
             <label class="form-label">Быстрый выбор суммы</label>
             <div class="quick-amount-buttons">
-                <button type="button" class="quick-amount-btn" data-amount="5000">5000 </button>
-                <button type="button" class="quick-amount-btn" data-amount="10000">баk </button>
-                <button type="button" class="quick-amount-btn" data-amount="20000">ваk </button>
-                <button type="button" class="quick-amount-btn" data-amount="50000">еаk </button>
+                <button type="button" class="quick-amount-btn" data-amount="5000">5000 ₽</button>
+                <button type="button" class="quick-amount-btn" data-amount="10000">10k ₽</button>
+                <button type="button" class="quick-amount-btn" data-amount="20000">20k ₽</button>
+                <button type="button" class="quick-amount-btn" data-amount="50000">50k ₽</button>
             </div>
         </div>
 
         <!-- Amount Input -->
         <div class="form-group">
-            <label class="form-label form-label-required">Плановая AC<<0</label>
+            <label class="form-label form-label-required">Плановая сумма</label>
             <div class="amount-input-wrapper">
                 <input
                     type="number"
@@ -240,9 +240,9 @@
         <!-- Category Select -->
         <div class="form-group">
             <label class="form-label form-label-required">Категория</label>
-            <div class="category-list" id="category-list">
-                <div class="category-loading">Загрузка категорий...</div>
-            </div>
+            <select id="category-select" class="form-input" required>
+                <option value="">Загрузка категорий...</option>
+            </select>
             <span class="error-message" id="category-error"></span>
         </div>
 
@@ -259,9 +259,9 @@
             <!-- Custom Period Section -->
             <div class="custom-period-section" id="custom-period-section">
                 <div class="date-range-row">
-                    <input type="date" id="period-start" class="form-input" placeholder="B">
-                    <span class="date-range-separator">Д</span>
-                    <input type="date" id="period-end" class="form-input" placeholder=">То
+                    <input type="text" id="period-start" class="form-input" placeholder="B" pattern="\d{2}-\d{2}-\d{4}">
+                    <span class="date-range-separator">—</span>
+                    <input type="text" id="period-end" class="form-input" placeholder=">То
                 </div>
             </div>
 
@@ -286,7 +286,7 @@
             <div class="recurring-option">
                 <input type="checkbox" id="recurring" class="recurring-checkbox">
                 <label for="recurring" class="recurring-label">
-                    Создавать авто<0B8G5A:8 :064K9 ?5@8>д
+                    Создавать автоматически каждый период
                 </label>
             </div>
         </div>
@@ -299,6 +299,8 @@
     <script src="/webapp/static/js/ui.js"></script>
     <script src="/webapp/static/js/auth.js"></script>
     <script src="/webapp/static/js/api.js"></script>
+    <script src="/webapp/static/js/dateFormatter.js"></script>
+    <script src="/webapp/static/js/categoryTreeSelect.js"></script>
     <script src="/webapp/static/js/app.js"></script>
 
     <script>
@@ -313,6 +315,7 @@
         };
 
         let categories = [];
+        let categoryTreeSelect = null;
         // app is already declared globally in app.js
 
         // Page-specific initialization
@@ -384,7 +387,7 @@
 
             textarea.addEventListener('input', () => {
                 const length = textarea.value.length;
-                counter.textContent = `${length} Я ваа`;
+                counter.textContent = `${length} / 200`;
 
                 if (length > 200) {
                     counter.classList.add('over-limit');
@@ -422,13 +425,19 @@
                 });
             });
 
-            // Setup custom date inputs
-            document.getElementById('period-start').addEventListener('change', (e) => {
-                formState.periodStart = e.target.value;
+            // Setup custom date inputs with DD-MM-YYYY format
+            document.getElementById('period-start').addEventListener('input', (e) => {
+                const displayDate = e.target.value;
+                if (DateFormatter.isValidDisplayFormat(displayDate)) {
+                    formState.periodStart = DateFormatter.formatForAPI(displayDate);
+                }
             });
 
-            document.getElementById('period-end').addEventListener('change', (e) => {
-                formState.periodEnd = e.target.value;
+            document.getElementById('period-end').addEventListener('input', (e) => {
+                const displayDate = e.target.value;
+                if (DateFormatter.isValidDisplayFormat(displayDate)) {
+                    formState.periodEnd = DateFormatter.formatForAPI(displayDate);
+                }
             });
         }
 
@@ -474,52 +483,45 @@
         }
 
         async function loadCategories() {
-            const categoryList = document.getElementById('category-list');
-            categoryList.innerHTML = '<div class="category-loading">Загрузка категорий...</div>';
+            const categorySelect = document.getElementById('category-select');
 
             try {
                 const result = await app.api.listArticles({
-                    is_current: true
+                    is_current: true,
+                    limit: 1000
                 });
                 categories = result.articles || [];
 
                 if (categories.length === 0) {
-                    categoryList.innerHTML = '<div class="category-loading">Категории не найдены</div>';
+                    categorySelect.innerHTML = '<option value="">Категории не найдены</option>';
                     return;
                 }
 
-                // Render categories
-                categoryList.innerHTML = '';
-                categories.forEach(category => {
-                    const item = document.createElement('div');
-                    item.className = 'category-item';
-                    item.dataset.categoryId = category.id;
+                // Create CategoryTreeSelect instance
+                categoryTreeSelect = new CategoryTreeSelect(categorySelect, categories, {
+                    emptyOptionText: 'Выберите категорию',
+                    showEmptyOption: true,
+                    selectedId: formState.categoryId
+                });
 
-                    item.innerHTML = `<div class="category-item-name">${category.name}</div>`;
+                // Render tree
+                categoryTreeSelect.render();
 
-                    item.addEventListener('click', () => {
-                        // Update selected state
-                        document.querySelectorAll('.category-item').forEach(i => {
-                            i.classList.remove('selected');
-                        });
-                        item.classList.add('selected');
+                // Setup change handler
+                categorySelect.addEventListener('change', () => {
+                    const selectedId = parseInt(categorySelect.value);
+                    formState.categoryId = selectedId || null;
 
-                        // Update form state
-                        formState.categoryId = category.id;
+                    // Clear error
+                    document.getElementById('category-error').textContent = '';
 
-                        // Clear error
-                        document.getElementById('category-error').textContent = '';
-
-                        // Haptic feedback
-                        app.ui.hapticLight();
-                    });
-
-                    categoryList.appendChild(item);
+                    // Haptic feedback
+                    app.ui.hapticLight();
                 });
 
             } catch (error) {
                 console.error('Failed to load categories:', error);
-                categoryList.innerHTML = '<div class="category-loading">Ошибка загрузки категорий</div>';
+                categorySelect.innerHTML = '<option value="">Ошибка загрузки категорий</option>';
             }
         }
 
@@ -563,15 +565,15 @@
                 });
 
                 app.ui.hideLoading();
-                app.ui.hapticSuccess();
-                app.ui.showSuccess('План сохраненС', () => {
+                app.ui.haptic('success');
+                app.ui.showSuccess('План сохранен', () => {
                     // Go back to main menu
                     app.tg.close();
                 });
 
             } catch (error) {
                 app.ui.hideLoading();
-                app.ui.showError(`Ошибкак ${error.message}`);
+                app.ui.showError(`Ошибка: ${error.message}`);
             }
         }
 

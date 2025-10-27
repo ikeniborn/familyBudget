@@ -513,11 +513,11 @@ sync_mirror() {
     fi
 }
 
-# Sync code using update mode (rsync without --delete)
+# Sync code using update mode (rsync + delete orphaned files)
 sync_update() {
     local repo_dir=$1
 
-    info "Syncing code: update mode (no deletion)"
+    info "Syncing code: update mode + cleanup orphaned files"
     info "From: $repo_dir"
     info "To:   $DEPLOY_DIR"
     echo ""
@@ -544,8 +544,9 @@ sync_update() {
         return 1
     fi
 
-    # Perform sync
-    if rsync -av \
+    # 1. Perform rsync (update/add files)
+    info "Step 1/2: Syncing new and modified files..."
+    if ! rsync -av \
         --exclude='.env' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -556,13 +557,63 @@ sync_update() {
         --exclude='node_modules/' \
         --exclude='docker-compose.networks.yml' \
         "$repo_dir/" "$DEPLOY_DIR/" >> "$LOG_FILE" 2>&1; then
-        success "Code synced successfully (update mode)"
-        warning "Old files were NOT deleted (may have artifacts)"
-        return 0
-    else
         error "Failed to sync code. Check $LOG_FILE for details."
         return 1
     fi
+
+    # 2. Find and remove orphaned files (not in repository)
+    info "Step 2/2: Cleaning orphaned files..."
+
+    local temp_repo_list="/tmp/deploy_repo_files_$$"
+    local temp_deploy_list="/tmp/deploy_deploy_files_$$"
+    local deleted_count=0
+
+    # Generate list of files in repository (relative paths)
+    (cd "$repo_dir" && find . -type f \
+        ! -path "./.git/*" \
+        ! -path "./.env" \
+        ! -path "./data/*" \
+        ! -path "./logs/*" \
+        ! -path "./backups/*" \
+        ! -name "*.pyc" \
+        ! -path "./__pycache__/*" \
+        ! -path "./node_modules/*" \
+        ! -path "./docker-compose.networks.yml" \
+        2>/dev/null | sed 's|^./||' | sort) > "$temp_repo_list"
+
+    # Generate list of files in deploy directory
+    (cd "$DEPLOY_DIR" && find . -type f \
+        ! -path "./.git/*" \
+        ! -path "./.env" \
+        ! -path "./data/*" \
+        ! -path "./logs/*" \
+        ! -path "./backups/*" \
+        ! -name "*.pyc" \
+        ! -path "./__pycache__/*" \
+        ! -path "./node_modules/*" \
+        ! -path "./docker-compose.networks.yml" \
+        2>/dev/null | sed 's|^./||' | sort) > "$temp_deploy_list"
+
+    # Find orphaned files (in deploy but not in repo)
+    while IFS= read -r deploy_file; do
+        if ! grep -Fxq "$deploy_file" "$temp_repo_list"; then
+            if [[ -f "$DEPLOY_DIR/$deploy_file" ]]; then
+                rm -f "$DEPLOY_DIR/$deploy_file" && {
+                    echo "  Deleted: $deploy_file" | tee -a "$LOG_FILE"
+                    ((deleted_count++))
+                }
+            fi
+        fi
+    done < "$temp_deploy_list"
+
+    # Cleanup temp files
+    rm -f "$temp_repo_list" "$temp_deploy_list"
+
+    # Remove empty directories
+    find "$DEPLOY_DIR" -type d -empty -delete 2>/dev/null || true
+
+    success "Code synced: updated/added files, deleted $deleted_count orphaned files"
+    return 0
 }
 
 # Sync code using clean mode (full cleanup + copy)

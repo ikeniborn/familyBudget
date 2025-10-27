@@ -142,6 +142,109 @@
         .stats-value.balance {
             color: var(--tg-theme-link-color);
         }
+
+        /* FAB (Floating Action Button) */
+        .fab {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--tg-theme-button-color), var(--tg-theme-link-color));
+            border: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: var(--tg-theme-button-text-color);
+            z-index: 1000;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .fab:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: var(--tg-theme-bg-color);
+            border-radius: 16px;
+            padding: 24px;
+            width: 90%;
+            max-width: 320px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--tg-theme-text-color);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .modal-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .modal-button {
+            padding: 16px;
+            border: 1px solid var(--tg-theme-section-separator-color);
+            border-radius: 12px;
+            background-color: var(--tg-theme-secondary-bg-color);
+            color: var(--tg-theme-text-color);
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .modal-button:active {
+            background-color: var(--tg-theme-section-bg-color);
+            transform: scale(0.98);
+        }
+
+        .modal-button-icon {
+            font-size: 24px;
+        }
+
+        .modal-close {
+            margin-top: 12px;
+            padding: 12px;
+            border: none;
+            background: none;
+            color: var(--tg-theme-hint-color);
+            font-size: 14px;
+            cursor: pointer;
+            width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -207,7 +310,7 @@
             <!-- Summary -->
             <a href="/webapp/summary.html" class="menu-item">
                 <div class="menu-item-icon">📊</div>
-                <div class="menu-item-label">Сводка</div>
+                <div class="menu-item-label">План & Факт</div>
             </a>
 
             <!-- Search -->
@@ -215,6 +318,29 @@
                 <div class="menu-item-icon">🔍</div>
                 <div class="menu-item-label">Поиск</div>
             </a>
+        </div>
+
+        <!-- FAB (Floating Action Button) -->
+        <button class="fab" id="fab-button" aria-label="Добавить транзакцию">
+            ➕
+        </button>
+
+        <!-- Modal for transaction type selection -->
+        <div class="modal" id="transaction-modal">
+            <div class="modal-content">
+                <div class="modal-title">Добавить транзакцию</div>
+                <div class="modal-buttons">
+                    <button class="modal-button" id="add-fact-button">
+                        <span class="modal-button-icon">💰</span>
+                        <span>Фактическая</span>
+                    </button>
+                    <button class="modal-button" id="add-plan-button">
+                        <span class="modal-button-icon">📝</span>
+                        <span>Плановая</span>
+                    </button>
+                </div>
+                <button class="modal-close" id="modal-close-button">Отмена</button>
+            </div>
         </div>
     </div>
 
@@ -250,6 +376,45 @@
                 item.addEventListener('click', () => {
                     app.ui.hapticLight();
                 });
+            });
+
+            // FAB and Modal handlers
+            const fabButton = document.getElementById('fab-button');
+            const modal = document.getElementById('transaction-modal');
+            const addFactButton = document.getElementById('add-fact-button');
+            const addPlanButton = document.getElementById('add-plan-button');
+            const modalCloseButton = document.getElementById('modal-close-button');
+
+            // Open modal
+            fabButton.addEventListener('click', () => {
+                app.ui.hapticLight();
+                modal.classList.add('active');
+            });
+
+            // Close modal on background click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    app.ui.hapticLight();
+                    modal.classList.remove('active');
+                }
+            });
+
+            // Close modal on close button
+            modalCloseButton.addEventListener('click', () => {
+                app.ui.hapticLight();
+                modal.classList.remove('active');
+            });
+
+            // Navigate to fact form
+            addFactButton.addEventListener('click', () => {
+                app.ui.hapticLight();
+                window.location.href = '/webapp/add.html';
+            });
+
+            // Navigate to plan form
+            addPlanButton.addEventListener('click', () => {
+                app.ui.hapticLight();
+                window.location.href = '/webapp/addplan.html';
             });
 
             console.log('Main menu ready');

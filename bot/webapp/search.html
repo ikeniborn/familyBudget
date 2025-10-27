@@ -347,11 +347,13 @@
     <script src="/webapp/static/js/ui.js"></script>
     <script src="/webapp/static/js/auth.js"></script>
     <script src="/webapp/static/js/api.js"></script>
+    <script src="/webapp/static/js/categoryTreeSelect.js"></script>
     <script src="/webapp/static/js/app.js"></script>
 
     <script>
         // app is already declared globally in app.js
         let categories = [];
+        let categoryTreeSelect = null;
         let searchResults = [];
 
         // Search filters state
@@ -391,20 +393,32 @@
         };
 
         async function loadCategories() {
+            const categorySelect = document.getElementById('category-filter');
+
             try {
-                const result = await app.api.listArticles({ is_current: true });
+                const result = await app.api.listArticles({
+                    is_current: true,
+                    limit: 1000
+                });
                 categories = result.articles || [];
 
-                const categorySelect = document.getElementById('category-filter');
-                categories.forEach(category => {
-                    const option = document.createElement('option');
-                    option.value = category.id;
-                    option.textContent = category.name;
-                    categorySelect.appendChild(option);
+                if (categories.length === 0) {
+                    categorySelect.innerHTML = '<option value="">Категории не найдены</option>';
+                    return;
+                }
+
+                // Create CategoryTreeSelect instance
+                categoryTreeSelect = new CategoryTreeSelect(categorySelect, categories, {
+                    emptyOptionText: 'Все категории',
+                    showEmptyOption: true
                 });
+
+                // Render tree
+                categoryTreeSelect.render();
 
             } catch (error) {
                 console.error('Failed to load categories:', error);
+                categorySelect.innerHTML = '<option value="">Ошибка загрузки</option>';
             }
         }
 

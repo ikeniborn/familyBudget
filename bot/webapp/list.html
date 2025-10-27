@@ -270,17 +270,17 @@
                 <div class="filters-body">
                     <!-- Date Range -->
                     <div class="filter-group">
-                        <label class="filter-label">Период</label>
+                        <label class="filter-label" title="Выберите период для фильтрации транзакций">Период</label>
                         <div class="filter-row">
-                            <input type="date" id="filter-date-from" class="input">
-                            <input type="date" id="filter-date-to" class="input">
+                            <input type="date" id="filter-date-from" class="input" title="Дата начала периода">
+                            <input type="date" id="filter-date-to" class="input" title="Дата окончания периода">
                         </div>
                     </div>
 
                     <!-- Transaction Type -->
                     <div class="filter-group">
-                        <label class="filter-label">Тип</label>
-                        <select id="filter-type" class="input">
+                        <label class="filter-label" title="Фильтр по типу транзакции">Тип</label>
+                        <select id="filter-type" class="input" title="Выберите тип транзакции">
                             <option value="">Все</option>
                             <option value="expense">Расходы</option>
                             <option value="income">Доходы</option>
@@ -289,8 +289,8 @@
 
                     <!-- Category -->
                     <div class="filter-group">
-                        <label class="filter-label">Категория</label>
-                        <select id="filter-category" class="input">
+                        <label class="filter-label" title="Фильтр по категории транзакции">Категория</label>
+                        <select id="filter-category" class="input" title="Выберите категорию">
                             <option value="">Все категории</option>
                             <!-- Categories will be loaded dynamically -->
                         </select>
@@ -298,14 +298,14 @@
 
                     <!-- Search -->
                     <div class="filter-group">
-                        <label class="filter-label">Поиск по описанию</label>
-                        <input type="text" id="filter-search" class="input" placeholder="Введите текст...">
+                        <label class="filter-label" title="Поиск транзакций по тексту описания">Поиск по описанию</label>
+                        <input type="text" id="filter-search" class="input" placeholder="Введите текст..." title="Введите текст для поиска">
                     </div>
 
                     <!-- Actions -->
                     <div class="filter-actions">
                         <button class="btn btn-secondary" id="clear-filters-btn">Сбросить</button>
-                        <button class="btn btn-primary" id="apply-filters-btn">При<5=8BL</button>
+                        <button class="btn btn-primary" id="apply-filters-btn">Применить</button>
                     </div>
                 </div>
             </div>
@@ -323,16 +323,16 @@
 
         <!-- Empty State -->
         <div class="empty-state" id="empty-state" style="display: none;">
-            <div class="empty-state-icon">н</div>
-            <div class="empty-state-text">Нет транзакций по выбранны< D8;LB@0<</div>
+            <div class="empty-state-icon">📭</div>
+            <div class="empty-state-text">Нет транзакций по выбранным фильтрам</div>
             <button class="btn btn-secondary" id="reset-filters-btn">Сбросить фильтры</button>
         </div>
 
         <!-- Pagination -->
         <div class="pagination" id="pagination" style="display: none;">
-            <button class="pagination-button" id="prev-page-btn" disabled> Назад</button>
-            <span class="pagination-info" id="pagination-info">б Я б</span>
-            <button class="pagination-button" id="next-page-btn" disabled>Вперед </button>
+            <button class="pagination-button" id="prev-page-btn" disabled>← Назад</button>
+            <span class="pagination-info" id="pagination-info">1 из 1</span>
+            <button class="pagination-button" id="next-page-btn" disabled>Вперед →</button>
         </div>
     </div>
 
@@ -535,12 +535,13 @@
             item.className = 'transaction-item';
             item.dataset.factId = fact.id;
 
+            // Find category once for reuse
+            const categoryObj = categories.find(c => c.id === fact.article_id);
+            const isExpense = categoryObj ? categoryObj.type === 'expense' : fact.amount < 0;
+
             // Icon
             const icon = document.createElement('div');
             icon.className = 'transaction-icon';
-            // Determine icon based on category type
-            const categoryObj = categories.find(c => c.id === fact.article_id);
-            const isExpense = categoryObj ? categoryObj.type === 'expense' : fact.amount < 0;
             icon.textContent = isExpense ? '💸' : '💰';
 
             // Details
@@ -549,8 +550,6 @@
 
             const category = document.createElement('div');
             category.className = 'transaction-category';
-            // Find category name
-            const categoryObj = categories.find(c => c.id === fact.article_id);
             category.textContent = categoryObj ? categoryObj.name : `Категория #${fact.article_id}`;
 
             const description = document.createElement('div');
@@ -567,9 +566,6 @@
 
             // Amount
             const amount = document.createElement('div');
-            // Determine type based on category (if available), otherwise use amount sign
-            const categoryObj = categories.find(c => c.id === fact.article_id);
-            const isExpense = categoryObj ? categoryObj.type === 'expense' : fact.amount < 0;
             amount.className = `transaction-amount ${isExpense ? 'expense' : 'income'}`;
             const amountValue = Math.abs(fact.amount);
             amount.textContent = `${isExpense ? '-' : '+'}${app.ui.formatAmount(amountValue)} ₽`;

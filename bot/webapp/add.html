@@ -186,9 +186,9 @@
         <!-- Category Select -->
         <div class="form-group">
             <label class="form-label form-label-required">Категория</label>
-            <div class="category-list" id="category-list">
-                <div class="category-loading">Загрузка категорий...</div>
-            </div>
+            <select id="category-select" class="form-input" required>
+                <option value="">Загрузка категорий...</option>
+            </select>
             <span class="error-message" id="category-error"></span>
         </div>
 
@@ -214,9 +214,11 @@
                 <button type="button" class="quick-amount-btn" data-days="-2">Позавчера</button>
             </div>
             <input
-                type="date"
+                type="text"
                 id="fact-date"
                 class="form-input"
+                placeholder="ДД-ММ-ГГГГ"
+                pattern="\d{2}-\d{2}-\d{4}"
                 required
             >
             <span class="error-message" id="date-error"></span>
@@ -230,6 +232,8 @@
     <script src="/webapp/static/js/ui.js"></script>
     <script src="/webapp/static/js/auth.js"></script>
     <script src="/webapp/static/js/api.js"></script>
+    <script src="/webapp/static/js/dateFormatter.js"></script>
+    <script src="/webapp/static/js/categoryTreeSelect.js"></script>
     <script src="/webapp/static/js/app.js"></script>
 
     <script>
@@ -242,6 +246,7 @@
         };
 
         let categories = [];
+        let categoryTreeSelect = null;
         // app is already declared globally in app.js
 
         // Page-specific initialization
@@ -356,21 +361,30 @@
         function setupDateInput() {
             const dateInput = document.getElementById('fact-date');
 
-            // Set default to today
-            const today = new Date();
-            const todayStr = today.toISOString().split('T')[0];
-            dateInput.value = todayStr;
-            formState.factDate = todayStr;
+            // Set default to today in DD-MM-YYYY format
+            dateInput.value = DateFormatter.today();
+            formState.factDate = DateFormatter.todayISO();
 
-            // Set max date to today (no future dates)
-            dateInput.max = todayStr;
+            dateInput.addEventListener('input', () => {
+                const displayDate = dateInput.value;
 
-            dateInput.addEventListener('change', () => {
-                formState.factDate = dateInput.value;
+                // Convert DD-MM-YYYY to YYYY-MM-DD for API
+                if (DateFormatter.isValidDisplayFormat(displayDate)) {
+                    formState.factDate = DateFormatter.formatForAPI(displayDate);
+                    // Clear error
+                    document.getElementById('date-error').textContent = '';
+                    dateInput.classList.remove('input-error');
+                } else {
+                    formState.factDate = null;
+                }
+            });
 
-                // Clear error on change
-                document.getElementById('date-error').textContent = '';
-                dateInput.classList.remove('input-error');
+            dateInput.addEventListener('blur', () => {
+                // Validate on blur
+                if (!DateFormatter.isValidDisplayFormat(dateInput.value)) {
+                    document.getElementById('date-error').textContent = 'Неверный формат даты (ДД-ММ-ГГГГ)';
+                    dateInput.classList.add('input-error');
+                }
             });
         }
 
@@ -384,9 +398,12 @@
                     const date = new Date();
                     date.setDate(date.getDate() + daysOffset);
 
-                    const dateStr = date.toISOString().split('T')[0];
-                    dateInput.value = dateStr;
-                    formState.factDate = dateStr;
+                    // Format for API (YYYY-MM-DD)
+                    const isoDate = date.toISOString().split('T')[0];
+                    formState.factDate = isoDate;
+
+                    // Format for display (DD-MM-YYYY)
+                    dateInput.value = DateFormatter.formatForDisplay(isoDate);
 
                     // Clear error
                     document.getElementById('date-error').textContent = '';
@@ -399,54 +416,48 @@
         }
 
         async function loadCategories() {
-            const categoryList = document.getElementById('category-list');
-            categoryList.innerHTML = '<div class="category-loading">Загрузка категорий...</div>';
+            const categorySelect = document.getElementById('category-select');
 
             try {
                 // Load categories from API
                 const result = await app.api.listArticles({
                     type: formState.factType,
-                    is_current: true
+                    is_current: true,
+                    limit: 1000
                 });
                 categories = result.articles || [];
 
                 if (categories.length === 0) {
-                    categoryList.innerHTML = '<div class="category-loading">Категории не найдены</div>';
+                    categorySelect.innerHTML = '<option value="">Категории не найдены</option>';
                     return;
                 }
 
-                // Render categories
-                categoryList.innerHTML = '';
-                categories.forEach(category => {
-                    const item = document.createElement('div');
-                    item.className = 'category-item';
-                    item.dataset.categoryId = category.id;
+                // Create CategoryTreeSelect instance
+                categoryTreeSelect = new CategoryTreeSelect(categorySelect, categories, {
+                    emptyOptionText: 'Выберите категорию',
+                    showEmptyOption: true,
+                    filterType: formState.factType,
+                    selectedId: formState.categoryId
+                });
 
-                    item.innerHTML = `<div class="category-item-name">${category.name}</div>`;
+                // Render tree
+                categoryTreeSelect.render();
 
-                    item.addEventListener('click', () => {
-                        // Update selected state
-                        document.querySelectorAll('.category-item').forEach(i => {
-                            i.classList.remove('selected');
-                        });
-                        item.classList.add('selected');
+                // Setup change handler
+                categorySelect.addEventListener('change', () => {
+                    const selectedId = parseInt(categorySelect.value);
+                    formState.categoryId = selectedId || null;
 
-                        // Update form state
-                        formState.categoryId = category.id;
+                    // Clear error
+                    document.getElementById('category-error').textContent = '';
 
-                        // Clear error
-                        document.getElementById('category-error').textContent = '';
-
-                        // Haptic feedback
-                        app.ui.hapticLight();
-                    });
-
-                    categoryList.appendChild(item);
+                    // Haptic feedback
+                    app.ui.hapticLight();
                 });
 
             } catch (error) {
                 console.error('Failed to load categories:', error);
-                categoryList.innerHTML = '<div class="category-loading">Ошибка загрузки категорий</div>';
+                categorySelect.innerHTML = '<option value="">Ошибка загрузки категорий</option>';
             }
         }
 
@@ -517,9 +528,8 @@
             document.getElementById('description-counter').textContent = '0 / 200';
 
             // Clear selected category
-            document.querySelectorAll('.category-item').forEach(item => {
-                item.classList.remove('selected');
-            });
+            const categorySelect = document.getElementById('category-select');
+            categorySelect.value = '';
 
             // Clear errors
             document.getElementById('amount-error').textContent = '';
