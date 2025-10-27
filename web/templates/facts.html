@@ -35,7 +35,7 @@
                     <label class="label">
                         <span class="label-text">👤 Пользователь</span>
                     </label>
-                    <select id="filter-user" class="select select-bordered select-sm">
+                    <select id="filter-user" class="select select-bordered select-sm" title="Фильтровать транзакции по пользователю">
                         <option value="">-- Все пользователи --</option>
                         <!-- Populated dynamically -->
                     </select>
@@ -44,7 +44,7 @@
                     <label class="label">
                         <span class="label-text">📁 Категория</span>
                     </label>
-                    <select id="filter-article" class="select select-bordered select-sm">
+                    <select id="filter-article" class="select select-bordered select-sm" title="Фильтровать транзакции по категории">
                         <option value="">-- Все категории --</option>
                         <!-- Populated dynamically -->
                     </select>
@@ -223,22 +223,38 @@ async function loadUsers() {
     }
 }
 
-// Load articles for filter and edit dropdowns
+// Load articles for filter and edit dropdowns with tree structure
 async function loadArticles() {
     try {
         const response = await fetch('/api/v1/admin/articles?is_current=true');
         const articles = await response.json();
 
-        // Populate filter dropdown
+        // Build tree and flatten
+        const tree = buildArticleTree(articles);
+        const flatNodes = flattenArticleTree(tree);
+
+        // Populate filter dropdown with tree
         const filterSelect = document.getElementById('filter-article');
-        articles.forEach(article => {
+        flatNodes.forEach(node => {
             const option = document.createElement('option');
-            option.value = article.id;
-            option.textContent = `${article.name} (${article.type})`;
+            option.value = node.id;
+
+            // Add indentation and icon
+            const indent = '\u00A0\u00A0'.repeat(node.level); // Non-breaking spaces
+            const icon = node.isLeaf ? '📄' : '📁';
+            option.textContent = `${indent}${icon} ${node.name}`;
+
+            // Disable parent categories
+            if (!node.isLeaf) {
+                option.disabled = true;
+                option.style.color = 'var(--tw-text-opacity, 0.5)';
+                option.style.fontStyle = 'italic';
+            }
+
             filterSelect.appendChild(option);
         });
 
-        // Populate edit dropdown
+        // Populate edit dropdown (flat list for backward compatibility)
         const editSelect = document.getElementById('edit-article');
         articles.forEach(article => {
             const option = document.createElement('option');
@@ -249,6 +265,41 @@ async function loadArticles() {
     } catch (error) {
         console.error('Error loading articles:', error);
     }
+}
+
+// Build hierarchical tree from flat article list
+function buildArticleTree(articles) {
+    const roots = articles.filter(a => !a.parent_id);
+
+    function buildNode(article, level = 0) {
+        const children = articles
+            .filter(a => a.parent_id === article.id)
+            .map(child => buildNode(child, level + 1));
+
+        return {
+            ...article,
+            level,
+            children,
+            isLeaf: children.length === 0
+        };
+    }
+
+    return roots.map(root => buildNode(root));
+}
+
+// Flatten tree for rendering
+function flattenArticleTree(nodes) {
+    const result = [];
+
+    function traverse(node) {
+        result.push(node);
+        if (node.children && node.children.length > 0) {
+            node.children.forEach(traverse);
+        }
+    }
+
+    nodes.forEach(traverse);
+    return result;
 }
 
 // Load financial centers for edit dropdown

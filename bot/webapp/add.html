@@ -21,6 +21,21 @@
             padding: 20px 0;
             border-bottom: 1px solid var(--tg-theme-section-separator-color);
             margin-bottom: 24px;
+            position: relative;
+        }
+
+        .back-button {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--tg-theme-link-color);
+            font-size: 28px;
+            cursor: pointer;
+            padding: 8px;
+            line-height: 1;
         }
 
         .page-title {
@@ -138,6 +153,7 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
+            <button class="back-button" onclick="window.location.href='/webapp/index.html'" title="Назад">⬅️</button>
             <div class="page-title">Добавить транзакцию</div>
         </div>
 

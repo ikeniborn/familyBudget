@@ -25,7 +25,7 @@ class CategoryTreeSelect {
       showEmptyOption: true,
       filterType: null, // null, 'income', 'expense'
       selectedId: null,
-      indentChar: '  ', // Символ для отступа
+      indentChar: '›  ', // Символ для отступа (видимый)
       parentPrefix: '📁', // Иконка для родителя
       leafPrefix: '📄', // Иконка для листа
       ...options

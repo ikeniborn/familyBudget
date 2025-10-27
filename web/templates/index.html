@@ -57,12 +57,19 @@
                             Панель аналитики
                         </a>
 
-                        <a href="/api/docs" class="btn btn-outline btn-secondary w-full justify-start gap-3">
+                        <button onclick="modal_add_transaction.showModal()" class="btn btn-outline btn-success w-full justify-start gap-3">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                             </svg>
-                            Документация API
-                        </a>
+                            Добавить транзакцию
+                        </button>
+
+                        <button onclick="modal_add_plan.showModal()" class="btn btn-outline btn-info w-full justify-start gap-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                            Добавить план
+                        </button>
 
                         <div class="divider my-2">Telegram Bot</div>
 
@@ -134,4 +141,296 @@
         </div>
     {% endif %}
 </div>
+
+<!-- Modal: Добавить транзакцию -->
+<dialog id="modal_add_transaction" class="modal">
+    <div class="modal-box w-11/12 max-w-2xl">
+        <form method="dialog">
+            <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+        </form>
+        <h3 class="font-bold text-lg mb-4">➕ Добавить транзакцию</h3>
+
+        <form id="form_add_transaction" class="space-y-4">
+            <!-- Тип транзакции -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">Тип транзакции</span>
+                </label>
+                <div class="flex gap-4">
+                    <label class="label cursor-pointer gap-2">
+                        <input type="radio" name="record_type" value="expense" class="radio radio-error" checked />
+                        <span class="label-text">📤 Расход</span>
+                    </label>
+                    <label class="label cursor-pointer gap-2">
+                        <input type="radio" name="record_type" value="income" class="radio radio-success" />
+                        <span class="label-text">📥 Доход</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Сумма -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">Сумма</span>
+                </label>
+                <input type="number" name="amount" step="0.01" min="0.01" required
+                       class="input input-bordered" placeholder="0.00" />
+            </div>
+
+            <!-- Категория -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">Категория</span>
+                </label>
+                <select name="article_id" required class="select select-bordered">
+                    <option value="">-- Выберите категорию --</option>
+                </select>
+            </div>
+
+            <!-- Дата -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">Дата</span>
+                </label>
+                <input type="date" name="fact_date" required
+                       class="input input-bordered" />
+            </div>
+
+            <!-- Описание -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">Описание (необязательно)</span>
+                </label>
+                <textarea name="description" class="textarea textarea-bordered"
+                          placeholder="Комментарий к транзакции" rows="2"></textarea>
+            </div>
+
+            <div class="modal-action">
+                <button type="button" onclick="modal_add_transaction.close()" class="btn btn-ghost">Отмена</button>
+                <button type="submit" class="btn btn-success">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Сохранить
+                </button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- Modal: Добавить план -->
+<dialog id="modal_add_plan" class="modal">
+    <div class="modal-box w-11/12 max-w-2xl">
+        <form method="dialog">
+            <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+        </form>
+        <h3 class="font-bold text-lg mb-4">📝 Добавить план</h3>
+
+        <form id="form_add_plan" class="space-y-4">
+            <!-- Сумма -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">Плановая сумма</span>
+                </label>
+                <input type="number" name="amount" step="0.01" min="0.01" required
+                       class="input input-bordered" placeholder="0.00" />
+            </div>
+
+            <!-- Категория -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">Категория</span>
+                </label>
+                <select name="article_id" required class="select select-bordered">
+                    <option value="">-- Выберите категорию --</option>
+                </select>
+            </div>
+
+            <!-- Период (месяц) -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">Период (месяц)</span>
+                </label>
+                <input type="month" name="plan_month" required
+                       class="input input-bordered" />
+            </div>
+
+            <!-- Описание -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">Описание (необязательно)</span>
+                </label>
+                <textarea name="description" class="textarea textarea-bordered"
+                          placeholder="Комментарий к плану" rows="2"></textarea>
+            </div>
+
+            <div class="modal-action">
+                <button type="button" onclick="modal_add_plan.close()" class="btn btn-ghost">Отмена</button>
+                <button type="submit" class="btn btn-info">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Сохранить
+                </button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Загрузить категории для обеих форм
+    loadCategories();
+
+    // Установить текущую дату для транзакции
+    const factDateInput = document.querySelector('#form_add_transaction input[name="fact_date"]');
+    if (factDateInput) {
+        factDateInput.value = new Date().toISOString().split('T')[0];
+    }
+
+    // Установить текущий месяц для плана
+    const planMonthInput = document.querySelector('#form_add_plan input[name="plan_month"]');
+    if (planMonthInput) {
+        const now = new Date();
+        planMonthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    // Обработчик отправки формы транзакции
+    document.getElementById('form_add_transaction').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(e.target);
+        const data = {
+            record_type: 'fact',
+            transaction_type: formData.get('record_type'),
+            amount: parseFloat(formData.get('amount')),
+            article_id: parseInt(formData.get('article_id')),
+            fact_date: formData.get('fact_date'),
+            description: formData.get('description') || null
+        };
+
+        try {
+            const response = await fetch('/api/v1/facts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                modal_add_transaction.close();
+                e.target.reset();
+                // Обновить список транзакций
+                htmx.trigger('#recent-transactions', 'load');
+                htmx.trigger('#quick-stats', 'load');
+                showToast('Транзакция успешно добавлена', 'success');
+            } else {
+                const error = await response.json();
+                showToast('Ошибка: ' + (error.detail || 'Не удалось добавить транзакцию'), 'error');
+            }
+        } catch (error) {
+            showToast('Ошибка подключения к серверу', 'error');
+        }
+    });
+
+    // Обработчик отправки формы плана
+    document.getElementById('form_add_plan').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(e.target);
+        const planMonth = formData.get('plan_month'); // Format: YYYY-MM
+        const [year, month] = planMonth.split('-');
+        const planDate = `${year}-${month}-01`; // Первый день месяца
+
+        const data = {
+            record_type: 'plan',
+            transaction_type: 'expense', // Планы обычно для расходов
+            amount: parseFloat(formData.get('amount')),
+            article_id: parseInt(formData.get('article_id')),
+            fact_date: planDate,
+            description: formData.get('description') || null
+        };
+
+        try {
+            const response = await fetch('/api/v1/facts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                modal_add_plan.close();
+                e.target.reset();
+                showToast('План успешно добавлен', 'success');
+            } else {
+                const error = await response.json();
+                showToast('Ошибка: ' + (error.detail || 'Не удалось добавить план'), 'error');
+            }
+        } catch (error) {
+            showToast('Ошибка подключения к серверу', 'error');
+        }
+    });
+});
+
+// Загрузить список категорий
+async function loadCategories() {
+    try {
+        const response = await fetch('/api/v1/articles?is_current=true');
+        if (!response.ok) return;
+
+        const categories = await response.json();
+
+        // Заполнить select в обеих формах
+        const selects = [
+            document.querySelector('#form_add_transaction select[name="article_id"]'),
+            document.querySelector('#form_add_plan select[name="article_id"]')
+        ];
+
+        selects.forEach(select => {
+            if (!select) return;
+
+            // Очистить кроме первой опции
+            while (select.options.length > 1) {
+                select.remove(1);
+            }
+
+            // Добавить категории
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.id;
+                option.textContent = cat.name;
+                select.appendChild(option);
+            });
+        });
+    } catch (error) {
+        console.error('Failed to load categories:', error);
+    }
+}
+
+// Показать уведомление (toast)
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} shadow-lg fixed bottom-4 right-4 w-auto max-w-md z-50`;
+    toast.innerHTML = `
+        <div>
+            <span>${message}</span>
+        </div>
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+</script>
+
 {% endblock %}

@@ -32,9 +32,10 @@
             background: none;
             border: none;
             color: var(--tg-theme-link-color);
-            font-size: 16px;
+            font-size: 28px;
             cursor: pointer;
             padding: 8px;
+            line-height: 1;
         }
 
         .page-title {
@@ -246,7 +247,7 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
-            <button class="back-button" onclick="window.location.href='/webapp/index.html'">← Назад</button>
+            <button class="back-button" onclick="window.location.href='/webapp/index.html'" title="Назад">⬅️</button>
             <div class="page-title">Статистика</div>
         </div>
 
@@ -422,6 +423,7 @@
 
         function getDateRange(period) {
             const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             let dateFrom, dateTo;
 
             switch (period) {
@@ -450,6 +452,11 @@
                     dateFrom = new Date(now.getFullYear(), 0, 1);
                     dateTo = new Date(now.getFullYear() + 1, 0, 1);
                     break;
+            }
+
+            // Ensure dateTo does not exceed today
+            if (dateTo > today) {
+                dateTo = today;
             }
 
             return {
