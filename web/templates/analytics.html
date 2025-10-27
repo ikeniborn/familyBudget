@@ -33,11 +33,11 @@
             <span>Пожалуйста, <a href="/api/v1/auth/telegram-login" class="link link-hover font-semibold">войдите</a> для просмотра аналитики.</span>
         </div>
     {% else %}
-        <!-- Period Filter -->
-        <div class="card bg-base-100 shadow-md" role="group" aria-label="Фильтр периода">
+        <!-- Period Filter (Unified for ALL charts) -->
+        <div class="card bg-base-100 shadow-md" role="group" aria-label="Фильтр периода для всех графиков">
             <div class="card-body p-4">
                 <div class="flex flex-wrap items-center gap-3">
-                    <label id="period-label" class="font-semibold text-sm">Период:</label>
+                    <label id="period-label" class="font-semibold text-sm">Период (для всех графиков):</label>
                     <div class="btn-group">
                         <button class="btn btn-sm btn-primary" id="filter-week" data-period="week" onclick="updatePeriod('week')" aria-pressed="true" aria-labelledby="period-label filter-week">Неделя</button>
                         <button class="btn btn-sm btn-outline" id="filter-month" data-period="month" onclick="updatePeriod('month')" aria-pressed="false" aria-labelledby="period-label filter-month">Месяц</button>
@@ -90,15 +90,6 @@
             <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-waterfall">
                 <div class="card-body p-3">
                     <h2 id="chart-title-waterfall" class="card-title text-base mb-1">💧 Каскадная диаграмма</h2>
-                    <div class="flex flex-wrap items-center gap-3 mb-1" role="group" aria-label="Выбор периода каскадной диаграммы">
-                        <label id="waterfall-period-label" class="label-text font-semibold">Период:</label>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-outline" id="waterfall-month" onclick="updateWaterfallPeriod('month')" aria-pressed="false" aria-labelledby="waterfall-period-label waterfall-month">Месяц</button>
-                            <button class="btn btn-sm btn-outline" id="waterfall-quarter" onclick="updateWaterfallPeriod('quarter')" aria-pressed="false" aria-labelledby="waterfall-period-label waterfall-quarter">Квартал</button>
-                            <button class="btn btn-sm btn-primary" id="waterfall-year" onclick="updateWaterfallPeriod('year')" aria-pressed="true" aria-labelledby="waterfall-period-label waterfall-year">Год</button>
-                        </div>
-                        <button class="btn btn-sm btn-ghost gap-1 hidden" id="waterfall-reset" onclick="resetWaterfallDrilldown()" aria-label="Сбросить детализацию">↩️ Сбросить</button>
-                    </div>
                     <div id="chart-waterfall" class="chart-container" role="img" aria-label="Каскадная диаграмма кумулятивного денежного потока с детализацией"></div>
                 </div>
             </div>
@@ -107,14 +98,6 @@
             <div class="card bg-base-100 shadow-lg col-span-full" aria-labelledby="chart-title-heatmap">
                 <div class="card-body p-3">
                     <h2 id="chart-title-heatmap" class="card-title text-base mb-1">🔥 Тепловая карта расходов</h2>
-                    <div class="flex items-center gap-3 mb-1" role="group" aria-label="Выбор периода тепловой карты">
-                        <label id="heatmap-period-label" class="label-text font-semibold">Период:</label>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-outline" id="heatmap-month" onclick="updateHeatmapPeriod('month')" aria-pressed="false" aria-labelledby="heatmap-period-label heatmap-month">Месяц</button>
-                            <button class="btn btn-sm btn-primary" id="heatmap-quarter" onclick="updateHeatmapPeriod('quarter')" aria-pressed="true" aria-labelledby="heatmap-period-label heatmap-quarter">Квартал</button>
-                            <button class="btn btn-sm btn-outline" id="heatmap-year" onclick="updateHeatmapPeriod('year')" aria-pressed="false" aria-labelledby="heatmap-period-label heatmap-year">Год</button>
-                        </div>
-                    </div>
                     <div id="chart-heatmap" class="chart-container" role="img" aria-label="Тепловая карта паттернов расходов по дням недели"></div>
                 </div>
             </div>
@@ -132,29 +115,55 @@ let pieChart = null;
 let waterfallChart = null;
 let heatmapChart = null;
 let currentPeriod = 'week';
-let currentTrendsDays = 30;
 let currentPieType = 'expense';
-let currentWaterfallPeriod = 'year';
 let currentWaterfallArticleId = null;
 let waterfallCategoriesData = [];
-let currentHeatmapPeriod = 'quarter';
+
+// Period mapping for different chart types
+// Maps global period selection to appropriate period for each chart type
+const periodMapping = {
+    'week': {
+        planFact: 'week',      // 7 days - Monday to Sunday
+        trends: 7,             // 7 days for line chart
+        pie: 'week',           // Week aggregation for pie chart
+        waterfall: 'month',    // Week → Month (more meaningful for waterfall)
+        heatmap: 'month'       // Week → Month (minimum 4 weeks for heatmap)
+    },
+    'month': {
+        planFact: 'month',     // Current month days
+        trends: 30,            // 30 days for line chart
+        pie: 'month',          // Month aggregation for pie chart
+        waterfall: 'quarter',  // Month → Quarter (3 months)
+        heatmap: 'quarter'     // Quarter (~13 weeks for heatmap)
+    },
+    'year': {
+        planFact: 'year',      // 12 months of current year
+        trends: 365,           // 365 days for line chart
+        pie: 'year',           // Year aggregation for pie chart
+        waterfall: 'year',     // Full year (12 months)
+        heatmap: 'year'        // Full year (~52 weeks for heatmap)
+    }
+};
 
 // Initialize charts on page load
 document.addEventListener('DOMContentLoaded', function() {
+    // Use period mapping for initial load (default: week)
+    const mapping = periodMapping['week'];
+
     initPlanFactChart();
-    loadPlanFactData('week');
+    loadPlanFactData(mapping.planFact);
 
     initTrendsChart();
-    loadTrendsData(30);
+    loadTrendsData(mapping.trends);
 
     initPieChart();
-    loadPieData('expense', 'month');
+    loadPieData('expense', mapping.pie);
 
     initWaterfallChart();
-    loadWaterfallData();
+    loadWaterfallData(mapping.waterfall);
 
     initHeatmapChart();
-    loadHeatmapData();
+    loadHeatmapData(mapping.heatmap);
 });
 
 // Initialize Plan vs Fact chart
@@ -292,7 +301,7 @@ function updatePlanFactChart(data) {
     planFactChart.setOption(option);
 }
 
-// Update period filter
+// Update period filter (applies to ALL charts)
 function updatePeriod(period) {
     currentPeriod = period;
 
@@ -307,9 +316,15 @@ function updatePeriod(period) {
     activeBtn.classList.add('btn-primary');
     activeBtn.setAttribute('aria-pressed', 'true');
 
-    // Reload chart data
-    loadPlanFactData(period);
-    loadPieData(currentPieType, period);
+    // Get period mapping for current global period
+    const mapping = periodMapping[period];
+
+    // Reload ALL charts with appropriate periods
+    loadPlanFactData(mapping.planFact);
+    loadTrendsData(mapping.trends);
+    loadPieData(currentPieType, mapping.pie);
+    loadWaterfallData(mapping.waterfall, currentWaterfallArticleId);
+    loadHeatmapData(mapping.heatmap);
 }
 
 // Initialize Trends chart
@@ -833,30 +848,12 @@ function updateWaterfallChart(data) {
     });
 }
 
-// Update waterfall period filter
-function updateWaterfallPeriod(period) {
-    currentWaterfallPeriod = period;
-
-    // Update active button and ARIA states (DaisyUI btn-group)
-    document.querySelectorAll('#waterfall-month, #waterfall-quarter, #waterfall-year').forEach(btn => {
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-outline');
-        btn.setAttribute('aria-pressed', 'false');
-    });
-
-    const activeBtn = document.getElementById(`waterfall-${period}`);
-    activeBtn.classList.remove('btn-outline');
-    activeBtn.classList.add('btn-primary');
-    activeBtn.setAttribute('aria-pressed', 'true');
-
-    // Reload chart data with current drill-down state
-    loadWaterfallData(period, currentWaterfallArticleId);
-}
-
 // Reset waterfall drill-down to main view
 function resetWaterfallDrilldown() {
     currentWaterfallArticleId = null;
-    loadWaterfallData(currentWaterfallPeriod, null);
+    // Use current global period mapping
+    const mapping = periodMapping[currentPeriod];
+    loadWaterfallData(mapping.waterfall, null);
 }
 
 // Show drill-down modal with category list
@@ -1091,26 +1088,6 @@ function updateHeatmapChart(data) {
     heatmapChart.setOption(option);
 }
 
-// Update heatmap period filter
-function updateHeatmapPeriod(period) {
-    currentHeatmapPeriod = period;
-
-    // Update active button and ARIA states (DaisyUI btn-group)
-    document.querySelectorAll('#heatmap-month, #heatmap-quarter, #heatmap-year').forEach(btn => {
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-outline');
-        btn.setAttribute('aria-pressed', 'false');
-    });
-
-    const activeBtn = document.getElementById(`heatmap-${period}`);
-    activeBtn.classList.remove('btn-outline');
-    activeBtn.classList.add('btn-primary');
-    activeBtn.setAttribute('aria-pressed', 'true');
-
-    // Reload chart data
-    loadHeatmapData(period);
-}
-
 // ============================================================================
 // Responsive Chart Resize with ResizeObserver
 // ============================================================================
@@ -1219,9 +1196,6 @@ function exportTrendsData(format) {
 
 <style>
 /* Custom styles for ECharts integration with Tailwind/DaisyUI */
-#waterfall-reset.hidden {
-    display: none !important;
-}
 
 /* Smooth transitions for button state changes */
 .btn-group .btn {
