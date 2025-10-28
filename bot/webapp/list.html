@@ -17,10 +17,28 @@
     <style>
         /* List page specific styles */
         .page-header {
+            position: relative;
             text-align: center;
             padding: 20px 0;
             border-bottom: 1px solid var(--tg-theme-section-separator-color);
             margin-bottom: 16px;
+        }
+
+        .back-button {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+            color: var(--tg-theme-link-color);
+        }
+
+        .back-button:active {
+            opacity: 0.6;
         }
 
         .page-title {
@@ -254,6 +272,7 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
+            <button class="back-button" id="back-button" aria-label="Назад">←</button>
             <div class="page-title">Все транзакции</div>
         </div>
 
@@ -369,6 +388,12 @@
             console.log('List page init');
             app = budgetApp;
 
+            // Setup back button
+            document.getElementById('back-button').addEventListener('click', () => {
+                app.ui.hapticLight();
+                window.location.href = '/webapp/index.html';
+            });
+
             // Setup filters toggle
             setupFiltersToggle();
 
@@ -440,12 +465,23 @@
 
         async function loadCategories() {
             try {
-                const result = await app.api.listArticles({ is_current: true });
+                const result = await app.api.listArticles({ is_current: true, limit: 1000 });
                 categories = result.articles || [];
 
-                // Populate category filter
-                const categorySelect = document.getElementById('filter-category');
+                // Build a Set of parent category IDs (categories that have children)
+                const parentIds = new Set();
                 categories.forEach(category => {
+                    if (category.parent_id) {
+                        parentIds.add(category.parent_id);
+                    }
+                });
+
+                // Filter to only leaf categories (categories without children)
+                const leafCategories = categories.filter(category => !parentIds.has(category.id));
+
+                // Populate category filter with only leaf categories
+                const categorySelect = document.getElementById('filter-category');
+                leafCategories.forEach(category => {
                     const option = document.createElement('option');
                     option.value = category.id;
                     option.textContent = category.name;

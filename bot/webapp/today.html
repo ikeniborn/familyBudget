@@ -267,13 +267,13 @@
                 const categoriesResult = await app.api.listArticles({ limit: 1000 });
                 categories = categoriesResult.articles || [];
 
-                // Get today's date range (only today)
+                // Get today's date range (only today, not including tomorrow)
                 const today = new Date();
                 const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-                // Format date for API (same date for both from and to)
+                // Format date for API (today only)
                 const dateFrom = todayStart.toISOString().split('T')[0];
-                const dateTo = dateFrom; // Same day
+                const dateTo = dateFrom; // Same day - API uses inclusive range
 
                 // Fetch facts
                 const result = await app.api.listFacts({
@@ -314,10 +314,11 @@
 
             facts.forEach(fact => {
                 const amount = parseFloat(fact.amount) || 0;
-                if (amount > 0) {
+                // Use article_type from API response instead of amount sign
+                if (fact.article_type === 'income') {
                     income += amount;
-                } else {
-                    expense += Math.abs(amount);
+                } else if (fact.article_type === 'expense') {
+                    expense += amount;
                 }
             });
 

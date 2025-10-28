@@ -508,8 +508,8 @@
             facts.forEach(fact => {
                 const categoryId = fact.article_id;
                 const recordType = fact.record_type || 'fact'; // Default to 'fact' if not specified
-                const isIncome = fact.amount > 0;
-                const type = isIncome ? 'income' : 'expense';
+                // Use article_type from API response instead of amount sign
+                const type = fact.article_type || (fact.amount > 0 ? 'income' : 'expense');
 
                 if (!grouped[categoryId]) {
                     grouped[categoryId] = {

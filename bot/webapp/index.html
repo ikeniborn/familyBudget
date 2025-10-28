@@ -94,6 +94,15 @@
             position: relative;
         }
 
+        #stats-content {
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        #stats-content.loaded {
+            opacity: 1;
+        }
+
         .quick-stats-loading {
             position: absolute;
             top: 50%;
@@ -277,12 +286,6 @@
 
         <!-- Menu Grid (3x3 for Phase 3) -->
         <div class="menu-grid">
-            <!-- Primary action: Add transaction -->
-            <a href="/webapp/add.html" class="menu-item primary">
-                <div class="menu-item-icon">➕</div>
-                <div class="menu-item-label">Добавить</div>
-            </a>
-
             <!-- Today's transactions -->
             <a href="/webapp/today.html" class="menu-item">
                 <div class="menu-item-icon">📅</div>
@@ -301,22 +304,10 @@
                 <div class="menu-item-label">Статистика</div>
             </a>
 
-            <!-- Add Plan -->
-            <a href="/webapp/addplan.html" class="menu-item">
-                <div class="menu-item-icon">📝</div>
-                <div class="menu-item-label">План</div>
-            </a>
-
             <!-- Summary -->
             <a href="/webapp/summary.html" class="menu-item">
                 <div class="menu-item-icon">📊</div>
                 <div class="menu-item-label">План & Факт</div>
-            </a>
-
-            <!-- Search -->
-            <a href="/webapp/search.html" class="menu-item">
-                <div class="menu-item-icon">🔍</div>
-                <div class="menu-item-label">Поиск</div>
             </a>
         </div>
 
@@ -469,10 +460,14 @@
                     balanceElement.textContent = `${sign}${app.ui.formatAmount(Math.abs(balance))} ₽`;
 
                     // Show stats
-                    document.getElementById('stats-content').style.display = 'block';
+                    const statsContent = document.getElementById('stats-content');
+                    statsContent.style.display = 'block';
+                    setTimeout(() => statsContent.classList.add('loaded'), 10);
                 } else {
                     // Show empty state
-                    document.getElementById('stats-content').style.display = 'block';
+                    const statsContent = document.getElementById('stats-content');
+                    statsContent.style.display = 'block';
+                    setTimeout(() => statsContent.classList.add('loaded'), 10);
                 }
 
             } catch (error) {

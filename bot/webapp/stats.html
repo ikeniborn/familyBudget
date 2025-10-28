@@ -487,10 +487,12 @@
             let expense = 0;
 
             facts.forEach(fact => {
-                if (fact.amount > 0) {
-                    income += fact.amount;
-                } else {
-                    expense += Math.abs(fact.amount);
+                const amount = parseFloat(fact.amount) || 0;
+                // Use article_type from API response instead of amount sign
+                if (fact.article_type === 'income') {
+                    income += amount;
+                } else if (fact.article_type === 'expense') {
+                    expense += amount;
                 }
             });
 
@@ -513,10 +515,8 @@
             const breakdown = {};
 
             facts.forEach(fact => {
-                const isIncome = fact.amount > 0;
-                const isExpense = fact.amount < 0;
-
-                if ((type === 'income' && isIncome) || (type === 'expense' && isExpense)) {
+                // Use article_type from API response instead of amount sign
+                if (fact.article_type === type) {
                     const categoryId = fact.article_id;
                     const amount = Math.abs(fact.amount);
 
