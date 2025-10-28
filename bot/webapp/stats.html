@@ -398,6 +398,7 @@
                 const result = await app.api.listFacts({
                     date_from: dateFrom,
                     date_to: dateTo,
+                    record_type: 'fact',
                     limit: 10000  // Get all facts for aggregation
                 });
 
@@ -429,34 +430,27 @@
             switch (period) {
                 case 'today':
                     dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                    dateTo = new Date(dateFrom);
-                    dateTo.setDate(dateTo.getDate() + 1);
+                    dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                     break;
 
                 case 'week':
                     // Last 7 days
                     dateFrom = new Date(now);
                     dateFrom.setDate(dateFrom.getDate() - 7);
-                    dateTo = new Date(now);
-                    dateTo.setDate(dateTo.getDate() + 1);
+                    dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                     break;
 
                 case 'month':
                     // Current month
                     dateFrom = new Date(now.getFullYear(), now.getMonth(), 1);
-                    dateTo = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                    dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                     break;
 
                 case 'year':
                     // Current year
                     dateFrom = new Date(now.getFullYear(), 0, 1);
-                    dateTo = new Date(now.getFullYear() + 1, 0, 1);
+                    dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                     break;
-            }
-
-            // Ensure dateTo does not exceed today
-            if (dateTo > today) {
-                dateTo = today;
             }
 
             return {

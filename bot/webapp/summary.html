@@ -456,22 +456,22 @@
 
             switch (period) {
                 case 'month':
-                    // Current month
+                    // Current month - from 1st to today
                     dateFrom = new Date(now.getFullYear(), now.getMonth(), 1);
-                    dateTo = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                    dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                     break;
 
                 case 'quarter':
-                    // Current quarter
+                    // Current quarter - from quarter start to today
                     const quarter = Math.floor(now.getMonth() / 3);
                     dateFrom = new Date(now.getFullYear(), quarter * 3, 1);
-                    dateTo = new Date(now.getFullYear(), quarter * 3 + 3, 0);
+                    dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                     break;
 
                 case 'year':
-                    // Current year
+                    // Current year - from Jan 1 to today
                     dateFrom = new Date(now.getFullYear(), 0, 1);
-                    dateTo = new Date(now.getFullYear(), 11, 31);
+                    dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                     break;
             }
 

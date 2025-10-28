@@ -56,11 +56,11 @@ class FactCreate(BaseModel):
         examples=["Weekly groceries", "October salary", None]
     )
 
-    financial_center_id: Optional[int] = Field(
-        default=None,
+    financial_center_id: int = Field(
+        ...,
         gt=0,
-        description="Financial center ID (optional, for advanced budgeting)",
-        examples=[None, 1]
+        description="Financial center ID (required, for budgeting and tracking)",
+        examples=[1, 2]
     )
 
     cost_center_id: Optional[int] = Field(
@@ -353,10 +353,22 @@ class FactResponse(BaseModel):
         examples=[None, 1]
     )
 
+    financial_center_name: Optional[str] = Field(
+        default=None,
+        description="Financial center name for display",
+        examples=[None, "Личные средства", "Кредитная карта"]
+    )
+
     cost_center_id: Optional[int] = Field(
         default=None,
         description="Cost center ID (optional)",
         examples=[None, 1]
+    )
+
+    cost_center_name: Optional[str] = Field(
+        default=None,
+        description="Cost center name for display",
+        examples=[None, "Продукты", "Транспорт"]
     )
 
     record_type: str = Field(

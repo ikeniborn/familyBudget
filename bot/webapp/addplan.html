@@ -346,6 +346,24 @@
             <span class="error-message" id="category-error"></span>
         </div>
 
+        <!-- Financial Center Select -->
+        <div class="form-group">
+            <label class="form-label form-label-required">Центр финансовой ответственности (ЦФО)</label>
+            <select id="financial-center" class="form-input" required>
+                <option value="">Загрузка...</option>
+            </select>
+            <span class="error-message" id="financial-center-error"></span>
+        </div>
+
+        <!-- Cost Center Select -->
+        <div class="form-group">
+            <label class="form-label">Место возникновения затрат (МВЗ)</label>
+            <select id="cost-center" class="form-input">
+                <option value="">-- Не выбрано --</option>
+            </select>
+            <span class="error-message" id="cost-center-error"></span>
+        </div>
+
         <!-- Period Selector -->
         <div class="form-group">
             <label class="form-label form-label-required">Период планирования</label>
@@ -407,6 +425,8 @@
         let formState = {
             amount: null,
             categoryId: null,
+            financialCenterId: null,
+            costCenterId: null,
             description: '',
             period: 'month',
             periodStart: null,
@@ -415,6 +435,8 @@
         };
 
         let categories = [];
+        let financialCenters = [];
+        let costCenters = [];
         let categoryTreeSelect = null;
         // app is already declared globally in app.js
 
@@ -443,6 +465,10 @@
 
             // Load categories
             await loadCategories();
+
+            // Load financial centers and cost centers
+            await loadFinancialCenters();
+            await loadCostCenters();
 
             // Setup MainButton for save
             setupMainButton();
@@ -625,6 +651,70 @@
             }
         }
 
+        async function loadFinancialCenters() {
+            const select = document.getElementById('financial-center');
+
+            try {
+                const result = await app.api.get('/api/v1/financial-centers', { limit: 1000 });
+                financialCenters = result.financial_centers || [];
+
+                if (financialCenters.length === 0) {
+                    select.innerHTML = '<option value="">Центры не найдены</option>';
+                    return;
+                }
+
+                select.innerHTML = '<option value="">Выберите ЦФО</option>';
+                financialCenters.forEach(fc => {
+                    const option = document.createElement('option');
+                    option.value = fc.id;
+                    option.textContent = fc.name;
+                    select.appendChild(option);
+                });
+
+                select.addEventListener('change', () => {
+                    formState.financialCenterId = parseInt(select.value) || null;
+                    document.getElementById('financial-center-error').textContent = '';
+                    app.ui.hapticLight();
+                });
+
+            } catch (error) {
+                console.error('Failed to load financial centers:', error);
+                select.innerHTML = '<option value="">Ошибка загрузки ЦФО</option>';
+            }
+        }
+
+        async function loadCostCenters() {
+            const select = document.getElementById('cost-center');
+
+            try {
+                const result = await app.api.get('/api/v1/cost-centers', { limit: 1000 });
+                costCenters = result.cost_centers || [];
+
+                if (costCenters.length === 0) {
+                    select.innerHTML = '<option value="">-- Не выбрано --</option>';
+                    return;
+                }
+
+                select.innerHTML = '<option value="">-- Не выбрано --</option>';
+                costCenters.forEach(cc => {
+                    const option = document.createElement('option');
+                    option.value = cc.id;
+                    option.textContent = cc.name;
+                    select.appendChild(option);
+                });
+
+                select.addEventListener('change', () => {
+                    formState.costCenterId = parseInt(select.value) || null;
+                    document.getElementById('cost-center-error').textContent = '';
+                    app.ui.hapticLight();
+                });
+
+            } catch (error) {
+                console.error('Failed to load cost centers:', error);
+                select.innerHTML = '<option value="">-- Не выбрано --</option>';
+            }
+        }
+
         function setupMainButton() {
             const mainButton = app.tg.MainButton;
 
@@ -657,7 +747,9 @@
                     amount: formState.amount,
                     fact_date: formState.periodStart,
                     description: formState.description,
-                    record_type: 'plan'
+                    record_type: 'plan',
+                    financial_center_id: formState.financialCenterId,
+                    cost_center_id: formState.costCenterId
                     // TODO: Add support for recurring plans when backend is ready
                     // recurring: formState.recurring,
                     // period_type: formState.period,
@@ -693,6 +785,12 @@
             if (!formState.categoryId) {
                 errors.category = 'Выберите категорию';
                 document.getElementById('category-error').textContent = 'Выберите категорию';
+            }
+
+            // Financial Center validation
+            if (!formState.financialCenterId) {
+                errors.financialCenter = 'Выберите ЦФО';
+                document.getElementById('financial-center-error').textContent = 'Выберите ЦФО';
             }
 
             // Period validation

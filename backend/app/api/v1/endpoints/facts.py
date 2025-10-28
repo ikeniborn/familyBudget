@@ -30,7 +30,9 @@ from backend.app.core.dependencies import (
     get_user_id_for_create,
 )
 from backend.app.models.article import Article
+from backend.app.models.cost_center import CostCenter
 from backend.app.models.fact import BudgetFact
+from backend.app.models.financial_center import FinancialCenter
 from backend.app.schemas import get_common_responses
 from backend.app.schemas.fact import (
     FactCreate,
@@ -106,7 +108,28 @@ async def create_fact(
     await session.commit()
     await session.refresh(fact)
 
-    # Return enriched response with article data
+    # Load financial center and cost center names if present
+    financial_center_name = None
+    if fact.financial_center_id:
+        fc_stmt = select(FinancialCenter).where(
+            FinancialCenter.id == fact.financial_center_id,
+            FinancialCenter.is_current == True  # noqa: E712
+        )
+        fc_result = await session.execute(fc_stmt)
+        fc = fc_result.scalar_one_or_none()
+        financial_center_name = fc.name if fc else None
+
+    cost_center_name = None
+    if fact.cost_center_id:
+        cc_stmt = select(CostCenter).where(
+            CostCenter.id == fact.cost_center_id,
+            CostCenter.is_current == True  # noqa: E712
+        )
+        cc_result = await session.execute(cc_stmt)
+        cc = cc_result.scalar_one_or_none()
+        cost_center_name = cc.name if cc else None
+
+    # Return enriched response with article and center data
     return {
         "id": fact.id,
         "user_id": fact.user_id,
@@ -117,7 +140,9 @@ async def create_fact(
         "amount": fact.amount,
         "description": fact.description,
         "financial_center_id": fact.financial_center_id,
+        "financial_center_name": financial_center_name,
         "cost_center_id": fact.cost_center_id,
+        "cost_center_name": cost_center_name,
         "record_type": fact.record_type,
         "created_at": fact.created_at,
         "updated_at": fact.updated_at,
@@ -132,11 +157,18 @@ async def create_fact(
 async def list_facts(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
-    limit: Annotated[int, Query(ge=1, le=1000)] = 100,
+    limit: Annotated[int, Query(ge=1, le=10000)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
     date_from: Annotated[Optional[date], Query()] = None,
     date_to: Annotated[Optional[date], Query()] = None,
     article_id: Annotated[Optional[int], Query()] = None,
+    record_type: Annotated[Optional[str], Query(pattern="^(fact|plan)$")] = None,
+    article_type: Annotated[Optional[str], Query(pattern="^(income|expense)$")] = None,
+    search: Annotated[Optional[str], Query(max_length=200)] = None,
+    amount_min: Annotated[Optional[Decimal], Query(ge=0)] = None,
+    amount_max: Annotated[Optional[Decimal], Query(ge=0)] = None,
+    financial_center_id: Annotated[Optional[int], Query(gt=0)] = None,
+    cost_center_id: Annotated[Optional[int], Query(gt=0)] = None,
 ) -> FactListResponse:
     """
     List budget facts with optional filtering.
@@ -148,19 +180,39 @@ async def list_facts(
     **Filters:**
     - date_from: Start date (inclusive)
     - date_to: End date (inclusive)
-    - article_id: Filter by article
+    - article_id: Filter by specific article
+    - record_type: Filter by 'fact' (actual) or 'plan' (budget)
+    - article_type: Filter by 'income' or 'expense'
+    - search: Search in description (case-insensitive)
+    - amount_min: Minimum amount (inclusive)
+    - amount_max: Maximum amount (inclusive)
+    - financial_center_id: Filter by financial center
+    - cost_center_id: Filter by cost center
 
     **Pagination:**
-    - limit: Maximum number of results (1-1000, default: 100)
+    - limit: Maximum number of results (1-10000, default: 100)
     - offset: Number of results to skip (default: 0)
 
     **Returns:**
-    - 200 OK: List of facts with pagination info (includes article_type and article_name)
+    - 200 OK: List of facts with pagination info (includes article info and center names)
     """
-    # Base query with join to Article for enriched response
-    statement = select(BudgetFact, Article).join(
-        Article,
-        (BudgetFact.article_id == Article.id) & (Article.is_current == True)  # noqa: E712
+    # Base query with JOINs for enriched response
+    statement = (
+        select(BudgetFact, Article, FinancialCenter, CostCenter)
+        .join(
+            Article,
+            (BudgetFact.article_id == Article.id) & (Article.is_current == True)  # noqa: E712
+        )
+        .outerjoin(
+            FinancialCenter,
+            (BudgetFact.financial_center_id == FinancialCenter.id)
+            & (FinancialCenter.is_current == True)  # noqa: E712
+        )
+        .outerjoin(
+            CostCenter,
+            (BudgetFact.cost_center_id == CostCenter.id)
+            & (CostCenter.is_current == True)  # noqa: E712
+        )
     )
 
     # Apply user isolation (admins see all, users see only theirs)
@@ -176,6 +228,28 @@ async def list_facts(
     if article_id:
         statement = statement.where(BudgetFact.article_id == article_id)
 
+    if record_type:
+        statement = statement.where(BudgetFact.record_type == record_type)
+
+    if article_type:
+        statement = statement.where(Article.type == article_type)
+
+    if search:
+        # Case-insensitive search in description
+        statement = statement.where(BudgetFact.description.ilike(f"%{search}%"))
+
+    if amount_min is not None:
+        statement = statement.where(BudgetFact.amount >= amount_min)
+
+    if amount_max is not None:
+        statement = statement.where(BudgetFact.amount <= amount_max)
+
+    if financial_center_id:
+        statement = statement.where(BudgetFact.financial_center_id == financial_center_id)
+
+    if cost_center_id:
+        statement = statement.where(BudgetFact.cost_center_id == cost_center_id)
+
     # Count total (before pagination)
     count_stmt = select(func.count()).select_from(statement.subquery())
     total_result = await session.execute(count_stmt)
@@ -189,9 +263,9 @@ async def list_facts(
     result = await session.execute(statement)
     rows = result.all()
 
-    # Enrich facts with article data
+    # Enrich facts with article and center data
     enriched_facts = []
-    for fact, article in rows:
+    for fact, article, financial_center, cost_center in rows:
         fact_dict = {
             "id": fact.id,
             "user_id": fact.user_id,
@@ -202,7 +276,9 @@ async def list_facts(
             "amount": fact.amount,
             "description": fact.description,
             "financial_center_id": fact.financial_center_id,
+            "financial_center_name": financial_center.name if financial_center else None,
             "cost_center_id": fact.cost_center_id,
+            "cost_center_name": cost_center.name if cost_center else None,
             "record_type": fact.record_type,
             "created_at": fact.created_at,
             "updated_at": fact.updated_at,

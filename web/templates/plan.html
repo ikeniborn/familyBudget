@@ -62,6 +62,26 @@
                     <input type="date" id="filter-date-to" class="input input-bordered input-sm">
                 </div>
             </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">🏦 Финансовый центр</span>
+                    </label>
+                    <select id="filter-financial-center" class="select select-bordered select-sm" title="Фильтровать транзакции по ЦФО">
+                        <option value="">-- Все ЦФО --</option>
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">💼 Центр затрат</span>
+                    </label>
+                    <select id="filter-cost-center" class="select select-bordered select-sm" title="Фильтровать транзакции по МВЗ">
+                        <option value="">-- Все МВЗ --</option>
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+            </div>
             <div class="flex justify-end">
                 <button class="btn btn-primary btn-sm" onclick="applyFilters()">Применить фильтры</button>
             </div>
@@ -151,10 +171,10 @@
             </div>
             <div class="form-control">
                 <label class="label">
-                    <span class="label-text">🏦 Финансовый центр (ЦФО)</span>
+                    <span class="label-text">🏦 Финансовый центр (ЦФО)*</span>
                 </label>
-                <select id="edit-financial-center" name="financial_center_id" class="select select-bordered">
-                    <option value="">-- Не указано --</option>
+                <select id="edit-financial-center" name="financial_center_id" required class="select select-bordered">
+                    <option value="">-- Выберите ЦФО --</option>
                     <!-- Populated dynamically -->
                 </select>
             </div>
@@ -193,7 +213,9 @@ let filters = {
     user_id: null,
     article_id: null,
     date_from: null,
-    date_to: null
+    date_to: null,
+    financial_center_id: null,
+    cost_center_id: null
 };
 
 // Load data on page load
@@ -302,7 +324,7 @@ function flattenArticleTree(nodes) {
     return result;
 }
 
-// Load financial centers for edit dropdown
+// Load financial centers for edit and filter dropdowns
 async function loadFinancialCenters() {
     try {
         const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true');
@@ -313,6 +335,7 @@ async function loadFinancialCenters() {
         const data = await response.json();
         const centers = data.financial_centers || [];
 
+        // Populate edit dropdown
         const editSelect = document.getElementById('edit-financial-center');
         centers.forEach(center => {
             const option = document.createElement('option');
@@ -321,12 +344,22 @@ async function loadFinancialCenters() {
             option.textContent = `${center.name}${scope}`;
             editSelect.appendChild(option);
         });
+
+        // Populate filter dropdown
+        const filterSelect = document.getElementById('filter-financial-center');
+        centers.forEach(center => {
+            const option = document.createElement('option');
+            option.value = center.id;
+            const scope = center.is_global ? ' (Global)' : '';
+            option.textContent = `${center.name}${scope}`;
+            filterSelect.appendChild(option);
+        });
     } catch (error) {
         console.error('Error loading financial centers:', error);
     }
 }
 
-// Load cost centers for edit dropdown
+// Load cost centers for edit and filter dropdowns
 async function loadCostCenters() {
     try {
         const response = await fetch('/api/v1/cost-centers?limit=1000&include_global=true');
@@ -337,6 +370,7 @@ async function loadCostCenters() {
         const data = await response.json();
         const centers = data.cost_centers || [];
 
+        // Populate edit dropdown
         const editSelect = document.getElementById('edit-cost-center');
         centers.forEach(center => {
             const option = document.createElement('option');
@@ -344,6 +378,16 @@ async function loadCostCenters() {
             const scope = center.is_global ? ' (Global)' : '';
             option.textContent = `${center.name}${scope}`;
             editSelect.appendChild(option);
+        });
+
+        // Populate filter dropdown
+        const filterSelect = document.getElementById('filter-cost-center');
+        centers.forEach(center => {
+            const option = document.createElement('option');
+            option.value = center.id;
+            const scope = center.is_global ? ' (Global)' : '';
+            option.textContent = `${center.name}${scope}`;
+            filterSelect.appendChild(option);
         });
     } catch (error) {
         console.error('Error loading cost centers:', error);
@@ -356,6 +400,8 @@ function applyFilters() {
     filters.article_id = document.getElementById('filter-article').value || null;
     filters.date_from = document.getElementById('filter-date-from').value || null;
     filters.date_to = document.getElementById('filter-date-to').value || null;
+    filters.financial_center_id = document.getElementById('filter-financial-center').value || null;
+    filters.cost_center_id = document.getElementById('filter-cost-center').value || null;
 
     currentPage = 0;
     loadFacts();
@@ -367,12 +413,16 @@ function resetFilters() {
     document.getElementById('filter-article').value = '';
     document.getElementById('filter-date-from').value = '';
     document.getElementById('filter-date-to').value = '';
+    document.getElementById('filter-financial-center').value = '';
+    document.getElementById('filter-cost-center').value = '';
 
     filters = {
         user_id: null,
         article_id: null,
         date_from: null,
-        date_to: null
+        date_to: null,
+        financial_center_id: null,
+        cost_center_id: null
     };
 
     currentPage = 0;
@@ -398,6 +448,8 @@ async function loadFacts() {
         if (filters.article_id) params.append('article_id', filters.article_id);
         if (filters.date_from) params.append('date_from', filters.date_from);
         if (filters.date_to) params.append('date_to', filters.date_to);
+        if (filters.financial_center_id) params.append('financial_center_id', filters.financial_center_id);
+        if (filters.cost_center_id) params.append('cost_center_id', filters.cost_center_id);
 
         // Load facts and count in parallel
         const [factsResponse, countResponse] = await Promise.all([
@@ -445,6 +497,8 @@ function renderFactsTable(facts) {
                         <th>📁 Категория</th>
                         <th>💵 Сумма</th>
                         <th>📅 Дата</th>
+                        <th>🏦 ЦФО</th>
+                        <th>💼 МВЗ</th>
                         <th>📝 Описание</th>
                         <th>⚙️ Действия</th>
                     </tr>
@@ -455,6 +509,8 @@ function renderFactsTable(facts) {
     facts.forEach(fact => {
         const amountClass = fact.amount >= 0 ? 'text-success font-bold' : 'text-error font-bold';
         const description = fact.description || '—';
+        const financialCenter = fact.financial_center_name || '—';
+        const costCenter = fact.cost_center_name || '—';
 
         html += `
             <tr>
@@ -464,7 +520,9 @@ function renderFactsTable(facts) {
                 <td>${fact.article_name || '—'}</td>
                 <td class="${amountClass}">${parseFloat(fact.amount).toFixed(2)}</td>
                 <td>${fact.fact_date}</td>
-                <td class="max-w-xs truncate">${description}</td>
+                <td class="max-w-xs truncate" title="${financialCenter}">${financialCenter}</td>
+                <td class="max-w-xs truncate" title="${costCenter}">${costCenter}</td>
+                <td class="max-w-xs truncate" title="${description}">${description}</td>
                 <td>
                     <div class="flex gap-1">
                         <button class="btn btn-xs btn-primary gap-1" onclick="showEditModal(${fact.id})">✏️</button>

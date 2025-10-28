@@ -267,20 +267,19 @@
                 const categoriesResult = await app.api.listArticles({ limit: 1000 });
                 categories = categoriesResult.articles || [];
 
-                // Get today's date range
+                // Get today's date range (only today)
                 const today = new Date();
                 const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                const todayEnd = new Date(todayStart);
-                todayEnd.setDate(todayEnd.getDate() + 1);
 
-                // Format dates for API
+                // Format date for API (same date for both from and to)
                 const dateFrom = todayStart.toISOString().split('T')[0];
-                const dateTo = todayEnd.toISOString().split('T')[0];
+                const dateTo = dateFrom; // Same day
 
                 // Fetch facts
                 const result = await app.api.listFacts({
                     date_from: dateFrom,
                     date_to: dateTo,
+                    record_type: 'fact',
                     limit: 1000  // All transactions for today
                 });
 
@@ -314,10 +313,11 @@
             let expense = 0;
 
             facts.forEach(fact => {
-                if (fact.amount > 0) {
-                    income += fact.amount;
+                const amount = parseFloat(fact.amount) || 0;
+                if (amount > 0) {
+                    income += amount;
                 } else {
-                    expense += Math.abs(fact.amount);
+                    expense += Math.abs(amount);
                 }
             });
 
@@ -327,12 +327,16 @@
         }
 
         function updateSummary(summary) {
-            document.getElementById('summary-expense').textContent = `-${app.ui.formatAmount(summary.expense)} `;
-            document.getElementById('summary-income').textContent = `+${app.ui.formatAmount(summary.income)} `;
+            const expense = isNaN(summary.expense) ? 0 : summary.expense;
+            const income = isNaN(summary.income) ? 0 : summary.income;
+            const balance = isNaN(summary.balance) ? 0 : summary.balance;
+
+            document.getElementById('summary-expense').textContent = `-${app.ui.formatAmount(expense)} `;
+            document.getElementById('summary-income').textContent = `+${app.ui.formatAmount(income)} `;
 
             const balanceElement = document.getElementById('summary-balance');
-            const balanceFormatted = app.ui.formatAmount(summary.balance);
-            balanceElement.textContent = `${summary.balance >= 0 ? '+' : '-'}${balanceFormatted} `;
+            const balanceFormatted = app.ui.formatAmount(Math.abs(balance));
+            balanceElement.textContent = `${balance >= 0 ? '+' : '-'}${balanceFormatted} `;
         }
 
         function renderTransactions(facts) {
