@@ -200,6 +200,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="/static/js/admin-facts-common.js"></script>
 <script>
 // Global state
 let currentPage = 0;
@@ -405,6 +406,9 @@ function applyFilters() {
 
     currentPage = 0;
     loadFacts();
+
+    // Sync UI with filter state
+    AdminFactsCommon.syncFiltersUI(filters);
 }
 
 // Reset filters
@@ -468,6 +472,9 @@ async function loadFacts() {
         renderFactsTable(factsData);
         updateStats();
         updatePagination();
+
+        // Sync UI with filter state after loading
+        AdminFactsCommon.syncFiltersUI(filters);
     } catch (error) {
         console.error('Error loading facts:', error);
         const errorMessage = error?.message || String(error);

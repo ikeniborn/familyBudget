@@ -672,13 +672,13 @@
             }
 
             // Category validation
-            if (!formState.categoryId) {
+            if (!formState.categoryId || formState.categoryId <= 0) {
                 errors.category = 'Выберите категорию';
                 document.getElementById('category-error').textContent = 'Выберите категорию';
             }
 
             // Financial Center validation
-            if (!formState.financialCenterId) {
+            if (!formState.financialCenterId || formState.financialCenterId <= 0) {
                 errors.financialCenter = 'Выберите ЦФО';
                 document.getElementById('financial-center-error').textContent = 'Выберите ЦФО';
             }

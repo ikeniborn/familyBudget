@@ -139,3 +139,95 @@ GET /api/v1/articles/15/ancestors
 
 ---
 
+### 4.9 Bug Fixes & Improvements (Phase 1)
+
+#### BUG-001: WebApp Form Validation Issues
+
+**Дата:** 2025-10-28
+**Приоритет:** Critical
+**Категория:** webapp_validation
+**Статус:** ✅ FIXED
+
+**Проблема:**
+WebApp форма добавления фактов (bot/webapp/add.html) отправляла некорректные данные на backend:
+- Валидация `financial_center_id` пропускала falsy значения (0, null, undefined)
+- Валидация `categoryId` имела ту же проблему
+- Backend возвращал 422 (Unprocessable Entity) при отсутствии обязательного поля ЦФО
+
+**Root Cause:**
+JavaScript проверка `if (!formState.financialCenterId)` пропускала `0` как валидный ID.
+
+**Решение:**
+Улучшена валидация в функции `validateForm()` (bot/webapp/add.html:681, 675):
+```javascript
+// Было:
+if (!formState.financialCenterId) { ... }
+
+// Стало:
+if (!formState.financialCenterId || formState.financialCenterId <= 0) { ... }
+```
+
+**Затронутые файлы:**
+- `bot/webapp/add.html` (строки 675, 681)
+
+**Acceptance Criteria:**
+- ✅ Форма блокирует отправку без выбора ЦФО
+- ✅ Форма блокирует отправку без выбора категории
+- ✅ Корректная валидация ID (отклоняет 0, null, undefined)
+
+---
+
+#### BUG-002: Web Filter Dropdowns Not Showing Selected Values
+
+**Дата:** 2025-10-28
+**Приоритет:** High
+**Категория:** web_ui_filters
+**Статус:** ✅ FIXED
+
+**Проблема:**
+На страницах `/facts` и `/plan` после применения фильтров dropdown элементы возвращались к значению "-- Все --", хотя фильтрация данных работала корректно.
+
+**Root Cause:**
+JavaScript сохранял выбранные фильтры в объект `filters`, но не синхронизировал UI элементы (select) после загрузки данных.
+
+**Решение:**
+1. Создан общий модуль `web/static/js/admin-facts-common.js` с функцией `syncFiltersUI(filters)`
+2. Подключен модуль в `facts.html` и `plan.html`
+3. Добавлены вызовы `AdminFactsCommon.syncFiltersUI(filters)` в функции:
+   - `applyFilters()` - после применения фильтров
+   - `loadFacts()` - после загрузки данных
+
+**Затронутые файлы:**
+- `web/static/js/admin-facts-common.js` (NEW)
+- `web/templates/facts.html` (строки 203, 409, 466)
+- `web/templates/plan.html` (строки 203, 411, 477)
+
+**Acceptance Criteria:**
+- ✅ После применения фильтров dropdown показывают выбранные значения
+- ✅ После перезагрузки данных фильтры остаются видимыми
+- ✅ При сбросе фильтров dropdown возвращаются к "-- Все --"
+- ✅ Код переиспользуется между facts.html и plan.html (DRY principle)
+
+**Архитектурное улучшение:**
+Рефакторинг дублированного кода (94% совпадения между facts.html и plan.html) путем выделения общей функции в отдельный модуль.
+
+---
+
+#### NOTE-001: WebApp Main Page Already Simplified
+
+**Дата:** 2025-10-28
+**Статус:** ✅ NO CHANGES NEEDED
+
+**Контекст:**
+Задача упрощения главной страницы WebApp (bot/webapp/index.html) была выполнена ранее в коммите `d47cb4e` (2025-10-28 20:22).
+
+**Текущее состояние:**
+- ✅ Удалены кнопки: "Добавить", "План", "Поиск"
+- ✅ Оставлены кнопки: "Сегодня", "Список", "Статистика", "План & Факт"
+- ✅ Menu grid настроен на 3 колонки (grid-template-columns: repeat(3, 1fr))
+
+**Затронутые файлы:**
+- `bot/webapp/index.html` (строки 288-312)
+
+---
+
