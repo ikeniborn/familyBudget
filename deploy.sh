@@ -811,6 +811,44 @@ cleanup_containers_networks() {
     success "Safe cleanup completed (data volumes preserved)"
 }
 
+# Initialize PostgreSQL data directory with correct permissions
+initialize_postgres_directory() {
+    local postgres_data_dir="$DEPLOY_DIR/data/postgres"
+
+    # Create directory if doesn't exist
+    if [[ ! -d "$postgres_data_dir" ]]; then
+        info "Creating PostgreSQL data directory..."
+        if sudo mkdir -p "$postgres_data_dir"; then
+            # Set ownership to postgres user (UID 999, GID 999 in Alpine Linux)
+            sudo chown 999:999 "$postgres_data_dir"
+            sudo chmod 0700 "$postgres_data_dir"
+            success "PostgreSQL data directory created with correct permissions (999:999)"
+        else
+            error "Failed to create PostgreSQL data directory"
+            return 1
+        fi
+    else
+        # Directory exists - verify/fix ownership
+        info "Verifying PostgreSQL data directory permissions..."
+        local current_owner=$(stat -c '%u:%g' "$postgres_data_dir" 2>/dev/null || echo "unknown")
+
+        if [[ "$current_owner" != "999:999" ]]; then
+            warning "Incorrect ownership: $current_owner (expected 999:999)"
+            info "Fixing ownership..."
+            if sudo chown 999:999 "$postgres_data_dir"; then
+                success "Ownership corrected to 999:999"
+            else
+                error "Failed to fix ownership"
+                return 1
+            fi
+        else
+            success "PostgreSQL data directory permissions are correct (999:999)"
+        fi
+    fi
+
+    return 0
+}
+
 # Full cleanup - containers + networks + volumes (DELETES DATA!)
 cleanup_full() {
     warning "Full cleanup will DELETE ALL DATA including database!"
@@ -953,8 +991,8 @@ check_and_repair_postgres_data() {
         info "Creating: $dir"
 
         if sudo mkdir -p "$dir_path" 2>/dev/null; then
-            # Set ownership to postgres user (UID 70, GID 70)
-            sudo chown 70:70 "$dir_path" 2>/dev/null
+            # Set ownership to postgres user (UID 999, GID 999 in Alpine Linux)
+            sudo chown 999:999 "$dir_path" 2>/dev/null
 
             # Set permissions to 0700 (drwx------)
             sudo chmod 0700 "$dir_path" 2>/dev/null
@@ -970,6 +1008,15 @@ check_and_repair_postgres_data() {
     echo ""
     success "PostgreSQL data directory repaired: $repaired directories created"
     info "PostgreSQL will initialize these directories on startup"
+    echo ""
+
+    # Verify ownership of all directories to ensure consistency
+    info "Verifying ownership of all PostgreSQL directories..."
+    if sudo chown -R 999:999 "$postgres_data_dir" 2>/dev/null; then
+        success "All directories have correct ownership (999:999)"
+    else
+        warning "Failed to set ownership on some directories (continuing anyway)"
+    fi
 
     return 0
 }
@@ -2259,6 +2306,10 @@ main() {
 
     # LATE checks (after code sync): docker-compose.yml, directories
     check_prerequisites_late
+    echo ""
+
+    # Initialize PostgreSQL directory with correct permissions
+    initialize_postgres_directory
     echo ""
 
     # Check for old deployments and cleanup if needed
