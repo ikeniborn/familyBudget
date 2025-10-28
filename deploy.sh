@@ -4,6 +4,8 @@
 #
 # This script deploys the Family Budget application using Docker Compose:
 # - Validates prerequisites (Docker, .env file)
+# - Syncs code from repository to deployment directory
+# - Checks and repairs PostgreSQL data directory structure (auto-recovery)
 # - Builds Docker images
 # - Starts services
 # - Waits for healthy status
@@ -30,8 +32,8 @@
 #       Docker uses layer cache, so rebuilds are fast when nothing changed.
 #
 # Author: Family Budget Team
-# Version: 1.0.0
-# Date: 2025-10-14
+# Version: 1.1.0
+# Date: 2025-10-28
 #
 
 set -e  # Exit on error
@@ -869,6 +871,107 @@ cleanup_full() {
     fi
 
     success "Full cleanup completed (ALL DATA DELETED)"
+}
+
+# Check and repair PostgreSQL data directory structure
+check_and_repair_postgres_data() {
+    local postgres_data_dir="$DEPLOY_DIR/data/postgres"
+
+    # Skip if data directory doesn't exist or is empty
+    if [[ ! -d "$postgres_data_dir" ]] || [[ -z "$(ls -A "$postgres_data_dir" 2>/dev/null)" ]]; then
+        info "PostgreSQL data directory is empty or doesn't exist - will be initialized by container"
+        return 0
+    fi
+
+    # Check if this is a PostgreSQL data directory
+    if [[ ! -f "$postgres_data_dir/PG_VERSION" ]]; then
+        info "No PG_VERSION found - not a PostgreSQL data directory"
+        return 0
+    fi
+
+    step "Checking PostgreSQL data directory integrity..."
+
+    # List of required system directories for PostgreSQL 16
+    local required_dirs=(
+        "pg_commit_ts"
+        "pg_dynshmem"
+        "pg_notify"
+        "pg_replslot"
+        "pg_serial"
+        "pg_snapshots"
+        "pg_stat"
+        "pg_stat_tmp"
+        "pg_tblspc"
+        "pg_twophase"
+    )
+
+    local missing_dirs=()
+    local needs_repair=false
+
+    # Check each required directory
+    for dir in "${required_dirs[@]}"; do
+        if [[ ! -d "$postgres_data_dir/$dir" ]]; then
+            missing_dirs+=("$dir")
+            needs_repair=true
+        fi
+    done
+
+    # If all directories present, no repair needed
+    if [[ "$needs_repair" == "false" ]]; then
+        success "PostgreSQL data directory structure is valid"
+        return 0
+    fi
+
+    # Report missing directories
+    warning "PostgreSQL data directory is corrupted!"
+    warning "Missing ${#missing_dirs[@]} system directories:"
+    for dir in "${missing_dirs[@]}"; do
+        echo "  ✗ $dir"
+    done
+    echo ""
+
+    # Automatically repair
+    info "Automatically repairing PostgreSQL data directory structure..."
+    echo ""
+
+    # Create backup before repair
+    info "Creating backup before repair..."
+    local backup_file="$HOME/postgres_data_backup_before_repair_$(date +%Y%m%d_%H%M%S).tar.gz"
+
+    if sudo tar -czf "$backup_file" -C "$DEPLOY_DIR/data" postgres/ 2>/dev/null; then
+        success "Backup created: $backup_file"
+    else
+        warning "Failed to create backup (continuing anyway)"
+    fi
+    echo ""
+
+    # Create missing directories with correct ownership and permissions
+    local repaired=0
+    for dir in "${missing_dirs[@]}"; do
+        local dir_path="$postgres_data_dir/$dir"
+
+        info "Creating: $dir"
+
+        if sudo mkdir -p "$dir_path" 2>/dev/null; then
+            # Set ownership to postgres user (UID 70, GID 70)
+            sudo chown 70:70 "$dir_path" 2>/dev/null
+
+            # Set permissions to 0700 (drwx------)
+            sudo chmod 0700 "$dir_path" 2>/dev/null
+
+            success "  ✓ Created and configured: $dir"
+            ((repaired++))
+        else
+            error "  ✗ Failed to create: $dir"
+            return 1
+        fi
+    done
+
+    echo ""
+    success "PostgreSQL data directory repaired: $repaired directories created"
+    info "PostgreSQL will initialize these directories on startup"
+
+    return 0
 }
 
 # Check for old deployments and offer cleanup options
@@ -2160,6 +2263,10 @@ main() {
 
     # Check for old deployments and cleanup if needed
     cleanup_old_deployment
+    echo ""
+
+    # Check and repair PostgreSQL data directory (if Safe cleanup was used)
+    check_and_repair_postgres_data
     echo ""
 
     clean_deployment
