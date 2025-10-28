@@ -253,10 +253,8 @@ services:
 volumes:
   postgres_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${DATA_DIR:-./data}/postgres
+    # Docker managed volume (no bind mount)
+    # This prevents corruption issues from host filesystem
 
   postgres_backups:
     driver: local
