@@ -815,34 +815,55 @@ cleanup_containers_networks() {
 initialize_postgres_directory() {
     local postgres_data_dir="$DEPLOY_DIR/data/postgres"
 
+    # Detect current PostgreSQL UID from existing data (if any)
+    # Default: 999:999 (Alpine Linux PostgreSQL)
+    # Alternative: 70:70 (Debian/Ubuntu PostgreSQL)
+    local target_uid=999
+    local target_gid=999
+
+    if [[ -d "$postgres_data_dir/base" ]]; then
+        # Data exists - detect current owner from base/ directory
+        target_uid=$(stat -c '%u' "$postgres_data_dir/base" 2>/dev/null || echo "999")
+        target_gid=$(stat -c '%g' "$postgres_data_dir/base" 2>/dev/null || echo "999")
+        info "Detected existing PostgreSQL UID from data: $target_uid:$target_gid"
+    else
+        info "No existing data - will use default UID: $target_uid:$target_gid (Alpine Linux)"
+    fi
+
     # Create directory if doesn't exist
     if [[ ! -d "$postgres_data_dir" ]]; then
         info "Creating PostgreSQL data directory..."
         if sudo mkdir -p "$postgres_data_dir"; then
-            # Set ownership to postgres user (UID 999, GID 999 in Alpine Linux)
-            sudo chown 999:999 "$postgres_data_dir"
+            # Set ownership to detected/default postgres user
+            sudo chown $target_uid:$target_gid "$postgres_data_dir"
             sudo chmod 0700 "$postgres_data_dir"
-            success "PostgreSQL data directory created with correct permissions (999:999)"
+            success "PostgreSQL data directory created with correct permissions ($target_uid:$target_gid)"
         else
             error "Failed to create PostgreSQL data directory"
             return 1
         fi
     else
-        # Directory exists - verify/fix ownership
+        # Directory exists - verify/fix ownership RECURSIVELY
         info "Verifying PostgreSQL data directory permissions..."
         local current_owner=$(stat -c '%u:%g' "$postgres_data_dir" 2>/dev/null || echo "unknown")
 
-        if [[ "$current_owner" != "999:999" ]]; then
-            warning "Incorrect ownership: $current_owner (expected 999:999)"
-            info "Fixing ownership..."
-            if sudo chown 999:999 "$postgres_data_dir"; then
-                success "Ownership corrected to 999:999"
+        if [[ "$current_owner" != "$target_uid:$target_gid" ]]; then
+            warning "Incorrect ownership: $current_owner (expected $target_uid:$target_gid)"
+            info "Fixing ownership recursively (including all subdirectories)..."
+            if sudo chown -R $target_uid:$target_gid "$postgres_data_dir"; then
+                success "Ownership corrected to $target_uid:$target_gid (recursive)"
             else
                 error "Failed to fix ownership"
                 return 1
             fi
         else
-            success "PostgreSQL data directory permissions are correct (999:999)"
+            # Even if parent ownership is correct, ensure ALL subdirectories match
+            info "Parent directory ownership correct, verifying subdirectories..."
+            if sudo chown -R $target_uid:$target_gid "$postgres_data_dir" 2>/dev/null; then
+                success "PostgreSQL data directory permissions verified ($target_uid:$target_gid, recursive)"
+            else
+                warning "Failed to recursively verify ownership (continuing anyway)"
+            fi
         fi
     fi
 

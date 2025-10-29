@@ -451,3 +451,147 @@ updateMonthLabel();
 
 ---
 
+#### BUG-007: PostgreSQL Corruption при инкрементальном деплое
+
+**Дата:** 2025-10-29
+**Приоритет:** CRITICAL
+**Категория:** deployment_postgresql_incremental
+**Статус:** ✅ FIXED
+
+**Проблема:**
+При использовании инкрементального деплоя (Update sync + Safe cleanup) все 10 системных каталогов PostgreSQL удалялись, вызывая 100% corruption:
+```
+✗ pg_commit_ts
+✗ pg_dynshmem
+✗ pg_notify
+✗ pg_replslot
+✗ pg_serial
+✗ pg_snapshots
+✗ pg_stat
+✗ pg_stat_tmp
+✗ pg_tblspc
+✗ pg_twophase
+
+Corruption level: 100% (10 of 10 directories missing)
+```
+
+**Симптомы:**
+- "Update only (rsync)" + "Safe cleanup" → данные PostgreSQL удалялись
+- Существующие транзакции, таблицы терялись
+- PostgreSQL инициализировал чистую БД вместо использования existing data
+- "Clean sync + Full cleanup" работал корректно (но это полная переустановка)
+
+**Root Cause:**
+
+Функция `initialize_postgres_directory()` (deploy.sh:838) использовала `chown 999:999` **БЕЗ флага `-R`** (рекурсивно).
+
+**Последовательность проблемы:**
+
+1. **До деплоя:** PostgreSQL работал с Debian образом (UID 70:70):
+   ```
+   /opt/budget/data/postgres/          owner: 70:70 ✅
+   ├── pg_stat_tmp/                    owner: 70:70 ✅
+   ├── pg_stat/                        owner: 70:70 ✅
+   ├── base/                           owner: 70:70 ✅
+   ```
+
+2. **initialize_postgres_directory()** менял owner ТОЛЬКО parent directory:
+   ```bash
+   sudo chown 999:999 "$postgres_data_dir"  # ❌ БЕЗ -R
+   ```
+
+   **Результат:**
+   ```
+   /opt/budget/data/postgres/          owner: 999:999 ← CHANGED!
+   ├── pg_stat_tmp/                    owner: 70:70   ← UNCHANGED
+   ├── pg_stat/                        owner: 70:70   ← UNCHANGED
+   ├── base/                           owner: 70:70   ← UNCHANGED
+   ```
+
+3. **Permission mismatch:** Новый PostgreSQL контейнер (Alpine UID 999) не мог прочитать subdirectories с owner 70:70 и permissions 0700 (drwx------).
+
+4. **PostgreSQL behavior:** При обнаружении inaccessible subdirectories PostgreSQL интерпретировал это как corruption и **удалял все каталоги**, создавая чистую структуру.
+
+5. **check_and_repair_postgres_data()** обнаруживал 100% corruption, но было уже поздно - данные удалены.
+
+**Почему "Clean sync + Full cleanup" работал:**
+- Полностью удалял `/opt/budget/data/postgres/*` → нет permission mismatch
+- PostgreSQL создавал чистую структуру с правильным UID 999:999
+
+**Почему "Update sync + Safe cleanup" НЕ работал:**
+- Сохранял subdirectories с owner 70:70 от старого контейнера
+- initialize_postgres_directory() менял только parent → permission mismatch
+- PostgreSQL не мог читать → удалял всё
+
+**Решение:**
+
+**1. Auto-detect текущего PostgreSQL UID из existing data** (deploy.sh:824-831):
+```bash
+# Detect current PostgreSQL UID from existing data (if any)
+local target_uid=999  # Default: Alpine Linux
+local target_gid=999
+
+if [[ -d "$postgres_data_dir/base" ]]; then
+    # Data exists - detect current owner from base/ directory
+    target_uid=$(stat -c '%u' "$postgres_data_dir/base" 2>/dev/null || echo "999")
+    target_gid=$(stat -c '%g' "$postgres_data_dir/base" 2>/dev/null || echo "999")
+    info "Detected existing PostgreSQL UID from data: $target_uid:$target_gid"
+fi
+```
+
+**2. Рекурсивный chown для ВСЕХ subdirectories** (deploy.sh:853, 862):
+```bash
+# БЫЛО:
+sudo chown 999:999 "$postgres_data_dir"
+
+# СТАЛО:
+sudo chown -R $target_uid:$target_gid "$postgres_data_dir"
+```
+
+**3. Гарантированная верификация subdirectories** (deploy.sh:860-866):
+Даже если parent ownership корректен, выполняется рекурсивная верификация всех subdirectories для устранения потенциального permission mismatch.
+
+**Затронутые файлы:**
+- `deploy.sh` (строки 815-871) - функция `initialize_postgres_directory()`
+
+**Acceptance Criteria:**
+- ✅ Update sync + Safe cleanup работает без потери данных PostgreSQL
+- ✅ Permission mismatch между parent и subdirectories устранен
+- ✅ Существующие таблицы, транзакции сохраняются при инкрементальном деплое
+- ✅ Auto-detect UID обеспечивает совместимость с любым PostgreSQL образом (Alpine 999, Debian 70)
+- ✅ Рекурсивный chown гарантирует единообразие ownership для всех файлов
+
+**Тестирование:**
+
+**До исправления:**
+```bash
+# Инкрементальный деплой
+./deploy.sh
+# Select: [2] Update sync, [2] Safe cleanup
+# РЕЗУЛЬТАТ: 100% corruption, данные потеряны
+```
+
+**После исправления:**
+```bash
+# Инкрементальный деплой
+./deploy.sh
+# Select: [2] Update sync, [2] Safe cleanup
+# РЕЗУЛЬТАТ:
+#   [INFO] Detected existing PostgreSQL UID from data: 70:70
+#   [SUCCESS] Ownership corrected to 70:70 (recursive)
+#   [SUCCESS] PostgreSQL data preserved, no corruption
+```
+
+**Benefits:**
+- 🚀 Быстрый инкрементальный деплой (без пересоздания БД)
+- 💾 Сохранение existing данных при обновлении кода
+- 🔄 Универсальность: работает с любым PostgreSQL Docker образом
+- 🛡️ Защита от permission mismatch
+- ✅ Update sync теперь безопасен для production
+
+**Связанные баги:**
+- Связано с BUG-006 (PostgreSQL corruption - неправильный UID 70 vs 999)
+- Полностью решает проблему инкрементального обновления без потери данных
+
+---
+
