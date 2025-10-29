@@ -1046,6 +1046,16 @@ check_and_repair_postgres_data() {
     info "Attempting to repair PostgreSQL data directory structure..."
     echo ""
 
+    # Detect existing UID from data to ensure consistency
+    local target_uid=999
+    local target_gid=999
+    if [[ -d "$postgres_data_dir/base" ]]; then
+        target_uid=$(stat -c '%u' "$postgres_data_dir/base" 2>/dev/null || echo "999")
+        target_gid=$(stat -c '%g' "$postgres_data_dir/base" 2>/dev/null || echo "999")
+        info "Detected existing PostgreSQL UID: $target_uid:$target_gid"
+    fi
+    echo ""
+
     # Create missing directories with correct ownership and permissions
     local repaired=0
     for dir in "${missing_dirs[@]}"; do
@@ -1054,8 +1064,8 @@ check_and_repair_postgres_data() {
         info "Creating: $dir"
 
         if sudo mkdir -p "$dir_path" 2>/dev/null; then
-            # Set ownership to postgres user (UID 999, GID 999 in Alpine Linux)
-            sudo chown 999:999 "$dir_path" 2>/dev/null
+            # Set ownership to detected postgres user UID
+            sudo chown $target_uid:$target_gid "$dir_path" 2>/dev/null
 
             # Set permissions to 0700 (drwx------)
             sudo chmod 0700 "$dir_path" 2>/dev/null
@@ -1075,8 +1085,8 @@ check_and_repair_postgres_data() {
 
     # Verify ownership of all directories to ensure consistency
     info "Verifying ownership of all PostgreSQL directories..."
-    if sudo chown -R 999:999 "$postgres_data_dir" 2>/dev/null; then
-        success "All directories have correct ownership (999:999)"
+    if sudo chown -R $target_uid:$target_gid "$postgres_data_dir" 2>/dev/null; then
+        success "All directories have correct ownership ($target_uid:$target_gid)"
     else
         warning "Failed to set ownership on some directories (continuing anyway)"
     fi

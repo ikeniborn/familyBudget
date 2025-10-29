@@ -125,6 +125,28 @@ docker compose ps backend            # Статус backend
 docker exec familybudget-backend cat /app/bot/webapp/add.html | head -20  # Проверка файла в контейнере
 ```
 
+### Remote Server Execution (ВАЖНО для Claude Code)
+
+⚠️ **Критично:** Production код находится на УДАЛЕННОМ сервере.
+
+**Правила для анализа:**
+1. НЕ выполняй команды локально для анализа production
+2. Формируй batch команды для одного SSH сеанса
+3. Используй только read-only команды для диагностики
+
+**Рабочие каталоги:**
+- Локально (`~/familyBudget`): Development, git
+- На сервере (`/opt/budget`): Production, Docker
+
+**Пример диагностики:**
+```bash
+ssh user@server 'bash -s' << 'EOF'
+  docker ps
+  ls -la /opt/budget/data/postgres
+  tail /opt/budget/logs/backend.log
+EOF
+```
+
 📖 **Детальные инструкции:** См. соответствующие [Skills](#-claude-skills)
 
 ---
