@@ -443,6 +443,7 @@ async function loadFacts() {
         if (filters.article_id) params.append('article_id', filters.article_id);
         if (filters.date_from) params.append('date_from', filters.date_from);
         if (filters.date_to) params.append('date_to', filters.date_to);
+        params.append('record_type', 'fact');  // Filter only facts (not plans)
 
         // Load facts and count in parallel
         const [factsResponse, countResponse] = await Promise.all([
