@@ -184,7 +184,7 @@ async def get_plan_fact_data(
     if period == "week":
         start_date = today - timedelta(days=today.weekday())  # Monday
         periods_count = 7
-        date_format = "%a"  # Mon, Tue, ...
+        date_format = None  # Will use Russian day names mapping
     elif period == "month":
         start_date = date(today.year, today.month, 1)
         periods_count = (date(today.year, today.month + 1, 1) - start_date).days if today.month < 12 else 31
@@ -242,7 +242,12 @@ async def get_plan_fact_data(
             else:
                 current_date = date(current_date.year, current_date.month + 1, 1)
         else:
-            labels.append(current_date.strftime(date_format))
+            # For week period, use Russian day names
+            if period == "week":
+                day_names_ru = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+                labels.append(day_names_ru[current_date.weekday()])
+            else:
+                labels.append(current_date.strftime(date_format))
             fact_data.append(data_by_date.get(current_date, 0.0))
             current_date += timedelta(days=1)
 
@@ -523,7 +528,7 @@ async def get_waterfall_data(
             week_num += 1
 
     else:  # year
-        month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        month_names = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"]
         # Show all 12 months for planning/forecasting purposes
         for month in range(1, 13):
             period_info = period_data.get(month, {"income": 0.0, "expense": 0.0, "articles": []})
@@ -633,7 +638,7 @@ async def get_heatmap_data(
 
     return {
         "weeks": weeks_data,  # Now a simple 2D array: [[Mon, Tue, ..., Sun], ...]
-        "day_labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+        "day_labels": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
         "week_count": len(weeks_data),
         "period_days": period_days,
         "period": period,
