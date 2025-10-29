@@ -1036,7 +1036,7 @@ check_and_repair_postgres_data() {
     if [[ "${POSTGRES_WAS_STOPPED}" == "false" ]]; then
         info "Skipping PostgreSQL integrity check (PostgreSQL is still running)"
         warning "Integrity check would cause race conditions with running database"
-        info "If you need to repair data, use cleanup option [2] or [4] to stop PostgreSQL first"
+        info "If you need to repair data, use cleanup option [3] Full cleanup to stop PostgreSQL first"
         return 0
     fi
 
