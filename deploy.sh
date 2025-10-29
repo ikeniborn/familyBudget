@@ -602,7 +602,7 @@ sync_update() {
             if [[ -f "$DEPLOY_DIR/$deploy_file" ]]; then
                 rm -f "$DEPLOY_DIR/$deploy_file" && {
                     echo "  Deleted: $deploy_file" | tee -a "$LOG_FILE"
-                    ((deleted_count++))
+                    deleted_count=$((deleted_count + 1))
                 }
             fi
         fi
@@ -1071,7 +1071,7 @@ check_and_repair_postgres_data() {
             sudo chmod 0700 "$dir_path" 2>/dev/null
 
             success "  ✓ Created and configured: $dir"
-            ((repaired++))
+            repaired=$((repaired + 1))
         else
             error "  ✗ Failed to create: $dir"
             return 1
