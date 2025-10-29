@@ -465,7 +465,7 @@ check_code_changes() {
     local repo_dir=$1
 
     # Use rsync --dry-run to detect changes
-    local changes=$(rsync -avn \
+    local changes=$(rsync -avnc \
         --exclude='.env' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -487,17 +487,18 @@ check_code_changes() {
 }
 
 # Sync code using mirror mode (rsync --delete)
+# Uses --checksum (-c) to compare by content, not mtime (prevents false positives for mounted volumes)
 sync_mirror() {
     local repo_dir=$1
 
-    info "Syncing code: mirror mode (rsync --delete)"
+    info "Syncing code: mirror mode (rsync --delete --checksum)"
     info "From: $repo_dir"
     info "To:   $DEPLOY_DIR"
     echo ""
 
     # Show preview of changes
     info "Preview of changes (first 20 files):"
-    rsync -avn \
+    rsync -avnc \
         --exclude='.env' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -528,7 +529,7 @@ sync_mirror() {
     fi
 
     # Perform sync
-    if rsync -av --delete \
+    if rsync -avc --delete \
         --exclude='.env' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -558,17 +559,18 @@ sync_mirror() {
 }
 
 # Sync code using update mode (rsync + delete orphaned files)
+# Uses --checksum (-c) to compare by content, not mtime (prevents false positives for mounted volumes)
 sync_update() {
     local repo_dir=$1
 
-    info "Syncing code: update mode + cleanup orphaned files"
+    info "Syncing code: update mode + cleanup orphaned files (checksum-based)"
     info "From: $repo_dir"
     info "To:   $DEPLOY_DIR"
     echo ""
 
     # Show preview
     info "Preview of changes (first 20 files):"
-    rsync -avn \
+    rsync -avnc \
         --exclude='.env' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -600,7 +602,7 @@ sync_update() {
 
     # 1. Perform rsync (update/add files)
     info "Step 1/2: Syncing new and modified files..."
-    if ! rsync -av \
+    if ! rsync -avc \
         --exclude='.env' \
         --exclude='data/' \
         --exclude='logs/' \
