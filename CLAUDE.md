@@ -93,33 +93,38 @@ ruff check . && black . && mypy .    # Quality checks
 
 2. **Python код** (backend/, bot/) - БЕЗ изменений БД
    - Требуется **пересборка образа** и **перезапуск контейнеров**
-   - **ВАЖНО:** Используйте **Selective restart (опция [3])** чтобы НЕ останавливать PostgreSQL
+   - **ВАЖНО:** Используйте **Smart cleanup (опция [2])** - автоматически определяет стратегию
    ```bash
    cd ~/familyBudget && git pull
    sudo bash deploy.sh
    # Выбрать sync mode: [2] Update only
-   # Выбрать cleanup: [3] Selective restart ✓
+   # Выбрать cleanup: [2] Smart cleanup (RECOMMENDED) ✓
+   # Скрипт автоматически оставит PostgreSQL работающим
    ```
 
 3. **DB schema изменения** (миграции, новые таблицы)
-   - Требуется **полный перезапуск** с PostgreSQL
+   - Smart cleanup **автоматически определит** что нужен перезапуск PostgreSQL
    ```bash
    cd ~/familyBudget && git pull
    sudo bash deploy.sh
    # Выбрать sync mode: [2] Update only
-   # Выбрать cleanup: [2] Safe cleanup (полная остановка)
+   # Выбрать cleanup: [2] Smart cleanup
+   # Скрипт автоматически остановит PostgreSQL для миграций
    ```
 
 4. **Docker конфигурация** (docker-compose.yml, Dockerfile)
    - Требуется **пересборка** и **перезапуск**
+   - Smart cleanup автоматически определяет необходимость перезапуска
 
-**Deployment стратегии:**
+**Deployment стратегии (автоматические):**
 
 | Изменения | Cleanup опция | PostgreSQL | Downtime |
 |-----------|---------------|------------|----------|
-| Frontend/Bot/Backend код | [3] Selective restart | Продолжает работать ✓ | ~10 сек |
-| DB schema / Миграции | [2] Safe cleanup | Перезапускается | ~30 сек |
-| Полная очистка данных | [4] Full cleanup | Удаляется ⚠️ | - |
+| Frontend/Bot/Backend код | [2] Smart cleanup | Продолжает работать ✓ | ~10 сек |
+| DB migrations | [2] Smart cleanup | Автоматически перезапускается | ~30 сек |
+| docker-compose.yml | [2] Smart cleanup | Автоматически перезапускается | ~30 сек |
+| .env (POSTGRES_*) | [2] Smart cleanup | Автоматически перезапускается | ~30 сек |
+| Полная очистка данных | [3] Full cleanup | Удаляется ⚠️ | - |
 
 **Логи контейнеров:**
 ```bash

@@ -801,23 +801,79 @@ sync_code_to_deploy() {
 # NETWORK AND CLEANUP FUNCTIONS
 # =============================================================================
 
-# Cleanup containers and networks only (safe - keeps data)
+# Smart cleanup - automatically decides if PostgreSQL needs restart
 cleanup_containers_networks() {
-    info "Stopping and removing old containers and networks..."
+    info "Safe cleanup - analyzing changes to determine restart strategy..."
+    echo ""
 
-    # Use docker compose stop for graceful shutdown (respects stop_grace_period and stop_signal)
-    # This prevents PostgreSQL data corruption by allowing proper cleanup
-    if compose_cmd ps -q 2>/dev/null | grep -q .; then
-        info "Gracefully stopping services with extended timeout..."
-        # Use 90s timeout: gives PostgreSQL 60s (stop_grace_period) + 30s buffer
-        compose_cmd stop --timeout 90 >> "$LOG_FILE" 2>&1 || true
-        success "Services stopped gracefully"
+    # Check if PostgreSQL-related changes require full restart
+    local needs_postgres_restart=false
+    local reason=""
+
+    # Check for DB migrations changes
+    if git diff --name-only HEAD~1 2>/dev/null | grep -q "backend/db/migrations/"; then
+        needs_postgres_restart=true
+        reason="DB migrations changed"
+    fi
+
+    # Check for docker-compose.yml changes
+    if git diff --name-only HEAD~1 2>/dev/null | grep -q "docker-compose.yml"; then
+        needs_postgres_restart=true
+        reason="docker-compose.yml changed"
+    fi
+
+    # Check for PostgreSQL configuration changes
+    if git diff --name-only HEAD~1 2>/dev/null | grep -q "\.env"; then
+        if git diff HEAD~1 .env 2>/dev/null | grep -q "POSTGRES_"; then
+            needs_postgres_restart=true
+            reason="PostgreSQL configuration changed"
+        fi
+    fi
+
+    # Decide strategy based on analysis
+    if [[ "$needs_postgres_restart" == "true" ]]; then
+        warning "Full restart required: $reason"
+        info "Stopping ALL services including PostgreSQL..."
+        echo ""
+
+        # Stop all services including PostgreSQL
+        if compose_cmd ps -q 2>/dev/null | grep -q .; then
+            info "Gracefully stopping services with extended timeout..."
+            compose_cmd stop --timeout 90 >> "$LOG_FILE" 2>&1 || true
+            success "All services stopped gracefully"
+        fi
+
+        # Mark PostgreSQL as stopped
+        POSTGRES_WAS_STOPPED=true
+    else
+        success "Smart restart: Only frontend/backend/bot changes detected"
+        info "Keeping PostgreSQL running to prevent data directory corruption"
+        echo ""
+
+        # Stop only app containers (NOT postgres)
+        local app_containers=("familybudget-backend" "familybudget-bot" "familybudget-nginx")
+        for container in "${app_containers[@]}"; do
+            if docker ps -a --format "{{.Names}}" 2>/dev/null | grep -q "^${container}$"; then
+                info "Stopping $container..."
+                docker stop "$container" >> "$LOG_FILE" 2>&1 || true
+            fi
+        done
+
+        # Check if PostgreSQL is still running
+        if is_postgres_running; then
+            success "PostgreSQL kept running (no restart needed)"
+            POSTGRES_WAS_STOPPED=false
+        else
+            warning "PostgreSQL not found - will be started fresh"
+            POSTGRES_WAS_STOPPED=true
+        fi
     fi
 
     # Remove stopped containers
     local containers=$(docker ps -a --filter "name=familybudget" --format "{{.Names}}" 2>/dev/null || echo "")
     if [[ -n "$containers" ]]; then
-        info "Removing containers: $containers"
+        echo ""
+        info "Removing stopped containers: $containers"
         echo "$containers" | xargs docker rm >> "$LOG_FILE" 2>&1 || true
         success "Containers removed"
     fi
@@ -830,41 +886,8 @@ cleanup_containers_networks() {
         success "Networks removed"
     fi
 
-    # Mark PostgreSQL as stopped for integrity checks
-    POSTGRES_WAS_STOPPED=true
-
-    success "Safe cleanup completed (data volumes preserved)"
-}
-
-# Selective cleanup - restart only app services (KEEPS PostgreSQL running)
-cleanup_selective() {
-    info "Selective restart - stopping only app services (PostgreSQL stays running)..."
     echo ""
-
-    # Stop and remove only app containers (NOT postgres)
-    local app_containers=("familybudget-backend" "familybudget-bot" "familybudget-nginx")
-
-    for container in "${app_containers[@]}"; do
-        if docker ps -a --format "{{.Names}}" 2>/dev/null | grep -q "^${container}$"; then
-            info "Stopping $container..."
-            docker stop "$container" >> "$LOG_FILE" 2>&1 || true
-            info "Removing $container..."
-            docker rm "$container" >> "$LOG_FILE" 2>&1 || true
-        fi
-    done
-
-    # Keep PostgreSQL container running
-    if is_postgres_running; then
-        success "PostgreSQL container kept running (no restart)"
-        # Mark PostgreSQL as NOT stopped - skip integrity checks to prevent race conditions
-        POSTGRES_WAS_STOPPED=false
-    else
-        warning "PostgreSQL container not found - will be started with full deployment"
-        # PostgreSQL not running - safe to perform integrity checks
-        POSTGRES_WAS_STOPPED=true
-    fi
-
-    success "Selective cleanup completed (PostgreSQL preserved)"
+    success "Safe cleanup completed (smart restart strategy applied)"
 }
 
 # Initialize PostgreSQL data directory with correct permissions
@@ -1206,15 +1229,15 @@ cleanup_old_deployment() {
     warning "Old deployments may cause network conflicts!"
     echo "Choose cleanup action:"
     echo "  [1] Skip - deploy alongside old deployment (may cause subnet conflicts)"
-    echo "  [2] Safe cleanup - stop & remove containers + networks (KEEPS data)"
-    echo "  [3] Selective restart - restart only app services (KEEPS PostgreSQL running)"
-    echo "      ✓ Use for frontend/backend/bot updates"
-    echo "      ✓ Prevents PostgreSQL corruption from improper shutdown"
-    echo "  [4] Full cleanup - containers + networks + volumes (DELETES ALL DATA!)"
+    echo "  [2] Smart cleanup - auto-detect changes & restart strategy (RECOMMENDED)"
+    echo "      ✓ Analyzes git diff to determine if PostgreSQL needs restart"
+    echo "      ✓ Keeps PostgreSQL running for frontend/backend changes only"
+    echo "      ✓ Full restart for DB migrations or config changes"
+    echo "  [3] Full cleanup - containers + networks + volumes (DELETES ALL DATA!)"
     echo "      ⚠️  Requires sudo/root privileges"
     echo ""
 
-    read -p "Select [1-4]: " choice
+    read -p "Select [1-3]: " choice
     echo ""
 
     case $choice in
@@ -1226,13 +1249,10 @@ cleanup_old_deployment() {
             cleanup_containers_networks
             ;;
         3)
-            cleanup_selective
-            ;;
-        4)
             cleanup_full
             ;;
         *)
-            error "Invalid choice. Please select 1-4."
+            error "Invalid choice. Please select 1-3."
             ;;
     esac
 }
