@@ -69,6 +69,25 @@ class APIClient {
     }
   }
 
+  /**
+   * Generic GET request helper.
+   *
+   * @param {string} endpoint - Full endpoint path (e.g., '/api/v1/financial-centers')
+   * @param {Object} params - Query parameters
+   * @returns {Promise<any>} Response data
+   * @throws {APIError} On HTTP error
+   */
+  async get(endpoint, params = {}) {
+    // Remove /api/v1 prefix if present (request() adds it automatically)
+    const cleanEndpoint = endpoint.replace(/^\/api\/v1/, '');
+
+    // Build query string
+    const query = new URLSearchParams(params).toString();
+    const fullEndpoint = query ? `${cleanEndpoint}?${query}` : cleanEndpoint;
+
+    return this.request(fullEndpoint);
+  }
+
   // ==================== Facts Endpoints ====================
 
   /**

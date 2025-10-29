@@ -231,3 +231,223 @@ JavaScript сохранял выбранные фильтры в объект `f
 
 ---
 
+#### BUG-003: Web UI - Пустые dropdowns "Категория" в модальных окнах
+
+**Дата:** 2025-10-29
+**Приоритет:** CRITICAL
+**Категория:** web_ui_dropdowns
+**Статус:** ✅ FIXED
+
+**Проблема:**
+На странице https://budget-dev.ikeniborn.ru/ в модальных окнах "Добавить транзакцию" и "Добавить план" выпадающие списки "Категория" отображались пустыми, хотя справочник категорий был заполнен.
+
+**Root Cause:**
+- Файл: `web/templates/index.html`, строка 390
+- API endpoint `/api/v1/articles?is_current=true` возвращает объект формата:
+  ```json
+  {
+    "articles": [...],
+    "total": 10,
+    "limit": 100,
+    "offset": 0
+  }
+  ```
+- Код ожидал массив напрямую: `const categories = await response.json();`
+- Итерация по объекту вместо массива: `categories.forEach(cat => ...)` не находила элементы
+
+**Решение:**
+- Изменена строка 390 (теперь 394-395):
+  ```javascript
+  // БЫЛО:
+  const categories = await response.json();
+
+  // СТАЛО:
+  const data = await response.json();
+  const categories = data.articles || [];
+  ```
+- Добавлен error handling с user-friendly сообщениями:
+  - Предупреждение при HTTP ошибке
+  - Предупреждение при пустом массиве категорий
+  - Toast уведомления для пользователя
+  - Console logging для отладки
+
+**Затронутые файлы:**
+- `web/templates/index.html` (строки 384-431)
+
+**Acceptance Criteria:**
+- ✅ Dropdown "Категория" заполняется корректно в обеих формах
+- ✅ При отсутствии категорий показывается warning toast
+- ✅ При ошибке загрузки показывается error toast
+- ✅ Console logs помогают в debugging
+
+---
+
+#### BUG-004: WebApp - "Ошибка загрузки ЦФО" при добавлении транзакции
+
+**Дата:** 2025-10-29
+**Приоритет:** CRITICAL
+**Категория:** webapp_api_client
+**Статус:** ✅ FIXED
+
+**Проблема:**
+В Telegram WebApp на странице добавления транзакции (открывается через FAB) dropdown "Центр финансовой ответственности (ЦФО)" показывал "Ошибка загрузки ЦФО".
+
+**Console Errors:**
+```
+add.html:535 Failed to load financial centers: TypeError: app.api.get is not a function
+    at loadFinancialCenters (add.html:510:46)
+    at window.pageInit (add.html:317:19)
+
+add.html:569 Failed to load cost centers: TypeError: app.api.get is not a function
+    at loadCostCenters (add.html:544:46)
+    at window.pageInit (add.html:318:19)
+```
+
+**Root Cause:**
+- Файл: `bot/webapp/static/js/api.js`
+- Класс `APIClient` НЕ имел метода `get()`
+- Файл `bot/webapp/add.html` строки 510 и 544 вызывали несуществующий метод:
+  ```javascript
+  const result = await app.api.get('/api/v1/financial-centers', { limit: 1000 });
+  const result = await app.api.get('/api/v1/cost-centers', { limit: 1000 });
+  ```
+- Доступные методы: только `request()`, `listFacts()`, `createFact()`, и т.д.
+
+**Решение:**
+1. Добавлен метод `get()` в `APIClient` класс (api.js:72-89):
+   ```javascript
+   /**
+    * Generic GET request helper.
+    *
+    * @param {string} endpoint - Full endpoint path (e.g., '/api/v1/financial-centers')
+    * @param {Object} params - Query parameters
+    * @returns {Promise<any>} Response data
+    * @throws {APIError} On HTTP error
+    */
+   async get(endpoint, params = {}) {
+       // Remove /api/v1 prefix if present (request() adds it automatically)
+       const cleanEndpoint = endpoint.replace(/^\/api\/v1/, '');
+
+       // Build query string
+       const query = new URLSearchParams(params).toString();
+       const fullEndpoint = query ? `${cleanEndpoint}?${query}` : cleanEndpoint;
+
+       return this.request(fullEndpoint);
+   }
+   ```
+
+2. Улучшен error handling в `add.html` (строки 534-573):
+   - Для ЦФО (обязательное поле): показывается user-friendly ошибка через `app.ui.showError()`
+   - Для МВЗ (опциональное поле): только console warning, без уведомления пользователя
+
+**Затронутые файлы:**
+- `bot/webapp/static/js/api.js` (строки 72-89) - добавлен метод `get()`
+- `bot/webapp/add.html` (строки 537, 573) - улучшен error handling
+
+**Acceptance Criteria:**
+- ✅ Метод `app.api.get()` существует и работает корректно
+- ✅ Dropdown "ЦФО" заполняется списком центров
+- ✅ Dropdown "МВЗ" заполняется списком центров
+- ✅ Нет ошибок в консоли браузера
+- ✅ User-friendly сообщения при ошибках загрузки
+
+---
+
+#### BUG-005: Web UI - Month input отображает английские названия месяцев
+
+**Дата:** 2025-10-29
+**Приоритет:** MEDIUM
+**Категория:** web_ui_localization
+**Статус:** ✅ FIXED
+
+**Проблема:**
+На странице https://budget-dev.ikeniborn.ru/ в модальном окне "Добавить план" поле "Период (месяц)" отображало английское название месяца "October 2025" вместо русского "Октябрь 2025".
+
+**Root Cause:**
+- Файл: `web/templates/index.html`, строка 257 (в HTML template)
+- Использовался нативный HTML5 `<input type="month">`
+- Браузеры используют СВОЮ локализацию (зависит от настроек браузера/ОС)
+- НЕТ стандартного способа принудительно задать язык для `type="month"`
+- Атрибут `lang="ru"` НЕ влияет на отображение month picker
+
+**Решение:**
+Добавлен JavaScript для динамического обновления label с русским названием месяца (index.html:303-334):
+
+```javascript
+// Локализация month input - отображение русского названия месяца в label
+const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+                   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+
+const updateMonthLabel = () => {
+    if (!planMonthInput.value) return;
+
+    const [year, month] = planMonthInput.value.split('-');
+    const monthIndex = parseInt(month) - 1;
+
+    // Найти label родительского form-control
+    const formControl = planMonthInput.closest('.form-control');
+    if (formControl) {
+        const label = formControl.querySelector('.label-text');
+        if (label) {
+            label.textContent = `Период (${monthNames[monthIndex]} ${year})`;
+        }
+    }
+};
+
+// Обновить label при смене месяца
+planMonthInput.addEventListener('change', updateMonthLabel);
+
+// Инициализировать label сразу
+updateMonthLabel();
+```
+
+**Поведение:**
+- Нативный `<input type="month">` остаётся как есть (может показывать "October 2025")
+- Label над полем обновляется на "Период (Октябрь 2025)"
+- При смене месяца label автоматически обновляется с новым русским названием
+- При открытии модалки label инициализируется с текущим значением
+
+**Затронутые файлы:**
+- `web/templates/index.html` (строки 303-334)
+
+**Acceptance Criteria:**
+- ✅ Label отображает русское название месяца
+- ✅ При смене месяца label обновляется автоматически
+- ✅ При открытии модалки label корректен
+- ✅ Не требуется сторонних библиотек
+
+**Альтернативные варианты (НЕ реализованы):**
+- Вариант Б: Использовать custom date picker с полной русской локализацией (требует библиотеки)
+- Вариант В: Использовать два отдельных select (месяц + год) вместо month input
+
+---
+
+#### BUG-006: Общее улучшение error handling в UI
+
+**Дата:** 2025-10-29
+**Приоритет:** MEDIUM
+**Категория:** ux_improvements
+**Статус:** ✅ IMPLEMENTED (в рамках BUG-003, BUG-004)
+
+**Описание:**
+В рамках исправления BUG-003, BUG-004, BUG-005 добавлены улучшения error handling:
+
+1. **Web UI (index.html):**
+   - Console warnings при HTTP ошибках
+   - Console warnings при пустых массивах данных
+   - Toast уведомления для пользователя (success/error/warning)
+   - Logging для debugging
+
+2. **WebApp (add.html):**
+   - User-friendly ошибки через `app.ui.showError()` для критических полей (ЦФО)
+   - Console warnings для опциональных полей (МВЗ)
+   - Graceful fallback при ошибках API
+
+**Acceptance Criteria:**
+- ✅ Пользователь видит понятные сообщения об ошибках
+- ✅ Ошибки не блокируют работу приложения полностью
+- ✅ Console logs помогают в debugging
+- ✅ Различное поведение для обязательных и опциональных полей
+
+---
+

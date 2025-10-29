@@ -299,6 +299,38 @@ document.addEventListener('DOMContentLoaded', function() {
     if (planMonthInput) {
         const now = new Date();
         planMonthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+        // Локализация month input - отображение русского названия месяца в label
+        const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+                           'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+
+        const updateMonthLabel = () => {
+            if (!planMonthInput.value) return;
+
+            const [year, month] = planMonthInput.value.split('-');
+            const monthIndex = parseInt(month) - 1;
+
+            // Найти label родительского form-control
+            const formControl = planMonthInput.closest('.form-control');
+            if (formControl) {
+                const label = formControl.querySelector('.label-text');
+                if (label) {
+                    label.textContent = `Период (${monthNames[monthIndex]} ${year})`;
+                }
+            }
+        };
+
+        // Обновить label при смене месяца
+        planMonthInput.addEventListener('change', updateMonthLabel);
+
+        // Обновить label при открытии модалки (при текущем значении)
+        const modal = document.getElementById('modal_add_plan');
+        if (modal) {
+            modal.addEventListener('show', updateMonthLabel);
+        }
+
+        // Инициализировать label сразу
+        updateMonthLabel();
     }
 
     // Обработчик отправки формы транзакции
@@ -385,9 +417,20 @@ document.addEventListener('DOMContentLoaded', function() {
 async function loadCategories() {
     try {
         const response = await fetch('/api/v1/articles?is_current=true');
-        if (!response.ok) return;
+        if (!response.ok) {
+            console.warn('Failed to fetch categories: HTTP', response.status);
+            showToast('Не удалось загрузить список категорий', 'error');
+            return;
+        }
 
-        const categories = await response.json();
+        const data = await response.json();
+        const categories = data.articles || [];
+
+        if (categories.length === 0) {
+            console.warn('No categories returned from API');
+            showToast('Список категорий пуст. Пожалуйста, создайте категории в справочнике.', 'warning');
+            return;
+        }
 
         // Заполнить select в обеих формах
         const selects = [
@@ -411,8 +454,11 @@ async function loadCategories() {
                 select.appendChild(option);
             });
         });
+
+        console.log(`Loaded ${categories.length} categories`);
     } catch (error) {
         console.error('Failed to load categories:', error);
+        showToast('Ошибка при загрузке категорий', 'error');
     }
 }
 

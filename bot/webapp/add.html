@@ -534,6 +534,7 @@
             } catch (error) {
                 console.error('Failed to load financial centers:', error);
                 select.innerHTML = '<option value="">Ошибка загрузки ЦФО</option>';
+                app.ui.showError('Не удалось загрузить список ЦФО. Попробуйте перезагрузить страницу.');
             }
         }
 
@@ -568,6 +569,8 @@
             } catch (error) {
                 console.error('Failed to load cost centers:', error);
                 select.innerHTML = '<option value="">-- Не выбрано --</option>';
+                // МВЗ опциональны, поэтому ошибку не показываем пользователю
+                console.warn('Cost centers are optional - continuing without them');
             }
         }
 
