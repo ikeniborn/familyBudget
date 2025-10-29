@@ -968,19 +968,54 @@ check_and_repair_postgres_data() {
     done
     echo ""
 
-    # Automatically repair
-    info "Automatically repairing PostgreSQL data directory structure..."
-    echo ""
-
-    # Create backup before repair
-    info "Creating backup before repair..."
-    local backup_file="$HOME/postgres_data_backup_before_repair_$(date +%Y%m%d_%H%M%S).tar.gz"
-
+    # Create backup before any modifications
+    info "Creating backup before modifications..."
+    local backup_file="$HOME/postgres_data_backup_$(date +%Y%m%d_%H%M%S).tar.gz"
     if sudo tar -czf "$backup_file" -C "$DEPLOY_DIR/data" postgres/ 2>/dev/null; then
         success "Backup created: $backup_file"
     else
         warning "Failed to create backup (continuing anyway)"
     fi
+    echo ""
+
+    # If severely corrupted (missing 50%+ directories), better to recreate
+    local total_dirs=${#required_dirs[@]}
+    local missing_count=${#missing_dirs[@]}
+    local corruption_percent=$((missing_count * 100 / total_dirs))
+
+    if [[ $corruption_percent -ge 50 ]]; then
+        warning "Corruption level: $corruption_percent% ($missing_count of $total_dirs directories missing)"
+        warning "Directory is severely corrupted - recreation recommended"
+        echo ""
+
+        # Check if there's any real user data worth preserving
+        local has_user_data=false
+        if [[ -d "$postgres_data_dir/base" ]] && [[ -n "$(ls -A "$postgres_data_dir/base" 2>/dev/null)" ]]; then
+            has_user_data=true
+        fi
+
+        if [[ "$has_user_data" == "false" ]]; then
+            info "No user databases found - safe to recreate"
+            info "Deleting corrupted directory and allowing PostgreSQL to initialize fresh..."
+            echo ""
+
+            # Delete corrupted directory
+            if sudo rm -rf "$postgres_data_dir"/* 2>/dev/null; then
+                success "Corrupted directory deleted"
+                info "PostgreSQL will initialize clean structure on first start"
+                return 0
+            else
+                error "Failed to delete corrupted directory"
+                return 1
+            fi
+        else
+            warning "User databases detected - attempting repair to preserve data..."
+            echo ""
+        fi
+    fi
+
+    # Automatically repair (for minor corruption or when user data exists)
+    info "Attempting to repair PostgreSQL data directory structure..."
     echo ""
 
     # Create missing directories with correct ownership and permissions
