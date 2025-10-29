@@ -507,6 +507,16 @@ sync_mirror() {
         --exclude='*.pyc' \
         --exclude='node_modules/' \
         --exclude='docker-compose.networks.yml' \
+        --exclude='docs/' \
+        --exclude='setup.sh' \
+        --exclude='install.sh' \
+        --exclude='deploy.sh' \
+        --exclude='README.md' \
+        --exclude='START.md' \
+        --exclude='SKILLS.md' \
+        --exclude='.claude/' \
+        --exclude='.gitignore' \
+        --exclude='.git*' \
         "$repo_dir/" "$DEPLOY_DIR/" 2>/dev/null | grep -v "/$" | grep -v "^sending\|^sent\|^total" | head -20
 
     echo ""
@@ -528,6 +538,16 @@ sync_mirror() {
         --exclude='*.pyc' \
         --exclude='node_modules/' \
         --exclude='docker-compose.networks.yml' \
+        --exclude='docs/' \
+        --exclude='setup.sh' \
+        --exclude='install.sh' \
+        --exclude='deploy.sh' \
+        --exclude='README.md' \
+        --exclude='START.md' \
+        --exclude='SKILLS.md' \
+        --exclude='.claude/' \
+        --exclude='.gitignore' \
+        --exclude='.git*' \
         "$repo_dir/" "$DEPLOY_DIR/" >> "$LOG_FILE" 2>&1; then
         success "Code synced successfully (mirror mode)"
         return 0
@@ -558,6 +578,16 @@ sync_update() {
         --exclude='*.pyc' \
         --exclude='node_modules/' \
         --exclude='docker-compose.networks.yml' \
+        --exclude='docs/' \
+        --exclude='setup.sh' \
+        --exclude='install.sh' \
+        --exclude='deploy.sh' \
+        --exclude='README.md' \
+        --exclude='START.md' \
+        --exclude='SKILLS.md' \
+        --exclude='.claude/' \
+        --exclude='.gitignore' \
+        --exclude='.git*' \
         "$repo_dir/" "$DEPLOY_DIR/" 2>/dev/null | grep -v "/$" | grep -v "^sending\|^sent\|^total" | head -20
 
     echo ""
@@ -580,6 +610,16 @@ sync_update() {
         --exclude='*.pyc' \
         --exclude='node_modules/' \
         --exclude='docker-compose.networks.yml' \
+        --exclude='docs/' \
+        --exclude='setup.sh' \
+        --exclude='install.sh' \
+        --exclude='deploy.sh' \
+        --exclude='README.md' \
+        --exclude='START.md' \
+        --exclude='SKILLS.md' \
+        --exclude='.claude/' \
+        --exclude='.gitignore' \
+        --exclude='.git*' \
         "$repo_dir/" "$DEPLOY_DIR/" >> "$LOG_FILE" 2>&1; then
         error "Failed to sync code. Check $LOG_FILE for details."
         return 1
@@ -603,6 +643,16 @@ sync_update() {
         ! -path "./__pycache__/*" \
         ! -path "./node_modules/*" \
         ! -path "./docker-compose.networks.yml" \
+        ! -path "./docs/*" \
+        ! -name "setup.sh" \
+        ! -name "install.sh" \
+        ! -name "deploy.sh" \
+        ! -name "README.md" \
+        ! -name "START.md" \
+        ! -name "SKILLS.md" \
+        ! -path "./.claude/*" \
+        ! -name ".gitignore" \
+        ! -name ".git*" \
         2>/dev/null | sed 's|^./||' | sort) > "$temp_repo_list"
 
     # Generate list of files in deploy directory
@@ -616,6 +666,16 @@ sync_update() {
         ! -path "./__pycache__/*" \
         ! -path "./node_modules/*" \
         ! -path "./docker-compose.networks.yml" \
+        ! -path "./docs/*" \
+        ! -name "setup.sh" \
+        ! -name "install.sh" \
+        ! -name "deploy.sh" \
+        ! -name "README.md" \
+        ! -name "START.md" \
+        ! -name "SKILLS.md" \
+        ! -path "./.claude/*" \
+        ! -name ".gitignore" \
+        ! -name ".git*" \
         2>/dev/null | sed 's|^./||' | sort) > "$temp_deploy_list"
 
     # Find orphaned files (in deploy but not in repo)
@@ -1647,6 +1707,14 @@ wait_for_services() {
 # Run database migrations
 run_migrations() {
     if [[ "$RUN_MIGRATIONS" == "true" ]]; then
+        # Skip migrations if PostgreSQL was not restarted (prevents applying migrations to running production DB)
+        if [[ "${POSTGRES_WAS_STOPPED}" == "false" ]]; then
+            info "Skipping migrations (PostgreSQL was not restarted during smart cleanup)"
+            warning "Migrations can corrupt running database or cause schema inconsistency"
+            info "To force migrations: use --force-migrate flag or restart PostgreSQL with cleanup option [3]"
+            return 0
+        fi
+
         step "Running database migrations..."
 
         # Check if postgres service is healthy
