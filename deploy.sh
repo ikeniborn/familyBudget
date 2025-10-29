@@ -811,6 +811,33 @@ cleanup_containers_networks() {
     success "Safe cleanup completed (data volumes preserved)"
 }
 
+# Selective cleanup - restart only app services (KEEPS PostgreSQL running)
+cleanup_selective() {
+    info "Selective restart - stopping only app services (PostgreSQL stays running)..."
+    echo ""
+
+    # Stop and remove only app containers (NOT postgres)
+    local app_containers=("familybudget-backend" "familybudget-bot" "familybudget-nginx")
+
+    for container in "${app_containers[@]}"; do
+        if docker ps -a --format "{{.Names}}" 2>/dev/null | grep -q "^${container}$"; then
+            info "Stopping $container..."
+            docker stop "$container" >> "$LOG_FILE" 2>&1 || true
+            info "Removing $container..."
+            docker rm "$container" >> "$LOG_FILE" 2>&1 || true
+        fi
+    done
+
+    # Keep PostgreSQL container running
+    if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^familybudget-postgres$"; then
+        success "PostgreSQL container kept running (no restart)"
+    else
+        warning "PostgreSQL container not found - will be started with full deployment"
+    fi
+
+    success "Selective cleanup completed (PostgreSQL preserved)"
+}
+
 # Initialize PostgreSQL data directory with correct permissions
 initialize_postgres_directory() {
     local postgres_data_dir="$DEPLOY_DIR/data/postgres"
@@ -1133,11 +1160,14 @@ cleanup_old_deployment() {
     echo "Choose cleanup action:"
     echo "  [1] Skip - deploy alongside old deployment (may cause subnet conflicts)"
     echo "  [2] Safe cleanup - stop & remove containers + networks (KEEPS data)"
-    echo "  [3] Full cleanup - containers + networks + volumes (DELETES ALL DATA!)"
+    echo "  [3] Selective restart - restart only app services (KEEPS PostgreSQL running)"
+    echo "      ✓ Use for frontend/backend/bot updates"
+    echo "      ✓ Prevents PostgreSQL corruption from improper shutdown"
+    echo "  [4] Full cleanup - containers + networks + volumes (DELETES ALL DATA!)"
     echo "      ⚠️  Requires sudo/root privileges"
     echo ""
 
-    read -p "Select [1-3]: " choice
+    read -p "Select [1-4]: " choice
     echo ""
 
     case $choice in
@@ -1149,10 +1179,13 @@ cleanup_old_deployment() {
             cleanup_containers_networks
             ;;
         3)
+            cleanup_selective
+            ;;
+        4)
             cleanup_full
             ;;
         *)
-            error "Invalid choice. Please select 1, 2, or 3."
+            error "Invalid choice. Please select 1-4."
             ;;
     esac
 }

@@ -91,15 +91,35 @@ ruff check . && black . && mypy .    # Quality checks
    - Изменения применяются **сразу** (без пересборки)
    - Но требуется очистка кэша браузера (Ctrl+F5)
 
-2. **Python код** (backend/, bot/)
+2. **Python код** (backend/, bot/) - БЕЗ изменений БД
    - Требуется **пересборка образа** и **перезапуск контейнеров**
+   - **ВАЖНО:** Используйте **Selective restart (опция [3])** чтобы НЕ останавливать PostgreSQL
    ```bash
-   cd /opt/budget
-   ./deploy.sh --build --sync-mode skip
+   cd ~/familyBudget && git pull
+   sudo bash deploy.sh
+   # Выбрать sync mode: [2] Update only
+   # Выбрать cleanup: [3] Selective restart ✓
    ```
 
-3. **Docker конфигурация** (docker-compose.yml, Dockerfile)
+3. **DB schema изменения** (миграции, новые таблицы)
+   - Требуется **полный перезапуск** с PostgreSQL
+   ```bash
+   cd ~/familyBudget && git pull
+   sudo bash deploy.sh
+   # Выбрать sync mode: [2] Update only
+   # Выбрать cleanup: [2] Safe cleanup (полная остановка)
+   ```
+
+4. **Docker конфигурация** (docker-compose.yml, Dockerfile)
    - Требуется **пересборка** и **перезапуск**
+
+**Deployment стратегии:**
+
+| Изменения | Cleanup опция | PostgreSQL | Downtime |
+|-----------|---------------|------------|----------|
+| Frontend/Bot/Backend код | [3] Selective restart | Продолжает работать ✓ | ~10 сек |
+| DB schema / Миграции | [2] Safe cleanup | Перезапускается | ~30 сек |
+| Полная очистка данных | [4] Full cleanup | Удаляется ⚠️ | - |
 
 **Логи контейнеров:**
 ```bash
