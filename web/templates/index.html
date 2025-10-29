@@ -168,6 +168,19 @@
                 </div>
             </div>
 
+            <!-- Quick Amount Buttons -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">Быстрый выбор суммы</span>
+                </label>
+                <div class="grid grid-cols-4 gap-2">
+                    <button type="button" class="btn btn-sm btn-outline" onclick="setTransactionAmount(100)">100 ₽</button>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="setTransactionAmount(500)">500 ₽</button>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="setTransactionAmount(1000)">1000 ₽</button>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="setTransactionAmount(5000)">5000 ₽</button>
+                </div>
+            </div>
+
             <!-- Сумма -->
             <div class="form-control">
                 <label class="label">
@@ -180,10 +193,30 @@
             <!-- Категория -->
             <div class="form-control">
                 <label class="label">
-                    <span class="label-text">Категория</span>
+                    <span class="label-text">Категория *</span>
                 </label>
                 <select name="article_id" required class="select select-bordered">
                     <option value="">-- Выберите категорию --</option>
+                </select>
+            </div>
+
+            <!-- Центр финансовой ответственности (ЦФО) -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">Центр финансовой ответственности (ЦФО) *</span>
+                </label>
+                <select name="financial_center_id" required class="select select-bordered">
+                    <option value="">-- Выберите ЦФО --</option>
+                </select>
+            </div>
+
+            <!-- Место возникновения затрат (МВЗ) -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">Место возникновения затрат (МВЗ)</span>
+                </label>
+                <select name="cost_center_id" class="select select-bordered">
+                    <option value="">-- Не выбрано --</option>
                 </select>
             </div>
 
@@ -192,6 +225,11 @@
                 <label class="label">
                     <span class="label-text">Дата</span>
                 </label>
+                <!-- Quick Date Shortcuts -->
+                <div class="grid grid-cols-2 gap-2 mb-2">
+                    <button type="button" class="btn btn-sm btn-outline" onclick="setTransactionDate(0)">Сегодня</button>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="setTransactionDate(-1)">Вчера</button>
+                </div>
                 <input type="date" name="fact_date" required
                        class="input input-bordered" />
             </div>
@@ -230,6 +268,19 @@
         <h3 class="font-bold text-lg mb-4">📝 Добавить план</h3>
 
         <form id="form_add_plan" class="space-y-4">
+            <!-- Quick Amount Buttons -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">Быстрый выбор суммы</span>
+                </label>
+                <div class="grid grid-cols-4 gap-2">
+                    <button type="button" class="btn btn-sm btn-outline" onclick="setPlanAmount(5000)">5000 ₽</button>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="setPlanAmount(10000)">10 000 ₽</button>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="setPlanAmount(20000)">20 000 ₽</button>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="setPlanAmount(50000)">50 000 ₽</button>
+                </div>
+            </div>
+
             <!-- Сумма -->
             <div class="form-control">
                 <label class="label">
@@ -242,10 +293,30 @@
             <!-- Категория -->
             <div class="form-control">
                 <label class="label">
-                    <span class="label-text">Категория</span>
+                    <span class="label-text">Категория *</span>
                 </label>
                 <select name="article_id" required class="select select-bordered">
                     <option value="">-- Выберите категорию --</option>
+                </select>
+            </div>
+
+            <!-- Центр финансовой ответственности (ЦФО) -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">Центр финансовой ответственности (ЦФО) *</span>
+                </label>
+                <select name="financial_center_id" required class="select select-bordered">
+                    <option value="">-- Выберите ЦФО --</option>
+                </select>
+            </div>
+
+            <!-- Место возникновения затрат (МВЗ) -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">Место возникновения затрат (МВЗ)</span>
+                </label>
+                <select name="cost_center_id" class="select select-bordered">
+                    <option value="">-- Не выбрано --</option>
                 </select>
             </div>
 
@@ -283,10 +354,23 @@
     </form>
 </dialog>
 
+<!-- CategoryTreeSelect Component -->
+<script src="/static/js/categoryTreeSelect.js"></script>
+
 <script>
+// Глобальные переменные для CategoryTreeSelect
+let allCategories = [];
+let transactionCategoryTreeSelect = null;
+let planCategoryTreeSelect = null;
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Загрузить категории для обеих форм
+    // Загрузить категории, ЦФО и МВЗ для обеих форм
     loadCategories();
+    loadFinancialCenters();
+    loadCostCenters();
+
+    // Добавить event listeners для динамической перезагрузки категорий при смене типа транзакции
+    setupTransactionTypeListeners();
 
     // Установить текущую дату для транзакции
     const factDateInput = document.querySelector('#form_add_transaction input[name="fact_date"]');
@@ -338,13 +422,19 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
 
         const formData = new FormData(e.target);
+
+        // Получить cost_center_id (опциональное поле)
+        const costCenterId = formData.get('cost_center_id');
+
         const data = {
             record_type: 'fact',
             transaction_type: formData.get('record_type'),
             amount: parseFloat(formData.get('amount')),
             article_id: parseInt(formData.get('article_id')),
             fact_date: formData.get('fact_date'),
-            description: formData.get('description') || null
+            description: formData.get('description') || null,
+            financial_center_id: parseInt(formData.get('financial_center_id')),
+            cost_center_id: costCenterId ? parseInt(costCenterId) : null
         };
 
         try {
@@ -381,13 +471,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const [year, month] = planMonth.split('-');
         const planDate = `${year}-${month}-01`; // Первый день месяца
 
+        // Получить cost_center_id (опциональное поле)
+        const costCenterId = formData.get('cost_center_id');
+
         const data = {
             record_type: 'plan',
             transaction_type: 'expense', // Планы обычно для расходов
             amount: parseFloat(formData.get('amount')),
             article_id: parseInt(formData.get('article_id')),
             fact_date: planDate,
-            description: formData.get('description') || null
+            description: formData.get('description') || null,
+            financial_center_id: parseInt(formData.get('financial_center_id')),
+            cost_center_id: costCenterId ? parseInt(costCenterId) : null
         };
 
         try {
@@ -416,7 +511,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Загрузить список категорий
 async function loadCategories() {
     try {
-        const response = await fetch('/api/v1/articles?is_current=true');
+        const response = await fetch('/api/v1/articles?is_current=true&limit=1000');
         if (!response.ok) {
             console.warn('Failed to fetch categories: HTTP', response.status);
             showToast('Не удалось загрузить список категорий', 'error');
@@ -424,18 +519,106 @@ async function loadCategories() {
         }
 
         const data = await response.json();
-        const categories = data.articles || [];
+        allCategories = data.articles || [];
 
-        if (categories.length === 0) {
+        if (allCategories.length === 0) {
             console.warn('No categories returned from API');
             showToast('Список категорий пуст. Пожалуйста, создайте категории в справочнике.', 'warning');
             return;
         }
 
+        console.log(`Loaded ${allCategories.length} categories`);
+
+        // Инициализировать CategoryTreeSelect для формы транзакции
+        const transactionSelect = document.querySelector('#form_add_transaction select[name="article_id"]');
+        if (transactionSelect) {
+            // Получить текущий тип транзакции (expense/income)
+            const transactionType = document.querySelector('#form_add_transaction input[name="record_type"]:checked')?.value || 'expense';
+            const filterType = transactionType; // 'expense' или 'income'
+
+            transactionCategoryTreeSelect = new CategoryTreeSelect(transactionSelect, allCategories, {
+                emptyOptionText: '-- Выберите категорию --',
+                showEmptyOption: true,
+                filterType: filterType,
+                indentChar: '›  ',
+                parentPrefix: '📁',
+                leafPrefix: '📄'
+            });
+            transactionCategoryTreeSelect.render();
+        }
+
+        // Инициализировать CategoryTreeSelect для формы плана
+        const planSelect = document.querySelector('#form_add_plan select[name="article_id"]');
+        if (planSelect) {
+            // Планы обычно только для расходов
+            planCategoryTreeSelect = new CategoryTreeSelect(planSelect, allCategories, {
+                emptyOptionText: '-- Выберите категорию --',
+                showEmptyOption: true,
+                filterType: 'expense',
+                indentChar: '›  ',
+                parentPrefix: '📁',
+                leafPrefix: '📄'
+            });
+            planCategoryTreeSelect.render();
+        }
+    } catch (error) {
+        console.error('Failed to load categories:', error);
+        showToast('Ошибка при загрузке категорий', 'error');
+    }
+}
+
+// Настроить event listeners для смены типа транзакции
+function setupTransactionTypeListeners() {
+    const transactionTypeRadios = document.querySelectorAll('#form_add_transaction input[name="record_type"]');
+
+    transactionTypeRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (!transactionCategoryTreeSelect || allCategories.length === 0) return;
+
+            const transactionType = this.value; // 'expense' или 'income'
+            const select = document.querySelector('#form_add_transaction select[name="article_id"]');
+
+            if (select) {
+                // Пересоздать CategoryTreeSelect с новым фильтром
+                transactionCategoryTreeSelect = new CategoryTreeSelect(select, allCategories, {
+                    emptyOptionText: '-- Выберите категорию --',
+                    showEmptyOption: true,
+                    filterType: transactionType,
+                    indentChar: '›  ',
+                    parentPrefix: '📁',
+                    leafPrefix: '📄'
+                });
+                transactionCategoryTreeSelect.render();
+
+                console.log(`Reloaded categories for type: ${transactionType}`);
+            }
+        });
+    });
+}
+
+// Загрузить список ЦФО (Центров финансовой ответственности)
+async function loadFinancialCenters() {
+    try {
+        const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true&is_current=true');
+        if (!response.ok) {
+            console.warn('Failed to fetch financial centers: HTTP', response.status);
+            showToast('Не удалось загрузить список ЦФО', 'error');
+            return;
+        }
+
+        const data = await response.json();
+        const centers = data.financial_centers || [];
+
+        if (centers.length === 0) {
+            console.warn('No financial centers returned from API');
+            showToast('Список ЦФО пуст. Пожалуйста, создайте ЦФО в справочнике.', 'warning');
+            return;
+        }
+
         // Заполнить select в обеих формах
         const selects = [
-            document.querySelector('#form_add_transaction select[name="article_id"]'),
-            document.querySelector('#form_add_plan select[name="article_id"]')
+            document.querySelector('#form_add_transaction select[name="financial_center_id"]'),
+            document.querySelector('#form_add_plan select[name="financial_center_id"]')
         ];
 
         selects.forEach(select => {
@@ -446,19 +629,70 @@ async function loadCategories() {
                 select.remove(1);
             }
 
-            // Добавить категории
-            categories.forEach(cat => {
+            // Добавить ЦФО
+            centers.forEach(fc => {
                 const option = document.createElement('option');
-                option.value = cat.id;
-                option.textContent = cat.name;
+                option.value = fc.id;
+                option.textContent = fc.name + (fc.is_global ? ' (Общий)' : '');
                 select.appendChild(option);
             });
         });
 
-        console.log(`Loaded ${categories.length} categories`);
+        console.log(`Loaded ${centers.length} financial centers`);
     } catch (error) {
-        console.error('Failed to load categories:', error);
-        showToast('Ошибка при загрузке категорий', 'error');
+        console.error('Failed to load financial centers:', error);
+        showToast('Ошибка при загрузке ЦФО', 'error');
+    }
+}
+
+// Загрузить список МВЗ (Мест возникновения затрат)
+async function loadCostCenters() {
+    try {
+        const response = await fetch('/api/v1/cost-centers?limit=1000&include_global=true&is_current=true');
+        if (!response.ok) {
+            console.warn('Failed to fetch cost centers: HTTP', response.status);
+            // МВЗ опциональное поле, не показываем error toast
+            console.log('Cost centers not loaded - this is optional');
+            return;
+        }
+
+        const data = await response.json();
+        const centers = data.cost_centers || [];
+
+        // МВЗ опциональное, пустой список не критичен
+        if (centers.length === 0) {
+            console.log('No cost centers available - this is optional');
+            return;
+        }
+
+        // Заполнить select в обеих формах
+        const selects = [
+            document.querySelector('#form_add_transaction select[name="cost_center_id"]'),
+            document.querySelector('#form_add_plan select[name="cost_center_id"]')
+        ];
+
+        selects.forEach(select => {
+            if (!select) return;
+
+            // Очистить кроме первой опции ("-- Не выбрано --")
+            while (select.options.length > 1) {
+                select.remove(1);
+            }
+
+            // Добавить МВЗ
+            centers.forEach(cc => {
+                const option = document.createElement('option');
+                option.value = cc.id;
+                option.textContent = cc.name + (cc.is_global ? ' (Общий)' : '');
+                select.appendChild(option);
+            });
+        });
+
+        console.log(`Loaded ${centers.length} cost centers`);
+    } catch (error) {
+        console.error('Failed to load cost centers:', error);
+        // Не показываем error toast, т.к. МВЗ опциональное поле
+        console.log('Cost centers error is non-critical');
     }
 }
 
@@ -476,6 +710,35 @@ function showToast(message, type = 'info') {
     setTimeout(() => {
         toast.remove();
     }, 3000);
+}
+
+// Quick Amount для формы транзакции
+function setTransactionAmount(value) {
+    const amountInput = document.querySelector('#form_add_transaction input[name="amount"]');
+    if (amountInput) {
+        amountInput.value = value.toFixed(2);
+        amountInput.focus();
+    }
+}
+
+// Quick Amount для формы плана
+function setPlanAmount(value) {
+    const amountInput = document.querySelector('#form_add_plan input[name="amount"]');
+    if (amountInput) {
+        amountInput.value = value.toFixed(2);
+        amountInput.focus();
+    }
+}
+
+// Quick Date для формы транзакции
+function setTransactionDate(daysOffset) {
+    const dateInput = document.querySelector('#form_add_transaction input[name="fact_date"]');
+    if (dateInput) {
+        const date = new Date();
+        date.setDate(date.getDate() + daysOffset);
+        dateInput.value = date.toISOString().split('T')[0];
+        dateInput.focus();
+    }
 }
 </script>
 
