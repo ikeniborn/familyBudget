@@ -958,6 +958,7 @@ check_and_repair_postgres_data() {
     step "Checking PostgreSQL data directory integrity..."
 
     # List of required system directories for PostgreSQL 16
+    # Including subdirectories that must exist for proper operation
     local required_dirs=(
         "pg_commit_ts"
         "pg_dynshmem"
@@ -969,6 +970,8 @@ check_and_repair_postgres_data() {
         "pg_stat_tmp"
         "pg_tblspc"
         "pg_twophase"
+        "pg_logical/snapshots"
+        "pg_logical/mappings"
     )
 
     local missing_dirs=()
