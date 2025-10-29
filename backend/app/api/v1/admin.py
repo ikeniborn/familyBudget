@@ -14,7 +14,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.dependencies import CurrentAdmin, get_session
 from backend.app.models.article import Article
+from backend.app.models.cost_center import CostCenter
 from backend.app.models.fact import BudgetFact as Fact
+from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.user import User
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -614,8 +616,13 @@ class FactResponse(BaseModel):
     amount: float
     fact_date: str
     description: str | None
+    record_type: str
+    financial_center_id: int | None = None
+    cost_center_id: int | None = None
     user_name: str | None = None
     article_name: str | None = None
+    financial_center_name: str | None = None
+    cost_center_name: str | None = None
 
     class Config:
         from_attributes = True
@@ -637,6 +644,7 @@ async def get_all_facts(
     article_id: int | None = Query(None, description="Filter by article ID"),
     date_from: str | None = Query(None, description="Filter by date from (ISO format)"),
     date_to: str | None = Query(None, description="Filter by date to (ISO format)"),
+    record_type: str | None = Query(None, description="Filter by record type (fact or plan)"),
     limit: int = Query(50, ge=1, le=500, description="Results per page"),
     offset: int = Query(0, ge=0, description="Pagination offset")
 ):
@@ -660,11 +668,13 @@ async def get_all_facts(
     """
     from datetime import date
 
-    # Build query with joins
-    query = select(Fact, User, Article).join(
-        User, Fact.user_id == User.id
-    ).join(
-        Article, Fact.article_id == Article.id
+    # Build query with joins (including FinancialCenter and CostCenter)
+    query = (
+        select(Fact, User, Article, FinancialCenter, CostCenter)
+        .join(User, Fact.user_id == User.id)
+        .join(Article, Fact.article_id == Article.id)
+        .outerjoin(FinancialCenter, Fact.financial_center_id == FinancialCenter.id)
+        .outerjoin(CostCenter, Fact.cost_center_id == CostCenter.id)
     )
 
     # Apply filters
@@ -673,6 +683,9 @@ async def get_all_facts(
 
     if article_id is not None:
         query = query.where(Fact.article_id == article_id)
+
+    if record_type is not None:
+        query = query.where(Fact.record_type == record_type)
 
     if date_from is not None:
         try:
@@ -702,10 +715,15 @@ async def get_all_facts(
             amount=float(fact.amount),
             fact_date=fact.fact_date.isoformat(),
             description=fact.description,
+            record_type=fact.record_type,
+            financial_center_id=fact.financial_center_id,
+            cost_center_id=fact.cost_center_id,
             user_name=user.username if user else None,
-            article_name=article.name if article else None
+            article_name=article.name if article else None,
+            financial_center_name=financial_center.name if financial_center else None,
+            cost_center_name=cost_center.name if cost_center else None
         )
-        for fact, user, article in rows
+        for fact, user, article, financial_center, cost_center in rows
     ]
 
 
@@ -716,7 +734,8 @@ async def get_facts_count(
     user_id: int | None = Query(None, description="Filter by user ID"),
     article_id: int | None = Query(None, description="Filter by article ID"),
     date_from: str | None = Query(None, description="Filter by date from (ISO format)"),
-    date_to: str | None = Query(None, description="Filter by date to (ISO format)")
+    date_to: str | None = Query(None, description="Filter by date to (ISO format)"),
+    record_type: str | None = Query(None, description="Filter by record type (fact or plan)")
 ):
     """
     Get total facts count with filters (admin only).
@@ -744,6 +763,9 @@ async def get_facts_count(
 
     if article_id is not None:
         query = query.where(Fact.article_id == article_id)
+
+    if record_type is not None:
+        query = query.where(Fact.record_type == record_type)
 
     if date_from is not None:
         try:
@@ -832,7 +854,7 @@ async def update_fact(
     await session.commit()
     await session.refresh(fact)
 
-    # Get user and article for response
+    # Get user, article, financial center, and cost center for response
     user_query = select(User).where(User.id == fact.user_id)
     user_result = await session.execute(user_query)
     user = user_result.scalar_one_or_none()
@@ -841,6 +863,18 @@ async def update_fact(
     article_result = await session.execute(article_query)
     article = article_result.scalar_one_or_none()
 
+    financial_center = None
+    if fact.financial_center_id:
+        fc_query = select(FinancialCenter).where(FinancialCenter.id == fact.financial_center_id)
+        fc_result = await session.execute(fc_query)
+        financial_center = fc_result.scalar_one_or_none()
+
+    cost_center = None
+    if fact.cost_center_id:
+        cc_query = select(CostCenter).where(CostCenter.id == fact.cost_center_id)
+        cc_result = await session.execute(cc_query)
+        cost_center = cc_result.scalar_one_or_none()
+
     return FactResponse(
         id=fact.id,
         user_id=fact.user_id,
@@ -848,8 +882,13 @@ async def update_fact(
         amount=float(fact.amount),
         fact_date=fact.fact_date.isoformat(),
         description=fact.description,
+        record_type=fact.record_type,
+        financial_center_id=fact.financial_center_id,
+        cost_center_id=fact.cost_center_id,
         user_name=user.username if user else None,
-        article_name=article.name if article else None
+        article_name=article.name if article else None,
+        financial_center_name=financial_center.name if financial_center else None,
+        cost_center_name=cost_center.name if cost_center else None
     )
 
 
