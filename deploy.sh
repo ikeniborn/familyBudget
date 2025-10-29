@@ -913,7 +913,14 @@ cleanup_full() {
 
 # Check and repair PostgreSQL data directory structure
 check_and_repair_postgres_data() {
+    local sync_mode="${1:-}"
     local postgres_data_dir="$DEPLOY_DIR/data/postgres"
+
+    # Skip integrity check if clean sync was used (everything will be recreated)
+    if [[ "$sync_mode" == "clean" ]]; then
+        info "Skipping PostgreSQL integrity check (clean sync mode - will be initialized fresh)"
+        return 0
+    fi
 
     # Skip if data directory doesn't exist or is empty
     if [[ ! -d "$postgres_data_dir" ]] || [[ -z "$(ls -A "$postgres_data_dir" 2>/dev/null)" ]]; then
@@ -2351,8 +2358,8 @@ main() {
     cleanup_old_deployment
     echo ""
 
-    # Check and repair PostgreSQL data directory (if Safe cleanup was used)
-    check_and_repair_postgres_data
+    # Check and repair PostgreSQL data directory (skipped if clean sync was used)
+    check_and_repair_postgres_data "$SYNC_MODE"
     echo ""
 
     clean_deployment
