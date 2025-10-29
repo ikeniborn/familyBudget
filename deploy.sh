@@ -66,6 +66,11 @@ SYNC_MODE=""  # mirror|update|clean|skip (empty = interactive)
 REPO_DIR_OVERRIDE=""  # User-specified repository directory
 # Note: BUILD_IMAGES removed - now always enabled via 'docker compose up --build'
 
+# PostgreSQL state tracking (prevent race conditions)
+POSTGRES_WAS_STOPPED=true  # Track if PostgreSQL was stopped during cleanup
+# false = PostgreSQL kept running (selective restart) - skip integrity checks
+# true = PostgreSQL was stopped - safe to perform integrity checks
+
 # Service health check configuration
 MAX_WAIT_TIME=120  # Maximum wait time for services (seconds)
 CHECK_INTERVAL=5   # Interval between health checks (seconds)
@@ -122,6 +127,23 @@ check_root_privileges() {
         return 1
     fi
     return 0
+}
+
+# Check if PostgreSQL container is running
+is_postgres_running() {
+    docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^familybudget-postgres$"
+}
+
+# Check if PostgreSQL container is healthy
+is_postgres_healthy() {
+    local status=$(docker inspect --format='{{.State.Health.Status}}' familybudget-postgres 2>/dev/null || echo "none")
+    [[ "$status" == "healthy" ]]
+}
+
+# Recoverable error (does not exit, allows caller to handle)
+error_return() {
+    print_message "$RED" "[ERROR] $*"
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] [ERROR] $*" >> "$LOG_FILE"
 }
 
 # Print help message
@@ -808,6 +830,9 @@ cleanup_containers_networks() {
         success "Networks removed"
     fi
 
+    # Mark PostgreSQL as stopped for integrity checks
+    POSTGRES_WAS_STOPPED=true
+
     success "Safe cleanup completed (data volumes preserved)"
 }
 
@@ -829,10 +854,14 @@ cleanup_selective() {
     done
 
     # Keep PostgreSQL container running
-    if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^familybudget-postgres$"; then
+    if is_postgres_running; then
         success "PostgreSQL container kept running (no restart)"
+        # Mark PostgreSQL as NOT stopped - skip integrity checks to prevent race conditions
+        POSTGRES_WAS_STOPPED=false
     else
         warning "PostgreSQL container not found - will be started with full deployment"
+        # PostgreSQL not running - safe to perform integrity checks
+        POSTGRES_WAS_STOPPED=true
     fi
 
     success "Selective cleanup completed (PostgreSQL preserved)"
@@ -841,6 +870,13 @@ cleanup_selective() {
 # Initialize PostgreSQL data directory with correct permissions
 initialize_postgres_directory() {
     local postgres_data_dir="$DEPLOY_DIR/data/postgres"
+
+    # Skip if PostgreSQL is still running (selective restart - avoid conflicts)
+    if [[ "${POSTGRES_WAS_STOPPED}" == "false" ]]; then
+        info "Skipping PostgreSQL permissions verification (PostgreSQL is still running)"
+        info "Permissions will be verified after PostgreSQL stops"
+        return 0
+    fi
 
     # Detect current PostgreSQL UID from existing data (if any)
     # Default: 999:999 (Alpine Linux PostgreSQL)
@@ -956,6 +992,9 @@ cleanup_full() {
         fi
     fi
 
+    # Mark PostgreSQL as stopped
+    POSTGRES_WAS_STOPPED=true
+
     success "Full cleanup completed (ALL DATA DELETED)"
 }
 
@@ -967,6 +1006,14 @@ check_and_repair_postgres_data() {
     # Skip integrity check if clean sync was used (everything will be recreated)
     if [[ "$sync_mode" == "clean" ]]; then
         info "Skipping PostgreSQL integrity check (clean sync mode - will be initialized fresh)"
+        return 0
+    fi
+
+    # Skip if PostgreSQL was NOT stopped (selective restart - prevents race conditions)
+    if [[ "${POSTGRES_WAS_STOPPED}" == "false" ]]; then
+        info "Skipping PostgreSQL integrity check (PostgreSQL is still running)"
+        warning "Integrity check would cause race conditions with running database"
+        info "If you need to repair data, use cleanup option [2] or [4] to stop PostgreSQL first"
         return 0
     fi
 
@@ -2417,15 +2464,15 @@ main() {
     check_prerequisites_late
     echo ""
 
-    # Initialize PostgreSQL directory with correct permissions
-    initialize_postgres_directory
-    echo ""
-
-    # Check for old deployments and cleanup if needed
+    # Check for old deployments and cleanup if needed (sets POSTGRES_WAS_STOPPED flag)
     cleanup_old_deployment
     echo ""
 
-    # Check and repair PostgreSQL data directory (skipped if clean sync was used)
+    # Initialize PostgreSQL directory with correct permissions (skipped if PostgreSQL is running)
+    initialize_postgres_directory
+    echo ""
+
+    # Check and repair PostgreSQL data directory (skipped if PostgreSQL is running or clean sync)
     check_and_repair_postgres_data "$SYNC_MODE"
     echo ""
 
