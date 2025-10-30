@@ -22,23 +22,72 @@ from backend.app.core.config import get_settings
 from backend.app.models.user import User
 
 
-async def get_or_create_user(
+async def get_user_by_telegram_id(
+    session: AsyncSession,
+    telegram_id: int,
+) -> Optional[User]:
+    """
+    Get existing user by Telegram ID.
+
+    ⚠️ SECURITY CRITICAL FUNCTION ⚠️
+
+    This function only retrieves existing users from the database.
+    It does NOT create new users automatically.
+
+    New users must be created by administrators through the admin panel.
+    This prevents unauthorized access to the system.
+
+    Args:
+        session: Async database session
+        telegram_id: Telegram user ID (business key)
+
+    Returns:
+        Optional[User]: Current user record if found, None otherwise
+
+    Example:
+        >>> async with get_session() as session:
+        ...     user = await get_user_by_telegram_id(
+        ...         session=session,
+        ...         telegram_id=123456789
+        ...     )
+        ...     if user is None:
+        ...         raise HTTPException(403, "Access denied - user not registered")
+
+    Notes:
+        - Business key: telegram_id
+        - Only returns is_current=True users
+        - Returns None if user not found (no auto-creation)
+        - Admin must create users through admin panel
+    """
+    # Find current user version (only registered users)
+    statement = select(User).where(
+        User.telegram_id == telegram_id,
+        User.is_current == True  # noqa: E712
+    )
+    result = await session.execute(statement)
+    existing_user = result.scalar_one_or_none()
+
+    # Update last access timestamp if user exists
+    if existing_user is not None:
+        existing_user.updated_at = datetime.utcnow()
+        session.add(existing_user)
+        await session.flush()
+
+    return existing_user
+
+
+async def update_user_profile(
     session: AsyncSession,
     telegram_id: int,
     first_name: Optional[str],
     last_name: Optional[str],
     username: Optional[str],
-) -> User:
+) -> Optional[User]:
     """
-    Get existing user or create new user with SCD Type 2 pattern.
+    Update user profile data with SCD Type 2 pattern.
 
-    Implements the following logic:
-    1. Check if user with telegram_id exists (is_current=True)
-    2. If exists and data unchanged: Return existing user
-    3. If exists and data changed: Create new version (SCD2)
-       - Set old version: is_current=False, valid_to=now
-       - Create new version: is_current=True, valid_from=now
-    4. If not exists: Create new user
+    ⚠️ IMPORTANT: This function creates a new version when user data changes.
+    Use this ONLY when Telegram user profile is updated (rare event).
 
     Args:
         session: Async database session
@@ -48,71 +97,31 @@ async def get_or_create_user(
         username: Telegram username (optional)
 
     Returns:
-        User: Current user record (new or existing)
-
-    Example:
-        >>> async with get_session() as session:
-        ...     user = await get_or_create_user(
-        ...         session=session,
-        ...         telegram_id=123456789,
-        ...         first_name="John",
-        ...         last_name="Doe",
-        ...         username="johndoe"
-        ...     )
-        ...     print(f"User ID: {user.id}, Current: {user.is_current}")
+        Optional[User]: New version of user if updated, existing user if unchanged, None if not found
 
     Notes:
-        - Business key: telegram_id
-        - SCD2 pattern: valid_from, valid_to, is_current
+        - SCD Type 2 pattern: Creates new version when data changes
         - Old versions preserved for audit
-        - Changes trigger new version creation
+        - Only updates profile data, not permissions
     """
-    # Step 1: Find current user version
-    statement = select(User).where(
-        User.telegram_id == telegram_id,
-        User.is_current == True  # noqa: E712
-    )
-    result = await session.execute(statement)
-    existing_user = result.scalar_one_or_none()
+    # Get existing user
+    existing_user = await get_user_by_telegram_id(session, telegram_id)
 
-    # Step 2: If user doesn't exist, create new
     if existing_user is None:
-        # Check if user is admin (compare telegram_id with ADMIN_TELEGRAM_ID from settings)
-        settings = get_settings()
-        is_admin = (telegram_id == settings.ADMIN_TELEGRAM_ID)
+        return None
 
-        new_user = User(
-            telegram_id=telegram_id,
-            username=username,
-            first_name=first_name,
-            last_name=last_name,
-            is_admin=is_admin,  # Auto-detect admin based on ADMIN_TELEGRAM_ID
-            valid_from=datetime.utcnow(),
-            valid_to=datetime(9999, 12, 31, 23, 59, 59),
-            is_current=True,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-        )
-        session.add(new_user)
-        await session.flush()  # Get ID without committing transaction
-        return new_user
-
-    # Step 3: Check if user data changed
+    # Check if user data changed
     data_changed = (
         existing_user.username != username
         or existing_user.first_name != first_name
         or existing_user.last_name != last_name
     )
 
-    # Step 4: If data unchanged, return existing user
+    # If data unchanged, return existing user
     if not data_changed:
-        # Update timestamps
-        existing_user.updated_at = datetime.utcnow()
-        session.add(existing_user)
-        await session.flush()
         return existing_user
 
-    # Step 5: If data changed, create new version (SCD2)
+    # If data changed, create new version (SCD2)
     now = datetime.utcnow()
 
     # Close old version
@@ -121,17 +130,13 @@ async def get_or_create_user(
     existing_user.updated_at = now
     session.add(existing_user)
 
-    # Check if user is admin (in case ADMIN_TELEGRAM_ID changed in settings)
-    settings = get_settings()
-    is_admin = (telegram_id == settings.ADMIN_TELEGRAM_ID)
-
-    # Create new version
+    # Create new version (preserve is_admin status)
     new_version = User(
         telegram_id=telegram_id,
         username=username,
         first_name=first_name,
         last_name=last_name,
-        is_admin=is_admin,  # Re-check admin status against current settings
+        is_admin=existing_user.is_admin,  # Preserve admin status
         valid_from=now,
         valid_to=datetime(9999, 12, 31, 23, 59, 59),
         is_current=True,
