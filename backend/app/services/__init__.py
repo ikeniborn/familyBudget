@@ -9,7 +9,6 @@ This package contains business logic services organized by domain:
 - Hierarchy queries (Closure Table pattern)
 """
 
-from backend.app.services.auth_service import get_or_create_user
 from backend.app.services.hierarchy_service import (
     get_ancestors,
     get_depth,
@@ -36,7 +35,6 @@ __all__ = [
     "create_access_token",
     "decode_access_token",
     "validate_telegram_auth",
-    "get_or_create_user",
     # SCD Type 2 service
     "create_new_version",
     "get_current_version",
