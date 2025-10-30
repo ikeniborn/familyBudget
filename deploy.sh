@@ -959,10 +959,12 @@ categorize_file_changes() {
                 ;;
             web/*)
                 needs_backend_restart=true  # Backend serves web templates
+                needs_nginx_restart=true    # Nginx serves static files
                 ((count_backend_code++))
                 ;;
             bot/webapp/*)
                 needs_backend_restart=true  # Backend serves bot webapp
+                needs_nginx_restart=true    # Nginx may cache webapp files
                 ((count_backend_code++))
                 ;;
 
