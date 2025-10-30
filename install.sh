@@ -378,6 +378,9 @@ create_directories() {
     # Copy template files from repository
     info "Copying template files to deployment directory..."
 
+    # Get the username for ownership
+    local username="${SUDO_USER:-$USER}"
+
     # Verify we're running from the repository
     if [[ ! -f "$REPO_DIR/nginx/conf.d/app.conf.template" ]]; then
         warning "Nginx template not found in repository: $REPO_DIR/nginx/conf.d/app.conf.template"
@@ -386,6 +389,10 @@ create_directories() {
     else
         cp "$REPO_DIR/nginx/conf.d/app.conf.template" "$DEPLOY_DIR/nginx/conf.d/" || \
             warning "Failed to copy nginx template (setup.sh may fail)"
+        # Set correct ownership on copied file
+        if [[ "$username" != "root" ]]; then
+            chown "$username:$username" "$DEPLOY_DIR/nginx/conf.d/app.conf.template"
+        fi
         info "Copied: nginx/conf.d/app.conf.template"
     fi
 
@@ -395,6 +402,10 @@ create_directories() {
     else
         cp "$REPO_DIR/.env.example" "$DEPLOY_DIR/" || \
             warning "Failed to copy .env.example (setup.sh may fail)"
+        # Set correct ownership on copied file
+        if [[ "$username" != "root" ]]; then
+            chown "$username:$username" "$DEPLOY_DIR/.env.example"
+        fi
         info "Copied: .env.example"
     fi
 
