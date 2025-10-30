@@ -1032,6 +1032,63 @@ cleanup_containers_networks_v2() {
     info "Enhanced Smart cleanup - analyzing changes..."
     echo ""
 
+    # === PHASE 0: CHECK FOR CLEAN SYNC MODE ===
+    # Clean sync mode = все файлы были удалены и скопированы заново
+    # Требуется полная пересборка образов и рестарт всех сервисов
+    if [[ "${SYNC_MODE:-}" == "clean" ]]; then
+        warning "Clean sync mode detected - all code was replaced"
+        info "Full rebuild and restart required (Docker images contain old code)"
+        echo ""
+
+        # Принудительная полная пересборка
+        local -a services_to_stop=("familybudget-postgres" "familybudget-backend" "familybudget-bot" "familybudget-nginx")
+        local -a images_to_rebuild=("backend" "bot")
+
+        # Остановить все сервисы
+        info "Stopping ALL services for clean deployment..."
+        if compose_cmd ps -q 2>/dev/null | grep -q .; then
+            compose_cmd stop --timeout 90 >> "$LOG_FILE" 2>&1 || true
+            success "All services stopped"
+        fi
+
+        # Удалить старые образы (содержат старый код)
+        info "Removing old Docker images (contain old code)..."
+        for service in "${images_to_rebuild[@]}"; do
+            local image_name="familybudget-${service}"
+            if docker images -q "$image_name" 2>/dev/null | grep -q .; then
+                docker rmi "$image_name" >> "$LOG_FILE" 2>&1 || true
+                info "Removed old image: $image_name"
+            fi
+        done
+
+        # Cleanup containers and networks
+        local containers=$(docker ps -a --filter "name=familybudget" --format "{{.Names}}" 2>/dev/null || echo "")
+        if [[ -n "$containers" ]]; then
+            info "Removing old containers"
+            echo "$containers" | xargs docker rm >> "$LOG_FILE" 2>&1 || true
+        fi
+
+        local networks=$(docker network ls --filter "name=familybudget" --format "{{.Name}}" 2>/dev/null || echo "")
+        if [[ -n "$networks" ]]; then
+            for network in $networks; do
+                if ! docker network inspect "$network" -f '{{range .Containers}}{{.Name}}{{end}}' 2>/dev/null | grep -q .; then
+                    docker network rm "$network" >> "$LOG_FILE" 2>&1 || true
+                fi
+            done
+        fi
+
+        echo ""
+        success "Clean sync deployment prepared"
+        echo "  ✓ All services stopped"
+        echo "  ✓ Old images removed: ${images_to_rebuild[*]}"
+        echo "  ✓ Containers and networks cleaned"
+        echo ""
+        info "Images will be rebuilt with new code during 'docker compose up --build'"
+
+        POSTGRES_WAS_STOPPED=true
+        return 0
+    fi
+
     # === PHASE 1: DETECT CHANGED FILES ===
     local changed_files_raw=$(detect_changed_files_rsync "$SCRIPT_DIR" "$DEPLOY_DIR")
     local -a changed_files=()
