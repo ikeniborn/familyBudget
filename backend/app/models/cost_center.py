@@ -26,9 +26,11 @@ class CostCenter(SQLModel, table=True):
 
     Business Key: user_id + name (for uniqueness)
 
-    User-specific Cost Centers:
-        - All cost centers are user-specific with required user_id
-        - Each user maintains their own set of cost centers
+    Global vs User-specific Cost Centers:
+        - Global cost centers (is_global=True): Shared across all users (e.g., "General", "Project")
+        - User-specific cost centers (is_global=False): Private to the user
+        - Global centers are typically created by administrators
+        - user_id still tracks the creator for audit purposes
 
     SCD Type 2 Pattern:
         Each cost center can have multiple versions over time:
@@ -38,9 +40,10 @@ class CostCenter(SQLModel, table=True):
 
     Attributes:
         id: Surrogate primary key (auto-generated)
-        user_id: Owner user ID (required)
+        user_id: Owner user ID (required - tracks creator for audit)
         name: Cost center display name (required, max 255 chars)
         description: Optional description or notes (text field)
+        is_global: Global flag - if True, visible to all users (default: False)
         valid_from: Start of validity period for this record
         valid_to: End of validity period (9999-12-31 for current records)
         is_current: Flag indicating if this is the current version
@@ -94,6 +97,12 @@ class CostCenter(SQLModel, table=True):
     description: Optional[str] = Field(
         default=None,
         description="Optional description or notes about the cost center"
+    )
+    is_global: bool = Field(
+        default=False,
+        nullable=False,
+        index=True,
+        description="Global flag: if True, cost center is shared across all users (default: False)"
     )
 
     # SCD Type 2 fields
