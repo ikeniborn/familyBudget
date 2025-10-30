@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlmodel import select
+from sqlmodel import or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.dependencies import (
@@ -63,18 +63,27 @@ async def create_article(
     **User Isolation:**
     - Article is created with current user as owner
     - Each user maintains their own set of categories
+    - Global articles (is_global=True) can only be created by admins
 
     **Validation:**
     - Parent article must exist if parent_id provided
-    - Parent article must belong to same user
+    - Parent article must belong to same user OR be global
     - Name is required, max 255 characters
     - Type must be 'income' or 'expense'
+    - is_global=True requires admin privileges
 
     **Returns:**
     - 201 Created: Article created successfully
-    - 403 Forbidden: Parent article not accessible
+    - 403 Forbidden: Parent article not accessible OR non-admin trying to create global
     - 404 Not Found: Parent article not found
     """
+
+    # Check: Only admins can create global articles
+    if article_data.is_global and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can create global articles"
+        )
 
     # Validate: Parent article must exist and be accessible
     if article_data.parent_id:
@@ -91,8 +100,8 @@ async def create_article(
                 detail=f"Parent article with id={article_data.parent_id} not found"
             )
 
-        # Parent must belong to same user
-        if parent.user_id != current_user.id:
+        # Parent must belong to same user OR be global
+        if parent.user_id != current_user.id and not parent.is_global:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Parent article not accessible"
@@ -131,7 +140,7 @@ async def list_articles(
     List articles with optional filtering.
 
     **User Isolation:**
-    - Regular users see only their own articles
+    - Regular users see their own articles + global articles
     - Admins see all articles
 
     **Filters:**
@@ -162,8 +171,13 @@ async def list_articles(
 
     # Apply user isolation
     if not current_user.is_admin:
-        # Only user's articles
-        statement = statement.where(Article.user_id == current_user.id)
+        # User's articles OR global articles
+        statement = statement.where(
+            or_(
+                Article.user_id == current_user.id,
+                Article.is_global == True  # noqa: E712
+            )
+        )
     # Admins see everything (no filter)
 
     # Count total (before pagination)
@@ -201,12 +215,12 @@ async def get_article(
     Get a single article by ID.
 
     **User Isolation:**
-    - User can access only their own articles
+    - User can access their own articles + global articles
     - Admins can access all articles
 
     **Returns:**
     - 200 OK: Article found
-    - 403 Forbidden: Article belongs to another user
+    - 403 Forbidden: Article belongs to another user (and is not global)
     - 404 Not Found: Article not found or not current
     """
     # Load article (current version only)
@@ -223,9 +237,9 @@ async def get_article(
             detail=f"Article with id={article_id} not found"
         )
 
-    # Check access: own article OR admin
+    # Check access: own article OR global article OR admin
     if not current_user.is_admin:
-        if article.user_id != current_user.id:
+        if article.user_id != current_user.id and not article.is_global:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied to this article"
@@ -254,17 +268,19 @@ async def update_article(
     - New version: is_current=True, valid_from=now(), valid_to=9999-12-31
 
     **User Isolation:**
-    - User can only update their own articles
-    - Admins can update any article
+    - User can only update their own articles (not global articles)
+    - Admins can update any article (including global)
+    - Only admins can set is_global=True
 
     **Validation:**
     - At least one field must be provided
     - Parent article must exist if parent_id changed
     - Cannot create cycles in hierarchy
+    - Cannot modify global articles without admin privileges
 
     **Returns:**
     - 200 OK: Article updated (new version created)
-    - 403 Forbidden: User doesn't own article
+    - 403 Forbidden: User doesn't own article OR trying to modify global article
     - 404 Not Found: Article not found
     - 400 Bad Request: No fields provided for update
     """
@@ -294,8 +310,23 @@ async def update_article(
             detail=f"Article with id={article_id} not found"
         )
 
-    # Check ownership
-    ensure_user_owns_resource(old_article.user_id, current_user)
+    # Check: Cannot modify global articles without admin
+    if old_article.is_global and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can modify global articles"
+        )
+
+    # Check: Cannot set is_global=True without admin
+    if "is_global" in update_data and update_data["is_global"] and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can create global articles"
+        )
+
+    # Check ownership (for non-global articles)
+    if not old_article.is_global:
+        ensure_user_owns_resource(old_article.user_id, current_user)
 
     # Validate parent_id if changed
     if "parent_id" in update_data and update_data["parent_id"]:
@@ -364,8 +395,8 @@ async def delete_article(
     - Historical queries can still access it
 
     **User Isolation:**
-    - User can only delete their own articles
-    - Admins can delete any article
+    - User can only delete their own articles (not global)
+    - Admins can delete any article (including global)
 
     **Cascade Behavior:**
     - Does NOT cascade to child articles
@@ -374,7 +405,7 @@ async def delete_article(
 
     **Returns:**
     - 204 No Content: Article deleted successfully
-    - 403 Forbidden: User doesn't own article
+    - 403 Forbidden: User doesn't own article OR trying to delete global
     - 404 Not Found: Article not found or already deleted
     """
     # Load current version
@@ -391,8 +422,16 @@ async def delete_article(
             detail=f"Article with id={article_id} not found or already deleted"
         )
 
-    # Check ownership
-    ensure_user_owns_resource(article.user_id, current_user)
+    # Check: Cannot delete global articles without admin
+    if article.is_global and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can delete global articles"
+        )
+
+    # Check ownership (for non-global articles)
+    if not article.is_global:
+        ensure_user_owns_resource(article.user_id, current_user)
 
     # Soft delete
     now = datetime.utcnow()
@@ -458,11 +497,11 @@ async def get_article_subtree(
         include_self=include_self,
     )
 
-    # Filter by user isolation (already done by get_article, but double-check)
+    # Filter by user isolation (user's articles + global articles)
     if not current_user.is_admin:
         subtree_articles = [
             a for a in subtree_articles
-            if a.user_id == current_user.id
+            if a.user_id == current_user.id or a.is_global
         ]
 
     return ArticleListResponse(
@@ -523,11 +562,11 @@ async def get_article_ancestors(
         include_self=include_self,
     )
 
-    # Filter by user isolation
+    # Filter by user isolation (user's articles + global articles)
     if not current_user.is_admin:
         ancestor_articles = [
             a for a in ancestor_articles
-            if a.user_id == current_user.id
+            if a.user_id == current_user.id or a.is_global
         ]
 
     return ArticleListResponse(

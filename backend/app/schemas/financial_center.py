@@ -38,6 +38,12 @@ class FinancialCenterCreate(BaseModel):
         examples=["Main checking account", None]
     )
 
+    is_global: bool = Field(
+        default=False,
+        description="Global flag: if True, financial center is shared across all users (admin only)",
+        examples=[False, True]
+    )
+
     @field_validator("name")
     @classmethod
     def name_not_empty(cls, v: str) -> str:
@@ -94,6 +100,12 @@ class FinancialCenterUpdate(BaseModel):
         examples=["Updated description"]
     )
 
+    is_global: Optional[bool] = Field(
+        default=None,
+        description="Global flag: if True, financial center is shared across all users (admin only)",
+        examples=[False, True]
+    )
+
     @field_validator("name")
     @classmethod
     def name_not_empty(cls, v: Optional[str]) -> Optional[str]:
@@ -144,6 +156,11 @@ class FinancialCenterResponse(BaseModel):
     description: Optional[str] = Field(
         description="Optional description",
         examples=["Main checking account", None]
+    )
+
+    is_global: bool = Field(
+        description="Global flag: if True, financial center is shared across all users",
+        examples=[False, True]
     )
 
     # SCD Type 2 fields

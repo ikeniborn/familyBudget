@@ -52,13 +52,16 @@ async def list_financial_centers(
     """
     List financial centers for current user.
 
-    Returns user-specific financial centers.
+    Returns user-specific financial centers + global financial centers.
     Only current versions (is_current=True) are returned.
     """
-    # Build query - only user's financial centers
+    # Build query - user's financial centers OR global
     conditions = [
         FinancialCenter.is_current == True,
-        FinancialCenter.user_id == current_user.id
+        or_(
+            FinancialCenter.user_id == current_user.id,
+            FinancialCenter.is_global == True
+        )
     ]
 
     # Count total
@@ -104,12 +107,21 @@ async def create_financial_center(
     Create a new financial center.
 
     Financial center is automatically assigned to current_user.
+    Only admins can create global financial centers (is_global=True).
     """
+    # Check: Only admins can create global financial centers
+    if financial_center_data.is_global and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can create global financial centers"
+        )
+
     # Create financial center
     financial_center = FinancialCenter(
         user_id=current_user.id,
         name=financial_center_data.name,
         description=financial_center_data.description,
+        is_global=financial_center_data.is_global if current_user.is_admin else False,
         is_current=True,
         valid_from=datetime.utcnow(),
         valid_to=datetime(9999, 12, 31, 23, 59, 59),
@@ -137,6 +149,7 @@ async def get_financial_center(
     Get financial center by ID.
 
     Returns current version (is_current=True) only.
+    User can access own financial centers + global financial centers.
     """
     query = select(FinancialCenter).where(
         FinancialCenter.id == financial_center_id,
@@ -152,8 +165,8 @@ async def get_financial_center(
             detail=f"Financial center {financial_center_id} not found",
         )
 
-    # Check access: user can only access their own financial centers
-    if financial_center.user_id != current_user.id:
+    # Check access: user can access own financial centers OR global financial centers
+    if financial_center.user_id != current_user.id and not financial_center.is_global:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied to this financial center",
@@ -181,7 +194,8 @@ async def update_financial_center(
     - Old version: is_current=False, valid_to=now()
     - New version: is_current=True, valid_from=now(), valid_to=9999-12-31
 
-    Only owner can update.
+    Only owner can update (or admin for global).
+    Only admins can modify global financial centers.
     """
     # Fetch current version
     query = select(FinancialCenter).where(
@@ -198,15 +212,31 @@ async def update_financial_center(
             detail=f"Financial center {financial_center_id} not found",
         )
 
-    # Check permissions - only owner can update
-    if old_financial_center.user_id != current_user.id:
+    # Get update dict
+    update_dict = update_data.model_dump(exclude_unset=True)
+
+    # Check: Cannot modify global financial centers without admin
+    if old_financial_center.is_global and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can modify global financial centers",
+        )
+
+    # Check: Cannot set is_global=True without admin
+    if "is_global" in update_dict and update_dict["is_global"] and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can create global financial centers",
+        )
+
+    # Check permissions - only owner can update (for non-global)
+    if not old_financial_center.is_global and old_financial_center.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied to this financial center",
         )
 
     # Use SCD2 service for update
-    update_dict = update_data.model_dump(exclude_unset=True)
 
     new_financial_center = await scd2_service.create_new_version(
         session=session,
@@ -233,6 +263,7 @@ async def delete_financial_center(
 
     Sets is_current=False and valid_to=now() for current version.
     Historical versions are preserved.
+    Only admins can delete global financial centers.
     """
     # Fetch current version
     query = select(FinancialCenter).where(
@@ -249,8 +280,15 @@ async def delete_financial_center(
             detail=f"Financial center {financial_center_id} not found",
         )
 
-    # Check permissions - only owner can delete
-    if financial_center.user_id != current_user.id:
+    # Check: Cannot delete global financial centers without admin
+    if financial_center.is_global and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can delete global financial centers",
+        )
+
+    # Check permissions - only owner can delete (for non-global)
+    if not financial_center.is_global and financial_center.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied to this financial center",
