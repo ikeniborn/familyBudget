@@ -863,8 +863,374 @@ sync_code_to_deploy() {
 # NETWORK AND CLEANUP FUNCTIONS
 # =============================================================================
 
+# Detect changed files using rsync (reliable, works without git)
+detect_changed_files_rsync() {
+    local repo_dir="${1:-$SCRIPT_DIR}"
+    local deploy_dir="${2:-$DEPLOY_DIR}"
+    local changed_files=()
+
+    # Use rsync --dry-run with checksum to find changed files
+    # Format: file_type file_name (e.g., "f backend/app/main.py")
+    # file_type: f=file, d=directory, L=symlink
+    # We filter for files only (starts with non-d)
+
+    local rsync_output=$(rsync -avnc \
+        --exclude='.git' \
+        --exclude='__pycache__' \
+        --exclude='*.pyc' \
+        --exclude='.pytest_cache' \
+        --exclude='node_modules' \
+        --exclude='.env.local' \
+        --exclude='logs/' \
+        --exclude='data/' \
+        --exclude='.venv' \
+        --exclude='venv' \
+        "$repo_dir/" "$deploy_dir/" 2>/dev/null | grep -E "^[^d]" | awk '{print $2}' || echo "")
+
+    # Convert to array
+    while IFS= read -r line; do
+        [[ -n "$line" ]] && changed_files+=("$line")
+    done <<< "$rsync_output"
+
+    # Return array as newline-separated string
+    printf '%s\n' "${changed_files[@]}"
+}
+
+# Categorize file changes into action categories
+categorize_file_changes() {
+    local -n files_ref=$1  # Reference to array of changed files
+
+    # Initialize category flags
+    local needs_postgres_restart=false
+    local needs_backend_restart=false
+    local needs_bot_restart=false
+    local needs_nginx_restart=false
+    local needs_backend_rebuild=false
+    local needs_bot_rebuild=false
+    local postgres_restart_reason=""
+
+    # Category counters for reporting
+    local count_postgres_critical=0
+    local count_backend_code=0
+    local count_bot_code=0
+    local count_nginx_config=0
+    local count_backend_deps=0
+    local count_bot_deps=0
+
+    # Categorize each file
+    for file in "${files_ref[@]}"; do
+        case "$file" in
+            # PostgreSQL-critical changes (требуют полного перезапуска)
+            backend/db/migrations/*)
+                needs_postgres_restart=true
+                postgres_restart_reason="DB migrations changed: $file"
+                ((count_postgres_critical++))
+                ;;
+            docker-compose.yml)
+                needs_postgres_restart=true
+                postgres_restart_reason="docker-compose.yml changed"
+                ((count_postgres_critical++))
+                ;;
+            .env)
+                # Check if PostgreSQL config changed (if file exists)
+                if [[ -f "$SCRIPT_DIR/.env" ]] && grep -q "POSTGRES_" "$SCRIPT_DIR/.env" 2>/dev/null; then
+                    needs_postgres_restart=true
+                    postgres_restart_reason="PostgreSQL configuration changed in .env"
+                    ((count_postgres_critical++))
+                fi
+                ;;
+
+            # Backend dependencies (требуют пересборки образа)
+            backend/requirements.txt)
+                needs_backend_rebuild=true
+                needs_backend_restart=true
+                ((count_backend_deps++))
+                ;;
+            backend/Dockerfile)
+                needs_backend_rebuild=true
+                needs_backend_restart=true
+                ((count_backend_deps++))
+                ;;
+
+            # Backend code (требуют только перезапуска)
+            backend/app/*|backend/core/*|backend/services/*)
+                needs_backend_restart=true
+                ((count_backend_code++))
+                ;;
+            web/*)
+                needs_backend_restart=true  # Backend serves web templates
+                ((count_backend_code++))
+                ;;
+            bot/webapp/*)
+                needs_backend_restart=true  # Backend serves bot webapp
+                ((count_backend_code++))
+                ;;
+
+            # Bot dependencies (требуют пересборки образа)
+            bot/requirements.txt)
+                needs_bot_rebuild=true
+                needs_bot_restart=true
+                ((count_bot_deps++))
+                ;;
+            bot/Dockerfile)
+                needs_bot_rebuild=true
+                needs_bot_restart=true
+                ((count_bot_deps++))
+                ;;
+
+            # Bot code (требуют только перезапуска)
+            bot/*)
+                needs_bot_restart=true
+                ((count_bot_code++))
+                ;;
+
+            # Nginx config (требуют только перезапуска)
+            nginx/*|web/static/*)
+                needs_nginx_restart=true
+                ((count_nginx_config++))
+                ;;
+        esac
+    done
+
+    # Return results as exported variables
+    echo "needs_postgres_restart=$needs_postgres_restart"
+    echo "needs_backend_restart=$needs_backend_restart"
+    echo "needs_bot_restart=$needs_bot_restart"
+    echo "needs_nginx_restart=$needs_nginx_restart"
+    echo "needs_backend_rebuild=$needs_backend_rebuild"
+    echo "needs_bot_rebuild=$needs_bot_rebuild"
+    echo "postgres_restart_reason=$postgres_restart_reason"
+    echo "count_postgres_critical=$count_postgres_critical"
+    echo "count_backend_code=$count_backend_code"
+    echo "count_bot_code=$count_bot_code"
+    echo "count_nginx_config=$count_nginx_config"
+    echo "count_backend_deps=$count_backend_deps"
+    echo "count_bot_deps=$count_bot_deps"
+}
+
+# Enhanced Smart cleanup v2 - intelligent selective restarts based on actual changes
+cleanup_containers_networks_v2() {
+    info "Enhanced Smart cleanup - analyzing changes..."
+    echo ""
+
+    # === PHASE 1: DETECT CHANGED FILES ===
+    local changed_files_raw=$(detect_changed_files_rsync "$SCRIPT_DIR" "$DEPLOY_DIR")
+    local -a changed_files=()
+
+    # Convert to array
+    while IFS= read -r line; do
+        [[ -n "$line" ]] && changed_files+=("$line")
+    done <<< "$changed_files_raw"
+
+    local total_changed=${#changed_files[@]}
+
+    if [[ $total_changed -eq 0 ]]; then
+        success "No file changes detected - code is already in sync"
+        info "Will perform minimal cleanup (stopped containers/networks only)"
+        echo ""
+
+        # Just cleanup stopped containers and networks
+        local containers=$(docker ps -a --filter "name=familybudget" --filter "status=exited" --format "{{.Names}}" 2>/dev/null || echo "")
+        if [[ -n "$containers" ]]; then
+            info "Removing stopped containers: $containers"
+            echo "$containers" | xargs docker rm >> "$LOG_FILE" 2>&1 || true
+        fi
+
+        local networks=$(docker network ls --filter "name=familybudget" --format "{{.Name}}" 2>/dev/null || echo "")
+        if [[ -n "$networks" ]]; then
+            # Check if network is in use
+            for network in $networks; do
+                if ! docker network inspect "$network" -f '{{range .Containers}}{{.Name}}{{end}}' 2>/dev/null | grep -q .; then
+                    info "Removing unused network: $network"
+                    docker network rm "$network" >> "$LOG_FILE" 2>&1 || true
+                fi
+            done
+        fi
+
+        POSTGRES_WAS_STOPPED=false
+        return 0
+    fi
+
+    info "Detected $total_changed changed files"
+
+    # Show first 10 changed files for transparency
+    if [[ $total_changed -le 10 ]]; then
+        for file in "${changed_files[@]}"; do
+            echo "    • $file"
+        done
+    else
+        for i in {0..9}; do
+            echo "    • ${changed_files[$i]}"
+        done
+        echo "    ... and $((total_changed - 10)) more files"
+    fi
+    echo ""
+
+    # === PHASE 2: CATEGORIZE CHANGES ===
+    local categorization=$(categorize_file_changes changed_files)
+
+    # Parse categorization results
+    local needs_postgres_restart=false
+    local needs_backend_restart=false
+    local needs_bot_restart=false
+    local needs_nginx_restart=false
+    local needs_backend_rebuild=false
+    local needs_bot_rebuild=false
+    local postgres_restart_reason=""
+    local count_postgres_critical=0
+    local count_backend_code=0
+    local count_bot_code=0
+    local count_nginx_config=0
+    local count_backend_deps=0
+    local count_bot_deps=0
+
+    eval "$categorization"
+
+    # === PHASE 3: DISPLAY ANALYSIS ===
+    info "Change analysis:"
+
+    local categories_found=()
+    [[ $count_postgres_critical -gt 0 ]] && categories_found+=("postgres-critical ($count_postgres_critical files)")
+    [[ $count_backend_deps -gt 0 ]] && categories_found+=("backend-deps ($count_backend_deps files)")
+    [[ $count_backend_code -gt 0 ]] && categories_found+=("backend-code ($count_backend_code files)")
+    [[ $count_bot_deps -gt 0 ]] && categories_found+=("bot-deps ($count_bot_deps files)")
+    [[ $count_bot_code -gt 0 ]] && categories_found+=("bot-code ($count_bot_code files)")
+    [[ $count_nginx_config -gt 0 ]] && categories_found+=("nginx-config ($count_nginx_config files)")
+
+    if [[ ${#categories_found[@]} -gt 0 ]]; then
+        for category in "${categories_found[@]}"; do
+            echo "    ✓ $category"
+        done
+    else
+        echo "    • No categorized changes (other files)"
+    fi
+    echo ""
+
+    # === PHASE 4: DETERMINE RESTART STRATEGY ===
+    local -a services_to_stop=()
+    local -a images_to_rebuild=()
+
+    if [[ "$needs_postgres_restart" == "true" ]]; then
+        warning "Full restart required: $postgres_restart_reason"
+        info "Stopping ALL services including PostgreSQL..."
+        echo ""
+
+        services_to_stop=("familybudget-postgres" "familybudget-backend" "familybudget-bot" "familybudget-nginx")
+        POSTGRES_WAS_STOPPED=true
+
+    else
+        success "Selective restart - PostgreSQL will keep running"
+        echo ""
+
+        # Determine minimal set of services to restart
+        if [[ "$needs_backend_restart" == "true" ]]; then
+            services_to_stop+=("familybudget-backend")
+            # Backend changed → automatically restart dependents
+            services_to_stop+=("familybudget-bot" "familybudget-nginx")
+            info "Backend changed → will restart backend + dependents (bot, nginx)"
+        else
+            # Backend NOT changed - selective restarts
+            [[ "$needs_bot_restart" == "true" ]] && services_to_stop+=("familybudget-bot") && info "Bot changed → will restart bot"
+            [[ "$needs_nginx_restart" == "true" ]] && services_to_stop+=("familybudget-nginx") && info "Nginx changed → will restart nginx"
+        fi
+
+        POSTGRES_WAS_STOPPED=false
+    fi
+
+    # Determine images to rebuild
+    [[ "$needs_backend_rebuild" == "true" ]] && images_to_rebuild+=("backend") && info "Backend dependencies changed → will rebuild backend image"
+    [[ "$needs_bot_rebuild" == "true" ]] && images_to_rebuild+=("bot") && info "Bot dependencies changed → will rebuild bot image"
+
+    echo ""
+
+    # Display strategy summary
+    info "Strategy summary:"
+    echo "    • PostgreSQL: $([ "$POSTGRES_WAS_STOPPED" == "true" ] && echo "will restart" || echo "keep running ✓")"
+    echo "    • Services to restart: ${#services_to_stop[@]}"
+    [[ ${#services_to_stop[@]} -gt 0 ]] && echo "      → ${services_to_stop[*]}"
+    echo "    • Images to rebuild: ${#images_to_rebuild[@]}"
+    [[ ${#images_to_rebuild[@]} -gt 0 ]] && echo "      → ${images_to_rebuild[*]}"
+
+    # Estimate downtime
+    local estimated_downtime=0
+    [[ "$POSTGRES_WAS_STOPPED" == "true" ]] && estimated_downtime=30
+    [[ "$POSTGRES_WAS_STOPPED" == "false" && ${#services_to_stop[@]} -gt 0 ]] && estimated_downtime=10
+    [[ ${#images_to_rebuild[@]} -gt 0 ]] && estimated_downtime=$((estimated_downtime + ${#images_to_rebuild[@]} * 15))
+
+    [[ $estimated_downtime -gt 0 ]] && echo "    • Estimated downtime: ~${estimated_downtime}s"
+    echo ""
+
+    # === PHASE 5: STOP SERVICES ===
+    if [[ ${#services_to_stop[@]} -gt 0 ]]; then
+        if [[ "$POSTGRES_WAS_STOPPED" == "true" ]]; then
+            # Full restart - use compose stop
+            if compose_cmd ps -q 2>/dev/null | grep -q .; then
+                info "Gracefully stopping all services with extended timeout..."
+                compose_cmd stop --timeout 90 >> "$LOG_FILE" 2>&1 || true
+                success "All services stopped"
+            fi
+        else
+            # Selective restart - stop individual containers
+            info "Stopping selected services: ${services_to_stop[*]}"
+            for service in "${services_to_stop[@]}"; do
+                if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^${service}$"; then
+                    docker stop "$service" >> "$LOG_FILE" 2>&1 || true
+                fi
+            done
+            success "Selected services stopped"
+        fi
+    else
+        info "No services need restart - code changes are volume-mounted"
+    fi
+
+    # === PHASE 6: REBUILD IMAGES (if needed) ===
+    if [[ ${#images_to_rebuild[@]} -gt 0 ]]; then
+        echo ""
+        info "Rebuilding images: ${images_to_rebuild[*]}"
+        for service in "${images_to_rebuild[@]}"; do
+            info "Building $service..."
+            compose_cmd build "$service" >> "$LOG_FILE" 2>&1 || {
+                error "Failed to build $service image"
+                return 1
+            }
+            success "$service image rebuilt"
+        done
+    fi
+
+    # === PHASE 7: CLEANUP STOPPED CONTAINERS AND NETWORKS ===
+    echo ""
+
+    # Remove stopped containers
+    local containers=$(docker ps -a --filter "name=familybudget" --filter "status=exited" --format "{{.Names}}" 2>/dev/null || echo "")
+    if [[ -n "$containers" ]]; then
+        info "Removing stopped containers"
+        echo "$containers" | xargs docker rm >> "$LOG_FILE" 2>&1 || true
+        success "Stopped containers removed"
+    fi
+
+    # Remove unused networks
+    local networks=$(docker network ls --filter "name=familybudget" --format "{{.Name}}" 2>/dev/null || echo "")
+    if [[ -n "$networks" ]]; then
+        for network in $networks; do
+            # Only remove if not in use
+            if ! docker network inspect "$network" -f '{{range .Containers}}{{.Name}}{{end}}' 2>/dev/null | grep -q .; then
+                info "Removing unused network: $network"
+                docker network rm "$network" >> "$LOG_FILE" 2>&1 || true
+            fi
+        done
+    fi
+
+    echo ""
+    success "Enhanced Smart cleanup v2 completed"
+    echo "  ✓ Changed files analyzed: $total_changed"
+    echo "  ✓ PostgreSQL: $([ "$POSTGRES_WAS_STOPPED" == "true" ] && echo "restarted" || echo "kept running")"
+    echo "  ✓ Services restarted: ${#services_to_stop[@]}"
+    echo "  ✓ Images rebuilt: ${#images_to_rebuild[@]}"
+}
+
 # Smart cleanup - automatically decides if PostgreSQL needs restart
-cleanup_containers_networks() {
+# LEGACY VERSION - kept for rollback if needed
+cleanup_containers_networks_legacy() {
     info "Safe cleanup - analyzing changes to determine restart strategy..."
     echo ""
 
@@ -1308,7 +1674,7 @@ cleanup_old_deployment() {
             return 0
             ;;
         2)
-            cleanup_containers_networks
+            cleanup_containers_networks_v2
             ;;
         3)
             cleanup_full
