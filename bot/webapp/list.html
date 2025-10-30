@@ -24,22 +24,6 @@
             margin-bottom: 16px;
         }
 
-        .back-button {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            padding: 8px;
-            color: var(--tg-theme-link-color);
-        }
-
-        .back-button:active {
-            opacity: 0.6;
-        }
 
         .page-title {
             font-size: 24px;
@@ -272,7 +256,6 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
-            <button class="back-button" id="back-button" aria-label="Назад">←</button>
             <div class="page-title">Все транзакции</div>
         </div>
 
@@ -388,11 +371,6 @@
             console.log('List page init');
             app = budgetApp;
 
-            // Setup back button
-            document.getElementById('back-button').addEventListener('click', () => {
-                app.ui.hapticLight();
-                window.location.href = '/webapp/index.html';
-            });
 
             // Setup filters toggle
             setupFiltersToggle();
