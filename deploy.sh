@@ -2697,8 +2697,16 @@ configure_firewall_for_ssl() {
     fi
 
     # Check current port status
-    local port_80_status=$(sudo ufw status 2>/dev/null | grep "80/tcp" || echo "❌ not configured")
-    local port_443_status=$(sudo ufw status 2>/dev/null | grep "443/tcp" || echo "❌ not configured")
+    local port_80_status="❌ not configured"
+    local port_443_status="❌ not configured"
+
+    if sudo ufw status 2>/dev/null | grep -q "80/tcp.*ALLOW"; then
+        port_80_status="✓ configured"
+    fi
+
+    if sudo ufw status 2>/dev/null | grep -q "443/tcp.*ALLOW"; then
+        port_443_status="✓ configured"
+    fi
 
     info "Current firewall status:"
     echo "  Port 80 (HTTP):   $port_80_status"
