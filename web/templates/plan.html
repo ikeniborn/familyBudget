@@ -514,7 +514,7 @@ function renderFactsTable(facts) {
     `;
 
     facts.forEach(fact => {
-        const amountClass = fact.amount >= 0 ? 'text-success font-bold' : 'text-error font-bold';
+        const amountClass = fact.article_type === 'income' ? 'text-success font-bold' : 'text-error font-bold';
         const description = fact.description || '—';
         const financialCenter = fact.financial_center_name || '—';
         const costCenter = fact.cost_center_name || '—';
