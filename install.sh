@@ -374,6 +374,31 @@ create_directories() {
     fi
 
     success "Deployment directory structure created: $DEPLOY_DIR"
+
+    # Copy template files from repository
+    info "Copying template files to deployment directory..."
+
+    # Verify we're running from the repository
+    if [[ ! -f "$REPO_DIR/nginx/conf.d/app.conf.template" ]]; then
+        warning "Nginx template not found in repository: $REPO_DIR/nginx/conf.d/app.conf.template"
+        warning "Please ensure install.sh is run from the repository directory"
+        warning "setup.sh may fail without this template"
+    else
+        cp "$REPO_DIR/nginx/conf.d/app.conf.template" "$DEPLOY_DIR/nginx/conf.d/" || \
+            warning "Failed to copy nginx template (setup.sh may fail)"
+        info "Copied: nginx/conf.d/app.conf.template"
+    fi
+
+    if [[ ! -f "$REPO_DIR/.env.example" ]]; then
+        warning ".env.example not found in repository: $REPO_DIR/.env.example"
+        warning "setup.sh may fail without this template"
+    else
+        cp "$REPO_DIR/.env.example" "$DEPLOY_DIR/" || \
+            warning "Failed to copy .env.example (setup.sh may fail)"
+        info "Copied: .env.example"
+    fi
+
+    success "Template files initialized"
 }
 
 # Test Docker installation
@@ -415,6 +440,11 @@ print_summary() {
     echo "  ✓ logs/          (Application logs)"
     echo "  ✓ uploads/       (User uploads)"
     echo "  ✓ certbot/       (SSL certificates)"
+    echo "  ✓ nginx/conf.d/  (Nginx configuration)"
+    echo ""
+    echo "Template files initialized:"
+    echo "  ✓ nginx/conf.d/app.conf.template"
+    echo "  ✓ .env.example"
     echo ""
     echo "Next steps:"
     echo "  1. Log out and log back in (for docker group to take effect)"
