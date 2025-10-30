@@ -124,6 +124,28 @@
             color: var(--tg-theme-button-text-color);
         }
 
+        .toggle-btn {
+            font-size: 16px;
+            font-weight: 500;
+            padding: 12px;
+        }
+
+        .toggle-btn.active {
+            background-color: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            border-color: var(--tg-theme-button-color);
+        }
+
+        .amount-input.expense {
+            border-color: var(--tg-theme-destructive-text-color);
+            color: var(--tg-theme-destructive-text-color);
+        }
+
+        .amount-input.income {
+            border-color: #34c759;
+            color: #34c759;
+        }
+
         /* Period selector */
         .period-selector {
             display: grid;
@@ -207,6 +229,15 @@
             <div class="page-title">📝 Добавить план</div>
         </div>
 
+        <!-- Plan Type Selector -->
+        <div class="form-group">
+            <label class="form-label">Тип плана</label>
+            <div class="quick-amount-buttons" style="grid-template-columns: repeat(2, 1fr);">
+                <button type="button" class="quick-amount-btn toggle-btn active" data-type="expense">Расход</button>
+                <button type="button" class="quick-amount-btn toggle-btn" data-type="income">Доход</button>
+            </div>
+        </div>
+
         <!-- Quick Amount Buttons -->
         <div class="form-group">
             <label class="form-label">Быстрый выбор суммы</label>
@@ -268,22 +299,11 @@
         <!-- Period Selector -->
         <div class="form-group">
             <label class="form-label form-label-required">Период планирования</label>
-            <div class="period-selector">
-                <button class="period-btn active" data-period="month">Месяц</button>
-                <button class="period-btn" data-period="quarter">Квартал</button>
-                <button class="period-btn" data-period="year">Год</button>
-                <button class="period-btn" data-period="custom">Свой</button>
+            <div class="period-selector" style="grid-template-columns: repeat(3, 1fr);">
+                <button class="period-btn active" data-period="month" id="period-btn-month">Месяц</button>
+                <button class="period-btn" data-period="quarter" id="period-btn-quarter">Квартал</button>
+                <button class="period-btn" data-period="year" id="period-btn-year">Год</button>
             </div>
-
-            <!-- Custom Period Section -->
-            <div class="custom-period-section" id="custom-period-section">
-                <div class="date-range-row">
-                    <input type="text" id="period-start" class="form-input" placeholder="От (ДД-ММ-ГГГГ)" pattern="\d{2}-\d{2}-\d{4}">
-                    <span class="date-range-separator">—</span>
-                    <input type="text" id="period-end" class="form-input" placeholder="До (ДД-ММ-ГГГГ)" pattern="\d{2}-\d{2}-\d{4}">
-                </div>
-            </div>
-
             <span class="error-message" id="period-error"></span>
         </div>
 
@@ -324,6 +344,7 @@
 
     <script>
         let formState = {
+            planType: 'expense',  // 'income' or 'expense'
             amount: null,
             categoryId: null,
             financialCenterId: null,
@@ -346,6 +367,9 @@
             console.log('Add plan page init');
             app = budgetApp;
 
+            // Setup type selector
+            setupTypeSelector();
+
             // Setup quick amount buttons
             setupQuickAmountButtons();
 
@@ -354,6 +378,9 @@
 
             // Setup description counter
             setupDescriptionCounter();
+
+            // Update period button texts with current date
+            updatePeriodButtonTexts();
 
             // Setup period selector
             setupPeriodSelector();
@@ -381,6 +408,54 @@
 
             console.log('Add plan page ready');
         };
+
+        function setupTypeSelector() {
+            const buttons = document.querySelectorAll('.toggle-btn[data-type]');
+            const amountInput = document.getElementById('amount');
+
+            buttons.forEach(button => {
+                button.addEventListener('click', () => {
+                    // Update active state
+                    buttons.forEach(b => b.classList.remove('active'));
+                    button.classList.add('active');
+
+                    // Update form state
+                    formState.planType = button.dataset.type;
+
+                    // Update amount input style
+                    amountInput.classList.remove('income', 'expense');
+                    amountInput.classList.add(formState.planType);
+
+                    // Reload categories for selected type
+                    loadCategories();
+
+                    // Haptic feedback
+                    app.ui.hapticLight();
+                });
+            });
+        }
+
+        function updatePeriodButtonTexts() {
+            const now = new Date();
+            const monthNames = [
+                'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+                'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+            ];
+            const romanQuarters = ['I', 'II', 'III', 'IV'];
+
+            // Current month button: "Октябрь 2025"
+            const monthText = `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+            document.getElementById('period-btn-month').textContent = monthText;
+
+            // Current quarter button: "IV квартал 2025"
+            const quarter = Math.floor(now.getMonth() / 3);
+            const quarterText = `${romanQuarters[quarter]} квартал ${now.getFullYear()}`;
+            document.getElementById('period-btn-quarter').textContent = quarterText;
+
+            // Current year button: "2025"
+            const yearText = `${now.getFullYear()}`;
+            document.getElementById('period-btn-year').textContent = yearText;
+        }
 
         function setupQuickAmountButtons() {
             const buttons = document.querySelectorAll('.quick-amount-btn');
@@ -428,7 +503,6 @@
 
         function setupPeriodSelector() {
             const buttons = document.querySelectorAll('.period-btn');
-            const customSection = document.getElementById('custom-period-section');
 
             buttons.forEach(button => {
                 button.addEventListener('click', () => {
@@ -439,32 +513,12 @@
                     // Update form state
                     formState.period = button.dataset.period;
 
-                    // Show/hide custom period section
-                    if (formState.period === 'custom') {
-                        customSection.classList.add('active');
-                    } else {
-                        customSection.classList.remove('active');
-                        updatePeriodDates();
-                    }
+                    // Update period dates
+                    updatePeriodDates();
 
                     // Haptic feedback
                     app.ui.hapticLight();
                 });
-            });
-
-            // Setup custom date inputs with DD-MM-YYYY format
-            document.getElementById('period-start').addEventListener('input', (e) => {
-                const displayDate = e.target.value;
-                if (DateFormatter.isValidDisplayFormat(displayDate)) {
-                    formState.periodStart = DateFormatter.formatForAPI(displayDate);
-                }
-            });
-
-            document.getElementById('period-end').addEventListener('input', (e) => {
-                const displayDate = e.target.value;
-                if (DateFormatter.isValidDisplayFormat(displayDate)) {
-                    formState.periodEnd = DateFormatter.formatForAPI(displayDate);
-                }
             });
         }
 
@@ -514,6 +568,7 @@
 
             try {
                 const result = await app.api.listArticles({
+                    type: formState.planType,
                     is_current: true,
                     limit: 1000
                 });
@@ -694,17 +749,11 @@
                 document.getElementById('financial-center-error').textContent = 'Выберите ЦФО';
             }
 
-            // Period validation
-            if (formState.period === 'custom') {
-                if (!formState.periodStart || !formState.periodEnd) {
-                    errors.period = 'Укажите период планирования';
-                    document.getElementById('period-error').textContent = 'Укажите период планирования';
-                } else if (new Date(formState.periodStart) > new Date(formState.periodEnd)) {
-                    errors.period = 'Дата начала должна быть раньше даты окончания';
-                    document.getElementById('period-error').textContent = 'Дата начала должна быть раньше даты окончания';
-                }
-            } else {
-                updatePeriodDates(); // Ensure dates are set for preset periods
+            // Period validation - ensure dates are set
+            updatePeriodDates();
+            if (!formState.periodStart || !formState.periodEnd) {
+                errors.period = 'Не удалось определить период планирования';
+                document.getElementById('period-error').textContent = 'Не удалось определить период планирования';
             }
 
             return errors;

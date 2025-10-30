@@ -6,6 +6,12 @@
  */
 
 class DateFormatter {
+  // Russian month names (genitive case for dates)
+  static RUSSIAN_MONTHS = [
+    'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+    'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+  ];
+
   /**
    * Convert user-friendly date (DD-MM-YYYY) to API format (YYYY-MM-DD).
    *
@@ -196,6 +202,126 @@ class DateFormatter {
     }
 
     return date;
+  }
+
+  /**
+   * Convert API date (YYYY-MM-DD) to user-friendly format with Russian month name (ДД месяца ГГГГ).
+   *
+   * @param {string} isoDate - Date in YYYY-MM-DD format
+   * @returns {string} Date in "ДД месяца ГГГГ" format
+   *
+   * @example
+   * DateFormatter.formatForDisplayWithMonthName('2025-10-27') // => '27 октября 2025'
+   */
+  static formatForDisplayWithMonthName(isoDate) {
+    if (!isoDate) return '';
+
+    const parts = isoDate.split('-');
+    if (parts.length !== 3) return '';
+
+    const [year, month, day] = parts;
+    const monthIndex = parseInt(month, 10) - 1;
+
+    if (monthIndex < 0 || monthIndex > 11) return '';
+
+    // Remove leading zero from day
+    const dayNum = parseInt(day, 10);
+
+    return `${dayNum} ${this.RUSSIAN_MONTHS[monthIndex]} ${year}`;
+  }
+
+  /**
+   * Convert user-friendly date with month name (ДД месяца ГГГГ) to API format (YYYY-MM-DD).
+   *
+   * @param {string} displayDate - Date in "ДД месяца ГГГГ" format
+   * @returns {string} Date in YYYY-MM-DD format
+   *
+   * @example
+   * DateFormatter.formatForAPIFromMonthName('27 октября 2025') // => '2025-10-27'
+   */
+  static formatForAPIFromMonthName(displayDate) {
+    if (!displayDate) return '';
+
+    // Parse "27 октября 2025" format
+    const parts = displayDate.trim().split(/\s+/);
+    if (parts.length !== 3) return '';
+
+    const [dayStr, monthName, yearStr] = parts;
+    const day = parseInt(dayStr, 10);
+    const year = parseInt(yearStr, 10);
+
+    // Find month index
+    const monthIndex = this.RUSSIAN_MONTHS.findIndex(
+      m => m.toLowerCase() === monthName.toLowerCase()
+    );
+
+    if (monthIndex === -1) return '';
+
+    const month = monthIndex + 1;
+
+    // Format to YYYY-MM-DD
+    const monthPadded = String(month).padStart(2, '0');
+    const dayPadded = String(day).padStart(2, '0');
+
+    return `${year}-${monthPadded}-${dayPadded}`;
+  }
+
+  /**
+   * Validate date format with Russian month name (ДД месяца ГГГГ).
+   *
+   * @param {string} dateStr - Date string to validate
+   * @returns {boolean} True if valid "ДД месяца ГГГГ" format
+   *
+   * @example
+   * DateFormatter.isValidMonthNameFormat('27 октября 2025') // => true
+   * DateFormatter.isValidMonthNameFormat('27-10-2025') // => false
+   */
+  static isValidMonthNameFormat(dateStr) {
+    if (!dateStr) return false;
+
+    const parts = dateStr.trim().split(/\s+/);
+    if (parts.length !== 3) return false;
+
+    const [dayStr, monthName, yearStr] = parts;
+    const day = parseInt(dayStr, 10);
+    const year = parseInt(yearStr, 10);
+
+    // Validate year
+    if (isNaN(year) || year < 1900 || year > 2100) return false;
+
+    // Validate day
+    if (isNaN(day) || day < 1 || day > 31) return false;
+
+    // Validate month name
+    const monthIndex = this.RUSSIAN_MONTHS.findIndex(
+      m => m.toLowerCase() === monthName.toLowerCase()
+    );
+    if (monthIndex === -1) return false;
+
+    const month = monthIndex + 1;
+
+    // Check if date is valid
+    const date = new Date(year, month - 1, day);
+    return date.getFullYear() === year &&
+           date.getMonth() === month - 1 &&
+           date.getDate() === day;
+  }
+
+  /**
+   * Get current date in "ДД месяца ГГГГ" format.
+   *
+   * @returns {string} Current date with Russian month name
+   *
+   * @example
+   * DateFormatter.todayWithMonthName() // => '27 октября 2025'
+   */
+  static todayWithMonthName() {
+    const now = new Date();
+    const day = now.getDate();
+    const monthIndex = now.getMonth();
+    const year = now.getFullYear();
+
+    return `${day} ${this.RUSSIAN_MONTHS[monthIndex]} ${year}`;
   }
 }
 

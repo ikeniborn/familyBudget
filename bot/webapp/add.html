@@ -134,6 +134,18 @@
             background-color: var(--tg-theme-button-color);
             color: var(--tg-theme-button-text-color);
         }
+
+        .toggle-btn {
+            font-size: 16px;
+            font-weight: 500;
+            padding: 12px;
+        }
+
+        .toggle-btn.active {
+            background-color: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            border-color: var(--tg-theme-button-color);
+        }
     </style>
 </head>
 <body>
@@ -146,11 +158,9 @@
         <!-- Transaction Type Selector -->
         <div class="form-group">
             <label class="form-label">Тип операции</label>
-            <div class="segmented-control">
-                <button type="button" class="segmented-control-item active" data-type="expense">Расход</button>
-                <button type="button" class="segmented-control-item" data-type="income">
-                    Доход
-                </button>
+            <div class="quick-amount-buttons" style="grid-template-columns: repeat(2, 1fr);">
+                <button type="button" class="quick-amount-btn toggle-btn active" data-type="expense">Расход</button>
+                <button type="button" class="quick-amount-btn toggle-btn" data-type="income">Доход</button>
             </div>
         </div>
 
@@ -237,8 +247,7 @@
                 type="text"
                 id="fact-date"
                 class="form-input"
-                placeholder="ДД-ММ-ГГГГ"
-                pattern="\d{2}-\d{2}-\d{4}"
+                placeholder="ДД месяца ГГГГ"
                 required
             >
             <span class="error-message" id="date-error"></span>
@@ -317,7 +326,7 @@
         };
 
         function setupTypeSelector() {
-            const buttons = document.querySelectorAll('.segmented-control-item');
+            const buttons = document.querySelectorAll('.toggle-btn[data-type]');
 
             buttons.forEach(button => {
                 button.addEventListener('click', () => {
@@ -389,16 +398,16 @@
         function setupDateInput() {
             const dateInput = document.getElementById('fact-date');
 
-            // Set default to today in DD-MM-YYYY format
-            dateInput.value = DateFormatter.today();
+            // Set default to today in "ДД месяца ГГГГ" format
+            dateInput.value = DateFormatter.todayWithMonthName();
             formState.factDate = DateFormatter.todayISO();
 
             dateInput.addEventListener('input', () => {
                 const displayDate = dateInput.value;
 
-                // Convert DD-MM-YYYY to YYYY-MM-DD for API
-                if (DateFormatter.isValidDisplayFormat(displayDate)) {
-                    formState.factDate = DateFormatter.formatForAPI(displayDate);
+                // Convert "ДД месяца ГГГГ" to YYYY-MM-DD for API
+                if (DateFormatter.isValidMonthNameFormat(displayDate)) {
+                    formState.factDate = DateFormatter.formatForAPIFromMonthName(displayDate);
                     // Clear error
                     document.getElementById('date-error').textContent = '';
                     dateInput.classList.remove('input-error');
@@ -409,8 +418,8 @@
 
             dateInput.addEventListener('blur', () => {
                 // Validate on blur
-                if (!DateFormatter.isValidDisplayFormat(dateInput.value)) {
-                    document.getElementById('date-error').textContent = 'Неверный формат даты (ДД-ММ-ГГГГ)';
+                if (!DateFormatter.isValidMonthNameFormat(dateInput.value)) {
+                    document.getElementById('date-error').textContent = 'Неверный формат даты (ДД месяца ГГГГ)';
                     dateInput.classList.add('input-error');
                 }
             });
@@ -430,8 +439,8 @@
                     const isoDate = date.toISOString().split('T')[0];
                     formState.factDate = isoDate;
 
-                    // Format for display (DD-MM-YYYY)
-                    dateInput.value = DateFormatter.formatForDisplay(isoDate);
+                    // Format for display with month name (ДД месяца ГГГГ)
+                    dateInput.value = DateFormatter.formatForDisplayWithMonthName(isoDate);
 
                     // Clear error
                     document.getElementById('date-error').textContent = '';
