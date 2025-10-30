@@ -329,13 +329,6 @@
             <div class="empty-state-text">Нет транзакций по выбранным фильтрам</div>
             <button class="btn btn-secondary" id="reset-filters-btn">Сбросить фильтры</button>
         </div>
-
-        <!-- Pagination -->
-        <div class="pagination" id="pagination" style="display: none;">
-            <button class="pagination-button" id="prev-page-btn" disabled>← Назад</button>
-            <span class="pagination-info" id="pagination-info">1 из 1</span>
-            <button class="pagination-button" id="next-page-btn" disabled>Вперед →</button>
-        </div>
     </div>
 
     <!-- Core JS modules -->
@@ -397,25 +390,10 @@
                 clearFilters();
             });
 
-            // Setup pagination
-            document.getElementById('prev-page-btn').addEventListener('click', () => {
-                app.ui.hapticLight();
-                if (currentPage > 1) {
-                    currentPage--;
-                    loadTransactions();
-                }
+            // Setup BackButton to return to main menu
+            app.setupBackButton(() => {
+                window.location.href = '/webapp/index.html';
             });
-
-            document.getElementById('next-page-btn').addEventListener('click', () => {
-                app.ui.hapticLight();
-                if (currentPage < totalPages) {
-                    currentPage++;
-                    loadTransactions();
-                }
-            });
-
-            // Hide BackButton
-            app.hideBackButton();
 
             console.log('List page ready');
         };
@@ -473,14 +451,12 @@
             const loadingState = document.getElementById('loading-state');
             const transactionsList = document.getElementById('transactions-list');
             const emptyState = document.getElementById('empty-state');
-            const pagination = document.getElementById('pagination');
 
             try {
                 // Show loading
                 loadingState.style.display = 'block';
                 transactionsList.style.display = 'none';
                 emptyState.style.display = 'none';
-                pagination.style.display = 'none';
 
                 // Build query params
                 const params = {
@@ -513,10 +489,6 @@
                     // Render transactions
                     renderTransactions(facts);
                     transactionsList.style.display = 'block';
-
-                    // Show pagination
-                    updatePagination();
-                    pagination.style.display = 'flex';
                 }
 
             } catch (error) {
@@ -594,16 +566,6 @@
             });
 
             return item;
-        }
-
-        function updatePagination() {
-            const prevBtn = document.getElementById('prev-page-btn');
-            const nextBtn = document.getElementById('next-page-btn');
-            const paginationInfo = document.getElementById('pagination-info');
-
-            prevBtn.disabled = currentPage === 1;
-            nextBtn.disabled = currentPage === totalPages;
-            paginationInfo.textContent = `${currentPage} из ${totalPages}`;
         }
 
         function applyFilters() {
