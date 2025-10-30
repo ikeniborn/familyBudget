@@ -291,3 +291,6 @@ certbot/
 uploads/
 tmp/
 temp/
+
+# Environment backups
+.env.backup.*
