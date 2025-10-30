@@ -926,6 +926,12 @@ categorize_file_changes() {
                 postgres_restart_reason="DB migrations changed: $file"
                 ((count_postgres_critical++))
                 ;;
+            backend/db/*)
+                # DB models, alembic config - требуют полного перезапуска
+                needs_postgres_restart=true
+                postgres_restart_reason="DB schema/config changed: $file"
+                ((count_postgres_critical++))
+                ;;
             docker-compose.yml)
                 needs_postgres_restart=true
                 postgres_restart_reason="docker-compose.yml changed"
@@ -957,15 +963,26 @@ categorize_file_changes() {
                 needs_backend_restart=true
                 ((count_backend_code++))
                 ;;
-            web/*)
-                needs_backend_restart=true  # Backend serves web templates
-                needs_nginx_restart=true    # Nginx serves static files
+            web/templates/*)
+                # HTMX templates - backend serves them
+                needs_backend_restart=true
                 ((count_backend_code++))
                 ;;
+            web/static/*)
+                # Static files - only nginx serves
+                needs_nginx_restart=true
+                ((count_nginx_config++))
+                ;;
             bot/webapp/*)
-                needs_backend_restart=true  # Backend serves bot webapp
-                needs_nginx_restart=true    # Nginx may cache webapp files
-                ((count_backend_code++))
+                # Files are volume-mounted (:ro) - no backend restart needed
+                # Check if nginx has caching enabled for these files
+                if [[ -f "$DEPLOY_DIR/nginx/conf.d/app.conf" ]] && grep -q "proxy_cache" "$DEPLOY_DIR/nginx/conf.d/app.conf" 2>/dev/null; then
+                    needs_nginx_restart=true
+                    info "nginx cache detected for bot/webapp - will restart nginx"
+                else
+                    # Volume-mounted without caching - no restart needed
+                    info "bot/webapp/* volume-mounted - no restart needed"
+                fi
                 ;;
 
             # Bot dependencies (требуют пересборки образа)
@@ -980,14 +997,14 @@ categorize_file_changes() {
                 ((count_bot_deps++))
                 ;;
 
-            # Bot code (требуют только перезапуска)
-            bot/*)
+            # Bot code (требуют только перезапуска, КРОМЕ webapp)
+            bot/handlers/*|bot/utils/*|bot/jobs/*|bot/*.py)
                 needs_bot_restart=true
                 ((count_bot_code++))
                 ;;
 
             # Nginx config (требуют только перезапуска)
-            nginx/*|web/static/*)
+            nginx/*.conf|nginx/conf.d/*.conf|nginx/conf.d/**/*.conf)
                 needs_nginx_restart=true
                 ((count_nginx_config++))
                 ;;
