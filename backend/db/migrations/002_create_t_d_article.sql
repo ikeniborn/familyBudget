@@ -116,6 +116,10 @@ CREATE INDEX IF NOT EXISTS idx_article_global_current
     ON t_d_article(is_global, is_current)
     WHERE is_global = TRUE AND is_current = TRUE;
 
+-- Composite index for queries filtering by global OR user_id (optimizes: WHERE (is_global = TRUE OR user_id = ?))
+CREATE INDEX IF NOT EXISTS idx_article_global_user_current
+    ON t_d_article(is_global, user_id, is_current);
+
 -- Index on valid date range for time-travel queries
 CREATE INDEX IF NOT EXISTS idx_article_valid_from
     ON t_d_article(valid_from);
