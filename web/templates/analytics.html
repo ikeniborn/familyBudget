@@ -989,7 +989,7 @@ function updateHeatmapChart(data) {
     const weekLabels = [];
 
     data.weeks.forEach((week, weekIndex) => {
-        weekLabels.push(`W${weekIndex + 1}`);
+        weekLabels.push(`Н${weekIndex + 1}`);
         week.forEach((value, dayIndex) => {
             heatmapData.push([dayIndex, weekIndex, value]);
         });
@@ -1028,8 +1028,8 @@ function updateHeatmapChart(data) {
                 const dayName = data.day_labels[params.value[0]];
                 const weekNum = params.value[1] + 1;
                 const amount = params.value[2].toFixed(2);
-                return `<strong>${dayName}, Week ${weekNum}</strong><br/>` +
-                       `Expense: ${amount} ₽`;
+                return `<strong>${dayName}, Неделя ${weekNum}</strong><br/>` +
+                       `Расход: ${amount} ₽`;
             }
         },
         grid: {
