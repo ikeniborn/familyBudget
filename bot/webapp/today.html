@@ -234,10 +234,8 @@
             // Load today's transactions
             await loadTodayTransactions();
 
-            // Setup BackButton
-            app.setupBackButton(() => {
-                window.location.href = '/webapp/index.html';
-            });
+            // Hide BackButton
+            app.hideBackButton();
 
             console.log('Today page ready');
         };

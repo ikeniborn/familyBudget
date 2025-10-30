@@ -329,10 +329,8 @@
             // Load stats for default period
             await loadStats(currentPeriod);
 
-            // Setup BackButton
-            app.setupBackButton(() => {
-                window.location.href = '/webapp/index.html';
-            });
+            // Hide BackButton
+            app.hideBackButton();
 
             console.log('Stats page ready');
         };
