@@ -105,6 +105,16 @@ setup_ssl_certificates() {
         if sudo "$ssl_manager" check "$domain" >> "$LOG_FILE" 2>&1; then
             info "Certificate is valid"
 
+            # Ensure auto-renewal is configured (idempotent)
+            info "Ensuring auto-renewal cron job is configured..."
+            if sudo "$ssl_manager" setup-cron >> "$LOG_FILE" 2>&1; then
+                success "Auto-renewal configuration verified"
+                info "Certificates will auto-renew 2x daily via cron"
+            else
+                warning "Failed to setup auto-renewal. Check $LOG_FILE for details."
+                warning "You may need to run manually: sudo scripts/ssl_certificate_manager.sh setup-cron"
+            fi
+
             # Update nginx configuration to enable HTTPS if not already done
             update_nginx_for_https "$domain"
 

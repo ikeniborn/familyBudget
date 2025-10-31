@@ -378,6 +378,9 @@ main() {
         run_migrations
         echo ""
 
+        run_bootstrap_script
+        echo ""
+
         setup_backup_cron
         echo ""
 

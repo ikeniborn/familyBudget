@@ -193,3 +193,51 @@ verify_database_schema() {
         return 1
     fi
 }
+
+# =============================================================================
+# BOOTSTRAP SCRIPT - Create First Admin User
+# =============================================================================
+#
+# Creates the first administrator user from ADMIN_TELEGRAM_ID environment variable.
+# This function is idempotent and safe to run multiple times.
+#
+# Prerequisites:
+#   - Database migrations must be applied
+#   - ADMIN_TELEGRAM_ID must be set in .env
+#   - Backend container must be running
+#
+# Returns:
+#   0 - Admin created successfully or already exists
+#   0 - ADMIN_TELEGRAM_ID not set (warning only)
+#   non-zero - Script execution failed
+#
+run_bootstrap_script() {
+    step "Creating First Admin User"
+
+    # Check if ADMIN_TELEGRAM_ID is set
+    if [[ -z "${ADMIN_TELEGRAM_ID:-}" ]]; then
+        warning "ADMIN_TELEGRAM_ID not set in .env - skipping admin creation"
+        warning "⚠️  You will need to create admin manually:"
+        warning "    docker exec familybudget-backend bash -c 'cd /app && PYTHONPATH=/app python backend/db/create_first_admin.py'"
+        echo ""
+        return 0
+    fi
+
+    info "Running bootstrap script (idempotent)..."
+    info "Admin Telegram ID: ${ADMIN_TELEGRAM_ID}"
+
+    # Run bootstrap script
+    if compose_cmd exec -T backend bash -c "cd /app && PYTHONPATH=/app python backend/db/create_first_admin.py" >> "$LOG_FILE" 2>&1; then
+        success "Admin user bootstrap completed"
+        info "✓ Admin can now login via Telegram OAuth"
+    else
+        local exit_code=$?
+        warning "Bootstrap script exited with code $exit_code"
+        info "This may be normal if:"
+        info "  - Admin already exists (idempotent behavior)"
+        info "  - ADMIN_TELEGRAM_ID is invalid"
+        info "Check $LOG_FILE for details"
+    fi
+
+    echo ""
+}
