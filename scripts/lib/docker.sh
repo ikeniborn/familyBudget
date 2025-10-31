@@ -665,34 +665,69 @@ cleanup_old_deployment() {
     fi
     echo ""
 
-    # Offer cleanup options
-    warning "Old deployments may cause network conflicts!"
-    echo "Choose cleanup action:"
-    echo "  [1] Skip - deploy alongside old deployment (may cause subnet conflicts)"
-    echo "  [2] Smart cleanup - auto-detect changes & restart strategy (RECOMMENDED)"
-    echo "      ✓ Analyzes git diff to determine if PostgreSQL needs restart"
-    echo "      ✓ Keeps PostgreSQL running for frontend/backend changes only"
-    echo "      ✓ Full restart for DB migrations or config changes"
-    echo "  [3] Full cleanup - containers + networks + volumes (DELETES ALL DATA!)"
-    echo "      ⚠️  Requires sudo/root privileges"
-    echo ""
+    # Auto-select cleanup mode if --clean flag set
+    if [[ "${CLEAN_DEPLOY:-false}" == "true" ]]; then
+        info "Auto-selecting Full Cleanup (--clean flag specified)"
+        cleanup_full
+        return 0
+    fi
 
-    read -p "Select [1-3]: " choice
-    echo ""
+    # Check if cleanup mode preset via environment
+    local cleanup_mode="${CLEANUP_MODE:-}"
 
-    case $choice in
-        1)
+    # If no preset and we have interactive terminal, ask user
+    if [[ -z "$cleanup_mode" ]] && [[ -t 0 ]]; then
+        # Offer cleanup options
+        warning "Old deployments may cause network conflicts!"
+        echo "Choose cleanup action:"
+        echo "  [1] Skip - deploy alongside old deployment (may cause subnet conflicts)"
+        echo "  [2] Smart cleanup - auto-detect changes & restart strategy (RECOMMENDED)"
+        echo "      ✓ Analyzes git diff to determine if PostgreSQL needs restart"
+        echo "      ✓ Keeps PostgreSQL running for frontend/backend changes only"
+        echo "      ✓ Full restart for DB migrations or config changes"
+        echo "  [3] Full cleanup - containers + networks + volumes (DELETES ALL DATA!)"
+        echo "      ⚠️  Requires sudo/root privileges"
+        echo ""
+
+        read -p "Select [1-3]: " choice
+        echo ""
+
+        case $choice in
+            1)
+                cleanup_mode="skip"
+                ;;
+            2)
+                cleanup_mode="smart"
+                ;;
+            3)
+                cleanup_mode="full"
+                ;;
+            *)
+                error "Invalid choice. Please select 1-3."
+                exit 1
+                ;;
+        esac
+    elif [[ -z "$cleanup_mode" ]]; then
+        # Non-interactive mode (no TTY) - use smart cleanup as default
+        cleanup_mode="smart"
+        info "Non-interactive mode detected: using default cleanup mode 'smart'"
+    fi
+
+    # Execute cleanup based on selected mode
+    case $cleanup_mode in
+        skip)
             info "Skipping cleanup (network conflicts may occur)"
             return 0
             ;;
-        2)
+        smart)
             cleanup_containers_networks_v2
             ;;
-        3)
+        full)
             cleanup_full
             ;;
         *)
-            error "Invalid choice. Please select 1-3."
+            error "Invalid cleanup mode: $cleanup_mode"
+            exit 1
             ;;
     esac
 }

@@ -470,59 +470,77 @@ sync_code_to_deploy() {
     # Check for code changes
     if ! check_code_changes "$repo_dir"; then
         info "No code changes detected. Skipping synchronization."
-        echo ""
-        read -p "Force sync anyway? [y/N]: " force
-        if [[ "${force,,}" != "y" ]]; then
-            info "Skipping code synchronization"
+
+        # If SYNC_MODE already set via CLI, respect it without prompting
+        if [[ -n "$SYNC_MODE" ]]; then
+            info "Proceeding with sync (mode: $SYNC_MODE specified via CLI)"
+        # Check if we have interactive terminal
+        elif [[ -t 0 ]]; then
+            echo ""
+            read -p "Force sync anyway? [y/N]: " force
+            if [[ "${force,,}" != "y" ]]; then
+                info "Skipping code synchronization"
+                return 0
+            fi
+        else
+            # Non-interactive mode (no TTY) - skip sync by default
+            info "Non-interactive mode detected: skipping synchronization"
             return 0
         fi
     fi
 
     # Interactive mode selection (if not specified via CLI)
     if [[ -z "$SYNC_MODE" ]]; then
-        echo ""
-        info "Code synchronization required"
-        echo ""
-        echo "Select sync mode:"
-        echo "  [1] Mirror (rsync --delete) - RECOMMENDED"
-        echo "      Removes files from /opt/budget not in repository"
-        echo "      Protected: .env, backups/, data/, logs/"
-        echo ""
-        echo "  [2] Update only (rsync)"
-        echo "      Updates existing + adds new files"
-        echo "      Old files NOT deleted (may leave artifacts)"
-        echo ""
-        echo "  [3] Clean + copy (DANGEROUS!)"
-        echo "      Deletes ALL code AND backups in /opt/budget, then copies from repository"
-        echo "      Protected: .env, data/, logs/ only"
-        echo ""
-        echo "  [4] Skip synchronization"
-        echo "      Deploy without updating code"
-        echo ""
+        # Check if we have interactive terminal
+        if [[ -t 0 ]]; then
+            echo ""
+            info "Code synchronization required"
+            echo ""
+            echo "Select sync mode:"
+            echo "  [1] Mirror (rsync --delete) - RECOMMENDED"
+            echo "      Removes files from /opt/budget not in repository"
+            echo "      Protected: .env, backups/, data/, logs/"
+            echo ""
+            echo "  [2] Update only (rsync)"
+            echo "      Updates existing + adds new files"
+            echo "      Old files NOT deleted (may leave artifacts)"
+            echo ""
+            echo "  [3] Clean + copy (DANGEROUS!)"
+            echo "      Deletes ALL code AND backups in /opt/budget, then copies from repository"
+            echo "      Protected: .env, data/, logs/ only"
+            echo ""
+            echo "  [4] Skip synchronization"
+            echo "      Deploy without updating code"
+            echo ""
 
-        read -p "Select [1-4]: " mode_choice
-        echo ""
+            read -p "Select [1-4]: " mode_choice
+            echo ""
 
-        case $mode_choice in
-            1)
-                SYNC_MODE="mirror"
-                ;;
-            2)
-                SYNC_MODE="update"
-                ;;
-            3)
-                SYNC_MODE="clean"
-                ;;
-            4)
-                SYNC_MODE="skip"
-                info "Skipping code synchronization"
-                return 0
-                ;;
-            *)
-                error "Invalid choice"
-                exit 1
-                ;;
-        esac
+            case $mode_choice in
+                1)
+                    SYNC_MODE="mirror"
+                    ;;
+                2)
+                    SYNC_MODE="update"
+                    ;;
+                3)
+                    SYNC_MODE="clean"
+                    ;;
+                4)
+                    SYNC_MODE="skip"
+                    info "Skipping code synchronization"
+                    return 0
+                    ;;
+                *)
+                    error "Invalid choice"
+                    exit 1
+                    ;;
+            esac
+        else
+            # Non-interactive mode (no TTY) - use mirror as default
+            SYNC_MODE="mirror"
+            info "Non-interactive mode detected: using default sync mode 'mirror'"
+        fi
     fi
 
     # Execute sync based on selected mode

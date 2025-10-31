@@ -323,10 +323,47 @@ cd ~/familyBudget && git pull
 ### Deployment опции
 
 ```bash
+# Профили
 ./deploy.sh --profile full          # Full stack (+ bot + nginx)
-./deploy.sh --build                 # Rebuild images
+
+# Sync modes (non-interactive)
+./deploy.sh --sync-mode mirror      # Recommended: rsync --delete
+./deploy.sh --sync-mode update      # rsync без удаления старых файлов
 ./deploy.sh --sync-mode skip        # Deploy без синхронизации кода
+
+# Cleanup options
+./deploy.sh --clean                 # Full cleanup (удаляет все данные!)
+
+# Комбинации
+./deploy.sh --sync-mode mirror --profile full
+./deploy.sh --no-migrate            # Skip database migrations
 ```
+
+### ⚠️ КРИТИЧНО: Правильный запуск deploy.sh
+
+**✓ ПРАВИЛЬНО:**
+```bash
+cd ~/familyBudget          # Git repository
+sudo ./deploy.sh           # Относительный путь
+```
+
+**✗ НЕПРАВИЛЬНО:**
+```bash
+cd /opt/budget             # Production directory
+sudo ./deploy.sh           # ❌ Модули не найдены!
+
+sudo /opt/budget/deploy.sh  # ❌ То же самое
+```
+
+**Почему:**
+- deploy.sh загружает модули из `scripts/lib/` в repository
+- /opt/budget содержит только runtime файлы (создаются синхронизацией)
+- SCRIPT_DIR определяется относительно расположения deploy.sh
+
+**Non-interactive режим:**
+- Используйте `--sync-mode` для автоматического выбора sync стратегии
+- При отсутствии TTY (pipe, automation) используется `mirror` по умолчанию
+- `--clean` флаг автоматически выбирает full cleanup без подтверждения
 
 📖 **Полное руководство:** [deployment skill](/.claude/skills/deployment/SKILL.md)
 

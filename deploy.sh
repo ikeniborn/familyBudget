@@ -42,6 +42,34 @@ set -u  # Exit on undefined variable
 # Auto-detect script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Validate library modules exist
+if [[ ! -d "$SCRIPT_DIR/scripts/lib" ]]; then
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "❌ ERROR: Library modules not found"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "Expected location: $SCRIPT_DIR/scripts/lib/"
+    echo "This directory does not exist or is not accessible."
+    echo ""
+    echo "This usually means deploy.sh is being run from the wrong directory."
+    echo ""
+    echo "✓ CORRECT usage:"
+    echo "  cd ~/familyBudget          # Navigate to git repository"
+    echo "  sudo ./deploy.sh           # Run deploy script"
+    echo ""
+    echo "✗ WRONG:"
+    echo "  cd /opt/budget             # Production directory"
+    echo "  sudo ./deploy.sh           # ❌ Modules not found!"
+    echo ""
+    echo "  sudo /opt/budget/deploy.sh  # ❌ Same problem"
+    echo ""
+    echo "Current directory: $(pwd)"
+    echo "SCRIPT_DIR: $SCRIPT_DIR"
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    exit 1
+fi
+
 # =============================================================================
 # LOAD LIBRARY MODULES
 # =============================================================================
