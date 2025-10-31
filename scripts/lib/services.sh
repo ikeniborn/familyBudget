@@ -59,17 +59,20 @@ clean_deployment() {
 start_services() {
     step "Starting services..."
 
-    local compose_args=""
-    if [[ -n "$COMPOSE_PROFILE" ]]; then
-        compose_args="--profile $COMPOSE_PROFILE"
-    fi
-
     if [[ "$DETACH_MODE" == "true" ]]; then
         info "Starting services in detached mode (background)..."
-        compose_cmd up --build -d $compose_args >> "$LOG_FILE" 2>&1
+        if [[ -n "$COMPOSE_PROFILE" ]]; then
+            compose_cmd --profile "$COMPOSE_PROFILE" up --build -d >> "$LOG_FILE" 2>&1
+        else
+            compose_cmd up --build -d >> "$LOG_FILE" 2>&1
+        fi
     else
         info "Starting services in foreground mode..."
-        compose_cmd up --build $compose_args
+        if [[ -n "$COMPOSE_PROFILE" ]]; then
+            compose_cmd --profile "$COMPOSE_PROFILE" up --build
+        else
+            compose_cmd up --build
+        fi
         return 0
     fi
 

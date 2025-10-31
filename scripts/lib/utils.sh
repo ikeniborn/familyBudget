@@ -119,6 +119,6 @@ compose_cmd() {
     # Access is controlled by UFW firewall (configured in setup.sh)
 
     # Change to deployment directory and execute docker compose with all override files
-    # --profile full: Start ALL services including nginx and bot (they have profiles: [full] in docker-compose.yml)
-    (cd "$DEPLOY_DIR" && docker compose --profile full $compose_files "$@")
+    # Profile is managed dynamically via start_services() through COMPOSE_PROFILE variable
+    (cd "$DEPLOY_DIR" && docker compose $compose_files "$@")
 }

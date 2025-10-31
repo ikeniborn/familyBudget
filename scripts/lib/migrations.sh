@@ -8,17 +8,79 @@
 #
 
 # =============================================================================
-# ALEMBIC MIGRATIONS
+# MIGRATION VERSION CHECK
+# =============================================================================
+
+# Check if migrations need to be applied (smart detection)
+check_migration_version() {
+    local needs_migration="false"
+
+    # Count migration files available
+    local available_migrations=$(ls "$DEPLOY_DIR/backend/db/migrations"/*.sql 2>/dev/null | wc -l)
+
+    if [[ $available_migrations -eq 0 ]]; then
+        info "No migration files found"
+        echo "false"
+        return 0
+    fi
+
+    # Check if postgres service is healthy
+    if ! compose_cmd ps | grep -q "familybudget-postgres.*healthy"; then
+        warning "PostgreSQL service is not healthy, cannot check migration version"
+        echo "true"  # Assume migrations needed if we can't check
+        return 0
+    fi
+
+    # Check if schema_migrations table exists
+    local table_exists=$(compose_cmd exec -T postgres psql -U familybudget familybudget -t -c \
+        "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'schema_migrations');" 2>/dev/null | tr -d ' ')
+
+    if [[ "$table_exists" != "t" ]]; then
+        info "Migration tracking table does not exist - fresh database detected"
+        echo "true"
+        return 0
+    fi
+
+    # Count applied migrations
+    local applied_migrations=$(compose_cmd exec -T postgres psql -U familybudget familybudget -t -c \
+        "SELECT COUNT(*) FROM schema_migrations;" 2>/dev/null | tr -d ' ')
+
+    if [[ -z "$applied_migrations" ]]; then
+        warning "Cannot determine applied migrations count"
+        echo "true"  # Assume migrations needed
+        return 0
+    fi
+
+    # Compare counts
+    if [[ $applied_migrations -lt $available_migrations ]]; then
+        info "Migrations needed: $applied_migrations applied, $available_migrations available"
+        echo "true"
+    else
+        info "Database is up to date: $applied_migrations/$available_migrations migrations applied"
+        echo "false"
+    fi
+
+    return 0
+}
+
+# =============================================================================
+# SQL MIGRATIONS
 # =============================================================================
 
 # Run database migrations
 run_migrations() {
     if [[ "$RUN_MIGRATIONS" == "true" ]]; then
-        # Skip migrations if PostgreSQL was not restarted
-        if [[ "${POSTGRES_WAS_STOPPED}" == "false" ]]; then
-            info "Skipping migrations (PostgreSQL was not restarted during smart cleanup)"
-            warning "Migrations can corrupt running database or cause schema inconsistency"
-            return 0
+        # Smart check: Do we need to run migrations?
+        local needs_migration=$(check_migration_version)
+
+        if [[ "$needs_migration" == "false" ]]; then
+            if [[ "${POSTGRES_WAS_STOPPED}" == "false" ]]; then
+                info "Skipping migrations (database is up to date, PostgreSQL was not restarted)"
+                return 0
+            else
+                warning "PostgreSQL was restarted but database appears up to date"
+                info "Running migrations anyway to ensure consistency..."
+            fi
         fi
 
         step "Running database migrations..."
@@ -29,13 +91,22 @@ run_migrations() {
             return 1
         fi
 
-        # Run migrations through backend container
-        info "Executing Alembic migrations..."
-        if compose_cmd exec -T backend alembic upgrade head >> "$LOG_FILE" 2>&1; then
+        # Method 1: Use the dedicated migration runner script
+        info "Executing SQL migrations via run_migrations.sh..."
+        if compose_cmd exec -T backend bash /app/backend/db/run_migrations.sh run >> "$LOG_FILE" 2>&1; then
             success "Database migrations completed"
+            return 0
         else
-            error "Database migrations failed. Check $LOG_FILE for details."
-            return 1
+            warning "run_migrations.sh failed, trying direct SQL execution..."
+
+            # Method 2: Fallback - Apply SQL migrations directly
+            if apply_migrations_directly; then
+                success "Database migrations completed (via fallback method)"
+                return 0
+            else
+                error "Database migrations failed. Check $LOG_FILE for details."
+                return 1
+            fi
         fi
     else
         info "Database migrations skipped (--no-migrate flag)"
@@ -43,7 +114,7 @@ run_migrations() {
 }
 
 # =============================================================================
-# SQL MIGRATIONS
+# DIRECT SQL MIGRATION (Fallback)
 # =============================================================================
 
 # Apply SQL migrations directly to database

@@ -143,21 +143,10 @@ CHECK_INTERVAL=5   # Interval between health checks (seconds)
 # =============================================================================
 # Functions: check_port_available
 
-# Helper function to run docker compose with all override files
-compose_cmd() {
-    local compose_files="-f docker-compose.yml"
-
-    # PostgreSQL port 5432 is exposed in docker-compose.yml
-    # Access is controlled by UFW firewall (configured in setup.sh)
-
-    # Change to deployment directory and execute docker compose with all override files
-    # Profile is managed dynamically via start_services() through COMPOSE_PROFILE variable
-    (cd "$DEPLOY_DIR" && docker compose $compose_files "$@")
-}
-
 # =============================================================================
 # DEPLOYMENT FUNCTIONS
 # =============================================================================
+# Note: compose_cmd() is loaded from scripts/lib/utils.sh
 
 # Note: Image building is now handled automatically by 'docker compose up --build'
 # which rebuilds only changed images using Docker's layer cache for speed

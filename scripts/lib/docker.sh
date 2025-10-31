@@ -628,6 +628,16 @@ cleanup_full() {
 cleanup_old_deployment() {
     step "Checking for Old Deployments"
 
+    # Special handling for clean sync mode
+    if [[ "${SYNC_MODE:-}" == "clean" ]]; then
+        info "Cleanup step skipped (clean sync mode already removed all containers)"
+        info "PostgreSQL will be initialized fresh, migrations will run automatically"
+        echo ""
+        # Ensure flag is set (should already be set by clean_sync, but double-check)
+        POSTGRES_WAS_STOPPED=true
+        return 0
+    fi
+
     # Count old artifacts
     local old_containers=$(docker ps -a --filter "name=familybudget" --format "{{.Names}}" 2>/dev/null | wc -l)
     local old_networks=$(docker network ls --filter "name=familybudget" --format "{{.Name}}" 2>/dev/null | wc -l)
