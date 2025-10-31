@@ -100,7 +100,7 @@ fi
 - `is_postgres_healthy()` - Check if PostgreSQL is healthy
 
 **Docker:**
-- `compose_cmd(args...)` - Docker compose wrapper (auto cd to DEPLOY_DIR, uses --profile full)
+- `compose_cmd(args...)` - Docker compose wrapper (auto cd to DEPLOY_DIR, profile managed via parameters)
 
 **Usage:**
 ```bash
