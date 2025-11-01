@@ -413,15 +413,20 @@
 
         async function loadQuickStats(app) {
             try {
-                // Get today's date range
+                // Get today's date range (use LOCAL timezone, not UTC)
                 const today = new Date();
-                const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                const todayEnd = new Date(todayStart);
-                todayEnd.setDate(todayEnd.getDate() + 1);
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                const dateFrom = `${year}-${month}-${day}`;
 
-                // Format dates for API
-                const dateFrom = todayStart.toISOString().split('T')[0];
-                const dateTo = todayEnd.toISOString().split('T')[0];
+                // Tomorrow's date for upper bound
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const yearTomorrow = tomorrow.getFullYear();
+                const monthTomorrow = String(tomorrow.getMonth() + 1).padStart(2, '0');
+                const dayTomorrow = String(tomorrow.getDate()).padStart(2, '0');
+                const dateTo = `${yearTomorrow}-${monthTomorrow}-${dayTomorrow}`;
 
                 // Fetch today's facts
                 const result = await app.api.listFacts({
