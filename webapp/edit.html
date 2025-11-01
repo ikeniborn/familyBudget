@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title> едактировать транзакцию - Family Budget</title>
+    <title>Редактировать транзакцию - Family Budget</title>
 
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -200,7 +200,7 @@
     <div class="container" id="main-content" style="display: none;">
         <!-- Header -->
         <div class="page-header">
-            <div class="page-title"> едактировать транзакцию</div>
+            <div class="page-title">Редактировать транзакцию</div>
         </div>
 
         <!-- Transaction Type Selector -->
@@ -283,7 +283,7 @@
         <!-- Delete Section -->
         <div class="delete-section">
             <button type="button" class="btn-delete" id="delete-btn">
-                н Удалить транзакцию
+                🗑 Удалить транзакцию
             </button>
         </div>
     </div>
@@ -376,7 +376,8 @@
                 }
 
                 // Populate form state
-                formState.factType = originalFact.amount > 0 ? 'income' : 'expense';
+                // CRITICAL FIX: Use article_type from API instead of amount sign
+                formState.factType = originalFact.article_type || 'expense';
                 formState.amount = Math.abs(originalFact.amount);
                 formState.categoryId = originalFact.article_id;
                 formState.description = originalFact.description || '';
@@ -391,7 +392,7 @@
 
             } catch (error) {
                 console.error('Failed to load transaction:', error);
-                app.ui.showError(`Ошибка загрузкик ${error.message}`, () => {
+                app.ui.showError(`Ошибка загрузки: ${error.message}`, () => {
                     window.history.back();
                 });
             }
@@ -417,7 +418,7 @@
             const descriptionInput = document.getElementById('description');
             descriptionInput.value = formState.description;
             const counter = document.getElementById('description-counter');
-            counter.textContent = `${formState.description.length} Я ваа`;
+            counter.textContent = `${formState.description.length} / 200`;
 
             // Date
             const dateInput = document.getElementById('fact-date');
@@ -437,6 +438,9 @@
 
                     // Update form state
                     formState.factType = button.dataset.type;
+
+                    // CRITICAL FIX: Clear category selection when changing type to avoid mismatch
+                    formState.categoryId = null;
 
                     // Update amount input style
                     const amountInput = document.getElementById('amount');
@@ -484,7 +488,7 @@
 
             textarea.addEventListener('input', () => {
                 const length = textarea.value.length;
-                counter.textContent = `${length} Я ваа`;
+                counter.textContent = `${length} / 200`;
 
                 if (length > 200) {
                     counter.classList.add('over-limit');
@@ -574,7 +578,7 @@
                 app.ui.hapticLight();
 
                 // Show confirmation dialog
-                const confirmed = confirm('Вы увереныЬ что хотите удалить MBC транзакциюп -то действие нельзя от<енитьЮ');
+                const confirmed = confirm('Вы уверены, что хотите удалить эту транзакцию? Это действие нельзя отменить.');
 
                 if (!confirmed) {
                     return;
@@ -594,7 +598,7 @@
 
                 } catch (error) {
                     app.ui.hideLoading();
-                    app.ui.showError(`Ошибка удаленияк ${error.message}`);
+                    app.ui.showError(`Ошибка удаления: ${error.message}`);
                 }
             });
         }
@@ -602,7 +606,7 @@
         function setupMainButton() {
             const mainButton = app.tg.MainButton;
 
-            mainButton.setText('Сохранить из<енения');
+            mainButton.setText('СОХРАНИТЬ ИЗМЕНЕНИЯ');
             mainButton.show();
             mainButton.enable();
 
@@ -638,13 +642,13 @@
 
                 app.ui.hideLoading();
                 app.ui.hapticSuccess();
-                app.ui.showSuccess('Транзакция обновленаС', () => {
+                app.ui.showSuccess('Транзакция обновлена', () => {
                     window.history.back();
                 });
 
             } catch (error) {
                 app.ui.hideLoading();
-                app.ui.showError(`Ошибкак ${error.message}`);
+                app.ui.showError(`Ошибка: ${error.message}`);
             }
         }
 
