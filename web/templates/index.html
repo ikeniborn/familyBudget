@@ -274,7 +274,7 @@
                     <span class="label-text font-semibold">Тип плана *</span>
                 </label>
                 <div class="grid grid-cols-2 gap-2">
-                    <label class="btn btn-outline btn-error plan-type-btn active" data-type="expense">
+                    <label class="btn btn-outline btn-error plan-type-btn btn-active" data-type="expense">
                         <input type="radio" name="plan_type" value="expense" class="hidden" checked />
                         Расход
                     </label>
@@ -343,7 +343,7 @@
                     <span class="label-text font-semibold">Период планирования *</span>
                 </label>
                 <div class="grid grid-cols-3 gap-2">
-                    <button type="button" class="btn btn-outline period-btn active" data-offset="0" id="plan_period_btn_1">Окт 2025</button>
+                    <button type="button" class="btn btn-outline period-btn btn-active" data-offset="0" id="plan_period_btn_1">Окт 2025</button>
                     <button type="button" class="btn btn-outline period-btn" data-offset="1" id="plan_period_btn_2">Ноя 2025</button>
                     <button type="button" class="btn btn-outline period-btn" data-offset="2" id="plan_period_btn_3">Дек 2025</button>
                 </div>
@@ -771,11 +771,11 @@ function setupPlanPeriodButtons() {
 
     periodButtons.forEach(button => {
         button.addEventListener('click', function() {
-            // Убрать active у всех кнопок
-            periodButtons.forEach(btn => btn.classList.remove('active'));
+            // Убрать btn-active у всех кнопок
+            periodButtons.forEach(btn => btn.classList.remove('btn-active'));
 
-            // Добавить active к текущей кнопке
-            this.classList.add('active');
+            // Добавить btn-active к текущей кнопке
+            this.classList.add('btn-active');
 
             // Установить значение в hidden input (YYYY-MM)
             const year = this.dataset.year;
@@ -786,8 +786,8 @@ function setupPlanPeriodButtons() {
         });
     });
 
-    // Установить значение по умолчанию (текущая кнопка active)
-    const activeButton = document.querySelector('.period-btn.active');
+    // Установить значение по умолчанию (текущая кнопка btn-active)
+    const activeButton = document.querySelector('.period-btn.btn-active');
     if (activeButton && activeButton.dataset.year && activeButton.dataset.month) {
         hiddenInput.value = `${activeButton.dataset.year}-${activeButton.dataset.month}`;
     }
@@ -799,11 +799,11 @@ function setupPlanTypeButtons() {
 
     typeButtons.forEach(button => {
         button.addEventListener('click', function() {
-            // Убрать active у всех кнопок
-            typeButtons.forEach(btn => btn.classList.remove('active'));
+            // Убрать btn-active у всех кнопок
+            typeButtons.forEach(btn => btn.classList.remove('btn-active'));
 
-            // Добавить active к текущей кнопке
-            this.classList.add('active');
+            // Добавить btn-active к текущей кнопке
+            this.classList.add('btn-active');
 
             // Отметить соответствующий radio button
             const radio = this.querySelector('input[type="radio"]');
