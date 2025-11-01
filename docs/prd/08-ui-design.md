@@ -821,6 +821,14 @@ if (!DateFormatter.isValidDisplayFormat(dateStr)) {
 
 #### 8.10.7 Changelog
 
+**2025-11-01 (Edit Transaction - Quick Date Buttons):**
+- ✅ Добавлены кнопки быстрого выбора даты: "Сегодня", "Вчера", "Позавчера"
+- ✅ Консистентность UX с формой добавления транзакции (webapp/add.html)
+- ✅ HTML разметка: 3 кнопки с data-days атрибутами (0, -1, -2)
+- ✅ JavaScript: функция setupQuickDateButtons() с haptic feedback
+- ✅ Автоматическое форматирование даты в DD.MM.YYYY для отображения
+- ✅ Файл: webapp/edit.html
+
 **2025-11-01 (Edit Transaction Fixes):**
 - ✅ **CRITICAL FIX:** Исправлено определение типа операции при загрузке транзакции (используется article_type из API вместо знака amount)
 - ✅ **CRITICAL FIX:** Исправлен сброс выбранной категории при смене типа операции (добавлен formState.categoryId = null)
