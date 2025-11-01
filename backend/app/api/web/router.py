@@ -260,3 +260,32 @@ async def admin_cost_centers(
             "page_title": "Cost Centers Management"
         }
     )
+
+
+@web_router.get("/notifications", response_class=HTMLResponse)
+async def notifications(
+    request: Request,
+    current_user: CurrentUserOptional = None
+):
+    """
+    Notifications history page (accessible to all users).
+
+    Provides interface for viewing budget notification history:
+    - Budget threshold alerts (90% warning)
+    - Budget exceeded notifications
+    - Weekly/monthly reports
+    - Filtering by type and date range
+    - Broadcast notifications visible to all users
+
+    Uses REST API endpoints for data fetching.
+    """
+    from backend.app.main import templates
+
+    return templates.TemplateResponse(
+        "notifications.html",
+        {
+            "request": request,
+            "user": current_user,
+            "page_title": "Уведомления"
+        }
+    )

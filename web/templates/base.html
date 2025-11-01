@@ -88,6 +88,7 @@
                 <li><a href="/analytics" class="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">Аналитика</a></li>
                 <li><a href="/facts" class="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">Транзакции</a></li>
                 <li><a href="/plan" class="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">План</a></li>
+                <li><a href="/notifications" class="{% if '/notifications' in request.url.path %}active{% endif %}" aria-current="{% if '/notifications' in request.url.path %}page{% endif %}">🔔 Уведомления</a></li>
 
                 {% if user and user.is_admin %}
                 <li>
@@ -138,6 +139,8 @@
                     <li><a href="/">Главная</a></li>
                     <li><a href="/analytics">Аналитика</a></li>
                     <li><a href="/facts">Транзакции</a></li>
+                    <li><a href="/plan">План</a></li>
+                    <li><a href="/notifications">🔔 Уведомления</a></li>
                     {% if user and user.is_admin %}
                         <li class="menu-title"><span>Администратор</span></li>
                         <li><a href="/admin/users">👥 Пользователи</a></li>

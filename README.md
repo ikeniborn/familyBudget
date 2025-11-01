@@ -85,8 +85,15 @@
   - Plan vs Fact summary
   - Top-3 expense categories
   - Deviation analysis
-- 🚨 **Budget threshold notifications** - Real-time alerts when spending exceeds 90% of plan
-- 🔔 **Notification history** - No duplicate alerts for same category/period
+- 🚨 **Budget threshold notifications** - Real-time broadcast alerts when spending exceeds 90% of plan
+  - Broadcast to ALL registered users (shared family budget)
+  - Deduplication prevents spam for same category/period
+  - Saved in database for audit trail
+- 🔔 **Notification history** - Web UI for viewing all budget alerts
+  - Filter by type (threshold/exceeded/reports)
+  - Filter by date range
+  - Statistics dashboard (total/warnings/exceeded)
+  - No user isolation - all family members see all notifications
 
 ### Telegram Web Apps (Phase 3 - READY!)
 
@@ -179,6 +186,14 @@
   - Category filtering
   - Transaction type (income/expense)
   - Period comparison (month-over-month, year-over-year)
+
+- **Notification History (/notifications):**
+  - View all budget alerts with filtering
+  - Statistics dashboard (total/warnings/exceeded)
+  - Filter by notification type (threshold/exceeded/reports)
+  - Filter by date range
+  - Pagination (50 records per page)
+  - Shared view for all family members (broadcast model)
 
 ### Financial/Cost Centers (Phase 2 - NEW!)
 
@@ -788,6 +803,10 @@ openssl rand -base64 32
   - Includes `record_type` (fact/plan)
   - Optional `financial_center_id` and `cost_center_id`
 - `t_notification` - Notification history for budget alerts
+  - Broadcast model: `user_id=NULL` for notifications sent to all users
+  - Unique constraint prevents duplicate broadcasts for same article/period
+  - Supports user-specific notifications when `user_id` is set
+  - Fields: article_id, notification_type, threshold_percent, plan/actual amounts, period dates
 
 **Key Features:**
 - SCD Type 2: Tracks all changes to users, categories, and centers

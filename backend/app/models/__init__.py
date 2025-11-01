@@ -12,6 +12,7 @@ Models:
     BudgetFact: Budget transaction fact table
     ArticleHierarchy: Closure table for article hierarchy
     RefreshToken: Refresh token storage for JWT authentication
+    Notification: Budget alert notification history (supports broadcast)
 
 Design Patterns:
     - SCD Type 2: Slowly Changing Dimension Type 2 for tracking historical changes
@@ -21,7 +22,7 @@ Design Patterns:
 Usage:
     from backend.app.models import (
         User, Article, FinancialCenter, CostCenter,
-        BudgetFact, ArticleHierarchy, RefreshToken
+        BudgetFact, ArticleHierarchy, RefreshToken, Notification
     )
 """
 
@@ -30,6 +31,7 @@ from backend.app.models.cost_center import CostCenter
 from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.hierarchy import ArticleHierarchy
+from backend.app.models.notification import Notification
 from backend.app.models.refresh_token import RefreshToken
 from backend.app.models.user import User
 
@@ -41,4 +43,5 @@ __all__ = [
     "BudgetFact",
     "ArticleHierarchy",
     "RefreshToken",
+    "Notification",
 ]

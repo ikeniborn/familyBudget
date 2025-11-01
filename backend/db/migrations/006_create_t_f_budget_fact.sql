@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS t_f_budget_fact (
     -- Fact attributes
     fact_date DATE NOT NULL,
     amount NUMERIC(15, 2) NOT NULL,
+    record_type VARCHAR(10) DEFAULT 'fact' NOT NULL,
     description TEXT,
 
     -- Audit fields
@@ -69,6 +70,20 @@ CREATE TABLE IF NOT EXISTS t_f_budget_fact (
 
     CONSTRAINT check_budget_fact_date_range
         CHECK (fact_date >= '2020-01-01' AND fact_date <= '2099-12-31'),
+
+    -- Record type constraints
+    CONSTRAINT check_record_type
+        CHECK (record_type IN ('fact', 'plan')),
+
+    -- Date validation based on record type:
+    -- 'fact' records cannot be in future (must be <= CURRENT_DATE)
+    -- 'plan' records can be in future
+    CONSTRAINT check_budget_fact_date_range_by_type
+        CHECK (
+            (fact_date >= '2020-01-01' AND fact_date <= '2099-12-31')
+            AND
+            (record_type != 'fact' OR fact_date <= CURRENT_DATE)
+        ),
 
     -- Primary key includes partition key for partitioned table
     PRIMARY KEY (id, fact_date)
@@ -114,6 +129,14 @@ CREATE INDEX IF NOT EXISTS idx_budget_fact_user_article_date
 CREATE INDEX IF NOT EXISTS idx_budget_fact_created_at
     ON t_f_budget_fact(created_at);
 
+-- Indexes for record_type (plan/fact filtering)
+CREATE INDEX IF NOT EXISTS idx_budget_fact_record_type
+    ON t_f_budget_fact(record_type);
+
+-- Composite index for plan/fact analysis by user
+CREATE INDEX IF NOT EXISTS idx_budget_fact_user_type_date
+    ON t_f_budget_fact(user_id, record_type, fact_date DESC);
+
 -- ============================================================================
 -- COMMENTS
 -- ============================================================================
@@ -141,6 +164,9 @@ COMMENT ON COLUMN t_f_budget_fact.fact_date IS
 
 COMMENT ON COLUMN t_f_budget_fact.amount IS
     'Transaction amount. Positive for income, negative for expense.';
+
+COMMENT ON COLUMN t_f_budget_fact.record_type IS
+    'Record type: "fact" for actual transactions (cannot be future-dated), "plan" for planned/budgeted transactions (can be future-dated). Default: "fact".';
 
 COMMENT ON COLUMN t_f_budget_fact.description IS
     'Optional description or notes about the transaction';

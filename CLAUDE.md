@@ -13,6 +13,47 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 ---
 
+## ⚠️ ВАЖНО: Фаза разработки
+
+**Текущий статус:** DEVELOPMENT MODE
+
+### Правила работы с миграциями БД
+
+**КРИТИЧНО для разработки:**
+
+✅ **МОЖНО делать:**
+- Изменять существующие миграции напрямую (001-012)
+- Редактировать SQL файлы в `backend/db/migrations/`
+- Менять структуру таблиц в уже созданных миграциях
+- НЕ создавать новые миграции для изменений (пока в разработке)
+
+✅ **ОБЯЗАТЕЛЬНО делать:**
+- Отражать изменения в ПРД (`docs/prd/06-database-design.md`)
+- Согласовывать архитектурные изменения перед реализацией
+- Обновлять Changelog в ПРД
+- Тестировать миграции на чистой БД
+
+❌ **НЕ нужно:**
+- Создавать миграции типа `014_update_xxx.sql` для изменений
+- Сохранять backward compatibility для production
+- Беспокоиться о существующих данных
+
+**Причина:** При тестировании и deployment вся БД **накатывается с нуля** на чистую систему.
+
+**Workflow изменения БД:**
+1. Определить требование → согласовать с командой
+2. Изменить существующую миграцию (например, 011_create_notifications_table.sql)
+3. Обновить ПРД (docs/prd/06-database-design.md)
+4. Обновить CLAUDE.md (этот файл)
+5. Тестировать: `docker compose down -v && docker compose up -d`
+
+**Переход в production:**
+- Все миграции будут применены к fresh PostgreSQL
+- Контрольные точки: alpha → beta → production
+- После релиза - переход на версионирование миграций
+
+---
+
 ## 🎯 Claude Skills
 
 Для автоматизации типичных задач используй **Claude Skills** - специализированные инструкции и шаблоны кода:
@@ -273,11 +314,88 @@ familyBudget/
 ❌ **НИКОГДА не делать:**
 
 1. **Прямой UPDATE** для SCD Type 2 таблиц - ТОЛЬКО через `SCD2Service`
-2. **Пропуск user_id фильтра** - ВСЕГДА проверяй user isolation
+2. **Пропуск user_id фильтра** - ВСЕГДА проверяй user isolation (КРОМЕ notifications - см. ниже)
 3. **Хранение JWT в localStorage** - ТОЛЬКО httpOnly cookies
 4. **Прямая работа с Closure Table** - ТОЛЬКО через `HierarchyService`
 
 📖 **Подробнее:** См. соответствующие [Skills](#-claude-skills)
+
+---
+
+## Notifications (Broadcast Model)
+
+### Ключевые особенности
+
+**Broadcast архитектура** - уведомления отправляются ВСЕМ пользователям:
+
+- `user_id=NULL` → broadcast для всех зарегистрированных пользователей
+- Unique constraint предотвращает дубликаты: `(article_id, notification_type, period_start, period_end) WHERE user_id IS NULL`
+- Shared budget model: все видят все уведомления (NO user isolation)
+
+### API Endpoints
+
+```python
+# Backend API
+POST   /api/v1/notifications              # Создать уведомление
+GET    /api/v1/notifications              # Список с фильтрацией
+GET    /api/v1/notifications/check-duplicate  # Проверка дубликатов
+GET    /api/v1/users/telegram-ids         # Список telegram_id для broadcast
+GET    /notifications                      # Web UI страница
+```
+
+### Bot Integration
+
+```python
+# bot/utils/notification_service.py
+await notification_service.check_budget_threshold(
+    token=token,
+    telegram_id=user_id,  # Not used for broadcast
+    article_id=article_id,
+    threshold_percent=90
+)
+```
+
+**Workflow:**
+1. Проверить дубликат через API: `check_duplicate_notification()`
+2. Получить все telegram_ids: `get_all_telegram_ids()`
+3. Отправить broadcast ВСЕМ пользователям
+4. Сохранить в БД: `create_notification(user_id=None)`
+
+### Database Schema
+
+```sql
+CREATE TABLE t_notification (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER,  -- NULLABLE: NULL = broadcast
+    article_id INTEGER NOT NULL,
+    notification_type VARCHAR(50) NOT NULL,
+    threshold_percent INTEGER DEFAULT 90,
+    plan_amount NUMERIC(15,2) NOT NULL,
+    actual_amount NUMERIC(15,2) NOT NULL,
+    period_start DATE NOT NULL,
+    period_end DATE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    -- Unique constraint for broadcast notifications
+    CONSTRAINT idx_notification_unique_broadcast UNIQUE (
+        article_id, notification_type, period_start, period_end
+    ) WHERE user_id IS NULL
+);
+```
+
+### Web UI
+
+- `/notifications` - История уведомлений для всех пользователей
+- Фильтры: тип (threshold/exceeded/reports), даты
+- Статистика: всего, warnings (90%), exceeded (100%+)
+- Пагинация: 50 записей на страницу
+
+### ⚠️ ВАЖНО
+
+**NO USER ISOLATION** для notifications:
+- Все пользователи видят все уведомления
+- Broadcast модель для shared family budget
+- НЕ применяй `WHERE user_id = current_user.id` к t_notification!
 
 ---
 
