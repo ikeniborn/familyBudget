@@ -271,9 +271,10 @@
         <div class="form-group">
             <label class="form-label form-label-required">Дата</label>
             <input
-                type="date"
+                type="text"
                 id="fact-date"
                 class="form-input"
+                placeholder="ДД.ММ.ГГГГ"
                 required
             >
             <span class="error-message" id="date-error"></span>
@@ -294,6 +295,7 @@
     <script src="/webapp/static/js/ui.js"></script>
     <script src="/webapp/static/js/auth.js"></script>
     <script src="/webapp/static/js/api.js"></script>
+    <script src="/webapp/static/js/dateFormatter.js"></script>
     <script src="/webapp/static/js/categoryTreeSelect.js"></script>
     <script src="/webapp/static/js/app.js"></script>
 
@@ -419,7 +421,7 @@
 
             // Date
             const dateInput = document.getElementById('fact-date');
-            dateInput.value = formState.factDate;
+            dateInput.value = DateFormatter.formatForDisplay(formState.factDate);
 
             // Category will be selected after categories are loaded
         }
@@ -497,17 +499,26 @@
         function setupDateInput() {
             const dateInput = document.getElementById('fact-date');
 
-            // Set max date to today (no future dates)
-            const today = new Date();
-            const todayStr = today.toISOString().split('T')[0];
-            dateInput.max = todayStr;
+            dateInput.addEventListener('input', () => {
+                const displayDate = dateInput.value;
 
-            dateInput.addEventListener('change', () => {
-                formState.factDate = dateInput.value;
+                // Convert DD.MM.YYYY to YYYY-MM-DD for API
+                if (DateFormatter.isValidDisplayFormat(displayDate)) {
+                    formState.factDate = DateFormatter.formatForAPI(displayDate);
+                    // Clear error
+                    document.getElementById('date-error').textContent = '';
+                    dateInput.classList.remove('input-error');
+                } else {
+                    formState.factDate = null;
+                }
+            });
 
-                // Clear error on change
-                document.getElementById('date-error').textContent = '';
-                dateInput.classList.remove('input-error');
+            dateInput.addEventListener('blur', () => {
+                // Validate on blur
+                if (!DateFormatter.isValidDisplayFormat(dateInput.value)) {
+                    document.getElementById('date-error').textContent = 'Неверный формат даты (ДД.ММ.ГГГГ)';
+                    dateInput.classList.add('input-error');
+                }
             });
         }
 

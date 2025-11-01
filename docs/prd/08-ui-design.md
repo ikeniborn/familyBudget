@@ -492,7 +492,7 @@ function setupTransactionTypeButtons() {
 **Уникальные компоненты:**
 
 **Транзакции:**
-- **Дата** - date input + shortcuts (Сегодня, Вчера)
+- **Дата** - text input (DD.MM.YYYY) + shortcuts (Сегодня, Вчера)
 
 **План:**
 - **Период планирования** - 3 кнопки (текущий месяц +0, +1, +2)
@@ -692,7 +692,157 @@ Before adding event listeners:
 
 ---
 
-### 8.10 Dark Mode Implementation (Renumbered from 8.9)
+### 8.10 Date Format Standard (Added 2025-11-01)
+
+**Решение:** Единый формат даты **DD.MM.YYYY** для всех интерфейсов
+
+**Обоснование:**
+- Консистентность UX - один формат на всех страницах
+- Привычный формат для русскоязычных пользователей
+- Независимость от настроек браузера (нативные `type="date"` показывают MM/DD/YYYY или DD.MM.YYYY)
+- Контроль над валидацией и форматированием
+
+#### 8.10.1 Централизованная библиотека DateFormatter
+
+**Файл:** `web/static/js/dateFormatter.js` и `webapp/static/js/dateFormatter.js`
+
+**Ключевые методы:**
+
+| Метод | Назначение | Пример |
+|-------|-----------|--------|
+| `formatForDisplay(isoDate)` | API → Display | `'2025-11-01'` → `'01.11.2025'` |
+| `formatForAPI(displayDate)` | Display → API | `'01.11.2025'` → `'2025-11-01'` |
+| `today()` | Текущая дата (display) | `'01.11.2025'` |
+| `todayISO()` | Текущая дата (API) | `'2025-11-01'` |
+| `isValidDisplayFormat(str)` | Валидация формата | `'01.11.2025'` → `true` |
+| `formatDateTime(date)` | С временем | `'01.11.2025 15:30'` |
+| `parse(dateStr)` | Парсинг в Date | `'01.11.2025'` → Date object |
+
+#### 8.10.2 HTML Input Fields
+
+**Старый подход (нативный):**
+```html
+<!-- ❌ Проблема: формат зависит от браузера/локали -->
+<input type="date" name="fact_date" required />
+```
+
+**Новый подход (унифицированный):**
+```html
+<!-- ✅ Решение: текстовое поле с форматированием -->
+<input type="text" name="fact_date" required
+       class="input input-bordered"
+       placeholder="ДД.ММ.ГГГГ" />
+```
+
+#### 8.10.3 JavaScript Integration
+
+**Паттерн 1: Отправка данных на API**
+```javascript
+const formData = new FormData(event.target);
+const data = {
+    fact_date: DateFormatter.formatForAPI(formData.get('fact_date'))
+};
+// Отправляется YYYY-MM-DD формат на backend
+```
+
+**Паттерн 2: Получение данных от API**
+```javascript
+const fact = await response.json();
+document.getElementById('edit-date').value = DateFormatter.formatForDisplay(fact.fact_date);
+// Отображается DD.MM.YYYY формат в поле
+```
+
+**Паттерн 3: Отображение в таблицах**
+```javascript
+facts.forEach(fact => {
+    const formattedDate = DateFormatter.formatForDisplay(fact.fact_date);
+    html += `<td>${formattedDate}</td>`;
+});
+```
+
+**Паттерн 4: Быстрые кнопки (Сегодня, Вчера)**
+```javascript
+function setTransactionDate(offsetDays) {
+    const date = new Date();
+    date.setDate(date.getDate() + offsetDays);
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    dateInput.value = `${dd}.${mm}.${yyyy}`;
+}
+```
+
+#### 8.10.4 Валидация
+
+**Client-side:**
+```javascript
+if (!DateFormatter.isValidDisplayFormat(dateStr)) {
+    showToast('Неверный формат даты (ДД.ММ.ГГГГ)', 'error');
+    return;
+}
+```
+
+**Server-side (FastAPI):**
+- Backend всегда ожидает `YYYY-MM-DD` (ISO 8601)
+- Pydantic автоматически парсит в Python `date` объект
+- Валидация: не может быть в будущем (для фактов), не старше 10 лет
+
+#### 8.10.5 Унифицированные страницы
+
+**Изменены следующие файлы:**
+
+| Файл | Поля ввода | Отображение | Статус |
+|------|-----------|-------------|--------|
+| `web/templates/facts.html` | Фильтры (2), Edit modal (1) | Таблица | ✅ Complete |
+| `web/templates/plan.html` | Фильтры (2), Edit modal (1) | Таблица | ✅ Complete |
+| `web/templates/notifications.html` | Фильтры (2) | - | ✅ Complete |
+| `web/templates/components/modal_transaction.html` | Create modal (1) | - | ✅ Complete |
+| `webapp/add.html` | Input (1) | - | ✅ Complete |
+| `webapp/edit.html` | Input (1) | - | ✅ Complete |
+| `webapp/list.html` | Фильтры (2) | Таблица (DD.MM.YYYY HH:MM) | ✅ Complete |
+
+#### 8.10.6 API Contract
+
+**Request (Frontend → Backend):**
+```json
+{
+  "fact_date": "2025-11-01"
+}
+```
+
+**Response (Backend → Frontend):**
+```json
+{
+  "fact_date": "2025-11-01"
+}
+```
+
+**Формат:** ISO 8601 (YYYY-MM-DD) - стандарт для JSON/REST API
+
+#### 8.10.7 Changelog
+
+**2025-11-01:**
+- ✅ Адаптирован DateFormatter для формата DD.MM.YYYY (с точками вместо дефисов)
+- ✅ Портирован DateFormatter в `web/static/js/`
+- ✅ Заменены все `type="date"` → `type="text"` в модальных окнах и фильтрах
+- ✅ Обновлены JavaScript функции для конвертации дат
+- ✅ Обновлено отображение дат в таблицах (facts, plan)
+- ✅ Унифицирован формат на всех страницах (webapp + web/templates)
+
+**Преимущества внедрения:**
+- ✅ Единый формат везде (100% consistency)
+- ✅ Независимость от локали браузера
+- ✅ Улучшенная валидация на клиенте
+- ✅ Централизованное управление форматированием
+
+**Технический долг:**
+- [ ] Добавить маску ввода для автоформатирования (DD.MM.YYYY)
+- [ ] Добавить календарный виджет для удобства выбора
+- [ ] Рассмотреть поддержку других форматов ввода (DD/MM/YYYY)
+
+---
+
+### 8.11 Dark Mode Implementation (Renumbered from 8.10)
 
 **Theme Toggle:**
 - Расположение: navbar-end (рядом с user info)
@@ -723,7 +873,7 @@ DaisyUI CSS переменные автоматически применяютс
 
 ---
 
-### 8.11 Migration Status (Updated 2025-11-01, Renumbered from 8.10)
+### 8.12 Migration Status (Updated 2025-11-01, Renumbered from 8.11)
 
 **✅ Completed:**
 
