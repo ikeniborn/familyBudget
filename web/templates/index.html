@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupTransactionTypeButtons();
 
     // Установить текущую дату для транзакции
-    const factDateInput = document.querySelector('#form_add_transaction input[name="fact_date"]');
+    const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
     if (factDateInput) {
         factDateInput.value = new Date().toISOString().split('T')[0];
     }
@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupPlanTypeButtons(); // Установить обработчики кликов и перезагрузку категорий
 
     // Обработчик отправки формы транзакции
-    document.getElementById('form_add_transaction').addEventListener('submit', async function(e) {
+    document.getElementById('form_modal_add_transaction').addEventListener('submit', async function(e) {
         e.preventDefault();
 
         const formData = new FormData(e.target);
@@ -227,7 +227,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Обработчик отправки формы плана
-    document.getElementById('form_add_plan').addEventListener('submit', async function(e) {
+    document.getElementById('form_modal_add_plan').addEventListener('submit', async function(e) {
         e.preventDefault();
 
         const formData = new FormData(e.target);
@@ -297,10 +297,10 @@ async function loadCategories() {
         console.log(`Loaded ${allCategories.length} categories`);
 
         // Инициализировать CategoryTreeSelect для формы транзакции
-        const transactionSelect = document.querySelector('#form_add_transaction select[name="article_id"]');
+        const transactionSelect = document.querySelector('#form_modal_add_transaction select[name="article_id"]');
         if (transactionSelect) {
             // Получить текущий тип транзакции (expense/income)
-            const transactionType = document.querySelector('#form_add_transaction input[name="record_type"]:checked')?.value || 'expense';
+            const transactionType = document.querySelector('#form_modal_add_transaction input[name="record_type"]:checked')?.value || 'expense';
             const filterType = transactionType; // 'expense' или 'income'
 
             transactionCategoryTreeSelect = new CategoryTreeSelect(transactionSelect, allCategories, {
@@ -315,10 +315,10 @@ async function loadCategories() {
         }
 
         // Инициализировать CategoryTreeSelect для формы плана
-        const planSelect = document.querySelector('#form_add_plan select[name="article_id"]');
+        const planSelect = document.querySelector('#form_modal_add_plan select[name="article_id"]');
         if (planSelect) {
             // Получить текущий тип плана (expense/income)
-            const planType = document.querySelector('#form_add_plan input[name="plan_type"]:checked')?.value || 'expense';
+            const planType = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked')?.value || 'expense';
 
             planCategoryTreeSelect = new CategoryTreeSelect(planSelect, allCategories, {
                 emptyOptionText: '-- Выберите категорию --',
@@ -357,8 +357,8 @@ async function loadFinancialCenters() {
 
         // Заполнить select в обеих формах
         const selects = [
-            document.querySelector('#form_add_transaction select[name="financial_center_id"]'),
-            document.querySelector('#form_add_plan select[name="financial_center_id"]')
+            document.querySelector('#form_modal_add_transaction select[name="financial_center_id"]'),
+            document.querySelector('#form_modal_add_plan select[name="financial_center_id"]')
         ];
 
         selects.forEach(select => {
@@ -407,8 +407,8 @@ async function loadCostCenters() {
 
         // Заполнить select в обеих формах
         const selects = [
-            document.querySelector('#form_add_transaction select[name="cost_center_id"]'),
-            document.querySelector('#form_add_plan select[name="cost_center_id"]')
+            document.querySelector('#form_modal_add_transaction select[name="cost_center_id"]'),
+            document.querySelector('#form_modal_add_plan select[name="cost_center_id"]')
         ];
 
         selects.forEach(select => {
@@ -454,7 +454,7 @@ function showToast(message, type = 'info') {
 
 // Quick Amount для формы транзакции
 function setTransactionAmount(value) {
-    const amountInput = document.querySelector('#form_add_transaction input[name="amount"]');
+    const amountInput = document.querySelector('#form_modal_add_transaction input[name="amount"]');
     if (amountInput) {
         amountInput.value = value.toFixed(2);
         amountInput.focus();
@@ -463,7 +463,7 @@ function setTransactionAmount(value) {
 
 // Quick Amount для формы плана
 function setPlanAmount(value) {
-    const amountInput = document.querySelector('#form_add_plan input[name="amount"]');
+    const amountInput = document.querySelector('#form_modal_add_plan input[name="amount"]');
     if (amountInput) {
         amountInput.value = value.toFixed(2);
         amountInput.focus();
@@ -472,7 +472,7 @@ function setPlanAmount(value) {
 
 // Quick Date для формы транзакции
 function setTransactionDate(daysOffset) {
-    const dateInput = document.querySelector('#form_add_transaction input[name="fact_date"]');
+    const dateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
     if (dateInput) {
         const date = new Date();
         date.setDate(date.getDate() + daysOffset);
@@ -511,9 +511,9 @@ function updatePlanPeriodButtons() {
 // Установить обработчики для кнопок периода
 function setupPlanPeriodButtons() {
     const periodButtons = document.querySelectorAll('.period-btn');
-    const hiddenInput = document.querySelector('#form_add_plan input[name="plan_month"]');
+    const hiddenInput = document.querySelector('#form_modal_add_plan input[name="plan_month"]');
 
-    if (!hiddenInput) return;
+    if (!hiddenInput || periodButtons.length === 0) return;
 
     periodButtons.forEach(button => {
         button.addEventListener('click', function() {
@@ -543,6 +543,8 @@ function setupPlanPeriodButtons() {
 function setupTransactionTypeButtons() {
     const typeButtons = document.querySelectorAll('.transaction-type-btn');
 
+    if (typeButtons.length === 0) return;
+
     typeButtons.forEach(button => {
         button.addEventListener('click', function() {
             // Убрать btn-active у всех кнопок
@@ -567,6 +569,8 @@ function setupTransactionTypeButtons() {
 // Установить обработчики для кнопок типа плана
 function setupPlanTypeButtons() {
     const typeButtons = document.querySelectorAll('.plan-type-btn');
+
+    if (typeButtons.length === 0) return;
 
     typeButtons.forEach(button => {
         button.addEventListener('click', function() {

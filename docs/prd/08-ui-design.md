@@ -551,7 +551,16 @@ function showToast(message, type = 'info') {
 
 #### 8.8.8 Changelog
 
-**2025-11-01:**
+**2025-11-01 (v2 - Bug Fixes):**
+- ✅ **CRITICAL FIX:** Исправлена ошибка `Cannot read properties of null (reading 'addEventListener')`
+- ✅ Добавлены defensive checks для всех `addEventListener` вызовов
+- ✅ Исправлены селекторы форм: `#form_modal_add_transaction` и `#form_modal_add_plan` (16 мест)
+- ✅ Исправлены кнопки быстрого выбора суммы (100/500/1000/5000)
+- ✅ Исправлены кнопки быстрого выбора даты (Сегодня/Вчера)
+- ✅ Исправлена установка даты по умолчанию при открытии модального окна
+- ✅ Добавлены проверки `periodButtons.length === 0` перед `forEach`
+
+**2025-11-01 (v1):**
 - ✅ Унифицирован UI модальных окон с кнопками вместо radio buttons
 - ✅ Созданы переиспользуемые Jinja2 компоненты (modal_transaction, modal_plan)
 - ✅ Добавлены модальные окна создания на страницы /facts и /plan
@@ -560,13 +569,130 @@ function showToast(message, type = 'info') {
 - ✅ Реализованы toast notifications для feedback
 
 **Технический долг:**
+- [x] ~~Добавить defensive programming для DOM queries~~ (COMPLETED 2025-11-01)
 - [ ] Рассмотреть создание единого базового компонента для обоих модальных окон
 - [ ] Добавить валидацию на клиенте перед отправкой формы
 - [ ] Улучшить accessibility (ARIA labels, keyboard navigation)
 
 ---
 
-### 8.9 Dark Mode Implementation
+### 8.9 JavaScript Best Practices (Added 2025-11-01)
+
+#### 8.9.1 Defensive Programming for DOM Queries
+
+**Problem:** `Cannot read properties of null (reading 'addEventListener')` errors occur when elements don't exist in DOM.
+
+**Solution:** Always check for existence before operations.
+
+**Pattern 1: Check NodeList length**
+```javascript
+function setupEventListeners() {
+    const buttons = document.querySelectorAll('.my-button');
+
+    // ✅ GOOD: Check length before forEach
+    if (buttons.length === 0) return;
+
+    buttons.forEach(button => {
+        button.addEventListener('click', handleClick);
+    });
+}
+```
+
+**Pattern 2: Check single element**
+```javascript
+function initializeForm() {
+    const formElement = document.getElementById('my-form');
+
+    // ✅ GOOD: Check existence before accessing
+    if (!formElement) return;
+
+    formElement.addEventListener('submit', handleSubmit);
+}
+```
+
+**Pattern 3: Optional chaining for nested properties**
+```javascript
+const currentType = document.querySelector('input[name="type"]:checked')?.value || 'default';
+```
+
+#### 8.9.2 Form ID Naming Convention
+
+**Convention:** Modal form IDs must follow pattern `form_{{ modal_id }}`
+
+**Example:**
+```jinja2
+{# Modal macro with modal_id parameter #}
+{% macro transaction_modal(modal_id='modal_add_transaction') %}
+<dialog id="{{ modal_id }}" class="modal">
+    <form id="form_{{ modal_id }}">  {# ← ID: form_modal_add_transaction #}
+        <!-- form fields -->
+    </form>
+</dialog>
+{% endmacro %}
+```
+
+**JavaScript selectors:**
+```javascript
+// ✅ CORRECT
+const form = document.getElementById('form_modal_add_transaction');
+const input = document.querySelector('#form_modal_add_transaction input[name="amount"]');
+
+// ❌ WRONG (will fail)
+const form = document.getElementById('form_add_transaction');
+```
+
+#### 8.9.3 Event Listener Best Practices
+
+**Rule 1:** Always validate element existence
+```javascript
+// ❌ BAD
+document.querySelector('.button').addEventListener('click', handler);
+
+// ✅ GOOD
+const button = document.querySelector('.button');
+if (button) {
+    button.addEventListener('click', handler);
+}
+```
+
+**Rule 2:** Use early returns for clarity
+```javascript
+function setupButtons() {
+    const buttons = document.querySelectorAll('.btn');
+    if (buttons.length === 0) return;  // Early return
+
+    // Main logic here
+    buttons.forEach(btn => {
+        btn.addEventListener('click', handleClick);
+    });
+}
+```
+
+**Rule 3:** Combine checks when multiple conditions exist
+```javascript
+function setupPlanPeriodButtons() {
+    const buttons = document.querySelectorAll('.period-btn');
+    const hiddenInput = document.querySelector('input[name="plan_month"]');
+
+    // Check ALL conditions before proceeding
+    if (!hiddenInput || buttons.length === 0) return;
+
+    // Safe to proceed
+}
+```
+
+#### 8.9.4 Error Prevention Checklist
+
+Before adding event listeners:
+- [ ] Check if element/NodeList exists
+- [ ] Verify correct selector syntax
+- [ ] Confirm element is rendered (not in hidden modal)
+- [ ] Test in browser console first
+- [ ] Add defensive checks in production code
+
+---
+
+### 8.10 Dark Mode Implementation (Renumbered from 8.9)
 
 **Theme Toggle:**
 - Расположение: navbar-end (рядом с user info)
@@ -597,7 +723,7 @@ DaisyUI CSS переменные автоматически применяютс
 
 ---
 
-### 8.10 Migration Status (Updated 2025-11-01)
+### 8.11 Migration Status (Updated 2025-11-01, Renumbered from 8.10)
 
 **✅ Completed:**
 
