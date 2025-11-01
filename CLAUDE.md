@@ -127,7 +127,7 @@ ruff check . && black . && mypy .    # Quality checks
 
 **Применение изменений:**
 
-1. **WebApp файлы** (bot/webapp/*.html, bot/webapp/static/*)
+1. **WebApp файлы** (webapp/*.html, webapp/static/*)
    - Монтируются как volume (read_only)
    - Изменения применяются **сразу** (без пересборки)
    - Но требуется очистка кэша браузера (Ctrl+F5)
@@ -188,7 +188,7 @@ docker compose -f /opt/budget/docker-compose.yml logs -f
 cd /opt/budget
 docker compose ps                    # Статус всех контейнеров
 docker compose ps backend            # Статус backend
-docker exec familybudget-backend cat /app/bot/webapp/add.html | head -20  # Проверка файла в контейнере
+docker exec familybudget-backend cat /app/webapp/add.html | head -20  # Проверка файла в контейнере
 ```
 
 ### Remote Server Execution (ВАЖНО для Claude Code)
