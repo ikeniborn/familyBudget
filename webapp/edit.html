@@ -463,7 +463,7 @@
         }
 
         function setupQuickAmountButtons() {
-            const buttons = document.querySelectorAll('.quick-amount-btn');
+            const buttons = document.querySelectorAll('.quick-amount-btn[data-amount]');
 
             buttons.forEach(button => {
                 button.addEventListener('click', () => {
@@ -634,7 +634,9 @@
 
                 } catch (error) {
                     app.ui.hideLoading();
-                    app.ui.showError(`Ошибка удаления: ${error.message}`);
+                    console.error('Delete error:', error);
+                    const errorMessage = error.detail || error.message || String(error);
+                    app.ui.showError(`Ошибка удаления: ${errorMessage}`);
                 }
             });
         }

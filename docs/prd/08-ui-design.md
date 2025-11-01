@@ -821,6 +821,15 @@ if (!DateFormatter.isValidDisplayFormat(dateStr)) {
 
 #### 8.10.7 Changelog
 
+**2025-11-01 (Bug Fixes - Quick Amount Buttons & Error Handling):**
+- ✅ **CRITICAL FIX:** Исправлен селектор кнопок быстрого выбора суммы (добавлен фильтр [data-amount])
+- ✅ **Проблема:** При клике на кнопки выбора даты ("Сегодня", "Вчера", "Позавчера") срабатывал обработчик кнопок суммы, устанавливая NaN в поле amount
+- ✅ **Решение:** Изменен селектор с `.querySelectorAll('.quick-amount-btn')` на `.querySelectorAll('.quick-amount-btn[data-amount]')`
+- ✅ **FIX:** Улучшена обработка ошибок при удалении транзакции
+- ✅ Добавлено console.error для логирования ошибок в DevTools
+- ✅ Исправлено отображение "[object Object]" в модальном окне ошибки → корректный текст ошибки (error.detail || error.message || String(error))
+- ✅ Файл: webapp/edit.html (строки 466, 637-639)
+
 **2025-11-01 (Edit Transaction - Quick Date Buttons):**
 - ✅ Добавлены кнопки быстрого выбора даты: "Сегодня", "Вчера", "Позавчера"
 - ✅ Консистентность UX с формой добавления транзакции (webapp/add.html)
