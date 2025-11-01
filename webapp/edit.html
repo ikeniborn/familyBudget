@@ -627,7 +627,6 @@
                     await app.api.deleteFact(formState.factId);
 
                     app.ui.hideLoading();
-                    app.ui.hapticSuccess();
                     app.ui.showSuccess('Транзакция удалена', () => {
                         window.location.href = '/webapp/index.html';
                     });
@@ -669,7 +668,7 @@
             try {
                 // Prepare update data
                 const updateData = {
-                    amount: formState.factType === 'income' ? formState.amount : -formState.amount,
+                    amount: formState.amount,
                     article_id: formState.categoryId,
                     description: formState.description,
                     fact_date: formState.factDate
@@ -679,14 +678,15 @@
                 const result = await app.api.updateFact(formState.factId, updateData);
 
                 app.ui.hideLoading();
-                app.ui.hapticSuccess();
                 app.ui.showSuccess('Транзакция обновлена', () => {
                     window.history.back();
                 });
 
             } catch (error) {
                 app.ui.hideLoading();
-                app.ui.showError(`Ошибка: ${error.message}`);
+                console.error('Update error:', error);
+                const errorMessage = error.detail || error.message || String(error);
+                app.ui.showError(`Ошибка: ${errorMessage}`);
             }
         }
 
