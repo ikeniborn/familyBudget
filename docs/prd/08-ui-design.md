@@ -821,6 +821,30 @@ if (!DateFormatter.isValidDisplayFormat(dateStr)) {
 
 #### 8.10.7 Changelog
 
+**2025-11-01 (Timezone Fix):**
+- ✅ **CRITICAL FIX:** Исправлена проблема с UTC vs LOCAL timezone
+- ✅ `DateFormatter.todayISO()` - заменен `.toISOString()` на локальное форматирование
+- ✅ Исправлены 6 файлов webapp: today.html, index.html, add.html, summary.html, stats.html, addplan.html
+- ✅ Все даты теперь используют LOCAL timezone вместо UTC
+
+**Проблема:**
+- `.toISOString()` возвращает UTC время, что приводит к смещению дат
+- Пример: 02.11.2025 01:00 MSK → `toISOString()` → "2025-11-01" (неправильно!)
+- Транзакции за "сегодня" не отображались из-за неправильного dateFrom
+
+**Решение:**
+```javascript
+// ❌ Старый код (UTC)
+const dateFrom = new Date().toISOString().split('T')[0];
+
+// ✅ Новый код (LOCAL)
+const today = new Date();
+const year = today.getFullYear();
+const month = String(today.getMonth() + 1).padStart(2, '0');
+const day = String(today.getDate()).padStart(2, '0');
+const dateFrom = `${year}-${month}-${day}`;
+```
+
 **2025-11-01:**
 - ✅ Адаптирован DateFormatter для формата DD.MM.YYYY (с точками вместо дефисов)
 - ✅ Портирован DateFormatter в `web/static/js/`
@@ -834,6 +858,7 @@ if (!DateFormatter.isValidDisplayFormat(dateStr)) {
 - ✅ Независимость от локали браузера
 - ✅ Улучшенная валидация на клиенте
 - ✅ Централизованное управление форматированием
+- ✅ Корректная работа с LOCAL timezone (MSK, UTC+3)
 
 **Технический долг:**
 - [ ] Добавить маску ввода для автоформатирования (DD.MM.YYYY)
