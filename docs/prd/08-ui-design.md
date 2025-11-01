@@ -365,7 +365,208 @@ npx tailwindcss -i web/static/css/input.css -o web/static/css/output.css --minif
 
 ---
 
-### 8.8 Dark Mode Implementation
+### 8.8 Modal Windows Architecture (Updated 2025-11-01)
+
+**Решение:** Переиспользуемые Jinja2 компоненты для модальных окон
+
+**Обоснование:**
+- DRY principle - единая точка изменений для UI модальных окон
+- Консистентный UX на всех страницах (index, facts, plan)
+- Упрощение поддержки и тестирования
+- Унифицированный UI pattern для выбора типа операции
+
+#### 8.8.1 Компонентная структура
+
+**Созданные компоненты:**
+
+| Компонент | Файл | Назначение | Параметры |
+|-----------|------|------------|-----------|
+| `transaction_modal` | `components/modal_transaction.html` | Модальное окно создания транзакций | `modal_id` (default: 'modal_add_transaction') |
+| `plan_modal` | `components/modal_plan.html` | Модальное окно создания планов | `modal_id` (default: 'modal_add_plan') |
+
+**Использование:**
+```jinja2
+{% from "components/modal_transaction.html" import transaction_modal %}
+{% from "components/modal_plan.html" import plan_modal %}
+
+<!-- Создание модального окна с кастомным ID -->
+{{ transaction_modal('create_modal') }}
+{{ plan_modal('create_modal') }}
+```
+
+#### 8.8.2 UI Pattern: Кнопки выбора типа
+
+**Старый подход (radio buttons):**
+```html
+<label class="label cursor-pointer gap-2">
+    <input type="radio" name="record_type" value="expense" class="radio radio-error" checked />
+    <span class="label-text">📤 Расход</span>
+</label>
+```
+
+**Новый подход (кнопки с toggle):**
+```html
+<div class="grid grid-cols-2 gap-2">
+    <label class="btn btn-outline btn-error transaction-type-btn btn-active" data-type="expense">
+        <input type="radio" name="record_type" value="expense" class="hidden" checked />
+        Расход
+    </label>
+    <label class="btn btn-outline btn-success transaction-type-btn" data-type="income">
+        <input type="radio" name="record_type" value="income" class="hidden" />
+        Доход
+    </label>
+</div>
+```
+
+**Преимущества нового подхода:**
+- ✅ Визуально более понятный UI (кнопки vs radio)
+- ✅ Лучший UX на мобильных устройствах (большая область клика)
+- ✅ Консистентность с модальным окном "план"
+- ✅ `btn-active` класс четко показывает активное состояние
+- ✅ Hidden radio buttons сохраняют совместимость с формами
+
+#### 8.8.3 JavaScript Integration
+
+**Обработчики кнопок типа:**
+
+```javascript
+function setupTransactionTypeButtons() {
+    const typeButtons = document.querySelectorAll('.transaction-type-btn');
+
+    typeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Убрать btn-active у всех кнопок
+            typeButtons.forEach(btn => btn.classList.remove('btn-active'));
+
+            // Добавить btn-active к текущей кнопке
+            this.classList.add('btn-active');
+
+            // Отметить соответствующий radio button
+            const radio = this.querySelector('input[type="radio"]');
+            if (radio) {
+                radio.checked = true;
+            }
+
+            // Перезагрузить категории с новым типом
+            reloadCategoriesForType(this.dataset.type);
+        });
+    });
+}
+```
+
+**CategoryTreeSelect Integration:**
+- Динамическая фильтрация категорий по типу (expense/income)
+- Автоматическая перезагрузка при смене типа операции
+- Иерархическое отображение категорий с отступами
+
+#### 8.8.4 Модальные окна на страницах
+
+**Текущая реализация:**
+
+| Страница | Модальное окно создания | Модальное окно редактирования | Статус |
+|----------|------------------------|------------------------------|--------|
+| `/` (index) | ✅ transaction_modal, plan_modal | - | ✅ Complete |
+| `/facts` | ✅ transaction_modal | ✅ edit-modal | ✅ Complete |
+| `/plan` | ✅ plan_modal | ✅ edit-modal | ✅ Complete |
+
+**Позиция кнопок "Добавить":**
+- Расположение: Header страницы, справа рядом с кнопками экспорта
+- Стили:
+  - Транзакции: `btn btn-sm btn-success` (зеленая)
+  - План: `btn btn-sm btn-info` (синяя)
+
+#### 8.8.5 Форм-элементы модальных окон
+
+**Общие компоненты:**
+
+1. **Тип операции** - кнопки toggle (expense/income)
+2. **Quick Amount Buttons** - быстрый выбор суммы
+   - Транзакции: 100, 500, 1000, 5000
+   - План: 5000, 10000, 20000, 50000
+3. **Сумма** - number input (step=0.01, min=0.01)
+4. **Категория** - CategoryTreeSelect с фильтрацией
+5. **ЦФО** - select (required)
+6. **МВЗ** - select (optional)
+7. **Описание** - textarea (optional)
+
+**Уникальные компоненты:**
+
+**Транзакции:**
+- **Дата** - date input + shortcuts (Сегодня, Вчера)
+
+**План:**
+- **Период планирования** - 3 кнопки (текущий месяц +0, +1, +2)
+- Hidden input: `plan_month` (YYYY-MM)
+
+#### 8.8.6 API Integration
+
+**Создание транзакции:**
+```javascript
+POST /api/v1/budget-facts
+{
+    "record_type": "fact",
+    "fact_type": "expense",  // или "income"
+    "amount": 1500.00,
+    "article_id": 42,
+    "financial_center_id": 1,
+    "cost_center_id": 3,     // nullable
+    "fact_date": "2025-11-01",
+    "description": "..."     // nullable
+}
+```
+
+**Создание плана:**
+```javascript
+POST /api/v1/budget-facts
+{
+    "record_type": "plan",
+    "fact_type": "expense",  // или "income"
+    "amount": 15000.00,
+    "article_id": 42,
+    "financial_center_id": 1,
+    "cost_center_id": 3,     // nullable
+    "plan_month": "2025-11",
+    "description": "..."     // nullable
+}
+```
+
+#### 8.8.7 Toast Notifications
+
+**Реализация:**
+```javascript
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} fixed top-4 right-4 w-96 z-50 shadow-lg`;
+    toast.innerHTML = `<span>${message}</span>`;
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.remove(), 3000);
+}
+```
+
+**Типы:**
+- `alert-success` - успешное создание
+- `alert-error` - ошибка валидации/сервера
+- `alert-info` - информационные сообщения
+
+#### 8.8.8 Changelog
+
+**2025-11-01:**
+- ✅ Унифицирован UI модальных окон с кнопками вместо radio buttons
+- ✅ Созданы переиспользуемые Jinja2 компоненты (modal_transaction, modal_plan)
+- ✅ Добавлены модальные окна создания на страницы /facts и /plan
+- ✅ Реализована интеграция CategoryTreeSelect с динамической фильтрацией
+- ✅ Добавлены JavaScript обработчики для кнопок типа операции
+- ✅ Реализованы toast notifications для feedback
+
+**Технический долг:**
+- [ ] Рассмотреть создание единого базового компонента для обоих модальных окон
+- [ ] Добавить валидацию на клиенте перед отправкой формы
+- [ ] Улучшить accessibility (ARIA labels, keyboard navigation)
+
+---
+
+### 8.9 Dark Mode Implementation
 
 **Theme Toggle:**
 - Расположение: navbar-end (рядом с user info)
@@ -396,7 +597,7 @@ DaisyUI CSS переменные автоматически применяютс
 
 ---
 
-### 8.9 Migration Status (2025-10-19)
+### 8.10 Migration Status (Updated 2025-11-01)
 
 **✅ Completed:**
 
@@ -405,7 +606,11 @@ DaisyUI CSS переменные автоматически применяютс
 | `base.html` | ✅ Complete | navbar, footer, dark mode toggle |
 | `analytics.html` | ✅ Complete | cards, charts, filters, btn-groups |
 | `admin_dashboard.html` | ✅ Complete | stats, charts, forms, selects |
+| `index.html` | ✅ Complete | modal components (transaction, plan) |
+| `facts.html` | ✅ Complete | modal components, CategoryTreeSelect |
+| `plan.html` | ✅ Complete | modal components, CategoryTreeSelect |
 | Custom CSS | ✅ Complete | custom.css (150 lines vs 981 original) |
+| **Modal Components** | ✅ Complete | Reusable Jinja2 macros, unified UI |
 
 **📝 Pending (Pattern-ready):**
 
