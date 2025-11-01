@@ -57,13 +57,13 @@
                     <label class="label">
                         <span class="label-text">📅 Дата с</span>
                     </label>
-                    <input type="date" id="filter-date-from" class="input input-bordered input-sm">
+                    <input type="text" id="filter-date-from" class="input input-bordered input-sm" placeholder="ДД.ММ.ГГГГ">
                 </div>
                 <div class="form-control">
                     <label class="label">
                         <span class="label-text">📅 Дата по</span>
                     </label>
-                    <input type="date" id="filter-date-to" class="input input-bordered input-sm">
+                    <input type="text" id="filter-date-to" class="input input-bordered input-sm" placeholder="ДД.ММ.ГГГГ">
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
@@ -159,7 +159,7 @@
                 <label class="label">
                     <span class="label-text">📅 Дата*</span>
                 </label>
-                <input type="date" id="edit-date" name="fact_date" required class="input input-bordered" />
+                <input type="text" id="edit-date" name="fact_date" required class="input input-bordered" placeholder="ДД.ММ.ГГГГ" />
             </div>
             <div class="form-control">
                 <label class="label">
@@ -210,6 +210,8 @@
 <script src="/static/js/admin-facts-common.js"></script>
 <!-- CategoryTreeSelect Component -->
 <script src="/static/js/categoryTreeSelect.js"></script>
+<!-- DateFormatter Component -->
+<script src="/static/js/dateFormatter.js"></script>
 
 <script>
 // Global state for CategoryTreeSelect
@@ -560,6 +562,7 @@ function renderFactsTable(facts) {
         const description = fact.description || '—';
         const financialCenter = fact.financial_center_name || '—';
         const costCenter = fact.cost_center_name || '—';
+        const formattedDate = DateFormatter.formatForDisplay(fact.fact_date);
 
         html += `
             <tr>
@@ -568,7 +571,7 @@ function renderFactsTable(facts) {
                 <td>${fact.user_name || '—'}</td>
                 <td>${fact.article_name || '—'}</td>
                 <td class="${amountClass}">${parseFloat(fact.amount).toFixed(2)}</td>
-                <td>${fact.fact_date}</td>
+                <td>${formattedDate}</td>
                 <td class="max-w-xs truncate" title="${financialCenter}">${financialCenter}</td>
                 <td class="max-w-xs truncate" title="${costCenter}">${costCenter}</td>
                 <td class="max-w-xs truncate" title="${description}">${description}</td>
@@ -666,7 +669,7 @@ function showEditModal(factId) {
 
     document.getElementById('edit-id').value = fact.id;
     document.getElementById('edit-amount').value = parseFloat(fact.amount);
-    document.getElementById('edit-date').value = fact.fact_date;
+    document.getElementById('edit-date').value = DateFormatter.formatForDisplay(fact.fact_date);
     document.getElementById('edit-article').value = fact.article_id;
     document.getElementById('edit-description').value = fact.description || '';
     document.getElementById('edit-financial-center').value = fact.financial_center_id || '';
@@ -687,11 +690,12 @@ async function updateFact(event) {
 
     const formData = new FormData(event.target);
     const factId = formData.get('id');
+    const displayDate = formData.get('fact_date');
 
     // Build data object with optional center fields
     const data = {
         amount: parseFloat(formData.get('amount')),
-        fact_date: formData.get('fact_date'),
+        fact_date: DateFormatter.formatForAPI(displayDate),
         article_id: parseInt(formData.get('article_id')),
         description: formData.get('description') || null
     };

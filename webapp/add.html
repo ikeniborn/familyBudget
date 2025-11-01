@@ -247,7 +247,7 @@
                 type="text"
                 id="fact-date"
                 class="form-input"
-                placeholder="ДД месяца ГГГГ"
+                placeholder="ДД.ММ.ГГГГ"
                 required
             >
             <span class="error-message" id="date-error"></span>
@@ -398,16 +398,16 @@
         function setupDateInput() {
             const dateInput = document.getElementById('fact-date');
 
-            // Set default to today in "ДД месяца ГГГГ" format
-            dateInput.value = DateFormatter.todayWithMonthName();
-            formState.factDate = DateFormatter.todayISO();
+            // Set default to today in DD.MM.YYYY format
+            dateInput.value = DateFormatter.today();
+            formState.factDate = DateFormatter.formatForAPI(DateFormatter.today());
 
             dateInput.addEventListener('input', () => {
                 const displayDate = dateInput.value;
 
-                // Convert "ДД месяца ГГГГ" to YYYY-MM-DD for API
-                if (DateFormatter.isValidMonthNameFormat(displayDate)) {
-                    formState.factDate = DateFormatter.formatForAPIFromMonthName(displayDate);
+                // Convert DD.MM.YYYY to YYYY-MM-DD for API
+                if (DateFormatter.isValidDisplayFormat(displayDate)) {
+                    formState.factDate = DateFormatter.formatForAPI(displayDate);
                     // Clear error
                     document.getElementById('date-error').textContent = '';
                     dateInput.classList.remove('input-error');
@@ -418,8 +418,8 @@
 
             dateInput.addEventListener('blur', () => {
                 // Validate on blur
-                if (!DateFormatter.isValidMonthNameFormat(dateInput.value)) {
-                    document.getElementById('date-error').textContent = 'Неверный формат даты (ДД месяца ГГГГ)';
+                if (!DateFormatter.isValidDisplayFormat(dateInput.value)) {
+                    document.getElementById('date-error').textContent = 'Неверный формат даты (ДД.ММ.ГГГГ)';
                     dateInput.classList.add('input-error');
                 }
             });
@@ -439,8 +439,8 @@
                     const isoDate = date.toISOString().split('T')[0];
                     formState.factDate = isoDate;
 
-                    // Format for display with month name (ДД месяца ГГГГ)
-                    dateInput.value = DateFormatter.formatForDisplayWithMonthName(isoDate);
+                    // Format for display (DD.MM.YYYY)
+                    dateInput.value = DateFormatter.formatForDisplay(isoDate);
 
                     // Clear error
                     document.getElementById('date-error').textContent = '';
