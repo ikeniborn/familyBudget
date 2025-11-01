@@ -268,6 +268,23 @@
         <h3 class="font-bold text-lg mb-4">📝 Добавить план</h3>
 
         <form id="form_add_plan" class="space-y-4">
+            <!-- Тип плана -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text font-semibold">Тип плана *</span>
+                </label>
+                <div class="grid grid-cols-2 gap-2">
+                    <label class="btn btn-outline btn-error plan-type-btn active" data-type="expense">
+                        <input type="radio" name="plan_type" value="expense" class="hidden" checked />
+                        Расход
+                    </label>
+                    <label class="btn btn-outline btn-success plan-type-btn" data-type="income">
+                        <input type="radio" name="plan_type" value="income" class="hidden" />
+                        Доход
+                    </label>
+                </div>
+            </div>
+
             <!-- Quick Amount Buttons -->
             <div class="form-control">
                 <label class="label">
@@ -323,10 +340,14 @@
             <!-- Период (месяц) -->
             <div class="form-control">
                 <label class="label">
-                    <span class="label-text">Период (месяц)</span>
+                    <span class="label-text font-semibold">Период планирования *</span>
                 </label>
-                <input type="month" name="plan_month" required
-                       class="input input-bordered" />
+                <div class="grid grid-cols-3 gap-2">
+                    <button type="button" class="btn btn-outline period-btn active" data-offset="0" id="plan_period_btn_1">Окт 2025</button>
+                    <button type="button" class="btn btn-outline period-btn" data-offset="1" id="plan_period_btn_2">Ноя 2025</button>
+                    <button type="button" class="btn btn-outline period-btn" data-offset="2" id="plan_period_btn_3">Дек 2025</button>
+                </div>
+                <input type="hidden" name="plan_month" required />
             </div>
 
             <!-- Описание -->
@@ -378,44 +399,12 @@ document.addEventListener('DOMContentLoaded', function() {
         factDateInput.value = new Date().toISOString().split('T')[0];
     }
 
-    // Установить текущий месяц для плана
-    const planMonthInput = document.querySelector('#form_add_plan input[name="plan_month"]');
-    if (planMonthInput) {
-        const now = new Date();
-        planMonthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    // Инициализация кнопок периода планирования
+    updatePlanPeriodButtons(); // Обновить тексты кнопок (Янв 2025, Фев 2025, и т.д.)
+    setupPlanPeriodButtons(); // Установить обработчики кликов
 
-        // Локализация month input - отображение русского названия месяца в label
-        const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-                           'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
-
-        const updateMonthLabel = () => {
-            if (!planMonthInput.value) return;
-
-            const [year, month] = planMonthInput.value.split('-');
-            const monthIndex = parseInt(month) - 1;
-
-            // Найти label родительского form-control
-            const formControl = planMonthInput.closest('.form-control');
-            if (formControl) {
-                const label = formControl.querySelector('.label-text');
-                if (label) {
-                    label.textContent = `Период (${monthNames[monthIndex]} ${year})`;
-                }
-            }
-        };
-
-        // Обновить label при смене месяца
-        planMonthInput.addEventListener('change', updateMonthLabel);
-
-        // Обновить label при открытии модалки (при текущем значении)
-        const modal = document.getElementById('modal_add_plan');
-        if (modal) {
-            modal.addEventListener('show', updateMonthLabel);
-        }
-
-        // Инициализировать label сразу
-        updateMonthLabel();
-    }
+    // Инициализация кнопок типа плана (Расход/Доход)
+    setupPlanTypeButtons(); // Установить обработчики кликов и перезагрузку категорий
 
     // Обработчик отправки формы транзакции
     document.getElementById('form_add_transaction').addEventListener('submit', async function(e) {
@@ -474,9 +463,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Получить cost_center_id (опциональное поле)
         const costCenterId = formData.get('cost_center_id');
 
+        // Получить тип плана (expense/income) из radio button
+        const planType = formData.get('plan_type') || 'expense';
+
         const data = {
             record_type: 'plan',
-            transaction_type: 'expense', // Планы обычно для расходов
+            transaction_type: planType, // Динамически из формы
             amount: parseFloat(formData.get('amount')),
             article_id: parseInt(formData.get('article_id')),
             fact_date: planDate,
@@ -550,11 +542,13 @@ async function loadCategories() {
         // Инициализировать CategoryTreeSelect для формы плана
         const planSelect = document.querySelector('#form_add_plan select[name="article_id"]');
         if (planSelect) {
-            // Планы обычно только для расходов
+            // Получить текущий тип плана (expense/income)
+            const planType = document.querySelector('#form_add_plan input[name="plan_type"]:checked')?.value || 'expense';
+
             planCategoryTreeSelect = new CategoryTreeSelect(planSelect, allCategories, {
                 emptyOptionText: '-- Выберите категорию --',
                 showEmptyOption: true,
-                filterType: 'expense',
+                filterType: planType, // Динамически из формы
                 indentChar: '›  ',
                 parentPrefix: '📁',
                 leafPrefix: '📄'
@@ -739,6 +733,89 @@ function setTransactionDate(daysOffset) {
         dateInput.value = date.toISOString().split('T')[0];
         dateInput.focus();
     }
+}
+
+// ============ Plan Period Buttons Functions ============
+
+// Обновить тексты кнопок периода планирования
+function updatePlanPeriodButtons() {
+    const monthNamesShort = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+    const now = new Date();
+
+    const buttons = [
+        { id: 'plan_period_btn_1', offset: 0 },
+        { id: 'plan_period_btn_2', offset: 1 },
+        { id: 'plan_period_btn_3', offset: 2 }
+    ];
+
+    buttons.forEach(btn => {
+        const button = document.getElementById(btn.id);
+        if (!button) return;
+
+        const targetDate = new Date(now.getFullYear(), now.getMonth() + btn.offset, 1);
+        const monthIndex = targetDate.getMonth();
+        const year = targetDate.getFullYear();
+
+        button.textContent = `${monthNamesShort[monthIndex]} ${year}`;
+        button.dataset.year = year;
+        button.dataset.month = String(monthIndex + 1).padStart(2, '0');
+    });
+}
+
+// Установить обработчики для кнопок периода
+function setupPlanPeriodButtons() {
+    const periodButtons = document.querySelectorAll('.period-btn');
+    const hiddenInput = document.querySelector('#form_add_plan input[name="plan_month"]');
+
+    if (!hiddenInput) return;
+
+    periodButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Убрать active у всех кнопок
+            periodButtons.forEach(btn => btn.classList.remove('active'));
+
+            // Добавить active к текущей кнопке
+            this.classList.add('active');
+
+            // Установить значение в hidden input (YYYY-MM)
+            const year = this.dataset.year;
+            const month = this.dataset.month;
+            hiddenInput.value = `${year}-${month}`;
+
+            console.log('Selected plan period:', hiddenInput.value);
+        });
+    });
+
+    // Установить значение по умолчанию (текущая кнопка active)
+    const activeButton = document.querySelector('.period-btn.active');
+    if (activeButton && activeButton.dataset.year && activeButton.dataset.month) {
+        hiddenInput.value = `${activeButton.dataset.year}-${activeButton.dataset.month}`;
+    }
+}
+
+// Установить обработчики для кнопок типа плана
+function setupPlanTypeButtons() {
+    const typeButtons = document.querySelectorAll('.plan-type-btn');
+
+    typeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Убрать active у всех кнопок
+            typeButtons.forEach(btn => btn.classList.remove('active'));
+
+            // Добавить active к текущей кнопке
+            this.classList.add('active');
+
+            // Отметить соответствующий radio button
+            const radio = this.querySelector('input[type="radio"]');
+            if (radio) {
+                radio.checked = true;
+            }
+
+            // Перезагрузить категории с новым типом
+            console.log('Plan type changed to:', this.dataset.type);
+            loadCategories();
+        });
+    });
 }
 </script>
 

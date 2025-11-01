@@ -236,7 +236,7 @@ app.add_exception_handler(Exception, generic_exception_handler)
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  # /app in Docker
 STATIC_DIR = BASE_DIR / "web" / "static"  # /app/web/static
 TEMPLATES_DIR = BASE_DIR / "web" / "templates"  # /app/web/templates
-WEBAPP_DIR = BASE_DIR / "bot" / "webapp"  # /app/bot/webapp (Telegram Web Apps - part of bot)
+WEBAPP_DIR = BASE_DIR / "webapp"  # /app/webapp (Telegram Web Apps)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

@@ -149,7 +149,7 @@ GET /api/v1/articles/15/ancestors
 **Статус:** ✅ FIXED
 
 **Проблема:**
-WebApp форма добавления фактов (bot/webapp/add.html) отправляла некорректные данные на backend:
+WebApp форма добавления фактов (webapp/add.html) отправляла некорректные данные на backend:
 - Валидация `financial_center_id` пропускала falsy значения (0, null, undefined)
 - Валидация `categoryId` имела ту же проблему
 - Backend возвращал 422 (Unprocessable Entity) при отсутствии обязательного поля ЦФО
@@ -158,7 +158,7 @@ WebApp форма добавления фактов (bot/webapp/add.html) отп
 JavaScript проверка `if (!formState.financialCenterId)` пропускала `0` как валидный ID.
 
 **Решение:**
-Улучшена валидация в функции `validateForm()` (bot/webapp/add.html:681, 675):
+Улучшена валидация в функции `validateForm()` (webapp/add.html:681, 675):
 ```javascript
 // Было:
 if (!formState.financialCenterId) { ... }
@@ -168,7 +168,7 @@ if (!formState.financialCenterId || formState.financialCenterId <= 0) { ... }
 ```
 
 **Затронутые файлы:**
-- `bot/webapp/add.html` (строки 675, 681)
+- `webapp/add.html` (строки 675, 681)
 
 **Acceptance Criteria:**
 - ✅ Форма блокирует отправку без выбора ЦФО
@@ -219,7 +219,7 @@ JavaScript сохранял выбранные фильтры в объект `f
 **Статус:** ✅ NO CHANGES NEEDED
 
 **Контекст:**
-Задача упрощения главной страницы WebApp (bot/webapp/index.html) была выполнена ранее в коммите `d47cb4e` (2025-10-28 20:22).
+Задача упрощения главной страницы WebApp (webapp/index.html) была выполнена ранее в коммите `d47cb4e` (2025-10-28 20:22).
 
 **Текущее состояние:**
 - ✅ Удалены кнопки: "Добавить", "План", "Поиск"
@@ -227,7 +227,7 @@ JavaScript сохранял выбранные фильтры в объект `f
 - ✅ Menu grid настроен на 3 колонки (grid-template-columns: repeat(3, 1fr))
 
 **Затронутые файлы:**
-- `bot/webapp/index.html` (строки 288-312)
+- `webapp/index.html` (строки 288-312)
 
 ---
 
@@ -304,9 +304,9 @@ add.html:569 Failed to load cost centers: TypeError: app.api.get is not a functi
 ```
 
 **Root Cause:**
-- Файл: `bot/webapp/static/js/api.js`
+- Файл: `webapp/static/js/api.js`
 - Класс `APIClient` НЕ имел метода `get()`
-- Файл `bot/webapp/add.html` строки 510 и 544 вызывали несуществующий метод:
+- Файл `webapp/add.html` строки 510 и 544 вызывали несуществующий метод:
   ```javascript
   const result = await app.api.get('/api/v1/financial-centers', { limit: 1000 });
   const result = await app.api.get('/api/v1/cost-centers', { limit: 1000 });
@@ -341,8 +341,8 @@ add.html:569 Failed to load cost centers: TypeError: app.api.get is not a functi
    - Для МВЗ (опциональное поле): только console warning, без уведомления пользователя
 
 **Затронутые файлы:**
-- `bot/webapp/static/js/api.js` (строки 72-89) - добавлен метод `get()`
-- `bot/webapp/add.html` (строки 537, 573) - улучшен error handling
+- `webapp/static/js/api.js` (строки 72-89) - добавлен метод `get()`
+- `webapp/add.html` (строки 537, 573) - улучшен error handling
 
 **Acceptance Criteria:**
 - ✅ Метод `app.api.get()` существует и работает корректно

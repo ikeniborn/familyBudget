@@ -132,15 +132,15 @@ categorize_file_changes() {
                 needs_nginx_restart=true
                 ((count_nginx_config++))
                 ;;
-            bot/webapp/*)
+            webapp/*)
                 # Files are volume-mounted (:ro) - no backend restart needed
                 # Check if nginx has caching enabled for these files
                 if [[ -f "$DEPLOY_DIR/nginx/conf.d/app.conf" ]] && grep -q "proxy_cache" "$DEPLOY_DIR/nginx/conf.d/app.conf" 2>/dev/null; then
                     needs_nginx_restart=true
-                    info "nginx cache detected for bot/webapp - will restart nginx"
+                    info "nginx cache detected for webapp - will restart nginx"
                 else
                     # Volume-mounted without caching - no restart needed
-                    info "bot/webapp/* volume-mounted - no restart needed"
+                    info "webapp/* volume-mounted - no restart needed"
                 fi
                 ;;
 
