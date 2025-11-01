@@ -821,6 +821,21 @@ if (!DateFormatter.isValidDisplayFormat(dateStr)) {
 
 #### 8.10.7 Changelog
 
+**2025-11-01 (Bug Fixes - Update/Delete Transactions):**
+- ✅ **CRITICAL FIX:** Исправлена 500 ошибка при обновлении транзакции (строка 672)
+- ✅ **Проблема:** Frontend отправлял отрицательный amount для расходов, backend ожидает ВСЕГДА положительное (gt=0)
+- ✅ **Решение:** Убран неправильный знак в updateData - `amount: formState.amount` вместо `amount: formState.factType === 'income' ? formState.amount : -formState.amount`
+- ✅ **Важно:** Тип операции (доход/расход) определяется по article_type категории, НЕ по знаку amount
+- ✅ **CRITICAL FIX:** Убраны вызовы несуществующего app.ui.hapticSuccess() (строки 630, 681)
+- ✅ **Решение:** Haptic feedback для success автоматически вызывается внутри showSuccess()
+- ✅ **FIX:** Улучшена обработка ошибок при обновлении и удалении (строки 637-639, 687-689)
+- ✅ Добавлено console.error для логирования ошибок в DevTools
+- ✅ Исправлено отображение "[object Object]" → корректный текст ошибки (error.detail || error.message || String(error))
+- ✅ **CRITICAL FIX:** Исправлен селектор кнопок быстрого выбора суммы (строка 466)
+- ✅ **Проблема:** При клике на кнопки выбора даты ("Сегодня", "Вчера", "Позавчера") срабатывал обработчик кнопок суммы, устанавливая NaN
+- ✅ **Решение:** Добавлен фильтр [data-amount] к селектору `.querySelectorAll('.quick-amount-btn[data-amount]')`
+- ✅ Файл: webapp/edit.html (5 исправлений)
+
 **2025-11-01 (Edit Transaction - Quick Date Buttons):**
 - ✅ Добавлены кнопки быстрого выбора даты: "Сегодня", "Вчера", "Позавчера"
 - ✅ Консистентность UX с формой добавления транзакции (webapp/add.html)
