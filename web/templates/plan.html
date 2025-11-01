@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/modal_plan.html" import plan_modal %}
 
 {% block content %}
 <div class="space-y-6">
@@ -10,6 +11,9 @@
                 <p class="text-base-content/70">Просмотр, редактирование и удаление планируемых транзакций</p>
             </div>
             <div class="flex flex-wrap gap-2">
+                <button class="btn btn-sm btn-info gap-1" onclick="create_modal.showModal()" title="Добавить новый план">
+                    ➕ Добавить план
+                </button>
                 <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных транзакций в CSV">
                     📄 CSV
                 </button>
@@ -136,6 +140,9 @@
     </div>
 </div>
 
+<!-- Create Plan Modal -->
+{{ plan_modal('create_modal') }}
+
 <!-- Edit Fact Modal -->
 <dialog id="edit-modal" class="modal">
     <div class="modal-box max-w-2xl">
@@ -201,7 +208,14 @@
 
 {% block extra_scripts %}
 <script src="/static/js/admin-facts-common.js"></script>
+<!-- CategoryTreeSelect Component -->
+<script src="/static/js/categoryTreeSelect.js"></script>
+
 <script>
+// Global state for CategoryTreeSelect
+let allCategories = [];
+let createCategoryTreeSelect = null;
+
 // Global state
 let currentPage = 0;
 let pageSize = 50;
@@ -226,6 +240,18 @@ document.addEventListener('DOMContentLoaded', function() {
     loadFinancialCenters();
     loadCostCenters();
     loadFacts();
+
+    // Инициализация кнопок типа плана для create_modal
+    setupCreatePlanTypeButtons();
+
+    // Инициализация кнопок периода планирования
+    setupCreatePlanPeriodButtons();
+
+    // Обработчик отправки формы создания плана
+    document.getElementById('form_create_modal').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        await createPlan(e);
+    });
 });
 
 // Load users for filter dropdown
@@ -285,6 +311,22 @@ async function loadArticles() {
             option.textContent = `${article.name} (${article.type})`;
             editSelect.appendChild(option);
         });
+
+        // Инициализировать CategoryTreeSelect для create modal
+        allCategories = articles;
+        const createSelect = document.querySelector('#form_create_modal select[name="article_id"]');
+        if (createSelect) {
+            const createType = document.querySelector('#form_create_modal input[name="plan_type"]:checked')?.value || 'expense';
+            createCategoryTreeSelect = new CategoryTreeSelect(createSelect, allCategories, {
+                emptyOptionText: '-- Выберите категорию --',
+                showEmptyOption: true,
+                filterType: createType,
+                indentChar: '›  ',
+                parentPrefix: '📁',
+                leafPrefix: '📄'
+            });
+            createCategoryTreeSelect.render();
+        }
     } catch (error) {
         console.error('Error loading articles:', error);
     }
@@ -781,6 +823,150 @@ function exportFilteredFacts(format) {
 
     // Open in new tab to trigger download
     window.open(url, '_blank');
+}
+
+// === CREATE MODAL FUNCTIONS ===
+
+// Установить обработчики для кнопок типа плана в create modal
+function setupCreatePlanTypeButtons() {
+    const typeButtons = document.querySelectorAll('.plan-type-btn');
+
+    typeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Убрать btn-active у всех кнопок
+            typeButtons.forEach(btn => btn.classList.remove('btn-active'));
+
+            // Добавить btn-active к текущей кнопке
+            this.classList.add('btn-active');
+
+            // Отметить соответствующий radio button
+            const radio = this.querySelector('input[type="radio"]');
+            if (radio) {
+                radio.checked = true;
+            }
+
+            // Перезагрузить категории с новым типом
+            console.log('Plan type changed to:', this.dataset.type);
+            if (createCategoryTreeSelect && allCategories.length > 0) {
+                const createSelect = document.querySelector('#form_create_modal select[name="article_id"]');
+                const createType = this.dataset.type;
+
+                createCategoryTreeSelect = new CategoryTreeSelect(createSelect, allCategories, {
+                    emptyOptionText: '-- Выберите категорию --',
+                    showEmptyOption: true,
+                    filterType: createType,
+                    indentChar: '›  ',
+                    parentPrefix: '📁',
+                    leafPrefix: '📄'
+                });
+                createCategoryTreeSelect.render();
+            }
+        });
+    });
+}
+
+// Установить обработчики для кнопок периода планирования
+function setupCreatePlanPeriodButtons() {
+    const periodButtons = document.querySelectorAll('.period-btn');
+    const hiddenInput = document.querySelector('#form_create_modal input[name="plan_month"]');
+
+    if (!periodButtons.length || !hiddenInput) return;
+
+    // Инициализировать надписи на кнопках (текущий месяц +0, +1, +2)
+    const today = new Date();
+    periodButtons.forEach((btn, index) => {
+        const offset = parseInt(btn.dataset.offset);
+        const date = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+        const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+        btn.textContent = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+        btn.dataset.year = date.getFullYear();
+        btn.dataset.month = String(date.getMonth() + 1).padStart(2, '0');
+    });
+
+    // Установить значение для первой кнопки (активной по умолчанию)
+    const firstButton = periodButtons[0];
+    hiddenInput.value = `${firstButton.dataset.year}-${firstButton.dataset.month}`;
+
+    // Обработчики кликов
+    periodButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Убрать активность у всех кнопок
+            periodButtons.forEach(btn => btn.classList.remove('btn-active'));
+
+            // Добавить активность к текущей кнопке
+            this.classList.add('btn-active');
+
+            // Установить значение в скрытое поле
+            hiddenInput.value = `${this.dataset.year}-${this.dataset.month}`;
+        });
+    });
+}
+
+// Создать новый план
+async function createPlan(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const data = {
+        record_type: 'plan',
+        fact_type: formData.get('plan_type'), // 'expense' или 'income'
+        amount: parseFloat(formData.get('amount')),
+        article_id: parseInt(formData.get('article_id')),
+        financial_center_id: parseInt(formData.get('financial_center_id')),
+        cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
+        plan_month: formData.get('plan_month'),
+        description: formData.get('description') || null
+    };
+
+    try {
+        const response = await fetch('/api/v1/budget-facts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            showToast('План успешно создан!', 'success');
+            create_modal.close();
+            event.target.reset();
+            loadFacts(); // Перезагрузить список планов
+
+            // Переинициализировать кнопки периода
+            setupCreatePlanPeriodButtons();
+        } else {
+            const error = await response.json();
+            showToast('Ошибка: ' + (error.detail || 'Не удалось создать план'), 'error');
+        }
+    } catch (error) {
+        console.error('Error creating plan:', error);
+        showToast('Ошибка подключения к серверу', 'error');
+    }
+}
+
+// Установить сумму плана из quick amount buttons
+function setPlanAmount(amount) {
+    const amountInput = document.querySelector('#form_create_modal input[name="amount"]');
+    if (amountInput) {
+        amountInput.value = amount;
+    }
+}
+
+// Toast notification helper
+function showToast(message, type = 'info') {
+    // Простая реализация toast уведомлений
+    // В production рекомендуется использовать библиотеку типа toastify
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} fixed top-4 right-4 w-96 z-50 shadow-lg`;
+    toast.innerHTML = `
+        <span>${message}</span>
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
 }
 </script>
 {% endblock %}

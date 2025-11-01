@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/modal_transaction.html" import transaction_modal %}
 
 {% block content %}
 <div class="space-y-6">
@@ -10,6 +11,9 @@
                 <p class="text-base-content/70">Просмотр, редактирование и удаление финансовых транзакций с расширенными фильтрами</p>
             </div>
             <div class="flex flex-wrap gap-2">
+                <button class="btn btn-sm btn-success gap-1" onclick="create_modal.showModal()" title="Добавить новую транзакцию">
+                    ➕ Добавить транзакцию
+                </button>
                 <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных транзакций в CSV">
                     📄 CSV
                 </button>
@@ -136,6 +140,9 @@
     </div>
 </div>
 
+<!-- Create Fact Modal -->
+{{ transaction_modal('create_modal') }}
+
 <!-- Edit Fact Modal -->
 <dialog id="edit-modal" class="modal">
     <div class="modal-box max-w-2xl">
@@ -201,7 +208,14 @@
 
 {% block extra_scripts %}
 <script src="/static/js/admin-facts-common.js"></script>
+<!-- CategoryTreeSelect Component -->
+<script src="/static/js/categoryTreeSelect.js"></script>
+
 <script>
+// Global state for CategoryTreeSelect
+let allCategories = [];
+let createCategoryTreeSelect = null;
+
 // Global state
 let currentPage = 0;
 let pageSize = 50;
@@ -224,6 +238,25 @@ document.addEventListener('DOMContentLoaded', function() {
     loadFinancialCenters();
     loadCostCenters();
     loadFacts();
+
+    // Инициализация кнопок типа транзакции для create_modal
+    setupCreateTransactionTypeButtons();
+
+    // Установить текущую дату для create_modal
+    const createFactDateInput = document.querySelector('#form_create_modal input[name="fact_date"]');
+    if (createFactDateInput) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        createFactDateInput.value = `${yyyy}-${mm}-${dd}`;
+    }
+
+    // Обработчик отправки формы создания транзакции
+    document.getElementById('form_create_modal').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        await createFact(e);
+    });
 });
 
 // Load users for filter dropdown
@@ -283,6 +316,22 @@ async function loadArticles() {
             option.textContent = `${article.name} (${article.type})`;
             editSelect.appendChild(option);
         });
+
+        // Инициализировать CategoryTreeSelect для create modal
+        allCategories = articles;
+        const createSelect = document.querySelector('#form_create_modal select[name="article_id"]');
+        if (createSelect) {
+            const createType = document.querySelector('#form_create_modal input[name="record_type"]:checked')?.value || 'expense';
+            createCategoryTreeSelect = new CategoryTreeSelect(createSelect, allCategories, {
+                emptyOptionText: '-- Выберите категорию --',
+                showEmptyOption: true,
+                filterType: createType,
+                indentChar: '›  ',
+                parentPrefix: '📁',
+                leafPrefix: '📄'
+            });
+            createCategoryTreeSelect.render();
+        }
     } catch (error) {
         console.error('Error loading articles:', error);
     }
@@ -771,6 +820,133 @@ function exportFilteredFacts(format) {
 
     // Open in new tab to trigger download
     window.open(url, '_blank');
+}
+
+// === CREATE MODAL FUNCTIONS ===
+
+// Установить обработчики для кнопок типа транзакции в create modal
+function setupCreateTransactionTypeButtons() {
+    const typeButtons = document.querySelectorAll('.transaction-type-btn');
+
+    typeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Убрать btn-active у всех кнопок
+            typeButtons.forEach(btn => btn.classList.remove('btn-active'));
+
+            // Добавить btn-active к текущей кнопке
+            this.classList.add('btn-active');
+
+            // Отметить соответствующий radio button
+            const radio = this.querySelector('input[type="radio"]');
+            if (radio) {
+                radio.checked = true;
+            }
+
+            // Перезагрузить категории с новым типом
+            console.log('Transaction type changed to:', this.dataset.type);
+            if (createCategoryTreeSelect && allCategories.length > 0) {
+                const createSelect = document.querySelector('#form_create_modal select[name="article_id"]');
+                const createType = this.dataset.type;
+
+                createCategoryTreeSelect = new CategoryTreeSelect(createSelect, allCategories, {
+                    emptyOptionText: '-- Выберите категорию --',
+                    showEmptyOption: true,
+                    filterType: createType,
+                    indentChar: '›  ',
+                    parentPrefix: '📁',
+                    leafPrefix: '📄'
+                });
+                createCategoryTreeSelect.render();
+            }
+        });
+    });
+}
+
+// Создать новую транзакцию
+async function createFact(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const data = {
+        record_type: 'fact',
+        fact_type: formData.get('record_type'), // 'expense' или 'income'
+        amount: parseFloat(formData.get('amount')),
+        article_id: parseInt(formData.get('article_id')),
+        financial_center_id: parseInt(formData.get('financial_center_id')),
+        cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
+        fact_date: formData.get('fact_date'),
+        description: formData.get('description') || null
+    };
+
+    try {
+        const response = await fetch('/api/v1/budget-facts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            showToast('Транзакция успешно создана!', 'success');
+            create_modal.close();
+            event.target.reset();
+            loadFacts(); // Перезагрузить список транзакций
+
+            // Установить дату обратно на сегодня
+            const createFactDateInput = document.querySelector('#form_create_modal input[name="fact_date"]');
+            if (createFactDateInput) {
+                const today = new Date();
+                const yyyy = today.getFullYear();
+                const mm = String(today.getMonth() + 1).padStart(2, '0');
+                const dd = String(today.getDate()).padStart(2, '0');
+                createFactDateInput.value = `${yyyy}-${mm}-${dd}`;
+            }
+        } else {
+            const error = await response.json();
+            showToast('Ошибка: ' + (error.detail || 'Не удалось создать транзакцию'), 'error');
+        }
+    } catch (error) {
+        console.error('Error creating fact:', error);
+        showToast('Ошибка подключения к серверу', 'error');
+    }
+}
+
+// Установить сумму транзакции из quick amount buttons
+function setTransactionAmount(amount) {
+    const amountInput = document.querySelector('#form_create_modal input[name="amount"]');
+    if (amountInput) {
+        amountInput.value = amount;
+    }
+}
+
+// Установить дату транзакции (offset в днях: 0 = сегодня, -1 = вчера)
+function setTransactionDate(offsetDays) {
+    const dateInput = document.querySelector('#form_create_modal input[name="fact_date"]');
+    if (dateInput) {
+        const date = new Date();
+        date.setDate(date.getDate() + offsetDays);
+        const yyyy = date.getFullYear();
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const dd = String(date.getDate()).padStart(2, '0');
+        dateInput.value = `${yyyy}-${mm}-${dd}`;
+    }
+}
+
+// Toast notification helper
+function showToast(message, type = 'info') {
+    // Простая реализация toast уведомлений
+    // В production рекомендуется использовать библиотеку типа toastify
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} fixed top-4 right-4 w-96 z-50 shadow-lg`;
+    toast.innerHTML = `
+        <span>${message}</span>
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
 }
 </script>
 {% endblock %}
