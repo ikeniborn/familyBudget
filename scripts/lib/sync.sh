@@ -400,12 +400,15 @@ sync_clean() {
     warning "Clean sync: DELETES EVERYTHING in $DEPLOY_DIR except .env"
     warning "⚠️  This will DELETE:"
     warning "  - All code (backend/, bot/, nginx/, web/, scripts/)"
-    warning "  - All data (data/ including PostgreSQL database)"
-    warning "  - All logs (logs/)"
+    warning "  - All data (data/* including PostgreSQL database)"
+    warning "  - All logs (logs/* except current deploy.log)"
     warning "  - All backups (backups/)"
-    warning "  - Docker volumes"
+    warning "  - All Docker volumes and containers"
     echo ""
-    warning "Only .env file will be preserved!"
+    warning "Preserved:"
+    warning "  - .env file"
+    warning "  - logs/ and data/ directories (contents cleared)"
+    warning "  - Current deploy.log (for troubleshooting)"
     echo ""
     read -p "Type 'DELETE' to confirm (all caps): " confirm
     echo ""
@@ -452,15 +455,30 @@ sync_clean() {
 
     # Step 4: Remove ALL directories and files except .env
     warning "Removing all directories and files (except .env)..."
-    local dirs_to_remove=("backend" "bot" "nginx" "web" "scripts" "backups" "data" "logs" "webapp")
+
+    # Remove code directories completely
+    local dirs_to_remove=("backend" "bot" "nginx" "web" "scripts" "backups" "webapp")
     for dir in "${dirs_to_remove[@]}"; do
         if [[ -d "$DEPLOY_DIR/$dir" ]]; then
             info "  Removing $DEPLOY_DIR/$dir"
-            if ! rm -rf "$DEPLOY_DIR/$dir" >> "$LOG_FILE" 2>&1; then
+            if ! rm -rf "$DEPLOY_DIR/$dir" 2>&1 | grep -v "deploy.log" | tee -a "$LOG_FILE" >/dev/null; then
                 warning "  Failed to remove $dir (may require manual cleanup)"
             fi
         fi
     done
+
+    # Clear data/ and logs/ contents but keep directories (needed for logging and PostgreSQL init)
+    if [[ -d "$DEPLOY_DIR/data" ]]; then
+        info "  Clearing $DEPLOY_DIR/data/* (keeping directory)"
+        rm -rf "$DEPLOY_DIR/data"/* 2>/dev/null || true
+    fi
+
+    if [[ -d "$DEPLOY_DIR/logs" ]]; then
+        info "  Clearing $DEPLOY_DIR/logs/* (keeping directory for logging)"
+        # Keep deploy.log but clear other logs
+        find "$DEPLOY_DIR/logs" -type f ! -name 'deploy.log' -delete 2>/dev/null || true
+        find "$DEPLOY_DIR/logs" -mindepth 1 -type d -exec rm -rf {} + 2>/dev/null || true
+    fi
 
     # Remove docker-compose files
     for file in docker-compose.yml docker-compose.*.yml; do
@@ -473,16 +491,21 @@ sync_clean() {
     # Remove other root-level files (except .env and logs which are excluded)
     find "$DEPLOY_DIR" -maxdepth 1 -type f ! -name '.env' ! -name 'deploy.log' -delete 2>/dev/null || true
 
-    # Step 5: Copy everything from repository (except .env)
+    # Step 5: Copy everything from repository (except .env and directories we already handled)
     info "Copying fresh code from $repo_dir to $DEPLOY_DIR"
     if rsync -av \
         --exclude='.env' \
+        --exclude='data/' \
+        --exclude='logs/' \
         --exclude='.git/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
         --exclude='node_modules/' \
         --exclude='docker-compose.networks.yml' \
         "$repo_dir/" "$DEPLOY_DIR/" >> "$LOG_FILE" 2>&1; then
+
+        # Ensure logs/ and data/ directories exist
+        mkdir -p "$DEPLOY_DIR/logs" "$DEPLOY_DIR/data" 2>/dev/null || true
 
         # Mark PostgreSQL as stopped (will be initialized fresh)
         POSTGRES_WAS_STOPPED=true
@@ -556,9 +579,9 @@ sync_code_to_deploy() {
             echo "      Old files NOT deleted (may leave artifacts)"
             echo ""
             echo "  [3] Clean + copy (DANGEROUS!)"
-            echo "      Deletes EVERYTHING (code, data, logs, backups, Docker volumes)"
+            echo "      Deletes EVERYTHING (code, data/*, logs/*, backups, Docker volumes)"
             echo "      ⚠️  DELETES PostgreSQL database and ALL data!"
-            echo "      Protected: .env ONLY"
+            echo "      Protected: .env, logs/ and data/ directories (contents cleared)"
             echo ""
             echo "  [4] Skip synchronization"
             echo "      Deploy without updating code"
