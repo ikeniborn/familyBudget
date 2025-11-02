@@ -324,31 +324,51 @@ alembic upgrade head
 
 ### 6.8 Changelog
 
-#### Migration 014 (2025-10-24) - Remove code and is_global fields
+#### Migration 014 (2025-11-02) - Remove is_global field and implement Shared References Model
 
 **Changes:**
-- **Removed fields from all dimension tables:**
-  - `code` field removed from t_d_article, t_d_financial_center, t_d_cost_center
-  - `is_global` field removed from t_d_article, t_d_financial_center, t_d_cost_center
+- **Removed `is_global` field from all dimension tables:**
+  - t_d_article: `is_global BOOLEAN` field removed
+  - t_d_financial_center: `is_global BOOLEAN` field removed
+  - t_d_cost_center: `is_global BOOLEAN` field removed
 
-- **Data ownership simplified:**
-  - All dimension records are now user-specific (user_id is NOT NULL)
-  - Removed concept of "global" shared records
-  - Former global records migrated to admin user
+- **Architectural change to Shared References Model:**
+  - **All dimension records are shared** across all users (visible to everyone)
+  - **Admin-only management:** Only administrators can CREATE/UPDATE/DELETE dimension records
+  - **All users READ:** All users can view all dimension records
+  - **Audit trail:** `user_id` remains to track who created the record (NOT for access control)
 
-- **Unique constraints updated:**
-  - t_d_article: `(user_id, name, type, is_current)` WHERE is_current = true
-  - t_d_financial_center: `(user_id, name, is_current)` WHERE is_current = true
-  - t_d_cost_center: `(user_id, name, is_current)` WHERE is_current = true
+- **Removed database constraints:**
+  - Dropped `check_*_global_code` constraints
+  - Dropped `check_*_global_user` constraints
+  - Dropped `check_*_user_ownership` constraints
+
+- **Removed indexes:**
+  - Dropped `idx_*_global` indexes
+  - Dropped `idx_*_global_code_current` indexes
+  - Dropped `idx_*_global_current` indexes
+  - Dropped `idx_*_global_user_current` indexes
+
+- **Updated unique constraints:**
+  - t_d_article: `(code, is_current)` WHERE is_current = true AND code IS NOT NULL
+  - t_d_financial_center: `(code, is_current)` WHERE is_current = true AND code IS NOT NULL
+  - t_d_cost_center: `(code, is_current)` WHERE is_current = true AND code IS NOT NULL
 
 **Rationale:**
-- The `code` field was optional in UI but caused validation errors when left empty
-- The `code` field was not in original PRD requirements
-- The `is_global` field was not in original PRD requirements
-- Simplified data model - each user has complete control over their own dimension records
-- Improved data integrity with name-based uniqueness per user
+- Simplified access control model - single source of truth for all users
+- Eliminated complexity of "global vs user-specific" distinction
+- Admin-only management ensures data consistency and quality
+- Better alignment with family budget use case (shared references for all family members)
+- `user_id` kept for audit purposes (tracking who created each record)
 
-**Migration script:** `backend/db/migrations/014_remove_code_and_is_global_fields.sql`
+**Implementation:**
+- Modified existing migrations 002-004 directly (development mode)
+- Updated all SQLModel models, Pydantic schemas, API endpoints
+- Updated access control logic in API endpoints (admin-only for CUD operations)
+- Updated UI templates to remove "(Global)" labels
+- Updated tests to reflect new architecture
+
+**Migration script:** Changes applied to `002_create_t_d_article.sql`, `003_create_t_d_financial_center.sql`, `004_create_t_d_cost_center.sql`
 
 ---
 

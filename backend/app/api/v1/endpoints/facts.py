@@ -88,9 +88,9 @@ async def create_fact(
             detail=f"Article with id={fact_data.article_id} not found"
         )
 
-    # Article must be global OR belong to current user
+    # Article must belong to current user (for audit trail check)
     if not current_user.is_admin:
-        if not article.is_global and article.user_id != current_user.id:
+        if article.user_id != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Article not accessible"
@@ -622,7 +622,7 @@ async def update_fact(
 
         # Article must be accessible
         if not current_user.is_admin:
-            if not article.is_global and article.user_id != current_user.id:
+            if article.user_id != current_user.id:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Article not accessible"

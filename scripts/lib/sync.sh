@@ -61,6 +61,14 @@ detect_repository_dir() {
         return 0
     fi
 
+    # Option 3b: ~/Documents/Project/familyBudget (alternative location)
+    if [[ -d "$HOME/Documents/Project/familyBudget/.git" && -f "$HOME/Documents/Project/familyBudget/docker-compose.yml" ]]; then
+        detected_dir="$HOME/Documents/Project/familyBudget"
+        info "Repository detected at: $detected_dir" >&2
+        echo "$detected_dir"
+        return 0
+    fi
+
     # Option 4: SCRIPT_DIR == DEPLOY_DIR (running from /opt/budget)
     if [[ "$SCRIPT_DIR" == "$DEPLOY_DIR" ]]; then
         warning "deploy.sh running from deployment directory ($DEPLOY_DIR)" >&2
@@ -114,6 +122,7 @@ detect_repository_dir() {
     echo "Checked locations:" >&2
     echo "  - Current directory: $SCRIPT_DIR" >&2
     echo "  - Home directory: ~/familyBudget" >&2
+    echo "  - Alternative location: ~/Documents/Project/familyBudget" >&2
     echo "" >&2
     echo "Options:" >&2
     echo "  [1] Enter repository path manually" >&2
@@ -397,36 +406,102 @@ sync_update() {
 sync_clean() {
     local repo_dir=$1
 
-    warning "Clean sync: DELETES everything in $DEPLOY_DIR except .env"
-    warning "This will also DELETE backups/ directory!"
+    warning "Clean sync: DELETES EVERYTHING in $DEPLOY_DIR except .env"
+    warning "⚠️  This will DELETE:"
+    warning "  - All code (backend/, bot/, nginx/, web/, scripts/)"
+    warning "  - All data (data/* including PostgreSQL database)"
+    warning "  - All logs (logs/* except current deploy.log)"
+    warning "  - All backups (backups/)"
+    warning "  - All Docker volumes and containers"
     echo ""
-    read -p "Type 'CLEAN' to confirm (all caps): " confirm
+    warning "Preserved:"
+    warning "  - .env file"
+    warning "  - logs/ and data/ directories (contents cleared)"
+    warning "  - Current deploy.log (for troubleshooting)"
+    echo ""
+    read -p "Type 'DELETE' to confirm (all caps): " confirm
     echo ""
 
-    if [[ "$confirm" != "CLEAN" ]]; then
+    if [[ "$confirm" != "DELETE" ]]; then
         warning "Clean sync cancelled"
         return 1
     fi
 
-    info "Performing clean sync..."
+    # Check for root privileges (required for PostgreSQL data deletion)
+    if ! check_root_privileges; then
+        error "Clean sync requires root privileges to delete PostgreSQL data!"
+        echo ""
+        echo "Please run deploy.sh with sudo:"
+        echo "  sudo $SCRIPT_DIR/deploy.sh --sync-mode clean"
+        echo ""
+        exit 1
+    fi
 
-    # Remove all directories except .env, data/, logs/
-    local dirs_to_remove=("backend" "bot" "nginx" "web" "scripts" "backups")
+    info "Performing FULL clean sync (everything except .env)..."
+
+    # Step 1: Stop and remove all Docker containers
+    local containers=$(docker ps -a --filter "name=familybudget" --format "{{.Names}}" 2>/dev/null || echo "")
+    if [[ -n "$containers" ]]; then
+        info "Stopping Docker containers..."
+        echo "$containers" | xargs docker stop >> "$LOG_FILE" 2>&1 || true
+        info "Removing Docker containers..."
+        echo "$containers" | xargs docker rm >> "$LOG_FILE" 2>&1 || true
+    fi
+
+    # Step 2: Remove Docker volumes
+    local volumes=$(docker volume ls --filter "name=familybudget" --format "{{.Name}}" 2>/dev/null || echo "")
+    if [[ -n "$volumes" ]]; then
+        warning "Removing Docker volumes (DATABASE DELETION)..."
+        echo "$volumes" | xargs docker volume rm >> "$LOG_FILE" 2>&1 || true
+    fi
+
+    # Step 3: Remove Docker networks
+    local networks=$(docker network ls --filter "name=familybudget" --format "{{.Name}}" 2>/dev/null || echo "")
+    if [[ -n "$networks" ]]; then
+        info "Removing Docker networks..."
+        echo "$networks" | xargs docker network rm >> "$LOG_FILE" 2>&1 || true
+    fi
+
+    # Step 4: Remove ALL directories and files except .env
+    warning "Removing all directories and files (except .env)..."
+
+    # Remove code directories completely
+    local dirs_to_remove=("backend" "bot" "nginx" "web" "scripts" "backups" "webapp")
     for dir in "${dirs_to_remove[@]}"; do
         if [[ -d "$DEPLOY_DIR/$dir" ]]; then
-            info "Removing $DEPLOY_DIR/$dir"
-            rm -rf "$DEPLOY_DIR/$dir" || warning "Failed to remove $dir"
+            info "  Removing $DEPLOY_DIR/$dir"
+            if ! rm -rf "$DEPLOY_DIR/$dir" 2>&1 | grep -v "deploy.log" | tee -a "$LOG_FILE" >/dev/null; then
+                warning "  Failed to remove $dir (may require manual cleanup)"
+            fi
         fi
     done
 
-    # Remove docker-compose.yml
-    if [[ -f "$DEPLOY_DIR/docker-compose.yml" ]]; then
-        info "Removing docker-compose.yml"
-        rm -f "$DEPLOY_DIR/docker-compose.yml"
+    # Clear data/ and logs/ contents but keep directories (needed for logging and PostgreSQL init)
+    if [[ -d "$DEPLOY_DIR/data" ]]; then
+        info "  Clearing $DEPLOY_DIR/data/* (keeping directory)"
+        rm -rf "$DEPLOY_DIR/data"/* 2>/dev/null || true
     fi
 
-    # Copy everything from repository
-    info "Copying code from $repo_dir to $DEPLOY_DIR"
+    if [[ -d "$DEPLOY_DIR/logs" ]]; then
+        info "  Clearing $DEPLOY_DIR/logs/* (keeping directory for logging)"
+        # Keep deploy.log but clear other logs
+        find "$DEPLOY_DIR/logs" -type f ! -name 'deploy.log' -delete 2>/dev/null || true
+        find "$DEPLOY_DIR/logs" -mindepth 1 -type d -exec rm -rf {} + 2>/dev/null || true
+    fi
+
+    # Remove docker-compose files
+    for file in docker-compose.yml docker-compose.*.yml; do
+        if [[ -f "$DEPLOY_DIR/$file" ]]; then
+            info "  Removing $file"
+            rm -f "$DEPLOY_DIR/$file"
+        fi
+    done
+
+    # Remove other root-level files (except .env and logs which are excluded)
+    find "$DEPLOY_DIR" -maxdepth 1 -type f ! -name '.env' ! -name 'deploy.log' -delete 2>/dev/null || true
+
+    # Step 5: Copy everything from repository (except .env and directories we already handled)
+    info "Copying fresh code from $repo_dir to $DEPLOY_DIR"
     if rsync -av \
         --exclude='.env' \
         --exclude='data/' \
@@ -437,7 +512,14 @@ sync_clean() {
         --exclude='node_modules/' \
         --exclude='docker-compose.networks.yml' \
         "$repo_dir/" "$DEPLOY_DIR/" >> "$LOG_FILE" 2>&1; then
-        success "Code synced successfully (clean mode)"
+
+        # Ensure logs/ and data/ directories exist
+        mkdir -p "$DEPLOY_DIR/logs" "$DEPLOY_DIR/data" 2>/dev/null || true
+
+        # Mark PostgreSQL as stopped (will be initialized fresh)
+        POSTGRES_WAS_STOPPED=true
+
+        success "Clean sync completed: EVERYTHING deleted except .env, fresh code copied"
         return 0
     else
         error "Failed to sync code. Check $LOG_FILE for details."
@@ -506,8 +588,9 @@ sync_code_to_deploy() {
             echo "      Old files NOT deleted (may leave artifacts)"
             echo ""
             echo "  [3] Clean + copy (DANGEROUS!)"
-            echo "      Deletes ALL code AND backups in /opt/budget, then copies from repository"
-            echo "      Protected: .env, data/, logs/ only"
+            echo "      Deletes EVERYTHING (code, data/*, logs/*, backups, Docker volumes)"
+            echo "      ⚠️  DELETES PostgreSQL database and ALL data!"
+            echo "      Protected: .env, logs/ and data/ directories (contents cleared)"
             echo ""
             echo "  [4] Skip synchronization"
             echo "      Deploy without updating code"

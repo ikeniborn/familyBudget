@@ -273,12 +273,20 @@ familyBudget/
    - O(1) сложность для иерархических запросов
    - 📖 **Детали:** [db-management skill](/.claude/skills/db-management/SKILL.md)
 
-3. **User Data Isolation**
-   - Каждый endpoint фильтрует по `current_user.id`
-   - Используй `apply_user_filter()` или `WHERE user_id = current_user.id`
+3. **Shared References Architecture** (dimension таблицы)
+   - **All dimension records shared** across all users (articles, financial_centers, cost_centers)
+   - **Admin-only management:** Only admins can CREATE/UPDATE/DELETE dimension records
+   - **All users READ:** All users can view all dimension records
+   - **NO user isolation** для dimension таблиц - НЕ фильтруй по `user_id`!
+   - `user_id` используется только для audit trail (кто создал запись)
    - 📖 **Детали:** [api-development skill](/.claude/skills/api-development/SKILL.md)
 
-4. **Telegram OAuth**
+4. **User Data Isolation** (fact таблицы ТОЛЬКО)
+   - Fact таблицы (`t_f_budget_fact`) фильтруются по `current_user.id`
+   - Транзакции доступны только владельцу
+   - **НЕ применяй** к dimension таблицам (см. пункт 3)
+
+5. **Telegram OAuth**
    - Аутентификация через Telegram с HMAC-SHA256
    - JWT tokens в httpOnly cookies (7 дней)
    - Bot использует `SessionManager` для хранения токенов
@@ -291,12 +299,23 @@ familyBudget/
 
 ✅ **ВСЕГДА делать:**
 
-1. **User isolation** - фильтровать по `current_user.id`:
+1. **Dimension tables (Shared References)** - admin-only management:
    ```python
-   stmt = select(Model).where(Model.user_id == current_user.id)
+   # CREATE/UPDATE/DELETE - только админы
+   if not current_user.is_admin:
+       raise HTTPException(403, "Only administrators can modify articles")
+
+   # GET - БЕЗ фильтрации (все пользователи видят все)
+   stmt = select(Article).where(Article.is_current == True)  # NO user_id filter!
    ```
 
-2. **SCD Type 2** - использовать `SCD2Service` для updates:
+2. **Fact tables (User Isolation)** - фильтровать по `current_user.id`:
+   ```python
+   # t_f_budget_fact - транзакции принадлежат пользователю
+   stmt = select(BudgetFact).where(BudgetFact.user_id == current_user.id)
+   ```
+
+3. **SCD Type 2** - использовать `SCD2Service` для updates:
    ```python
    from backend.app.services.scd2_service import create_new_version
    new_version = await create_new_version(session, old_instance, updates)
@@ -591,13 +610,14 @@ Backend упал на production:
 ⚠️ **При разработке всегда:**
 
 1. Используй **Claude Skills** для типичных задач (см. [таблицу выше](#-claude-skills))
-2. Соблюдай **User Data Isolation** - фильтруй по `current_user.id`
-3. Используй **SCD2Service** для dimension таблиц
-4. Используй **HierarchyService** для работы с иерархиями
-5. Добавляй **тесты** для всех новых features
-6. Проверяй **security** - JWT, user isolation, validation
-7. Проверяй **performance** - indexes, N+1 queries
-8. Документируй **breaking changes**
+2. Соблюдай **Shared References** для dimension таблиц - admin-only management, NO user_id filter
+3. Соблюдай **User Data Isolation** для fact таблиц - фильтруй по `current_user.id`
+4. Используй **SCD2Service** для dimension таблиц
+5. Используй **HierarchyService** для работы с иерархиями
+6. Добавляй **тесты** для всех новых features
+7. Проверяй **security** - JWT, admin-only access для dimension tables, validation
+8. Проверяй **performance** - indexes, N+1 queries
+9. Документируй **breaking changes**
 
 💡 **Не уверен как сделать?** → Посмотри соответствующий [Skill](#-claude-skills)
 

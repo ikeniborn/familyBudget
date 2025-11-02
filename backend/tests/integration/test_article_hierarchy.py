@@ -26,7 +26,7 @@ from backend.app.models.hierarchy import ArticleHierarchy
 
 
 @pytest.mark.asyncio
-async def test_create_simple_hierarchy(auth_client: AsyncClient, session: AsyncSession):
+async def test_create_simple_hierarchy(admin_client: AsyncClient, session: AsyncSession):
     """
     Test creating simple two-level hierarchy.
 
@@ -39,14 +39,13 @@ async def test_create_simple_hierarchy(auth_client: AsyncClient, session: AsyncS
     - Child article created with parent_id
     - Closure table entries created
     """
-    # Step 1: Create root article
-    root_response = await auth_client.post(
+    # Step 1: Create root article (admin only)
+    root_response = await admin_client.post(
         "/api/v1/articles",
         json={
             "code": "FOOD",
             "name": "Food",
             "type": "expense",
-            "is_global": False,
             "parent_id": None,
         },
     )
@@ -55,14 +54,13 @@ async def test_create_simple_hierarchy(auth_client: AsyncClient, session: AsyncS
     root_article = root_response.json()
     root_id = root_article["id"]
 
-    # Step 2: Create child article
-    child_response = await auth_client.post(
+    # Step 2: Create child article (admin only)
+    child_response = await admin_client.post(
         "/api/v1/articles",
         json={
             "code": "GROCERIES",
             "name": "Groceries",
             "type": "expense",
-            "is_global": False,
             "parent_id": root_id,
         },
     )
@@ -85,7 +83,7 @@ async def test_create_simple_hierarchy(auth_client: AsyncClient, session: AsyncS
 
 
 @pytest.mark.asyncio
-async def test_create_deep_hierarchy(auth_client: AsyncClient):
+async def test_create_deep_hierarchy(admin_client: AsyncClient):
     """
     Test creating deep multi-level hierarchy.
 
@@ -99,15 +97,15 @@ async def test_create_deep_hierarchy(auth_client: AsyncClient):
     - All levels created successfully
     - Parent-child relationships correct
     """
-    # Create Food (root)
-    food_response = await auth_client.post(
+    # Create Food (root) - admin only
+    food_response = await admin_client.post(
         "/api/v1/articles",
         json={"code": "FOOD", "name": "Food", "type": "expense", "parent_id": None},
     )
     food_id = food_response.json()["id"]
 
-    # Create Groceries (child of Food)
-    groceries_response = await auth_client.post(
+    # Create Groceries (child of Food) - admin only
+    groceries_response = await admin_client.post(
         "/api/v1/articles",
         json={
             "code": "GROCERIES",
@@ -118,8 +116,8 @@ async def test_create_deep_hierarchy(auth_client: AsyncClient):
     )
     groceries_id = groceries_response.json()["id"]
 
-    # Create Vegetables (child of Groceries)
-    vegetables_response = await auth_client.post(
+    # Create Vegetables (child of Groceries) - admin only
+    vegetables_response = await admin_client.post(
         "/api/v1/articles",
         json={
             "code": "VEGETABLES",
@@ -130,8 +128,8 @@ async def test_create_deep_hierarchy(auth_client: AsyncClient):
     )
     vegetables_id = vegetables_response.json()["id"]
 
-    # Create Organic (child of Vegetables)
-    organic_response = await auth_client.post(
+    # Create Organic (child of Vegetables) - admin only
+    organic_response = await admin_client.post(
         "/api/v1/articles",
         json={
             "code": "ORGANIC",
@@ -152,7 +150,7 @@ async def test_create_deep_hierarchy(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_get_subtree_complete_tree(auth_client: AsyncClient):
+async def test_get_subtree_complete_tree(auth_client: AsyncClient, admin_client: AsyncClient):
     """
     Test getting complete subtree of root article.
 
@@ -167,13 +165,13 @@ async def test_get_subtree_complete_tree(auth_client: AsyncClient):
     - Subtree includes root (include_self=true)
     """
     # Create hierarchy
-    food_resp = await auth_client.post(
+    food_resp = await admin_client.post(
         "/api/v1/articles",
         json={"code": "FOOD", "name": "Food", "type": "expense", "parent_id": None},
     )
     food_id = food_resp.json()["id"]
 
-    groceries_resp = await auth_client.post(
+    groceries_resp = await admin_client.post(
         "/api/v1/articles",
         json={
             "code": "GROCERIES",
@@ -184,7 +182,7 @@ async def test_get_subtree_complete_tree(auth_client: AsyncClient):
     )
     groceries_id = groceries_resp.json()["id"]
 
-    await auth_client.post(
+    await admin_client.post(
         "/api/v1/articles",
         json={
             "code": "VEGETABLES",
@@ -194,7 +192,7 @@ async def test_get_subtree_complete_tree(auth_client: AsyncClient):
         },
     )
 
-    await auth_client.post(
+    await admin_client.post(
         "/api/v1/articles",
         json={
             "code": "DINING",
@@ -225,7 +223,7 @@ async def test_get_subtree_complete_tree(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_get_subtree_with_max_depth(auth_client: AsyncClient):
+async def test_get_subtree_with_max_depth(auth_client: AsyncClient, admin_client: AsyncClient):
     """
     Test getting subtree with depth limit.
 
@@ -238,13 +236,13 @@ async def test_get_subtree_with_max_depth(auth_client: AsyncClient):
     Expected: Food + Groceries (not Vegetables)
     """
     # Create hierarchy
-    food_resp = await auth_client.post(
+    food_resp = await admin_client.post(
         "/api/v1/articles",
         json={"code": "FOOD", "name": "Food", "type": "expense", "parent_id": None},
     )
     food_id = food_resp.json()["id"]
 
-    groceries_resp = await auth_client.post(
+    groceries_resp = await admin_client.post(
         "/api/v1/articles",
         json={
             "code": "GROCERIES",
@@ -255,7 +253,7 @@ async def test_get_subtree_with_max_depth(auth_client: AsyncClient):
     )
     groceries_id = groceries_resp.json()["id"]
 
-    await auth_client.post(
+    await admin_client.post(
         "/api/v1/articles",
         json={
             "code": "VEGETABLES",
@@ -283,7 +281,7 @@ async def test_get_subtree_with_max_depth(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_get_subtree_exclude_self(auth_client: AsyncClient):
+async def test_get_subtree_exclude_self(auth_client: AsyncClient, admin_client: AsyncClient):
     """
     Test getting subtree without root article itself.
 
@@ -295,13 +293,13 @@ async def test_get_subtree_exclude_self(auth_client: AsyncClient):
     Expected: Only Groceries (not Food)
     """
     # Create hierarchy
-    food_resp = await auth_client.post(
+    food_resp = await admin_client.post(
         "/api/v1/articles",
         json={"code": "FOOD", "name": "Food", "type": "expense", "parent_id": None},
     )
     food_id = food_resp.json()["id"]
 
-    await auth_client.post(
+    await admin_client.post(
         "/api/v1/articles",
         json={
             "code": "GROCERIES",
@@ -333,7 +331,7 @@ async def test_get_subtree_exclude_self(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_get_ancestors_path_to_root(auth_client: AsyncClient):
+async def test_get_ancestors_path_to_root(auth_client: AsyncClient, admin_client: AsyncClient):
     """
     Test getting ancestors (breadcrumb path to root).
 
@@ -346,13 +344,13 @@ async def test_get_ancestors_path_to_root(auth_client: AsyncClient):
     Expected: [Food, Groceries] (ordered root → leaf)
     """
     # Create hierarchy
-    food_resp = await auth_client.post(
+    food_resp = await admin_client.post(
         "/api/v1/articles",
         json={"code": "FOOD", "name": "Food", "type": "expense", "parent_id": None},
     )
     food_id = food_resp.json()["id"]
 
-    groceries_resp = await auth_client.post(
+    groceries_resp = await admin_client.post(
         "/api/v1/articles",
         json={
             "code": "GROCERIES",
@@ -363,7 +361,7 @@ async def test_get_ancestors_path_to_root(auth_client: AsyncClient):
     )
     groceries_id = groceries_resp.json()["id"]
 
-    vegetables_resp = await auth_client.post(
+    vegetables_resp = await admin_client.post(
         "/api/v1/articles",
         json={
             "code": "VEGETABLES",
@@ -393,7 +391,7 @@ async def test_get_ancestors_path_to_root(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_get_ancestors_include_self(auth_client: AsyncClient):
+async def test_get_ancestors_include_self(auth_client: AsyncClient, admin_client: AsyncClient):
     """
     Test getting ancestors including article itself.
 
@@ -401,13 +399,13 @@ async def test_get_ancestors_include_self(auth_client: AsyncClient):
     Expected: [Food, Groceries, Vegetables]
     """
     # Create hierarchy
-    food_resp = await auth_client.post(
+    food_resp = await admin_client.post(
         "/api/v1/articles",
         json={"code": "FOOD", "name": "Food", "type": "expense", "parent_id": None},
     )
     food_id = food_resp.json()["id"]
 
-    groceries_resp = await auth_client.post(
+    groceries_resp = await admin_client.post(
         "/api/v1/articles",
         json={
             "code": "GROCERIES",
@@ -418,7 +416,7 @@ async def test_get_ancestors_include_self(auth_client: AsyncClient):
     )
     groceries_id = groceries_resp.json()["id"]
 
-    vegetables_resp = await auth_client.post(
+    vegetables_resp = await admin_client.post(
         "/api/v1/articles",
         json={
             "code": "VEGETABLES",
@@ -446,7 +444,7 @@ async def test_get_ancestors_include_self(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_get_ancestors_root_article(auth_client: AsyncClient):
+async def test_get_ancestors_root_article(auth_client: AsyncClient, admin_client: AsyncClient):
     """
     Test getting ancestors of root article (should be empty).
 
@@ -454,7 +452,7 @@ async def test_get_ancestors_root_article(auth_client: AsyncClient):
     Expected: [] (no ancestors)
     """
     # Create root article
-    food_resp = await auth_client.post(
+    food_resp = await admin_client.post(
         "/api/v1/articles",
         json={"code": "FOOD", "name": "Food", "type": "expense", "parent_id": None},
     )
@@ -475,7 +473,7 @@ async def test_get_ancestors_root_article(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_update_article_change_parent(auth_client: AsyncClient, session: AsyncSession):
+async def test_update_article_change_parent(auth_client: AsyncClient, admin_client: AsyncClient, session: AsyncSession):
     """
     Test changing article's parent (reorganizing hierarchy).
 
@@ -496,13 +494,13 @@ async def test_update_article_change_parent(auth_client: AsyncClient, session: A
     - Hierarchy queries reflect new structure
     """
     # Create initial hierarchy
-    food_resp = await auth_client.post(
+    food_resp = await admin_client.post(
         "/api/v1/articles",
         json={"code": "FOOD", "name": "Food", "type": "expense", "parent_id": None},
     )
     food_id = food_resp.json()["id"]
 
-    groceries_resp = await auth_client.post(
+    groceries_resp = await admin_client.post(
         "/api/v1/articles",
         json={
             "code": "GROCERIES",
@@ -513,7 +511,7 @@ async def test_update_article_change_parent(auth_client: AsyncClient, session: A
     )
     groceries_id = groceries_resp.json()["id"]
 
-    vegetables_resp = await auth_client.post(
+    vegetables_resp = await admin_client.post(
         "/api/v1/articles",
         json={
             "code": "VEGETABLES",
@@ -525,7 +523,7 @@ async def test_update_article_change_parent(auth_client: AsyncClient, session: A
     vegetables_id = vegetables_resp.json()["id"]
 
     # Update: Move Vegetables under Groceries
-    update_response = await auth_client.put(
+    update_response = await admin_client.put(
         f"/api/v1/articles/{vegetables_id}",
         json={"parent_id": groceries_id},  # New parent
     )
@@ -551,7 +549,7 @@ async def test_update_article_change_parent(auth_client: AsyncClient, session: A
 
 
 @pytest.mark.asyncio
-async def test_delete_article_with_children(auth_client: AsyncClient):
+async def test_delete_article_with_children(auth_client: AsyncClient, admin_client: AsyncClient):
     """
     Test deleting article that has children (soft delete).
 
@@ -563,13 +561,13 @@ async def test_delete_article_with_children(auth_client: AsyncClient):
     Expected: Food deleted (is_current=False), Groceries remains but orphaned
     """
     # Create hierarchy
-    food_resp = await auth_client.post(
+    food_resp = await admin_client.post(
         "/api/v1/articles",
         json={"code": "FOOD", "name": "Food", "type": "expense", "parent_id": None},
     )
     food_id = food_resp.json()["id"]
 
-    groceries_resp = await auth_client.post(
+    groceries_resp = await admin_client.post(
         "/api/v1/articles",
         json={
             "code": "GROCERIES",
@@ -581,7 +579,7 @@ async def test_delete_article_with_children(auth_client: AsyncClient):
     groceries_id = groceries_resp.json()["id"]
 
     # Delete Food
-    delete_response = await auth_client.delete(f"/api/v1/articles/{food_id}")
+    delete_response = await admin_client.delete(f"/api/v1/articles/{food_id}")
 
     assert delete_response.status_code == 204
 
@@ -600,7 +598,7 @@ async def test_delete_article_with_children(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_wide_hierarchy(auth_client: AsyncClient):
+async def test_wide_hierarchy(auth_client: AsyncClient, admin_client: AsyncClient):
     """
     Test wide hierarchy (many siblings).
 
@@ -617,7 +615,7 @@ async def test_wide_hierarchy(auth_client: AsyncClient):
     - Subtree query returns all children
     """
     # Create root
-    food_resp = await auth_client.post(
+    food_resp = await admin_client.post(
         "/api/v1/articles",
         json={"code": "FOOD", "name": "Food", "type": "expense", "parent_id": None},
     )
@@ -627,7 +625,7 @@ async def test_wide_hierarchy(auth_client: AsyncClient):
     siblings = ["Groceries", "Dining Out", "Snacks", "Beverages", "Desserts"]
 
     for name in siblings:
-        await auth_client.post(
+        await admin_client.post(
             "/api/v1/articles",
             json={
                 "code": name.upper().replace(" ", "_"),
@@ -648,7 +646,7 @@ async def test_wide_hierarchy(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_hierarchy_across_types(auth_client: AsyncClient):
+async def test_hierarchy_across_types(auth_client: AsyncClient, admin_client: AsyncClient):
     """
     Test that hierarchy respects article types (income vs expense).
 
@@ -656,14 +654,14 @@ async def test_hierarchy_across_types(auth_client: AsyncClient):
     This test verifies mixed-type hierarchies are handled correctly.
     """
     # Create income root
-    income_root_resp = await auth_client.post(
+    income_root_resp = await admin_client.post(
         "/api/v1/articles",
         json={"code": "INCOME", "name": "Income", "type": "income", "parent_id": None},
     )
     income_root_id = income_root_resp.json()["id"]
 
     # Create expense root
-    expense_root_resp = await auth_client.post(
+    expense_root_resp = await admin_client.post(
         "/api/v1/articles",
         json={"code": "EXPENSES", "name": "Expenses", "type": "expense", "parent_id": None},
     )

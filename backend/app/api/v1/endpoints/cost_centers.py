@@ -52,16 +52,12 @@ async def list_cost_centers(
     """
     List cost centers for current user.
 
-    Returns user-specific cost centers + global cost centers.
+    Shared references architecture: All users see all cost centers.
     Only current versions (is_current=True) are returned.
     """
-    # Build query - user's cost centers OR global
+    # Build query - all cost centers (shared references)
     conditions = [
         CostCenter.is_current == True,
-        or_(
-            CostCenter.user_id == current_user.id,
-            CostCenter.is_global == True
-        )
     ]
 
     # Count total
@@ -106,14 +102,14 @@ async def create_cost_center(
     """
     Create a new cost center.
 
-    Cost center is automatically assigned to current_user.
-    Only admins can create global cost centers (is_global=True).
+    Shared references architecture: Only admins can create cost centers.
+    Cost center is created with current_user as creator (audit trail).
     """
-    # Check: Only admins can create global cost centers
-    if cost_center_data.is_global and not current_user.is_admin:
+    # Check: Only admins can create cost centers
+    if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can create global cost centers"
+            detail="Only administrators can create cost centers"
         )
 
     # Create cost center
@@ -121,7 +117,6 @@ async def create_cost_center(
         user_id=current_user.id,
         name=cost_center_data.name,
         description=cost_center_data.description,
-        is_global=cost_center_data.is_global if current_user.is_admin else False,
         is_current=True,
         valid_from=datetime.utcnow(),
         valid_to=datetime(9999, 12, 31, 23, 59, 59),
@@ -149,7 +144,7 @@ async def get_cost_center(
     Get cost center by ID.
 
     Returns current version (is_current=True) only.
-    User can access own cost centers + global cost centers.
+    Shared references architecture: All users can access all cost centers.
     """
     query = select(CostCenter).where(
         CostCenter.id == cost_center_id,
@@ -165,12 +160,7 @@ async def get_cost_center(
             detail=f"Cost center {cost_center_id} not found",
         )
 
-    # Check access: user can access own cost centers OR global cost centers
-    if cost_center.user_id != current_user.id and not cost_center.is_global:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this cost center",
-        )
+    # NO access restrictions - all users can read all cost centers
 
     return CostCenterResponse.model_validate(cost_center)
 
@@ -194,9 +184,15 @@ async def update_cost_center(
     - Old version: is_current=False, valid_to=now()
     - New version: is_current=True, valid_from=now(), valid_to=9999-12-31
 
-    Only owner can update (or admin for global).
-    Only admins can modify global cost centers.
+    Shared references architecture: Only admins can update cost centers.
     """
+    # Check: Only admins can update cost centers
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can update cost centers",
+        )
+
     # Fetch current version
     query = select(CostCenter).where(
         CostCenter.id == cost_center_id,
@@ -214,27 +210,6 @@ async def update_cost_center(
 
     # Get update dict
     update_dict = update_data.model_dump(exclude_unset=True)
-
-    # Check: Cannot modify global cost centers without admin
-    if old_cost_center.is_global and not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can modify global cost centers",
-        )
-
-    # Check: Cannot set is_global=True without admin
-    if "is_global" in update_dict and update_dict["is_global"] and not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can create global cost centers",
-        )
-
-    # Check permissions - only owner can update (for non-global)
-    if not old_cost_center.is_global and old_cost_center.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this cost center",
-        )
 
     # Use SCD2 service for update
 
@@ -263,8 +238,15 @@ async def delete_cost_center(
 
     Sets is_current=False and valid_to=now() for current version.
     Historical versions are preserved.
-    Only admins can delete global cost centers.
+    Shared references architecture: Only admins can delete cost centers.
     """
+    # Check: Only admins can delete cost centers
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can delete cost centers",
+        )
+
     # Fetch current version
     query = select(CostCenter).where(
         CostCenter.id == cost_center_id,
@@ -278,20 +260,6 @@ async def delete_cost_center(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Cost center {cost_center_id} not found",
-        )
-
-    # Check: Cannot delete global cost centers without admin
-    if cost_center.is_global and not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can delete global cost centers",
-        )
-
-    # Check permissions - only owner can delete (for non-global)
-    if not cost_center.is_global and cost_center.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this cost center",
         )
 
     # Soft delete: set is_current=False and valid_to=now()
