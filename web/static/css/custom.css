@@ -108,8 +108,18 @@
 #filter-financial-center,
 #filter-cost-center,
 #filter-user,
-#filter-article {
-    min-width: 150px; /* Minimum width to prevent truncation */
+#filter-article,
+#filter-record-type {
+    min-width: 200px !important; /* Increased minimum width */
+    width: 100%; /* Full width within container */
+    max-width: none !important; /* Remove max-width constraint */
+    text-overflow: clip; /* Don't show ellipsis */
+    white-space: nowrap; /* Keep text on one line */
+}
+
+/* Ensure parent containers don't constrain selects */
+.form-control select {
+    overflow: visible;
 }
 
 /* Hierarchical category select styling */

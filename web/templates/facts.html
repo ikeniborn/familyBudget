@@ -34,7 +34,7 @@
                 <h2 class="card-title text-2xl">🔍 Фильтры</h2>
                 <button class="btn btn-sm btn-ghost" onclick="resetFilters()">Сбросить</button>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                 <div class="form-control">
                     <label class="label">
                         <span class="label-text">👤 Пользователь</span>
@@ -66,7 +66,7 @@
                     <input type="text" id="filter-date-to" class="input input-bordered input-sm" placeholder="ДД.ММ.ГГГГ">
                 </div>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                 <div class="form-control">
                     <label class="label">
                         <span class="label-text">🏦 Финансовый центр</span>
@@ -295,22 +295,25 @@ async function loadArticles() {
         const tree = buildArticleTree(articles);
         const flatNodes = flattenArticleTree(tree);
 
-        // Populate filter dropdown with tree
+        // Populate filter dropdown with tree (using improved hierarchy indicators)
         const filterSelect = document.getElementById('filter-article');
         flatNodes.forEach(node => {
             const option = document.createElement('option');
             option.value = node.id;
 
-            // Add indentation and icon
-            const indent = '\u00A0\u00A0'.repeat(node.level); // Non-breaking spaces
-            const icon = node.isLeaf ? '📄' : '📁';
+            // Add indentation and icon (matching CategoryTreeSelect improvements)
+            const indent = '  ⤷  '.repeat(node.level); // Improved visual indicator
+            const icon = node.isLeaf ? '  ▸' : '📂'; // Improved icons
             option.textContent = `${indent}${icon} ${node.name}`;
 
-            // Disable parent categories
+            // Disable parent categories with visual styling
             if (!node.isLeaf) {
                 option.disabled = true;
-                option.style.color = 'var(--tw-text-opacity, 0.5)';
-                option.style.fontStyle = 'italic';
+                option.classList.add('category-parent');
+                option.style.fontWeight = 'bold';
+                option.style.opacity = '0.7';
+            } else {
+                option.classList.add('category-leaf');
             }
 
             filterSelect.appendChild(option);
