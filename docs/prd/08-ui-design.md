@@ -905,24 +905,34 @@ new CalendarWidget({
 - Responsive design (breakpoints для mobile/desktop)
 - Accessibility (ARIA labels, focus states)
 
-**Формы с календарным виджетом:**
+**Платформо-специфичные решения (Added 2025-11-02):**
 
-**WebApp (Telegram Mini App):**
-- `webapp/add.html` - fact_date (single)
-- `webapp/edit.html` - fact_date (single)
+**WebApp (Telegram Mini App) - Native Date Input:**
+- `webapp/add.html` - `<input type="date">` для fact_date
+- `webapp/edit.html` - `<input type="date">` для fact_date
+- Преимущества:
+  - ✅ Оптимизированный нативный date picker для каждой мобильной ОС (iOS, Android)
+  - ✅ Touch-friendly UX - привычный интерфейс для пользователей
+  - ✅ Без дополнительного JS (~0KB overhead)
+  - ✅ Автоматическая валидация браузером
+  - ✅ Сохранены quick date shortcuts ("Сегодня", "Вчера", "Позавчера")
 
-**Web Interface:**
+**Web Interface (Desktop) - CalendarWidget:**
 - `web/templates/facts.html` - фильтры дата с/по (range) + edit modal fact_date (single) + create modal fact_date (single)
 - `web/templates/plan.html` - фильтры дата с/по (range)
 - `web/templates/notifications.html` - фильтры дата с/по (range)
+- Преимущества:
+  - ✅ Улучшенный UX для desktop - визуальный календарь
+  - ✅ Range picker для фильтров "дата с/по"
+  - ✅ Без внешних зависимостей (DaisyUI Native)
+  - ✅ Полный контроль над UI/UX
+  - ✅ Легковесность - ~15KB (JS + CSS)
 
-**Преимущества:**
-- ✅ Улучшенный UX - визуальный выбор дат вместо ручного ввода
-- ✅ Без внешних зависимостей - использует уже имеющийся Tailwind + DaisyUI
-- ✅ Консистентность - единый виджет для webapp и web
-- ✅ Mobile-first - оптимизирован для Telegram WebApp
-- ✅ Полный контроль - custom implementation (DaisyUI Native)
-- ✅ Легковесность - ~15KB (JS + CSS)
+**DateFormatter расширение:**
+- `setNativeDateInput(input, displayDate)` - установить значение для native date input
+- `getNativeDateInput(input)` - получить значение из native date input
+- `initNativeDateInput(input)` - инициализировать с сегодняшней датой
+- Поддержка обоих форматов: DD.MM.YYYY (отображение) ↔ YYYY-MM-DD (native input value)
 
 #### 8.10.8 Changelog
 
@@ -954,6 +964,30 @@ new CalendarWidget({
   - `webapp/add.html` (подключения + инициализация)
   - `webapp/edit.html` (подключения + инициализация)
 - ✅ **Размер:** ~15KB (JS + CSS)
+
+**2025-11-02 (Platform-Specific Date Input Solutions):**
+- ✅ **IMPROVEMENT:** Переход на платформо-специфичные решения для оптимальной UX
+- ✅ **WebApp (Mobile) - Native Date Input:**
+  - Заменен CalendarWidget на `<input type="date">` для webapp/add.html и webapp/edit.html
+  - Преимущества: нативный date picker ОС (iOS, Android), оптимальный touch UX, 0KB overhead
+  - Сохранены quick date shortcuts ("Сегодня", "Вчера", "Позавчера") для быстрого выбора
+- ✅ **Web Interface (Desktop) - CalendarWidget:**
+  - Оставлен CalendarWidget для web/templates (facts.html, plan.html, notifications.html)
+  - Преимущества: визуальный календарь для desktop, range picker для фильтров
+- ✅ **DateFormatter расширение:**
+  - `setNativeDateInput(input, displayDate)` - установить значение для native input (DD.MM.YYYY → YYYY-MM-DD)
+  - `getNativeDateInput(input)` - получить значение из native input (YYYY-MM-DD → DD.MM.YYYY)
+  - `initNativeDateInput(input)` - инициализировать с сегодняшней датой
+  - Поддержка двух форматов: DD.MM.YYYY (отображение) ↔ YYYY-MM-DD (native input value)
+- ✅ **CRITICAL FIX:** Исправлена инициализация CalendarWidget в web interface модалке создания транзакции
+  - Проблема: виджет инициализировался до загрузки DOM модалки
+  - Решение: перенос инициализации в loadArticles() (после загрузки категорий)
+- ✅ **Файлы:**
+  - `webapp/static/js/dateFormatter.js` - добавлены 3 метода для native input
+  - `webapp/add.html` - изменен на native date input + обновлена логика setupDateInput()
+  - `webapp/edit.html` - изменен на native date input + обновлена логика
+  - `web/templates/facts.html` - исправлена инициализация create modal calendar
+- ✅ **Rationale:** Hybrid solution - оптимальная UX для каждой платформы (mobile vs desktop)
 
 **2025-11-01 (Bug Fixes - Update/Delete Transactions):**
 - ✅ **CRITICAL FIX:** Исправлена 500 ошибка при обновлении транзакции (строка 672)
