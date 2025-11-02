@@ -35,9 +35,11 @@ class Article(SQLModel, table=True):
             ├── Groceries (id=2, parent_id=1)
             └── Restaurants (id=3, parent_id=1)
 
-    User-specific Articles:
-        - All articles are user-specific with required user_id
-        - Each user maintains their own set of categories
+    Shared References Architecture:
+        - All articles are shared across all users (accessible by everyone)
+        - Only administrators can CREATE/UPDATE/DELETE articles
+        - All users can READ all articles
+        - user_id tracks the creator for audit trail purposes
 
     SCD Type 2 Pattern:
         Each article can have multiple versions over time:
@@ -47,7 +49,7 @@ class Article(SQLModel, table=True):
 
     Attributes:
         id: Surrogate primary key (auto-generated)
-        user_id: Owner user ID (required)
+        user_id: Owner user ID (required - tracks creator for audit)
         parent_id: Parent article ID for hierarchy (NULL for root articles)
         name: Article display name (required, max 255 chars)
         type: Article type - 'income' or 'expense' (required, max 20 chars)
@@ -86,7 +88,7 @@ class Article(SQLModel, table=True):
         - When updating an article, create new version and set old version's is_current=False
         - All articles must have user_id (required field)
         - Parent article must exist before creating child article
-        - Unique constraint: (user_id, name, type, is_current) for current records
+        - Unique constraint: (name, type, is_current) for current records
     """
 
     __tablename__ = "t_d_article"

@@ -52,13 +52,12 @@ async def list_cost_centers(
     """
     List cost centers for current user.
 
-    Returns user-specific cost centers.
+    Shared references architecture: All users see all cost centers.
     Only current versions (is_current=True) are returned.
     """
-    # Build query - only user's cost centers
+    # Build query - all cost centers (shared references)
     conditions = [
         CostCenter.is_current == True,
-        CostCenter.user_id == current_user.id
     ]
 
     # Count total
@@ -103,8 +102,16 @@ async def create_cost_center(
     """
     Create a new cost center.
 
-    Cost center is automatically assigned to current_user.
+    Shared references architecture: Only admins can create cost centers.
+    Cost center is created with current_user as creator (audit trail).
     """
+    # Check: Only admins can create cost centers
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can create cost centers"
+        )
+
     # Create cost center
     cost_center = CostCenter(
         user_id=current_user.id,
@@ -137,6 +144,7 @@ async def get_cost_center(
     Get cost center by ID.
 
     Returns current version (is_current=True) only.
+    Shared references architecture: All users can access all cost centers.
     """
     query = select(CostCenter).where(
         CostCenter.id == cost_center_id,
@@ -152,12 +160,7 @@ async def get_cost_center(
             detail=f"Cost center {cost_center_id} not found",
         )
 
-    # Check access: user can only access their own cost centers
-    if cost_center.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this cost center",
-        )
+    # NO access restrictions - all users can read all cost centers
 
     return CostCenterResponse.model_validate(cost_center)
 
@@ -181,8 +184,15 @@ async def update_cost_center(
     - Old version: is_current=False, valid_to=now()
     - New version: is_current=True, valid_from=now(), valid_to=9999-12-31
 
-    Only owner (or admin for global) can update.
+    Shared references architecture: Only admins can update cost centers.
     """
+    # Check: Only admins can update cost centers
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can update cost centers",
+        )
+
     # Fetch current version
     query = select(CostCenter).where(
         CostCenter.id == cost_center_id,
@@ -198,15 +208,10 @@ async def update_cost_center(
             detail=f"Cost center {cost_center_id} not found",
         )
 
-    # Check permissions - only owner can update
-    if old_cost_center.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this cost center",
-        )
+    # Get update dict
+    update_dict = update_data.model_dump(exclude_unset=True)
 
     # Use SCD2 service for update
-    update_dict = update_data.model_dump(exclude_unset=True)
 
     new_cost_center = await scd2_service.create_new_version(
         session=session,
@@ -233,7 +238,15 @@ async def delete_cost_center(
 
     Sets is_current=False and valid_to=now() for current version.
     Historical versions are preserved.
+    Shared references architecture: Only admins can delete cost centers.
     """
+    # Check: Only admins can delete cost centers
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can delete cost centers",
+        )
+
     # Fetch current version
     query = select(CostCenter).where(
         CostCenter.id == cost_center_id,
@@ -247,13 +260,6 @@ async def delete_cost_center(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Cost center {cost_center_id} not found",
-        )
-
-    # Check permissions - only owner can delete
-    if cost_center.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this cost center",
         )
 
     # Soft delete: set is_current=False and valid_to=now()

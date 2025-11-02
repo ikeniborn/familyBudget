@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title> едактировать транзакцию - Family Budget</title>
+    <title>Редактировать транзакцию - Family Budget</title>
 
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -17,109 +17,11 @@
     <style>
         /* Edit transaction specific styles */
         .page-header {
-
-        .back-button {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--tg-theme-link-color);
-            font-size: 28px;
-            cursor: pointer;
-            padding: 8px;
-            line-height: 1;
-        }
             text-align: center;
-
-        .back-button {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--tg-theme-link-color);
-            font-size: 28px;
-            cursor: pointer;
-            padding: 8px;
-            line-height: 1;
-        }
             padding: 20px 0;
-
-        .back-button {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--tg-theme-link-color);
-            font-size: 28px;
-            cursor: pointer;
-            padding: 8px;
-            line-height: 1;
-        }
             border-bottom: 1px solid var(--tg-theme-section-separator-color);
-
-        .back-button {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--tg-theme-link-color);
-            font-size: 28px;
-            cursor: pointer;
-            padding: 8px;
-            line-height: 1;
-        }
             margin-bottom: 24px;
-
-        .back-button {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--tg-theme-link-color);
-            font-size: 28px;
-            cursor: pointer;
-            padding: 8px;
-            line-height: 1;
-        }
             position: relative;
-
-        .back-button {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--tg-theme-link-color);
-            font-size: 28px;
-            cursor: pointer;
-            padding: 8px;
-            line-height: 1;
-        }
-        }
-
-        .back-button {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--tg-theme-link-color);
-            font-size: 28px;
-            cursor: pointer;
-            padding: 8px;
-            line-height: 1;
         }
 
         .page-title {
@@ -298,8 +200,7 @@
     <div class="container" id="main-content" style="display: none;">
         <!-- Header -->
         <div class="page-header">
-            <button class="back-button" onclick="window.location.href='/webapp/index.html'" title="Назад">⬅️</button>
-            <div class="page-title"> едактировать транзакцию</div>
+            <div class="page-title">Редактировать транзакцию</div>
         </div>
 
         <!-- Transaction Type Selector -->
@@ -369,10 +270,16 @@
         <!-- Date Select -->
         <div class="form-group">
             <label class="form-label form-label-required">Дата</label>
+            <div class="quick-amount-buttons" style="margin-bottom: 8px;">
+                <button type="button" class="quick-amount-btn" data-days="0">Сегодня</button>
+                <button type="button" class="quick-amount-btn" data-days="-1">Вчера</button>
+                <button type="button" class="quick-amount-btn" data-days="-2">Позавчера</button>
+            </div>
             <input
-                type="date"
+                type="text"
                 id="fact-date"
                 class="form-input"
+                placeholder="ДД.ММ.ГГГГ"
                 required
             >
             <span class="error-message" id="date-error"></span>
@@ -381,7 +288,7 @@
         <!-- Delete Section -->
         <div class="delete-section">
             <button type="button" class="btn-delete" id="delete-btn">
-                н Удалить транзакцию
+                🗑 Удалить транзакцию
             </button>
         </div>
     </div>
@@ -393,6 +300,7 @@
     <script src="/webapp/static/js/ui.js"></script>
     <script src="/webapp/static/js/auth.js"></script>
     <script src="/webapp/static/js/api.js"></script>
+    <script src="/webapp/static/js/dateFormatter.js"></script>
     <script src="/webapp/static/js/categoryTreeSelect.js"></script>
     <script src="/webapp/static/js/app.js"></script>
 
@@ -438,6 +346,7 @@
             setupAmountInput();
             setupDescriptionCounter();
             setupDateInput();
+            setupQuickDateButtons();
 
             // Load categories
             await loadCategories();
@@ -473,7 +382,8 @@
                 }
 
                 // Populate form state
-                formState.factType = originalFact.amount > 0 ? 'income' : 'expense';
+                // CRITICAL FIX: Use article_type from API instead of amount sign
+                formState.factType = originalFact.article_type || 'expense';
                 formState.amount = Math.abs(originalFact.amount);
                 formState.categoryId = originalFact.article_id;
                 formState.description = originalFact.description || '';
@@ -488,7 +398,7 @@
 
             } catch (error) {
                 console.error('Failed to load transaction:', error);
-                app.ui.showError(`Ошибка загрузкик ${error.message}`, () => {
+                app.ui.showError(`Ошибка загрузки: ${error.message}`, () => {
                     window.history.back();
                 });
             }
@@ -514,11 +424,11 @@
             const descriptionInput = document.getElementById('description');
             descriptionInput.value = formState.description;
             const counter = document.getElementById('description-counter');
-            counter.textContent = `${formState.description.length} Я ваа`;
+            counter.textContent = `${formState.description.length} / 200`;
 
             // Date
             const dateInput = document.getElementById('fact-date');
-            dateInput.value = formState.factDate;
+            dateInput.value = DateFormatter.formatForDisplay(formState.factDate);
 
             // Category will be selected after categories are loaded
         }
@@ -535,6 +445,9 @@
                     // Update form state
                     formState.factType = button.dataset.type;
 
+                    // CRITICAL FIX: Clear category selection when changing type to avoid mismatch
+                    formState.categoryId = null;
+
                     // Update amount input style
                     const amountInput = document.getElementById('amount');
                     amountInput.classList.remove('income', 'expense');
@@ -550,7 +463,7 @@
         }
 
         function setupQuickAmountButtons() {
-            const buttons = document.querySelectorAll('.quick-amount-btn');
+            const buttons = document.querySelectorAll('.quick-amount-btn[data-amount]');
 
             buttons.forEach(button => {
                 button.addEventListener('click', () => {
@@ -581,7 +494,7 @@
 
             textarea.addEventListener('input', () => {
                 const length = textarea.value.length;
-                counter.textContent = `${length} Я ваа`;
+                counter.textContent = `${length} / 200`;
 
                 if (length > 200) {
                     counter.classList.add('over-limit');
@@ -596,17 +509,56 @@
         function setupDateInput() {
             const dateInput = document.getElementById('fact-date');
 
-            // Set max date to today (no future dates)
-            const today = new Date();
-            const todayStr = today.toISOString().split('T')[0];
-            dateInput.max = todayStr;
+            dateInput.addEventListener('input', () => {
+                const displayDate = dateInput.value;
 
-            dateInput.addEventListener('change', () => {
-                formState.factDate = dateInput.value;
+                // Convert DD.MM.YYYY to YYYY-MM-DD for API
+                if (DateFormatter.isValidDisplayFormat(displayDate)) {
+                    formState.factDate = DateFormatter.formatForAPI(displayDate);
+                    // Clear error
+                    document.getElementById('date-error').textContent = '';
+                    dateInput.classList.remove('input-error');
+                } else {
+                    formState.factDate = null;
+                }
+            });
 
-                // Clear error on change
-                document.getElementById('date-error').textContent = '';
-                dateInput.classList.remove('input-error');
+            dateInput.addEventListener('blur', () => {
+                // Validate on blur
+                if (!DateFormatter.isValidDisplayFormat(dateInput.value)) {
+                    document.getElementById('date-error').textContent = 'Неверный формат даты (ДД.ММ.ГГГГ)';
+                    dateInput.classList.add('input-error');
+                }
+            });
+        }
+
+        function setupQuickDateButtons() {
+            const buttons = document.querySelectorAll('.quick-amount-buttons button[data-days]');
+            const dateInput = document.getElementById('fact-date');
+
+            buttons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const daysOffset = parseInt(button.dataset.days);
+                    const date = new Date();
+                    date.setDate(date.getDate() + daysOffset);
+
+                    // Format for API (YYYY-MM-DD) - use LOCAL timezone, not UTC
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const isoDate = `${year}-${month}-${day}`;
+                    formState.factDate = isoDate;
+
+                    // Format for display (DD.MM.YYYY)
+                    dateInput.value = DateFormatter.formatForDisplay(isoDate);
+
+                    // Clear error
+                    document.getElementById('date-error').textContent = '';
+                    dateInput.classList.remove('input-error');
+
+                    // Haptic feedback
+                    app.ui.hapticLight();
+                });
             });
         }
 
@@ -662,7 +614,7 @@
                 app.ui.hapticLight();
 
                 // Show confirmation dialog
-                const confirmed = confirm('Вы увереныЬ что хотите удалить MBC транзакциюп -то действие нельзя от<енитьЮ');
+                const confirmed = confirm('Вы уверены, что хотите удалить эту транзакцию? Это действие нельзя отменить.');
 
                 if (!confirmed) {
                     return;
@@ -675,14 +627,15 @@
                     await app.api.deleteFact(formState.factId);
 
                     app.ui.hideLoading();
-                    app.ui.hapticSuccess();
                     app.ui.showSuccess('Транзакция удалена', () => {
                         window.location.href = '/webapp/index.html';
                     });
 
                 } catch (error) {
                     app.ui.hideLoading();
-                    app.ui.showError(`Ошибка удаленияк ${error.message}`);
+                    console.error('Delete error:', error);
+                    const errorMessage = error.detail || error.message || String(error);
+                    app.ui.showError(`Ошибка удаления: ${errorMessage}`);
                 }
             });
         }
@@ -690,7 +643,7 @@
         function setupMainButton() {
             const mainButton = app.tg.MainButton;
 
-            mainButton.setText('Сохранить из<енения');
+            mainButton.setText('СОХРАНИТЬ ИЗМЕНЕНИЯ');
             mainButton.show();
             mainButton.enable();
 
@@ -715,7 +668,7 @@
             try {
                 // Prepare update data
                 const updateData = {
-                    amount: formState.factType === 'income' ? formState.amount : -formState.amount,
+                    amount: formState.amount,
                     article_id: formState.categoryId,
                     description: formState.description,
                     fact_date: formState.factDate
@@ -725,14 +678,15 @@
                 const result = await app.api.updateFact(formState.factId, updateData);
 
                 app.ui.hideLoading();
-                app.ui.hapticSuccess();
-                app.ui.showSuccess('Транзакция обновленаС', () => {
+                app.ui.showSuccess('Транзакция обновлена', () => {
                     window.history.back();
                 });
 
             } catch (error) {
                 app.ui.hideLoading();
-                app.ui.showError(`Ошибкак ${error.message}`);
+                console.error('Update error:', error);
+                const errorMessage = error.detail || error.message || String(error);
+                app.ui.showError(`Ошибка: ${errorMessage}`);
             }
         }
 

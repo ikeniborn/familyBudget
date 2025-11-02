@@ -24,19 +24,6 @@
             position: relative;
         }
 
-        .back-button {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--tg-theme-link-color);
-            font-size: 28px;
-            cursor: pointer;
-            padding: 8px;
-            line-height: 1;
-        }
 
         .page-title {
             font-size: 24px;
@@ -277,7 +264,6 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
-            <button class="back-button" onclick="window.location.href='/webapp/index.html'">← Назад</button>
             <div class="page-title">📊 План vs Факт</div>
         </div>
 
@@ -373,7 +359,7 @@
             // Load summary for default period
             await loadSummary(currentPeriod);
 
-            // Setup BackButton
+            // Setup BackButton to return to main menu
             app.setupBackButton(() => {
                 window.location.href = '/webapp/index.html';
             });
@@ -475,9 +461,17 @@
                     break;
             }
 
+            // Format dates for API (YYYY-MM-DD) - use LOCAL timezone, not UTC
+            const formatLocalDate = (date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
             return {
-                dateFrom: dateFrom.toISOString().split('T')[0],
-                dateTo: dateTo.toISOString().split('T')[0]
+                dateFrom: formatLocalDate(dateFrom),
+                dateTo: formatLocalDate(dateTo)
             };
         }
 

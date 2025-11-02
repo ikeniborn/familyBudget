@@ -85,8 +85,15 @@
   - Plan vs Fact summary
   - Top-3 expense categories
   - Deviation analysis
-- 🚨 **Budget threshold notifications** - Real-time alerts when spending exceeds 90% of plan
-- 🔔 **Notification history** - No duplicate alerts for same category/period
+- 🚨 **Budget threshold notifications** - Real-time broadcast alerts when spending exceeds 90% of plan
+  - Broadcast to ALL registered users (shared family budget)
+  - Deduplication prevents spam for same category/period
+  - Saved in database for audit trail
+- 🔔 **Notification history** - Web UI for viewing all budget alerts
+  - Filter by type (threshold/exceeded/reports)
+  - Filter by date range
+  - Statistics dashboard (total/warnings/exceeded)
+  - No user isolation - all family members see all notifications
 
 ### Telegram Web Apps (Phase 3 - READY!)
 
@@ -179,6 +186,14 @@
   - Category filtering
   - Transaction type (income/expense)
   - Period comparison (month-over-month, year-over-year)
+
+- **Notification History (/notifications):**
+  - View all budget alerts with filtering
+  - Statistics dashboard (total/warnings/exceeded)
+  - Filter by notification type (threshold/exceeded/reports)
+  - Filter by date range
+  - Pagination (50 records per page)
+  - Shared view for all family members (broadcast model)
 
 ### Financial/Cost Centers (Phase 2 - NEW!)
 
@@ -278,7 +293,14 @@ sudo ./install.sh
 
 This script installs all required system dependencies.
 
+**IMPORTANT:** Run install.sh from your git repository directory.
+
 ```bash
+# Clone repository first
+git clone https://github.com/yourusername/familyBudget.git ~/familyBudget
+cd ~/familyBudget
+
+# Run install script
 sudo ./install.sh
 ```
 
@@ -286,7 +308,8 @@ sudo ./install.sh
 - ✅ Installs Docker Engine and Docker Compose
 - ✅ Configures UFW firewall (allows SSH, HTTP, HTTPS)
 - ✅ Installs utilities (curl, git, jq, vim, etc.)
-- ✅ Creates project directory structure
+- ✅ Creates project directory structure in `/opt/budget`
+- ✅ Copies template files (nginx, .env.example) to `/opt/budget`
 - ✅ Adds user to docker group
 - ✅ Verifies installation with hello-world container
 
@@ -316,26 +339,22 @@ docker ps
 
 ### Step 2: Application Configuration (`setup.sh`)
 
-This script copies source code to `/opt/budget` and provides interactive configuration.
-
-**IMPORTANT:** Run setup.sh from your git repository directory (NOT from /opt/budget).
+This script provides interactive configuration for your application.
 
 ```bash
-# Clone repository to your preferred location
-git clone https://github.com/yourusername/familyBudget.git ~/familyBudget
 cd ~/familyBudget
-
-# Run setup from repository
 ./setup.sh
 ```
 
 **What it does:**
-- ✅ Copies source code from repository to `/opt/budget`
-- ✅ Creates `.env` file with configuration
+- ✅ Validates deployment directory and template files
+- ✅ Creates `.env` file in `/opt/budget` with configuration
 - ✅ Generates secure passwords and JWT secrets
 - ✅ Configures PostgreSQL access and firewall (UFW)
 - ✅ Optionally configures domain and SSL
 - ✅ Validates Telegram bot token
+
+**Note:** This script does NOT copy source code. Code synchronization happens in Step 3 (deploy.sh).
 
 **What it configures:**
 
@@ -784,6 +803,10 @@ openssl rand -base64 32
   - Includes `record_type` (fact/plan)
   - Optional `financial_center_id` and `cost_center_id`
 - `t_notification` - Notification history for budget alerts
+  - Broadcast model: `user_id=NULL` for notifications sent to all users
+  - Unique constraint prevents duplicate broadcasts for same article/period
+  - Supports user-specific notifications when `user_id` is set
+  - Fields: article_id, notification_type, threshold_percent, plan/actual amounts, period dates
 
 **Key Features:**
 - SCD Type 2: Tracks all changes to users, categories, and centers
@@ -1146,6 +1169,72 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Issues:** [GitHub Issues](https://github.com/your-repo/issues)
 - **Telegram:** [@your_support_bot](https://t.me/your_support_bot)
 - **Email:** support@example.com
+
+---
+
+## 🔧 Troubleshooting
+
+### "Nginx template not found" Error
+
+**Error message:**
+```
+[ERROR] Nginx template not found: /opt/budget/nginx/conf.d/app.conf.template
+```
+
+**Cause:** `install.sh` was not run from the repository directory, so template files were not copied to `/opt/budget`.
+
+**Solution:**
+```bash
+# 1. Navigate to repository
+cd ~/familyBudget  # (or your repository location)
+
+# 2. Re-run install.sh from repository
+sudo ./install.sh
+
+# 3. Verify template files exist
+ls -la /opt/budget/nginx/conf.d/app.conf.template
+ls -la /opt/budget/.env.example
+
+# 4. Continue with setup
+./setup.sh
+```
+
+### "Required template files are missing" Error
+
+**Error message:**
+```
+[ERROR] Required template files are missing:
+  ✗ /opt/budget/nginx/conf.d/app.conf.template
+  ✗ /opt/budget/.env.example
+```
+
+**Cause:** Same as above - template files not initialized.
+
+**Solution:** Follow the same steps as "Nginx template not found" error above.
+
+### Correct Installation Workflow
+
+**IMPORTANT:** Always follow this sequence:
+
+```bash
+# Step 1: Clone repository
+git clone https://github.com/yourusername/familyBudget.git ~/familyBudget
+
+# Step 2: Run install.sh FROM repository directory
+cd ~/familyBudget
+sudo ./install.sh
+
+# Step 3: Run setup.sh (can be from anywhere)
+./setup.sh
+
+# Step 4: Run deploy.sh (can be from anywhere)
+./deploy.sh
+```
+
+**Why this order matters:**
+- `install.sh` needs access to repository files to copy templates
+- `setup.sh` needs templates to be present in `/opt/budget`
+- `deploy.sh` needs `.env` to be configured
 
 ---
 

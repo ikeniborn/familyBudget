@@ -182,7 +182,6 @@ class FinancialCenterResponse(BaseModel):
                 "code": "BANK_SBER",
                 "name": "Sberbank Account",
                 "description": "Main checking account",
-                "is_global": False,
                 "valid_from": "2025-10-14T12:00:00Z",
                 "valid_to": "9999-12-31T23:59:59Z",
                 "is_current": True,

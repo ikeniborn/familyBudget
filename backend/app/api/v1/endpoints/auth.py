@@ -30,7 +30,7 @@ from backend.app.models.refresh_token import RefreshToken
 from backend.app.models.user import User
 from backend.app.schemas import get_common_responses
 from backend.app.schemas.auth import AuthResponse, TelegramAuthData, UserResponse
-from backend.app.services.auth_service import get_or_create_user
+from backend.app.services.auth_service import get_user_by_telegram_id, update_user_profile
 from backend.app.services.jwt import (
     create_access_token,
     create_refresh_token,
@@ -194,8 +194,21 @@ async def telegram_callback(
             detail="Invalid authentication data - hash validation failed",
         )
 
-    # Step 3: Get or create user (SCD Type 2 pattern)
-    user = await get_or_create_user(
+    # Step 3: Get existing user (NO auto-creation) ⚠️ SECURITY CRITICAL
+    user = await get_user_by_telegram_id(
+        session=session,
+        telegram_id=int(query_params["id"]),
+    )
+
+    # Step 3.1: Check if user exists in database
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied - user not registered by administrator. Please contact admin to create your account.",
+        )
+
+    # Step 3.2: Update user profile if data changed (SCD Type 2)
+    user = await update_user_profile(
         session=session,
         telegram_id=int(query_params["id"]),
         first_name=query_params["first_name"],
@@ -362,8 +375,21 @@ async def telegram_login(
             detail="Invalid authentication data - hash validation failed",
         )
 
-    # Step 3: Get or create user (SCD Type 2 pattern)
-    user = await get_or_create_user(
+    # Step 3: Get existing user (NO auto-creation) ⚠️ SECURITY CRITICAL
+    user = await get_user_by_telegram_id(
+        session=session,
+        telegram_id=auth_data.id,
+    )
+
+    # Step 3.1: Check if user exists in database
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied - user not registered by administrator. Please contact admin to create your account.",
+        )
+
+    # Step 3.2: Update user profile if data changed (SCD Type 2)
+    user = await update_user_profile(
         session=session,
         telegram_id=auth_data.id,
         first_name=auth_data.first_name,

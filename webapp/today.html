@@ -24,19 +24,6 @@
             position: relative;
         }
 
-        .back-button {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--tg-theme-link-color);
-            font-size: 28px;
-            line-height: 1;
-            cursor: pointer;
-            padding: 8px;
-        }
 
         .page-title {
             font-size: 24px;
@@ -181,7 +168,6 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
-            <button class="back-button" onclick="window.location.href='/webapp/index.html'" title="Назад">⬅️</button>
             <div class="page-title">Транзакции сегодня</div>
             <div class="page-subtitle" id="today-date">Загрузка...</div>
         </div>
@@ -248,7 +234,7 @@
             // Load today's transactions
             await loadTodayTransactions();
 
-            // Setup BackButton
+            // Setup BackButton to return to main menu
             app.setupBackButton(() => {
                 window.location.href = '/webapp/index.html';
             });
@@ -268,11 +254,12 @@
                 categories = categoriesResult.articles || [];
 
                 // Get today's date range (only today, not including tomorrow)
+                // Use LOCAL timezone, not UTC (fixes timezone bug)
                 const today = new Date();
-                const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-                // Format date for API (today only)
-                const dateFrom = todayStart.toISOString().split('T')[0];
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                const dateFrom = `${year}-${month}-${day}`;
                 const dateTo = dateFrom; // Same day - API uses inclusive range
 
                 // Fetch facts

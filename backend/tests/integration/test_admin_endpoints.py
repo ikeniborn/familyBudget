@@ -356,10 +356,10 @@ async def test_get_all_articles_filter_by_type(admin_client: AsyncClient, test_a
 @pytest.mark.asyncio
 async def test_create_article_as_admin(admin_client: AsyncClient, session: AsyncSession, test_admin: User):
     """
-    Test POST /admin/articles - admin can create new article.
+    Test POST /admin/articles - admin can create new shared article.
 
     Flow:
-    1. Admin creates new global article
+    1. Admin creates new article (shared reference)
     2. Verify article created with correct data
     3. Verify article exists in database
     """
@@ -368,7 +368,6 @@ async def test_create_article_as_admin(admin_client: AsyncClient, session: Async
         json={
             "name": "Healthcare",
             "type": "expense",
-            "is_global": True,
             "parent_id": None
         }
     )
@@ -378,9 +377,7 @@ async def test_create_article_as_admin(admin_client: AsyncClient, session: Async
     article_data = response.json()
     assert article_data["name"] == "Healthcare"
     assert article_data["type"] == "expense"
-    assert article_data["is_global"] == True
     assert article_data["is_current"] == True
-    assert article_data["user_id"] is None  # Global articles have NULL user_id
 
     # Verify in database
     query = select(Article).where(Article.id == article_data["id"])
@@ -388,7 +385,6 @@ async def test_create_article_as_admin(admin_client: AsyncClient, session: Async
     article = result.scalar_one()
 
     assert article.name == "Healthcare"
-    assert article.is_global == True
 
 
 @pytest.mark.asyncio
@@ -405,7 +401,6 @@ async def test_create_article_with_parent(admin_client: AsyncClient, test_articl
         json={
             "name": "Groceries",
             "type": "expense",
-            "is_global": False,
             "parent_id": test_article_root.id
         }
     )
@@ -431,7 +426,6 @@ async def test_create_article_parent_type_mismatch(admin_client: AsyncClient, te
         json={
             "name": "Salary",
             "type": "income",  # Mismatch: parent is expense
-            "is_global": False,
             "parent_id": test_article_root.id
         }
     )
@@ -798,7 +792,7 @@ async def test_admin_articles_endpoints_forbidden_for_regular_user(auth_client: 
     # Try to create article
     response2 = await auth_client.post(
         "/api/v1/admin/articles",
-        json={"name": "Test", "type": "expense", "is_global": True}
+        json={"name": "Test", "type": "expense"}
     )
     assert response2.status_code == 403
 
@@ -924,7 +918,6 @@ async def test_create_article_with_invalid_parent(admin_client: AsyncClient):
         json={
             "name": "Test",
             "type": "expense",
-            "is_global": False,
             "parent_id": 999999
         }
     )

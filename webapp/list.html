@@ -24,22 +24,6 @@
             margin-bottom: 16px;
         }
 
-        .back-button {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            padding: 8px;
-            color: var(--tg-theme-link-color);
-        }
-
-        .back-button:active {
-            opacity: 0.6;
-        }
 
         .page-title {
             font-size: 24px;
@@ -272,7 +256,6 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
-            <button class="back-button" id="back-button" aria-label="Назад">←</button>
             <div class="page-title">Все транзакции</div>
         </div>
 
@@ -291,8 +274,8 @@
                     <div class="filter-group">
                         <label class="filter-label" title="Выберите период для фильтрации транзакций">Период</label>
                         <div class="filter-row">
-                            <input type="date" id="filter-date-from" class="input" title="Дата начала периода">
-                            <input type="date" id="filter-date-to" class="input" title="Дата окончания периода">
+                            <input type="text" id="filter-date-from" class="input" placeholder="ДД.ММ.ГГГГ" title="Дата начала периода">
+                            <input type="text" id="filter-date-to" class="input" placeholder="ДД.ММ.ГГГГ" title="Дата окончания периода">
                         </div>
                     </div>
 
@@ -346,13 +329,6 @@
             <div class="empty-state-text">Нет транзакций по выбранным фильтрам</div>
             <button class="btn btn-secondary" id="reset-filters-btn">Сбросить фильтры</button>
         </div>
-
-        <!-- Pagination -->
-        <div class="pagination" id="pagination" style="display: none;">
-            <button class="pagination-button" id="prev-page-btn" disabled>← Назад</button>
-            <span class="pagination-info" id="pagination-info">1 из 1</span>
-            <button class="pagination-button" id="next-page-btn" disabled>Вперед →</button>
-        </div>
     </div>
 
     <!-- Core JS modules -->
@@ -388,11 +364,6 @@
             console.log('List page init');
             app = budgetApp;
 
-            // Setup back button
-            document.getElementById('back-button').addEventListener('click', () => {
-                app.ui.hapticLight();
-                window.location.href = '/webapp/index.html';
-            });
 
             // Setup filters toggle
             setupFiltersToggle();
@@ -419,24 +390,7 @@
                 clearFilters();
             });
 
-            // Setup pagination
-            document.getElementById('prev-page-btn').addEventListener('click', () => {
-                app.ui.hapticLight();
-                if (currentPage > 1) {
-                    currentPage--;
-                    loadTransactions();
-                }
-            });
-
-            document.getElementById('next-page-btn').addEventListener('click', () => {
-                app.ui.hapticLight();
-                if (currentPage < totalPages) {
-                    currentPage++;
-                    loadTransactions();
-                }
-            });
-
-            // Setup BackButton
+            // Setup BackButton to return to main menu
             app.setupBackButton(() => {
                 window.location.href = '/webapp/index.html';
             });
@@ -497,14 +451,12 @@
             const loadingState = document.getElementById('loading-state');
             const transactionsList = document.getElementById('transactions-list');
             const emptyState = document.getElementById('empty-state');
-            const pagination = document.getElementById('pagination');
 
             try {
                 // Show loading
                 loadingState.style.display = 'block';
                 transactionsList.style.display = 'none';
                 emptyState.style.display = 'none';
-                pagination.style.display = 'none';
 
                 // Build query params
                 const params = {
@@ -537,10 +489,6 @@
                     // Render transactions
                     renderTransactions(facts);
                     transactionsList.style.display = 'block';
-
-                    // Show pagination
-                    updatePagination();
-                    pagination.style.display = 'flex';
                 }
 
             } catch (error) {
@@ -618,16 +566,6 @@
             });
 
             return item;
-        }
-
-        function updatePagination() {
-            const prevBtn = document.getElementById('prev-page-btn');
-            const nextBtn = document.getElementById('next-page-btn');
-            const paginationInfo = document.getElementById('pagination-info');
-
-            prevBtn.disabled = currentPage === 1;
-            nextBtn.disabled = currentPage === totalPages;
-            paginationInfo.textContent = `${currentPage} из ${totalPages}`;
         }
 
         function applyFilters() {

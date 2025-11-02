@@ -754,7 +754,7 @@ Unified форма для редактирования и удаления тр�
 
 ### 4.5 Architecture Notes (Telegram Web Apps)
 
-**Location:** `/bot/webapp/`
+**Location:** `/webapp/`
 
 **Technology Stack:**
 - Telegram Web Apps SDK

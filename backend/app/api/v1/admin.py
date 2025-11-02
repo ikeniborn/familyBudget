@@ -385,7 +385,7 @@ async def create_article(
     """
     Create new article (admin only).
 
-    Creates a new article (category). If is_global=True, it will be available to all users.
+    Creates a new article (category). Shared references: available to all users.
 
     Args:
         create_data: Article creation data
@@ -621,6 +621,7 @@ class FactResponse(BaseModel):
     cost_center_id: int | None = None
     user_name: str | None = None
     article_name: str | None = None
+    article_type: str | None = None  # Added for color logic (income/expense)
     financial_center_name: str | None = None
     cost_center_name: str | None = None
 
@@ -720,6 +721,7 @@ async def get_all_facts(
             cost_center_id=fact.cost_center_id,
             user_name=user.username if user else None,
             article_name=article.name if article else None,
+            article_type=article.type if article else None,  # For color logic
             financial_center_name=financial_center.name if financial_center else None,
             cost_center_name=cost_center.name if cost_center else None
         )

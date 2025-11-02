@@ -13,6 +13,47 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 ---
 
+## ⚠️ ВАЖНО: Фаза разработки
+
+**Текущий статус:** DEVELOPMENT MODE
+
+### Правила работы с миграциями БД
+
+**КРИТИЧНО для разработки:**
+
+✅ **МОЖНО делать:**
+- Изменять существующие миграции напрямую (001-012)
+- Редактировать SQL файлы в `backend/db/migrations/`
+- Менять структуру таблиц в уже созданных миграциях
+- НЕ создавать новые миграции для изменений (пока в разработке)
+
+✅ **ОБЯЗАТЕЛЬНО делать:**
+- Отражать изменения в ПРД (`docs/prd/06-database-design.md`)
+- Согласовывать архитектурные изменения перед реализацией
+- Обновлять Changelog в ПРД
+- Тестировать миграции на чистой БД
+
+❌ **НЕ нужно:**
+- Создавать миграции типа `014_update_xxx.sql` для изменений
+- Сохранять backward compatibility для production
+- Беспокоиться о существующих данных
+
+**Причина:** При тестировании и deployment вся БД **накатывается с нуля** на чистую систему.
+
+**Workflow изменения БД:**
+1. Определить требование → согласовать с командой
+2. Изменить существующую миграцию (например, 011_create_notifications_table.sql)
+3. Обновить ПРД (docs/prd/06-database-design.md)
+4. Обновить CLAUDE.md (этот файл)
+5. Тестировать: `docker compose down -v && docker compose up -d`
+
+**Переход в production:**
+- Все миграции будут применены к fresh PostgreSQL
+- Контрольные точки: alpha → beta → production
+- После релиза - переход на версионирование миграций
+
+---
+
 ## 🎯 Claude Skills
 
 Для автоматизации типичных задач используй **Claude Skills** - специализированные инструкции и шаблоны кода:
@@ -86,7 +127,7 @@ ruff check . && black . && mypy .    # Quality checks
 
 **Применение изменений:**
 
-1. **WebApp файлы** (bot/webapp/*.html, bot/webapp/static/*)
+1. **WebApp файлы** (webapp/*.html, webapp/static/*)
    - Монтируются как volume (read_only)
    - Изменения применяются **сразу** (без пересборки)
    - Но требуется очистка кэша браузера (Ctrl+F5)
@@ -147,7 +188,7 @@ docker compose -f /opt/budget/docker-compose.yml logs -f
 cd /opt/budget
 docker compose ps                    # Статус всех контейнеров
 docker compose ps backend            # Статус backend
-docker exec familybudget-backend cat /app/bot/webapp/add.html | head -20  # Проверка файла в контейнере
+docker exec familybudget-backend cat /app/webapp/add.html | head -20  # Проверка файла в контейнере
 ```
 
 ### Remote Server Execution (ВАЖНО для Claude Code)
@@ -232,12 +273,20 @@ familyBudget/
    - O(1) сложность для иерархических запросов
    - 📖 **Детали:** [db-management skill](/.claude/skills/db-management/SKILL.md)
 
-3. **User Data Isolation**
-   - Каждый endpoint фильтрует по `current_user.id`
-   - Используй `apply_user_filter()` или `WHERE user_id = current_user.id`
+3. **Shared References Architecture** (dimension таблицы)
+   - **All dimension records shared** across all users (articles, financial_centers, cost_centers)
+   - **Admin-only management:** Only admins can CREATE/UPDATE/DELETE dimension records
+   - **All users READ:** All users can view all dimension records
+   - **NO user isolation** для dimension таблиц - НЕ фильтруй по `user_id`!
+   - `user_id` используется только для audit trail (кто создал запись)
    - 📖 **Детали:** [api-development skill](/.claude/skills/api-development/SKILL.md)
 
-4. **Telegram OAuth**
+4. **User Data Isolation** (fact таблицы ТОЛЬКО)
+   - Fact таблицы (`t_f_budget_fact`) фильтруются по `current_user.id`
+   - Транзакции доступны только владельцу
+   - **НЕ применяй** к dimension таблицам (см. пункт 3)
+
+5. **Telegram OAuth**
    - Аутентификация через Telegram с HMAC-SHA256
    - JWT tokens в httpOnly cookies (7 дней)
    - Bot использует `SessionManager` для хранения токенов
@@ -250,12 +299,23 @@ familyBudget/
 
 ✅ **ВСЕГДА делать:**
 
-1. **User isolation** - фильтровать по `current_user.id`:
+1. **Dimension tables (Shared References)** - admin-only management:
    ```python
-   stmt = select(Model).where(Model.user_id == current_user.id)
+   # CREATE/UPDATE/DELETE - только админы
+   if not current_user.is_admin:
+       raise HTTPException(403, "Only administrators can modify articles")
+
+   # GET - БЕЗ фильтрации (все пользователи видят все)
+   stmt = select(Article).where(Article.is_current == True)  # NO user_id filter!
    ```
 
-2. **SCD Type 2** - использовать `SCD2Service` для updates:
+2. **Fact tables (User Isolation)** - фильтровать по `current_user.id`:
+   ```python
+   # t_f_budget_fact - транзакции принадлежат пользователю
+   stmt = select(BudgetFact).where(BudgetFact.user_id == current_user.id)
+   ```
+
+3. **SCD Type 2** - использовать `SCD2Service` для updates:
    ```python
    from backend.app.services.scd2_service import create_new_version
    new_version = await create_new_version(session, old_instance, updates)
@@ -273,11 +333,88 @@ familyBudget/
 ❌ **НИКОГДА не делать:**
 
 1. **Прямой UPDATE** для SCD Type 2 таблиц - ТОЛЬКО через `SCD2Service`
-2. **Пропуск user_id фильтра** - ВСЕГДА проверяй user isolation
+2. **Пропуск user_id фильтра** - ВСЕГДА проверяй user isolation (КРОМЕ notifications - см. ниже)
 3. **Хранение JWT в localStorage** - ТОЛЬКО httpOnly cookies
 4. **Прямая работа с Closure Table** - ТОЛЬКО через `HierarchyService`
 
 📖 **Подробнее:** См. соответствующие [Skills](#-claude-skills)
+
+---
+
+## Notifications (Broadcast Model)
+
+### Ключевые особенности
+
+**Broadcast архитектура** - уведомления отправляются ВСЕМ пользователям:
+
+- `user_id=NULL` → broadcast для всех зарегистрированных пользователей
+- Unique constraint предотвращает дубликаты: `(article_id, notification_type, period_start, period_end) WHERE user_id IS NULL`
+- Shared budget model: все видят все уведомления (NO user isolation)
+
+### API Endpoints
+
+```python
+# Backend API
+POST   /api/v1/notifications              # Создать уведомление
+GET    /api/v1/notifications              # Список с фильтрацией
+GET    /api/v1/notifications/check-duplicate  # Проверка дубликатов
+GET    /api/v1/users/telegram-ids         # Список telegram_id для broadcast
+GET    /notifications                      # Web UI страница
+```
+
+### Bot Integration
+
+```python
+# bot/utils/notification_service.py
+await notification_service.check_budget_threshold(
+    token=token,
+    telegram_id=user_id,  # Not used for broadcast
+    article_id=article_id,
+    threshold_percent=90
+)
+```
+
+**Workflow:**
+1. Проверить дубликат через API: `check_duplicate_notification()`
+2. Получить все telegram_ids: `get_all_telegram_ids()`
+3. Отправить broadcast ВСЕМ пользователям
+4. Сохранить в БД: `create_notification(user_id=None)`
+
+### Database Schema
+
+```sql
+CREATE TABLE t_notification (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER,  -- NULLABLE: NULL = broadcast
+    article_id INTEGER NOT NULL,
+    notification_type VARCHAR(50) NOT NULL,
+    threshold_percent INTEGER DEFAULT 90,
+    plan_amount NUMERIC(15,2) NOT NULL,
+    actual_amount NUMERIC(15,2) NOT NULL,
+    period_start DATE NOT NULL,
+    period_end DATE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    -- Unique constraint for broadcast notifications
+    CONSTRAINT idx_notification_unique_broadcast UNIQUE (
+        article_id, notification_type, period_start, period_end
+    ) WHERE user_id IS NULL
+);
+```
+
+### Web UI
+
+- `/notifications` - История уведомлений для всех пользователей
+- Фильтры: тип (threshold/exceeded/reports), даты
+- Статистика: всего, warnings (90%), exceeded (100%+)
+- Пагинация: 50 записей на страницу
+
+### ⚠️ ВАЖНО
+
+**NO USER ISOLATION** для notifications:
+- Все пользователи видят все уведомления
+- Broadcast модель для shared family budget
+- НЕ применяй `WHERE user_id = current_user.id` к t_notification!
 
 ---
 
@@ -323,10 +460,47 @@ cd ~/familyBudget && git pull
 ### Deployment опции
 
 ```bash
+# Профили
 ./deploy.sh --profile full          # Full stack (+ bot + nginx)
-./deploy.sh --build                 # Rebuild images
+
+# Sync modes (non-interactive)
+./deploy.sh --sync-mode mirror      # Recommended: rsync --delete
+./deploy.sh --sync-mode update      # rsync без удаления старых файлов
 ./deploy.sh --sync-mode skip        # Deploy без синхронизации кода
+
+# Cleanup options
+./deploy.sh --clean                 # Full cleanup (удаляет все данные!)
+
+# Комбинации
+./deploy.sh --sync-mode mirror --profile full
+./deploy.sh --no-migrate            # Skip database migrations
 ```
+
+### ⚠️ КРИТИЧНО: Правильный запуск deploy.sh
+
+**✓ ПРАВИЛЬНО:**
+```bash
+cd ~/familyBudget          # Git repository
+sudo ./deploy.sh           # Относительный путь
+```
+
+**✗ НЕПРАВИЛЬНО:**
+```bash
+cd /opt/budget             # Production directory
+sudo ./deploy.sh           # ❌ Модули не найдены!
+
+sudo /opt/budget/deploy.sh  # ❌ То же самое
+```
+
+**Почему:**
+- deploy.sh загружает модули из `scripts/lib/` в repository
+- /opt/budget содержит только runtime файлы (создаются синхронизацией)
+- SCRIPT_DIR определяется относительно расположения deploy.sh
+
+**Non-interactive режим:**
+- Используйте `--sync-mode` для автоматического выбора sync стратегии
+- При отсутствии TTY (pipe, automation) используется `mirror` по умолчанию
+- `--clean` флаг автоматически выбирает full cleanup без подтверждения
 
 📖 **Полное руководство:** [deployment skill](/.claude/skills/deployment/SKILL.md)
 
@@ -436,13 +610,14 @@ Backend упал на production:
 ⚠️ **При разработке всегда:**
 
 1. Используй **Claude Skills** для типичных задач (см. [таблицу выше](#-claude-skills))
-2. Соблюдай **User Data Isolation** - фильтруй по `current_user.id`
-3. Используй **SCD2Service** для dimension таблиц
-4. Используй **HierarchyService** для работы с иерархиями
-5. Добавляй **тесты** для всех новых features
-6. Проверяй **security** - JWT, user isolation, validation
-7. Проверяй **performance** - indexes, N+1 queries
-8. Документируй **breaking changes**
+2. Соблюдай **Shared References** для dimension таблиц - admin-only management, NO user_id filter
+3. Соблюдай **User Data Isolation** для fact таблиц - фильтруй по `current_user.id`
+4. Используй **SCD2Service** для dimension таблиц
+5. Используй **HierarchyService** для работы с иерархиями
+6. Добавляй **тесты** для всех новых features
+7. Проверяй **security** - JWT, admin-only access для dimension tables, validation
+8. Проверяй **performance** - indexes, N+1 queries
+9. Документируй **breaking changes**
 
 💡 **Не уверен как сделать?** → Посмотри соответствующий [Skill](#-claude-skills)
 

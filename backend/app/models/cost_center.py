@@ -26,9 +26,11 @@ class CostCenter(SQLModel, table=True):
 
     Business Key: user_id + name (for uniqueness)
 
-    User-specific Cost Centers:
-        - All cost centers are user-specific with required user_id
-        - Each user maintains their own set of cost centers
+    Shared References Architecture:
+        - All cost centers are shared across all users (accessible by everyone)
+        - Only administrators can CREATE/UPDATE/DELETE cost centers
+        - All users can READ all cost centers
+        - user_id tracks the creator for audit trail purposes
 
     SCD Type 2 Pattern:
         Each cost center can have multiple versions over time:
@@ -38,7 +40,7 @@ class CostCenter(SQLModel, table=True):
 
     Attributes:
         id: Surrogate primary key (auto-generated)
-        user_id: Owner user ID (required)
+        user_id: Owner user ID (required - tracks creator for audit)
         name: Cost center display name (required, max 255 chars)
         description: Optional description or notes (text field)
         valid_from: Start of validity period for this record
@@ -65,7 +67,7 @@ class CostCenter(SQLModel, table=True):
     Notes:
         - All cost centers must have user_id (required field)
         - When updating, create new version and set old version's is_current=False
-        - Unique constraint: (user_id, name, is_current) for current records
+        - Unique constraint: (name, is_current) for current records
     """
 
     __tablename__ = "t_d_cost_center"

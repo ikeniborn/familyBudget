@@ -25,7 +25,6 @@ CREATE TABLE IF NOT EXISTS t_d_financial_center (
     -- Financial center attributes
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    is_global BOOLEAN NOT NULL DEFAULT FALSE,
 
     -- SCD Type 2 fields
     valid_from TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -39,19 +38,7 @@ CREATE TABLE IF NOT EXISTS t_d_financial_center (
     -- Constraints
     -- Valid date range check
     CONSTRAINT check_financial_center_valid_dates
-        CHECK (valid_from < valid_to),
-
-    -- Global financial centers must have code
-    CONSTRAINT check_financial_center_global_code
-        CHECK (NOT is_global OR (is_global AND code IS NOT NULL)),
-
-    -- Global financial centers cannot have user_id
-    CONSTRAINT check_financial_center_global_user
-        CHECK (NOT is_global OR (is_global AND user_id IS NULL)),
-
-    -- User financial centers must have user_id
-    CONSTRAINT check_financial_center_user_ownership
-        CHECK (is_global OR (NOT is_global AND user_id IS NOT NULL))
+        CHECK (valid_from < valid_to)
 );
 
 -- ============================================================================
@@ -60,15 +47,10 @@ CREATE TABLE IF NOT EXISTS t_d_financial_center (
 -- PostgreSQL does not support partial unique constraints as inline table constraints.
 -- We must create partial unique indexes separately.
 
--- Only one current record per user + code combination (for user financial centers)
-CREATE UNIQUE INDEX IF NOT EXISTS idx_financial_center_user_code_current
-    ON t_d_financial_center(user_id, code, is_current)
-    WHERE is_current = TRUE AND user_id IS NOT NULL;
-
--- Only one current record per code for global financial centers
-CREATE UNIQUE INDEX IF NOT EXISTS idx_financial_center_global_code_current
+-- Only one current record per code (shared references model)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_financial_center_code_current
     ON t_d_financial_center(code, is_current)
-    WHERE is_current = TRUE AND is_global = TRUE;
+    WHERE is_current = TRUE AND code IS NOT NULL;
 
 -- ============================================================================
 -- INDEXES
@@ -88,20 +70,10 @@ CREATE INDEX IF NOT EXISTS idx_financial_center_current
     ON t_d_financial_center(is_current)
     WHERE is_current = TRUE;
 
--- Index on global flag
-CREATE INDEX IF NOT EXISTS idx_financial_center_global
-    ON t_d_financial_center(is_global)
-    WHERE is_global = TRUE;
-
--- Composite index for current user financial centers
+-- Composite index for current user financial centers (audit trail)
 CREATE INDEX IF NOT EXISTS idx_financial_center_user_current
     ON t_d_financial_center(user_id, is_current)
     WHERE user_id IS NOT NULL AND is_current = TRUE;
-
--- Composite index for current global financial centers
-CREATE INDEX IF NOT EXISTS idx_financial_center_global_current
-    ON t_d_financial_center(is_global, is_current)
-    WHERE is_global = TRUE AND is_current = TRUE;
 
 -- Index on valid date range for time-travel queries
 CREATE INDEX IF NOT EXISTS idx_financial_center_valid_from
@@ -115,25 +87,22 @@ CREATE INDEX IF NOT EXISTS idx_financial_center_valid_to
 -- ============================================================================
 
 COMMENT ON TABLE t_d_financial_center IS
-    'Financial centers dimension table with SCD Type 2 for tracking historical changes. Stores bank accounts, wallets, cash, and other financial entities. Can be user-specific or global (shared across all users).';
+    'Financial centers dimension table with SCD Type 2 for tracking historical changes. Stores bank accounts, wallets, cash, and other financial entities. All financial centers are shared across all users (managed by admins).';
 
 COMMENT ON COLUMN t_d_financial_center.id IS
     'Surrogate key (auto-increment primary key)';
 
 COMMENT ON COLUMN t_d_financial_center.user_id IS
-    'Foreign key to t_d_user. NULL for global financial centers, required for user financial centers.';
+    'Foreign key to t_d_user (audit trail: who created the financial center). Used for tracking creator, not for access control.';
 
 COMMENT ON COLUMN t_d_financial_center.code IS
-    'Business code for financial center (required for global, optional for user-specific)';
+    'Business code for financial center (unique identifier, e.g., "BANK_SBER")';
 
 COMMENT ON COLUMN t_d_financial_center.name IS
     'Financial center name (e.g., "Сбербанк", "Наличные", "Тинькофф")';
 
 COMMENT ON COLUMN t_d_financial_center.description IS
     'Optional description or notes about the financial center';
-
-COMMENT ON COLUMN t_d_financial_center.is_global IS
-    'Flag indicating if financial center is global (shared) or user-specific';
 
 COMMENT ON COLUMN t_d_financial_center.valid_from IS
     'SCD2: Start date of record validity (inclusive)';
@@ -154,21 +123,17 @@ COMMENT ON COLUMN t_d_financial_center.updated_at IS
 -- EXAMPLE USAGE
 -- ============================================================================
 
--- Insert global financial center
--- INSERT INTO t_d_financial_center (code, name, description, is_global)
--- VALUES ('BANK_SBER', 'Сбербанк', 'Главная карта Сбербанка', TRUE);
+-- Insert financial center (created by admin)
+-- INSERT INTO t_d_financial_center (user_id, code, name, description)
+-- VALUES (1, 'BANK_SBER', 'Сбербанк', 'Главная карта Сбербанка');
 
--- Insert user-specific financial center
--- INSERT INTO t_d_financial_center (user_id, name, description, is_global)
--- VALUES (1, 'Наличные', 'Кошелёк наличными', FALSE);
+-- Insert financial center without code
+-- INSERT INTO t_d_financial_center (user_id, name, description)
+-- VALUES (1, 'Наличные', 'Кошелёк наличными');
 
--- Query current financial centers for user
+-- Query all current financial centers (shared, visible to all users)
 -- SELECT * FROM t_d_financial_center
--- WHERE user_id = 1 AND is_current = TRUE;
-
--- Query global financial centers
--- SELECT * FROM t_d_financial_center
--- WHERE is_global = TRUE AND is_current = TRUE;
+-- WHERE is_current = TRUE;
 
 -- Time-travel query (financial centers as of specific date)
 -- SELECT *

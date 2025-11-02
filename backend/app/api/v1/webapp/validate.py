@@ -28,7 +28,7 @@ from backend.app.schemas.webapp import (
     WebAppUser,
     WebAppValidateResponse,
 )
-from backend.app.services.auth_service import get_or_create_user
+from backend.app.services.auth_service import get_user_by_telegram_id
 from backend.app.services.jwt import create_access_token
 from backend.app.services.webapp_auth import (
     extract_user_from_initdata,
@@ -58,13 +58,14 @@ router = APIRouter()
     2. Validate HMAC-SHA256 signature (secret: HMAC("WebAppData", BOT_TOKEN))
     3. Check auth_date expiration (< 1 hour)
     4. Extract user data from initData
-    5. Get or create user in database (SCD Type 2)
-    6. Issue JWT access token (7-day expiry)
+    5. Check if user exists in database (manual registration required)
+    6. Issue JWT access token (7-day expiry) if user registered
     7. Return {valid: true, user: {...}, access_token: "..."}
 
     Security Features:
     - Timing-attack resistant hash comparison
     - auth_date expiration check (prevents replay attacks)
+    - Manual registration required (admin must create users)
     - User data isolation (each user sees only own data)
     - JWT token for authenticated API calls
 
@@ -82,6 +83,7 @@ router = APIRouter()
 
     Error Responses:
     - 401 Unauthorized: Invalid initData signature or expired auth_date
+    - 403 Forbidden: User not registered (admin must create user first)
     - 500 Internal Server Error: Database or server error
 
     Related:
@@ -104,6 +106,7 @@ async def validate_initdata(
 
     Raises:
         HTTPException 401: Invalid initData or expired auth_date
+        HTTPException 403: User not registered
         HTTPException 500: Database error
 
     Example:
@@ -123,14 +126,18 @@ async def validate_initdata(
     # Step 2: Extract user info from initData
     user_dict = extract_user_from_initdata(user_data)
 
-    # Step 3: Get or create user (reuse existing auth service)
-    user = await get_or_create_user(
+    # Step 3: Check if user exists (manual registration required)
+    user = await get_user_by_telegram_id(
         session,
         telegram_id=user_dict["id"],
-        first_name=user_dict.get("first_name"),
-        last_name=user_dict.get("last_name"),
-        username=user_dict.get("username"),
     )
+
+    # Step 3.1: Reject if user not registered
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. User not registered. Contact administrator to create your account.",
+        )
 
     # Step 4: Create JWT access token (7-day expiry)
     # Note: No refresh token for Web Apps (Telegram handles re-auth)

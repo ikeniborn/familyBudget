@@ -139,12 +139,24 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"User {user.id} authenticated successfully")
 
     except ValueError as e:
-        # Authentication failed (backend error)
-        logger.error(f"Authentication failed for user {user.id}: {e}")
-        await auth_message.edit_text(
-            "❌ Ошибка авторизации.\n\n"
-            "Не удалось выполнить вход. Попробуйте позже."
-        )
+        # Check if error is 403 Forbidden (user not registered)
+        error_message = str(e)
+        if "403" in error_message or "Access denied" in error_message or "not registered" in error_message:
+            # User not registered in database
+            logger.warning(f"Access denied for user {user.id}: user not registered by administrator")
+            await auth_message.edit_text(
+                "❌ Доступ запрещен.\n\n"
+                "Вы не зарегистрированы в системе.\n"
+                "Пожалуйста, обратитесь к администратору для создания учетной записи.\n\n"
+                f"Ваш Telegram ID: {user.id}"
+            )
+        else:
+            # Other authentication errors
+            logger.error(f"Authentication failed for user {user.id}: {e}")
+            await auth_message.edit_text(
+                "❌ Ошибка авторизации.\n\n"
+                "Не удалось выполнить вход. Попробуйте позже."
+            )
 
     except Exception as e:
         # Unexpected error

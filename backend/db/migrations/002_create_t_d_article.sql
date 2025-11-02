@@ -26,7 +26,6 @@ CREATE TABLE IF NOT EXISTS t_d_article (
     -- Article attributes
     name VARCHAR(255) NOT NULL,
     type VARCHAR(20) NOT NULL CHECK (type IN ('income', 'expense')),
-    is_global BOOLEAN NOT NULL DEFAULT FALSE,
 
     -- SCD Type 2 fields
     valid_from TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -42,18 +41,6 @@ CREATE TABLE IF NOT EXISTS t_d_article (
     CONSTRAINT check_article_valid_dates
         CHECK (valid_from < valid_to),
 
-    -- Global articles must have code
-    CONSTRAINT check_article_global_code
-        CHECK (NOT is_global OR (is_global AND code IS NOT NULL)),
-
-    -- Global articles cannot have user_id
-    CONSTRAINT check_article_global_user
-        CHECK (NOT is_global OR (is_global AND user_id IS NULL)),
-
-    -- User articles must have user_id
-    CONSTRAINT check_article_user_ownership
-        CHECK (is_global OR (NOT is_global AND user_id IS NOT NULL)),
-
     -- Prevent self-referencing (parent_id cannot be equal to id)
     CONSTRAINT check_article_no_self_reference
         CHECK (parent_id IS NULL OR parent_id != id)
@@ -65,15 +52,10 @@ CREATE TABLE IF NOT EXISTS t_d_article (
 -- PostgreSQL does not support partial unique constraints as inline table constraints.
 -- We must create partial unique indexes separately.
 
--- Only one current record per user + code combination (for user articles)
-CREATE UNIQUE INDEX IF NOT EXISTS idx_article_user_code_current
-    ON t_d_article(user_id, code, is_current)
-    WHERE is_current = TRUE AND user_id IS NOT NULL;
-
--- Only one current record per code for global articles
-CREATE UNIQUE INDEX IF NOT EXISTS idx_article_global_code_current
+-- Only one current record per code (shared references model)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_article_code_current
     ON t_d_article(code, is_current)
-    WHERE is_current = TRUE AND is_global = TRUE;
+    WHERE is_current = TRUE AND code IS NOT NULL;
 
 -- ============================================================================
 -- INDEXES
@@ -101,20 +83,10 @@ CREATE INDEX IF NOT EXISTS idx_article_current
     ON t_d_article(is_current)
     WHERE is_current = TRUE;
 
--- Index on global flag
-CREATE INDEX IF NOT EXISTS idx_article_global
-    ON t_d_article(is_global)
-    WHERE is_global = TRUE;
-
--- Composite index for current user articles
+-- Composite index for current user articles (audit trail)
 CREATE INDEX IF NOT EXISTS idx_article_user_current
     ON t_d_article(user_id, is_current)
     WHERE user_id IS NOT NULL AND is_current = TRUE;
-
--- Composite index for current global articles
-CREATE INDEX IF NOT EXISTS idx_article_global_current
-    ON t_d_article(is_global, is_current)
-    WHERE is_global = TRUE AND is_current = TRUE;
 
 -- Index on valid date range for time-travel queries
 CREATE INDEX IF NOT EXISTS idx_article_valid_from
@@ -128,28 +100,25 @@ CREATE INDEX IF NOT EXISTS idx_article_valid_to
 -- ============================================================================
 
 COMMENT ON TABLE t_d_article IS
-    'Articles/categories dimension table with SCD Type 2 for tracking historical changes. Supports hierarchical structure via parent_id (adjacency list). Articles can be user-specific or global (shared across all users).';
+    'Articles/categories dimension table with SCD Type 2 for tracking historical changes. Supports hierarchical structure via parent_id (adjacency list). All articles are shared across all users (managed by admins).';
 
 COMMENT ON COLUMN t_d_article.id IS
     'Surrogate key (auto-increment primary key)';
 
 COMMENT ON COLUMN t_d_article.user_id IS
-    'Foreign key to t_d_user. NULL for global articles, required for user articles.';
+    'Foreign key to t_d_user (audit trail: who created the article). Used for tracking creator, not for access control.';
 
 COMMENT ON COLUMN t_d_article.parent_id IS
     'Foreign key to parent article for hierarchy (adjacency list). NULL for root articles.';
 
 COMMENT ON COLUMN t_d_article.code IS
-    'Business code for article (required for global articles, optional for user articles)';
+    'Business code for article (unique identifier, e.g., "INCOME_SALARY")';
 
 COMMENT ON COLUMN t_d_article.name IS
     'Article name (e.g., "Продукты", "Зарплата")';
 
 COMMENT ON COLUMN t_d_article.type IS
     'Article type: "income" or "expense"';
-
-COMMENT ON COLUMN t_d_article.is_global IS
-    'Flag indicating if article is global (shared across all users) or user-specific';
 
 COMMENT ON COLUMN t_d_article.valid_from IS
     'SCD2: Start date of record validity (inclusive)';
@@ -170,28 +139,28 @@ COMMENT ON COLUMN t_d_article.updated_at IS
 -- EXAMPLE USAGE
 -- ============================================================================
 
--- Insert global article (root level)
--- INSERT INTO t_d_article (code, name, type, is_global)
--- VALUES ('INCOME_SALARY', 'Зарплата', 'income', TRUE);
+-- Insert article (root level) - created by admin
+-- INSERT INTO t_d_article (user_id, code, name, type)
+-- VALUES (1, 'INCOME_SALARY', 'Зарплата', 'income');
 
--- Insert user-specific article (root level)
--- INSERT INTO t_d_article (user_id, name, type, is_global)
--- VALUES (1, 'Продукты', 'expense', FALSE);
+-- Insert article without code
+-- INSERT INTO t_d_article (user_id, name, type)
+-- VALUES (1, 'Продукты', 'expense');
 
 -- Insert child article (hierarchy)
--- INSERT INTO t_d_article (user_id, parent_id, name, type, is_global)
--- VALUES (1, 2, 'Молочные продукты', 'expense', FALSE);
+-- INSERT INTO t_d_article (user_id, parent_id, name, type)
+-- VALUES (1, 2, 'Молочные продукты', 'expense');
 
--- Query current articles for user
+-- Query all current articles (shared, visible to all users)
 -- SELECT * FROM t_d_article
--- WHERE user_id = 1 AND is_current = TRUE;
+-- WHERE is_current = TRUE;
 
 -- Query hierarchy (all descendants of article)
 -- Will use Closure Table (t_d_article_hierarchy) for efficient queries
 
--- Query global articles
+-- Query articles by type
 -- SELECT * FROM t_d_article
--- WHERE is_global = TRUE AND is_current = TRUE;
+-- WHERE type = 'income' AND is_current = TRUE;
 
 -- ============================================================================
 -- VERIFICATION QUERIES

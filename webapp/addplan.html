@@ -17,109 +17,11 @@
     <style>
         /* Add plan specific styles */
         .page-header {
-
-        .back-button {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--tg-theme-link-color);
-            font-size: 28px;
-            cursor: pointer;
-            padding: 8px;
-            line-height: 1;
-        }
             text-align: center;
-
-        .back-button {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--tg-theme-link-color);
-            font-size: 28px;
-            cursor: pointer;
-            padding: 8px;
-            line-height: 1;
-        }
             padding: 20px 0;
-
-        .back-button {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--tg-theme-link-color);
-            font-size: 28px;
-            cursor: pointer;
-            padding: 8px;
-            line-height: 1;
-        }
             border-bottom: 1px solid var(--tg-theme-section-separator-color);
-
-        .back-button {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--tg-theme-link-color);
-            font-size: 28px;
-            cursor: pointer;
-            padding: 8px;
-            line-height: 1;
-        }
             margin-bottom: 24px;
-
-        .back-button {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--tg-theme-link-color);
-            font-size: 28px;
-            cursor: pointer;
-            padding: 8px;
-            line-height: 1;
-        }
             position: relative;
-
-        .back-button {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--tg-theme-link-color);
-            font-size: 28px;
-            cursor: pointer;
-            padding: 8px;
-            line-height: 1;
-        }
-        }
-
-        .back-button {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--tg-theme-link-color);
-            font-size: 28px;
-            cursor: pointer;
-            padding: 8px;
-            line-height: 1;
         }
 
         .page-title {
@@ -222,6 +124,28 @@
             color: var(--tg-theme-button-text-color);
         }
 
+        .toggle-btn {
+            font-size: 16px;
+            font-weight: 500;
+            padding: 12px;
+        }
+
+        .toggle-btn.active {
+            background-color: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            border-color: var(--tg-theme-button-color);
+        }
+
+        .amount-input.expense {
+            border-color: var(--tg-theme-destructive-text-color);
+            color: var(--tg-theme-destructive-text-color);
+        }
+
+        .amount-input.income {
+            border-color: #34c759;
+            color: #34c759;
+        }
+
         /* Period selector */
         .period-selector {
             display: grid;
@@ -302,8 +226,16 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
-            <button class="back-button" onclick="window.location.href='/webapp/index.html'" title="Назад">⬅️</button>
             <div class="page-title">📝 Добавить план</div>
+        </div>
+
+        <!-- Plan Type Selector -->
+        <div class="form-group">
+            <label class="form-label">Тип плана</label>
+            <div class="quick-amount-buttons" style="grid-template-columns: repeat(2, 1fr);">
+                <button type="button" class="quick-amount-btn toggle-btn active" data-type="expense">Расход</button>
+                <button type="button" class="quick-amount-btn toggle-btn" data-type="income">Доход</button>
+            </div>
         </div>
 
         <!-- Quick Amount Buttons -->
@@ -367,22 +299,11 @@
         <!-- Period Selector -->
         <div class="form-group">
             <label class="form-label form-label-required">Период планирования</label>
-            <div class="period-selector">
-                <button class="period-btn active" data-period="month">Месяц</button>
-                <button class="period-btn" data-period="quarter">Квартал</button>
-                <button class="period-btn" data-period="year">Год</button>
-                <button class="period-btn" data-period="custom">Свой</button>
+            <div class="period-selector" style="grid-template-columns: repeat(3, 1fr);">
+                <button class="period-btn active" data-period="month" id="period-btn-month">Месяц</button>
+                <button class="period-btn" data-period="quarter" id="period-btn-quarter">Квартал</button>
+                <button class="period-btn" data-period="year" id="period-btn-year">Год</button>
             </div>
-
-            <!-- Custom Period Section -->
-            <div class="custom-period-section" id="custom-period-section">
-                <div class="date-range-row">
-                    <input type="text" id="period-start" class="form-input" placeholder="От (ДД-ММ-ГГГГ)" pattern="\d{2}-\d{2}-\d{4}">
-                    <span class="date-range-separator">—</span>
-                    <input type="text" id="period-end" class="form-input" placeholder="До (ДД-ММ-ГГГГ)" pattern="\d{2}-\d{2}-\d{4}">
-                </div>
-            </div>
-
             <span class="error-message" id="period-error"></span>
         </div>
 
@@ -423,6 +344,7 @@
 
     <script>
         let formState = {
+            planType: 'expense',  // 'income' or 'expense'
             amount: null,
             categoryId: null,
             financialCenterId: null,
@@ -445,6 +367,9 @@
             console.log('Add plan page init');
             app = budgetApp;
 
+            // Setup type selector
+            setupTypeSelector();
+
             // Setup quick amount buttons
             setupQuickAmountButtons();
 
@@ -453,6 +378,9 @@
 
             // Setup description counter
             setupDescriptionCounter();
+
+            // Update period button texts with current date
+            updatePeriodButtonTexts();
 
             // Setup period selector
             setupPeriodSelector();
@@ -480,6 +408,59 @@
 
             console.log('Add plan page ready');
         };
+
+        function setupTypeSelector() {
+            const buttons = document.querySelectorAll('.toggle-btn[data-type]');
+            const amountInput = document.getElementById('amount');
+
+            buttons.forEach(button => {
+                button.addEventListener('click', () => {
+                    // Update active state
+                    buttons.forEach(b => b.classList.remove('active'));
+                    button.classList.add('active');
+
+                    // Update form state
+                    formState.planType = button.dataset.type;
+
+                    // Update amount input style
+                    amountInput.classList.remove('income', 'expense');
+                    amountInput.classList.add(formState.planType);
+
+                    // Reload categories for selected type
+                    loadCategories();
+
+                    // Haptic feedback
+                    app.ui.hapticLight();
+                });
+            });
+        }
+
+        function updatePeriodButtonTexts() {
+            const now = new Date();
+            const monthNamesShort = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+
+            // Get current month and year
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+
+            // Button 1: Current month "Окт 2025"
+            const btn1Month = currentMonth;
+            const btn1Year = currentYear;
+            const btn1Text = `${monthNamesShort[btn1Month]} ${btn1Year}`;
+            document.getElementById('period-btn-month').textContent = btn1Text;
+
+            // Button 2: Next month "Ноя 2025"
+            const btn2Month = (currentMonth + 1) % 12;
+            const btn2Year = currentMonth === 11 ? currentYear + 1 : currentYear;
+            const btn2Text = `${monthNamesShort[btn2Month]} ${btn2Year}`;
+            document.getElementById('period-btn-quarter').textContent = btn2Text;
+
+            // Button 3: Next+1 month "Дек 2025"
+            const btn3Month = (currentMonth + 2) % 12;
+            const btn3Year = currentMonth >= 10 ? currentYear + 1 : currentYear;
+            const btn3Text = `${monthNamesShort[btn3Month]} ${btn3Year}`;
+            document.getElementById('period-btn-year').textContent = btn3Text;
+        }
 
         function setupQuickAmountButtons() {
             const buttons = document.querySelectorAll('.quick-amount-btn');
@@ -527,7 +508,6 @@
 
         function setupPeriodSelector() {
             const buttons = document.querySelectorAll('.period-btn');
-            const customSection = document.getElementById('custom-period-section');
 
             buttons.forEach(button => {
                 button.addEventListener('click', () => {
@@ -538,32 +518,12 @@
                     // Update form state
                     formState.period = button.dataset.period;
 
-                    // Show/hide custom period section
-                    if (formState.period === 'custom') {
-                        customSection.classList.add('active');
-                    } else {
-                        customSection.classList.remove('active');
-                        updatePeriodDates();
-                    }
+                    // Update period dates
+                    updatePeriodDates();
 
                     // Haptic feedback
                     app.ui.hapticLight();
                 });
-            });
-
-            // Setup custom date inputs with DD-MM-YYYY format
-            document.getElementById('period-start').addEventListener('input', (e) => {
-                const displayDate = e.target.value;
-                if (DateFormatter.isValidDisplayFormat(displayDate)) {
-                    formState.periodStart = DateFormatter.formatForAPI(displayDate);
-                }
-            });
-
-            document.getElementById('period-end').addEventListener('input', (e) => {
-                const displayDate = e.target.value;
-                if (DateFormatter.isValidDisplayFormat(displayDate)) {
-                    formState.periodEnd = DateFormatter.formatForAPI(displayDate);
-                }
             });
         }
 
@@ -578,34 +538,44 @@
 
         function updatePeriodDates() {
             const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
             let startDate, endDate;
+            let monthOffset = 0;
 
-            switch (formState.period) {
-                case 'month':
-                    // Current month
-                    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-                    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-                    break;
-
-                case 'quarter':
-                    // Current quarter
-                    const quarter = Math.floor(now.getMonth() / 3);
-                    startDate = new Date(now.getFullYear(), quarter * 3, 1);
-                    endDate = new Date(now.getFullYear(), quarter * 3 + 3, 0);
-                    break;
-
-                case 'year':
-                    // Current year
-                    startDate = new Date(now.getFullYear(), 0, 1);
-                    endDate = new Date(now.getFullYear(), 11, 31);
-                    break;
-
-                default:
-                    return; // custom period
+            // Determine month offset based on selected period button
+            // 'month' = current month (offset 0)
+            // 'quarter' = next month (offset 1)
+            // 'year' = next+1 month (offset 2)
+            if (formState.period === 'month') {
+                monthOffset = 0;
+            } else if (formState.period === 'quarter') {
+                monthOffset = 1;
+            } else if (formState.period === 'year') {
+                monthOffset = 2;
+            } else {
+                return; // custom period (not used anymore)
             }
 
-            formState.periodStart = startDate.toISOString().split('T')[0];
-            formState.periodEnd = endDate.toISOString().split('T')[0];
+            // Calculate target month and year with offset
+            const targetMonth = (currentMonth + monthOffset) % 12;
+            const targetYear = currentMonth + monthOffset >= 12 ? currentYear + 1 : currentYear;
+
+            // Start: first day of target month
+            startDate = new Date(targetYear, targetMonth, 1);
+            // End: last day of target month
+            endDate = new Date(targetYear, targetMonth + 1, 0);
+
+            // Format dates for API (YYYY-MM-DD) - use LOCAL timezone, not UTC
+            const formatLocalDate = (date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
+            formState.periodStart = formatLocalDate(startDate);
+            formState.periodEnd = formatLocalDate(endDate);
         }
 
         async function loadCategories() {
@@ -613,6 +583,7 @@
 
             try {
                 const result = await app.api.listArticles({
+                    type: formState.planType,
                     is_current: true,
                     limit: 1000
                 });
@@ -793,17 +764,11 @@
                 document.getElementById('financial-center-error').textContent = 'Выберите ЦФО';
             }
 
-            // Period validation
-            if (formState.period === 'custom') {
-                if (!formState.periodStart || !formState.periodEnd) {
-                    errors.period = 'Укажите период планирования';
-                    document.getElementById('period-error').textContent = 'Укажите период планирования';
-                } else if (new Date(formState.periodStart) > new Date(formState.periodEnd)) {
-                    errors.period = 'Дата начала должна быть раньше даты окончания';
-                    document.getElementById('period-error').textContent = 'Дата начала должна быть раньше даты окончания';
-                }
-            } else {
-                updatePeriodDates(); // Ensure dates are set for preset periods
+            // Period validation - ensure dates are set
+            updatePeriodDates();
+            if (!formState.periodStart || !formState.periodEnd) {
+                errors.period = 'Не удалось определить период планирования';
+                document.getElementById('period-error').textContent = 'Не удалось определить период планирования';
             }
 
             return errors;

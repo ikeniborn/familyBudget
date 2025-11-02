@@ -157,9 +157,6 @@ docker compose up -d postgres backend bot
 ### Дополнительные опции
 
 ```bash
-# Build images перед деплоем
-./deploy.sh --build
-
 # Clean deployment (удаляет все данные!)
 ./deploy.sh --clean
 
@@ -169,9 +166,17 @@ docker compose up -d postgres backend bot
 # Skip migrations
 ./deploy.sh --no-migrate
 
+# Sync modes (non-interactive)
+./deploy.sh --sync-mode mirror      # Recommended: rsync --delete
+./deploy.sh --sync-mode update      # rsync без удаления старых файлов
+./deploy.sh --sync-mode skip        # Deploy без синхронизации кода
+
 # Комбинация опций
-./deploy.sh --profile full --build --sync-mode mirror
+./deploy.sh --profile full --sync-mode mirror
+./deploy.sh --sync-mode mirror --no-migrate
 ```
+
+**Примечание:** Образы Docker **всегда пересобираются** автоматически при `docker compose up --build` (встроено в deploy.sh). Отдельного флага `--build` не существует.
 
 ## Health checks
 
@@ -325,8 +330,8 @@ docker compose down
 # Remove volumes (УДАЛЯЕТ ДАННЫЕ!)
 docker compose down -v
 
-# Clean deploy
-./deploy.sh --clean --build
+# Clean deploy (automatically rebuilds images)
+./deploy.sh --clean
 ```
 
 ## Monitoring

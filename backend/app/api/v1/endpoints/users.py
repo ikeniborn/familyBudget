@@ -284,3 +284,43 @@ async def update_user_role(
     )
 
     return new_user
+
+
+@router.get(
+    "/telegram-ids",
+    response_model=list[dict[str, int]],
+    responses=get_common_responses(),
+)
+async def get_all_telegram_ids(
+    session: AsyncSession = Depends(get_session),
+) -> list[dict[str, int]]:
+    """
+    Get telegram_id for all active users (for broadcast notifications).
+
+    **Internal Use:** This endpoint is designed for bot internal use
+    to get list of telegram_ids for sending broadcast notifications.
+
+    **Security Note:**
+    ⚠️ WARNING: This endpoint currently has NO authentication.
+    In production, this should be protected with:
+    - Internal API key authentication
+    - IP whitelist (only bot server)
+    - Rate limiting
+
+    **Returns:**
+    List of dicts with telegram_id for each active user.
+
+    **Example Response:**
+    ```json
+    [
+        {"telegram_id": 123456789},
+        {"telegram_id": 987654321}
+    ]
+    ```
+    """
+    # Query only current user versions
+    statement = select(User.telegram_id).where(User.is_current == True)  # noqa: E712
+    result = await session.execute(statement)
+    telegram_ids = result.scalars().all()
+
+    return [{"telegram_id": tid} for tid in telegram_ids]

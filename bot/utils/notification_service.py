@@ -46,12 +46,12 @@ class NotificationService:
         """
         Check if budget threshold exceeded for an article.
 
-        Compares plan vs actual for current month and sends notification
-        if actual >= threshold% of plan.
+        Compares plan vs actual for current month and sends BROADCAST notification
+        to ALL registered users if actual >= threshold% of plan.
 
         Args:
-            token: User's access token
-            telegram_id: User's Telegram ID
+            token: User's access token (for API authentication)
+            telegram_id: User's Telegram ID (not used for broadcast)
             article_id: Article ID to check
             threshold_percent: Threshold percentage (default: 90)
 
@@ -104,12 +104,13 @@ class NotificationService:
 
             percent_used = (actual_total / plan_total) * 100
 
-            # Check if notification already sent for this period
+            # Check if broadcast notification already sent for this period
             if await self._notification_already_sent(
-                token, article_id, month_start, month_end, threshold_percent
+                article_id, month_start, month_end, threshold_percent
             ):
                 logger.debug(
-                    f"Notification already sent for article {article_id} in period {month_start} to {month_end}"
+                    f"Broadcast notification already sent for article {article_id} "
+                    f"in period {month_start} to {month_end}"
                 )
                 return False
 
@@ -119,19 +120,46 @@ class NotificationService:
                 article = await self.api_client.get_article(token, article_id)
                 article_name = article.get("name", f"Article #{article_id}")
 
-                # Send notification
-                await self._send_threshold_notification(
-                    telegram_id=telegram_id,
-                    article_name=article_name,
-                    plan_total=plan_total,
-                    actual_total=actual_total,
-                    percent_used=percent_used,
+                # Get all telegram_ids for broadcast
+                telegram_ids_data = await self.api_client.get_all_telegram_ids()
+                telegram_ids = [user["telegram_id"] for user in telegram_ids_data]
+
+                if not telegram_ids:
+                    logger.warning("No active users found for broadcast notification")
+                    return False
+
+                # Send broadcast notification to ALL users
+                sent_count = 0
+                for tid in telegram_ids:
+                    try:
+                        await self._send_threshold_notification(
+                            telegram_id=tid,
+                            article_name=article_name,
+                            plan_total=plan_total,
+                            actual_total=actual_total,
+                            percent_used=percent_used,
+                            threshold_percent=threshold_percent,
+                        )
+                        sent_count += 1
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to send notification to user {tid}: {e}"
+                        )
+
+                # Create notification record in backend (user_id=None = broadcast)
+                await self.api_client.create_notification(
+                    article_id=article_id,
+                    notification_type="budget_threshold",
                     threshold_percent=threshold_percent,
+                    plan_amount=str(plan_total),
+                    actual_amount=str(actual_total),
+                    period_start=month_start.isoformat(),
+                    period_end=month_end.isoformat(),
+                    user_id=None,  # None = broadcast to all users
                 )
 
-                # Record notification (via backend would be ideal, but for now just log)
                 logger.info(
-                    f"Budget threshold notification sent: user={telegram_id}, "
+                    f"Broadcast notification sent to {sent_count}/{len(telegram_ids)} users: "
                     f"article={article_id}, percent={percent_used:.0f}%"
                 )
 
@@ -145,29 +173,37 @@ class NotificationService:
 
     async def _notification_already_sent(
         self,
-        token: str,
         article_id: int,
         period_start: date,
         period_end: date,
         threshold_percent: int,
     ) -> bool:
         """
-        Check if notification already sent for this article/period.
+        Check if broadcast notification already sent for this article/period.
 
         Args:
-            token: User's access token
             article_id: Article ID
             period_start: Period start date
             period_end: Period end date
             threshold_percent: Threshold percentage
 
         Returns:
-            bool: True if notification already sent
+            bool: True if broadcast notification already sent
         """
-        # TODO: Query backend for existing notifications
-        # For now, we can't check this without a backend endpoint
-        # This is a known limitation
-        return False
+        try:
+            return await self.api_client.check_duplicate_notification(
+                article_id=article_id,
+                notification_type="budget_threshold",
+                period_start=period_start.isoformat(),
+                period_end=period_end.isoformat(),
+            )
+        except Exception as e:
+            logger.error(
+                f"Error checking duplicate notification: {e}",
+                exc_info=True
+            )
+            # On error, assume notification not sent (fail-safe: send notification)
+            return False
 
     async def _send_threshold_notification(
         self,

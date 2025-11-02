@@ -634,6 +634,136 @@ class APIClient:
             logger.error(f"Get cost centers error: {str(e)}")
             raise
 
+    async def check_duplicate_notification(
+        self,
+        article_id: int,
+        notification_type: str,
+        period_start: str,
+        period_end: str
+    ) -> bool:
+        """
+        Check if broadcast notification already exists for this period.
+
+        Args:
+            article_id: Budget category/article ID
+            notification_type: Notification type (budget_threshold, budget_exceeded, etc.)
+            period_start: Period start date (YYYY-MM-DD)
+            period_end: Period end date (YYYY-MM-DD)
+
+        Returns:
+            bool: True if notification exists (do not send), False otherwise
+
+        Raises:
+            httpx.HTTPStatusError: If request fails
+        """
+        try:
+            params = {
+                "article_id": article_id,
+                "notification_type": notification_type,
+                "period_start": period_start,
+                "period_end": period_end
+            }
+
+            response = await self.client.get(
+                "/notifications/check-duplicate",
+                params=params
+            )
+            response.raise_for_status()
+
+            return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Check duplicate notification failed: {e.response.status_code}")
+            raise
+
+        except Exception as e:
+            logger.error(f"Check duplicate notification error: {str(e)}")
+            raise
+
+    async def create_notification(
+        self,
+        article_id: int,
+        notification_type: str,
+        threshold_percent: int,
+        plan_amount: str,
+        actual_amount: str,
+        period_start: str,
+        period_end: str,
+        user_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Create notification record.
+
+        Args:
+            article_id: Budget category/article ID
+            notification_type: Notification type
+            threshold_percent: Threshold percentage that triggered notification
+            plan_amount: Planned budget amount (decimal string)
+            actual_amount: Actual spent amount (decimal string)
+            period_start: Period start date (YYYY-MM-DD)
+            period_end: Period end date (YYYY-MM-DD)
+            user_id: User ID for user-specific notification (None = broadcast)
+
+        Returns:
+            Dict containing created notification data
+
+        Raises:
+            httpx.HTTPStatusError: If request fails
+        """
+        try:
+            notification_data = {
+                "article_id": article_id,
+                "notification_type": notification_type,
+                "threshold_percent": threshold_percent,
+                "plan_amount": plan_amount,
+                "actual_amount": actual_amount,
+                "period_start": period_start,
+                "period_end": period_end
+            }
+            if user_id is not None:
+                notification_data["user_id"] = user_id
+
+            response = await self.client.post(
+                "/notifications",
+                json=notification_data
+            )
+            response.raise_for_status()
+
+            logger.info(f"Notification created: type={notification_type}, article_id={article_id}")
+            return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Create notification failed: {e.response.status_code} - {e.response.text}")
+            raise
+
+        except Exception as e:
+            logger.error(f"Create notification error: {str(e)}")
+            raise
+
+    async def get_all_telegram_ids(self) -> list[Dict[str, int]]:
+        """
+        Get telegram_id for all active users (for broadcast notifications).
+
+        Returns:
+            List of dicts with telegram_id for each active user
+
+        Raises:
+            httpx.HTTPStatusError: If request fails
+        """
+        try:
+            response = await self.client.get("/users/telegram-ids")
+            response.raise_for_status()
+
+            return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Get telegram IDs failed: {e.response.status_code}")
+            raise
+
+        except Exception as e:
+            logger.error(f"Get telegram IDs error: {str(e)}")
+            raise
+
 
 # Global API client instance
 api_client = APIClient()

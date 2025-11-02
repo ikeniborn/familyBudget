@@ -182,7 +182,6 @@ class CostCenterResponse(BaseModel):
                 "code": "PROJ_HOME",
                 "name": "Home Renovation",
                 "description": "Kitchen and bathroom renovation",
-                "is_global": False,
                 "valid_from": "2025-10-14T12:00:00Z",
                 "valid_to": "9999-12-31T23:59:59Z",
                 "is_current": True,

@@ -52,13 +52,12 @@ async def list_financial_centers(
     """
     List financial centers for current user.
 
-    Returns user-specific financial centers.
+    Shared references architecture: All users see all financial centers.
     Only current versions (is_current=True) are returned.
     """
-    # Build query - only user's financial centers
+    # Build query - all financial centers (shared references)
     conditions = [
         FinancialCenter.is_current == True,
-        FinancialCenter.user_id == current_user.id
     ]
 
     # Count total
@@ -103,8 +102,16 @@ async def create_financial_center(
     """
     Create a new financial center.
 
-    Financial center is automatically assigned to current_user.
+    Shared references architecture: Only admins can create financial centers.
+    Financial center is created with current_user as creator (audit trail).
     """
+    # Check: Only admins can create financial centers
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can create financial centers"
+        )
+
     # Create financial center
     financial_center = FinancialCenter(
         user_id=current_user.id,
@@ -137,6 +144,7 @@ async def get_financial_center(
     Get financial center by ID.
 
     Returns current version (is_current=True) only.
+    Shared references architecture: All users can access all financial centers.
     """
     query = select(FinancialCenter).where(
         FinancialCenter.id == financial_center_id,
@@ -152,12 +160,7 @@ async def get_financial_center(
             detail=f"Financial center {financial_center_id} not found",
         )
 
-    # Check access: user can only access their own financial centers
-    if financial_center.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this financial center",
-        )
+    # NO access restrictions - all users can read all financial centers
 
     return FinancialCenterResponse.model_validate(financial_center)
 
@@ -181,8 +184,15 @@ async def update_financial_center(
     - Old version: is_current=False, valid_to=now()
     - New version: is_current=True, valid_from=now(), valid_to=9999-12-31
 
-    Only owner can update.
+    Shared references architecture: Only admins can update financial centers.
     """
+    # Check: Only admins can update financial centers
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can update financial centers",
+        )
+
     # Fetch current version
     query = select(FinancialCenter).where(
         FinancialCenter.id == financial_center_id,
@@ -198,15 +208,10 @@ async def update_financial_center(
             detail=f"Financial center {financial_center_id} not found",
         )
 
-    # Check permissions - only owner can update
-    if old_financial_center.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this financial center",
-        )
+    # Get update dict
+    update_dict = update_data.model_dump(exclude_unset=True)
 
     # Use SCD2 service for update
-    update_dict = update_data.model_dump(exclude_unset=True)
 
     new_financial_center = await scd2_service.create_new_version(
         session=session,
@@ -233,7 +238,15 @@ async def delete_financial_center(
 
     Sets is_current=False and valid_to=now() for current version.
     Historical versions are preserved.
+    Shared references architecture: Only admins can delete financial centers.
     """
+    # Check: Only admins can delete financial centers
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can delete financial centers",
+        )
+
     # Fetch current version
     query = select(FinancialCenter).where(
         FinancialCenter.id == financial_center_id,
@@ -247,13 +260,6 @@ async def delete_financial_center(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Financial center {financial_center_id} not found",
-        )
-
-    # Check permissions - only owner can delete
-    if financial_center.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this financial center",
         )
 
     # Soft delete: set is_current=False and valid_to=now()

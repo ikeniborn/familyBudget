@@ -89,7 +89,12 @@
             <!-- Waterfall Chart -->
             <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-waterfall">
                 <div class="card-body p-3">
-                    <h2 id="chart-title-waterfall" class="card-title text-base mb-1">💧 Каскадная диаграмма</h2>
+                    <div class="flex justify-between items-center mb-1">
+                        <h2 id="chart-title-waterfall" class="card-title text-base mb-0">💧 Каскадная диаграмма</h2>
+                        <button id="waterfall-reset" class="btn btn-xs btn-outline" onclick="resetWaterfallDrilldown()" style="display: none;" aria-label="Сбросить фильтр категории">
+                            ← Сбросить фильтр
+                        </button>
+                    </div>
                     <div id="chart-waterfall" class="chart-container" role="img" aria-label="Каскадная диаграмма кумулятивного денежного потока с детализацией"></div>
                 </div>
             </div>
@@ -193,7 +198,7 @@ async function loadPlanFactData(period) {
         // Show error message
         planFactChart.setOption({
             title: {
-                text: 'Error loading data',
+                text: 'Ошибка загрузки данных',
                 subtext: error.message,
                 left: 'center',
                 top: 'middle',
@@ -234,7 +239,7 @@ function updatePlanFactChart(data) {
                     const diff = params[1].value - params[0].value;
                     const diffPercent = params[0].value > 0 ? ((diff / params[0].value) * 100).toFixed(1) : 0;
                     const diffColor = diff >= 0 ? '#4CAF50' : '#f44336';
-                    result += `<span style="color: ${diffColor}">Difference: ${diff.toFixed(2)} ₽ (${diffPercent}%)</span>`;
+                    result += `<span style="color: ${diffColor}">Разница: ${diff.toFixed(2)} ₽ (${diffPercent}%)</span>`;
                 }
 
                 return result;
@@ -259,7 +264,7 @@ function updatePlanFactChart(data) {
         },
         yAxis: {
             type: 'value',
-            name: 'Amount (₽)',
+            name: 'Сумма (₽)',
             axisLabel: {
                 formatter: function(value) {
                     return value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value;
@@ -351,7 +356,7 @@ async function loadTrendsData(days) {
 
         trendsChart.setOption({
             title: {
-                text: 'Error loading data',
+                text: 'Ошибка загрузки данных',
                 subtext: error.message,
                 left: 'center',
                 top: 'middle',
@@ -395,7 +400,7 @@ function updateTrendsChart(data) {
                 if (params.length === 2) {
                     const net = params[0].value - params[1].value;
                     const netColor = net >= 0 ? '#4CAF50' : '#f44336';
-                    result += `<span style="color: ${netColor}">Net: ${net.toFixed(2)} ₽</span>`;
+                    result += `<span style="color: ${netColor}">Чистый доход: ${net.toFixed(2)} ₽</span>`;
                 }
 
                 return result;
@@ -426,7 +431,7 @@ function updateTrendsChart(data) {
         },
         yAxis: {
             type: 'value',
-            name: 'Amount (₽)',
+            name: 'Сумма (₽)',
             axisLabel: {
                 formatter: function(value) {
                     return value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value;
@@ -523,7 +528,7 @@ async function loadPieData(type, period) {
 
         pieChart.setOption({
             title: {
-                text: 'Error loading data',
+                text: 'Ошибка загрузки данных',
                 subtext: error.message,
                 left: 'center',
                 top: 'middle',
@@ -561,8 +566,8 @@ function updatePieChart(data) {
             trigger: 'item',
             formatter: function(params) {
                 return `<strong>${params.name}</strong><br/>` +
-                       `Amount: ${params.value.toFixed(2)} ₽<br/>` +
-                       `Percentage: ${params.percent.toFixed(1)}%`;
+                       `Сумма: ${params.value.toFixed(2)} ₽<br/>` +
+                       `Процент: ${params.percent.toFixed(1)}%`;
             }
         },
         legend: {
@@ -660,10 +665,12 @@ async function loadWaterfallData(period = 'year', articleId = null) {
 
         // Show/hide reset button based on drill-down state
         const resetBtn = document.getElementById('waterfall-reset');
-        if (articleId) {
-            resetBtn.style.display = 'inline-block';
-        } else {
-            resetBtn.style.display = 'none';
+        if (resetBtn) {
+            if (articleId) {
+                resetBtn.style.display = 'inline-block';
+            } else {
+                resetBtn.style.display = 'none';
+            }
         }
     } catch (error) {
         console.error('Error loading waterfall data:', error);
@@ -671,7 +678,7 @@ async function loadWaterfallData(period = 'year', articleId = null) {
 
         waterfallChart.setOption({
             title: {
-                text: 'Error loading data',
+                text: 'Ошибка загрузки данных',
                 subtext: error.message,
                 left: 'center',
                 top: 'middle',
@@ -763,11 +770,11 @@ function updateWaterfallChart(data) {
                 const cumulative = data.balance[dataIndex];
 
                 let tooltip = `<strong>${label}</strong><br/>`;
-                tooltip += `Income: ${income.toFixed(2)} ₽<br/>`;
-                tooltip += `Expense: ${expense.toFixed(2)} ₽<br/>`;
+                tooltip += `Доходы: ${income.toFixed(2)} ₽<br/>`;
+                tooltip += `Расходы: ${expense.toFixed(2)} ₽<br/>`;
                 tooltip += `<hr style="margin: 5px 0"/>`;
-                tooltip += `Net: <span style="color: ${net >= 0 ? '#4CAF50' : '#f44336'}">${net.toFixed(2)} ₽</span><br/>`;
-                tooltip += `Cumulative: ${cumulative.toFixed(2)} ₽`;
+                tooltip += `Чистый доход: <span style="color: ${net >= 0 ? '#4CAF50' : '#f44336'}">${net.toFixed(2)} ₽</span><br/>`;
+                tooltip += `Накопительный итог: ${cumulative.toFixed(2)} ₽`;
 
                 // Show categories for drill-down
                 if (!data.article_id && waterfallCategoriesData[dataIndex]?.length > 0) {
@@ -794,7 +801,7 @@ function updateWaterfallChart(data) {
         },
         yAxis: {
             type: 'value',
-            name: 'Amount (₽)',
+            name: 'Сумма (₽)',
             axisLabel: {
                 formatter: function(value) {
                     return value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value;
@@ -963,7 +970,7 @@ async function loadHeatmapData(period = 'quarter') {
 
         heatmapChart.setOption({
             title: {
-                text: 'Error loading data',
+                text: 'Ошибка загрузки данных',
                 subtext: error.message,
                 left: 'center',
                 top: 'middle',
@@ -982,7 +989,7 @@ function updateHeatmapChart(data) {
     const weekLabels = [];
 
     data.weeks.forEach((week, weekIndex) => {
-        weekLabels.push(`W${weekIndex + 1}`);
+        weekLabels.push(`Н${weekIndex + 1}`);
         week.forEach((value, dayIndex) => {
             heatmapData.push([dayIndex, weekIndex, value]);
         });
@@ -1021,8 +1028,8 @@ function updateHeatmapChart(data) {
                 const dayName = data.day_labels[params.value[0]];
                 const weekNum = params.value[1] + 1;
                 const amount = params.value[2].toFixed(2);
-                return `<strong>${dayName}, Week ${weekNum}</strong><br/>` +
-                       `Expense: ${amount} ₽`;
+                return `<strong>${dayName}, Неделя ${weekNum}</strong><br/>` +
+                       `Расход: ${amount} ₽`;
             }
         },
         grid: {
@@ -1062,14 +1069,14 @@ function updateHeatmapChart(data) {
             inRange: {
                 color: ['#eef5ee', '#c8e6c9', '#81c784', '#4caf50', '#388e3c', '#2e7d32']
             },
-            text: ['High', 'Low'],
+            text: ['Высокий', 'Низкий'],
             textStyle: {
                 fontSize: 11
             }
         },
         series: [
             {
-                name: 'Spending',
+                name: 'Расходы',
                 type: 'heatmap',
                 data: heatmapData,
                 label: {

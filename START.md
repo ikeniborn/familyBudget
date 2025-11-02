@@ -14,7 +14,14 @@
 
 Устанавливает Docker, Docker Compose, UFW firewall и создаёт структуру директорий.
 
+**ВАЖНО:** Запускайте install.sh из директории репозитория!
+
 ```bash
+# Клонируйте репозиторий
+git clone https://github.com/yourusername/familyBudget.git ~/familyBudget
+cd ~/familyBudget
+
+# Запустите install.sh
 sudo ./install.sh
 ```
 
@@ -23,6 +30,7 @@ sudo ./install.sh
 - Устанавливает базовые утилиты (curl, git, jq, certbot)
 - Настраивает UFW firewall (SSH, HTTP, HTTPS)
 - Создаёт директорию `/opt/budget` с поддиректориями
+- **Копирует template файлы** (nginx, .env.example) в `/opt/budget`
 - Добавляет пользователя в группу docker
 
 **После установки:**
@@ -39,18 +47,19 @@ newgrp docker
 Интерактивная настройка конфигурации приложения.
 
 ```bash
+cd ~/familyBudget
 ./setup.sh
 ```
 
 **Что делает:**
-- Копирует код из репозитория в `/opt/budget` (кроме deploy.sh)
-- Создаёт `.env` файл с настройками
+- Проверяет наличие deployment директории и template файлов
+- Создаёт `.env` файл в `/opt/budget` с настройками
 - Генерирует безопасные пароли и секреты
 - Настраивает PostgreSQL (порты, внешний доступ)
 - Настраивает домен и SSL (опционально)
 - Проверяет Telegram Bot токен
 
-**Примечание:** deploy.sh остаётся в репозитории и запускается оттуда
+**Примечание:** Этот скрипт НЕ копирует код. Синхронизация кода происходит в deploy.sh
 
 **Интерактивные вопросы:**
 - Telegram Bot Token (получить у @BotFather)

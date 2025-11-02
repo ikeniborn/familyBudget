@@ -24,19 +24,6 @@
             position: relative;
         }
 
-        .back-button {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--tg-theme-link-color);
-            font-size: 28px;
-            cursor: pointer;
-            padding: 8px;
-            line-height: 1;
-        }
 
         .page-title {
             font-size: 24px;
@@ -147,24 +134,33 @@
             background-color: var(--tg-theme-button-color);
             color: var(--tg-theme-button-text-color);
         }
+
+        .toggle-btn {
+            font-size: 16px;
+            font-weight: 500;
+            padding: 12px;
+        }
+
+        .toggle-btn.active {
+            background-color: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            border-color: var(--tg-theme-button-color);
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <!-- Header -->
         <div class="page-header">
-            <button class="back-button" onclick="window.location.href='/webapp/index.html'" title="Назад">⬅️</button>
             <div class="page-title">Добавить транзакцию</div>
         </div>
 
         <!-- Transaction Type Selector -->
         <div class="form-group">
             <label class="form-label">Тип операции</label>
-            <div class="segmented-control">
-                <button type="button" class="segmented-control-item active" data-type="expense">Расход</button>
-                <button type="button" class="segmented-control-item" data-type="income">
-                    Доход
-                </button>
+            <div class="quick-amount-buttons" style="grid-template-columns: repeat(2, 1fr);">
+                <button type="button" class="quick-amount-btn toggle-btn active" data-type="expense">Расход</button>
+                <button type="button" class="quick-amount-btn toggle-btn" data-type="income">Доход</button>
             </div>
         </div>
 
@@ -251,8 +247,7 @@
                 type="text"
                 id="fact-date"
                 class="form-input"
-                placeholder="ДД-ММ-ГГГГ"
-                pattern="\d{2}-\d{2}-\d{4}"
+                placeholder="ДД.ММ.ГГГГ"
                 required
             >
             <span class="error-message" id="date-error"></span>
@@ -331,7 +326,7 @@
         };
 
         function setupTypeSelector() {
-            const buttons = document.querySelectorAll('.segmented-control-item');
+            const buttons = document.querySelectorAll('.toggle-btn[data-type]');
 
             buttons.forEach(button => {
                 button.addEventListener('click', () => {
@@ -403,14 +398,14 @@
         function setupDateInput() {
             const dateInput = document.getElementById('fact-date');
 
-            // Set default to today in DD-MM-YYYY format
+            // Set default to today in DD.MM.YYYY format
             dateInput.value = DateFormatter.today();
-            formState.factDate = DateFormatter.todayISO();
+            formState.factDate = DateFormatter.formatForAPI(DateFormatter.today());
 
             dateInput.addEventListener('input', () => {
                 const displayDate = dateInput.value;
 
-                // Convert DD-MM-YYYY to YYYY-MM-DD for API
+                // Convert DD.MM.YYYY to YYYY-MM-DD for API
                 if (DateFormatter.isValidDisplayFormat(displayDate)) {
                     formState.factDate = DateFormatter.formatForAPI(displayDate);
                     // Clear error
@@ -424,7 +419,7 @@
             dateInput.addEventListener('blur', () => {
                 // Validate on blur
                 if (!DateFormatter.isValidDisplayFormat(dateInput.value)) {
-                    document.getElementById('date-error').textContent = 'Неверный формат даты (ДД-ММ-ГГГГ)';
+                    document.getElementById('date-error').textContent = 'Неверный формат даты (ДД.ММ.ГГГГ)';
                     dateInput.classList.add('input-error');
                 }
             });
@@ -440,11 +435,14 @@
                     const date = new Date();
                     date.setDate(date.getDate() + daysOffset);
 
-                    // Format for API (YYYY-MM-DD)
-                    const isoDate = date.toISOString().split('T')[0];
+                    // Format for API (YYYY-MM-DD) - use LOCAL timezone, not UTC
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const isoDate = `${year}-${month}-${day}`;
                     formState.factDate = isoDate;
 
-                    // Format for display (DD-MM-YYYY)
+                    // Format for display (DD.MM.YYYY)
                     dateInput.value = DateFormatter.formatForDisplay(isoDate);
 
                     // Clear error

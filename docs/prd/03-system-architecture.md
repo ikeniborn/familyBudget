@@ -244,7 +244,7 @@
 - **Вход:** Telegram Web Apps SDK (Menu Button)
 - **Выход:** HTTP REST к FastAPI Backend (`/api/v1/facts`, `/api/v1/articles`, `/api/v1/webapp/validate`)
 
-**Развертывание:** Static files в `/bot/webapp/`, serve через FastAPI StaticFiles
+**Развертывание:** Static files в `/webapp/`, serve через FastAPI StaticFiles
 
 **Authentication Flow:**
 1. Telegram SDK provides `initData` (HMAC-SHA256 signed)

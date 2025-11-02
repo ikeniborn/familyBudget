@@ -154,6 +154,35 @@ check_deploy_dir() {
         fi
     done
 
+    # Verify required template files exist
+    info "Checking required template files..."
+    local required_templates=(
+        "$DEPLOY_DIR/nginx/conf.d/app.conf.template"
+        "$DEPLOY_DIR/.env.example"
+    )
+
+    local missing_templates=()
+    for template in "${required_templates[@]}"; do
+        if [[ ! -f "$template" ]]; then
+            missing_templates+=("$template")
+        fi
+    done
+
+    if [[ ${#missing_templates[@]} -gt 0 ]]; then
+        error "Required template files are missing:"
+        for template in "${missing_templates[@]}"; do
+            echo "  ✗ $template"
+        done
+        echo ""
+        warning "This typically means install.sh was not run correctly."
+        info "Please run install.sh from the repository directory:"
+        echo "  cd ~/familyBudget  # (or your repository location)"
+        echo "  sudo ./install.sh"
+        echo ""
+        exit 1
+    fi
+
+    info "All required template files present"
     success "Deployment directory OK: $DEPLOY_DIR"
 }
 

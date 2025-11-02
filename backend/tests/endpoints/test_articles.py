@@ -29,15 +29,14 @@ from backend.app.models.user import User
 
 
 @pytest.mark.asyncio
-async def test_create_article_basic(auth_client: AsyncClient, test_user: User):
-    """Test creating a basic article (root category)."""
-    response = await auth_client.post(
+async def test_create_article_basic_as_admin(admin_client: AsyncClient):
+    """Test creating a basic article as admin (shared references)."""
+    response = await admin_client.post(
         "/api/v1/articles",
         json={
             "code": "TRANS",
             "name": "Transportation",
             "type": "expense",
-            "is_global": False,
             "parent_id": None,
         }
     )
@@ -48,24 +47,40 @@ async def test_create_article_basic(auth_client: AsyncClient, test_user: User):
     assert data["code"] == "TRANS"
     assert data["name"] == "Transportation"
     assert data["type"] == "expense"
-    assert data["is_global"] is False
-    assert data["user_id"] == test_user.id
     assert data["parent_id"] is None
     assert data["is_current"] is True
 
 
 @pytest.mark.asyncio
-async def test_create_article_with_parent(
-    auth_client: AsyncClient, test_user: User, test_article_root: Article
+async def test_create_article_as_regular_user_forbidden(
+    auth_client: AsyncClient, test_user: User
 ):
-    """Test creating child article with parent."""
+    """Test that regular users cannot create articles."""
     response = await auth_client.post(
+        "/api/v1/articles",
+        json={
+            "code": "TRANS",
+            "name": "Transportation",
+            "type": "expense",
+            "parent_id": None,
+        }
+    )
+
+    assert response.status_code == 403
+    assert "Only administrators can create" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_create_article_with_parent_as_admin(
+    admin_client: AsyncClient, test_article_root: Article
+):
+    """Test creating child article with parent as admin."""
+    response = await admin_client.post(
         "/api/v1/articles",
         json={
             "code": "TRANS_CAR",
             "name": "Car Expenses",
             "type": "expense",
-            "is_global": False,
             "parent_id": test_article_root.id,
         }
     )
@@ -77,76 +92,39 @@ async def test_create_article_with_parent(
 
 
 @pytest.mark.asyncio
-async def test_create_article_income_type(auth_client: AsyncClient):
-    """Test creating income article."""
-    response = await auth_client.post(
+async def test_all_users_see_shared_articles(
+    auth_client: AsyncClient, admin_client: AsyncClient
+):
+    """Test that all users see shared article references created by admin."""
+    # Admin creates article
+    admin_response = await admin_client.post(
         "/api/v1/articles",
         json={
-            "code": "BONUS",
-            "name": "Bonus Income",
-            "type": "income",
-            "is_global": False,
-            "parent_id": None,
-        }
-    )
-
-    assert response.status_code == 201
-
-    data = response.json()
-    assert data["type"] == "income"
-
-
-@pytest.mark.asyncio
-async def test_create_global_article_as_admin(admin_client: AsyncClient):
-    """Test creating global article as admin."""
-    response = await admin_client.post(
-        "/api/v1/articles",
-        json={
-            "code": "GLOBAL_CAT",
-            "name": "Global Category",
+            "code": "SHARED_CAT",
+            "name": "Shared Category",
             "type": "expense",
-            "is_global": True,
             "parent_id": None,
         }
     )
+    assert admin_response.status_code == 201
+    article_id = admin_response.json()["id"]
 
-    assert response.status_code == 201
-
-    data = response.json()
-    assert data["is_global"] is True
-    assert data["user_id"] is None  # Global articles have no user_id
-
-
-@pytest.mark.asyncio
-async def test_create_global_article_as_regular_user(auth_client: AsyncClient):
-    """Test creating global article as regular user (should fail)."""
-    response = await auth_client.post(
-        "/api/v1/articles",
-        json={
-            "code": "GLOBAL_CAT",
-            "name": "Global Category",
-            "type": "expense",
-            "is_global": True,
-            "parent_id": None,
-        }
-    )
-
-    assert response.status_code == 403
-
-    data = response.json()
-    assert "detail" in data
+    # Regular user can see it
+    user_response = await auth_client.get("/api/v1/articles")
+    assert user_response.status_code == 200
+    articles = user_response.json()["articles"]
+    assert any(a["id"] == article_id for a in articles)
 
 
 @pytest.mark.asyncio
-async def test_create_article_parent_not_found(auth_client: AsyncClient):
+async def test_create_article_parent_not_found(admin_client: AsyncClient):
     """Test creating article with non-existent parent."""
-    response = await auth_client.post(
+    response = await admin_client.post(
         "/api/v1/articles",
         json={
             "code": "CHILD",
             "name": "Child Category",
             "type": "expense",
-            "is_global": False,
             "parent_id": 99999,  # Non-existent
         }
     )
@@ -163,7 +141,6 @@ async def test_create_article_unauthenticated(client: AsyncClient):
             "code": "TEST",
             "name": "Test",
             "type": "expense",
-            "is_global": False,
             "parent_id": None,
         }
     )
@@ -196,37 +173,30 @@ async def test_list_articles_basic(
 
 
 @pytest.mark.asyncio
-async def test_list_articles_with_global(
-    auth_client: AsyncClient, test_article_root: Article, test_global_article: Article
+async def test_list_articles_sees_all_shared_references(
+    auth_client: AsyncClient, admin_client: AsyncClient
 ):
-    """Test listing articles includes global articles by default."""
-    response = await auth_client.get("/api/v1/articles?include_global=true")
+    """Test that users see all shared article references."""
+    # Admin creates two articles
+    admin_client.post(
+        "/api/v1/articles",
+        json={"code": "FOOD", "name": "Food", "type": "expense", "parent_id": None},
+    )
+    admin_client.post(
+        "/api/v1/articles",
+        json={"code": "SALARY", "name": "Salary", "type": "income", "parent_id": None},
+    )
 
+    # Regular user sees all articles
+    response = await auth_client.get("/api/v1/articles")
     assert response.status_code == 200
 
     data = response.json()
     article_codes = {article["code"] for article in data["articles"]}
 
-    # Should include both user's article and global article
+    # Should include all shared articles
     assert "FOOD" in article_codes
     assert "SALARY" in article_codes
-
-
-@pytest.mark.asyncio
-async def test_list_articles_exclude_global(
-    auth_client: AsyncClient, test_article_root: Article, test_global_article: Article
-):
-    """Test listing articles excludes global when include_global=false."""
-    response = await auth_client.get("/api/v1/articles?include_global=false")
-
-    assert response.status_code == 200
-
-    data = response.json()
-    article_codes = {article["code"] for article in data["articles"]}
-
-    # Should include only user's articles, not global
-    assert "FOOD" in article_codes
-    assert "SALARY" not in article_codes
 
 
 @pytest.mark.asyncio
@@ -331,31 +301,27 @@ async def test_list_articles_invalid_type_filter(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_list_articles_as_admin_sees_all(
-    admin_client: AsyncClient, test_article_root: Article, session: AsyncSession
+async def test_list_articles_all_users_see_same_articles(
+    auth_client: AsyncClient, admin_client: AsyncClient
 ):
-    """Test that admin sees all articles from all users."""
-    # Create article for another user
-    other_article = Article(
-        user_id=999,  # Different user
-        name="Other User Article",
-        type="expense",
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
+    """Test that all users see the same shared articles."""
+    # Admin creates article
+    await admin_client.post(
+        "/api/v1/articles",
+        json={"code": "SHARED", "name": "Shared Article", "type": "expense", "parent_id": None},
     )
-    session.add(other_article)
-    await session.commit()
 
-    response = await admin_client.get("/api/v1/articles")
+    # Admin sees article
+    admin_response = await admin_client.get("/api/v1/articles")
+    assert admin_response.status_code == 200
+    admin_codes = {article["code"] for article in admin_response.json()["articles"]}
+    assert "SHARED" in admin_codes
 
-    assert response.status_code == 200
-
-    data = response.json()
-    codes = {article["code"] for article in data["articles"]}
-
-    # Admin should see articles from all users
-    assert "OTHER" in codes
+    # Regular user sees the same article
+    user_response = await auth_client.get("/api/v1/articles")
+    assert user_response.status_code == 200
+    user_codes = {article["code"] for article in user_response.json()["articles"]}
+    assert "SHARED" in user_codes
 
 
 @pytest.mark.asyncio
@@ -387,64 +353,48 @@ async def test_get_article_by_id_own_article(
 
 
 @pytest.mark.asyncio
-async def test_get_article_by_id_global_article(
-    auth_client: AsyncClient, test_global_article: Article
+async def test_get_article_by_id_shared_reference(
+    auth_client: AsyncClient, admin_client: AsyncClient
 ):
-    """Test getting global article by ID (accessible to all)."""
-    response = await auth_client.get(f"/api/v1/articles/{test_global_article.id}")
+    """Test getting shared article by ID (accessible to all users)."""
+    # Admin creates article
+    admin_response = await admin_client.post(
+        "/api/v1/articles",
+        json={"code": "SHARED", "name": "Shared Article", "type": "expense", "parent_id": None},
+    )
+    article_id = admin_response.json()["id"]
 
+    # Regular user can get it
+    response = await auth_client.get(f"/api/v1/articles/{article_id}")
     assert response.status_code == 200
 
     data = response.json()
-    assert data["is_global"] is True
+    assert data["id"] == article_id
+    assert data["name"] == "Shared Article"
 
 
 @pytest.mark.asyncio
-async def test_get_article_by_id_other_user(auth_client: AsyncClient, session: AsyncSession):
-    """Test getting other user's article (should fail)."""
-    # Create article for another user
-    from datetime import datetime
-
-    other_article = Article(
-        user_id=999,  # Different user
-        name="Other Article",
-        type="expense",
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
+async def test_all_users_get_same_article(
+    auth_client: AsyncClient, admin_client: AsyncClient
+):
+    """Test that all users can get the same shared article by ID."""
+    # Admin creates article
+    admin_response = await admin_client.post(
+        "/api/v1/articles",
+        json={"code": "SHARED", "name": "Shared Article", "type": "expense", "parent_id": None},
     )
-    session.add(other_article)
-    await session.commit()
-    await session.refresh(other_article)
+    article_id = admin_response.json()["id"]
 
-    response = await auth_client.get(f"/api/v1/articles/{other_article.id}")
+    # Admin can get it
+    admin_get = await admin_client.get(f"/api/v1/articles/{article_id}")
+    assert admin_get.status_code == 200
 
-    assert response.status_code == 403
+    # Regular user can get it too
+    user_get = await auth_client.get(f"/api/v1/articles/{article_id}")
+    assert user_get.status_code == 200
 
-
-@pytest.mark.asyncio
-async def test_get_article_by_id_admin_any_article(admin_client: AsyncClient, session: AsyncSession):
-    """Test admin can get any article by ID."""
-    # Create article for another user
-    from datetime import datetime
-
-    other_article = Article(
-        user_id=999,
-        code="OTHER",
-        name="Other Article",
-        type="expense",
-        is_global=False,
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
-    )
-    session.add(other_article)
-    await session.commit()
-    await session.refresh(other_article)
-
-    response = await admin_client.get(f"/api/v1/articles/{other_article.id}")
-
-    assert response.status_code == 200
+    # Both see the same data
+    assert admin_get.json()["name"] == user_get.json()["name"]
 
 
 @pytest.mark.asyncio
@@ -469,13 +419,13 @@ async def test_get_article_by_id_unauthenticated(client: AsyncClient, test_artic
 
 
 @pytest.mark.asyncio
-async def test_update_article_basic(
-    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article
+async def test_update_article_as_admin(
+    admin_client: AsyncClient, session: AsyncSession, test_article_root: Article
 ):
-    """Test updating article creates new SCD Type 2 version."""
+    """Test updating article as admin creates new SCD Type 2 version."""
     original_id = test_article_root.id
 
-    response = await auth_client.put(
+    response = await admin_client.put(
         f"/api/v1/articles/{test_article_root.id}",
         json={"name": "Food and Beverages"}
     )
@@ -505,30 +455,28 @@ async def test_update_article_basic(
 
 
 @pytest.mark.asyncio
-async def test_update_article_no_change(auth_client: AsyncClient, test_article_root: Article):
-    """Test updating article with same values (no new version)."""
+async def test_update_article_as_regular_user_forbidden(
+    auth_client: AsyncClient, test_article_root: Article
+):
+    """Test that regular users cannot update articles."""
     response = await auth_client.put(
         f"/api/v1/articles/{test_article_root.id}",
-        json={"name": "Food"}  # Same name
+        json={"name": "Updated Name"}
     )
 
-    assert response.status_code == 200
-
-    data = response.json()
-    # Should return existing article without creating new version
-    assert data["id"] == test_article_root.id
+    assert response.status_code == 403
+    assert "Only administrators can update" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
-async def test_update_article_change_parent(
-    auth_client: AsyncClient, test_article_child: Article, session: AsyncSession
+async def test_update_article_change_parent_as_admin(
+    admin_client: AsyncClient, test_article_child: Article, session: AsyncSession
 ):
-    """Test changing article's parent."""
+    """Test changing article's parent as admin."""
     # Create new potential parent
     from datetime import datetime
 
     new_parent = Article(
-        user_id=1,
         name="New Parent",
         type="expense",
         is_current=True,
@@ -539,7 +487,7 @@ async def test_update_article_change_parent(
     await session.commit()
     await session.refresh(new_parent)
 
-    response = await auth_client.put(
+    response = await admin_client.put(
         f"/api/v1/articles/{test_article_child.id}",
         json={"parent_id": new_parent.id}
     )
@@ -551,9 +499,9 @@ async def test_update_article_change_parent(
 
 
 @pytest.mark.asyncio
-async def test_update_article_self_as_parent(auth_client: AsyncClient, test_article_root: Article):
+async def test_update_article_self_as_parent(admin_client: AsyncClient, test_article_root: Article):
     """Test setting article as its own parent (should fail)."""
-    response = await auth_client.put(
+    response = await admin_client.put(
         f"/api/v1/articles/{test_article_root.id}",
         json={"parent_id": test_article_root.id}
     )
@@ -562,9 +510,9 @@ async def test_update_article_self_as_parent(auth_client: AsyncClient, test_arti
 
 
 @pytest.mark.asyncio
-async def test_update_article_no_fields(auth_client: AsyncClient, test_article_root: Article):
+async def test_update_article_no_fields(admin_client: AsyncClient, test_article_root: Article):
     """Test updating article with no fields provided."""
-    response = await auth_client.put(
+    response = await admin_client.put(
         f"/api/v1/articles/{test_article_root.id}",
         json={}
     )
@@ -573,38 +521,9 @@ async def test_update_article_no_fields(auth_client: AsyncClient, test_article_r
 
 
 @pytest.mark.asyncio
-async def test_update_global_article_as_regular_user(
-    auth_client: AsyncClient, test_global_article: Article
-):
-    """Test updating global article as regular user (should fail)."""
-    response = await auth_client.put(
-        f"/api/v1/articles/{test_global_article.id}",
-        json={"name": "Updated Global"}
-    )
-
-    assert response.status_code == 403
-
-
-@pytest.mark.asyncio
-async def test_update_global_article_as_admin(
-    admin_client: AsyncClient, test_global_article: Article
-):
-    """Test updating global article as admin (should succeed)."""
-    response = await admin_client.put(
-        f"/api/v1/articles/{test_global_article.id}",
-        json={"name": "Updated Global Salary"}
-    )
-
-    assert response.status_code == 200
-
-    data = response.json()
-    assert data["name"] == "Updated Global Salary"
-
-
-@pytest.mark.asyncio
-async def test_update_article_not_found(auth_client: AsyncClient):
+async def test_update_article_not_found(admin_client: AsyncClient):
     """Test updating non-existent article."""
-    response = await auth_client.put(
+    response = await admin_client.put(
         "/api/v1/articles/99999",
         json={"name": "Updated"}
     )
@@ -629,11 +548,11 @@ async def test_update_article_unauthenticated(client: AsyncClient, test_article_
 
 
 @pytest.mark.asyncio
-async def test_delete_article_basic(
-    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article
+async def test_delete_article_as_admin(
+    admin_client: AsyncClient, session: AsyncSession, test_article_root: Article
 ):
-    """Test soft deleting article."""
-    response = await auth_client.delete(f"/api/v1/articles/{test_article_root.id}")
+    """Test soft deleting article as admin."""
+    response = await admin_client.delete(f"/api/v1/articles/{test_article_root.id}")
 
     assert response.status_code == 204
 
@@ -643,67 +562,34 @@ async def test_delete_article_basic(
 
 
 @pytest.mark.asyncio
-async def test_delete_article_not_found(auth_client: AsyncClient):
+async def test_delete_article_as_regular_user_forbidden(
+    auth_client: AsyncClient, test_article_root: Article
+):
+    """Test that regular users cannot delete articles."""
+    response = await auth_client.delete(f"/api/v1/articles/{test_article_root.id}")
+
+    assert response.status_code == 403
+    assert "Only administrators can delete" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_delete_article_not_found(admin_client: AsyncClient):
     """Test deleting non-existent article."""
-    response = await auth_client.delete("/api/v1/articles/99999")
+    response = await admin_client.delete("/api/v1/articles/99999")
 
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_delete_article_other_user(auth_client: AsyncClient, session: AsyncSession):
-    """Test deleting other user's article (should fail)."""
-    from datetime import datetime
-
-    other_article = Article(
-        user_id=999,
-        code="OTHER",
-        name="Other Article",
-        type="expense",
-        is_global=False,
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
-    )
-    session.add(other_article)
-    await session.commit()
-    await session.refresh(other_article)
-
-    response = await auth_client.delete(f"/api/v1/articles/{other_article.id}")
-
-    assert response.status_code == 403
-
-
-@pytest.mark.asyncio
-async def test_delete_global_article_as_regular_user(
-    auth_client: AsyncClient, test_global_article: Article
-):
-    """Test deleting global article as regular user (should fail)."""
-    response = await auth_client.delete(f"/api/v1/articles/{test_global_article.id}")
-
-    assert response.status_code == 403
-
-
-@pytest.mark.asyncio
-async def test_delete_global_article_as_admin(
-    admin_client: AsyncClient, test_global_article: Article
-):
-    """Test deleting global article as admin (should succeed)."""
-    response = await admin_client.delete(f"/api/v1/articles/{test_global_article.id}")
-
-    assert response.status_code == 204
-
-
-@pytest.mark.asyncio
 async def test_delete_article_already_deleted(
-    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article
+    admin_client: AsyncClient, session: AsyncSession, test_article_root: Article
 ):
     """Test deleting already deleted article (should fail with 404)."""
     # First delete
-    await auth_client.delete(f"/api/v1/articles/{test_article_root.id}")
+    await admin_client.delete(f"/api/v1/articles/{test_article_root.id}")
 
     # Second delete should fail
-    response = await auth_client.delete(f"/api/v1/articles/{test_article_root.id}")
+    response = await admin_client.delete(f"/api/v1/articles/{test_article_root.id}")
 
     assert response.status_code == 404
 
@@ -819,27 +705,20 @@ async def test_get_article_subtree_not_found(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_get_article_subtree_other_user(auth_client: AsyncClient, session: AsyncSession):
-    """Test getting subtree of other user's article (should fail)."""
-    from datetime import datetime
-
-    other_article = Article(
-        user_id=999,
-        code="OTHER",
-        name="Other Article",
-        type="expense",
-        is_global=False,
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
+async def test_get_article_subtree_all_users_can_access(
+    auth_client: AsyncClient, admin_client: AsyncClient
+):
+    """Test that all users can get subtree of shared articles."""
+    # Admin creates hierarchy
+    root_response = await admin_client.post(
+        "/api/v1/articles",
+        json={"code": "SHARED", "name": "Shared Root", "type": "expense", "parent_id": None},
     )
-    session.add(other_article)
-    await session.commit()
-    await session.refresh(other_article)
+    root_id = root_response.json()["id"]
 
-    response = await auth_client.get(f"/api/v1/articles/{other_article.id}/subtree")
-
-    assert response.status_code == 403
+    # Regular user can get subtree
+    response = await auth_client.get(f"/api/v1/articles/{root_id}/subtree")
+    assert response.status_code == 200
 
 
 @pytest.mark.asyncio
