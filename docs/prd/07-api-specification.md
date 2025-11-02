@@ -286,3 +286,68 @@ curl -X POST http://localhost:8000/api/v1/auth/telegram \
 
 ---
 
+### 7.5 Admin Endpoints
+
+#### GET /api/v1/admin/facts
+
+**Описание:** Получить список всех фактов с расширенной фильтрацией (admin only)
+
+**Query Parameters:**
+
+| Параметр | Тип | Обязательный | Описание |
+|----------|-----|--------------|----------|
+| `user_id` | integer | Нет | Фильтр по пользователю |
+| `article_id` | integer | Нет | Фильтр по категории/статье |
+| `date_from` | string | Нет | Фильтр по дате от (ISO format: YYYY-MM-DD) |
+| `date_to` | string | Нет | Фильтр по дате до (ISO format: YYYY-MM-DD) |
+| `record_type` | string | Нет | Фильтр по типу: "fact", "plan", null (все) |
+| `financial_center_id` | integer | Нет | Фильтр по финансовому центру (ЦФО) |
+| `cost_center_id` | integer | Нет | Фильтр по центру затрат (МВЗ) |
+| `limit` | integer | Нет | Записей на страницу (default: 50, max: 500) |
+| `offset` | integer | Нет | Offset для пагинации (default: 0) |
+
+**Response:**
+
+```json
+[
+  {
+    "id": 1,
+    "user_id": 1,
+    "article_id": 5,
+    "amount": 1500.00,
+    "fact_date": "2025-11-02",
+    "description": "Продукты в Магните",
+    "record_type": "fact",
+    "financial_center_id": 1,
+    "cost_center_id": 2,
+    "user_name": "ivan_ivanov",
+    "article_name": "Продукты",
+    "article_type": "expense",
+    "financial_center_name": "Семейный бюджет",
+    "cost_center_name": "Ежедневные расходы"
+  }
+]
+```
+
+**Добавлено в версии:** 5.0.0-beta (2025-11-02)
+
+---
+
+#### GET /api/v1/admin/facts/count
+
+**Описание:** Получить общее количество фактов с учётом фильтров (admin only)
+
+**Query Parameters:** Те же что и для `/api/v1/admin/facts` (кроме limit/offset)
+
+**Response:**
+
+```json
+{
+  "total": 150
+}
+```
+
+**Добавлено в версии:** 5.0.0-beta (2025-11-02)
+
+---
+

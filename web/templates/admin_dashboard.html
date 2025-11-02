@@ -67,7 +67,7 @@
                     <div class="form-control mb-4">
                         <div class="flex items-center gap-2">
                             <label for="users-days" class="label-text font-semibold">Period:</label>
-                            <select id="users-days" class="select select-bordered select-sm" onchange="updateUsersGrowthDays()">
+                            <select id="users-days" class="select select-bordered" onchange="updateUsersGrowthDays()">
                                 <option value="30">Last 30 days</option>
                                 <option value="90" selected>Last 90 days</option>
                                 <option value="180">Last 180 days</option>
@@ -86,7 +86,7 @@
                     <div class="form-control mb-4">
                         <div class="flex items-center gap-2">
                             <label for="transactions-days" class="label-text font-semibold">Period:</label>
-                            <select id="transactions-days" class="select select-bordered select-sm" onchange="updateTransactionsDays()">
+                            <select id="transactions-days" class="select select-bordered" onchange="updateTransactionsDays()">
                                 <option value="30">Last 30 days</option>
                                 <option value="90" selected>Last 90 days</option>
                                 <option value="180">Last 180 days</option>
@@ -106,7 +106,7 @@
                         <div class="form-control">
                             <div class="flex items-center gap-2">
                                 <label for="top-users-metric" class="label-text font-semibold">Sort by:</label>
-                                <select id="top-users-metric" class="select select-bordered select-sm" onchange="updateTopUsersMetric()">
+                                <select id="top-users-metric" class="select select-bordered" onchange="updateTopUsersMetric()">
                                     <option value="transactions" selected>Transaction Count</option>
                                     <option value="amount">Total Amount</option>
                                 </select>
@@ -115,7 +115,7 @@
                         <div class="form-control">
                             <div class="flex items-center gap-2">
                                 <label for="top-users-limit" class="label-text font-semibold">Show:</label>
-                                <select id="top-users-limit" class="select select-bordered select-sm" onchange="updateTopUsersLimit()">
+                                <select id="top-users-limit" class="select select-bordered" onchange="updateTopUsersLimit()">
                                     <option value="5">Top 5</option>
                                     <option value="10" selected>Top 10</option>
                                     <option value="20">Top 20</option>
@@ -135,7 +135,7 @@
                         <div class="form-control">
                             <div class="flex items-center gap-2">
                                 <label for="categories-type" class="label-text font-semibold">Type:</label>
-                                <select id="categories-type" class="select select-bordered select-sm" onchange="updateCategoriesType()">
+                                <select id="categories-type" class="select select-bordered" onchange="updateCategoriesType()">
                                     <option value="expense" selected>Expense</option>
                                     <option value="income">Income</option>
                                 </select>
@@ -144,7 +144,7 @@
                         <div class="form-control">
                             <div class="flex items-center gap-2">
                                 <label for="categories-limit" class="label-text font-semibold">Show:</label>
-                                <select id="categories-limit" class="select select-bordered select-sm" onchange="updateCategoriesLimit()">
+                                <select id="categories-limit" class="select select-bordered" onchange="updateCategoriesLimit()">
                                     <option value="10">Top 10</option>
                                     <option value="15" selected>Top 15</option>
                                     <option value="20">Top 20</option>

@@ -646,6 +646,8 @@ async def get_all_facts(
     date_from: str | None = Query(None, description="Filter by date from (ISO format)"),
     date_to: str | None = Query(None, description="Filter by date to (ISO format)"),
     record_type: str | None = Query(None, description="Filter by record type (fact or plan)"),
+    financial_center_id: int | None = Query(None, description="Filter by financial center ID"),
+    cost_center_id: int | None = Query(None, description="Filter by cost center ID"),
     limit: int = Query(50, ge=1, le=500, description="Results per page"),
     offset: int = Query(0, ge=0, description="Pagination offset")
 ):
@@ -661,6 +663,9 @@ async def get_all_facts(
         article_id: Filter by specific article
         date_from: Filter by start date
         date_to: Filter by end date
+        record_type: Filter by record type (fact or plan)
+        financial_center_id: Filter by financial center
+        cost_center_id: Filter by cost center
         limit: Number of results per page (max 500)
         offset: Pagination offset
 
@@ -687,6 +692,12 @@ async def get_all_facts(
 
     if record_type is not None:
         query = query.where(Fact.record_type == record_type)
+
+    if financial_center_id is not None:
+        query = query.where(Fact.financial_center_id == financial_center_id)
+
+    if cost_center_id is not None:
+        query = query.where(Fact.cost_center_id == cost_center_id)
 
     if date_from is not None:
         try:
@@ -737,7 +748,9 @@ async def get_facts_count(
     article_id: int | None = Query(None, description="Filter by article ID"),
     date_from: str | None = Query(None, description="Filter by date from (ISO format)"),
     date_to: str | None = Query(None, description="Filter by date to (ISO format)"),
-    record_type: str | None = Query(None, description="Filter by record type (fact or plan)")
+    record_type: str | None = Query(None, description="Filter by record type (fact or plan)"),
+    financial_center_id: int | None = Query(None, description="Filter by financial center ID"),
+    cost_center_id: int | None = Query(None, description="Filter by cost center ID")
 ):
     """
     Get total facts count with filters (admin only).
@@ -751,6 +764,9 @@ async def get_facts_count(
         article_id: Filter by specific article
         date_from: Filter by start date
         date_to: Filter by end date
+        record_type: Filter by record type (fact or plan)
+        financial_center_id: Filter by financial center
+        cost_center_id: Filter by cost center
 
     Returns:
         dict: Total count
@@ -768,6 +784,12 @@ async def get_facts_count(
 
     if record_type is not None:
         query = query.where(Fact.record_type == record_type)
+
+    if financial_center_id is not None:
+        query = query.where(Fact.financial_center_id == financial_center_id)
+
+    if cost_center_id is not None:
+        query = query.where(Fact.cost_center_id == cost_center_id)
 
     if date_from is not None:
         try:

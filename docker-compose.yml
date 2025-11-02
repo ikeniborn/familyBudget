@@ -92,6 +92,12 @@ services:
     environment:
       # Database
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-familybudget}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-familybudget}
+      # Database connection for run_migrations.sh
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-familybudget}
+      DB_USER: ${POSTGRES_USER:-familybudget}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
 
       # Application
       APP_ENV: ${APP_ENV:-production}

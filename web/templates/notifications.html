@@ -22,10 +22,10 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                 <div class="form-control">
                     <label class="label">
-                        <span class="label-text">📋 Тип уведомления</span>
+                        <span class="label-text font-medium">📋 Тип уведомления</span>
                     </label>
-                    <select id="filter-notification-type" class="select select-bordered select-sm" title="Фильтровать по типу уведомления">
-                        <option value="">-- Все типы --</option>
+                    <select id="filter-notification-type" class="select select-bordered w-full" title="Фильтровать по типу уведомления">
+                        <option value="">Все типы</option>
                         <option value="budget_threshold">Порог бюджета (90%)</option>
                         <option value="budget_exceeded">Превышение бюджета</option>
                         <option value="weekly_report">Еженедельный отчет</option>
@@ -33,15 +33,15 @@
                 </div>
                 <div class="form-control">
                     <label class="label">
-                        <span class="label-text">📅 Дата с</span>
+                        <span class="label-text font-medium">📅 Дата с</span>
                     </label>
-                    <input type="text" id="filter-date-from" class="input input-bordered input-sm" placeholder="ДД.ММ.ГГГГ">
+                    <input type="text" id="filter-date-from" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ">
                 </div>
                 <div class="form-control">
                     <label class="label">
-                        <span class="label-text">📅 Дата по</span>
+                        <span class="label-text font-medium">📅 Дата по</span>
                     </label>
-                    <input type="text" id="filter-date-to" class="input input-bordered input-sm" placeholder="ДД.ММ.ГГГГ">
+                    <input type="text" id="filter-date-to" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ">
                 </div>
             </div>
             <div class="flex justify-end">
