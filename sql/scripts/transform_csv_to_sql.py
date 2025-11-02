@@ -20,7 +20,8 @@ from collections import defaultdict
 
 # Configuration
 CSV_FILE = "t_f_registry_t_d_financial_center_t_d_cost_center_t_d_nomenclatu_202511012113.csv"
-OUTPUT_DIR = Path(__file__).parent
+DATA_DIR = Path(__file__).parent.parent / "data"  # Input from data/ directory
+OUTPUT_DIR = Path(__file__).parent.parent / "queries"  # Output to queries/ directory
 USER_ID = 1  # Audit trail user_id for all dimension records
 
 # Income article keywords (rest are expenses)
@@ -279,38 +280,10 @@ def generate_article_children_sql(child_articles: Dict[Tuple[str, str], str], pa
     print(f"✓ Generated: {output_path.name} ({len(child_articles)} records)")
 
 
-def generate_article_hierarchy_sql(child_articles: Dict[Tuple[str, str], str], output_path: Path):
-    """Generate SQL INSERT for Closure Table (t_d_article_hierarchy)"""
-    sql_lines = [
-        "-- ============================================================================",
-        "-- INSERT: t_d_article_hierarchy (Closure Table)",
-        "-- Description: Article hierarchy relationships",
-        "-- Generated: " + datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        "-- ============================================================================\n",
-        "-- Insert hierarchy relationships (ancestor-descendant pairs)",
-        "-- Self-references (depth=0) are auto-created by trigger",
-        "-- Here we only insert parent-child relationships (depth=1)",
-    ]
-
-    hierarchy_count = 0
-    for child_name, parent_name in sorted(child_articles.keys()):
-        if parent_name:
-            sql = (
-                "INSERT INTO t_d_article_hierarchy (ancestor_id, descendant_id, depth) "
-                "VALUES ("
-                f"(SELECT id FROM t_d_article WHERE name = '{escape_sql(parent_name)}' AND is_current = true LIMIT 1), "
-                f"(SELECT id FROM t_d_article WHERE name = '{escape_sql(child_name)}' AND is_current = true LIMIT 1), "
-                "1);"
-            )
-            sql_lines.append(sql)
-            hierarchy_count += 1
-
-    sql_lines.append(f"\n-- Total: {hierarchy_count} parent-child relationships")
-
-    with open(output_path, 'w', encoding='utf-8') as f:
-        f.write('\n'.join(sql_lines))
-
-    print(f"✓ Generated: {output_path.name} ({hierarchy_count} records)")
+# NOTE: generate_article_hierarchy_sql() function REMOVED
+# Hierarchy is maintained automatically by triggers (007_create_article_hierarchy_triggers.sql)
+# No need to generate 05_insert_t_d_article_hierarchy.sql
+# See CLAUDE.md - Closure Table section for details
 
 
 def get_date_range(records: List[Dict]) -> Tuple[datetime, datetime]:
@@ -345,8 +318,8 @@ def generate_partitions_sql(records: List[Dict], output_path: Path):
 
     # Round to start of month
     start_month = min_date.replace(day=1)
-    # Round to end of month + 2 months for safety
-    end_month = add_months(max_date.replace(day=1), 2)
+    # Always generate partitions up to 2030-12-31 for future data
+    end_month = datetime(2031, 1, 1)  # Partitions up to 2030-12-31
 
     sql_lines = [
         "-- ============================================================================",
@@ -354,7 +327,8 @@ def generate_partitions_sql(records: List[Dict], output_path: Path):
         "-- Description: Monthly partitions for budget fact table",
         "-- Generated: " + datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         "-- ============================================================================\n",
-        f"-- Date range: {start_month.strftime('%Y-%m-%d')} to {end_month.strftime('%Y-%m-%d')}",
+        f"-- Data range in CSV: {start_month.strftime('%Y-%m-%d')} to {max_date.strftime('%Y-%m-%d')}",
+        f"-- Partition range: {start_month.strftime('%Y-%m-%d')} to 2030-12-31 (fixed)",
         "-- Creating monthly partitions using RANGE partitioning\n",
     ]
 
@@ -399,7 +373,7 @@ def generate_budget_fact_sql(records: List[Dict], output_path: Path):
         "-- Description: Budget transactions (plan and fact records)",
         "-- Generated: " + datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         "-- ============================================================================\n",
-        "-- IMPORTANT: Run 06_create_partitions_t_f_budget_fact.sql BEFORE this file!",
+        "-- IMPORTANT: Run 05_create_partitions_t_f_budget_fact.sql BEFORE this file!",
         "-- Partitions must exist before inserting data.\n",
         "-- Insert budget facts in batches (COMMIT every 1000 records)",
         "-- record_type: 'fact' for actual transactions, 'plan' for budget\n",
@@ -473,10 +447,11 @@ def main():
     print("=" * 80)
 
     # Paths
-    csv_path = OUTPUT_DIR / CSV_FILE
+    csv_path = DATA_DIR / CSV_FILE
 
     if not csv_path.exists():
         print(f"✗ ERROR: CSV file not found: {csv_path}")
+        print(f"Expected location: {DATA_DIR}")
         return
 
     print(f"\n1. Reading CSV: {CSV_FILE}")
@@ -527,21 +502,22 @@ def main():
         OUTPUT_DIR / "04_insert_t_d_article_children.sql"
     )
 
-    generate_article_hierarchy_sql(
-        dims['child_articles'],
-        OUTPUT_DIR / "05_insert_t_d_article_hierarchy.sql"
-    )
+    # NOTE: 05_insert_t_d_article_hierarchy.sql is NO LONGER GENERATED
+    # Hierarchy is maintained automatically by triggers (007_create_article_hierarchy_triggers.sql)
+    # See CLAUDE.md - Closure Table section for details
 
     # Generate partitions SQL (BEFORE fact inserts!)
+    # Renumbered from 06 to 05 after removing hierarchy file
     generate_partitions_sql(
         records,
-        OUTPUT_DIR / "06_create_partitions_t_f_budget_fact.sql"
+        OUTPUT_DIR / "05_create_partitions_t_f_budget_fact.sql"
     )
 
     # Generate fact SQL
+    # Renumbered from 07 to 06 after removing hierarchy file
     generate_budget_fact_sql(
         records,
-        OUTPUT_DIR / "07_insert_t_f_budget_fact.sql"
+        OUTPUT_DIR / "06_insert_t_f_budget_fact.sql"
     )
 
     print("\n" + "=" * 80)
@@ -552,10 +528,11 @@ def main():
     print("  02_insert_t_d_cost_center.sql")
     print("  03_insert_t_d_article_parents.sql")
     print("  04_insert_t_d_article_children.sql")
-    print("  05_insert_t_d_article_hierarchy.sql")
-    print("  06_create_partitions_t_f_budget_fact.sql  ⚠️ Run BEFORE 07!")
-    print("  07_insert_t_f_budget_fact.sql")
-    print("\n⚠️  IMPORTANT: Execute in order! Partitions (06) must be created before inserting facts (07).")
+    print("  05_create_partitions_t_f_budget_fact.sql  ⚠️ Run BEFORE 06!")
+    print("  06_insert_t_f_budget_fact.sql")
+    print("\n⚠️  IMPORTANT:")
+    print("  - Execute in order! Partitions (05) must be created before inserting facts (06).")
+    print("  - t_d_article_hierarchy is populated AUTOMATICALLY by database triggers (NO file needed)")
 
 
 if __name__ == "__main__":

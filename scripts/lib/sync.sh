@@ -171,6 +171,7 @@ check_code_changes() {
         --exclude='logs/' \
         --exclude='backups/' \
         --exclude='.git/' \
+        --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
         --exclude='node_modules/' \
@@ -204,6 +205,7 @@ sync_mirror() {
         --exclude='logs/' \
         --exclude='backups/' \
         --exclude='.git/' \
+        --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
         --exclude='node_modules/' \
@@ -235,6 +237,7 @@ sync_mirror() {
         --exclude='logs/' \
         --exclude='backups/' \
         --exclude='.git/' \
+        --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
         --exclude='node_modules/' \
@@ -276,6 +279,7 @@ sync_update() {
         --exclude='logs/' \
         --exclude='backups/' \
         --exclude='.git/' \
+        --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
         --exclude='node_modules/' \
@@ -308,6 +312,7 @@ sync_update() {
         --exclude='logs/' \
         --exclude='backups/' \
         --exclude='.git/' \
+        --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
         --exclude='node_modules/' \
@@ -341,6 +346,7 @@ sync_update() {
         ! -path "./data/*" \
         ! -path "./logs/*" \
         ! -path "./backups/*" \
+        ! -path "./sql/*" \
         ! -name "*.pyc" \
         ! -path "./__pycache__/*" \
         ! -path "./node_modules/*" \
@@ -364,6 +370,7 @@ sync_update() {
         ! -path "./data/*" \
         ! -path "./logs/*" \
         ! -path "./backups/*" \
+        ! -path "./sql/*" \
         ! -name "*.pyc" \
         ! -path "./__pycache__/*" \
         ! -path "./node_modules/*" \
@@ -507,6 +514,7 @@ sync_clean() {
         --exclude='data/' \
         --exclude='logs/' \
         --exclude='.git/' \
+        --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
         --exclude='node_modules/' \

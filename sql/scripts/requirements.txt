@@ -1,0 +1,6 @@
+# Python dependencies for execute_sql_parallel.py
+# Install with: pip install -r requirements.txt
+
+asyncpg>=0.29.0      # Async PostgreSQL driver
+python-dotenv>=1.0.0 # Environment variable loading
+rich>=13.7.0         # Rich terminal output and progress bars

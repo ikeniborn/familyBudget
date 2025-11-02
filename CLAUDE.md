@@ -281,10 +281,13 @@ familyBudget/
    - `user_id` используется только для audit trail (кто создал запись)
    - 📖 **Детали:** [api-development skill](/.claude/skills/api-development/SKILL.md)
 
-4. **User Data Isolation** (fact таблицы ТОЛЬКО)
-   - Fact таблицы (`t_f_budget_fact`) фильтруются по `current_user.id`
-   - Транзакции доступны только владельцу
-   - **НЕ применяй** к dimension таблицам (см. пункт 3)
+4. **Shared Family Budget Model** (fact таблицы)
+   - ⚠️ **ИЗМЕНЕНО 2025-11-02:** Fact таблицы (`t_f_budget_fact`) теперь **SHARED**
+   - Все аутентифицированные пользователи видят **ВСЕ транзакции**
+   - Analytics endpoints и CRUD endpoints **БЕЗ user_id фильтрации**
+   - `user_id` сохраняется только для **audit trail** (кто создал запись)
+   - Соответствует принципу "Семейная прозрачность" из ПРД
+   - 📖 **Детали:** См. раздел [Shared Family Budget Model](#shared-family-budget-model) ниже
 
 5. **Telegram OAuth**
    - Аутентификация через Telegram с HMAC-SHA256
@@ -309,10 +312,13 @@ familyBudget/
    stmt = select(Article).where(Article.is_current == True)  # NO user_id filter!
    ```
 
-2. **Fact tables (User Isolation)** - фильтровать по `current_user.id`:
+2. **Fact tables (Shared Family Budget)** - БЕЗ user_id фильтрации:
    ```python
-   # t_f_budget_fact - транзакции принадлежат пользователю
-   stmt = select(BudgetFact).where(BudgetFact.user_id == current_user.id)
+   # t_f_budget_fact - shared family budget (все видят все)
+   stmt = select(BudgetFact)  # NO user_id filter!
+
+   # user_id сохраняется только для audit trail при создании
+   fact = BudgetFact(**data, user_id=current_user.id)
    ```
 
 3. **SCD Type 2** - использовать `SCD2Service` для updates:
@@ -333,7 +339,7 @@ familyBudget/
 ❌ **НИКОГДА не делать:**
 
 1. **Прямой UPDATE** для SCD Type 2 таблиц - ТОЛЬКО через `SCD2Service`
-2. **Пропуск user_id фильтра** - ВСЕГДА проверяй user isolation (КРОМЕ notifications - см. ниже)
+2. **Добавление user_id фильтров к fact таблицам** - Fact tables теперь shared (см. Shared Family Budget Model)
 3. **Хранение JWT в localStorage** - ТОЛЬКО httpOnly cookies
 4. **Прямая работа с Closure Table** - ТОЛЬКО через `HierarchyService`
 
@@ -415,6 +421,120 @@ CREATE TABLE t_notification (
 - Все пользователи видят все уведомления
 - Broadcast модель для shared family budget
 - НЕ применяй `WHERE user_id = current_user.id` к t_notification!
+
+---
+
+## Shared Family Budget Model
+
+⚠️ **АРХИТЕКТУРНОЕ ИЗМЕНЕНИЕ (2025-11-02):** Переход от isolated к shared модели для fact таблиц.
+
+### Концепция
+
+**Семейная прозрачность** - все члены семьи видят общий бюджет:
+
+- Все аутентифицированные пользователи видят **ВСЕ транзакции**
+- Любой пользователь может **создавать, редактировать, удалять** любые транзакции
+- `user_id` сохраняется только для **audit trail** (кто создал/изменил запись)
+- Соответствует принципу "Семейная прозрачность" из ПРД
+
+### Затронутые endpoints
+
+**Analytics endpoints** (`/api/v1/analytics/*`) - БЕЗ user_id фильтрации:
+- `/quick-stats` - быстрая статистика за сегодня и месяц
+- `/quick-stats-html` - HTML версия статистики
+- `/plan-fact` - план vs факт по периодам
+- `/trends` - тренды доходов/расходов
+- `/category-breakdown` - разбивка по категориям
+- `/waterfall` - кумулятивный поток
+- `/heatmap` - тепловая карта расходов
+
+**CRUD endpoints** (`/api/v1/facts/*`) - БЕЗ user_id фильтрации и ownership checks:
+- `GET /facts` - список транзакций (все видят все)
+- `GET /facts/{id}` - получение транзакции (без проверки ownership)
+- `POST /facts` - создание транзакции (`user_id` сохраняется для audit)
+- `PUT /facts/{id}` - обновление транзакции (без проверки ownership)
+- `DELETE /facts/{id}` - удаление транзакции (без проверки ownership)
+- `GET /facts/summary` - агрегированная сводка (все транзакции)
+- `GET /facts/recent-html` - недавние транзакции HTML (все транзакции)
+
+### Примеры кода
+
+**✅ ПРАВИЛЬНО (Shared Family Budget):**
+
+```python
+# Analytics - БЕЗ фильтрации
+query = select(
+    func.sum(Fact.amount).label("total")
+).select_from(Fact).where(
+    # Shared family budget - NO user_id filter
+    Fact.fact_date >= start_date
+).group_by(Article.type)
+
+# CRUD List - БЕЗ фильтрации
+statement = select(BudgetFact)
+# Shared family budget - NO user isolation filter
+# All authenticated users see all transactions
+
+# CRUD Get - БЕЗ ownership check
+fact = await session.get(BudgetFact, fact_id)
+if not fact:
+    raise HTTPException(404)
+# Shared family budget - NO ownership check
+return fact
+
+# CRUD Create - user_id для audit trail
+fact = BudgetFact(
+    **data,
+    user_id=current_user.id,  # Audit trail only
+)
+```
+
+**❌ НЕПРАВИЛЬНО (Старая isolated модель):**
+
+```python
+# ❌ НЕ добавляй user_id фильтры!
+query = select(Fact).where(
+    Fact.user_id == current_user.id  # ❌ WRONG!
+)
+
+# ❌ НЕ используй apply_user_filter!
+statement = apply_user_filter(statement, current_user)  # ❌ WRONG!
+
+# ❌ НЕ проверяй ownership!
+ensure_user_owns_resource(fact.user_id, current_user)  # ❌ WRONG!
+```
+
+### Обоснование
+
+**Из ПРД (Product Requirements Document):**
+- **Принцип:** "Семейная прозрачность - общий бюджет, личные данные"
+- **Target Audience:** Семья из 2-5 человек
+- **Use Case:** Все члены семьи должны видеть общий бюджет
+
+**Consistency с другими компонентами:**
+- ✅ Dimension tables (articles, financial_centers, cost_centers) - уже shared
+- ✅ Notifications - broadcast model (`user_id=NULL`)
+- ✅ Fact tables - теперь тоже shared
+
+### Security implications
+
+✅ **Безопасность сохранена:**
+- Все пользователи **аутентифицированы** (Telegram OAuth + JWT)
+- Доступ только для **членов семьи** (shared family system)
+- `user_id` сохраняется для **audit trail**
+- Admin-only management для dimension tables (не изменено)
+
+### Migration notes
+
+**NO DATABASE CHANGES** - схема БД не изменилась:
+- `user_id` остается в `t_f_budget_fact` (для audit trail)
+- Изменения только в **application logic** (backend endpoints)
+- **Breaking change** в поведении API endpoints
+
+**Что НЕ изменилось:**
+- Database schema - без изменений
+- Authentication/Authorization - без изменений
+- Dimension tables management - admin-only (как раньше)
 
 ---
 

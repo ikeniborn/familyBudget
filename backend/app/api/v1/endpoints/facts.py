@@ -215,8 +215,8 @@ async def list_facts(
         )
     )
 
-    # Apply user isolation (admins see all, users see only theirs)
-    statement = apply_user_filter(statement, current_user, user_id_column=BudgetFact.user_id)
+    # Shared family budget - NO user isolation filter
+    # All authenticated users see all transactions
 
     # Apply filters
     if date_from:
@@ -343,8 +343,8 @@ async def get_recent_facts_html(
     # Base query
     statement = select(BudgetFact)
 
-    # Apply user isolation
-    statement = apply_user_filter(statement, current_user, user_id_column="user_id")
+    # Shared family budget - NO user isolation filter
+    # All authenticated users see all transactions
 
     # Order by most recent and limit
     statement = statement.order_by(BudgetFact.fact_date.desc(), BudgetFact.id.desc())
@@ -457,9 +457,9 @@ async def get_facts_summary(
     **Returns:**
     - 200 OK: Summary with income/expense totals and balance
     """
-    # Base query with user isolation
+    # Base query
+    # Shared family budget - NO user isolation filter
     statement = select(BudgetFact)
-    statement = apply_user_filter(statement, current_user, user_id_column="user_id")
 
     # Apply date filters
     if date_from:
@@ -545,8 +545,8 @@ async def get_fact(
             detail=f"Fact with id={fact_id} not found"
         )
 
-    # Check access
-    ensure_user_owns_resource(fact.user_id, current_user)
+    # Shared family budget - NO ownership check
+    # All authenticated users can access any transaction
 
     return fact
 
@@ -602,8 +602,8 @@ async def update_fact(
             detail=f"Fact with id={fact_id} not found"
         )
 
-    # Check ownership
-    ensure_user_owns_resource(fact.user_id, current_user)
+    # Shared family budget - NO ownership check
+    # All authenticated users can update any transaction
 
     # Validate article_id if changed
     if "article_id" in update_data:
@@ -676,8 +676,8 @@ async def delete_fact(
             detail=f"Fact with id={fact_id} not found"
         )
 
-    # Check ownership
-    ensure_user_owns_resource(fact.user_id, current_user)
+    # Shared family budget - NO ownership check
+    # All authenticated users can delete any transaction
 
     # Hard delete
     await session.delete(fact)
