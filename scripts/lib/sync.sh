@@ -61,6 +61,14 @@ detect_repository_dir() {
         return 0
     fi
 
+    # Option 3b: ~/Documents/Project/familyBudget (alternative location)
+    if [[ -d "$HOME/Documents/Project/familyBudget/.git" && -f "$HOME/Documents/Project/familyBudget/docker-compose.yml" ]]; then
+        detected_dir="$HOME/Documents/Project/familyBudget"
+        info "Repository detected at: $detected_dir" >&2
+        echo "$detected_dir"
+        return 0
+    fi
+
     # Option 4: SCRIPT_DIR == DEPLOY_DIR (running from /opt/budget)
     if [[ "$SCRIPT_DIR" == "$DEPLOY_DIR" ]]; then
         warning "deploy.sh running from deployment directory ($DEPLOY_DIR)" >&2
@@ -114,6 +122,7 @@ detect_repository_dir() {
     echo "Checked locations:" >&2
     echo "  - Current directory: $SCRIPT_DIR" >&2
     echo "  - Home directory: ~/familyBudget" >&2
+    echo "  - Alternative location: ~/Documents/Project/familyBudget" >&2
     echo "" >&2
     echo "Options:" >&2
     echo "  [1] Enter repository path manually" >&2
