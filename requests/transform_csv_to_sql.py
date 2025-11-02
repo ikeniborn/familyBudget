@@ -65,7 +65,9 @@ def parse_csv(csv_path: Path) -> Tuple[List[Dict], Dict]:
         'total_rows': 0,
         'valid_rows': 0,
         'invalid_rows': 0,
-        'skipped_rows': []
+        'skipped_rows': [],
+        'zero_amount_skipped': 0,
+        'empty_names_skipped': 0
     }
 
     with open(csv_path, 'r', encoding='utf-8') as f:
@@ -92,15 +94,37 @@ def parse_csv(csv_path: Path) -> Tuple[List[Dict], Dict]:
                 if not is_valid_date(operation_date):
                     operation_date = period_dt
 
+                # Parse amount
+                amount_str = row['cost_sum'].replace(',', '.')
+                amount = float(amount_str)
+
+                # Skip records with zero amount (violates CHECK constraint)
+                if amount == 0.0:
+                    stats['zero_amount_skipped'] += 1
+                    stats['skipped_rows'].append(f"Row {idx}: Zero amount (technical record)")
+                    continue
+
+                # Get names
+                financial_center = row['financial_center_name'].strip()
+                cost_center = row['cost_center_name'].strip()
+                nomenclature = row['nomenclature_name'].strip()
+                account = row['account_name'].strip()
+
+                # Skip records with empty critical names
+                if not nomenclature or not financial_center or not cost_center:
+                    stats['empty_names_skipped'] += 1
+                    stats['skipped_rows'].append(f"Row {idx}: Empty critical field(s)")
+                    continue
+
                 record = {
                     'operation_date': operation_date,
                     'period_dt': period_dt,
-                    'financial_center': row['financial_center_name'].strip(),
-                    'cost_center': row['cost_center_name'].strip(),
-                    'nomenclature': row['nomenclature_name'].strip(),
-                    'account': row['account_name'].strip(),
+                    'financial_center': financial_center,
+                    'cost_center': cost_center,
+                    'nomenclature': nomenclature,
+                    'account': account,
                     'row_type': row['row_type_name'].strip(),  # Факт или Бюджет
-                    'amount': float(row['cost_sum'].replace(',', '.')),
+                    'amount': amount,
                     'comment': row.get('comment_description', '').strip()
                 }
 
@@ -435,7 +459,9 @@ def main():
 
     print(f"   Total rows: {stats['total_rows']}")
     print(f"   Valid rows: {stats['valid_rows']}")
-    print(f"   Invalid rows: {stats['invalid_rows']}")
+    print(f"   Skipped - Zero amount: {stats['zero_amount_skipped']}")
+    print(f"   Skipped - Empty names: {stats['empty_names_skipped']}")
+    print(f"   Skipped - Other errors: {stats['invalid_rows']}")
 
     if stats['skipped_rows']:
         print("\n   Skipped rows details:")

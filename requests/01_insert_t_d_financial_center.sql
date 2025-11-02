@@ -1,7 +1,7 @@
 -- ============================================================================
 -- INSERT: t_d_financial_center
 -- Description: Financial centers (ЦФО) dimension
--- Generated: 2025-11-02 11:33:38
+-- Generated: 2025-11-02 11:50:50
 -- ============================================================================
 
 -- Insert financial centers (shared across all users)
