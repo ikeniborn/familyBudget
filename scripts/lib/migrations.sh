@@ -119,12 +119,35 @@ run_migrations() {
 
 # Apply SQL migrations directly to database
 # Alternative to Alembic for direct SQL migration files
+# This is a fallback method when run_migrations.sh fails
+# Creates schema_migrations table and tracks applied migrations
 apply_migrations_directly() {
     local migration_dir="$DEPLOY_DIR/backend/db/migrations"
     local applied=0
     local failed=0
+    local skipped=0
 
     info "Applying SQL migrations from: $migration_dir"
+
+    # Create migration tracking table if it doesn't exist
+    info "Creating migration tracking table..."
+    if compose_cmd exec -T postgres psql -U familybudget familybudget >> "$LOG_FILE" 2>&1 <<'EOF'
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    id SERIAL PRIMARY KEY,
+    migration_file VARCHAR(255) NOT NULL UNIQUE,
+    applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    execution_time_ms INT,
+    checksum VARCHAR(64)
+);
+
+CREATE INDEX IF NOT EXISTS idx_schema_migrations_file
+    ON schema_migrations(migration_file);
+EOF
+    then
+        info "Migration tracking table ready"
+    else
+        warning "Failed to create schema_migrations table, continuing anyway..."
+    fi
 
     # Apply migrations in order (001, 002, 003, ...)
     for migration_file in $(ls "$migration_dir"/*.sql 2>/dev/null | sort); do
@@ -135,12 +158,34 @@ apply_migrations_directly() {
             continue
         fi
 
+        # Check if migration was already applied
+        local already_applied=$(compose_cmd exec -T postgres psql -U familybudget familybudget -t -c \
+            "SELECT COUNT(*) FROM schema_migrations WHERE migration_file = '$filename';" 2>/dev/null | tr -d ' ')
+
+        if [[ "$already_applied" == "1" ]]; then
+            info "Skipping migration: $filename (already applied)"
+            skipped=$((skipped + 1))
+            echo "  ⊘ $filename (skipped)" >> "$LOG_FILE"
+            continue
+        fi
+
         info "Applying migration: $filename"
 
         # Apply migration (CREATE TABLE IF NOT EXISTS ensures idempotency)
+        local start_time=$(date +%s%3N)
         if compose_cmd exec -T postgres psql -U familybudget familybudget < "$migration_file" >> "$LOG_FILE" 2>&1; then
+            local end_time=$(date +%s%3N)
+            local execution_time=$((end_time - start_time))
+
+            # Record migration in tracking table
+            compose_cmd exec -T postgres psql -U familybudget familybudget >> "$LOG_FILE" 2>&1 <<EOF
+INSERT INTO schema_migrations (migration_file, execution_time_ms)
+VALUES ('$filename', $execution_time)
+ON CONFLICT (migration_file) DO NOTHING;
+EOF
+
             applied=$((applied + 1))
-            echo "  ✓ $filename" >> "$LOG_FILE"
+            echo "  ✓ $filename (${execution_time}ms)" >> "$LOG_FILE"
         else
             failed=$((failed + 1))
             warning "Failed to apply: $filename (may already be applied)"
@@ -148,7 +193,7 @@ apply_migrations_directly() {
         fi
     done
 
-    info "Migrations applied: $applied, failed: $failed"
+    info "Migrations: $applied applied, $skipped skipped, $failed failed"
 
     if [[ $failed -gt 0 ]]; then
         warning "Some migrations failed (this is OK if they were already applied)"
@@ -221,6 +266,33 @@ run_bootstrap_script() {
         warning "    docker exec familybudget-backend bash -c 'cd /app && PYTHONPATH=/app python backend/db/create_first_admin.py'"
         echo ""
         return 0
+    fi
+
+    # Smart check: Skip if PostgreSQL wasn't restarted and admin already exists
+    if [[ "${POSTGRES_WAS_STOPPED}" == "false" ]]; then
+        info "PostgreSQL was not restarted - checking if admin already exists..."
+
+        # Check if t_d_user table exists first
+        local table_exists=$(compose_cmd exec -T postgres psql -U familybudget familybudget -t -c \
+            "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 't_d_user');" 2>/dev/null | tr -d ' ')
+
+        if [[ "$table_exists" == "t" ]]; then
+            # Check if admin user already exists
+            local admin_exists=$(compose_cmd exec -T postgres psql -U familybudget familybudget -t -c \
+                "SELECT EXISTS (SELECT 1 FROM t_d_user WHERE telegram_id = ${ADMIN_TELEGRAM_ID} AND is_current = true);" \
+                2>/dev/null | tr -d ' ')
+
+            if [[ "$admin_exists" == "t" ]]; then
+                info "Skipping bootstrap (admin user already exists, PostgreSQL was not restarted)"
+                info "Admin Telegram ID: ${ADMIN_TELEGRAM_ID}"
+                echo ""
+                return 0
+            else
+                info "Admin user not found - proceeding with bootstrap..."
+            fi
+        else
+            warning "t_d_user table not found - proceeding with bootstrap..."
+        fi
     fi
 
     info "Running bootstrap script (idempotent)..."
