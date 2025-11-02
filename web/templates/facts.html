@@ -85,6 +85,16 @@
                         <!-- Populated dynamically -->
                     </select>
                 </div>
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">📊 Тип записи</span>
+                    </label>
+                    <select id="filter-record-type" class="select select-bordered select-sm" title="Фильтровать по типу записи">
+                        <option value="">-- Все --</option>
+                        <option value="fact" selected>Факт</option>
+                        <option value="plan">План</option>
+                    </select>
+                </div>
             </div>
             <div class="flex justify-end">
                 <button class="btn btn-primary btn-sm" onclick="applyFilters()">Применить фильтры</button>
@@ -444,6 +454,7 @@ function applyFilters() {
     filters.date_to = document.getElementById('filter-date-to').value || null;
     filters.financial_center_id = document.getElementById('filter-financial-center').value || null;
     filters.cost_center_id = document.getElementById('filter-cost-center').value || null;
+    filters.record_type = document.getElementById('filter-record-type').value || null;
 
     currentPage = 0;
     loadFacts();
@@ -458,12 +469,18 @@ function resetFilters() {
     document.getElementById('filter-article').value = '';
     document.getElementById('filter-date-from').value = '';
     document.getElementById('filter-date-to').value = '';
+    document.getElementById('filter-financial-center').value = '';
+    document.getElementById('filter-cost-center').value = '';
+    document.getElementById('filter-record-type').value = 'fact'; // Default to facts
 
     filters = {
         user_id: null,
         article_id: null,
         date_from: null,
-        date_to: null
+        date_to: null,
+        financial_center_id: null,
+        cost_center_id: null,
+        record_type: 'fact' // Default to facts
     };
 
     currentPage = 0;
@@ -486,7 +503,9 @@ async function loadFacts() {
         if (filters.article_id) params.append('article_id', filters.article_id);
         if (filters.date_from) params.append('date_from', filters.date_from);
         if (filters.date_to) params.append('date_to', filters.date_to);
-        params.append('record_type', 'fact');  // Filter only facts (not plans)
+        if (filters.financial_center_id) params.append('financial_center_id', filters.financial_center_id);
+        if (filters.cost_center_id) params.append('cost_center_id', filters.cost_center_id);
+        if (filters.record_type) params.append('record_type', filters.record_type);  // Filter by record type (fact/plan/all)
 
         // Load facts and count in parallel
         const [factsResponse, countResponse] = await Promise.all([

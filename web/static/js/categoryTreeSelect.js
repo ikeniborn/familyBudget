@@ -25,9 +25,9 @@ class CategoryTreeSelect {
       showEmptyOption: true,
       filterType: null, // null, 'income', 'expense'
       selectedId: null,
-      indentChar: '›  ', // Символ для отступа (видимый)
-      parentPrefix: '📁', // Иконка для родителя
-      leafPrefix: '📄', // Иконка для листа
+      indentChar: '  ⤷  ', // Символ для отступа (более явный визуальный индикатор)
+      parentPrefix: '📂', // Иконка для родителя (папка)
+      leafPrefix: '  ▸', // Иконка для листа (стрелка для дочерних элементов)
       ...options
     };
 
@@ -117,8 +117,11 @@ class CategoryTreeSelect {
       // Disable родительские категории
       if (!node.isLeaf) {
         option.disabled = true;
-        option.style.color = 'var(--tg-theme-hint-color)';
-        option.style.fontStyle = 'italic';
+        option.classList.add('category-parent');
+        option.style.fontWeight = 'bold';
+        option.style.opacity = '0.7';
+      } else {
+        option.classList.add('category-leaf');
       }
 
       // Выбрать если указано

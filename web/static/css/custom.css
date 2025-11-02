@@ -92,3 +92,48 @@
 [data-theme="dark"] #chart-heatmap {
     color: var(--chart-text);
 }
+
+/* Fix for select dropdowns text truncation */
+.select {
+    min-width: 0; /* Prevent grid overflow */
+    overflow: visible; /* Show full text */
+}
+
+.select option {
+    white-space: normal; /* Allow text wrapping in options */
+    padding: 0.5rem; /* Better spacing */
+}
+
+/* Ensure filter selects have enough space */
+#filter-financial-center,
+#filter-cost-center,
+#filter-user,
+#filter-article {
+    min-width: 150px; /* Minimum width to prevent truncation */
+}
+
+/* Hierarchical category select styling */
+.category-parent {
+    font-weight: bold !important;
+    font-style: italic;
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .category-parent {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.category-leaf {
+    padding-left: 1rem;
+}
+
+/* Better visual hierarchy for select options */
+select option.category-parent {
+    color: var(--tw-text-opacity, 1);
+    opacity: 0.7;
+}
+
+select option.category-leaf {
+    color: inherit;
+    padding-left: 0.5rem;
+}
