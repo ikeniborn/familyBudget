@@ -301,6 +301,37 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         await createFact(e);
     });
+
+    // Инициализация CalendarWidget для фильтров дат (Range Picker)
+    new CalendarWidget({
+        mode: 'range',
+        startInputElement: document.getElementById('filter-date-from'),
+        endInputElement: document.getElementById('filter-date-to'),
+        onSelect: (startDate, endDate) => {
+            console.log('Выбран диапазон дат:', startDate, endDate);
+        }
+    });
+
+    // Инициализация CalendarWidget для edit modal (Single Date Picker)
+    new CalendarWidget({
+        mode: 'single',
+        inputElement: document.getElementById('edit-date'),
+        onSelect: (date) => {
+            console.log('Выбрана дата для edit modal:', date);
+        }
+    });
+
+    // Инициализация CalendarWidget для create modal (Single Date Picker)
+    const createDateInput = document.querySelector('#form_create_modal input[name="fact_date"]');
+    if (createDateInput) {
+        new CalendarWidget({
+            mode: 'single',
+            inputElement: createDateInput,
+            onSelect: (date) => {
+                console.log('Выбрана дата для create modal:', date);
+            }
+        });
+    }
 });
 
 // Load users for filter dropdown

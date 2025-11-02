@@ -290,6 +290,16 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         await createPlan(e);
     });
+
+    // Инициализация CalendarWidget для фильтров дат (Range Picker)
+    new CalendarWidget({
+        mode: 'range',
+        startInputElement: document.getElementById('filter-date-from'),
+        endInputElement: document.getElementById('filter-date-to'),
+        onSelect: (startDate, endDate) => {
+            console.log('Выбран диапазон дат для плана:', startDate, endDate);
+        }
+    });
 });
 
 // Load users for filter dropdown

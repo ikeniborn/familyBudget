@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="/webapp/static/css/telegram-theme.css">
     <link rel="stylesheet" href="/webapp/static/css/app.css">
     <link rel="stylesheet" href="/webapp/static/css/forms.css">
+    <link rel="stylesheet" href="/webapp/static/css/calendar-widget.css">
 
     <style>
         /* Edit transaction specific styles */
@@ -301,6 +302,7 @@
     <script src="/webapp/static/js/auth.js"></script>
     <script src="/webapp/static/js/api.js"></script>
     <script src="/webapp/static/js/dateFormatter.js"></script>
+    <script src="/webapp/static/js/calendar-widget.js"></script>
     <script src="/webapp/static/js/categoryTreeSelect.js"></script>
     <script src="/webapp/static/js/app.js"></script>
 
@@ -347,6 +349,21 @@
             setupDescriptionCounter();
             setupDateInput();
             setupQuickDateButtons();
+
+            // Setup CalendarWidget (Single Date Picker)
+            const dateInput = document.getElementById('fact-date');
+            if (dateInput) {
+                new CalendarWidget({
+                    mode: 'single',
+                    inputElement: dateInput,
+                    onSelect: (date) => {
+                        // date уже в формате DD.MM.YYYY
+                        formState.factDate = DateFormatter.formatForAPI(date);
+                        // Trigger input event для валидации
+                        dateInput.dispatchEvent(new Event('input'));
+                    }
+                });
+            }
 
             // Load categories
             await loadCategories();
