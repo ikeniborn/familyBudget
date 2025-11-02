@@ -372,3 +372,50 @@ alembic upgrade head
 
 ---
 
+#### Shared Family Budget Model (2025-11-02) - Remove user isolation from fact tables
+
+**Changes:**
+- **Analytics endpoints** (`/api/v1/analytics/*`) do NOT filter by `user_id`:
+  - `/quick-stats` - all users see combined statistics
+  - `/quick-stats-html` - HTML statistics for all transactions
+  - `/plan-fact` - plan vs fact for all users
+  - `/trends` - trends for all users
+  - `/category-breakdown` - category breakdown for all users
+  - `/waterfall` - waterfall chart for all users
+  - `/heatmap` - heatmap for all users
+
+- **CRUD endpoints** (`/api/v1/facts/*`) do NOT filter by `user_id` and do NOT check ownership:
+  - `GET /facts` - all users see all transactions (removed `apply_user_filter`)
+  - `GET /facts/{id}` - all users can access any transaction (removed `ensure_user_owns_resource`)
+  - `PUT /facts/{id}` - all users can update any transaction (removed `ensure_user_owns_resource`)
+  - `DELETE /facts/{id}` - all users can delete any transaction (removed `ensure_user_owns_resource`)
+  - `GET /facts/summary` - summary for all transactions (removed `apply_user_filter`)
+  - `GET /facts/recent-html` - recent transactions HTML for all users (removed `apply_user_filter`)
+  - `POST /facts` - **`user_id` still saved** for audit trail (unchanged)
+
+**Rationale:**
+- **Aligns with "Семейная прозрачность" principle** from PRD Product Overview
+- **Family budget use case:** All family members should see the combined budget
+- **Consistency:** Matches notifications (broadcast model) and dimension tables (shared references)
+- **Target audience:** Family of 2-5 people sharing a common budget
+- **Security:** All users are authenticated (Telegram OAuth + JWT), access limited to family members
+
+**Architecture implications:**
+- **Breaking change:** Fact tables now use **Shared Model** instead of **User Isolation Model**
+- **`user_id` field remains** in `t_f_budget_fact` for **audit trail** (who created/modified record)
+- **NO database schema changes** - only application logic changes in backend endpoints
+- **Authentication unchanged** - all users must be authenticated to access data
+
+**Files modified:**
+- `backend/app/api/v1/analytics.py` - removed `Fact.user_id == current_user.id` filters (9 places)
+- `backend/app/api/v1/endpoints/facts.py` - removed `apply_user_filter` and `ensure_user_owns_resource` calls (6 places)
+- `CLAUDE.md` - updated architectural documentation, added "Shared Family Budget Model" section
+- `docs/prd/06-database-design.md` - this changelog entry
+
+**Testing notes:**
+- All authenticated users should see all transactions in analytics and CRUD endpoints
+- `user_id` should still be saved when creating transactions
+- No authorization errors when accessing/modifying any transaction
+
+---
+

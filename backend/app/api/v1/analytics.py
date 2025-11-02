@@ -33,11 +33,11 @@ async def get_quick_stats(
     month_start = date(today.year, today.month, 1)
 
     # Today's stats
+    # Shared family budget - NO user_id filter
     today_query = select(
         Article.type.label("type"),
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-        Fact.user_id == current_user.id,
         Fact.fact_date == today,
         Article.is_current == True  # noqa: E712
     ).group_by(Article.type)
@@ -46,11 +46,11 @@ async def get_quick_stats(
     today_data = {row.type: float(row.total) for row in today_result.all()}
 
     # This month's stats
+    # Shared family budget - NO user_id filter
     month_query = select(
         Article.type.label("type"),
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-        Fact.user_id == current_user.id,
         Fact.fact_date >= month_start,
         Fact.fact_date <= today,
         Article.is_current == True  # noqa: E712
@@ -88,11 +88,11 @@ async def get_quick_stats_html(
     month_start = date(today.year, today.month, 1)
 
     # Today's stats
+    # Shared family budget - NO user_id filter
     today_query = select(
         Article.type.label("type"),
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-        Fact.user_id == current_user.id,
         Fact.fact_date == today,
         Article.is_current == True  # noqa: E712
     ).group_by(Article.type)
@@ -101,11 +101,11 @@ async def get_quick_stats_html(
     today_data = {row.type: float(row.total) for row in today_result.all()}
 
     # This month's stats
+    # Shared family budget - NO user_id filter
     month_query = select(
         Article.type.label("type"),
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-        Fact.user_id == current_user.id,
         Fact.fact_date >= month_start,
         Fact.fact_date <= today,
         Article.is_current == True  # noqa: E712
@@ -202,11 +202,11 @@ async def get_plan_fact_data(
         date_format = "%b"  # Jan, Feb, ...
 
     # Query facts grouped by date
+    # Shared family budget - NO user_id filter
     query = select(
         Fact.fact_date,
         func.sum(Fact.amount).label("total")
     ).where(
-        Fact.user_id == current_user.id,
         Fact.fact_date >= start_date,
         Fact.fact_date <= today
     ).group_by(Fact.fact_date).order_by(Fact.fact_date)
@@ -281,12 +281,12 @@ async def get_trends_data(
     start_date = end_date - timedelta(days=days)
 
     # Query daily income and expense
+    # Shared family budget - NO user_id filter
     query = select(
         Fact.fact_date,
         Article.type,
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-        Fact.user_id == current_user.id,
         Fact.fact_date >= start_date,
         Fact.fact_date <= end_date,
         Article.is_current == True  # noqa: E712
@@ -353,11 +353,11 @@ async def get_category_breakdown(
         start_date = date(2000, 1, 1)  # Far past
 
     # Query category breakdown
+    # Shared family budget - NO user_id filter
     query = select(
         Article.name,
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-        Fact.user_id == current_user.id,
         Article.type == type,
         Fact.fact_date >= start_date,
         Fact.fact_date <= today,
@@ -428,6 +428,7 @@ async def get_waterfall_data(
         label_format = "month"
 
     # Build base query
+    # Shared family budget - NO user_id filter
     query = select(
         group_by_expr.label("period_key"),
         Article.type,
@@ -435,7 +436,6 @@ async def get_waterfall_data(
         Article.name.label("article_name"),
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-        Fact.user_id == current_user.id,
         Fact.fact_date >= start_date,
         Fact.fact_date <= today,
         Article.is_current == True  # noqa: E712
@@ -595,11 +595,11 @@ async def get_heatmap_data(
         weeks_to_show = 52
 
     # Query all facts
+    # Shared family budget - NO user_id filter
     query = select(
         Fact.fact_date,
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-        Fact.user_id == current_user.id,
         Article.type == "expense",
         Fact.fact_date >= start_date,
         Fact.fact_date <= end_date,
