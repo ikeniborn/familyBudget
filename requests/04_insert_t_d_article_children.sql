@@ -1,7 +1,7 @@
 -- ============================================================================
 -- INSERT: t_d_article (Child articles)
 -- Description: Child category articles from nomenclature_name
--- Generated: 2025-11-02 09:08:51
+-- Generated: 2025-11-02 11:33:38
 -- ============================================================================
 
 -- Insert child articles (referencing parent via parent_id)

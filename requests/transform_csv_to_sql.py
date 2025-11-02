@@ -12,7 +12,7 @@ Date: 2025-11-02
 
 import csv
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
 from collections import defaultdict
@@ -289,6 +289,82 @@ def generate_article_hierarchy_sql(child_articles: Dict[Tuple[str, str], str], o
     print(f"✓ Generated: {output_path.name} ({hierarchy_count} records)")
 
 
+def get_date_range(records: List[Dict]) -> Tuple[datetime, datetime]:
+    """Extract min and max dates from records"""
+    dates = []
+    for record in records:
+        try:
+            date_obj = datetime.strptime(record['operation_date'], '%Y-%m-%d')
+            dates.append(date_obj)
+        except (ValueError, KeyError):
+            pass
+
+    if not dates:
+        # Default range if no valid dates
+        return datetime(2023, 1, 1), datetime(2025, 12, 31)
+
+    return min(dates), max(dates)
+
+
+def add_months(date: datetime, months: int) -> datetime:
+    """Add months to a date (handles month overflow correctly)"""
+    month = date.month - 1 + months
+    year = date.year + month // 12
+    month = month % 12 + 1
+    day = min(date.day, [31, 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month-1])
+    return date.replace(year=year, month=month, day=day)
+
+
+def generate_partitions_sql(records: List[Dict], output_path: Path):
+    """Generate SQL for creating monthly partitions for t_f_budget_fact"""
+    min_date, max_date = get_date_range(records)
+
+    # Round to start of month
+    start_month = min_date.replace(day=1)
+    # Round to end of month + 2 months for safety
+    end_month = add_months(max_date.replace(day=1), 2)
+
+    sql_lines = [
+        "-- ============================================================================",
+        "-- CREATE PARTITIONS: t_f_budget_fact",
+        "-- Description: Monthly partitions for budget fact table",
+        "-- Generated: " + datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "-- ============================================================================\n",
+        f"-- Date range: {start_month.strftime('%Y-%m-%d')} to {end_month.strftime('%Y-%m-%d')}",
+        "-- Creating monthly partitions using RANGE partitioning\n",
+    ]
+
+    # Generate partition for each month
+    current_month = start_month
+    partition_count = 0
+
+    while current_month < end_month:
+        next_month = add_months(current_month, 1)
+
+        partition_name = f"t_f_budget_fact_{current_month.strftime('%Y_%m')}"
+        from_date = current_month.strftime('%Y-%m-%d')
+        to_date = next_month.strftime('%Y-%m-%d')
+
+        sql = (
+            f"CREATE TABLE IF NOT EXISTS {partition_name} "
+            f"PARTITION OF t_f_budget_fact "
+            f"FOR VALUES FROM ('{from_date}') TO ('{to_date}');"
+        )
+        sql_lines.append(sql)
+
+        current_month = next_month
+        partition_count += 1
+
+    sql_lines.append(f"\n-- Total: {partition_count} monthly partitions created")
+    sql_lines.append("\n-- Verify partitions:")
+    sql_lines.append("-- SELECT tablename FROM pg_tables WHERE tablename LIKE 't_f_budget_fact_%' ORDER BY tablename;")
+
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(sql_lines))
+
+    print(f"✓ Generated: {output_path.name} ({partition_count} partitions)")
+
+
 def generate_budget_fact_sql(records: List[Dict], output_path: Path):
     """Generate SQL INSERT for t_f_budget_fact"""
     sql_lines = [
@@ -297,6 +373,8 @@ def generate_budget_fact_sql(records: List[Dict], output_path: Path):
         "-- Description: Budget transactions (plan and fact records)",
         "-- Generated: " + datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         "-- ============================================================================\n",
+        "-- IMPORTANT: Run 06_create_partitions_t_f_budget_fact.sql BEFORE this file!",
+        "-- Partitions must exist before inserting data.\n",
         "-- Insert budget facts",
         "-- record_type: 'fact' for actual transactions, 'plan' for budget",
     ]
@@ -403,10 +481,16 @@ def main():
         OUTPUT_DIR / "05_insert_t_d_article_hierarchy.sql"
     )
 
+    # Generate partitions SQL (BEFORE fact inserts!)
+    generate_partitions_sql(
+        records,
+        OUTPUT_DIR / "06_create_partitions_t_f_budget_fact.sql"
+    )
+
     # Generate fact SQL
     generate_budget_fact_sql(
         records,
-        OUTPUT_DIR / "06_insert_t_f_budget_fact.sql"
+        OUTPUT_DIR / "07_insert_t_f_budget_fact.sql"
     )
 
     print("\n" + "=" * 80)
@@ -418,7 +502,9 @@ def main():
     print("  03_insert_t_d_article_parents.sql")
     print("  04_insert_t_d_article_children.sql")
     print("  05_insert_t_d_article_hierarchy.sql")
-    print("  06_insert_t_f_budget_fact.sql")
+    print("  06_create_partitions_t_f_budget_fact.sql  ⚠️ Run BEFORE 07!")
+    print("  07_insert_t_f_budget_fact.sql")
+    print("\n⚠️  IMPORTANT: Execute in order! Partitions (06) must be created before inserting facts (07).")
 
 
 if __name__ == "__main__":
