@@ -37,51 +37,51 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                 <div class="form-control">
                     <label class="label">
-                        <span class="label-text">👤 Пользователь</span>
+                        <span class="label-text font-medium">👤 Пользователь</span>
                     </label>
-                    <select id="filter-user" class="select select-bordered select-sm" title="Фильтровать плановые записи по пользователю">
-                        <option value="">-- Все пользователи --</option>
+                    <select id="filter-user" class="select select-bordered w-full" title="Фильтровать плановые записи по пользователю">
+                        <option value="">Все пользователи</option>
                         <!-- Populated dynamically -->
                     </select>
                 </div>
                 <div class="form-control">
                     <label class="label">
-                        <span class="label-text">📁 Категория</span>
+                        <span class="label-text font-medium">📁 Категория</span>
                     </label>
-                    <select id="filter-article" class="select select-bordered select-sm" title="Фильтровать плановые записи по категории">
-                        <option value="">-- Все категории --</option>
+                    <select id="filter-article" class="select select-bordered w-full" title="Фильтровать плановые записи по категории">
+                        <option value="">Все категории</option>
                         <!-- Populated dynamically -->
                     </select>
                 </div>
                 <div class="form-control">
                     <label class="label">
-                        <span class="label-text">📅 Дата с</span>
+                        <span class="label-text font-medium">📅 Дата с</span>
                     </label>
-                    <input type="text" id="filter-date-from" class="input input-bordered input-sm" placeholder="ДД.ММ.ГГГГ">
+                    <input type="text" id="filter-date-from" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ">
                 </div>
                 <div class="form-control">
                     <label class="label">
-                        <span class="label-text">📅 Дата по</span>
+                        <span class="label-text font-medium">📅 Дата по</span>
                     </label>
-                    <input type="text" id="filter-date-to" class="input input-bordered input-sm" placeholder="ДД.ММ.ГГГГ">
+                    <input type="text" id="filter-date-to" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ">
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                 <div class="form-control">
                     <label class="label">
-                        <span class="label-text">🏦 Финансовый центр</span>
+                        <span class="label-text font-medium">🏦 Финансовый центр</span>
                     </label>
-                    <select id="filter-financial-center" class="select select-bordered select-sm" title="Фильтровать транзакции по ЦФО">
-                        <option value="">-- Все ЦФО --</option>
+                    <select id="filter-financial-center" class="select select-bordered w-full" title="Фильтровать транзакции по ЦФО">
+                        <option value="">Все ЦФО</option>
                         <!-- Populated dynamically -->
                     </select>
                 </div>
                 <div class="form-control">
                     <label class="label">
-                        <span class="label-text">💼 Центр затрат</span>
+                        <span class="label-text font-medium">💼 Центр затрат</span>
                     </label>
-                    <select id="filter-cost-center" class="select select-bordered select-sm" title="Фильтровать транзакции по МВЗ">
-                        <option value="">-- Все МВЗ --</option>
+                    <select id="filter-cost-center" class="select select-bordered w-full" title="Фильтровать транзакции по МВЗ">
+                        <option value="">Все МВЗ</option>
                         <!-- Populated dynamically -->
                     </select>
                 </div>
@@ -206,6 +206,42 @@
 </dialog>
 {% endblock %}
 
+{% block extra_styles %}
+<style>
+/* Улучшенное отображение select элементов */
+.select {
+    min-height: 3rem;
+    line-height: 1.5;
+}
+
+.select option {
+    padding: 0.5rem;
+    line-height: 1.5;
+}
+
+/* Стили для категорий в иерархическом select */
+.category-parent {
+    font-weight: 600;
+    background-color: hsl(var(--b2));
+}
+
+.category-leaf {
+    padding-left: 0.5rem;
+}
+
+/* Улучшенная читаемость текста в select */
+.select:not([multiple]) {
+    background-position: right 0.75rem center;
+    padding-right: 2.5rem;
+}
+
+/* Достаточный отступ для длинного текста */
+.form-control .select {
+    text-overflow: ellipsis;
+}
+</style>
+{% endblock %}
+
 {% block extra_scripts %}
 <script src="/static/js/admin-facts-common.js"></script>
 <!-- CategoryTreeSelect Component -->
@@ -284,22 +320,25 @@ async function loadArticles() {
         const tree = buildArticleTree(articles);
         const flatNodes = flattenArticleTree(tree);
 
-        // Populate filter dropdown with tree
+        // Populate filter dropdown with tree (simplified hierarchy)
         const filterSelect = document.getElementById('filter-article');
         flatNodes.forEach(node => {
             const option = document.createElement('option');
             option.value = node.id;
 
-            // Add indentation and icon
-            const indent = '\u00A0\u00A0'.repeat(node.level); // Non-breaking spaces
-            const icon = node.isLeaf ? '📄' : '📁';
+            // Simplified indentation: use single symbol per level
+            const indent = '›  '.repeat(node.level);
+            const icon = node.isLeaf ? '▸' : '📂';
             option.textContent = `${indent}${icon} ${node.name}`;
 
-            // Disable parent categories
+            // Disable parent categories with visual styling
             if (!node.isLeaf) {
                 option.disabled = true;
-                option.style.color = 'var(--tw-text-opacity, 0.5)';
-                option.style.fontStyle = 'italic';
+                option.classList.add('category-parent');
+                option.style.fontWeight = 'bold';
+                option.style.opacity = '0.7';
+            } else {
+                option.classList.add('category-leaf');
             }
 
             filterSelect.appendChild(option);
