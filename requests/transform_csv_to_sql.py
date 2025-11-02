@@ -390,7 +390,9 @@ def generate_partitions_sql(records: List[Dict], output_path: Path):
 
 
 def generate_budget_fact_sql(records: List[Dict], output_path: Path):
-    """Generate SQL INSERT for t_f_budget_fact"""
+    """Generate SQL INSERT for t_f_budget_fact with COMMIT every 1000 records"""
+    BATCH_SIZE = 1000
+
     sql_lines = [
         "-- ============================================================================",
         "-- INSERT: t_f_budget_fact",
@@ -399,9 +401,15 @@ def generate_budget_fact_sql(records: List[Dict], output_path: Path):
         "-- ============================================================================\n",
         "-- IMPORTANT: Run 06_create_partitions_t_f_budget_fact.sql BEFORE this file!",
         "-- Partitions must exist before inserting data.\n",
-        "-- Insert budget facts",
-        "-- record_type: 'fact' for actual transactions, 'plan' for budget",
+        "-- Insert budget facts in batches (COMMIT every 1000 records)",
+        "-- record_type: 'fact' for actual transactions, 'plan' for budget\n",
     ]
+
+    # Start first transaction
+    sql_lines.append("BEGIN;")
+    sql_lines.append("")
+
+    batch_count = 0
 
     for idx, record in enumerate(records, start=1):
         # Map row_type to record_type
@@ -429,16 +437,33 @@ def generate_budget_fact_sql(records: List[Dict], output_path: Path):
         )
         sql_lines.append(sql)
 
-        # Progress indicator every 1000 records
-        if idx % 1000 == 0:
-            sql_lines.append(f"\n-- Progress: {idx} / {len(records)} records...")
+        # COMMIT every 1000 records
+        if idx % BATCH_SIZE == 0:
+            batch_count += 1
+            sql_lines.append("")
+            sql_lines.append(f"COMMIT;  -- Batch {batch_count}: {idx-BATCH_SIZE+1}-{idx} records")
+            sql_lines.append(f"-- Progress: {idx} / {len(records)} records ({(idx/len(records)*100):.1f}%)")
 
-    sql_lines.append(f"\n-- Total: {len(records)} budget fact records")
+            # Start new transaction if not at the end
+            if idx < len(records):
+                sql_lines.append("")
+                sql_lines.append("BEGIN;")
+                sql_lines.append("")
+
+    # COMMIT remaining records if any
+    remaining = len(records) % BATCH_SIZE
+    if remaining > 0:
+        batch_count += 1
+        sql_lines.append("")
+        sql_lines.append(f"COMMIT;  -- Batch {batch_count}: {len(records)-remaining+1}-{len(records)} records (final)")
+
+    sql_lines.append(f"\n-- Total: {len(records)} budget fact records in {batch_count} batches")
+    sql_lines.append(f"-- Batch size: {BATCH_SIZE} records per transaction")
 
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write('\n'.join(sql_lines))
 
-    print(f"✓ Generated: {output_path.name} ({len(records)} records)")
+    print(f"✓ Generated: {output_path.name} ({len(records)} records in {batch_count} batches)")
 
 
 def main():

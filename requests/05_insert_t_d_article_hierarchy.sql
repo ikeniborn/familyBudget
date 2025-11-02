@@ -1,7 +1,7 @@
 -- ============================================================================
 -- INSERT: t_d_article_hierarchy (Closure Table)
 -- Description: Article hierarchy relationships
--- Generated: 2025-11-02 11:50:50
+-- Generated: 2025-11-02 12:32:07
 -- ============================================================================
 
 -- Insert hierarchy relationships (ancestor-descendant pairs)

@@ -1,14 +1,17 @@
 -- ============================================================================
 -- INSERT: t_f_budget_fact
 -- Description: Budget transactions (plan and fact records)
--- Generated: 2025-11-02 11:50:50
+-- Generated: 2025-11-02 12:32:07
 -- ============================================================================
 
 -- IMPORTANT: Run 06_create_partitions_t_f_budget_fact.sql BEFORE this file!
 -- Partitions must exist before inserting data.
 
--- Insert budget facts
+-- Insert budget facts in batches (COMMIT every 1000 records)
 -- record_type: 'fact' for actual transactions, 'plan' for budget
+
+BEGIN;
+
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Кафе' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Оксана' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Оксана' AND is_current = true LIMIT 1), '2023-03-09', 120.00, 'fact', '');
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Перевод на счет Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Илья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Илья' AND is_current = true LIMIT 1), '2023-08-28', 10000.00, 'fact', '');
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Медицина' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Радомир' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Радомир' AND is_current = true LIMIT 1), '2023-01-08', 1900.00, 'plan', 'офтальмолог');
@@ -1010,7 +1013,11 @@ INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_cent
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Продукты' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2023-05-09', 1022.00, 'fact', '');
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Продукты' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2023-05-09', 223.00, 'fact', '');
 
--- Progress: 1000 / 6662 records...
+COMMIT;  -- Batch 1: 1-1000 records
+-- Progress: 1000 / 6662 records (15.0%)
+
+BEGIN;
+
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Продукты' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2023-05-09', 1244.00, 'fact', '');
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Одежда и обувь' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2023-05-09', 461.00, 'fact', 'носки');
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Развлечения' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Дом' AND is_current = true LIMIT 1), '2023-05-09', 2500.00, 'fact', 'аренда дома в Новороссийске');
@@ -2012,7 +2019,11 @@ INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_cent
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Мобильная связь' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2023-09-13', 1368.00, 'fact', 'Билайн');
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Трамвай' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Казань' AND is_current = true LIMIT 1), '2023-09-13', 70.00, 'fact', 'автобус казань');
 
--- Progress: 2000 / 6662 records...
+COMMIT;  -- Batch 2: 1001-2000 records
+-- Progress: 2000 / 6662 records (30.0%)
+
+BEGIN;
+
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Развлечения' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Казань' AND is_current = true LIMIT 1), '2023-09-13', 800.00, 'fact', 'зоопарк казань');
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Кафе' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Казань' AND is_current = true LIMIT 1), '2023-09-13', 345.00, 'fact', 'зоопарк Казань');
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Такси' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Казань' AND is_current = true LIMIT 1), '2023-09-13', 208.00, 'fact', 'такси казань');
@@ -3014,7 +3025,11 @@ INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_cent
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Продукты' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2024-02-01', 210.00, 'fact', '');
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Кафе' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2024-02-01', 700.00, 'fact', 'тонирамен');
 
--- Progress: 3000 / 6662 records...
+COMMIT;  -- Batch 3: 2001-3000 records
+-- Progress: 3000 / 6662 records (45.0%)
+
+BEGIN;
+
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Перевод на счет Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Илья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Илья' AND is_current = true LIMIT 1), '2024-02-02', 9000.00, 'fact', '');
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Приход со счета Илья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2024-02-02', 9000.00, 'fact', '');
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Продукты' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2024-02-02', 116.00, 'fact', '');
@@ -4016,7 +4031,11 @@ INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_cent
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Уменьшение накоплений' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2024-07-17', 1480.00, 'fact', 'Из накоплений Радомира на книги изд. Лорета');
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Детские товары' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2024-07-17', 1480.00, 'fact', 'Книги изд. Лорета Радомир');
 
--- Progress: 4000 / 6662 records...
+COMMIT;  -- Batch 4: 3001-4000 records
+-- Progress: 4000 / 6662 records (60.0%)
+
+BEGIN;
+
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Уменьшение накоплений' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Оксана' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Оксана' AND is_current = true LIMIT 1), '2024-07-17', 1961.00, 'fact', 'На книги изд. Лорета себе и на ДР подарки Марку и Мирону Спириным');
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Программы' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2024-07-27', 1000.00, 'fact', 'Игры');
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Товары' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Оксана' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Оксана' AND is_current = true LIMIT 1), '2024-07-17', 773.00, 'fact', 'Книга про Шерлока Холмса изд. Лорета');
@@ -5018,7 +5037,11 @@ INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_cent
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Праздники' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Друзья' AND is_current = true LIMIT 1), '2025-01-04', 2341.00, 'fact', 'Подарки севрукам');
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Продукты' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2025-01-05', 450.00, 'fact', 'Снеки');
 
--- Progress: 5000 / 6662 records...
+COMMIT;  -- Batch 5: 4001-5000 records
+-- Progress: 5000 / 6662 records (75.1%)
+
+BEGIN;
+
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Столовая' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2025-01-08', 1800.00, 'fact', 'Готовая еда');
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Праздники' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2025-01-09', 2863.00, 'fact', 'Подарок на ДР Новикова Андрея');
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Уменьшение накоплений' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Оксана' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Оксана' AND is_current = true LIMIT 1), '2025-01-09', 1701.00, 'fact', 'Из накоплений на подарки к 23.02');
@@ -6077,7 +6100,11 @@ INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_cent
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Продукты' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2025-07-20', 1500.00, 'fact', 'Козье молоко и творог');
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Продукты' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2025-07-20', 245.00, 'fact', 'Закваска для кефира');
 
--- Progress: 6000 / 6662 records...
+COMMIT;  -- Batch 6: 5001-6000 records
+-- Progress: 6000 / 6662 records (90.1%)
+
+BEGIN;
+
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Медицина' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2025-07-21', 8595.00, 'fact', 'Анализы Радомир');
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Продукты' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2025-07-21', 100.00, 'fact', 'Мороженое');
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Платные подписки' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2025-07-21', 524.00, 'fact', 'apple');
@@ -6741,4 +6768,7 @@ INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_cent
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Аптека' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2025-11-01', 3896.00, 'fact', 'Заканчивающиеся БАД');
 INSERT INTO t_f_budget_fact (user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) VALUES (1, (SELECT id FROM t_d_article WHERE name = 'Товары' AND is_current = true LIMIT 1), (SELECT id FROM t_d_financial_center WHERE name = 'Семья' AND is_current = true LIMIT 1), (SELECT id FROM t_d_cost_center WHERE name = 'Семья' AND is_current = true LIMIT 1), '2025-11-01', 2186.00, 'fact', 'Перчатки, сланцы, адвент-календарь Радомир');
 
--- Total: 6662 budget fact records
+COMMIT;  -- Batch 7: 6001-6662 records (final)
+
+-- Total: 6662 budget fact records in 7 batches
+-- Batch size: 1000 records per transaction
