@@ -38,12 +38,6 @@ class FinancialCenterCreate(BaseModel):
         examples=["Main checking account", None]
     )
 
-    is_global: bool = Field(
-        default=False,
-        description="Global flag: if True, financial center is shared across all users (admin only)",
-        examples=[False, True]
-    )
-
     @field_validator("name")
     @classmethod
     def name_not_empty(cls, v: str) -> str:
@@ -100,12 +94,6 @@ class FinancialCenterUpdate(BaseModel):
         examples=["Updated description"]
     )
 
-    is_global: Optional[bool] = Field(
-        default=None,
-        description="Global flag: if True, financial center is shared across all users (admin only)",
-        examples=[False, True]
-    )
-
     @field_validator("name")
     @classmethod
     def name_not_empty(cls, v: Optional[str]) -> Optional[str]:
@@ -158,11 +146,6 @@ class FinancialCenterResponse(BaseModel):
         examples=["Main checking account", None]
     )
 
-    is_global: bool = Field(
-        description="Global flag: if True, financial center is shared across all users",
-        examples=[False, True]
-    )
-
     # SCD Type 2 fields
     valid_from: datetime = Field(
         description="Start of validity period",
@@ -199,7 +182,6 @@ class FinancialCenterResponse(BaseModel):
                 "code": "BANK_SBER",
                 "name": "Sberbank Account",
                 "description": "Main checking account",
-                "is_global": False,
                 "valid_from": "2025-10-14T12:00:00Z",
                 "valid_to": "9999-12-31T23:59:59Z",
                 "is_current": True,

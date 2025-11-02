@@ -38,12 +38,6 @@ class CostCenterCreate(BaseModel):
         examples=["Kitchen and bathroom renovation project", None]
     )
 
-    is_global: bool = Field(
-        default=False,
-        description="Global flag: if True, cost center is shared across all users (admin only)",
-        examples=[False, True]
-    )
-
     @field_validator("name")
     @classmethod
     def name_not_empty(cls, v: str) -> str:
@@ -100,12 +94,6 @@ class CostCenterUpdate(BaseModel):
         examples=["Updated description with new scope"]
     )
 
-    is_global: Optional[bool] = Field(
-        default=None,
-        description="Global flag: if True, cost center is shared across all users (admin only)",
-        examples=[False, True]
-    )
-
     @field_validator("name")
     @classmethod
     def name_not_empty(cls, v: Optional[str]) -> Optional[str]:
@@ -158,11 +146,6 @@ class CostCenterResponse(BaseModel):
         examples=["Kitchen and bathroom renovation", None]
     )
 
-    is_global: bool = Field(
-        description="Global flag: if True, cost center is shared across all users",
-        examples=[False, True]
-    )
-
     # SCD Type 2 fields
     valid_from: datetime = Field(
         description="Start of validity period",
@@ -199,7 +182,6 @@ class CostCenterResponse(BaseModel):
                 "code": "PROJ_HOME",
                 "name": "Home Renovation",
                 "description": "Kitchen and bathroom renovation",
-                "is_global": False,
                 "valid_from": "2025-10-14T12:00:00Z",
                 "valid_to": "9999-12-31T23:59:59Z",
                 "is_current": True,

@@ -373,7 +373,7 @@ async function loadFinancialCenters() {
             centers.forEach(fc => {
                 const option = document.createElement('option');
                 option.value = fc.id;
-                option.textContent = fc.name + (fc.is_global ? ' (Общий)' : '');
+                option.textContent = fc.name;
                 select.appendChild(option);
             });
         });
@@ -423,7 +423,7 @@ async function loadCostCenters() {
             centers.forEach(cc => {
                 const option = document.createElement('option');
                 option.value = cc.id;
-                option.textContent = cc.name + (cc.is_global ? ' (Общий)' : '');
+                option.textContent = cc.name;
                 select.appendChild(option);
             });
         });

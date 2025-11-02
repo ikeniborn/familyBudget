@@ -35,11 +35,11 @@ class Article(SQLModel, table=True):
             ├── Groceries (id=2, parent_id=1)
             └── Restaurants (id=3, parent_id=1)
 
-    Global vs User-specific Articles:
-        - Global articles (is_global=True): Shared across all users (e.g., "Food", "Transport")
-        - User-specific articles (is_global=False): Private to the user
-        - Global articles are typically created by administrators
-        - user_id still tracks the creator for audit purposes
+    Shared References Architecture:
+        - All articles are shared across all users (accessible by everyone)
+        - Only administrators can CREATE/UPDATE/DELETE articles
+        - All users can READ all articles
+        - user_id tracks the creator for audit trail purposes
 
     SCD Type 2 Pattern:
         Each article can have multiple versions over time:
@@ -53,7 +53,6 @@ class Article(SQLModel, table=True):
         parent_id: Parent article ID for hierarchy (NULL for root articles)
         name: Article display name (required, max 255 chars)
         type: Article type - 'income' or 'expense' (required, max 20 chars)
-        is_global: Global flag - if True, visible to all users (default: False)
         valid_from: Start of validity period for this record
         valid_to: End of validity period (9999-12-31 for current records)
         is_current: Flag indicating if this is the current version
@@ -89,7 +88,7 @@ class Article(SQLModel, table=True):
         - When updating an article, create new version and set old version's is_current=False
         - All articles must have user_id (required field)
         - Parent article must exist before creating child article
-        - Unique constraint: (user_id, name, type, is_current) for current records
+        - Unique constraint: (name, type, is_current) for current records
     """
 
     __tablename__ = "t_d_article"
@@ -126,12 +125,6 @@ class Article(SQLModel, table=True):
         max_length=20,
         index=True,
         description="Article type: 'income' or 'expense' (enforced by CHECK constraint)"
-    )
-    is_global: bool = Field(
-        default=False,
-        nullable=False,
-        index=True,
-        description="Global flag: if True, article is shared across all users (default: False)"
     )
 
     # SCD Type 2 fields

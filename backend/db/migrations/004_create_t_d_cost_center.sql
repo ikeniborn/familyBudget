@@ -25,7 +25,6 @@ CREATE TABLE IF NOT EXISTS t_d_cost_center (
     -- Cost center attributes
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    is_global BOOLEAN NOT NULL DEFAULT FALSE,
 
     -- SCD Type 2 fields
     valid_from TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -39,19 +38,7 @@ CREATE TABLE IF NOT EXISTS t_d_cost_center (
     -- Constraints
     -- Valid date range check
     CONSTRAINT check_cost_center_valid_dates
-        CHECK (valid_from < valid_to),
-
-    -- Global cost centers must have code
-    CONSTRAINT check_cost_center_global_code
-        CHECK (NOT is_global OR (is_global AND code IS NOT NULL)),
-
-    -- Global cost centers cannot have user_id
-    CONSTRAINT check_cost_center_global_user
-        CHECK (NOT is_global OR (is_global AND user_id IS NULL)),
-
-    -- User cost centers must have user_id
-    CONSTRAINT check_cost_center_user_ownership
-        CHECK (is_global OR (NOT is_global AND user_id IS NOT NULL))
+        CHECK (valid_from < valid_to)
 );
 
 -- ============================================================================
@@ -60,15 +47,10 @@ CREATE TABLE IF NOT EXISTS t_d_cost_center (
 -- PostgreSQL does not support partial unique constraints as inline table constraints.
 -- We must create partial unique indexes separately.
 
--- Only one current record per user + code combination (for user cost centers)
-CREATE UNIQUE INDEX IF NOT EXISTS idx_cost_center_user_code_current
-    ON t_d_cost_center(user_id, code, is_current)
-    WHERE is_current = TRUE AND user_id IS NOT NULL;
-
--- Only one current record per code for global cost centers
-CREATE UNIQUE INDEX IF NOT EXISTS idx_cost_center_global_code_current
+-- Only one current record per code (shared references model)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cost_center_code_current
     ON t_d_cost_center(code, is_current)
-    WHERE is_current = TRUE AND is_global = TRUE;
+    WHERE is_current = TRUE AND code IS NOT NULL;
 
 -- ============================================================================
 -- INDEXES
@@ -88,24 +70,10 @@ CREATE INDEX IF NOT EXISTS idx_cost_center_current
     ON t_d_cost_center(is_current)
     WHERE is_current = TRUE;
 
--- Index on global flag
-CREATE INDEX IF NOT EXISTS idx_cost_center_global
-    ON t_d_cost_center(is_global)
-    WHERE is_global = TRUE;
-
--- Composite index for current user cost centers
+-- Composite index for current user cost centers (audit trail)
 CREATE INDEX IF NOT EXISTS idx_cost_center_user_current
     ON t_d_cost_center(user_id, is_current)
     WHERE user_id IS NOT NULL AND is_current = TRUE;
-
--- Composite index for current global cost centers
-CREATE INDEX IF NOT EXISTS idx_cost_center_global_current
-    ON t_d_cost_center(is_global, is_current)
-    WHERE is_global = TRUE AND is_current = TRUE;
-
--- Composite index for queries filtering by global OR user_id (optimizes: WHERE (is_global = TRUE OR user_id = ?))
-CREATE INDEX IF NOT EXISTS idx_cost_center_global_user_current
-    ON t_d_cost_center(is_global, user_id, is_current);
 
 -- Index on valid date range for time-travel queries
 CREATE INDEX IF NOT EXISTS idx_cost_center_valid_from
@@ -119,25 +87,22 @@ CREATE INDEX IF NOT EXISTS idx_cost_center_valid_to
 -- ============================================================================
 
 COMMENT ON TABLE t_d_cost_center IS
-    'Cost centers dimension table with SCD Type 2 for tracking historical changes. Stores projects, departments, budget groups, and other cost allocation entities. Can be user-specific or global (shared across all users).';
+    'Cost centers dimension table with SCD Type 2 for tracking historical changes. Stores projects, departments, budget groups, and other cost allocation entities. All cost centers are shared across all users (managed by admins).';
 
 COMMENT ON COLUMN t_d_cost_center.id IS
     'Surrogate key (auto-increment primary key)';
 
 COMMENT ON COLUMN t_d_cost_center.user_id IS
-    'Foreign key to t_d_user. NULL for global cost centers, required for user cost centers.';
+    'Foreign key to t_d_user (audit trail: who created the cost center). Used for tracking creator, not for access control.';
 
 COMMENT ON COLUMN t_d_cost_center.code IS
-    'Business code for cost center (required for global, optional for user-specific)';
+    'Business code for cost center (unique identifier, e.g., "PROJ_HOME")';
 
 COMMENT ON COLUMN t_d_cost_center.name IS
     'Cost center name (e.g., "Проект А", "Отдел маркетинга", "Личные расходы")';
 
 COMMENT ON COLUMN t_d_cost_center.description IS
     'Optional description or notes about the cost center';
-
-COMMENT ON COLUMN t_d_cost_center.is_global IS
-    'Flag indicating if cost center is global (shared) or user-specific';
 
 COMMENT ON COLUMN t_d_cost_center.valid_from IS
     'SCD2: Start date of record validity (inclusive)';
@@ -158,21 +123,17 @@ COMMENT ON COLUMN t_d_cost_center.updated_at IS
 -- EXAMPLE USAGE
 -- ============================================================================
 
--- Insert global cost center
--- INSERT INTO t_d_cost_center (code, name, description, is_global)
--- VALUES ('PROJ_HOME', 'Домашние расходы', 'Общий проект для домашних расходов', TRUE);
+-- Insert cost center (created by admin)
+-- INSERT INTO t_d_cost_center (user_id, code, name, description)
+-- VALUES (1, 'PROJ_HOME', 'Домашние расходы', 'Общий проект для домашних расходов');
 
--- Insert user-specific cost center
--- INSERT INTO t_d_cost_center (user_id, name, description, is_global)
--- VALUES (1, 'Отпуск 2025', 'Расходы на отпуск летом', FALSE);
+-- Insert cost center without code
+-- INSERT INTO t_d_cost_center (user_id, name, description)
+-- VALUES (1, 'Отпуск 2025', 'Расходы на отпуск летом');
 
--- Query current cost centers for user
+-- Query all current cost centers (shared, visible to all users)
 -- SELECT * FROM t_d_cost_center
--- WHERE user_id = 1 AND is_current = TRUE;
-
--- Query global cost centers
--- SELECT * FROM t_d_cost_center
--- WHERE is_global = TRUE AND is_current = TRUE;
+-- WHERE is_current = TRUE;
 
 -- Time-travel query (cost centers as of specific date)
 -- SELECT *

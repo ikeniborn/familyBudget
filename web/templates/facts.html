@@ -386,8 +386,7 @@ async function loadFinancialCenters() {
         centers.forEach(center => {
             const option = document.createElement('option');
             option.value = center.id;
-            const scope = center.is_global ? ' (Global)' : '';
-            option.textContent = `${center.name}${scope}`;
+            option.textContent = center.name;
             editSelect.appendChild(option);
         });
 
@@ -396,8 +395,7 @@ async function loadFinancialCenters() {
         centers.forEach(center => {
             const option = document.createElement('option');
             option.value = center.id;
-            const scope = center.is_global ? ' (Global)' : '';
-            option.textContent = `${center.name}${scope}`;
+            option.textContent = center.name;
             filterSelect.appendChild(option);
         });
     } catch (error) {
@@ -421,8 +419,7 @@ async function loadCostCenters() {
         centers.forEach(center => {
             const option = document.createElement('option');
             option.value = center.id;
-            const scope = center.is_global ? ' (Global)' : '';
-            option.textContent = `${center.name}${scope}`;
+            option.textContent = center.name;
             editSelect.appendChild(option);
         });
 
@@ -431,8 +428,7 @@ async function loadCostCenters() {
         centers.forEach(center => {
             const option = document.createElement('option');
             option.value = center.id;
-            const scope = center.is_global ? ' (Global)' : '';
-            option.textContent = `${center.name}${scope}`;
+            option.textContent = center.name;
             filterSelect.appendChild(option);
         });
     } catch (error) {

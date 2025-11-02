@@ -776,7 +776,7 @@ async def show_financial_center_selection(
             # Add center buttons (2 per row)
             center_buttons = [
                 InlineKeyboardButton(
-                    f"{c['name']}" + (" 🌐" if c.get('is_global') else ""),
+                    f"{c['name']}",
                     callback_data=f"fc:{c['id']}"
                 )
                 for c in centers
@@ -912,7 +912,7 @@ async def show_cost_center_selection(
             # Add center buttons (2 per row)
             center_buttons = [
                 InlineKeyboardButton(
-                    f"{c['name']}" + (" 🌐" if c.get('is_global') else ""),
+                    f"{c['name']}",
                     callback_data=f"cc:{c['id']}"
                 )
                 for c in centers

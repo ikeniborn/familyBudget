@@ -385,7 +385,7 @@ async def create_article(
     """
     Create new article (admin only).
 
-    Creates a new article (category). If is_global=True, it will be available to all users.
+    Creates a new article (category). Shared references: available to all users.
 
     Args:
         create_data: Article creation data

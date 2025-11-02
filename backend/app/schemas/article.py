@@ -46,12 +46,6 @@ class ArticleCreate(BaseModel):
         examples=[1, None]
     )
 
-    is_global: bool = Field(
-        default=False,
-        description="Global flag: if True, article is shared across all users (admin only)",
-        examples=[False, True]
-    )
-
     @field_validator("name")
     @classmethod
     def name_not_empty(cls, v: str) -> str:
@@ -120,12 +114,6 @@ class ArticleUpdate(BaseModel):
         default=None,
         description="Parent article ID for hierarchy",
         examples=[2]
-    )
-
-    is_global: Optional[bool] = Field(
-        default=None,
-        description="Global flag: if True, article is shared across all users (admin only)",
-        examples=[False, True]
     )
 
     @field_validator("name")
@@ -216,11 +204,6 @@ class ArticleResponse(BaseModel):
     type: str = Field(
         description="Article type: income or expense",
         examples=["expense"]
-    )
-
-    is_global: bool = Field(
-        description="Global flag: if True, article is shared across all users",
-        examples=[False, True]
     )
 
     # SCD Type 2 fields

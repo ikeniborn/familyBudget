@@ -152,11 +152,10 @@ async def seed_global_articles(session: AsyncSession, admin_user: User):
         name = article_data["name"]
         article_type = article_data["type"]
         
-        # Check if article already exists (by name + type + is_global)
+        # Check if article already exists (by name + type)
         stmt = select(Article).where(
             Article.name == name,
             Article.type == article_type,
-            Article.is_global == True,
             Article.is_current == True
         )
         result = await session.execute(stmt)
@@ -181,7 +180,6 @@ async def seed_global_articles(session: AsyncSession, admin_user: User):
             parent_id=parent_id,
             name=name,
             type=article_type,
-            is_global=True,
             is_current=True,
             valid_from=now,
             valid_to=datetime(9999, 12, 31, 23, 59, 59),
@@ -213,7 +211,6 @@ async def seed_global_financial_centers(session: AsyncSession, admin_user: User)
         # Check if financial center already exists
         stmt = select(FinancialCenter).where(
             FinancialCenter.name == name,
-            FinancialCenter.is_global == True,
             FinancialCenter.is_current == True
         )
         result = await session.execute(stmt)
@@ -230,7 +227,6 @@ async def seed_global_financial_centers(session: AsyncSession, admin_user: User)
             user_id=admin_user.id,
             name=name,
             description=fc_data.get("description"),
-            is_global=True,
             is_current=True,
             valid_from=now,
             valid_to=datetime(9999, 12, 31, 23, 59, 59),
@@ -259,7 +255,6 @@ async def seed_global_cost_centers(session: AsyncSession, admin_user: User):
         # Check if cost center already exists
         stmt = select(CostCenter).where(
             CostCenter.name == name,
-            CostCenter.is_global == True,
             CostCenter.is_current == True
         )
         result = await session.execute(stmt)
@@ -276,7 +271,6 @@ async def seed_global_cost_centers(session: AsyncSession, admin_user: User):
             user_id=admin_user.id,
             name=name,
             description=cc_data.get("description"),
-            is_global=True,
             is_current=True,
             valid_from=now,
             valid_to=datetime(9999, 12, 31, 23, 59, 59),
