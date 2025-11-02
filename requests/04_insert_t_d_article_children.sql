@@ -1,0 +1,70 @@
+-- ============================================================================
+-- INSERT: t_d_article (Child articles)
+-- Description: Child category articles from nomenclature_name
+-- Generated: 2025-11-02 12:32:07
+-- ============================================================================
+
+-- Insert child articles (referencing parent via parent_id)
+-- NOTE: parent_id references are resolved via code lookup
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0001', 'Аванс', 'income', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_011' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0002', 'Аптека', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_015' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0003', 'Бензин', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_029' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0004', 'Вещи', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_004' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0005', 'Возврат', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_005' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0006', 'Детские товары', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_006' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0007', 'Дизель', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_029' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0008', 'ЖКХ', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_013' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0009', 'Запчасти', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_027' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0010', 'Зарплата', 'income', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_011' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0011', 'Капремонт', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_013' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0012', 'Кафе', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_012' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0013', 'Квартира', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_001' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0014', 'Корм для животных', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_006' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0015', 'Косметика', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_014' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0016', 'Красота', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_014' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0017', 'Мебель', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_027' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0018', 'Медицина', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_015' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0019', 'Мобильная связь', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_016' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0020', 'Налоги', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_032' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0021', 'Обувь', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_019' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0022', 'Обучение', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_021' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0023', 'Одежда', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_019' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0024', 'Одежда и обувь', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_004' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0025', 'Отпускные', 'income', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_011' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0026', 'Перевод на счет Семья', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_022' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0027', 'Платные подписки', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_021' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0028', 'Подарки', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_023' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0029', 'Пополнение', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_005' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0030', 'Пополнение биржи', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_002' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0031', 'Пополнение целей', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_031' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0032', 'Праздники', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_026' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0033', 'Премия', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_011' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0034', 'Приход со счета Илья', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_009' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0035', 'Приход со счета Оксана', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_009' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0036', 'Программы', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_021' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0037', 'Продажа', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_024' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0038', 'Продукты', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_006' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0039', 'Проценты', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_007' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0040', 'Прочее', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_025' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0041', 'Развлечения', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_026' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0042', 'Ресторан', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_012' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0043', 'Сигареты', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_028' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0044', 'Столовая', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_006' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0045', 'Строительные материалы', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_027' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0046', 'Табак', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_028' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0047', 'Такси', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_018' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0048', 'Текущие остатки', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_020' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0049', 'Техника и электроника', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_003' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0050', 'Товары', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_006' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0051', 'Трамвай', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_018' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0052', 'Увеличение долга', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_008' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0053', 'Увеличение займа', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_010' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0054', 'Увеличение накоплений', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_017' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0055', 'Уменьшение долга', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_008' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0056', 'Уменьшение займа', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_010' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0057', 'Уменьшение накоплений', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_017' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0058', 'Услуги по обсуживанию', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_030' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0059', 'Услуги по ремонту', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_030' AND is_current = true LIMIT 1), true);
+INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES (1, 'ART_CHILD_0060', 'Штрафы', 'expense', (SELECT id FROM t_d_article WHERE code = 'ART_PARENT_032' AND is_current = true LIMIT 1), true);
+
+-- Total: 60 child articles
