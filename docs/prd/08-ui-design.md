@@ -844,7 +844,150 @@ if (!DateFormatter.isValidDisplayFormat(dateStr)) {
 
 **Формат:** ISO 8601 (YYYY-MM-DD) - стандарт для JSON/REST API
 
-#### 8.10.7 Changelog
+#### 8.10.7 CalendarWidget Component (Added 2025-11-02)
+
+**Решение:** DaisyUI Native Date Picker - календарный виджет без внешних зависимостей.
+
+**Архитектура:**
+- **Компонент:** `CalendarWidget` (vanilla JavaScript class)
+- **Расположение:** `web/static/js/calendar-widget.js` + `webapp/static/js/calendar-widget.js`
+- **Стили:** `web/static/css/calendar-widget.css` + `webapp/static/css/calendar-widget.css`
+- **Зависимости:** Только Tailwind CSS + DaisyUI (уже используется в проекте)
+
+**Функциональность:**
+
+1. **Single Date Picker Mode:**
+   - Для форм создания/редактирования транзакций (add.html, edit.html, modal_transaction.html)
+   - Календарная иконка рядом с текстовым инпутом
+   - Выбор одной даты
+   - Автоматическое заполнение инпута в формате DD.MM.YYYY
+
+2. **Range Picker Mode:**
+   - Для фильтров "дата с/по" (facts.html, plan.html, notifications.html)
+   - Один виджет для выбора диапазона дат
+   - Visual feedback для выбранного диапазона
+   - Автоматическое заполнение обоих инпутов
+
+3. **Quick Date Shortcuts:**
+   - Сохранены существующие кнопки "Сегодня", "Вчера", "Позавчера"
+   - Работают параллельно с календарным виджетом
+
+**Интеграция:**
+```javascript
+// Single date picker
+new CalendarWidget({
+    mode: 'single',
+    inputElement: document.getElementById('fact-date'),
+    onSelect: (date) => {
+        // date в формате DD.MM.YYYY
+        formState.factDate = DateFormatter.formatForAPI(date);
+    }
+});
+
+// Range picker
+new CalendarWidget({
+    mode: 'range',
+    startInputElement: document.getElementById('filter-date-from'),
+    endInputElement: document.getElementById('filter-date-to'),
+    onSelect: (startDate, endDate) => {
+        // Даты в формате DD.MM.YYYY
+        applyFilters();
+    }
+});
+```
+
+**UX Features:**
+- Touch-friendly для Telegram WebApp (mobile)
+- Keyboard navigation (ESC, Enter, Arrow keys)
+- Click outside to close
+- Русская локализация (месяцы, дни)
+- Поддержка темной темы (DaisyUI)
+- Responsive design (breakpoints для mobile/desktop)
+- Accessibility (ARIA labels, focus states)
+
+**Платформо-специфичные решения (Added 2025-11-02):**
+
+**WebApp (Telegram Mini App) - Native Date Input:**
+- `webapp/add.html` - `<input type="date">` для fact_date
+- `webapp/edit.html` - `<input type="date">` для fact_date
+- Преимущества:
+  - ✅ Оптимизированный нативный date picker для каждой мобильной ОС (iOS, Android)
+  - ✅ Touch-friendly UX - привычный интерфейс для пользователей
+  - ✅ Без дополнительного JS (~0KB overhead)
+  - ✅ Автоматическая валидация браузером
+  - ✅ Сохранены quick date shortcuts ("Сегодня", "Вчера", "Позавчера")
+
+**Web Interface (Desktop) - CalendarWidget:**
+- `web/templates/facts.html` - фильтры дата с/по (range) + edit modal fact_date (single) + create modal fact_date (single)
+- `web/templates/plan.html` - фильтры дата с/по (range)
+- `web/templates/notifications.html` - фильтры дата с/по (range)
+- Преимущества:
+  - ✅ Улучшенный UX для desktop - визуальный календарь
+  - ✅ Range picker для фильтров "дата с/по"
+  - ✅ Без внешних зависимостей (DaisyUI Native)
+  - ✅ Полный контроль над UI/UX
+  - ✅ Легковесность - ~15KB (JS + CSS)
+
+**DateFormatter расширение:**
+- `setNativeDateInput(input, displayDate)` - установить значение для native date input
+- `getNativeDateInput(input)` - получить значение из native date input
+- `initNativeDateInput(input)` - инициализировать с сегодняшней датой
+- Поддержка обоих форматов: DD.MM.YYYY (отображение) ↔ YYYY-MM-DD (native input value)
+
+#### 8.10.8 Changelog
+
+**2025-11-02 (CalendarWidget Implementation):**
+- ✅ **FEATURE:** Реализован календарный виджет для всех форм с датами
+- ✅ **Компонент:** CalendarWidget (DaisyUI Native) - без внешних зависимостей
+- ✅ **Функциональность:**
+  - Single date picker для форм создания/редактирования (webapp/add.html, webapp/edit.html, модалки)
+  - Range picker для фильтров "дата с/по" (facts, plan, notifications)
+  - Сохранены quick date shortcuts ("Сегодня", "Вчера", "Позавчера")
+- ✅ **UX Features:**
+  - Touch-friendly для Telegram WebApp (mobile)
+  - Keyboard navigation (ESC, Enter, Arrow keys)
+  - Click outside to close
+  - Русская локализация (месяцы, дни)
+  - Поддержка темной темы (DaisyUI)
+  - Responsive design (mobile/desktop)
+  - Accessibility (ARIA labels)
+- ✅ **Интеграция:** 8 форм (webapp: 2, web: 6)
+- ✅ **Файлы:**
+  - `web/static/js/calendar-widget.js` (новый)
+  - `web/static/css/calendar-widget.css` (новый)
+  - `webapp/static/js/calendar-widget.js` (портирован)
+  - `webapp/static/css/calendar-widget.css` (портирован)
+  - `web/templates/base.html` (добавлены подключения)
+  - `web/templates/facts.html` (инициализация виджетов)
+  - `web/templates/plan.html` (инициализация виджетов)
+  - `web/templates/notifications.html` (инициализация виджетов)
+  - `webapp/add.html` (подключения + инициализация)
+  - `webapp/edit.html` (подключения + инициализация)
+- ✅ **Размер:** ~15KB (JS + CSS)
+
+**2025-11-02 (Platform-Specific Date Input Solutions):**
+- ✅ **IMPROVEMENT:** Переход на платформо-специфичные решения для оптимальной UX
+- ✅ **WebApp (Mobile) - Native Date Input:**
+  - Заменен CalendarWidget на `<input type="date">` для webapp/add.html и webapp/edit.html
+  - Преимущества: нативный date picker ОС (iOS, Android), оптимальный touch UX, 0KB overhead
+  - Сохранены quick date shortcuts ("Сегодня", "Вчера", "Позавчера") для быстрого выбора
+- ✅ **Web Interface (Desktop) - CalendarWidget:**
+  - Оставлен CalendarWidget для web/templates (facts.html, plan.html, notifications.html)
+  - Преимущества: визуальный календарь для desktop, range picker для фильтров
+- ✅ **DateFormatter расширение:**
+  - `setNativeDateInput(input, displayDate)` - установить значение для native input (DD.MM.YYYY → YYYY-MM-DD)
+  - `getNativeDateInput(input)` - получить значение из native input (YYYY-MM-DD → DD.MM.YYYY)
+  - `initNativeDateInput(input)` - инициализировать с сегодняшней датой
+  - Поддержка двух форматов: DD.MM.YYYY (отображение) ↔ YYYY-MM-DD (native input value)
+- ✅ **CRITICAL FIX:** Исправлена инициализация CalendarWidget в web interface модалке создания транзакции
+  - Проблема: виджет инициализировался до загрузки DOM модалки
+  - Решение: перенос инициализации в loadArticles() (после загрузки категорий)
+- ✅ **Файлы:**
+  - `webapp/static/js/dateFormatter.js` - добавлены 3 метода для native input
+  - `webapp/add.html` - изменен на native date input + обновлена логика setupDateInput()
+  - `webapp/edit.html` - изменен на native date input + обновлена логика
+  - `web/templates/facts.html` - исправлена инициализация create modal calendar
+- ✅ **Rationale:** Hybrid solution - оптимальная UX для каждой платформы (mobile vs desktop)
 
 **2025-11-01 (Bug Fixes - Update/Delete Transactions):**
 - ✅ **CRITICAL FIX:** Исправлена 500 ошибка при обновлении транзакции (строка 672)
@@ -918,7 +1061,7 @@ const dateFrom = `${year}-${month}-${day}`;
 
 **Технический долг:**
 - [ ] Добавить маску ввода для автоформатирования (DD.MM.YYYY)
-- [ ] Добавить календарный виджет для удобства выбора
+- ✅ Добавить календарный виджет для удобства выбора (Реализовано 2025-11-02)
 - [ ] Рассмотреть поддержку других форматов ввода (DD/MM/YYYY)
 
 ---

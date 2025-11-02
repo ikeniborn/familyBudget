@@ -68,6 +68,7 @@ class DateFormatter {
 
   /**
    * Get current date in YYYY-MM-DD format (for API).
+   * Uses LOCAL timezone, not UTC.
    *
    * @returns {string} Current date in YYYY-MM-DD format
    *
@@ -76,7 +77,10 @@ class DateFormatter {
    */
   static todayISO() {
     const now = new Date();
-    return now.toISOString().split('T')[0];
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   /**
@@ -320,6 +324,60 @@ class DateFormatter {
     const year = now.getFullYear();
 
     return `${day} ${this.RUSSIAN_MONTHS[monthIndex]} ${year}`;
+  }
+
+  /**
+   * Set value for native date input (<input type="date">).
+   * Native date input accepts YYYY-MM-DD format.
+   *
+   * @param {HTMLInputElement} inputElement - Date input element
+   * @param {string} displayDate - Date in DD.MM.YYYY format
+   *
+   * @example
+   * DateFormatter.setNativeDateInput(input, '02.11.2025')
+   * // Sets input.value = '2025-11-02'
+   */
+  static setNativeDateInput(inputElement, displayDate) {
+    if (!inputElement) return;
+
+    if (displayDate && this.isValidDisplayFormat(displayDate)) {
+      inputElement.value = this.formatForAPI(displayDate);
+    } else {
+      inputElement.value = '';
+    }
+  }
+
+  /**
+   * Get value from native date input as DD.MM.YYYY.
+   * Native date input returns YYYY-MM-DD format.
+   *
+   * @param {HTMLInputElement} inputElement - Date input element
+   * @returns {string} Date in DD.MM.YYYY format or empty string
+   *
+   * @example
+   * DateFormatter.getNativeDateInput(input)
+   * // input.value = '2025-11-02' → returns '02.11.2025'
+   */
+  static getNativeDateInput(inputElement) {
+    if (!inputElement || !inputElement.value) return '';
+
+    return this.formatForDisplay(inputElement.value);
+  }
+
+  /**
+   * Initialize native date input with today's date.
+   * Sets value in YYYY-MM-DD format (native format).
+   *
+   * @param {HTMLInputElement} inputElement - Date input element
+   *
+   * @example
+   * DateFormatter.initNativeDateInput(input)
+   * // Sets input.value = '2025-11-02' (today)
+   */
+  static initNativeDateInput(inputElement) {
+    if (!inputElement) return;
+
+    inputElement.value = this.todayISO();
   }
 }
 

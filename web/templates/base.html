@@ -64,6 +64,9 @@
         }
     </style>
 
+    <!-- Calendar Widget Styles -->
+    <link rel="stylesheet" href="/static/css/calendar-widget.css">
+
     <!-- Extra Styles (from child templates) -->
     {% block extra_styles %}{% endblock %}
 
@@ -168,6 +171,10 @@
             <p class="text-sm">&copy; 2025 Family Budget. Built with FastAPI + HTMX + ECharts + Tailwind CSS</p>
         </aside>
     </footer>
+
+    <!-- Date Formatter & Calendar Widget Scripts -->
+    <script src="/static/js/dateFormatter.js"></script>
+    <script src="/static/js/calendar-widget.js"></script>
 
     {% block extra_scripts %}{% endblock %}
 

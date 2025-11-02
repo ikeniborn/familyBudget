@@ -152,6 +152,18 @@ let filteredNotifications = [];
 // Initialize page
 document.addEventListener('DOMContentLoaded', function() {
     loadNotifications();
+
+    // Инициализация CalendarWidget для фильтров дат (Range Picker)
+    new CalendarWidget({
+        mode: 'range',
+        startInputElement: document.getElementById('filter-date-from'),
+        endInputElement: document.getElementById('filter-date-to'),
+        onSelect: (startDate, endDate) => {
+            console.log('Выбран диапазон дат для уведомлений:', startDate, endDate);
+            // Автоматически применить фильтры при выборе дат
+            applyFilters();
+        }
+    });
 });
 
 // Load notifications from API

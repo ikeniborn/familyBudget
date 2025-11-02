@@ -244,10 +244,9 @@
                 <button type="button" class="quick-amount-btn" data-days="-2">Позавчера</button>
             </div>
             <input
-                type="text"
+                type="date"
                 id="fact-date"
                 class="form-input"
-                placeholder="ДД.ММ.ГГГГ"
                 required
             >
             <span class="error-message" id="date-error"></span>
@@ -398,28 +397,23 @@
         function setupDateInput() {
             const dateInput = document.getElementById('fact-date');
 
-            // Set default to today in DD.MM.YYYY format
-            dateInput.value = DateFormatter.today();
-            formState.factDate = DateFormatter.formatForAPI(DateFormatter.today());
+            // Set default to today (native date input accepts YYYY-MM-DD)
+            DateFormatter.initNativeDateInput(dateInput);
+            formState.factDate = dateInput.value; // Already in YYYY-MM-DD format
 
             dateInput.addEventListener('input', () => {
-                const displayDate = dateInput.value;
+                // Native date input value is already in YYYY-MM-DD format
+                formState.factDate = dateInput.value;
 
-                // Convert DD.MM.YYYY to YYYY-MM-DD for API
-                if (DateFormatter.isValidDisplayFormat(displayDate)) {
-                    formState.factDate = DateFormatter.formatForAPI(displayDate);
-                    // Clear error
-                    document.getElementById('date-error').textContent = '';
-                    dateInput.classList.remove('input-error');
-                } else {
-                    formState.factDate = null;
-                }
+                // Clear error
+                document.getElementById('date-error').textContent = '';
+                dateInput.classList.remove('input-error');
             });
 
             dateInput.addEventListener('blur', () => {
-                // Validate on blur
-                if (!DateFormatter.isValidDisplayFormat(dateInput.value)) {
-                    document.getElementById('date-error').textContent = 'Неверный формат даты (ДД.ММ.ГГГГ)';
+                // Native date input automatically validates format
+                if (!dateInput.value) {
+                    document.getElementById('date-error').textContent = 'Дата обязательна';
                     dateInput.classList.add('input-error');
                 }
             });
@@ -435,15 +429,15 @@
                     const date = new Date();
                     date.setDate(date.getDate() + daysOffset);
 
-                    // Format for API (YYYY-MM-DD) - use LOCAL timezone, not UTC
+                    // Format for native date input (YYYY-MM-DD)
                     const year = date.getFullYear();
                     const month = String(date.getMonth() + 1).padStart(2, '0');
                     const day = String(date.getDate()).padStart(2, '0');
                     const isoDate = `${year}-${month}-${day}`;
-                    formState.factDate = isoDate;
 
-                    // Format for display (DD.MM.YYYY)
-                    dateInput.value = DateFormatter.formatForDisplay(isoDate);
+                    // Set value for native date input (accepts YYYY-MM-DD)
+                    dateInput.value = isoDate;
+                    formState.factDate = isoDate;
 
                     // Clear error
                     document.getElementById('date-error').textContent = '';

@@ -301,6 +301,28 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         await createFact(e);
     });
+
+    // Инициализация CalendarWidget для фильтров дат (Range Picker)
+    new CalendarWidget({
+        mode: 'range',
+        startInputElement: document.getElementById('filter-date-from'),
+        endInputElement: document.getElementById('filter-date-to'),
+        onSelect: (startDate, endDate) => {
+            console.log('Выбран диапазон дат:', startDate, endDate);
+        }
+    });
+
+    // Инициализация CalendarWidget для edit modal (Single Date Picker)
+    new CalendarWidget({
+        mode: 'single',
+        inputElement: document.getElementById('edit-date'),
+        onSelect: (date) => {
+            console.log('Выбрана дата для edit modal:', date);
+        }
+    });
+
+    // Инициализация CalendarWidget для create modal будет выполнена позже
+    // после загрузки категорий (см. функцию initCreateModalCalendar)
 });
 
 // Load users for filter dropdown
@@ -378,6 +400,18 @@ async function loadArticles() {
                 leafPrefix: '📄'
             });
             createCategoryTreeSelect.render();
+        }
+
+        // Инициализация CalendarWidget для create modal (после загрузки категорий)
+        const createDateInput = document.querySelector('#form_create_modal input[name="fact_date"]');
+        if (createDateInput) {
+            new CalendarWidget({
+                mode: 'single',
+                inputElement: createDateInput,
+                onSelect: (date) => {
+                    console.log('Выбрана дата для create modal:', date);
+                }
+            });
         }
     } catch (error) {
         console.error('Error loading articles:', error);
