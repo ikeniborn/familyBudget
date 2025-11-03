@@ -70,8 +70,9 @@ update_cache_versions() {
 
         # Используем perl с in-place edit через temp file
         if perl -pe "s|tomSelectCategoryTree\\.js\\?v=[0-9a-zA-Z_-]*|tomSelectCategoryTree.js?v=${version}|g" "$file" > "$tmp_file" 2>&1; then
-            echo "    Perl completed, moving file..." >&2
-            if mv "$tmp_file" "$file" 2>&1; then
+            echo "    Perl completed, replacing file..." >&2
+            # Используем cat для замены файла (работает с sudo на user files)
+            if cat "$tmp_file" > "$file" 2>&1 && rm -f "$tmp_file" 2>&1; then
                 ((updated_count++))
                 echo "    ✓ Updated: $(basename "$file")" >&2
             else
