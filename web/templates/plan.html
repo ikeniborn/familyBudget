@@ -245,7 +245,7 @@
 {% block extra_scripts %}
 <script src="/static/js/admin-facts-common.js"></script>
 <!-- CategoryTreeSelect Component -->
-<script src="/static/js/categoryTreeSelect.js"></script>
+<script src="/static/js/tomSelectCategoryTree.js?v=20251103_2"></script>
 <!-- DateFormatter Component -->
 <script src="/static/js/dateFormatter.js"></script>
 
@@ -368,7 +368,7 @@ async function loadArticles() {
         const createSelect = document.querySelector('#form_create_modal select[name="article_id"]');
         if (createSelect) {
             const createType = document.querySelector('#form_create_modal input[name="plan_type"]:checked')?.value || 'expense';
-            createCategoryTreeSelect = new CategoryTreeSelect(createSelect, allCategories, {
+            createCategoryTreeSelect = new TomSelectCategoryTree(createSelect, allCategories, {
                 emptyOptionText: '-- Выберите категорию --',
                 showEmptyOption: true,
                 filterType: createType,
@@ -376,7 +376,7 @@ async function loadArticles() {
                 parentPrefix: '📁',
                 leafPrefix: '📄'
             });
-            createCategoryTreeSelect.render();
+            createCategoryTreeSelect.init();
         }
     } catch (error) {
         console.error('Error loading articles:', error);
@@ -900,7 +900,7 @@ function setupCreatePlanTypeButtons() {
                 const createSelect = document.querySelector('#form_create_modal select[name="article_id"]');
                 const createType = this.dataset.type;
 
-                createCategoryTreeSelect = new CategoryTreeSelect(createSelect, allCategories, {
+                createCategoryTreeSelect = new TomSelectCategoryTree(createSelect, allCategories, {
                     emptyOptionText: '-- Выберите категорию --',
                     showEmptyOption: true,
                     filterType: createType,
@@ -908,7 +908,7 @@ function setupCreatePlanTypeButtons() {
                     parentPrefix: '📁',
                     leafPrefix: '📄'
                 });
-                createCategoryTreeSelect.render();
+                createCategoryTreeSelect.init();
             }
         });
     });

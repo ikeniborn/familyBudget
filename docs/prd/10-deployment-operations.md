@@ -391,5 +391,390 @@ systemctl status certbot.timer
 | Порт 80/443 занят certbot | `sudo lsof -i :80`, `systemctl status certbot.service` | `deploy.sh` автоматически предложит остановить host certbot. Опция [1] - временно, [2] - навсегда |
 | Certbot контейнер не запускается | `docker compose logs certbot` | Проверить что host certbot отключен: `sudo systemctl stop certbot.timer` |
 
+### 10.7 Static Assets & Cache Management
+
+**Browser Caching Strategy:**
+
+Для предотвращения проблем с кэшированием статических файлов (JavaScript, CSS) используется **версионирование через query параметры** (cache busting):
+
+```html
+<!-- ❌ НЕПРАВИЛЬНО - браузер кэширует старую версию -->
+<script src="/static/js/tomSelectCategoryTree.js"></script>
+
+<!-- ✅ ПРАВИЛЬНО - cache busting через версию -->
+<script src="/static/js/tomSelectCategoryTree.js?v=20251103"></script>
+```
+
+**Когда обновлять версию:**
+
+| Тип изменений | Требуется обновление версии? | Пример |
+|---------------|------------------------------|--------|
+| JavaScript изменения | ✅ ДА | Исправление бага, новая функция |
+| CSS изменения | ✅ ДА | Стили, layout changes |
+| HTML templates | ❌ НЕТ* | Jinja2 шаблоны не кэшируются браузером |
+| Python код | ❌ НЕТ | Backend код, требуется только перезапуск контейнера |
+
+*Примечание: Изменения HTML templates требуют перезапуска backend контейнера для сброса кэша Jinja2.
+
+**Workflow обновления статических файлов:**
+
+```bash
+# 1. Изменить JS/CSS файл
+vim web/static/js/myScript.js
+
+# 2. Обновить версию в соответствующих шаблонах
+# Формат версии: YYYYMMDD или YYYYMMDD_HH (если несколько релизов в день)
+sed -i 's/myScript.js?v=[0-9]*/myScript.js?v=20251103/' web/templates/*.html
+
+# 3. Синхронизировать с production
+sudo rsync -av --delete ~/familyBudget/web/ /opt/budget/web/
+
+# 4. Перезапустить backend для обновления Jinja2 кэша
+docker compose -f /opt/budget/docker-compose.yml restart backend
+
+# 5. Commit changes
+git add web/
+git commit -m "feat: Update myScript.js - add new feature"
+git push
+```
+
+**Важные файлы с cache busting:**
+
+| Файл | Используется в шаблонах |
+|------|-------------------------|
+| `tomSelectCategoryTree.js` | `index.html`, `plan.html`, `facts.html` (web)<br>`add.html`, `addplan.html`, `edit.html` (webapp) |
+| `calendar-widget.js` | (при использовании) |
+| `dateFormatter.js` | (при использовании) |
+| Custom CSS файлы | Все шаблоны с custom styles |
+
+**Template Caching (Jinja2):**
+
+FastAPI кэширует скомпилированные Jinja2 шаблоны для производительности. При изменении HTML templates:
+
+```bash
+# Перезапуск backend очищает Jinja2 cache
+docker compose -f /opt/budget/docker-compose.yml restart backend
+
+# Проверка что изменения применены
+curl -s http://localhost:8000/ | grep -o 'myScript.js[^"]*'
+```
+
+**Docker Volumes & File Sync:**
+
+Static файлы монтируются как read-only volumes:
+
+```yaml
+volumes:
+  - ./web:/app/web:ro        # Web templates & static
+  - ./webapp:/app/webapp:ro  # Telegram WebApp
+```
+
+Изменения применяются **без пересборки образа**, но требуют:
+- Синхронизации файлов: `rsync` из dev → production
+- Перезапуска backend: для сброса Jinja2 cache
+
+**Browser Hard Reload (для пользователей):**
+
+После deployment информируйте пользователей о необходимости жёсткой перезагрузки:
+
+- **Windows/Linux:** `Ctrl + Shift + R` или `Ctrl + F5`
+- **macOS:** `Cmd + Shift + R`
+- **Mobile (Chrome):** Settings → Clear browsing data → Cached images and files
+
+**Альтернативные стратегии (для будущего):**
+
+1. **Content-based hashing** (для production):
+   ```bash
+   # Build процесс генерирует файлы с hash в имени
+   myScript.abc123def.js
+   ```
+
+2. **HTTP Cache-Control headers**:
+   ```python
+   # FastAPI static files config
+   StaticFiles(..., max_age=31536000)  # 1 year для immutable files
+   ```
+
+3. **Service Workers** (для PWA):
+   - Контролируемый cache через SW
+   - Automatic updates при новой версии
+
+**Текущая реализация:**
+
+- ✅ Query string versioning (`?v=YYYYMMDD`)
+- ✅ Manual version updates при изменениях
+- ✅ Docker volumes для instant updates
+- ❌ Не автоматизировано (требует ручного обновления версии)
+
+---
+
+### 10.7.1 Cache Busting Best Practices
+
+**⚠️ КРИТИЧНО ВАЖНО:**
+
+Cache busting решает **ДВЕ разные проблемы**, которые часто путают:
+
+| Проблема | Cache Busting помогает? | Что делать |
+|----------|------------------------|-----------|
+| **Синтаксическая ошибка в JS файле** | ❌ НЕТ | Исправить код, потом обновить версию |
+| **Браузер кэширует старую версию** | ✅ ДА | Обновить версию для форсирования загрузки |
+
+**Правильный порядок действий при багфиксе:**
+
+```bash
+# 1. СНАЧАЛА исправить ошибку в файле
+vim web/static/js/myScript.js
+# Fix the bug...
+
+# 2. Проверить синтаксис
+node -c web/static/js/myScript.js
+# ✅ Syntax OK
+
+# 3. ПОТОМ обновить версию в шаблонах
+sed -i 's/myScript.js?v=[0-9_]*/myScript.js?v=20251103_2/' web/templates/*.html
+
+# 4. Deploy
+sudo rsync -av ~/familyBudget/web/ /opt/budget/web/
+docker compose -f /opt/budget/docker-compose.yml restart backend
+```
+
+**❌ НЕправильная последовательность:**
+```bash
+# ❌ WRONG: Обновил версию, но не исправил баг
+sed -i 's/myScript.js?v=[0-9]*/myScript.js?v=20251103_2/' web/templates/*.html
+# Теперь браузер загрузит новый URL, но файл все еще с ошибкой!
+```
+
+---
+
+### 10.7.2 Version Increment Strategy
+
+**Формат версии:** `?v=YYYYMMDD[_N]`
+
+**Когда инкрементировать:**
+
+| Сценарий | Версия | Пример |
+|----------|--------|--------|
+| Первый deploy дня | `YYYYMMDD` | `?v=20251103` |
+| Второй deploy (bugfix) | `YYYYMMDD_2` | `?v=20251103_2` |
+| Третий deploy (hotfix) | `YYYYMMDD_3` | `?v=20251103_3` |
+| Следующий день | `YYYYMMDD` | `?v=20251104` |
+
+**Зачем `_2`, `_3` и т.д.?**
+
+Если пользователь уже загрузил `?v=20251103` (с багом), то простое исправление файла БЕЗ изменения версии не поможет - браузер будет использовать кэшированную версию с багом.
+
+**Пример:**
+```
+09:00 - Deploy 1: ?v=20251103 (содержит синтаксическую ошибку)
+      - Пользователь A зашел → загрузил битый файл в кэш
+
+10:00 - Исправили ошибку в файле, но НЕ обновили версию
+      - Пользователь A обновляет страницу → браузер берет из кэша → ошибка остается!
+
+10:10 - Обновили версию: ?v=20251103_2
+      - Пользователь A обновляет страницу → браузер видит новый URL → загружает исправленный файл ✅
+```
+
+---
+
+### 10.7.3 Real-world Case Study: tomSelectCategoryTree.js
+
+**Инцидент:** 2025-11-03
+
+**Симптомы:**
+```
+Uncaught SyntaxError: Invalid or unexpected token (at tomSelectCategoryTree.js?v=20251103:262:18)
+Failed to load categories: ReferenceError: TomSelectCategoryTree is not defined
+```
+
+**Root Cause:**
+- Синтаксическая ошибка в `web/static/js/tomSelectCategoryTree.js` line 262
+- Mismatched quote: `return '<div>...</div>';` (backtick вместо single quote)
+
+**Ошибочное предположение:**
+- "Это проблема кэширования, добавлю cache busting" ❌
+- Cache busting НЕ решит синтаксическую ошибку!
+
+**Правильное решение:**
+
+1. **Исправить синтаксис:**
+   ```javascript
+   // ДО (line 262):
+   return '<div class="no-results">Категории не найдены</div>`;
+                                                                ↑ backtick
+
+   // ПОСЛЕ:
+   return '<div class="no-results">Категории не найдены</div>';
+                                                                ↑ single quote
+   ```
+
+2. **Проверить исправление:**
+   ```bash
+   node -c web/static/js/tomSelectCategoryTree.js
+   # ✅ Syntax OK
+   ```
+
+3. **Обновить версию (форсировать загрузку исправленного файла):**
+   ```
+   ?v=20251103 → ?v=20251103_2
+   ```
+
+4. **Deploy и информировать пользователей:**
+   - Синхронизация файлов
+   - Restart backend
+   - Попросить пользователей сделать Ctrl+F5
+
+**Lessons Learned:**
+
+✅ **Cache busting - это не silver bullet:**
+- Не исправляет ошибки в коде
+- Только заставляет браузер загрузить новую версию
+- Нужен для доставки исправлений, но не для их создания
+
+✅ **Workflow при багфиксе:**
+1. Диагностика → понять root cause
+2. Исправление → фиксить саму ошибку
+3. Проверка → `node -c` для синтаксиса
+4. Версионирование → обновить `?v=` параметр
+5. Deployment → rsync + restart + notify users
+
+✅ **Разделяйте проблемы:**
+- Синтаксические ошибки = проблема кода
+- Кэширование = проблема доставки
+- Разные проблемы требуют разных решений
+
+---
+
+### 10.7.4 Common Pitfalls & Troubleshooting
+
+**❌ Pitfall 1: Не проверил синтаксис перед deployment**
+
+```bash
+# ❌ WRONG
+vim web/static/js/myScript.js
+# ... make changes ...
+git commit -m "fix: update script"
+./deploy.sh
+
+# Ошибка обнаружена только у пользователей!
+```
+
+✅ **Правильно:**
+```bash
+vim web/static/js/myScript.js
+node -c web/static/js/myScript.js  # ← Проверка ПЕРЕД commit
+git commit -m "fix: update script"
+./deploy.sh
+```
+
+**❌ Pitfall 2: Забыл обновить версию после исправления бага**
+
+```bash
+# Исправил баг в файле
+vim web/static/js/myScript.js
+
+# Задеплоил
+./deploy.sh
+
+# Пользователи жалуются что баг остался!
+# Причина: браузер использует старую версию из кэша
+```
+
+✅ **Правильно:**
+```bash
+vim web/static/js/myScript.js
+# Обновить версию в шаблонах!
+sed -i 's/myScript.js?v=[0-9_]*/myScript.js?v=20251103_2/' web/templates/*.html
+./deploy.sh
+```
+
+**❌ Pitfall 3: Думал что cache busting исправит синтаксическую ошибку**
+
+```
+Ошибка: Uncaught SyntaxError
+Решение (неправильное): Добавить ?v=параметр
+Результат: Ошибка остается, просто браузер загружает битый файл с новым URL
+```
+
+✅ **Правильно:**
+```
+Ошибка: Uncaught SyntaxError
+Решение:
+  1. node -c file.js → найти строку с ошибкой
+  2. Исправить синтаксис
+  3. node -c file.js → проверить что исправлено
+  4. Обновить ?v= версию → форсировать загрузку исправленного файла
+```
+
+**❌ Pitfall 4: Разные версии в web/ и webapp/**
+
+```
+web/static/js/myScript.js         - исправленная версия
+webapp/static/js/myScript.js      - старая версия с багом
+
+Результат: Web интерфейс работает, Telegram WebApp - нет
+```
+
+✅ **Правильно:**
+- Если файл используется в обоих местах - синхронизировать
+- Или поддерживать разные версии intentionally (desktop vs mobile)
+- Документировать различия в комментариях
+
+**Troubleshooting Checklist:**
+
+При ошибке `SyntaxError` или `... is not defined`:
+
+```bash
+# 1. Проверить синтаксис файла
+node -c /opt/budget/web/static/js/problemFile.js
+
+# 2. Проверить что версия в HTML правильная
+curl -s http://localhost:8000/ | grep problemFile.js
+
+# 3. Проверить что файл доступен по HTTP
+curl -I http://localhost:8000/static/js/problemFile.js
+
+# 4. Сравнить dev и production версии
+diff ~/familyBudget/web/static/js/problemFile.js \
+     /opt/budget/web/static/js/problemFile.js
+
+# 5. Проверить checksums
+md5sum ~/familyBudget/web/static/js/problemFile.js
+md5sum /opt/budget/web/static/js/problemFile.js
+docker exec familybudget-backend md5sum /app/web/static/js/problemFile.js
+```
+
+**Emergency Fix Procedure:**
+
+Если critical bug на production:
+
+```bash
+# 1. Hotfix в dev
+vim ~/familyBudget/web/static/js/problemFile.js
+node -c ~/familyBudget/web/static/js/problemFile.js  # VERIFY!
+
+# 2. Increment version (для форсирования обновления)
+VERSION=$(date +%Y%m%d)_hotfix
+sed -i "s/problemFile.js?v=[^\"']*/problemFile.js?v=$VERSION/" \
+  ~/familyBudget/web/templates/*.html
+
+# 3. Deploy IMMEDIATELY
+sudo rsync -av ~/familyBudget/web/ /opt/budget/web/
+docker compose -f /opt/budget/docker-compose.yml restart backend
+
+# 4. Verify fix
+curl -s http://localhost:8000/ | grep problemFile.js
+# Should show: problemFile.js?v=20251103_hotfix
+
+# 5. Notify users (Telegram broadcast, email, etc.)
+echo "Please refresh your browser (Ctrl+F5) to get the fix"
+
+# 6. Commit after verification
+git add web/
+git commit -m "hotfix: critical bug in problemFile.js"
+git push
+```
+
 ---
 

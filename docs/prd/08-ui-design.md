@@ -116,6 +116,12 @@ Bot: ✅ Расход добавлен:
 - Улучшена визуальная иерархия категорий с цветовой дифференциацией
 - Добавлены визуальные иконки для родителей (📂) и детей (▸)
 - Более явные отступы для уровней вложенности (`⤷`)
+- **Searchable Category Select (Tom Select v2.3.1):**
+  - N-gram fuzzy search для быстрого поиска категорий по частичному совпадению
+  - Отображение полного иерархического пути родителей в результатах поиска
+  - Фильтрация только листовых категорий (родительские excluded из результатов)
+  - Интегрировано в WebApp (Telegram Mini App) и Web Interface (Desktop)
+  - Подсветка совпадений и ранжирование результатов по релевантности
 
 **Batch операции:**
 - Множественный выбор транзакций (checkboxes)
@@ -329,6 +335,7 @@ const option = {
 | CSS Framework | Tailwind CSS | 3.4+ |
 | UI Components | DaisyUI | 4.12+ |
 | Frontend Interactivity | HTMX | 1.9.10 |
+| Searchable Select | Tom Select | 2.3.1 |
 | Charts Library | ECharts | 5.5+ |
 | Template Engine | Jinja2 | 3.1+ |
 | Backend | FastAPI | 0.115+ |
