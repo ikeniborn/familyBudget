@@ -338,7 +338,7 @@ main() {
     echo ""
 
     # Update cache versions before synchronization
-    run_cache_busting "auto" "$REPOSITORY_DIR"
+    run_cache_busting "auto" "$SCRIPT_DIR"
     echo ""
 
     # Synchronize code from repository to /opt/budget

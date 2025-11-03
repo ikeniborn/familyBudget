@@ -214,7 +214,7 @@ validate_env
 echo ""
 
 # Update cache versions before synchronization
-run_cache_busting "auto" "$REPOSITORY_DIR"  # ← АВТОМАТИЧЕСКИ
+run_cache_busting "auto" "$SCRIPT_DIR"  # ← АВТОМАТИЧЕСКИ
 echo ""
 
 # Synchronize code from repository to /opt/budget
