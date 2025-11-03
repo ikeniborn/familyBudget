@@ -259,7 +259,7 @@ class TomSelectCategoryTree {
           return `<div class="create">Добавить <strong>${escape(data.input)}</strong>&hellip;</div>`;
         },
         no_results: () => {
-          return '<div class="no-results">Категории не найдены</div>`;
+          return '<div class="no-results">Категории не найдены</div>';
         }
       },
 
