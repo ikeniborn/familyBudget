@@ -181,8 +181,8 @@ async def get_user_by_id(
 
 @router.get("/users/check-duplicate", response_model=bool)
 async def check_duplicate_user(
-    telegram_id: int = Query(..., gt=0, description="Telegram ID to check"),
     current_admin: CurrentAdmin,
+    telegram_id: int = Query(..., gt=0, description="Telegram ID to check"),
     session: AsyncSession = Depends(get_session)
 ) -> bool:
     """
