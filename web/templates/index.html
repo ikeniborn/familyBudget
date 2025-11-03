@@ -314,7 +314,7 @@ async function loadCategories() {
                 parentPrefix: '📁',
                 leafPrefix: '📄'
             });
-            transactionCategoryTreeSelect.render();
+            transactionCategoryTreeSelect.init();
         }
 
         // Инициализировать CategoryTreeSelect для формы плана
@@ -331,7 +331,7 @@ async function loadCategories() {
                 parentPrefix: '📁',
                 leafPrefix: '📄'
             });
-            planCategoryTreeSelect.render();
+            planCategoryTreeSelect.init();
         }
     } catch (error) {
         console.error('Failed to load categories:', error);
