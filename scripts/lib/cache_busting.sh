@@ -21,10 +21,6 @@ update_cache_versions() {
     local repo_dir="${2:-.}"
 
     echo "🔄 Updating cache versions to: ${version}" >&2
-    echo "   Repository: ${repo_dir}" >&2
-
-    # Flush output to ensure it's visible
-    sync 2>/dev/null || true
 
     # Список файлов для обновления
     local files=(
@@ -35,52 +31,36 @@ update_cache_versions() {
         "${repo_dir}/web/templates/plan.html"
     )
 
-    echo "   Files to update: ${#files[@]}" >&2
-
     local updated_count=0
 
-    echo "   Starting file processing..." >&2
-
     for file in "${files[@]}"; do
-        echo "  → Checking: $(basename "$file")..." >&2
-
         if [[ ! -f "$file" ]]; then
-            echo "    ⚠ File not found: $file" >&2
+            echo "  ⚠ File not found: $(basename "$file")" >&2
             continue
         fi
-
-        echo "    File exists, checking permissions..." >&2
 
         # Проверяем права на запись
         if [[ ! -w "$file" ]]; then
             local perms=$(stat -c '%a' "$file" 2>/dev/null || echo 'unknown')
             local owner=$(stat -c '%U:%G' "$file" 2>/dev/null || echo 'unknown')
-            echo "    ⚠ File not writable: $file" >&2
-            echo "      Permissions: $perms, Owner: $owner, Current user: $(whoami)" >&2
+            echo "  ⚠ File not writable: $(basename "$file")" >&2
+            echo "    Permissions: $perms, Owner: $owner, Current user: $(whoami)" >&2
             continue
         fi
 
-        echo "    Permissions OK, running replacement..." >&2
-
         # Обновляем tomSelectCategoryTree.js версии
-        # Используем perl с in-place edit (прямое редактирование без temp файлов)
-        # perl -i создает backup автоматически и безопасно работает с sudo
-        echo "    Running perl -i.bak..." >&2
+        # ВАЖНО: perl должен выполняться отдельно (не внутри if с 2>&1)
+        # Причина: blocking I/O под sudo при perl внутри условия
         perl -i.bak -pe "s|tomSelectCategoryTree\\.js\\?v=[0-9a-zA-Z_-]*|tomSelectCategoryTree.js?v=${version}|g" "$file" 2>&1
         local perl_exit=$?
 
-        echo "    Perl exit code: $perl_exit" >&2
-
         if [[ $perl_exit -eq 0 ]]; then
-            echo "    Perl completed, cleaning backup..." >&2
             # Удаляем backup файл
             rm -f "${file}.bak" 2>/dev/null || true
-            echo "    Backup removed" >&2
             updated_count=$((updated_count + 1))
-            echo "    Counter updated: $updated_count" >&2
-            echo "    ✓ Updated: $(basename "$file")" >&2
+            echo "  ✓ Updated: $(basename "$file")" >&2
         else
-            echo "    ✗ Perl command failed with exit code $perl_exit for: $(basename "$file")" >&2
+            echo "  ✗ Failed to update: $(basename "$file") (exit code: $perl_exit)" >&2
             # Восстанавливаем из backup если есть
             if [[ -f "${file}.bak" ]]; then
                 mv "${file}.bak" "$file" 2>/dev/null || true
