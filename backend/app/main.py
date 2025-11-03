@@ -17,6 +17,7 @@ from backend.app.core.exceptions import APIException
 from backend.app.core.logging import setup_logging, get_logger
 from backend.app.db.session import close_db, init_db
 from backend.app.middleware import JWTAuthMiddleware
+from backend.app.scheduler import start_scheduler, stop_scheduler
 from backend.app.middleware.csp_middleware import CSPMiddleware
 from backend.app.middleware.error_handler import (
     api_exception_handler,
@@ -53,6 +54,10 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("Database initialized successfully")
 
+    # Start background scheduler (cron jobs)
+    await start_scheduler()
+    logger.info("Background scheduler started successfully")
+
     # Auto-fetch Telegram bot username if not configured
     if settings.TELEGRAM_BOT_USERNAME is None:
         logger.info("TELEGRAM_BOT_USERNAME not configured, fetching from Telegram API...")
@@ -81,6 +86,11 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("Application shutting down")
+
+    # Stop background scheduler
+    await stop_scheduler()
+    logger.info("Background scheduler stopped")
+
     await close_db()
     logger.info("Database connections closed")
 

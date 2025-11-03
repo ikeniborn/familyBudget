@@ -116,14 +116,15 @@ Bot: ✅ Расход добавлен:
 - Улучшена визуальная иерархия категорий с цветовой дифференциацией
 - Добавлены визуальные иконки для родителей (📂) и детей (▸)
 - Более явные отступы для уровней вложенности (`⤷`)
-- **Searchable Category Select (Tom Select v2.3.1):**
-  - N-gram fuzzy search для быстрого поиска категорий по частичному совпадению (имя + полный путь)
-  - **Dropdown:** Чистое иерархическое отображение с отступами и иконками (без дублирования путей)
+- **Searchable Category Select (Choices.js v11.1.0):**
+  - Built-in Fuse.js fuzzy search (threshold 0.3, ignoreLocation: true) для быстрого поиска категорий
+  - **Dropdown:** Показывает только листовые категории (родительские excluded из результатов)
   - **После выбора:** Отдельный элемент под полем отображает полный путь выбранной категории для контекста
-  - Фильтрация только листовых категорий (родительские excluded из результатов)
+  - **Сортировка:** По частоте использования (most used first), на основе статистики из t_article_usage_stats
+  - **Статистика:** Обновляется daily at 00:00 UTC через APScheduler cron job
+  - **Иерархия:** Полный путь загружается через `/api/v1/articles/{id}/ancestors?include_self=true`
   - Интегрировано в WebApp (Telegram Mini App) и Web Interface (Desktop)
-  - Подсветка совпадений и ранжирование результатов по релевантности
-  - Асинхронная инициализация с проверкой загрузки библиотеки (retry mechanism)
+  - Асинхронная инициализация с автоматической загрузкой категорий из API
 
 **Batch операции:**
 - Множественный выбор транзакций (checkboxes)
@@ -945,7 +946,61 @@ new CalendarWidget({
 
 #### 8.10.8 Changelog
 
-**2025-11-03 (TomSelect Reliability & Search Improvements):**
+**2025-11-03 (Migration from TomSelect to Choices.js):**
+- ✅ **BREAKING CHANGE:** Полная миграция с TomSelect v2.3.1 на Choices.js v11.1.0
+  - **Причина:** TomSelect не поддерживает text input для поиска (dropdown-only mode)
+  - **Решение:** Choices.js с built-in Fuse.js fuzzy search и поддержкой text input
+- ✅ **BACKEND:** Добавлена таблица t_article_usage_stats
+  - Хранит pre-calculated usage statistics (usage_count) для каждой категории
+  - Обновляется daily at 00:00 UTC через APScheduler cron job
+  - PostgreSQL function `recalculate_article_usage_stats()` - TRUNCATE + INSERT pattern
+  - Indexes: `usage_count DESC` для быстрой сортировки
+- ✅ **BACKEND:** Создана модель ArticleUsageStats (SQLModel)
+  - `article_id` (PK, FK to t_d_article)
+  - `usage_count` (INT, default 0)
+  - `last_updated` (TIMESTAMP)
+- ✅ **BACKEND:** Обновлен API `/api/v1/articles`
+  - LEFT JOIN с ArticleUsageStats для получения usage_count
+  - Новый параметр `sort_by` (usage_count | name, default: usage_count)
+  - Поле `usage_count` добавлено в ArticleResponse schema
+  - Сортировка: по частоте использования (DESC), затем по имени (ASC)
+- ✅ **BACKEND:** APScheduler integration
+  - `backend/app/scheduler.py` - cron job daily at 00:00 UTC
+  - Интеграция в `main.py` lifespan (startup/shutdown)
+  - Dependency: `apscheduler==3.10.4` добавлен в requirements.txt
+- ✅ **FRONTEND:** Скачан Choices.js v11.1.0 локально
+  - `webapp/static/js/vendor/choices.min.js` (74 KB)
+  - `webapp/static/css/vendor/choices.min.css` (7.6 KB)
+  - `web/static/js/vendor/choices.min.js` и `web/static/css/vendor/choices.min.css`
+- ✅ **FRONTEND:** Удалены все TomSelect файлы (8 файлов)
+  - JS: `tomSelectCategoryTree.js`, `tom-select.complete.min.js` (webapp + web)
+  - CSS: `tom-select.css`, `tom-select-telegram.css`, `tom-select-tailwind.css`
+- ✅ **FRONTEND:** Создан новый компонент ChoicesCategoryTree (webapp + web)
+  - API: `/api/v1/articles?sort_by=usage_count` для загрузки категорий
+  - Fuzzy search через built-in Fuse.js (threshold 0.3, ignoreLocation: true)
+  - Показывает только leaf categories (parent categories excluded)
+  - Full path display через `/api/v1/articles/{id}/ancestors?include_self=true`
+  - Асинхронная инициализация с error handling
+- ✅ **FRONTEND:** Кастомные стили для Choices.js
+  - `webapp/static/css/choices-telegram.css` - Telegram theme (CSS variables)
+  - `web/static/css/choices-tailwind.css` - Tailwind CSS integration (@apply directives)
+- ✅ **FRONTEND:** Обновлены все формы (11 файлов)
+  - WebApp: `add.html`, `edit.html`, `addplan.html`
+  - Web: `base.html`, `facts.html`, `plan.html`
+  - Замена TomSelectCategoryTree на ChoicesCategoryTree
+  - Упрощенная инициализация (type, showLeafOnly, onCategoryChange callback)
+- ✅ **Изменено файлов:** 29 (backend + frontend)
+  - Backend (9): migrations, models, schemas, API endpoints, scheduler, requirements.txt
+  - Frontend (20): HTML forms, JS components, CSS styles, vendor files
+- ✅ **Scope:** WebApp (Telegram Mini App) + Web Interface (Desktop)
+- ✅ **Бенефиты:**
+  - ✅ Text input для поиска (главная проблема TomSelect решена)
+  - ✅ Сортировка по частоте использования (most used categories first)
+  - ✅ Fuzzy search через встроенный Fuse.js
+  - ✅ Более чистый API (меньше параметров конструктора)
+  - ✅ Лучшая производительность (pre-calculated statistics)
+
+**2025-11-03 [HISTORICAL] (TomSelect Reliability & Search Improvements):**
 - ✅ **RELIABILITY:** Переход на локальную копию TomSelect (v2.3.1)
   - Скачана библиотека в `webapp/static/js/vendor/tom-select.complete.min.js` и `web/static/js/vendor/`
   - Убраны CDN ссылки из всех HTML файлов (add.html, addplan.html, edit.html, base.html)

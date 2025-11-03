@@ -7,6 +7,7 @@ All models are defined using SQLModel (SQLAlchemy + Pydantic integration).
 Models:
     User: User dimension with SCD Type 2
     Article: Budget category/article dimension with SCD Type 2 and hierarchy
+    ArticleUsageStats: Pre-calculated category usage statistics (updated daily)
     FinancialCenter: Financial centers (bank accounts, wallets) with SCD Type 2
     CostCenter: Cost centers (projects, departments) with SCD Type 2
     BudgetFact: Budget transaction fact table
@@ -21,12 +22,12 @@ Design Patterns:
 
 Usage:
     from backend.app.models import (
-        User, Article, FinancialCenter, CostCenter,
+        User, Article, ArticleUsageStats, FinancialCenter, CostCenter,
         BudgetFact, ArticleHierarchy, RefreshToken, Notification
     )
 """
 
-from backend.app.models.article import Article
+from backend.app.models.article import Article, ArticleUsageStats
 from backend.app.models.cost_center import CostCenter
 from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
@@ -38,6 +39,7 @@ from backend.app.models.user import User
 __all__ = [
     "User",
     "Article",
+    "ArticleUsageStats",
     "FinancialCenter",
     "CostCenter",
     "BudgetFact",

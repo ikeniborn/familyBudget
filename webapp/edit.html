@@ -14,12 +14,12 @@
     <link rel="stylesheet" href="/webapp/static/css/app.css?v=20251103_1935">
     <link rel="stylesheet" href="/webapp/static/css/forms.css?v=20251103_1935">
 
-    <!-- Tom Select -->
-    <link rel="stylesheet" href="/webapp/static/css/tom-select.css?v=20251103_1935">
-    <link rel="stylesheet" href="/webapp/static/css/tom-select-telegram.css?v=20251103_1935">
+    <!-- Choices.js -->
+    <link rel="stylesheet" href="/webapp/static/css/vendor/choices.min.css?v=20251103_1935">
+    <link rel="stylesheet" href="/webapp/static/css/choices-telegram.css?v=20251103_1935">
 
-    <!-- Tom Select JS - load in head to ensure it's available before use -->
-    <script src="/webapp/static/js/vendor/tom-select.complete.min.js"></script>
+    <!-- Choices.js JS - load in head to ensure it's available before use -->
+    <script src="/webapp/static/js/vendor/choices.min.js"></script>
 
     <style>
         /* Edit transaction specific styles */
@@ -309,8 +309,8 @@
     <script src="/webapp/static/js/api.js?v=20251103_1935"></script>
     <script src="/webapp/static/js/dateFormatter.js?v=20251103_1935"></script>
 
-    <!-- Tom Select Category Tree Component -->
-    <script src="/webapp/static/js/tomSelectCategoryTree.js?v=20251103_1935"></script>
+    <!-- Choices.js Category Tree Component -->
+    <script src="/webapp/static/js/choicesCategoryTree.js?v=20251103_1935"></script>
 
     <script src="/webapp/static/js/app.js?v=20251103_1935"></script>
 
@@ -583,28 +583,33 @@
                     return;
                 }
 
-                // Create TomSelectCategoryTree instance
-                categoryTreeSelect = new TomSelectCategoryTree(categorySelect, categories, {
-                    emptyOptionText: 'Выберите категорию',
-                    filterType: formState.factType,
-                    selectedId: formState.categoryId,
-                    pathDisplayElementId: 'category-path-display'
+                // Destroy existing instance if present
+                if (categoryTreeSelect) {
+                    categoryTreeSelect.destroy();
+                    categoryTreeSelect = null;
+                }
+
+                // Create ChoicesCategoryTree instance
+                categoryTreeSelect = new ChoicesCategoryTree('#category-select', {
+                    type: formState.factType,
+                    showLeafOnly: true,
+                    onCategoryChange: (category) => {
+                        formState.categoryId = category ? category.id : null;
+
+                        // Clear error
+                        document.getElementById('category-error').textContent = '';
+
+                        // Haptic feedback
+                        app.ui.hapticLight();
+
+                        console.log('Category changed:', category);
+                    }
                 });
 
-                // Initialize Tom Select
-                await categoryTreeSelect.init();
-
-                // Setup change handler
-                categorySelect.addEventListener('change', () => {
-                    const selectedId = parseInt(categorySelect.value);
-                    formState.categoryId = selectedId || null;
-
-                    // Clear error
-                    document.getElementById('category-error').textContent = '';
-
-                    // Haptic feedback
-                    app.ui.hapticLight();
-                });
+                // Set selected category if editing
+                if (formState.categoryId) {
+                    await categoryTreeSelect.setSelectedCategory(formState.categoryId);
+                }
 
             } catch (error) {
                 console.error('Failed to load categories:', error);

@@ -254,8 +254,8 @@
 
 {% block extra_scripts %}
 <script src="/static/js/admin-facts-common.js?v=20251103_1935"></script>
-<!-- TomSelectCategoryTree Component -->
-<script src="/static/js/tomSelectCategoryTree.js?v=20251103_1935"></script>
+<!-- ChoicesCategoryTree Component -->
+<script src="/static/js/choicesCategoryTree.js?v=20251103_1935"></script>
 <!-- DateFormatter Component -->
 <script src="/static/js/dateFormatter.js?v=20251103_1935"></script>
 
@@ -391,16 +391,13 @@ async function loadArticles() {
         const createSelect = document.querySelector('#form_create_modal select[name="article_id"]');
         if (createSelect) {
             const createType = document.querySelector('#form_create_modal input[name="record_type"]:checked')?.value || 'expense';
-            createCategoryTreeSelect = new TomSelectCategoryTree(createSelect, allCategories, {
-                emptyOptionText: '-- Выберите категорию --',
-                showEmptyOption: true,
-                filterType: createType,
-                indentChar: '›  ',
-                parentPrefix: '📁',
-                leafPrefix: '📄',
-                pathDisplayElementId: 'transaction-category-path-display'
+            createCategoryTreeSelect = new ChoicesCategoryTree('#form_create_modal select[name="article_id"]', {
+                type: createType,
+                showLeafOnly: true,
+                onCategoryChange: (category) => {
+                    console.log('Category changed in create modal:', category);
+                }
             });
-            await createCategoryTreeSelect.init();
         }
 
         // Инициализация CalendarWidget для create modal (после загрузки категорий)
@@ -936,16 +933,13 @@ function setupCreateTransactionTypeButtons() {
                 const createSelect = document.querySelector('#form_create_modal select[name="article_id"]');
                 const createType = this.dataset.type;
 
-                createCategoryTreeSelect = new TomSelectCategoryTree(createSelect, allCategories, {
-                    emptyOptionText: '-- Выберите категорию --',
-                    showEmptyOption: true,
-                    filterType: createType,
-                    indentChar: '›  ',
-                    parentPrefix: '📁',
-                    leafPrefix: '📄',
-                    pathDisplayElementId: 'transaction-category-path-display'
+                createCategoryTreeSelect = new ChoicesCategoryTree('#form_create_modal select[name="article_id"]', {
+                    type: createType,
+                    showLeafOnly: true,
+                    onCategoryChange: (category) => {
+                        console.log('Category changed in create modal (record type change):', category);
+                    }
                 });
-                await createCategoryTreeSelect.init();
             }
         });
     });

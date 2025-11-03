@@ -233,6 +233,13 @@ class ArticleResponse(BaseModel):
         examples=["2025-10-13T12:00:00Z"]
     )
 
+    # Usage statistics (populated from t_article_usage_stats)
+    usage_count: int = Field(
+        default=0,
+        description="Number of times this category is used in transactions (from t_article_usage_stats)",
+        examples=[0, 42, 150]
+    )
+
     # Optional hierarchy info (populated when include_hierarchy=true)
     hierarchy: Optional[ArticleHierarchyInfo] = Field(
         default=None,

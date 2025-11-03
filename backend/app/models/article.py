@@ -164,3 +164,81 @@ class Article(SQLModel, table=True):
             f"user_id={self.user_id}, parent_id={self.parent_id}, "
             f"is_current={self.is_current})"
         )
+
+
+class ArticleUsageStats(SQLModel, table=True):
+    """
+    Article usage statistics table - pre-calculated category popularity metrics.
+
+    Stores aggregated statistics about how often each category is used in transactions.
+    Updated daily at 00:00 via cron job (APScheduler).
+    Used for sorting categories by popularity in frontend dropdowns.
+
+    Table: t_article_usage_stats
+    Pattern: Aggregated statistics table (updated daily)
+
+    Update Mechanism:
+        - APScheduler cron job runs daily at 00:00
+        - Calls recalculate_article_usage_stats() PostgreSQL function
+        - Truncates table and recalculates from t_f_budget_fact
+        - No historical data - only current statistics
+
+    Performance:
+        - Indexed by usage_count DESC for fast sorting
+        - Small table (only used categories, typically <100 rows)
+        - JOIN with t_d_article in API for sorted category lists
+
+    Attributes:
+        article_id: Foreign key to t_d_article.id (primary key)
+        usage_count: Number of times category used in transactions (all time)
+        last_updated: Timestamp when statistics were last recalculated
+
+    Examples:
+        # Query top 10 most used categories
+        >>> stmt = (
+        ...     select(Article, ArticleUsageStats.usage_count)
+        ...     .outerjoin(ArticleUsageStats, Article.id == ArticleUsageStats.article_id)
+        ...     .where(Article.is_current == True)
+        ...     .order_by(desc(func.coalesce(ArticleUsageStats.usage_count, 0)))
+        ...     .limit(10)
+        ... )
+
+        # Manually recalculate statistics (for testing)
+        >>> await session.execute(text("SELECT recalculate_article_usage_stats()"))
+
+    Notes:
+        - Statistics are updated daily, not in real-time
+        - Only articles that are actually used appear in this table
+        - Frontend JOINs with Article for sorted category lists
+        - COALESCE(usage_count, 0) handles articles with no usage
+        - Separate table keeps t_d_article clean (no changes to dimension table)
+    """
+
+    __tablename__ = "t_article_usage_stats"
+
+    # Primary key (same as article_id)
+    article_id: int = Field(
+        primary_key=True,
+        foreign_key="t_d_article.id",
+        description="Foreign key to t_d_article.id"
+    )
+
+    # Statistics
+    usage_count: int = Field(
+        default=0,
+        nullable=False,
+        description="Number of times this category is used in t_f_budget_fact (all time count)"
+    )
+    last_updated: datetime = Field(
+        default_factory=datetime.utcnow,
+        nullable=False,
+        description="Timestamp when statistics were last recalculated (typically 00:00 daily)"
+    )
+
+    def __repr__(self) -> str:
+        """String representation of ArticleUsageStats model."""
+        return (
+            f"ArticleUsageStats(article_id={self.article_id}, "
+            f"usage_count={self.usage_count}, "
+            f"last_updated={self.last_updated})"
+        )
