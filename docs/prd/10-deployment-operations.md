@@ -391,5 +391,120 @@ systemctl status certbot.timer
 | Порт 80/443 занят certbot | `sudo lsof -i :80`, `systemctl status certbot.service` | `deploy.sh` автоматически предложит остановить host certbot. Опция [1] - временно, [2] - навсегда |
 | Certbot контейнер не запускается | `docker compose logs certbot` | Проверить что host certbot отключен: `sudo systemctl stop certbot.timer` |
 
+### 10.7 Static Assets & Cache Management
+
+**Browser Caching Strategy:**
+
+Для предотвращения проблем с кэшированием статических файлов (JavaScript, CSS) используется **версионирование через query параметры** (cache busting):
+
+```html
+<!-- ❌ НЕПРАВИЛЬНО - браузер кэширует старую версию -->
+<script src="/static/js/tomSelectCategoryTree.js"></script>
+
+<!-- ✅ ПРАВИЛЬНО - cache busting через версию -->
+<script src="/static/js/tomSelectCategoryTree.js?v=20251103"></script>
+```
+
+**Когда обновлять версию:**
+
+| Тип изменений | Требуется обновление версии? | Пример |
+|---------------|------------------------------|--------|
+| JavaScript изменения | ✅ ДА | Исправление бага, новая функция |
+| CSS изменения | ✅ ДА | Стили, layout changes |
+| HTML templates | ❌ НЕТ* | Jinja2 шаблоны не кэшируются браузером |
+| Python код | ❌ НЕТ | Backend код, требуется только перезапуск контейнера |
+
+*Примечание: Изменения HTML templates требуют перезапуска backend контейнера для сброса кэша Jinja2.
+
+**Workflow обновления статических файлов:**
+
+```bash
+# 1. Изменить JS/CSS файл
+vim web/static/js/myScript.js
+
+# 2. Обновить версию в соответствующих шаблонах
+# Формат версии: YYYYMMDD или YYYYMMDD_HH (если несколько релизов в день)
+sed -i 's/myScript.js?v=[0-9]*/myScript.js?v=20251103/' web/templates/*.html
+
+# 3. Синхронизировать с production
+sudo rsync -av --delete ~/familyBudget/web/ /opt/budget/web/
+
+# 4. Перезапустить backend для обновления Jinja2 кэша
+docker compose -f /opt/budget/docker-compose.yml restart backend
+
+# 5. Commit changes
+git add web/
+git commit -m "feat: Update myScript.js - add new feature"
+git push
+```
+
+**Важные файлы с cache busting:**
+
+| Файл | Используется в шаблонах |
+|------|-------------------------|
+| `tomSelectCategoryTree.js` | `index.html`, `plan.html`, `facts.html` (web)<br>`add.html`, `addplan.html`, `edit.html` (webapp) |
+| `calendar-widget.js` | (при использовании) |
+| `dateFormatter.js` | (при использовании) |
+| Custom CSS файлы | Все шаблоны с custom styles |
+
+**Template Caching (Jinja2):**
+
+FastAPI кэширует скомпилированные Jinja2 шаблоны для производительности. При изменении HTML templates:
+
+```bash
+# Перезапуск backend очищает Jinja2 cache
+docker compose -f /opt/budget/docker-compose.yml restart backend
+
+# Проверка что изменения применены
+curl -s http://localhost:8000/ | grep -o 'myScript.js[^"]*'
+```
+
+**Docker Volumes & File Sync:**
+
+Static файлы монтируются как read-only volumes:
+
+```yaml
+volumes:
+  - ./web:/app/web:ro        # Web templates & static
+  - ./webapp:/app/webapp:ro  # Telegram WebApp
+```
+
+Изменения применяются **без пересборки образа**, но требуют:
+- Синхронизации файлов: `rsync` из dev → production
+- Перезапуска backend: для сброса Jinja2 cache
+
+**Browser Hard Reload (для пользователей):**
+
+После deployment информируйте пользователей о необходимости жёсткой перезагрузки:
+
+- **Windows/Linux:** `Ctrl + Shift + R` или `Ctrl + F5`
+- **macOS:** `Cmd + Shift + R`
+- **Mobile (Chrome):** Settings → Clear browsing data → Cached images and files
+
+**Альтернативные стратегии (для будущего):**
+
+1. **Content-based hashing** (для production):
+   ```bash
+   # Build процесс генерирует файлы с hash в имени
+   myScript.abc123def.js
+   ```
+
+2. **HTTP Cache-Control headers**:
+   ```python
+   # FastAPI static files config
+   StaticFiles(..., max_age=31536000)  # 1 year для immutable files
+   ```
+
+3. **Service Workers** (для PWA):
+   - Контролируемый cache через SW
+   - Automatic updates при новой версии
+
+**Текущая реализация:**
+
+- ✅ Query string versioning (`?v=YYYYMMDD`)
+- ✅ Manual version updates при изменениях
+- ✅ Docker volumes для instant updates
+- ❌ Не автоматизировано (требует ручного обновления версии)
+
 ---
 
