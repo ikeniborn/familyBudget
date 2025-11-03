@@ -24,11 +24,20 @@ update_cache_versions() {
 
     # Список файлов для обновления
     local files=(
+        # Webapp HTML
         "${repo_dir}/webapp/add.html"
         "${repo_dir}/webapp/addplan.html"
         "${repo_dir}/webapp/edit.html"
+        "${repo_dir}/webapp/index.html"
+        "${repo_dir}/webapp/list.html"
+        "${repo_dir}/webapp/stats.html"
+        "${repo_dir}/webapp/summary.html"
+        "${repo_dir}/webapp/test.html"
+        "${repo_dir}/webapp/today.html"
+        # Web Templates
         "${repo_dir}/web/templates/facts.html"
         "${repo_dir}/web/templates/plan.html"
+        "${repo_dir}/web/templates/index.html"
     )
 
     local updated_count=0
@@ -48,10 +57,13 @@ update_cache_versions() {
             continue
         fi
 
-        # Обновляем tomSelectCategoryTree.js версии
-        # ВАЖНО: perl должен выполняться отдельно (не внутри if с 2>&1)
-        # Причина: blocking I/O под sudo при perl внутри условия
-        perl -i.bak -pe "s|tomSelectCategoryTree\\.js\\?v=[0-9a-zA-Z_-]*|tomSelectCategoryTree.js?v=${version}|g" "$file" 2>&1
+        # Обновляем все версионированные файлы через perl
+        # Perl лучше обрабатывает переменные и regex
+        perl -i.bak -pe "
+            s{(\\/webapp\\/static\\/js\\/|\\/static\\/js\\/)([a-zA-Z_-]+\\.js)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
+            s{(\\/webapp\\/static\\/css\\/)([a-zA-Z_-]+\\.css)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
+        " "$file" 2>&1
+
         local perl_exit=$?
 
         if [[ $perl_exit -eq 0 ]]; then
@@ -66,10 +78,6 @@ update_cache_versions() {
                 mv "${file}.bak" "$file" 2>/dev/null || true
             fi
         fi
-
-        # Обновляем другие JS файлы если есть
-        # sed "s/app\\.js?v=[0-9a-zA-Z_-]*/app.js?v=${version}/g" "$file"
-        # sed "s/dateFormatter\\.js?v=[0-9a-zA-Z_-]*/dateFormatter.js?v=${version}/g" "$file"
     done
 
     if [[ $updated_count -gt 0 ]]; then
@@ -88,20 +96,44 @@ check_cache_versions() {
     echo "📝 Current cache versions:"
 
     local files=(
+        # Webapp HTML
         "${repo_dir}/webapp/add.html"
         "${repo_dir}/webapp/addplan.html"
         "${repo_dir}/webapp/edit.html"
+        "${repo_dir}/webapp/index.html"
+        "${repo_dir}/webapp/list.html"
+        "${repo_dir}/webapp/stats.html"
+        "${repo_dir}/webapp/summary.html"
+        "${repo_dir}/webapp/test.html"
+        "${repo_dir}/webapp/today.html"
+        # Web Templates
         "${repo_dir}/web/templates/facts.html"
         "${repo_dir}/web/templates/plan.html"
+        "${repo_dir}/web/templates/index.html"
     )
 
     for file in "${files[@]}"; do
         if [[ -f "$file" ]]; then
-            local version=$(grep -oP 'tomSelectCategoryTree\.js\?v=\K[0-9a-zA-Z_-]+' "$file" 2>/dev/null | head -1)
-            if [[ -n "$version" ]]; then
-                echo "  $(basename "$file"): v=${version}"
+            # Ищем любой .js или .css файл с версией
+            local versions=$(grep -oP '(static/js/|static/css/)[a-zA-Z_-]+\.(js|css)\?v=\K[0-9a-zA-Z_-]+' "$file" 2>/dev/null | sort -u)
+
+            if [[ -n "$versions" ]]; then
+                # Подсчитываем количество уникальных версий
+                local version_count=$(echo "$versions" | wc -l)
+                local first_version=$(echo "$versions" | head -1)
+
+                if [[ $version_count -eq 1 ]]; then
+                    echo "  $(basename "$file"): v=${first_version}"
+                else
+                    echo "  $(basename "$file"): ${version_count} versions (${first_version}, ...)"
+                fi
             else
-                echo "  $(basename "$file"): no version found"
+                # Проверяем PLACEHOLDER
+                if grep -q '?v=PLACEHOLDER' "$file" 2>/dev/null; then
+                    echo "  $(basename "$file"): PLACEHOLDER (needs update)"
+                else
+                    echo "  $(basename "$file"): no versions found"
+                fi
             fi
         fi
     done

@@ -182,9 +182,11 @@ sudo ./deploy.sh
 ```
 
 **Какие файлы затрагиваются:**
-- `webapp/add.html`, `webapp/addplan.html`, `webapp/edit.html`
-- `web/templates/facts.html`, `web/templates/plan.html`
-- Обновляются версии: `tomSelectCategoryTree.js?v=YYYYMMDD_HHMM`
+- **Webapp HTML (9 файлов):** `add.html`, `addplan.html`, `edit.html`, `index.html`, `list.html`, `stats.html`, `summary.html`, `test.html`, `today.html`
+- **Web Templates (3 файла):** `facts.html`, `plan.html`, `index.html`
+- **JS файлы (11 штук):** `api.js`, `app.js`, `auth.js`, `ui.js`, `validators.js`, `storage.js`, `theme.js`, `dateFormatter.js`, `tomSelectCategoryTree.js`, `admin-facts-common.js`, `calendar-widget.js`
+- **CSS файлы (5 штук):** `app.css`, `forms.css`, `telegram-theme.css`, `tom-select.css`, `tom-select-telegram.css`
+- Обновляются версии: `*.js?v=YYYYMMDD_HHMM` и `*.css?v=YYYYMMDD_HHMM`
 
 **❌ НЕ НУЖНО вручную править версии:**
 ```html
@@ -209,17 +211,20 @@ sudo ./deploy.sh
 
 **Интеграция в deploy.sh:**
 ```bash
-# deploy.sh (строка ~341)
-validate_env
-echo ""
-
-# Update cache versions before synchronization
-run_cache_busting "auto" "$SCRIPT_DIR"  # ← АВТОМАТИЧЕСКИ
-echo ""
-
+# deploy.sh (строка ~341-345)
 # Synchronize code from repository to /opt/budget
 sync_code_to_deploy
+echo ""
+
+# Update cache versions AFTER synchronization (in /opt/budget)
+run_cache_busting "auto" "/opt/budget"  # ← АВТОМАТИЧЕСКИ
+echo ""
 ```
+
+**Порядок выполнения:**
+1. Код синхронизируется из `~/familyBudget` → `/opt/budget`
+2. Cache busting обновляет версии в `/opt/budget` (production)
+3. Docker контейнеры монтируют файлы из `/opt/budget`
 
 **Deployment стратегии (автоматические):**
 
