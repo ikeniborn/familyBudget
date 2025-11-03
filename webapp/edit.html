@@ -14,6 +14,10 @@
     <link rel="stylesheet" href="/webapp/static/css/app.css">
     <link rel="stylesheet" href="/webapp/static/css/forms.css">
 
+    <!-- Tom Select -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css">
+    <link rel="stylesheet" href="/webapp/static/css/tom-select-telegram.css">
+
     <style>
         /* Edit transaction specific styles */
         .page-header {
@@ -300,7 +304,11 @@
     <script src="/webapp/static/js/auth.js"></script>
     <script src="/webapp/static/js/api.js"></script>
     <script src="/webapp/static/js/dateFormatter.js"></script>
-    <script src="/webapp/static/js/categoryTreeSelect.js"></script>
+
+    <!-- Tom Select Library -->
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+    <script src="/webapp/static/js/tomSelectCategoryTree.js"></script>
+
     <script src="/webapp/static/js/app.js"></script>
 
     <script>
@@ -572,16 +580,15 @@
                     return;
                 }
 
-                // Create CategoryTreeSelect instance
-                categoryTreeSelect = new CategoryTreeSelect(categorySelect, categories, {
+                // Create TomSelectCategoryTree instance
+                categoryTreeSelect = new TomSelectCategoryTree(categorySelect, categories, {
                     emptyOptionText: 'Выберите категорию',
-                    showEmptyOption: true,
                     filterType: formState.factType,
                     selectedId: formState.categoryId
                 });
 
-                // Render tree
-                categoryTreeSelect.render();
+                // Initialize Tom Select
+                categoryTreeSelect.init();
 
                 // Setup change handler
                 categorySelect.addEventListener('change', () => {

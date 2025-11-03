@@ -254,8 +254,8 @@
 
 {% block extra_scripts %}
 <script src="/static/js/admin-facts-common.js"></script>
-<!-- CategoryTreeSelect Component -->
-<script src="/static/js/categoryTreeSelect.js"></script>
+<!-- TomSelectCategoryTree Component -->
+<script src="/static/js/tomSelectCategoryTree.js"></script>
 <!-- DateFormatter Component -->
 <script src="/static/js/dateFormatter.js"></script>
 
@@ -391,7 +391,7 @@ async function loadArticles() {
         const createSelect = document.querySelector('#form_create_modal select[name="article_id"]');
         if (createSelect) {
             const createType = document.querySelector('#form_create_modal input[name="record_type"]:checked')?.value || 'expense';
-            createCategoryTreeSelect = new CategoryTreeSelect(createSelect, allCategories, {
+            createCategoryTreeSelect = new TomSelectCategoryTree(createSelect, allCategories, {
                 emptyOptionText: '-- Выберите категорию --',
                 showEmptyOption: true,
                 filterType: createType,
@@ -399,7 +399,7 @@ async function loadArticles() {
                 parentPrefix: '📁',
                 leafPrefix: '📄'
             });
-            createCategoryTreeSelect.render();
+            createCategoryTreeSelect.init();
         }
 
         // Инициализация CalendarWidget для create modal (после загрузки категорий)
@@ -935,7 +935,7 @@ function setupCreateTransactionTypeButtons() {
                 const createSelect = document.querySelector('#form_create_modal select[name="article_id"]');
                 const createType = this.dataset.type;
 
-                createCategoryTreeSelect = new CategoryTreeSelect(createSelect, allCategories, {
+                createCategoryTreeSelect = new TomSelectCategoryTree(createSelect, allCategories, {
                     emptyOptionText: '-- Выберите категорию --',
                     showEmptyOption: true,
                     filterType: createType,
@@ -943,7 +943,7 @@ function setupCreateTransactionTypeButtons() {
                     parentPrefix: '📁',
                     leafPrefix: '📄'
                 });
-                createCategoryTreeSelect.render();
+                createCategoryTreeSelect.init();
             }
         });
     });

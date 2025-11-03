@@ -151,7 +151,7 @@
 {{ plan_modal('modal_add_plan') }}
 
 <!-- CategoryTreeSelect Component -->
-<script src="/static/js/categoryTreeSelect.js"></script>
+<script src="/static/js/tomSelectCategoryTree.js"></script>
 
 <script>
 // Глобальные переменные для CategoryTreeSelect
@@ -303,7 +303,7 @@ async function loadCategories() {
             const transactionType = document.querySelector('#form_modal_add_transaction input[name="record_type"]:checked')?.value || 'expense';
             const filterType = transactionType; // 'expense' или 'income'
 
-            transactionCategoryTreeSelect = new CategoryTreeSelect(transactionSelect, allCategories, {
+            transactionCategoryTreeSelect = new TomSelectCategoryTree(transactionSelect, allCategories, {
                 emptyOptionText: '-- Выберите категорию --',
                 showEmptyOption: true,
                 filterType: filterType,
@@ -320,7 +320,7 @@ async function loadCategories() {
             // Получить текущий тип плана (expense/income)
             const planType = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked')?.value || 'expense';
 
-            planCategoryTreeSelect = new CategoryTreeSelect(planSelect, allCategories, {
+            planCategoryTreeSelect = new TomSelectCategoryTree(planSelect, allCategories, {
                 emptyOptionText: '-- Выберите категорию --',
                 showEmptyOption: true,
                 filterType: planType, // Динамически из формы
