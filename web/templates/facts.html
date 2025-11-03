@@ -397,9 +397,10 @@ async function loadArticles() {
                 filterType: createType,
                 indentChar: '›  ',
                 parentPrefix: '📁',
-                leafPrefix: '📄'
+                leafPrefix: '📄',
+                pathDisplayElementId: 'transaction-category-path-display'
             });
-            createCategoryTreeSelect.init();
+            await createCategoryTreeSelect.init();
         }
 
         // Инициализация CalendarWidget для create modal (после загрузки категорий)
@@ -941,9 +942,10 @@ function setupCreateTransactionTypeButtons() {
                     filterType: createType,
                     indentChar: '›  ',
                     parentPrefix: '📁',
-                    leafPrefix: '📄'
+                    leafPrefix: '📄',
+                    pathDisplayElementId: 'transaction-category-path-display'
                 });
-                createCategoryTreeSelect.init();
+                await createCategoryTreeSelect.init();
             }
         });
     });

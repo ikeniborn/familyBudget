@@ -208,6 +208,7 @@
             <select id="category-select" class="form-input" required>
                 <option value="">Загрузка категорий...</option>
             </select>
+            <div id="category-path-display" class="category-path-info" style="display: none;"></div>
             <span class="error-message" id="category-error"></span>
         </div>
 
@@ -480,11 +481,12 @@
                 categoryTreeSelect = new TomSelectCategoryTree(categorySelect, categories, {
                     emptyOptionText: 'Выберите категорию',
                     filterType: formState.factType,
-                    selectedId: formState.categoryId
+                    selectedId: formState.categoryId,
+                    pathDisplayElementId: 'category-path-display'
                 });
 
                 // Initialize Tom Select
-                categoryTreeSelect.init();
+                await categoryTreeSelect.init();
 
                 // Setup change handler
                 categorySelect.addEventListener('change', () => {

@@ -117,11 +117,13 @@ Bot: ✅ Расход добавлен:
 - Добавлены визуальные иконки для родителей (📂) и детей (▸)
 - Более явные отступы для уровней вложенности (`⤷`)
 - **Searchable Category Select (Tom Select v2.3.1):**
-  - N-gram fuzzy search для быстрого поиска категорий по частичному совпадению
-  - Отображение полного иерархического пути родителей в результатах поиска
+  - N-gram fuzzy search для быстрого поиска категорий по частичному совпадению (имя + полный путь)
+  - **Dropdown:** Чистое иерархическое отображение с отступами и иконками (без дублирования путей)
+  - **После выбора:** Отдельный элемент под полем отображает полный путь выбранной категории для контекста
   - Фильтрация только листовых категорий (родительские excluded из результатов)
   - Интегрировано в WebApp (Telegram Mini App) и Web Interface (Desktop)
   - Подсветка совпадений и ранжирование результатов по релевантности
+  - Асинхронная инициализация с проверкой загрузки библиотеки (retry mechanism)
 
 **Batch операции:**
 - Множественный выбор транзакций (checkboxes)
@@ -942,6 +944,27 @@ new CalendarWidget({
 - Поддержка обоих форматов: DD.MM.YYYY (отображение) ↔ YYYY-MM-DD (native input value)
 
 #### 8.10.8 Changelog
+
+**2025-11-03 (TomSelect Category Tree UX Improvements):**
+- ✅ **UX IMPROVEMENT:** Улучшен интерфейс выбора категорий (TomSelectCategoryTree)
+- ✅ **FIX:** Убрано избыточное отображение полного пути в dropdown списке
+  - Было: Иерархия с отступами + дублирующий fullPath под каждой категорией
+  - Стало: Чистое иерархическое отображение с иконками (без дублирования)
+- ✅ **FEATURE:** Добавлено отображение контекста выбранной категории
+  - Отдельный элемент под полем выбора показывает полный путь: "Расходы › Продукты › Еда"
+  - Помогает избежать путаницы между одноименными категориями из разных веток
+- ✅ **FIX:** Исправлен fuzzy search по категориям
+  - Переключено с DOM parsing на options API для корректной передачи данных
+  - Теперь поиск работает по имени категории И полному пути
+- ✅ **FIX:** Исправлена ошибка "TomSelect is not defined"
+  - Добавлен retry mechanism с async/await для ожидания загрузки библиотеки (до 1 сек)
+  - Fallback: показать стандартный select если TomSelect не загрузился
+- ✅ **Изменено файлов:** 11
+  - JS: `webapp/static/js/tomSelectCategoryTree.js`, `web/static/js/tomSelectCategoryTree.js`
+  - HTML webapp: `add.html`, `addplan.html`, `edit.html`
+  - HTML web: `facts.html`, `plan.html`, `components/modal_transaction.html`, `components/modal_plan.html`
+  - CSS: `webapp/static/css/tom-select-telegram.css`, `web/static/css/tom-select-tailwind.css`
+- ✅ **Scope:** WebApp (Telegram Mini App) + Web Interface (Desktop)
 
 **2025-11-02 (CalendarWidget Implementation):**
 - ✅ **FEATURE:** Реализован календарный виджет для всех форм с датами

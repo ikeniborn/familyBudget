@@ -374,9 +374,10 @@ async function loadArticles() {
                 filterType: createType,
                 indentChar: '›  ',
                 parentPrefix: '📁',
-                leafPrefix: '📄'
+                leafPrefix: '📄',
+                pathDisplayElementId: 'plan-category-path-display'
             });
-            createCategoryTreeSelect.init();
+            await createCategoryTreeSelect.init();
         }
     } catch (error) {
         console.error('Error loading articles:', error);
@@ -906,9 +907,10 @@ function setupCreatePlanTypeButtons() {
                     filterType: createType,
                     indentChar: '›  ',
                     parentPrefix: '📁',
-                    leafPrefix: '📄'
+                    leafPrefix: '📄',
+                    pathDisplayElementId: 'plan-category-path-display'
                 });
-                createCategoryTreeSelect.init();
+                await createCategoryTreeSelect.init();
             }
         });
     });
