@@ -63,26 +63,21 @@ update_cache_versions() {
         echo "    Permissions OK, running replacement..." >&2
 
         # Обновляем tomSelectCategoryTree.js версии
-        # Используем perl вместо sed для более надежной работы с regex
-        local tmp_file="${file}.tmp.$$"
-
-        echo "    Creating temp file: $tmp_file" >&2
-
-        # Используем perl с in-place edit через temp file
-        if perl -pe "s|tomSelectCategoryTree\\.js\\?v=[0-9a-zA-Z_-]*|tomSelectCategoryTree.js?v=${version}|g" "$file" > "$tmp_file" 2>&1; then
-            echo "    Perl completed, replacing file..." >&2
-            # Используем cat для замены файла (работает с sudo на user files)
-            if cat "$tmp_file" > "$file" 2>&1 && rm -f "$tmp_file" 2>&1; then
-                ((updated_count++))
-                echo "    ✓ Updated: $(basename "$file")" >&2
-            else
-                echo "    ✗ Failed to replace file: $(basename "$file")" >&2
-                rm -f "$tmp_file" 2>/dev/null || true
-            fi
+        # Используем perl с in-place edit (прямое редактирование без temp файлов)
+        # perl -i создает backup автоматически и безопасно работает с sudo
+        if perl -i.bak -pe "s|tomSelectCategoryTree\\.js\\?v=[0-9a-zA-Z_-]*|tomSelectCategoryTree.js?v=${version}|g" "$file" 2>&1; then
+            echo "    Perl completed, cleaning backup..." >&2
+            # Удаляем backup файл
+            rm -f "${file}.bak" 2>/dev/null || true
+            ((updated_count++))
+            echo "    ✓ Updated: $(basename "$file")" >&2
         else
             local exit_code=$?
             echo "    ✗ Perl command failed with exit code $exit_code for: $(basename "$file")" >&2
-            rm -f "$tmp_file" 2>/dev/null || true
+            # Восстанавливаем из backup если есть
+            if [[ -f "${file}.bak" ]]; then
+                mv "${file}.bak" "$file" 2>/dev/null || true
+            fi
         fi
 
         # Обновляем другие JS файлы если есть
