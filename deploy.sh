@@ -93,6 +93,7 @@ source "$SCRIPT_DIR/scripts/lib/backup_integration.sh"  # Depends on config.sh, 
 
 # Phase 3 modules (NEW)
 source "$SCRIPT_DIR/scripts/lib/sync.sh"        # Depends on config.sh, utils.sh
+source "$SCRIPT_DIR/scripts/lib/cache_busting.sh"  # Depends on config.sh, utils.sh (NEW)
 source "$SCRIPT_DIR/scripts/lib/docker.sh"      # Depends on config.sh, utils.sh, postgres.sh
 source "$SCRIPT_DIR/scripts/lib/network.sh"     # Depends on config.sh, utils.sh, docker.sh (is_our_docker_container)
 source "$SCRIPT_DIR/scripts/lib/ssl.sh"         # Depends on config.sh, utils.sh
@@ -334,6 +335,10 @@ main() {
     echo ""
 
     validate_env
+    echo ""
+
+    # Update cache versions before synchronization
+    run_cache_busting "auto" "$REPOSITORY_DIR"
     echo ""
 
     # Synchronize code from repository to /opt/budget

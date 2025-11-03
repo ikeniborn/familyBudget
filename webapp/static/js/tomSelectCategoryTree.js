@@ -208,13 +208,33 @@ class TomSelectCategoryTree {
   /**
    * Проверить загрузку TomSelect библиотеки
    */
-  async waitForTomSelect(maxAttempts = 10, delayMs = 100) {
+  async waitForTomSelect(maxAttempts = 20, delayMs = 150) {
+    console.log('[TomSelect] Waiting for TomSelect library...');
+
     for (let i = 0; i < maxAttempts; i++) {
       if (typeof TomSelect !== 'undefined') {
+        console.log(`[TomSelect] Library loaded successfully after ${i + 1} attempts`);
         return true;
       }
+
+      if (i % 5 === 0) {
+        console.log(`[TomSelect] Attempt ${i + 1}/${maxAttempts}...`);
+      }
+
       await new Promise(resolve => setTimeout(resolve, delayMs));
     }
+
+    console.error('[TomSelect] Failed to load after', maxAttempts, 'attempts');
+    console.error('[TomSelect] Checking CDN script tag...');
+
+    const cdnScript = document.querySelector('script[src*="tom-select"]');
+    if (cdnScript) {
+      console.log('[TomSelect] CDN script tag found:', cdnScript.src);
+      console.log('[TomSelect] Script loaded:', cdnScript.complete || 'unknown');
+    } else {
+      console.error('[TomSelect] CDN script tag NOT found in document!');
+    }
+
     return false;
   }
 
