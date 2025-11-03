@@ -351,3 +351,147 @@ curl -X POST http://localhost:8000/api/v1/auth/telegram \
 
 ---
 
+#### GET /api/v1/admin/users/check-duplicate
+
+**Описание:** Проверить существование пользователя с указанным telegram_id (admin only)
+
+**Назначение:** Используется admin panel для real-time валидации при создании нового пользователя. Предотвращает попытки создания дубликатов.
+
+**Query Parameters:**
+
+| Параметр | Тип | Обязательный | Описание |
+|----------|-----|--------------|----------|
+| `telegram_id` | integer | Да | Telegram ID для проверки (должен быть > 0) |
+
+**Response:**
+
+```json
+true
+```
+
+или
+
+```json
+false
+```
+
+**Response Type:** `boolean`
+- `true` - пользователь с таким telegram_id существует (дубликат)
+- `false` - пользователь не существует (безопасно создавать)
+
+**Примечания:**
+- Проверка производится только среди текущих (активных) пользователей (`is_current=True`)
+- Учитывает SCD Type 2 историчность данных
+
+**cURL Example:**
+
+```bash
+curl -X GET "http://localhost:8000/api/v1/admin/users/check-duplicate?telegram_id=123456789" \
+  -H "Authorization: Bearer {admin_token}"
+```
+
+**Добавлено в версии:** 5.0.0-beta (2025-11-02)
+
+---
+
+#### POST /api/v1/admin/users
+
+**Описание:** Создать нового пользователя вручную (admin only)
+
+**Назначение:** Позволяет администраторам добавлять пользователей вручную через admin panel без необходимости прохождения Telegram OAuth.
+
+**Request Body:**
+
+```json
+{
+  "telegram_id": 123456789,
+  "username": "johndoe",
+  "first_name": "John",
+  "last_name": "Doe",
+  "is_admin": false
+}
+```
+
+**Request Schema:**
+
+| Поле | Тип | Обязательное | Описание |
+|------|-----|--------------|----------|
+| `telegram_id` | integer | Да | Telegram ID пользователя (должен быть > 0 и уникальным) |
+| `username` | string | Нет | Telegram username (без @, max 255 символов) |
+| `first_name` | string | Нет | Имя пользователя (max 255 символов) |
+| `last_name` | string | Нет | Фамилия пользователя (max 255 символов) |
+| `is_admin` | boolean | Нет | Права администратора (default: false) |
+
+**Validation Rules:**
+
+1. **Уникальность telegram_id:**
+   - Проверяется среди текущих пользователей (`is_current=True`)
+   - Если найден дубликат → HTTP 400
+
+2. **Telegram API валидация:**
+   - Проверяется существование telegram_id через Telegram Bot API (`getChat` method)
+   - Если пользователь не найден в Telegram → HTTP 400
+   - **Важно:** Bot должен иметь доступ к пользователю (пользователь должен был начать диалог с ботом или иметь публичный профиль)
+
+**Response (201 Created):**
+
+```json
+{
+  "id": 5,
+  "telegram_id": 123456789,
+  "username": "johndoe",
+  "first_name": "John",
+  "last_name": "Doe",
+  "is_admin": false,
+  "is_current": true,
+  "valid_from": "2025-11-02T15:30:00",
+  "valid_to": null
+}
+```
+
+**Error Responses:**
+
+**400 Bad Request (duplicate):**
+```json
+{
+  "detail": "User with telegram_id 123456789 already exists"
+}
+```
+
+**400 Bad Request (invalid telegram_id):**
+```json
+{
+  "detail": "Invalid telegram_id 123456789. User not found in Telegram or bot hasn't interacted with this user. Please ensure the user has started a conversation with the bot."
+}
+```
+
+**500 Internal Server Error:**
+```json
+{
+  "detail": "Failed to create user: {error_message}"
+}
+```
+
+**SCD Type 2 Behavior:**
+- Создается новая запись с `valid_from=now()`, `valid_to=None`, `is_current=True`
+- Не затрагивает исторические записи других пользователей
+
+**cURL Example:**
+
+```bash
+curl -X POST http://localhost:8000/api/v1/admin/users \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer {admin_token}" \
+  -d '{
+    "telegram_id": 123456789,
+    "username": "johndoe",
+    "first_name": "John",
+    "last_name": "Doe",
+    "is_admin": false
+  }'
+```
+
+**Добавлено в версии:** 5.0.0-beta (2025-11-02)
+
+---
+

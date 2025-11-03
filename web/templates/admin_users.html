@@ -52,8 +52,9 @@
                 </label>
                 <input type="number" id="create-telegram-id" name="telegram_id" required placeholder="Введите Telegram ID" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
                 <label class="label">
-                    <span class="label-text-alt">Числовой ID пользователя в Telegram</span>
+                    <span class="label-text-alt" id="telegram-id-hint">Числовой ID пользователя в Telegram</span>
                 </label>
+                <div id="telegram-id-error" class="text-error text-sm mt-1 hidden"></div>
             </div>
             <div class="form-control">
                 <label class="label">
@@ -142,6 +143,15 @@ let usersData = [];
 document.addEventListener('DOMContentLoaded', function() {
     loadUsers();
     loadStats();
+
+    // Add event listener for telegram_id duplicate check
+    const telegramIdInput = document.getElementById('create-telegram-id');
+    if (telegramIdInput) {
+        telegramIdInput.addEventListener('input', (e) => {
+            const telegramId = parseInt(e.target.value);
+            checkDuplicateTelegramId(telegramId);
+        });
+    }
 });
 
 // Toggle user filter (current vs all history)
@@ -309,6 +319,64 @@ function showCreateModal() {
 function closeCreateModal() {
     document.getElementById('create-modal').close();
     document.getElementById('create-form').reset();
+    // Reset validation state
+    const input = document.getElementById('create-telegram-id');
+    const errorDiv = document.getElementById('telegram-id-error');
+    input.classList.remove('input-error');
+    errorDiv.classList.add('hidden');
+}
+
+// Check duplicate telegram_id (real-time validation)
+let checkDuplicateTimeout;
+async function checkDuplicateTelegramId(telegramId) {
+    const input = document.getElementById('create-telegram-id');
+    const errorDiv = document.getElementById('telegram-id-error');
+    const submitBtn = document.querySelector('#create-form button[type="submit"]');
+
+    // Clear previous timeout
+    if (checkDuplicateTimeout) {
+        clearTimeout(checkDuplicateTimeout);
+    }
+
+    // Validate input
+    if (!telegramId || telegramId <= 0) {
+        input.classList.remove('input-error');
+        errorDiv.classList.add('hidden');
+        submitBtn.disabled = false;
+        return;
+    }
+
+    // Debounce API call (wait 500ms after user stops typing)
+    checkDuplicateTimeout = setTimeout(async () => {
+        try {
+            const response = await fetch(`/api/v1/admin/users/check-duplicate?telegram_id=${telegramId}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const isDuplicate = await response.json();
+
+            if (isDuplicate) {
+                // Show error
+                input.classList.add('input-error');
+                errorDiv.textContent = '⚠️ Пользователь с таким Telegram ID уже существует';
+                errorDiv.classList.remove('hidden');
+                submitBtn.disabled = true;
+            } else {
+                // Clear error
+                input.classList.remove('input-error');
+                errorDiv.classList.add('hidden');
+                submitBtn.disabled = false;
+            }
+        } catch (error) {
+            console.error('Error checking duplicate:', error);
+            // On error, allow submission (backend will validate)
+            input.classList.remove('input-error');
+            errorDiv.classList.add('hidden');
+            submitBtn.disabled = false;
+        }
+    }, 500);
 }
 
 // Create user
