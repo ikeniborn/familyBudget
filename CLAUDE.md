@@ -157,6 +157,70 @@ ruff check . && black . && mypy .    # Quality checks
    - Требуется **пересборка** и **перезапуск**
    - Smart cleanup автоматически определяет необходимость перезапуска
 
+**⚡ Cache Busting (АВТОМАТИЗИРОВАНО):**
+
+**КРИТИЧНО:** При изменении статических файлов (JS/CSS) требуется обновление версий для очистки браузерного кэша.
+
+✅ **Автоматически при деплое:**
+```bash
+cd ~/familyBudget && git pull
+sudo ./deploy.sh
+# Cache busting выполняется АВТОМАТИЧЕСКИ перед sync_code_to_deploy()
+# Генерируется новая версия на основе timestamp: YYYYMMDD_HHMM
+```
+
+✅ **Ручное управление версиями:**
+```bash
+# Проверить текущие версии во всех файлах
+./scripts/lib/cache_busting.sh check
+
+# Обновить версии вручную (авто-генерация timestamp)
+./scripts/lib/cache_busting.sh auto
+
+# Обновить версии с указанной версией
+./scripts/lib/cache_busting.sh manual
+```
+
+**Какие файлы затрагиваются:**
+- `webapp/add.html`, `webapp/addplan.html`, `webapp/edit.html`
+- `web/templates/facts.html`, `web/templates/plan.html`
+- Обновляются версии: `tomSelectCategoryTree.js?v=YYYYMMDD_HHMM`
+
+**❌ НЕ НУЖНО вручную править версии:**
+```html
+<!-- ❌ WRONG: Ручное изменение версии -->
+<script src="/static/js/tomSelectCategoryTree.js?v=20251103_1234"></script>
+
+<!-- ✅ CORRECT: Версия обновится автоматически при деплое -->
+<script src="/static/js/tomSelectCategoryTree.js?v=GENERATED"></script>
+```
+
+**Workflow при изменении JS/CSS:**
+1. Изменить файл (например, `webapp/static/js/tomSelectCategoryTree.js`)
+2. Закоммитить: `git commit -m "fix: update tomSelect logic"`
+3. Push: `git push`
+4. На сервере: `cd ~/familyBudget && git pull && sudo ./deploy.sh`
+5. ✅ Cache busting сработает автоматически, версии обновятся
+
+**Зачем это нужно:**
+- Браузеры кэшируют JS/CSS файлы агрессивно
+- Без обновления версии пользователи получают старый код
+- Автоматическая генерация версий предотвращает проблемы с кэшем
+
+**Интеграция в deploy.sh:**
+```bash
+# deploy.sh (строка ~341)
+validate_env
+echo ""
+
+# Update cache versions before synchronization
+run_cache_busting "auto" "$REPOSITORY_DIR"  # ← АВТОМАТИЧЕСКИ
+echo ""
+
+# Synchronize code from repository to /opt/budget
+sync_code_to_deploy
+```
+
 **Deployment стратегии (автоматические):**
 
 | Изменения | Cleanup опция | PostgreSQL | Downtime |
@@ -738,11 +802,12 @@ Backend упал на production:
 7. Проверяй **security** - JWT, admin-only access для dimension tables, validation
 8. Проверяй **performance** - indexes, N+1 queries
 9. Документируй **breaking changes**
+10. **НЕ редактируй вручную версии** в `?v=` параметрах - используй автоматический cache busting при деплое
 
 💡 **Не уверен как сделать?** → Посмотри соответствующий [Skill](#-claude-skills)
 
 ---
 
-**Версия документа:** 2.0 (оптимизированная)
-**Последнее обновление:** 2025-10-22
+**Версия документа:** 2.1 (+ автоматический cache busting)
+**Последнее обновление:** 2025-11-03
 **Формат:** Компактный + ссылки на Skills
