@@ -945,6 +945,39 @@ new CalendarWidget({
 
 #### 8.10.8 Changelog
 
+**2025-11-03 (TomSelect Reliability & Search Improvements):**
+- ✅ **RELIABILITY:** Переход на локальную копию TomSelect (v2.3.1)
+  - Скачана библиотека в `webapp/static/js/vendor/tom-select.complete.min.js` и `web/static/js/vendor/`
+  - Убраны CDN ссылки из всех HTML файлов (add.html, addplan.html, edit.html, base.html)
+  - Удален CDN wait logic из `tomSelectCategoryTree.js` - библиотека доступна сразу
+  - **Бенефит:** Устранена ошибка "Failed to load after 20 attempts", надежная загрузка без зависимости от CDN
+- ✅ **UX IMPROVEMENT:** Упрощено отображение листовых категорий в dropdown
+  - Было: Отступы (›››) + иконки для всех элементов
+  - Стало: Листовые элементы БЕЗ отступов и иконок (только название), родительские с отступами (disabled)
+  - Полный путь отображается под полем выбора после выбора категории
+  - **Бенефит:** Чистый UI, легче найти нужную категорию, контекст сохранен
+- ✅ **FEATURE:** Fuzzy subsequence matching (как в IDE)
+  - Добавлен метод `isSubsequence()` для поиска подпоследовательностей
+  - Пример: поиск "прд" находит "продукты", "едф" находит "еда фаст"
+  - Приоритеты: точное начало (1.0) > substring (0.85) > subsequence (0.7) > n-gram (до 0.7)
+  - **Бенефит:** Быстрый поиск категорий без необходимости точного написания
+- ✅ **IMPROVEMENT:** Улучшен n-gram matching
+  - Threshold снижен с 0.3 до 0.2 (больше результатов)
+  - Вес увеличен с 0.5 до 0.7 (выше приоритет)
+  - **Бенефит:** Лучше работает для опечаток и частичных совпадений
+- ✅ **FIX:** Улучшен updatePathDisplay() с defensive checks
+  - Добавлены проверки существования `pathDisplayElement` и `flatNodes`
+  - Добавлено debug logging для диагностики
+  - **Бенефит:** Стабильное отображение полного пути, проще отлаживать
+- ✅ **CACHE BUSTING:** Обновлены версии скриптов до `?v=20251103_1549`
+- ✅ **Изменено файлов:** 8
+  - JS: `webapp/static/js/tomSelectCategoryTree.js` (major refactoring)
+  - HTML webapp: `add.html`, `addplan.html`, `edit.html` (local TomSelect)
+  - HTML web: `base.html` (local TomSelect)
+  - Vendor: `webapp/static/js/vendor/tom-select.complete.min.js`, `web/static/js/vendor/` (new files)
+  - CSS: `webapp/static/css/tom-select.css`, `web/static/css/tom-select.css` (copied from CDN)
+- ✅ **Scope:** WebApp (Telegram Mini App) + Web Interface (Desktop)
+
 **2025-11-03 (TomSelect Category Tree UX Improvements):**
 - ✅ **UX IMPROVEMENT:** Улучшен интерфейс выбора категорий (TomSelectCategoryTree)
 - ✅ **FIX:** Убрано избыточное отображение полного пути в dropdown списке

@@ -90,7 +90,7 @@ class TomSelectCategoryTree {
   }
 
   /**
-   * N-gram fuzzy search по названию категории
+   * N-gram fuzzy search по названию категории (улучшенный)
    * @param {string} query - Поисковый запрос
    * @param {object} item - Элемент для проверки
    * @returns {number} - Score совпадения (0-1, выше = лучше)
@@ -102,22 +102,32 @@ class TomSelectCategoryTree {
     const itemName = item.name.toLowerCase();
     const itemFullPath = item.fullPath.toLowerCase();
 
-    // Точное совпадение в начале названия - максимальный приоритет
+    // 1. Точное совпадение в начале названия - максимальный приоритет
     if (itemName.startsWith(searchTerm)) {
       return 1.0;
     }
 
-    // Точное совпадение в любом месте названия
+    // 2. Точное совпадение в любом месте названия (substring)
     if (itemName.includes(searchTerm)) {
-      return 0.8;
+      return 0.85;
     }
 
-    // Совпадение в полном пути
+    // 3. Fuzzy subsequence matching (как в IDE: "прд" находит "продукты")
+    if (this.isSubsequence(searchTerm, itemName)) {
+      return 0.7;
+    }
+
+    // 4. Совпадение в полном пути (substring)
     if (itemFullPath.includes(searchTerm)) {
       return 0.6;
     }
 
-    // N-gram fuzzy matching
+    // 5. Fuzzy subsequence matching в полном пути
+    if (this.isSubsequence(searchTerm, itemFullPath)) {
+      return 0.5;
+    }
+
+    // 6. N-gram fuzzy matching (улучшенные параметры)
     const ngramSize = 2;
     const queryNgrams = this.getNgrams(searchTerm, ngramSize);
     const itemNgrams = this.getNgrams(itemName, ngramSize);
@@ -135,7 +145,25 @@ class TomSelectCategoryTree {
     });
 
     const score = matches / queryNgrams.length;
-    return score > 0.3 ? score * 0.5 : 0; // Порог 0.3 для n-gram, пониженный приоритет
+    // Улучшенные параметры: threshold 0.2 (было 0.3), вес 0.7 (было 0.5)
+    return score > 0.2 ? score * 0.7 : 0;
+  }
+
+  /**
+   * Проверить является ли query подпоследовательностью text
+   * Пример: "прд" является подпоследовательностью "продукты"
+   * @param {string} query - Поисковый запрос
+   * @param {string} text - Текст для поиска
+   * @returns {boolean} - true если query является подпоследовательностью text
+   */
+  isSubsequence(query, text) {
+    let queryIndex = 0;
+    for (let i = 0; i < text.length && queryIndex < query.length; i++) {
+      if (text[i] === query[queryIndex]) {
+        queryIndex++;
+      }
+    }
+    return queryIndex === query.length;
   }
 
   /**
@@ -165,9 +193,9 @@ class TomSelectCategoryTree {
       </div>`;
     }
 
+    // Листовые элементы: только название, БЕЗ отступов и иконок
+    // Полный путь будет показываться под полем выбора
     return `<div class="tom-select-option">
-      <span class="category-indent">${this.options.indentChar.repeat(data.level)}</span>
-      <span class="category-icon">${this.options.leafPrefix}</span>
       <span class="category-name">${escape(data.name)}</span>
     </div>`;
   }
@@ -187,7 +215,16 @@ class TomSelectCategoryTree {
    * Обновить отображение полного пути выбранной категории
    */
   updatePathDisplay(categoryId) {
-    if (!this.pathDisplayElement) return;
+    // Defensive checks
+    if (!this.pathDisplayElement) {
+      console.warn('[TomSelect] Path display element not found');
+      return;
+    }
+
+    if (!this.flatNodes) {
+      console.warn('[TomSelect] flatNodes not initialized');
+      return;
+    }
 
     if (!categoryId) {
       this.pathDisplayElement.textContent = '';
@@ -199,61 +236,29 @@ class TomSelectCategoryTree {
     if (node && node.fullPath) {
       this.pathDisplayElement.textContent = node.fullPath;
       this.pathDisplayElement.style.display = 'block';
+      console.log('[TomSelect] Path displayed:', node.fullPath);
     } else {
       this.pathDisplayElement.textContent = '';
       this.pathDisplayElement.style.display = 'none';
+      console.warn('[TomSelect] Node not found for categoryId:', categoryId);
     }
-  }
-
-  /**
-   * Проверить загрузку TomSelect библиотеки
-   */
-  async waitForTomSelect(maxAttempts = 20, delayMs = 150) {
-    console.log('[TomSelect] Waiting for TomSelect library...');
-
-    for (let i = 0; i < maxAttempts; i++) {
-      if (typeof TomSelect !== 'undefined') {
-        console.log(`[TomSelect] Library loaded successfully after ${i + 1} attempts`);
-        return true;
-      }
-
-      if (i % 5 === 0) {
-        console.log(`[TomSelect] Attempt ${i + 1}/${maxAttempts}...`);
-      }
-
-      await new Promise(resolve => setTimeout(resolve, delayMs));
-    }
-
-    console.error('[TomSelect] Failed to load after', maxAttempts, 'attempts');
-    console.error('[TomSelect] Checking CDN script tag...');
-
-    const cdnScript = document.querySelector('script[src*="tom-select"]');
-    if (cdnScript) {
-      console.log('[TomSelect] CDN script tag found:', cdnScript.src);
-      console.log('[TomSelect] Script loaded:', cdnScript.complete || 'unknown');
-    } else {
-      console.error('[TomSelect] CDN script tag NOT found in document!');
-    }
-
-    return false;
   }
 
   /**
    * Инициализировать Tom Select
    */
   async init() {
-    // Check if TomSelect library is loaded with retry mechanism
-    const isLoaded = await this.waitForTomSelect();
-
-    if (!isLoaded) {
-      const errorMsg = 'TomSelect library not loaded after waiting. Make sure Tom Select CDN script is included in <head> before tomSelectCategoryTree.js';
+    // Check if TomSelect library is loaded (local copy should be available immediately)
+    if (typeof TomSelect === 'undefined') {
+      const errorMsg = 'TomSelect library not loaded. Make sure tom-select.complete.min.js is included in <head> before tomSelectCategoryTree.js';
       console.error(errorMsg);
-      console.error('Expected CDN: <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>');
 
       // Fallback: показать стандартный select без Tom Select
       this.selectElement.style.display = 'block';
       throw new Error(errorMsg);
     }
+
+    console.log('[TomSelect] Library loaded successfully');
 
     // Построить дерево
     this.tree = this.buildTree();
