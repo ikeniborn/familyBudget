@@ -30,12 +30,14 @@ class TomSelectCategoryTree {
       parentPrefix: '📁', // Иконка для родителя
       leafPrefix: '📄', // Иконка для листа
       pathSeparator: ' › ', // Разделитель для пути родителей
+      pathDisplayElementId: null, // ID элемента для отображения полного пути выбранной категории
       ...options
     };
 
     this.tomSelectInstance = null;
     this.tree = null;
     this.flatNodes = null;
+    this.pathDisplayElement = null;
   }
 
   /**
@@ -166,10 +168,7 @@ class TomSelectCategoryTree {
     return `<div class="tom-select-option">
       <span class="category-indent">${this.options.indentChar.repeat(data.level)}</span>
       <span class="category-icon">${this.options.leafPrefix}</span>
-      <div class="category-info">
-        <div class="category-name">${escape(data.name)}</div>
-        ${data.parentPath.length > 0 ? `<div class="category-path">${escape(data.fullPath)}</div>` : ''}
-      </div>
+      <span class="category-name">${escape(data.name)}</span>
     </div>`;
   }
 
@@ -185,55 +184,107 @@ class TomSelectCategoryTree {
   }
 
   /**
+   * Обновить отображение полного пути выбранной категории
+   */
+  updatePathDisplay(categoryId) {
+    if (!this.pathDisplayElement) return;
+
+    if (!categoryId) {
+      this.pathDisplayElement.textContent = '';
+      this.pathDisplayElement.style.display = 'none';
+      return;
+    }
+
+    const node = this.flatNodes.find(n => n.id === parseInt(categoryId));
+    if (node && node.fullPath) {
+      this.pathDisplayElement.textContent = node.fullPath;
+      this.pathDisplayElement.style.display = 'block';
+    } else {
+      this.pathDisplayElement.textContent = '';
+      this.pathDisplayElement.style.display = 'none';
+    }
+  }
+
+  /**
+   * Проверить загрузку TomSelect библиотеки
+   */
+  async waitForTomSelect(maxAttempts = 20, delayMs = 150) {
+    console.log('[TomSelect] Waiting for TomSelect library...');
+
+    for (let i = 0; i < maxAttempts; i++) {
+      if (typeof TomSelect !== 'undefined') {
+        console.log(`[TomSelect] Library loaded successfully after ${i + 1} attempts`);
+        return true;
+      }
+
+      if (i % 5 === 0) {
+        console.log(`[TomSelect] Attempt ${i + 1}/${maxAttempts}...`);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+
+    console.error('[TomSelect] Failed to load after', maxAttempts, 'attempts');
+    console.error('[TomSelect] Checking CDN script tag...');
+
+    const cdnScript = document.querySelector('script[src*="tom-select"]');
+    if (cdnScript) {
+      console.log('[TomSelect] CDN script tag found:', cdnScript.src);
+      console.log('[TomSelect] Script loaded:', cdnScript.complete || 'unknown');
+    } else {
+      console.error('[TomSelect] CDN script tag NOT found in document!');
+    }
+
+    return false;
+  }
+
+  /**
    * Инициализировать Tom Select
    */
-  init() {
-    // Check if TomSelect library is loaded
-    if (typeof TomSelect === 'undefined') {
-      console.error('TomSelect library not loaded. Make sure Tom Select CDN script is included before tomSelectCategoryTree.js');
-      throw new Error('TomSelect is not defined. Please include Tom Select library: <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>');
+  async init() {
+    // Check if TomSelect library is loaded with retry mechanism
+    const isLoaded = await this.waitForTomSelect();
+
+    if (!isLoaded) {
+      const errorMsg = 'TomSelect library not loaded after waiting. Make sure Tom Select CDN script is included in <head> before tomSelectCategoryTree.js';
+      console.error(errorMsg);
+      console.error('Expected CDN: <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>');
+
+      // Fallback: показать стандартный select без Tom Select
+      this.selectElement.style.display = 'block';
+      throw new Error(errorMsg);
     }
 
     // Построить дерево
     this.tree = this.buildTree();
     this.flatNodes = this.flattenTree();
 
-    // Очистить select и добавить options
-    this.selectElement.innerHTML = '';
+    // Найти элемент для отображения пути (если указан)
+    if (this.options.pathDisplayElementId) {
+      this.pathDisplayElement = document.getElementById(this.options.pathDisplayElementId);
+      if (!this.pathDisplayElement) {
+        console.warn(`Path display element with id "${this.options.pathDisplayElementId}" not found`);
+      }
+    }
 
-    // Пустая опция
+    // Очистить select и добавить пустую опцию
+    this.selectElement.innerHTML = '';
     const emptyOption = document.createElement('option');
     emptyOption.value = '';
     emptyOption.textContent = this.options.emptyOptionText;
     this.selectElement.appendChild(emptyOption);
 
-    // Добавить все узлы как опции
-    this.flatNodes.forEach(node => {
-      const option = document.createElement('option');
-      option.value = node.id;
-      option.textContent = node.name;
-
-      // Сохранить данные узла в data-атрибутах для Tom Select
-      option.setAttribute('data-level', node.level);
-      option.setAttribute('data-is-leaf', node.isLeaf);
-      option.setAttribute('data-full-path', node.fullPath);
-      option.setAttribute('data-parent-path', JSON.stringify(node.parentPath));
-
-      // Disabled для родительских категорий
-      if (!node.isLeaf) {
-        option.disabled = true;
-      }
-
-      // Предвыбранное значение
-      if (this.options.selectedId && node.id === this.options.selectedId) {
-        option.selected = true;
-      }
-
-      this.selectElement.appendChild(option);
-    });
-
-    // Инициализировать Tom Select
+    // Инициализировать Tom Select с данными через options API
     this.tomSelectInstance = new TomSelect(this.selectElement, {
+      // Передача данных напрямую через options вместо DOM parsing
+      options: this.flatNodes.map(node => ({
+        id: node.id,
+        name: node.name,
+        level: node.level,
+        isLeaf: node.isLeaf,
+        fullPath: node.fullPath,
+        parentPath: node.parentPath
+      })),
       plugins: {
         remove_button: {
           title: 'Удалить'
@@ -249,16 +300,12 @@ class TomSelectCategoryTree {
       // Custom render функции
       render: {
         option: (data, escape) => {
-          // Найти полные данные узла
-          const nodeData = this.flatNodes.find(n => n.id === parseInt(data.id));
-          if (!nodeData) return `<div>${escape(data.name)}</div>`;
-          return this.renderOption(nodeData, escape);
+          // data уже содержит все необходимые поля благодаря options API
+          return this.renderOption(data, escape);
         },
         item: (data, escape) => {
-          // Найти полные данные узла
-          const nodeData = this.flatNodes.find(n => n.id === parseInt(data.id));
-          if (!nodeData) return `<div>${escape(data.name)}</div>`;
-          return this.renderItem(nodeData, escape);
+          // data уже содержит все необходимые поля благодаря options API
+          return this.renderItem(data, escape);
         },
         option_create: (data, escape) => {
           return `<div class="create">Добавить <strong>${escape(data.input)}</strong>&hellip;</div>`;
@@ -272,14 +319,11 @@ class TomSelectCategoryTree {
       score: (search) => {
         const self = this;
         return function(item) {
-          // Найти полные данные узла
-          const nodeData = self.flatNodes.find(n => n.id === parseInt(item.id));
-          if (!nodeData) return 0;
-
+          // item уже содержит все необходимые поля благодаря options API
           // Родительские категории не показывать в результатах поиска
-          if (!nodeData.isLeaf && search) return 0;
+          if (!item.isLeaf && search) return 0;
 
-          return self.fuzzyScore(search, nodeData);
+          return self.fuzzyScore(search, item);
         };
       },
 
@@ -302,11 +346,20 @@ class TomSelectCategoryTree {
 
       // onChange callback
       onChange: (value) => {
+        // Обновить отображение пути
+        this.updatePathDisplay(value);
+
         // Trigger change event на оригинальном select для compatibility
         const event = new Event('change', { bubbles: true });
         this.selectElement.dispatchEvent(event);
       }
     });
+
+    // Установить предвыбранное значение если указано
+    if (this.options.selectedId) {
+      this.tomSelectInstance.setValue(this.options.selectedId, true); // silent = true
+      this.updatePathDisplay(this.options.selectedId);
+    }
 
     return this.tomSelectInstance;
   }
@@ -330,6 +383,7 @@ class TomSelectCategoryTree {
     if (!this.tomSelectInstance) return;
 
     this.tomSelectInstance.setValue(categoryId || '', true); // silent = true
+    this.updatePathDisplay(categoryId);
   }
 
   /**

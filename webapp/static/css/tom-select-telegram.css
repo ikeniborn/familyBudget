@@ -268,3 +268,11 @@
 .ts-wrapper.dropdown-active.single .ts-control::after {
   transform: translateY(-50%) rotate(180deg);
 }
+
+/* ===== Category Path Info ===== */
+.category-path-info {
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--telegram-hint-color, #999);
+    opacity: 0.7;
+}

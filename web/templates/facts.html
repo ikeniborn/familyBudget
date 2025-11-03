@@ -255,7 +255,7 @@
 {% block extra_scripts %}
 <script src="/static/js/admin-facts-common.js"></script>
 <!-- TomSelectCategoryTree Component -->
-<script src="/static/js/tomSelectCategoryTree.js?v=20251103_2"></script>
+<script src="/static/js/tomSelectCategoryTree.js?v=20251103_1504"></script>
 <!-- DateFormatter Component -->
 <script src="/static/js/dateFormatter.js"></script>
 
@@ -397,9 +397,10 @@ async function loadArticles() {
                 filterType: createType,
                 indentChar: '›  ',
                 parentPrefix: '📁',
-                leafPrefix: '📄'
+                leafPrefix: '📄',
+                pathDisplayElementId: 'transaction-category-path-display'
             });
-            createCategoryTreeSelect.init();
+            await createCategoryTreeSelect.init();
         }
 
         // Инициализация CalendarWidget для create modal (после загрузки категорий)
@@ -941,9 +942,10 @@ function setupCreateTransactionTypeButtons() {
                     filterType: createType,
                     indentChar: '›  ',
                     parentPrefix: '📁',
-                    leafPrefix: '📄'
+                    leafPrefix: '📄',
+                    pathDisplayElementId: 'transaction-category-path-display'
                 });
-                createCategoryTreeSelect.init();
+                await createCategoryTreeSelect.init();
             }
         });
     });

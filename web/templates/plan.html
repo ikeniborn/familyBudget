@@ -245,7 +245,7 @@
 {% block extra_scripts %}
 <script src="/static/js/admin-facts-common.js"></script>
 <!-- CategoryTreeSelect Component -->
-<script src="/static/js/tomSelectCategoryTree.js?v=20251103_2"></script>
+<script src="/static/js/tomSelectCategoryTree.js?v=20251103_1504"></script>
 <!-- DateFormatter Component -->
 <script src="/static/js/dateFormatter.js"></script>
 
@@ -374,9 +374,10 @@ async function loadArticles() {
                 filterType: createType,
                 indentChar: '›  ',
                 parentPrefix: '📁',
-                leafPrefix: '📄'
+                leafPrefix: '📄',
+                pathDisplayElementId: 'plan-category-path-display'
             });
-            createCategoryTreeSelect.init();
+            await createCategoryTreeSelect.init();
         }
     } catch (error) {
         console.error('Error loading articles:', error);
@@ -906,9 +907,10 @@ function setupCreatePlanTypeButtons() {
                     filterType: createType,
                     indentChar: '›  ',
                     parentPrefix: '📁',
-                    leafPrefix: '📄'
+                    leafPrefix: '📄',
+                    pathDisplayElementId: 'plan-category-path-display'
                 });
-                createCategoryTreeSelect.init();
+                await createCategoryTreeSelect.init();
             }
         });
     });

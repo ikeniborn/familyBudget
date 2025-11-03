@@ -282,6 +282,7 @@
             <select id="category-select" class="form-input" required>
                 <option value="">Загрузка категорий...</option>
             </select>
+            <div id="category-path-display" class="category-path-info" style="display: none;"></div>
             <span class="error-message" id="category-error"></span>
         </div>
 
@@ -348,7 +349,7 @@
     <script src="/webapp/static/js/dateFormatter.js"></script>
 
     <!-- Tom Select Category Tree Component -->
-    <script src="/webapp/static/js/tomSelectCategoryTree.js?v=20251103_3"></script>
+    <script src="/webapp/static/js/tomSelectCategoryTree.js?v=20251103_1504"></script>
 
     <script src="/webapp/static/js/app.js"></script>
 
@@ -607,11 +608,12 @@
                 // Create TomSelectCategoryTree instance
                 categoryTreeSelect = new TomSelectCategoryTree(categorySelect, categories, {
                     emptyOptionText: 'Выберите категорию',
-                    selectedId: formState.categoryId
+                    selectedId: formState.categoryId,
+                    pathDisplayElementId: 'category-path-display'
                 });
 
                 // Initialize Tom Select
-                categoryTreeSelect.init();
+                await categoryTreeSelect.init();
 
                 // Setup change handler
                 categorySelect.addEventListener('change', () => {

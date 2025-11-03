@@ -240,3 +240,8 @@
 .ts-wrapper.input-success.focus .ts-control {
   @apply ring-success ring-opacity-20;
 }
+
+/* ===== Category Path Info ===== */
+.category-path-info {
+    @apply text-xs text-gray-500 mt-1 opacity-70;
+}
