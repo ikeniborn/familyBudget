@@ -189,6 +189,12 @@ class TomSelectCategoryTree {
    * Инициализировать Tom Select
    */
   init() {
+    // Check if TomSelect library is loaded
+    if (typeof TomSelect === 'undefined') {
+      console.error('TomSelect library not loaded. Make sure Tom Select CDN script is included before tomSelectCategoryTree.js');
+      throw new Error('TomSelect is not defined. Please include Tom Select library: <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>');
+    }
+
     // Построить дерево
     this.tree = this.buildTree();
     this.flatNodes = this.flattenTree();
