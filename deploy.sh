@@ -337,12 +337,12 @@ main() {
     validate_env
     echo ""
 
-    # Update cache versions before synchronization
-    run_cache_busting "auto" "$SCRIPT_DIR"
-    echo ""
-
     # Synchronize code from repository to /opt/budget
     sync_code_to_deploy
+    echo ""
+
+    # Update cache versions AFTER synchronization (in /opt/budget)
+    run_cache_busting "auto" "/opt/budget"
     echo ""
 
     # LATE checks (after code sync): docker-compose.yml, directories
