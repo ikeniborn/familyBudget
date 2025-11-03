@@ -20,7 +20,11 @@ update_cache_versions() {
     local version=$1
     local repo_dir="${2:-.}"
 
-    echo "🔄 Updating cache versions to: ${version}"
+    echo "🔄 Updating cache versions to: ${version}" >&2
+    echo "   Repository: ${repo_dir}" >&2
+
+    # Flush output to ensure it's visible
+    sync 2>/dev/null || true
 
     # Список файлов для обновления
     local files=(
@@ -31,29 +35,59 @@ update_cache_versions() {
         "${repo_dir}/web/templates/plan.html"
     )
 
+    echo "   Files to update: ${#files[@]}" >&2
+
     local updated_count=0
 
+    echo "   Starting file processing..." >&2
+
     for file in "${files[@]}"; do
-        if [[ -f "$file" ]]; then
-            # Обновляем tomSelectCategoryTree.js версии
-            sed -i "s/tomSelectCategoryTree\.js?v=[0-9a-zA-Z_-]*/tomSelectCategoryTree.js?v=${version}/g" "$file"
+        echo "  → Checking: $(basename "$file")..." >&2
 
-            # Обновляем другие JS файлы если есть
-            # sed -i "s/app\.js?v=[0-9a-zA-Z_-]*/app.js?v=${version}/g" "$file"
-            # sed -i "s/dateFormatter\.js?v=[0-9a-zA-Z_-]*/dateFormatter.js?v=${version}/g" "$file"
-
-            ((updated_count++))
-            echo "  ✓ Updated: $(basename "$file")"
-        else
-            echo "  ⚠ File not found: $file"
+        if [[ ! -f "$file" ]]; then
+            echo "    ⚠ File not found: $file" >&2
+            continue
         fi
+
+        echo "    File exists, checking permissions..." >&2
+
+        # Проверяем права на запись
+        if [[ ! -w "$file" ]]; then
+            local perms=$(stat -c '%a' "$file" 2>/dev/null || echo 'unknown')
+            local owner=$(stat -c '%U:%G' "$file" 2>/dev/null || echo 'unknown')
+            echo "    ⚠ File not writable: $file" >&2
+            echo "      Permissions: $perms, Owner: $owner, Current user: $(whoami)" >&2
+            continue
+        fi
+
+        echo "    Permissions OK, running sed..." >&2
+
+        # Обновляем tomSelectCategoryTree.js версии
+        # Используем временный файл для безопасности при работе с sudo
+        local tmp_file="${file}.tmp.$$"
+        if sed "s/tomSelectCategoryTree\\.js?v=[0-9a-zA-Z_-]*/tomSelectCategoryTree.js?v=${version}/g" "$file" > "$tmp_file" 2>&1; then
+            if mv "$tmp_file" "$file" 2>&1; then
+                ((updated_count++))
+                echo "    ✓ Updated: $(basename "$file")" >&2
+            else
+                echo "    ✗ Failed to replace file: $(basename "$file")" >&2
+                rm -f "$tmp_file" 2>/dev/null || true
+            fi
+        else
+            echo "    ✗ sed command failed for: $(basename "$file")" >&2
+            rm -f "$tmp_file" 2>/dev/null || true
+        fi
+
+        # Обновляем другие JS файлы если есть
+        # sed "s/app\\.js?v=[0-9a-zA-Z_-]*/app.js?v=${version}/g" "$file"
+        # sed "s/dateFormatter\\.js?v=[0-9a-zA-Z_-]*/dateFormatter.js?v=${version}/g" "$file"
     done
 
     if [[ $updated_count -gt 0 ]]; then
-        echo "✅ Cache versions updated in ${updated_count} files"
+        echo "✅ Cache versions updated in ${updated_count} files" >&2
         return 0
     else
-        echo "❌ No files updated"
+        echo "❌ No files updated" >&2
         return 1
     fi
 }
