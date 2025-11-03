@@ -60,13 +60,17 @@ update_cache_versions() {
             continue
         fi
 
-        echo "    Permissions OK, running sed..." >&2
+        echo "    Permissions OK, running replacement..." >&2
 
         # Обновляем tomSelectCategoryTree.js версии
-        # Используем временный файл для безопасности при работе с sudo
-        # Используем [?] для экранирования ? в URL (character class для литерального символа)
+        # Используем perl вместо sed для более надежной работы с regex
         local tmp_file="${file}.tmp.$$"
-        if timeout 10 sed "s/tomSelectCategoryTree\\.js[?]v=[0-9a-zA-Z_-]*/tomSelectCategoryTree.js?v=${version}/g" "$file" > "$tmp_file" 2>&1; then
+
+        echo "    Creating temp file: $tmp_file" >&2
+
+        # Используем perl с in-place edit через temp file
+        if perl -pe "s|tomSelectCategoryTree\\.js\\?v=[0-9a-zA-Z_-]*|tomSelectCategoryTree.js?v=${version}|g" "$file" > "$tmp_file" 2>&1; then
+            echo "    Perl completed, moving file..." >&2
             if mv "$tmp_file" "$file" 2>&1; then
                 ((updated_count++))
                 echo "    ✓ Updated: $(basename "$file")" >&2
@@ -75,7 +79,8 @@ update_cache_versions() {
                 rm -f "$tmp_file" 2>/dev/null || true
             fi
         else
-            echo "    ✗ sed command failed or timed out for: $(basename "$file")" >&2
+            local exit_code=$?
+            echo "    ✗ Perl command failed with exit code $exit_code for: $(basename "$file")" >&2
             rm -f "$tmp_file" 2>/dev/null || true
         fi
 
