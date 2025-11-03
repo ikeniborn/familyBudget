@@ -65,15 +65,22 @@ update_cache_versions() {
         # Обновляем tomSelectCategoryTree.js версии
         # Используем perl с in-place edit (прямое редактирование без temp файлов)
         # perl -i создает backup автоматически и безопасно работает с sudo
-        if perl -i.bak -pe "s|tomSelectCategoryTree\\.js\\?v=[0-9a-zA-Z_-]*|tomSelectCategoryTree.js?v=${version}|g" "$file" 2>&1; then
+        echo "    Running perl -i.bak..." >&2
+        perl -i.bak -pe "s|tomSelectCategoryTree\\.js\\?v=[0-9a-zA-Z_-]*|tomSelectCategoryTree.js?v=${version}|g" "$file" 2>&1
+        local perl_exit=$?
+
+        echo "    Perl exit code: $perl_exit" >&2
+
+        if [[ $perl_exit -eq 0 ]]; then
             echo "    Perl completed, cleaning backup..." >&2
             # Удаляем backup файл
             rm -f "${file}.bak" 2>/dev/null || true
-            ((updated_count++))
+            echo "    Backup removed" >&2
+            updated_count=$((updated_count + 1))
+            echo "    Counter updated: $updated_count" >&2
             echo "    ✓ Updated: $(basename "$file")" >&2
         else
-            local exit_code=$?
-            echo "    ✗ Perl command failed with exit code $exit_code for: $(basename "$file")" >&2
+            echo "    ✗ Perl command failed with exit code $perl_exit for: $(basename "$file")" >&2
             # Восстанавливаем из backup если есть
             if [[ -f "${file}.bak" ]]; then
                 mv "${file}.bak" "$file" 2>/dev/null || true
