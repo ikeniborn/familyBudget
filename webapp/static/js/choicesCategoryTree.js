@@ -345,8 +345,18 @@ class ChoicesCategoryTree {
             this.choices = null;
         }
 
-        if (this.pathDisplay && this.pathDisplay.parentNode) {
-            this.pathDisplay.parentNode.removeChild(this.pathDisplay);
+        // Complete DOM cleanup to prevent reinitialization errors
+        if (this.element) {
+            this.element.value = '';
+            this.element.classList.remove('choices__input', 'choices__input--cloned');
+            this.element.removeAttribute('data-choice');
+        }
+
+        if (this.pathDisplay) {
+            this.pathDisplay.textContent = '';
+            if (this.pathDisplay.parentNode) {
+                this.pathDisplay.parentNode.removeChild(this.pathDisplay);
+            }
         }
 
         this.categories = [];
@@ -354,6 +364,61 @@ class ChoicesCategoryTree {
         this.childrenMap.clear();
 
         console.log('[ChoicesCategoryTree] Destroyed');
+    }
+
+    /**
+     * Update category type without full reinitialization.
+     * More efficient than destroy() + new instance.
+     *
+     * @param {string} newType - New category type ('income' or 'expense')
+     */
+    async updateType(newType) {
+        console.log(`[ChoicesCategoryTree] Updating type from ${this.options.type} to ${newType}`);
+
+        // Update type in options
+        this.options.type = newType;
+
+        // Reset selection
+        if (this.element) {
+            this.element.value = '';
+        }
+
+        // Clear path display
+        if (this.pathDisplay) {
+            this.pathDisplay.textContent = '';
+        }
+
+        // Load new categories from API
+        await this.loadCategories();
+
+        // Build hierarchy maps
+        this.buildHierarchyMaps();
+
+        // Filter to leaf categories if needed
+        const displayCategories = this.options.showLeafOnly
+            ? this.getLeafCategories()
+            : this.categories;
+
+        // Update Choices.js without full recreation
+        if (this.choices) {
+            // Clear existing choices
+            this.choices.clearStore();
+
+            // Prepare new choices data
+            const choices = displayCategories.map(cat => ({
+                value: cat.id,
+                label: cat.name,
+                customProperties: {
+                    usage_count: cat.usage_count || 0,
+                    parent_id: cat.parent_id,
+                }
+            }));
+
+            // Set new choices
+            this.choices.setChoices(choices, 'value', 'label', true);
+
+            console.log(`[ChoicesCategoryTree] Updated with ${choices.length} categories`);
+        }
     }
 
     /**
