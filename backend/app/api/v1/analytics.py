@@ -789,6 +789,52 @@ async def get_recommended_amounts(
             if article_row:
                 article_name = article_row[0]
 
+        # IMPORTANT: Save on-demand calculation result to cache for future requests
+        # This improves performance - subsequent users get cached result instead of recalculating
+        try:
+            metadata_json = {
+                "source": "k_means",
+                "sample_size": sample_size,
+                "min_amount": float(min_amount) if min_amount else None,
+                "max_amount": float(max_amount) if max_amount else None,
+                "avg_amount": float(avg_amount) if avg_amount else None,
+                "period_days": period_days,
+                "algorithm_version": "1.0",
+                "article_id": article_id,
+                "article_name": article_name
+            }
+
+            insert_cache_query = text("""
+                INSERT INTO t_recommended_amounts (article_id, type, record_type, period, amounts, metadata, last_updated)
+                VALUES (:article_id, :type, :record_type, :period, :amounts, :metadata::jsonb, NOW())
+                ON CONFLICT (article_id, type, record_type, period)
+                DO UPDATE SET
+                    amounts = EXCLUDED.amounts,
+                    metadata = EXCLUDED.metadata,
+                    last_updated = NOW()
+            """)
+
+            import json
+            await session.execute(
+                insert_cache_query,
+                {
+                    "article_id": article_id,
+                    "type": type,
+                    "record_type": record_type,
+                    "period": period,
+                    "amounts": [float(amt) for amt in amounts_array],
+                    "metadata": json.dumps(metadata_json)
+                }
+            )
+            await session.commit()
+        except Exception as e:
+            # Cache save failed - log but don't fail the request
+            # User still gets the calculated result
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to save on-demand calculation to cache: {e}")
+            await session.rollback()
+
         return RecommendedAmountsResponse(
             amounts=[Decimal(str(amt)) for amt in amounts_array],
             algorithm="k_means",
