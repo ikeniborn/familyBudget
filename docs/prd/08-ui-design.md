@@ -946,6 +946,22 @@ new CalendarWidget({
 
 #### 8.10.8 Changelog
 
+**2025-11-04 (Choices.js querySelector Fix - setupPathDisplay):**
+- ✅ **BUG FIX:** Исправлена ошибка querySelector в setupPathDisplay()
+  - **Проблема:** `SyntaxError: '#form_modal_add_transaction select[name="article_id"]-path' is not a valid selector`
+  - **Root Cause:** Использовался `this.selector` (сложный CSS селектор) вместо `this.element.id` для построения селектора
+  - **Контекст:** Если `selector = '#form select[name="x"]'`, то `${selector}-path` создает невалидный CSS
+  - **Решение:** Изменено на `#${this.element.id}-path` (использует простой ID элемента)
+- ✅ **FRONTEND:** Исправлены оба файла ChoicesCategoryTree
+  - `web/static/js/choicesCategoryTree.js:220` - `querySelector(\`${this.selector}-path\`)` → `querySelector(\`#${this.element.id}-path\`)`
+  - `webapp/static/js/choicesCategoryTree.js:237` - `querySelector(\`${this.selector}-path\`)` → `querySelector(\`#${this.element.id}-path\`)`
+- ✅ **VALIDATION:** Проверен синтаксис JavaScript через `node --check`
+- ✅ **Изменено файлов:** 2
+- ✅ **Scope:** Критическое исправление path display селектора
+- ✅ **Бенефиты:**
+  - ✅ Path display элемент теперь корректно находится/создается
+  - ✅ Устранена ошибка блокирующая инициализацию компонента
+
 **2025-11-04 (Choices.js classNames API Fix - InvalidCharacterError):**
 - ✅ **BUG FIX:** Исправлена ошибка InvalidCharacterError при инициализации Choices.js
   - **Проблема:** `InvalidCharacterError: The token provided ('choices choices-tailwind') contains HTML space characters`

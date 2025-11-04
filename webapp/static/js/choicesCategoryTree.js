@@ -234,7 +234,7 @@ class ChoicesCategoryTree {
      */
     setupPathDisplay() {
         // Find or create path display element
-        let pathDisplay = document.querySelector(`${this.selector}-path`);
+        let pathDisplay = document.querySelector(`#${this.element.id}-path`);
 
         if (!pathDisplay) {
             // Create path display element
