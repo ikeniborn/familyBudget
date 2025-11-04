@@ -946,6 +946,73 @@ new CalendarWidget({
 
 #### 8.10.8 Changelog
 
+**2025-11-04 (WebApp Auth Timing Fix - Race Condition):**
+- ✅ **BUG FIX:** Исправлена race condition с window.auth в webapp
+  - **Проблема:** `[ChoicesCategoryTree] Missing or invalid auth parameter. Please provide auth instance with getToken() method`
+  - **Root Cause:** Race condition - `window.auth` устанавливался ПОСЛЕ `app.init()`, но `pageInit()` вызывается ВНУТРИ `app.init()`
+  - **Контекст:** Последовательность выполнения:
+    ```
+    app.js:157 → new BudgetApp()
+    app.js:158 → await app.init() {
+      app.js:62   → await window.pageInit() {
+        add.html:319 → await loadCategories() {
+          add.html:474 → new ChoicesCategoryTree({auth: window.auth}) ← undefined!
+        }
+      }
+    }
+    app.js:161 → window.auth = app.auth  ← Слишком поздно!
+    ```
+  - **Решение:** Переместить установку `window.auth` ПЕРЕД `await app.init()`
+- ✅ **FRONTEND:** Обновлен webapp/static/js/app.js
+  - Переместил `window.app = app` и `window.auth = app.auth` перед `await app.init()` (строки 161-162)
+  - Добавлен комментарий объясняющий timing requirement
+  - Теперь `window.auth` доступен когда `pageInit()` вызывается внутри `init()`
+- ✅ **VALIDATION:** Проверен синтаксис JavaScript через `node --check`
+- ✅ **Изменено файлов:** 1 (webapp/static/js/app.js)
+- ✅ **Scope:** Критическое исправление timing/race condition для auth
+- ✅ **Бенефиты:**
+  - ✅ window.auth доступен в правильный момент (до pageInit)
+  - ✅ ChoicesCategoryTree получает валидный auth instance
+  - ✅ Bearer token аутентификация работает в webapp
+  - ✅ Загрузка категорий в webapp функционирует корректно
+
+**2025-11-04 (Choices.js querySelector Fix - setupPathDisplay):**
+- ✅ **BUG FIX:** Исправлена ошибка querySelector в setupPathDisplay()
+  - **Проблема:** `SyntaxError: '#form_modal_add_transaction select[name="article_id"]-path' is not a valid selector`
+  - **Root Cause:** Использовался `this.selector` (сложный CSS селектор) вместо `this.element.id` для построения селектора
+  - **Контекст:** Если `selector = '#form select[name="x"]'`, то `${selector}-path` создает невалидный CSS
+  - **Решение:** Изменено на `#${this.element.id}-path` (использует простой ID элемента)
+- ✅ **FRONTEND:** Исправлены оба файла ChoicesCategoryTree
+  - `web/static/js/choicesCategoryTree.js:220` - `querySelector(\`${this.selector}-path\`)` → `querySelector(\`#${this.element.id}-path\`)`
+  - `webapp/static/js/choicesCategoryTree.js:237` - `querySelector(\`${this.selector}-path\`)` → `querySelector(\`#${this.element.id}-path\`)`
+- ✅ **VALIDATION:** Проверен синтаксис JavaScript через `node --check`
+- ✅ **Изменено файлов:** 2
+- ✅ **Scope:** Критическое исправление path display селектора
+- ✅ **Бенефиты:**
+  - ✅ Path display элемент теперь корректно находится/создается
+  - ✅ Устранена ошибка блокирующая инициализацию компонента
+
+**2025-11-04 (Choices.js classNames API Fix - InvalidCharacterError):**
+- ✅ **BUG FIX:** Исправлена ошибка InvalidCharacterError при инициализации Choices.js
+  - **Проблема:** `InvalidCharacterError: The token provided ('choices choices-tailwind') contains HTML space characters`
+  - **Root Cause:** В конфигурации classNames использовались строки с пробелами вместо массивов
+  - **Контекст:** `classList.add()` не принимает строки с пробелами - требует отдельные аргументы или массив
+  - **Решение:** Изменены все classNames со строк на массивы строк
+- ✅ **FRONTEND:** Исправлены оба файла ChoicesCategoryTree
+  - `web/static/js/choicesCategoryTree.js:185` - `containerOuter: 'choices choices-tailwind'` → `['choices', 'choices-tailwind']`
+  - `webapp/static/js/choicesCategoryTree.js:202` - `containerOuter: 'choices choices-telegram'` → `['choices', 'choices-telegram']`
+  - Все остальные classNames также переведены на массивы для консистентности
+- ✅ **VALIDATION:** Проверен синтаксис JavaScript через `node --check`
+- ✅ **AUDIT:** Проверены все HTML файлы - inline Choices.js не найден
+- ✅ **Изменено файлов:** 2
+  - `web/static/js/choicesCategoryTree.js` (17 classNames → arrays)
+  - `webapp/static/js/choicesCategoryTree.js` (17 classNames → arrays)
+- ✅ **Scope:** Критическое исправление Choices.js v11.1.0 API compliance
+- ✅ **Бенефиты:**
+  - ✅ Устранена ошибка блокирующая загрузку категорий
+  - ✅ Соответствие официальному Choices.js API
+  - ✅ Предотвращены аналогичные ошибки в будущем
+
 **2025-11-04 (Choices.js Migration Completion - Auth Architecture Fix):**
 - ✅ **CRITICAL FIX:** Разделены ChoicesCategoryTree версии для webapp и web
   - **Проблема:** webapp получал 401 Unauthorized при загрузке категорий
