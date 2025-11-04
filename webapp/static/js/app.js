@@ -159,4 +159,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Make app globally accessible
   window.app = app;
+
+  // Export auth for ChoicesCategoryTree components (webapp uses Bearer token auth)
+  window.auth = app.auth;
 });

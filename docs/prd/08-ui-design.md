@@ -946,6 +946,23 @@ new CalendarWidget({
 
 #### 8.10.8 Changelog
 
+**2025-11-04 (WebApp Auth Export Fix - window.auth):**
+- ✅ **BUG FIX:** Исправлена ошибка "Missing or invalid auth parameter" в webapp
+  - **Проблема:** `[ChoicesCategoryTree] Missing or invalid auth parameter. Please provide auth instance with getToken() method`
+  - **Root Cause:** В app.js экспортировался только `window.app`, но не `window.auth`
+  - **Контекст:** 3 webapp HTML файла (add.html, edit.html, addplan.html) используют `auth: window.auth` в ChoicesCategoryTree
+  - **Решение:** Добавлен экспорт `window.auth = app.auth` в app.js:164
+- ✅ **FRONTEND:** Обновлен webapp/static/js/app.js
+  - Добавлена строка после `window.app = app;`: `window.auth = app.auth;`
+  - Добавлен комментарий объясняющий назначение экспорта
+- ✅ **VALIDATION:** Проверен синтаксис JavaScript через `node --check`
+- ✅ **Изменено файлов:** 1 (webapp/static/js/app.js)
+- ✅ **Scope:** Критическое исправление auth доступности для ChoicesCategoryTree в webapp
+- ✅ **Бенефиты:**
+  - ✅ ChoicesCategoryTree теперь получает валидный auth instance
+  - ✅ Bearer token аутентификация работает в webapp
+  - ✅ Загрузка категорий в webapp теперь функционирует
+
 **2025-11-04 (Choices.js querySelector Fix - setupPathDisplay):**
 - ✅ **BUG FIX:** Исправлена ошибка querySelector в setupPathDisplay()
   - **Проблема:** `SyntaxError: '#form_modal_add_transaction select[name="article_id"]-path' is not a valid selector`
