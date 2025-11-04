@@ -946,22 +946,35 @@ new CalendarWidget({
 
 #### 8.10.8 Changelog
 
-**2025-11-04 (WebApp Auth Export Fix - window.auth):**
-- ✅ **BUG FIX:** Исправлена ошибка "Missing or invalid auth parameter" в webapp
+**2025-11-04 (WebApp Auth Timing Fix - Race Condition):**
+- ✅ **BUG FIX:** Исправлена race condition с window.auth в webapp
   - **Проблема:** `[ChoicesCategoryTree] Missing or invalid auth parameter. Please provide auth instance with getToken() method`
-  - **Root Cause:** В app.js экспортировался только `window.app`, но не `window.auth`
-  - **Контекст:** 3 webapp HTML файла (add.html, edit.html, addplan.html) используют `auth: window.auth` в ChoicesCategoryTree
-  - **Решение:** Добавлен экспорт `window.auth = app.auth` в app.js:164
+  - **Root Cause:** Race condition - `window.auth` устанавливался ПОСЛЕ `app.init()`, но `pageInit()` вызывается ВНУТРИ `app.init()`
+  - **Контекст:** Последовательность выполнения:
+    ```
+    app.js:157 → new BudgetApp()
+    app.js:158 → await app.init() {
+      app.js:62   → await window.pageInit() {
+        add.html:319 → await loadCategories() {
+          add.html:474 → new ChoicesCategoryTree({auth: window.auth}) ← undefined!
+        }
+      }
+    }
+    app.js:161 → window.auth = app.auth  ← Слишком поздно!
+    ```
+  - **Решение:** Переместить установку `window.auth` ПЕРЕД `await app.init()`
 - ✅ **FRONTEND:** Обновлен webapp/static/js/app.js
-  - Добавлена строка после `window.app = app;`: `window.auth = app.auth;`
-  - Добавлен комментарий объясняющий назначение экспорта
+  - Переместил `window.app = app` и `window.auth = app.auth` перед `await app.init()` (строки 161-162)
+  - Добавлен комментарий объясняющий timing requirement
+  - Теперь `window.auth` доступен когда `pageInit()` вызывается внутри `init()`
 - ✅ **VALIDATION:** Проверен синтаксис JavaScript через `node --check`
 - ✅ **Изменено файлов:** 1 (webapp/static/js/app.js)
-- ✅ **Scope:** Критическое исправление auth доступности для ChoicesCategoryTree в webapp
+- ✅ **Scope:** Критическое исправление timing/race condition для auth
 - ✅ **Бенефиты:**
-  - ✅ ChoicesCategoryTree теперь получает валидный auth instance
+  - ✅ window.auth доступен в правильный момент (до pageInit)
+  - ✅ ChoicesCategoryTree получает валидный auth instance
   - ✅ Bearer token аутентификация работает в webapp
-  - ✅ Загрузка категорий в webapp теперь функционирует
+  - ✅ Загрузка категорий в webapp функционирует корректно
 
 **2025-11-04 (Choices.js querySelector Fix - setupPathDisplay):**
 - ✅ **BUG FIX:** Исправлена ошибка querySelector в setupPathDisplay()

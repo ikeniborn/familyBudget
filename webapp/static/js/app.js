@@ -155,11 +155,11 @@ let app = null;
 // Auto-initialize when DOM ready
 document.addEventListener('DOMContentLoaded', async () => {
   app = new BudgetApp();
-  await app.init();
 
-  // Make app globally accessible
+  // Make app and auth globally accessible BEFORE init()
+  // This ensures window.auth is available when pageInit() is called inside init()
   window.app = app;
-
-  // Export auth for ChoicesCategoryTree components (webapp uses Bearer token auth)
   window.auth = app.auth;
+
+  await app.init();
 });
