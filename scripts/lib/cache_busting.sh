@@ -59,9 +59,10 @@ update_cache_versions() {
 
         # Обновляем все версионированные файлы через perl
         # Perl лучше обрабатывает переменные и regex
+        # Поддерживает vendor/ subdirectories для библиотек
         perl -i.bak -pe "
-            s{(\\/webapp\\/static\\/js\\/|\\/static\\/js\\/)([a-zA-Z_-]+\\.js)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
-            s{(\\/webapp\\/static\\/css\\/)([a-zA-Z_-]+\\.css)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
+            s{(\\/webapp\\/static\\/js\\/|\\/static\\/js\\/)((?:vendor\\/)?[a-zA-Z_.-]+\\.js)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
+            s{(\\/webapp\\/static\\/css\\/)((?:vendor\\/)?[a-zA-Z_.-]+\\.css)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
         " "$file" 2>&1
 
         local perl_exit=$?
