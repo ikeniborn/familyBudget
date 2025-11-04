@@ -282,47 +282,69 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Загрузить категории и инициализировать ChoicesCategoryTree компоненты
+// Загрузить категории для обеих форм (первоначальная загрузка)
 async function loadCategories() {
     try {
-        // Destroy existing instances if present
-        if (transactionCategoryTreeSelect) {
-            transactionCategoryTreeSelect.destroy();
-            transactionCategoryTreeSelect = null;
-        }
-        if (planCategoryTreeSelect) {
-            planCategoryTreeSelect.destroy();
-            planCategoryTreeSelect = null;
-        }
-
-        // Get current transaction type
-        const transactionType = document.querySelector('#form_modal_add_transaction input[name="record_type"]:checked')?.value || 'expense';
-
-        // Initialize CategoryTreeSelect for transaction form (using new Choices.js API)
-        transactionCategoryTreeSelect = new ChoicesCategoryTree('#form_modal_add_transaction select[name="article_id"]', {
-            type: transactionType,
-            showLeafOnly: true,
-            onCategoryChange: (category) => {
-                console.log('Transaction category changed:', category);
-            }
-        });
-
-        // Get current plan type
-        const planType = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked')?.value || 'expense';
-
-        // Initialize CategoryTreeSelect for plan form (using new Choices.js API)
-        planCategoryTreeSelect = new ChoicesCategoryTree('#form_modal_add_plan select[name="article_id"]', {
-            type: planType,
-            showLeafOnly: true,
-            onCategoryChange: (category) => {
-                console.log('Plan category changed:', category);
-            }
-        });
-
+        await loadTransactionCategories();
+        await loadPlanCategories();
         console.log('[index.html] Categories loaded successfully');
     } catch (error) {
         console.error('Failed to load categories:', error);
         showToast('Ошибка при загрузке категорий', 'error');
+    }
+}
+
+// Загрузить категории только для формы транзакций
+async function loadTransactionCategories() {
+    try {
+        // Get current transaction type
+        const transactionType = document.querySelector('#form_modal_add_transaction input[name="record_type"]:checked')?.value || 'expense';
+
+        if (transactionCategoryTreeSelect) {
+            // Update existing instance (more efficient than destroy/recreate)
+            await transactionCategoryTreeSelect.updateType(transactionType);
+        } else {
+            // Initialize CategoryTreeSelect for transaction form
+            transactionCategoryTreeSelect = new ChoicesCategoryTree('#form_modal_add_transaction select[name="article_id"]', {
+                type: transactionType,
+                showLeafOnly: true,
+                onCategoryChange: (category) => {
+                    console.log('Transaction category changed:', category);
+                }
+            });
+        }
+
+        console.log('[index.html] Transaction categories loaded');
+    } catch (error) {
+        console.error('Failed to load transaction categories:', error);
+        showToast('Ошибка при загрузке категорий транзакций', 'error');
+    }
+}
+
+// Загрузить категории только для формы планов
+async function loadPlanCategories() {
+    try {
+        // Get current plan type
+        const planType = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked')?.value || 'expense';
+
+        if (planCategoryTreeSelect) {
+            // Update existing instance (more efficient than destroy/recreate)
+            await planCategoryTreeSelect.updateType(planType);
+        } else {
+            // Initialize CategoryTreeSelect for plan form
+            planCategoryTreeSelect = new ChoicesCategoryTree('#form_modal_add_plan select[name="article_id"]', {
+                type: planType,
+                showLeafOnly: true,
+                onCategoryChange: (category) => {
+                    console.log('Plan category changed:', category);
+                }
+            });
+        }
+
+        console.log('[index.html] Plan categories loaded');
+    } catch (error) {
+        console.error('Failed to load plan categories:', error);
+        showToast('Ошибка при загрузке категорий планов', 'error');
     }
 }
 
@@ -549,9 +571,9 @@ function setupTransactionTypeButtons() {
                 radio.checked = true;
             }
 
-            // Перезагрузить категории с новым типом
+            // Перезагрузить только категории транзакций с новым типом
             console.log('Transaction type changed to:', this.dataset.type);
-            loadCategories();
+            loadTransactionCategories();
         });
     });
 }
@@ -576,9 +598,9 @@ function setupPlanTypeButtons() {
                 radio.checked = true;
             }
 
-            // Перезагрузить категории с новым типом
+            // Перезагрузить только категории планов с новым типом
             console.log('Plan type changed to:', this.dataset.type);
-            loadCategories();
+            loadPlanCategories();
         });
     });
 }

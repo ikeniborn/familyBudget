@@ -433,6 +433,9 @@
                     // Update form state
                     formState.planType = button.dataset.type;
 
+                    // Clear category selection when changing type to avoid mismatch
+                    formState.categoryId = null;
+
                     // Update amount input style
                     amountInput.classList.remove('income', 'expense');
                     amountInput.classList.add(formState.planType);
@@ -593,41 +596,28 @@
             const categorySelect = document.getElementById('category-select');
 
             try {
-                const result = await app.api.listArticles({
-                    type: formState.planType,
-                    is_current: true,
-                    limit: 1000
-                });
-                categories = result.articles || [];
-
-                if (categories.length === 0) {
-                    categorySelect.innerHTML = '<option value="">Категории не найдены</option>';
-                    return;
-                }
-
-                // Destroy existing instance if present
                 if (categoryTreeSelect) {
-                    categoryTreeSelect.destroy();
-                    categoryTreeSelect = null;
+                    // Update existing instance (more efficient than destroy/recreate)
+                    await categoryTreeSelect.updateType(formState.planType);
+                } else {
+                    // Create ChoicesCategoryTree instance
+                    categoryTreeSelect = new ChoicesCategoryTree('#category-select', {
+                        type: formState.planType,
+                        auth: window.auth,  // Pass auth instance for Bearer token
+                        showLeafOnly: true,
+                        onCategoryChange: (category) => {
+                            formState.categoryId = category ? category.id : null;
+
+                            // Clear error
+                            document.getElementById('category-error').textContent = '';
+
+                            // Haptic feedback
+                            app.ui.hapticLight();
+
+                            console.log('Category changed:', category);
+                        }
+                    });
                 }
-
-                // Create ChoicesCategoryTree instance
-                categoryTreeSelect = new ChoicesCategoryTree('#category-select', {
-                    type: formState.factType,
-                    auth: window.auth,  // Pass auth instance for Bearer token
-                    showLeafOnly: true,
-                    onCategoryChange: (category) => {
-                        formState.categoryId = category ? category.id : null;
-
-                        // Clear error
-                        document.getElementById('category-error').textContent = '';
-
-                        // Haptic feedback
-                        app.ui.hapticLight();
-
-                        console.log('Category changed:', category);
-                    }
-                });
 
             } catch (error) {
                 console.error('Failed to load categories:', error);
