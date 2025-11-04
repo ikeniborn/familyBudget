@@ -48,6 +48,38 @@ async def recalculate_article_usage_stats_job():
         raise
 
 
+async def recalculate_recommended_amounts_job():
+    """
+    Job: Recalculate recommended amounts for quick selection buttons.
+
+    Calls PostgreSQL function recalculate_recommended_amounts() which:
+    1. Recalculates global recommendations (4 variations: fact/plan × income/expense)
+    2. Recalculates TOP-10 popular categories (from t_article_usage_stats)
+    3. Uses K-means clustering algorithm with quantile-based initialization
+    4. Stores results in t_recommended_amounts table with metadata
+
+    Algorithm:
+        - K-means clustering (k=4) on last 90 days of transaction history
+        - Lloyd's algorithm with convergence detection
+        - Amounts rounded to "nice" numbers (10, 50, 100, 500, 1000, etc.)
+        - Minimum sample size: 20 transactions (fallback to defaults if below)
+
+    Schedule: Daily at 02:00 UTC
+    """
+    logger.info("[SCHEDULER] Starting recommended amounts recalculation job")
+
+    try:
+        async with get_session_context() as session:
+            # Call PostgreSQL function (performs K-means clustering on historical data)
+            await session.execute(text("SELECT recalculate_recommended_amounts()"))
+            await session.commit()
+
+            logger.info("[SCHEDULER] Recommended amounts recalculated successfully")
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Error recalculating recommended amounts: {e}", exc_info=True)
+        raise
+
+
 def init_scheduler() -> AsyncIOScheduler:
     """
     Initialize and configure APScheduler.
@@ -84,6 +116,16 @@ def init_scheduler() -> AsyncIOScheduler:
         replace_existing=True,
     )
     logger.info("[SCHEDULER] Registered job: recalculate_article_usage_stats (daily at 00:00 UTC)")
+
+    # Job 2: Recalculate recommended amounts for quick selection buttons (daily at 02:00 UTC)
+    scheduler.add_job(
+        recalculate_recommended_amounts_job,
+        trigger=CronTrigger(hour=2, minute=0),
+        id="recalculate_recommended_amounts",
+        name="Recalculate Recommended Amounts (K-means)",
+        replace_existing=True,
+    )
+    logger.info("[SCHEDULER] Registered job: recalculate_recommended_amounts (daily at 02:00 UTC)")
 
     # Add more jobs here as needed
 

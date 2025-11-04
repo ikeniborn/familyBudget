@@ -5,16 +5,21 @@ Provides aggregated data for charts and dashboards.
 """
 
 from datetime import date, datetime, timedelta
-from typing import List
+from decimal import Decimal
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import HTMLResponse
-from sqlmodel import func, select
+from sqlmodel import func, select, text
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.dependencies import CurrentUser, get_session
 from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact as Fact
+from backend.app.schemas.analytics import (
+    RecommendedAmountsMetadata,
+    RecommendedAmountsResponse,
+)
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -645,3 +650,242 @@ async def get_heatmap_data(
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat()
     }
+
+
+@router.get("/recommended-amounts", response_model=RecommendedAmountsResponse)
+async def get_recommended_amounts(
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    article_id: Optional[int] = Query(
+        None,
+        gt=0,
+        description="Optional category ID filter (omit for global recommendations)"
+    ),
+    type: Optional[str] = Query(
+        None,
+        description="Optional transaction type filter: 'income' or 'expense' (omit for all types)"
+    ),
+    record_type: str = Query(
+        "fact",
+        description="Record type: 'fact' (actual transactions) or 'plan' (planned transactions)"
+    ),
+    period: str = Query(
+        "quarter",
+        description="Analysis period: 'week' (7d), 'month' (30d), 'quarter' (90d), 'year' (365d)"
+    ),
+):
+    """
+    Get recommended amounts for quick selection buttons in transaction forms.
+
+    Algorithm:
+        1. Check cache (t_recommended_amounts table) for pre-calculated values
+        2. If not in cache or stale, calculate on-demand using K-means clustering
+        3. Fallback to defaults if insufficient data (<20 transactions)
+
+    Query Parameters:
+        - article_id: Optional category filter (NULL = global recommendations)
+        - type: Optional type filter ('income' | 'expense' | NULL = all)
+        - record_type: 'fact' (actual transactions) or 'plan' (planned transactions)
+        - period: Analysis period ('week' | 'month' | 'quarter' | 'year')
+
+    Returns:
+        - amounts: Array of 4 recommended amounts (rounded to nice numbers)
+        - algorithm: 'k_means' (calculated) or 'default' (fallback)
+        - metadata: Detailed calculation info (sample_size, min/max/avg, period_days)
+
+    Examples:
+        GET /api/v1/analytics/recommended-amounts?record_type=fact&type=expense
+        GET /api/v1/analytics/recommended-amounts?article_id=5&record_type=fact
+        GET /api/v1/analytics/recommended-amounts?record_type=plan&type=income
+
+    Notes:
+        - Pre-calculated values are cached for TOP-10 popular categories (updated nightly at 02:00 UTC)
+        - On-demand calculation is used for rare categories
+        - Fallback to defaults if sample size < 20 transactions
+        - Shared family budget model: all authenticated users see same recommendations
+    """
+    # Default fallback values
+    DEFAULT_AMOUNTS = {
+        ("fact", "expense"): [Decimal("100.00"), Decimal("500.00"), Decimal("1000.00"), Decimal("5000.00")],
+        ("fact", "income"): [Decimal("10000.00"), Decimal("20000.00"), Decimal("50000.00"), Decimal("100000.00")],
+        ("plan", "expense"): [Decimal("5000.00"), Decimal("10000.00"), Decimal("20000.00"), Decimal("50000.00")],
+        ("plan", "income"): [Decimal("20000.00"), Decimal("50000.00"), Decimal("100000.00"), Decimal("200000.00")],
+    }
+
+    # Step 1: Try to get from cache (t_recommended_amounts)
+    cache_query = text("""
+        SELECT amounts, metadata
+        FROM t_recommended_amounts
+        WHERE (article_id IS NOT DISTINCT FROM :article_id)
+          AND (type IS NOT DISTINCT FROM :type)
+          AND record_type = :record_type
+          AND period = :period
+          AND last_updated >= NOW() - INTERVAL '24 hours'
+        LIMIT 1
+    """)
+
+    result = await session.execute(
+        cache_query,
+        {"article_id": article_id, "type": type, "record_type": record_type, "period": period}
+    )
+    row = result.first()
+
+    if row:
+        # Cache hit - use pre-calculated values
+        amounts_array = row[0]  # PostgreSQL ARRAY
+        metadata_json = row[1]  # JSONB
+
+        # Get article name if article_id is provided
+        article_name = None
+        if article_id:
+            article_result = await session.execute(
+                select(Article.name).where(Article.id == article_id, Article.is_current == True)
+            )
+            article_row = article_result.first()
+            if article_row:
+                article_name = article_row[0]
+
+        metadata_json["article_name"] = article_name
+
+        return RecommendedAmountsResponse(
+            amounts=[Decimal(str(amt)) for amt in amounts_array],
+            algorithm="k_means" if metadata_json.get("source") == "k_means" else "default",
+            metadata=RecommendedAmountsMetadata(**metadata_json)
+        )
+
+    # Step 2: Cache miss - calculate on-demand using PostgreSQL function
+    calc_query = text("""
+        SELECT * FROM calculate_recommended_amounts(
+            :article_id,
+            :type,
+            :record_type,
+            :period,
+            20  -- min_sample_size
+        )
+    """)
+
+    calc_result = await session.execute(
+        calc_query,
+        {"article_id": article_id, "type": type, "record_type": record_type, "period": period}
+    )
+    calc_row = calc_result.first()
+
+    if calc_row and calc_row[0] is not None:
+        # On-demand calculation successful
+        amounts_array = calc_row[0]  # amounts
+        sample_size = calc_row[1]
+        min_amount = calc_row[2]
+        max_amount = calc_row[3]
+        avg_amount = calc_row[4]
+        period_days = calc_row[5]
+
+        # Get article name if article_id is provided
+        article_name = None
+        if article_id:
+            article_result = await session.execute(
+                select(Article.name).where(Article.id == article_id, Article.is_current == True)
+            )
+            article_row = article_result.first()
+            if article_row:
+                article_name = article_row[0]
+
+        # IMPORTANT: Save on-demand calculation result to cache for future requests
+        # This improves performance - subsequent users get cached result instead of recalculating
+        try:
+            metadata_json = {
+                "source": "k_means",
+                "sample_size": sample_size,
+                "min_amount": float(min_amount) if min_amount else None,
+                "max_amount": float(max_amount) if max_amount else None,
+                "avg_amount": float(avg_amount) if avg_amount else None,
+                "period_days": period_days,
+                "algorithm_version": "1.0",
+                "article_id": article_id,
+                "article_name": article_name
+            }
+
+            insert_cache_query = text("""
+                INSERT INTO t_recommended_amounts (article_id, type, record_type, period, amounts, metadata, last_updated)
+                VALUES (:article_id, :type, :record_type, :period, :amounts, :metadata::jsonb, NOW())
+                ON CONFLICT (article_id, type, record_type, period)
+                DO UPDATE SET
+                    amounts = EXCLUDED.amounts,
+                    metadata = EXCLUDED.metadata,
+                    last_updated = NOW()
+            """)
+
+            import json
+            await session.execute(
+                insert_cache_query,
+                {
+                    "article_id": article_id,
+                    "type": type,
+                    "record_type": record_type,
+                    "period": period,
+                    "amounts": [float(amt) for amt in amounts_array],
+                    "metadata": json.dumps(metadata_json)
+                }
+            )
+            await session.commit()
+        except Exception as e:
+            # Cache save failed - log but don't fail the request
+            # User still gets the calculated result
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to save on-demand calculation to cache: {e}")
+            await session.rollback()
+
+        return RecommendedAmountsResponse(
+            amounts=[Decimal(str(amt)) for amt in amounts_array],
+            algorithm="k_means",
+            metadata=RecommendedAmountsMetadata(
+                source="k_means",
+                sample_size=sample_size,
+                min_amount=Decimal(str(min_amount)) if min_amount else None,
+                max_amount=Decimal(str(max_amount)) if max_amount else None,
+                avg_amount=Decimal(str(avg_amount)) if avg_amount else None,
+                period_days=period_days,
+                algorithm_version="1.0",
+                article_id=article_id,
+                article_name=article_name
+            )
+        )
+
+    # Step 3: Insufficient data - fallback to defaults
+    # Determine default key based on record_type and type
+    if type is None:
+        # If type is not specified, default to expense for facts, income for plans
+        default_type = "expense" if record_type == "fact" else "income"
+    else:
+        default_type = type
+
+    default_key = (record_type, default_type)
+    default_amounts = DEFAULT_AMOUNTS.get(default_key, DEFAULT_AMOUNTS[("fact", "expense")])
+
+    # Get article name if article_id is provided
+    article_name = None
+    if article_id:
+        article_result = await session.execute(
+            select(Article.name).where(Article.id == article_id, Article.is_current == True)
+        )
+        article_row = article_result.first()
+        if article_row:
+            article_name = article_row[0]
+
+    period_days_map = {"week": 7, "month": 30, "quarter": 90, "year": 365}
+
+    return RecommendedAmountsResponse(
+        amounts=default_amounts,
+        algorithm="default",
+        metadata=RecommendedAmountsMetadata(
+            source="default",
+            sample_size=0,
+            min_amount=None,
+            max_amount=None,
+            avg_amount=None,
+            period_days=period_days_map.get(period, 90),
+            algorithm_version=None,
+            article_id=article_id,
+            article_name=article_name
+        )
+    )
