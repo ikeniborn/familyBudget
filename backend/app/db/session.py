@@ -4,6 +4,7 @@ Database session management with async SQLModel.
 Provides async database engine and session management for FastAPI endpoints.
 """
 
+from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -44,6 +45,39 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         async def get_items(session: AsyncSession = Depends(get_session)):
             result = await session.execute(select(Item))
             return result.scalars().all()
+    """
+    async with async_session_maker() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
+@asynccontextmanager
+async def get_session_context():
+    """
+    Context manager for database session (for background jobs and scheduler).
+
+    This is an alternative to get_session() for use outside of FastAPI dependency injection.
+    Use this in background jobs, scheduler tasks, or standalone scripts.
+
+    Usage:
+        async with get_session_context() as session:
+            result = await session.execute(select(Article))
+            items = result.scalars().all()
+            # Session commits automatically on exit
+
+    Note:
+        - For FastAPI endpoints, use get_session() dependency instead
+        - Session automatically commits on success, rolls back on exception
+        - Session closes automatically after context exits
+
+    Yields:
+        AsyncSession: Database session for background operations
     """
     async with async_session_maker() as session:
         try:
