@@ -554,15 +554,24 @@ BEGIN
     END IF;
 
     -- ========================================================================
-    -- STEP 2: Recalculate TOP-10 popular categories (from t_article_usage_stats)
+    -- STEP 2: Recalculate TOP-10 popular categories (from transaction history)
     -- ========================================================================
+    -- NOTE: Changed from t_article_usage_stats to direct query of t_f_budget_fact
+    --       to avoid dependency on recalculate_article_usage_stats() scheduler job
 
     FOR v_article IN
-        SELECT a.id, a.type
-        FROM t_article_usage_stats s
-        JOIN t_d_article a ON s.article_id = a.id
+        SELECT
+            a.id,
+            a.type,
+            COUNT(*) as transaction_count
+        FROM t_f_budget_fact f
+        JOIN t_d_article a ON f.article_id = a.id
         WHERE a.is_current = TRUE
-        ORDER BY s.usage_count DESC
+          AND f.fact_date >= CURRENT_DATE - INTERVAL '90 days'
+          AND f.record_type = 'fact'
+        GROUP BY a.id, a.type
+        HAVING COUNT(*) >= 20  -- Only categories with sufficient data for K-means
+        ORDER BY COUNT(*) DESC
         LIMIT 10
     LOOP
         -- Calculate for facts
