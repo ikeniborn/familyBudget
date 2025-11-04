@@ -687,6 +687,199 @@ git pull origin master
 5. **Безопасность** - .env и secrets не попадают в git случайно
 6. **Централизованные данные** - все runtime данные в одном месте (/opt/budget)
 
+#### 3.7.7 Smart Cleanup v2: File Categorization Flow
+
+**Процесс анализа изменений при deployment:**
+
+```mermaid
+flowchart TD
+    A[Git Pull / Code Sync] --> B[detect_changed_files_rsync]
+    B --> C{Есть измененные файлы?}
+    C -->|Нет| D[Пропустить Smart Cleanup]
+    C -->|Да| E[categorize_file_changes]
+
+    E --> F{Анализ каждого файла}
+
+    F --> G{backend/db/migrations/*.sql?}
+    G -->|Да| H[postgres-critical<br/>needs_postgres_restart=true]
+
+    F --> I{backend/requirements.txt?}
+    I -->|Да| J[backend-deps<br/>needs_backend_rebuild=true<br/>needs_backend_restart=true]
+
+    F --> K{backend/app/**/*.py?}
+    K -->|Да| L[backend-code<br/>needs_backend_restart=true]
+
+    F --> M{web/templates/*.html?}
+    M -->|Да| N[backend-code<br/>needs_backend_restart=true<br/>Jinja2 cache]
+
+    F --> O{webapp/*.html?}
+    O -->|Да| P[webapp<br/>NO restart<br/>volume mount]
+
+    F --> Q{web/static/*?}
+    Q -->|Да| R[nginx-config<br/>needs_nginx_restart=true]
+
+    F --> S{nginx/conf.d/*.conf?}
+    S -->|Да| T[nginx-config<br/>needs_nginx_restart=true]
+
+    H & J & L & N & P & R & T --> U[Подсчет категорий]
+    U --> V[Вывод Change Analysis]
+    V --> W{Определение стратегии}
+
+    W --> X{PostgreSQL restart needed?}
+    X -->|Да| Y[Full Restart<br/>All services down]
+    X -->|Нет| Z{Images rebuild needed?}
+
+    Z -->|Да| AA[Rebuild Images<br/>Recreate containers]
+    Z -->|Нет| AB{Services restart needed?}
+
+    AB -->|Да| AC[Selective Restart<br/>Keep PostgreSQL running]
+    AB -->|Нет| AD[No Restart<br/>Volume mounts active]
+
+    Y & AA & AC & AD --> AE[docker compose up --build]
+```
+
+**Пример анализа (смешанные изменения):**
+
+```
+Input: webapp/add.html, web/templates/index.html, backend/app/api/facts.py
+
+categorize_file_changes():
+├─ webapp/add.html → count_webapp++ (no flags)
+├─ web/templates/index.html → count_backend_code++, needs_backend_restart=true
+└─ backend/app/api/facts.py → count_backend_code++, needs_backend_restart=true
+
+Output:
+Change analysis:
+  ✓ backend-code (2 files)
+  ✓ webapp (1 file)
+
+Strategy summary:
+  • PostgreSQL: keep running ✓
+  • Services to restart: 1 (backend)
+  • Images to rebuild: 0
+
+NOTE: Docker may still rebuild backend (build context changed)
+      This is normal - volume mounts will override built-in files
+```
+
+#### 3.7.8 File Mappings & Volume Mounts
+
+**Диаграмма отображения файлов (Repository → Dockerfile → Runtime):**
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ Repository (~/familyBudget)                                         │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  backend/                      web/                  webapp/        │
+│  ├── app/                      ├── templates/        ├── add.html   │
+│  │   ├── api/                  │   ├── index.html    ├── edit.html  │
+│  │   ├── models/               │   └── facts.html    └── ...        │
+│  │   └── services/             └── static/                          │
+│  ├── db/migrations/                ├── style.css                    │
+│  ├── requirements.txt              └── script.js                    │
+│  └── Dockerfile                                                     │
+│                                                                     │
+└────────────┬────────────────────────┬──────────────────┬───────────┘
+             │                        │                  │
+             │ docker-compose.yml     │                  │
+             │ sync (rsync)           │                  │
+             ▼                        ▼                  ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│ Docker Build Context (/opt/budget)                                  │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  backend/Dockerfile:                                                │
+│    COPY backend/ /app/backend/     ◄─── Build-time copy            │
+│    COPY web/ /app/web/             ◄─── Build-time copy            │
+│    COPY webapp/ /app/webapp/       ◄─── Build-time copy            │
+│                                                                     │
+│  Docker Image (familybudget-backend:4.0.0)                          │
+│    /app/backend/  [embedded]                                        │
+│    /app/web/      [embedded]                                        │
+│    /app/webapp/   [embedded]                                        │
+│                                                                     │
+└────────────┬────────────────────────────────────────────────────────┘
+             │
+             │ docker compose up
+             │ Volume mounts OVERRIDE embedded files
+             ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│ Runtime Container (familybudget-backend)                            │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  docker-compose.yml volumes:                                        │
+│    - ./backend:/app/backend:ro   ◄─── OVERRIDES embedded backend/  │
+│    - ./web:/app/web:ro           ◄─── OVERRIDES embedded web/      │
+│    - ./webapp:/app/webapp:ro     ◄─── OVERRIDES embedded webapp/   │
+│                                                                     │
+│  Final state:                                                       │
+│    /app/backend/  → Volume mount (live updates)                     │
+│    /app/web/      → Volume mount (live updates)                     │
+│    /app/webapp/   → Volume mount (live updates)                     │
+│                                                                     │
+│  Effects:                                                           │
+│    ✓ Python code changes → Restart backend (clear cache)           │
+│    ✓ Templates changes → Restart backend (Jinja2 cache)            │
+│    ✓ webapp changes → NO restart (static files)                    │
+│    ✗ Dependencies changes → REBUILD image (pip install)            │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ Runtime Container (familybudget-nginx)                              │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  docker-compose.yml volumes:                                        │
+│    - ./web/static:/usr/share/nginx/html/static:ro                   │
+│    - ./nginx/conf.d:/etc/nginx/conf.d:ro                            │
+│                                                                     │
+│  Final state:                                                       │
+│    /usr/share/nginx/html/static/ → Volume mount (live updates)      │
+│    /etc/nginx/conf.d/ → Volume mount (live updates)                 │
+│                                                                     │
+│  Effects:                                                           │
+│    ✓ Static files changes → Restart nginx (cache invalidation)     │
+│    ✓ Nginx config changes → Restart nginx (reload config)          │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Таблица "Что запускает что":**
+
+| Измененный файл | Backend rebuild | Backend restart | Nginx restart | Postgres restart | Cause |
+|----------------|----------------|-----------------|---------------|-----------------|-------|
+| `webapp/*.html` | Нет* | Нет | Нет | Нет | Volume mount, static |
+| `web/templates/*.html` | Нет* | **Да** | Нет | Нет | Jinja2 cache |
+| `web/static/*.css` | Нет | Нет | **Да** | Нет | Nginx cache |
+| `backend/app/**/*.py` | Нет* | **Да** | Нет | Нет | Python cache |
+| `backend/requirements.txt` | **Да** | **Да** | Нет | Нет | pip install |
+| `backend/Dockerfile` | **Да** | **Да** | Нет | Нет | Build steps |
+| `backend/db/migrations/*.sql` | Нет | Нет | Нет | **Да** | Schema change |
+| `nginx/conf.d/*.conf` | Нет | Нет | **Да** | Нет | Config reload |
+| `docker-compose.yml` | Нет | Нет | Нет | **Да** | Infrastructure |
+| `.env` (POSTGRES_*) | Нет | Нет | Нет | **Да** | DB credentials |
+
+*\*Примечание:* Docker может пересобрать образ (build context changed), но volume mounts переопределят встроенные файлы.
+
+**Ключевые инсайты:**
+
+1. **Dockerfile COPY vs Volume Mounts**:
+   - COPY нужен для production deployments БЕЗ volumes
+   - В development volume mounts переопределяют COPY
+   - Docker может пересобрать образ, но это не влияет на runtime
+
+2. **Категоризация файлов**:
+   - `webapp/*` → webapp (no action)
+   - `web/templates/*` → backend-code (restart backend)
+   - `web/static/*` → nginx-config (restart nginx)
+   - `backend/app/*` → backend-code (restart backend)
+
+3. **Smart Cleanup оптимизация**:
+   - PostgreSQL НЕ перезапускается для frontend/backend changes
+   - Только измененные сервисы перезапускаются
+   - Estimated downtime: 0-30s в зависимости от сценария
+
 ---
 
 _Продолжение следует..._
