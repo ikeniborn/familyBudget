@@ -980,6 +980,31 @@ new CalendarWidget({
   - ✅ Архитектурно правильное разделение auth логики
   - ✅ Четкая документация различий между webapp и web версиями
 
+**2025-11-04 (Choices.js API Fix - web/templates/index.html):**
+- ✅ **BUG FIX:** Исправлена ошибка querySelector в web/templates/index.html
+  - **Проблема:** `Failed to execute 'querySelector' on 'Document': '[object HTMLSelectElement]' is not a valid selector`
+  - **Root Cause:** Использовался старый API ChoicesCategoryTree с передачей DOM элемента вместо CSS селектора
+  - **Решение:** Обновлена инициализация на новый Choices.js API
+- ✅ **FRONTEND:** Переписана функция loadCategories() (web/templates/index.html:286-328)
+  - Destroy existing instances перед пересозданием (`destroy()` метод)
+  - Передача CSS селектора строкой вместо DOM элемента
+  - Удалены deprecated параметры: `emptyOptionText`, `showEmptyOption`, `indentChar`, `parentPrefix`, `leafPrefix`
+  - Удалена ручная загрузка категорий (компонент загружает автоматически)
+  - Удален вызов `.init()` (вызывается автоматически в конструкторе)
+- ✅ **FRONTEND:** Реализована динамическая фильтрация категорий
+  - При смене типа операции (расход/доход) пересоздается компонент с новым типом
+  - Используется существующий паттерн из webapp/add.html
+- ✅ **CLEANUP:** Удалена глобальная переменная `allCategories` (не требуется)
+- ✅ **Изменено файлов:** 2
+  - HTML web: `web/templates/index.html` (loadCategories refactoring)
+  - Docs: `docs/prd/08-ui-design.md` (changelog)
+- ✅ **Scope:** Завершение миграции Choices.js в web/templates/index.html
+- ✅ **Бенефиты:**
+  - ✅ Устранена критическая ошибка загрузки категорий в модальных окнах
+  - ✅ Унифицирован API использования ChoicesCategoryTree
+  - ✅ Динамическая фильтрация категорий при смене типа операции
+  - ✅ Упрощенный и более поддерживаемый код
+
 **2025-11-03 (Migration from TomSelect to Choices.js):**
 - ✅ **BREAKING CHANGE:** Полная миграция с TomSelect v2.3.1 на Choices.js v11.1.0
   - **Причина:** TomSelect не поддерживает text input для поиска (dropdown-only mode)
