@@ -108,6 +108,101 @@ To run a specific migration manually:
 psql -h localhost -U familybudget -d familybudget_db -f backend/db/migrations/001_create_t_d_user.sql
 ```
 
+## Development Mode: Working with Modified Migrations
+
+**ТЕКУЩАЯ ФАЗА:** Development (v5.0.0-beta)
+
+### Problem: Migration Tracking by Filename
+
+The migration system tracks applied migrations by **filename** in `schema_migrations` table:
+
+```sql
+CREATE TABLE schema_migrations (
+    id SERIAL PRIMARY KEY,
+    migration_file VARCHAR(255) NOT NULL UNIQUE,  -- ← Tracks by filename!
+    applied_at TIMESTAMP,
+    checksum VARCHAR(64)
+);
+```
+
+**Issue:** If you modify an existing migration file, the system will **skip it** because it sees the filename as already applied.
+
+### When You Can Modify Existing Migrations
+
+✅ **РАЗРЕШЕНО в Development Mode:**
+- Прямое редактирование миграций 001-013
+- Изменение SQL в существующих файлах
+- Изменение структуры таблиц
+- НЕТ backward compatibility требований
+
+❌ **ЗАПРЕЩЕНО:**
+- Создание новых миграций типа `014_update_xxx.sql`
+- В production так делать нельзя!
+
+### Workflow: Modified Migration
+
+When you modify an existing migration file (e.g., `013_create_recommended_amounts_table.sql`):
+
+**Option 1: Recreate Database (Clean Slate)**
+
+Best for development when you don't need data:
+
+```bash
+# ⚠️  WARNING: This DELETES ALL DATA!
+docker compose down -v
+docker compose up -d
+
+# Migrations apply automatically on startup
+```
+
+**Option 2: Re-apply Specific Migration**
+
+Best for production/testing when you want to keep data in other tables:
+
+```bash
+# Local development
+cd ~/familyBudget
+./scripts/reapply_migration_013.sh
+
+# Production server
+ssh your-server
+cd ~/familyBudget
+./scripts/remote_reapply_migration_013.sh
+```
+
+The re-apply script:
+1. Drops the table/functions from modified migration
+2. Removes tracking record from `schema_migrations`
+3. Re-applies the updated migration
+4. Adds tracking record back
+
+### Why Deploy Script Skips Modified Migrations
+
+When you run `./deploy.sh`:
+
+1. Deploy script calls `run_migrations.sh`
+2. Migration runner checks `schema_migrations` table
+3. Sees `013_create_recommended_amounts_table.sql` already applied
+4. **Skips it** (lines 200-203 in run_migrations.sh):
+
+```bash
+if is_migration_applied "${basename}"; then
+    log_warning "Skipping (already applied): ${basename}"
+    skipped=$((skipped + 1))
+    continue
+fi
+```
+
+**Solution:** Use re-apply script instead of deploy when migration content changed.
+
+### Transition to Production
+
+After relase → версионирование миграций (Alembic):
+- Alpha → Beta → Production
+- New migrations become append-only
+- Use Alembic upgrade/downgrade
+- No direct SQL file editing
+
 ## Migration Files Structure
 
 Current migrations:
