@@ -946,6 +946,27 @@ new CalendarWidget({
 
 #### 8.10.8 Changelog
 
+**2025-11-04 (Choices.js classNames API Fix - InvalidCharacterError):**
+- ✅ **BUG FIX:** Исправлена ошибка InvalidCharacterError при инициализации Choices.js
+  - **Проблема:** `InvalidCharacterError: The token provided ('choices choices-tailwind') contains HTML space characters`
+  - **Root Cause:** В конфигурации classNames использовались строки с пробелами вместо массивов
+  - **Контекст:** `classList.add()` не принимает строки с пробелами - требует отдельные аргументы или массив
+  - **Решение:** Изменены все classNames со строк на массивы строк
+- ✅ **FRONTEND:** Исправлены оба файла ChoicesCategoryTree
+  - `web/static/js/choicesCategoryTree.js:185` - `containerOuter: 'choices choices-tailwind'` → `['choices', 'choices-tailwind']`
+  - `webapp/static/js/choicesCategoryTree.js:202` - `containerOuter: 'choices choices-telegram'` → `['choices', 'choices-telegram']`
+  - Все остальные classNames также переведены на массивы для консистентности
+- ✅ **VALIDATION:** Проверен синтаксис JavaScript через `node --check`
+- ✅ **AUDIT:** Проверены все HTML файлы - inline Choices.js не найден
+- ✅ **Изменено файлов:** 2
+  - `web/static/js/choicesCategoryTree.js` (17 classNames → arrays)
+  - `webapp/static/js/choicesCategoryTree.js` (17 classNames → arrays)
+- ✅ **Scope:** Критическое исправление Choices.js v11.1.0 API compliance
+- ✅ **Бенефиты:**
+  - ✅ Устранена ошибка блокирующая загрузку категорий
+  - ✅ Соответствие официальному Choices.js API
+  - ✅ Предотвращены аналогичные ошибки в будущем
+
 **2025-11-04 (Choices.js Migration Completion - Auth Architecture Fix):**
 - ✅ **CRITICAL FIX:** Разделены ChoicesCategoryTree версии для webapp и web
   - **Проблема:** webapp получал 401 Unauthorized при загрузке категорий
