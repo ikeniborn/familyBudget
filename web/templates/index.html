@@ -310,6 +310,8 @@ async function loadTransactionCategories() {
                 showLeafOnly: true,
                 onCategoryChange: (category) => {
                     console.log('Transaction category changed:', category);
+                    // Update recommended amounts based on selected category
+                    loadRecommendedAmounts('form_modal_add_transaction', 'fact');
                 }
             });
         }
@@ -337,6 +339,8 @@ async function loadPlanCategories() {
                 showLeafOnly: true,
                 onCategoryChange: (category) => {
                     console.log('Plan category changed:', category);
+                    // Update recommended amounts based on selected category
+                    loadRecommendedAmounts('form_modal_add_plan', 'plan');
                 }
             });
         }
@@ -491,6 +495,153 @@ function setTransactionDate(daysOffset) {
         dateInput.value = date.toISOString().split('T')[0];
         dateInput.focus();
     }
+}
+
+// ============ Smart Amount Suggestions Functions ============
+
+// Debounce tracking for recommended amounts API calls
+let recommendedAmountsTimeout = null;
+let recommendedAmountsController = null;
+
+/**
+ * Load recommended amounts from API and update quick amount buttons.
+ *
+ * @param {string} formId - ID модальной формы ('form_modal_add_transaction' или 'form_modal_add_plan')
+ * @param {string} recordType - Тип записи ('fact' или 'plan')
+ */
+async function loadRecommendedAmounts(formId, recordType = 'fact') {
+    // Clear existing debounce timeout
+    if (recommendedAmountsTimeout) {
+        clearTimeout(recommendedAmountsTimeout);
+    }
+
+    // Cancel pending API call
+    if (recommendedAmountsController) {
+        recommendedAmountsController.abort();
+    }
+
+    // Debounce: wait 300ms after last call
+    recommendedAmountsTimeout = setTimeout(async () => {
+        try {
+            recommendedAmountsController = new AbortController();
+
+            // Get form elements
+            const form = document.getElementById(formId);
+            if (!form) {
+                console.warn(`[loadRecommendedAmounts] Form ${formId} not found`);
+                return;
+            }
+
+            // Get current type (income/expense)
+            const typeInput = form.querySelector('input[name="record_type"]:checked') ||
+                             form.querySelector('input[name="plan_type"]:checked');
+            const type = typeInput ? typeInput.value : 'expense';
+
+            // Get current category
+            const categorySelect = form.querySelector('select[name="article_id"]');
+            const articleId = categorySelect ? categorySelect.value : null;
+
+            // Build query params
+            const params = new URLSearchParams({
+                record_type: recordType,
+                period: 'quarter',  // 90 days analysis
+            });
+
+            if (articleId && articleId !== '') {
+                params.append('article_id', articleId);
+            }
+
+            if (type) {
+                params.append('type', type);
+            }
+
+            // Call API
+            const response = await fetch(`/api/v1/analytics/recommended-amounts?${params.toString()}`, {
+                signal: recommendedAmountsController.signal,
+                credentials: 'include',  // Include cookies for auth
+            });
+
+            if (!response.ok) {
+                console.error(`[loadRecommendedAmounts] API error: ${response.status}`);
+                return;
+            }
+
+            const data = await response.json();
+
+            // Update button labels with new amounts
+            updateQuickAmountButtons(formId, data.amounts);
+
+            console.log(`[loadRecommendedAmounts] Updated amounts for ${formId}:`, data.amounts, data.metadata);
+
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                console.log('[loadRecommendedAmounts] Request cancelled (debounce)');
+            } else {
+                console.error('[loadRecommendedAmounts] Failed to load:', error);
+            }
+        }
+    }, 300); // 300ms debounce
+}
+
+/**
+ * Update quick amount button labels with new amounts.
+ *
+ * @param {string} formId - ID модальной формы
+ * @param {Array<number>} amounts - Array of 4 recommended amounts
+ */
+function updateQuickAmountButtons(formId, amounts) {
+    if (!amounts || amounts.length !== 4) {
+        console.warn('[updateQuickAmountButtons] Invalid amounts array:', amounts);
+        return;
+    }
+
+    // Find buttons in the specified form
+    const form = document.getElementById(formId);
+    if (!form) {
+        console.warn(`[updateQuickAmountButtons] Form ${formId} not found`);
+        return;
+    }
+
+    // Find quick amount buttons (need to select parent container then buttons)
+    const buttons = form.querySelectorAll('.btn[onclick*="Amount"]');
+
+    amounts.forEach((amount, index) => {
+        if (buttons[index]) {
+            const amountValue = parseFloat(amount);
+
+            // Update button text with formatted amount
+            buttons[index].textContent = formatAmountForButton(amountValue) + ' ₽';
+
+            // Update onclick handler
+            const funcName = formId.includes('transaction') ? 'setTransactionAmount' : 'setPlanAmount';
+            buttons[index].setAttribute('onclick', `${funcName}(${amountValue})`);
+        }
+    });
+}
+
+/**
+ * Format amount for button display.
+ *
+ * Examples:
+ * - 100 → "100"
+ * - 1000 → "1k"
+ * - 1500 → "1.5k"
+ * - 10000 → "10k"
+ *
+ * @param {number} amount - Amount to format
+ * @returns {string} Formatted amount string
+ */
+function formatAmountForButton(amount) {
+    if (amount >= 1000) {
+        const thousands = amount / 1000;
+        // Check if it's a round number
+        if (Number.isInteger(thousands)) {
+            return `${thousands}k`;
+        } else {
+            return `${thousands.toFixed(1)}k`;
+        }
+    }
+    return amount.toString();
 }
 
 // ============ Plan Period Buttons Functions ============
