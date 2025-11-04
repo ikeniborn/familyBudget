@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ---
 
@@ -10,80 +10,13 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 **Версия:** 5.0.0-beta
 **Архитектура:** FastAPI (Backend) + Telegram Bot + PostgreSQL + HTMX (Frontend)
+**Язык документации:** Русский (ru)
 
 ---
 
-## ⚠️ ВАЖНО: Фаза разработки
+## 🎯 Быстрый старт для Claude Code
 
-**Текущий статус:** DEVELOPMENT MODE
-
-### Правила работы с миграциями БД
-
-**КРИТИЧНО для разработки:**
-
-✅ **МОЖНО делать:**
-- Изменять существующие миграции напрямую (001-012)
-- Редактировать SQL файлы в `backend/db/migrations/`
-- Менять структуру таблиц в уже созданных миграциях
-- НЕ создавать новые миграции для изменений (пока в разработке)
-
-✅ **ОБЯЗАТЕЛЬНО делать:**
-- Отражать изменения в ПРД (`docs/prd/06-database-design.md`)
-- Согласовывать архитектурные изменения перед реализацией
-- Обновлять Changelog в ПРД
-- Тестировать миграции на чистой БД
-
-❌ **НЕ нужно:**
-- Создавать миграции типа `014_update_xxx.sql` для изменений
-- Сохранять backward compatibility для production
-- Беспокоиться о существующих данных
-
-**Причина:** При тестировании и deployment вся БД **накатывается с нуля** на чистую систему.
-
-**Workflow изменения БД:**
-1. Определить требование → согласовать с командой
-2. Изменить существующую миграцию (например, 011_create_notifications_table.sql)
-3. Обновить ПРД (docs/prd/06-database-design.md)
-4. Обновить CLAUDE.md (этот файл)
-5. Тестировать: `docker compose down -v && docker compose up -d`
-
-**Переход в production:**
-- Все миграции будут применены к fresh PostgreSQL
-- Контрольные точки: alpha → beta → production
-- После релиза - переход на версионирование миграций
-
----
-
-## 🎯 Claude Skills
-
-Для автоматизации типичных задач используй **Claude Skills** - специализированные инструкции и шаблоны кода:
-
-📚 **[Полная документация по Skills](./SKILLS.md)**
-
-### Доступные Skills:
-
-| Skill | Описание | Когда использовать |
-|-------|----------|-------------------|
-| **[api-development](/.claude/skills/api-development/SKILL.md)** | Создание REST API endpoints | Создание CRUD endpoints, Pydantic схем, SCD Type 2 интеграция |
-| **[db-management](/.claude/skills/db-management/SKILL.md)** | Управление БД и миграциями | Миграции Alembic, dimension модели, Closure Table, backup |
-| **[testing](/.claude/skills/testing/SKILL.md)** | Тестирование и quality | Unit/integration/e2e тесты, coverage, linting |
-| **[bot-development](/.claude/skills/bot-development/SKILL.md)** | Telegram bot команды | Простые команды, ConversationHandler, inline keyboards |
-| **[deployment](/.claude/skills/deployment/SKILL.md)** | Deployment и DevOps | Production deploy, Docker управление, health checks |
-| **[monitoring](/.claude/skills/monitoring/SKILL.md)** | Мониторинг и диагностика | Логи, performance, troubleshooting |
-
-**Использование:**
-
-```
-Создай REST API endpoint для модели "Budget" используя api-development skill.
-```
-
-Claude автоматически вызовет нужный skill на основе запроса.
-
----
-
-## Команды для разработки
-
-### Быстрый старт
+### Команды для разработки
 
 ```bash
 # Backend development server
@@ -92,577 +25,634 @@ cd backend && uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
 # Telegram Bot (требует запущенный backend)
 cd bot && python main.py
 
-# Docker (production)
-./deploy.sh --profile full
+# Docker (production) - ВАЖНО: запускать из git repository!
+cd ~/familyBudget && ./deploy.sh --profile full
+
+# Тесты
+pytest                                      # Все тесты
+pytest --cov=backend --cov-report=html      # С coverage
+ruff check . && black . && mypy .           # Quality checks
+
+# База данных (development mode - можно редактировать миграции напрямую)
+docker compose down -v && docker compose up -d  # Пересоздать БД
 ```
 
-### Основные команды
+### Ключевые файлы для изучения
 
-**Docker управление:**
-```bash
-docker compose ps                    # Статус сервисов
-docker compose logs -f backend       # Логи
-docker compose restart backend       # Перезапуск
-```
+**Backend архитектура:**
+- `backend/app/main.py:39-96` - Lifespan startup/shutdown с scheduler
+- `backend/app/api/v1/router.py` - URL routing всех endpoints
+- `backend/app/middleware/jwt_middleware.py:20-50` - JWT authentication
 
-**База данных:**
-```bash
-alembic upgrade head                 # Применить миграции
-alembic revision --autogenerate -m "Description"  # Создать миграцию
-```
-
-**Тестирование:**
-```bash
-pytest                               # Все тесты
-pytest --cov=backend --cov-report=html  # С coverage
-ruff check . && black . && mypy .    # Quality checks
-```
-
-### Production Environment (Docker)
-
-**Рабочие каталоги:**
-- `/opt/budget` - Production код (используется Docker контейнерами)
-- `~/familyBudget` - Development код (для разработки)
-
-
-**Применение изменений:**
-
-1. **WebApp файлы** (webapp/*.html, webapp/static/*)
-   - Монтируются как volume (read_only)
-   - Изменения применяются **сразу** (без пересборки)
-   - Но требуется очистка кэша браузера (Ctrl+F5)
-
-2. **Python код** (backend/, bot/) - БЕЗ изменений БД
-   - Требуется **пересборка образа** и **перезапуск контейнеров**
-   - **ВАЖНО:** Используйте **Smart cleanup (опция [2])** - автоматически определяет стратегию
-   ```bash
-   cd ~/familyBudget && git pull
-   sudo bash deploy.sh
-   # Выбрать sync mode: [2] Update only
-   # Выбрать cleanup: [2] Smart cleanup (RECOMMENDED) ✓
-   # Скрипт автоматически оставит PostgreSQL работающим
-   ```
-
-3. **DB schema изменения** (миграции, новые таблицы)
-   - Smart cleanup **автоматически определит** что нужен перезапуск PostgreSQL
-   ```bash
-   cd ~/familyBudget && git pull
-   sudo bash deploy.sh
-   # Выбрать sync mode: [2] Update only
-   # Выбрать cleanup: [2] Smart cleanup
-   # Скрипт автоматически остановит PostgreSQL для миграций
-   ```
-
-4. **Docker конфигурация** (docker-compose.yml, Dockerfile)
-   - Требуется **пересборка** и **перезапуск**
-   - Smart cleanup автоматически определяет необходимость перезапуска
-
-**⚡ Cache Busting (АВТОМАТИЗИРОВАНО):**
-
-**КРИТИЧНО:** При изменении статических файлов (JS/CSS) требуется обновление версий для очистки браузерного кэша.
-
-✅ **Автоматически при деплое:**
-```bash
-cd ~/familyBudget && git pull
-sudo ./deploy.sh
-# Cache busting выполняется АВТОМАТИЧЕСКИ перед sync_code_to_deploy()
-# Генерируется новая версия на основе timestamp: YYYYMMDD_HHMM
-```
-
-✅ **Ручное управление версиями:**
-```bash
-# Проверить текущие версии во всех файлах
-./scripts/lib/cache_busting.sh check
-
-# Обновить версии вручную (авто-генерация timestamp)
-./scripts/lib/cache_busting.sh auto
-
-# Обновить версии с указанной версией
-./scripts/lib/cache_busting.sh manual
-```
-
-**Какие файлы затрагиваются:**
-- **Webapp HTML (9 файлов):** `add.html`, `addplan.html`, `edit.html`, `index.html`, `list.html`, `stats.html`, `summary.html`, `test.html`, `today.html`
-- **Web Templates (3 файла):** `facts.html`, `plan.html`, `index.html`
-- **JS файлы (11 штук):** `api.js`, `app.js`, `auth.js`, `ui.js`, `validators.js`, `storage.js`, `theme.js`, `dateFormatter.js`, `tomSelectCategoryTree.js`, `admin-facts-common.js`, `calendar-widget.js`
-- **CSS файлы (5 штук):** `app.css`, `forms.css`, `telegram-theme.css`, `tom-select.css`, `tom-select-telegram.css`
-- Обновляются версии: `*.js?v=YYYYMMDD_HHMM` и `*.css?v=YYYYMMDD_HHMM`
-
-**❌ НЕ НУЖНО вручную править версии:**
-```html
-<!-- ❌ WRONG: Ручное изменение версии -->
-<script src="/static/js/tomSelectCategoryTree.js?v=20251103_1234"></script>
-
-<!-- ✅ CORRECT: Версия обновится автоматически при деплое -->
-<script src="/static/js/tomSelectCategoryTree.js?v=GENERATED"></script>
-```
-
-**Workflow при изменении JS/CSS:**
-1. Изменить файл (например, `webapp/static/js/tomSelectCategoryTree.js`)
-2. Закоммитить: `git commit -m "fix: update tomSelect logic"`
-3. Push: `git push`
-4. На сервере: `cd ~/familyBudget && git pull && sudo ./deploy.sh`
-5. ✅ Cache busting сработает автоматически, версии обновятся
-
-**Зачем это нужно:**
-- Браузеры кэшируют JS/CSS файлы агрессивно
-- Без обновления версии пользователи получают старый код
-- Автоматическая генерация версий предотвращает проблемы с кэшем
-
-**Интеграция в deploy.sh:**
-```bash
-# deploy.sh (строка ~341-345)
-# Synchronize code from repository to /opt/budget
-sync_code_to_deploy
-echo ""
-
-# Update cache versions AFTER synchronization (in /opt/budget)
-run_cache_busting "auto" "/opt/budget"  # ← АВТОМАТИЧЕСКИ
-echo ""
-```
-
-**Порядок выполнения:**
-1. Код синхронизируется из `~/familyBudget` → `/opt/budget`
-2. Cache busting обновляет версии в `/opt/budget` (production)
-3. Docker контейнеры монтируют файлы из `/opt/budget`
-
-**Deployment стратегии (автоматические):**
-
-| Изменения | Cleanup опция | PostgreSQL | Downtime |
-|-----------|---------------|------------|----------|
-| Frontend/Bot/Backend код | [2] Smart cleanup | Продолжает работать ✓ | ~10 сек |
-| DB migrations | [2] Smart cleanup | Автоматически перезапускается | ~30 сек |
-| docker-compose.yml | [2] Smart cleanup | Автоматически перезапускается | ~30 сек |
-| .env (POSTGRES_*) | [2] Smart cleanup | Автоматически перезапускается | ~30 сек |
-| Полная очистка данных | [3] Full cleanup | Удаляется ⚠️ | - |
-
-**Логи контейнеров:**
-```bash
-# В production (рабочий каталог /opt/budget)
-cd /opt/budget
-docker compose logs -f backend       # Backend логи
-docker compose logs -f bot           # Bot логи
-docker compose logs --tail=100 backend  # Последние 100 строк
-
-# Из любого каталога
-docker compose -f /opt/budget/docker-compose.yml logs -f backend
-docker exec familybudget-backend cat /app/logs/backend.log
-
-# Все сервисы
-docker compose -f /opt/budget/docker-compose.yml logs -f
-```
-
-**Проверка статуса:**
-```bash
-cd /opt/budget
-docker compose ps                    # Статус всех контейнеров
-docker compose ps backend            # Статус backend
-docker exec familybudget-backend cat /app/webapp/add.html | head -20  # Проверка файла в контейнере
-```
-
-### Remote Server Execution (ВАЖНО для Claude Code)
-
-⚠️ **Критично:** Production код находится на УДАЛЕННОМ сервере.
-
-**Правила для анализа:**
-1. НЕ выполняй команды локально для анализа production
-2. Формируй batch команды для одного SSH сеанса
-3. Используй только read-only команды для диагностики
-
-**Рабочие каталоги:**
-- Локально (`~/familyBudget`): Development, git
-- На сервере (`/opt/budget`): Production, Docker
-
-**Пример диагностики:**
-```bash
-ssh user@server 'bash -s' << 'EOF'
-  docker ps
-  ls -la /opt/budget/data/postgres
-  tail /opt/budget/logs/backend.log
-EOF
-```
-
-📖 **Детальные инструкции:** См. соответствующие [Skills](#-claude-skills)
-
----
-
-## Архитектура проекта
-
-### Структура
-
-```
-familyBudget/
-├── .claude/skills/      # Claude Skills для автоматизации
-├── backend/             # FastAPI (REST API + Web UI)
-│   ├── app/
-│   │   ├── api/v1/endpoints/  # REST API endpoints
-│   │   ├── models/            # SQLModel модели
-│   │   ├── schemas/           # Pydantic схемы
-│   │   ├── services/          # Бизнес-логика (SCD2, Hierarchy, JWT)
-│   │   └── core/              # Config, auth, exceptions
-│   └── db/migrations/   # Alembic миграции
-├── bot/                 # Telegram Bot (python-telegram-bot 20.x)
-│   ├── handlers/        # Command handlers
-│   ├── utils/           # API client, session, validators
-│   └── jobs/            # Background jobs
-├── scripts/             # Automation (backup, SSL)
-├── docker-compose.yml
-└── deploy.sh            # Deployment script
-```
-
-### Ключевые технологии
-
-**Backend:**
-- FastAPI + SQLModel + PostgreSQL 16
-- Async SQLAlchemy (asyncpg)
-- JWT в httpOnly cookies
-- HTMX для Web UI
+**Критичные паттерны:**
+- `backend/app/services/scd2_service.py:34-90` - SCD Type 2 implementation
+- `backend/app/services/hierarchy_service.py:31-80` - Closure Table queries
+- `backend/app/core/dependencies.py:15-40` - CurrentUser dependency
 
 **Bot:**
-- python-telegram-bot 20.x
-- ConversationHandler для multi-step команд
-- API client для взаимодействия с backend
-
-**Infrastructure:**
-- Docker & Docker Compose
-- UFW firewall
-- Alembic для миграций
-
-### Архитектурные паттерны
-
-⚠️ **Критично важные паттерны:**
-
-1. **SCD Type 2** для dimension таблиц
-   - `t_d_user`, `t_d_article`, `t_d_financial_center`, `t_d_cost_center`
-   - Полная история изменений: `valid_from`, `valid_to`, `is_current`
-   - 📖 **Детали:** [db-management skill](/.claude/skills/db-management/SKILL.md)
-
-2. **Closure Table** для иерархий
-   - `t_d_article_hierarchy` - хранит все ancestor-descendant пары
-   - O(1) сложность для иерархических запросов
-   - 📖 **Детали:** [db-management skill](/.claude/skills/db-management/SKILL.md)
-
-3. **Shared References Architecture** (dimension таблицы)
-   - **All dimension records shared** across all users (articles, financial_centers, cost_centers)
-   - **Admin-only management:** Only admins can CREATE/UPDATE/DELETE dimension records
-   - **All users READ:** All users can view all dimension records
-   - **NO user isolation** для dimension таблиц - НЕ фильтруй по `user_id`!
-   - `user_id` используется только для audit trail (кто создал запись)
-   - 📖 **Детали:** [api-development skill](/.claude/skills/api-development/SKILL.md)
-
-4. **Shared Family Budget Model** (fact таблицы)
-   - ⚠️ **ИЗМЕНЕНО 2025-11-02:** Fact таблицы (`t_f_budget_fact`) теперь **SHARED**
-   - Все аутентифицированные пользователи видят **ВСЕ транзакции**
-   - Analytics endpoints и CRUD endpoints **БЕЗ user_id фильтрации**
-   - `user_id` сохраняется только для **audit trail** (кто создал запись)
-   - Соответствует принципу "Семейная прозрачность" из ПРД
-   - 📖 **Детали:** См. раздел [Shared Family Budget Model](#shared-family-budget-model) ниже
-
-5. **Telegram OAuth**
-   - Аутентификация через Telegram с HMAC-SHA256
-   - JWT tokens в httpOnly cookies (7 дней)
-   - Bot использует `SessionManager` для хранения токенов
+- `bot/main.py` - Bot initialization и handlers registration
+- `bot/handlers/add.py` - ConversationHandler пример (multi-step)
+- `bot/utils/api_client.py` - Backend API client
 
 ---
 
-## Критически важная информация
+## 🏗️ Архитектура Backend (Layered Pattern)
 
-### Security Guidelines (ОБЯЗАТЕЛЬНО)
+```
+Request Flow:
+┌─────────────────────────────────────────────────────────────┐
+│ Request → Middleware → Router → Endpoint → Service → Model  │
+│            ↓            ↓         ↓          ↓        ↓      │
+│         JWT Auth     URL       HTTP       Business  SQLModel │
+│         Logging    Routing   Handler      Logic    Database  │
+└─────────────────────────────────────────────────────────────┘
+```
 
-✅ **ВСЕГДА делать:**
+**Реальная структура по слоям:**
 
-1. **Dimension tables (Shared References)** - admin-only management:
-   ```python
-   # CREATE/UPDATE/DELETE - только админы
-   if not current_user.is_admin:
-       raise HTTPException(403, "Only administrators can modify articles")
+| Слой | Файл | Назначение | Пример |
+|------|------|-----------|--------|
+| **Middleware** | `backend/app/middleware/jwt_middleware.py` | JWT auth, logging, CSP | `JWTAuthMiddleware` |
+| **Router** | `backend/app/api/v1/router.py` | URL routing | `/api/v1/facts` → `facts.py` |
+| **Endpoint** | `backend/app/api/v1/endpoints/facts.py` | HTTP handlers | `@router.post("/facts")` |
+| **Service** | `backend/app/services/scd2_service.py` | Business logic | `create_new_version()` |
+| **Model** | `backend/app/models/fact.py` | SQLModel ORM | `class BudgetFact(SQLModel)` |
+| **Schema** | `backend/app/schemas/fact.py` | Pydantic validation | `class FactCreate(BaseModel)` |
 
-   # GET - БЕЗ фильтрации (все пользователи видят все)
-   stmt = select(Article).where(Article.is_current == True)  # NO user_id filter!
-   ```
-
-2. **Fact tables (Shared Family Budget)** - БЕЗ user_id фильтрации:
-   ```python
-   # t_f_budget_fact - shared family budget (все видят все)
-   stmt = select(BudgetFact)  # NO user_id filter!
-
-   # user_id сохраняется только для audit trail при создании
-   fact = BudgetFact(**data, user_id=current_user.id)
-   ```
-
-3. **SCD Type 2** - использовать `SCD2Service` для updates:
-   ```python
-   from backend.app.services.scd2_service import create_new_version
-   new_version = await create_new_version(session, old_instance, updates)
-   ```
-
-3. **Authentication** - использовать `CurrentUser` dependency:
-   ```python
-   from backend.app.core.dependencies import CurrentUser
-   async def endpoint(current_user: CurrentUser):
-       # endpoint code
-   ```
-
-4. **Validation** - использовать Pydantic схемы для всех inputs
-
-❌ **НИКОГДА не делать:**
-
-1. **Прямой UPDATE** для SCD Type 2 таблиц - ТОЛЬКО через `SCD2Service`
-2. **Добавление user_id фильтров к fact таблицам** - Fact tables теперь shared (см. Shared Family Budget Model)
-3. **Хранение JWT в localStorage** - ТОЛЬКО httpOnly cookies
-4. **Прямая работа с Closure Table** - ТОЛЬКО через `HierarchyService`
-
-📖 **Подробнее:** См. соответствующие [Skills](#-claude-skills)
+**Зачем нужен каждый слой:**
+- **Middleware**: Cross-cutting concerns (auth, logging)
+- **Router**: URL маршрутизация
+- **Endpoint**: HTTP request/response handling
+- **Service**: Бизнес-логика (переиспользуемая между endpoints)
+- **Model**: Database schema и ORM
+- **Schema**: Input/output validation
 
 ---
 
-## Notifications (Broadcast Model)
+## ⚠️ Критически важные паттерны (с примерами из кода)
 
-### Ключевые особенности
+### 1. SCD Type 2 (Slowly Changing Dimension Type 2)
 
-**Broadcast архитектура** - уведомления отправляются ВСЕМ пользователям:
+**Что это:** Паттерн для хранения полной истории изменений с версионированием.
 
-- `user_id=NULL` → broadcast для всех зарегистрированных пользователей
-- Unique constraint предотвращает дубликаты: `(article_id, notification_type, period_start, period_end) WHERE user_id IS NULL`
-- Shared budget model: все видят все уведомления (NO user isolation)
+**Где используется:**
+- `t_d_user` - история изменений пользователей (роли, имена)
+- `t_d_article` - история изменений категорий бюджета
+- `t_d_financial_center` - история изменений ЦФО
+- `t_d_cost_center` - история изменений МВЗ
 
-### API Endpoints
+**Реальный код из проекта:**
 
 ```python
-# Backend API
-POST   /api/v1/notifications              # Создать уведомление
-GET    /api/v1/notifications              # Список с фильтрацией
-GET    /api/v1/notifications/check-duplicate  # Проверка дубликатов
-GET    /api/v1/users/telegram-ids         # Список telegram_id для broadcast
-GET    /notifications                      # Web UI страница
+# backend/app/services/scd2_service.py:34-78
+async def create_new_version(
+    session: AsyncSession,
+    old_instance: T,
+    updates: Dict[str, Any],
+    changed_fields: Optional[list[str]] = None,
+) -> T:
+    """
+    Create new SCD Type 2 version by closing old version and creating new one.
+
+    Steps:
+    1. Closes old version (is_current=False, valid_to=now)
+    2. Creates new version with updated fields
+    3. Commits atomically
+    """
+    now = datetime.now()
+
+    # Step 1: Close old version
+    old_instance.is_current = False
+    old_instance.valid_to = now
+    session.add(old_instance)
+
+    # Step 2: Create new version
+    new_instance = old_instance.__class__(**{
+        **old_instance.model_dump(exclude={'id', 'valid_from', 'valid_to', 'is_current'}),
+        **updates,
+        'valid_from': now,
+        'valid_to': datetime(9999, 12, 31),
+        'is_current': True,
+    })
+    session.add(new_instance)
+
+    # Step 3: Commit atomically
+    await session.commit()
+    await session.refresh(new_instance)
+    return new_instance
 ```
 
-### Bot Integration
+**Использование в endpoints:**
 
 ```python
-# bot/utils/notification_service.py
-await notification_service.check_budget_threshold(
-    token=token,
-    telegram_id=user_id,  # Not used for broadcast
-    article_id=article_id,
-    threshold_percent=90
-)
+# ✅ ПРАВИЛЬНО - используй SCD2Service для updates
+from backend.app.services.scd2_service import create_new_version
+
+# В endpoint для обновления article:
+old_article = await get_current_version(session, Article, article_id)
+new_article = await create_new_version(session, old_article, updates)
+
+# ❌ НЕПРАВИЛЬНО - прямой UPDATE
+article.name = "New Name"
+await session.commit()  # ← Потеряется история изменений!
 ```
-
-**Workflow:**
-1. Проверить дубликат через API: `check_duplicate_notification()`
-2. Получить все telegram_ids: `get_all_telegram_ids()`
-3. Отправить broadcast ВСЕМ пользователям
-4. Сохранить в БД: `create_notification(user_id=None)`
-
-### Database Schema
-
-```sql
-CREATE TABLE t_notification (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER,  -- NULLABLE: NULL = broadcast
-    article_id INTEGER NOT NULL,
-    notification_type VARCHAR(50) NOT NULL,
-    threshold_percent INTEGER DEFAULT 90,
-    plan_amount NUMERIC(15,2) NOT NULL,
-    actual_amount NUMERIC(15,2) NOT NULL,
-    period_start DATE NOT NULL,
-    period_end DATE NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    -- Unique constraint for broadcast notifications
-    CONSTRAINT idx_notification_unique_broadcast UNIQUE (
-        article_id, notification_type, period_start, period_end
-    ) WHERE user_id IS NULL
-);
-```
-
-### Web UI
-
-- `/notifications` - История уведомлений для всех пользователей
-- Фильтры: тип (threshold/exceeded/reports), даты
-- Статистика: всего, warnings (90%), exceeded (100%+)
-- Пагинация: 50 записей на страницу
-
-### ⚠️ ВАЖНО
-
-**NO USER ISOLATION** для notifications:
-- Все пользователи видят все уведомления
-- Broadcast модель для shared family budget
-- НЕ применяй `WHERE user_id = current_user.id` к t_notification!
 
 ---
 
-## Shared Family Budget Model
+### 2. Closure Table (для иерархий категорий)
 
-⚠️ **АРХИТЕКТУРНОЕ ИЗМЕНЕНИЕ (2025-11-02):** Переход от isolated к shared модели для fact таблиц.
+**Что это:** Паттерн для эффективных иерархических запросов с O(1) сложностью.
 
-### Концепция
+**Где используется:**
+- `t_d_article_hierarchy` - хранит все ancestor-descendant пары для категорий
 
-**Семейная прозрачность** - все члены семьи видят общий бюджет:
+**Реальный код из проекта:**
 
+```python
+# backend/app/services/hierarchy_service.py:31-56
+async def get_subtree(
+    session: AsyncSession,
+    article_id: int,
+    max_depth: Optional[int] = None,
+    include_self: bool = True,
+) -> list[Article]:
+    """
+    Get all descendants of an article (subtree).
+
+    Uses closure table for efficient O(1) query.
+    No recursive queries needed - all paths precomputed!
+    """
+    query = (
+        select(Article)
+        .join(ArticleHierarchy, Article.id == ArticleHierarchy.descendant_id)
+        .where(ArticleHierarchy.ancestor_id == article_id)
+        .where(Article.is_current == True)
+    )
+
+    if not include_self:
+        query = query.where(ArticleHierarchy.depth > 0)
+
+    if max_depth is not None:
+        query = query.where(ArticleHierarchy.depth <= max_depth)
+
+    query = query.order_by(ArticleHierarchy.depth, Article.name)
+
+    result = await session.exec(query)
+    return result.all()
+```
+
+**Использование в endpoints:**
+
+```python
+# ✅ ПРАВИЛЬНО - используй HierarchyService
+from backend.app.services.hierarchy_service import get_subtree, get_ancestors
+
+# Получить все подкатегории:
+children = await get_subtree(session, parent_id, include_self=False)
+
+# Получить breadcrumbs:
+path = await get_ancestors(session, article_id, include_self=True)
+
+# ❌ НЕПРАВИЛЬНО - рекурсивные запросы
+def get_children_recursive(parent_id):  # ← O(N) сложность, N+1 queries!
+    for child in children:
+        get_children_recursive(child.id)
+```
+
+---
+
+### 3. Shared Family Budget Model
+
+**АРХИТЕКТУРНОЕ ИЗМЕНЕНИЕ (2025-11-02):** Fact таблицы теперь **SHARED** (не isolated).
+
+**Концепция:**
 - Все аутентифицированные пользователи видят **ВСЕ транзакции**
-- Любой пользователь может **создавать, редактировать, удалять** любые транзакции
-- `user_id` сохраняется только для **audit trail** (кто создал/изменил запись)
-- Соответствует принципу "Семейная прозрачность" из ПРД
+- Любой может создавать/редактировать/удалять любые транзакции
+- `user_id` сохраняется только для **audit trail**
 
-### Затронутые endpoints
+**Затронутые endpoints:**
+- `/api/v1/analytics/*` - БЕЗ user_id фильтрации
+- `/api/v1/facts/*` - БЕЗ user_id фильтрации и ownership checks
 
-**Analytics endpoints** (`/api/v1/analytics/*`) - БЕЗ user_id фильтрации:
-- `/quick-stats` - быстрая статистика за сегодня и месяц
-- `/quick-stats-html` - HTML версия статистики
-- `/plan-fact` - план vs факт по периодам
-- `/trends` - тренды доходов/расходов
-- `/category-breakdown` - разбивка по категориям
-- `/waterfall` - кумулятивный поток
-- `/heatmap` - тепловая карта расходов
-
-**CRUD endpoints** (`/api/v1/facts/*`) - БЕЗ user_id фильтрации и ownership checks:
-- `GET /facts` - список транзакций (все видят все)
-- `GET /facts/{id}` - получение транзакции (без проверки ownership)
-- `POST /facts` - создание транзакции (`user_id` сохраняется для audit)
-- `PUT /facts/{id}` - обновление транзакции (без проверки ownership)
-- `DELETE /facts/{id}` - удаление транзакции (без проверки ownership)
-- `GET /facts/summary` - агрегированная сводка (все транзакции)
-- `GET /facts/recent-html` - недавние транзакции HTML (все транзакции)
-
-### Примеры кода
-
-**✅ ПРАВИЛЬНО (Shared Family Budget):**
+**Реальные примеры из кода:**
 
 ```python
-# Analytics - БЕЗ фильтрации
+# ✅ ПРАВИЛЬНО (Shared Family Budget)
+
+# Пример 1: Analytics endpoint - БЕЗ фильтрации
+# backend/app/api/v1/analytics.py
 query = select(
-    func.sum(Fact.amount).label("total")
-).select_from(Fact).where(
-    # Shared family budget - NO user_id filter
-    Fact.fact_date >= start_date
+    func.sum(BudgetFact.amount).label("total")
+).select_from(BudgetFact).where(
+    BudgetFact.fact_date >= start_date  # NO user_id filter!
 ).group_by(Article.type)
 
-# CRUD List - БЕЗ фильтрации
-statement = select(BudgetFact)
-# Shared family budget - NO user isolation filter
-# All authenticated users see all transactions
+# Пример 2: CRUD List - БЕЗ фильтрации
+# backend/app/api/v1/endpoints/facts.py:50-60
+@router.get("/facts")
+async def list_facts(
+    session: AsyncSession = Depends(get_session),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    statement = select(BudgetFact)
+    # Shared family budget - NO user isolation filter
+    # All authenticated users see all transactions
+    facts = await session.exec(statement)
+    return facts.all()
 
-# CRUD Get - БЕЗ ownership check
+# Пример 3: CRUD Get - БЕЗ ownership check
 fact = await session.get(BudgetFact, fact_id)
 if not fact:
     raise HTTPException(404)
 # Shared family budget - NO ownership check
 return fact
 
-# CRUD Create - user_id для audit trail
+# Пример 4: CRUD Create - user_id для audit trail
 fact = BudgetFact(
     **data,
-    user_id=current_user.id,  # Audit trail only
+    user_id=current_user.id,  # Audit trail only - кто создал запись
 )
 ```
-
-**❌ НЕПРАВИЛЬНО (Старая isolated модель):**
 
 ```python
-# ❌ НЕ добавляй user_id фильтры!
-query = select(Fact).where(
-    Fact.user_id == current_user.id  # ❌ WRONG!
+# ❌ НЕПРАВИЛЬНО (Старая isolated модель - НЕ ИСПОЛЬЗУЙ!)
+
+# Пример 1: НЕ добавляй user_id фильтры
+query = select(BudgetFact).where(
+    BudgetFact.user_id == current_user.id  # ❌ WRONG! Fact tables are shared!
 )
 
-# ❌ НЕ используй apply_user_filter!
-statement = apply_user_filter(statement, current_user)  # ❌ WRONG!
+# Пример 2: НЕ проверяй ownership
+if fact.user_id != current_user.id:  # ❌ WRONG!
+    raise HTTPException(403)
 
-# ❌ НЕ проверяй ownership!
-ensure_user_owns_resource(fact.user_id, current_user)  # ❌ WRONG!
+# Пример 3: НЕ используй apply_user_filter
+statement = apply_user_filter(statement, current_user)  # ❌ WRONG!
 ```
 
-### Обоснование
-
-**Из ПРД (Product Requirements Document):**
-- **Принцип:** "Семейная прозрачность - общий бюджет, личные данные"
+**Почему Shared Model:**
+- **Из ПРД:** "Семейная прозрачность - общий бюджет"
 - **Target Audience:** Семья из 2-5 человек
-- **Use Case:** Все члены семьи должны видеть общий бюджет
-
-**Consistency с другими компонентами:**
-- ✅ Dimension tables (articles, financial_centers, cost_centers) - уже shared
-- ✅ Notifications - broadcast model (`user_id=NULL`)
-- ✅ Fact tables - теперь тоже shared
-
-### Security implications
-
-✅ **Безопасность сохранена:**
-- Все пользователи **аутентифицированы** (Telegram OAuth + JWT)
-- Доступ только для **членов семьи** (shared family system)
-- `user_id` сохраняется для **audit trail**
-- Admin-only management для dimension tables (не изменено)
-
-### Migration notes
-
-**NO DATABASE CHANGES** - схема БД не изменилась:
-- `user_id` остается в `t_f_budget_fact` (для audit trail)
-- Изменения только в **application logic** (backend endpoints)
-- **Breaking change** в поведении API endpoints
-
-**Что НЕ изменилось:**
-- Database schema - без изменений
-- Authentication/Authorization - без изменений
-- Dimension tables management - admin-only (как раньше)
+- **Consistency:** Dimension tables уже shared, notifications broadcast
 
 ---
 
-## Быстрые ссылки на типичные задачи
+### 4. Shared References Architecture (Dimension Tables)
 
-| Задача | Где найти инструкцию |
-|--------|---------------------|
-| Создать REST API endpoint | [api-development skill](/.claude/skills/api-development/SKILL.md) |
-| Создать миграцию БД | [db-management skill](/.claude/skills/db-management/SKILL.md) |
-| Создать dimension таблицу | [db-management skill](/.claude/skills/db-management/SKILL.md) |
-| Работа с SCD Type 2 | [db-management skill](/.claude/skills/db-management/SKILL.md) |
-| Работа с Closure Table | [db-management skill](/.claude/skills/db-management/SKILL.md) |
-| Создать unit тесты | [testing skill](/.claude/skills/testing/SKILL.md) |
-| Запустить тесты с coverage | [testing skill](/.claude/skills/testing/SKILL.md) |
-| Создать bot команду | [bot-development skill](/.claude/skills/bot-development/SKILL.md) |
-| ConversationHandler | [bot-development skill](/.claude/skills/bot-development/SKILL.md) |
-| Задеплоить на production | [deployment skill](/.claude/skills/deployment/SKILL.md) |
-| Управление Docker сервисами | [deployment skill](/.claude/skills/deployment/SKILL.md) |
-| Просмотр логов | [monitoring skill](/.claude/skills/monitoring/SKILL.md) |
-| Troubleshooting | [monitoring skill](/.claude/skills/monitoring/SKILL.md) |
-| Performance анализ | [monitoring skill](/.claude/skills/monitoring/SKILL.md) |
+**Концепция:**
+- **Admin-only management:** Только админы могут CREATE/UPDATE/DELETE dimension records
+- **All users READ:** Все пользователи видят все dimension records
+- **NO user isolation:** НЕ фильтруй по `user_id`!
+- `user_id` только для **audit trail**
+
+**Где применяется:**
+- `t_d_article` - категории бюджета (shared для всех пользователей)
+- `t_d_financial_center` - ЦФО (shared)
+- `t_d_cost_center` - МВЗ (shared)
+
+**Реальные примеры:**
+
+```python
+# ✅ ПРАВИЛЬНО
+
+# Пример 1: CREATE/UPDATE/DELETE - только админы
+# backend/app/api/v1/endpoints/articles.py:80-95
+@router.post("/articles")
+async def create_article(
+    data: ArticleCreate,
+    current_user: CurrentUser,
+):
+    if not current_user.is_admin:
+        raise HTTPException(403, "Only administrators can create articles")
+
+    article = Article(**data, user_id=current_user.id)  # Audit trail
+    # ... create logic
+
+# Пример 2: GET - БЕЗ фильтрации (все видят все)
+@router.get("/articles")
+async def list_articles(session: AsyncSession):
+    stmt = select(Article).where(Article.is_current == True)
+    # NO user_id filter - all users see all articles
+    articles = await session.exec(stmt)
+    return articles.all()
+```
+
+```python
+# ❌ НЕПРАВИЛЬНО
+
+# Пример 1: НЕ фильтруй dimension tables по user_id
+stmt = select(Article).where(
+    Article.user_id == current_user.id  # ❌ WRONG! Articles are shared!
+)
+
+# Пример 2: НЕ позволяй обычным юзерам создавать
+@router.post("/articles")
+async def create_article(current_user: CurrentUser):
+    # ❌ Missing admin check!
+    article = Article(**data)
+```
 
 ---
 
-## Deployment (Quick Reference)
+## 🛡️ Security Guidelines (ОБЯЗАТЕЛЬНО)
+
+### Authentication Pattern
+
+**ВСЕГДА используй `CurrentUser` dependency:**
+
+```python
+# backend/app/core/dependencies.py:15-40
+from backend.app.core.dependencies import CurrentUser
+
+@router.get("/facts")
+async def list_facts(current_user: CurrentUser):
+    # current_user.id - user ID
+    # current_user.is_admin - admin flag
+    # current_user.telegram_id - Telegram ID
+    pass
+```
+
+**Как это работает:**
+1. JWT token извлекается из httpOnly cookie
+2. Token валидируется в `backend/app/middleware/jwt_middleware.py:20-50`
+3. User добавляется в `request.state.user`
+4. `CurrentUser` dependency извлекает user из `request.state`
+
+### Validation Pattern
+
+**ВСЕГДА используй Pydantic схемы:**
+
+```python
+# backend/app/schemas/fact.py
+class FactCreate(BaseModel):
+    amount: Decimal = Field(gt=0, description="Amount must be positive")
+    fact_date: date = Field(description="Transaction date")
+    article_id: int
+
+    @field_validator('fact_date')
+    def validate_not_future(cls, v):
+        if v > date.today():
+            raise ValueError("Fact date cannot be in the future")
+        return v
+
+# В endpoint:
+@router.post("/facts")
+async def create_fact(data: FactCreate):  # ← Pydantic автовалидация
+    # data уже провалидирован
+    pass
+```
+
+---
+
+## 🔧 Troubleshooting (типичные ошибки)
+
+### 1. Import Errors в Backend
+
+**Ошибка:**
+```
+ModuleNotFoundError: No module named 'app'
+```
+
+**Причина:** Relative imports вместо absolute.
+
+**Решение:**
+```python
+# ❌ НЕПРАВИЛЬНО
+from app.models.article import Article
+
+# ✅ ПРАВИЛЬНО - всегда absolute imports от backend.*
+from backend.app.models.article import Article
+```
+
+---
+
+### 2. "Pool overlaps with other one" при docker compose
+
+**Ошибка:**
+```
+ERROR: Pool overlaps with other one on this address space
+```
+
+**Причина:** Конфликт Docker сетей от старых deployments.
+
+**Решение:**
+```bash
+./deploy.sh
+# Выбрать: [2] Smart cleanup (RECOMMENDED)
+# Скрипт автоматически очистит старые сети и найдет свободные подсети
+```
+
+---
+
+### 3. JWT Token не работает
+
+**Симптомы:**
+- 401 Unauthorized на защищенных endpoints
+- "Invalid token" в логах
+
+**Диагностика:**
+```bash
+# Проверь JWT_SECRET в .env
+grep JWT_SECRET /opt/budget/.env
+# Должен быть 64 hex chars (автогенерирован setup.sh)
+
+# Проверь JWT cookie в браузере (DevTools → Application → Cookies)
+# Должен быть: access_token, httpOnly=true
+```
+
+**Решение:**
+```bash
+# Регенерировать JWT_SECRET
+openssl rand -hex 32
+
+# Обновить в .env
+nano /opt/budget/.env
+
+# Перезапустить backend
+docker compose restart backend
+```
+
+---
+
+### 4. Cache Busting не работает (старые JS/CSS)
+
+**Симптомы:**
+- После деплоя пользователи видят старый JS/CSS
+- Ошибки "function not defined" в console
+
+**Причина:** Версии не обновились в HTML.
+
+**Решение:**
+```bash
+# Вручную запустить cache busting
+cd ~/familyBudget
+./scripts/lib/cache_busting.sh auto
+
+# Проверить что версии обновились
+grep "?v=" webapp/index.html
+
+# Должно быть: script.js?v=20251104_1430 (новый timestamp)
+```
+
+---
+
+### 5. Database Migration Errors
+
+**Ошибка:**
+```
+ERROR: relation "t_d_article" does not exist
+```
+
+**Причина:** Миграции не применены или PostgreSQL data directory corrupted.
+
+**Решение (Development Mode):**
+```bash
+# Пересоздать БД с нуля (УДАЛИТ ВСЕ ДАННЫЕ!)
+docker compose down -v
+docker compose up -d
+
+# Или применить миграции вручную
+docker compose exec postgres psql -U familybudget -d familybudget -f /docker-entrypoint-initdb.d/001_xxx.sql
+```
+
+---
+
+## 🗂️ Структура проекта
+
+```
+familyBudget/
+├── backend/                      # FastAPI Backend
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── v1/
+│   │   │   │   ├── endpoints/   # REST API endpoints
+│   │   │   │   │   ├── facts.py         # Transactions CRUD
+│   │   │   │   │   ├── articles.py      # Categories CRUD (admin-only)
+│   │   │   │   │   ├── auth.py          # Telegram OAuth
+│   │   │   │   │   └── ...
+│   │   │   │   ├── analytics.py         # Analytics endpoints
+│   │   │   │   └── router.py            # Main API router
+│   │   │   └── web/
+│   │   │       └── router.py             # Web UI routes
+│   │   ├── models/               # SQLModel ORM models
+│   │   │   ├── article.py               # Article (SCD Type 2)
+│   │   │   ├── fact.py                  # BudgetFact
+│   │   │   ├── user.py                  # User (SCD Type 2)
+│   │   │   └── hierarchy.py             # ArticleHierarchy (Closure Table)
+│   │   ├── schemas/              # Pydantic validation schemas
+│   │   ├── services/             # Business logic layer
+│   │   │   ├── scd2_service.py          # SCD Type 2 implementation
+│   │   │   ├── hierarchy_service.py     # Closure Table queries
+│   │   │   ├── jwt.py                   # JWT token generation
+│   │   │   └── telegram_auth.py         # Telegram OAuth
+│   │   ├── middleware/           # FastAPI middleware
+│   │   │   ├── jwt_middleware.py        # JWT authentication
+│   │   │   ├── logging_middleware.py    # Request logging
+│   │   │   └── csp_middleware.py        # Security headers
+│   │   ├── core/                 # Core utilities
+│   │   │   ├── config.py                # Settings (Pydantic BaseSettings)
+│   │   │   ├── dependencies.py          # FastAPI dependencies
+│   │   │   ├── auth.py                  # Auth helpers
+│   │   │   └── exceptions.py            # Custom exceptions
+│   │   ├── db/
+│   │   │   ├── session.py               # AsyncSession factory
+│   │   │   └── migrations/              # SQL migrations (raw SQL)
+│   │   ├── scheduler.py          # Background jobs (APScheduler)
+│   │   └── main.py               # FastAPI app initialization
+│   ├── Dockerfile
+│   └── requirements.txt
+├── bot/                          # Telegram Bot
+│   ├── handlers/                 # Command handlers
+│   │   ├── start.py                     # /start - OAuth
+│   │   ├── add.py                       # /add - ConversationHandler
+│   │   ├── summary.py                   # /summary - Plan vs Fact
+│   │   └── ...
+│   ├── utils/
+│   │   ├── api_client.py                # Backend API client
+│   │   ├── session.py                   # SessionManager (JWT storage)
+│   │   └── notification_service.py      # Budget alerts
+│   ├── jobs/
+│   │   └── weekly_report.py             # Weekly summary job
+│   ├── Dockerfile
+│   ├── main.py                   # Bot initialization
+│   └── requirements.txt
+├── webapp/                       # Telegram Web Apps (static)
+│   ├── static/
+│   │   ├── js/                          # Modular ES6+ JavaScript
+│   │   └── css/                         # Telegram theme CSS
+│   └── *.html                    # Web Apps HTML (8 forms)
+├── web/                          # Web UI (HTMX)
+│   ├── static/                          # CSS, JS for web
+│   └── templates/                       # Jinja2 templates
+├── scripts/                      # Automation scripts
+│   ├── lib/
+│   │   └── cache_busting.sh             # Cache versioning
+│   └── ...
+├── .claude/skills/               # Claude Skills automation
+├── docker-compose.yml
+├── deploy.sh                     # Main deployment script
+└── CLAUDE.md                     # This file
+```
+
+---
+
+## 📋 Development Mode (Database Migrations)
+
+**ТЕКУЩАЯ ФАЗА:** Development (v5.0.0-beta)
+
+### Правила работы с миграциями
+
+✅ **РАЗРЕШЕНО:**
+- Прямое редактирование существующих миграций (001-012)
+- Изменение SQL в `backend/db/migrations/*.sql`
+- Изменение структуры таблиц
+
+❌ **ЗАПРЕЩЕНО:**
+- Создание новых миграций типа `014_update_xxx.sql`
+- Backward compatibility (БД накатывается с нуля)
+
+**Workflow изменения БД:**
+```bash
+# 1. Изменить миграцию
+nano backend/db/migrations/011_create_notifications_table.sql
+
+# 2. Обновить ПРД
+nano docs/prd/06-database-design.md
+
+# 3. Пересоздать БД для теста
+docker compose down -v && docker compose up -d
+
+# 4. Проверить что всё работает
+curl http://localhost:8000/health
+```
+
+**Переход в production:**
+- После релиза → версионирование миграций (Alembic)
+- Alpha → Beta → Production
+
+---
+
+## 🚀 Deployment (Quick Reference)
 
 ### Первоначальная установка
 
 ```bash
+# 1. Системные зависимости (Docker, UFW)
 git clone <repo-url> ~/familyBudget && cd ~/familyBudget
-sudo ./install.sh     # Системные зависимости (один раз)
-./setup.sh            # Настройка .env
-./deploy.sh           # Деплой
+sudo ./install.sh
+
+# 2. Настройка .env (интерактивная)
+./setup.sh
+
+# 3. Деплой
+./deploy.sh --profile full
 ```
 
 ### Обновление кода
 
 ```bash
 cd ~/familyBudget && git pull
-./deploy.sh --sync-mode mirror
-```
-
-### Deployment опции
-
-```bash
-# Профили
-./deploy.sh --profile full          # Full stack (+ bot + nginx)
-
-# Sync modes (non-interactive)
-./deploy.sh --sync-mode mirror      # Recommended: rsync --delete
-./deploy.sh --sync-mode update      # rsync без удаления старых файлов
-./deploy.sh --sync-mode skip        # Deploy без синхронизации кода
-
-# Cleanup options
-./deploy.sh --clean                 # Full cleanup (удаляет все данные!)
-
-# Комбинации
 ./deploy.sh --sync-mode mirror --profile full
-./deploy.sh --no-migrate            # Skip database migrations
 ```
 
 ### ⚠️ КРИТИЧНО: Правильный запуск deploy.sh
@@ -670,149 +660,107 @@ cd ~/familyBudget && git pull
 **✓ ПРАВИЛЬНО:**
 ```bash
 cd ~/familyBudget          # Git repository
-sudo ./deploy.sh           # Относительный путь
+./deploy.sh                # Относительный путь
 ```
 
 **✗ НЕПРАВИЛЬНО:**
 ```bash
 cd /opt/budget             # Production directory
-sudo ./deploy.sh           # ❌ Модули не найдены!
-
-sudo /opt/budget/deploy.sh  # ❌ То же самое
+./deploy.sh                # ❌ Модули не найдены!
 ```
 
 **Почему:**
-- deploy.sh загружает модули из `scripts/lib/` в repository
-- /opt/budget содержит только runtime файлы (создаются синхронизацией)
-- SCRIPT_DIR определяется относительно расположения deploy.sh
-
-**Non-interactive режим:**
-- Используйте `--sync-mode` для автоматического выбора sync стратегии
-- При отсутствии TTY (pipe, automation) используется `mirror` по умолчанию
-- `--clean` флаг автоматически выбирает full cleanup без подтверждения
-
-📖 **Полное руководство:** [deployment skill](/.claude/skills/deployment/SKILL.md)
+- `deploy.sh` загружает модули из `scripts/lib/` в repository
+- `/opt/budget` - только runtime файлы (создаются синхронизацией)
 
 ---
 
-## База данных (Quick Reference)
-
-### Структура
-
-**Dimension таблицы (SCD Type 2):**
-- `t_d_user` - Пользователи
-- `t_d_article` - Категории (с иерархией)
-- `t_d_financial_center` - Финансовые центры (ЦФО)
-- `t_d_cost_center` - Центры затрат (МВЗ)
-
-**Fact таблицы:**
-- `t_f_budget_fact` - Транзакции (record_type: 'fact' | 'plan')
-- `t_notification` - История уведомлений
-
-**Иерархия:**
-- `t_d_article_hierarchy` - Closure Table для категорий
-
-### Основные сервисы
-
-```python
-# SCD Type 2
-from backend.app.services.scd2_service import (
-    create_new_version,
-    get_current_version,
-    has_changes
-)
-
-# Hierarchy (Closure Table)
-from backend.app.services.hierarchy_service import HierarchyService
-```
-
-📖 **Детальное руководство:** [db-management skill](/.claude/skills/db-management/SKILL.md)
-
----
-
-## Стиль кода и конвенции
+## 🎨 Стиль кода
 
 **Python:**
 - PEP 8, type hints обязательны
-- Async/await для I/O
+- Async/await для I/O операций
 - Black (line length 100) + Ruff + mypy
 
-**Naming:**
+**Naming Conventions:**
 - Таблицы: `t_d_*` (dimension), `t_f_*` (fact)
 - API endpoints: kebab-case (`/budget-facts`)
-- Python: snake_case, SQLModel: PascalCase
+- Python functions: `snake_case`
+- SQLModel classes: `PascalCase`
 
-**Commits:**
-- Conventional Commits: `feat:`, `fix:`, `docs:`, etc.
+**Git Commits:**
+- Conventional Commits: `feat:`, `fix:`, `docs:`, `refactor:`, etc.
 - Co-Authored-By: Claude для Claude Code commits
+
+**Import Order:**
+```python
+# 1. Standard library
+import os
+from datetime import datetime
+
+# 2. Third-party
+from fastapi import FastAPI
+from sqlmodel import select
+
+# 3. Local (absolute imports!)
+from backend.app.models.article import Article
+from backend.app.services.scd2_service import create_new_version
+```
 
 ---
 
-## Дополнительные ресурсы
+## 🎯 Claude Skills (Automation)
+
+Для автоматизации типичных задач используй **Claude Skills**:
+
+| Skill | Когда использовать |
+|-------|-------------------|
+| **[api-development](/.claude/skills/api-development/SKILL.md)** | Создание REST API endpoints, Pydantic схем |
+| **[db-management](/.claude/skills/db-management/SKILL.md)** | Миграции, dimension модели, Closure Table |
+| **[testing](/.claude/skills/testing/SKILL.md)** | Unit/integration/e2e тесты, coverage |
+| **[bot-development](/.claude/skills/bot-development/SKILL.md)** | Telegram bot команды, ConversationHandler |
+| **[deployment](/.claude/skills/deployment/SKILL.md)** | Production deploy, Docker управление |
+| **[monitoring](/.claude/skills/monitoring/SKILL.md)** | Логи, performance, troubleshooting |
+
+📚 **[Полная документация по Skills](./SKILLS.md)**
+
+**Использование:**
+```
+Создай REST API endpoint для модели "Budget" используя api-development skill.
+```
+
+---
+
+## 📚 Дополнительные ресурсы
 
 - **[SKILLS.md](./SKILLS.md)** - Comprehensive Skills guide
 - **[README.md](./README.md)** - Полная документация проекта
 - **[START.md](./START.md)** - Quick start guide
 - **backend/README.md** - Backend документация
 - **bot/README.md** - Bot документация
+- **docs/prd/** - Product Requirements Document
 
 ---
 
-## Примеры использования Skills
+## ⚡ Важные напоминания
 
-### Пример 1: Новый feature (end-to-end)
+При разработке **ВСЕГДА:**
 
-```
-Создай feature "Recurring Transactions":
-1. Dimension таблица с SCD Type 2 (db-management)
-2. REST API endpoint (api-development)
-3. Unit и integration тесты (testing)
-4. Bot команда /recurring (bot-development)
-```
+1. ✅ Используй **absolute imports**: `from backend.app.models...`
+2. ✅ Используй **CurrentUser dependency** для auth
+3. ✅ Используй **SCD2Service** для dimension tables updates
+4. ✅ Используй **HierarchyService** для работы с категориями
+5. ✅ **НЕ фильтруй** fact tables по `user_id` (Shared Family Budget)
+6. ✅ **НЕ фильтруй** dimension tables по `user_id` (Shared References)
+7. ✅ Admin checks для CREATE/UPDATE/DELETE dimension tables
+8. ✅ Добавляй **тесты** для новых features
+9. ✅ Проверяй **security** (JWT, validation, admin-only)
+10. ✅ **НЕ редактируй** версии `?v=` вручную (используй автоматический cache busting)
 
-Claude автоматически использует нужные skills.
-
-### Пример 2: Bug fix workflow
-
-```
-Backend медленно работает:
-1. Проанализируй slow queries (monitoring)
-2. Добавь indexes (db-management)
-3. Оптимизируй код (api-development)
-4. Создай performance тест (testing)
-5. Задеплой hotfix (deployment)
-```
-
-### Пример 3: Production incident
-
-```
-Backend упал на production:
-1. Диагностируй проблему (monitoring)
-2. Проверь health всех сервисов (deployment)
-3. Восстанови сервис (deployment)
-```
+💡 **Не уверен как сделать?** → Посмотри соответствующий [Claude Skill](#-claude-skills-automation)
 
 ---
 
-## Важные напоминания
-
-⚠️ **При разработке всегда:**
-
-1. Используй **Claude Skills** для типичных задач (см. [таблицу выше](#-claude-skills))
-2. Соблюдай **Shared References** для dimension таблиц - admin-only management, NO user_id filter
-3. Соблюдай **User Data Isolation** для fact таблиц - фильтруй по `current_user.id`
-4. Используй **SCD2Service** для dimension таблиц
-5. Используй **HierarchyService** для работы с иерархиями
-6. Добавляй **тесты** для всех новых features
-7. Проверяй **security** - JWT, admin-only access для dimension tables, validation
-8. Проверяй **performance** - indexes, N+1 queries
-9. Документируй **breaking changes**
-10. **НЕ редактируй вручную версии** в `?v=` параметрах - используй автоматический cache busting при деплое
-
-💡 **Не уверен как сделать?** → Посмотри соответствующий [Skill](#-claude-skills)
-
----
-
-**Версия документа:** 2.1 (+ автоматический cache busting)
-**Последнее обновление:** 2025-11-03
-**Формат:** Компактный + ссылки на Skills
+**Версия документа:** 3.0 (Claude Code optimized)
+**Последнее обновление:** 2025-11-04
+**Формат:** Practical examples from real codebase

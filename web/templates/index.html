@@ -153,8 +153,13 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<!-- TomSelectCategoryTree Component -->
-<script src="/static/js/tomSelectCategoryTree.js?v=20251103_1935"></script>
+<!-- Choices.js Library -->
+<link rel="stylesheet" href="/static/css/vendor/choices.min.css?v=20251103_1935">
+<link rel="stylesheet" href="/static/css/choices-tailwind.css?v=20251103_1935">
+<script src="/static/js/vendor/choices.min.js?v=20251104_0835"></script>
+
+<!-- ChoicesCategoryTree Component -->
+<script src="/static/js/choicesCategoryTree.js?v=20251104_0835"></script>
 
 <script>
 // Глобальные переменные для CategoryTreeSelect
@@ -306,7 +311,7 @@ async function loadCategories() {
             const transactionType = document.querySelector('#form_modal_add_transaction input[name="record_type"]:checked')?.value || 'expense';
             const filterType = transactionType; // 'expense' или 'income'
 
-            transactionCategoryTreeSelect = new TomSelectCategoryTree(transactionSelect, allCategories, {
+            transactionCategoryTreeSelect = new ChoicesCategoryTree(transactionSelect, allCategories, {
                 emptyOptionText: '-- Выберите категорию --',
                 showEmptyOption: true,
                 filterType: filterType,
@@ -323,7 +328,7 @@ async function loadCategories() {
             // Получить текущий тип плана (expense/income)
             const planType = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked')?.value || 'expense';
 
-            planCategoryTreeSelect = new TomSelectCategoryTree(planSelect, allCategories, {
+            planCategoryTreeSelect = new ChoicesCategoryTree(planSelect, allCategories, {
                 emptyOptionText: '-- Выберите категорию --',
                 showEmptyOption: true,
                 filterType: planType, // Динамически из формы

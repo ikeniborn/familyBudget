@@ -10,13 +10,13 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
     <!-- Styles -->
-    <link rel="stylesheet" href="/webapp/static/css/telegram-theme.css?v=20251103_1935">
-    <link rel="stylesheet" href="/webapp/static/css/app.css?v=20251103_1935">
-    <link rel="stylesheet" href="/webapp/static/css/forms.css?v=20251103_1935">
+    <link rel="stylesheet" href="/webapp/static/css/telegram-theme.css?v=20251104_0835">
+    <link rel="stylesheet" href="/webapp/static/css/app.css?v=20251104_0835">
+    <link rel="stylesheet" href="/webapp/static/css/forms.css?v=20251104_0835">
 
     <!-- Choices.js -->
-    <link rel="stylesheet" href="/webapp/static/css/vendor/choices.min.css?v=20251103_1935">
-    <link rel="stylesheet" href="/webapp/static/css/choices-telegram.css?v=20251103_1935">
+    <link rel="stylesheet" href="/webapp/static/css/vendor/choices.min.css?v=20251104_0835">
+    <link rel="stylesheet" href="/webapp/static/css/choices-telegram.css?v=20251104_0835">
 
     <!-- Choices.js JS - load in head to ensure it's available before use -->
     <script src="/webapp/static/js/vendor/choices.min.js"></script>
@@ -301,18 +301,18 @@
     </div>
 
     <!-- Core JS modules -->
-    <script src="/webapp/static/js/storage.js?v=20251103_1935"></script>
-    <script src="/webapp/static/js/theme.js?v=20251103_1935"></script>
-    <script src="/webapp/static/js/validators.js?v=20251103_1935"></script>
-    <script src="/webapp/static/js/ui.js?v=20251103_1935"></script>
-    <script src="/webapp/static/js/auth.js?v=20251103_1935"></script>
-    <script src="/webapp/static/js/api.js?v=20251103_1935"></script>
-    <script src="/webapp/static/js/dateFormatter.js?v=20251103_1935"></script>
+    <script src="/webapp/static/js/storage.js?v=20251104_0835"></script>
+    <script src="/webapp/static/js/theme.js?v=20251104_0835"></script>
+    <script src="/webapp/static/js/validators.js?v=20251104_0835"></script>
+    <script src="/webapp/static/js/ui.js?v=20251104_0835"></script>
+    <script src="/webapp/static/js/auth.js?v=20251104_0835"></script>
+    <script src="/webapp/static/js/api.js?v=20251104_0835"></script>
+    <script src="/webapp/static/js/dateFormatter.js?v=20251104_0835"></script>
 
     <!-- Choices.js Category Tree Component -->
-    <script src="/webapp/static/js/choicesCategoryTree.js?v=20251103_1935"></script>
+    <script src="/webapp/static/js/choicesCategoryTree.js?v=20251104_0835"></script>
 
-    <script src="/webapp/static/js/app.js?v=20251103_1935"></script>
+    <script src="/webapp/static/js/app.js?v=20251104_0835"></script>
 
     <script>
         let formState = {
@@ -592,6 +592,7 @@
                 // Create ChoicesCategoryTree instance
                 categoryTreeSelect = new ChoicesCategoryTree('#category-select', {
                     type: formState.factType,
+                    auth: window.auth,  // Pass auth instance for Bearer token
                     showLeafOnly: true,
                     onCategoryChange: (category) => {
                         formState.categoryId = category ? category.id : null;

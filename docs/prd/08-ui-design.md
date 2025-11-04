@@ -946,6 +946,40 @@ new CalendarWidget({
 
 #### 8.10.8 Changelog
 
+**2025-11-04 (Choices.js Migration Completion - Auth Architecture Fix):**
+- ✅ **CRITICAL FIX:** Разделены ChoicesCategoryTree версии для webapp и web
+  - **Проблема:** webapp получал 401 Unauthorized при загрузке категорий
+  - **Root Cause:** webapp использует Bearer token auth (Telegram initData), web использует httpOnly cookies
+  - **Решение:** Создали две архитектурно разные версии компонента
+- ✅ **webapp/static/js/choicesCategoryTree.js (Webapp version):**
+  - Требует обязательный `auth` parameter в constructor
+  - Валидирует наличие `auth.getToken()` метода при инициализации
+  - Использует `Authorization: Bearer ${token}` header для всех API запросов
+  - Удален `credentials: 'include'` (не работает в Telegram Web App)
+- ✅ **web/static/js/choicesCategoryTree.js (Web version):**
+  - НЕ требует `auth` parameter (аутентификация через cookies)
+  - Использует `credentials: 'include'` для httpOnly cookies (Telegram Login Widget)
+  - Tailwind CSS styling (`choices-tailwind` class, gray-500 text colors)
+- ✅ **FRONTEND:** Обновлены webapp HTML файлы (3 файла)
+  - `webapp/add.html:476` - добавлен `auth: window.auth` parameter
+  - `webapp/edit.html:595` - добавлен `auth: window.auth` parameter
+  - `webapp/addplan.html:617` - добавлен `auth: window.auth` parameter
+- ✅ **FRONTEND:** Завершена миграция web/templates/index.html
+  - Заменен `tomSelectCategoryTree.js` на `choicesCategoryTree.js`
+  - Заменен класс `TomSelectCategoryTree` → `ChoicesCategoryTree` (2 места)
+  - Добавлены Choices.js CSS и JS импорты
+- ✅ **CACHE BUSTING:** Обновлены версии до `?v=20251104_0835` (12 файлов)
+- ✅ **Изменено файлов:** 5
+  - JS components: `webapp/static/js/choicesCategoryTree.js` (auth support)
+  - HTML webapp: `add.html`, `edit.html`, `addplan.html` (auth parameter)
+  - HTML web: `web/templates/index.html` (Choices.js migration complete)
+- ✅ **Scope:** Финальное исправление миграции TomSelect → Choices.js
+- ✅ **Бенефиты:**
+  - ✅ webapp теперь корректно аутентифицируется через Bearer token
+  - ✅ web продолжает работать через httpOnly cookies
+  - ✅ Архитектурно правильное разделение auth логики
+  - ✅ Четкая документация различий между webapp и web версиями
+
 **2025-11-03 (Migration from TomSelect to Choices.js):**
 - ✅ **BREAKING CHANGE:** Полная миграция с TomSelect v2.3.1 на Choices.js v11.1.0
   - **Причина:** TomSelect не поддерживает text input для поиска (dropdown-only mode)
