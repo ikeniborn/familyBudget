@@ -153,12 +153,16 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<!-- TomSelectCategoryTree Component -->
-<script src="/static/js/tomSelectCategoryTree.js?v=20251103_1935"></script>
+<!-- Choices.js Library -->
+<link rel="stylesheet" href="/static/css/vendor/choices.min.css?v=20251103_1935">
+<link rel="stylesheet" href="/static/css/choices-tailwind.css?v=20251103_1935">
+<script src="/static/js/vendor/choices.min.js?v=20251104_0835"></script>
+
+<!-- ChoicesCategoryTree Component -->
+<script src="/static/js/choicesCategoryTree.js?v=20251104_0835"></script>
 
 <script>
-// Глобальные переменные для CategoryTreeSelect
-let allCategories = [];
+// Глобальные переменные для CategoryTreeSelect компонентов
 let transactionCategoryTreeSelect = null;
 let planCategoryTreeSelect = null;
 
@@ -278,61 +282,44 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Загрузить список категорий
+// Загрузить категории и инициализировать ChoicesCategoryTree компоненты
 async function loadCategories() {
     try {
-        const response = await fetch('/api/v1/articles?is_current=true&limit=1000');
-        if (!response.ok) {
-            console.warn('Failed to fetch categories: HTTP', response.status);
-            showToast('Не удалось загрузить список категорий', 'error');
-            return;
+        // Destroy existing instances if present
+        if (transactionCategoryTreeSelect) {
+            transactionCategoryTreeSelect.destroy();
+            transactionCategoryTreeSelect = null;
+        }
+        if (planCategoryTreeSelect) {
+            planCategoryTreeSelect.destroy();
+            planCategoryTreeSelect = null;
         }
 
-        const data = await response.json();
-        allCategories = data.articles || [];
+        // Get current transaction type
+        const transactionType = document.querySelector('#form_modal_add_transaction input[name="record_type"]:checked')?.value || 'expense';
 
-        if (allCategories.length === 0) {
-            console.warn('No categories returned from API');
-            showToast('Список категорий пуст. Пожалуйста, создайте категории в справочнике.', 'warning');
-            return;
-        }
+        // Initialize CategoryTreeSelect for transaction form (using new Choices.js API)
+        transactionCategoryTreeSelect = new ChoicesCategoryTree('#form_modal_add_transaction select[name="article_id"]', {
+            type: transactionType,
+            showLeafOnly: true,
+            onCategoryChange: (category) => {
+                console.log('Transaction category changed:', category);
+            }
+        });
 
-        console.log(`Loaded ${allCategories.length} categories`);
+        // Get current plan type
+        const planType = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked')?.value || 'expense';
 
-        // Инициализировать CategoryTreeSelect для формы транзакции
-        const transactionSelect = document.querySelector('#form_modal_add_transaction select[name="article_id"]');
-        if (transactionSelect) {
-            // Получить текущий тип транзакции (expense/income)
-            const transactionType = document.querySelector('#form_modal_add_transaction input[name="record_type"]:checked')?.value || 'expense';
-            const filterType = transactionType; // 'expense' или 'income'
+        // Initialize CategoryTreeSelect for plan form (using new Choices.js API)
+        planCategoryTreeSelect = new ChoicesCategoryTree('#form_modal_add_plan select[name="article_id"]', {
+            type: planType,
+            showLeafOnly: true,
+            onCategoryChange: (category) => {
+                console.log('Plan category changed:', category);
+            }
+        });
 
-            transactionCategoryTreeSelect = new TomSelectCategoryTree(transactionSelect, allCategories, {
-                emptyOptionText: '-- Выберите категорию --',
-                showEmptyOption: true,
-                filterType: filterType,
-                indentChar: '›  ',
-                parentPrefix: '📁',
-                leafPrefix: '📄'
-            });
-            transactionCategoryTreeSelect.init();
-        }
-
-        // Инициализировать CategoryTreeSelect для формы плана
-        const planSelect = document.querySelector('#form_modal_add_plan select[name="article_id"]');
-        if (planSelect) {
-            // Получить текущий тип плана (expense/income)
-            const planType = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked')?.value || 'expense';
-
-            planCategoryTreeSelect = new TomSelectCategoryTree(planSelect, allCategories, {
-                emptyOptionText: '-- Выберите категорию --',
-                showEmptyOption: true,
-                filterType: planType, // Динамически из формы
-                indentChar: '›  ',
-                parentPrefix: '📁',
-                leafPrefix: '📄'
-            });
-            planCategoryTreeSelect.init();
-        }
+        console.log('[index.html] Categories loaded successfully');
     } catch (error) {
         console.error('Failed to load categories:', error);
         showToast('Ошибка при загрузке категорий', 'error');

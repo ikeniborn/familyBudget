@@ -276,6 +276,159 @@ fi
 echo "=== Backup Complete ==="
 ```
 
+#### 10.3.5 Smart Cleanup v2: File Categorization Logic
+
+**Назначение:**
+Smart Cleanup v2 анализирует измененные файлы и автоматически определяет:
+- Какие сервисы требуют перезапуска
+- Какие Docker образы требуют пересборки
+- Оценку downtime
+
+**Категории файлов:**
+
+| Паттерн файла | Категория | Backend rebuild | Backend restart | Nginx restart | Postgres restart |
+|---------------|-----------|----------------|-----------------|---------------|-----------------|
+| `backend/db/migrations/*.sql` | postgres-critical | Нет | Нет | Нет | Да |
+| `backend/requirements.txt` | backend-deps | Да | Да | Нет | Нет |
+| `backend/Dockerfile` | backend-deps | Да | Да | Нет | Нет |
+| `backend/app/**/*.py` | backend-code | Нет* | Да | Нет | Нет |
+| `web/templates/*.html` | backend-code | Нет* | Да | Нет | Нет |
+| `web/static/*` | nginx-config | Нет | Нет | Да | Нет |
+| `webapp/*.html` | webapp | Нет* | Нет | Нет | Нет |
+| `bot/requirements.txt` | bot-deps | Нет | Нет | Нет | Нет |
+| `bot/**/*.py` | bot-code | Нет | Да | Нет | Нет |
+| `nginx/conf.d/*.conf` | nginx-config | Нет | Нет | Да | Нет |
+| `docker-compose.yml` | postgres-critical | Нет | Нет | Нет | Да |
+
+*\*Примечание:* Backend rebuild НЕ требуется благодаря volume mounts в docker-compose.yml:
+```yaml
+volumes:
+  - ./backend:/app/backend:ro      # Python код
+  - ./web:/app/web:ro              # Templates + static
+  - ./webapp:/app/webapp:ro        # Telegram Web Apps
+```
+
+**Volume Mounts vs Dockerfile COPY:**
+
+```
+Repository           Dockerfile COPY          Runtime (volume mount)
+backend/app/     →   COPY backend/        →   ./backend:/app/backend:ro
+web/templates/   →   COPY web/            →   ./web:/app/web:ro
+webapp/          →   COPY webapp/         →   ./webapp:/app/webapp:ro
+```
+
+**Важно:** Volume mounts **ПЕРЕОПРЕДЕЛЯЮТ** Dockerfile COPY в runtime. Поэтому:
+- Изменения Python кода применяются немедленно через volume
+- Требуется только перезапуск сервиса (для очистки cache)
+- НЕ требуется пересборка Docker образа
+
+**Исключение:** Docker может пересобрать образ если build context изменился, даже когда Smart Cleanup сообщает "Images to rebuild: 0". Это нормальное поведение - volume mounts все равно переопределят встроенные файлы.
+
+**Примеры сценариев:**
+
+**Сценарий 1: Изменены только webapp/*.html**
+```bash
+Changed files: webapp/add.html, webapp/edit.html
+
+Change analysis:
+  ✓ webapp (2 files)
+
+Strategy summary:
+  • PostgreSQL: keep running ✓
+  • Services to restart: 0
+  • Images to rebuild: 0
+
+NOTE: Docker may still rebuild images if build context changed
+      (Dockerfile COPY includes volume-mounted directories)
+      This is normal - volume mounts will override built-in files
+```
+**Результат:** Изменения применяются немедленно через volume mount, перезапуск НЕ требуется.
+
+**Сценарий 2: Изменены web/templates/*.html**
+```bash
+Changed files: web/templates/index.html, web/templates/facts.html
+
+Change analysis:
+  ✓ backend-code (2 files)
+
+Strategy summary:
+  • PostgreSQL: keep running ✓
+  • Services to restart: 1
+    → backend
+  • Images to rebuild: 0
+```
+**Результат:** Backend перезапускается для очистки Jinja2 cache, изменения применяются.
+
+**Сценарий 3: Изменены backend/app/*.py**
+```bash
+Changed files: backend/app/api/v1/endpoints/facts.py
+
+Change analysis:
+  ✓ backend-code (1 file)
+
+Strategy summary:
+  • PostgreSQL: keep running ✓
+  • Services to restart: 1
+    → backend
+  • Images to rebuild: 0
+```
+**Результат:** Backend перезапускается, Python код обновляется через volume mount.
+
+**Сценарий 4: Изменен backend/requirements.txt**
+```bash
+Changed files: backend/requirements.txt
+
+Change analysis:
+  ✓ backend-deps (1 file)
+
+Strategy summary:
+  • PostgreSQL: keep running ✓
+  • Services to restart: 1
+    → backend
+  • Images to rebuild: 1
+    → backend
+```
+**Результат:** Backend образ пересобирается (pip install новых зависимостей), контейнер пересоздается.
+
+**Сценарий 5: Добавлена новая миграция**
+```bash
+Changed files: backend/db/migrations/013_add_notifications.sql
+
+Change analysis:
+  ✓ postgres-critical (1 file)
+
+Strategy summary:
+  • PostgreSQL: will restart
+  • Services to restart: 4
+    → postgres, backend, bot, nginx
+  • Images to rebuild: 0
+  • Estimated downtime: ~30s
+```
+**Результат:** PostgreSQL перезапускается, миграция применяется, все зависимые сервисы перезапускаются.
+
+**Debugging категоризации:**
+
+Если Smart Cleanup неправильно категоризирует файлы:
+
+1. **Проверить паттерн** в `scripts/lib/docker.sh`, функция `categorize_file_changes()`:
+```bash
+case "$file" in
+    webapp/*)
+        ((count_webapp++))
+        ;;
+esac
+```
+
+2. **Проверить счетчики** в выводе:
+```bash
+echo "count_webapp=$count_webapp"
+```
+
+3. **Проверить отчет** в `cleanup_containers_networks_v2()`:
+```bash
+[[ $count_webapp -gt 0 ]] && categories_found+=("webapp ($count_webapp files)")
+```
+
 ### 10.4 Backup & Recovery
 
 **Backup Strategy:**

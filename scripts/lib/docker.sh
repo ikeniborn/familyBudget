@@ -75,6 +75,7 @@ categorize_file_changes() {
     local count_nginx_config=0
     local count_backend_deps=0
     local count_bot_deps=0
+    local count_webapp=0
 
     # Categorize each file
     for file in "${files_ref[@]}"; do
@@ -133,15 +134,10 @@ categorize_file_changes() {
                 ((count_nginx_config++))
                 ;;
             webapp/*)
-                # Files are volume-mounted (:ro) - no backend restart needed
-                # Check if nginx has caching enabled for these files
-                if [[ -f "$DEPLOY_DIR/nginx/conf.d/app.conf" ]] && grep -q "proxy_cache" "$DEPLOY_DIR/nginx/conf.d/app.conf" 2>/dev/null; then
-                    needs_nginx_restart=true
-                    info "nginx cache detected for webapp - will restart nginx"
-                else
-                    # Volume-mounted without caching - no restart needed
-                    info "webapp/* volume-mounted - no restart needed"
-                fi
+                # Telegram Web Apps - volume-mounted static files
+                # Changes applied immediately via volume mount - no rebuild/restart needed
+                # (docker-compose.yml: ./webapp:/app/webapp:ro)
+                ((count_webapp++))
                 ;;
 
             # Bot dependencies (требуют пересборки образа)
@@ -184,6 +180,7 @@ categorize_file_changes() {
     echo "count_nginx_config=$count_nginx_config"
     echo "count_backend_deps=$count_backend_deps"
     echo "count_bot_deps=$count_bot_deps"
+    echo "count_webapp=$count_webapp"
 }
 
 # Enhanced Smart cleanup v2 - intelligent selective restarts based on actual changes
@@ -318,6 +315,7 @@ cleanup_containers_networks_v2() {
     local count_nginx_config=0
     local count_backend_deps=0
     local count_bot_deps=0
+    local count_webapp=0
 
     eval "$categorization"
 
@@ -331,6 +329,7 @@ cleanup_containers_networks_v2() {
     [[ $count_bot_deps -gt 0 ]] && categories_found+=("bot-deps ($count_bot_deps files)")
     [[ $count_bot_code -gt 0 ]] && categories_found+=("bot-code ($count_bot_code files)")
     [[ $count_nginx_config -gt 0 ]] && categories_found+=("nginx-config ($count_nginx_config files)")
+    [[ $count_webapp -gt 0 ]] && categories_found+=("webapp ($count_webapp files)")
 
     if [[ ${#categories_found[@]} -gt 0 ]]; then
         for category in "${categories_found[@]}"; do
@@ -394,6 +393,14 @@ cleanup_containers_networks_v2() {
 
     [[ $estimated_downtime -gt 0 ]] && echo "    • Estimated downtime: ~${estimated_downtime}s"
     echo ""
+
+    # Add note about Docker rebuild behavior for volume-mounted files
+    if [[ ${#images_to_rebuild[@]} -eq 0 ]] && [[ $count_webapp -gt 0 || $count_backend_code -gt 0 ]]; then
+        echo "    NOTE: Docker may still rebuild images if build context changed"
+        echo "          (Dockerfile COPY includes volume-mounted directories)"
+        echo "          This is normal - volume mounts will override built-in files"
+        echo ""
+    fi
 
     # === PHASE 5: STOP SERVICES ===
     if [[ ${#services_to_stop[@]} -gt 0 ]]; then

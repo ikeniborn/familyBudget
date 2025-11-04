@@ -13,9 +13,10 @@ Features:
 """
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func
 from sqlmodel import or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -26,7 +27,7 @@ from backend.app.core.dependencies import (
     get_session,
     get_user_id_for_create,
 )
-from backend.app.models.article import Article
+from backend.app.models.article import Article, ArticleUsageStats
 from backend.app.schemas import get_common_responses
 from backend.app.schemas.article import (
     ArticleCreate,
@@ -126,9 +127,10 @@ async def list_articles(
     offset: Annotated[int, Query(ge=0)] = 0,
     type_filter: Annotated[str | None, Query(alias="type")] = None,
     parent_id: Annotated[int | None, Query()] = None,
+    sort_by: Annotated[Literal["usage_count", "name"], Query()] = "usage_count",
 ) -> ArticleListResponse:
     """
-    List articles with optional filtering.
+    List articles with optional filtering and sorting.
 
     **Shared References Architecture:**
     - All users see all articles (shared model)
@@ -138,15 +140,27 @@ async def list_articles(
     - type: Filter by article type ('income' or 'expense')
     - parent_id: Filter by parent article (NULL for root articles)
 
+    **Sorting:**
+    - sort_by: Sort order ('usage_count' or 'name', default: 'usage_count')
+        - usage_count: Most used categories first (DESC), then by name (ASC)
+        - name: Alphabetical order (ASC)
+
     **Pagination:**
     - limit: Maximum number of results (1-1000, default: 100)
     - offset: Number of results to skip (default: 0)
 
     **Returns:**
-    - 200 OK: List of articles with pagination info
+    - 200 OK: List of articles with pagination info and usage statistics
     """
-    # Base query: only current versions
-    statement = select(Article).where(Article.is_current == True)  # noqa: E712
+    # Base query with LEFT JOIN to ArticleUsageStats
+    # Returns: Row(Article, usage_count)
+    statement = select(
+        Article,
+        func.coalesce(ArticleUsageStats.usage_count, 0).label("usage_count")
+    ).outerjoin(
+        ArticleUsageStats,
+        Article.id == ArticleUsageStats.article_id
+    ).where(Article.is_current == True)  # noqa: E712
 
     # Apply filters
     if type_filter:
@@ -162,9 +176,22 @@ async def list_articles(
 
     # NO user isolation - all users see all articles (shared references)
 
+    # Apply sorting
+    if sort_by == "usage_count":
+        # Sort by usage_count DESC (most used first), then by name ASC
+        statement = statement.order_by(
+            func.coalesce(ArticleUsageStats.usage_count, 0).desc(),
+            Article.name.asc()
+        )
+    else:  # sort_by == "name"
+        # Sort alphabetically
+        statement = statement.order_by(Article.name.asc())
+
     # Count total (before pagination)
-    from sqlalchemy import func
-    count_stmt = select(func.count()).select_from(statement.subquery())
+    # Need to count distinct articles (not rows with joins)
+    count_stmt = select(func.count(func.distinct(Article.id))).select_from(
+        statement.subquery()
+    )
     total_result = await session.execute(count_stmt)
     total = total_result.scalar_one()
 
@@ -173,10 +200,25 @@ async def list_articles(
 
     # Execute query
     result = await session.execute(statement)
-    articles = result.scalars().all()
+    rows = result.all()  # Returns list of Row(Article, usage_count)
+
+    # Build ArticleResponse with usage_count
+    from backend.app.schemas.article import ArticleResponse
+    articles_with_usage = []
+    for row in rows:
+        article = row[0]  # Article object
+        usage_count = row[1]  # int (from COALESCE)
+
+        # Create ArticleResponse from Article and add usage_count
+        article_dict = {
+            **article.model_dump(),
+            "usage_count": usage_count
+        }
+        article_response = ArticleResponse.model_validate(article_dict)
+        articles_with_usage.append(article_response)
 
     return ArticleListResponse(
-        articles=articles,
+        articles=articles_with_usage,
         total=total,
         limit=limit,
         offset=offset,

@@ -10,16 +10,16 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
     <!-- Styles -->
-    <link rel="stylesheet" href="/webapp/static/css/telegram-theme.css?v=20251103_1935">
-    <link rel="stylesheet" href="/webapp/static/css/app.css?v=20251103_1935">
-    <link rel="stylesheet" href="/webapp/static/css/forms.css?v=20251103_1935">
+    <link rel="stylesheet" href="/webapp/static/css/telegram-theme.css?v=20251104_0835">
+    <link rel="stylesheet" href="/webapp/static/css/app.css?v=20251104_0835">
+    <link rel="stylesheet" href="/webapp/static/css/forms.css?v=20251104_0835">
 
-    <!-- Tom Select -->
-    <link rel="stylesheet" href="/webapp/static/css/tom-select.css?v=20251103_1935">
-    <link rel="stylesheet" href="/webapp/static/css/tom-select-telegram.css?v=20251103_1935">
+    <!-- Choices.js -->
+    <link rel="stylesheet" href="/webapp/static/css/vendor/choices.min.css?v=20251104_0835">
+    <link rel="stylesheet" href="/webapp/static/css/choices-telegram.css?v=20251104_0835">
 
-    <!-- Tom Select JS - load in head to ensure it's available before use -->
-    <script src="/webapp/static/js/vendor/tom-select.complete.min.js"></script>
+    <!-- Choices.js JS - load in head to ensure it's available before use -->
+    <script src="/webapp/static/js/vendor/choices.min.js"></script>
 
     <style>
         /* Add transaction specific styles */
@@ -262,18 +262,18 @@
     </div>
 
     <!-- Core JS modules -->
-    <script src="/webapp/static/js/storage.js?v=20251103_1935"></script>
-    <script src="/webapp/static/js/theme.js?v=20251103_1935"></script>
-    <script src="/webapp/static/js/validators.js?v=20251103_1935"></script>
-    <script src="/webapp/static/js/ui.js?v=20251103_1935"></script>
-    <script src="/webapp/static/js/auth.js?v=20251103_1935"></script>
-    <script src="/webapp/static/js/api.js?v=20251103_1935"></script>
-    <script src="/webapp/static/js/dateFormatter.js?v=20251103_1935"></script>
+    <script src="/webapp/static/js/storage.js?v=20251104_0835"></script>
+    <script src="/webapp/static/js/theme.js?v=20251104_0835"></script>
+    <script src="/webapp/static/js/validators.js?v=20251104_0835"></script>
+    <script src="/webapp/static/js/ui.js?v=20251104_0835"></script>
+    <script src="/webapp/static/js/auth.js?v=20251104_0835"></script>
+    <script src="/webapp/static/js/api.js?v=20251104_0835"></script>
+    <script src="/webapp/static/js/dateFormatter.js?v=20251104_0835"></script>
 
-    <!-- Tom Select Category Tree Component -->
-    <script src="/webapp/static/js/tomSelectCategoryTree.js?v=20251103_1935"></script>
+    <!-- Choices.js Category Tree Component -->
+    <script src="/webapp/static/js/choicesCategoryTree.js?v=20251104_0835"></script>
 
-    <script src="/webapp/static/js/app.js?v=20251103_1935"></script>
+    <script src="/webapp/static/js/app.js?v=20251104_0835"></script>
 
     <script>
         let formState = {
@@ -464,45 +464,33 @@
             const categorySelect = document.getElementById('category-select');
 
             try {
-                // Load categories from API
-                const result = await app.api.listArticles({
-                    type: formState.factType,
-                    is_current: true,
-                    limit: 1000
-                });
-                categories = result.articles || [];
-
-                if (categories.length === 0) {
-                    categorySelect.innerHTML = '<option value="">Категории не найдены</option>';
-                    return;
+                // Destroy existing instance if present
+                if (categoryTreeSelect) {
+                    categoryTreeSelect.destroy();
+                    categoryTreeSelect = null;
                 }
 
-                // Create TomSelectCategoryTree instance
-                categoryTreeSelect = new TomSelectCategoryTree(categorySelect, categories, {
-                    emptyOptionText: 'Выберите категорию',
-                    filterType: formState.factType,
-                    selectedId: formState.categoryId,
-                    pathDisplayElementId: 'category-path-display'
-                });
+                // Create ChoicesCategoryTree instance
+                categoryTreeSelect = new ChoicesCategoryTree('#category-select', {
+                    type: formState.factType,
+                    auth: window.auth,  // Pass auth instance for Bearer token
+                    showLeafOnly: true,
+                    onCategoryChange: (category) => {
+                        formState.categoryId = category ? category.id : null;
 
-                // Initialize Tom Select
-                await categoryTreeSelect.init();
+                        // Clear error
+                        document.getElementById('category-error').textContent = '';
 
-                // Setup change handler
-                categorySelect.addEventListener('change', () => {
-                    const selectedId = parseInt(categorySelect.value);
-                    formState.categoryId = selectedId || null;
+                        // Haptic feedback
+                        app.ui.hapticLight();
 
-                    // Clear error
-                    document.getElementById('category-error').textContent = '';
-
-                    // Haptic feedback
-                    app.ui.hapticLight();
+                        console.log('Category changed:', category);
+                    }
                 });
 
             } catch (error) {
                 console.error('Failed to load categories:', error);
-                categorySelect.innerHTML = '<option value="">Ошибка загрузки категорий</option>';
+                app.tg.showAlert('Ошибка загрузки категорий');
             }
         }
 
