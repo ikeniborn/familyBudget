@@ -86,14 +86,14 @@ check_prerequisites() {
         return 1
     fi
 
-    # Check if terser is available
-    if ! npx terser --version &> /dev/null; then
+    # Check if terser is available (with timeout to prevent hanging)
+    if ! timeout 5 npx terser --version &> /dev/null; then
         print_message error "Terser is not installed. Run: npm install"
         return 1
     fi
 
-    # Check if cssnano-cli is available
-    if ! npx cssnano --version &> /dev/null; then
+    # Check if cssnano-cli is available (with timeout to prevent hanging)
+    if ! timeout 5 npx cssnano --version &> /dev/null; then
         print_message error "cssnano-cli is not installed. Run: npm install"
         return 1
     fi
