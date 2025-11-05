@@ -250,6 +250,81 @@
             padding: 40px 20px;
             color: var(--tg-theme-hint-color);
         }
+
+        /* ========== RESPONSIVE IMPROVEMENTS ========== */
+
+        /* Base mobile styles: ensure proper text truncation */
+        .transaction-details {
+            flex: 1;
+            min-width: 0;  /* CRITICAL for text-overflow to work in flex container */
+            overflow: hidden;
+        }
+
+        .transaction-category {
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .transaction-category.has-breadcrumb {
+            cursor: help;
+            border-bottom: 1px dotted var(--tg-theme-hint-color);
+        }
+
+        .transaction-description {
+            max-width: 150px;
+            position: relative;
+        }
+
+        .transaction-description.truncated {
+            cursor: pointer;
+            color: var(--tg-theme-link-color);
+        }
+
+        .transaction-description.truncated::after {
+            content: ' →';
+            margin-left: 2px;
+            font-weight: bold;
+        }
+
+        /* Small mobile (480px+) */
+        @media (min-width: 480px) {
+            .transaction-category {
+                max-width: 220px;
+            }
+
+            .transaction-description {
+                max-width: 200px;
+            }
+        }
+
+        /* Tablet (640px+) */
+        @media (min-width: 640px) {
+            .transaction-category {
+                max-width: 300px;
+            }
+
+            .transaction-description {
+                max-width: 280px;
+            }
+
+            .transaction-item {
+                padding: 14px;
+            }
+        }
+
+        /* Desktop (768px+) */
+        @media (min-width: 768px) {
+            .container {
+                max-width: 600px;
+                margin: 0 auto;
+            }
+
+            .transaction-description {
+                max-width: 350px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -536,9 +611,46 @@
             category.className = 'transaction-category';
             category.textContent = categoryObj ? categoryObj.name : `Категория #${fact.article_id}`;
 
+            // Breadcrumb tooltip для вложенных категорий
+            if (categoryObj && categoryObj.parent_id) {
+                category.classList.add('has-breadcrumb');
+                loadCategoryPath(categoryObj.id).then(path => {
+                    category.title = path.join(' › ');
+                }).catch(err => {
+                    console.warn(`Failed to load breadcrumb for category ${categoryObj.id}:`, err);
+                    category.title = categoryObj.name;
+                });
+            }
+
             const description = document.createElement('div');
             description.className = 'transaction-description';
-            description.textContent = fact.description || 'Без описания';
+
+            // Truncate с modal для длинных комментариев
+            const DESCRIPTION_THRESHOLD = 25; // Порог для mobile
+            if (fact.description) {
+                if (fact.description.length > DESCRIPTION_THRESHOLD) {
+                    description.textContent = fact.description.substring(0, 22) + '...';
+                    description.classList.add('truncated');
+                    description.title = fact.description; // Tooltip fallback
+
+                    // Modal при клике
+                    description.addEventListener('click', (e) => {
+                        e.stopPropagation(); // Не открывать edit.html
+                        app.ui.hapticLight();
+                        app.ui.showPopup({
+                            title: 'Описание',
+                            message: fact.description,
+                            buttons: [{type: 'close'}]
+                        });
+                    });
+                } else {
+                    description.textContent = fact.description;
+                }
+            } else {
+                description.textContent = 'Без описания';
+                description.style.fontStyle = 'italic';
+                description.style.opacity = '0.6';
+            }
 
             const time = document.createElement('div');
             time.className = 'transaction-time';
@@ -566,6 +678,30 @@
             });
 
             return item;
+        }
+
+        /**
+         * Load category path (breadcrumb) for nested categories.
+         * Calls backend API: GET /api/v1/articles/{id}/ancestors?include_self=true
+         *
+         * @param {number} articleId - Category ID
+         * @returns {Promise<string[]>} - Array of category names (root → article)
+         */
+        async function loadCategoryPath(articleId) {
+            try {
+                const result = await app.api.get(`/api/v1/articles/${articleId}/ancestors`, {
+                    include_self: true
+                });
+
+                if (result.articles && Array.isArray(result.articles)) {
+                    return result.articles.map(a => a.name);
+                }
+
+                return [];
+            } catch (error) {
+                console.error(`Failed to load category path for ${articleId}:`, error);
+                throw error;
+            }
         }
 
         function applyFilters() {
