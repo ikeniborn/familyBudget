@@ -7,9 +7,16 @@
  * - Only leaf categories shown in dropdown
  * - Full path display below field after selection
  * - Hierarchical breadcrumb navigation
- * - Tailwind CSS styling
+ * - Dual authentication support: Bearer token (WebApp) or cookies (web interface)
  *
- * Usage:
+ * Usage (Telegram WebApp with Bearer token):
+ *   const categoryTree = new ChoicesCategoryTree('#article_id', {
+ *     type: 'expense',  // or 'income'
+ *     auth: window.auth,  // Auth instance with getToken() method
+ *     onCategoryChange: (category) => console.log(category)
+ *   });
+ *
+ * Usage (Web interface with cookie auth):
  *   const categoryTree = new ChoicesCategoryTree('#article_id', {
  *     type: 'expense',  // or 'income'
  *     onCategoryChange: (category) => console.log(category)
@@ -19,7 +26,7 @@
  * - GET /api/v1/articles?type={type}&sort_by=usage_count
  * - GET /api/v1/articles/{id}/ancestors
  *
- * @version 1.0.0
+ * @version 2.0.0 (Shared: WebApp + Web)
  * @requires Choices.js v11.1.0
  */
 
@@ -30,6 +37,7 @@ class ChoicesCategoryTree {
      * @param {string} selector - CSS selector for select element
      * @param {Object} options - Configuration options
      * @param {string} options.type - Category type ('income' or 'expense')
+     * @param {Object} [options.auth] - OPTIONAL: Auth instance with getToken() method (for WebApp Bearer token)
      * @param {Function} options.onCategoryChange - Callback when category changes
      * @param {string} options.apiBaseUrl - Base URL for API (default: '/api/v1')
      * @param {boolean} options.showLeafOnly - Show only leaf categories (default: true)
@@ -43,6 +51,10 @@ class ChoicesCategoryTree {
             return;
         }
 
+        // Auth parameter is OPTIONAL:
+        // - If provided: use Bearer token (Telegram WebApp)
+        // - If not provided: use cookie-based auth (web interface)
+        this.auth = options.auth || null;  // Store auth instance (nullable)
         this.options = {
             type: options.type || 'expense',
             onCategoryChange: options.onCategoryChange || null,
@@ -97,14 +109,32 @@ class ChoicesCategoryTree {
 
     /**
      * Load categories from API.
+     * Uses Bearer token (WebApp) or cookie-based auth (web interface).
      */
     async loadCategories() {
         const url = `${this.options.apiBaseUrl}/articles?type=${this.options.type}&sort_by=usage_count&limit=1000`;
 
         console.log(`[ChoicesCategoryTree] Loading categories from: ${url}`);
 
+        // Build headers conditionally
+        const headers = {};
+
+        // If auth instance provided, use Bearer token (Telegram WebApp)
+        if (this.auth && typeof this.auth.getToken === 'function') {
+            const token = this.auth.getToken();
+            if (!token) {
+                throw new Error('No authentication token available');
+            }
+            headers['Authorization'] = `Bearer ${token}`;
+            console.log('[ChoicesCategoryTree] Using Bearer token authentication');
+        } else {
+            // Otherwise, rely on cookie-based auth (web interface)
+            console.log('[ChoicesCategoryTree] Using cookie-based authentication');
+        }
+
         const response = await fetch(url, {
-            credentials: 'include',  // Include cookies (JWT)
+            headers: headers,
+            credentials: 'same-origin',  // Include cookies
         });
 
         if (!response.ok) {
@@ -180,9 +210,9 @@ class ChoicesCategoryTree {
                 keys: ['label'],       // Search in label field
             },
 
-            // Styling (Tailwind CSS classes)
+            // Styling
             classNames: {
-                containerOuter: ['choices', 'choices-tailwind'],
+                containerOuter: ['choices', 'choices-telegram'],
                 containerInner: ['choices__inner'],
                 input: ['choices__input'],
                 inputCloned: ['choices__input--cloned'],
@@ -220,10 +250,11 @@ class ChoicesCategoryTree {
         let pathDisplay = document.querySelector(`#${this.element.id}-path`);
 
         if (!pathDisplay) {
-            // Create path display element with Tailwind classes
+            // Create path display element
             pathDisplay = document.createElement('div');
             pathDisplay.id = `${this.element.id}-path`;
-            pathDisplay.className = 'category-path mt-2 text-sm text-gray-500 dark:text-gray-400';
+            pathDisplay.className = 'category-path';
+            pathDisplay.style.cssText = 'margin-top: 8px; font-size: 12px; color: var(--tg-theme-hint-color, #999);';
 
             // Insert after Choices container
             const choicesContainer = this.element.closest('.choices');
@@ -278,6 +309,7 @@ class ChoicesCategoryTree {
 
     /**
      * Get full category path (ancestors).
+     * Uses Bearer token (WebApp) or cookie-based auth (web interface).
      *
      * @param {number} categoryId - Category ID
      * @returns {Promise<Array>} Path array (root to category)
@@ -285,8 +317,22 @@ class ChoicesCategoryTree {
     async getCategoryPath(categoryId) {
         const url = `${this.options.apiBaseUrl}/articles/${categoryId}/ancestors?include_self=true`;
 
+        // Build headers conditionally
+        const headers = {};
+
+        // If auth instance provided, use Bearer token (Telegram WebApp)
+        if (this.auth && typeof this.auth.getToken === 'function') {
+            const token = this.auth.getToken();
+            if (!token) {
+                throw new Error('No authentication token available');
+            }
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        // Otherwise, rely on cookie-based auth (web interface)
+
         const response = await fetch(url, {
-            credentials: 'include',
+            headers: headers,
+            credentials: 'same-origin',  // Include cookies
         });
 
         if (!response.ok) {
@@ -303,8 +349,11 @@ class ChoicesCategoryTree {
      * @param {string} message - Error message
      */
     showError(message) {
-        // Use browser alert for web version
-        alert(message);
+        if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.showAlert(message);
+        } else {
+            alert(message);
+        }
     }
 
     /**

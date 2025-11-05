@@ -247,6 +247,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent  # /app in Docker
 STATIC_DIR = BASE_DIR / "web" / "static"  # /app/web/static
 TEMPLATES_DIR = BASE_DIR / "web" / "templates"  # /app/web/templates
 WEBAPP_DIR = BASE_DIR / "webapp"  # /app/webapp (Telegram Web Apps)
+SHARED_DIR = BASE_DIR / "shared"  # /app/shared (Shared JS/CSS modules)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -254,6 +255,9 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # Mount webapp files (Telegram Web Apps)
 # Serves HTML, JS, CSS for Web Apps at /webapp/*
 app.mount("/webapp", StaticFiles(directory=str(WEBAPP_DIR), html=True), name="webapp")
+
+# Mount shared files (Common JS/CSS modules for web and webapp)
+app.mount("/shared", StaticFiles(directory=str(SHARED_DIR)), name="shared")
 
 # Setup Jinja2 templates
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
