@@ -54,10 +54,11 @@
                 </div>
             </div>
 
-            <!-- Уровень 2: Категория -->
+            <!-- Уровень 2: Основные фильтры -->
             <div class="filter-section">
-                <div class="filter-section-title">📂 Категория</div>
-                <div class="grid grid-cols-1">
+                <div class="filter-section-title">🔍 Основные фильтры</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Категория -->
                     <div class="form-control">
                         <label class="label">
                             <span class="label-text font-medium">📁 Категория</span>
@@ -67,12 +68,46 @@
                             <!-- Populated dynamically -->
                         </select>
                     </div>
+
+                    <!-- Финансовый центр (ЦФО) -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">🏦 Финансовый центр</span>
+                        </label>
+                        <select id="filter-financial-center" class="select select-bordered w-full" title="Фильтровать плановые записи по финансовому центру">
+                            <option value="">Все ЦФО</option>
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+
+                    <!-- Центр затрат (МВЗ) -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">💼 Центр затрат</span>
+                        </label>
+                        <select id="filter-cost-center" class="select select-bordered w-full" title="Фильтровать плановые записи по центру затрат">
+                            <option value="">Все МВЗ</option>
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+
+                    <!-- Тип записи -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">📋 Тип записи</span>
+                        </label>
+                        <select id="filter-record-type" class="select select-bordered w-full" title="Фильтровать по типу записи">
+                            <option value="">Все типы</option>
+                            <option value="plan">План</option>
+                            <option value="fact">Факт</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
-            <!-- Уровень 3: Пользователь -->
+            <!-- Уровень 3: Дополнительно -->
             <div class="filter-section">
-                <div class="filter-section-title">👤 Пользователь</div>
+                <div class="filter-section-title">⚙️ Дополнительно</div>
                 <div class="grid grid-cols-1">
                     <div class="form-control">
                         <label class="label">
@@ -287,7 +322,8 @@ let filters = {
     date_from: null,
     date_to: null,
     financial_center_id: null,
-    cost_center_id: null
+    cost_center_id: null,
+    record_type: null
 };
 
 // Load data on page load
@@ -448,21 +484,25 @@ async function loadFinancialCenters() {
 
         // Populate edit dropdown
         const editSelect = document.getElementById('edit-financial-center');
-        centers.forEach(center => {
-            const option = document.createElement('option');
-            option.value = center.id;
-            option.textContent = center.name;
-            editSelect.appendChild(option);
-        });
+        if (editSelect) {
+            centers.forEach(center => {
+                const option = document.createElement('option');
+                option.value = center.id;
+                option.textContent = center.name;
+                editSelect.appendChild(option);
+            });
+        }
 
         // Populate filter dropdown
         const filterSelect = document.getElementById('filter-financial-center');
-        centers.forEach(center => {
-            const option = document.createElement('option');
-            option.value = center.id;
-            option.textContent = center.name;
-            filterSelect.appendChild(option);
-        });
+        if (filterSelect) {
+            centers.forEach(center => {
+                const option = document.createElement('option');
+                option.value = center.id;
+                option.textContent = center.name;
+                filterSelect.appendChild(option);
+            });
+        }
     } catch (error) {
         console.error('Error loading financial centers:', error);
     }
@@ -481,21 +521,25 @@ async function loadCostCenters() {
 
         // Populate edit dropdown
         const editSelect = document.getElementById('edit-cost-center');
-        centers.forEach(center => {
-            const option = document.createElement('option');
-            option.value = center.id;
-            option.textContent = center.name;
-            editSelect.appendChild(option);
-        });
+        if (editSelect) {
+            centers.forEach(center => {
+                const option = document.createElement('option');
+                option.value = center.id;
+                option.textContent = center.name;
+                editSelect.appendChild(option);
+            });
+        }
 
         // Populate filter dropdown
         const filterSelect = document.getElementById('filter-cost-center');
-        centers.forEach(center => {
-            const option = document.createElement('option');
-            option.value = center.id;
-            option.textContent = center.name;
-            filterSelect.appendChild(option);
-        });
+        if (filterSelect) {
+            centers.forEach(center => {
+                const option = document.createElement('option');
+                option.value = center.id;
+                option.textContent = center.name;
+                filterSelect.appendChild(option);
+            });
+        }
     } catch (error) {
         console.error('Error loading cost centers:', error);
     }
@@ -515,6 +559,7 @@ function applyFilters() {
 
     filters.financial_center_id = document.getElementById('filter-financial-center').value || null;
     filters.cost_center_id = document.getElementById('filter-cost-center').value || null;
+    filters.record_type = document.getElementById('filter-record-type').value || null;
 
     currentPage = 0;
     loadFacts();
@@ -531,6 +576,7 @@ function resetFilters() {
     document.getElementById('filter-date-to').value = '';
     document.getElementById('filter-financial-center').value = '';
     document.getElementById('filter-cost-center').value = '';
+    document.getElementById('filter-record-type').value = '';
 
     filters = {
         user_id: null,
@@ -538,7 +584,8 @@ function resetFilters() {
         date_from: null,
         date_to: null,
         financial_center_id: null,
-        cost_center_id: null
+        cost_center_id: null,
+        record_type: null
     };
 
     currentPage = 0;
