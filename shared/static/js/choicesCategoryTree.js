@@ -1,5 +1,5 @@
 /**
- * ChoicesCategoryTree - Choices.js-based category selector with hierarchy support (Webapp version).
+ * ChoicesCategoryTree - Choices.js-based category selector with hierarchy support.
  *
  * Features:
  * - Fuzzy search via built-in Fuse.js
@@ -7,20 +7,26 @@
  * - Only leaf categories shown in dropdown
  * - Full path display below field after selection
  * - Hierarchical breadcrumb navigation
- * - Authentication via Bearer token (Telegram Web App initData)
+ * - Dual authentication support: Bearer token (WebApp) or cookies (web interface)
  *
- * Usage:
+ * Usage (Telegram WebApp with Bearer token):
  *   const categoryTree = new ChoicesCategoryTree('#article_id', {
  *     type: 'expense',  // or 'income'
- *     auth: window.auth,  // REQUIRED: Auth instance for Bearer token
+ *     auth: window.auth,  // Auth instance with getToken() method
+ *     onCategoryChange: (category) => console.log(category)
+ *   });
+ *
+ * Usage (Web interface with cookie auth):
+ *   const categoryTree = new ChoicesCategoryTree('#article_id', {
+ *     type: 'expense',  // or 'income'
  *     onCategoryChange: (category) => console.log(category)
  *   });
  *
  * API Requirements:
- * - GET /api/v1/articles?type={type}&sort_by=usage_count (auth via Bearer token)
- * - GET /api/v1/articles/{id}/ancestors (auth via Bearer token)
+ * - GET /api/v1/articles?type={type}&sort_by=usage_count
+ * - GET /api/v1/articles/{id}/ancestors
  *
- * @version 1.0.0 (Webapp)
+ * @version 2.0.0 (Shared: WebApp + Web)
  * @requires Choices.js v11.1.0
  */
 
@@ -31,7 +37,7 @@ class ChoicesCategoryTree {
      * @param {string} selector - CSS selector for select element
      * @param {Object} options - Configuration options
      * @param {string} options.type - Category type ('income' or 'expense')
-     * @param {Object} options.auth - REQUIRED: Auth instance with getToken() method
+     * @param {Object} [options.auth] - OPTIONAL: Auth instance with getToken() method (for WebApp Bearer token)
      * @param {Function} options.onCategoryChange - Callback when category changes
      * @param {string} options.apiBaseUrl - Base URL for API (default: '/api/v1')
      * @param {boolean} options.showLeafOnly - Show only leaf categories (default: true)
@@ -45,13 +51,10 @@ class ChoicesCategoryTree {
             return;
         }
 
-        // Validate auth parameter (REQUIRED for webapp)
-        if (!options.auth || typeof options.auth.getToken !== 'function') {
-            console.error(`[ChoicesCategoryTree] Missing or invalid auth parameter. Please provide auth instance with getToken() method.`);
-            return;
-        }
-
-        this.auth = options.auth;  // Store auth instance
+        // Auth parameter is OPTIONAL:
+        // - If provided: use Bearer token (Telegram WebApp)
+        // - If not provided: use cookie-based auth (web interface)
+        this.auth = options.auth || null;  // Store auth instance (nullable)
         this.options = {
             type: options.type || 'expense',
             onCategoryChange: options.onCategoryChange || null,
@@ -105,23 +108,33 @@ class ChoicesCategoryTree {
     }
 
     /**
-     * Load categories from API using Bearer token authentication.
+     * Load categories from API.
+     * Uses Bearer token (WebApp) or cookie-based auth (web interface).
      */
     async loadCategories() {
         const url = `${this.options.apiBaseUrl}/articles?type=${this.options.type}&sort_by=usage_count&limit=1000`;
 
         console.log(`[ChoicesCategoryTree] Loading categories from: ${url}`);
 
-        // Get JWT token from auth instance
-        const token = this.auth.getToken();
-        if (!token) {
-            throw new Error('No authentication token available');
+        // Build headers conditionally
+        const headers = {};
+
+        // If auth instance provided, use Bearer token (Telegram WebApp)
+        if (this.auth && typeof this.auth.getToken === 'function') {
+            const token = this.auth.getToken();
+            if (!token) {
+                throw new Error('No authentication token available');
+            }
+            headers['Authorization'] = `Bearer ${token}`;
+            console.log('[ChoicesCategoryTree] Using Bearer token authentication');
+        } else {
+            // Otherwise, rely on cookie-based auth (web interface)
+            console.log('[ChoicesCategoryTree] Using cookie-based authentication');
         }
 
         const response = await fetch(url, {
-            headers: {
-                'Authorization': `Bearer ${token}`,  // Use Bearer token (Telegram Web App)
-            },
+            headers: headers,
+            credentials: 'same-origin',  // Include cookies
         });
 
         if (!response.ok) {
@@ -295,7 +308,8 @@ class ChoicesCategoryTree {
     }
 
     /**
-     * Get full category path (ancestors) using Bearer token authentication.
+     * Get full category path (ancestors).
+     * Uses Bearer token (WebApp) or cookie-based auth (web interface).
      *
      * @param {number} categoryId - Category ID
      * @returns {Promise<Array>} Path array (root to category)
@@ -303,16 +317,22 @@ class ChoicesCategoryTree {
     async getCategoryPath(categoryId) {
         const url = `${this.options.apiBaseUrl}/articles/${categoryId}/ancestors?include_self=true`;
 
-        // Get JWT token from auth instance
-        const token = this.auth.getToken();
-        if (!token) {
-            throw new Error('No authentication token available');
+        // Build headers conditionally
+        const headers = {};
+
+        // If auth instance provided, use Bearer token (Telegram WebApp)
+        if (this.auth && typeof this.auth.getToken === 'function') {
+            const token = this.auth.getToken();
+            if (!token) {
+                throw new Error('No authentication token available');
+            }
+            headers['Authorization'] = `Bearer ${token}`;
         }
+        // Otherwise, rely on cookie-based auth (web interface)
 
         const response = await fetch(url, {
-            headers: {
-                'Authorization': `Bearer ${token}`,  // Use Bearer token (Telegram Web App)
-            },
+            headers: headers,
+            credentials: 'same-origin',  // Include cookies
         });
 
         if (!response.ok) {
