@@ -57,7 +57,19 @@
             <!-- Уровень 2: Основные фильтры -->
             <div class="filter-section">
                 <div class="filter-section-title">🔍 Основные фильтры</div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Тип категории -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">💰 Тип категории</span>
+                        </label>
+                        <select id="filter-article-type" class="select select-bordered w-full" title="Фильтровать по типу категории">
+                            <option value="">Все типы категорий</option>
+                            <option value="expense">Расходы</option>
+                            <option value="income">Доходы</option>
+                        </select>
+                    </div>
+
                     <!-- Категория -->
                     <div class="form-control">
                         <label class="label">
@@ -308,6 +320,7 @@ let deletingFactIds = new Set(); // Track ongoing deletions to prevent race cond
 let filters = {
     user_id: null,
     article_id: null,
+    article_type: null,
     date_from: null,
     date_to: null,
     financial_center_id: null,
@@ -342,6 +355,13 @@ document.addEventListener('DOMContentLoaded', function() {
         onSelect: (startDate, endDate) => {
             console.log('Выбран диапазон дат для плана:', startDate, endDate);
         }
+    });
+
+    // Event listener for article_type filter change - reload categories
+    document.getElementById('filter-article-type').addEventListener('change', function(e) {
+        const selectedType = e.target.value;
+        reloadArticleFilter(selectedType);
+        console.log('Article type filter changed to:', selectedType || 'all');
     });
 });
 
@@ -421,6 +441,67 @@ async function loadArticles() {
         }
     } catch (error) {
         console.error('Error loading articles:', error);
+    }
+}
+
+// Reload article filter based on selected type
+async function reloadArticleFilter(type) {
+    try {
+        // Fetch articles filtered by type
+        let url = '/api/v1/admin/articles?is_current=true&limit=1000&sort_by=usage_count';
+        if (type) {
+            url += `&type=${type}`;
+        }
+
+        const response = await fetch(url);
+        const articles = await response.json();
+
+        // Build tree and flatten
+        const tree = buildArticleTree(articles);
+        const flatNodes = flattenArticleTree(tree);
+
+        // Repopulate filter dropdown
+        const filterSelect = document.getElementById('filter-article');
+
+        // Save current selection
+        const currentValue = filterSelect.value;
+
+        // Clear and repopulate
+        filterSelect.innerHTML = '<option value="">Все категории</option>';
+
+        flatNodes.forEach(node => {
+            const option = document.createElement('option');
+            option.value = node.id;
+
+            // Simplified indentation: use single symbol per level
+            const indent = '›  '.repeat(node.level);
+            const icon = node.isLeaf ? '▸' : '📂';
+            option.textContent = `${indent}${icon} ${node.name}`;
+
+            // Disable parent categories with visual styling
+            if (!node.isLeaf) {
+                option.disabled = true;
+                option.classList.add('category-parent');
+                option.style.fontWeight = 'bold';
+                option.style.opacity = '0.7';
+            } else {
+                option.classList.add('category-leaf');
+            }
+
+            filterSelect.appendChild(option);
+        });
+
+        // Restore selection if it still exists
+        if (currentValue) {
+            const optionExists = Array.from(filterSelect.options).some(opt => opt.value === currentValue);
+            if (optionExists) {
+                filterSelect.value = currentValue;
+            } else {
+                filterSelect.value = '';
+            }
+        }
+    } catch (error) {
+        console.error('Error reloading article filter:', error);
     }
 }
 
@@ -537,6 +618,7 @@ async function loadCostCenters() {
 function applyFilters() {
     filters.user_id = document.getElementById('filter-user').value || null;
     filters.article_id = document.getElementById('filter-article').value || null;
+    filters.article_type = document.getElementById('filter-article-type').value || null;
 
     // Convert dates from DD.MM.YYYY to YYYY-MM-DD format for API
     const dateFromValue = document.getElementById('filter-date-from').value;
@@ -559,6 +641,7 @@ function applyFilters() {
 function resetFilters() {
     document.getElementById('filter-user').value = '';
     document.getElementById('filter-article').value = '';
+    document.getElementById('filter-article-type').value = '';
     document.getElementById('filter-date-from').value = '';
     document.getElementById('filter-date-to').value = '';
     document.getElementById('filter-financial-center').value = '';
@@ -567,6 +650,7 @@ function resetFilters() {
     filters = {
         user_id: null,
         article_id: null,
+        article_type: null,
         date_from: null,
         date_to: null,
         financial_center_id: null,
@@ -594,6 +678,7 @@ async function loadFacts() {
 
         if (filters.user_id) params.append('user_id', filters.user_id);
         if (filters.article_id) params.append('article_id', filters.article_id);
+        if (filters.article_type) params.append('article_type', filters.article_type);
         if (filters.date_from) params.append('date_from', filters.date_from);
         if (filters.date_to) params.append('date_to', filters.date_to);
         if (filters.financial_center_id) params.append('financial_center_id', filters.financial_center_id);
