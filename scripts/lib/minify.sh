@@ -26,6 +26,9 @@
 
 set -euo pipefail
 
+# Error trap for debugging
+trap 'echo "[DEBUG] Script exited at line $LINENO with exit code $?" >&2' ERR EXIT
+
 # Colors for output
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
@@ -160,6 +163,10 @@ minify_js_directory() {
 
     print_message info "Processing JS directory: $dir"
 
+    # Count files first for debugging
+    local file_count=$(find "$dir" -type f -name "*.js" ! -name "*.min.js" ! -path "*/vendor/*" | wc -l)
+    print_message info "Found $file_count JS files to minify in $dir"
+
     # Find all .js files (excluding .min.js and vendor/)
     while IFS= read -r -d '' file; do
         # Skip already minified files
@@ -174,14 +181,24 @@ minify_js_directory() {
 
         minify_js_file "$file"
     done < <(find "$dir" -type f -name "*.js" ! -name "*.min.js" -print0)
+
+    print_message info "Finished processing $dir"
 }
 
 minify_all_js() {
     print_message info "=== JavaScript Minification ==="
 
+    print_message info "Starting web/ directory minification..."
     minify_js_directory "$WEB_JS_DIR"
+    print_message info "Completed web/ directory: $MINIFIED_JS_COUNT files so far"
+
+    print_message info "Starting webapp/ directory minification..."
     minify_js_directory "$WEBAPP_JS_DIR"
+    print_message info "Completed webapp/ directory: $MINIFIED_JS_COUNT files so far"
+
+    print_message info "Starting shared/ directory minification..."
     minify_js_directory "$SHARED_JS_DIR"
+    print_message info "Completed shared/ directory: $MINIFIED_JS_COUNT files so far"
 
     print_message success "Minified $MINIFIED_JS_COUNT JS files"
 }
