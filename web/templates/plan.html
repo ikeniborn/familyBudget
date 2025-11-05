@@ -96,7 +96,7 @@
             <!-- Уровень 3: Дополнительно -->
             <div class="filter-section">
                 <div class="filter-section-title">⚙️ Дополнительно</div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1">
                     <!-- Пользователь -->
                     <div class="form-control">
                         <label class="label">
@@ -105,18 +105,6 @@
                         <select id="filter-user" class="select select-bordered w-full" title="Фильтровать плановые записи по пользователю">
                             <option value="">Все пользователи</option>
                             <!-- Populated dynamically -->
-                        </select>
-                    </div>
-
-                    <!-- Тип записи -->
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text font-medium">📋 Тип записи</span>
-                        </label>
-                        <select id="filter-record-type" class="select select-bordered w-full" title="Фильтровать по типу записи">
-                            <option value="">Все типы</option>
-                            <option value="plan">План</option>
-                            <option value="fact">Факт</option>
                         </select>
                     </div>
                 </div>
@@ -323,8 +311,7 @@ let filters = {
     date_from: null,
     date_to: null,
     financial_center_id: null,
-    cost_center_id: null,
-    record_type: null
+    cost_center_id: null
 };
 
 // Load data on page load
@@ -560,7 +547,6 @@ function applyFilters() {
 
     filters.financial_center_id = document.getElementById('filter-financial-center').value || null;
     filters.cost_center_id = document.getElementById('filter-cost-center').value || null;
-    filters.record_type = document.getElementById('filter-record-type').value || null;
 
     currentPage = 0;
     loadFacts();
@@ -577,7 +563,6 @@ function resetFilters() {
     document.getElementById('filter-date-to').value = '';
     document.getElementById('filter-financial-center').value = '';
     document.getElementById('filter-cost-center').value = '';
-    document.getElementById('filter-record-type').value = '';
 
     filters = {
         user_id: null,
@@ -585,8 +570,7 @@ function resetFilters() {
         date_from: null,
         date_to: null,
         financial_center_id: null,
-        cost_center_id: null,
-        record_type: null
+        cost_center_id: null
     };
 
     currentPage = 0;
