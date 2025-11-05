@@ -26,9 +26,6 @@
 
 set -uo pipefail  # Removed -e flag to allow graceful error handling
 
-# Error trap for debugging
-trap 'echo "[DEBUG] Script exited at line $LINENO with exit code $?" >&2' EXIT
-
 # Colors for output
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
