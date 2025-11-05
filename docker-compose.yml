@@ -141,6 +141,7 @@ services:
       - ./backend:/app/backend:ro
       - ./web:/app/web:ro
       - ./webapp:/app/webapp:ro  # Telegram Web Apps static files
+      - ./shared:/app/shared:ro  # Shared JS/CSS modules (DRY principle)
       - ./logs:/app/logs
       - ./uploads:/app/uploads
     ports:
