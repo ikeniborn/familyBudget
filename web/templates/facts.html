@@ -557,8 +557,14 @@ async function loadCostCenters() {
 function applyFilters() {
     filters.user_id = document.getElementById('filter-user').value || null;
     filters.article_id = document.getElementById('filter-article').value || null;
-    filters.date_from = document.getElementById('filter-date-from').value || null;
-    filters.date_to = document.getElementById('filter-date-to').value || null;
+
+    // Convert dates from DD.MM.YYYY to YYYY-MM-DD format for API
+    const dateFromValue = document.getElementById('filter-date-from').value;
+    filters.date_from = dateFromValue ? DateFormatter.formatForAPI(dateFromValue) : null;
+
+    const dateToValue = document.getElementById('filter-date-to').value;
+    filters.date_to = dateToValue ? DateFormatter.formatForAPI(dateToValue) : null;
+
     filters.financial_center_id = document.getElementById('filter-financial-center').value || null;
     filters.cost_center_id = document.getElementById('filter-cost-center').value || null;
     filters.record_type = document.getElementById('filter-record-type').value || null;
