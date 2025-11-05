@@ -57,7 +57,7 @@
             <!-- Уровень 2: Основные фильтры -->
             <div class="filter-section">
                 <div class="filter-section-title">🔍 Основные фильтры</div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <!-- Категория -->
                     <div class="form-control">
                         <label class="label">
@@ -90,6 +90,23 @@
                             <!-- Populated dynamically -->
                         </select>
                     </div>
+                </div>
+            </div>
+
+            <!-- Уровень 3: Дополнительно -->
+            <div class="filter-section">
+                <div class="filter-section-title">⚙️ Дополнительно</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Пользователь -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">👤 Пользователь</span>
+                        </label>
+                        <select id="filter-user" class="select select-bordered w-full" title="Фильтровать плановые записи по пользователю">
+                            <option value="">Все пользователи</option>
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
 
                     <!-- Тип записи -->
                     <div class="form-control">
@@ -100,22 +117,6 @@
                             <option value="">Все типы</option>
                             <option value="plan">План</option>
                             <option value="fact">Факт</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Уровень 3: Дополнительно -->
-            <div class="filter-section">
-                <div class="filter-section-title">⚙️ Дополнительно</div>
-                <div class="grid grid-cols-1">
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text font-medium">👤 Пользователь</span>
-                        </label>
-                        <select id="filter-user" class="select select-bordered w-full" title="Фильтровать плановые записи по пользователю">
-                            <option value="">Все пользователи</option>
-                            <!-- Populated dynamically -->
                         </select>
                     </div>
                 </div>
