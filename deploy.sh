@@ -345,6 +345,21 @@ main() {
     print_message info "Minifying static assets..."
     cd "/opt/budget" || error_return "Failed to cd to /opt/budget"
 
+    # Clean up any stuck minification processes from previous deployments
+    print_message info "Checking for stuck minification processes..."
+    local stuck_processes=$(pgrep -f "npm run build|minify.sh|terser --version|cssnano --version" 2>/dev/null || true)
+    if [[ -n "$stuck_processes" ]]; then
+        print_message warning "Found stuck processes from previous deployment, killing them..."
+        pkill -9 -f "npm run build" 2>/dev/null || true
+        pkill -9 -f "minify.sh" 2>/dev/null || true
+        pkill -9 -f "terser --version" 2>/dev/null || true
+        pkill -9 -f "cssnano --version" 2>/dev/null || true
+        sleep 2  # Give processes time to terminate
+        print_message success "Stuck processes cleaned up"
+    else
+        print_message success "No stuck processes found"
+    fi
+
     # Install npm dependencies if needed (including devDependencies for build tools)
     if [[ ! -d "node_modules" ]] || [[ ! -f "node_modules/.package-lock.json" ]]; then
         print_message info "Installing npm dependencies (including build tools)..."
