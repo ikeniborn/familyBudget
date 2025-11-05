@@ -129,5 +129,89 @@ test('user can view analytics', async ({ page }) => {
 - [ ] Восстановление из бэкапа работает
 - [ ] Бэкап загружается в S3 (если настроено)
 
+### 11.5 Bug Fixes and Improvements (2025-11-05)
+
+#### Fix: Race Condition при удалении транзакций
+
+**Проблема:**
+- Кнопки удаления перестают работать после первого клика
+- При быстрых повторных кликах происходит race condition
+- После DELETE 404 таблица не перезагружается → UI в несогласованном состоянии
+
+**Решение (Frontend - `web/templates/facts.html`, `web/templates/plan.html`):**
+
+1. **Tracking Set для ongoing deletions:**
+   ```javascript
+   let deletingFactIds = new Set(); // Предотвращает повторные запросы
+
+   async function deleteFact(factId, event) {
+       if (deletingFactIds.has(factId)) {
+           console.warn('Delete already in progress for fact:', factId);
+           return;
+       }
+       // ...
+   }
+   ```
+
+2. **Disabled button state:**
+   ```javascript
+   const button = event?.target?.closest('button');
+   button.disabled = true;
+   button.classList.add('loading', 'loading-spinner');
+   ```
+
+3. **try-finally для UI consistency:**
+   ```javascript
+   try {
+       const response = await fetch(`/api/v1/admin/facts/${factId}`, {
+           method: 'DELETE'
+       });
+       // ...
+   } finally {
+       // ВСЕГДА перезагружаем таблицу (даже при 404!)
+       deletingFactIds.delete(factId);
+       await loadFacts();
+   }
+   ```
+
+**Решение (Backend - `backend/app/api/v1/admin.py`):**
+
+**Idempotent DELETE endpoint:**
+```python
+@router.delete("/facts/{fact_id}")
+async def delete_fact(fact_id: int, current_admin: CurrentAdmin, ...):
+    """Idempotent DELETE - returns 200 OK even if fact is already deleted."""
+
+    fact = await session.get(Fact, fact_id)
+
+    if not fact:
+        # Вместо 404 → 200 OK с status="already_deleted"
+        logger.warning(f"DELETE attempt on non-existent fact_id={fact_id}")
+        return {
+            "message": "Fact already deleted or never existed",
+            "fact_id": fact_id,
+            "status": "already_deleted"
+        }
+
+    await session.delete(fact)
+    await session.commit()
+
+    return {
+        "message": "Fact deleted successfully",
+        "fact_id": fact_id,
+        "status": "deleted"
+    }
+```
+
+**Тесты:**
+- ✅ Integration tests: `tests/integration/backend/test_admin_delete.py`
+- ✅ Unit test docs: `tests/unit/web/test_delete_fact.md` (требует Jest setup)
+
+**Результат:**
+- ✅ Кнопки работают корректно даже при множественных кликах
+- ✅ UI всегда синхронизирован с backend state
+- ✅ WARNING логи для debugging race conditions в production
+- ✅ Idempotent DELETE (RESTful best practice)
+
 ---
 

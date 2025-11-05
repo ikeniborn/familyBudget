@@ -278,6 +278,7 @@ let pageSize = 50;
 let totalFacts = 0;
 let factsData = [];
 let selectedFactIds = new Set();
+let deletingFactIds = new Set(); // Track ongoing deletions to prevent race conditions
 
 // Filter state
 let filters = {
@@ -645,7 +646,7 @@ function renderFactsTable(facts) {
                 <td>
                     <div class="flex gap-1">
                         <button class="btn btn-xs btn-primary gap-1" onclick="showEditModal(${fact.id})">✏️</button>
-                        <button class="btn btn-xs btn-outline btn-error gap-1" onclick="deleteFact(${fact.id})">🗑️</button>
+                        <button class="btn btn-xs btn-outline btn-error gap-1" data-fact-id="${fact.id}" onclick="deleteFact(${fact.id}, event)">🗑️</button>
                     </div>
                 </td>
             </tr>
@@ -802,9 +803,27 @@ async function updateFact(event) {
 }
 
 // Delete single fact
-async function deleteFact(factId) {
+async function deleteFact(factId, event) {
+    // Prevent multiple simultaneous deletes of the same fact (race condition protection)
+    if (deletingFactIds.has(factId)) {
+        console.warn('Delete already in progress for fact:', factId);
+        return;
+    }
+
     if (!confirm('🗑️ Вы уверены, что хотите удалить эту транзакцию? Это действие необратимо.')) {
         return;
+    }
+
+    // Get button element for disabled state
+    const button = event?.target?.closest('button');
+
+    // Mark fact as being deleted
+    deletingFactIds.add(factId);
+
+    // Disable button and show loading state
+    if (button) {
+        button.disabled = true;
+        button.classList.add('loading', 'loading-spinner');
     }
 
     try {
@@ -817,12 +836,16 @@ async function deleteFact(factId) {
             throw new Error(error.detail || `HTTP error! status: ${response.status}`);
         }
 
-        await loadFacts();
         showNotification('✅ Транзакция успешно удалена!', 'success');
     } catch (error) {
         console.error('Error deleting fact:', error);
         const errorMessage = error?.message || String(error);
         showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    } finally {
+        // Always reload facts and remove from tracking set
+        // (даже при ошибке 404 - для синхронизации UI с backend state)
+        deletingFactIds.delete(factId);
+        await loadFacts();
     }
 }
 
