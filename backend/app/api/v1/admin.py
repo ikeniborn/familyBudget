@@ -5,6 +5,7 @@ Provides administrative functionality for managing users, articles, and facts.
 All endpoints require admin privileges (is_admin=True).
 """
 
+import logging
 from datetime import datetime
 from typing import List
 
@@ -23,6 +24,7 @@ from backend.app.schemas.user import UserCreate
 from backend.app.services.telegram_auth import validate_telegram_user
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -1062,6 +1064,7 @@ async def delete_fact(
     Delete fact (admin only).
 
     Physical delete (not soft delete like articles/users).
+    Idempotent - returns 200 OK even if fact is already deleted.
 
     Args:
         fact_id: Fact ID to delete
@@ -1069,10 +1072,10 @@ async def delete_fact(
         session: Database session
 
     Returns:
-        dict: Success message
+        dict: Success message with fact_id and status
 
     Raises:
-        HTTPException: 404 if fact not found
+        Never raises 404 for missing facts (idempotent DELETE)
     """
     # Get fact
     query = select(Fact).where(Fact.id == fact_id)
@@ -1080,13 +1083,29 @@ async def delete_fact(
     fact = result.scalar_one_or_none()
 
     if not fact:
-        raise HTTPException(status_code=404, detail="Fact not found")
+        # Idempotent DELETE - return 200 OK for already deleted fact
+        # Log WARNING for debugging race conditions in production
+        logger.warning(
+            f"DELETE attempt on non-existent fact_id={fact_id} by admin_id={current_admin.id}. "
+            f"Fact may have been already deleted (race condition or duplicate request)."
+        )
+        return {
+            "message": "Fact already deleted or never existed",
+            "fact_id": fact_id,
+            "status": "already_deleted"
+        }
 
     # Delete
     await session.delete(fact)
     await session.commit()
 
-    return {"message": "Fact deleted successfully", "fact_id": fact_id}
+    logger.info(f"Fact {fact_id} deleted successfully by admin {current_admin.id}")
+
+    return {
+        "message": "Fact deleted successfully",
+        "fact_id": fact_id,
+        "status": "deleted"
+    }
 
 
 @router.post("/facts/batch-delete")
