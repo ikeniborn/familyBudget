@@ -20,6 +20,12 @@ function syncFiltersUI(filters) {
         articleSelect.value = filters.article_id || '';
     }
 
+    // Article type filter
+    const articleTypeSelect = document.getElementById('filter-article-type');
+    if (articleTypeSelect) {
+        articleTypeSelect.value = filters.article_type || '';
+    }
+
     // Date from filter
     const dateFromInput = document.getElementById('filter-date-from');
     if (dateFromInput) {
