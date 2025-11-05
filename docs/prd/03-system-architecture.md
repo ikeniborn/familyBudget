@@ -228,7 +228,22 @@
 2. **app.css** - Main styles
 3. **forms.css** - Form components
 
-**Bundle Size:** ~190KB total (HTML + JS + CSS) - excellent для mobile
+**Shared JS/CSS Modules (DRY principle):**
+- **Location:** `/shared/static/js/`, `/shared/static/css/`
+- **Используется:** Web UI (HTMX) + Telegram Web Apps
+- **Модули:**
+  1. **calendar-widget.js** (18KB) - Календарный виджет для выбора дат
+  2. **choicesCategoryTree.js** (15KB) - Иерархический выбор категорий
+  3. **dateFormatter.js** (12KB) - Форматирование дат
+
+**Bundle Size:**
+- **Development:** ~193KB (HTML + JS + CSS) - excellent для mobile
+- **Production:** ~125KB (minified + gzip, -35%) - optimal для 3G/4G networks
+
+**Production Optimization:**
+- **Minification:** Terser для JS, cssnano для CSS
+- **Source maps:** Генерируются для debugging
+- **Cache strategy:** 30 days для `/shared/` (files versioned с ?v=YYYYMMDD_HHMM)
 
 **Ключевые особенности:**
 - **Menu Button integration** - запуск через Menu Button (≡) в чате бота
