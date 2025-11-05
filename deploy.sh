@@ -345,17 +345,19 @@ main() {
     print_message info "Minifying static assets..."
     cd "/opt/budget" || error_return "Failed to cd to /opt/budget"
 
-    # Install npm dependencies if needed
-    if [[ ! -d "node_modules" ]]; then
-        print_message info "Installing npm dependencies..."
-        npm install --production --silent
+    # Install npm dependencies if needed (including devDependencies for build tools)
+    if [[ ! -d "node_modules" ]] || [[ ! -f "node_modules/.package-lock.json" ]]; then
+        print_message info "Installing npm dependencies (including build tools)..."
+        if ! npm install --silent 2>&1 | grep -v "^npm WARN"; then
+            print_message warning "npm install failed, skipping minification"
+        fi
     fi
 
     # Run minification
-    if npm run build; then
+    if [[ -d "node_modules" ]] && npm run build 2>&1; then
         print_message success "Static assets minified successfully"
     else
-        print_message warning "Minification failed, continuing with unminified assets"
+        print_message warning "Minification failed or skipped, continuing with unminified assets"
     fi
 
     cd - > /dev/null || error_return "Failed to return to previous directory"
