@@ -879,6 +879,9 @@ async function deleteFact(factId) {
         button.classList.add('loading', 'loading-spinner');
     }
 
+    let notificationMessage = null;
+    let notificationType = null;
+
     try {
         const response = await fetch(`/api/v1/admin/facts/${factId}`, {
             method: 'DELETE'
@@ -889,16 +892,23 @@ async function deleteFact(factId) {
             throw new Error(error.detail || `HTTP error! status: ${response.status}`);
         }
 
-        showNotification('✅ Транзакция успешно удалена!', 'success');
+        notificationMessage = '✅ Транзакция успешно удалена!';
+        notificationType = 'success';
     } catch (error) {
         console.error('Error deleting fact:', error);
         const errorMessage = error?.message || String(error);
-        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+        notificationMessage = `❌ Ошибка: ${errorMessage}`;
+        notificationType = 'error';
     } finally {
-        // Always reload facts and remove from tracking set
-        // (даже при ошибке 404 - для синхронизации UI с backend state)
+        // КРИТИЧНО: Сначала обновляем UI, ПОТОМ показываем notification
+        // Это гарантирует что loadFacts() выполнится даже если alert заблокирован браузером
         deletingFactIds.delete(factId);
         await loadFacts();
+
+        // Показываем notification только после обновления UI
+        if (notificationMessage) {
+            showNotification(notificationMessage, notificationType);
+        }
     }
 }
 
