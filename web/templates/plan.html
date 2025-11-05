@@ -646,7 +646,7 @@ function renderFactsTable(facts) {
                 <td>
                     <div class="flex gap-1">
                         <button class="btn btn-xs btn-primary gap-1" onclick="showEditModal(${fact.id})">✏️</button>
-                        <button class="btn btn-xs btn-outline btn-error gap-1" data-fact-id="${fact.id}" onclick="deleteFact(${fact.id}, event)">🗑️</button>
+                        <button class="btn btn-xs btn-outline btn-error gap-1" data-fact-id="${fact.id}" onclick="deleteFact(${fact.id})">🗑️</button>
                     </div>
                 </td>
             </tr>
@@ -803,7 +803,7 @@ async function updateFact(event) {
 }
 
 // Delete single fact
-async function deleteFact(factId, event) {
+async function deleteFact(factId) {
     // Prevent multiple simultaneous deletes of the same fact (race condition protection)
     if (deletingFactIds.has(factId)) {
         console.warn('Delete already in progress for fact:', factId);
@@ -814,8 +814,8 @@ async function deleteFact(factId, event) {
         return;
     }
 
-    // Get button element for disabled state
-    const button = event?.target?.closest('button');
+    // Find button by data-fact-id attribute
+    const button = document.querySelector(`button[data-fact-id="${factId}"]`);
 
     // Mark fact as being deleted
     deletingFactIds.add(factId);
