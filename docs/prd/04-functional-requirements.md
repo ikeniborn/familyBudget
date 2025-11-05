@@ -568,6 +568,7 @@ Row-Level Security НЕ используется. Изоляция данных 
 **Приоритет:** High
 **Категория:** telegram_web_apps
 **Implementation Status:** ✅ FULLY IMPLEMENTED (v5.1.0-beta)
+**Last Updated:** 2025-11-05 (Responsive UI improvements)
 
 **Описание:**
 Просмотр всех транзакций за сегодня с summary card и списком транзакций.
@@ -581,9 +582,14 @@ Row-Level Security НЕ используется. Изоляция данных 
 3. Color-coded amounts (green для доходов, red для расходов)
 4. Click на транзакцию → edit.html?id=X
 5. Empty state с кнопкой "Добавить транзакцию" → add.html
+6. **NEW:** Responsive UI с adaptive breakpoints (480px, 640px, 768px)
+7. **NEW:** Truncate indicator "→" для длинных description (> 25 chars)
+8. **NEW:** Modal popup для чтения полного текста description (click-to-expand)
+9. **NEW:** Breadcrumb tooltips для вложенных категорий (через API ancestors)
 
 **Dependencies:**
 - GET `/api/v1/facts?date_from=...&date_to=...&limit=1000`
+- GET `/api/v1/articles/{id}/ancestors?include_self=true` (для breadcrumb)
 
 ---
 
@@ -593,6 +599,7 @@ Row-Level Security НЕ используется. Изоляция данных 
 **Приоритет:** High
 **Категория:** telegram_web_apps
 **Implementation Status:** ✅ FULLY IMPLEMENTED (v5.1.0-beta)
+**Last Updated:** 2025-11-05 (Responsive UI improvements)
 
 **Описание:**
 Полный список транзакций с collapsible filters и pagination.
@@ -607,10 +614,15 @@ Row-Level Security НЕ используется. Изоляция данных 
 4. Category dropdown (динамическая загрузка)
 5. Search input (description)
 6. Pagination (20 items per page) с controls (Prev/Next, N/Total)
+7. **NEW:** Responsive UI с adaptive breakpoints (480px, 640px, 768px)
+8. **NEW:** Truncate indicator "→" для длинных description (> 25 chars)
+9. **NEW:** Modal popup для чтения полного текста description (click-to-expand)
+10. **NEW:** Breadcrumb tooltips для вложенных категорий (через API ancestors)
 
 **Dependencies:**
 - GET `/api/v1/facts` с query params
 - GET `/api/v1/articles`
+- GET `/api/v1/articles/{id}/ancestors?include_self=true` (для breadcrumb)
 
 ---
 

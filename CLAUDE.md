@@ -19,8 +19,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Команды для разработки
 
 ```bash
-# Backend development server
-cd backend && uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+# Backend development server (ВАЖНО: запускать из корня проекта!)
+uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Или если используется virtual environment:
+source venv/bin/activate
+uvicorn backend.app.main:app --reload
 
 # Telegram Bot (требует запущенный backend)
 cd bot && python main.py
@@ -28,14 +32,77 @@ cd bot && python main.py
 # Docker (production) - ВАЖНО: запускать из git repository!
 cd ~/familyBudget && ./deploy.sh --profile full
 
-# Тесты
-pytest                                      # Все тесты
-pytest --cov=backend --cov-report=html      # С coverage
-ruff check . && black . && mypy .           # Quality checks
-
 # База данных (development mode - можно редактировать миграции напрямую)
 docker compose down -v && docker compose up -d  # Пересоздать БД
 ```
+
+---
+
+## 🧪 Тестирование
+
+### Запуск тестов
+
+```bash
+# Все тесты
+pytest
+
+# Только unit тесты (быстрые, изолированные)
+pytest -m unit
+
+# Только integration тесты (требуют backend/db)
+pytest -m integration
+
+# E2E тесты (требуют полный стек)
+pytest -m e2e
+
+# Тесты для конкретного модуля
+pytest tests/unit/backend/test_webapp_auth.py
+
+# С coverage и HTML репортом
+pytest --cov=backend --cov-report=html
+
+# Quality checks
+ruff check .          # Linting
+black .               # Formatting
+mypy .                # Type checking
+```
+
+### Структура тестов
+
+```
+tests/
+├── conftest.py          # Fixtures (AsyncClient, test DB session)
+├── unit/                # Изолированные тесты (моки)
+│   ├── backend/         # Backend unit tests
+│   └── webapp/          # Webapp unit tests
+├── integration/         # Тесты с реальным DB
+│   ├── backend/         # Backend integration tests
+│   └── webapp/          # Webapp integration tests
+└── e2e/                 # End-to-end тесты (TODO)
+```
+
+### Test Markers
+
+Используй pytest markers для категоризации тестов:
+
+```python
+@pytest.mark.unit
+def test_fast_isolated_logic():
+    """Быстрый тест без внешних зависимостей"""
+    pass
+
+@pytest.mark.integration
+async def test_with_database(session: AsyncSession):
+    """Тест с реальной БД"""
+    pass
+
+@pytest.mark.slow
+def test_slow_operation():
+    """Медленный тест (>1 секунда)"""
+    pass
+```
+
+---
 
 ### Ключевые файлы для изучения
 
@@ -476,23 +543,24 @@ docker compose restart backend
 
 ### 4. Cache Busting не работает (старые JS/CSS)
 
-**Симптомы:**
-- После деплоя пользователи видят старый JS/CSS
-- Ошибки "function not defined" в console
+**ВАЖНО:** Cache busting происходит **АВТОМАТИЧЕСКИ** при `./deploy.sh`!
 
-**Причина:** Версии не обновились в HTML.
+**Как это работает:**
+1. `deploy.sh` вызывает `scripts/lib/cache_busting.sh auto`
+2. Скрипт обновляет версии в HTML: `?v=20251104_1430`
+3. Браузеры автоматически загружают новые файлы
 
-**Решение:**
+**Ручной запуск НЕ требуется** (только для отладки):
 ```bash
-# Вручную запустить cache busting
 cd ~/familyBudget
 ./scripts/lib/cache_busting.sh auto
 
 # Проверить что версии обновились
 grep "?v=" webapp/index.html
-
-# Должно быть: script.js?v=20251104_1430 (новый timestamp)
+# Должно быть: script.js?v=20251105_1430 (новый timestamp)
 ```
+
+**❌ НЕ редактируй версии вручную** - они перезаписываются скриптом!
 
 ---
 
@@ -584,15 +652,83 @@ familyBudget/
 ├── web/                          # Web UI (HTMX)
 │   ├── static/                          # CSS, JS for web
 │   └── templates/                       # Jinja2 templates
+├── tests/                        # Test suite
+│   ├── conftest.py                      # Pytest fixtures
+│   ├── unit/                            # Unit tests (fast, isolated)
+│   ├── integration/                     # Integration tests (with DB)
+│   └── e2e/                             # End-to-end tests
 ├── scripts/                      # Automation scripts
 │   ├── lib/
 │   │   └── cache_busting.sh             # Cache versioning
 │   └── ...
 ├── .claude/skills/               # Claude Skills automation
 ├── docker-compose.yml
+├── pytest.ini                    # Pytest configuration
 ├── deploy.sh                     # Main deployment script
 └── CLAUDE.md                     # This file
 ```
+
+---
+
+## 📦 Ключевые модули и зависимости
+
+### Backend Dependencies
+
+```python
+# Web Framework
+fastapi==0.109.0          # Async web framework
+uvicorn[standard]==0.27.0 # ASGI server
+
+# Database
+sqlmodel==0.0.14          # ORM (Pydantic + SQLAlchemy)
+asyncpg==0.29.0           # Async PostgreSQL driver
+alembic==1.13.1           # Migrations (НЕ используется в dev mode)
+
+# Auth
+python-jose[cryptography] # JWT tokens
+python-telegram-bot==20.7 # Telegram bot framework
+
+# Background Jobs
+apscheduler==3.10.4       # Scheduler (weekly reports, threshold checks)
+
+# Export
+openpyxl==3.1.2          # Excel generation
+reportlab==4.0.9         # PDF generation
+
+# Testing
+pytest==7.4.4
+pytest-asyncio==0.23.3
+pytest-cov==4.1.0
+httpx==0.25.2
+
+# Development
+black==24.1.1            # Code formatter
+ruff==0.1.14             # Fast linter
+```
+
+### Telegram Web Apps (Vanilla JS)
+
+**НЕТ фреймворков!** Весь код на ES6+ modules:
+
+```
+webapp/static/js/
+├── app.js         # Main entry point, initialization
+├── api.js         # Backend API client (fetch wrapper)
+├── auth.js        # JWT authentication, token refresh
+├── ui.js          # UI helpers, modals, toasts
+├── validators.js  # Form validation
+├── theme.js       # Telegram theme integration
+└── storage.js     # LocalStorage wrapper
+```
+
+**Bundle size:** ~190KB (отличная производительность для mobile)
+
+**Key features:**
+- JWT Bearer token authentication
+- Telegram Web Apps SDK integration
+- Telegram theme support (auto light/dark)
+- Client-side validation
+- Modular architecture (7 core modules)
 
 ---
 
@@ -655,6 +791,30 @@ cd ~/familyBudget && git pull
 ./deploy.sh --sync-mode mirror --profile full
 ```
 
+### Production Deployment Process
+
+**КРИТИЧНО - Последовательность важна:**
+
+```bash
+# 1. Из git repository (~/familyBudget)
+cd ~/familyBudget
+git pull
+
+# 2. Запустить deploy.sh ИЗ repository (использует scripts/lib/)
+./deploy.sh --sync-mode mirror --profile full
+
+# 3. deploy.sh автоматически:
+#    - Синхронизирует ~/familyBudget → /opt/budget
+#    - Запускает cache busting (обновляет ?v= версии)
+#    - Выполняет docker compose up -d
+#    - Ждет healthy status всех сервисов
+```
+
+**Почему нельзя запускать из /opt/budget:**
+- `deploy.sh` загружает модули из `scripts/lib/` (только в repository)
+- `/opt/budget` содержит только синхронизированные runtime файлы
+- Скрипты в `/opt/budget` не имеют доступа к библиотекам
+
 ### ⚠️ КРИТИЧНО: Правильный запуск deploy.sh
 
 **✓ ПРАВИЛЬНО:**
@@ -709,6 +869,75 @@ from backend.app.services.scd2_service import create_new_version
 
 ---
 
+## 🤖 Telegram Bot Handlers
+
+### Handler Types
+
+| Handler Type | Пример | Назначение |
+|--------------|--------|------------|
+| **CommandHandler** | `/start`, `/today`, `/stats` | Одношаговые команды |
+| **ConversationHandler** | `/add`, `/addplan`, `/edit` | Multi-step workflows с состоянием |
+| **CallbackQueryHandler** | Inline keyboards | Обработка кнопок |
+
+### ConversationHandler Pattern (пример: /add)
+
+```python
+# bot/handlers/add.py
+CATEGORY, AMOUNT, DATE, DESCRIPTION, CONFIRM = range(5)
+
+conversation_handler = ConversationHandler(
+    entry_points=[CommandHandler("add", start_add)],
+    states={
+        CATEGORY: [CallbackQueryHandler(category_selected)],
+        AMOUNT: [MessageHandler(filters.TEXT, amount_entered)],
+        DATE: [CallbackQueryHandler(date_selected)],
+        DESCRIPTION: [MessageHandler(filters.TEXT, description_entered)],
+        CONFIRM: [CallbackQueryHandler(confirm_transaction)],
+    },
+    fallbacks=[CommandHandler("cancel", cancel)],
+)
+```
+
+**Состояние хранится в memory** (context.user_data) - НЕ в БД.
+
+**Таймаут:** 5 минут бездействия → auto-cancel.
+
+### Bot API Client Pattern
+
+```python
+# bot/utils/api_client.py
+class APIClient:
+    """Backend API client с JWT authentication"""
+
+    def __init__(self, base_url: str, jwt_token: str):
+        self.base_url = base_url
+        self.headers = {"Authorization": f"Bearer {jwt_token}"}
+
+    async def get_articles(self) -> List[dict]:
+        """GET /api/v1/articles - категории бюджета"""
+        response = await self.session.get(
+            f"{self.base_url}/articles",
+            headers=self.headers
+        )
+        return response.json()
+
+    async def create_fact(self, data: dict) -> dict:
+        """POST /api/v1/facts - создать транзакцию"""
+        response = await self.session.post(
+            f"{self.base_url}/facts",
+            json=data,
+            headers=self.headers
+        )
+        return response.json()
+```
+
+**Важно:**
+- JWT token хранится в `SessionManager` (bot/utils/session.py)
+- Token автоматически обновляется при получении 401
+- Все API calls идут через `APIClient` (централизованная обработка ошибок)
+
+---
+
 ## 🎯 Claude Skills (Automation)
 
 Для автоматизации типичных задач используй **Claude Skills**:
@@ -753,7 +982,7 @@ from backend.app.services.scd2_service import create_new_version
 5. ✅ **НЕ фильтруй** fact tables по `user_id` (Shared Family Budget)
 6. ✅ **НЕ фильтруй** dimension tables по `user_id` (Shared References)
 7. ✅ Admin checks для CREATE/UPDATE/DELETE dimension tables
-8. ✅ Добавляй **тесты** для новых features
+8. ✅ Добавляй **тесты** для новых features (используй pytest markers)
 9. ✅ Проверяй **security** (JWT, validation, admin-only)
 10. ✅ **НЕ редактируй** версии `?v=` вручную (используй автоматический cache busting)
 
@@ -761,6 +990,6 @@ from backend.app.services.scd2_service import create_new_version
 
 ---
 
-**Версия документа:** 3.0 (Claude Code optimized)
-**Последнее обновление:** 2025-11-04
+**Версия документа:** 4.0 (Claude Code optimized)
+**Последнее обновление:** 2025-11-05
 **Формат:** Practical examples from real codebase

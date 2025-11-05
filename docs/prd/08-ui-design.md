@@ -323,6 +323,58 @@ const option = {
 **Mobile-first approach:**
 Стили сначала для мобильных устройств, затем media queries для больших экранов.
 
+**Implementation (Updated 2025-11-05):**
+
+**Webapp Transaction Lists (list.html, today.html):**
+
+Реализованы адаптивные breakpoints для отображения транзакций:
+
+| Breakpoint | Viewport | `.transaction-category` max-width | `.transaction-description` max-width |
+|-----------|---------|-----------------------------------|-------------------------------------|
+| **Base (< 480px)** | Small mobile | 180px (~20-25 chars) | 150px (~18-22 chars) |
+| **480px+** | Mobile | 220px (~28-32 chars) | 200px (~25-30 chars) |
+| **640px+** | Tablet | 300px (~40-45 chars) | 280px (~35-40 chars) |
+| **768px+** | Desktop | 300px | 350px (~45-50 chars) |
+
+**UX Improvements:**
+
+1. **Truncate Indicator:**
+   - Длинные description (> 25 символов) обрезаются с визуальным индикатором "→"
+   - CSS класс `.truncated` применяется автоматически
+   - Click-to-expand: Modal popup с полным текстом + Telegram haptic feedback
+
+2. **Breadcrumb Tooltips:**
+   - Вложенные категории показывают полный путь при hover/click
+   - CSS класс `.has-breadcrumb` с dotted underline для индикации
+   - Async загрузка ancestors через API: `GET /api/v1/articles/{id}/ancestors?include_self=true`
+   - Формат tooltip: "Расходы › Продукты › Еда › Фастфуд"
+
+3. **Responsive Container:**
+   - Desktop (768px+): контейнер центрируется с `max-width: 600px`
+   - Увеличенный padding для transaction items на tablet/desktop
+
+**CSS Implementation:**
+
+```css
+/* Base mobile - критичный min-width для text-overflow */
+.transaction-details {
+    flex: 1;
+    min-width: 0;  /* CRITICAL для работы text-overflow в flex */
+    overflow: hidden;
+}
+
+/* Адаптивные max-width с media queries */
+@media (min-width: 480px) { ... }
+@media (min-width: 640px) { ... }
+@media (min-width: 768px) { ... }
+```
+
+**API Integration:**
+
+- Новый endpoint используется: `GET /api/v1/articles/{id}/ancestors`
+- Response: `ArticleListResponse` с массивом ancestors (root → article)
+- Client-side функция: `loadCategoryPath(articleId)` в list.html/today.html
+
 ---
 
 ### 8.6 UI Framework Stack (Updated 2025-10-19)
