@@ -34,69 +34,87 @@
                 <h2 class="card-title text-2xl">🔍 Фильтры</h2>
                 <button class="btn btn-sm btn-ghost" onclick="resetFilters()">Сбросить</button>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text font-medium">👤 Пользователь</span>
-                    </label>
-                    <select id="filter-user" class="select select-bordered w-full" title="Фильтровать транзакции по пользователю">
-                        <option value="">Все пользователи</option>
-                        <!-- Populated dynamically -->
-                    </select>
-                </div>
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text font-medium">📁 Категория</span>
-                    </label>
-                    <select id="filter-article" class="select select-bordered w-full" title="Фильтровать транзакции по категории">
-                        <option value="">Все категории</option>
-                        <!-- Populated dynamically -->
-                    </select>
-                </div>
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text font-medium">📅 Дата с</span>
-                    </label>
-                    <input type="text" id="filter-date-from" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ">
-                </div>
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text font-medium">📅 Дата по</span>
-                    </label>
-                    <input type="text" id="filter-date-to" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ">
+
+            <!-- Уровень 1: Фильтры по дате -->
+            <div class="filter-section">
+                <div class="filter-section-title">📅 Период</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">Дата с</span>
+                        </label>
+                        <input type="text" id="filter-date-from" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ">
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">Дата по</span>
+                        </label>
+                        <input type="text" id="filter-date-to" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ">
+                    </div>
                 </div>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text font-medium">🏦 Финансовый центр</span>
-                    </label>
-                    <select id="filter-financial-center" class="select select-bordered w-full" title="Фильтровать транзакции по ЦФО">
-                        <option value="">Все ЦФО</option>
-                        <!-- Populated dynamically -->
-                    </select>
-                </div>
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text font-medium">💼 Центр затрат</span>
-                    </label>
-                    <select id="filter-cost-center" class="select select-bordered w-full" title="Фильтровать транзакции по МВЗ">
-                        <option value="">Все МВЗ</option>
-                        <!-- Populated dynamically -->
-                    </select>
-                </div>
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text font-medium">📊 Тип записи</span>
-                    </label>
-                    <select id="filter-record-type" class="select select-bordered w-full" title="Фильтровать по типу записи">
-                        <option value="">Все</option>
-                        <option value="fact" selected>Факт</option>
-                        <option value="plan">План</option>
-                    </select>
+
+            <!-- Уровень 2: Основные фильтры -->
+            <div class="filter-section">
+                <div class="filter-section-title">🔍 Основные фильтры</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">📁 Категория</span>
+                        </label>
+                        <select id="filter-article" class="select select-bordered w-full" title="Фильтровать транзакции по категории">
+                            <option value="">Все категории</option>
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">🏦 Финансовый центр</span>
+                        </label>
+                        <select id="filter-financial-center" class="select select-bordered w-full" title="Фильтровать транзакции по ЦФО">
+                            <option value="">Все ЦФО</option>
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">💼 Центр затрат</span>
+                        </label>
+                        <select id="filter-cost-center" class="select select-bordered w-full" title="Фильтровать транзакции по МВЗ">
+                            <option value="">Все МВЗ</option>
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
                 </div>
             </div>
-            <div class="flex justify-end">
+
+            <!-- Уровень 3: Дополнительные фильтры -->
+            <div class="filter-section">
+                <div class="filter-section-title">⚙️ Дополнительно</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">👤 Пользователь</span>
+                        </label>
+                        <select id="filter-user" class="select select-bordered w-full" title="Фильтровать транзакции по пользователю">
+                            <option value="">Все пользователи</option>
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">📊 Тип записи</span>
+                        </label>
+                        <select id="filter-record-type" class="select select-bordered w-full" title="Фильтровать по типу записи">
+                            <option value="">Все</option>
+                            <option value="fact" selected>Факт</option>
+                            <option value="plan">План</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end mt-4">
                 <button class="btn btn-primary btn-sm" onclick="applyFilters()">Применить фильтры</button>
             </div>
         </div>
@@ -248,6 +266,24 @@
 /* Достаточный отступ для длинного текста */
 .form-control .select {
     text-overflow: ellipsis;
+}
+
+/* Трехуровневая структура фильтров */
+.filter-section {
+    padding: 1rem;
+    border: 1px solid hsl(var(--bc) / 0.1);
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    background-color: hsl(var(--b1));
+}
+
+.filter-section-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: hsl(var(--bc) / 0.6);
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 </style>
 {% endblock %}
@@ -521,8 +557,14 @@ async function loadCostCenters() {
 function applyFilters() {
     filters.user_id = document.getElementById('filter-user').value || null;
     filters.article_id = document.getElementById('filter-article').value || null;
-    filters.date_from = document.getElementById('filter-date-from').value || null;
-    filters.date_to = document.getElementById('filter-date-to').value || null;
+
+    // Convert dates from DD.MM.YYYY to YYYY-MM-DD format for API
+    const dateFromValue = document.getElementById('filter-date-from').value;
+    filters.date_from = dateFromValue ? DateFormatter.formatForAPI(dateFromValue) : null;
+
+    const dateToValue = document.getElementById('filter-date-to').value;
+    filters.date_to = dateToValue ? DateFormatter.formatForAPI(dateToValue) : null;
+
     filters.financial_center_id = document.getElementById('filter-financial-center').value || null;
     filters.cost_center_id = document.getElementById('filter-cost-center').value || null;
     filters.record_type = document.getElementById('filter-record-type').value || null;
