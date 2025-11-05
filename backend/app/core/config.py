@@ -20,6 +20,7 @@ class Settings(BaseSettings):
 
     # Application
     VERSION: str = "4.0.0"
+    ENVIRONMENT: str = "production"  # "development" or "production"
 
     # Database
     DATABASE_URL: str

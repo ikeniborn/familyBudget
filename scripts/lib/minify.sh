@@ -1,0 +1,325 @@
+#!/usr/bin/env bash
+
+################################################################################
+# Minification Script for Family Budget Project
+#
+# Description:
+#   Автоматическая минификация JS и CSS файлов для production deployment.
+#   Использует Terser для JS и cssnano для CSS минификации.
+#   Генерирует source maps для debugging.
+#
+# Usage:
+#   ./minify.sh js       # Минифицировать только JS
+#   ./minify.sh css      # Минифицировать только CSS
+#   ./minify.sh all      # Минифицировать все (по умолчанию)
+#   ./minify.sh validate # Проверить синтаксис минифицированных файлов
+#
+# Dependencies:
+#   - terser (npm install terser)
+#   - cssnano-cli (npm install cssnano-cli)
+#   - node (>=18.0.0)
+#
+# Author: Family Budget Team
+# Version: 1.0.0
+# Date: 2025-11-05
+################################################################################
+
+set -euo pipefail
+
+# Colors for output
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
+
+# Directories to minify
+readonly WEB_JS_DIR="web/static/js"
+readonly WEB_CSS_DIR="web/static/css"
+readonly WEBAPP_JS_DIR="webapp/static/js"
+readonly WEBAPP_CSS_DIR="webapp/static/css"
+readonly SHARED_JS_DIR="shared/static/js"
+readonly SHARED_CSS_DIR="shared/static/css"
+
+# Counters
+MINIFIED_JS_COUNT=0
+MINIFIED_CSS_COUNT=0
+ERRORS_COUNT=0
+
+################################################################################
+# Utility Functions
+################################################################################
+
+print_message() {
+    local level="$1"
+    shift
+    local message="$*"
+
+    case "$level" in
+        info)
+            echo -e "${BLUE}[INFO]${NC} $message"
+            ;;
+        success)
+            echo -e "${GREEN}[SUCCESS]${NC} $message"
+            ;;
+        warning)
+            echo -e "${YELLOW}[WARNING]${NC} $message"
+            ;;
+        error)
+            echo -e "${RED}[ERROR]${NC} $message"
+            ;;
+    esac
+}
+
+check_prerequisites() {
+    print_message info "Checking prerequisites..."
+
+    # Check if node is installed
+    if ! command -v node &> /dev/null; then
+        print_message error "Node.js is not installed. Please install Node.js >= 18.0.0"
+        return 1
+    fi
+
+    # Check if npx is available
+    if ! command -v npx &> /dev/null; then
+        print_message error "npx is not available. Please install npm >= 9.0.0"
+        return 1
+    fi
+
+    # Check if terser is available
+    if ! npx terser --version &> /dev/null; then
+        print_message error "Terser is not installed. Run: npm install"
+        return 1
+    fi
+
+    # Check if cssnano-cli is available
+    if ! npx cssnano --version &> /dev/null; then
+        print_message error "cssnano-cli is not installed. Run: npm install"
+        return 1
+    fi
+
+    print_message success "All prerequisites satisfied"
+    return 0
+}
+
+################################################################################
+# JavaScript Minification
+################################################################################
+
+minify_js_file() {
+    local input_file="$1"
+    local output_file="${input_file%.js}.min.js"
+    local sourcemap_file="${output_file}.map"
+
+    print_message info "Minifying: $input_file"
+
+    if npx terser "$input_file" \
+        --compress \
+        --mangle \
+        --source-map "content=inline,url=$(basename "$sourcemap_file")" \
+        --output "$output_file" 2>/dev/null; then
+
+        # Validate minified file syntax
+        if npx terser --parse "$output_file" &> /dev/null; then
+            local original_size=$(stat -c%s "$input_file" 2>/dev/null || stat -f%z "$input_file" 2>/dev/null)
+            local minified_size=$(stat -c%s "$output_file" 2>/dev/null || stat -f%z "$output_file" 2>/dev/null)
+            local reduction=$((100 - (minified_size * 100 / original_size)))
+
+            print_message success "✓ $output_file (${reduction}% smaller)"
+            ((MINIFIED_JS_COUNT++))
+            return 0
+        else
+            print_message error "Syntax error in minified file: $output_file"
+            rm -f "$output_file" "$sourcemap_file"
+            ((ERRORS_COUNT++))
+            return 1
+        fi
+    else
+        print_message error "Failed to minify: $input_file"
+        ((ERRORS_COUNT++))
+        return 1
+    fi
+}
+
+minify_js_directory() {
+    local dir="$1"
+
+    if [[ ! -d "$dir" ]]; then
+        print_message warning "Directory not found: $dir (skipping)"
+        return 0
+    fi
+
+    print_message info "Processing JS directory: $dir"
+
+    # Find all .js files (excluding .min.js and vendor/)
+    while IFS= read -r -d '' file; do
+        # Skip already minified files
+        if [[ "$file" =~ \.min\.js$ ]]; then
+            continue
+        fi
+
+        # Skip vendor directory
+        if [[ "$file" =~ /vendor/ ]]; then
+            continue
+        fi
+
+        minify_js_file "$file"
+    done < <(find "$dir" -type f -name "*.js" ! -name "*.min.js" -print0)
+}
+
+minify_all_js() {
+    print_message info "=== JavaScript Minification ==="
+
+    minify_js_directory "$WEB_JS_DIR"
+    minify_js_directory "$WEBAPP_JS_DIR"
+    minify_js_directory "$SHARED_JS_DIR"
+
+    print_message success "Minified $MINIFIED_JS_COUNT JS files"
+}
+
+################################################################################
+# CSS Minification
+################################################################################
+
+minify_css_file() {
+    local input_file="$1"
+    local output_file="${input_file%.css}.min.css"
+
+    print_message info "Minifying: $input_file"
+
+    if npx cssnano "$input_file" "$output_file" 2>/dev/null; then
+        local original_size=$(stat -c%s "$input_file" 2>/dev/null || stat -f%z "$input_file" 2>/dev/null)
+        local minified_size=$(stat -c%s "$output_file" 2>/dev/null || stat -f%z "$output_file" 2>/dev/null)
+        local reduction=$((100 - (minified_size * 100 / original_size)))
+
+        print_message success "✓ $output_file (${reduction}% smaller)"
+        ((MINIFIED_CSS_COUNT++))
+        return 0
+    else
+        print_message error "Failed to minify: $input_file"
+        ((ERRORS_COUNT++))
+        return 1
+    fi
+}
+
+minify_css_directory() {
+    local dir="$1"
+
+    if [[ ! -d "$dir" ]]; then
+        print_message warning "Directory not found: $dir (skipping)"
+        return 0
+    fi
+
+    print_message info "Processing CSS directory: $dir"
+
+    # Find all .css files (excluding .min.css and vendor/)
+    while IFS= read -r -d '' file; do
+        # Skip already minified files
+        if [[ "$file" =~ \.min\.css$ ]]; then
+            continue
+        fi
+
+        # Skip vendor directory
+        if [[ "$file" =~ /vendor/ ]]; then
+            continue
+        fi
+
+        minify_css_file "$file"
+    done < <(find "$dir" -type f -name "*.css" ! -name "*.min.css" -print0)
+}
+
+minify_all_css() {
+    print_message info "=== CSS Minification ==="
+
+    minify_css_directory "$WEB_CSS_DIR"
+    minify_css_directory "$WEBAPP_CSS_DIR"
+    minify_css_directory "$SHARED_CSS_DIR"
+
+    print_message success "Minified $MINIFIED_CSS_COUNT CSS files"
+}
+
+################################################################################
+# Validation
+################################################################################
+
+validate_minified_files() {
+    print_message info "=== Validating Minified Files ==="
+
+    local validation_errors=0
+
+    # Validate all .min.js files
+    while IFS= read -r -d '' file; do
+        if ! npx terser --parse "$file" &> /dev/null; then
+            print_message error "Invalid syntax: $file"
+            ((validation_errors++))
+        fi
+    done < <(find "$WEB_JS_DIR" "$WEBAPP_JS_DIR" "$SHARED_JS_DIR" -type f -name "*.min.js" -print0 2>/dev/null)
+
+    if [[ $validation_errors -eq 0 ]]; then
+        print_message success "All minified files are valid"
+        return 0
+    else
+        print_message error "Found $validation_errors invalid minified files"
+        return 1
+    fi
+}
+
+################################################################################
+# Main Function
+################################################################################
+
+main() {
+    local mode="${1:-all}"
+
+    print_message info "Minification Script v1.0.0"
+    print_message info "Mode: $mode"
+    echo
+
+    # Check prerequisites
+    if ! check_prerequisites; then
+        exit 1
+    fi
+
+    echo
+
+    case "$mode" in
+        js)
+            minify_all_js
+            ;;
+        css)
+            minify_all_css
+            ;;
+        all)
+            minify_all_js
+            echo
+            minify_all_css
+            ;;
+        validate)
+            validate_minified_files
+            exit $?
+            ;;
+        *)
+            print_message error "Invalid mode: $mode"
+            print_message info "Usage: $0 {js|css|all|validate}"
+            exit 1
+            ;;
+    esac
+
+    echo
+    print_message info "=== Summary ==="
+    print_message info "Minified JS files: $MINIFIED_JS_COUNT"
+    print_message info "Minified CSS files: $MINIFIED_CSS_COUNT"
+
+    if [[ $ERRORS_COUNT -gt 0 ]]; then
+        print_message warning "Errors encountered: $ERRORS_COUNT"
+        exit 1
+    else
+        print_message success "Minification completed successfully!"
+        exit 0
+    fi
+}
+
+# Run main function if script is executed directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

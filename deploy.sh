@@ -341,7 +341,27 @@ main() {
     sync_code_to_deploy
     echo ""
 
-    # Update cache versions AFTER synchronization (in /opt/budget)
+    # Minify static assets (JS and CSS) for production
+    print_message info "Minifying static assets..."
+    cd "/opt/budget" || error_return "Failed to cd to /opt/budget"
+
+    # Install npm dependencies if needed
+    if [[ ! -d "node_modules" ]]; then
+        print_message info "Installing npm dependencies..."
+        npm install --production --silent
+    fi
+
+    # Run minification
+    if npm run build; then
+        print_message success "Static assets minified successfully"
+    else
+        print_message warning "Minification failed, continuing with unminified assets"
+    fi
+
+    cd - > /dev/null || error_return "Failed to return to previous directory"
+    echo ""
+
+    # Update cache versions AFTER synchronization and minification (in /opt/budget)
     run_cache_busting "auto" "/opt/budget"
     echo ""
 

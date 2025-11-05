@@ -1,0 +1,37 @@
+{
+  "name": "family-budget",
+  "version": "5.0.0-beta",
+  "description": "Family Budget - Telegram-based personal finance management system",
+  "main": "index.js",
+  "scripts": {
+    "minify:js": "bash scripts/lib/minify.sh js",
+    "minify:css": "bash scripts/lib/minify.sh css",
+    "build": "npm run minify:js && npm run minify:css",
+    "validate:minified": "bash scripts/lib/minify.sh validate"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/familyBudget.git"
+  },
+  "keywords": [
+    "budget",
+    "telegram",
+    "fastapi",
+    "htmx",
+    "family",
+    "finance"
+  ],
+  "author": "Family Budget Team",
+  "license": "MIT",
+  "devDependencies": {
+    "terser": "^5.34.1",
+    "cssnano": "^7.0.6",
+    "cssnano-cli": "^1.0.5",
+    "postcss": "^8.4.47",
+    "postcss-cli": "^11.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
