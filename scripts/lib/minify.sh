@@ -24,10 +24,10 @@
 # Date: 2025-11-05
 ################################################################################
 
-set -euo pipefail
+set -uo pipefail  # Removed -e flag to allow graceful error handling
 
 # Error trap for debugging
-trap 'echo "[DEBUG] Script exited at line $LINENO with exit code $?" >&2' ERR EXIT
+trap 'echo "[DEBUG] Script exited at line $LINENO with exit code $?" >&2' EXIT
 
 # Colors for output
 readonly RED='\033[0;31m'
@@ -186,21 +186,27 @@ minify_js_directory() {
 }
 
 minify_all_js() {
-    print_message info "=== JavaScript Minification ==="
+    echo "┌────────────────────────────────────────────────────────────────────────────┐"
+    print_message info "│ 📦 JavaScript Minification"
+    echo "└────────────────────────────────────────────────────────────────────────────┘"
+    echo
 
-    print_message info "Starting web/ directory minification..."
+    print_message info "→ Processing web/ directory..."
     minify_js_directory "$WEB_JS_DIR"
-    print_message info "Completed web/ directory: $MINIFIED_JS_COUNT files so far"
+    print_message info "✓ Completed web/ directory: $MINIFIED_JS_COUNT files so far"
+    echo
 
-    print_message info "Starting webapp/ directory minification..."
+    print_message info "→ Processing webapp/ directory..."
     minify_js_directory "$WEBAPP_JS_DIR"
-    print_message info "Completed webapp/ directory: $MINIFIED_JS_COUNT files so far"
+    print_message info "✓ Completed webapp/ directory: $MINIFIED_JS_COUNT files so far"
+    echo
 
-    print_message info "Starting shared/ directory minification..."
+    print_message info "→ Processing shared/ directory..."
     minify_js_directory "$SHARED_JS_DIR"
-    print_message info "Completed shared/ directory: $MINIFIED_JS_COUNT files so far"
+    print_message info "✓ Completed shared/ directory: $MINIFIED_JS_COUNT files so far"
+    echo
 
-    print_message success "Minified $MINIFIED_JS_COUNT JS files"
+    print_message success "✅ JavaScript minification complete: $MINIFIED_JS_COUNT files"
 }
 
 ################################################################################
@@ -255,13 +261,24 @@ minify_css_directory() {
 }
 
 minify_all_css() {
-    print_message info "=== CSS Minification ==="
+    echo "┌────────────────────────────────────────────────────────────────────────────┐"
+    print_message info "│ 🎨 CSS Minification"
+    echo "└────────────────────────────────────────────────────────────────────────────┘"
+    echo
 
+    print_message info "→ Processing web/static/css/ directory..."
     minify_css_directory "$WEB_CSS_DIR"
-    minify_css_directory "$WEBAPP_CSS_DIR"
-    minify_css_directory "$SHARED_CSS_DIR"
+    echo
 
-    print_message success "Minified $MINIFIED_CSS_COUNT CSS files"
+    print_message info "→ Processing webapp/static/css/ directory..."
+    minify_css_directory "$WEBAPP_CSS_DIR"
+    echo
+
+    print_message info "→ Processing shared/static/css/ directory..."
+    minify_css_directory "$SHARED_CSS_DIR"
+    echo
+
+    print_message success "✅ CSS minification complete: $MINIFIED_CSS_COUNT files"
 }
 
 ################################################################################
@@ -297,8 +314,10 @@ validate_minified_files() {
 main() {
     local mode="${1:-all}"
 
-    print_message info "Minification Script v1.0.0"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    print_message info "🔧 Minification Script v1.0.0"
     print_message info "Mode: $mode"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo
 
     # Check prerequisites
@@ -332,16 +351,20 @@ main() {
     esac
 
     echo
-    print_message info "=== Summary ==="
-    print_message info "Minified JS files: $MINIFIED_JS_COUNT"
-    print_message info "Minified CSS files: $MINIFIED_CSS_COUNT"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    print_message info "📊 Minification Summary"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    print_message info "JavaScript files minified: $MINIFIED_JS_COUNT"
+    print_message info "CSS files minified: $MINIFIED_CSS_COUNT"
 
     if [[ $ERRORS_COUNT -gt 0 ]]; then
-        print_message warning "Errors encountered: $ERRORS_COUNT (continuing anyway)"
+        print_message warning "⚠️  Errors encountered: $ERRORS_COUNT (continuing anyway)"
         print_message info "Deployment will continue with unminified versions of failed files"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         exit 0  # Don't fail deployment for minification errors
     else
-        print_message success "Minification completed successfully!"
+        print_message success "✅ Minification completed successfully!"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         exit 0
     fi
 }
