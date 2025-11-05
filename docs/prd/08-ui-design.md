@@ -101,15 +101,32 @@ Bot: ✅ Расход добавлен:
 
 #### Facts Management (`/facts`)
 
-**Фильтрация транзакций:**
-- **Пользователь** - dropdown со всеми пользователями системы
-- **Категория** - иерархический dropdown с визуальными индикаторами:
+**Структура фильтров (v5.0.0-beta, 2025-11-05):**
+
+Фильтры организованы в 3 уровня с визуальным разделением:
+
+**Уровень 1 - Период:**
+- Дата с (text input DD.MM.YYYY + CalendarWidget)
+- Дата по (text input DD.MM.YYYY + CalendarWidget)
+- Layout: grid-cols-2
+
+**Уровень 2 - Основные фильтры:**
+- **Категория** - иерархический dropdown (Choices.js) с визуальными индикаторами:
   - Родительские категории (📂): disabled, bold, italic, background highlight
   - Дочерние категории (▸): доступны для выбора, с отступами `⤷`
-- **Дата с/по** - text inputs с форматом ДД.ММ.ГГГГ
 - **Финансовый центр (ЦФО)** - dropdown со всеми ЦФО
 - **Центр затрат (МВЗ)** - dropdown со всеми МВЗ
+- Layout: grid-cols-3
+
+**Уровень 3 - Дополнительные:**
+- **Пользователь** - dropdown со всеми пользователями системы
 - **Тип записи** - dropdown с опциями: Все/Факт/План (default: Факт)
+- Layout: grid-cols-2
+
+**Plan page (/plan) структура:**
+- Уровень 1: Дата с/по (grid-cols-2)
+- Уровень 2: Категория (grid-cols-1)
+- Уровень 3: Пользователь (grid-cols-1)
 
 **UI улучшения (v5.0.0-beta):**
 - Исправлено обрезание текста в выпадающих списках (CSS: min-width: 150px)
@@ -1002,6 +1019,38 @@ new CalendarWidget({
 - Поддержка обоих форматов: DD.MM.YYYY (отображение) ↔ YYYY-MM-DD (native input value)
 
 #### 8.10.8 Changelog
+
+**2025-11-05 (Filters Layout Refactoring + CalendarWidget Range Fix):**
+- ✅ **UX IMPROVEMENT:** Реорганизация фильтров на трех уровнях с визуальным разделением
+  - **Уровень 1 - Период:** Дата с/по (grid-cols-2, side by side)
+  - **Уровень 2 - Основные фильтры:** Категория, ЦФО, МВЗ (facts) / Категория (plan)
+  - **Уровень 3 - Дополнительные:** Пользователь, Тип записи (facts) / Пользователь (plan)
+  - Визуальное разделение через borders, backgrounds и section titles
+- ✅ **BUG FIX:** Исправлено дублирование DateFormatter в base.html
+  - **Проблема:** `Identifier 'DateFormatter' has already been declared` в консоли браузера
+  - **Root Cause:** DateFormatter подключался и в base.html:183 и в facts.html:260, plan.html:250
+  - **Решение:** Удалено подключение из base.html, оставлены только в страницах с cache busting
+- ✅ **BUG FIX:** Исправлена инициализация календаря для поля "Дата по"
+  - **Проблема:** У поля "Дата по" отсутствовала кнопка календаря (только у "Дата с")
+  - **Root Cause:** CalendarWidget._createTriggerButton() создавал кнопку только для startInputElement в range mode
+  - **Решение:** Добавлен метод _createButtonForInput() для создания кнопок для обоих полей
+  - Обновлен _attachEventListeners() для обработки кликов по обеим кнопкам
+  - Обновлен "click outside" handler для учета endTriggerButton
+- ✅ **FRONTEND:** Обновлены файлы
+  - `web/templates/base.html` - удалено дублирование dateFormatter.js
+  - `web/templates/facts.html` - новая трехуровневая структура фильтров
+  - `web/templates/plan.html` - новая трехуровневая структура фильтров
+  - `web/static/js/calendar-widget.js` - исправление range picker button creation
+- ✅ **DOCS:** Обновлена docs/prd/08-ui-design.md с новой структурой фильтров
+- ✅ **VALIDATION:** Проверен синтаксис JavaScript через `node --check`
+- ✅ **Изменено файлов:** 4
+- ✅ **Scope:** Web Interface (Desktop) - /facts и /plan страницы
+- ✅ **Бенефиты:**
+  - ✅ Улучшенная визуальная иерархия фильтров - легче ориентироваться
+  - ✅ Приоритизация по важности (даты первыми, доп. фильтры последними)
+  - ✅ Консистентный UI с четким разделением секций
+  - ✅ Исправлена критическая JS ошибка (DateFormatter duplication)
+  - ✅ Календарь работает корректно для обоих полей дат
 
 **2025-11-04 (WebApp Auth Timing Fix - Race Condition):**
 - ✅ **BUG FIX:** Исправлена race condition с window.auth в webapp
