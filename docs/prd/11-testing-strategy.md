@@ -76,6 +76,141 @@ def test_scd2_update():
     assert new_article.name == "Test Updated"
 ```
 
+**Notifications API tests с date фильтрами:**
+
+```python
+@pytest.mark.asyncio
+async def test_list_notifications_with_date_filters(auth_client: AsyncClient, session: AsyncSession):
+    """
+    Test filtering notifications by date_from and date_to.
+
+    Verifies the datetime.combine() fix for date filters.
+    Tests regression: HTTP 500 error when using date filters.
+    """
+    # Create article
+    article_response = await auth_client.post(
+        "/api/v1/articles",
+        json={"code": "TEST", "name": "Test Category", "type": "expense", "parent_id": None},
+    )
+    article_id = article_response.json()["id"]
+
+    # Create notifications with specific created_at dates (direct DB insert)
+    from backend.app.models.notification import Notification
+    from datetime import datetime, date
+    from decimal import Decimal
+
+    notifications_data = [
+        {
+            "article_id": article_id,
+            "notification_type": "budget_threshold",
+            "threshold_percent": 90,
+            "plan_amount": Decimal("1000.00"),
+            "actual_amount": Decimal("900.00"),
+            "period_start": date(2025, 10, 1),
+            "period_end": date(2025, 10, 31),
+            "created_at": datetime(2025, 10, 5, 10, 0, 0),  # Oct 5
+        },
+        {
+            "article_id": article_id,
+            "notification_type": "budget_threshold",
+            "threshold_percent": 90,
+            "plan_amount": Decimal("2000.00"),
+            "actual_amount": Decimal("1800.00"),
+            "period_start": date(2025, 10, 1),
+            "period_end": date(2025, 10, 31),
+            "created_at": datetime(2025, 10, 15, 14, 30, 0),  # Oct 15
+        },
+        {
+            "article_id": article_id,
+            "notification_type": "budget_threshold",
+            "threshold_percent": 90,
+            "plan_amount": Decimal("3000.00"),
+            "actual_amount": Decimal("2700.00"),
+            "period_start": date(2025, 10, 1),
+            "period_end": date(2025, 10, 31),
+            "created_at": datetime(2025, 10, 25, 16, 45, 0),  # Oct 25
+        },
+    ]
+
+    for notif_data in notifications_data:
+        notification = Notification(**notif_data)
+        session.add(notification)
+
+    await session.commit()
+
+    # Test 1: Filter by date_from (>= Oct 15)
+    response = await auth_client.get(
+        "/api/v1/notifications",
+        params={"date_from": "2025-10-15"}
+    )
+
+    assert response.status_code == 200  # Should NOT be 500!
+    data = response.json()
+
+    # Should return notifications from Oct 15 onwards (Oct 15, Oct 25)
+    matching_items = [item for item in data["items"] if item["article_id"] == article_id]
+    assert len(matching_items) >= 2  # At least Oct 15 and Oct 25
+
+    # Verify all returned notifications are >= Oct 15
+    for item in matching_items:
+        created_at = datetime.fromisoformat(item["created_at"].replace("Z", "+00:00"))
+        assert created_at.date() >= date(2025, 10, 15)
+
+    # Test 2: Filter by date_to (<= Oct 15)
+    response = await auth_client.get(
+        "/api/v1/notifications",
+        params={"date_to": "2025-10-15"}
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Should return notifications up to Oct 15 (Oct 5, Oct 15)
+    matching_items = [item for item in data["items"] if item["article_id"] == article_id]
+    assert len(matching_items) >= 2  # At least Oct 5 and Oct 15
+
+    # Test 3: Filter by both date_from and date_to (Oct 10 to Oct 20)
+    response = await auth_client.get(
+        "/api/v1/notifications",
+        params={
+            "date_from": "2025-10-10",
+            "date_to": "2025-10-20"
+        }
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Should return only Oct 15 notification (within range)
+    matching_items = [item for item in data["items"] if item["article_id"] == article_id]
+    assert len(matching_items) >= 1  # At least Oct 15
+```
+
+**Покрытие тестами:**
+- `test_list_notifications_with_date_filters` - Проверка date_from/date_to фильтров
+- `test_list_notifications_filter_by_type` - Проверка фильтрации по типу уведомления
+- `test_list_notifications_pagination` - Проверка пагинации (skip/limit)
+- `test_create_broadcast_notification` - Проверка создания broadcast уведомлений
+- `test_check_duplicate_broadcast_notification` - Проверка дедупликации
+
+**Файл:** `backend/tests/integration/test_notifications_api.py`
+
+**Запуск тестов:**
+```bash
+# Все тесты notifications
+pytest backend/tests/integration/test_notifications_api.py -v
+
+# Только тест date фильтров
+pytest backend/tests/integration/test_notifications_api.py::test_list_notifications_with_date_filters -v
+
+# С coverage
+pytest backend/tests/integration/test_notifications_api.py --cov=backend.app.api.v1.endpoints.notifications --cov-report=html
+```
+
+**Добавлено в версии:** 5.0.0-beta (2025-11-06)
+- Regression test для исправления ошибки 500 при использовании date фильтров
+- Верификация datetime.combine() fix
+
 ### 11.3 End-to-End Testing
 
 **User journey tests:**

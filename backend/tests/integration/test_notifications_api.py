@@ -12,7 +12,7 @@ Tests complete notification management workflows through API:
 These tests verify notifications API works correctly end-to-end with database integration.
 """
 
-from datetime import date
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -418,6 +418,128 @@ async def test_list_notifications_pagination(auth_client: AsyncClient):
     assert len(data["items"]) <= 2  # Should return at most 2 items
     assert data["skip"] == 2
     assert data["limit"] == 2
+
+
+@pytest.mark.asyncio
+async def test_list_notifications_with_date_filters(auth_client: AsyncClient, session: AsyncSession):
+    """
+    Test filtering notifications by date_from and date_to.
+
+    Workflow:
+    1. Create article
+    2. Create notifications with different created_at dates (via direct DB insert)
+    3. Test date_from filter (should return only notifications >= date_from)
+    4. Test date_to filter (should return only notifications <= date_to)
+    5. Test both filters (should return notifications in date range)
+
+    This test verifies the datetime.combine() fix for date filters.
+    """
+    # Create article
+    article_response = await auth_client.post(
+        "/api/v1/articles",
+        json={"code": "DATETEST", "name": "Date Filter Test", "type": "expense", "parent_id": None},
+    )
+    article_id = article_response.json()["id"]
+
+    # Create notifications with specific created_at dates (direct DB insert)
+    # This is necessary because API endpoint sets created_at automatically to NOW()
+    from backend.app.models.notification import Notification
+
+    notifications_data = [
+        {
+            "article_id": article_id,
+            "notification_type": "budget_threshold",
+            "threshold_percent": 90,
+            "plan_amount": Decimal("1000.00"),
+            "actual_amount": Decimal("900.00"),
+            "period_start": date(2025, 10, 1),
+            "period_end": date(2025, 10, 31),
+            "created_at": datetime(2025, 10, 5, 10, 0, 0),  # Oct 5
+        },
+        {
+            "article_id": article_id,
+            "notification_type": "budget_threshold",
+            "threshold_percent": 90,
+            "plan_amount": Decimal("2000.00"),
+            "actual_amount": Decimal("1800.00"),
+            "period_start": date(2025, 10, 1),
+            "period_end": date(2025, 10, 31),
+            "created_at": datetime(2025, 10, 15, 14, 30, 0),  # Oct 15
+        },
+        {
+            "article_id": article_id,
+            "notification_type": "budget_threshold",
+            "threshold_percent": 90,
+            "plan_amount": Decimal("3000.00"),
+            "actual_amount": Decimal("2700.00"),
+            "period_start": date(2025, 10, 1),
+            "period_end": date(2025, 10, 31),
+            "created_at": datetime(2025, 10, 25, 16, 45, 0),  # Oct 25
+        },
+    ]
+
+    for notif_data in notifications_data:
+        notification = Notification(**notif_data)
+        session.add(notification)
+
+    await session.commit()
+
+    # Test 1: Filter by date_from (>= Oct 15)
+    response = await auth_client.get(
+        "/api/v1/notifications",
+        params={"date_from": "2025-10-15"}
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Should return notifications from Oct 15 onwards (Oct 15, Oct 25)
+    matching_items = [item for item in data["items"] if item["article_id"] == article_id]
+    assert len(matching_items) >= 2  # At least Oct 15 and Oct 25
+
+    # Verify all returned notifications are >= Oct 15
+    for item in matching_items:
+        created_at = datetime.fromisoformat(item["created_at"].replace("Z", "+00:00"))
+        assert created_at.date() >= date(2025, 10, 15)
+
+    # Test 2: Filter by date_to (<= Oct 15)
+    response = await auth_client.get(
+        "/api/v1/notifications",
+        params={"date_to": "2025-10-15"}
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Should return notifications up to Oct 15 (Oct 5, Oct 15)
+    matching_items = [item for item in data["items"] if item["article_id"] == article_id]
+    assert len(matching_items) >= 2  # At least Oct 5 and Oct 15
+
+    # Verify all returned notifications are <= Oct 15
+    for item in matching_items:
+        created_at = datetime.fromisoformat(item["created_at"].replace("Z", "+00:00"))
+        assert created_at.date() <= date(2025, 10, 15)
+
+    # Test 3: Filter by both date_from and date_to (Oct 10 to Oct 20)
+    response = await auth_client.get(
+        "/api/v1/notifications",
+        params={
+            "date_from": "2025-10-10",
+            "date_to": "2025-10-20"
+        }
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Should return only Oct 15 notification (within range)
+    matching_items = [item for item in data["items"] if item["article_id"] == article_id]
+    assert len(matching_items) >= 1  # At least Oct 15
+
+    # Verify all returned notifications are in range
+    for item in matching_items:
+        created_at = datetime.fromisoformat(item["created_at"].replace("Z", "+00:00"))
+        assert date(2025, 10, 10) <= created_at.date() <= date(2025, 10, 20)
 
 
 # ============================================================================
