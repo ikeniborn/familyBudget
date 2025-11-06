@@ -21,7 +21,7 @@ The deployment script has been modularized to improve:
 | **validation.sh** | Prerequisites and environment validation | 1 | config.sh, utils.sh | 4 functions | 207 |
 | **status.sh** | Service status reporting | 1 | config.sh, utils.sh | 2 functions | 146 |
 | **postgres.sh** | PostgreSQL data management | 2 | config.sh, utils.sh | 2 functions | 263 |
-| **services.sh** | Service lifecycle management | 2 | config.sh, utils.sh | 5 functions | 138 |
+| **services.sh** | Service lifecycle management | 2 | config.sh, utils.sh | 7 functions | 292 |
 | **migrations.sh** | Database migrations (Alembic) | 2→3 | config.sh, utils.sh | 3 functions | 124 |
 | **firewall.sh** | UFW firewall configuration | 2 | config.sh, utils.sh | 1 function | 57 |
 | **backup_integration.sh** | Backup automation setup | 2 | config.sh, utils.sh | 1 function | 44 |
@@ -267,8 +267,10 @@ check_and_repair_postgres_data
 - `stop_services()` - Stop running Docker services
 - `clean_deployment()` - Clean up deployment (volumes based on CLEAN_DEPLOY flag)
 - `start_services()` - Start Docker services with specified profile
-- `wait_for_service(service, max_time)` - Wait for specific service to become healthy
+- `show_service_logs(service, [lines])` - Show detailed diagnostics for a service (NEW)
+- `wait_for_service(service, max_time)` - Wait for specific service to become healthy (auto-shows logs on failure)
 - `wait_for_services()` - Wait for all required services to become healthy
+- `verify_all_services()` - Verify final deployment status and show diagnostics for unhealthy services (NEW)
 
 **Usage:**
 ```bash
@@ -290,6 +292,12 @@ wait_for_service backend 300
 
 # Wait for all services
 wait_for_services
+
+# Show diagnostics for a specific service (NEW)
+show_service_logs backend 50
+
+# Verify final deployment status (NEW)
+verify_all_services
 ```
 
 **Key Features:**
@@ -297,10 +305,12 @@ wait_for_services
 - **Smart Cleanup:** Respects CLEAN_DEPLOY flag (false = keep volumes)
 - **Health Monitoring:** Polls services until healthy or timeout
 - **Progress Feedback:** Shows waiting progress with dots
+- **Auto-Diagnostics (NEW):** Automatically shows logs when service is unhealthy or times out
+- **Final Verification (NEW):** Shows summary of all services with detailed diagnostics for failures
 
 **Dependencies:** config.sh, utils.sh
 
-**LOC:** 138
+**LOC:** 292 (updated with auto-diagnostic features)
 
 ---
 

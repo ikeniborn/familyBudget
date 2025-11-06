@@ -436,6 +436,9 @@ main() {
         verify_ssl
         echo ""
 
+        verify_all_services
+        echo ""
+
         print_status
     else
         info "Running in foreground mode (Ctrl+C to stop)"
