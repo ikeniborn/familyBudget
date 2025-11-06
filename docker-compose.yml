@@ -225,7 +225,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./web/static:/usr/share/nginx/html/static:ro
+      - ./frontend/web/static:/usr/share/nginx/html/static:ro
       - nginx_cache:/var/cache/nginx
       - ./logs/nginx:/var/log/nginx
       # SSL certificates from host system (managed by scripts/ssl_certificate_manager.sh)
