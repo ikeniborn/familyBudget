@@ -74,13 +74,6 @@
                             <button class="btn btn-ghost btn-xs" onclick="exportTrendsData('excel')" title="Экспорт динамики в Excel">📊</button>
                         </div>
                     </div>
-                    <div class="flex items-center gap-3 mb-1" role="group" aria-label="Выбор типа записей для динамики">
-                        <label id="trends-type-label" class="label-text font-semibold">Тип:</label>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-primary" id="trends-fact" onclick="updateTrendsRecordType('fact')" aria-pressed="true" aria-labelledby="trends-type-label trends-fact">Факт</button>
-                            <button class="btn btn-sm btn-outline" id="trends-plan" onclick="updateTrendsRecordType('plan')" aria-pressed="false" aria-labelledby="trends-type-label trends-plan">План</button>
-                        </div>
-                    </div>
                     <div id="chart-trends" class="chart-container" role="img" aria-label="Линейный график динамики доходов и расходов"></div>
                 </div>
             </div>
@@ -89,11 +82,20 @@
             <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-pie">
                 <div class="card-body p-3">
                     <h2 id="chart-title-pie" class="card-title text-base mb-1">🥧 Разбивка по категориям</h2>
-                    <div class="flex items-center gap-3 mb-1" role="group" aria-label="Выбор типа категорий">
-                        <label id="pie-type-label" class="label-text font-semibold">Тип:</label>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-primary" id="pie-expense" onclick="updatePieType('expense')" aria-pressed="true" aria-labelledby="pie-type-label pie-expense">Расходы</button>
-                            <button class="btn btn-sm btn-outline" id="pie-income" onclick="updatePieType('income')" aria-pressed="false" aria-labelledby="pie-type-label pie-income">Доходы</button>
+                    <div class="flex flex-wrap items-center gap-3 mb-1">
+                        <div class="flex items-center gap-2" role="group" aria-label="Выбор типа категорий">
+                            <label id="pie-type-label" class="label-text font-semibold">Тип:</label>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-primary" id="pie-expense" onclick="updatePieType('expense')" aria-pressed="true" aria-labelledby="pie-type-label pie-expense">Расходы</button>
+                                <button class="btn btn-sm btn-outline" id="pie-income" onclick="updatePieType('income')" aria-pressed="false" aria-labelledby="pie-type-label pie-income">Доходы</button>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2" role="group" aria-label="Выбор типа данных для разбивки">
+                            <label id="pie-recordtype-label" class="label-text font-semibold">Данные:</label>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-primary" id="pie-fact" onclick="updatePieRecordType('fact')" aria-pressed="true" aria-labelledby="pie-recordtype-label pie-fact">Факт</button>
+                                <button class="btn btn-sm btn-outline" id="pie-plan" onclick="updatePieRecordType('plan')" aria-pressed="false" aria-labelledby="pie-recordtype-label pie-plan">План</button>
+                            </div>
                         </div>
                     </div>
                     <div id="chart-pie" class="chart-container" role="img" aria-label="Круговая диаграмма разбивки расходов по категориям"></div>
@@ -117,20 +119,11 @@
             <div class="card bg-base-100 shadow-lg col-span-full" aria-labelledby="chart-title-heatmap">
                 <div class="card-body p-3">
                     <h2 id="chart-title-heatmap" class="card-title text-base mb-1">🔥 Тепловая карта расходов</h2>
-                    <div class="flex flex-wrap items-center gap-3 mb-1">
-                        <div class="flex items-center gap-2" role="group" aria-label="Выбор типа категорий для тепловой карты">
-                            <label id="heatmap-articletype-label" class="label-text font-semibold">Тип категории:</label>
-                            <div class="btn-group">
-                                <button class="btn btn-sm btn-primary" id="heatmap-expense" onclick="updateHeatmapType('expense')" aria-pressed="true" aria-labelledby="heatmap-articletype-label heatmap-expense">Расходы</button>
-                                <button class="btn btn-sm btn-outline" id="heatmap-income" onclick="updateHeatmapType('income')" aria-pressed="false" aria-labelledby="heatmap-articletype-label heatmap-income">Доходы</button>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2" role="group" aria-label="Выбор типа записей для тепловой карты">
-                            <label id="heatmap-recordtype-label" class="label-text font-semibold">Тип данных:</label>
-                            <div class="btn-group">
-                                <button class="btn btn-sm btn-primary" id="heatmap-fact" onclick="updateHeatmapRecordType('fact')" aria-pressed="true" aria-labelledby="heatmap-recordtype-label heatmap-fact">Факт</button>
-                                <button class="btn btn-sm btn-outline" id="heatmap-plan" onclick="updateHeatmapRecordType('plan')" aria-pressed="false" aria-labelledby="heatmap-recordtype-label heatmap-plan">План</button>
-                            </div>
+                    <div class="flex items-center gap-3 mb-1" role="group" aria-label="Выбор типа категорий для тепловой карты">
+                        <label id="heatmap-type-label" class="label-text font-semibold">Тип:</label>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-primary" id="heatmap-expense" onclick="updateHeatmapType('expense')" aria-pressed="true" aria-labelledby="heatmap-type-label heatmap-expense">Расходы</button>
+                            <button class="btn btn-sm btn-outline" id="heatmap-income" onclick="updateHeatmapType('income')" aria-pressed="false" aria-labelledby="heatmap-type-label heatmap-income">Доходы</button>
                         </div>
                     </div>
                     <div id="chart-heatmap" class="chart-container" role="img" aria-label="Тепловая карта паттернов расходов по дням недели"></div>
@@ -156,9 +149,8 @@ let waterfallCategoriesData = [];
 
 // Local filter states
 let currentPlanFactType = 'expense';
-let currentTrendsRecordType = 'fact';
+let currentPieRecordType = 'fact';
 let currentHeatmapType = 'expense';
-let currentHeatmapRecordType = 'fact';
 
 // Period mapping for different chart types
 // Maps global period selection to appropriate period for each chart type
@@ -378,7 +370,7 @@ function initTrendsChart() {
 // Load Trends data from API
 async function loadTrendsData(days) {
     try {
-        const response = await fetch(`/api/v1/analytics/trends?days=${days}&record_type=${currentTrendsRecordType}`);
+        const response = await fetch(`/api/v1/analytics/trends?days=${days}&record_type=fact`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -550,7 +542,7 @@ function initPieChart() {
 // Load Pie chart data from API
 async function loadPieData(type, period) {
     try {
-        const response = await fetch(`/api/v1/analytics/category-breakdown?type=${type}&period=${period}`);
+        const response = await fetch(`/api/v1/analytics/category-breakdown?type=${type}&period=${period}&record_type=${currentPieRecordType}`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -725,6 +717,25 @@ function updatePieType(type) {
     loadPieData(type, currentPeriod);
 }
 
+// Update pie record type filter
+function updatePieRecordType(recordType) {
+    currentPieRecordType = recordType;
+
+    // Update active button and ARIA states
+    document.querySelectorAll('#pie-fact, #pie-plan').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+    const activeBtn = document.getElementById(`pie-${recordType}`);
+    activeBtn.classList.remove('btn-outline');
+    activeBtn.classList.add('btn-primary');
+    activeBtn.setAttribute('aria-pressed', 'true');
+
+    // Reload chart data
+    loadPieData(currentPieType, periodMapping[currentPeriod].pie);
+}
+
 // Update Plan vs Fact article type filter
 function updatePlanFactType(type) {
     currentPlanFactType = type;
@@ -744,25 +755,6 @@ function updatePlanFactType(type) {
     loadPlanFactData(periodMapping[currentPeriod].planFact);
 }
 
-// Update Trends record type filter
-function updateTrendsRecordType(recordType) {
-    currentTrendsRecordType = recordType;
-
-    // Update active button and ARIA states
-    document.querySelectorAll('#trends-fact, #trends-plan').forEach(btn => {
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-outline');
-        btn.setAttribute('aria-pressed', 'false');
-    });
-    const activeBtn = document.getElementById(`trends-${recordType}`);
-    activeBtn.classList.remove('btn-outline');
-    activeBtn.classList.add('btn-primary');
-    activeBtn.setAttribute('aria-pressed', 'true');
-
-    // Reload chart data
-    loadTrendsData(periodMapping[currentPeriod].trends);
-}
-
 // Update Heatmap article type filter
 function updateHeatmapType(type) {
     currentHeatmapType = type;
@@ -774,25 +766,6 @@ function updateHeatmapType(type) {
         btn.setAttribute('aria-pressed', 'false');
     });
     const activeBtn = document.getElementById(`heatmap-${type}`);
-    activeBtn.classList.remove('btn-outline');
-    activeBtn.classList.add('btn-primary');
-    activeBtn.setAttribute('aria-pressed', 'true');
-
-    // Reload chart data
-    loadHeatmapData(periodMapping[currentPeriod].heatmap);
-}
-
-// Update Heatmap record type filter
-function updateHeatmapRecordType(recordType) {
-    currentHeatmapRecordType = recordType;
-
-    // Update active button and ARIA states
-    document.querySelectorAll('#heatmap-fact, #heatmap-plan').forEach(btn => {
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-outline');
-        btn.setAttribute('aria-pressed', 'false');
-    });
-    const activeBtn = document.getElementById(`heatmap-${recordType}`);
     activeBtn.classList.remove('btn-outline');
     activeBtn.classList.add('btn-primary');
     activeBtn.setAttribute('aria-pressed', 'true');
@@ -918,12 +891,12 @@ function updateWaterfallChart(data) {
 
                 // Skip first (Start) and last (Total)
                 if (labelIndex === 0) {
-                    return '<strong>Start</strong><br/>Starting balance: 0 ₽';
+                    return '<strong>Начало</strong><br/>Начальный баланс: 0 ₽';
                 }
 
                 if (labelIndex === labels.length - 1) {
                     const finalBalance = data.balance[data.balance.length - 1];
-                    return `<strong>Total</strong><br/>Final balance: ${finalBalance.toFixed(2)} ₽`;
+                    return `<strong>Итого</strong><br/>Конечный баланс: ${finalBalance.toFixed(2)} ₽`;
                 }
 
                 // Regular period data
@@ -943,7 +916,7 @@ function updateWaterfallChart(data) {
 
                 // Show categories for drill-down
                 if (!data.article_id && waterfallCategoriesData[dataIndex]?.length > 0) {
-                    tooltip += `<br/><br/><em style="color: #999; font-size: 11px;">Click to drill down by category</em>`;
+                    tooltip += `<br/><br/><em style="color: #999; font-size: 11px;">Нажмите для детализации по категории</em>`;
                 }
 
                 return tooltip;
@@ -1035,26 +1008,26 @@ function showWaterfallDrilldownModal(periodLabel, categories) {
         <div id="waterfall-drilldown-modal" class="modal" style="display: block;">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3>Drill Down: ${periodLabel}</h3>
+                    <h3>Детализация: ${periodLabel}</h3>
                     <span class="modal-close" onclick="closeWaterfallDrilldownModal()">&times;</span>
                 </div>
                 <div class="modal-body">
-                    <p>Select a category to view detailed breakdown:</p>
+                    <p>Выберите категорию для просмотра детализации:</p>
                     <div class="table-responsive">
                         <table class="data-table">
                             <thead>
                                 <tr>
-                                    <th>Category</th>
-                                    <th>Type</th>
-                                    <th>Amount</th>
-                                    <th>Action</th>
+                                    <th>Категория</th>
+                                    <th>Тип</th>
+                                    <th>Сумма</th>
+                                    <th>Действие</th>
                                 </tr>
                             </thead>
                             <tbody>
     `;
 
     categories.forEach(cat => {
-        const typeLabel = cat.type === 'income' ? 'Income' : 'Expense';
+        const typeLabel = cat.type === 'income' ? 'Доход' : 'Расход';
         const typeColor = cat.type === 'income' ? '#4CAF50' : '#f44336';
         const amountFormatted = cat.amount.toFixed(2);
 
@@ -1065,7 +1038,7 @@ function showWaterfallDrilldownModal(periodLabel, categories) {
                 <td>${amountFormatted} ₽</td>
                 <td>
                     <button class="btn-primary btn-small" onclick="selectWaterfallArticle(${cat.id}, '${cat.name.replace(/'/g, "\\'")}')">
-                        View
+                        Смотреть
                     </button>
                 </td>
             </tr>
@@ -1078,7 +1051,7 @@ function showWaterfallDrilldownModal(periodLabel, categories) {
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-secondary" onclick="closeWaterfallDrilldownModal()">Cancel</button>
+                    <button type="button" class="btn-secondary" onclick="closeWaterfallDrilldownModal()">Отмена</button>
                 </div>
             </div>
         </div>
@@ -1121,7 +1094,7 @@ function initHeatmapChart() {
 // Load Heatmap data from API
 async function loadHeatmapData(period = 'quarter') {
     try {
-        const response = await fetch(`/api/v1/analytics/heatmap?period=${period}&article_type=${currentHeatmapType}&record_type=${currentHeatmapRecordType}`);
+        const response = await fetch(`/api/v1/analytics/heatmap?period=${period}&article_type=${currentHeatmapType}&record_type=fact`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -1177,9 +1150,12 @@ function updateHeatmapChart(data) {
     const periodMap = { month: 'Месяц', quarter: 'Квартал', year: 'Год' };
     const periodLabel = periodMap[data.period] || data.period;
 
+    const typeMap = { expense: 'расходов', income: 'доходов' };
+    const typeLabel = typeMap[currentHeatmapType] || 'расходов';
+
     const option = {
         title: {
-            text: `Тепловая карта расходов (${periodLabel})`,
+            text: `Тепловая карта ${typeLabel} (${periodLabel})`,
             subtext: `${data.start_date} — ${data.end_date}`,
             left: 'center',
             textStyle: {
@@ -1193,8 +1169,9 @@ function updateHeatmapChart(data) {
                 const dayName = data.day_labels[params.value[0]];
                 const weekNum = params.value[1] + 1;
                 const amount = params.value[2].toFixed(2);
+                const typeLabelSingular = currentHeatmapType === 'income' ? 'Доход' : 'Расход';
                 return `<strong>${dayName}, Неделя ${weekNum}</strong><br/>` +
-                       `Расход: ${amount} ₽`;
+                       `${typeLabelSingular}: ${amount} ₽`;
             }
         },
         grid: {
@@ -1241,7 +1218,7 @@ function updateHeatmapChart(data) {
         },
         series: [
             {
-                name: 'Расходы',
+                name: currentHeatmapType === 'income' ? 'Доходы' : 'Расходы',
                 type: 'heatmap',
                 data: heatmapData,
                 label: {

@@ -363,6 +363,7 @@ async def get_category_breakdown(
     current_user: CurrentUser,
     type: str = Query("expense", regex="^(income|expense)$"),
     period: str = Query("month", regex="^(week|month|year|all)$"),
+    record_type: str = Query("fact", regex="^(fact|plan)$"),
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -371,6 +372,7 @@ async def get_category_breakdown(
     Args:
         type: Transaction type (income or expense)
         period: Time period (week, month, year, all)
+        record_type: Record type (fact or plan)
 
     Returns:
         Dict with category names and amounts
@@ -394,6 +396,7 @@ async def get_category_breakdown(
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
         Article.type == type,
+        Fact.record_type == record_type,
         Fact.fact_date >= start_date,
         Fact.fact_date <= today,
         Article.is_current == True  # noqa: E712
@@ -421,7 +424,8 @@ async def get_category_breakdown(
         "percentages": percentages,
         "total": total,
         "type": type,
-        "period": period
+        "period": period,
+        "record_type": record_type
     }
 
 
