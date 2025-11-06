@@ -240,27 +240,21 @@ app.add_exception_handler(ValueError, value_error_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
 
 
-# Configure static files and templates
-# In Docker container: __file__ = /app/backend/app/main.py
-# parent = /app/backend/app → parent = /app/backend → parent = /app
-BASE_DIR = Path(__file__).resolve().parent.parent.parent  # /app in Docker
-STATIC_DIR = BASE_DIR / "web" / "static"  # /app/web/static
-TEMPLATES_DIR = BASE_DIR / "web" / "templates"  # /app/web/templates
-WEBAPP_DIR = BASE_DIR / "webapp"  # /app/webapp (Telegram Web Apps)
-SHARED_DIR = BASE_DIR / "shared"  # /app/shared (Shared JS/CSS modules)
+# Configure static files and templates using centralized paths
+from backend.app.core.paths import FrontendPaths
 
 # Mount static files
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+app.mount("/static", StaticFiles(directory=str(FrontendPaths.WEB_STATIC)), name="static")
 
 # Mount webapp files (Telegram Web Apps)
 # Serves HTML, JS, CSS for Web Apps at /webapp/*
-app.mount("/webapp", StaticFiles(directory=str(WEBAPP_DIR), html=True), name="webapp")
+app.mount("/webapp", StaticFiles(directory=str(FrontendPaths.WEBAPP), html=True), name="webapp")
 
 # Mount shared files (Common JS/CSS modules for web and webapp)
-app.mount("/shared", StaticFiles(directory=str(SHARED_DIR)), name="shared")
+app.mount("/shared", StaticFiles(directory=str(FrontendPaths.SHARED)), name="shared")
 
 # Setup Jinja2 templates
-templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+templates = Jinja2Templates(directory=str(FrontendPaths.WEB_TEMPLATES))
 
 # Include routers
 app.include_router(health_router)  # Health endpoints at /health, /ready, /ping

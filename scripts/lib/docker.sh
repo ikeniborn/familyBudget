@@ -123,21 +123,26 @@ categorize_file_changes() {
                 needs_backend_restart=true
                 ((count_backend_code++))
                 ;;
-            web/templates/*)
+            frontend/web/templates/*)
                 # HTMX templates - backend serves them
                 needs_backend_restart=true
                 ((count_backend_code++))
                 ;;
-            web/static/*)
+            frontend/web/static/*)
                 # Static files - only nginx serves
                 needs_nginx_restart=true
                 ((count_nginx_config++))
                 ;;
-            webapp/*)
+            frontend/webapp/*)
                 # Telegram Web Apps - volume-mounted static files
                 # Changes applied immediately via volume mount - no rebuild/restart needed
-                # (docker-compose.yml: ./webapp:/app/webapp:ro)
+                # (docker-compose.yml: ./frontend/webapp:/app/webapp:ro)
                 ((count_webapp++))
+                ;;
+            frontend/shared/*)
+                # Shared frontend static files
+                needs_nginx_restart=true
+                ((count_nginx_config++))
                 ;;
 
             # Bot dependencies (требуют пересборки образа)

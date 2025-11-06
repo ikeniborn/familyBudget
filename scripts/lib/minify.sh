@@ -34,12 +34,13 @@ readonly BLUE='\033[0;34m'
 readonly NC='\033[0m' # No Color
 
 # Directories to minify
-readonly WEB_JS_DIR="web/static/js"
-readonly WEB_CSS_DIR="web/static/css"
-readonly WEBAPP_JS_DIR="webapp/static/js"
-readonly WEBAPP_CSS_DIR="webapp/static/css"
-readonly SHARED_JS_DIR="shared/static/js"
-readonly SHARED_CSS_DIR="shared/static/css"
+readonly FRONTEND_DIR="frontend"
+readonly WEB_JS_DIR="${FRONTEND_DIR}/web/static/js"
+readonly WEB_CSS_DIR="${FRONTEND_DIR}/web/static/css"
+readonly WEBAPP_JS_DIR="${FRONTEND_DIR}/webapp/static/js"
+readonly WEBAPP_CSS_DIR="${FRONTEND_DIR}/webapp/static/css"
+readonly SHARED_JS_DIR="${FRONTEND_DIR}/shared/static/js"
+readonly SHARED_CSS_DIR="${FRONTEND_DIR}/shared/static/css"
 
 # Counters
 MINIFIED_JS_COUNT=0

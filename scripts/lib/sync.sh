@@ -415,7 +415,7 @@ sync_clean() {
 
     warning "Clean sync: DELETES EVERYTHING in $DEPLOY_DIR except .env"
     warning "⚠️  This will DELETE:"
-    warning "  - All code (backend/, bot/, nginx/, web/, scripts/)"
+    warning "  - All code (backend/, bot/, nginx/, frontend/, scripts/)"
     warning "  - All data (data/* including PostgreSQL database)"
     warning "  - All logs (logs/* except current deploy.log)"
     warning "  - All backups (backups/)"
@@ -473,7 +473,7 @@ sync_clean() {
     warning "Removing all directories and files (except .env)..."
 
     # Remove code directories completely
-    local dirs_to_remove=("backend" "bot" "nginx" "web" "scripts" "backups" "webapp")
+    local dirs_to_remove=("backend" "bot" "nginx" "frontend" "scripts" "backups")
     for dir in "${dirs_to_remove[@]}"; do
         if [[ -d "$DEPLOY_DIR/$dir" ]]; then
             info "  Removing $DEPLOY_DIR/$dir"

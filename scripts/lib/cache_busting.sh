@@ -25,19 +25,19 @@ update_cache_versions() {
     # Список файлов для обновления
     local files=(
         # Webapp HTML
-        "${repo_dir}/webapp/add.html"
-        "${repo_dir}/webapp/addplan.html"
-        "${repo_dir}/webapp/edit.html"
-        "${repo_dir}/webapp/index.html"
-        "${repo_dir}/webapp/list.html"
-        "${repo_dir}/webapp/stats.html"
-        "${repo_dir}/webapp/summary.html"
-        "${repo_dir}/webapp/test.html"
-        "${repo_dir}/webapp/today.html"
+        "${repo_dir}/frontend/webapp/add.html"
+        "${repo_dir}/frontend/webapp/addplan.html"
+        "${repo_dir}/frontend/webapp/edit.html"
+        "${repo_dir}/frontend/webapp/index.html"
+        "${repo_dir}/frontend/webapp/list.html"
+        "${repo_dir}/frontend/webapp/stats.html"
+        "${repo_dir}/frontend/webapp/summary.html"
+        "${repo_dir}/frontend/webapp/test.html"
+        "${repo_dir}/frontend/webapp/today.html"
         # Web Templates
-        "${repo_dir}/web/templates/facts.html"
-        "${repo_dir}/web/templates/plan.html"
-        "${repo_dir}/web/templates/index.html"
+        "${repo_dir}/frontend/web/templates/facts.html"
+        "${repo_dir}/frontend/web/templates/plan.html"
+        "${repo_dir}/frontend/web/templates/index.html"
     )
 
     local updated_count=0
@@ -101,19 +101,19 @@ check_cache_versions() {
 
     local files=(
         # Webapp HTML
-        "${repo_dir}/webapp/add.html"
-        "${repo_dir}/webapp/addplan.html"
-        "${repo_dir}/webapp/edit.html"
-        "${repo_dir}/webapp/index.html"
-        "${repo_dir}/webapp/list.html"
-        "${repo_dir}/webapp/stats.html"
-        "${repo_dir}/webapp/summary.html"
-        "${repo_dir}/webapp/test.html"
-        "${repo_dir}/webapp/today.html"
+        "${repo_dir}/frontend/webapp/add.html"
+        "${repo_dir}/frontend/webapp/addplan.html"
+        "${repo_dir}/frontend/webapp/edit.html"
+        "${repo_dir}/frontend/webapp/index.html"
+        "${repo_dir}/frontend/webapp/list.html"
+        "${repo_dir}/frontend/webapp/stats.html"
+        "${repo_dir}/frontend/webapp/summary.html"
+        "${repo_dir}/frontend/webapp/test.html"
+        "${repo_dir}/frontend/webapp/today.html"
         # Web Templates
-        "${repo_dir}/web/templates/facts.html"
-        "${repo_dir}/web/templates/plan.html"
-        "${repo_dir}/web/templates/index.html"
+        "${repo_dir}/frontend/web/templates/facts.html"
+        "${repo_dir}/frontend/web/templates/plan.html"
+        "${repo_dir}/frontend/web/templates/index.html"
     )
 
     for file in "${files[@]}"; do
