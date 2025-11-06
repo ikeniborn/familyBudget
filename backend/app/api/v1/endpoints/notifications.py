@@ -10,7 +10,7 @@ Features:
     - List all notifications (no user isolation - broadcast model)
 """
 
-from datetime import date
+from datetime import date, datetime
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, Query, status
@@ -18,7 +18,7 @@ from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from backend.app.core.dependencies import get_session
+from backend.app.core.dependencies import CurrentUser, get_session
 from backend.app.models.notification import Notification
 from backend.app.schemas import get_common_responses
 from backend.app.schemas.notification import (
@@ -128,6 +128,7 @@ async def check_duplicate_notification(
     responses=get_common_responses(),
 )
 async def list_notifications(
+    current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,

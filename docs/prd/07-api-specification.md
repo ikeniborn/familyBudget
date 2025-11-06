@@ -495,3 +495,131 @@ curl -X POST http://localhost:8000/api/v1/admin/users \
 
 ---
 
+### 7.9 Notifications Endpoints
+
+#### GET /api/v1/notifications
+
+**Описание:** Получение списка уведомлений с пагинацией и фильтрацией
+
+**Authentication:** Требуется JWT токен (Authorization header или Cookie)
+
+**Query Parameters:**
+- `skip` (integer, optional, default: 0) - Количество пропускаемых записей (offset)
+- `limit` (integer, optional, default: 50, max: 200) - Количество записей на странице
+- `notification_type` (string, optional, max_length: 50) - Фильтр по типу уведомления
+  - Допустимые значения: `budget_threshold`, `budget_exceeded`, `weekly_report`
+- `date_from` (date, optional) - Фильтр по дате создания (включительно, начало дня)
+  - Формат: `YYYY-MM-DD`
+  - Пример: `2025-10-01`
+- `date_to` (date, optional) - Фильтр по дате создания (включительно, конец дня)
+  - Формат: `YYYY-MM-DD`
+  - Пример: `2025-10-31`
+
+**Response:**
+
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "user_id": null,
+      "article_id": 5,
+      "notification_type": "budget_threshold",
+      "threshold_percent": 90,
+      "plan_amount": "10000.00",
+      "actual_amount": "9500.00",
+      "period_start": "2025-10-01",
+      "period_end": "2025-10-31",
+      "created_at": "2025-10-15T10:30:00Z"
+    }
+  ],
+  "total": 1,
+  "skip": 0,
+  "limit": 50
+}
+```
+
+**Response Fields:**
+- `items` - Массив уведомлений
+  - `user_id` - ID пользователя (NULL для broadcast уведомлений)
+  - `article_id` - ID статьи бюджета
+  - `notification_type` - Тип уведомления
+  - `threshold_percent` - Процент порога (90% или 100%)
+  - `plan_amount` - Плановая сумма
+  - `actual_amount` - Фактическая сумма
+  - `period_start` / `period_end` - Период бюджета
+  - `created_at` - Дата и время создания уведомления
+- `total` - Общее количество записей (до пагинации)
+- `skip` - Offset (из запроса)
+- `limit` - Лимит (из запроса)
+
+**Broadcast Model:**
+- Все аутентифицированные пользователи видят **ВСЕ** уведомления
+- Уведомления с `user_id = NULL` - broadcast (для всех пользователей)
+- НЕТ фильтрации по `user_id` (shared family budget)
+
+**Date Filters Behavior:**
+- `date_from` - возвращает уведомления с `created_at >= date_from 00:00:00`
+- `date_to` - возвращает уведомления с `created_at <= date_to 23:59:59`
+- Оба фильтра можно комбинировать для диапазона дат
+- При отсутствии фильтров - возвращаются все уведомления
+
+**cURL Examples:**
+
+```bash
+# Все уведомления (с пагинацией)
+curl -X GET "http://localhost:8000/api/v1/notifications?skip=0&limit=50" \
+  -H "Authorization: Bearer {token}"
+
+# Фильтр по типу уведомления
+curl -X GET "http://localhost:8000/api/v1/notifications?notification_type=budget_threshold" \
+  -H "Authorization: Bearer {token}"
+
+# Фильтр по дате создания (с date_from)
+curl -X GET "http://localhost:8000/api/v1/notifications?date_from=2025-10-01" \
+  -H "Authorization: Bearer {token}"
+
+# Фильтр по дате создания (с date_to)
+curl -X GET "http://localhost:8000/api/v1/notifications?date_to=2025-10-31" \
+  -H "Authorization: Bearer {token}"
+
+# Фильтр по диапазону дат (date_from и date_to)
+curl -X GET "http://localhost:8000/api/v1/notifications?date_from=2025-10-01&date_to=2025-10-31" \
+  -H "Authorization: Bearer {token}"
+
+# Комбинация фильтров
+curl -X GET "http://localhost:8000/api/v1/notifications?notification_type=budget_exceeded&date_from=2025-10-15&limit=20" \
+  -H "Authorization: Bearer {token}"
+```
+
+**Error Responses:**
+
+**401 Unauthorized:**
+```json
+{
+  "detail": "Not authenticated"
+}
+```
+
+**400 Bad Request (invalid date format):**
+```json
+{
+  "detail": "Invalid date format. Expected: YYYY-MM-DD"
+}
+```
+
+**400 Bad Request (invalid limit):**
+```json
+{
+  "detail": "limit must be between 1 and 200"
+}
+```
+
+**Добавлено в версии:** 5.0.0-beta (2025-11-02)
+
+**Исправлено в версии:** 5.0.0-beta (2025-11-06)
+- Исправлена ошибка 500 при использовании date фильтров (добавлен импорт datetime)
+- Добавлено требование аутентификации (CurrentUser dependency)
+
+---
+
