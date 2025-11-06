@@ -139,9 +139,7 @@ services:
       S3_REGION: ${S3_REGION:-us-east-1}
     volumes:
       - ./backend:/app/backend:ro
-      - ./web:/app/web:ro
-      - ./webapp:/app/webapp:ro  # Telegram Web Apps static files
-      - ./shared:/app/shared:ro  # Shared JS/CSS modules (DRY principle)
+      - ./frontend:/app/frontend:ro  # Frontend: web UI, Telegram Web Apps, shared modules
       - ./logs:/app/logs
       - ./uploads:/app/uploads
     ports:
@@ -227,7 +225,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./web/static:/usr/share/nginx/html/static:ro
+      - ./frontend/web/static:/usr/share/nginx/html/static:ro
       - nginx_cache:/var/cache/nginx
       - ./logs/nginx:/var/log/nginx
       # SSL certificates from host system (managed by scripts/ssl_certificate_manager.sh)
