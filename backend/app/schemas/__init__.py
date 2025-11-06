@@ -7,6 +7,7 @@ Schemas are organized by domain (auth, users, articles, facts, financial centers
 Schemas:
     Auth: TelegramAuthData, UserResponse, AuthResponse
     Users: UserUpdate, UserDetailResponse, UserListResponse
+    Admin: SystemStatsResponse, UserStatsResponse
     Articles: ArticleCreate, ArticleUpdate, ArticleResponse, ArticleListResponse
     FinancialCenters: FinancialCenterCreate, FinancialCenterUpdate, FinancialCenterResponse, FinancialCenterListResponse
     CostCenters: CostCenterCreate, CostCenterUpdate, CostCenterResponse, CostCenterListResponse
@@ -15,6 +16,7 @@ Schemas:
     Errors: ErrorResponse, ValidationErrorResponse, get_common_responses
 """
 
+from backend.app.schemas.admin import SystemStatsResponse, UserStatsResponse
 from backend.app.schemas.auth import AuthResponse, TelegramAuthData, UserResponse
 from backend.app.schemas.article import (
     ArticleCreate,
@@ -67,6 +69,9 @@ __all__ = [
     "UserUpdate",
     "UserDetailResponse",
     "UserListResponse",
+    # Admin schemas
+    "SystemStatsResponse",
+    "UserStatsResponse",
     # Article schemas
     "ArticleCreate",
     "ArticleUpdate",
