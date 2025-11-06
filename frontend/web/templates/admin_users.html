@@ -429,7 +429,7 @@ async function loadStats() {
     const container = document.getElementById('stats-container');
 
     try {
-        const response = await fetch('/api/v1/admin/users/stats/summary', {
+        const response = await fetch('/api/v1/admin/users/stats/system', {
             credentials: 'include',
         });
 
@@ -449,10 +449,11 @@ async function loadStats() {
 function renderStats(stats) {
     const container = document.getElementById('stats-container');
 
-    const totalUsers = stats.length;
-    const totalFacts = stats.reduce((sum, user) => sum + user.total_facts, 0);
-    const totalArticles = stats.reduce((sum, user) => sum + user.total_articles, 0);
-    const activeUsers = stats.filter(user => user.total_facts > 0).length;
+    // stats is now an object (SystemStatsResponse), not an array
+    const totalUsers = stats.total_users;
+    const totalFacts = stats.total_facts;
+    const totalArticles = stats.total_articles;
+    const activeUsers = stats.total_active_users;
 
     container.innerHTML = `
         <div class="stat">

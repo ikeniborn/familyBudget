@@ -20,6 +20,7 @@ from backend.app.models.cost_center import CostCenter
 from backend.app.models.fact import BudgetFact as Fact
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.user import User
+from backend.app.schemas.admin import SystemStatsResponse
 from backend.app.schemas.user import UserCreate
 from backend.app.services.telegram_auth import validate_telegram_user
 
@@ -462,6 +463,72 @@ async def get_users_stats(
         ))
 
     return stats
+
+
+@router.get("/users/stats/system", response_model=SystemStatsResponse)
+async def get_system_stats(
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Get system-wide statistics (admin only).
+
+    Follows Shared Family Budget Model principles:
+    - All metrics are GLOBAL (not filtered by user_id)
+    - Reflects the entire family budget system
+    - No per-user isolation for facts and articles
+
+    Returns aggregated stats for the entire system:
+    - Total number of users
+    - Total number of active users (who created at least one transaction)
+    - Total number of facts (Shared Family Budget)
+    - Total number of articles (Shared References)
+    - Last fact date (most recent transaction in the system)
+
+    Args:
+        current_admin: Current admin user (from dependency)
+        session: Database session
+
+    Returns:
+        SystemStatsResponse: System-wide statistics
+
+    See:
+        CLAUDE.md - Shared Family Budget Model documentation
+    """
+    # Total users (current versions only)
+    users_count_query = select(func.count(User.id)).where(User.is_current == True)  # noqa: E712
+    users_count_result = await session.execute(users_count_query)
+    total_users = users_count_result.scalar() or 0
+
+    # Total facts (Shared Family Budget - NO user_id filter!)
+    facts_count_query = select(func.count(Fact.id))
+    facts_count_result = await session.execute(facts_count_query)
+    total_facts = facts_count_result.scalar() or 0
+
+    # Active users (users who created at least one transaction - audit trail)
+    active_users_query = select(func.count(func.distinct(Fact.user_id)))
+    active_users_result = await session.execute(active_users_query)
+    total_active_users = active_users_result.scalar() or 0
+
+    # Total articles (Shared References - NO user_id filter!)
+    articles_count_query = select(func.count(Article.id)).where(
+        Article.is_current == True  # noqa: E712
+    )
+    articles_count_result = await session.execute(articles_count_query)
+    total_articles = articles_count_result.scalar() or 0
+
+    # Last fact date (most recent transaction in the system)
+    last_fact_query = select(func.max(Fact.fact_date))
+    last_fact_result = await session.execute(last_fact_query)
+    last_fact_date = last_fact_result.scalar()
+
+    return SystemStatsResponse(
+        total_users=total_users,
+        total_active_users=total_active_users,
+        total_facts=total_facts,
+        total_articles=total_articles,
+        last_fact_date=last_fact_date.isoformat() if last_fact_date else None
+    )
 
 
 # ============================================================================

@@ -339,6 +339,26 @@ fact = BudgetFact(
     **data,
     user_id=current_user.id,  # Audit trail only - кто создал запись
 )
+
+# Пример 5: Admin System Stats - БЕЗ фильтрации (глобальные метрики)
+# backend/app/api/v1/admin.py:468-531
+@router.get("/users/stats/system", response_model=SystemStatsResponse)
+async def get_system_stats(current_admin: CurrentAdmin, session: AsyncSession):
+    # Total facts (Shared Family Budget - NO user_id filter!)
+    facts_count_query = select(func.count(Fact.id))
+    total_facts = (await session.execute(facts_count_query)).scalar() or 0
+
+    # Total articles (Shared References - NO user_id filter!)
+    articles_count_query = select(func.count(Article.id)).where(
+        Article.is_current == True
+    )
+    total_articles = (await session.execute(articles_count_query)).scalar() or 0
+
+    return SystemStatsResponse(
+        total_facts=total_facts,  # ALL transactions in the system
+        total_articles=total_articles,  # ALL active categories
+        ...
+    )
 ```
 
 ```python

@@ -495,6 +495,63 @@ curl -X POST http://localhost:8000/api/v1/admin/users \
 
 ---
 
+#### GET /api/v1/admin/users/stats/system
+
+**Описание:** Получить системную статистику (admin only)
+
+**Назначение:** Отображение общей статистики системы на странице администратора. Следует принципу **Shared Family Budget Model** - все метрики глобальные (не фильтруются по user_id).
+
+**Authentication:** Требуется JWT токен + admin права (is_admin=True)
+
+**Response:**
+
+```json
+{
+  "total_users": 5,
+  "total_active_users": 3,
+  "total_facts": 150,
+  "total_articles": 25,
+  "last_fact_date": "2025-11-05"
+}
+```
+
+**Response Schema:**
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `total_users` | integer | Всего зарегистрированных пользователей (is_current=True) |
+| `total_active_users` | integer | Пользователей, создавших хотя бы одну транзакцию (audit trail) |
+| `total_facts` | integer | Всего транзакций в системе (Shared Family Budget - БЕЗ фильтрации по user_id) |
+| `total_articles` | integer | Всего активных категорий (is_current=True, Shared References - БЕЗ фильтрации по user_id) |
+| `last_fact_date` | string \| null | Дата последней транзакции в системе (ISO format: YYYY-MM-DD) или null |
+
+**Архитектурные принципы:**
+
+- **Shared Family Budget Model:** Метрики транзакций (`total_facts`) и категорий (`total_articles`) считаются для ВСЕЙ системы, не изолируются по пользователям
+- **Audit Trail:** `user_id` в таблицах используется только для отслеживания кто создал запись, но не влияет на видимость данных
+- **Target Audience:** Семейный бюджет для 2-5 человек с полной прозрачностью данных
+
+**Пример запроса:**
+
+```bash
+curl -X GET "http://localhost:8000/api/v1/admin/users/stats/system" \
+  -H "Authorization: Bearer <jwt_token>" \
+  -H "Cookie: access_token=<jwt_token>"
+```
+
+**Error Responses:**
+
+- `401 Unauthorized` - отсутствует или невалидный JWT токен
+- `403 Forbidden` - пользователь не является администратором
+
+**См. также:**
+- CLAUDE.md - Shared Family Budget Model
+- CLAUDE.md - Shared References Architecture
+
+**Добавлено в версии:** 5.0.1-beta (2025-11-06)
+
+---
+
 ### 7.9 Notifications Endpoints
 
 #### GET /api/v1/notifications
