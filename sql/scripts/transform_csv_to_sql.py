@@ -19,13 +19,13 @@ from collections import defaultdict
 
 
 # Configuration
-CSV_FILE = "t_f_registry_t_d_financial_center_t_d_cost_center_t_d_nomenclatu_202511012113.csv"
+CSV_FILE = "data.csv"
 DATA_DIR = Path(__file__).parent.parent / "data"  # Input from data/ directory
 OUTPUT_DIR = Path(__file__).parent.parent / "queries"  # Output to queries/ directory
 USER_ID = 1  # Audit trail user_id for all dimension records
 
 # Income article keywords (rest are expenses)
-INCOME_KEYWORDS = {'зарплата', 'аванс', 'отпускные'}
+INCOME_KEYWORDS = {'зарплата', 'аванс', 'отпускные','пополнение'}
 
 
 def escape_sql(value: str) -> str:
