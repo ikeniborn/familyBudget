@@ -172,6 +172,7 @@ async def get_quick_stats_html(
 async def get_plan_fact_data(
     current_user: CurrentUser,
     period: str = Query("month", regex="^(week|month|quarter|year)$"),
+    article_type: str = Query("expense", regex="^(income|expense)$"),
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -179,6 +180,7 @@ async def get_plan_fact_data(
 
     Args:
         period: Time period (week, month, quarter, year)
+        article_type: Type of category (income or expense)
 
     Returns:
         Dict with categories and plan/fact amounts for each period
@@ -206,22 +208,42 @@ async def get_plan_fact_data(
         periods_count = 12
         date_format = "%b"  # Jan, Feb, ...
 
-    # Query facts grouped by date
+    # Query FACTS grouped by date with article type filter
     # Shared family budget - NO user_id filter
-    query = select(
+    fact_query = select(
         Fact.fact_date,
         func.sum(Fact.amount).label("total")
-    ).where(
+    ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
         Fact.fact_date >= start_date,
-        Fact.fact_date <= today
+        Fact.fact_date <= today,
+        Fact.record_type == "fact",
+        Article.type == article_type,
+        Article.is_current == True  # noqa: E712
     ).group_by(Fact.fact_date).order_by(Fact.fact_date)
 
-    result = await session.execute(query)
-    data_by_date = {row.fact_date: float(row.total) for row in result.all()}
+    fact_result = await session.execute(fact_query)
+    fact_by_date = {row.fact_date: float(row.total) for row in fact_result.all()}
+
+    # Query PLANS grouped by date with article type filter
+    # Shared family budget - NO user_id filter
+    plan_query = select(
+        Fact.fact_date,
+        func.sum(Fact.amount).label("total")
+    ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
+        Fact.fact_date >= start_date,
+        Fact.fact_date <= today,
+        Fact.record_type == "plan",
+        Article.type == article_type,
+        Article.is_current == True  # noqa: E712
+    ).group_by(Fact.fact_date).order_by(Fact.fact_date)
+
+    plan_result = await session.execute(plan_query)
+    plan_by_date = {row.fact_date: float(row.total) for row in plan_result.all()}
 
     # Generate labels and data arrays
     labels = []
     fact_data = []
+    plan_data = []
 
     current_date = start_date
     # For week period, show full 7 days (for plan-vs-fact comparison)
@@ -235,12 +257,17 @@ async def get_plan_fact_data(
     for _ in range(loop_count):
         if period in ["quarter", "year"]:
             # For year, group by month
-            month_total = sum(
-                amount for d, amount in data_by_date.items()
+            month_fact = sum(
+                amount for d, amount in fact_by_date.items()
+                if d.year == current_date.year and d.month == current_date.month
+            )
+            month_plan = sum(
+                amount for d, amount in plan_by_date.items()
                 if d.year == current_date.year and d.month == current_date.month
             )
             labels.append(current_date.strftime(date_format))
-            fact_data.append(month_total)
+            fact_data.append(month_fact)
+            plan_data.append(month_plan)
             # Move to next month
             if current_date.month == 12:
                 current_date = date(current_date.year + 1, 1, 1)
@@ -253,17 +280,16 @@ async def get_plan_fact_data(
                 labels.append(day_names_ru[current_date.weekday()])
             else:
                 labels.append(current_date.strftime(date_format))
-            fact_data.append(data_by_date.get(current_date, 0.0))
+            fact_data.append(fact_by_date.get(current_date, 0.0))
+            plan_data.append(plan_by_date.get(current_date, 0.0))
             current_date += timedelta(days=1)
-
-    # For demo purposes, generate plan data as fact * 1.1 (user can customize later)
-    plan_data = [fact * 1.1 for fact in fact_data]
 
     return {
         "labels": labels,
         "plan": plan_data,
         "fact": fact_data,
-        "period": period
+        "period": period,
+        "article_type": article_type
     }
 
 
@@ -271,6 +297,7 @@ async def get_plan_fact_data(
 async def get_trends_data(
     current_user: CurrentUser,
     days: int = Query(30, ge=7, le=365),
+    record_type: str = Query("fact", regex="^(fact|plan)$"),
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -278,6 +305,7 @@ async def get_trends_data(
 
     Args:
         days: Number of days to analyze (default: 30)
+        record_type: Type of records (fact or plan)
 
     Returns:
         Dict with dates, income, and expense arrays
@@ -285,7 +313,7 @@ async def get_trends_data(
     end_date = date.today()
     start_date = end_date - timedelta(days=days)
 
-    # Query daily income and expense
+    # Query daily income and expense with record_type filter
     # Shared family budget - NO user_id filter
     query = select(
         Fact.fact_date,
@@ -294,6 +322,7 @@ async def get_trends_data(
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
         Fact.fact_date >= start_date,
         Fact.fact_date <= end_date,
+        Fact.record_type == record_type,
         Article.is_current == True  # noqa: E712
     ).group_by(Fact.fact_date, Article.type).order_by(Fact.fact_date)
 
@@ -324,7 +353,8 @@ async def get_trends_data(
         "dates": dates,
         "income": income_data,
         "expense": expense_data,
-        "period_days": days
+        "period_days": days,
+        "record_type": record_type
     }
 
 
@@ -565,6 +595,8 @@ async def get_waterfall_data(
 async def get_heatmap_data(
     current_user: CurrentUser,
     period: str = Query("quarter", regex="^(month|quarter|year)$"),
+    article_type: str = Query("expense", regex="^(income|expense)$"),
+    record_type: str = Query("fact", regex="^(fact|plan)$"),
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -572,6 +604,8 @@ async def get_heatmap_data(
 
     Args:
         period: Time range (month, quarter, year)
+        article_type: Type of category (income or expense)
+        record_type: Type of records (fact or plan)
 
     Returns:
         Heatmap data showing expense patterns by day of week over time
@@ -599,13 +633,14 @@ async def get_heatmap_data(
         end_date = date(today.year, 12, 31)  # Full year for planning
         weeks_to_show = 52
 
-    # Query all facts
+    # Query all facts with article_type and record_type filters
     # Shared family budget - NO user_id filter
     query = select(
         Fact.fact_date,
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-        Article.type == "expense",
+        Article.type == article_type,
+        Fact.record_type == record_type,
         Fact.fact_date >= start_date,
         Fact.fact_date <= end_date,
         Article.is_current == True  # noqa: E712
@@ -647,6 +682,8 @@ async def get_heatmap_data(
         "week_count": len(weeks_data),
         "period_days": period_days,
         "period": period,
+        "article_type": article_type,
+        "record_type": record_type,
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat()
     }

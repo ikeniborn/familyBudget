@@ -53,6 +53,13 @@
             <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-planfact">
                 <div class="card-body p-3">
                     <h2 id="chart-title-planfact" class="card-title text-base mb-1">📊 План vs Факт</h2>
+                    <div class="flex items-center gap-3 mb-1" role="group" aria-label="Выбор типа категорий для плана">
+                        <label id="planfact-type-label" class="label-text font-semibold">Тип:</label>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-primary" id="planfact-expense" onclick="updatePlanFactType('expense')" aria-pressed="true" aria-labelledby="planfact-type-label planfact-expense">Расходы</button>
+                            <button class="btn btn-sm btn-outline" id="planfact-income" onclick="updatePlanFactType('income')" aria-pressed="false" aria-labelledby="planfact-type-label planfact-income">Доходы</button>
+                        </div>
+                    </div>
                     <div id="chart-plan-fact" class="chart-container" role="img" aria-label="Гистограмма сравнения плановых и фактических расходов"></div>
                 </div>
             </div>
@@ -65,6 +72,13 @@
                         <div class="flex gap-1">
                             <button class="btn btn-ghost btn-xs" onclick="exportTrendsData('csv')" title="Экспорт динамики в CSV">📄</button>
                             <button class="btn btn-ghost btn-xs" onclick="exportTrendsData('excel')" title="Экспорт динамики в Excel">📊</button>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 mb-1" role="group" aria-label="Выбор типа записей для динамики">
+                        <label id="trends-type-label" class="label-text font-semibold">Тип:</label>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-primary" id="trends-fact" onclick="updateTrendsRecordType('fact')" aria-pressed="true" aria-labelledby="trends-type-label trends-fact">Факт</button>
+                            <button class="btn btn-sm btn-outline" id="trends-plan" onclick="updateTrendsRecordType('plan')" aria-pressed="false" aria-labelledby="trends-type-label trends-plan">План</button>
                         </div>
                     </div>
                     <div id="chart-trends" class="chart-container" role="img" aria-label="Линейный график динамики доходов и расходов"></div>
@@ -103,6 +117,22 @@
             <div class="card bg-base-100 shadow-lg col-span-full" aria-labelledby="chart-title-heatmap">
                 <div class="card-body p-3">
                     <h2 id="chart-title-heatmap" class="card-title text-base mb-1">🔥 Тепловая карта расходов</h2>
+                    <div class="flex flex-wrap items-center gap-3 mb-1">
+                        <div class="flex items-center gap-2" role="group" aria-label="Выбор типа категорий для тепловой карты">
+                            <label id="heatmap-articletype-label" class="label-text font-semibold">Тип категории:</label>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-primary" id="heatmap-expense" onclick="updateHeatmapType('expense')" aria-pressed="true" aria-labelledby="heatmap-articletype-label heatmap-expense">Расходы</button>
+                                <button class="btn btn-sm btn-outline" id="heatmap-income" onclick="updateHeatmapType('income')" aria-pressed="false" aria-labelledby="heatmap-articletype-label heatmap-income">Доходы</button>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2" role="group" aria-label="Выбор типа записей для тепловой карты">
+                            <label id="heatmap-recordtype-label" class="label-text font-semibold">Тип данных:</label>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-primary" id="heatmap-fact" onclick="updateHeatmapRecordType('fact')" aria-pressed="true" aria-labelledby="heatmap-recordtype-label heatmap-fact">Факт</button>
+                                <button class="btn btn-sm btn-outline" id="heatmap-plan" onclick="updateHeatmapRecordType('plan')" aria-pressed="false" aria-labelledby="heatmap-recordtype-label heatmap-plan">План</button>
+                            </div>
+                        </div>
+                    </div>
                     <div id="chart-heatmap" class="chart-container" role="img" aria-label="Тепловая карта паттернов расходов по дням недели"></div>
                 </div>
             </div>
@@ -123,6 +153,12 @@ let currentPeriod = 'week';
 let currentPieType = 'expense';
 let currentWaterfallArticleId = null;
 let waterfallCategoriesData = [];
+
+// Local filter states
+let currentPlanFactType = 'expense';
+let currentTrendsRecordType = 'fact';
+let currentHeatmapType = 'expense';
+let currentHeatmapRecordType = 'fact';
 
 // Period mapping for different chart types
 // Maps global period selection to appropriate period for each chart type
@@ -183,7 +219,7 @@ function initPlanFactChart() {
 // Load Plan vs Fact data from API
 async function loadPlanFactData(period) {
     try {
-        const response = await fetch(`/api/v1/analytics/plan-fact?period=${period}`);
+        const response = await fetch(`/api/v1/analytics/plan-fact?period=${period}&article_type=${currentPlanFactType}`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -342,7 +378,7 @@ function initTrendsChart() {
 // Load Trends data from API
 async function loadTrendsData(days) {
     try {
-        const response = await fetch(`/api/v1/analytics/trends?days=${days}`);
+        const response = await fetch(`/api/v1/analytics/trends?days=${days}&record_type=${currentTrendsRecordType}`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -542,16 +578,50 @@ async function loadPieData(type, period) {
 function updatePieChart(data) {
     pieChart.hideLoading();
 
-    // Prepare data for ECharts
-    const chartData = data.categories.map((category, index) => ({
-        name: category,
-        value: data.amounts[index]
-    }));
-
     const typeMap = { expense: 'Расходы', income: 'Доходы' };
     const periodMap = { week: 'Неделя', month: 'Месяц', year: 'Год' };
     const typeLabel = typeMap[data.type] || data.type;
     const periodLabel = periodMap[data.period] || data.period;
+
+    // Prepare data for ECharts with TOP 5 + "Прочее" logic
+    let chartData;
+    let othersData = null;
+
+    if (data.categories.length > 5) {
+        // Топ 5 + "Прочее"
+        const top5 = data.categories.slice(0, 5).map((category, index) => ({
+            name: category,
+            value: data.amounts[index],
+            percent: data.percentages[index]
+        }));
+
+        const others = data.categories.slice(5).map((category, index) => ({
+            name: category,
+            value: data.amounts[index + 5],
+            percent: data.percentages[index + 5]
+        }));
+
+        const othersSum = others.reduce((sum, item) => sum + item.value, 0);
+        const othersPercent = others.reduce((sum, item) => sum + item.percent, 0);
+
+        // Сортировка "Прочее" от большего к меньшему
+        others.sort((a, b) => b.value - a.value);
+
+        chartData = [...top5, {
+            name: 'Прочее',
+            value: othersSum,
+            percent: othersPercent,
+            othersData: others  // Сохраняем для специального тултипа
+        }];
+        othersData = others;
+    } else {
+        // Если категорий ≤ 5: показать все без "Прочее"
+        chartData = data.categories.map((category, index) => ({
+            name: category,
+            value: data.amounts[index],
+            percent: data.percentages[index]
+        }));
+    }
 
     const option = {
         title: {
@@ -565,9 +635,28 @@ function updatePieChart(data) {
         tooltip: {
             trigger: 'item',
             formatter: function(params) {
-                return `<strong>${params.name}</strong><br/>` +
-                       `Сумма: ${params.value.toFixed(2)} ₽<br/>` +
-                       `Процент: ${params.percent.toFixed(1)}%`;
+                // Специальный тултип для "Прочее"
+                if (params.name === 'Прочее' && params.data.othersData) {
+                    let html = `<strong>${params.name}</strong><br/>`;
+                    html += `Всего: ${params.value.toFixed(2)} ₽ (${params.percent.toFixed(1)}%)<br/><br/>`;
+                    html += '<div style="max-height: 200px; overflow-y: auto; font-size: 12px;">';
+
+                    params.data.othersData.forEach(item => {
+                        html += `<div style="margin-bottom: 2px;">`;
+                        html += `${item.name}: ${item.value.toFixed(2)} ₽ (${item.percent.toFixed(1)}%)`;
+                        html += `</div>`;
+                    });
+
+                    html += '</div>';
+                    return html;
+                }
+
+                // Обычный тултип: показываем топ 10 (или все если меньше)
+                const allCategories = data.categories.slice(0, 10);
+                let html = `<strong>${params.name}</strong><br/>`;
+                html += `Сумма: ${params.value.toFixed(2)} ₽<br/>`;
+                html += `Процент: ${params.percent.toFixed(1)}%`;
+                return html;
             }
         },
         legend: {
@@ -636,6 +725,82 @@ function updatePieType(type) {
     loadPieData(type, currentPeriod);
 }
 
+// Update Plan vs Fact article type filter
+function updatePlanFactType(type) {
+    currentPlanFactType = type;
+
+    // Update active button and ARIA states
+    document.querySelectorAll('#planfact-expense, #planfact-income').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+    const activeBtn = document.getElementById(`planfact-${type}`);
+    activeBtn.classList.remove('btn-outline');
+    activeBtn.classList.add('btn-primary');
+    activeBtn.setAttribute('aria-pressed', 'true');
+
+    // Reload chart data
+    loadPlanFactData(periodMapping[currentPeriod].planFact);
+}
+
+// Update Trends record type filter
+function updateTrendsRecordType(recordType) {
+    currentTrendsRecordType = recordType;
+
+    // Update active button and ARIA states
+    document.querySelectorAll('#trends-fact, #trends-plan').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+    const activeBtn = document.getElementById(`trends-${recordType}`);
+    activeBtn.classList.remove('btn-outline');
+    activeBtn.classList.add('btn-primary');
+    activeBtn.setAttribute('aria-pressed', 'true');
+
+    // Reload chart data
+    loadTrendsData(periodMapping[currentPeriod].trends);
+}
+
+// Update Heatmap article type filter
+function updateHeatmapType(type) {
+    currentHeatmapType = type;
+
+    // Update active button and ARIA states
+    document.querySelectorAll('#heatmap-expense, #heatmap-income').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+    const activeBtn = document.getElementById(`heatmap-${type}`);
+    activeBtn.classList.remove('btn-outline');
+    activeBtn.classList.add('btn-primary');
+    activeBtn.setAttribute('aria-pressed', 'true');
+
+    // Reload chart data
+    loadHeatmapData(periodMapping[currentPeriod].heatmap);
+}
+
+// Update Heatmap record type filter
+function updateHeatmapRecordType(recordType) {
+    currentHeatmapRecordType = recordType;
+
+    // Update active button and ARIA states
+    document.querySelectorAll('#heatmap-fact, #heatmap-plan').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+    const activeBtn = document.getElementById(`heatmap-${recordType}`);
+    activeBtn.classList.remove('btn-outline');
+    activeBtn.classList.add('btn-primary');
+    activeBtn.setAttribute('aria-pressed', 'true');
+
+    // Reload chart data
+    loadHeatmapData(periodMapping[currentPeriod].heatmap);
+}
+
 // Note: updatePeriod function is defined earlier in the file
 
 // Initialize Waterfall chart
@@ -693,12 +858,12 @@ function updateWaterfallChart(data) {
     waterfallChart.hideLoading();
 
     // Build proper waterfall data structure
-    // Waterfall shows: Start -> +Income -> -Expense -> End (cumulative)
+    // Waterfall shows: Начало -> +Income -> -Expense -> Итого (cumulative)
     const waterfallData = [];
     const labels = [];
 
     // Add starting point
-    labels.push('Start');
+    labels.push('Начало');
     waterfallData.push({
         value: 0,
         itemStyle: { color: '#90CAF9' }
@@ -720,7 +885,7 @@ function updateWaterfallChart(data) {
     });
 
     // Add final cumulative balance
-    labels.push('Total');
+    labels.push('Итого');
     waterfallData.push({
         value: data.balance[data.balance.length - 1],
         itemStyle: { color: '#2196F3' }
@@ -956,7 +1121,7 @@ function initHeatmapChart() {
 // Load Heatmap data from API
 async function loadHeatmapData(period = 'quarter') {
     try {
-        const response = await fetch(`/api/v1/analytics/heatmap?period=${period}`);
+        const response = await fetch(`/api/v1/analytics/heatmap?period=${period}&article_type=${currentHeatmapType}&record_type=${currentHeatmapRecordType}`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
