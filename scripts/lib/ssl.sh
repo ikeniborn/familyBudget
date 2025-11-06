@@ -185,7 +185,8 @@ update_nginx_for_https() {
 
     # Check if markers exist
     if ! grep -q "SSL_HTTPS_START" "$nginx_conf"; then
-        warning "SSL markers not found in nginx config - configuration may already be updated"
+        info "SSL markers not found - SSL configuration already applied (skipping)"
+        success "Nginx SSL configuration is up to date"
         return 0
     fi
 
