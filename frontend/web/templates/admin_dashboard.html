@@ -212,7 +212,9 @@ document.addEventListener('DOMContentLoaded', function() {
 // ============================================================
 async function loadOverview() {
     try {
-        const response = await fetch('/api/v1/admin/analytics/overview');
+        const response = await fetch('/api/v1/admin/analytics/overview', {
+            credentials: 'include',
+        });
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -339,7 +341,9 @@ function initUsersGrowthChart() {
 
 async function loadUsersGrowthData(days) {
     try {
-        const response = await fetch(`/api/v1/admin/analytics/users-growth?days=${days}`);
+        const response = await fetch(`/api/v1/admin/analytics/users-growth?days=${days}`, {
+            credentials: 'include',
+        });
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -450,7 +454,9 @@ function initTransactionsTrendsChart() {
 
 async function loadTransactionsTrendsData(days) {
     try {
-        const response = await fetch(`/api/v1/admin/analytics/transactions-trends?days=${days}`);
+        const response = await fetch(`/api/v1/admin/analytics/transactions-trends?days=${days}`, {
+            credentials: 'include',
+        });
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -577,7 +583,9 @@ function initTopUsersChart() {
 
 async function loadTopUsersData(metric, limit) {
     try {
-        const response = await fetch(`/api/v1/admin/analytics/top-users?metric=${metric}&limit=${limit}`);
+        const response = await fetch(`/api/v1/admin/analytics/top-users?metric=${metric}&limit=${limit}`, {
+            credentials: 'include',
+        });
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -693,7 +701,9 @@ function initCategoriesChart() {
 
 async function loadCategoriesData(type, limit) {
     try {
-        const response = await fetch(`/api/v1/admin/analytics/categories-breakdown?type=${type}&limit=${limit}`);
+        const response = await fetch(`/api/v1/admin/analytics/categories-breakdown?type=${type}&limit=${limit}`, {
+            credentials: 'include',
+        });
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -813,7 +823,9 @@ function initCentersCharts() {
 
 async function loadCentersUsageData() {
     try {
-        const response = await fetch('/api/v1/admin/analytics/centers-usage');
+        const response = await fetch('/api/v1/admin/analytics/centers-usage', {
+            credentials: 'include',
+        });
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);

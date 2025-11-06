@@ -132,6 +132,8 @@ async def list_notifications(
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     notification_type: Annotated[Optional[str], Query(max_length=50)] = None,
+    date_from: Annotated[Optional[date], Query(description="Filter notifications created from this date (inclusive)")] = None,
+    date_to: Annotated[Optional[date], Query(description="Filter notifications created until this date (inclusive)")] = None,
 ) -> NotificationList:
     """
     List ALL notifications (no user filtering - broadcast model).
@@ -147,6 +149,8 @@ async def list_notifications(
 
     **Filtering:**
     - notification_type: Optional filter by type (budget_threshold, budget_exceeded, weekly_report)
+    - date_from: Optional filter by creation date from (inclusive, YYYY-MM-DD)
+    - date_to: Optional filter by creation date to (inclusive, YYYY-MM-DD)
 
     **Ordering:**
     - Notifications are returned in reverse chronological order (newest first)
@@ -157,15 +161,23 @@ async def list_notifications(
 
     **Example:**
     ```
-    GET /api/v1/notifications?skip=0&limit=50&notification_type=budget_threshold
+    GET /api/v1/notifications?skip=0&limit=50&notification_type=budget_threshold&date_from=2025-10-01&date_to=2025-10-31
     ```
     """
     # Base query
     statement = select(Notification)
 
-    # Apply optional filter
+    # Apply optional filters
     if notification_type:
         statement = statement.where(Notification.notification_type == notification_type)
+
+    if date_from:
+        # Filter by created_at >= date_from (start of day)
+        statement = statement.where(Notification.created_at >= datetime.combine(date_from, datetime.min.time()))
+
+    if date_to:
+        # Filter by created_at <= date_to (end of day)
+        statement = statement.where(Notification.created_at <= datetime.combine(date_to, datetime.max.time()))
 
     # Count total (before pagination)
     count_stmt = select(func.count()).select_from(statement.subquery())

@@ -127,7 +127,9 @@ function refreshMonitoring() {
 // Load monitoring data
 async function loadMonitoringData() {
     try {
-        const response = await fetch('/health/detailed');
+        const response = await fetch('/health/detailed', {
+            credentials: 'include',
+        });
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);

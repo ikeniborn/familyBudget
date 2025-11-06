@@ -35,13 +35,13 @@
                     <label class="label">
                         <span class="label-text font-medium">📅 Дата с</span>
                     </label>
-                    <input type="text" id="filter-date-from" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ">
+                    <input type="date" id="filter-date-from" class="input input-bordered w-full">
                 </div>
                 <div class="form-control">
                     <label class="label">
                         <span class="label-text font-medium">📅 Дата по</span>
                     </label>
-                    <input type="text" id="filter-date-to" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ">
+                    <input type="date" id="filter-date-to" class="input input-bordered w-full">
                 </div>
             </div>
             <div class="flex justify-end">
@@ -146,37 +146,45 @@
 let currentPage = 1;
 let itemsPerPage = 50;
 let totalItems = 0;
-let allNotifications = [];
-let filteredNotifications = [];
+let currentNotifications = [];
 
 // Initialize page
 document.addEventListener('DOMContentLoaded', function() {
     loadNotifications();
-
-    // Инициализация CalendarWidget для фильтров дат (Range Picker)
-    new CalendarWidget({
-        mode: 'range',
-        startInputElement: document.getElementById('filter-date-from'),
-        endInputElement: document.getElementById('filter-date-to'),
-        onSelect: (startDate, endDate) => {
-            console.log('Выбран диапазон дат для уведомлений:', startDate, endDate);
-            // Автоматически применить фильтры при выборе дат
-            applyFilters();
-        }
-    });
 });
 
-// Load notifications from API
+// Load notifications from API (server-side pagination)
 async function loadNotifications() {
     try {
         showLoading();
 
+        // Get filter values
+        const typeFilter = document.getElementById('filter-notification-type').value;
+        const dateFromFilter = document.getElementById('filter-date-from').value;
+        const dateToFilter = document.getElementById('filter-date-to').value;
+
+        // Build query parameters
         const params = new URLSearchParams({
-            skip: 0,
-            limit: 1000  // Load all for client-side filtering
+            skip: (currentPage - 1) * itemsPerPage,
+            limit: itemsPerPage
         });
 
-        const response = await fetch(`/api/v1/notifications?${params}`);
+        if (typeFilter) {
+            params.append('notification_type', typeFilter);
+        }
+
+        if (dateFromFilter) {
+            params.append('date_from', dateFromFilter);
+        }
+
+        if (dateToFilter) {
+            params.append('date_to', dateToFilter);
+        }
+
+        // Fetch with credentials (JWT cookie)
+        const response = await fetch(`/api/v1/notifications?${params}`, {
+            credentials: 'include',  // Include cookies for JWT auth
+        });
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -184,11 +192,12 @@ async function loadNotifications() {
 
         const data = await response.json();
 
-        allNotifications = data.items || [];
+        currentNotifications = data.items || [];
         totalItems = data.total || 0;
 
-        // Apply initial filters
-        applyFilters();
+        // Update stats and render
+        updateStats();
+        renderNotifications();
 
         hideLoading();
     } catch (error) {
@@ -198,36 +207,10 @@ async function loadNotifications() {
     }
 }
 
-// Apply filters
+// Apply filters (reload from server)
 function applyFilters() {
-    const typeFilter = document.getElementById('filter-notification-type').value;
-    const dateFromFilter = document.getElementById('filter-date-from').value;
-    const dateToFilter = document.getElementById('filter-date-to').value;
-
-    filteredNotifications = allNotifications.filter(notification => {
-        // Type filter
-        if (typeFilter && notification.notification_type !== typeFilter) {
-            return false;
-        }
-
-        // Date range filter
-        const notificationDate = new Date(notification.created_at);
-        if (dateFromFilter) {
-            const dateFrom = new Date(dateFromFilter);
-            if (notificationDate < dateFrom) return false;
-        }
-        if (dateToFilter) {
-            const dateTo = new Date(dateToFilter);
-            dateTo.setHours(23, 59, 59);  // End of day
-            if (notificationDate > dateTo) return false;
-        }
-
-        return true;
-    });
-
-    currentPage = 1;
-    updateStats();
-    renderNotifications();
+    currentPage = 1;  // Reset to first page
+    loadNotifications();
 }
 
 // Reset filters
@@ -238,12 +221,15 @@ function resetFilters() {
     applyFilters();
 }
 
-// Update statistics
-function updateStats() {
-    document.getElementById('stat-total').textContent = filteredNotifications.length;
+// Update statistics (server-side totals)
+async function updateStats() {
+    // Stats are based on filtered totals from server
+    document.getElementById('stat-total').textContent = totalItems;
 
-    const thresholdCount = filteredNotifications.filter(n => n.notification_type === 'budget_threshold').length;
-    const exceededCount = filteredNotifications.filter(n => n.notification_type === 'budget_exceeded').length;
+    // For type-specific stats, we need separate API calls or client-side count
+    // For now, use client-side count from current page (approximation)
+    const thresholdCount = currentNotifications.filter(n => n.notification_type === 'budget_threshold').length;
+    const exceededCount = currentNotifications.filter(n => n.notification_type === 'budget_exceeded').length;
 
     document.getElementById('stat-threshold').textContent = thresholdCount;
     document.getElementById('stat-exceeded').textContent = exceededCount;
@@ -258,7 +244,7 @@ function renderNotifications() {
 
     tbody.innerHTML = '';
 
-    if (filteredNotifications.length === 0) {
+    if (currentNotifications.length === 0) {
         table.style.display = 'none';
         emptyState.style.display = 'block';
         pagination.style.display = 'none';
@@ -267,29 +253,29 @@ function renderNotifications() {
         return;
     }
 
-    // Calculate pagination
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = Math.min(startIndex + itemsPerPage, filteredNotifications.length);
-    const pageNotifications = filteredNotifications.slice(startIndex, endIndex);
-
-    // Render notifications
-    pageNotifications.forEach(notification => {
+    // Render notifications (already paginated by server)
+    currentNotifications.forEach(notification => {
         const row = createNotificationRow(notification);
         tbody.appendChild(row);
     });
 
+    // Calculate current range for display
+    const startIndex = (currentPage - 1) * itemsPerPage + 1;
+    const endIndex = Math.min(startIndex + currentNotifications.length - 1, totalItems);
+
     // Update UI elements
     table.style.display = 'block';
     emptyState.style.display = 'none';
-    pagination.style.display = filteredNotifications.length > itemsPerPage ? 'flex' : 'none';
+    pagination.style.display = totalItems > itemsPerPage ? 'flex' : 'none';
 
     document.getElementById('current-count').textContent = endIndex;
-    document.getElementById('total-count').textContent = filteredNotifications.length;
+    document.getElementById('total-count').textContent = totalItems;
     document.getElementById('current-page').textContent = currentPage;
 
     // Update pagination buttons
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
     document.getElementById('prev-btn').disabled = currentPage === 1;
-    document.getElementById('next-btn').disabled = endIndex >= filteredNotifications.length;
+    document.getElementById('next-btn').disabled = currentPage >= totalPages;
 }
 
 // Create notification row
@@ -358,17 +344,17 @@ function createNotificationRow(notification) {
 
 // Pagination
 function nextPage() {
-    const maxPage = Math.ceil(filteredNotifications.length / itemsPerPage);
-    if (currentPage < maxPage) {
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    if (currentPage < totalPages) {
         currentPage++;
-        renderNotifications();
+        loadNotifications();  // Reload from server
     }
 }
 
 function previousPage() {
     if (currentPage > 1) {
         currentPage--;
-        renderNotifications();
+        loadNotifications();  // Reload from server
     }
 }
 

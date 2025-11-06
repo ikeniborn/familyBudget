@@ -178,7 +178,9 @@ async function loadUsers() {
 
     try {
         const isCurrent = currentFilter === 'current';
-        const response = await fetch(`/api/v1/admin/users?is_current=${isCurrent}`);
+        const response = await fetch(`/api/v1/admin/users?is_current=${isCurrent}`, {
+            credentials: 'include',
+        });
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -286,6 +288,7 @@ async function toggleAdmin(userId, makeAdmin) {
             headers: {
                 'Content-Type': 'application/json'
             },
+            credentials: 'include',
             body: JSON.stringify({
                 is_admin: makeAdmin
             })
@@ -349,7 +352,9 @@ async function checkDuplicateTelegramId(telegramId) {
     // Debounce API call (wait 500ms after user stops typing)
     checkDuplicateTimeout = setTimeout(async () => {
         try {
-            const response = await fetch(`/api/v1/admin/users/check-duplicate?telegram_id=${telegramId}`);
+            const response = await fetch(`/api/v1/admin/users/check-duplicate?telegram_id=${telegramId}`, {
+                credentials: 'include',
+            });
 
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -398,6 +403,7 @@ async function createUser(event) {
             headers: {
                 'Content-Type': 'application/json'
             },
+            credentials: 'include',
             body: JSON.stringify(data)
         });
 
@@ -423,7 +429,9 @@ async function loadStats() {
     const container = document.getElementById('stats-container');
 
     try {
-        const response = await fetch('/api/v1/admin/users/stats/summary');
+        const response = await fetch('/api/v1/admin/users/stats/summary', {
+            credentials: 'include',
+        });
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -524,6 +532,7 @@ async function updateUser(event) {
     try {
         const response = await fetch(`/api/v1/admin/users/${userId}`, {
             method: 'PUT',
+            credentials: 'include',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(data)
         });
