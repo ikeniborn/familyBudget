@@ -373,6 +373,42 @@ function showEditModal(articleId) {
     populateParentSelect('edit-parent', article.type);
     document.getElementById('edit-parent').value = article.parent_id || '';
 
+    // Add event listener for type change to update parent list dynamically
+    const editTypeSelect = document.getElementById('edit-type');
+    const editParentSelect = document.getElementById('edit-parent');
+    const originalType = article.type;
+    const originalParentId = article.parent_id;
+
+    // Remove old listener if exists
+    editTypeSelect.replaceWith(editTypeSelect.cloneNode(true));
+    const newEditTypeSelect = document.getElementById('edit-type');
+    newEditTypeSelect.value = article.type;
+
+    newEditTypeSelect.addEventListener('change', function() {
+        const newType = this.value;
+        const oldParentId = editParentSelect.value;
+
+        // Update parent select with new type
+        populateParentSelect('edit-parent', newType);
+
+        // Check if old parent is still valid (same type)
+        if (oldParentId && originalType !== newType) {
+            const oldParentArticle = articlesData.find(a => a.id == oldParentId);
+            if (oldParentArticle && oldParentArticle.type !== newType) {
+                // Parent has different type - clear selection and show warning
+                editParentSelect.value = '';
+                showNotification(
+                    `⚠️ Родительская категория "${oldParentArticle.name}" имеет тип "${oldParentArticle.type}". ` +
+                    `Выберите новую родительскую категорию с типом "${newType}" или оставьте корневой уровень.`,
+                    'warning'
+                );
+            } else {
+                // Try to keep the same parent if it's compatible
+                editParentSelect.value = oldParentId || '';
+            }
+        }
+    });
+
     document.getElementById('edit-modal').showModal();
 }
 
@@ -406,7 +442,27 @@ async function updateArticle(event) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+
+            // Extract meaningful error message
+            let errorMessage = 'Неизвестная ошибка';
+
+            if (typeof error.detail === 'string') {
+                errorMessage = error.detail;
+            } else if (error.detail && typeof error.detail === 'object') {
+                // Handle object-type errors
+                errorMessage = JSON.stringify(error.detail);
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            // Add helpful hints based on error type
+            if (errorMessage.includes('родительская категория') || errorMessage.includes('parent')) {
+                errorMessage += '\n\n💡 Совет: Измените родительскую категорию или удалите привязку (выберите "-- Корневой уровень --")';
+            } else if (errorMessage.includes('уже существует') || errorMessage.includes('already exists')) {
+                errorMessage += '\n\n💡 Совет: Измените имя категории или выберите другой тип';
+            }
+
+            throw new Error(errorMessage);
         }
 
         // Success
