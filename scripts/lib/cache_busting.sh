@@ -35,6 +35,7 @@ update_cache_versions() {
         "${repo_dir}/frontend/webapp/test.html"
         "${repo_dir}/frontend/webapp/today.html"
         # Web Templates
+        "${repo_dir}/frontend/web/templates/base.html"
         "${repo_dir}/frontend/web/templates/facts.html"
         "${repo_dir}/frontend/web/templates/plan.html"
         "${repo_dir}/frontend/web/templates/index.html"
@@ -64,8 +65,8 @@ update_cache_versions() {
         # - .min.js / .min.css файлы (минифицированные)
         # - /webapp/, /web/, /static/, /shared/ paths
         perl -i.bak -pe "
-            s{(\\/webapp\\/static\\/js\\/|\\/web\\/static\\/js\\/|\\/static\\/js\\/|\\/shared\\/static\\/js\\/)((?:vendor\\/)?[a-zA-Z_.-]+\\.(?:min\\.)?js)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
-            s{(\\/webapp\\/static\\/css\\/|\\/web\\/static\\/css\\/|\\/shared\\/static\\/css\\/)((?:vendor\\/)?[a-zA-Z_.-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
+            s{(\\/webapp\\/static\\/js\\/|\\/web\\/static\\/js\\/|\\/static\\/js\\/|\\/shared\\/static\\/js\\/)((?:vendor\\/)?[a-zA-Z_\\-]+\\.(?:min\\.)?js)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
+            s{(\\/webapp\\/static\\/css\\/|\\/web\\/static\\/css\\/|\\/static\\/css\\/|\\/shared\\/static\\/css\\/)((?:vendor\\/)?[a-zA-Z_\\-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
         " "$file" 2>&1
 
         local perl_exit=$?
@@ -111,6 +112,7 @@ check_cache_versions() {
         "${repo_dir}/frontend/webapp/test.html"
         "${repo_dir}/frontend/webapp/today.html"
         # Web Templates
+        "${repo_dir}/frontend/web/templates/base.html"
         "${repo_dir}/frontend/web/templates/facts.html"
         "${repo_dir}/frontend/web/templates/plan.html"
         "${repo_dir}/frontend/web/templates/index.html"
