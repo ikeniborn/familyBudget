@@ -35,6 +35,7 @@ update_cache_versions() {
         "${repo_dir}/frontend/webapp/test.html"
         "${repo_dir}/frontend/webapp/today.html"
         # Web Templates
+        "${repo_dir}/frontend/web/templates/base.html"
         "${repo_dir}/frontend/web/templates/facts.html"
         "${repo_dir}/frontend/web/templates/plan.html"
         "${repo_dir}/frontend/web/templates/index.html"
@@ -111,6 +112,7 @@ check_cache_versions() {
         "${repo_dir}/frontend/webapp/test.html"
         "${repo_dir}/frontend/webapp/today.html"
         # Web Templates
+        "${repo_dir}/frontend/web/templates/base.html"
         "${repo_dir}/frontend/web/templates/facts.html"
         "${repo_dir}/frontend/web/templates/plan.html"
         "${repo_dir}/frontend/web/templates/index.html"

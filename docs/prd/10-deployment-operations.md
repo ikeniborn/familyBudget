@@ -1120,6 +1120,62 @@ s{(/static/js/|/shared/static/js/)([a-zA-Z_.-]+\.(?:min\.)?js)\?v=...}
 <script src="/static/js/app.min.js?v=20251105_1430"></script>
 ```
 
+**ВАЖНО: HTML Templates Configuration (v5.0.0-beta, ноябрь 2025)**
+
+Все HTML шаблоны обновлены для использования минифицированных версий:
+
+**Обновленные файлы:**
+- ✅ `frontend/webapp/*.html` (9 файлов) - все JS/CSS ссылки → .min версии
+- ✅ `frontend/web/templates/base.html` - базовый шаблон с .min ссылками
+- ✅ `frontend/web/templates/index.html` - главная страница
+- ✅ `frontend/web/templates/facts.html` - управление транзакциями
+- ✅ `frontend/web/templates/plan.html` - управление планом
+
+**Шаблон ссылок в HTML:**
+```html
+<!-- ✅ ПРАВИЛЬНО - Ссылка на минифицированную версию -->
+<script src="/webapp/static/js/storage.min.js?v=PLACEHOLDER"></script>
+<script src="/shared/static/js/choicesCategoryTree.min.js?v=PLACEHOLDER"></script>
+<link rel="stylesheet" href="/webapp/static/css/app.min.css?v=PLACEHOLDER">
+
+<!-- ❌ НЕПРАВИЛЬНО - Ссылка на НЕминифицированную версию -->
+<script src="/webapp/static/js/storage.js?v=20251105_1430"></script>
+
+<!-- ⚠️ ИСКЛЮЧЕНИЕ - Vendor библиотеки БЕЗ версий -->
+<script src="/webapp/static/js/vendor/choices.min.js"></script>
+```
+
+**Версионирование PLACEHOLDER:**
+
+HTML шаблоны используют специальный placeholder `?v=PLACEHOLDER`, который автоматически заменяется на актуальную версию во время deployment через `scripts/lib/cache_busting.sh`:
+
+```bash
+# При deployment:
+PLACEHOLDER → 20251107_1430 (timestamp-based)
+```
+
+**Исключения (vendor библиотеки):**
+
+Сторонние библиотеки (vendor/) загружаются БЕЗ версионирования, так как:
+- Уже минифицированы (choices.min.js)
+- Версия контролируется через package.json/npm
+- Редко обновляются
+
+**Cache Busting Script Updates:**
+
+`scripts/lib/cache_busting.sh` обновлен для поддержки:
+- ✅ `base.html` добавлен в список обрабатываемых файлов
+- ✅ Regex поддерживает `.min.js` и `.min.css` паттерны
+- ✅ Обновление `/shared/` модулей
+
+**Workflow после исправления:**
+
+При изменении JS/CSS файлов:
+1. Изменить source файл (app.js)
+2. Запустить `npm run build` (создаст app.min.js)
+3. Запустить deployment (cache busting обновит ?v=)
+4. HTML автоматически загрузит новую минифицированную версию
+
 **Shared Modules (/shared/ directory):**
 
 **Проблема (до минификации):**
