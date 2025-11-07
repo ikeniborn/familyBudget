@@ -398,7 +398,7 @@ async function loadTrendsData(period) {
 function updateTrendsChart(data) {
     trendsChart.hideLoading();
 
-    const periodMap = { week: 'Неделя', month: 'Месяц', year: 'Год' };
+    const periodMap = { week: '7 дней', month: '4 недели', year: '12 месяцев' };
     const periodLabel = periodMap[data.period] || data.period;
 
     const option = {
@@ -566,22 +566,22 @@ function updatePieChart(data) {
     const typeLabel = typeMap[data.type] || data.type;
     const periodLabel = periodMap[data.period] || data.period;
 
-    // Prepare data for ECharts with TOP 5 + "Прочее" logic
+    // Prepare data for ECharts with TOP 10 + "Прочее" logic
     let chartData;
     let othersData = null;
 
-    if (data.categories.length > 5) {
-        // Топ 5 + "Прочее"
-        const top5 = data.categories.slice(0, 5).map((category, index) => ({
+    if (data.categories.length > 10) {
+        // Топ 10 + "Прочее"
+        const top10 = data.categories.slice(0, 10).map((category, index) => ({
             name: category,
             value: data.amounts[index],
             percent: data.percentages[index]
         }));
 
-        const others = data.categories.slice(5).map((category, index) => ({
+        const others = data.categories.slice(10).map((category, index) => ({
             name: category,
-            value: data.amounts[index + 5],
-            percent: data.percentages[index + 5]
+            value: data.amounts[index + 10],
+            percent: data.percentages[index + 10]
         }));
 
         const othersSum = others.reduce((sum, item) => sum + item.value, 0);
@@ -590,7 +590,7 @@ function updatePieChart(data) {
         // Сортировка "Прочее" от большего к меньшему
         others.sort((a, b) => b.value - a.value);
 
-        chartData = [...top5, {
+        chartData = [...top10, {
             name: 'Прочее',
             value: othersSum,
             percent: othersPercent,
@@ -598,7 +598,7 @@ function updatePieChart(data) {
         }];
         othersData = others;
     } else {
-        // Если категорий ≤ 5: показать все без "Прочее"
+        // Если категорий ≤ 10: показать все без "Прочее"
         chartData = data.categories.map((category, index) => ({
             name: category,
             value: data.amounts[index],
@@ -622,20 +622,28 @@ function updatePieChart(data) {
                 if (params.name === 'Прочее' && params.data.othersData) {
                     let html = `<strong>${params.name}</strong><br/>`;
                     html += `Всего: ${params.value.toFixed(2)} ₽ (${params.percent.toFixed(1)}%)<br/><br/>`;
-                    html += '<div style="max-height: 200px; overflow-y: auto; font-size: 12px;">';
+                    html += '<div style="font-size: 12px;">';
 
-                    params.data.othersData.forEach(item => {
+                    const displayItems = params.data.othersData.slice(0, 10);
+                    const remainingCount = params.data.othersData.length - 10;
+
+                    displayItems.forEach(item => {
                         html += `<div style="margin-bottom: 2px;">`;
                         html += `${item.name}: ${item.value.toFixed(2)} ₽ (${item.percent.toFixed(1)}%)`;
                         html += `</div>`;
                     });
 
+                    if (remainingCount > 0) {
+                        html += `<div style="margin-top: 4px; font-style: italic; color: #999;">`;
+                        html += `... и еще ${remainingCount} ${remainingCount === 1 ? 'категория' : remainingCount < 5 ? 'категории' : 'категорий'}`;
+                        html += `</div>`;
+                    }
+
                     html += '</div>';
                     return html;
                 }
 
-                // Обычный тултип: показываем топ 10 (или все если меньше)
-                const allCategories = data.categories.slice(0, 10);
+                // Обычный тултип
                 let html = `<strong>${params.name}</strong><br/>`;
                 html += `Сумма: ${params.value.toFixed(2)} ₽<br/>`;
                 html += `Процент: ${params.percent.toFixed(1)}%`;

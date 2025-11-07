@@ -305,10 +305,13 @@ async def get_trends_data(
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Get spending trends over time for line chart with aggregation.
+    Get spending trends over time for line chart with rolling periods.
 
     Args:
         period: Time period (week, month, year)
+            - week: last 7 days from today
+            - month: last 4 weeks from current week
+            - year: last 12 months from current month
         record_type: Type of records (fact or plan)
 
     Returns:
@@ -316,18 +319,21 @@ async def get_trends_data(
     """
     today = date.today()
 
-    # Calculate date range based on period
+    # Calculate date range based on rolling period
     if period == "week":
-        start_date = today - timedelta(days=today.weekday())  # Monday
-        periods_count = 7  # Days in week
+        # Last 7 days from today
+        start_date = today - timedelta(days=6)
     elif period == "month":
-        start_date = date(today.year, today.month, 1)
-        # Calculate weeks in current month
-        month_end = date(today.year, today.month + 1, 1) - timedelta(days=1) if today.month < 12 else date(today.year, 12, 31)
-        periods_count = (month_end - start_date).days // 7 + 1
+        # Last 4 weeks from start of current week
+        current_week_start = today - timedelta(days=today.weekday())
+        start_date = current_week_start - timedelta(weeks=3)
     else:  # year
-        start_date = date(today.year, 1, 1)
-        periods_count = 12  # Months in year
+        # Last 12 months from start of current month
+        current_month_start = date(today.year, today.month, 1)
+        if today.month >= 12:
+            start_date = date(today.year - 1, today.month - 11, 1)
+        else:
+            start_date = date(today.year - 1, 12 - (11 - today.month), 1)
 
     # Query daily income and expense with record_type filter
     # Shared family budget - NO user_id filter
@@ -358,28 +364,30 @@ async def get_trends_data(
     expense_data = []
 
     if period == "week":
-        # Aggregate by days of week
-        day_names_ru = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+        # Last 7 days - show by date
+        month_names_short = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"]
         current_date = start_date
         for i in range(7):
-            labels.append(day_names_ru[i])
+            # Format: "01 ноя"
+            label = f"{current_date.day} {month_names_short[current_date.month - 1]}"
+            labels.append(label)
             day_data = data_by_date.get(current_date, {"income": 0.0, "expense": 0.0})
             income_data.append(day_data["income"])
             expense_data.append(day_data["expense"])
             current_date += timedelta(days=1)
 
     elif period == "month":
-        # Aggregate by weeks
+        # Last 4 weeks - aggregate by week
         current_date = start_date
         week_num = 1
-        while current_date <= today:
-            week_end = min(current_date + timedelta(days=6), today)
+        for week_num in range(1, 5):
+            week_end = current_date + timedelta(days=6)
 
             # Aggregate week data
             week_income = 0.0
             week_expense = 0.0
             week_date = current_date
-            while week_date <= week_end:
+            while week_date <= week_end and week_date <= today:
                 day_data = data_by_date.get(week_date, {"income": 0.0, "expense": 0.0})
                 week_income += day_data["income"]
                 week_expense += day_data["expense"]
@@ -390,25 +398,32 @@ async def get_trends_data(
             expense_data.append(week_expense)
 
             current_date = week_end + timedelta(days=1)
-            week_num += 1
 
     else:  # year
-        # Aggregate by months
+        # Last 12 months - aggregate by month
         month_names_ru = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"]
-        for month in range(1, 13):
+        current_month_date = start_date
+
+        for i in range(12):
             # Aggregate month data
             month_income = sum(
                 data["income"] for d, data in data_by_date.items()
-                if d.year == today.year and d.month == month
+                if d.year == current_month_date.year and d.month == current_month_date.month
             )
             month_expense = sum(
                 data["expense"] for d, data in data_by_date.items()
-                if d.year == today.year and d.month == month
+                if d.year == current_month_date.year and d.month == current_month_date.month
             )
 
-            labels.append(month_names_ru[month - 1])
+            labels.append(month_names_ru[current_month_date.month - 1])
             income_data.append(month_income)
             expense_data.append(month_expense)
+
+            # Move to next month
+            if current_month_date.month == 12:
+                current_month_date = date(current_month_date.year + 1, 1, 1)
+            else:
+                current_month_date = date(current_month_date.year, current_month_date.month + 1, 1)
 
     return {
         "labels": labels,
