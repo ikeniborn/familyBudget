@@ -310,10 +310,12 @@ function populateParentSelect(selectId, type) {
     // Add options with hierarchy
     function addOptions(nodes, level) {
         nodes.forEach(node => {
-            // Create visual tree structure
+            // Create visual tree structure with non-breaking spaces
+            // Using \u00A0 (non-breaking space) to prevent browser from collapsing whitespace
             let prefix = '';
             if (level > 0) {
-                prefix = '  '.repeat(level - 1) + '└─ ';
+                // Each level adds 2 non-breaking spaces for indentation
+                prefix = '\u00A0\u00A0'.repeat(level - 1) + '└─\u00A0';
             }
 
             const option = document.createElement('option');
@@ -359,7 +361,31 @@ async function createArticle(event) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+
+            // Extract meaningful error message
+            let errorMessage = 'Неизвестная ошибка';
+
+            if (typeof error.detail === 'string') {
+                errorMessage = error.detail;
+            } else if (error.detail && typeof error.detail === 'object') {
+                // Handle object-type errors - extract message if exists
+                if (error.detail.message) {
+                    errorMessage = error.detail.message;
+                } else {
+                    errorMessage = JSON.stringify(error.detail);
+                }
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            // Add helpful hints based on error type
+            if (errorMessage.includes('родительская категория') || errorMessage.includes('parent')) {
+                errorMessage += '\n\n💡 Совет: Измените родительскую категорию или удалите привязку (выберите "-- Корневой уровень --")';
+            } else if (errorMessage.includes('уже существует') || errorMessage.includes('already exists')) {
+                errorMessage += '\n\n💡 Совет: Измените имя категории или выберите другой тип';
+            }
+
+            throw new Error(errorMessage);
         }
 
         // Success
@@ -460,8 +486,12 @@ async function updateArticle(event) {
             if (typeof error.detail === 'string') {
                 errorMessage = error.detail;
             } else if (error.detail && typeof error.detail === 'object') {
-                // Handle object-type errors
-                errorMessage = JSON.stringify(error.detail);
+                // Handle object-type errors - extract message if exists
+                if (error.detail.message) {
+                    errorMessage = error.detail.message;
+                } else {
+                    errorMessage = JSON.stringify(error.detail);
+                }
             } else if (error.message) {
                 errorMessage = error.message;
             }
@@ -501,7 +531,24 @@ async function deactivateArticle(articleId) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+
+            // Extract meaningful error message
+            let errorMessage = 'Неизвестная ошибка';
+
+            if (typeof error.detail === 'string') {
+                errorMessage = error.detail;
+            } else if (error.detail && typeof error.detail === 'object') {
+                // Handle object-type errors - extract message if exists
+                if (error.detail.message) {
+                    errorMessage = error.detail.message;
+                } else {
+                    errorMessage = JSON.stringify(error.detail);
+                }
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            throw new Error(errorMessage);
         }
 
         // Success
