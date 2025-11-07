@@ -292,17 +292,16 @@ function closeCreateModal() {
 }
 
 // Populate parent select dropdown
-function populateParentSelect(selectId, type) {
+function populateParentSelect(selectId, type, excludeArticleId = null) {
     const select = document.getElementById(selectId);
-    const currentArticleId = document.getElementById('edit-id')?.value;
 
     // Clear existing options (except first)
     while (select.options.length > 1) {
         select.remove(1);
     }
 
-    // Get articles of same type
-    const sameType = articlesData.filter(a => a.type === type && a.id != currentArticleId);
+    // Get articles of same type (exclude current article if editing)
+    const sameType = articlesData.filter(a => a.type === type && a.id != excludeArticleId);
 
     // Build tree for proper ordering
     const tree = buildTree(sameType);
@@ -407,7 +406,7 @@ function showEditModal(articleId) {
     document.getElementById('edit-id').value = article.id;
     document.getElementById('edit-name').value = article.name;
     document.getElementById('edit-type').value = article.type;
-    populateParentSelect('edit-parent', article.type);
+    populateParentSelect('edit-parent', article.type, article.id);
     document.getElementById('edit-parent').value = article.parent_id || '';
 
     // Add event listener for type change to update parent list dynamically
@@ -425,8 +424,8 @@ function showEditModal(articleId) {
         const newType = this.value;
         const oldParentId = editParentSelect.value;
 
-        // Update parent select with new type
-        populateParentSelect('edit-parent', newType);
+        // Update parent select with new type (exclude current article)
+        populateParentSelect('edit-parent', newType, article.id);
 
         // Check if old parent is still valid (same type)
         if (oldParentId && originalType !== newType) {
