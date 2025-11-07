@@ -1176,6 +1176,104 @@ PLACEHOLDER → 20251107_1430 (timestamp-based)
 3. Запустить deployment (cache busting обновит ?v=)
 4. HTML автоматически загрузит новую минифицированную версию
 
+**Known Issues and Fixes (ноябрь 2025):**
+
+**🐛 БАГ: Cache Busting не обрабатывал /static/ пути (Fix: cd11c9f2)**
+
+**Обнаружено:** 2025-11-07 после первого production deployment
+**Исправлено:** commit cd11c9f2 в ветке fix/minified-assets-usage
+
+**Проблема:**
+
+Cache busting regex в `scripts/lib/cache_busting.sh` не обрабатывал файлы с путями начинающимися с `/static/` (только `/webapp/static/`, `/web/static/`, `/shared/static/`).
+
+**Симптомы:**
+
+После deployment следующие файлы содержали `?v=PLACEHOLDER` вместо актуальной версии:
+
+```html
+<!-- Web templates НЕ обновлялись: -->
+/static/css/calendar-widget.min.css?v=PLACEHOLDER      <!-- base.html -->
+/static/css/choices-tailwind.min.css?v=PLACEHOLDER     <!-- base.html, index.html -->
+/static/js/admin-facts-common.min.js?v=PLACEHOLDER     <!-- facts.html, plan.html -->
+```
+
+При этом webapp файлы обновлялись корректно:
+```html
+<!-- Webapp templates ОБНОВЛЯЛИСЬ: -->
+/webapp/static/css/telegram-theme.min.css?v=20251107_1202  <!-- OK -->
+/webapp/static/js/app.min.js?v=20251107_1202                <!-- OK -->
+```
+
+**Корневая причина:**
+
+1. **CSS regex отсутствовал паттерн `/static/css/`:**
+   ```perl
+   # БЫЛО (строка 69):
+   s{(\\/webapp\\/static\\/css\\/|\\/web\\/static\\/css\\/|\\/shared\\/static\\/css\\/)
+      # ^^^ Нет /static/css/ паттерна!
+
+   # СТАЛО:
+   s{(\\/webapp\\/static\\/css\\/|\\/web\\/static\\/css\\/|\\/static\\/css\\/|\\/shared\\/static\\/css\\/)
+      #                                                    ^^^^^^^^^^^^^^^^^ ДОБАВЛЕН
+   ```
+
+2. **Character class содержал недопустимый диапазон:**
+   ```perl
+   # БЫЛО:
+   [a-zA-Z_.-]+  # Диапазон .- недопустим (. = ASCII 46, - = ASCII 45)
+
+   # СТАЛО:
+   [a-zA-Z_\\-]+  # Экранированный дефис (правильная обработка дефисов)
+   ```
+
+**Файлы с дефисами НЕ обрабатывались:**
+- `admin-facts-common.min.js` ❌
+- `choices-tailwind.min.css` ❌
+- `calendar-widget.min.js` ❌
+
+**Исправление:**
+
+```diff
+# scripts/lib/cache_busting.sh:68-69
+perl -i.bak -pe "
+-   s{(\\/webapp\\/static\\/js\\/|\\/web\\/static\\/js\\/|\\/static\\/js\\/|\\/shared\\/static\\/js\\/)((?:vendor\\/)?[a-zA-Z_.-]+\\.(?:min\\.)?js)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
++   s{(\\/webapp\\/static\\/js\\/|\\/web\\/static\\/js\\/|\\/static\\/js\\/|\\/shared\\/static\\/js\\/)((?:vendor\\/)?[a-zA-Z_\\-]+\\.(?:min\\.)?js)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
+
+-   s{(\\/webapp\\/static\\/css\\/|\\/web\\/static\\/css\\/|\\/shared\\/static\\/css\\/)((?:vendor\\/)?[a-zA-Z_.-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
++   s{(\\/webapp\\/static\\/css\\/|\\/web\\/static\\/css\\/|\\/static\\/css\\/|\\/shared\\/static\\/css\\/)((?:vendor\\/)?[a-zA-Z_\\-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
+```
+
+**Тестирование:**
+
+```bash
+# Тест всех путей и имен файлов:
+/webapp/static/css/telegram-theme.min.css?v=PLACEHOLDER    → ?v=20251107_TEST ✅
+/web/static/css/admin.min.css?v=PLACEHOLDER                → ?v=20251107_TEST ✅
+/static/css/calendar-widget.min.css?v=PLACEHOLDER          → ?v=20251107_TEST ✅
+/shared/static/css/common.min.css?v=PLACEHOLDER            → ?v=20251107_TEST ✅
+/static/js/admin-facts-common.min.js?v=PLACEHOLDER         → ?v=20251107_TEST ✅
+/static/css/choices-tailwind.min.css?v=PLACEHOLDER         → ?v=20251107_TEST ✅
+```
+
+**Затронутые файлы:**
+- `frontend/web/templates/base.html` - 3 ссылки не обновлялись
+- `frontend/web/templates/index.html` - 1 ссылка не обновлялась
+- `frontend/web/templates/facts.html` - 1 ссылка не обновлялась
+- `frontend/web/templates/plan.html` - 1 ссылка не обновлялась
+
+**Impact:**
+- **Production:** Web templates загружали старые закешированные версии CSS/JS
+- **User Experience:** Изменения в коде не отображались после deployment
+- **Cache:** Браузеры использовали старые версии до manual cache clear
+
+**Предотвращение в будущем:**
+
+1. ✅ Comprehensive unit tests для cache_busting.sh
+2. ✅ Test coverage для всех путевых паттернов (/webapp/, /web/, /static/, /shared/)
+3. ✅ Test coverage для имен файлов с дефисами
+4. ✅ Проверка после deployment: все PLACEHOLDER должны быть заменены
+
 **Shared Modules (/shared/ directory):**
 
 **Проблема (до минификации):**
