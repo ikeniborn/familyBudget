@@ -157,21 +157,21 @@ let currentHeatmapType = 'expense';
 const periodMapping = {
     'week': {
         planFact: 'week',      // 7 days - Monday to Sunday
-        trends: 7,             // 7 days for line chart
+        trends: 'week',        // Week aggregation (days: Пн, Вт, Ср...)
         pie: 'week',           // Week aggregation for pie chart
         waterfall: 'month',    // Week → Month (more meaningful for waterfall)
         heatmap: 'month'       // Week → Month (minimum 4 weeks for heatmap)
     },
     'month': {
         planFact: 'month',     // Current month days
-        trends: 30,            // 30 days for line chart
+        trends: 'month',       // Month aggregation (weeks: Н1, Н2, Н3...)
         pie: 'month',          // Month aggregation for pie chart
         waterfall: 'quarter',  // Month → Quarter (3 months)
         heatmap: 'quarter'     // Quarter (~13 weeks for heatmap)
     },
     'year': {
         planFact: 'year',      // 12 months of current year
-        trends: 365,           // 365 days for line chart
+        trends: 'year',        // Year aggregation (months: Янв, Фев, Мар...)
         pie: 'year',           // Year aggregation for pie chart
         waterfall: 'year',     // Full year (12 months)
         heatmap: 'year'        // Full year (~52 weeks for heatmap)
@@ -368,9 +368,9 @@ function initTrendsChart() {
 }
 
 // Load Trends data from API
-async function loadTrendsData(days) {
+async function loadTrendsData(period) {
     try {
-        const response = await fetch(`/api/v1/analytics/trends?days=${days}&record_type=fact`);
+        const response = await fetch(`/api/v1/analytics/trends?period=${period}&record_type=fact`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -398,9 +398,12 @@ async function loadTrendsData(days) {
 function updateTrendsChart(data) {
     trendsChart.hideLoading();
 
+    const periodMap = { week: 'Неделя', month: 'Месяц', year: 'Год' };
+    const periodLabel = periodMap[data.period] || data.period;
+
     const option = {
         title: {
-            text: `Динамика доходов и расходов (${data.period_days} дней)`,
+            text: `Динамика доходов и расходов (${periodLabel})`,
             left: 'center',
             textStyle: {
                 fontSize: 16,
@@ -416,8 +419,8 @@ function updateTrendsChart(data) {
                 }
             },
             formatter: function(params) {
-                const date = params[0].axisValue;
-                let result = `<strong>${date}</strong><br/>`;
+                const label = params[0].axisValue;
+                let result = `<strong>${label}</strong><br/>`;
 
                 params.forEach(param => {
                     const value = param.value.toFixed(2);
@@ -447,14 +450,9 @@ function updateTrendsChart(data) {
         xAxis: {
             type: 'category',
             boundaryGap: false,
-            data: data.dates.map(d => {
-                // Format date as MM-DD
-                const date = new Date(d);
-                return `${date.getMonth() + 1}/${date.getDate()}`;
-            }),
+            data: data.labels,
             axisLabel: {
-                rotate: data.dates.length > 30 ? 45 : 0,
-                interval: Math.max(1, Math.floor(data.dates.length / 20))
+                rotate: data.labels.length > 15 ? 45 : 0
             }
         },
         yAxis: {
@@ -523,13 +521,6 @@ function updateTrendsChart(data) {
     };
 
     trendsChart.setOption(option);
-}
-
-// Update trends days filter
-function updateTrendsDays() {
-    const select = document.getElementById('trends-days');
-    currentTrendsDays = parseInt(select.value);
-    loadTrendsData(currentTrendsDays);
 }
 
 // Initialize Pie chart
