@@ -793,6 +793,23 @@ async def update_article(
         changed_fields=changed_fields
     )
 
+    # UPDATE TRANSACTIONS: Repoint all transactions from old article_id to new article_id
+    # This ensures historical transactions show under the new category attributes (e.g., new type)
+    # Without this, old transactions would be "lost" in analytics filtered by new attributes
+    from sqlalchemy import update as sa_update
+
+    update_stmt = (
+        sa_update(Fact)
+        .where(Fact.article_id == article.id)
+        .values(article_id=new_article.id)
+    )
+    await session.execute(update_stmt)
+
+    logger.info(
+        f"Updated transactions: article_id {article.id} → {new_article.id} "
+        f"(old: {article.name}/{article.type}, new: {new_article.name}/{new_article.type})"
+    )
+
     # CASCADE: If type was changed, recursively update all children
     if "type" in updates and updates["type"] != article.type:
         # Recursively update all descendants
@@ -809,17 +826,32 @@ async def update_article(
             for child in children_list:
                 # Only update if child has different type (should always be true if validations passed)
                 if child.type != new_type:
+                    old_child_id = child.id
+
                     # Create new version with updated type
                     child_updates = {"type": new_type}
-                    await create_new_version(
+                    new_child = await create_new_version(
                         session=session,
                         old_instance=child,
                         updates=child_updates,
                         changed_fields=["type"]
                     )
 
+                    # UPDATE TRANSACTIONS: Repoint child's transactions to new version
+                    update_child_stmt = (
+                        sa_update(Fact)
+                        .where(Fact.article_id == old_child_id)
+                        .values(article_id=new_child.id)
+                    )
+                    await session.execute(update_child_stmt)
+
+                    logger.info(
+                        f"CASCADE: Updated transactions for child: article_id {old_child_id} → {new_child.id} "
+                        f"({child.name}: {child.type} → {new_type})"
+                    )
+
                     # Recursively update this child's children
-                    await cascade_update_type(child.id, new_type)
+                    await cascade_update_type(new_child.id, new_type)
 
         # Start cascade from the newly created article
         await cascade_update_type(new_article.id, new_article.type)
