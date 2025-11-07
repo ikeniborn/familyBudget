@@ -6,7 +6,7 @@
 # Description:
 #   Автоматическая минификация JS и CSS файлов для production deployment.
 #   Использует Terser для JS и cssnano для CSS минификации.
-#   Генерирует source maps для debugging.
+#   Source maps отключены для production (security и performance).
 #
 # Usage:
 #   ./minify.sh js       # Минифицировать только JS
@@ -110,7 +110,6 @@ check_prerequisites() {
 minify_js_file() {
     local input_file="$1"
     local output_file="${input_file%.js}.min.js"
-    local sourcemap_file="${output_file}.map"
 
     print_message info "Minifying: $input_file"
 
@@ -119,7 +118,6 @@ minify_js_file() {
     terser_output=$(npx terser "$input_file" \
         --compress \
         --mangle \
-        --source-map "content=inline,url=$(basename "$sourcemap_file")" \
         --output "$output_file" 2>&1)
     local terser_exit=$?
 
@@ -145,7 +143,7 @@ minify_js_file() {
         fi
 
         # Cleanup partial files
-        rm -f "$output_file" "$sourcemap_file"
+        rm -f "$output_file"
         ((ERRORS_COUNT++))
         return 1
     fi

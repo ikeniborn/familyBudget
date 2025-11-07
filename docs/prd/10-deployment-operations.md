@@ -985,8 +985,7 @@ Deployment Process:
 File Structure:
 web/static/js/
 ├── app.js                    # Original (development)
-├── app.min.js                # Minified (production)
-├── app.min.js.map            # Source map (debugging)
+├── app.min.js                # Minified (production, без source maps)
 ├── calendar-widget.js
 ├── calendar-widget.min.js
 └── ...
@@ -998,9 +997,31 @@ HTML Templates (production):
 
 **Преимущества inline подхода:**
 - ✅ Простота: сохраняем структуру файлов
-- ✅ Debugging: source maps доступны в development
+- ✅ Security: source maps отключены на production (защита кода)
 - ✅ Graceful degradation: продолжаем deployment при ошибках минификации
 - ✅ Нет bundling: избегаем сложности Webpack/Vite
+
+**Source Maps Configuration:**
+
+**Production (текущая конфигурация):**
+- Source maps **ОТКЛЮЧЕНЫ** для безопасности
+- DevTools Sources panel показывает только минифицированный код
+- Размер файлов ~30-40% меньше (без inline source maps)
+- Исходный код не доступен для просмотра в браузере
+
+**Причины отключения на production:**
+1. **Security**: Предотвращение утечки бизнес-логики через DevTools
+2. **Performance**: Меньший размер файлов (экономия bandwidth)
+3. **Privacy**: Комментарии и naming conventions не раскрываются
+
+**Development (опционально):**
+Для локальной отладки можно временно включить source maps:
+```bash
+# В scripts/lib/minify.sh временно добавить:
+terser ... --source-map "content=inline,url=app.min.js.map"
+```
+
+⚠️ **ВАЖНО**: Не коммитить source maps в production branch!
 
 **Build Tools Configuration:**
 
@@ -1033,13 +1054,11 @@ HTML Templates (production):
 minify_js_file() {
     local input_file="$1"
     local output_file="${input_file%.js}.min.js"
-    local sourcemap_file="${output_file}.map"
 
-    # Terser with compression, mangling, and source maps
+    # Terser with compression and mangling (source maps disabled for production)
     npx terser "$input_file" \
         --compress \
         --mangle \
-        --source-map "content=inline,url=$(basename "$sourcemap_file")" \
         --output "$output_file"
 
     # Calculate size reduction
