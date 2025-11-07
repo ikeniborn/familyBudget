@@ -172,6 +172,7 @@ async def get_quick_stats_html(
 async def get_plan_fact_data(
     current_user: CurrentUser,
     period: str = Query("month", regex="^(week|month|quarter|year)$"),
+    article_type: str = Query("expense", regex="^(income|expense)$"),
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -179,6 +180,7 @@ async def get_plan_fact_data(
 
     Args:
         period: Time period (week, month, quarter, year)
+        article_type: Type of category (income or expense)
 
     Returns:
         Dict with categories and plan/fact amounts for each period
@@ -200,28 +202,51 @@ async def get_plan_fact_data(
         quarter_start_month = current_quarter * 3 + 1
         start_date = date(today.year, quarter_start_month, 1)
         periods_count = 3  # 3 months in quarter
-        date_format = "%b"  # Jan, Feb, Mar
+        date_format = None  # Will use Russian month names mapping
     else:  # year
         start_date = date(today.year, 1, 1)
         periods_count = 12
-        date_format = "%b"  # Jan, Feb, ...
+        date_format = None  # Will use Russian month names mapping
 
-    # Query facts grouped by date
+    # Query FACTS grouped by date with article type filter
     # Shared family budget - NO user_id filter
-    query = select(
+    fact_query = select(
         Fact.fact_date,
         func.sum(Fact.amount).label("total")
-    ).where(
+    ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
         Fact.fact_date >= start_date,
-        Fact.fact_date <= today
+        Fact.fact_date <= today,
+        Fact.record_type == "fact",
+        Article.type == article_type,
+        Article.is_current == True  # noqa: E712
     ).group_by(Fact.fact_date).order_by(Fact.fact_date)
 
-    result = await session.execute(query)
-    data_by_date = {row.fact_date: float(row.total) for row in result.all()}
+    fact_result = await session.execute(fact_query)
+    fact_by_date = {row.fact_date: float(row.total) for row in fact_result.all()}
+
+    # Query PLANS grouped by date with article type filter
+    # Shared family budget - NO user_id filter
+    plan_query = select(
+        Fact.fact_date,
+        func.sum(Fact.amount).label("total")
+    ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
+        Fact.fact_date >= start_date,
+        Fact.fact_date <= today,
+        Fact.record_type == "plan",
+        Article.type == article_type,
+        Article.is_current == True  # noqa: E712
+    ).group_by(Fact.fact_date).order_by(Fact.fact_date)
+
+    plan_result = await session.execute(plan_query)
+    plan_by_date = {row.fact_date: float(row.total) for row in plan_result.all()}
 
     # Generate labels and data arrays
     labels = []
     fact_data = []
+    plan_data = []
+
+    # Russian month names mapping
+    month_names_ru = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"]
 
     current_date = start_date
     # For week period, show full 7 days (for plan-vs-fact comparison)
@@ -235,12 +260,18 @@ async def get_plan_fact_data(
     for _ in range(loop_count):
         if period in ["quarter", "year"]:
             # For year, group by month
-            month_total = sum(
-                amount for d, amount in data_by_date.items()
+            month_fact = sum(
+                amount for d, amount in fact_by_date.items()
                 if d.year == current_date.year and d.month == current_date.month
             )
-            labels.append(current_date.strftime(date_format))
-            fact_data.append(month_total)
+            month_plan = sum(
+                amount for d, amount in plan_by_date.items()
+                if d.year == current_date.year and d.month == current_date.month
+            )
+            # Use Russian month names
+            labels.append(month_names_ru[current_date.month - 1])
+            fact_data.append(month_fact)
+            plan_data.append(month_plan)
             # Move to next month
             if current_date.month == 12:
                 current_date = date(current_date.year + 1, 1, 1)
@@ -253,39 +284,58 @@ async def get_plan_fact_data(
                 labels.append(day_names_ru[current_date.weekday()])
             else:
                 labels.append(current_date.strftime(date_format))
-            fact_data.append(data_by_date.get(current_date, 0.0))
+            fact_data.append(fact_by_date.get(current_date, 0.0))
+            plan_data.append(plan_by_date.get(current_date, 0.0))
             current_date += timedelta(days=1)
-
-    # For demo purposes, generate plan data as fact * 1.1 (user can customize later)
-    plan_data = [fact * 1.1 for fact in fact_data]
 
     return {
         "labels": labels,
         "plan": plan_data,
         "fact": fact_data,
-        "period": period
+        "period": period,
+        "article_type": article_type
     }
 
 
 @router.get("/trends")
 async def get_trends_data(
     current_user: CurrentUser,
-    days: int = Query(30, ge=7, le=365),
+    period: str = Query("month", regex="^(week|month|year)$"),
+    record_type: str = Query("fact", regex="^(fact|plan)$"),
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Get spending trends over time for line chart.
+    Get spending trends over time for line chart with rolling periods.
 
     Args:
-        days: Number of days to analyze (default: 30)
+        period: Time period (week, month, year)
+            - week: last 7 days from today
+            - month: last 4 weeks from current week
+            - year: last 12 months from current month
+        record_type: Type of records (fact or plan)
 
     Returns:
-        Dict with dates, income, and expense arrays
+        Dict with labels, income, and expense arrays aggregated by period
     """
-    end_date = date.today()
-    start_date = end_date - timedelta(days=days)
+    today = date.today()
 
-    # Query daily income and expense
+    # Calculate date range based on rolling period
+    if period == "week":
+        # Last 7 days from today
+        start_date = today - timedelta(days=6)
+    elif period == "month":
+        # Last 4 weeks from start of current week
+        current_week_start = today - timedelta(days=today.weekday())
+        start_date = current_week_start - timedelta(weeks=3)
+    else:  # year
+        # Last 12 months from start of current month
+        current_month_start = date(today.year, today.month, 1)
+        if today.month >= 12:
+            start_date = date(today.year - 1, today.month - 11, 1)
+        else:
+            start_date = date(today.year - 1, 12 - (11 - today.month), 1)
+
+    # Query daily income and expense with record_type filter
     # Shared family budget - NO user_id filter
     query = select(
         Fact.fact_date,
@@ -293,38 +343,94 @@ async def get_trends_data(
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
         Fact.fact_date >= start_date,
-        Fact.fact_date <= end_date,
+        Fact.fact_date <= today,
+        Fact.record_type == record_type,
         Article.is_current == True  # noqa: E712
     ).group_by(Fact.fact_date, Article.type).order_by(Fact.fact_date)
 
     result = await session.execute(query)
     rows = result.all()
 
-    # Build data structure
+    # Build data structure by date
     data_by_date = {}
     for row in rows:
         if row.fact_date not in data_by_date:
             data_by_date[row.fact_date] = {"income": 0.0, "expense": 0.0}
         data_by_date[row.fact_date][row.type] = float(row.total)
 
-    # Generate arrays for all dates in range
-    dates = []
+    # Aggregate data by period and generate labels
+    labels = []
     income_data = []
     expense_data = []
 
-    current_date = start_date
-    while current_date <= end_date:
-        dates.append(current_date.isoformat())
-        day_data = data_by_date.get(current_date, {"income": 0.0, "expense": 0.0})
-        income_data.append(day_data["income"])
-        expense_data.append(day_data["expense"])
-        current_date += timedelta(days=1)
+    if period == "week":
+        # Last 7 days - show by date
+        month_names_short = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"]
+        current_date = start_date
+        for i in range(7):
+            # Format: "01 ноя"
+            label = f"{current_date.day} {month_names_short[current_date.month - 1]}"
+            labels.append(label)
+            day_data = data_by_date.get(current_date, {"income": 0.0, "expense": 0.0})
+            income_data.append(day_data["income"])
+            expense_data.append(day_data["expense"])
+            current_date += timedelta(days=1)
+
+    elif period == "month":
+        # Last 4 weeks - aggregate by week
+        current_date = start_date
+        week_num = 1
+        for week_num in range(1, 5):
+            week_end = current_date + timedelta(days=6)
+
+            # Aggregate week data
+            week_income = 0.0
+            week_expense = 0.0
+            week_date = current_date
+            while week_date <= week_end and week_date <= today:
+                day_data = data_by_date.get(week_date, {"income": 0.0, "expense": 0.0})
+                week_income += day_data["income"]
+                week_expense += day_data["expense"]
+                week_date += timedelta(days=1)
+
+            labels.append(f"Н{week_num}")
+            income_data.append(week_income)
+            expense_data.append(week_expense)
+
+            current_date = week_end + timedelta(days=1)
+
+    else:  # year
+        # Last 12 months - aggregate by month
+        month_names_ru = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"]
+        current_month_date = start_date
+
+        for i in range(12):
+            # Aggregate month data
+            month_income = sum(
+                data["income"] for d, data in data_by_date.items()
+                if d.year == current_month_date.year and d.month == current_month_date.month
+            )
+            month_expense = sum(
+                data["expense"] for d, data in data_by_date.items()
+                if d.year == current_month_date.year and d.month == current_month_date.month
+            )
+
+            labels.append(month_names_ru[current_month_date.month - 1])
+            income_data.append(month_income)
+            expense_data.append(month_expense)
+
+            # Move to next month
+            if current_month_date.month == 12:
+                current_month_date = date(current_month_date.year + 1, 1, 1)
+            else:
+                current_month_date = date(current_month_date.year, current_month_date.month + 1, 1)
 
     return {
-        "dates": dates,
+        "labels": labels,
         "income": income_data,
         "expense": expense_data,
-        "period_days": days
+        "period": period,
+        "record_type": record_type
     }
 
 
@@ -333,6 +439,7 @@ async def get_category_breakdown(
     current_user: CurrentUser,
     type: str = Query("expense", regex="^(income|expense)$"),
     period: str = Query("month", regex="^(week|month|year|all)$"),
+    record_type: str = Query("fact", regex="^(fact|plan)$"),
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -341,6 +448,7 @@ async def get_category_breakdown(
     Args:
         type: Transaction type (income or expense)
         period: Time period (week, month, year, all)
+        record_type: Record type (fact or plan)
 
     Returns:
         Dict with category names and amounts
@@ -364,6 +472,7 @@ async def get_category_breakdown(
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
         Article.type == type,
+        Fact.record_type == record_type,
         Fact.fact_date >= start_date,
         Fact.fact_date <= today,
         Article.is_current == True  # noqa: E712
@@ -391,7 +500,8 @@ async def get_category_breakdown(
         "percentages": percentages,
         "total": total,
         "type": type,
-        "period": period
+        "period": period,
+        "record_type": record_type
     }
 
 
@@ -505,7 +615,7 @@ async def get_waterfall_data(
             day_balance = income - expense
             cumulative_balance += day_balance
 
-            labels.append(f"Day {day}")
+            labels.append(f"День {day}")
             income_data.append(income)
             expense_data.append(expense)
             balance_data.append(cumulative_balance)
@@ -523,7 +633,7 @@ async def get_waterfall_data(
             week_balance = income - expense
             cumulative_balance += week_balance
 
-            labels.append(f"W{week_num}")
+            labels.append(f"Н{week_num}")
             income_data.append(income)
             expense_data.append(expense)
             balance_data.append(cumulative_balance)
@@ -565,6 +675,8 @@ async def get_waterfall_data(
 async def get_heatmap_data(
     current_user: CurrentUser,
     period: str = Query("quarter", regex="^(month|quarter|year)$"),
+    article_type: str = Query("expense", regex="^(income|expense)$"),
+    record_type: str = Query("fact", regex="^(fact|plan)$"),
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -572,6 +684,8 @@ async def get_heatmap_data(
 
     Args:
         period: Time range (month, quarter, year)
+        article_type: Type of category (income or expense)
+        record_type: Type of records (fact or plan)
 
     Returns:
         Heatmap data showing expense patterns by day of week over time
@@ -599,13 +713,14 @@ async def get_heatmap_data(
         end_date = date(today.year, 12, 31)  # Full year for planning
         weeks_to_show = 52
 
-    # Query all facts
+    # Query all facts with article_type and record_type filters
     # Shared family budget - NO user_id filter
     query = select(
         Fact.fact_date,
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-        Article.type == "expense",
+        Article.type == article_type,
+        Fact.record_type == record_type,
         Fact.fact_date >= start_date,
         Fact.fact_date <= end_date,
         Article.is_current == True  # noqa: E712
@@ -647,6 +762,8 @@ async def get_heatmap_data(
         "week_count": len(weeks_data),
         "period_days": period_days,
         "period": period,
+        "article_type": article_type,
+        "record_type": record_type,
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat()
     }

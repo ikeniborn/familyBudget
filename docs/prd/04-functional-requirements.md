@@ -802,4 +802,176 @@ Unified форма для редактирования и удаления тр�
 
 ---
 
+### 4.10 Analytics Enhancements (v5.1.1 - COMPLETED ✅)
+
+**Date:** 2025-11-06
+**Branch:** `feature/analytics-filters-enhancement`
+**Status:** ✅ COMPLETED
+
+#### Summary
+
+Расширение функциональности страницы `/analytics` с добавлением локальных фильтров для всех графиков, поддержкой реальных плановых данных из БД и улучшением визуализации Pie Chart.
+
+#### Изменения в Backend API
+
+##### 1. **GET `/api/v1/analytics/plan-fact`** - План vs Факт
+
+**Новый параметр:**
+- `article_type`: `"income"` | `"expense"` (default: `"expense"`) - тип категории
+
+**Изменения в логике:**
+- Убран hardcoded псевдо-план (`plan = fact * 1.1`)
+- Реализованы 2 отдельных запроса:
+  - `WHERE record_type='fact' AND Article.type=article_type`
+  - `WHERE record_type='plan' AND Article.type=article_type`
+- Добавлена фильтрация по типу категории (JOIN с `t_d_article`)
+
+**Response (обновлен):**
+```json
+{
+  "labels": ["Пн", "Вт", ...],
+  "plan": [реальные плановые данные из t_f_budget_fact],
+  "fact": [фактические данные из t_f_budget_fact],
+  "period": "week",
+  "article_type": "expense"
+}
+```
+
+##### 2. **GET `/api/v1/analytics/trends`** - Динамика расходов/доходов
+
+**Новый параметр:**
+- `record_type`: `"fact"` | `"plan"` (default: `"fact"`) - тип записей
+
+**Изменения в логике:**
+- Добавлен фильтр `WHERE Fact.record_type = record_type`
+- Структура response сохранена (income, expense arrays)
+
+**Response (обновлен):**
+```json
+{
+  "dates": ["2025-11-01", ...],
+  "income": [...],
+  "expense": [...],
+  "period_days": 30,
+  "record_type": "fact"
+}
+```
+
+##### 3. **GET `/api/v1/analytics/heatmap`** - Тепловая карта
+
+**Новые параметры:**
+- `article_type`: `"income"` | `"expense"` (default: `"expense"`) - тип категории
+- `record_type`: `"fact"` | `"plan"` (default: `"fact"`) - тип записей
+
+**Изменения в логике:**
+- Изменен hardcoded `Article.type == "expense"` на параметр
+- Добавлен фильтр `WHERE Fact.record_type = record_type`
+
+**Response (обновлен):**
+```json
+{
+  "weeks": [[Mon, Tue, ..., Sun], ...],
+  "day_labels": ["Пн", "Вт", ...],
+  "week_count": 13,
+  "period_days": 90,
+  "period": "quarter",
+  "article_type": "expense",
+  "record_type": "fact",
+  "start_date": "2025-08-01",
+  "end_date": "2025-10-31"
+}
+```
+
+#### Изменения в Frontend (Web UI)
+
+##### Локальные фильтры для графиков
+
+**1. График "План vs Факт":**
+- Добавлен локальный фильтр типа категории: [Расходы] | [Доходы]
+- По умолчанию: "Расходы"
+- График всегда показывает 2 бара (план + факт) для выбранного типа
+- Функция: `updatePlanFactType(type)`
+
+**2. График "Динамика расходов":**
+- Добавлен локальный фильтр типа записей: [Факт] | [План]
+- По умолчанию: "Факт"
+- График показывает только выбранный тип (plan ИЛИ fact)
+- Функция: `updateTrendsRecordType(recordType)`
+
+**3. График "Разбивка по категориям" (Pie Chart):**
+- Существующий локальный фильтр сохранен: [Расходы] | [Доходы]
+- **Новая логика TOP 5 + "Прочее":**
+  - Если категорий > 5: показывает топ 5 + "Прочее" (агрегация остальных)
+  - Если категорий ≤ 5: показывает все без "Прочее"
+  - Специальный тултип для "Прочее":
+    - Показывает список всех категорий из "Прочее"
+    - Формат: название, сумма, процент
+    - Сортировка от большего к меньшему
+    - Max-height 200px с прокруткой
+  - Обычный тултип: показывает топ 10 категорий
+
+**4. График "Каскадная диаграмма" (Waterfall):**
+- Без изменений в фильтрах
+- **Русификация оси X:**
+  - "Start" → "Начало"
+  - "Total" → "Итого"
+
+**5. График "Тепловая карта" (Heatmap):**
+- Добавлены 2 локальных фильтра:
+  - Тип категории: [Расходы] | [Доходы] (default: "Расходы")
+  - Тип данных: [Факт] | [План] (default: "Факт")
+- Функции: `updateHeatmapType(type)`, `updateHeatmapRecordType(recordType)`
+
+##### Глобальные переменные (JavaScript)
+
+Добавлены новые переменные для локальных фильтров:
+```javascript
+let currentPlanFactType = 'expense';
+let currentTrendsRecordType = 'fact';
+let currentHeatmapType = 'expense';
+let currentHeatmapRecordType = 'fact';
+```
+
+##### UI/UX Improvements
+
+- Все фильтры используют DaisyUI `btn-group` для консистентности
+- ARIA states для accessibility (`aria-pressed`, `aria-labelledby`)
+- Responsive layout (flex-wrap для мобильных устройств)
+- Активная кнопка: `btn-primary`, неактивные: `btn-outline`
+
+#### Architectural Notes
+
+**Модель данных:**
+- Факты и планы хранятся в одной таблице `t_f_budget_fact`
+- Различаются полем `record_type`: `"fact"` | `"plan"`
+- Текущие endpoint'ы НЕ фильтровали по `record_type` → смешивали данные
+
+**Решение:**
+- Backend: добавлены явные фильтры `WHERE Fact.record_type = ...`
+- Frontend: локальные фильтры позволяют пользователю выбирать тип данных независимо для каждого графика
+
+**Преимущества локальных фильтров:**
+- Большая гибкость для пользователя
+- Независимое управление каждым графиком
+- Соответствует требованиям пользователя (из user story)
+
+#### Testing Notes
+
+- Визуальная проверка синтаксиса Python кода (ruff недоступен в sandbox)
+- Frontend изменения проверены на корректность JavaScript синтаксиса
+- Все новые endpoint параметры имеют default values для обратной совместимости
+
+#### Files Changed
+
+**Backend:**
+- `backend/app/api/v1/analytics.py` (3 endpoints: plan-fact, trends, heatmap)
+
+**Frontend:**
+- `frontend/web/templates/analytics.html` (HTML + JavaScript + локальные фильтры)
+
+**Documentation:**
+- `docs/prd/04-functional-requirements.md` (этот файл)
+
+---
+
 

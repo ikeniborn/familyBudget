@@ -53,6 +53,13 @@
             <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-planfact">
                 <div class="card-body p-3">
                     <h2 id="chart-title-planfact" class="card-title text-base mb-1">📊 План vs Факт</h2>
+                    <div class="flex items-center gap-3 mb-1" role="group" aria-label="Выбор типа категорий для плана">
+                        <label id="planfact-type-label" class="label-text font-semibold">Тип:</label>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-primary" id="planfact-expense" onclick="updatePlanFactType('expense')" aria-pressed="true" aria-labelledby="planfact-type-label planfact-expense">Расходы</button>
+                            <button class="btn btn-sm btn-outline" id="planfact-income" onclick="updatePlanFactType('income')" aria-pressed="false" aria-labelledby="planfact-type-label planfact-income">Доходы</button>
+                        </div>
+                    </div>
                     <div id="chart-plan-fact" class="chart-container" role="img" aria-label="Гистограмма сравнения плановых и фактических расходов"></div>
                 </div>
             </div>
@@ -75,11 +82,20 @@
             <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-pie">
                 <div class="card-body p-3">
                     <h2 id="chart-title-pie" class="card-title text-base mb-1">🥧 Разбивка по категориям</h2>
-                    <div class="flex items-center gap-3 mb-1" role="group" aria-label="Выбор типа категорий">
-                        <label id="pie-type-label" class="label-text font-semibold">Тип:</label>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-primary" id="pie-expense" onclick="updatePieType('expense')" aria-pressed="true" aria-labelledby="pie-type-label pie-expense">Расходы</button>
-                            <button class="btn btn-sm btn-outline" id="pie-income" onclick="updatePieType('income')" aria-pressed="false" aria-labelledby="pie-type-label pie-income">Доходы</button>
+                    <div class="flex flex-wrap items-center gap-3 mb-1">
+                        <div class="flex items-center gap-2" role="group" aria-label="Выбор типа категорий">
+                            <label id="pie-type-label" class="label-text font-semibold">Тип:</label>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-primary" id="pie-expense" onclick="updatePieType('expense')" aria-pressed="true" aria-labelledby="pie-type-label pie-expense">Расходы</button>
+                                <button class="btn btn-sm btn-outline" id="pie-income" onclick="updatePieType('income')" aria-pressed="false" aria-labelledby="pie-type-label pie-income">Доходы</button>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2" role="group" aria-label="Выбор типа данных для разбивки">
+                            <label id="pie-recordtype-label" class="label-text font-semibold">Данные:</label>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-primary" id="pie-fact" onclick="updatePieRecordType('fact')" aria-pressed="true" aria-labelledby="pie-recordtype-label pie-fact">Факт</button>
+                                <button class="btn btn-sm btn-outline" id="pie-plan" onclick="updatePieRecordType('plan')" aria-pressed="false" aria-labelledby="pie-recordtype-label pie-plan">План</button>
+                            </div>
                         </div>
                     </div>
                     <div id="chart-pie" class="chart-container" role="img" aria-label="Круговая диаграмма разбивки расходов по категориям"></div>
@@ -103,6 +119,13 @@
             <div class="card bg-base-100 shadow-lg col-span-full" aria-labelledby="chart-title-heatmap">
                 <div class="card-body p-3">
                     <h2 id="chart-title-heatmap" class="card-title text-base mb-1">🔥 Тепловая карта расходов</h2>
+                    <div class="flex items-center gap-3 mb-1" role="group" aria-label="Выбор типа категорий для тепловой карты">
+                        <label id="heatmap-type-label" class="label-text font-semibold">Тип:</label>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-primary" id="heatmap-expense" onclick="updateHeatmapType('expense')" aria-pressed="true" aria-labelledby="heatmap-type-label heatmap-expense">Расходы</button>
+                            <button class="btn btn-sm btn-outline" id="heatmap-income" onclick="updateHeatmapType('income')" aria-pressed="false" aria-labelledby="heatmap-type-label heatmap-income">Доходы</button>
+                        </div>
+                    </div>
                     <div id="chart-heatmap" class="chart-container" role="img" aria-label="Тепловая карта паттернов расходов по дням недели"></div>
                 </div>
             </div>
@@ -124,26 +147,31 @@ let currentPieType = 'expense';
 let currentWaterfallArticleId = null;
 let waterfallCategoriesData = [];
 
+// Local filter states
+let currentPlanFactType = 'expense';
+let currentPieRecordType = 'fact';
+let currentHeatmapType = 'expense';
+
 // Period mapping for different chart types
 // Maps global period selection to appropriate period for each chart type
 const periodMapping = {
     'week': {
         planFact: 'week',      // 7 days - Monday to Sunday
-        trends: 7,             // 7 days for line chart
+        trends: 'week',        // Week aggregation (days: Пн, Вт, Ср...)
         pie: 'week',           // Week aggregation for pie chart
         waterfall: 'month',    // Week → Month (more meaningful for waterfall)
         heatmap: 'month'       // Week → Month (minimum 4 weeks for heatmap)
     },
     'month': {
         planFact: 'month',     // Current month days
-        trends: 30,            // 30 days for line chart
+        trends: 'month',       // Month aggregation (weeks: Н1, Н2, Н3...)
         pie: 'month',          // Month aggregation for pie chart
         waterfall: 'quarter',  // Month → Quarter (3 months)
         heatmap: 'quarter'     // Quarter (~13 weeks for heatmap)
     },
     'year': {
         planFact: 'year',      // 12 months of current year
-        trends: 365,           // 365 days for line chart
+        trends: 'year',        // Year aggregation (months: Янв, Фев, Мар...)
         pie: 'year',           // Year aggregation for pie chart
         waterfall: 'year',     // Full year (12 months)
         heatmap: 'year'        // Full year (~52 weeks for heatmap)
@@ -183,7 +211,7 @@ function initPlanFactChart() {
 // Load Plan vs Fact data from API
 async function loadPlanFactData(period) {
     try {
-        const response = await fetch(`/api/v1/analytics/plan-fact?period=${period}`);
+        const response = await fetch(`/api/v1/analytics/plan-fact?period=${period}&article_type=${currentPlanFactType}`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -340,9 +368,9 @@ function initTrendsChart() {
 }
 
 // Load Trends data from API
-async function loadTrendsData(days) {
+async function loadTrendsData(period) {
     try {
-        const response = await fetch(`/api/v1/analytics/trends?days=${days}`);
+        const response = await fetch(`/api/v1/analytics/trends?period=${period}&record_type=fact`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -370,9 +398,12 @@ async function loadTrendsData(days) {
 function updateTrendsChart(data) {
     trendsChart.hideLoading();
 
+    const periodMap = { week: '7 дней', month: '4 недели', year: '12 месяцев' };
+    const periodLabel = periodMap[data.period] || data.period;
+
     const option = {
         title: {
-            text: `Динамика доходов и расходов (${data.period_days} дней)`,
+            text: `Динамика доходов и расходов (${periodLabel})`,
             left: 'center',
             textStyle: {
                 fontSize: 16,
@@ -388,8 +419,8 @@ function updateTrendsChart(data) {
                 }
             },
             formatter: function(params) {
-                const date = params[0].axisValue;
-                let result = `<strong>${date}</strong><br/>`;
+                const label = params[0].axisValue;
+                let result = `<strong>${label}</strong><br/>`;
 
                 params.forEach(param => {
                     const value = param.value.toFixed(2);
@@ -419,14 +450,9 @@ function updateTrendsChart(data) {
         xAxis: {
             type: 'category',
             boundaryGap: false,
-            data: data.dates.map(d => {
-                // Format date as MM-DD
-                const date = new Date(d);
-                return `${date.getMonth() + 1}/${date.getDate()}`;
-            }),
+            data: data.labels,
             axisLabel: {
-                rotate: data.dates.length > 30 ? 45 : 0,
-                interval: Math.max(1, Math.floor(data.dates.length / 20))
+                rotate: data.labels.length > 15 ? 45 : 0
             }
         },
         yAxis: {
@@ -497,13 +523,6 @@ function updateTrendsChart(data) {
     trendsChart.setOption(option);
 }
 
-// Update trends days filter
-function updateTrendsDays() {
-    const select = document.getElementById('trends-days');
-    currentTrendsDays = parseInt(select.value);
-    loadTrendsData(currentTrendsDays);
-}
-
 // Initialize Pie chart
 function initPieChart() {
     const chartDom = document.getElementById('chart-pie');
@@ -514,7 +533,7 @@ function initPieChart() {
 // Load Pie chart data from API
 async function loadPieData(type, period) {
     try {
-        const response = await fetch(`/api/v1/analytics/category-breakdown?type=${type}&period=${period}`);
+        const response = await fetch(`/api/v1/analytics/category-breakdown?type=${type}&period=${period}&record_type=${currentPieRecordType}`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -542,16 +561,50 @@ async function loadPieData(type, period) {
 function updatePieChart(data) {
     pieChart.hideLoading();
 
-    // Prepare data for ECharts
-    const chartData = data.categories.map((category, index) => ({
-        name: category,
-        value: data.amounts[index]
-    }));
-
     const typeMap = { expense: 'Расходы', income: 'Доходы' };
     const periodMap = { week: 'Неделя', month: 'Месяц', year: 'Год' };
     const typeLabel = typeMap[data.type] || data.type;
     const periodLabel = periodMap[data.period] || data.period;
+
+    // Prepare data for ECharts with TOP 10 + "Прочее" logic
+    let chartData;
+    let othersData = null;
+
+    if (data.categories.length > 10) {
+        // Топ 10 + "Прочее"
+        const top10 = data.categories.slice(0, 10).map((category, index) => ({
+            name: category,
+            value: data.amounts[index],
+            percent: data.percentages[index]
+        }));
+
+        const others = data.categories.slice(10).map((category, index) => ({
+            name: category,
+            value: data.amounts[index + 10],
+            percent: data.percentages[index + 10]
+        }));
+
+        const othersSum = others.reduce((sum, item) => sum + item.value, 0);
+        const othersPercent = others.reduce((sum, item) => sum + item.percent, 0);
+
+        // Сортировка "Прочее" от большего к меньшему
+        others.sort((a, b) => b.value - a.value);
+
+        chartData = [...top10, {
+            name: 'Прочее',
+            value: othersSum,
+            percent: othersPercent,
+            othersData: others  // Сохраняем для специального тултипа
+        }];
+        othersData = others;
+    } else {
+        // Если категорий ≤ 10: показать все без "Прочее"
+        chartData = data.categories.map((category, index) => ({
+            name: category,
+            value: data.amounts[index],
+            percent: data.percentages[index]
+        }));
+    }
 
     const option = {
         title: {
@@ -565,15 +618,42 @@ function updatePieChart(data) {
         tooltip: {
             trigger: 'item',
             formatter: function(params) {
-                return `<strong>${params.name}</strong><br/>` +
-                       `Сумма: ${params.value.toFixed(2)} ₽<br/>` +
-                       `Процент: ${params.percent.toFixed(1)}%`;
+                // Специальный тултип для "Прочее"
+                if (params.name === 'Прочее' && params.data.othersData) {
+                    let html = `<strong>${params.name}</strong><br/>`;
+                    html += `Всего: ${params.value.toFixed(2)} ₽ (${params.percent.toFixed(1)}%)<br/><br/>`;
+                    html += '<div style="font-size: 12px;">';
+
+                    const displayItems = params.data.othersData.slice(0, 10);
+                    const remainingCount = params.data.othersData.length - 10;
+
+                    displayItems.forEach(item => {
+                        html += `<div style="margin-bottom: 2px;">`;
+                        html += `${item.name}: ${item.value.toFixed(2)} ₽ (${item.percent.toFixed(1)}%)`;
+                        html += `</div>`;
+                    });
+
+                    if (remainingCount > 0) {
+                        html += `<div style="margin-top: 4px; font-style: italic; color: #999;">`;
+                        html += `... и еще ${remainingCount} ${remainingCount === 1 ? 'категория' : remainingCount < 5 ? 'категории' : 'категорий'}`;
+                        html += `</div>`;
+                    }
+
+                    html += '</div>';
+                    return html;
+                }
+
+                // Обычный тултип
+                let html = `<strong>${params.name}</strong><br/>`;
+                html += `Сумма: ${params.value.toFixed(2)} ₽<br/>`;
+                html += `Процент: ${params.percent.toFixed(1)}%`;
+                return html;
             }
         },
         legend: {
-            orient: 'vertical',
-            left: 'left',
-            top: 'middle',
+            orient: 'horizontal',
+            left: 'center',
+            bottom: 0,
             formatter: function(name) {
                 return name.length > 15 ? name.substring(0, 15) + '...' : name;
             }
@@ -636,6 +716,63 @@ function updatePieType(type) {
     loadPieData(type, currentPeriod);
 }
 
+// Update pie record type filter
+function updatePieRecordType(recordType) {
+    currentPieRecordType = recordType;
+
+    // Update active button and ARIA states
+    document.querySelectorAll('#pie-fact, #pie-plan').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+    const activeBtn = document.getElementById(`pie-${recordType}`);
+    activeBtn.classList.remove('btn-outline');
+    activeBtn.classList.add('btn-primary');
+    activeBtn.setAttribute('aria-pressed', 'true');
+
+    // Reload chart data
+    loadPieData(currentPieType, periodMapping[currentPeriod].pie);
+}
+
+// Update Plan vs Fact article type filter
+function updatePlanFactType(type) {
+    currentPlanFactType = type;
+
+    // Update active button and ARIA states
+    document.querySelectorAll('#planfact-expense, #planfact-income').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+    const activeBtn = document.getElementById(`planfact-${type}`);
+    activeBtn.classList.remove('btn-outline');
+    activeBtn.classList.add('btn-primary');
+    activeBtn.setAttribute('aria-pressed', 'true');
+
+    // Reload chart data
+    loadPlanFactData(periodMapping[currentPeriod].planFact);
+}
+
+// Update Heatmap article type filter
+function updateHeatmapType(type) {
+    currentHeatmapType = type;
+
+    // Update active button and ARIA states
+    document.querySelectorAll('#heatmap-expense, #heatmap-income').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+    const activeBtn = document.getElementById(`heatmap-${type}`);
+    activeBtn.classList.remove('btn-outline');
+    activeBtn.classList.add('btn-primary');
+    activeBtn.setAttribute('aria-pressed', 'true');
+
+    // Reload chart data
+    loadHeatmapData(periodMapping[currentPeriod].heatmap);
+}
+
 // Note: updatePeriod function is defined earlier in the file
 
 // Initialize Waterfall chart
@@ -693,12 +830,12 @@ function updateWaterfallChart(data) {
     waterfallChart.hideLoading();
 
     // Build proper waterfall data structure
-    // Waterfall shows: Start -> +Income -> -Expense -> End (cumulative)
+    // Waterfall shows: Начало -> +Income -> -Expense -> Итого (cumulative)
     const waterfallData = [];
     const labels = [];
 
     // Add starting point
-    labels.push('Start');
+    labels.push('Начало');
     waterfallData.push({
         value: 0,
         itemStyle: { color: '#90CAF9' }
@@ -720,7 +857,7 @@ function updateWaterfallChart(data) {
     });
 
     // Add final cumulative balance
-    labels.push('Total');
+    labels.push('Итого');
     waterfallData.push({
         value: data.balance[data.balance.length - 1],
         itemStyle: { color: '#2196F3' }
@@ -753,12 +890,12 @@ function updateWaterfallChart(data) {
 
                 // Skip first (Start) and last (Total)
                 if (labelIndex === 0) {
-                    return '<strong>Start</strong><br/>Starting balance: 0 ₽';
+                    return '<strong>Начало</strong><br/>Начальный баланс: 0 ₽';
                 }
 
                 if (labelIndex === labels.length - 1) {
                     const finalBalance = data.balance[data.balance.length - 1];
-                    return `<strong>Total</strong><br/>Final balance: ${finalBalance.toFixed(2)} ₽`;
+                    return `<strong>Итого</strong><br/>Конечный баланс: ${finalBalance.toFixed(2)} ₽`;
                 }
 
                 // Regular period data
@@ -778,7 +915,7 @@ function updateWaterfallChart(data) {
 
                 // Show categories for drill-down
                 if (!data.article_id && waterfallCategoriesData[dataIndex]?.length > 0) {
-                    tooltip += `<br/><br/><em style="color: #999; font-size: 11px;">Click to drill down by category</em>`;
+                    tooltip += `<br/><br/><em style="color: #999; font-size: 11px;">Нажмите для детализации по категории</em>`;
                 }
 
                 return tooltip;
@@ -870,26 +1007,26 @@ function showWaterfallDrilldownModal(periodLabel, categories) {
         <div id="waterfall-drilldown-modal" class="modal" style="display: block;">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3>Drill Down: ${periodLabel}</h3>
+                    <h3>Детализация: ${periodLabel}</h3>
                     <span class="modal-close" onclick="closeWaterfallDrilldownModal()">&times;</span>
                 </div>
                 <div class="modal-body">
-                    <p>Select a category to view detailed breakdown:</p>
+                    <p>Выберите категорию для просмотра детализации:</p>
                     <div class="table-responsive">
                         <table class="data-table">
                             <thead>
                                 <tr>
-                                    <th>Category</th>
-                                    <th>Type</th>
-                                    <th>Amount</th>
-                                    <th>Action</th>
+                                    <th>Категория</th>
+                                    <th>Тип</th>
+                                    <th>Сумма</th>
+                                    <th>Действие</th>
                                 </tr>
                             </thead>
                             <tbody>
     `;
 
     categories.forEach(cat => {
-        const typeLabel = cat.type === 'income' ? 'Income' : 'Expense';
+        const typeLabel = cat.type === 'income' ? 'Доход' : 'Расход';
         const typeColor = cat.type === 'income' ? '#4CAF50' : '#f44336';
         const amountFormatted = cat.amount.toFixed(2);
 
@@ -900,7 +1037,7 @@ function showWaterfallDrilldownModal(periodLabel, categories) {
                 <td>${amountFormatted} ₽</td>
                 <td>
                     <button class="btn-primary btn-small" onclick="selectWaterfallArticle(${cat.id}, '${cat.name.replace(/'/g, "\\'")}')">
-                        View
+                        Смотреть
                     </button>
                 </td>
             </tr>
@@ -913,7 +1050,7 @@ function showWaterfallDrilldownModal(periodLabel, categories) {
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-secondary" onclick="closeWaterfallDrilldownModal()">Cancel</button>
+                    <button type="button" class="btn-secondary" onclick="closeWaterfallDrilldownModal()">Отмена</button>
                 </div>
             </div>
         </div>
@@ -956,7 +1093,7 @@ function initHeatmapChart() {
 // Load Heatmap data from API
 async function loadHeatmapData(period = 'quarter') {
     try {
-        const response = await fetch(`/api/v1/analytics/heatmap?period=${period}`);
+        const response = await fetch(`/api/v1/analytics/heatmap?period=${period}&article_type=${currentHeatmapType}&record_type=fact`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -1012,9 +1149,12 @@ function updateHeatmapChart(data) {
     const periodMap = { month: 'Месяц', quarter: 'Квартал', year: 'Год' };
     const periodLabel = periodMap[data.period] || data.period;
 
+    const typeMap = { expense: 'расходов', income: 'доходов' };
+    const typeLabel = typeMap[currentHeatmapType] || 'расходов';
+
     const option = {
         title: {
-            text: `Тепловая карта расходов (${periodLabel})`,
+            text: `Тепловая карта ${typeLabel} (${periodLabel})`,
             subtext: `${data.start_date} — ${data.end_date}`,
             left: 'center',
             textStyle: {
@@ -1028,8 +1168,9 @@ function updateHeatmapChart(data) {
                 const dayName = data.day_labels[params.value[0]];
                 const weekNum = params.value[1] + 1;
                 const amount = params.value[2].toFixed(2);
+                const typeLabelSingular = currentHeatmapType === 'income' ? 'Доход' : 'Расход';
                 return `<strong>${dayName}, Неделя ${weekNum}</strong><br/>` +
-                       `Расход: ${amount} ₽`;
+                       `${typeLabelSingular}: ${amount} ₽`;
             }
         },
         grid: {
@@ -1076,7 +1217,7 @@ function updateHeatmapChart(data) {
         },
         series: [
             {
-                name: 'Расходы',
+                name: currentHeatmapType === 'income' ? 'Доходы' : 'Расходы',
                 type: 'heatmap',
                 data: heatmapData,
                 label: {
