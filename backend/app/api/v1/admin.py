@@ -743,9 +743,12 @@ async def update_article(
             )
 
         # VALIDATION 2: Check parent type mismatch (block if parent has different type)
-        if article.parent_id:
+        # Use NEW parent_id from updates if provided, otherwise use current parent_id
+        effective_parent_id = updates.get("parent_id", article.parent_id)
+
+        if effective_parent_id is not None:
             parent_query = select(Article).where(
-                Article.id == article.parent_id,
+                Article.id == effective_parent_id,
                 Article.is_current == True  # noqa: E712
             )
             parent_result = await session.execute(parent_query)
@@ -754,7 +757,7 @@ async def update_article(
             if parent_article and parent_article.type != updates["type"]:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Невозможно изменить тип: родительская категория имеет тип '{parent_article.type}'. Сначала измените родителя или удалите привязку."
+                    detail=f"Невозможно изменить тип: родительская категория '{parent_article.name}' имеет тип '{parent_article.type}'. Сначала измените родителя или удалите привязку."
                 )
 
         # CASCADE: Get all children to update their type as well

@@ -310,10 +310,21 @@ function populateParentSelect(selectId, type) {
     // Add options with hierarchy
     function addOptions(nodes, level) {
         nodes.forEach(node => {
-            const indent = '  '.repeat(level);
+            // Create visual tree structure
+            let prefix = '';
+            if (level > 0) {
+                prefix = '  '.repeat(level - 1) + '└─ ';
+            }
+
             const option = document.createElement('option');
             option.value = node.id;
-            option.textContent = indent + node.name;
+            option.textContent = prefix + node.name;
+
+            // Add visual indicator for parent categories
+            if (node.children.length > 0) {
+                option.textContent += ' 📁';
+            }
+
             select.appendChild(option);
 
             if (node.children.length > 0) {
