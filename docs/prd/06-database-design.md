@@ -271,6 +271,57 @@ VALUES ('Продукты питания', 'expense', NULL, 1, CURRENT_TIMESTAMP
 COMMIT;
 ```
 
+**Изменение типа категории (type change):**
+
+SCD Type 2 позволяет изменять тип категории (income/expense) с сохранением истории изменений. При изменении типа применяются следующие правила валидации:
+
+1. **Проверка дубликата**: Не должно существовать другой активной категории с тем же именем и новым типом (`user_id`, `name`, `type`, `is_current` = unique).
+
+2. **Проверка parent type mismatch**: Если категория имеет родительскую категорию, parent должен иметь тот же тип. При попытке изменить тип блокируется с ошибкой.
+
+3. **Каскадное изменение children**: Все подкатегории автоматически изменяют тип рекурсивно. Каждая подкатегория получает новую версию через SCD Type 2.
+
+**Пример каскадного изменения типа:**
+
+```sql
+-- Начальное состояние:
+-- Продукты (expense, id=10) → Овощи (expense, id=20) → Помидоры (expense, id=30)
+
+-- Изменить тип "Продукты" с expense → income
+BEGIN;
+
+-- 1. Закрыть старую версию "Продукты"
+UPDATE t_d_article SET valid_to = NOW(), is_current = false WHERE id = 10;
+
+-- 2. Создать новую версию "Продукты" с type=income
+INSERT INTO t_d_article (name, type, parent_id, user_id, valid_from, is_current)
+VALUES ('Продукты', 'income', NULL, 1, NOW(), true)
+RETURNING id; -- Получим id=40
+
+-- 3. CASCADE: Закрыть и пересоздать "Овощи"
+UPDATE t_d_article SET valid_to = NOW(), is_current = false WHERE id = 20;
+INSERT INTO t_d_article (name, type, parent_id, user_id, valid_from, is_current)
+VALUES ('Овощи', 'income', 40, 1, NOW(), true)
+RETURNING id; -- Получим id=50
+
+-- 4. CASCADE: Закрыть и пересоздать "Помидоры"
+UPDATE t_d_article SET valid_to = NOW(), is_current = false WHERE id = 30;
+INSERT INTO t_d_article (name, type, parent_id, user_id, valid_from, is_current)
+VALUES ('Помидоры', 'income', 50, 1, NOW(), true);
+
+-- 5. Обновить иерархию (Closure Table)
+-- ArticleHierarchy автоматически обновляется через SCD2 service
+
+COMMIT;
+
+-- Результат:
+-- Все 3 категории теперь имеют type=income
+-- История сохранена: старые версии (id=10,20,30) с type=expense доступны для аудита
+-- Иерархия сохранена через новые id (40→50→60)
+```
+
+**Важно:** Старые транзакции (`t_f_budget_fact`) остаются привязанными к старым версиям категорий. Это позволяет корректно отображать историческую аналитику с правильным типом категории на момент транзакции.
+
 ### 6.6 Indexes & Performance
 
 **Composite indexes для аналитики:**

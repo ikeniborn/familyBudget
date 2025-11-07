@@ -89,16 +89,21 @@
             </div>
             <div class="form-control">
                 <label class="label">
+                    <span class="label-text">💰 Тип*</span>
+                </label>
+                <select id="edit-type" name="type" required class="select select-bordered">
+                    <option value="expense">💸 Расход</option>
+                    <option value="income">💵 Доход</option>
+                </select>
+            </div>
+            <div class="form-control">
+                <label class="label">
                     <span class="label-text">📂 Родительская категория</span>
                 </label>
                 <select id="edit-parent" name="parent_id" class="select select-bordered">
                     <option value="">-- Корневой уровень --</option>
                     <!-- Will be populated dynamically -->
                 </select>
-            </div>
-            <div class="alert alert-info">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                <span>Тип категории нельзя изменить (SCD Type 2)</span>
             </div>
             <div class="modal-action">
                 <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
@@ -364,6 +369,7 @@ function showEditModal(articleId) {
 
     document.getElementById('edit-id').value = article.id;
     document.getElementById('edit-name').value = article.name;
+    document.getElementById('edit-type').value = article.type;
     populateParentSelect('edit-parent', article.type);
     document.getElementById('edit-parent').value = article.parent_id || '';
 
@@ -384,6 +390,7 @@ async function updateArticle(event) {
     const articleId = formData.get('id');
     const data = {
         name: formData.get('name'),
+        type: formData.get('type'),
         parent_id: formData.get('parent_id') ? parseInt(formData.get('parent_id')) : null
     };
 
