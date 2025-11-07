@@ -165,23 +165,30 @@ async def list_notifications(
     GET /api/v1/notifications?skip=0&limit=50&notification_type=budget_threshold&date_from=2025-10-01&date_to=2025-10-31
     ```
     """
-    # Base query
+    # Base query for items
     statement = select(Notification)
 
-    # Apply optional filters
+    # Base query for count (will apply same filters)
+    count_stmt = select(func.count(Notification.id))
+
+    # Apply optional filters to BOTH statements
     if notification_type:
         statement = statement.where(Notification.notification_type == notification_type)
+        count_stmt = count_stmt.where(Notification.notification_type == notification_type)
 
     if date_from:
         # Filter by created_at >= date_from (start of day)
-        statement = statement.where(Notification.created_at >= datetime.combine(date_from, datetime.min.time()))
+        date_from_dt = datetime.combine(date_from, datetime.min.time())
+        statement = statement.where(Notification.created_at >= date_from_dt)
+        count_stmt = count_stmt.where(Notification.created_at >= date_from_dt)
 
     if date_to:
         # Filter by created_at <= date_to (end of day)
-        statement = statement.where(Notification.created_at <= datetime.combine(date_to, datetime.max.time()))
+        date_to_dt = datetime.combine(date_to, datetime.max.time())
+        statement = statement.where(Notification.created_at <= date_to_dt)
+        count_stmt = count_stmt.where(Notification.created_at <= date_to_dt)
 
-    # Count total (before pagination)
-    count_stmt = select(func.count()).select_from(statement.subquery())
+    # Execute count query
     total_result = await session.execute(count_stmt)
     total = total_result.scalar_one()
 
