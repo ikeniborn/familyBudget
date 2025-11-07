@@ -652,9 +652,9 @@ function updatePieChart(data) {
             }
         },
         legend: {
-            orient: 'vertical',
-            left: 'left',
-            top: 'middle',
+            orient: 'horizontal',
+            left: 'center',
+            bottom: 0,
             formatter: function(name) {
                 return name.length > 15 ? name.substring(0, 15) + '...' : name;
             }

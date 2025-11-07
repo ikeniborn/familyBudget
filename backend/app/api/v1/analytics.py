@@ -202,11 +202,11 @@ async def get_plan_fact_data(
         quarter_start_month = current_quarter * 3 + 1
         start_date = date(today.year, quarter_start_month, 1)
         periods_count = 3  # 3 months in quarter
-        date_format = "%b"  # Jan, Feb, Mar
+        date_format = None  # Will use Russian month names mapping
     else:  # year
         start_date = date(today.year, 1, 1)
         periods_count = 12
-        date_format = "%b"  # Jan, Feb, ...
+        date_format = None  # Will use Russian month names mapping
 
     # Query FACTS grouped by date with article type filter
     # Shared family budget - NO user_id filter
@@ -245,6 +245,9 @@ async def get_plan_fact_data(
     fact_data = []
     plan_data = []
 
+    # Russian month names mapping
+    month_names_ru = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"]
+
     current_date = start_date
     # For week period, show full 7 days (for plan-vs-fact comparison)
     # For quarter/year, show full periods for planning
@@ -265,7 +268,8 @@ async def get_plan_fact_data(
                 amount for d, amount in plan_by_date.items()
                 if d.year == current_date.year and d.month == current_date.month
             )
-            labels.append(current_date.strftime(date_format))
+            # Use Russian month names
+            labels.append(month_names_ru[current_date.month - 1])
             fact_data.append(month_fact)
             plan_data.append(month_plan)
             # Move to next month
@@ -539,7 +543,7 @@ async def get_waterfall_data(
             day_balance = income - expense
             cumulative_balance += day_balance
 
-            labels.append(f"Day {day}")
+            labels.append(f"День {day}")
             income_data.append(income)
             expense_data.append(expense)
             balance_data.append(cumulative_balance)
@@ -557,7 +561,7 @@ async def get_waterfall_data(
             week_balance = income - expense
             cumulative_balance += week_balance
 
-            labels.append(f"W{week_num}")
+            labels.append(f"Н{week_num}")
             income_data.append(income)
             expense_data.append(expense)
             balance_data.append(cumulative_balance)
