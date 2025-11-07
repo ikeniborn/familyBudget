@@ -425,7 +425,7 @@ async def get_recent_facts_html(
         </table>
     </div>
     <div class="mt-4 text-center">
-        <a href="/analytics" class="link link-primary">Посмотреть все транзакции →</a>
+        <a href="/facts" class="link link-primary">Посмотреть все транзакции →</a>
     </div>
     """
 

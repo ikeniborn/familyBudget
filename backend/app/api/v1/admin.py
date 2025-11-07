@@ -539,18 +539,20 @@ async def get_system_stats(
 async def get_all_articles(
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session),
-    is_current: bool = Query(True, description="Filter by current articles only")
+    is_current: bool = Query(True, description="Filter by current articles only"),
+    type: str | None = Query(None, description="Filter by article type (income or expense)")
 ):
     """
     Get all articles (admin only).
 
     Returns list of all articles.
-    Can filter by is_current flag.
+    Can filter by is_current flag and article type.
 
     Args:
         current_admin: Current admin user (from dependency)
         session: Database session
         is_current: Whether to show only current (active) articles
+        type: Optional filter by article type (income or expense)
 
     Returns:
         List[ArticleResponse]: List of articles
@@ -559,6 +561,9 @@ async def get_all_articles(
 
     if is_current:
         query = query.where(Article.is_current == True)  # noqa: E712
+
+    if type:
+        query = query.where(Article.type == type)
 
     query = query.order_by(Article.type, Article.name)
 
