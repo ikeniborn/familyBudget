@@ -35,13 +35,13 @@
                     <label class="label">
                         <span class="label-text font-medium">📅 Дата с</span>
                     </label>
-                    <input type="date" id="filter-date-from" class="input input-bordered w-full">
+                    <input type="text" id="filter-date-from" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ">
                 </div>
                 <div class="form-control">
                     <label class="label">
                         <span class="label-text font-medium">📅 Дата по</span>
                     </label>
-                    <input type="date" id="filter-date-to" class="input input-bordered w-full">
+                    <input type="text" id="filter-date-to" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ">
                 </div>
             </div>
             <div class="flex justify-end">
@@ -141,6 +141,9 @@
     </div>
 </div>
 
+<!-- DateFormatter Component (CalendarWidget уже подключен в base.html) -->
+<script src="/shared/static/js/dateFormatter.min.js?v=PLACEHOLDER"></script>
+
 <script>
 // Global state
 let currentPage = 1;
@@ -150,6 +153,16 @@ let currentNotifications = [];
 
 // Initialize page
 document.addEventListener('DOMContentLoaded', function() {
+    // Инициализация CalendarWidget для фильтров дат (Range Picker)
+    new CalendarWidget({
+        mode: 'range',
+        startInputElement: document.getElementById('filter-date-from'),
+        endInputElement: document.getElementById('filter-date-to'),
+        onSelect: (startDate, endDate) => {
+            console.log('Выбран диапазон дат для фильтров notifications:', startDate, endDate);
+        }
+    });
+
     loadNotifications();
 });
 
@@ -160,8 +173,13 @@ async function loadNotifications() {
 
         // Get filter values
         const typeFilter = document.getElementById('filter-notification-type').value;
-        const dateFromFilter = document.getElementById('filter-date-from').value;
-        const dateToFilter = document.getElementById('filter-date-to').value;
+
+        // Convert dates from DD.MM.YYYY to YYYY-MM-DD format for API
+        const dateFromValue = document.getElementById('filter-date-from').value;
+        const dateFromFilter = dateFromValue ? DateFormatter.formatForAPI(dateFromValue) : null;
+
+        const dateToValue = document.getElementById('filter-date-to').value;
+        const dateToFilter = dateToValue ? DateFormatter.formatForAPI(dateToValue) : null;
 
         // Build query parameters
         const params = new URLSearchParams({

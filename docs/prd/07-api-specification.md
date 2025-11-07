@@ -678,5 +678,10 @@ curl -X GET "http://localhost:8000/api/v1/notifications?notification_type=budget
 - Исправлена ошибка 500 при использовании date фильтров (добавлен импорт datetime)
 - Добавлено требование аутентификации (CurrentUser dependency)
 
+**Исправлено в версии:** 5.0.0-beta (2025-11-07)
+- Исправлена ошибка 500 в COUNT query (заменен `select(func.count()).select_from(statement.subquery())` на `select(func.count(Notification.id))` с дублированием фильтров)
+- Добавлен CalendarWidget для фильтров дат на странице /notifications (консистентность с /facts и /plan)
+- Реализована конвертация формата дат: пользовательский ДД.ММ.ГГГГ → API YYYY-MM-DD через DateFormatter
+
 ---
 

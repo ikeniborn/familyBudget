@@ -173,8 +173,17 @@ data/
 
 # Database dumps and backups
 backups/
-*.sql
 *.dump
+
+# SQL Migrations (NOT ignored - must be in git!)
+!backend/db/migrations/*.sql
+
+# Minified files (build artifacts) - НЕ vendor!
+frontend/**/static/**/*.min.js
+frontend/**/static/**/*.min.css
+
+# Vendor files (сторонние библиотеки) - РАЗРЕШЕНЫ
+!frontend/**/static/**/vendor/*.min.*
 
 # =============================================================================
 # Docker & Infrastructure

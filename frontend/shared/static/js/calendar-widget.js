@@ -126,21 +126,37 @@ class CalendarWidget {
    * @private
    */
   _createTriggerButton() {
-    const targetInput = this.mode === 'single'
-      ? this.inputElement
-      : this.startInputElement;
+    if (this.mode === 'single') {
+      // Single mode: create one button for inputElement
+      this._createSingleButton(this.inputElement);
+    } else {
+      // Range mode: create buttons for BOTH startInputElement and endInputElement
+      this._createSingleButton(this.startInputElement);
+      this._createSingleButton(this.endInputElement);
+    }
+  }
 
+  /**
+   * Create a single calendar button for an input element
+   * @private
+   */
+  _createSingleButton(targetInput) {
     // Create button
-    this.triggerButton = document.createElement('button');
-    this.triggerButton.type = 'button';
-    this.triggerButton.className = 'btn btn-ghost btn-sm absolute right-2 top-1/2 -translate-y-1/2';
-    this.triggerButton.innerHTML = `
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn btn-ghost btn-sm absolute right-2 top-1/2 -translate-y-1/2';
+    button.innerHTML = `
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
       </svg>
     `;
-    this.triggerButton.setAttribute('aria-label', 'Открыть календарь');
+    button.setAttribute('aria-label', 'Открыть календарь');
+
+    // Store reference to first button (for backward compatibility)
+    if (!this.triggerButton) {
+      this.triggerButton = button;
+    }
 
     // Wrap input in relative container if not already wrapped
     const parent = targetInput.parentElement;
@@ -149,10 +165,17 @@ class CalendarWidget {
       wrapper.className = 'relative';
       parent.insertBefore(wrapper, targetInput);
       wrapper.appendChild(targetInput);
-      wrapper.appendChild(this.triggerButton);
+      wrapper.appendChild(button);
     } else {
-      parent.appendChild(this.triggerButton);
+      parent.appendChild(button);
     }
+
+    // Add click event to open calendar
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.open();
+    });
   }
 
   /**
@@ -363,12 +386,8 @@ class CalendarWidget {
    * @private
    */
   _attachEventListeners() {
-    // Trigger button click
-    this.triggerButton.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.toggle();
-    });
+    // Note: Trigger button click listeners are now added in _createSingleButton()
+    // to support multiple buttons in range mode
 
     // Calendar actions (event delegation)
     this.calendarElement.addEventListener('click', (e) => {
