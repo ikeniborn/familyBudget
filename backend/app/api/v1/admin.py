@@ -89,6 +89,7 @@ class ArticleCreateRequest(BaseModel):
 class ArticleUpdateRequest(BaseModel):
     """Article update request model."""
     name: str | None = None
+    type: str | None = None  # "income" or "expense"
     parent_id: int | None = None
 
 
@@ -698,6 +699,8 @@ async def update_article(
     updates = {}
     if update_data.name is not None:
         updates["name"] = update_data.name
+    if update_data.type is not None:
+        updates["type"] = update_data.type
     if update_data.parent_id is not None:
         updates["parent_id"] = update_data.parent_id
 
@@ -717,6 +720,58 @@ async def update_article(
         # Cannot set self as parent
         if updates["parent_id"] == article_id:
             raise HTTPException(status_code=400, detail="Cannot set article as its own parent")
+
+    # Validate type change if changing
+    if "type" in updates and updates["type"] != article.type:
+        # VALIDATION 1: Check for duplicate (name + type + user_id)
+        # If we're changing type, check that no other article with same name and new type exists
+        effective_name = updates.get("name", article.name)
+        duplicate_query = select(Article).where(
+            Article.user_id == article.user_id,
+            Article.name == effective_name,
+            Article.type == updates["type"],
+            Article.is_current == True,  # noqa: E712
+            Article.id != article_id
+        )
+        duplicate_result = await session.execute(duplicate_query)
+        duplicate = duplicate_result.scalar_one_or_none()
+
+        if duplicate:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Категория с именем '{effective_name}' и типом '{updates['type']}' уже существует"
+            )
+
+        # VALIDATION 2: Check parent type mismatch (block if parent has different type)
+        # Use NEW parent_id from updates if provided, otherwise use current parent_id
+        effective_parent_id = updates.get("parent_id", article.parent_id)
+
+        if effective_parent_id is not None:
+            parent_query = select(Article).where(
+                Article.id == effective_parent_id,
+                Article.is_current == True  # noqa: E712
+            )
+            parent_result = await session.execute(parent_query)
+            parent_article = parent_result.scalar_one_or_none()
+
+            if parent_article and parent_article.type != updates["type"]:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Невозможно изменить тип: родительская категория '{parent_article.name}' имеет тип '{parent_article.type}'. Сначала измените родителя или удалите привязку."
+                )
+
+        # CASCADE: Get all children to update their type as well
+        # This query gets all immediate children (depth=1 from current article)
+        children_query = select(Article).where(
+            Article.parent_id == article_id,
+            Article.is_current == True  # noqa: E712
+        )
+        children_result = await session.execute(children_query)
+        children = children_result.scalars().all()
+
+        # Store children count for frontend confirmation (will be passed in response metadata)
+        # Note: We'll need to recursively update children after main article update
+        # The SCD2 service will handle parent_id redirection automatically
 
     # Check if anything changed
     changed, changed_fields = has_changes(article, updates)
@@ -740,6 +795,69 @@ async def update_article(
         updates=updates,
         changed_fields=changed_fields
     )
+
+    # UPDATE TRANSACTIONS: Repoint all transactions from old article_id to new article_id
+    # This ensures historical transactions show under the new category attributes (e.g., new type)
+    # Without this, old transactions would be "lost" in analytics filtered by new attributes
+    from sqlalchemy import update as sa_update
+
+    update_stmt = (
+        sa_update(Fact)
+        .where(Fact.article_id == article.id)
+        .values(article_id=new_article.id)
+    )
+    await session.execute(update_stmt)
+
+    logger.info(
+        f"Updated transactions: article_id {article.id} → {new_article.id} "
+        f"(old: {article.name}/{article.type}, new: {new_article.name}/{new_article.type})"
+    )
+
+    # CASCADE: If type was changed, recursively update all children
+    if "type" in updates and updates["type"] != article.type:
+        # Recursively update all descendants
+        async def cascade_update_type(parent_article_id: int, new_type: str):
+            """Recursively update type for all children of given article."""
+            # Get all immediate children
+            children_query = select(Article).where(
+                Article.parent_id == parent_article_id,
+                Article.is_current == True  # noqa: E712
+            )
+            children_result = await session.execute(children_query)
+            children_list = children_result.scalars().all()
+
+            for child in children_list:
+                # Only update if child has different type (should always be true if validations passed)
+                if child.type != new_type:
+                    old_child_id = child.id
+
+                    # Create new version with updated type
+                    child_updates = {"type": new_type}
+                    new_child = await create_new_version(
+                        session=session,
+                        old_instance=child,
+                        updates=child_updates,
+                        changed_fields=["type"]
+                    )
+
+                    # UPDATE TRANSACTIONS: Repoint child's transactions to new version
+                    update_child_stmt = (
+                        sa_update(Fact)
+                        .where(Fact.article_id == old_child_id)
+                        .values(article_id=new_child.id)
+                    )
+                    await session.execute(update_child_stmt)
+
+                    logger.info(
+                        f"CASCADE: Updated transactions for child: article_id {old_child_id} → {new_child.id} "
+                        f"({child.name}: {child.type} → {new_type})"
+                    )
+
+                    # Recursively update this child's children
+                    await cascade_update_type(new_child.id, new_type)
+
+        # Start cascade from the newly created article
+        await cascade_update_type(new_article.id, new_article.type)
 
     return ArticleResponse(
         id=new_article.id,

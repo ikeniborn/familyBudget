@@ -89,16 +89,21 @@
             </div>
             <div class="form-control">
                 <label class="label">
+                    <span class="label-text">💰 Тип*</span>
+                </label>
+                <select id="edit-type" name="type" required class="select select-bordered">
+                    <option value="expense">💸 Расход</option>
+                    <option value="income">💵 Доход</option>
+                </select>
+            </div>
+            <div class="form-control">
+                <label class="label">
                     <span class="label-text">📂 Родительская категория</span>
                 </label>
                 <select id="edit-parent" name="parent_id" class="select select-bordered">
                     <option value="">-- Корневой уровень --</option>
                     <!-- Will be populated dynamically -->
                 </select>
-            </div>
-            <div class="alert alert-info">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                <span>Тип категории нельзя изменить (SCD Type 2)</span>
             </div>
             <div class="modal-action">
                 <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
@@ -287,17 +292,16 @@ function closeCreateModal() {
 }
 
 // Populate parent select dropdown
-function populateParentSelect(selectId, type) {
+function populateParentSelect(selectId, type, excludeArticleId = null) {
     const select = document.getElementById(selectId);
-    const currentArticleId = document.getElementById('edit-id')?.value;
 
     // Clear existing options (except first)
     while (select.options.length > 1) {
         select.remove(1);
     }
 
-    // Get articles of same type
-    const sameType = articlesData.filter(a => a.type === type && a.id != currentArticleId);
+    // Get articles of same type (exclude current article if editing)
+    const sameType = articlesData.filter(a => a.type === type && a.id != excludeArticleId);
 
     // Build tree for proper ordering
     const tree = buildTree(sameType);
@@ -305,10 +309,23 @@ function populateParentSelect(selectId, type) {
     // Add options with hierarchy
     function addOptions(nodes, level) {
         nodes.forEach(node => {
-            const indent = '  '.repeat(level);
+            // Create visual tree structure with non-breaking spaces
+            // Using \u00A0 (non-breaking space) to prevent browser from collapsing whitespace
+            let prefix = '';
+            if (level > 0) {
+                // Each level adds 2 non-breaking spaces for indentation
+                prefix = '\u00A0\u00A0'.repeat(level - 1) + '└─\u00A0';
+            }
+
             const option = document.createElement('option');
             option.value = node.id;
-            option.textContent = indent + node.name;
+            option.textContent = prefix + node.name;
+
+            // Add visual indicator for parent categories
+            if (node.children.length > 0) {
+                option.textContent += ' 📁';
+            }
+
             select.appendChild(option);
 
             if (node.children.length > 0) {
@@ -343,7 +360,31 @@ async function createArticle(event) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+
+            // Extract meaningful error message
+            let errorMessage = 'Неизвестная ошибка';
+
+            if (typeof error.detail === 'string') {
+                errorMessage = error.detail;
+            } else if (error.detail && typeof error.detail === 'object') {
+                // Handle object-type errors - extract message if exists
+                if (error.detail.message) {
+                    errorMessage = error.detail.message;
+                } else {
+                    errorMessage = JSON.stringify(error.detail);
+                }
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            // Add helpful hints based on error type
+            if (errorMessage.includes('родительская категория') || errorMessage.includes('parent')) {
+                errorMessage += '\n\n💡 Совет: Измените родительскую категорию или удалите привязку (выберите "-- Корневой уровень --")';
+            } else if (errorMessage.includes('уже существует') || errorMessage.includes('already exists')) {
+                errorMessage += '\n\n💡 Совет: Измените имя категории или выберите другой тип';
+            }
+
+            throw new Error(errorMessage);
         }
 
         // Success
@@ -364,8 +405,45 @@ function showEditModal(articleId) {
 
     document.getElementById('edit-id').value = article.id;
     document.getElementById('edit-name').value = article.name;
-    populateParentSelect('edit-parent', article.type);
+    document.getElementById('edit-type').value = article.type;
+    populateParentSelect('edit-parent', article.type, article.id);
     document.getElementById('edit-parent').value = article.parent_id || '';
+
+    // Add event listener for type change to update parent list dynamically
+    const editTypeSelect = document.getElementById('edit-type');
+    const editParentSelect = document.getElementById('edit-parent');
+    const originalType = article.type;
+    const originalParentId = article.parent_id;
+
+    // Remove old listener if exists
+    editTypeSelect.replaceWith(editTypeSelect.cloneNode(true));
+    const newEditTypeSelect = document.getElementById('edit-type');
+    newEditTypeSelect.value = article.type;
+
+    newEditTypeSelect.addEventListener('change', function() {
+        const newType = this.value;
+        const oldParentId = editParentSelect.value;
+
+        // Update parent select with new type (exclude current article)
+        populateParentSelect('edit-parent', newType, article.id);
+
+        // Check if old parent is still valid (same type)
+        if (oldParentId && originalType !== newType) {
+            const oldParentArticle = articlesData.find(a => a.id == oldParentId);
+            if (oldParentArticle && oldParentArticle.type !== newType) {
+                // Parent has different type - clear selection and show warning
+                editParentSelect.value = '';
+                showNotification(
+                    `⚠️ Родительская категория "${oldParentArticle.name}" имеет тип "${oldParentArticle.type}". ` +
+                    `Выберите новую родительскую категорию с типом "${newType}" или оставьте корневой уровень.`,
+                    'warning'
+                );
+            } else {
+                // Try to keep the same parent if it's compatible
+                editParentSelect.value = oldParentId || '';
+            }
+        }
+    });
 
     document.getElementById('edit-modal').showModal();
 }
@@ -384,6 +462,7 @@ async function updateArticle(event) {
     const articleId = formData.get('id');
     const data = {
         name: formData.get('name'),
+        type: formData.get('type'),
         parent_id: formData.get('parent_id') ? parseInt(formData.get('parent_id')) : null
     };
 
@@ -399,7 +478,31 @@ async function updateArticle(event) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+
+            // Extract meaningful error message
+            let errorMessage = 'Неизвестная ошибка';
+
+            if (typeof error.detail === 'string') {
+                errorMessage = error.detail;
+            } else if (error.detail && typeof error.detail === 'object') {
+                // Handle object-type errors - extract message if exists
+                if (error.detail.message) {
+                    errorMessage = error.detail.message;
+                } else {
+                    errorMessage = JSON.stringify(error.detail);
+                }
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            // Add helpful hints based on error type
+            if (errorMessage.includes('родительская категория') || errorMessage.includes('parent')) {
+                errorMessage += '\n\n💡 Совет: Измените родительскую категорию или удалите привязку (выберите "-- Корневой уровень --")';
+            } else if (errorMessage.includes('уже существует') || errorMessage.includes('already exists')) {
+                errorMessage += '\n\n💡 Совет: Измените имя категории или выберите другой тип';
+            }
+
+            throw new Error(errorMessage);
         }
 
         // Success
@@ -427,7 +530,24 @@ async function deactivateArticle(articleId) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+
+            // Extract meaningful error message
+            let errorMessage = 'Неизвестная ошибка';
+
+            if (typeof error.detail === 'string') {
+                errorMessage = error.detail;
+            } else if (error.detail && typeof error.detail === 'object') {
+                // Handle object-type errors - extract message if exists
+                if (error.detail.message) {
+                    errorMessage = error.detail.message;
+                } else {
+                    errorMessage = JSON.stringify(error.detail);
+                }
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            throw new Error(errorMessage);
         }
 
         // Success
