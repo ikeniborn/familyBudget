@@ -85,24 +85,18 @@ COMMENT ON INDEX idx_budget_fact_amount_date IS
 -- INDEXES FOR t_d_article (Article/Category Dimension)
 -- ============================================================================
 
--- Covering index for user's current articles with hierarchy
--- Query: Get user's categories for dropdown
-CREATE INDEX IF NOT EXISTS idx_article_user_current_type_name_covering
-    ON t_d_article(user_id, is_current, type)
-    INCLUDE (id, name, parent_id)
+-- NOTE: Removed idx_article_user_current_type_name_covering (user_id column removed - Shared References architecture)
+-- NOTE: Removed idx_article_global_current_type (is_global column removed - Shared References architecture)
+
+-- Covering index for current articles (shared for all users)
+-- Query: Get all current categories for dropdown
+CREATE INDEX IF NOT EXISTS idx_article_current_type_name_covering
+    ON t_d_article(is_current, type)
+    INCLUDE (id, name, parent_id, code)
     WHERE is_current = TRUE;
 
-COMMENT ON INDEX idx_article_user_current_type_name_covering IS
-    'Covering index for user article lists. Supports: SELECT id, name, type, parent_id FROM t_d_article WHERE user_id = ? AND is_current = TRUE AND type = ?';
-
--- Index for global articles lookup
-CREATE INDEX IF NOT EXISTS idx_article_global_current_type
-    ON t_d_article(is_global, is_current, type)
-    INCLUDE (id, name, code)
-    WHERE is_global = TRUE AND is_current = TRUE;
-
-COMMENT ON INDEX idx_article_global_current_type IS
-    'Covering index for global articles. Supports: SELECT id, name, code FROM t_d_article WHERE is_global = TRUE AND is_current = TRUE';
+COMMENT ON INDEX idx_article_current_type_name_covering IS
+    'Covering index for article lists (Shared References). Supports: SELECT id, name, type, parent_id, code FROM t_d_article WHERE is_current = TRUE AND type = ?';
 
 -- Index for article code lookup
 CREATE INDEX IF NOT EXISTS idx_article_code_current
@@ -130,27 +124,31 @@ COMMENT ON INDEX idx_user_telegram_current_covering IS
 -- INDEXES FOR t_d_financial_center (Financial Center Dimension)
 -- ============================================================================
 
--- Covering index for user's financial centers
-CREATE INDEX IF NOT EXISTS idx_fc_user_current_covering
-    ON t_d_financial_center(user_id, is_current)
+-- NOTE: Removed idx_fc_user_current_covering (user_id column removed - Shared References architecture)
+
+-- Covering index for current financial centers (shared for all users)
+CREATE INDEX IF NOT EXISTS idx_fc_current_covering
+    ON t_d_financial_center(is_current)
     INCLUDE (id, name, code, description)
     WHERE is_current = TRUE;
 
-COMMENT ON INDEX idx_fc_user_current_covering IS
-    'Covering index for user financial centers. Supports: SELECT id, name, code, description FROM t_d_financial_center WHERE user_id = ? AND is_current = TRUE';
+COMMENT ON INDEX idx_fc_current_covering IS
+    'Covering index for financial centers (Shared References). Supports: SELECT id, name, code, description FROM t_d_financial_center WHERE is_current = TRUE';
 
 -- ============================================================================
 -- INDEXES FOR t_d_cost_center (Cost Center Dimension)
 -- ============================================================================
 
--- Covering index for user's cost centers
-CREATE INDEX IF NOT EXISTS idx_cc_user_current_covering
-    ON t_d_cost_center(user_id, is_current)
+-- NOTE: Removed idx_cc_user_current_covering (user_id column removed - Shared References architecture)
+
+-- Covering index for current cost centers (shared for all users)
+CREATE INDEX IF NOT EXISTS idx_cc_current_covering
+    ON t_d_cost_center(is_current)
     INCLUDE (id, name, code, description)
     WHERE is_current = TRUE;
 
-COMMENT ON INDEX idx_cc_user_current_covering IS
-    'Covering index for user cost centers. Supports: SELECT id, name, code, description FROM t_d_cost_center WHERE user_id = ? AND is_current = TRUE';
+COMMENT ON INDEX idx_cc_current_covering IS
+    'Covering index for cost centers (Shared References). Supports: SELECT id, name, code, description FROM t_d_cost_center WHERE is_current = TRUE';
 
 -- ============================================================================
 -- INDEXES FOR t_d_article_hierarchy (Closure Table)
@@ -201,15 +199,14 @@ COMMENT ON INDEX idx_hierarchy_descendant_depth_covering IS
 -- ORDER BY total DESC;
 -- Expected: Index Scan using idx_budget_fact_user_article_date_covering
 
--- Query 3: User's current categories
+-- Query 3: Current categories (Shared References)
 -- EXPLAIN ANALYZE
 -- SELECT id, name, type, parent_id
 -- FROM t_d_article
--- WHERE user_id = 1
---   AND is_current = TRUE
+-- WHERE is_current = TRUE
 --   AND type = 'expense'
 -- ORDER BY name;
--- Expected: Index Only Scan using idx_article_user_current_type_name_covering
+-- Expected: Index Only Scan using idx_article_current_type_name_covering
 
 -- Query 4: Telegram OAuth lookup
 -- EXPLAIN ANALYZE
