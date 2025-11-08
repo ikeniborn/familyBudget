@@ -36,12 +36,14 @@ from backend.app.schemas.article import (
     ArticleUpdate,
 )
 from backend.app.services import (
+    archive_recursive,
     create_new_version,
     get_ancestors,
     get_depth,
     get_direct_children,
     get_subtree,
     has_changes,
+    restore_recursive,
 )
 
 router = APIRouter(prefix="/articles", tags=["Articles"])
@@ -128,6 +130,7 @@ async def list_articles(
     type_filter: Annotated[str | None, Query(alias="type")] = None,
     parent_id: Annotated[int | None, Query()] = None,
     sort_by: Annotated[Literal["usage_count", "name"], Query()] = "usage_count",
+    include_inactive: Annotated[bool, Query()] = False,
 ) -> ArticleListResponse:
     """
     List articles with optional filtering and sorting.
@@ -139,6 +142,9 @@ async def list_articles(
     **Filters:**
     - type: Filter by article type ('income' or 'expense')
     - parent_id: Filter by parent article (NULL for root articles)
+    - include_inactive: Include archived categories (default: False)
+        - False: Only active categories (visible in dropdowns)
+        - True: Include archived categories (for admin UI)
 
     **Sorting:**
     - sort_by: Sort order ('usage_count' or 'name', default: 'usage_count')
@@ -173,6 +179,10 @@ async def list_articles(
 
     if parent_id is not None:
         statement = statement.where(Article.parent_id == parent_id)
+
+    # Filter by active status (archived categories functionality)
+    if not include_inactive:
+        statement = statement.where(Article.is_active == True)  # noqa: E712
 
     # NO user isolation - all users see all articles (shared references)
 
@@ -284,6 +294,14 @@ async def update_article(
     - Old version: is_current=False, valid_to=now()
     - New version: is_current=True, valid_from=now(), valid_to=9999-12-31
 
+    **Archived Categories (is_active field):**
+    - is_active changes are processed SEPARATELY from SCD Type 2
+    - Changing is_active triggers RECURSIVE archive/restore:
+        - is_active=False: Archives article and ALL descendants
+        - is_active=True: Restores article and ALL descendants
+    - Does NOT create new version if ONLY is_active changes
+    - If is_active + other fields change: both operations execute
+
     **Shared References Architecture:**
     - Only administrators can update articles
     - All articles are shared across all users
@@ -294,7 +312,7 @@ async def update_article(
     - Cannot create cycles in hierarchy
 
     **Returns:**
-    - 200 OK: Article updated (new version created)
+    - 200 OK: Article updated (new version created or is_active changed)
     - 403 Forbidden: Non-admin trying to update
     - 404 Not Found: Article not found
     - 400 Bad Request: No fields provided for update
@@ -366,17 +384,54 @@ async def update_article(
         logger.info(f"[ARTICLE UPDATE] No changes detected, returning old article")
         return old_article
 
-    # Create new version using SCD2 service
-    logger.info(f"[ARTICLE UPDATE] Calling create_new_version for article_id={article_id}")
-    new_article = await create_new_version(
-        session=session,
-        old_instance=old_article,
-        updates=update_data,
-        changed_fields=changed_fields,
-    )
-    logger.info(f"[ARTICLE UPDATE] Created new version: old_id={article_id}, new_id={new_article.id}")
+    # Handle is_active changes separately (archiving/restoring)
+    # is_active changes should NOT trigger SCD Type 2 versioning
+    # Instead, they trigger recursive archive/restore operations
+    is_active_change = None
+    if "is_active" in update_data and "is_active" in changed_fields:
+        new_is_active = update_data["is_active"]
+        is_active_change = new_is_active  # Store for later processing
 
-    return new_article
+        # Remove is_active from update_data - will be handled separately
+        del update_data["is_active"]
+        changed_fields = [f for f in changed_fields if f != "is_active"]
+
+        logger.info(f"[ARTICLE UPDATE] Detected is_active change: {old_article.is_active} -> {new_is_active}")
+
+    # Check if there are any remaining fields to update (after removing is_active)
+    has_other_changes = len(update_data) > 0
+
+    # Process is_active change (recursive archive/restore)
+    if is_active_change is not None:
+        if is_active_change is False:
+            # Archive article and all descendants
+            logger.info(f"[ARTICLE UPDATE] Archiving article {article_id} and all descendants")
+            archived_count = await archive_recursive(session, article_id)
+            logger.info(f"[ARTICLE UPDATE] Archived {archived_count} articles")
+        else:
+            # Restore article and all descendants
+            logger.info(f"[ARTICLE UPDATE] Restoring article {article_id} and all descendants")
+            restored_count = await restore_recursive(session, article_id)
+            logger.info(f"[ARTICLE UPDATE] Restored {restored_count} articles")
+
+        # Refresh old_article to get updated is_active status
+        await session.refresh(old_article)
+
+    # If there are other fields to update, create new SCD Type 2 version
+    if has_other_changes:
+        logger.info(f"[ARTICLE UPDATE] Calling create_new_version for article_id={article_id}")
+        new_article = await create_new_version(
+            session=session,
+            old_instance=old_article,
+            updates=update_data,
+            changed_fields=changed_fields,
+        )
+        logger.info(f"[ARTICLE UPDATE] Created new version: old_id={article_id}, new_id={new_article.id}")
+        return new_article
+    else:
+        # Only is_active was changed, return updated article (no new version)
+        logger.info(f"[ARTICLE UPDATE] Only is_active changed, returning updated article")
+        return old_article
 
 
 @router.delete(

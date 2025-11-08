@@ -493,6 +493,106 @@ async def create_article(current_user: CurrentUser):
 
 ---
 
+### 5. Archived Categories (Inactive Articles)
+
+**АРХИТЕКТУРНОЕ РЕШЕНИЕ (2025-11-08):** is_active флаг для архивирования категорий.
+
+**Концепция:**
+- Категории можно архивировать (скрыть из выбора)
+- Архивация **рекурсивная** - архивируется категория и все потомки
+- Архивные категории **остаются в аналитике** с пометкой "(архив)"
+- is_active изменения **НЕ создают SCD Type 2 версию**
+
+**Где применяется:**
+- `t_d_article.is_active` - флаг активности категории
+- `backend/app/services/hierarchy_service.py` - archive_recursive(), restore_recursive()
+- `backend/app/api/v1/endpoints/articles.py` - обработка is_active в update
+
+**Реальные примеры из кода:**
+
+```python
+# ✅ ПРАВИЛЬНО - рекурсивное архивирование
+
+# Пример 1: Архивирование через hierarchy service
+# backend/app/services/hierarchy_service.py:413-469
+async def archive_recursive(session: AsyncSession, article_id: int) -> int:
+    """Archive article and ALL descendants recursively."""
+    articles_to_archive = await get_subtree(
+        session=session,
+        article_id=article_id,
+        include_self=True,
+    )
+
+    archived_count = 0
+    for article in articles_to_archive:
+        article.is_active = False
+        session.add(article)
+        archived_count += 1
+
+    await session.commit()
+    return archived_count
+
+# Пример 2: Обработка is_active в update endpoint
+# backend/app/api/v1/endpoints/articles.py:379-426
+if "is_active" in update_data and "is_active" in changed_fields:
+    new_is_active = update_data["is_active"]
+    is_active_change = new_is_active
+
+    # Remove from update_data - handle separately
+    del update_data["is_active"]
+
+if is_active_change is not None:
+    if is_active_change is False:
+        archived_count = await archive_recursive(session, article_id)
+    else:
+        restored_count = await restore_recursive(session, article_id)
+
+# Пример 3: Фильтрация при выборе категорий (dropdowns)
+# backend/app/api/v1/endpoints/articles.py:182-183
+if not include_inactive:
+    statement = statement.where(Article.is_active == True)
+
+# Пример 4: НЕ фильтровать в аналитике (показывать с пометкой)
+# frontend/web/templates/admin_articles.html:268-270
+const archivedBadge = !node.is_active
+    ? '<span class="badge badge-warning ml-2">📦 Архивная</span>'
+    : '';
+```
+
+**Ключевые правила:**
+
+| Правило | Описание |
+|---------|----------|
+| **Рекурсивность** | При архивировании parent_id → архивируются ВСЕ дети |
+| **НЕ SCD2** | Изменение is_active НЕ создает новую версию |
+| **Видимость** | Archived = скрыто из dropdowns, но видно в аналитике |
+| **Восстановление** | restore_recursive() также рекурсивен |
+
+**Frontend интеграция:**
+
+```javascript
+// ✅ ПРАВИЛЬНО - Скрывать архивные в выборе категорий
+// frontend/shared/static/js/choicesCategoryTree.js:116
+const url = `/articles?type=${type}&include_inactive=${showInactive}`;
+
+// ✅ ПРАВИЛЬНО - Показывать badge для архивных в админке
+// frontend/web/templates/admin_articles.html:287
+<td class="font-medium">${indent}${prefix}${node.name}${archivedBadge}</td>
+
+// ✅ ПРАВИЛЬНО - Условные кнопки (Archive vs Restore)
+const actionButtons = node.is_active
+    ? `<button onclick="archiveArticle(${id})">📦 Архивировать</button>`
+    : `<button onclick="restoreArticle(${id})">♻️ Восстановить</button>`;
+```
+
+**Почему НЕ SCD Type 2 для is_active:**
+- Архивация - это изменение видимости, НЕ бизнес-данных
+- is_active можно toggle многократно без создания версий
+- Исторический audit trail НЕ требуется для флага видимости
+- Рекурсивное применение упрощается без версионирования
+
+---
+
 ## 🛡️ Security Guidelines (ОБЯЗАТЕЛЬНО)
 
 ### Authentication Pattern

@@ -17,6 +17,7 @@
                     <button class="btn btn-sm btn-primary" id="filter-all" onclick="toggleTypeFilter('all')">📋 Все</button>
                     <button class="btn btn-sm btn-outline" id="filter-income" onclick="toggleTypeFilter('income')">💰 Доходы</button>
                     <button class="btn btn-sm btn-outline" id="filter-expense" onclick="toggleTypeFilter('expense')">💸 Расходы</button>
+                    <button class="btn btn-sm btn-outline" id="filter-archived" onclick="toggleArchivedFilter()">📦 Архивные</button>
                     <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -105,6 +106,15 @@
                     <!-- Will be populated dynamically -->
                 </select>
             </div>
+            <div class="form-control">
+                <label class="label cursor-pointer">
+                    <span class="label-text">✅ Активная категория</span>
+                    <input type="checkbox" id="edit-is-active" name="is_active" class="checkbox" checked />
+                </label>
+                <p class="text-sm text-base-content/60 mt-1">
+                    Неактивные категории скрыты из выбора при добавлении транзакций. Изменение статуса применится ко всем подкатегориям рекурсивно.
+                </p>
+            </div>
             <div class="modal-action">
                 <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
                 <button type="submit" class="btn btn-primary">💾 Сохранить</button>
@@ -121,6 +131,7 @@
 <script>
 // Global state
 let currentType = 'all';
+let showArchived = false;
 let articlesData = [];
 
 // Load articles on page load
@@ -157,7 +168,7 @@ async function loadArticles() {
     container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
 
     try {
-        let url = `/api/v1/admin/articles?is_current=true`;
+        let url = `/api/v1/admin/articles?is_current=true&include_inactive=${showArchived}`;
 
         const response = await fetch(url, {
             credentials: 'include',
@@ -253,15 +264,32 @@ function renderTreeNodes(nodes, level) {
             ? '<span class="badge badge-success gap-1">' + typeLabel + '</span>'
             : '<span class="badge badge-ghost gap-1">' + typeLabel + '</span>';
 
+        // Archived badge
+        const archivedBadge = !node.is_active
+            ? '<span class="badge badge-warning ml-2">📦 Архивная</span>'
+            : '';
+
+        // Action buttons - show Archive or Restore depending on is_active status
+        const actionButtons = node.is_active
+            ? `
+                <button class="btn btn-sm btn-primary gap-1" onclick="showEditModal(${node.id})">✏️ Изменить</button>
+                <button class="btn btn-sm btn-warning gap-1" onclick="archiveArticle(${node.id})">📦 Архивировать</button>
+                <button class="btn btn-sm btn-outline btn-error gap-1" onclick="deactivateArticle(${node.id})">🗑️</button>
+              `
+            : `
+                <button class="btn btn-sm btn-primary gap-1" onclick="showEditModal(${node.id})">✏️ Изменить</button>
+                <button class="btn btn-sm btn-success gap-1" onclick="restoreArticle(${node.id})">♻️ Восстановить</button>
+                <button class="btn btn-sm btn-outline btn-error gap-1" onclick="deactivateArticle(${node.id})">🗑️</button>
+              `;
+
         html += `
             <tr data-article-id="${node.id}">
-                <td class="font-medium">${indent}${prefix}${node.name}</td>
+                <td class="font-medium">${indent}${prefix}${node.name}${archivedBadge}</td>
                 <td>${typeBadge}</td>
                 <td>${ownerLabel}</td>
                 <td>
                     <div class="flex gap-1">
-                        <button class="btn btn-sm btn-primary gap-1" onclick="showEditModal(${node.id})">✏️ Изменить</button>
-                        <button class="btn btn-sm btn-outline btn-error gap-1" onclick="deactivateArticle(${node.id})">🗑️</button>
+                        ${actionButtons}
                     </div>
                 </td>
             </tr>
@@ -408,6 +436,7 @@ function showEditModal(articleId) {
     document.getElementById('edit-type').value = article.type;
     populateParentSelect('edit-parent', article.type, article.id);
     document.getElementById('edit-parent').value = article.parent_id || '';
+    document.getElementById('edit-is-active').checked = article.is_active !== false;
 
     // Add event listener for type change to update parent list dynamically
     const editTypeSelect = document.getElementById('edit-type');
@@ -463,7 +492,8 @@ async function updateArticle(event) {
     const data = {
         name: formData.get('name'),
         type: formData.get('type'),
-        parent_id: formData.get('parent_id') ? parseInt(formData.get('parent_id')) : null
+        parent_id: formData.get('parent_id') ? parseInt(formData.get('parent_id')) : null,
+        is_active: document.getElementById('edit-is-active').checked
     };
 
     try {
@@ -557,6 +587,78 @@ async function deactivateArticle(articleId) {
         console.error('Error deactivating article:', error);
         const errorMessage = error?.message || String(error);
         showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Toggle archived filter
+function toggleArchivedFilter() {
+    showArchived = !showArchived;
+
+    const btn = document.getElementById('filter-archived');
+    if (showArchived) {
+        btn.classList.remove('btn-outline');
+        btn.classList.add('btn-primary');
+        btn.textContent = '📦 Скрыть архивные';
+    } else {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+        btn.textContent = '📦 Архивные';
+    }
+
+    loadArticles();
+}
+
+// Archive article and all descendants
+async function archiveArticle(articleId) {
+    if (!confirm('📦 Архивировать эту категорию?\n\nВсе подкатегории будут также архивированы рекурсивно.\nИсторические данные сохранятся.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/articles/${articleId}`, {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_active: false })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to archive');
+        }
+
+        await loadArticles();
+        showNotification('✅ Категория и все подкатегории архивированы!', 'success');
+    } catch (error) {
+        console.error('Error archiving article:', error);
+        showNotification(`❌ Ошибка: ${error.message}`, 'error');
+    }
+}
+
+// Restore article and all descendants
+async function restoreArticle(articleId) {
+    if (!confirm('♻️ Восстановить эту категорию?\n\nВсе подкатегории будут также восстановлены рекурсивно.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/articles/${articleId}`, {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_active: true })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to restore');
+        }
+
+        await loadArticles();
+        showNotification('✅ Категория и все подкатегории восстановлены!', 'success');
+    } catch (error) {
+        console.error('Error restoring article:', error);
+        showNotification(`❌ Ошибка: ${error.message}`, 'error');
     }
 }
 

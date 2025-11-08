@@ -41,6 +41,7 @@ class ChoicesCategoryTree {
      * @param {Function} options.onCategoryChange - Callback when category changes
      * @param {string} options.apiBaseUrl - Base URL for API (default: '/api/v1')
      * @param {boolean} options.showLeafOnly - Show only leaf categories (default: true)
+     * @param {boolean} options.showInactive - Include archived categories (default: false)
      */
     constructor(selector, options = {}) {
         this.selector = selector;
@@ -60,6 +61,7 @@ class ChoicesCategoryTree {
             onCategoryChange: options.onCategoryChange || null,
             apiBaseUrl: options.apiBaseUrl || '/api/v1',
             showLeafOnly: options.showLeafOnly !== false,  // Default true
+            showInactive: options.showInactive || false,  // Default false - hide archived categories
         };
 
         this.choices = null;
@@ -112,7 +114,7 @@ class ChoicesCategoryTree {
      * Uses Bearer token (WebApp) or cookie-based auth (web interface).
      */
     async loadCategories() {
-        const url = `${this.options.apiBaseUrl}/articles?type=${this.options.type}&sort_by=usage_count&limit=1000`;
+        const url = `${this.options.apiBaseUrl}/articles?type=${this.options.type}&sort_by=usage_count&limit=1000&include_inactive=${this.options.showInactive}`;
 
         console.log(`[ChoicesCategoryTree] Loading categories from: ${url}`);
 
