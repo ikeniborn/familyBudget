@@ -785,7 +785,7 @@ async def get_waterfall_data(
 @router.get("/heatmap")
 async def get_heatmap_data(
     current_user: CurrentUser,
-    period: Optional[str] = Query(None, regex="^(month|quarter|year)$"),
+    period: Optional[str] = Query(None, regex="^(week|month|quarter|year)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     article_type: str = Query("expense", regex="^(income|expense)$"),
@@ -793,20 +793,24 @@ async def get_heatmap_data(
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Get spending patterns data for heatmap.
+    Get spending patterns data for heatmap with dynamic aggregation.
 
     Args:
-        period: Time range (month, quarter, year) - rolling periods
-            - month: last 28 days from today
-            - quarter: current quarter (unchanged)
-            - year: last 365 days from today
+        period: Time range (week, month, quarter, year) - rolling periods
+            - week: last 7 days from today → aggregate by days
+            - month: last 28 days from today → aggregate by weeks
+            - quarter: current quarter → aggregate by weeks
+            - year: last 365 days from today → aggregate by months
         date_from: Optional start date for custom range (overrides period)
         date_to: Optional end date for custom range (overrides period)
         article_type: Type of category (income or expense)
         record_type: Type of records (fact or plan)
 
     Returns:
-        Heatmap data showing expense patterns by day of week over time
+        Heatmap data with dynamic aggregation:
+        - ≤7 days: aggregate by days (horizontal)
+        - 7-30 days: aggregate by weeks (days × weeks)
+        - >30 days: aggregate by months (weeks × months)
     """
     today = date.today()
 
@@ -814,34 +818,38 @@ async def get_heatmap_data(
     if date_from and date_to:
         start_date = date_from
         end_date = date_to
-        # Auto-determine weeks to show based on days difference
+        # Auto-determine aggregation based on days difference
         days_diff = (end_date - start_date).days + 1
-        weeks_to_show = (days_diff // 7) + 1
+        if days_diff <= 7:
+            aggregation = "day"
+        elif days_diff <= 30:
+            aggregation = "week"
+        else:
+            aggregation = "month"
     elif period:
-        # Calculate date range based on ROLLING period
-        if period == "month":
-            # Last 28 days from today
+        # Calculate date range and aggregation based on period
+        if period == "week":
+            # Last 7 days from today → aggregate by days
+            start_date = today - timedelta(days=6)
+            end_date = today
+            aggregation = "day"
+        elif period == "month":
+            # Last 28 days from today → aggregate by weeks
             start_date = today - timedelta(days=27)
             end_date = today
-            weeks_to_show = 4
+            aggregation = "week"
         elif period == "quarter":
-            # Current quarter (keep calendar logic)
+            # Current quarter → aggregate by weeks
             current_quarter = (today.month - 1) // 3
             quarter_start_month = current_quarter * 3 + 1
-            quarter_end_month = quarter_start_month + 2
             start_date = date(today.year, quarter_start_month, 1)
-            # End date is last day of quarter or today (whichever is earlier)
-            if quarter_end_month == 12:
-                quarter_end = date(today.year, 12, 31)
-            else:
-                quarter_end = date(today.year, quarter_end_month + 1, 1) - timedelta(days=1)
-            end_date = min(quarter_end, today)
-            weeks_to_show = 13  # ~13 weeks in a quarter
+            end_date = today
+            aggregation = "week"
         else:  # year
-            # Last 365 days from today
+            # Last 365 days from today → aggregate by months
             start_date = today - timedelta(days=364)
             end_date = today
-            weeks_to_show = 52
+            aggregation = "month"
     else:
         raise HTTPException(400, "Укажите period или date_from/date_to")
 
@@ -861,38 +869,139 @@ async def get_heatmap_data(
     result = await session.execute(query)
     rows = result.all()
 
-    # Build heatmap data (day of week × week of period)
+    # Build data by date
     data_by_date = {row.fact_date: float(row.total) for row in rows}
 
-    # Calculate weeks as simple 2D array: weeks[weekIndex][dayIndex]
-    weeks_data = []
-    week_start = start_date - timedelta(days=start_date.weekday())  # Start from Monday
+    # Generate heatmap data based on aggregation type
+    if aggregation == "day":
+        # Daily aggregation: single row with days horizontally
+        # X-axis: dates or day names
+        # Y-axis: single row (no categories)
+        data = []
+        xAxis = []
+        month_names_short = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"]
+        day_names_short = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
 
-    current_date = week_start
-    while current_date <= end_date:
-        week_days = []
-        for day in range(7):  # Mon-Sun
-            date_to_check = current_date + timedelta(days=day)
-            if date_to_check > end_date or date_to_check < start_date:
-                # Future or past dates outside period - use 0 instead of None for heatmap
-                amount = 0.0
+        current_date = start_date
+        while current_date <= end_date:
+            amount = data_by_date.get(current_date, 0.0)
+            data.append([amount])  # Single row, each day is a column
+
+            # Label format: "01 ноя (Пн)" or just day name for week period
+            if period == "week":
+                label = day_names_short[current_date.weekday()]
             else:
-                amount = data_by_date.get(date_to_check, 0.0)
-            week_days.append(amount)
+                label = f"{current_date.day} {month_names_short[current_date.month - 1]}"
+            xAxis.append(label)
 
-        weeks_data.append(week_days)
-        current_date += timedelta(days=7)
+            current_date += timedelta(days=1)
 
-    # Limit weeks based on period
-    weeks_data = weeks_data[-weeks_to_show:]
+        yAxis = [""]  # Single row
 
-    period_days = (end_date - start_date).days
+    elif aggregation == "week":
+        # Weekly aggregation: days × weeks
+        # X-axis: days of week (Пн-Вс)
+        # Y-axis: week numbers (Н1, Н2, ...)
+        xAxis = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+        yAxis = []
+        data = []
+
+        # Start from Monday of first week
+        week_start = start_date - timedelta(days=start_date.weekday())
+        current_date = week_start
+        week_num = 1
+
+        while current_date <= end_date:
+            week_data = []
+            for day in range(7):  # Mon-Sun
+                date_to_check = current_date + timedelta(days=day)
+                if date_to_check < start_date or date_to_check > end_date:
+                    amount = 0.0  # Outside range
+                else:
+                    amount = data_by_date.get(date_to_check, 0.0)
+                week_data.append(amount)
+
+            data.append(week_data)
+            yAxis.append(f"Н{week_num}")
+            week_num += 1
+            current_date += timedelta(days=7)
+
+    else:  # aggregation == "month"
+        # Monthly aggregation: weeks × months
+        # X-axis: weeks in month (Н1-Н4 or days 1-31)
+        # Y-axis: months (Янв, Фев, ...)
+        month_names_ru = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"]
+
+        # Determine if we should aggregate by weeks or days within month
+        days_diff = (end_date - start_date).days + 1
+        if days_diff > 365:
+            # For very long periods, aggregate by weeks
+            xAxis = ["Н1", "Н2", "Н3", "Н4"]
+            group_by_weeks = True
+        else:
+            # For year period, aggregate by days (1-31)
+            xAxis = [str(i) for i in range(1, 32)]  # Days 1-31
+            group_by_weeks = False
+
+        yAxis = []
+        data = []
+
+        # Iterate through months
+        current_month_date = start_date.replace(day=1)
+        end_month_date = end_date.replace(day=1)
+
+        while current_month_date <= end_month_date:
+            month_label = month_names_ru[current_month_date.month - 1]
+            yAxis.append(month_label)
+
+            # Get last day of month
+            if current_month_date.month == 12:
+                next_month = date(current_month_date.year + 1, 1, 1)
+            else:
+                next_month = date(current_month_date.year, current_month_date.month + 1, 1)
+            month_end = next_month - timedelta(days=1)
+
+            # Clamp to actual date range
+            month_start = max(current_month_date, start_date)
+            month_end = min(month_end, end_date)
+
+            if group_by_weeks:
+                # Aggregate by weeks (4 weeks per month)
+                month_data = []
+                for week in range(4):
+                    week_start = month_start + timedelta(days=week * 7)
+                    week_end = min(week_start + timedelta(days=6), month_end)
+
+                    # Sum amounts for week
+                    week_total = 0.0
+                    current_date = week_start
+                    while current_date <= week_end:
+                        week_total += data_by_date.get(current_date, 0.0)
+                        current_date += timedelta(days=1)
+
+                    month_data.append(week_total)
+            else:
+                # Aggregate by days (1-31)
+                month_data = [0.0] * 31  # Initialize all days
+                current_date = month_start
+                while current_date <= month_end:
+                    day_index = current_date.day - 1  # 0-indexed
+                    month_data[day_index] = data_by_date.get(current_date, 0.0)
+                    current_date += timedelta(days=1)
+
+            data.append(month_data)
+
+            # Move to next month
+            if current_month_date.month == 12:
+                current_month_date = date(current_month_date.year + 1, 1, 1)
+            else:
+                current_month_date = date(current_month_date.year, current_month_date.month + 1, 1)
 
     return {
-        "weeks": weeks_data,  # Now a simple 2D array: [[Mon, Tue, ..., Sun], ...]
-        "day_labels": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
-        "week_count": len(weeks_data),
-        "period_days": period_days,
+        "data": data,  # 2D array: [row][col] where row=yAxis, col=xAxis
+        "xAxis": xAxis,  # Labels for X-axis (horizontal)
+        "yAxis": yAxis,  # Labels for Y-axis (vertical)
+        "aggregation": aggregation,  # "day", "week", or "month"
         "period": period,
         "article_type": article_type,
         "record_type": record_type,

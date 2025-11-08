@@ -1215,44 +1215,54 @@ async function loadHeatmapData(period = 'quarter') {
     }
 }
 
-// Update Heatmap chart with data
+// Update Heatmap chart with data (supports dynamic aggregation)
 function updateHeatmapChart(data) {
     heatmapChart.hideLoading();
 
-    // Transform data to ECharts format: [dayIndex, weekIndex, value]
+    // Transform data to ECharts format: [xIndex, yIndex, value]
     const heatmapData = [];
-    const weekLabels = [];
+    let allValues = [];
 
-    data.weeks.forEach((week, weekIndex) => {
-        weekLabels.push(`Н${weekIndex + 1}`);
-        week.forEach((value, dayIndex) => {
-            heatmapData.push([dayIndex, weekIndex, value]);
+    data.data.forEach((row, yIndex) => {
+        row.forEach((value, xIndex) => {
+            heatmapData.push([xIndex, yIndex, value]);
+            if (value > 0) allValues.push(value);
         });
     });
 
     // Find max value for visualMap
-    const maxValue = Math.max(...data.weeks.flat());
+    const maxValue = allValues.length > 0 ? Math.max(...allValues) : 1000;
 
-    // Dynamic chart height based on number of weeks
+    // Dynamic chart height based on aggregation type and number of rows
     const chartDom = document.getElementById('chart-heatmap');
-    const minHeight = 400;
-    const rowHeight = 30;
-    const dynamicHeight = Math.max(minHeight, data.week_count * rowHeight + 150);
+    const minHeight = 300;
+    const rowHeight = data.aggregation === 'day' ? 80 : 30;  // Taller for single-row day view
+    const dynamicHeight = Math.max(minHeight, data.yAxis.length * rowHeight + 150);
     chartDom.style.height = `${dynamicHeight}px`;
 
     // Rebuild chart with new height
     heatmapChart.dispose();
     heatmapChart = echarts.init(chartDom);
 
-    const periodMap = { month: 'Месяц', quarter: 'Квартал', year: 'Год' };
+    // Period labels
+    const periodMap = { week: 'Неделя', month: 'Месяц', quarter: 'Квартал', year: 'Год' };
     const periodLabel = periodMap[data.period] || data.period;
+
+    // Aggregation labels
+    const aggregationMap = {
+        day: 'по дням',
+        week: 'по неделям',
+        month: 'по месяцам'
+    };
+    const aggregationLabel = aggregationMap[data.aggregation] || '';
 
     const typeMap = { expense: 'расходов', income: 'доходов' };
     const typeLabel = typeMap[currentGlobalType] || 'расходов';
+    const typeLabelSingular = currentGlobalType === 'income' ? 'Доход' : 'Расход';
 
     const option = {
         title: {
-            text: `Тепловая карта (${periodLabel})`,
+            text: `Тепловая карта (${periodLabel}, ${aggregationLabel})`,
             subtext: `${data.start_date} — ${data.end_date}`,
             left: 'center',
             textStyle: {
@@ -1263,34 +1273,48 @@ function updateHeatmapChart(data) {
         tooltip: {
             position: 'top',
             formatter: function(params) {
-                const dayName = data.day_labels[params.value[0]];
-                const weekNum = params.value[1] + 1;
+                const xLabel = data.xAxis[params.value[0]];
+                const yLabel = data.yAxis[params.value[1]];
                 const amount = params.value[2].toFixed(2);
-                const typeLabelSingular = currentGlobalType === 'income' ? 'Доход' : 'Расход';
-                return `<strong>${dayName}, Неделя ${weekNum}</strong><br/>` +
-                       `${typeLabelSingular}: ${amount} ₽`;
+
+                // Build tooltip based on aggregation
+                let tooltipText = '';
+                if (data.aggregation === 'day') {
+                    // Daily: just show date
+                    tooltipText = `<strong>${xLabel}</strong><br/>`;
+                } else if (data.aggregation === 'week') {
+                    // Weekly: show day + week
+                    tooltipText = `<strong>${xLabel}, ${yLabel}</strong><br/>`;
+                } else {
+                    // Monthly: show week/day + month
+                    tooltipText = `<strong>${yLabel}, ${xLabel}</strong><br/>`;
+                }
+
+                tooltipText += `${typeLabelSingular}: ${amount} ₽`;
+                return tooltipText;
             }
         },
         grid: {
             left: '10%',
             right: '10%',
-            bottom: '15%',
+            bottom: data.aggregation === 'day' ? '10%' : '15%',
             top: '15%',
             containLabel: true
         },
         xAxis: {
             type: 'category',
-            data: data.day_labels,
+            data: data.xAxis,
             splitArea: {
                 show: true
             },
             axisLabel: {
-                fontSize: 12
+                fontSize: 12,
+                rotate: data.aggregation === 'month' && data.xAxis.length > 10 ? 45 : 0
             }
         },
         yAxis: {
             type: 'category',
-            data: weekLabels,
+            data: data.yAxis,
             splitArea: {
                 show: true
             },
