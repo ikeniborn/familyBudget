@@ -144,15 +144,18 @@
     {% endif %}
 </div>
 
-<!-- Modal: Добавить транзакцию -->
-{{ transaction_modal('modal_add_transaction') }}
+{% if user %}
+    <!-- Modal: Добавить транзакцию -->
+    {{ transaction_modal('modal_add_transaction') }}
 
-<!-- Modal: Добавить план -->
-{{ plan_modal('modal_add_plan') }}
+    <!-- Modal: Добавить план -->
+    {{ plan_modal('modal_add_plan') }}
+{% endif %}
 
 {% endblock %}
 
 {% block extra_scripts %}
+{% if user %}
 <!-- Choices.js Library -->
 <link rel="stylesheet" href="/static/css/vendor/choices.min.css">
 <link rel="stylesheet" href="/static/css/choices-tailwind.min.css?v=PLACEHOLDER">
@@ -297,6 +300,13 @@ async function loadCategories() {
 // Загрузить категории только для формы транзакций
 async function loadTransactionCategories() {
     try {
+        // Check if select element exists (defense in depth)
+        const selectElement = document.querySelector('#form_modal_add_transaction select[name="article_id"]');
+        if (!selectElement) {
+            console.log('[loadTransactionCategories] Select element not found - skipping initialization');
+            return;
+        }
+
         // Get current transaction type
         const transactionType = document.querySelector('#form_modal_add_transaction input[name="record_type"]:checked')?.value || 'expense';
 
@@ -326,6 +336,13 @@ async function loadTransactionCategories() {
 // Загрузить категории только для формы планов
 async function loadPlanCategories() {
     try {
+        // Check if select element exists (defense in depth)
+        const selectElement = document.querySelector('#form_modal_add_plan select[name="article_id"]');
+        if (!selectElement) {
+            console.log('[loadPlanCategories] Select element not found - skipping initialization');
+            return;
+        }
+
         // Get current plan type
         const planType = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked')?.value || 'expense';
 
@@ -357,6 +374,13 @@ async function loadFinancialCenters() {
     try {
         const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true&is_current=true');
         if (!response.ok) {
+            // Graceful degradation for 401 Unauthorized (user not authenticated)
+            if (response.status === 401) {
+                console.log('[loadFinancialCenters] User not authenticated - financial centers not loaded');
+                return;  // Silent fail - don't show error toast
+            }
+
+            // For other errors, show error toast
             console.warn('Failed to fetch financial centers: HTTP', response.status);
             showToast('Не удалось загрузить список ЦФО', 'error');
             return;
@@ -757,4 +781,5 @@ function setupPlanTypeButtons() {
 }
 </script>
 
+{% endif %}
 {% endblock %}

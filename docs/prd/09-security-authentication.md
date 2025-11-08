@@ -263,5 +263,148 @@ async def telegram_auth(request: Request, data: TelegramAuthData):
 **Telegram bot flood protection:**
 python-telegram-bot имеет встроенную защиту от флуда.
 
+### 9.8 Graceful Degradation для неавторизованных пользователей
+
+**Проблема:**
+При доступе к защищенным ресурсам (справочники, API endpoints) неавторизованный пользователь получает HTTP 401 ошибки, которые могут генерировать шумные error messages в UI.
+
+**Решение (реализовано в v5.0.0-beta):**
+
+#### 9.8.1 Frontend: Условный рендеринг (index.html)
+
+**Jinja2 Template Guards:**
+```html
+{% if user %}
+    <!-- Модальные формы добавления транзакций/планов -->
+    {{ transaction_modal('modal_add_transaction') }}
+    {{ plan_modal('modal_add_plan') }}
+
+    <!-- JavaScript инициализация справочников -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCategories();
+            loadFinancialCenters();
+            loadCostCenters();
+        });
+    </script>
+{% endif %}
+```
+
+**Защита:**
+- Модальные формы НЕ рендерятся в DOM для неавторизованных пользователей
+- JavaScript код инициализации НЕ выполняется
+- Библиотеки (Choices.js, ChoicesCategoryTree) НЕ загружаются
+
+#### 9.8.2 Frontend: DOM Element Checks (defense in depth)
+
+**Проверка существования select элементов перед инициализацией:**
+```javascript
+async function loadTransactionCategories() {
+    try {
+        // Check if select element exists (defense in depth)
+        const selectElement = document.querySelector('#form_modal_add_transaction select[name="article_id"]');
+        if (!selectElement) {
+            console.log('[loadTransactionCategories] Select element not found - skipping initialization');
+            return;
+        }
+
+        // ... инициализация ChoicesCategoryTree
+    } catch (error) {
+        console.error('Failed to load transaction categories:', error);
+        showToast('Ошибка при загрузке категорий транзакций', 'error');
+    }
+}
+```
+
+#### 9.8.3 Frontend: Silent Fail для 401 ошибок
+
+**Graceful degradation в loadFinancialCenters():**
+```javascript
+async function loadFinancialCenters() {
+    try {
+        const response = await fetch('/api/v1/financial-centers?limit=1000');
+        if (!response.ok) {
+            // Graceful degradation for 401 Unauthorized
+            if (response.status === 401) {
+                console.log('[loadFinancialCenters] User not authenticated - not loaded');
+                return;  // Silent fail - don't show error toast
+            }
+
+            // For other errors, show error toast
+            console.warn('Failed to fetch: HTTP', response.status);
+            showToast('Не удалось загрузить список ЦФО', 'error');
+            return;
+        }
+        // ... обработка данных
+    } catch (error) {
+        console.error('Failed to load financial centers:', error);
+        showToast('Ошибка при загрузке ЦФО', 'error');
+    }
+}
+```
+
+#### 9.8.4 Shared Component: ChoicesCategoryTree graceful degradation
+
+**ChoicesCategoryTree.loadCategories() с 401 handling:**
+```javascript
+async loadCategories() {
+    const url = `${this.options.apiBaseUrl}/articles?type=${this.options.type}`;
+
+    const response = await fetch(url, {
+        headers: headers,
+        credentials: 'same-origin',
+    });
+
+    if (!response.ok) {
+        // Graceful degradation for 401 Unauthorized
+        if (response.status === 401) {
+            console.log('[ChoicesCategoryTree] User not authenticated - categories not loaded');
+            this.categories = [];  // Empty categories array
+            return;  // Silent fail - don't throw error
+        }
+
+        // For other errors, throw with detailed status
+        throw new Error(`Failed to load categories: HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    this.categories = data.articles || [];
+}
+```
+
+**Преимущества:**
+- Компонент используется в Telegram WebApps (Bearer token auth) и web interface (cookie auth)
+- Graceful degradation работает для обоих случаев
+- Не показывает error alerts для ожидаемых 401 статусов
+
+#### 9.8.5 Backend: Public vs Protected Endpoints
+
+**Public endpoints (не требуют авторизацию):**
+- `/` - главная страница (использует `CurrentUserOptional`)
+- `/analytics` - страница аналитики (использует `CurrentUserOptional`)
+- `/api/v1/auth/*` - authentication endpoints
+- `/static/*`, `/webapp/*` - статические файлы
+
+**Protected endpoints (требуют CurrentUser dependency):**
+- `/api/v1/articles` - список категорий бюджета
+- `/api/v1/financial-centers` - список ЦФО
+- `/api/v1/cost-centers` - список МВЗ
+- `/api/v1/facts/*` - CRUD транзакций
+
+**ВАЖНО:** Справочники намеренно защищены авторизацией, так как содержат бизнес-логику и категории семейного бюджета (не public data).
+
+#### 9.8.6 UX Benefits
+
+**Для неавторизованных пользователей:**
+- ✅ Чистая консоль браузера (нет 401 ошибок)
+- ✅ Нет лишних error toast уведомлений
+- ✅ Нет попыток загрузки защищенных ресурсов
+- ✅ Меньший DOM (модальные формы не рендерятся)
+- ✅ Меньше загруженных JS библиотек
+
+**Для авторизованных пользователей:**
+- ✅ Все функции доступны как обычно
+- ✅ Никаких изменений в UX
+
 ---
 
