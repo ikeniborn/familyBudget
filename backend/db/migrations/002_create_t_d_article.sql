@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS t_d_article (
     -- Article attributes
     name VARCHAR(255) NOT NULL,
     type VARCHAR(20) NOT NULL CHECK (type IN ('income', 'expense')),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
 
     -- SCD Type 2 fields
     valid_from TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -83,6 +84,16 @@ CREATE INDEX IF NOT EXISTS idx_article_current
     ON t_d_article(is_current)
     WHERE is_current = TRUE;
 
+-- Index on active status (for filtering archived categories)
+CREATE INDEX IF NOT EXISTS idx_article_active
+    ON t_d_article(is_active)
+    WHERE is_active = TRUE;
+
+-- Composite index for the most common query pattern (active + current)
+CREATE INDEX IF NOT EXISTS idx_article_active_current
+    ON t_d_article(is_active, is_current)
+    WHERE is_active = TRUE AND is_current = TRUE;
+
 -- Composite index for current user articles (audit trail)
 CREATE INDEX IF NOT EXISTS idx_article_user_current
     ON t_d_article(user_id, is_current)
@@ -119,6 +130,9 @@ COMMENT ON COLUMN t_d_article.name IS
 
 COMMENT ON COLUMN t_d_article.type IS
     'Article type: "income" or "expense"';
+
+COMMENT ON COLUMN t_d_article.is_active IS
+    'Active status flag. TRUE = category is visible in UI dropdowns (for facts/plans creation), FALSE = archived category (hidden from selection but still visible in analytics with "(архив)" label). Archiving is recursive - all child categories are archived when parent is archived.';
 
 COMMENT ON COLUMN t_d_article.valid_from IS
     'SCD2: Start date of record validity (inclusive)';
