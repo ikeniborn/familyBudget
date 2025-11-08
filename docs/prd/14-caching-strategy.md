@@ -77,7 +77,7 @@ CREATE INDEX idx_budget_fact_user_date_amount_covering
 **Таблица кэша:**
 
 ```sql
--- backend/db/migrations/013_create_recommended_amounts_table.sql
+-- backend/db/schema/007_recommendations.sql
 CREATE TABLE t_recommended_amounts (
     id SERIAL PRIMARY KEY,
     article_id INTEGER REFERENCES t_d_article(id),

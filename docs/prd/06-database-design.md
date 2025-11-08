@@ -411,7 +411,7 @@ PostgreSQL может возвращать данные **без обращен�
 **1. Analytics by User & Date (covering index)**
 
 ```sql
--- backend/db/migrations/009_create_additional_indexes.sql:10-15
+-- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)10-15
 CREATE INDEX idx_budget_fact_user_date_amount_covering
     ON t_f_budget_fact(user_id, fact_date DESC)
     INCLUDE (amount, article_id, cost_center_id, financial_center_id);
@@ -435,7 +435,7 @@ Since `user_id` filter is removed in endpoints, this index still helps with sort
 **2. Analytics by Article & Date (covering index)**
 
 ```sql
--- backend/db/migrations/009_create_additional_indexes.sql:17-22
+-- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)17-22
 CREATE INDEX idx_budget_fact_article_date_amount_covering
     ON t_f_budget_fact(article_id, fact_date DESC)
     INCLUDE (amount, user_id, record_type);
@@ -457,7 +457,7 @@ ORDER BY fact_date DESC;
 **3. Analytics by Record Type (PLAN vs FACT)**
 
 ```sql
--- backend/db/migrations/009_create_additional_indexes.sql:24-28
+-- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)24-28
 CREATE INDEX idx_budget_fact_record_type_date
     ON t_f_budget_fact(record_type, fact_date DESC)
     WHERE record_type IN ('PLAN', 'FACT');
@@ -481,7 +481,7 @@ GROUP BY fact_date;
 **4. User Telegram OAuth Lookup (covering index)**
 
 ```sql
--- backend/db/migrations/009_create_additional_indexes.sql:32-37
+-- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)32-37
 CREATE INDEX idx_user_telegram_current_covering
     ON t_d_user(telegram_id, is_current)
     INCLUDE (id, username, first_name, last_name, is_admin);
@@ -505,7 +505,7 @@ WHERE telegram_id = 123456789 AND is_current = true;
 **5. Article Lookup by Code (covering index)**
 
 ```sql
--- backend/db/migrations/009_create_additional_indexes.sql:39-43
+-- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)39-43
 CREATE INDEX idx_article_code_current_covering
     ON t_d_article(code, is_current)
     INCLUDE (id, name, type, parent_id)
@@ -527,7 +527,7 @@ WHERE code = 'FOOD001' AND is_current = true;
 **6. Article Current Records (partial index)**
 
 ```sql
--- backend/db/migrations/009_create_additional_indexes.sql:45-48
+-- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)45-48
 CREATE INDEX idx_article_current_covering
     ON t_d_article(is_current)
     INCLUDE (id, name, type, parent_id)
@@ -553,7 +553,7 @@ WHERE is_current = true;
 **7. Hierarchy Ancestor Lookup (covering index)**
 
 ```sql
--- backend/db/migrations/009_create_additional_indexes.sql:52-56
+-- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)52-56
 CREATE INDEX idx_hierarchy_ancestor_depth_covering
     ON t_d_article_hierarchy(ancestor_id, depth)
     INCLUDE (descendant_id);
@@ -576,7 +576,7 @@ ORDER BY depth;
 **8. Hierarchy Descendant Lookup (covering index)**
 
 ```sql
--- backend/db/migrations/009_create_additional_indexes.sql:58-62
+-- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)58-62
 CREATE INDEX idx_hierarchy_descendant_depth_covering
     ON t_d_article_hierarchy(descendant_id, depth DESC)
     INCLUDE (ancestor_id);
@@ -601,7 +601,7 @@ ORDER BY depth DESC;
 **9. User + Article + Date (analytics)**
 
 ```sql
--- backend/db/migrations/009_create_additional_indexes.sql:66-70
+-- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)66-70
 CREATE INDEX idx_budget_fact_user_article_date_covering
     ON t_f_budget_fact(user_id, article_id, fact_date DESC)
     INCLUDE (amount, record_type);
@@ -624,7 +624,7 @@ LIMIT 100;
 **10. Financial/Cost Center Analytics**
 
 ```sql
--- backend/db/migrations/009_create_additional_indexes.sql:72-76
+-- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)72-76
 CREATE INDEX idx_budget_fact_centers_date_covering
     ON t_f_budget_fact(financial_center_id, cost_center_id, fact_date DESC)
     INCLUDE (amount, article_id);
@@ -648,7 +648,7 @@ ORDER BY fact_date DESC;
 **11. Recent Facts (last 30 days) - Partial Index**
 
 ```sql
--- backend/db/migrations/009_create_additional_indexes.sql:80-84
+-- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)80-84
 CREATE INDEX idx_budget_fact_recent
     ON t_f_budget_fact(fact_date DESC, user_id)
     INCLUDE (amount, article_id)
@@ -676,7 +676,7 @@ LIMIT 20;
 **12. Expensive Transactions (amount > 10000) - Partial Index**
 
 ```sql
--- backend/db/migrations/009_create_additional_indexes.sql:86-90
+-- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)86-90
 CREATE INDEX idx_budget_fact_expensive
     ON t_f_budget_fact(amount DESC, fact_date DESC)
     WHERE amount > 10000;
@@ -697,7 +697,7 @@ ORDER BY amount DESC;
 **13. Financial Center Current Records (partial index)**
 
 ```sql
--- backend/db/migrations/009_create_additional_indexes.sql:94-98
+-- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)94-98
 CREATE INDEX idx_fc_current_covering
     ON t_d_financial_center(is_current)
     INCLUDE (id, name, code)
@@ -711,7 +711,7 @@ CREATE INDEX idx_fc_current_covering
 **14. Cost Center Current Records (partial index)**
 
 ```sql
--- backend/db/migrations/009_create_additional_indexes.sql:100-104
+-- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)100-104
 CREATE INDEX idx_cc_current_covering
     ON t_d_cost_center(is_current)
     INCLUDE (id, name, code)
