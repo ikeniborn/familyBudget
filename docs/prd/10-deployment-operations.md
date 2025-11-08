@@ -198,12 +198,16 @@ sync_code_to_deploy  # Repository → /opt/budget
 # 3. Static Assets Optimization (NEW in v5.0.0)
 cd /opt/budget
 
-# Install npm dependencies (including build tools)
-if [[ ! -d "node_modules" ]] || [[ ! -f "node_modules/.package-lock.json" ]]; then
-  npm install --silent
+# Validate npm isolated environment (created by install.sh)
+# Check critical packages: terser, cssnano-cli, tailwindcss
+if ! bash scripts/lib/check_npm_env.sh "$PWD"; then
+  echo "❌ npm environment validation failed"
+  echo "Fix: cd ~/familyBudget && sudo ./install.sh"
+  exit 1
 fi
 
 # Run minification (Terser for JS, cssnano for CSS)
+# Uses isolated environment: .npm-isolated/node_modules
 if npm run build 2>&1; then
   echo "✅ Static assets minified successfully"
 else

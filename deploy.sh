@@ -411,6 +411,14 @@ main() {
 
     # Run minification (build Tailwind CSS + minify JS/CSS) - use isolated environment
     if [[ "$build_allowed" == true ]]; then
+        # Validate npm environment comprehensively
+        if ! bash scripts/lib/check_npm_env.sh "$PWD"; then
+            print_message error "npm environment validation failed"
+            print_message error "Cannot proceed with deployment - critical packages missing"
+            print_message error "Fix by running: cd ~/familyBudget && sudo ./install.sh"
+            exit 1
+        fi
+
         # Add isolated node_modules/.bin to PATH for npx
         export PATH="$PWD/$node_modules_dir/.bin:$PATH"
 

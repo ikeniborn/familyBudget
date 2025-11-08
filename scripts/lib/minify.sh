@@ -79,7 +79,9 @@ print_message() {
 }
 
 check_prerequisites() {
-    print_message info "Checking prerequisites..."
+    local mode="$1"
+
+    print_message info "Checking prerequisites for mode: $mode..."
 
     # Check if node is installed
     if ! command -v node &> /dev/null; then
@@ -93,19 +95,23 @@ check_prerequisites() {
         return 1
     fi
 
-    # Check if terser is available (with timeout to prevent hanging)
-    if ! timeout 5 npx terser --version &> /dev/null; then
-        print_message error "Terser is not installed. Run: npm install"
-        return 1
+    # Check if terser is available (only for js/all modes)
+    if [[ "$mode" == "js" || "$mode" == "all" ]]; then
+        if ! timeout 5 npx terser --version &> /dev/null; then
+            print_message error "Terser is not installed. Run: npm install"
+            return 1
+        fi
     fi
 
-    # Check if cssnano-cli is available (with timeout to prevent hanging)
-    if ! timeout 5 npx cssnano --version &> /dev/null; then
-        print_message error "cssnano-cli is not installed. Run: npm install"
-        return 1
+    # Check if cssnano-cli is available (only for css/all modes)
+    if [[ "$mode" == "css" || "$mode" == "all" ]]; then
+        if ! timeout 5 npx cssnano --version &> /dev/null; then
+            print_message error "cssnano-cli is not installed. Run: npm install"
+            return 1
+        fi
     fi
 
-    print_message success "All prerequisites satisfied"
+    print_message success "All prerequisites satisfied for mode: $mode"
     return 0
 }
 
@@ -323,7 +329,7 @@ main() {
     echo
 
     # Check prerequisites
-    if ! check_prerequisites; then
+    if ! check_prerequisites "$mode"; then
         exit 1
     fi
 
