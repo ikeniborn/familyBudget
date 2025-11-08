@@ -174,7 +174,6 @@ check_code_changes() {
         --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
-        --exclude='node_modules/' \
         --exclude='docker-compose.networks.yml' \
         "$repo_dir/" "$DEPLOY_DIR/" 2>/dev/null | grep -v "/$" | grep -v "^sending\|^sent\|^total" | wc -l)
 
@@ -208,7 +207,6 @@ sync_mirror() {
         --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
-        --exclude='node_modules/' \
         --exclude='docker-compose.networks.yml' \
         --exclude='docs/' \
         --exclude='setup.sh' \
@@ -240,7 +238,6 @@ sync_mirror() {
         --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
-        --exclude='node_modules/' \
         --exclude='docker-compose.networks.yml' \
         --exclude='docs/' \
         --exclude='setup.sh' \
@@ -282,7 +279,6 @@ sync_update() {
         --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
-        --exclude='node_modules/' \
         --exclude='docker-compose.networks.yml' \
         --exclude='docs/' \
         --exclude='setup.sh' \
@@ -315,7 +311,6 @@ sync_update() {
         --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
-        --exclude='node_modules/' \
         --exclude='docker-compose.networks.yml' \
         --exclude='docs/' \
         --exclude='setup.sh' \
@@ -349,7 +344,6 @@ sync_update() {
         ! -path "./sql/*" \
         ! -name "*.pyc" \
         ! -path "./__pycache__/*" \
-        ! -path "./node_modules/*" \
         ! -path "./docker-compose.networks.yml" \
         ! -path "./docs/*" \
         ! -name "setup.sh" \
@@ -373,7 +367,6 @@ sync_update() {
         ! -path "./sql/*" \
         ! -name "*.pyc" \
         ! -path "./__pycache__/*" \
-        ! -path "./node_modules/*" \
         ! -path "./docker-compose.networks.yml" \
         ! -path "./docs/*" \
         ! -name "setup.sh" \
@@ -517,7 +510,6 @@ sync_clean() {
         --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
-        --exclude='node_modules/' \
         --exclude='docker-compose.networks.yml' \
         "$repo_dir/" "$DEPLOY_DIR/" >> "$LOG_FILE" 2>&1; then
 
@@ -632,6 +624,17 @@ sync_code_to_deploy() {
             SYNC_MODE="mirror"
             info "Non-interactive mode detected: using default sync mode 'mirror'"
         fi
+    fi
+
+    # Check for isolated npm environment
+    if [[ -d "$repo_dir/.npm-isolated/node_modules" ]]; then
+        local package_count
+        package_count=$(find "$repo_dir/.npm-isolated/node_modules" -maxdepth 1 -type d ! -name ".*" | wc -l)
+        info "Isolated npm environment found: .npm-isolated/ ($package_count packages)"
+        info "npm dependencies will be synchronized to deployment directory"
+    else
+        warning "Isolated npm environment not found (.npm-isolated/node_modules missing)"
+        warning "Run install.sh to set up npm dependencies"
     fi
 
     # Execute sync based on selected mode

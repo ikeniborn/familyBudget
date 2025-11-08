@@ -360,29 +360,71 @@ main() {
         print_message success "No stuck processes found"
     fi
 
-    # Check that npm dependencies are installed
+    # Check that npm dependencies are installed in isolated environment
     # Note: Dependencies must be installed by running install.sh first
-    if [[ ! -d "node_modules" ]]; then
-        print_message error "node_modules not found in /opt/budget"
-        print_message error "Please run install.sh to install npm dependencies first:"
+    local npm_isolated_dir=".npm-isolated"
+    local node_modules_dir="$npm_isolated_dir/node_modules"
+    local build_allowed=true
+
+    if [[ ! -d "$node_modules_dir" ]]; then
+        print_message error "Isolated npm environment not found: $node_modules_dir"
+        print_message error "Please run install.sh to set up npm dependencies:"
         print_message error "  cd ~/familyBudget && sudo ./install.sh"
         print_message warning "Skipping minification - deployment will continue with unminified assets"
-    elif [[ ! -f "node_modules/.package-lock.json" ]]; then
-        print_message warning "package-lock.json not found in node_modules - dependencies may be incomplete"
+        build_allowed=false
+    elif [[ ! -f "$node_modules_dir/.package-lock.json" ]]; then
+        print_message warning "package-lock.json not found in $node_modules_dir - dependencies may be corrupted"
         print_message warning "Consider re-running install.sh to reinstall npm packages"
         print_message warning "Attempting to run build anyway..."
     fi
 
-    # Run minification (build Tailwind CSS + minify JS/CSS)
-    if [[ -d "node_modules" ]]; then
+    # Validate npm package versions (especially Tailwind CSS to prevent 4.x mismatch)
+    if [[ "$build_allowed" == true ]] && command -v jq &> /dev/null; then
+        print_message info "Validating npm package versions..."
+
+        if [[ -f "package.json" && -f "$node_modules_dir/tailwindcss/package.json" ]]; then
+            local expected_tailwind
+            local installed_tailwind
+
+            expected_tailwind=$(jq -r '.devDependencies.tailwindcss // empty' "package.json" 2>/dev/null)
+            installed_tailwind=$(jq -r '.version // empty' "$node_modules_dir/tailwindcss/package.json" 2>/dev/null)
+
+            if [[ -n "$expected_tailwind" && -n "$installed_tailwind" ]]; then
+                if [[ "$expected_tailwind" != "$installed_tailwind" ]]; then
+                    print_message error "Tailwind CSS version mismatch detected!"
+                    print_message error "  Expected (package.json): $expected_tailwind"
+                    print_message error "  Installed (node_modules): $installed_tailwind"
+                    print_message error ""
+                    print_message error "This mismatch can cause build failures (especially 4.x vs 3.x)"
+                    print_message error "Please reinstall npm dependencies with correct versions:"
+                    print_message error "  cd ~/familyBudget"
+                    print_message error "  sudo ./install.sh"
+                    print_message error ""
+                    print_message warning "Skipping build to prevent errors"
+                    build_allowed=false
+                else
+                    print_message success "Tailwind CSS version validated: $installed_tailwind"
+                fi
+            fi
+        fi
+    fi
+
+    # Run minification (build Tailwind CSS + minify JS/CSS) - use isolated environment
+    if [[ "$build_allowed" == true ]]; then
+        # Add isolated node_modules/.bin to PATH for npx
+        export PATH="$PWD/$node_modules_dir/.bin:$PATH"
+
         if npm run build 2>&1; then
             print_message success "Static assets built and minified successfully"
         else
             print_message warning "Build failed - check npm logs above"
             print_message warning "Continuing with existing/unminified assets"
         fi
+
+        # Restore PATH (remove isolated bin)
+        export PATH="${PATH#$PWD/$node_modules_dir/.bin:}"
     else
-        print_message warning "Minification skipped (node_modules not found)"
+        print_message warning "Minification skipped (build validation failed)"
     fi
 
     cd - > /dev/null || error_return "Failed to return to previous directory"

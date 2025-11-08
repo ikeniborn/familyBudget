@@ -458,9 +458,124 @@ install_nodejs() {
     fi
 }
 
-# Install npm dependencies for the project
+# Setup isolated npm environment in repository
+setup_isolated_npm_env() {
+    info "Setting up isolated npm environment..."
+
+    local username="${SUDO_USER:-$USER}"
+    local isolated_dir="$REPO_DIR/.npm-isolated"
+
+    # Create isolated directory structure
+    if [[ ! -d "$isolated_dir" ]]; then
+        info "Creating isolated npm directory: $isolated_dir"
+        mkdir -p "$isolated_dir"
+    else
+        info "Isolated npm directory already exists: $isolated_dir"
+    fi
+
+    # Create .npmrc for project-level isolation
+    local npmrc_file="$isolated_dir/.npmrc"
+    info "Creating npm configuration: $npmrc_file"
+    cat > "$npmrc_file" << 'EOF'
+# Isolated npm environment for Family Budget
+# This configuration ensures dependencies are installed locally
+
+# Cache directory (isolated from global cache)
+cache=${PROJECT_DIR}/.npm-isolated/cache
+
+# Audit level
+audit-level=moderate
+
+# Engine strict (enforce node/npm versions from package.json)
+engine-strict=true
+
+# Save exact versions (no ^ or ~)
+save-exact=true
+
+# Production flag (install devDependencies for build tools)
+production=false
+EOF
+
+    # Set ownership to non-root user
+    if [[ "$username" != "root" ]]; then
+        chown -R "$username:$username" "$isolated_dir"
+    fi
+
+    success "Isolated npm environment configured: $isolated_dir"
+}
+
+# Check npm dependencies integrity and versions
+check_npm_dependencies() {
+    local repo_dir="$1"
+    local isolated_dir="$repo_dir/.npm-isolated"
+    local node_modules="$isolated_dir/node_modules"
+
+    info "Checking npm dependencies integrity..."
+
+    # Check 1: node_modules exists
+    if [[ ! -d "$node_modules" ]]; then
+        info "node_modules not found - need to install"
+        return 1  # Need install
+    fi
+
+    # Check 2: package-lock.json integrity
+    if [[ ! -f "$node_modules/.package-lock.json" ]]; then
+        warning "package-lock.json missing in node_modules - may be corrupted"
+        return 1  # Corrupted
+    fi
+
+    # Check 3: package.json vs node_modules freshness
+    if [[ "$repo_dir/package.json" -nt "$node_modules" ]]; then
+        info "package.json modified after node_modules - need to reinstall"
+        return 1  # Need reinstall
+    fi
+
+    # Check 4: Critical packages exist
+    local missing_packages=0
+    local critical_packages=("terser" "cssnano-cli" "tailwindcss" "daisyui" "postcss-cli")
+
+    for pkg in "${critical_packages[@]}"; do
+        if [[ ! -d "$node_modules/$pkg" ]]; then
+            warning "Missing critical package: $pkg"
+            ((missing_packages++))
+        fi
+    done
+
+    if [[ $missing_packages -gt 0 ]]; then
+        warning "Found $missing_packages missing critical packages"
+        return 1
+    fi
+
+    # Check 5: Verify Tailwind CSS version (prevent 4.x mismatch)
+    if command -v jq &> /dev/null && [[ -f "$repo_dir/package.json" ]]; then
+        local expected_tailwind
+        local installed_tailwind
+
+        expected_tailwind=$(jq -r '.devDependencies.tailwindcss // empty' "$repo_dir/package.json")
+
+        if [[ -f "$node_modules/tailwindcss/package.json" ]]; then
+            installed_tailwind=$(jq -r '.version // empty' "$node_modules/tailwindcss/package.json")
+
+            if [[ -n "$expected_tailwind" && -n "$installed_tailwind" ]]; then
+                if [[ "$expected_tailwind" != "$installed_tailwind" ]]; then
+                    warning "Tailwind CSS version mismatch!"
+                    warning "  Expected: $expected_tailwind"
+                    warning "  Installed: $installed_tailwind"
+                    return 1  # Version mismatch
+                else
+                    info "Tailwind CSS version verified: $installed_tailwind"
+                fi
+            fi
+        fi
+    fi
+
+    info "npm dependencies integrity check passed"
+    return 0  # All checks passed
+}
+
+# Install npm dependencies for the project (in isolated environment)
 install_npm_dependencies() {
-    info "Installing npm dependencies for Family Budget project..."
+    info "Installing npm dependencies for Family Budget project (isolated environment)..."
 
     # Get the username for ownership
     local username="${SUDO_USER:-$USER}"
@@ -474,22 +589,94 @@ install_npm_dependencies() {
         return 0
     fi
 
-    # Install dependencies as the non-root user (important for permissions)
-    if [[ "$username" != "root" ]]; then
-        info "Installing npm packages as user '$username'..."
-        su - "$username" -c "cd $REPO_DIR && npm install" >> "$LOG_FILE" 2>&1
-    else
-        warning "Running as root - installing npm packages as root (not recommended)"
-        npm install >> "$LOG_FILE" 2>&1
+    # Setup isolated npm environment first
+    setup_isolated_npm_env
+
+    local isolated_dir="$REPO_DIR/.npm-isolated"
+    local node_modules="$isolated_dir/node_modules"
+
+    # Check if dependencies are already installed and up-to-date
+    if check_npm_dependencies "$REPO_DIR"; then
+        success "npm dependencies already installed and up-to-date"
+        return 0
     fi
 
-    # Verify node_modules exists
-    if [[ -d "$REPO_DIR/node_modules" ]]; then
-        local package_count
-        package_count=$(find "$REPO_DIR/node_modules" -maxdepth 1 -type d | wc -l)
-        success "npm dependencies installed ($package_count packages in node_modules)"
+    # Dependencies need to be installed/reinstalled
+    info "Installing/updating npm dependencies in isolated environment..."
+
+    # Remove old/corrupted node_modules if exists
+    if [[ -d "$node_modules" ]]; then
+        warning "Removing old node_modules for clean reinstall..."
+        rm -rf "$node_modules"
+    fi
+
+    # Remove old package-lock.json from isolated dir if exists
+    if [[ -f "$isolated_dir/package-lock.json" ]]; then
+        rm -f "$isolated_dir/package-lock.json"
+    fi
+
+    # Copy package.json and package-lock.json to isolated directory
+    cp "$REPO_DIR/package.json" "$isolated_dir/"
+    if [[ -f "$REPO_DIR/package-lock.json" ]]; then
+        cp "$REPO_DIR/package-lock.json" "$isolated_dir/"
+    fi
+
+    # Install dependencies using npm ci (clean install with locked versions)
+    cd "$isolated_dir" || error "Failed to cd to isolated directory: $isolated_dir"
+
+    if [[ "$username" != "root" ]]; then
+        info "Installing npm packages in isolated environment as user '$username'..."
+
+        # Use npm ci for reproducible builds (if package-lock.json exists)
+        if [[ -f "package-lock.json" ]]; then
+            info "Using npm ci (clean install with locked versions)..."
+            su - "$username" -c "cd $isolated_dir && npm ci" >> "$LOG_FILE" 2>&1
+        else
+            warning "package-lock.json not found - using npm install (will create lock file)"
+            su - "$username" -c "cd $isolated_dir && npm install" >> "$LOG_FILE" 2>&1
+
+            # Copy generated package-lock.json back to repository
+            if [[ -f "$isolated_dir/package-lock.json" ]]; then
+                cp "$isolated_dir/package-lock.json" "$REPO_DIR/"
+                info "Generated package-lock.json copied to repository"
+            fi
+        fi
     else
-        error "npm install failed - node_modules not found"
+        warning "Running as root - installing npm packages as root (not recommended)"
+
+        if [[ -f "package-lock.json" ]]; then
+            npm ci >> "$LOG_FILE" 2>&1
+        else
+            npm install >> "$LOG_FILE" 2>&1
+
+            # Copy generated package-lock.json back to repository
+            if [[ -f "$isolated_dir/package-lock.json" ]]; then
+                cp "$isolated_dir/package-lock.json" "$REPO_DIR/"
+            fi
+        fi
+    fi
+
+    cd "$REPO_DIR" || error "Failed to cd back to repository: $REPO_DIR"
+
+    # Set correct ownership on isolated directory
+    if [[ "$username" != "root" ]]; then
+        chown -R "$username:$username" "$isolated_dir"
+    fi
+
+    # Verify installation
+    if [[ -d "$node_modules" ]]; then
+        local package_count
+        package_count=$(find "$node_modules" -maxdepth 1 -type d ! -name ".*" | wc -l)
+        success "npm dependencies installed in isolated environment ($package_count packages)"
+
+        # Verify Tailwind CSS version
+        if [[ -f "$node_modules/tailwindcss/package.json" ]]; then
+            local tailwind_version
+            tailwind_version=$(jq -r '.version' "$node_modules/tailwindcss/package.json" 2>/dev/null || echo "unknown")
+            info "Tailwind CSS version: $tailwind_version"
+        fi
+    else
+        error "npm install failed - node_modules not found in isolated directory"
     fi
 }
 
@@ -540,13 +727,21 @@ print_summary() {
     echo "  ✓ nginx/conf.d/app.conf.template"
     echo "  ✓ .env.example"
     echo ""
-    echo "NPM dependencies:"
-    if [[ -d "$REPO_DIR/node_modules" ]]; then
+    echo "NPM isolated environment:"
+    if [[ -d "$REPO_DIR/.npm-isolated/node_modules" ]]; then
         local package_count
-        package_count=$(find "$REPO_DIR/node_modules" -maxdepth 1 -type d | wc -l)
-        echo "  ✓ npm packages installed in repository ($package_count packages)"
+        package_count=$(find "$REPO_DIR/.npm-isolated/node_modules" -maxdepth 1 -type d ! -name ".*" | wc -l)
+        echo "  ✓ Isolated npm environment: $REPO_DIR/.npm-isolated/"
+        echo "  ✓ npm packages installed in isolated environment ($package_count packages)"
+
+        # Show Tailwind CSS version
+        if [[ -f "$REPO_DIR/.npm-isolated/node_modules/tailwindcss/package.json" ]]; then
+            local tailwind_version
+            tailwind_version=$(jq -r '.version' "$REPO_DIR/.npm-isolated/node_modules/tailwindcss/package.json" 2>/dev/null || echo "unknown")
+            echo "  ✓ Tailwind CSS version: $tailwind_version (from package.json)"
+        fi
     else
-        echo "  ✗ npm packages not installed (node_modules not found)"
+        echo "  ✗ npm packages not installed (run install.sh again)"
     fi
     echo ""
     echo "Next steps:"
