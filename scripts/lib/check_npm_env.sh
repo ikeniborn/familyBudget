@@ -62,7 +62,7 @@ check_npm_environment() {
     fi
 
     # Check 2: Critical packages installed
-    local critical_packages=("terser" "cssnano-cli" "tailwindcss" "daisyui" "postcss-cli")
+    local critical_packages=("terser" "cssnano" "postcss" "postcss-cli" "tailwindcss" "daisyui")
 
     for pkg in "${critical_packages[@]}"; do
         if [[ ! -d "$deployment_dir/.npm-isolated/node_modules/$pkg" ]]; then
@@ -98,7 +98,7 @@ check_npm_environment() {
 
     # Check 4: Executable files in .bin/
     local bin_dir="$deployment_dir/.npm-isolated/node_modules/.bin"
-    local executables=("terser" "cssnano" "tailwindcss" "postcss")
+    local executables=("terser" "postcss" "tailwindcss")
 
     for exe in "${executables[@]}"; do
         if [[ ! -x "$bin_dir/$exe" ]]; then

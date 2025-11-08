@@ -30,7 +30,6 @@
     "@tailwindcss/typography": "0.5.15",
     "autoprefixer": "10.4.20",
     "cssnano": "7.0.6",
-    "cssnano-cli": "1.0.5",
     "daisyui": "4.12.14",
     "postcss": "8.4.47",
     "postcss-cli": "11.0.0",

@@ -104,11 +104,11 @@ check_prerequisites() {
         fi
     fi
 
-    # Check if cssnano is available (only for css/all modes)
+    # Check if postcss is available (only for css/all modes)
     if [[ "$mode" == "css" || "$mode" == "all" ]]; then
-        if ! command -v cssnano &> /dev/null; then
-            print_message error "cssnano-cli is not installed or not in PATH"
-            print_message error "Expected location: .npm-isolated/node_modules/.bin/cssnano"
+        if ! command -v postcss &> /dev/null; then
+            print_message error "postcss-cli is not installed or not in PATH"
+            print_message error "Expected location: .npm-isolated/node_modules/.bin/postcss"
             print_message error "Current PATH: $PATH"
             return 1
         fi
@@ -230,9 +230,9 @@ minify_css_file() {
 
     print_message info "Minifying: $input_file"
 
-    # Capture cssnano output to show errors
-    local cssnano_output
-    if cssnano_output=$(npx cssnano "$input_file" "$output_file" 2>&1); then
+    # Use postcss-cli with cssnano plugin (configured in postcss.config.js)
+    local postcss_output
+    if postcss_output=$(npx postcss "$input_file" -o "$output_file" --no-map 2>&1); then
         local original_size=$(stat -c%s "$input_file" 2>/dev/null || stat -f%z "$input_file" 2>/dev/null)
         local minified_size=$(stat -c%s "$output_file" 2>/dev/null || stat -f%z "$output_file" 2>/dev/null)
         local reduction=$((100 - (minified_size * 100 / original_size)))
@@ -242,9 +242,9 @@ minify_css_file() {
         return 0
     else
         print_message error "Failed to minify: $input_file"
-        # Show actual error from cssnano
-        if [[ -n "$cssnano_output" ]]; then
-            echo "$cssnano_output" | head -5 | while IFS= read -r line; do
+        # Show actual error from postcss/cssnano
+        if [[ -n "$postcss_output" ]]; then
+            echo "$postcss_output" | head -5 | while IFS= read -r line; do
                 print_message error "  $line"
             done
         fi
