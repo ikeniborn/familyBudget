@@ -337,8 +337,42 @@ main() {
     validate_env
     echo ""
 
+    # PRE-FLIGHT CHECK: Verify npm environment exists BEFORE sync
+    # This prevents issues if rsync accidentally deletes .npm-isolated/
+    print_message info "Pre-flight check: Verifying production npm environment..."
+    if [[ -d "/opt/budget/.npm-isolated/node_modules" ]]; then
+        local pkg_count
+        pkg_count=$(find "/opt/budget/.npm-isolated/node_modules" -maxdepth 1 -type d ! -name ".*" | wc -l)
+        print_message success "Production npm environment verified: $pkg_count packages"
+    else
+        print_message warning "Production npm environment NOT found: /opt/budget/.npm-isolated/"
+        print_message warning "Run install.sh to create npm environment before first deploy"
+        print_message warning "Build process will be skipped if npm environment is missing"
+    fi
+    echo ""
+
     # Synchronize code from repository to /opt/budget
     sync_code_to_deploy
+    echo ""
+
+    # POST-SYNC VERIFICATION: Ensure npm environment was NOT deleted by rsync
+    print_message info "Post-sync check: Verifying npm environment preservation..."
+    if [[ ! -d "/opt/budget/.npm-isolated/node_modules" ]]; then
+        print_message error "CRITICAL: Production npm environment was DELETED during sync!"
+        print_message error "This should NEVER happen with --filter='protect .npm-isolated/'"
+        print_message error ""
+        print_message error "Possible causes:"
+        print_message error "  1. rsync filter not working correctly"
+        print_message error "  2. Manual deletion of /opt/budget/.npm-isolated"
+        print_message error "  3. Filesystem corruption"
+        print_message error ""
+        print_message error "To fix: Run install.sh to recreate npm environment"
+        print_message error "  cd ~/familyBudget && sudo ./install.sh"
+        print_message error ""
+        print_message warning "Deployment will continue but build will be SKIPPED"
+    else
+        print_message success "npm environment preserved successfully"
+    fi
     echo ""
 
     # Minify static assets (JS and CSS) for production

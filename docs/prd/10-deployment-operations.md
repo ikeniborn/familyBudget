@@ -456,6 +456,191 @@ echo "count_webapp=$count_webapp"
 [[ $count_webapp -gt 0 ]] && categories_found+=("webapp ($count_webapp files)")
 ```
 
+#### 10.3.6 npm Isolated Environment Protection
+
+**Версия:** 5.0.0-beta (обновлено 2025-11-08)
+
+**Назначение:**
+Защита production npm окружения от случайного удаления при rsync синхронизации с `--delete` флагом.
+
+**Архитектура:**
+
+```
+Repository (~/familyBudget)          Production (/opt/budget)
+├── backend/                   rsync  ├── backend/
+├── web/                       ═════▶ ├── web/
+├── scripts/                   sync   ├── scripts/
+├── package.json               ═════▶ ├── package.json
+└── [НЕТ .npm-isolated/]              └── .npm-isolated/  ← PRODUCTION ONLY
+                                          ├── node_modules/ (233 packages)
+                                          ├── .npmrc
+                                          └── package-lock.json
+```
+
+**Проблема:**
+
+`rsync --delete` удаляет файлы из destination, которых нет в source:
+
+```bash
+# ❌ НЕПРАВИЛЬНО - удалит .npm-isolated из /opt/budget:
+rsync -avc --delete \
+    --exclude='.npm-isolated/' \
+    ~/familyBudget/ /opt/budget/
+
+# Причина:
+# 1. .npm-isolated/ НЕТ в ~/familyBudget (в .gitignore)
+# 2. .npm-isolated/ ЕСТЬ в /opt/budget (created by install.sh)
+# 3. rsync видит что файла нет в source → удаляет из destination
+# 4. --exclude НЕ защищает от удаления при --delete!
+```
+
+**Решение:**
+
+Использовать `--filter='protect .npm-isolated/'` для защиты от удаления:
+
+```bash
+# ✅ ПРАВИЛЬНО - защита от удаления:
+rsync -avc --delete \
+    --filter='protect .npm-isolated/' \
+    --exclude='.npm-isolated/' \
+    ~/familyBudget/ /opt/budget/
+
+# Эффект:
+# 1. --filter='protect' → НЕ удаляет .npm-isolated при --delete
+# 2. --exclude → НЕ копирует .npm-isolated из source (если бы был)
+```
+
+**Разница между --exclude и --filter='protect':**
+
+| Флаг | Copy Phase | Delete Phase (--delete) |
+|------|-----------|------------------------|
+| `--exclude='.npm-isolated/'` | ✅ Ignore (не копирует) | ❌ НЕ защищает (удаляет!) |
+| `--filter='protect .npm-isolated/'` | ✅ Ignore (не копирует) | ✅ **Защищает** (НЕ удаляет!) |
+
+**Реализация:**
+
+1. **scripts/lib/sync.sh** (строки 206, 243):
+   ```bash
+   # sync_mirror() function
+   rsync -avc --delete \
+       --filter='protect .npm-isolated/' \
+       --exclude='.npm-isolated/' \
+       "$repo_dir/" "$DEPLOY_DIR/"
+   ```
+
+2. **Pre-flight checks** (deploy.sh:340-352):
+   ```bash
+   # ДО синхронизации - проверка существования
+   if [[ -d "/opt/budget/.npm-isolated/node_modules" ]]; then
+       pkg_count=$(find ... | wc -l)
+       print_message success "npm environment verified: $pkg_count packages"
+   else
+       print_message warning "npm environment NOT found"
+   fi
+   ```
+
+3. **Post-sync verification** (deploy.sh:358-376, sync.sh:279-287):
+   ```bash
+   # ПОСЛЕ синхронизации - проверка что НЕ был удален
+   if [[ ! -d "/opt/budget/.npm-isolated/node_modules" ]]; then
+       print_message error "CRITICAL: npm environment was DELETED during sync!"
+       # Детальные инструкции по восстановлению
+       exit 1
+   fi
+   ```
+
+**Workflow:**
+
+```
+Deployment Process:
+┌─────────────────────────────────────────────────────────────┐
+│ 1. PRE-FLIGHT CHECK                                         │
+│    ✓ Verify /opt/budget/.npm-isolated exists (233 packages)│
+│                                                              │
+│ 2. RSYNC SYNCHRONIZATION                                    │
+│    rsync --delete --filter='protect .npm-isolated/'         │
+│    ↓                                                         │
+│    ~/familyBudget → /opt/budget                             │
+│    .npm-isolated/ PROTECTED (not deleted)                   │
+│                                                              │
+│ 3. POST-SYNC VERIFICATION                                   │
+│    ✓ Verify .npm-isolated still exists                     │
+│    ✗ ERROR if deleted → exit with recovery instructions    │
+│                                                              │
+│ 4. BUILD PROCESS                                            │
+│    npm run build (uses protected environment)               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Error Messages:**
+
+Если npm environment удален:
+
+```
+ERROR: CRITICAL: Production npm environment was DELETED during sync!
+ERROR: This should NEVER happen with --filter='protect .npm-isolated/'
+ERROR:
+ERROR: Possible causes:
+ERROR:   1. rsync filter not working correctly
+ERROR:   2. Manual deletion of /opt/budget/.npm-isolated
+ERROR:   3. Filesystem corruption
+ERROR:
+ERROR: To fix: Run install.sh to recreate npm environment
+ERROR:   cd ~/familyBudget && sudo ./install.sh
+```
+
+**Установка npm окружения:**
+
+```bash
+# First-time setup (или восстановление после удаления)
+cd ~/familyBudget
+sudo ./install.sh
+
+# install.sh автоматически:
+# 1. Создает /opt/budget/.npm-isolated/
+# 2. Копирует package.json + package-lock.json
+# 3. Запускает npm ci (233 packages)
+# 4. Настраивает .npmrc с absolute paths
+```
+
+**Преимущества архитектуры:**
+
+1. **Faster deploys:** ~100-200MB НЕ копируется при каждом deploy
+2. **No permission issues:** rsync не трогает npm окружение
+3. **Persistence:** npm packages сохраняются между deployments
+4. **Separation:** source code (repo) vs build tools (production)
+
+**Troubleshooting:**
+
+| Симптом | Диагностика | Решение |
+|---------|-------------|---------|
+| Build failed: `terser not found` | `ls /opt/budget/.npm-isolated/node_modules/.bin/terser` | Run `install.sh` |
+| npm environment deleted after sync | Check rsync logs, verify `--filter='protect'` | Update `scripts/lib/sync.sh` |
+| Package count != 233 | `find /opt/budget/.npm-isolated/node_modules -maxdepth 1 -type d \| wc -l` | Delete and re-run `install.sh` |
+
+**Verification:**
+
+```bash
+# Проверка защиты (после deployment):
+ls -la /opt/budget/.npm-isolated/node_modules  # Должно быть 194 директории
+cat /opt/budget/.npm-isolated/.npmrc           # Absolute paths (не ${PROJECT_DIR})
+
+# Проверка работы rsync filter (dry-run):
+rsync -avnc --delete \
+    --filter='protect .npm-isolated/' \
+    --exclude='.npm-isolated/' \
+    ~/familyBudget/ /opt/budget/ | grep npm-isolated
+# Не должно быть строк с "deleting .npm-isolated"
+```
+
+**История изменений:**
+
+- **2025-11-08:** Добавлен `--filter='protect .npm-isolated/'` в rsync команды
+- **2025-11-08:** Добавлены pre-flight и post-sync checks в deploy.sh
+- **2025-11-08:** Добавлена секция в ПРД с описанием архитектуры защиты
+
+---
+
 ### 10.4 Backup & Recovery
 
 **Backup Strategy:**

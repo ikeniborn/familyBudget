@@ -54,6 +54,24 @@ sudo ./install.sh  # Создает /opt/budget/.npm-isolated (233 пакета)
 - Нет permission issues при rsync
 - Четкое разделение: source code (repo) vs build tools (production)
 
+**Защита от удаления (КРИТИЧНО):**
+- **Проблема:** `rsync --delete` удаляет файлы из destination, которых нет в source
+- **Решение:** `--filter='protect .npm-isolated/'` предотвращает удаление
+- **Где применяется:** `scripts/lib/sync.sh` - все rsync команды с `--delete` флагом
+
+```bash
+# ✅ ПРАВИЛЬНО - с защитой:
+rsync -avc --delete \
+    --filter='protect .npm-isolated/' \
+    --exclude='.npm-isolated/' \
+    ~/familyBudget/ /opt/budget/
+
+# ❌ НЕПРАВИЛЬНО - будет удалено:
+rsync -avc --delete \
+    --exclude='.npm-isolated/' \  # ← НЕ защищает при --delete!
+    ~/familyBudget/ /opt/budget/
+```
+
 **Установка:**
 ```bash
 sudo ./install.sh  # Создает /opt/budget/.npm-isolated с 233 пакетами
@@ -64,6 +82,11 @@ sudo ./install.sh  # Создает /opt/budget/.npm-isolated с 233 пакет�
 ls -la /opt/budget/.npm-isolated/node_modules  # Должно быть 194 директории
 cat /opt/budget/.npm-isolated/.npmrc           # Абсолютный путь (не ${PROJECT_DIR})
 ```
+
+**Pre-flight checks:**
+- ДО синхронизации: проверка существования npm environment
+- ПОСЛЕ синхронизации: проверка что НЕ был удален
+- При ошибке: детальное сообщение с инструкциями по восстановлению
 
 ---
 

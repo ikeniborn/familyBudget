@@ -198,10 +198,24 @@ sync_mirror() {
     info "To:   $DEPLOY_DIR"
     echo ""
 
+    # PRE-SYNC CHECK: Verify npm environment before mirror sync (critical with --delete)
+    if [[ -d "$DEPLOY_DIR/.npm-isolated/node_modules" ]]; then
+        local pkg_count
+        pkg_count=$(find "$DEPLOY_DIR/.npm-isolated/node_modules" -maxdepth 1 -type d ! -name ".*" | wc -l)
+        info "Pre-sync: npm environment detected ($pkg_count packages)"
+        info "Will be PROTECTED by --filter='protect .npm-isolated/'"
+    else
+        warning "Pre-sync: npm environment NOT found at $DEPLOY_DIR/.npm-isolated/"
+        warning "If this is first deployment, run install.sh after sync"
+    fi
+    echo ""
+
     # Show preview of changes
-    # IMPORTANT: .npm-isolated/ excluded (production-only, not synced)
+    # IMPORTANT: .npm-isolated/ PROTECTED from deletion (production-only)
+    # Uses --filter='protect' to prevent rsync --delete from removing it
     info "Preview of changes (first 20 files):"
     rsync -avnc \
+        --filter='protect .npm-isolated/' \
         --exclude='.env' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -233,8 +247,12 @@ sync_mirror() {
     fi
 
     # Perform sync
-    # IMPORTANT: .npm-isolated/ excluded (production-only directory)
+    # CRITICAL FIX (2025-11-08): Protect .npm-isolated/ from deletion
+    # Problem: rsync --delete removes files from destination not in source
+    # Solution: --filter='protect' prevents deletion even with --delete flag
+    # .npm-isolated/ lives ONLY in production (/opt/budget), NOT in repository
     if rsync -avc --delete \
+        --filter='protect .npm-isolated/' \
         --exclude='.env' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -257,6 +275,17 @@ sync_mirror() {
         --exclude='.git*' \
         "$repo_dir/" "$DEPLOY_DIR/" >> "$LOG_FILE" 2>&1; then
         success "Code synced successfully (mirror mode)"
+
+        # POST-SYNC VERIFICATION: Ensure npm environment was NOT deleted
+        if [[ ! -d "$DEPLOY_DIR/.npm-isolated/node_modules" ]]; then
+            error "CRITICAL: npm environment DELETED during mirror sync!"
+            error "This indicates --filter='protect' is NOT working correctly"
+            error "Please report this as a bug with rsync version: $(rsync --version | head -1)"
+            return 1
+        else
+            success "Post-sync: npm environment preserved successfully"
+        fi
+
         return 0
     else
         error "Failed to sync code. Check $LOG_FILE for details."
@@ -355,6 +384,7 @@ sync_update() {
         ! -name "*.pyc" \
         ! -path "./__pycache__/*" \
         ! -path "./docker-compose.networks.yml" \
+        ! -path "./.npm-isolated/*" \
         ! -path "./docs/*" \
         ! -name "setup.sh" \
         ! -name "install.sh" \
@@ -368,6 +398,7 @@ sync_update() {
         2>/dev/null | sed 's|^./||' | sort) > "$temp_repo_list"
 
     # Generate list of files in deploy directory
+    # IMPORTANT: Exclude .npm-isolated/* from cleanup (production-only)
     (cd "$DEPLOY_DIR" && find . -type f \
         ! -path "./.git/*" \
         ! -path "./.env" \
@@ -378,6 +409,7 @@ sync_update() {
         ! -name "*.pyc" \
         ! -path "./__pycache__/*" \
         ! -path "./docker-compose.networks.yml" \
+        ! -path "./.npm-isolated/*" \
         ! -path "./docs/*" \
         ! -name "setup.sh" \
         ! -name "install.sh" \
