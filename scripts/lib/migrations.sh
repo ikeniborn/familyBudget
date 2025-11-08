@@ -203,6 +203,218 @@ EOF
 }
 
 # =============================================================================
+# MIGRATION REAPPLY (Force re-run specific migration)
+# =============================================================================
+
+# Reapply specific migration file
+# Usage: reapply_migration "009_create_additional_indexes.sql"
+reapply_migration() {
+    local migration_file="$1"
+
+    if [[ -z "$migration_file" ]]; then
+        error "Migration file not specified"
+        return 1
+    fi
+
+    step "Re-applying migration: $migration_file"
+
+    # Check if postgres service is healthy
+    if ! compose_cmd ps | grep -q "familybudget-postgres.*healthy"; then
+        error "PostgreSQL service is not healthy, cannot reapply migration"
+        return 1
+    fi
+
+    # Use run_migrations.sh reapply command
+    info "Executing migration reapply via run_migrations.sh..."
+    if compose_cmd exec -T backend bash /app/backend/db/run_migrations.sh reapply "$migration_file" >> "$LOG_FILE" 2>&1; then
+        success "Migration re-applied successfully: $migration_file"
+        return 0
+    else
+        error "Migration reapply failed. Check $LOG_FILE for details."
+        return 1
+    fi
+}
+
+# Detect changed migrations (checksum mismatch)
+# Returns: List of changed migration files (one per line)
+detect_changed_migrations() {
+    local migration_dir="$DEPLOY_DIR/backend/db/migrations"
+    local changed_migrations=()
+
+    # Check if postgres service is healthy
+    if ! compose_cmd ps | grep -q "familybudget-postgres.*healthy"; then
+        return 1
+    fi
+
+    # Check if schema_migrations table exists
+    local table_exists=$(compose_cmd exec -T postgres psql -U familybudget familybudget -t -c \
+        "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'schema_migrations');" 2>/dev/null | tr -d ' ')
+
+    if [[ "$table_exists" != "t" ]]; then
+        return 1
+    fi
+
+    # Check each applied migration for changes
+    for migration_file in $(ls "$migration_dir"/*.sql 2>/dev/null | sort); do
+        local filename=$(basename "$migration_file")
+
+        # Skip if not applied yet
+        local is_applied=$(compose_cmd exec -T postgres psql -U familybudget familybudget -t -c \
+            "SELECT COUNT(*) FROM schema_migrations WHERE migration_file = '$filename';" 2>/dev/null | tr -d ' ')
+
+        if [[ "$is_applied" != "1" ]]; then
+            continue
+        fi
+
+        # Calculate current checksum
+        local current_checksum=$(sha256sum "$migration_file" | awk '{print $1}')
+
+        # Get stored checksum
+        local stored_checksum=$(compose_cmd exec -T postgres psql -U familybudget familybudget -t -c \
+            "SELECT checksum FROM schema_migrations WHERE migration_file = '$filename';" 2>/dev/null | tr -d ' ')
+
+        # Skip if no checksum stored (old migration)
+        if [[ -z "$stored_checksum" ]]; then
+            continue
+        fi
+
+        # Compare checksums
+        if [[ "$current_checksum" != "$stored_checksum" ]]; then
+            changed_migrations+=("$filename")
+        fi
+    done
+
+    # Output changed migrations (one per line)
+    if [[ ${#changed_migrations[@]} -gt 0 ]]; then
+        printf '%s\n' "${changed_migrations[@]}"
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Interactive handler for changed migrations
+# Shows menu and prompts user to reapply each changed migration
+handle_changed_migrations_interactive() {
+    step "Checking for modified migrations..."
+
+    local changed_migrations
+    if ! changed_migrations=$(detect_changed_migrations); then
+        info "No modified migrations detected"
+        return 0
+    fi
+
+    # Convert to array
+    local migrations_array=()
+    while IFS= read -r line; do
+        migrations_array+=("$line")
+    done <<< "$changed_migrations"
+
+    if [[ ${#migrations_array[@]} -eq 0 ]]; then
+        info "No modified migrations detected"
+        return 0
+    fi
+
+    echo ""
+    warning "⚠️  Detected ${#migrations_array[@]} modified migration(s):"
+    echo ""
+    for migration in "${migrations_array[@]}"; do
+        echo "  • $migration"
+    done
+    echo ""
+
+    warning "These migrations were applied previously but the files have been modified."
+    warning "This may indicate bug fixes, schema corrections, or index optimizations."
+    echo ""
+    echo "Options:"
+    echo "  [1] Reapply all modified migrations (RECOMMENDED for bug fixes)"
+    echo "  [2] Reapply selected migrations (choose which ones)"
+    echo "  [3] Skip - continue without reapplying (NOT recommended)"
+    echo ""
+
+    # Flush output and read from terminal
+    sync 2>/dev/null || true
+    read -r -p "Select [1-3]: " choice < /dev/tty
+    echo ""
+
+    case "$choice" in
+        1)
+            info "Reapplying all modified migrations..."
+            echo ""
+            local failed=0
+            for migration in "${migrations_array[@]}"; do
+                if reapply_migration "$migration"; then
+                    success "✓ $migration"
+                else
+                    error "✗ $migration"
+                    failed=$((failed + 1))
+                fi
+                echo ""
+            done
+
+            if [[ $failed -eq 0 ]]; then
+                success "All modified migrations reapplied successfully"
+            else
+                error "$failed migration(s) failed to reapply"
+                return 1
+            fi
+            ;;
+
+        2)
+            info "Select migrations to reapply:"
+            echo ""
+            local idx=1
+            for migration in "${migrations_array[@]}"; do
+                echo "  [$idx] $migration"
+                idx=$((idx + 1))
+            done
+            echo ""
+            read -r -p "Enter migration numbers (space-separated, e.g. '1 3'): " selection < /dev/tty
+            echo ""
+
+            local failed=0
+            for num in $selection; do
+                if [[ $num =~ ^[0-9]+$ ]] && [[ $num -ge 1 ]] && [[ $num -le ${#migrations_array[@]} ]]; then
+                    local migration="${migrations_array[$((num - 1))]}"
+                    if reapply_migration "$migration"; then
+                        success "✓ $migration"
+                    else
+                        error "✗ $migration"
+                        failed=$((failed + 1))
+                    fi
+                    echo ""
+                else
+                    warning "Invalid selection: $num (skipped)"
+                fi
+            done
+
+            if [[ $failed -eq 0 ]]; then
+                success "Selected migrations reapplied successfully"
+            else
+                error "$failed migration(s) failed to reapply"
+                return 1
+            fi
+            ;;
+
+        3)
+            warning "Skipping migration reapply"
+            warning "⚠️  Database schema may be inconsistent with migration files!"
+            warning "    Recommended action: Review changes and reapply manually if needed"
+            echo ""
+            ;;
+
+        *)
+            error "Invalid choice: $choice"
+            warning "Defaulting to skip (option 3)"
+            warning "⚠️  Database schema may be inconsistent with migration files!"
+            echo ""
+            ;;
+    esac
+
+    return 0
+}
+
+# =============================================================================
 # DATABASE VERIFICATION
 # =============================================================================
 

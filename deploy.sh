@@ -125,6 +125,8 @@ CLEAN_DEPLOY=false
 COMPOSE_PROFILE=""
 SYNC_MODE=""  # mirror|update|clean|skip (empty = interactive)
 REPO_DIR_OVERRIDE=""  # User-specified repository directory
+REAPPLY_MIGRATION=false  # Force reapply specific migration
+REAPPLY_MIGRATION_FILE=""  # Migration file to reapply (e.g., "009_create_additional_indexes.sql")
 # Note: BUILD_IMAGES removed - now always enabled via 'docker compose up --build'
 
 # PostgreSQL state tracking (prevent race conditions)
@@ -256,6 +258,11 @@ parse_args() {
                 REPO_DIR_OVERRIDE="$2"
                 shift 2
                 ;;
+            --reapply-migration)
+                REAPPLY_MIGRATION=true
+                REAPPLY_MIGRATION_FILE="$2"
+                shift 2
+                ;;
             *)
                 error "Unknown option: $1 (use --help for usage)"
                 ;;
@@ -337,42 +344,176 @@ main() {
     validate_env
     echo ""
 
+    # PRE-FLIGHT CHECK: Verify npm environment exists BEFORE sync
+    # This prevents issues if rsync accidentally deletes .npm-isolated/
+    print_message info "Pre-flight check: Verifying production npm environment..."
+    if [[ -d "/opt/budget/.npm-isolated/node_modules" ]]; then
+        local pkg_count
+        pkg_count=$(find "/opt/budget/.npm-isolated/node_modules" -maxdepth 1 -type d ! -name ".*" | wc -l)
+        print_message success "Production npm environment verified: $pkg_count packages"
+    else
+        print_message warning "Production npm environment NOT found: /opt/budget/.npm-isolated/"
+        print_message warning "Run install.sh to create npm environment before first deploy"
+        print_message warning "Build process will be skipped if npm environment is missing"
+    fi
+    echo ""
+
     # Synchronize code from repository to /opt/budget
     sync_code_to_deploy
     echo ""
 
+    # POST-SYNC VERIFICATION: Ensure npm environment was NOT deleted by rsync
+    print_message info "Post-sync check: Verifying npm environment preservation..."
+    if [[ ! -d "/opt/budget/.npm-isolated/node_modules" ]]; then
+        print_message error "CRITICAL: Production npm environment was DELETED during sync!"
+        print_message error "This should NEVER happen with --filter='protect .npm-isolated/'"
+        print_message error ""
+        print_message error "Possible causes:"
+        print_message error "  1. rsync filter not working correctly"
+        print_message error "  2. Manual deletion of /opt/budget/.npm-isolated"
+        print_message error "  3. Filesystem corruption"
+        print_message error ""
+        print_message error "To fix: Run install.sh to recreate npm environment"
+        print_message error "  cd ~/familyBudget && sudo ./install.sh"
+        print_message error ""
+        print_message warning "Deployment will continue but build will be SKIPPED"
+    else
+        print_message success "npm environment preserved successfully"
+    fi
+    echo ""
+
     # Minify static assets (JS and CSS) for production
+    echo ""
     print_message info "Minifying static assets..."
+    echo ""
     cd "/opt/budget" || error_return "Failed to cd to /opt/budget"
 
-    # Clean up any stuck minification processes from previous deployments
-    print_message info "Checking for stuck minification processes..."
-    local stuck_processes=$(pgrep -f "npm run build|minify.sh|terser --version|cssnano --version" 2>/dev/null || true)
-    if [[ -n "$stuck_processes" ]]; then
-        print_message warning "Found stuck processes from previous deployment, killing them..."
-        pkill -9 -f "npm run build" 2>/dev/null || true
-        pkill -9 -f "minify.sh" 2>/dev/null || true
-        pkill -9 -f "terser --version" 2>/dev/null || true
-        pkill -9 -f "cssnano --version" 2>/dev/null || true
-        sleep 2  # Give processes time to terminate
-        print_message success "Stuck processes cleaned up"
+    # Fix permissions before build (prevent EACCES errors)
+    # IMPORTANT: Build process needs write access to frontend/ directory
+    print_message info "Ensuring correct permissions for build..."
+    sudo chown -R ikeniborn:ikeniborn /opt/budget/frontend /opt/budget/.npm-isolated 2>/dev/null || true
+
+    # Clean up ALL npm-related processes before build (prevent zombie process buildup)
+    # ARCHITECTURE IMPROVEMENT (2025-11-08):
+    # - Kill ALL npm processes (not just specific patterns)
+    # - Prevents zombie process accumulation from interrupted builds
+    # - No timeout needed if we aggressively cleanup before starting
+    echo ""
+    print_message info "Cleaning up npm processes before build..."
+
+    # Kill ALL npm-related processes (aggressive cleanup, suppress "Killed" messages)
+    sudo pkill -9 -f "npm" 2>&1 | grep -v "Killed" || true
+    sudo pkill -9 -f "terser" 2>&1 | grep -v "Killed" || true
+    sudo pkill -9 -f "postcss" 2>&1 | grep -v "Killed" || true
+    sudo pkill -9 -f "tailwindcss" 2>&1 | grep -v "Killed" || true
+    sleep 2  # Give processes time to fully terminate
+
+    # Verify cleanup
+    local remaining=$(ps aux | grep -E "(npm|terser|postcss|tailwindcss)" | grep -v grep | wc -l)
+    if [[ $remaining -eq 0 ]]; then
+        print_message success "All npm processes cleaned up (0 remaining)"
+        echo ""
     else
-        print_message success "No stuck processes found"
+        print_message warning "Some processes still running ($remaining), attempting force cleanup..."
+        sudo pkill -9 -f "node" 2>&1 | grep -v "Killed" || true  # Nuclear option
+        sleep 1
+        print_message success "Force cleanup completed"
+        echo ""
     fi
 
-    # Install npm dependencies if needed (including devDependencies for build tools)
-    if [[ ! -d "node_modules" ]] || [[ ! -f "node_modules/.package-lock.json" ]]; then
-        print_message info "Installing npm dependencies (including build tools)..."
-        if ! npm install --silent 2>&1 | grep -v "^npm WARN"; then
-            print_message warning "npm install failed, skipping minification"
+    # Check that npm dependencies are installed in production isolated environment
+    # ARCHITECTURE CHANGE (2025-11-08):
+    # - npm env now in /opt/budget/.npm-isolated (NOT copied via rsync)
+    # - Must be created by install.sh (runs once, persists across deploys)
+    # - Faster deploys (~100-200MB not transferred)
+    local npm_isolated_dir="/opt/budget/.npm-isolated"
+    local node_modules_dir="$npm_isolated_dir/node_modules"
+    local build_allowed=true
+
+    if [[ ! -d "$npm_isolated_dir" ]]; then
+        print_message error "Production npm environment not found: $npm_isolated_dir"
+        print_message error "This directory must exist in production (not copied from repository)"
+        print_message error ""
+        print_message error "To fix: Run install.sh to create production npm environment"
+        print_message error "  cd ~/familyBudget && sudo ./install.sh"
+        print_message error ""
+        print_message warning "Skipping minification - deployment will continue with unminified assets"
+        build_allowed=false
+    elif [[ ! -d "$node_modules_dir" ]]; then
+        print_message error "node_modules not found in production npm environment: $node_modules_dir"
+        print_message error "Please run install.sh to install npm dependencies"
+        print_message warning "Skipping minification - deployment will continue with unminified assets"
+        build_allowed=false
+    elif [[ ! -f "$node_modules_dir/.package-lock.json" ]]; then
+        print_message warning "package-lock.json not found in $node_modules_dir - dependencies may be corrupted"
+        print_message warning "Consider re-running install.sh to reinstall npm packages"
+        print_message warning "Attempting to run build anyway..."
+    fi
+
+    # Validate npm package versions (especially Tailwind CSS to prevent 4.x mismatch)
+    if [[ "$build_allowed" == true ]] && command -v jq &> /dev/null; then
+        print_message info "Validating npm package versions..."
+
+        if [[ -f "package.json" && -f "$node_modules_dir/tailwindcss/package.json" ]]; then
+            local expected_tailwind
+            local installed_tailwind
+
+            expected_tailwind=$(jq -r '.devDependencies.tailwindcss // empty' "package.json" 2>/dev/null)
+            installed_tailwind=$(jq -r '.version // empty' "$node_modules_dir/tailwindcss/package.json" 2>/dev/null)
+
+            if [[ -n "$expected_tailwind" && -n "$installed_tailwind" ]]; then
+                if [[ "$expected_tailwind" != "$installed_tailwind" ]]; then
+                    print_message error "Tailwind CSS version mismatch detected!"
+                    print_message error "  Expected (package.json): $expected_tailwind"
+                    print_message error "  Installed (node_modules): $installed_tailwind"
+                    print_message error ""
+                    print_message error "This mismatch can cause build failures (especially 4.x vs 3.x)"
+                    print_message error "Please reinstall npm dependencies with correct versions:"
+                    print_message error "  cd ~/familyBudget"
+                    print_message error "  sudo ./install.sh"
+                    print_message error ""
+                    print_message warning "Skipping build to prevent errors"
+                    build_allowed=false
+                else
+                    print_message success "Tailwind CSS version validated: $installed_tailwind"
+                    echo ""
+                fi
+            fi
         fi
     fi
 
-    # Run minification
-    if [[ -d "node_modules" ]] && npm run build 2>&1; then
-        print_message success "Static assets minified successfully"
+    # Run minification (build Tailwind CSS + minify JS/CSS) - use isolated environment
+    if [[ "$build_allowed" == true ]]; then
+        # Validate npm environment comprehensively
+        if ! bash scripts/lib/check_npm_env.sh "$PWD"; then
+            echo ""
+            print_message error "npm environment validation failed"
+            print_message error "Cannot proceed with deployment - critical packages missing"
+            print_message error "Fix by running: cd ~/familyBudget && sudo ./install.sh"
+            exit 1
+        fi
+
+        # Add isolated node_modules/.bin to PATH for npx
+        export PATH="$node_modules_dir/.bin:$PATH"
+
+        echo ""
+        if npm run build 2>&1; then
+            echo ""
+            print_message success "Static assets built and minified successfully"
+            echo ""
+        else
+            echo ""
+            print_message warning "Build failed - check npm logs above"
+            print_message warning "Continuing with existing/unminified assets"
+            echo ""
+        fi
+
+        # Restore PATH (remove isolated bin)
+        export PATH="${PATH#$node_modules_dir/.bin:}"
     else
-        print_message warning "Minification failed or skipped, continuing with unminified assets"
+        echo ""
+        print_message warning "Minification skipped (build validation failed)"
+        echo ""
     fi
 
     cd - > /dev/null || error_return "Failed to return to previous directory"
@@ -417,7 +558,25 @@ main() {
         wait_for_services
         echo ""
 
-        run_migrations
+        # Check for modified migrations and handle interactively
+        # This happens BEFORE running new migrations to ensure schema consistency
+        if [[ "$REAPPLY_MIGRATION" == "true" ]]; then
+            # Manual reapply mode (via --reapply-migration flag)
+            if [[ -z "$REAPPLY_MIGRATION_FILE" ]]; then
+                error "Migration file not specified for --reapply-migration"
+                error "Usage: ./deploy.sh --reapply-migration <migration_file.sql>"
+                exit 1
+            fi
+            reapply_migration "$REAPPLY_MIGRATION_FILE"
+            echo ""
+        else
+            # Auto-detect changed migrations and handle interactively
+            handle_changed_migrations_interactive
+            echo ""
+
+            # Run regular migrations (new migrations that haven't been applied yet)
+            run_migrations
+        fi
         echo ""
 
         run_bootstrap_script

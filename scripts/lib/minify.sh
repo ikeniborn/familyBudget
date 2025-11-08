@@ -26,6 +26,12 @@
 
 set -uo pipefail  # Removed -e flag to allow graceful error handling
 
+# Prefer isolated npm environment if exists
+# This ensures npx finds binaries in .npm-isolated/node_modules/.bin
+if [[ -d ".npm-isolated/node_modules/.bin" ]]; then
+    export PATH="$PWD/.npm-isolated/node_modules/.bin:$PATH"
+fi
+
 # Colors for output
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
@@ -73,7 +79,9 @@ print_message() {
 }
 
 check_prerequisites() {
-    print_message info "Checking prerequisites..."
+    local mode="$1"
+
+    print_message info "Checking prerequisites for mode: $mode..."
 
     # Check if node is installed
     if ! command -v node &> /dev/null; then
@@ -87,19 +95,26 @@ check_prerequisites() {
         return 1
     fi
 
-    # Check if terser is available (with timeout to prevent hanging)
-    if ! timeout 5 npx terser --version &> /dev/null; then
-        print_message error "Terser is not installed. Run: npm install"
-        return 1
+    # Check if terser is available (only for js/all modes)
+    if [[ "$mode" == "js" || "$mode" == "all" ]]; then
+        if ! command -v terser &> /dev/null; then
+            print_message error "Terser is not installed or not in PATH"
+            print_message error "Expected location: .npm-isolated/node_modules/.bin/terser"
+            return 1
+        fi
     fi
 
-    # Check if cssnano-cli is available (with timeout to prevent hanging)
-    if ! timeout 5 npx cssnano --version &> /dev/null; then
-        print_message error "cssnano-cli is not installed. Run: npm install"
-        return 1
+    # Check if postcss is available (only for css/all modes)
+    if [[ "$mode" == "css" || "$mode" == "all" ]]; then
+        if ! command -v postcss &> /dev/null; then
+            print_message error "postcss-cli is not installed or not in PATH"
+            print_message error "Expected location: .npm-isolated/node_modules/.bin/postcss"
+            print_message error "Current PATH: $PATH"
+            return 1
+        fi
     fi
 
-    print_message success "All prerequisites satisfied"
+    print_message success "All prerequisites satisfied for mode: $mode"
     return 0
 }
 
@@ -113,13 +128,23 @@ minify_js_file() {
 
     print_message info "Minifying: $input_file"
 
-    # Try to minify with error capture
+    # Try to minify with error capture and 60s timeout
+    # ARCHITECTURE IMPROVEMENT (2025-11-08):
+    # - Added timeout to prevent zombie processes from hanging builds
+    # - 60 seconds should be sufficient for any JS file in this project
     local terser_output
-    terser_output=$(npx terser "$input_file" \
+    terser_output=$(timeout 60s npx terser "$input_file" \
         --compress \
         --mangle \
         --output "$output_file" 2>&1)
     local terser_exit=$?
+
+    # Handle timeout (exit code 124)
+    if [[ $terser_exit -eq 124 ]]; then
+        print_message error "Timeout: $input_file (exceeded 60 seconds)"
+        ((ERRORS_COUNT++))
+        return 1
+    fi
 
     if [[ $terser_exit -eq 0 ]] && [[ -f "$output_file" ]]; then
         # Success - calculate size reduction
@@ -215,7 +240,12 @@ minify_css_file() {
 
     print_message info "Minifying: $input_file"
 
-    if npx cssnano "$input_file" "$output_file" 2>/dev/null; then
+    # Use postcss-cli with cssnano plugin (configured in postcss.config.js) with 60s timeout
+    # ARCHITECTURE IMPROVEMENT (2025-11-08):
+    # - Added timeout to prevent zombie processes from hanging builds
+    # - 60 seconds should be sufficient for any CSS file in this project
+    local postcss_output
+    if postcss_output=$(timeout 60s npx postcss "$input_file" -o "$output_file" --no-map 2>&1); then
         local original_size=$(stat -c%s "$input_file" 2>/dev/null || stat -f%z "$input_file" 2>/dev/null)
         local minified_size=$(stat -c%s "$output_file" 2>/dev/null || stat -f%z "$output_file" 2>/dev/null)
         local reduction=$((100 - (minified_size * 100 / original_size)))
@@ -224,7 +254,21 @@ minify_css_file() {
         ((MINIFIED_CSS_COUNT++))
         return 0
     else
-        print_message error "Failed to minify: $input_file"
+        local postcss_exit=$?
+
+        # Handle timeout (exit code 124)
+        if [[ $postcss_exit -eq 124 ]]; then
+            print_message error "Timeout: $input_file (exceeded 60 seconds)"
+        else
+            print_message error "Failed to minify: $input_file"
+            # Show actual error from postcss/cssnano
+            if [[ -n "$postcss_output" ]]; then
+                echo "$postcss_output" | head -5 | while IFS= read -r line; do
+                    print_message error "  $line"
+                done
+            fi
+        fi
+
         ((ERRORS_COUNT++))
         return 1
     fi
@@ -317,7 +361,7 @@ main() {
     echo
 
     # Check prerequisites
-    if ! check_prerequisites; then
+    if ! check_prerequisites "$mode"; then
         exit 1
     fi
 

@@ -45,6 +45,9 @@ build/Release
 node_modules/
 jspm_packages/
 
+# Isolated npm environment (created by install.sh)
+.npm-isolated/
+
 # TypeScript
 typings/
 *.tsbuildinfo

@@ -690,7 +690,9 @@ cleanup_old_deployment() {
     # If no preset and we have interactive terminal, ask user
     if [[ -z "$cleanup_mode" ]] && [[ -t 0 ]]; then
         # Offer cleanup options
+        echo ""
         warning "Old deployments may cause network conflicts!"
+        echo ""
         echo "Choose cleanup action:"
         echo "  [1] Skip - deploy alongside old deployment (may cause subnet conflicts)"
         echo "  [2] Smart cleanup - auto-detect changes & restart strategy (RECOMMENDED)"
@@ -701,7 +703,9 @@ cleanup_old_deployment() {
         echo "      ⚠️  Requires sudo/root privileges"
         echo ""
 
-        read -p "Select [1-3]: " choice
+        # Flush stdout/stderr before reading input (prevents terminal buffer issues)
+        sync 2>/dev/null || true
+        read -r -p "Select [1-3]: " choice < /dev/tty
         echo ""
 
         case $choice in
