@@ -185,13 +185,10 @@ backups/
 frontend/**/static/**/*.min.js
 frontend/**/static/**/*.min.css
 
-# Vendor CSS files (auto-generated, excluded from tracking)
-# These files are regenerated during build/deploy and should not be committed
-frontend/**/static/**/vendor/*.css
-
-# Vendor JS files (third-party libraries) - TRACKED
-# JS libraries are stable and should be version-controlled
+# Vendor files (third-party libraries) - TRACKED в git
+# Минифицированные vendor файлы должны быть в git для доставки на сервер
 !frontend/**/static/**/vendor/*.min.js
+!frontend/**/static/**/vendor/*.min.css
 
 # =============================================================================
 # Docker & Infrastructure
