@@ -10,6 +10,7 @@ This package contains business logic services organized by domain:
 """
 
 from backend.app.services.hierarchy_service import (
+    archive_recursive,
     get_ancestors,
     get_depth,
     get_direct_children,
@@ -18,6 +19,7 @@ from backend.app.services.hierarchy_service import (
     get_root,
     get_subtree,
     is_descendant_of,
+    restore_recursive,
 )
 from backend.app.services.jwt import create_access_token, decode_access_token
 from backend.app.services.scd2_service import (
@@ -52,4 +54,6 @@ __all__ = [
     "get_root",
     "is_descendant_of",
     "get_level",
+    "archive_recursive",
+    "restore_recursive",
 ]
