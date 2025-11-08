@@ -62,23 +62,25 @@
 
                     <!-- Period Display Text -->
                     <div id="period-display" class="text-sm text-base-content/70"></div>
+
+                    <!-- Global Type Filter (applies to Plan-Fact, Pie Chart, Heatmap) -->
+                    <div class="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-base-300">
+                        <label id="global-type-label" class="font-semibold text-sm">Тип (для графиков):</label>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-primary" id="global-type-expense" onclick="updateGlobalType('expense')" aria-pressed="true" aria-labelledby="global-type-label global-type-expense">Расходы</button>
+                            <button class="btn btn-sm btn-outline" id="global-type-income" onclick="updateGlobalType('income')" aria-pressed="false" aria-labelledby="global-type-label global-type-income">Доходы</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Charts Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Plan vs Fact Chart (Full Width) -->
-            <div class="card bg-base-100 shadow-lg col-span-full" aria-labelledby="chart-title-planfact">
+            <!-- Plan vs Fact Chart -->
+            <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-planfact">
                 <div class="card-body p-3">
                     <h2 id="chart-title-planfact" class="card-title text-base mb-1">📊 План vs Факт</h2>
-                    <div class="flex items-center gap-3 mb-1" role="group" aria-label="Выбор типа категорий для плана">
-                        <label id="planfact-type-label" class="label-text font-semibold">Тип:</label>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-primary" id="planfact-expense" onclick="updatePlanFactType('expense')" aria-pressed="true" aria-labelledby="planfact-type-label planfact-expense">Расходы</button>
-                            <button class="btn btn-sm btn-outline" id="planfact-income" onclick="updatePlanFactType('income')" aria-pressed="false" aria-labelledby="planfact-type-label planfact-income">Доходы</button>
-                        </div>
-                    </div>
                     <div id="chart-plan-fact" class="chart-container" role="img" aria-label="Гистограмма сравнения плановых и фактических расходов"></div>
                 </div>
             </div>
@@ -101,13 +103,6 @@
             <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-pie">
                 <div class="card-body p-3">
                     <h2 id="chart-title-pie" class="card-title text-base mb-1">🥧 Разбивка по категориям</h2>
-                    <div class="flex items-center gap-3 mb-1" role="group" aria-label="Выбор типа категорий">
-                        <label id="pie-type-label" class="label-text font-semibold">Тип:</label>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-primary" id="pie-expense" onclick="updatePieType('expense')" aria-pressed="true" aria-labelledby="pie-type-label pie-expense">Расходы</button>
-                            <button class="btn btn-sm btn-outline" id="pie-income" onclick="updatePieType('income')" aria-pressed="false" aria-labelledby="pie-type-label pie-income">Доходы</button>
-                        </div>
-                    </div>
                     <div id="chart-pie" class="chart-container" role="img" aria-label="Круговая диаграмма разбивки фактических расходов по категориям"></div>
                 </div>
             </div>
@@ -125,18 +120,11 @@
                 </div>
             </div>
 
-            <!-- Heatmap Chart -->
-            <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-heatmap">
+            <!-- Heatmap Chart (Full Width) -->
+            <div class="card bg-base-100 shadow-lg col-span-full" aria-labelledby="chart-title-heatmap">
                 <div class="card-body p-3">
                     <h2 id="chart-title-heatmap" class="card-title text-base mb-1">🔥 Тепловая карта</h2>
-                    <div class="flex items-center gap-3 mb-1" role="group" aria-label="Выбор типа категорий для тепловой карты">
-                        <label id="heatmap-type-label" class="label-text font-semibold">Тип:</label>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-primary" id="heatmap-expense" onclick="updateHeatmapType('expense')" aria-pressed="true" aria-labelledby="heatmap-type-label heatmap-expense">Расходы</button>
-                            <button class="btn btn-sm btn-outline" id="heatmap-income" onclick="updateHeatmapType('income')" aria-pressed="false" aria-labelledby="heatmap-type-label heatmap-income">Доходы</button>
-                        </div>
-                    </div>
-                    <div id="chart-heatmap" class="chart-container" role="img" aria-label="Тепловая карта паттернов транзакций по дням недели"></div>
+                    <div id="chart-heatmap" class="chart-container" role="img" aria-label="Тепловая карта паттернов транзакций"></div>
                 </div>
             </div>
         </div>
@@ -157,9 +145,8 @@ let currentPieType = 'expense';
 let currentWaterfallArticleId = null;
 let waterfallCategoriesData = [];
 
-// Local filter states
-let currentPlanFactType = 'expense';
-let currentHeatmapType = 'expense';
+// Global type filter (applies to Plan-Fact, Pie, Heatmap)
+let currentGlobalType = 'expense';
 
 // Custom date range state
 let customRangeActive = false;
@@ -242,7 +229,7 @@ function initPlanFactChart() {
 // Load Plan vs Fact data from API
 async function loadPlanFactData(period) {
     try {
-        const response = await fetch(`/api/v1/analytics/plan-fact?period=${period}&article_type=${currentPlanFactType}`);
+        const response = await fetch(`/api/v1/analytics/plan-fact?period=${period}&article_type=${currentGlobalType}`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -852,61 +839,36 @@ function updatePieChart(data) {
     pieChart.setOption(option);
 }
 
-// Update pie type filter
-function updatePieType(type) {
-    currentPieType = type;
-
-    // Update active button and ARIA states (DaisyUI btn-group)
-    document.querySelectorAll('#pie-expense, #pie-income').forEach(btn => {
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-outline');
-        btn.setAttribute('aria-pressed', 'false');
-    });
-    const activeBtn = document.getElementById(`pie-${type}`);
-    activeBtn.classList.remove('btn-outline');
-    activeBtn.classList.add('btn-primary');
-    activeBtn.setAttribute('aria-pressed', 'true');
-
-    // Reload chart data
-    loadPieData(type, currentPeriod);
-}
-
-// Update Plan vs Fact article type filter
-function updatePlanFactType(type) {
-    currentPlanFactType = type;
+// Update global type filter (applies to Plan-Fact, Pie, Heatmap)
+function updateGlobalType(type) {
+    currentGlobalType = type;
+    currentPieType = type;  // Keep for Pie chart compatibility
 
     // Update active button and ARIA states
-    document.querySelectorAll('#planfact-expense, #planfact-income').forEach(btn => {
+    document.querySelectorAll('#global-type-expense, #global-type-income').forEach(btn => {
         btn.classList.remove('btn-primary');
         btn.classList.add('btn-outline');
         btn.setAttribute('aria-pressed', 'false');
     });
-    const activeBtn = document.getElementById(`planfact-${type}`);
+    const activeBtn = document.getElementById(`global-type-${type}`);
     activeBtn.classList.remove('btn-outline');
     activeBtn.classList.add('btn-primary');
     activeBtn.setAttribute('aria-pressed', 'true');
 
-    // Reload chart data
-    loadPlanFactData(periodMapping[currentPeriod].planFact);
-}
-
-// Update Heatmap article type filter
-function updateHeatmapType(type) {
-    currentHeatmapType = type;
-
-    // Update active button and ARIA states
-    document.querySelectorAll('#heatmap-expense, #heatmap-income').forEach(btn => {
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-outline');
-        btn.setAttribute('aria-pressed', 'false');
-    });
-    const activeBtn = document.getElementById(`heatmap-${type}`);
-    activeBtn.classList.remove('btn-outline');
-    activeBtn.classList.add('btn-primary');
-    activeBtn.setAttribute('aria-pressed', 'true');
-
-    // Reload chart data
-    loadHeatmapData(periodMapping[currentPeriod].heatmap);
+    // Reload charts that depend on global type filter
+    if (customRangeActive) {
+        // Custom range mode
+        const isoFrom = DateFormatter.toISO(customDateFrom);
+        const isoTo = DateFormatter.toISO(customDateTo);
+        loadPlanFactDataCustom(isoFrom, isoTo);
+        loadPieDataCustom(type, isoFrom, isoTo);
+        loadHeatmapDataCustom(isoFrom, isoTo);
+    } else {
+        // Period mode
+        loadPlanFactData(periodMapping[currentPeriod].planFact);
+        loadPieData(type, currentPeriod);
+        loadHeatmapData(periodMapping[currentPeriod].heatmap);
+    }
 }
 
 // Note: updatePeriod function is defined earlier in the file
@@ -1229,7 +1191,7 @@ function initHeatmapChart() {
 // Load Heatmap data from API
 async function loadHeatmapData(period = 'quarter') {
     try {
-        const response = await fetch(`/api/v1/analytics/heatmap?period=${period}&article_type=${currentHeatmapType}&record_type=fact`);
+        const response = await fetch(`/api/v1/analytics/heatmap?period=${period}&article_type=${currentGlobalType}&record_type=fact`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -1286,7 +1248,7 @@ function updateHeatmapChart(data) {
     const periodLabel = periodMap[data.period] || data.period;
 
     const typeMap = { expense: 'расходов', income: 'доходов' };
-    const typeLabel = typeMap[currentHeatmapType] || 'расходов';
+    const typeLabel = typeMap[currentGlobalType] || 'расходов';
 
     const option = {
         title: {
@@ -1304,7 +1266,7 @@ function updateHeatmapChart(data) {
                 const dayName = data.day_labels[params.value[0]];
                 const weekNum = params.value[1] + 1;
                 const amount = params.value[2].toFixed(2);
-                const typeLabelSingular = currentHeatmapType === 'income' ? 'Доход' : 'Расход';
+                const typeLabelSingular = currentGlobalType === 'income' ? 'Доход' : 'Расход';
                 return `<strong>${dayName}, Неделя ${weekNum}</strong><br/>` +
                        `${typeLabelSingular}: ${amount} ₽`;
             }
@@ -1345,7 +1307,7 @@ function updateHeatmapChart(data) {
             bottom: '0%',
             inRange: {
                 // Red shades for expenses, green shades for income
-                color: currentHeatmapType === 'expense'
+                color: currentGlobalType === 'expense'
                     ? ['#ffebee', '#ffcdd2', '#ef9a9a', '#e57373', '#ef5350', '#f44336']
                     : ['#eef5ee', '#c8e6c9', '#81c784', '#4caf50', '#388e3c', '#2e7d32']
             },
@@ -1356,7 +1318,7 @@ function updateHeatmapChart(data) {
         },
         series: [
             {
-                name: currentHeatmapType === 'income' ? 'Доходы' : 'Расходы',
+                name: currentGlobalType === 'income' ? 'Доходы' : 'Расходы',
                 type: 'heatmap',
                 data: heatmapData,
                 label: {
@@ -1455,7 +1417,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function loadPlanFactDataCustom(dateFrom, dateTo) {
     try {
-        const response = await fetch(`/api/v1/analytics/plan-fact?date_from=${dateFrom}&date_to=${dateTo}&article_type=${currentPlanFactType}`);
+        const response = await fetch(`/api/v1/analytics/plan-fact?date_from=${dateFrom}&date_to=${dateTo}&article_type=${currentGlobalType}`);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         updatePlanFactChart(data);
@@ -1506,7 +1468,7 @@ async function loadWaterfallDataCustom(dateFrom, dateTo, articleId = null) {
 
 async function loadHeatmapDataCustom(dateFrom, dateTo) {
     try {
-        const response = await fetch(`/api/v1/analytics/heatmap?date_from=${dateFrom}&date_to=${dateTo}&article_type=${currentHeatmapType}&record_type=fact`);
+        const response = await fetch(`/api/v1/analytics/heatmap?date_from=${dateFrom}&date_to=${dateTo}&article_type=${currentGlobalType}&record_type=fact`);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         updateHeatmapChart(data);
