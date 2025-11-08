@@ -458,14 +458,18 @@ install_nodejs() {
     fi
 }
 
-# Setup isolated npm environment in repository
+# Setup isolated npm environment in production directory (/opt/budget)
+# ARCHITECTURE CHANGE (2025-11-08):
+# - npm env now created ONLY in production directory
+# - NOT copied via rsync (excluded in sync.sh)
+# - Uses absolute paths (not ${PROJECT_DIR} variable)
 setup_isolated_npm_env() {
-    info "Setting up isolated npm environment..."
+    info "Setting up isolated npm environment in production directory..."
 
     local username="${SUDO_USER:-$USER}"
-    local isolated_dir="$REPO_DIR/.npm-isolated"
+    local isolated_dir="/opt/budget/.npm-isolated"
 
-    # Create isolated directory structure
+    # Create isolated directory structure in production directory
     if [[ ! -d "$isolated_dir" ]]; then
         info "Creating isolated npm directory: $isolated_dir"
         mkdir -p "$isolated_dir"
@@ -473,15 +477,16 @@ setup_isolated_npm_env() {
         info "Isolated npm directory already exists: $isolated_dir"
     fi
 
-    # Create .npmrc for project-level isolation
+    # Create .npmrc for project-level isolation with ABSOLUTE PATHS
+    # IMPORTANT: Using absolute path to prevent ${PROJECT_DIR} literal directory creation
     local npmrc_file="$isolated_dir/.npmrc"
     info "Creating npm configuration: $npmrc_file"
-    cat > "$npmrc_file" << 'EOF'
-# Isolated npm environment for Family Budget
-# This configuration ensures dependencies are installed locally
+    cat > "$npmrc_file" << EOF
+# Isolated npm environment for Family Budget (Production Directory)
+# This configuration ensures dependencies are installed in /opt/budget
 
-# Cache directory (isolated from global cache)
-cache=${PROJECT_DIR}/.npm-isolated/cache
+# Cache directory (ABSOLUTE path - prevents \${PROJECT_DIR} corruption)
+cache=/opt/budget/.npm-isolated/cache
 
 # Audit level
 audit-level=moderate
@@ -501,7 +506,7 @@ EOF
         chown -R "$username:$username" "$isolated_dir"
     fi
 
-    success "Isolated npm environment configured: $isolated_dir"
+    success "Isolated npm environment configured: $isolated_dir (production-only)"
 }
 
 # Check npm dependencies integrity and versions
@@ -573,36 +578,37 @@ check_npm_dependencies() {
     return 0  # All checks passed
 }
 
-# Install npm dependencies for the project (in isolated environment)
+# Install npm dependencies for the project (in production isolated environment)
+# ARCHITECTURE CHANGE (2025-11-08):
+# - Installs to /opt/budget/.npm-isolated (not ~/familyBudget/.npm-isolated)
+# - Uses absolute paths for reliability
 install_npm_dependencies() {
-    info "Installing npm dependencies for Family Budget project (isolated environment)..."
+    info "Installing npm dependencies in production isolated environment..."
 
     # Get the username for ownership
     local username="${SUDO_USER:-$USER}"
 
-    # Change to repository directory
-    cd "$REPO_DIR" || error "Failed to cd to repository directory: $REPO_DIR"
-
-    # Check if package.json exists
-    if [[ ! -f "package.json" ]]; then
+    # Check if package.json exists in repository
+    if [[ ! -f "$REPO_DIR/package.json" ]]; then
         warning "package.json not found in $REPO_DIR - skipping npm dependencies"
         return 0
     fi
 
-    # Setup isolated npm environment first
+    # Setup isolated npm environment first (creates /opt/budget/.npm-isolated)
     setup_isolated_npm_env
 
-    local isolated_dir="$REPO_DIR/.npm-isolated"
+    local isolated_dir="/opt/budget/.npm-isolated"
     local node_modules="$isolated_dir/node_modules"
 
     # Check if dependencies are already installed and up-to-date
-    if check_npm_dependencies "$REPO_DIR"; then
-        success "npm dependencies already installed and up-to-date"
+    # Note: check_npm_dependencies checks if node_modules is fresh
+    if [[ -d "$node_modules" ]] && check_npm_dependencies "/opt/budget"; then
+        success "npm dependencies already installed and up-to-date in production"
         return 0
     fi
 
     # Dependencies need to be installed/reinstalled
-    info "Installing/updating npm dependencies in isolated environment..."
+    info "Installing/updating npm dependencies in production isolated environment..."
 
     # Remove old/corrupted node_modules if exists
     if [[ -d "$node_modules" ]]; then
@@ -615,17 +621,20 @@ install_npm_dependencies() {
         rm -f "$isolated_dir/package-lock.json"
     fi
 
-    # Copy package.json and package-lock.json to isolated directory
+    # Copy package.json and package-lock.json from repository to isolated directory
     cp "$REPO_DIR/package.json" "$isolated_dir/"
     if [[ -f "$REPO_DIR/package-lock.json" ]]; then
         cp "$REPO_DIR/package-lock.json" "$isolated_dir/"
+        info "Copied package.json and package-lock.json to $isolated_dir"
+    else
+        info "Copied package.json to $isolated_dir (no lock file yet)"
     fi
 
     # Install dependencies using npm ci (clean install with locked versions)
     cd "$isolated_dir" || error "Failed to cd to isolated directory: $isolated_dir"
 
     if [[ "$username" != "root" ]]; then
-        info "Installing npm packages in isolated environment as user '$username'..."
+        info "Installing npm packages in production isolated environment as user '$username'..."
 
         # Use npm ci for reproducible builds (if package-lock.json exists)
         if [[ -f "package-lock.json" ]]; then
@@ -635,10 +644,10 @@ install_npm_dependencies() {
             warning "package-lock.json not found - using npm install (will create lock file)"
             su - "$username" -c "cd $isolated_dir && npm install" >> "$LOG_FILE" 2>&1
 
-            # Copy generated package-lock.json back to repository
+            # Copy generated package-lock.json back to repository for version control
             if [[ -f "$isolated_dir/package-lock.json" ]]; then
                 cp "$isolated_dir/package-lock.json" "$REPO_DIR/"
-                info "Generated package-lock.json copied to repository"
+                info "Generated package-lock.json copied to repository (commit this file)"
             fi
         fi
     else
@@ -667,7 +676,7 @@ install_npm_dependencies() {
     if [[ -d "$node_modules" ]]; then
         local package_count
         package_count=$(find "$node_modules" -maxdepth 1 -type d ! -name ".*" | wc -l)
-        success "npm dependencies installed in isolated environment ($package_count packages)"
+        success "npm dependencies installed in production isolated environment ($package_count packages)"
 
         # Verify Tailwind CSS version
         if [[ -f "$node_modules/tailwindcss/package.json" ]]; then
@@ -676,7 +685,7 @@ install_npm_dependencies() {
             info "Tailwind CSS version: $tailwind_version"
         fi
     else
-        error "npm install failed - node_modules not found in isolated directory"
+        error "npm install failed - node_modules not found in production isolated directory"
     fi
 }
 
@@ -727,22 +736,26 @@ print_summary() {
     echo "  ✓ nginx/conf.d/app.conf.template"
     echo "  ✓ .env.example"
     echo ""
-    echo "NPM isolated environment:"
-    if [[ -d "$REPO_DIR/.npm-isolated/node_modules" ]]; then
+    echo "NPM isolated environment (Production Directory):"
+    if [[ -d "/opt/budget/.npm-isolated/node_modules" ]]; then
         local package_count
-        package_count=$(find "$REPO_DIR/.npm-isolated/node_modules" -maxdepth 1 -type d ! -name ".*" | wc -l)
-        echo "  ✓ Isolated npm environment: $REPO_DIR/.npm-isolated/"
-        echo "  ✓ npm packages installed in isolated environment ($package_count packages)"
+        package_count=$(find "/opt/budget/.npm-isolated/node_modules" -maxdepth 1 -type d ! -name ".*" | wc -l)
+        echo "  ✓ Isolated npm environment: /opt/budget/.npm-isolated/ (production-only)"
+        echo "  ✓ npm packages installed ($package_count packages)"
 
         # Show Tailwind CSS version
-        if [[ -f "$REPO_DIR/.npm-isolated/node_modules/tailwindcss/package.json" ]]; then
+        if [[ -f "/opt/budget/.npm-isolated/node_modules/tailwindcss/package.json" ]]; then
             local tailwind_version
-            tailwind_version=$(jq -r '.version' "$REPO_DIR/.npm-isolated/node_modules/tailwindcss/package.json" 2>/dev/null || echo "unknown")
-            echo "  ✓ Tailwind CSS version: $tailwind_version (from package.json)"
+            tailwind_version=$(jq -r '.version' "/opt/budget/.npm-isolated/node_modules/tailwindcss/package.json" 2>/dev/null || echo "unknown")
+            echo "  ✓ Tailwind CSS version: $tailwind_version"
         fi
     else
         echo "  ✗ npm packages not installed (run install.sh again)"
     fi
+    echo ""
+    echo "IMPORTANT: npm environment is now in production directory (/opt/budget)"
+    echo "  • NOT copied via rsync (excluded in sync.sh)"
+    echo "  • Faster deployments (~100-200MB not transferred)"
     echo ""
     echo "Next steps:"
     echo "  1. Log out and log back in (for docker group to take effect)"

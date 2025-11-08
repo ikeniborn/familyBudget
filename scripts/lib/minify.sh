@@ -128,13 +128,23 @@ minify_js_file() {
 
     print_message info "Minifying: $input_file"
 
-    # Try to minify with error capture
+    # Try to minify with error capture and 60s timeout
+    # ARCHITECTURE IMPROVEMENT (2025-11-08):
+    # - Added timeout to prevent zombie processes from hanging builds
+    # - 60 seconds should be sufficient for any JS file in this project
     local terser_output
-    terser_output=$(npx terser "$input_file" \
+    terser_output=$(timeout 60s npx terser "$input_file" \
         --compress \
         --mangle \
         --output "$output_file" 2>&1)
     local terser_exit=$?
+
+    # Handle timeout (exit code 124)
+    if [[ $terser_exit -eq 124 ]]; then
+        print_message error "Timeout: $input_file (exceeded 60 seconds)"
+        ((ERRORS_COUNT++))
+        return 1
+    fi
 
     if [[ $terser_exit -eq 0 ]] && [[ -f "$output_file" ]]; then
         # Success - calculate size reduction
@@ -230,9 +240,12 @@ minify_css_file() {
 
     print_message info "Minifying: $input_file"
 
-    # Use postcss-cli with cssnano plugin (configured in postcss.config.js)
+    # Use postcss-cli with cssnano plugin (configured in postcss.config.js) with 60s timeout
+    # ARCHITECTURE IMPROVEMENT (2025-11-08):
+    # - Added timeout to prevent zombie processes from hanging builds
+    # - 60 seconds should be sufficient for any CSS file in this project
     local postcss_output
-    if postcss_output=$(npx postcss "$input_file" -o "$output_file" --no-map 2>&1); then
+    if postcss_output=$(timeout 60s npx postcss "$input_file" -o "$output_file" --no-map 2>&1); then
         local original_size=$(stat -c%s "$input_file" 2>/dev/null || stat -f%z "$input_file" 2>/dev/null)
         local minified_size=$(stat -c%s "$output_file" 2>/dev/null || stat -f%z "$output_file" 2>/dev/null)
         local reduction=$((100 - (minified_size * 100 / original_size)))
@@ -241,13 +254,21 @@ minify_css_file() {
         ((MINIFIED_CSS_COUNT++))
         return 0
     else
-        print_message error "Failed to minify: $input_file"
-        # Show actual error from postcss/cssnano
-        if [[ -n "$postcss_output" ]]; then
-            echo "$postcss_output" | head -5 | while IFS= read -r line; do
-                print_message error "  $line"
-            done
+        local postcss_exit=$?
+
+        # Handle timeout (exit code 124)
+        if [[ $postcss_exit -eq 124 ]]; then
+            print_message error "Timeout: $input_file (exceeded 60 seconds)"
+        else
+            print_message error "Failed to minify: $input_file"
+            # Show actual error from postcss/cssnano
+            if [[ -n "$postcss_output" ]]; then
+                echo "$postcss_output" | head -5 | while IFS= read -r line; do
+                    print_message error "  $line"
+                done
+            fi
         fi
+
         ((ERRORS_COUNT++))
         return 1
     fi

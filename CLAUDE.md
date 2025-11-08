@@ -34,6 +34,35 @@ cd ~/familyBudget && ./deploy.sh --profile full
 
 # База данных (development mode - можно редактировать миграции напрямую)
 docker compose down -v && docker compose up -d  # Пересоздать БД
+
+# npm окружение (производственная среда - только если нужна переустановка)
+sudo ./install.sh  # Создает /opt/budget/.npm-isolated (233 пакета)
+```
+
+---
+
+## 🏗️ npm Изолированное окружение (ВАЖНО - Новая архитектура 2025-11-08)
+
+**Расположение:** `/opt/budget/.npm-isolated/` (production-only)
+
+**Архитектурное изменение:**
+- ❌ **Старый подход:** npm окружение в `~/familyBudget/.npm-isolated` → копируется через rsync
+- ✅ **Новый подход:** npm окружение в `/opt/budget/.npm-isolated` → **НЕ копируется** (excluded from sync)
+
+**Преимущества:**
+- Faster deploys (~100-200MB не копируется при каждом deploy)
+- Нет permission issues при rsync
+- Четкое разделение: source code (repo) vs build tools (production)
+
+**Установка:**
+```bash
+sudo ./install.sh  # Создает /opt/budget/.npm-isolated с 233 пакетами
+```
+
+**Проверка:**
+```bash
+ls -la /opt/budget/.npm-isolated/node_modules  # Должно быть 194 директории
+cat /opt/budget/.npm-isolated/.npmrc           # Абсолютный путь (не ${PROJECT_DIR})
 ```
 
 ---

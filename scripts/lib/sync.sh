@@ -165,6 +165,7 @@ check_code_changes() {
     local repo_dir=$1
 
     # Use rsync --dry-run to detect changes
+    # IMPORTANT: .npm-isolated/ excluded (lives in /opt/budget only, not copied)
     local changes=$(rsync -avnc \
         --exclude='.env' \
         --exclude='data/' \
@@ -175,6 +176,7 @@ check_code_changes() {
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
         --exclude='docker-compose.networks.yml' \
+        --exclude='.npm-isolated/' \
         "$repo_dir/" "$DEPLOY_DIR/" 2>/dev/null | grep -v "/$" | grep -v "^sending\|^sent\|^total" | wc -l)
 
     if [[ $changes -gt 0 ]]; then
@@ -197,6 +199,7 @@ sync_mirror() {
     echo ""
 
     # Show preview of changes
+    # IMPORTANT: .npm-isolated/ excluded (production-only, not synced)
     info "Preview of changes (first 20 files):"
     rsync -avnc \
         --exclude='.env' \
@@ -208,6 +211,7 @@ sync_mirror() {
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
         --exclude='docker-compose.networks.yml' \
+        --exclude='.npm-isolated/' \
         --exclude='docs/' \
         --exclude='setup.sh' \
         --exclude='install.sh' \
@@ -229,6 +233,7 @@ sync_mirror() {
     fi
 
     # Perform sync
+    # IMPORTANT: .npm-isolated/ excluded (production-only directory)
     if rsync -avc --delete \
         --exclude='.env' \
         --exclude='data/' \
@@ -239,6 +244,7 @@ sync_mirror() {
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
         --exclude='docker-compose.networks.yml' \
+        --exclude='.npm-isolated/' \
         --exclude='docs/' \
         --exclude='setup.sh' \
         --exclude='install.sh' \
@@ -269,6 +275,7 @@ sync_update() {
     echo ""
 
     # Show preview
+    # IMPORTANT: .npm-isolated/ excluded (production-only, not synced)
     info "Preview of changes (first 20 files):"
     rsync -avnc \
         --exclude='.env' \
@@ -280,6 +287,7 @@ sync_update() {
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
         --exclude='docker-compose.networks.yml' \
+        --exclude='.npm-isolated/' \
         --exclude='docs/' \
         --exclude='setup.sh' \
         --exclude='install.sh' \
@@ -301,6 +309,7 @@ sync_update() {
     fi
 
     # 1. Perform rsync (update/add files)
+    # IMPORTANT: .npm-isolated/ excluded (production-only directory)
     info "Step 1/2: Syncing new and modified files..."
     if ! rsync -avc \
         --exclude='.env' \
@@ -312,6 +321,7 @@ sync_update() {
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
         --exclude='docker-compose.networks.yml' \
+        --exclude='.npm-isolated/' \
         --exclude='docs/' \
         --exclude='setup.sh' \
         --exclude='install.sh' \
@@ -501,6 +511,7 @@ sync_clean() {
     find "$DEPLOY_DIR" -maxdepth 1 -type f ! -name '.env' ! -name 'deploy.log' -delete 2>/dev/null || true
 
     # Step 5: Copy everything from repository (except .env and directories we already handled)
+    # IMPORTANT: .npm-isolated/ excluded (will be managed separately in production)
     info "Copying fresh code from $repo_dir to $DEPLOY_DIR"
     if rsync -av \
         --exclude='.env' \
@@ -511,6 +522,7 @@ sync_clean() {
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
         --exclude='docker-compose.networks.yml' \
+        --exclude='.npm-isolated/' \
         "$repo_dir/" "$DEPLOY_DIR/" >> "$LOG_FILE" 2>&1; then
 
         # Ensure logs/ and data/ directories exist
@@ -626,15 +638,26 @@ sync_code_to_deploy() {
         fi
     fi
 
-    # Check for isolated npm environment
-    if [[ -d "$repo_dir/.npm-isolated/node_modules" ]]; then
+    # ARCHITECTURE NOTE (2025-11-08):
+    # .npm-isolated/ now lives in /opt/budget (production-only)
+    # It is NOT synchronized from repository (excluded in all rsync commands above)
+    # This provides:
+    #   - Faster deploys (~100-200MB not copied)
+    #   - No permission issues during sync
+    #   - Clear separation: source code in repo, build tools in production
+    #
+    # To set up npm environment: run install.sh (creates /opt/budget/.npm-isolated)
+
+    # Verify npm environment exists in production directory
+    if [[ -d "/opt/budget/.npm-isolated/node_modules" ]]; then
         local package_count
-        package_count=$(find "$repo_dir/.npm-isolated/node_modules" -maxdepth 1 -type d ! -name ".*" | wc -l)
-        info "Isolated npm environment found: .npm-isolated/ ($package_count packages)"
-        info "npm dependencies will be synchronized to deployment directory"
+        package_count=$(find "/opt/budget/.npm-isolated/node_modules" -maxdepth 1 -type d ! -name ".*" | wc -l)
+        info "Production npm environment verified: /opt/budget/.npm-isolated/ ($package_count packages)"
+        info "Ready for build (NOT copied via rsync - production-only directory)"
     else
-        warning "Isolated npm environment not found (.npm-isolated/node_modules missing)"
-        warning "Run install.sh to set up npm dependencies"
+        warning "Production npm environment not found: /opt/budget/.npm-isolated/"
+        warning "Run install.sh to set up npm dependencies in production directory"
+        warning "Build process may fail without npm environment"
     fi
 
     # Execute sync based on selected mode

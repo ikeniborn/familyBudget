@@ -345,31 +345,52 @@ main() {
     print_message info "Minifying static assets..."
     cd "/opt/budget" || error_return "Failed to cd to /opt/budget"
 
-    # Clean up any stuck minification processes from previous deployments
-    print_message info "Checking for stuck minification processes..."
-    local stuck_processes=$(pgrep -f "npm run build|minify.sh|terser --version|cssnano --version" 2>/dev/null || true)
-    if [[ -n "$stuck_processes" ]]; then
-        print_message warning "Found stuck processes from previous deployment, killing them..."
-        pkill -9 -f "npm run build" 2>/dev/null || true
-        pkill -9 -f "minify.sh" 2>/dev/null || true
-        pkill -9 -f "terser --version" 2>/dev/null || true
-        pkill -9 -f "cssnano --version" 2>/dev/null || true
-        sleep 2  # Give processes time to terminate
-        print_message success "Stuck processes cleaned up"
+    # Clean up ALL npm-related processes before build (prevent zombie process buildup)
+    # ARCHITECTURE IMPROVEMENT (2025-11-08):
+    # - Kill ALL npm processes (not just specific patterns)
+    # - Prevents zombie process accumulation from interrupted builds
+    # - No timeout needed if we aggressively cleanup before starting
+    print_message info "Cleaning up npm processes before build..."
+
+    # Kill ALL npm-related processes (aggressive cleanup)
+    sudo pkill -9 -f "npm" 2>/dev/null || true
+    sudo pkill -9 -f "terser" 2>/dev/null || true
+    sudo pkill -9 -f "postcss" 2>/dev/null || true
+    sudo pkill -9 -f "tailwindcss" 2>/dev/null || true
+    sleep 2  # Give processes time to fully terminate
+
+    # Verify cleanup
+    local remaining=$(ps aux | grep -E "(npm|terser|postcss|tailwindcss)" | grep -v grep | wc -l)
+    if [[ $remaining -eq 0 ]]; then
+        print_message success "All npm processes cleaned up (0 remaining)"
     else
-        print_message success "No stuck processes found"
+        print_message warning "Some processes still running ($remaining), attempting force cleanup..."
+        sudo pkill -9 -f "node" 2>/dev/null || true  # Nuclear option
+        sleep 1
+        print_message success "Force cleanup completed"
     fi
 
-    # Check that npm dependencies are installed in isolated environment
-    # Note: Dependencies must be installed by running install.sh first
-    local npm_isolated_dir=".npm-isolated"
+    # Check that npm dependencies are installed in production isolated environment
+    # ARCHITECTURE CHANGE (2025-11-08):
+    # - npm env now in /opt/budget/.npm-isolated (NOT copied via rsync)
+    # - Must be created by install.sh (runs once, persists across deploys)
+    # - Faster deploys (~100-200MB not transferred)
+    local npm_isolated_dir="/opt/budget/.npm-isolated"
     local node_modules_dir="$npm_isolated_dir/node_modules"
     local build_allowed=true
 
-    if [[ ! -d "$node_modules_dir" ]]; then
-        print_message error "Isolated npm environment not found: $node_modules_dir"
-        print_message error "Please run install.sh to set up npm dependencies:"
+    if [[ ! -d "$npm_isolated_dir" ]]; then
+        print_message error "Production npm environment not found: $npm_isolated_dir"
+        print_message error "This directory must exist in production (not copied from repository)"
+        print_message error ""
+        print_message error "To fix: Run install.sh to create production npm environment"
         print_message error "  cd ~/familyBudget && sudo ./install.sh"
+        print_message error ""
+        print_message warning "Skipping minification - deployment will continue with unminified assets"
+        build_allowed=false
+    elif [[ ! -d "$node_modules_dir" ]]; then
+        print_message error "node_modules not found in production npm environment: $node_modules_dir"
+        print_message error "Please run install.sh to install npm dependencies"
         print_message warning "Skipping minification - deployment will continue with unminified assets"
         build_allowed=false
     elif [[ ! -f "$node_modules_dir/.package-lock.json" ]]; then
