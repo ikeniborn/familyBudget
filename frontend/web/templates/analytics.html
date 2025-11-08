@@ -3,6 +3,10 @@
 {% block extra_head %}
 <!-- ECharts library -->
 <script src="/static/js/vendor/echarts.min.js?v=PLACEHOLDER"></script>
+<!-- CalendarWidget for custom date range -->
+<script src="/shared/static/js/calendar-widget.js?v=PLACEHOLDER"></script>
+<script src="/shared/static/js/dateFormatter.js?v=PLACEHOLDER"></script>
+<link rel="stylesheet" href="/web/static/css/calendar-widget.css?v=PLACEHOLDER">
 {% endblock %}
 
 {% block content %}
@@ -36,21 +40,36 @@
         <!-- Period Filter (Unified for ALL charts) -->
         <div class="card bg-base-100 shadow-md" role="group" aria-label="Фильтр периода для всех графиков">
             <div class="card-body p-4">
-                <div class="flex flex-wrap items-center gap-3">
-                    <label id="period-label" class="font-semibold text-sm">Период (для всех графиков):</label>
-                    <div class="btn-group">
-                        <button class="btn btn-sm btn-primary" id="filter-week" data-period="week" onclick="updatePeriod('week')" aria-pressed="true" aria-labelledby="period-label filter-week">Неделя</button>
-                        <button class="btn btn-sm btn-outline" id="filter-month" data-period="month" onclick="updatePeriod('month')" aria-pressed="false" aria-labelledby="period-label filter-month">Месяц</button>
-                        <button class="btn btn-sm btn-outline" id="filter-year" data-period="year" onclick="updatePeriod('year')" aria-pressed="false" aria-labelledby="period-label filter-year">Год</button>
+                <div class="flex flex-col gap-3">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <label id="period-label" class="font-semibold text-sm">Период (для всех графиков):</label>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-primary" id="filter-week" data-period="week" onclick="updatePeriod('week')" aria-pressed="true" aria-labelledby="period-label filter-week">Неделя</button>
+                            <button class="btn btn-sm btn-outline" id="filter-month" data-period="month" onclick="updatePeriod('month')" aria-pressed="false" aria-labelledby="period-label filter-month">Месяц</button>
+                            <button class="btn btn-sm btn-outline" id="filter-year" data-period="year" onclick="updatePeriod('year')" aria-pressed="false" aria-labelledby="period-label filter-year">Год</button>
+                            <button class="btn btn-sm btn-outline" id="filter-custom" data-period="custom" onclick="toggleCustomRange()" aria-pressed="false" aria-labelledby="period-label filter-custom">Произвольный</button>
+                        </div>
                     </div>
+
+                    <!-- Custom Range Picker (hidden by default) -->
+                    <div id="custom-range-container" class="flex flex-wrap items-center gap-2" style="display: none;">
+                        <input type="text" id="date-from" class="input input-sm input-bordered w-32" placeholder="ДД.ММ.ГГГГ" readonly>
+                        <span class="text-sm">—</span>
+                        <input type="text" id="date-to" class="input input-sm input-bordered w-32" placeholder="ДД.ММ.ГГГГ" readonly>
+                        <button class="btn btn-sm btn-primary" onclick="applyCustomRange()">Применить</button>
+                        <button class="btn btn-sm btn-ghost" onclick="cancelCustomRange()">Отмена</button>
+                    </div>
+
+                    <!-- Period Display Text -->
+                    <div id="period-display" class="text-sm text-base-content/70"></div>
                 </div>
             </div>
         </div>
 
         <!-- Charts Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Plan vs Fact Chart -->
-            <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-planfact">
+            <!-- Plan vs Fact Chart (Full Width) -->
+            <div class="card bg-base-100 shadow-lg col-span-full" aria-labelledby="chart-title-planfact">
                 <div class="card-body p-3">
                     <h2 id="chart-title-planfact" class="card-title text-base mb-1">📊 План vs Факт</h2>
                     <div class="flex items-center gap-3 mb-1" role="group" aria-label="Выбор типа категорий для плана">
@@ -82,23 +101,14 @@
             <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-pie">
                 <div class="card-body p-3">
                     <h2 id="chart-title-pie" class="card-title text-base mb-1">🥧 Разбивка по категориям</h2>
-                    <div class="flex flex-wrap items-center gap-3 mb-1">
-                        <div class="flex items-center gap-2" role="group" aria-label="Выбор типа категорий">
-                            <label id="pie-type-label" class="label-text font-semibold">Тип:</label>
-                            <div class="btn-group">
-                                <button class="btn btn-sm btn-primary" id="pie-expense" onclick="updatePieType('expense')" aria-pressed="true" aria-labelledby="pie-type-label pie-expense">Расходы</button>
-                                <button class="btn btn-sm btn-outline" id="pie-income" onclick="updatePieType('income')" aria-pressed="false" aria-labelledby="pie-type-label pie-income">Доходы</button>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2" role="group" aria-label="Выбор типа данных для разбивки">
-                            <label id="pie-recordtype-label" class="label-text font-semibold">Данные:</label>
-                            <div class="btn-group">
-                                <button class="btn btn-sm btn-primary" id="pie-fact" onclick="updatePieRecordType('fact')" aria-pressed="true" aria-labelledby="pie-recordtype-label pie-fact">Факт</button>
-                                <button class="btn btn-sm btn-outline" id="pie-plan" onclick="updatePieRecordType('plan')" aria-pressed="false" aria-labelledby="pie-recordtype-label pie-plan">План</button>
-                            </div>
+                    <div class="flex items-center gap-3 mb-1" role="group" aria-label="Выбор типа категорий">
+                        <label id="pie-type-label" class="label-text font-semibold">Тип:</label>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-primary" id="pie-expense" onclick="updatePieType('expense')" aria-pressed="true" aria-labelledby="pie-type-label pie-expense">Расходы</button>
+                            <button class="btn btn-sm btn-outline" id="pie-income" onclick="updatePieType('income')" aria-pressed="false" aria-labelledby="pie-type-label pie-income">Доходы</button>
                         </div>
                     </div>
-                    <div id="chart-pie" class="chart-container" role="img" aria-label="Круговая диаграмма разбивки расходов по категориям"></div>
+                    <div id="chart-pie" class="chart-container" role="img" aria-label="Круговая диаграмма разбивки фактических расходов по категориям"></div>
                 </div>
             </div>
 
@@ -116,9 +126,9 @@
             </div>
 
             <!-- Heatmap Chart -->
-            <div class="card bg-base-100 shadow-lg col-span-full" aria-labelledby="chart-title-heatmap">
+            <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-heatmap">
                 <div class="card-body p-3">
-                    <h2 id="chart-title-heatmap" class="card-title text-base mb-1">🔥 Тепловая карта расходов</h2>
+                    <h2 id="chart-title-heatmap" class="card-title text-base mb-1">🔥 Тепловая карта</h2>
                     <div class="flex items-center gap-3 mb-1" role="group" aria-label="Выбор типа категорий для тепловой карты">
                         <label id="heatmap-type-label" class="label-text font-semibold">Тип:</label>
                         <div class="btn-group">
@@ -126,7 +136,7 @@
                             <button class="btn btn-sm btn-outline" id="heatmap-income" onclick="updateHeatmapType('income')" aria-pressed="false" aria-labelledby="heatmap-type-label heatmap-income">Доходы</button>
                         </div>
                     </div>
-                    <div id="chart-heatmap" class="chart-container" role="img" aria-label="Тепловая карта паттернов расходов по дням недели"></div>
+                    <div id="chart-heatmap" class="chart-container" role="img" aria-label="Тепловая карта паттернов транзакций по дням недели"></div>
                 </div>
             </div>
         </div>
@@ -149,8 +159,13 @@ let waterfallCategoriesData = [];
 
 // Local filter states
 let currentPlanFactType = 'expense';
-let currentPieRecordType = 'fact';
 let currentHeatmapType = 'expense';
+
+// Custom date range state
+let customRangeActive = false;
+let customDateFrom = null;
+let customDateTo = null;
+let rangePicker = null;
 
 // Period mapping for different chart types
 // Maps global period selection to appropriate period for each chart type
@@ -180,8 +195,24 @@ const periodMapping = {
 
 // Initialize charts on page load
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize CalendarWidget for custom date range
+    if (typeof CalendarWidget !== 'undefined') {
+        rangePicker = new CalendarWidget({
+            startInputElement: document.getElementById('date-from'),
+            endInputElement: document.getElementById('date-to'),
+            mode: 'range',
+            onSelect: (startDate, endDate) => {
+                customDateFrom = startDate;  // DD.MM.YYYY format
+                customDateTo = endDate;
+            }
+        });
+    }
+
     // Use period mapping for initial load (default: week)
     const mapping = periodMapping['week'];
+
+    // Update period display text
+    updatePeriodDisplay('week');
 
     initPlanFactChart();
     loadPlanFactData(mapping.planFact);
@@ -337,9 +368,10 @@ function updatePlanFactChart(data) {
 // Update period filter (applies to ALL charts)
 function updatePeriod(period) {
     currentPeriod = period;
+    customRangeActive = false;  // Deactivate custom range
 
     // Update active button (DaisyUI btn-group)
-    document.querySelectorAll('#filter-week, #filter-month, #filter-year').forEach(btn => {
+    document.querySelectorAll('#filter-week, #filter-month, #filter-year, #filter-custom').forEach(btn => {
         btn.classList.remove('btn-primary');
         btn.classList.add('btn-outline');
         btn.setAttribute('aria-pressed', 'false');
@@ -348,6 +380,12 @@ function updatePeriod(period) {
     activeBtn.classList.remove('btn-outline');
     activeBtn.classList.add('btn-primary');
     activeBtn.setAttribute('aria-pressed', 'true');
+
+    // Hide custom range container
+    document.getElementById('custom-range-container').style.display = 'none';
+
+    // Update period display text
+    updatePeriodDisplay(period);
 
     // Get period mapping for current global period
     const mapping = periodMapping[period];
@@ -358,6 +396,123 @@ function updatePeriod(period) {
     loadPieData(currentPieType, mapping.pie);
     loadWaterfallData(mapping.waterfall, currentWaterfallArticleId);
     loadHeatmapData(mapping.heatmap);
+}
+
+// Update period display text
+function updatePeriodDisplay(period, dateFrom = null, dateTo = null) {
+    const displayEl = document.getElementById('period-display');
+    if (!displayEl) return;
+
+    let text = '';
+    if (dateFrom && dateTo) {
+        text = `Выбран период: ${dateFrom} — ${dateTo}`;
+    } else {
+        const today = new Date();
+        const formatDate = (date) => {
+            const d = String(date.getDate()).padStart(2, '0');
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const y = date.getFullYear();
+            return `${d}.${m}.${y}`;
+        };
+
+        switch (period) {
+            case 'week':
+                const weekStart = new Date(today);
+                weekStart.setDate(today.getDate() - 6);
+                text = `Выбрана неделя: ${formatDate(weekStart)} — ${formatDate(today)}`;
+                break;
+            case 'month':
+                const monthStart = new Date(today);
+                monthStart.setDate(today.getDate() - 27);
+                text = `Выбран месяц: ${formatDate(monthStart)} — ${formatDate(today)}`;
+                break;
+            case 'year':
+                const yearStart = new Date(today);
+                yearStart.setDate(today.getDate() - 364);
+                text = `Выбран год: ${formatDate(yearStart)} — ${formatDate(today)}`;
+                break;
+        }
+    }
+
+    displayEl.textContent = text;
+}
+
+// Toggle custom range picker visibility
+function toggleCustomRange() {
+    const container = document.getElementById('custom-range-container');
+    const customBtn = document.getElementById('filter-custom');
+
+    if (container.style.display === 'none') {
+        // Show custom range
+        container.style.display = 'flex';
+        customBtn.classList.remove('btn-outline');
+        customBtn.classList.add('btn-primary');
+        customBtn.setAttribute('aria-pressed', 'true');
+
+        // Deactivate other buttons
+        document.querySelectorAll('#filter-week, #filter-month, #filter-year').forEach(btn => {
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-outline');
+            btn.setAttribute('aria-pressed', 'false');
+        });
+    } else {
+        cancelCustomRange();
+    }
+}
+
+// Apply custom date range
+function applyCustomRange() {
+    if (!customDateFrom || !customDateTo) {
+        alert('Пожалуйста, выберите диапазон дат');
+        return;
+    }
+
+    customRangeActive = true;
+
+    // Update period display
+    updatePeriodDisplay(null, customDateFrom, customDateTo);
+
+    // Convert DD.MM.YYYY to YYYY-MM-DD for API
+    const toISODate = (ruDate) => {
+        if (typeof DateFormatter !== 'undefined' && DateFormatter.toISODate) {
+            return DateFormatter.toISODate(DateFormatter.parseRuDate(ruDate));
+        }
+        // Fallback manual conversion
+        const [day, month, year] = ruDate.split('.');
+        return `${year}-${month}-${day}`;
+    };
+
+    const isoFrom = toISODate(customDateFrom);
+    const isoTo = toISODate(customDateTo);
+
+    // Reload all charts with custom dates
+    loadPlanFactDataCustom(isoFrom, isoTo);
+    loadTrendsDataCustom(isoFrom, isoTo);
+    loadPieDataCustom(currentPieType, isoFrom, isoTo);
+    loadWaterfallDataCustom(isoFrom, isoTo);
+    loadHeatmapDataCustom(isoFrom, isoTo);
+}
+
+// Cancel custom range selection
+function cancelCustomRange() {
+    const container = document.getElementById('custom-range-container');
+    const customBtn = document.getElementById('filter-custom');
+
+    container.style.display = 'none';
+    customBtn.classList.remove('btn-primary');
+    customBtn.classList.add('btn-outline');
+    customBtn.setAttribute('aria-pressed', 'false');
+
+    customRangeActive = false;
+    customDateFrom = null;
+    customDateTo = null;
+
+    // Clear inputs
+    document.getElementById('date-from').value = '';
+    document.getElementById('date-to').value = '';
+
+    // Revert to default period (week)
+    updatePeriod('week');
 }
 
 // Initialize Trends chart
@@ -533,7 +688,7 @@ function initPieChart() {
 // Load Pie chart data from API
 async function loadPieData(type, period) {
     try {
-        const response = await fetch(`/api/v1/analytics/category-breakdown?type=${type}&period=${period}&record_type=${currentPieRecordType}`);
+        const response = await fetch(`/api/v1/analytics/category-breakdown?type=${type}&period=${period}&record_type=fact`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -714,25 +869,6 @@ function updatePieType(type) {
 
     // Reload chart data
     loadPieData(type, currentPeriod);
-}
-
-// Update pie record type filter
-function updatePieRecordType(recordType) {
-    currentPieRecordType = recordType;
-
-    // Update active button and ARIA states
-    document.querySelectorAll('#pie-fact, #pie-plan').forEach(btn => {
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-outline');
-        btn.setAttribute('aria-pressed', 'false');
-    });
-    const activeBtn = document.getElementById(`pie-${recordType}`);
-    activeBtn.classList.remove('btn-outline');
-    activeBtn.classList.add('btn-primary');
-    activeBtn.setAttribute('aria-pressed', 'true');
-
-    // Reload chart data
-    loadPieData(currentPieType, periodMapping[currentPeriod].pie);
 }
 
 // Update Plan vs Fact article type filter
@@ -1154,7 +1290,7 @@ function updateHeatmapChart(data) {
 
     const option = {
         title: {
-            text: `Тепловая карта ${typeLabel} (${periodLabel})`,
+            text: `Тепловая карта (${periodLabel})`,
             subtext: `${data.start_date} — ${data.end_date}`,
             left: 'center',
             textStyle: {
@@ -1208,7 +1344,10 @@ function updateHeatmapChart(data) {
             left: 'center',
             bottom: '0%',
             inRange: {
-                color: ['#eef5ee', '#c8e6c9', '#81c784', '#4caf50', '#388e3c', '#2e7d32']
+                // Red shades for expenses, green shades for income
+                color: currentHeatmapType === 'expense'
+                    ? ['#ffebee', '#ffcdd2', '#ef9a9a', '#e57373', '#ef5350', '#f44336']
+                    : ['#eef5ee', '#c8e6c9', '#81c784', '#4caf50', '#388e3c', '#2e7d32']
             },
             text: ['Высокий', 'Низкий'],
             textStyle: {
@@ -1309,6 +1448,73 @@ document.addEventListener('DOMContentLoaded', function() {
     // Wait for charts to initialize
     setTimeout(setupChartResizeObserver, 500);
 });
+
+// ============================================================================
+// Custom Date Range Loading Functions
+// ============================================================================
+
+async function loadPlanFactDataCustom(dateFrom, dateTo) {
+    try {
+        const response = await fetch(`/api/v1/analytics/plan-fact?date_from=${dateFrom}&date_to=${dateTo}&article_type=${currentPlanFactType}`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        updatePlanFactChart(data);
+    } catch (error) {
+        console.error('Error loading plan-fact data:', error);
+        planFactChart.hideLoading();
+    }
+}
+
+async function loadTrendsDataCustom(dateFrom, dateTo) {
+    try {
+        const response = await fetch(`/api/v1/analytics/trends?date_from=${dateFrom}&date_to=${dateTo}&record_type=fact`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        updateTrendsChart(data);
+    } catch (error) {
+        console.error('Error loading trends data:', error);
+        trendsChart.hideLoading();
+    }
+}
+
+async function loadPieDataCustom(type, dateFrom, dateTo) {
+    try {
+        const response = await fetch(`/api/v1/analytics/category-breakdown?type=${type}&date_from=${dateFrom}&date_to=${dateTo}&record_type=fact`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        updatePieChart(data);
+    } catch (error) {
+        console.error('Error loading pie chart data:', error);
+        pieChart.hideLoading();
+    }
+}
+
+async function loadWaterfallDataCustom(dateFrom, dateTo, articleId = null) {
+    try {
+        let url = `/api/v1/analytics/waterfall?date_from=${dateFrom}&date_to=${dateTo}`;
+        if (articleId) url += `&article_id=${articleId}`;
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        updateWaterfallChart(data);
+    } catch (error) {
+        console.error('Error loading waterfall data:', error);
+        waterfallChart.hideLoading();
+    }
+}
+
+async function loadHeatmapDataCustom(dateFrom, dateTo) {
+    try {
+        const response = await fetch(`/api/v1/analytics/heatmap?date_from=${dateFrom}&date_to=${dateTo}&article_type=${currentHeatmapType}&record_type=fact`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        updateHeatmapChart(data);
+    } catch (error) {
+        console.error('Error loading heatmap data:', error);
+        heatmapChart.hideLoading();
+    }
+}
 
 // ============================================================================
 // Export Functions

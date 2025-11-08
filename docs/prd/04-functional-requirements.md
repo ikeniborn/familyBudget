@@ -974,4 +974,182 @@ let currentHeatmapRecordType = 'fact';
 
 ---
 
+### 4.11 Analytics UI/UX Refactoring (v5.1.2 - COMPLETED ✅)
+
+**Date:** 2025-11-08
+**Branch:** `feature/analytics-refactoring`
+**Status:** ✅ COMPLETED
+
+#### Summary
+
+Комплексный рефакторинг страницы `/analytics` с упрощением фильтров, улучшением UX и добавлением поддержки произвольных диапазонов дат. Основная цель - сделать интерфейс более интуитивным и гибким для пользователей.
+
+#### Ключевые изменения
+
+##### 1. Rolling Periods (Сдвигаемые периоды)
+
+**Изменение логики периодов:**
+- **Старая логика:** Календарные периоды (неделя = текущая неделя с Пн по Вс)
+- **Новая логика:** Сдвигаемые периоды от текущей даты
+  - `week` = последние 7 дней (сегодня - 6 дней)
+  - `month` = последние 28 дней (4 недели)
+  - `year` = последние 365 дней (12 месяцев)
+
+**Backend изменения:**
+- Обновлены все 5 analytics endpoints:
+  - `/api/v1/analytics/plan-fact`
+  - `/api/v1/analytics/trends`
+  - `/api/v1/analytics/category-breakdown`
+  - `/api/v1/analytics/waterfall`
+  - `/api/v1/analytics/heatmap`
+
+##### 2. Custom Date Range (Произвольный диапазон)
+
+**Новый функционал:**
+- Кнопка "Произвольный" в фильтре периодов
+- Интеграция с существующим `CalendarWidget` (range picker mode)
+- Конвертация между форматами DD.MM.YYYY ↔ YYYY-MM-DD через `DateFormatter`
+- Текстовое отображение выбранного периода
+
+**Backend API:**
+- Добавлены опциональные параметры `date_from` и `date_to` (YYYY-MM-DD) во все endpoints
+- Приоритет: custom range > period parameter
+- Автоматическое определение группировки данных на основе длины диапазона
+
+**Frontend UI:**
+```html
+<div id="custom-range-container" style="display: none;">
+    <input type="text" id="date-from" readonly>
+    <span>—</span>
+    <input type="text" id="date-to" readonly>
+    <button onclick="applyCustomRange()">Применить</button>
+    <button onclick="cancelCustomRange()">Отмена</button>
+</div>
+<div id="period-display" class="text-sm">Период: последние 7 дней (02.11.2025 — 08.11.2025)</div>
+```
+
+##### 3. Упрощение фильтров Факт/План
+
+**Изменения:**
+- **Удалены** фильтры Факт/План из всех графиков кроме "План vs Факт"
+- Все остальные графики теперь показывают **только фактические данные**
+- Hardcoded `record_type=fact` в API запросах для:
+  - Динамика расходов (Trends)
+  - Разбивка по категориям (Pie Chart)
+  - Каскадная диаграмма (Waterfall)
+  - Тепловая карта (Heatmap)
+
+**Удалённые переменные и функции:**
+```javascript
+// Удалено:
+let currentPieRecordType = 'fact';
+let currentTrendsRecordType = 'fact';
+let currentHeatmapRecordType = 'fact';
+function updatePieRecordType(recordType) { ... }
+function updateTrendsRecordType(recordType) { ... }
+function updateHeatmapRecordType(recordType) { ... }
+```
+
+**Обоснование:**
+- Упрощение UI - меньше кнопок и опций
+- План vs Факт имеет свой отдельный график для сравнения
+- Для остальных графиков факт - наиболее важные данные
+
+##### 4. Изменения Grid Layout
+
+**Новая структура:**
+- План vs Факт: `col-span-full` (full width at top)
+- Остальные 4 графика: `grid-cols-1 lg:grid-cols-2` (2x2 grid на lg+ экранах)
+
+**Mobile responsive:**
+- Mobile/Tablet: все графики в 1 колонку
+- Desktop (lg+): План-Факт full width, остальные 2x2
+
+##### 5. Heatmap Improvements
+
+**Изменения:**
+- Заголовок: "Тепловая карта расходов/доходов" → "Тепловая карта"
+- Динамическая цветовая схема:
+  - **Расходы (expense):** красные оттенки (#ffebee → #f44336)
+  - **Доходы (income):** зеленые оттенки (#eef5ee → #2e7d32)
+
+**Implementation:**
+```javascript
+visualMap: {
+    inRange: {
+        color: currentHeatmapType === 'expense'
+            ? ['#ffebee', '#ffcdd2', '#ef9a9a', '#e57373', '#ef5350', '#f44336']
+            : ['#eef5ee', '#c8e6c9', '#81c784', '#4caf50', '#388e3c', '#2e7d32']
+    }
+}
+```
+
+#### API Changes
+
+**Все endpoints теперь поддерживают:**
+
+1. **Опциональные параметры period OR custom range:**
+   - `period`: `"week"` | `"month"` | `"year"` (optional)
+   - `date_from`: `YYYY-MM-DD` (optional)
+   - `date_to`: `YYYY-MM-DD` (optional)
+
+2. **Приоритет параметров:**
+   - Если `date_from` и `date_to` указаны → используется custom range
+   - Иначе если `period` указан → используется rolling period
+   - Иначе → ошибка 400
+
+3. **Обратная совместимость:**
+   - Старые запросы с только `period` продолжают работать
+   - Новые запросы могут использовать custom range
+
+#### Frontend Architecture
+
+**Новые функции загрузки данных:**
+```javascript
+// Custom range loaders (5 functions):
+async function loadPlanFactDataCustom(dateFrom, dateTo) { ... }
+async function loadTrendsDataCustom(dateFrom, dateTo) { ... }
+async function loadPieDataCustom(type, dateFrom, dateTo) { ... }
+async function loadWaterfallDataCustom(dateFrom, dateTo) { ... }
+async function loadHeatmapDataCustom(dateFrom, dateTo) { ... }
+
+// Period display:
+function updatePeriodDisplay(period) {
+    // Shows: "Период: последние 7 дней (02.11.2025 — 08.11.2025)"
+}
+```
+
+**State management:**
+```javascript
+let customRangeActive = false;
+let customDateFrom = null;  // DD.MM.YYYY
+let customDateTo = null;
+let rangePicker = null;  // CalendarWidget instance
+```
+
+#### Files Changed
+
+**Backend:**
+- `backend/app/api/v1/analytics.py` (+240/-108 lines)
+  - 5 endpoints обновлены с поддержкой rolling periods и custom ranges
+
+**Frontend:**
+- `frontend/web/templates/analytics.html` (extensive changes)
+  - HTML: кнопка "Произвольный", custom range picker UI, period display
+  - JavaScript: custom range logic, удалены факт/план фильтры, heatmap colors
+  - Grid layout: Plan-Fact full width, остальные 2x2
+
+**Documentation:**
+- `docs/prd/04-functional-requirements.md` (этот файл)
+- `docs/prd/08-ui-design.md` (обновлено)
+
+#### Testing Notes
+
+- ✅ Python syntax проверен через `python3 -m py_compile`
+- ✅ JavaScript syntax проверен вручную (нет ссылок на удаленные переменные/функции)
+- ✅ Все изменения обратно совместимы (default values для новых параметров)
+- ⚠️ Manual testing recommended: custom range picker, period display, heatmap colors
+
+---
+
 

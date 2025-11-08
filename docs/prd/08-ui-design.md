@@ -324,6 +324,127 @@ const option = {
 };
 ```
 
+#### 8.3.1 Analytics Page Refactoring (v5.1.2 - 2025-11-08)
+
+**Changes Overview:**
+- Упрощены фильтры (удалены Факт/План кроме План vs Факт)
+- Добавлен Custom Date Range picker
+- Изменен grid layout (План-Факт full width, остальные 2x2)
+- Обновлена heatmap (заголовок + динамические цвета)
+
+##### Period Filter with Custom Range
+
+```html
+<div class="flex flex-col gap-3">
+    <!-- Period buttons -->
+    <div class="flex flex-wrap items-center gap-3">
+        <label id="period-label" class="font-semibold text-sm">Период (для всех графиков):</label>
+        <div class="btn-group">
+            <button class="btn btn-sm btn-primary" id="filter-week" onclick="updatePeriod('week')">Неделя</button>
+            <button class="btn btn-sm btn-outline" id="filter-month" onclick="updatePeriod('month')">Месяц</button>
+            <button class="btn btn-sm btn-outline" id="filter-year" onclick="updatePeriod('year')">Год</button>
+            <button class="btn btn-sm btn-outline" id="filter-custom" onclick="toggleCustomRange()">Произвольный</button>
+        </div>
+    </div>
+
+    <!-- Custom range picker (hidden by default) -->
+    <div id="custom-range-container" class="flex flex-wrap items-center gap-2" style="display: none;">
+        <input type="text" id="date-from" class="input input-sm input-bordered w-32" placeholder="ДД.ММ.ГГГГ" readonly>
+        <span class="text-sm">—</span>
+        <input type="text" id="date-to" class="input input-sm input-bordered w-32" placeholder="ДД.ММ.ГГГГ" readonly>
+        <button class="btn btn-sm btn-primary" onclick="applyCustomRange()">Применить</button>
+        <button class="btn btn-sm btn-ghost" onclick="cancelCustomRange()">Отмена</button>
+    </div>
+
+    <!-- Period display text -->
+    <div id="period-display" class="text-sm text-base-content/70">
+        Период: последние 7 дней (02.11.2025 — 08.11.2025)
+    </div>
+</div>
+```
+
+##### Grid Layout Structure
+
+**Updated layout (2025-11-08):**
+
+```html
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Plan vs Fact Chart (Full Width) -->
+    <div class="card bg-base-100 shadow-lg col-span-full">
+        <div class="card-body p-3">
+            <h2 class="card-title text-base mb-1">📊 План vs Факт</h2>
+            <!-- Фильтр типа категории (Расходы/Доходы) -->
+            <div id="chart-plan-fact" class="chart-container"></div>
+        </div>
+    </div>
+
+    <!-- Trends Chart (2x2 grid item) -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body p-3">
+            <h2 class="card-title text-base mb-1">📈 Динамика расходов</h2>
+            <!-- NO Факт/План filter - only shows fact data -->
+            <div id="chart-trends" class="chart-container"></div>
+        </div>
+    </div>
+
+    <!-- Category Breakdown Chart (2x2 grid item) -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body p-3">
+            <h2 class="card-title text-base mb-1">🥧 Разбивка по категориям</h2>
+            <!-- Фильтр типа (Расходы/Доходы) -->
+            <!-- NO Факт/План filter - only shows fact data -->
+            <div id="chart-pie" class="chart-container"></div>
+        </div>
+    </div>
+
+    <!-- Waterfall Chart (2x2 grid item) -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body p-3">
+            <h2 class="card-title text-base mb-1">💧 Каскадная диаграмма</h2>
+            <div id="chart-waterfall" class="chart-container"></div>
+        </div>
+    </div>
+
+    <!-- Heatmap Chart (2x2 grid item) -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body p-3">
+            <h2 class="card-title text-base mb-1">🔥 Тепловая карта</h2>
+            <!-- Фильтр типа (Расходы/Доходы) -->
+            <!-- NO Факт/План filter - only shows fact data -->
+            <div id="chart-heatmap" class="chart-container"></div>
+        </div>
+    </div>
+</div>
+```
+
+**Responsive behavior:**
+- **Mobile/Tablet (< lg):** All charts stacked in 1 column
+- **Desktop (lg+):** Plan-Fact full width, остальные 4 графика в 2x2 grid
+
+##### Heatmap Color Scheme
+
+**Updated implementation (2025-11-08):**
+
+```javascript
+// Dynamic color scheme based on article_type
+const heatmapOption = {
+    visualMap: {
+        min: 0,
+        max: maxValue,
+        inRange: {
+            // Red shades for expenses, green shades for income
+            color: currentHeatmapType === 'expense'
+                ? ['#ffebee', '#ffcdd2', '#ef9a9a', '#e57373', '#ef5350', '#f44336']
+                : ['#eef5ee', '#c8e6c9', '#81c784', '#4caf50', '#388e3c', '#2e7d32']
+        }
+    }
+};
+```
+
+**Цветовая логика:**
+- **Расходы (expense):** Красные оттенки от светло-розового (#ffebee) до темно-красного (#f44336)
+- **Доходы (income):** Зеленые оттенки от светло-зеленого (#eef5ee) до темно-зеленого (#2e7d32)
+
 ### 8.4 HTMX Integration Patterns
 
 **Pattern 1: hx-get для partial update**
