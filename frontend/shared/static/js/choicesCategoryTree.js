@@ -138,7 +138,15 @@ class ChoicesCategoryTree {
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to load categories: ${response.status}`);
+            // Graceful degradation for 401 Unauthorized (user not authenticated)
+            if (response.status === 401) {
+                console.log('[ChoicesCategoryTree] User not authenticated - categories not loaded (this is expected for unauthenticated users)');
+                this.categories = [];  // Empty categories array
+                return;  // Silent fail - don't throw error
+            }
+
+            // For other errors, throw with detailed status
+            throw new Error(`Failed to load categories: HTTP ${response.status} ${response.statusText}`);
         }
 
         const data = await response.json();
@@ -336,7 +344,14 @@ class ChoicesCategoryTree {
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to load ancestors: ${response.status}`);
+            // Graceful degradation for 401 Unauthorized (user not authenticated)
+            if (response.status === 401) {
+                console.log('[ChoicesCategoryTree] User not authenticated - ancestors not loaded');
+                return [];  // Empty path array
+            }
+
+            // For other errors, throw with detailed status
+            throw new Error(`Failed to load ancestors: HTTP ${response.status} ${response.statusText}`);
         }
 
         const data = await response.json();
