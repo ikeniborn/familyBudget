@@ -26,6 +26,12 @@
 
 set -uo pipefail  # Removed -e flag to allow graceful error handling
 
+# Prefer isolated npm environment if exists
+# This ensures npx finds binaries in .npm-isolated/node_modules/.bin
+if [[ -d ".npm-isolated/node_modules/.bin" ]]; then
+    export PATH="$PWD/.npm-isolated/node_modules/.bin:$PATH"
+fi
+
 # Colors for output
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
