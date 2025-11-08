@@ -376,7 +376,9 @@ main() {
     echo ""
 
     # Minify static assets (JS and CSS) for production
+    echo ""
     print_message info "Minifying static assets..."
+    echo ""
     cd "/opt/budget" || error_return "Failed to cd to /opt/budget"
 
     # Fix permissions before build (prevent EACCES errors)
@@ -389,24 +391,27 @@ main() {
     # - Kill ALL npm processes (not just specific patterns)
     # - Prevents zombie process accumulation from interrupted builds
     # - No timeout needed if we aggressively cleanup before starting
+    echo ""
     print_message info "Cleaning up npm processes before build..."
 
-    # Kill ALL npm-related processes (aggressive cleanup)
-    sudo pkill -9 -f "npm" 2>/dev/null || true
-    sudo pkill -9 -f "terser" 2>/dev/null || true
-    sudo pkill -9 -f "postcss" 2>/dev/null || true
-    sudo pkill -9 -f "tailwindcss" 2>/dev/null || true
+    # Kill ALL npm-related processes (aggressive cleanup, suppress "Killed" messages)
+    sudo pkill -9 -f "npm" 2>&1 | grep -v "Killed" || true
+    sudo pkill -9 -f "terser" 2>&1 | grep -v "Killed" || true
+    sudo pkill -9 -f "postcss" 2>&1 | grep -v "Killed" || true
+    sudo pkill -9 -f "tailwindcss" 2>&1 | grep -v "Killed" || true
     sleep 2  # Give processes time to fully terminate
 
     # Verify cleanup
     local remaining=$(ps aux | grep -E "(npm|terser|postcss|tailwindcss)" | grep -v grep | wc -l)
     if [[ $remaining -eq 0 ]]; then
         print_message success "All npm processes cleaned up (0 remaining)"
+        echo ""
     else
         print_message warning "Some processes still running ($remaining), attempting force cleanup..."
-        sudo pkill -9 -f "node" 2>/dev/null || true  # Nuclear option
+        sudo pkill -9 -f "node" 2>&1 | grep -v "Killed" || true  # Nuclear option
         sleep 1
         print_message success "Force cleanup completed"
+        echo ""
     fi
 
     # Check that npm dependencies are installed in production isolated environment
@@ -464,6 +469,7 @@ main() {
                     build_allowed=false
                 else
                     print_message success "Tailwind CSS version validated: $installed_tailwind"
+                    echo ""
                 fi
             fi
         fi
@@ -473,6 +479,7 @@ main() {
     if [[ "$build_allowed" == true ]]; then
         # Validate npm environment comprehensively
         if ! bash scripts/lib/check_npm_env.sh "$PWD"; then
+            echo ""
             print_message error "npm environment validation failed"
             print_message error "Cannot proceed with deployment - critical packages missing"
             print_message error "Fix by running: cd ~/familyBudget && sudo ./install.sh"
@@ -482,17 +489,24 @@ main() {
         # Add isolated node_modules/.bin to PATH for npx
         export PATH="$node_modules_dir/.bin:$PATH"
 
+        echo ""
         if npm run build 2>&1; then
+            echo ""
             print_message success "Static assets built and minified successfully"
+            echo ""
         else
+            echo ""
             print_message warning "Build failed - check npm logs above"
             print_message warning "Continuing with existing/unminified assets"
+            echo ""
         fi
 
         # Restore PATH (remove isolated bin)
         export PATH="${PATH#$node_modules_dir/.bin:}"
     else
+        echo ""
         print_message warning "Minification skipped (build validation failed)"
+        echo ""
     fi
 
     cd - > /dev/null || error_return "Failed to return to previous directory"
