@@ -345,6 +345,11 @@ main() {
     print_message info "Minifying static assets..."
     cd "/opt/budget" || error_return "Failed to cd to /opt/budget"
 
+    # Fix permissions before build (prevent EACCES errors)
+    # IMPORTANT: Build process needs write access to frontend/ directory
+    print_message info "Ensuring correct permissions for build..."
+    sudo chown -R ikeniborn:ikeniborn /opt/budget/frontend /opt/budget/.npm-isolated 2>/dev/null || true
+
     # Clean up ALL npm-related processes before build (prevent zombie process buildup)
     # ARCHITECTURE IMPROVEMENT (2025-11-08):
     # - Kill ALL npm processes (not just specific patterns)
@@ -441,7 +446,7 @@ main() {
         fi
 
         # Add isolated node_modules/.bin to PATH for npx
-        export PATH="$PWD/$node_modules_dir/.bin:$PATH"
+        export PATH="$node_modules_dir/.bin:$PATH"
 
         if npm run build 2>&1; then
             print_message success "Static assets built and minified successfully"
@@ -451,7 +456,7 @@ main() {
         fi
 
         # Restore PATH (remove isolated bin)
-        export PATH="${PATH#$PWD/$node_modules_dir/.bin:}"
+        export PATH="${PATH#$node_modules_dir/.bin:}"
     else
         print_message warning "Minification skipped (build validation failed)"
     fi
