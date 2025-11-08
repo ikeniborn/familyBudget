@@ -904,39 +904,151 @@ webapp/static/js/
 
 ---
 
-## 📋 Development Mode (Database Migrations)
+## 📋 Database Management (ЖЕСТКИЕ ПРАВИЛА)
 
 **ТЕКУЩАЯ ФАЗА:** Development (v5.0.0-beta)
 
-### Правила работы с миграциями
+### Архитектура БД (2-tier system)
 
-✅ **РАЗРЕШЕНО:**
-- Прямое редактирование существующих миграций (001-012)
-- Изменение SQL в `backend/db/migrations/*.sql`
-- Изменение структуры таблиц
+```
+backend/db/
+├── schema/              # Tier 1: Base DDL (для полной переустановки)
+│   ├── 001_core_dimensions.sql     # Users, Articles, FinCenters, CostCenters
+│   ├── 002_core_facts.sql          # BudgetFacts + indexes
+│   ├── 003_core_hierarchy.sql      # ArticleHierarchy (Closure Table)
+│   ├── 004_core_triggers.sql       # Triggers (Hierarchy + SCD2)
+│   ├── 005_auth_tokens.sql         # RefreshTokens
+│   ├── 006_notifications.sql       # Notifications
+│   ├── 007_recommendations.sql     # RecommendedAmounts
+│   └── README.md
+│
+└── migrations/          # Tier 2: Alembic (для инкрементальных изменений)
+    ├── alembic.ini
+    ├── env.py
+    ├── script.py.mako
+    ├── versions/                   # Пока ПУСТО (до Production Mode)
+    └── README.md
+```
 
-❌ **ЗАПРЕЩЕНО:**
-- Создание новых миграций типа `014_update_xxx.sql`
-- Backward compatibility (БД накатывается с нуля)
+---
 
-**Workflow изменения БД:**
+### ⚠️ КРИТИЧНО: Процесс изменения БД
+
+#### Сценарий 1: Development Mode (СЕЙЧАС - до релиза v5.0.0)
+
+**Изменение существующей таблицы:**
+
 ```bash
-# 1. Изменить миграцию
-nano backend/db/migrations/011_create_notifications_table.sql
+# 1. Отредактировать файл в schema/
+nano backend/db/schema/001_core_dimensions.sql
 
-# 2. Обновить ПРД
-nano docs/prd/06-database-design.md
-
-# 3. Пересоздать БД для теста
+# 2. Пересоздать БД (ПОТЕРЯ ВСЕХ ДАННЫХ!)
 docker compose down -v && docker compose up -d
 
-# 4. Проверить что всё работает
+# 3. Проверить работоспособность
+curl http://localhost:8000/health
+
+# 4. Зафиксировать
+git add backend/db/schema/001_core_dimensions.sql
+git commit -m "refactor(schema): добавить колонку X в таблицу Y"
+```
+
+**Добавление новой таблицы:**
+
+```bash
+# 1. Создать новый файл
+nano backend/db/schema/008_new_feature.sql
+
+# 2. Пересоздать БД
+docker compose down -v && docker compose up -d
+
+# 3. Зафиксировать
+git add backend/db/schema/008_new_feature.sql
+git commit -m "feat(schema): добавить таблицу new_feature"
+```
+
+**ВАЖНО:**
+- ✅ Изменения идемпотентны (`IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`)
+- ✅ Можно редактировать существующие файлы schema/
+- ❌ НЕТ backward compatibility (БД пересоздается с нуля)
+- ❌ НЕ используйте Alembic в Development Mode!
+
+---
+
+#### Сценарий 2: Production Mode (ПОСЛЕ релиза v5.0.0)
+
+**Изменение схемы на живой БД:**
+
+```bash
+# 1. Создать миграцию Alembic
+alembic revision -m "add_user_preferences_table"
+
+# 2. Отредактировать миграцию
+nano backend/db/migrations/versions/20251108_001_add_user_preferences_table.py
+
+# Пример:
+def upgrade():
+    op.create_table('t_user_preferences',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('user_id', sa.Integer(), nullable=False),
+        sa.PrimaryKeyConstraint('id')
+    )
+
+def downgrade():
+    op.drop_table('t_user_preferences')
+
+# 3. Применить миграцию
+alembic upgrade head
+
+# 4. Проверить
+psql -c "SELECT * FROM alembic_version;"
+
+# 5. Зафиксировать
+git add backend/db/migrations/versions/20251108_001_add_user_preferences_table.py
+git commit -m "feat(migration): добавить таблицу user_preferences"
+```
+
+**ВАЖНО:**
+- ✅ Миграции версионированные (rollback возможен)
+- ✅ Применяются на живой БД
+- ❌ НЕ редактируй schema/ в Production Mode!
+
+---
+
+### Таблица принятия решений
+
+| Ситуация | Development Mode | Production Mode |
+|----------|------------------|-----------------|
+| **Изменить существующую таблицу** | ✅ Редактируй schema/ + пересоздай БД | ✅ Alembic migration |
+| **Добавить новую таблицу** | ✅ Новый файл в schema/ + пересоздай БД | ✅ Alembic migration |
+| **Добавить колонку** | ✅ ALTER в schema/ + пересоздай БД | ✅ Alembic migration |
+| **Изменить индекс** | ✅ Редактируй schema/ + пересоздай БД | ✅ Alembic migration |
+| **Исправить баг в триггере** | ✅ Редактируй schema/ + пересоздай БД | ✅ Alembic migration |
+
+---
+
+### Workflow переустановки БД (Development)
+
+```bash
+# Полная переустановка БД с потерей данных
+docker compose down -v && docker compose up -d
+
+# Проверка что все таблицы созданы
+docker compose exec postgres psql -U familybudget -d familybudget -c "\dt"
+
+# Проверка здоровья backend
 curl http://localhost:8000/health
 ```
 
-**Переход в production:**
-- После релиза → версионирование миграций (Alembic)
-- Alpha → Beta → Production
+---
+
+### Переход в Production Mode
+
+После релиза v5.0.0:
+1. ❌ **ЗАПРЕЩЕНО** редактировать файлы в `backend/db/schema/`
+2. ✅ **ТОЛЬКО** Alembic миграции в `backend/db/migrations/versions/`
+3. ✅ Rollback поддержка через `alembic downgrade`
+4. ✅ Версионирование в `alembic_version` table
 
 ---
 

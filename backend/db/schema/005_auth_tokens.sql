@@ -1,10 +1,16 @@
 -- ============================================================================
--- Migration: 012_create_refresh_tokens_table.sql
--- Description: Create refresh tokens table for JWT refresh token mechanism
--- Author: ClaudeCode Implementation System
--- Date: 2025-10-14
--- Task: EPIC-006: TASK-020 (JWT Refresh Token Mechanism)
+-- Schema DDL: 005_auth_tokens.sql
+-- Description: Refresh tokens for JWT authentication
+-- Version: 5.0.0 (Base Schema)
+-- Date: 2025-11-08
 -- ============================================================================
+--
+-- This file contains authentication tables:
+-- - t_refresh_token: JWT refresh tokens
+--
+-- DO NOT MODIFY in Production Mode - use Alembic migrations instead!
+-- ============================================================================
+
 
 -- ============================================================================
 -- TABLE: t_f_refresh_token

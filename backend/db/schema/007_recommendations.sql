@@ -1,12 +1,16 @@
 -- ============================================================================
--- Migration: 013_create_recommended_amounts_table.sql
--- Description: Create recommended amounts table for smart quick amount suggestions
--- Author: ClaudeCode Implementation System
--- Date: 2025-11-04
--- Task: Smart Amount Suggestions with K-means Clustering
+-- Schema DDL: 007_recommendations.sql
+-- Description: Smart amount recommendations (K-means clustering)
+-- Version: 5.0.0 (Base Schema)
+-- Date: 2025-11-08
+-- ============================================================================
+--
+-- This file contains recommendation tables:
+-- - t_recommended_amounts: Pre-computed smart amount suggestions
+--
+-- DO NOT MODIFY in Production Mode - use Alembic migrations instead!
 -- ============================================================================
 
--- ============================================================================
 -- TABLE: t_recommended_amounts
 -- Purpose: Store pre-calculated recommended amounts for quick selection buttons
 -- Algorithm: K-means clustering (4 clusters) on historical transaction data
