@@ -200,6 +200,37 @@ git checkout webapp  # Return to webapp branch
 
 ---
 
+## Troubleshooting
+
+### "tailwindcss: not found" during build
+
+**Problem:**
+```bash
+sh: 1: tailwindcss: not found
+```
+
+**Cause:** Direct `tailwindcss` command not in PATH (only in `node_modules/.bin/`)
+
+**Solution:** Use `npx tailwindcss` instead (automatically finds in node_modules)
+
+**Fixed in:** package.json lines 7-8
+```json
+"build:css": "npx tailwindcss -i ... -o ... --minify"
+"watch:css": "npx tailwindcss -i ... -o ... --watch"
+```
+
+### Verify build works
+
+```bash
+npm run build:css
+# Should output: "Done in ~1500ms"
+
+ls -lh frontend/web/static/css/vendor/tailwind-daisyui.min.css
+# Should be: ~108-114KB
+```
+
+---
+
 **Migration Status:** ✅ COMPLETE
 **Tested:** ✅ Unit tests passed
 **Ready for Merge:** ✅ YES
