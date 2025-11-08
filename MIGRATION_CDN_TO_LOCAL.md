@@ -279,6 +279,54 @@ cd ~/familyBudget
 - If deploy fails with "could not determine executable to run"
 - After Node.js version upgrade
 
+### "could not determine executable to run" with tailwindcss@4.x
+
+**Problem:**
+```bash
+npm error could not determine executable to run
+verbose pkgid tailwindcss@4.1.17
+```
+
+**Cause:** npm installed Tailwind CSS 4.x instead of 3.x due to version ranges
+
+**Why this happened:**
+- `package.json` had `"tailwindcss": "^3.4.0"`
+- Symbol `^` allows minor version updates
+- npm installed newer 4.x version (breaking changes!)
+- Tailwind CSS 4.x has completely different CLI API
+
+**Solution:** Pin exact versions (remove `^` and `~`)
+
+**Fixed in:** package.json lines 28-39
+```json
+"devDependencies": {
+  "tailwindcss": "3.4.15",  // ← Exact version, not ^3.4.0
+  "daisyui": "4.12.14",     // ← All versions pinned
+  "@tailwindcss/forms": "0.5.9",
+  ...
+}
+```
+
+**Why pin versions:**
+- **Predictability:** Same versions in dev/staging/production
+- **No surprises:** Breaking changes won't auto-install
+- **Reproducibility:** `npm install` always installs exact versions
+- **Production best practice:** Version ranges for libraries, exact versions for apps
+
+**Re-install after version fix:**
+```bash
+cd ~/familyBudget
+rm -rf node_modules package-lock.json
+npm install
+npm run build:css  # Should work now
+```
+
+**Verify correct version:**
+```bash
+npm list tailwindcss
+# Should show: tailwindcss@3.4.15 (not 4.x)
+```
+
 ---
 
 **Migration Status:** ✅ COMPLETE
