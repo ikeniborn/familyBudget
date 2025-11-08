@@ -1152,4 +1152,303 @@ let rangePicker = null;  // CalendarWidget instance
 
 ---
 
+### ⚡ Analytics Improvements v5.0.1-beta (2025-11-08)
+
+**Дата:** 2025-11-08
+**Статус:** ✅ COMPLETED
+**Commits:** `a7d07da7`, `d2e7c404`
+
+#### 1. Глобальный фильтр типа (Расходы/Доходы)
+
+**Проблема:**
+- Каждый график (Plan-Fact, Pie Chart, Heatmap) имел свой локальный фильтр
+- Пользователь должен был переключать фильтр 3 раза для каждого изменения
+- Несогласованное состояние фильтров между графиками
+
+**Решение:**
+- Создан единый глобальный фильтр под фильтром периодов
+- Применяется одновременно к: Plan-Fact, Category Breakdown (Pie), Heatmap
+- Удалены локальные фильтры из каждого графика
+
+**Implementation:**
+
+**HTML (frontend/web/templates/analytics.html):**
+```html
+<!-- Global Type Filter (applies to Plan-Fact, Pie Chart, Heatmap) -->
+<div class="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-base-300">
+    <label id="global-type-label" class="font-semibold text-sm">Тип (для графиков):</label>
+    <div class="btn-group">
+        <button class="btn btn-sm btn-primary" id="global-type-expense" onclick="updateGlobalType('expense')">Расходы</button>
+        <button class="btn btn-sm btn-outline" id="global-type-income" onclick="updateGlobalType('income')">Доходы</button>
+    </div>
+</div>
+```
+
+**JavaScript:**
+```javascript
+// Consolidated global type variable (replaces currentPlanFactType, currentHeatmapType)
+let currentGlobalType = 'expense';
+
+// New unified function (replaces 3 local update functions)
+function updateGlobalType(type) {
+    currentGlobalType = type;
+    currentPieType = type;  // Keep for Pie chart compatibility
+
+    // Update active button and ARIA states
+    document.querySelectorAll('#global-type-expense, #global-type-income').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+    const activeBtn = document.getElementById(`global-type-${type}`);
+    activeBtn.classList.remove('btn-outline');
+    activeBtn.classList.add('btn-primary');
+    activeBtn.setAttribute('aria-pressed', 'true');
+
+    // Reload charts that depend on global type filter
+    if (customRangeActive) {
+        const isoFrom = DateFormatter.toISO(customDateFrom);
+        const isoTo = DateFormatter.toISO(customDateTo);
+        loadPlanFactDataCustom(isoFrom, isoTo);
+        loadPieDataCustom(type, isoFrom, isoTo);
+        loadHeatmapDataCustom(isoFrom, isoTo);
+    } else {
+        loadPlanFactData(periodMapping[currentPeriod].planFact);
+        loadPieData(type, currentPeriod);
+        loadHeatmapData(periodMapping[currentPeriod].heatmap);
+    }
+}
+```
+
+**Удалены:**
+- 3 локальные функции: `updatePlanFactType()`, `updatePieType()`, `updateHeatmapType()`
+- 2 переменные: `currentPlanFactType`, `currentHeatmapType`
+- 3 блока HTML с локальными кнопками фильтра
+
+#### 2. Новая Grid Layout (Responsive 2-Column)
+
+**Проблема:**
+- Все графики были в одну колонку на больших экранах
+- Неэффективное использование горизонтального пространства
+- Plan-Fact занимал слишком много места
+
+**Решение:**
+- **Plan vs Fact + Trends (Динамика расходов):** side by side в одной строке (2 колонки на lg+ экранах)
+- **Pie Chart + Waterfall (Каскадная диаграмма):** side by side в одной строке (2 колонки на lg+ экранах)
+- **Heatmap (Тепловая карта):** в конце, full width (`col-span-full`)
+
+**Before:**
+```html
+<!-- All charts: col-span-full (full width) -->
+<div class="card bg-base-100 shadow-lg col-span-full">...</div>
+```
+
+**After:**
+```html
+<!-- Plan-Fact Chart (Left column) -->
+<div class="card bg-base-100 shadow-lg">...</div>
+
+<!-- Trends Chart (Right column) -->
+<div class="card bg-base-100 shadow-lg">...</div>
+
+<!-- Pie Chart (Left column) -->
+<div class="card bg-base-100 shadow-lg">...</div>
+
+<!-- Waterfall Chart (Right column) -->
+<div class="card bg-base-100 shadow-lg">...</div>
+
+<!-- Heatmap Chart (Full Width) -->
+<div class="card bg-base-100 shadow-lg col-span-full">...</div>
+```
+
+**CSS Grid:**
+```html
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+    <!-- Plan-Fact and Trends in row 1 -->
+    <!-- Pie and Waterfall in row 2 -->
+    <!-- Heatmap full width at bottom -->
+</div>
+```
+
+**Mobile Responsive:**
+- Mobile/Tablet: все графики в 1 колонку (grid-cols-1)
+- Desktop (lg+): 2 колонки для первых 4 графиков, Heatmap full width
+
+#### 3. Динамическая агрегация Heatmap по периоду
+
+**Проблема:**
+- Heatmap всегда агрегировал данные по неделям (days × weeks)
+- Для week period (7 дней) было избыточно показывать weeks
+- Для year period (365 дней) weeks было недостаточно детально
+
+**Решение:**
+- **Week period (7 дней):** агрегация по дням (horizontal, single row)
+- **Month period (28 дней):** агрегация по неделям (days × weeks) - без изменений
+- **Quarter period:** агрегация по неделям (days × weeks)
+- **Year period (365 дней):** агрегация по месяцам (days/weeks × months)
+- **Custom period:** auto-определение агрегации по количеству дней:
+  - ≤7 дней → daily aggregation (horizontal)
+  - 7-30 дней → weekly aggregation (days × weeks)
+  - >30 дней → monthly aggregation (weeks/days × months)
+
+**Backend Changes (backend/app/api/v1/analytics.py):**
+
+**Добавлен параметр aggregation:**
+```python
+# Determine aggregation type based on period or custom range
+if period == "week":
+    aggregation = "day"
+elif period == "month":
+    aggregation = "week"
+elif period == "quarter":
+    aggregation = "week"
+else:  # year
+    aggregation = "month"
+
+# For custom ranges, auto-determine
+if date_from and date_to:
+    days_diff = (end_date - start_date).days + 1
+    if days_diff <= 7:
+        aggregation = "day"
+    elif days_diff <= 30:
+        aggregation = "week"
+    else:
+        aggregation = "month"
+```
+
+**Новая структура ответа:**
+```python
+return {
+    "data": data,        # 2D array: [row][col] where row=yAxis, col=xAxis
+    "xAxis": xAxis,      # Labels for X-axis (horizontal)
+    "yAxis": yAxis,      # Labels for Y-axis (vertical)
+    "aggregation": aggregation,  # "day", "week", or "month"
+    "period": period,
+    "article_type": article_type,
+    "record_type": record_type,
+    "start_date": start_date.isoformat(),
+    "end_date": end_date.isoformat()
+}
+```
+
+**Старая структура (deprecated):**
+```python
+# REMOVED:
+{
+    "weeks": weeks_data,     # 2D array
+    "day_labels": [...],     # Fixed labels
+    "week_count": len(weeks_data)
+}
+```
+
+**Aggregation Examples:**
+
+1. **Daily aggregation (week period):**
+   - X-axis: ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+   - Y-axis: [""]  # Single row
+   - Data: [[mon_value], [tue_value], ..., [sun_value]]
+
+2. **Weekly aggregation (month period):**
+   - X-axis: ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+   - Y-axis: ["Н1", "Н2", "Н3", "Н4"]
+   - Data: [[week1_mon, week1_tue, ...], [week2_mon, ...], ...]
+
+3. **Monthly aggregation (year period):**
+   - X-axis: ["1", "2", "3", ..., "31"]  # Days of month
+   - Y-axis: ["Янв", "Фев", "Мар", ..., "Дек"]
+   - Data: [[jan_day1, jan_day2, ...], [feb_day1, ...], ...]
+
+**Frontend Changes (frontend/web/templates/analytics.html):**
+
+**Обновлена updateHeatmapChart() функция:**
+```javascript
+function updateHeatmapChart(data) {
+    // Transform data to ECharts format: [xIndex, yIndex, value]
+    const heatmapData = [];
+    data.data.forEach((row, yIndex) => {
+        row.forEach((value, xIndex) => {
+            heatmapData.push([xIndex, yIndex, value]);
+        });
+    });
+
+    // Dynamic chart height based on aggregation type
+    const rowHeight = data.aggregation === 'day' ? 80 : 30;
+    const dynamicHeight = Math.max(300, data.yAxis.length * rowHeight + 150);
+
+    // Dynamic title with aggregation info
+    const aggregationMap = {
+        day: 'по дням',
+        week: 'по неделям',
+        month: 'по месяцам'
+    };
+    const aggregationLabel = aggregationMap[data.aggregation] || '';
+
+    const option = {
+        title: {
+            text: `Тепловая карта (${periodLabel}, ${aggregationLabel})`,
+            ...
+        },
+        xAxis: {
+            data: data.xAxis,  // Dynamic labels
+            ...
+        },
+        yAxis: {
+            data: data.yAxis,  // Dynamic labels
+            ...
+        },
+        tooltip: {
+            formatter: function(params) {
+                const xLabel = data.xAxis[params.value[0]];
+                const yLabel = data.yAxis[params.value[1]];
+                const amount = params.value[2].toFixed(2);
+
+                // Dynamic tooltip based on aggregation
+                if (data.aggregation === 'day') {
+                    return `<strong>${xLabel}</strong><br/>${typeLabelSingular}: ${amount} ₽`;
+                } else if (data.aggregation === 'week') {
+                    return `<strong>${xLabel}, ${yLabel}</strong><br/>${typeLabelSingular}: ${amount} ₽`;
+                } else {
+                    return `<strong>${yLabel}, ${xLabel}</strong><br/>${typeLabelSingular}: ${amount} ₽`;
+                }
+            }
+        },
+        ...
+    };
+}
+```
+
+**Удалены:**
+- Hardcoded `data.day_labels` references
+- Fixed week labels generation
+- Static chart height calculation
+
+#### Files Changed
+
+**Backend:**
+- `backend/app/api/v1/analytics.py` (+133/-71 lines)
+  - Heatmap endpoint: добавлена динамическая агрегация по периоду
+  - Новая структура ответа (data/xAxis/yAxis/aggregation)
+
+**Frontend:**
+- `frontend/web/templates/analytics.html` (+44/-82 lines)
+  - HTML: добавлен глобальный фильтр типа, удалены локальные фильтры
+  - Grid layout: changed to 2-column responsive layout
+  - JavaScript: updateGlobalType() функция, обновлена updateHeatmapChart()
+
+**Documentation:**
+- `docs/prd/04-functional-requirements.md` (этот файл)
+
+#### Testing
+
+- ✅ Python syntax: `python3 -m py_compile backend/app/api/v1/analytics.py`
+- ✅ JavaScript syntax: node --check (extracted script block)
+- ✅ Git commits: `a7d07da7`, `d2e7c404`
+- ⚠️ Manual testing recommended:
+  - Глобальный фильтр типа применяется ко всем 3 графикам
+  - Heatmap агрегация меняется при переключении периодов
+  - Grid layout responsive на mobile/tablet/desktop
+  - Custom range mode работает с новой агрегацией
+
+---
+
 
