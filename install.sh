@@ -412,6 +412,87 @@ create_directories() {
     success "Template files initialized"
 }
 
+# Install Node.js and npm
+install_nodejs() {
+    info "Installing Node.js and npm..."
+
+    # Check if Node.js is already installed
+    if command_exists node; then
+        local node_version
+        node_version=$(node --version)
+        warning "Node.js is already installed (version: $node_version)"
+
+        # Check if version is >= 18.0.0
+        local major_version
+        major_version=$(echo "$node_version" | sed 's/v//' | cut -d. -f1)
+        if [[ "$major_version" -ge 18 ]]; then
+            info "Node.js version is sufficient (>= 18.x)"
+            return 0
+        else
+            warning "Node.js version is too old (< 18.x). Upgrading..."
+        fi
+    fi
+
+    # Remove old Node.js versions if any
+    info "Removing old Node.js versions..."
+    apt-get remove -y nodejs npm >> "$LOG_FILE" 2>&1 || true
+
+    # Install NodeSource repository (Node.js 20.x LTS)
+    info "Adding NodeSource repository for Node.js 20.x LTS..."
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >> "$LOG_FILE" 2>&1
+
+    # Install Node.js (includes npm)
+    info "Installing Node.js and npm..."
+    apt-get install -y nodejs >> "$LOG_FILE" 2>&1
+
+    # Verify installation
+    if command_exists node && command_exists npm; then
+        local node_version
+        local npm_version
+        node_version=$(node --version)
+        npm_version=$(npm --version)
+        success "Node.js installed successfully (version: $node_version)"
+        success "npm installed successfully (version: $npm_version)"
+    else
+        error "Node.js/npm installation failed"
+    fi
+}
+
+# Install npm dependencies for the project
+install_npm_dependencies() {
+    info "Installing npm dependencies for Family Budget project..."
+
+    # Get the username for ownership
+    local username="${SUDO_USER:-$USER}"
+
+    # Change to repository directory
+    cd "$REPO_DIR" || error "Failed to cd to repository directory: $REPO_DIR"
+
+    # Check if package.json exists
+    if [[ ! -f "package.json" ]]; then
+        warning "package.json not found in $REPO_DIR - skipping npm dependencies"
+        return 0
+    fi
+
+    # Install dependencies as the non-root user (important for permissions)
+    if [[ "$username" != "root" ]]; then
+        info "Installing npm packages as user '$username'..."
+        su - "$username" -c "cd $REPO_DIR && npm install" >> "$LOG_FILE" 2>&1
+    else
+        warning "Running as root - installing npm packages as root (not recommended)"
+        npm install >> "$LOG_FILE" 2>&1
+    fi
+
+    # Verify node_modules exists
+    if [[ -d "$REPO_DIR/node_modules" ]]; then
+        local package_count
+        package_count=$(find "$REPO_DIR/node_modules" -maxdepth 1 -type d | wc -l)
+        success "npm dependencies installed ($package_count packages in node_modules)"
+    else
+        error "npm install failed - node_modules not found"
+    fi
+}
+
 # Test Docker installation
 test_docker() {
     info "Testing Docker installation..."
@@ -437,6 +518,8 @@ print_summary() {
     echo "Installed components:"
     echo "  ✓ Docker Engine: $(docker --version | awk '{print $3}' | sed 's/,//')"
     echo "  ✓ Docker Compose: $(docker compose version | awk '{print $4}')"
+    echo "  ✓ Node.js: $(node --version 2>/dev/null || echo 'Not installed')"
+    echo "  ✓ npm: $(npm --version 2>/dev/null || echo 'Not installed')"
     echo "  ✓ UFW Firewall: $(ufw --version | head -1)"
     echo "  ✓ Certbot: $(certbot --version 2>&1 | head -1)"
     echo "  ✓ Basic utilities (curl, git, jq, etc.)"
@@ -456,6 +539,15 @@ print_summary() {
     echo "Template files initialized:"
     echo "  ✓ nginx/conf.d/app.conf.template"
     echo "  ✓ .env.example"
+    echo ""
+    echo "NPM dependencies:"
+    if [[ -d "$REPO_DIR/node_modules" ]]; then
+        local package_count
+        package_count=$(find "$REPO_DIR/node_modules" -maxdepth 1 -type d | wc -l)
+        echo "  ✓ npm packages installed in repository ($package_count packages)"
+    else
+        echo "  ✗ npm packages not installed (node_modules not found)"
+    fi
     echo ""
     echo "Next steps:"
     echo "  1. Log out and log back in (for docker group to take effect)"
@@ -542,6 +634,12 @@ main() {
     echo ""
 
     create_directories
+    echo ""
+
+    install_nodejs
+    echo ""
+
+    install_npm_dependencies
     echo ""
 
     test_docker

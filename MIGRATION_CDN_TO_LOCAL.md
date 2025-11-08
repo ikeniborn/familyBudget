@@ -229,6 +229,56 @@ ls -lh frontend/web/static/css/vendor/tailwind-daisyui.min.css
 # Should be: ~108-114KB
 ```
 
+### "could not determine executable to run" during deployment
+
+**Problem:**
+```bash
+npm error could not determine executable to run
+warningMinification failed or skipped, continuing with unminified assets
+```
+
+**Cause:** `tailwindcss` (and other npm packages) not installed - `node_modules` missing or incomplete
+
+**Root Cause:** Deploy script should NOT install dependencies - that's install.sh's job
+
+**Solution:**
+
+**Architecture change - Separation of concerns:**
+
+1. **install.sh** - Handles ALL dependency installation (run once):
+   - Installs Node.js 20.x LTS + npm
+   - Runs `npm install` in repository (`~/familyBudget`)
+   - Creates `~/familyBudget/node_modules`
+
+2. **deploy.sh** - Only uses dependencies (run on every deployment):
+   - Syncs `~/familyBudget` → `/opt/budget` (includes `node_modules`)
+   - Checks `node_modules` exists (error if missing)
+   - Runs `npm run build` (Tailwind CSS + minification)
+
+**Fixed in:**
+- `install.sh` lines 415-494, 628-632 - Added Node.js/npm installation
+- `deploy.sh` lines 363-386 - Removed npm install, added check
+- `package.json` line 7 - Use `npx tailwindcss` (previous fix)
+
+**Deployment workflow:**
+```bash
+# 1. First time setup (or after package.json changes)
+cd ~/familyBudget
+sudo ./install.sh
+# → Installs Node.js, npm, runs npm install
+
+# 2. Every deployment
+cd ~/familyBudget
+./deploy.sh --profile full
+# → Syncs code + node_modules, runs npm run build
+```
+
+**When to re-run install.sh:**
+- First time setup
+- After `package.json` changes (new dependencies)
+- If deploy fails with "could not determine executable to run"
+- After Node.js version upgrade
+
 ---
 
 **Migration Status:** ✅ COMPLETE

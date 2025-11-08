@@ -360,19 +360,29 @@ main() {
         print_message success "No stuck processes found"
     fi
 
-    # Install npm dependencies if needed (including devDependencies for build tools)
-    if [[ ! -d "node_modules" ]] || [[ ! -f "node_modules/.package-lock.json" ]]; then
-        print_message info "Installing npm dependencies (including build tools)..."
-        if ! npm install --silent 2>&1 | grep -v "^npm WARN"; then
-            print_message warning "npm install failed, skipping minification"
-        fi
+    # Check that npm dependencies are installed
+    # Note: Dependencies must be installed by running install.sh first
+    if [[ ! -d "node_modules" ]]; then
+        print_message error "node_modules not found in /opt/budget"
+        print_message error "Please run install.sh to install npm dependencies first:"
+        print_message error "  cd ~/familyBudget && sudo ./install.sh"
+        print_message warning "Skipping minification - deployment will continue with unminified assets"
+    elif [[ ! -f "node_modules/.package-lock.json" ]]; then
+        print_message warning "package-lock.json not found in node_modules - dependencies may be incomplete"
+        print_message warning "Consider re-running install.sh to reinstall npm packages"
+        print_message warning "Attempting to run build anyway..."
     fi
 
-    # Run minification
-    if [[ -d "node_modules" ]] && npm run build 2>&1; then
-        print_message success "Static assets minified successfully"
+    # Run minification (build Tailwind CSS + minify JS/CSS)
+    if [[ -d "node_modules" ]]; then
+        if npm run build 2>&1; then
+            print_message success "Static assets built and minified successfully"
+        else
+            print_message warning "Build failed - check npm logs above"
+            print_message warning "Continuing with existing/unminified assets"
+        fi
     else
-        print_message warning "Minification failed or skipped, continuing with unminified assets"
+        print_message warning "Minification skipped (node_modules not found)"
     fi
 
     cd - > /dev/null || error_return "Failed to return to previous directory"
