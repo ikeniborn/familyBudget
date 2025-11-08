@@ -61,12 +61,13 @@ update_cache_versions() {
         # Обновляем все версионированные файлы через perl
         # Perl лучше обрабатывает переменные и regex
         # Поддерживает:
-        # - vendor/ subdirectories для библиотек
         # - .min.js / .min.css файлы (минифицированные)
         # - /webapp/, /web/, /static/, /shared/ paths
+        # ИСКЛЮЧАЕТ:
+        # - vendor/ subdirectories (третьесторонние библиотеки с собственным версионированием)
         perl -i.bak -pe "
-            s{(\\/webapp\\/static\\/js\\/|\\/web\\/static\\/js\\/|\\/static\\/js\\/|\\/shared\\/static\\/js\\/)((?:vendor\\/)?[a-zA-Z_\\-]+\\.(?:min\\.)?js)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
-            s{(\\/webapp\\/static\\/css\\/|\\/web\\/static\\/css\\/|\\/static\\/css\\/|\\/shared\\/static\\/css\\/)((?:vendor\\/)?[a-zA-Z_\\-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
+            s{(\\/webapp\\/static\\/js\\/|\\/web\\/static\\/js\\/|\\/static\\/js\\/|\\/shared\\/static\\/js\\/)(?!vendor\\/)([a-zA-Z_\\-]+\\.(?:min\\.)?js)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
+            s{(\\/webapp\\/static\\/css\\/|\\/web\\/static\\/css\\/|\\/static\\/css\\/|\\/shared\\/static\\/css\\/)(?!vendor\\/)([a-zA-Z_\\-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
         " "$file" 2>&1
 
         local perl_exit=$?

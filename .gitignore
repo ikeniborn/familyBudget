@@ -185,8 +185,13 @@ backups/
 frontend/**/static/**/*.min.js
 frontend/**/static/**/*.min.css
 
-# Vendor files (сторонние библиотеки) - РАЗРЕШЕНЫ
-!frontend/**/static/**/vendor/*.min.*
+# Vendor CSS files (auto-generated, excluded from tracking)
+# These files are regenerated during build/deploy and should not be committed
+frontend/**/static/**/vendor/*.css
+
+# Vendor JS files (third-party libraries) - TRACKED
+# JS libraries are stable and should be version-controlled
+!frontend/**/static/**/vendor/*.min.js
 
 # =============================================================================
 # Docker & Infrastructure
