@@ -15,8 +15,8 @@
 check_migration_version() {
     local needs_migration="false"
 
-    # Count migration files available
-    local available_migrations=$(ls "$DEPLOY_DIR/backend/db/migrations"/*.sql 2>/dev/null | wc -l)
+    # Count schema files available
+    local available_migrations=$(ls "$DEPLOY_DIR/backend/db/schema"/*.sql 2>/dev/null | wc -l)
 
     if [[ $available_migrations -eq 0 ]]; then
         info "No migration files found"
@@ -122,7 +122,7 @@ run_migrations() {
 # This is a fallback method when run_migrations.sh fails
 # Creates schema_migrations table and tracks applied migrations
 apply_migrations_directly() {
-    local migration_dir="$DEPLOY_DIR/backend/db/migrations"
+    local migration_dir="$DEPLOY_DIR/backend/db/schema"
     local applied=0
     local failed=0
     local skipped=0
@@ -238,7 +238,7 @@ reapply_migration() {
 # Detect changed migrations (checksum mismatch)
 # Returns: List of changed migration files (one per line)
 detect_changed_migrations() {
-    local migration_dir="$DEPLOY_DIR/backend/db/migrations"
+    local migration_dir="$DEPLOY_DIR/backend/db/schema"
     local changed_migrations=()
 
     # Check if postgres service is healthy
@@ -446,7 +446,7 @@ verify_database_schema() {
     else
         error "Missing critical tables: ${missing_tables[*]}"
         warning "Some migrations may not have been applied correctly"
-        info "Check migration files in: $DEPLOY_DIR/backend/db/migrations/"
+        info "Check schema files in: $DEPLOY_DIR/backend/db/schema/"
         return 1
     fi
 }

@@ -16,7 +16,7 @@ set -u  # Exit on undefined variable
 # ============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MIGRATIONS_DIR="${SCRIPT_DIR}/migrations"
+MIGRATIONS_DIR="${SCRIPT_DIR}/schema"
 # Use /app/logs mounted volume instead of read-only backend/db directory
 LOG_FILE="/app/logs/migrations.log"
 MIGRATION_TRACKING_TABLE="schema_migrations"

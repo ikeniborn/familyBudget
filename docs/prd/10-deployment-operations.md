@@ -312,7 +312,7 @@ Smart Cleanup v2 анализирует измененные файлы и ав�
 
 | Паттерн файла | Категория | Backend rebuild | Backend restart | Nginx restart | Postgres restart |
 |---------------|-----------|----------------|-----------------|---------------|-----------------|
-| `backend/db/migrations/*.sql` | postgres-critical | Нет | Нет | Нет | Да |
+| `backend/db/schema/*.sql` | postgres-critical | Нет | Нет | Нет | Да |
 | `backend/requirements.txt` | backend-deps | Да | Да | Нет | Нет |
 | `backend/Dockerfile` | backend-deps | Да | Да | Нет | Нет |
 | `backend/app/**/*.py` | backend-code | Нет* | Да | Нет | Нет |
@@ -417,9 +417,9 @@ Strategy summary:
 ```
 **Результат:** Backend образ пересобирается (pip install новых зависимостей), контейнер пересоздается.
 
-**Сценарий 5: Добавлена новая миграция**
+**Сценарий 5: Изменен файл схемы БД**
 ```bash
-Changed files: backend/db/migrations/013_add_notifications.sql
+Changed files: backend/db/schema/006_notifications.sql
 
 Change analysis:
   ✓ postgres-critical (1 file)

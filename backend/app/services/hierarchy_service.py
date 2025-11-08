@@ -12,6 +12,8 @@ Key Functions:
     - get_depth(): Get maximum depth of subtree
     - get_direct_children(): Get immediate children only
     - get_root(): Find root article of tree
+    - archive_recursive(): Archive article and all descendants
+    - restore_recursive(): Restore article and all descendants
 
 Performance:
     All queries use indexed lookups on closure table - O(1) complexity.
@@ -408,3 +410,120 @@ async def get_level(
     level = result.scalar_one_or_none()
 
     return level if level is not None else 0
+
+
+async def archive_recursive(
+    session: AsyncSession,
+    article_id: int,
+) -> int:
+    """
+    Archive article and ALL its descendants recursively.
+
+    Sets is_active=False for the article and all children (all depth levels).
+    This operation is RECURSIVE - all subcategories are archived automatically.
+
+    Args:
+        session: AsyncSession for database operations
+        article_id: Article ID to archive (with all children)
+
+    Returns:
+        Number of articles archived (including the article itself)
+
+    Example:
+        >>> # Archive "Food" category with all subcategories
+        >>> count = await archive_recursive(session, article_id=1)
+        >>> # Returns: 5 (Food + Groceries + Dining Out + Organic + Regular)
+        >>> # All subcategories are now archived
+
+    Notes:
+        - Affects CURRENT versions only (is_current=True)
+        - Uses closure table to find all descendants efficiently
+        - Returns 0 if article not found
+        - Commits changes to database (caller must handle transaction)
+        - Frontend should display warning: "This will archive N categories"
+
+    Business Rules (from user requirements):
+        - When parent is archived, all children are archived recursively
+        - Archived categories are hidden from dropdowns (facts/plans creation)
+        - Archived categories remain visible in analytics with "(архив)" label
+        - Archives can be restored later
+    """
+    # Get article and all descendants using closure table
+    articles_to_archive = await get_subtree(
+        session=session,
+        article_id=article_id,
+        include_self=True,  # Include the article itself
+    )
+
+    if not articles_to_archive:
+        return 0
+
+    # Update is_active=False for all articles
+    archived_count = 0
+    for article in articles_to_archive:
+        article.is_active = False
+        session.add(article)
+        archived_count += 1
+
+    # Commit changes (caller should wrap in transaction if needed)
+    await session.commit()
+
+    return archived_count
+
+
+async def restore_recursive(
+    session: AsyncSession,
+    article_id: int,
+) -> int:
+    """
+    Restore article and ALL its descendants recursively.
+
+    Sets is_active=True for the article and all children (all depth levels).
+    This operation is RECURSIVE - all subcategories are restored automatically.
+
+    Args:
+        session: AsyncSession for database operations
+        article_id: Article ID to restore (with all children)
+
+    Returns:
+        Number of articles restored (including the article itself)
+
+    Example:
+        >>> # Restore "Food" category with all subcategories
+        >>> count = await restore_recursive(session, article_id=1)
+        >>> # Returns: 5 (Food + Groceries + Dining Out + Organic + Regular)
+        >>> # All subcategories are now active again
+
+    Notes:
+        - Affects CURRENT versions only (is_current=True)
+        - Uses closure table to find all descendants efficiently
+        - Returns 0 if article not found
+        - Commits changes to database (caller must handle transaction)
+        - Frontend button: "Восстановить" (visible for archived categories)
+
+    Business Rules (from user requirements):
+        - Restoring parent restores all children recursively
+        - Restored categories become visible in dropdowns again
+        - Restored categories appear in analytics without "(архив)" label
+    """
+    # Get article and all descendants using closure table
+    articles_to_restore = await get_subtree(
+        session=session,
+        article_id=article_id,
+        include_self=True,  # Include the article itself
+    )
+
+    if not articles_to_restore:
+        return 0
+
+    # Update is_active=True for all articles
+    restored_count = 0
+    for article in articles_to_restore:
+        article.is_active = True
+        session.add(article)
+        restored_count += 1
+
+    # Commit changes (caller should wrap in transaction if needed)
+    await session.commit()
+
+    return restored_count

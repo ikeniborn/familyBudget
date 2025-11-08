@@ -1,31 +1,195 @@
 -- ============================================================================
--- Migration: 008_create_scd2_triggers.sql
--- Description: Create SCD Type 2 triggers for automatic versioning
--- Author: ClaudeCode Implementation System
--- Date: 2025-10-09
--- Task: TASK-004 (Triggers для SCD2)
+-- Schema DDL: 004_core_triggers.sql
+-- Description: Database triggers (Hierarchy + SCD Type 2)
+-- Version: 5.0.0 (Base Schema)
+-- Date: 2025-11-08
+-- ============================================================================
+--
+-- This file contains all database triggers:
+-- - Article hierarchy triggers (maintain Closure Table)
+-- - SCD Type 2 triggers (update updated_at timestamps)
+--
+-- DO NOT MODIFY in Production Mode - use Alembic migrations instead!
 -- ============================================================================
 
--- ============================================================================
--- OVERVIEW
---
--- This migration creates PostgreSQL triggers to automatically maintain
--- SCD Type 2 (Slowly Changing Dimension Type 2) versioning for dimension tables.
---
--- SCD Type 2 Logic:
--- When a business attribute changes in a dimension record:
--- 1. Close current version: SET is_current = FALSE, valid_to = NOW()
--- 2. Insert new version: INSERT with is_current = TRUE, valid_from = NOW()
---
--- Benefits:
--- - Automatic historical tracking
--- - Time-travel queries (as of specific date)
--- - Audit trail for all changes
--- - Referential integrity with fact tables
--- ============================================================================
+CREATE OR REPLACE FUNCTION get_article_depth(p_article_id INT)
+RETURNS INT AS $$
+DECLARE
+    v_depth INT;
+BEGIN
+    SELECT COALESCE(MAX(depth), -1)
+    INTO v_depth
+    FROM t_d_article_hierarchy
+    WHERE descendant_id = p_article_id;
+    RETURN v_depth;
+END;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION get_article_depth(INT) IS
+    'Returns the maximum depth of an article in the hierarchy. Returns -1 if article not found in hierarchy.';
+CREATE OR REPLACE FUNCTION would_create_circular_reference(
+    p_article_id INT,
+    p_parent_id INT
+)
+RETURNS BOOLEAN AS $$
+DECLARE
+    v_is_circular BOOLEAN;
+BEGIN
+    -- Check if parent_id is a descendant of article_id
+    -- If yes, adding parent_id as parent would create a cycle
+    SELECT EXISTS (
+        SELECT 1
+        FROM t_d_article_hierarchy
+        WHERE ancestor_id = p_article_id
+          AND descendant_id = p_parent_id
+    ) INTO v_is_circular;
+    RETURN v_is_circular;
+END;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION would_create_circular_reference(INT, INT) IS
+    'Checks if setting parent_id would create a circular reference. Returns TRUE if circular, FALSE otherwise.';
+CREATE OR REPLACE FUNCTION trg_article_hierarchy_insert()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_parent_depth INT;
+    v_max_depth CONSTANT INT := 10;
+BEGIN
+    -- Only process current records
+    IF NEW.is_current = FALSE THEN
+        RETURN NEW;
+    END IF;
+    -- Step 1: Insert self-reference (depth = 0)
+    INSERT INTO t_d_article_hierarchy (ancestor_id, descendant_id, depth)
+    VALUES (NEW.id, NEW.id, 0)
+    ON CONFLICT (ancestor_id, descendant_id) DO NOTHING;
+    -- Step 2: If article has parent, copy all parent's ancestors
+    IF NEW.parent_id IS NOT NULL THEN
+        -- Validate: Check for circular reference
+        IF would_create_circular_reference(NEW.id, NEW.parent_id) THEN
+            RAISE EXCEPTION 'Circular reference detected: article % cannot be child of % (would create cycle)',
+                NEW.id, NEW.parent_id;
+        END IF;
+        -- Validate: Check max depth
+        v_parent_depth := get_article_depth(NEW.parent_id);
+        IF v_parent_depth >= v_max_depth THEN
+            RAISE EXCEPTION 'Maximum hierarchy depth (%) exceeded: parent % is at depth %, cannot add child',
+                v_max_depth, NEW.parent_id, v_parent_depth;
+        END IF;
+        -- Copy all ancestor paths from parent
+        INSERT INTO t_d_article_hierarchy (ancestor_id, descendant_id, depth)
+        SELECT h.ancestor_id, NEW.id, h.depth + 1
+        FROM t_d_article_hierarchy h
+        WHERE h.descendant_id = NEW.parent_id
+        ON CONFLICT (ancestor_id, descendant_id) DO NOTHING;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION trg_article_hierarchy_insert() IS
+    'Trigger function to maintain Closure Table on INSERT. Adds self-reference and copies all ancestor paths from parent. Validates circular references and max depth (10 levels).';
+CREATE OR REPLACE FUNCTION trg_article_hierarchy_update()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_parent_depth INT;
+    v_max_depth CONSTANT INT := 10;
+    v_subtree_record RECORD;
+BEGIN
+    -- Only process current records
+    IF NEW.is_current = FALSE THEN
+        RETURN NEW;
+    END IF;
+    -- Only process if parent_id actually changed
+    IF OLD.parent_id IS DISTINCT FROM NEW.parent_id THEN
+        -- Validate: Check for circular reference (if new parent exists)
+        IF NEW.parent_id IS NOT NULL THEN
+            IF would_create_circular_reference(NEW.id, NEW.parent_id) THEN
+                RAISE EXCEPTION 'Circular reference detected: article % cannot be moved under % (would create cycle)',
+                    NEW.id, NEW.parent_id;
+            END IF;
+            -- Validate: Check max depth
+            v_parent_depth := get_article_depth(NEW.parent_id);
+            IF v_parent_depth >= v_max_depth THEN
+                RAISE EXCEPTION 'Maximum hierarchy depth (%) exceeded: parent % is at depth %, cannot move subtree',
+                    v_max_depth, NEW.parent_id, v_parent_depth;
+            END IF;
+        END IF;
+        -- Step 1: Delete all ancestor paths for this article and its descendants
+        -- (except self-references with depth = 0)
+        DELETE FROM t_d_article_hierarchy
+        WHERE descendant_id IN (
+            -- Get all descendants of updated article (including itself)
+            SELECT h.descendant_id
+            FROM t_d_article_hierarchy h
+            WHERE h.ancestor_id = NEW.id
+        )
+        AND depth > 0;
+        -- Step 2: Rebuild paths for this article and all its descendants
+        -- For each node in subtree (including root = NEW.id)
+        FOR v_subtree_record IN
+            SELECT h.descendant_id as node_id
+            FROM t_d_article_hierarchy h
+            WHERE h.ancestor_id = NEW.id
+        LOOP
+            -- Get the direct parent of this node
+            DECLARE
+                v_node_parent_id INT;
+            BEGIN
+                SELECT parent_id INTO v_node_parent_id
+                FROM t_d_article a
+                WHERE a.id = v_subtree_record.node_id
+                  AND a.is_current = TRUE;
+                -- If node has parent, copy all parent's ancestors
+                IF v_node_parent_id IS NOT NULL THEN
+                    INSERT INTO t_d_article_hierarchy (ancestor_id, descendant_id, depth)
+                    SELECT h.ancestor_id, v_subtree_record.node_id, h.depth + 1
+                    FROM t_d_article_hierarchy h
+                    WHERE h.descendant_id = v_node_parent_id
+                    ON CONFLICT (ancestor_id, descendant_id) DO NOTHING;
+                END IF;
+            END;
+        END LOOP;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION trg_article_hierarchy_update() IS
+    'Trigger function to maintain Closure Table on UPDATE. Rebuilds all paths when parent_id changes. Validates circular references and max depth.';
+CREATE OR REPLACE FUNCTION trg_article_hierarchy_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Cascade deletion is handled by FK constraint ON DELETE CASCADE
+    -- This trigger is here for explicitness and potential future logic
+    -- Log deletion (optional, for audit purposes)
+    RAISE NOTICE 'Article % deleted, hierarchy paths will be cascaded', OLD.id;
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION trg_article_hierarchy_delete() IS
+    'Trigger function on DELETE. Cascade deletion handled by FK constraint. This trigger exists for explicitness and future extensibility.';
+DROP TRIGGER IF EXISTS trg_article_hierarchy_insert_after ON t_d_article;
+CREATE TRIGGER trg_article_hierarchy_insert_after
+    AFTER INSERT ON t_d_article
+    FOR EACH ROW
+    EXECUTE FUNCTION trg_article_hierarchy_insert();
+DROP TRIGGER IF EXISTS trg_article_hierarchy_update_after ON t_d_article;
+CREATE TRIGGER trg_article_hierarchy_update_after
+    AFTER UPDATE ON t_d_article
+    FOR EACH ROW
+    WHEN (OLD.parent_id IS DISTINCT FROM NEW.parent_id)
+    EXECUTE FUNCTION trg_article_hierarchy_update();
+DROP TRIGGER IF EXISTS trg_article_hierarchy_delete_before ON t_d_article;
+CREATE TRIGGER trg_article_hierarchy_delete_before
+    BEFORE DELETE ON t_d_article
+    FOR EACH ROW
+    EXECUTE FUNCTION trg_article_hierarchy_delete();
+COMMENT ON TRIGGER trg_article_hierarchy_insert_after ON t_d_article IS
+    'Maintains Closure Table on INSERT: adds self-reference and copies ancestor paths from parent';
+COMMENT ON TRIGGER trg_article_hierarchy_update_after ON t_d_article IS
+    'Maintains Closure Table on UPDATE: rebuilds paths when parent_id changes';
+COMMENT ON TRIGGER trg_article_hierarchy_delete_before ON t_d_article IS
+    'Logs article deletion (CASCADE handled by FK constraint)';
 
 -- ============================================================================
--- TRIGGER FUNCTION: SCD2 for t_d_user
+-- SCD TYPE 2 TRIGGERS (from 008_create_scd2_triggers.sql)
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION trg_scd2_user()
@@ -35,7 +199,6 @@ BEGIN
     IF OLD.is_current = FALSE THEN
         RAISE EXCEPTION 'Cannot update non-current record (id=%). Update the current version instead.', OLD.id;
     END IF;
-
     -- Check if any tracked business attributes changed
     -- Tracked: username, first_name, last_name, is_admin
     -- Not tracked: SCD2 fields (valid_from, valid_to, is_current), audit fields (created_at, updated_at)
@@ -50,7 +213,6 @@ BEGIN
             valid_to = NOW(),
             updated_at = NOW()
         WHERE id = OLD.id;
-
         -- Step 2: Insert new version
         INSERT INTO t_d_user (
             telegram_id,
@@ -75,7 +237,6 @@ BEGIN
             NOW(),                           -- created_at = NOW()
             NOW()                            -- updated_at = NOW()
         );
-
         -- Prevent the original UPDATE from executing
         RETURN NULL;
     ELSE
@@ -85,14 +246,8 @@ BEGIN
     END IF;
 END;
 $$ LANGUAGE plpgsql;
-
 COMMENT ON FUNCTION trg_scd2_user() IS
     'SCD Type 2 trigger for t_d_user. Tracks changes to: username, first_name, last_name, is_admin. Automatically closes current version and creates new version on change.';
-
--- ============================================================================
--- TRIGGER FUNCTION: SCD2 for t_d_article
--- ============================================================================
-
 CREATE OR REPLACE FUNCTION trg_scd2_article()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -103,7 +258,6 @@ BEGIN
     IF OLD.is_current = FALSE THEN
         RAISE EXCEPTION 'Cannot update non-current record (id=%). Update the current version instead.', OLD.id;
     END IF;
-
     -- Check if any tracked business attributes changed
     -- Tracked: name, type
     -- Not tracked: parent_id (handled by hierarchy triggers), SCD2 fields, audit fields
@@ -118,7 +272,6 @@ BEGIN
             valid_to = clock_timestamp(),
             updated_at = clock_timestamp()
         WHERE id = OLD.id;
-
         -- Step 2: Insert new version
         INSERT INTO t_d_article (
             user_id,
@@ -142,7 +295,6 @@ BEGIN
             clock_timestamp()
         )
         RETURNING id INTO new_article_id;
-
         -- Step 3: Update parent_id for all direct children
         -- When parent is versioned (new ID), redirect children to new version
         -- This maintains parent-child relationships across SCD Type 2 versioning
@@ -151,14 +303,11 @@ BEGIN
             updated_at = clock_timestamp()
         WHERE parent_id = OLD.id
           AND is_current = TRUE;
-
         -- Get count of updated children (for logging)
         GET DIAGNOSTICS children_updated = ROW_COUNT;
-
         -- Log the version creation (useful for debugging)
         RAISE NOTICE 'Created new article version: old_id=%, new_id=%, updated % children',
             OLD.id, new_article_id, children_updated;
-
         -- Prevent the original UPDATE from executing
         RETURN NULL;
     ELSE
@@ -168,14 +317,8 @@ BEGIN
     END IF;
 END;
 $$ LANGUAGE plpgsql;
-
 COMMENT ON FUNCTION trg_scd2_article() IS
     'SCD Type 2 trigger for t_d_article. Tracks changes to: name, type. parent_id changes handled by hierarchy triggers. Children automatically follow parent to new version.';
-
--- ============================================================================
--- TRIGGER FUNCTION: SCD2 for t_d_financial_center
--- ============================================================================
-
 CREATE OR REPLACE FUNCTION trg_scd2_financial_center()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -183,7 +326,6 @@ BEGIN
     IF OLD.is_current = FALSE THEN
         RAISE EXCEPTION 'Cannot update non-current record (id=%). Update the current version instead.', OLD.id;
     END IF;
-
     -- Check if any tracked business attributes changed
     -- Tracked: name, description, code, is_global
     IF (OLD.name IS DISTINCT FROM NEW.name)
@@ -197,7 +339,6 @@ BEGIN
             valid_to = NOW(),
             updated_at = NOW()
         WHERE id = OLD.id;
-
         -- Step 2: Insert new version
         INSERT INTO t_d_financial_center (
             user_id,
@@ -222,7 +363,6 @@ BEGIN
             NOW(),
             NOW()
         );
-
         -- Prevent the original UPDATE from executing
         RETURN NULL;
     ELSE
@@ -232,14 +372,8 @@ BEGIN
     END IF;
 END;
 $$ LANGUAGE plpgsql;
-
 COMMENT ON FUNCTION trg_scd2_financial_center() IS
     'SCD Type 2 trigger for t_d_financial_center. Tracks changes to: name, description, code, is_global.';
-
--- ============================================================================
--- TRIGGER FUNCTION: SCD2 for t_d_cost_center
--- ============================================================================
-
 CREATE OR REPLACE FUNCTION trg_scd2_cost_center()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -247,7 +381,6 @@ BEGIN
     IF OLD.is_current = FALSE THEN
         RAISE EXCEPTION 'Cannot update non-current record (id=%). Update the current version instead.', OLD.id;
     END IF;
-
     -- Check if any tracked business attributes changed
     -- Tracked: name, description, code, is_global
     IF (OLD.name IS DISTINCT FROM NEW.name)
@@ -261,7 +394,6 @@ BEGIN
             valid_to = NOW(),
             updated_at = NOW()
         WHERE id = OLD.id;
-
         -- Step 2: Insert new version
         INSERT INTO t_d_cost_center (
             user_id,
@@ -286,7 +418,6 @@ BEGIN
             NOW(),
             NOW()
         );
-
         -- Prevent the original UPDATE from executing
         RETURN NULL;
     ELSE
@@ -296,148 +427,33 @@ BEGIN
     END IF;
 END;
 $$ LANGUAGE plpgsql;
-
 COMMENT ON FUNCTION trg_scd2_cost_center() IS
     'SCD Type 2 trigger for t_d_cost_center. Tracks changes to: name, description, code, is_global.';
-
--- ============================================================================
--- CREATE TRIGGERS
--- ============================================================================
-
--- Trigger for t_d_user
 DROP TRIGGER IF EXISTS trg_scd2_user_before_update ON t_d_user;
 CREATE TRIGGER trg_scd2_user_before_update
     BEFORE UPDATE ON t_d_user
     FOR EACH ROW
     EXECUTE FUNCTION trg_scd2_user();
-
--- Trigger for t_d_article
 DROP TRIGGER IF EXISTS trg_scd2_article_before_update ON t_d_article;
 CREATE TRIGGER trg_scd2_article_before_update
     BEFORE UPDATE ON t_d_article
     FOR EACH ROW
     EXECUTE FUNCTION trg_scd2_article();
-
--- Trigger for t_d_financial_center
 DROP TRIGGER IF EXISTS trg_scd2_financial_center_before_update ON t_d_financial_center;
 CREATE TRIGGER trg_scd2_financial_center_before_update
     BEFORE UPDATE ON t_d_financial_center
     FOR EACH ROW
     EXECUTE FUNCTION trg_scd2_financial_center();
-
--- Trigger for t_d_cost_center
 DROP TRIGGER IF EXISTS trg_scd2_cost_center_before_update ON t_d_cost_center;
 CREATE TRIGGER trg_scd2_cost_center_before_update
     BEFORE UPDATE ON t_d_cost_center
     FOR EACH ROW
     EXECUTE FUNCTION trg_scd2_cost_center();
-
--- ============================================================================
--- COMMENTS ON TRIGGERS
--- ============================================================================
-
 COMMENT ON TRIGGER trg_scd2_user_before_update ON t_d_user IS
     'SCD Type 2: Automatically versions user records on attribute changes';
-
 COMMENT ON TRIGGER trg_scd2_article_before_update ON t_d_article IS
     'SCD Type 2: Automatically versions article records on attribute changes';
-
 COMMENT ON TRIGGER trg_scd2_financial_center_before_update ON t_d_financial_center IS
     'SCD Type 2: Automatically versions financial center records on attribute changes';
-
 COMMENT ON TRIGGER trg_scd2_cost_center_before_update ON t_d_cost_center IS
     'SCD Type 2: Automatically versions cost center records on attribute changes';
-
--- ============================================================================
--- EXAMPLE USAGE
--- ============================================================================
-
--- Example 1: Update user (creates new version)
--- INSERT INTO t_d_user (telegram_id, username, first_name, is_admin)
--- VALUES (123456, 'john', 'John', FALSE);
---
--- UPDATE t_d_user
--- SET username = 'john_doe'
--- WHERE telegram_id = 123456 AND is_current = TRUE;
---
--- Result: 2 versions in table
--- - Version 1: username='john', is_current=FALSE, valid_to=NOW()
--- - Version 2: username='john_doe', is_current=TRUE, valid_from=NOW()
-
--- Example 2: Update non-tracked field (no versioning)
--- UPDATE t_d_user
--- SET updated_at = NOW()
--- WHERE telegram_id = 123456 AND is_current = TRUE;
---
--- Result: Same record updated (no new version)
-
--- Example 3: Query current version only
--- SELECT * FROM t_d_user WHERE is_current = TRUE;
-
--- Example 4: Time-travel query (as of specific date)
--- SELECT * FROM t_d_user
--- WHERE telegram_id = 123456
---   AND '2025-01-15'::TIMESTAMP BETWEEN valid_from AND valid_to;
-
--- Example 5: Query all versions (history)
--- SELECT id, username, valid_from, valid_to, is_current
--- FROM t_d_user
--- WHERE telegram_id = 123456
--- ORDER BY valid_from;
-
--- ============================================================================
--- IMPORTANT NOTES
--- ============================================================================
-
--- 1. ALWAYS update current records only
---    ✅ UPDATE t_d_user SET username = 'new' WHERE is_current = TRUE;
---    ❌ UPDATE t_d_user SET username = 'new' WHERE id = 5; -- May fail if not current
-
--- 2. Fact tables reference dimension IDs (not natural keys)
---    - Fact table stores dimension surrogate key (id) at transaction time
---    - This preserves historical reference even after dimension changes
---    - Example: If article name changes, old facts still reference old version
-
--- 3. Performance consideration
---    - Each tracked attribute change creates new row (INSERT + UPDATE)
---    - Minimal overhead for typical use case (< 5ms per operation)
---    - Historical table growth is predictable and manageable
-
--- 4. Trigger execution order
---    - SCD2 triggers run BEFORE UPDATE
---    - Hierarchy triggers run AFTER INSERT/UPDATE
---    - This ensures proper interaction between SCD2 and hierarchy maintenance
-
--- ============================================================================
--- VERIFICATION QUERIES
--- ============================================================================
-
--- Verify triggers exist
--- SELECT trigger_name, event_manipulation, event_object_table
--- FROM information_schema.triggers
--- WHERE trigger_name LIKE 'trg_scd2%'
--- ORDER BY event_object_table, trigger_name;
-
--- Verify functions exist
--- SELECT routine_name, routine_type
--- FROM information_schema.routines
--- WHERE routine_name LIKE 'trg_scd2%'
--- ORDER BY routine_name;
-
--- Check for duplicate current records (should return 0 rows)
--- SELECT telegram_id, COUNT(*) as current_count
--- FROM t_d_user
--- WHERE is_current = TRUE
--- GROUP BY telegram_id
--- HAVING COUNT(*) > 1;
-
--- Check for overlapping date ranges (should return 0 rows)
--- SELECT u1.telegram_id, u1.id, u2.id
--- FROM t_d_user u1
--- JOIN t_d_user u2 ON u1.telegram_id = u2.telegram_id AND u1.id != u2.id
--- WHERE u1.valid_from < u2.valid_to
---   AND u1.valid_to > u2.valid_from;
-
--- ============================================================================
--- END OF MIGRATION
--- ============================================================================

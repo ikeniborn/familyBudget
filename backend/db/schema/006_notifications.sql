@@ -1,7 +1,15 @@
--- Migration: 011_create_notifications_table.sql
--- Description: Create table for tracking budget threshold notifications
--- Author: Claude
--- Date: 2025-10-14
+-- ============================================================================
+-- Schema DDL: 006_notifications.sql  
+-- Description: Budget threshold notifications
+-- Version: 5.0.0 (Base Schema)
+-- Date: 2025-11-08
+-- ============================================================================
+--
+-- This file contains notification tables:
+-- - t_notification: Budget threshold notifications
+--
+-- DO NOT MODIFY in Production Mode - use Alembic migrations instead!
+-- ============================================================================
 
 -- Create notifications table
 CREATE TABLE IF NOT EXISTS t_notification (

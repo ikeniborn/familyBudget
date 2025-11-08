@@ -359,7 +359,8 @@ docker stats familybudget-postgres
 ### Документация проекта
 
 - `../../CLAUDE.md` - Главная документация проекта
-- `../../backend/db/migrations/` - SQL миграции схемы БД
+- `../../backend/db/schema/` - SQL схема БД (Development Mode)
+- `../../backend/db/migrations/` - Alembic миграции (Production Mode)
 - `../../backend/README.md` - Backend документация
 
 ### Документация инструментов

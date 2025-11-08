@@ -178,8 +178,8 @@ data/
 backups/
 *.dump
 
-# SQL Migrations (NOT ignored - must be in git!)
-!backend/db/migrations/*.sql
+# SQL Schema Files (NOT ignored - must be in git!)
+!backend/db/schema/*.sql
 
 # Minified files (build artifacts) - НЕ vendor!
 frontend/**/static/**/*.min.js

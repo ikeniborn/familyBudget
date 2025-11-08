@@ -35,8 +35,8 @@ fi
 # Directories
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-MIGRATIONS_DIR="$PROJECT_ROOT/backend/db/migrations"
-ARCHIVE_DIR="$MIGRATIONS_DIR/archive"
+MIGRATIONS_DIR="$PROJECT_ROOT/backend/db/schema"
+ARCHIVE_DIR="$PROJECT_ROOT/backend/db/migrations/archive"
 
 # Validation counters
 ERRORS=0

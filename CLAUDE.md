@@ -493,6 +493,106 @@ async def create_article(current_user: CurrentUser):
 
 ---
 
+### 5. Archived Categories (Inactive Articles)
+
+**АРХИТЕКТУРНОЕ РЕШЕНИЕ (2025-11-08):** is_active флаг для архивирования категорий.
+
+**Концепция:**
+- Категории можно архивировать (скрыть из выбора)
+- Архивация **рекурсивная** - архивируется категория и все потомки
+- Архивные категории **остаются в аналитике** с пометкой "(архив)"
+- is_active изменения **НЕ создают SCD Type 2 версию**
+
+**Где применяется:**
+- `t_d_article.is_active` - флаг активности категории
+- `backend/app/services/hierarchy_service.py` - archive_recursive(), restore_recursive()
+- `backend/app/api/v1/endpoints/articles.py` - обработка is_active в update
+
+**Реальные примеры из кода:**
+
+```python
+# ✅ ПРАВИЛЬНО - рекурсивное архивирование
+
+# Пример 1: Архивирование через hierarchy service
+# backend/app/services/hierarchy_service.py:413-469
+async def archive_recursive(session: AsyncSession, article_id: int) -> int:
+    """Archive article and ALL descendants recursively."""
+    articles_to_archive = await get_subtree(
+        session=session,
+        article_id=article_id,
+        include_self=True,
+    )
+
+    archived_count = 0
+    for article in articles_to_archive:
+        article.is_active = False
+        session.add(article)
+        archived_count += 1
+
+    await session.commit()
+    return archived_count
+
+# Пример 2: Обработка is_active в update endpoint
+# backend/app/api/v1/endpoints/articles.py:379-426
+if "is_active" in update_data and "is_active" in changed_fields:
+    new_is_active = update_data["is_active"]
+    is_active_change = new_is_active
+
+    # Remove from update_data - handle separately
+    del update_data["is_active"]
+
+if is_active_change is not None:
+    if is_active_change is False:
+        archived_count = await archive_recursive(session, article_id)
+    else:
+        restored_count = await restore_recursive(session, article_id)
+
+# Пример 3: Фильтрация при выборе категорий (dropdowns)
+# backend/app/api/v1/endpoints/articles.py:182-183
+if not include_inactive:
+    statement = statement.where(Article.is_active == True)
+
+# Пример 4: НЕ фильтровать в аналитике (показывать с пометкой)
+# frontend/web/templates/admin_articles.html:268-270
+const archivedBadge = !node.is_active
+    ? '<span class="badge badge-warning ml-2">📦 Архивная</span>'
+    : '';
+```
+
+**Ключевые правила:**
+
+| Правило | Описание |
+|---------|----------|
+| **Рекурсивность** | При архивировании parent_id → архивируются ВСЕ дети |
+| **НЕ SCD2** | Изменение is_active НЕ создает новую версию |
+| **Видимость** | Archived = скрыто из dropdowns, но видно в аналитике |
+| **Восстановление** | restore_recursive() также рекурсивен |
+
+**Frontend интеграция:**
+
+```javascript
+// ✅ ПРАВИЛЬНО - Скрывать архивные в выборе категорий
+// frontend/shared/static/js/choicesCategoryTree.js:116
+const url = `/articles?type=${type}&include_inactive=${showInactive}`;
+
+// ✅ ПРАВИЛЬНО - Показывать badge для архивных в админке
+// frontend/web/templates/admin_articles.html:287
+<td class="font-medium">${indent}${prefix}${node.name}${archivedBadge}</td>
+
+// ✅ ПРАВИЛЬНО - Условные кнопки (Archive vs Restore)
+const actionButtons = node.is_active
+    ? `<button onclick="archiveArticle(${id})">📦 Архивировать</button>`
+    : `<button onclick="restoreArticle(${id})">♻️ Восстановить</button>`;
+```
+
+**Почему НЕ SCD Type 2 для is_active:**
+- Архивация - это изменение видимости, НЕ бизнес-данных
+- is_active можно toggle многократно без создания версий
+- Исторический audit trail НЕ требуется для флага видимости
+- Рекурсивное применение упрощается без версионирования
+
+---
+
 ## 🛡️ Security Guidelines (ОБЯЗАТЕЛЬНО)
 
 ### Authentication Pattern
@@ -804,39 +904,151 @@ webapp/static/js/
 
 ---
 
-## 📋 Development Mode (Database Migrations)
+## 📋 Database Management (ЖЕСТКИЕ ПРАВИЛА)
 
 **ТЕКУЩАЯ ФАЗА:** Development (v5.0.0-beta)
 
-### Правила работы с миграциями
+### Архитектура БД (2-tier system)
 
-✅ **РАЗРЕШЕНО:**
-- Прямое редактирование существующих миграций (001-012)
-- Изменение SQL в `backend/db/migrations/*.sql`
-- Изменение структуры таблиц
+```
+backend/db/
+├── schema/              # Tier 1: Base DDL (для полной переустановки)
+│   ├── 001_core_dimensions.sql     # Users, Articles, FinCenters, CostCenters
+│   ├── 002_core_facts.sql          # BudgetFacts + indexes
+│   ├── 003_core_hierarchy.sql      # ArticleHierarchy (Closure Table)
+│   ├── 004_core_triggers.sql       # Triggers (Hierarchy + SCD2)
+│   ├── 005_auth_tokens.sql         # RefreshTokens
+│   ├── 006_notifications.sql       # Notifications
+│   ├── 007_recommendations.sql     # RecommendedAmounts
+│   └── README.md
+│
+└── migrations/          # Tier 2: Alembic (для инкрементальных изменений)
+    ├── alembic.ini
+    ├── env.py
+    ├── script.py.mako
+    ├── versions/                   # Пока ПУСТО (до Production Mode)
+    └── README.md
+```
 
-❌ **ЗАПРЕЩЕНО:**
-- Создание новых миграций типа `014_update_xxx.sql`
-- Backward compatibility (БД накатывается с нуля)
+---
 
-**Workflow изменения БД:**
+### ⚠️ КРИТИЧНО: Процесс изменения БД
+
+#### Сценарий 1: Development Mode (СЕЙЧАС - до релиза v5.0.0)
+
+**Изменение существующей таблицы:**
+
 ```bash
-# 1. Изменить миграцию
-nano backend/db/migrations/011_create_notifications_table.sql
+# 1. Отредактировать файл в schema/
+nano backend/db/schema/001_core_dimensions.sql
 
-# 2. Обновить ПРД
-nano docs/prd/06-database-design.md
-
-# 3. Пересоздать БД для теста
+# 2. Пересоздать БД (ПОТЕРЯ ВСЕХ ДАННЫХ!)
 docker compose down -v && docker compose up -d
 
-# 4. Проверить что всё работает
+# 3. Проверить работоспособность
+curl http://localhost:8000/health
+
+# 4. Зафиксировать
+git add backend/db/schema/001_core_dimensions.sql
+git commit -m "refactor(schema): добавить колонку X в таблицу Y"
+```
+
+**Добавление новой таблицы:**
+
+```bash
+# 1. Создать новый файл
+nano backend/db/schema/008_new_feature.sql
+
+# 2. Пересоздать БД
+docker compose down -v && docker compose up -d
+
+# 3. Зафиксировать
+git add backend/db/schema/008_new_feature.sql
+git commit -m "feat(schema): добавить таблицу new_feature"
+```
+
+**ВАЖНО:**
+- ✅ Изменения идемпотентны (`IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`)
+- ✅ Можно редактировать существующие файлы schema/
+- ❌ НЕТ backward compatibility (БД пересоздается с нуля)
+- ❌ НЕ используйте Alembic в Development Mode!
+
+---
+
+#### Сценарий 2: Production Mode (ПОСЛЕ релиза v5.0.0)
+
+**Изменение схемы на живой БД:**
+
+```bash
+# 1. Создать миграцию Alembic
+alembic revision -m "add_user_preferences_table"
+
+# 2. Отредактировать миграцию
+nano backend/db/migrations/versions/20251108_001_add_user_preferences_table.py
+
+# Пример:
+def upgrade():
+    op.create_table('t_user_preferences',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('user_id', sa.Integer(), nullable=False),
+        sa.PrimaryKeyConstraint('id')
+    )
+
+def downgrade():
+    op.drop_table('t_user_preferences')
+
+# 3. Применить миграцию
+alembic upgrade head
+
+# 4. Проверить
+psql -c "SELECT * FROM alembic_version;"
+
+# 5. Зафиксировать
+git add backend/db/migrations/versions/20251108_001_add_user_preferences_table.py
+git commit -m "feat(migration): добавить таблицу user_preferences"
+```
+
+**ВАЖНО:**
+- ✅ Миграции версионированные (rollback возможен)
+- ✅ Применяются на живой БД
+- ❌ НЕ редактируй schema/ в Production Mode!
+
+---
+
+### Таблица принятия решений
+
+| Ситуация | Development Mode | Production Mode |
+|----------|------------------|-----------------|
+| **Изменить существующую таблицу** | ✅ Редактируй schema/ + пересоздай БД | ✅ Alembic migration |
+| **Добавить новую таблицу** | ✅ Новый файл в schema/ + пересоздай БД | ✅ Alembic migration |
+| **Добавить колонку** | ✅ ALTER в schema/ + пересоздай БД | ✅ Alembic migration |
+| **Изменить индекс** | ✅ Редактируй schema/ + пересоздай БД | ✅ Alembic migration |
+| **Исправить баг в триггере** | ✅ Редактируй schema/ + пересоздай БД | ✅ Alembic migration |
+
+---
+
+### Workflow переустановки БД (Development)
+
+```bash
+# Полная переустановка БД с потерей данных
+docker compose down -v && docker compose up -d
+
+# Проверка что все таблицы созданы
+docker compose exec postgres psql -U familybudget -d familybudget -c "\dt"
+
+# Проверка здоровья backend
 curl http://localhost:8000/health
 ```
 
-**Переход в production:**
-- После релиза → версионирование миграций (Alembic)
-- Alpha → Beta → Production
+---
+
+### Переход в Production Mode
+
+После релиза v5.0.0:
+1. ❌ **ЗАПРЕЩЕНО** редактировать файлы в `backend/db/schema/`
+2. ✅ **ТОЛЬКО** Alembic миграции в `backend/db/migrations/versions/`
+3. ✅ Rollback поддержка через `alembic downgrade`
+4. ✅ Версионирование в `alembic_version` table
 
 ---
 

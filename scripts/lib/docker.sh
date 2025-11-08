@@ -81,9 +81,9 @@ categorize_file_changes() {
     for file in "${files_ref[@]}"; do
         case "$file" in
             # PostgreSQL-critical changes (требуют полного перезапуска)
-            backend/db/migrations/*)
+            backend/db/schema/*)
                 needs_postgres_restart=true
-                postgres_restart_reason="DB migrations changed: $file"
+                postgres_restart_reason="DB schema changed: $file"
                 ((count_postgres_critical++))
                 ;;
             backend/db/*)
@@ -485,10 +485,10 @@ cleanup_containers_networks_legacy() {
     local needs_postgres_restart=false
     local reason=""
 
-    # Check for DB migrations changes
-    if git diff --name-only HEAD~1 2>/dev/null | grep -q "backend/db/migrations/"; then
+    # Check for DB schema changes
+    if git diff --name-only HEAD~1 2>/dev/null | grep -q "backend/db/schema/"; then
         needs_postgres_restart=true
-        reason="DB migrations changed"
+        reason="DB schema changed"
     fi
 
     # Check for docker-compose.yml changes

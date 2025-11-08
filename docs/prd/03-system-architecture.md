@@ -715,7 +715,7 @@ flowchart TD
 
     E --> F{Анализ каждого файла}
 
-    F --> G{backend/db/migrations/*.sql?}
+    F --> G{backend/db/schema/*.sql?}
     G -->|Да| H[postgres-critical<br/>needs_postgres_restart=true]
 
     F --> I{backend/requirements.txt?}
@@ -870,7 +870,7 @@ NOTE: Docker may still rebuild backend (build context changed)
 | `backend/app/**/*.py` | Нет* | **Да** | Нет | Нет | Python cache |
 | `backend/requirements.txt` | **Да** | **Да** | Нет | Нет | pip install |
 | `backend/Dockerfile` | **Да** | **Да** | Нет | Нет | Build steps |
-| `backend/db/migrations/*.sql` | Нет | Нет | Нет | **Да** | Schema change |
+| `backend/db/schema/*.sql` | Нет | Нет | Нет | **Да** | Schema change |
 | `nginx/conf.d/*.conf` | Нет | Нет | **Да** | Нет | Config reload |
 | `docker-compose.yml` | Нет | Нет | Нет | **Да** | Infrastructure |
 | `.env` (POSTGRES_*) | Нет | Нет | Нет | **Да** | DB credentials |
@@ -969,7 +969,7 @@ PostgreSQL может возвращать данные **без обращен�
 
 ```sql
 -- 1. Аналитика пользователя (index-only scan)
--- backend/db/migrations/009_create_additional_indexes.sql:10-15
+-- backend/db/schema/002_core_facts.sql
 CREATE INDEX idx_budget_fact_user_date_amount_covering
     ON t_f_budget_fact(user_id, fact_date DESC)
     INCLUDE (amount, article_id);
@@ -984,7 +984,7 @@ ORDER BY fact_date DESC;
 
 ```sql
 -- 2. Telegram OAuth lookup (index-only scan)
--- backend/db/migrations/009_create_additional_indexes.sql:25-30
+-- backend/db/schema/001_core_dimensions.sql
 CREATE INDEX idx_user_telegram_current_covering
     ON t_d_user(telegram_id, is_current)
     INCLUDE (id, username, first_name, last_name, is_admin);
@@ -998,7 +998,7 @@ WHERE telegram_id = 123456789 AND is_current = true;
 
 ```sql
 -- 3. Closure Table hierarchy queries (index-only scan)
--- backend/db/migrations/009_create_additional_indexes.sql:45-50
+-- backend/db/schema/003_core_hierarchy.sql
 CREATE INDEX idx_hierarchy_ancestor_depth_covering
     ON t_d_article_hierarchy(ancestor_id, depth)
     INCLUDE (descendant_id);
@@ -1019,7 +1019,7 @@ WHERE ancestor_id = 5 AND depth <= 2;
 **Таблица кэша для K-means рекомендаций:**
 
 ```sql
--- backend/db/migrations/013_create_recommended_amounts_table.sql
+-- backend/db/schema/007_recommendations.sql
 CREATE TABLE t_recommended_amounts (
     id SERIAL PRIMARY KEY,
     article_id INTEGER REFERENCES t_d_article(id),
