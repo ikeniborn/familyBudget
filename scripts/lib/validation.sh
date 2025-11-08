@@ -36,6 +36,7 @@ Options:
   --clean                         Clean deployment (remove volumes) - WARNING: DELETES DATA!
   --sync-mode MODE                Code sync mode: mirror|update|clean|skip (default: interactive)
   --repo-dir PATH                 Repository directory path (default: auto-detect)
+  --reapply-migration FILE        Force re-apply specific migration (e.g., 009_create_additional_indexes.sql)
 
 Sync Modes:
   mirror   - Full sync with --delete (removes files not in repository)
@@ -49,6 +50,7 @@ Examples:
   ./deploy.sh --sync-mode mirror         # Mirror sync + deploy
   ./deploy.sh --sync-mode skip           # Deploy without code sync
   ./deploy.sh --repo-dir ~/familyBudget  # Specify repository path
+  ./deploy.sh --reapply-migration 009_create_additional_indexes.sql  # Re-apply modified migration
 
 Workflow:
   1. Detects repository directory (current dir, ~/familyBudget, or ask)

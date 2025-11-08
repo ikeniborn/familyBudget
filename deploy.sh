@@ -125,6 +125,8 @@ CLEAN_DEPLOY=false
 COMPOSE_PROFILE=""
 SYNC_MODE=""  # mirror|update|clean|skip (empty = interactive)
 REPO_DIR_OVERRIDE=""  # User-specified repository directory
+REAPPLY_MIGRATION=false  # Force reapply specific migration
+REAPPLY_MIGRATION_FILE=""  # Migration file to reapply (e.g., "009_create_additional_indexes.sql")
 # Note: BUILD_IMAGES removed - now always enabled via 'docker compose up --build'
 
 # PostgreSQL state tracking (prevent race conditions)
@@ -254,6 +256,11 @@ parse_args() {
                 ;;
             --repo-dir)
                 REPO_DIR_OVERRIDE="$2"
+                shift 2
+                ;;
+            --reapply-migration)
+                REAPPLY_MIGRATION=true
+                REAPPLY_MIGRATION_FILE="$2"
                 shift 2
                 ;;
             *)
@@ -551,7 +558,17 @@ main() {
         wait_for_services
         echo ""
 
-        run_migrations
+        # Run regular migrations or reapply specific migration
+        if [[ "$REAPPLY_MIGRATION" == "true" ]]; then
+            if [[ -z "$REAPPLY_MIGRATION_FILE" ]]; then
+                error "Migration file not specified for --reapply-migration"
+                error "Usage: ./deploy.sh --reapply-migration <migration_file.sql>"
+                exit 1
+            fi
+            reapply_migration "$REAPPLY_MIGRATION_FILE"
+        else
+            run_migrations
+        fi
         echo ""
 
         run_bootstrap_script

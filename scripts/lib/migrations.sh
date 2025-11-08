@@ -203,6 +203,39 @@ EOF
 }
 
 # =============================================================================
+# MIGRATION REAPPLY (Force re-run specific migration)
+# =============================================================================
+
+# Reapply specific migration file
+# Usage: reapply_migration "009_create_additional_indexes.sql"
+reapply_migration() {
+    local migration_file="$1"
+
+    if [[ -z "$migration_file" ]]; then
+        error "Migration file not specified"
+        return 1
+    fi
+
+    step "Re-applying migration: $migration_file"
+
+    # Check if postgres service is healthy
+    if ! compose_cmd ps | grep -q "familybudget-postgres.*healthy"; then
+        error "PostgreSQL service is not healthy, cannot reapply migration"
+        return 1
+    fi
+
+    # Use run_migrations.sh reapply command
+    info "Executing migration reapply via run_migrations.sh..."
+    if compose_cmd exec -T backend bash /app/backend/db/run_migrations.sh reapply "$migration_file" >> "$LOG_FILE" 2>&1; then
+        success "Migration re-applied successfully: $migration_file"
+        return 0
+    else
+        error "Migration reapply failed. Check $LOG_FILE for details."
+        return 1
+    fi
+}
+
+# =============================================================================
 # DATABASE VERIFICATION
 # =============================================================================
 
