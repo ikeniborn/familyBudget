@@ -230,7 +230,9 @@ minify_css_file() {
 
     print_message info "Minifying: $input_file"
 
-    if npx cssnano "$input_file" "$output_file" 2>/dev/null; then
+    # Capture cssnano output to show errors
+    local cssnano_output
+    if cssnano_output=$(npx cssnano "$input_file" "$output_file" 2>&1); then
         local original_size=$(stat -c%s "$input_file" 2>/dev/null || stat -f%z "$input_file" 2>/dev/null)
         local minified_size=$(stat -c%s "$output_file" 2>/dev/null || stat -f%z "$output_file" 2>/dev/null)
         local reduction=$((100 - (minified_size * 100 / original_size)))
@@ -240,6 +242,12 @@ minify_css_file() {
         return 0
     else
         print_message error "Failed to minify: $input_file"
+        # Show actual error from cssnano
+        if [[ -n "$cssnano_output" ]]; then
+            echo "$cssnano_output" | head -5 | while IFS= read -r line; do
+                print_message error "  $line"
+            done
+        fi
         ((ERRORS_COUNT++))
         return 1
     fi
