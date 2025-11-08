@@ -97,16 +97,19 @@ check_prerequisites() {
 
     # Check if terser is available (only for js/all modes)
     if [[ "$mode" == "js" || "$mode" == "all" ]]; then
-        if ! timeout 5 npx terser --version &> /dev/null; then
-            print_message error "Terser is not installed. Run: npm install"
+        if ! command -v terser &> /dev/null; then
+            print_message error "Terser is not installed or not in PATH"
+            print_message error "Expected location: .npm-isolated/node_modules/.bin/terser"
             return 1
         fi
     fi
 
-    # Check if cssnano-cli is available (only for css/all modes)
+    # Check if cssnano is available (only for css/all modes)
     if [[ "$mode" == "css" || "$mode" == "all" ]]; then
-        if ! timeout 5 npx cssnano --version &> /dev/null; then
-            print_message error "cssnano-cli is not installed. Run: npm install"
+        if ! command -v cssnano &> /dev/null; then
+            print_message error "cssnano-cli is not installed or not in PATH"
+            print_message error "Expected location: .npm-isolated/node_modules/.bin/cssnano"
+            print_message error "Current PATH: $PATH"
             return 1
         fi
     fi
