@@ -297,6 +297,7 @@ alembic_autogenerate_migration() {
 
 # Main migration function (called by deploy.sh)
 # Checks for pending migrations and applies them
+# Also runs bootstrap script to create first admin user
 # Returns: 0 if success, 1 if error
 run_alembic_migrations() {
     if [[ "$RUN_MIGRATIONS" != "true" ]]; then
@@ -315,17 +316,25 @@ run_alembic_migrations() {
     # Check for pending migrations
     if alembic_check_pending; then
         info "No pending migrations, database is up to date"
-        return 0
+    else
+        # Apply pending migrations
+        if ! alembic_upgrade head; then
+            error "Database migrations failed"
+            return 1
+        fi
+        success "Database migrations completed successfully"
     fi
 
-    # Apply pending migrations
-    if alembic_upgrade head; then
-        success "Database migrations completed successfully"
-        return 0
+    # Run bootstrap script to create first admin user (idempotent)
+    step "Creating first admin user (if not exists)..."
+    if compose_cmd exec -T backend bash -c "cd /app && PYTHONPATH=/app python backend/db/create_first_admin.py" >> "$LOG_FILE" 2>&1; then
+        success "Admin user bootstrap completed"
     else
-        error "Database migrations failed"
-        return 1
+        warning "Bootstrap script failed (admin may already exist)"
+        # Not a fatal error - admin might already exist
     fi
+
+    return 0
 }
 
 # =============================================================================
