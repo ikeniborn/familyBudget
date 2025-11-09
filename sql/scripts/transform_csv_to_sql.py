@@ -231,7 +231,7 @@ def generate_article_parents_sql(parent_articles: Dict[str, str], output_path: P
 
     for idx, (name, article_type) in enumerate(sorted(parent_articles.items()), start=1):
         code = f"ART-{idx}"  # New pattern: ART-1, ART-2, ...
-        sql = f"INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES ({USER_ID}, '{escape_sql(code)}', '{escape_sql(name)}', '{article_type}', NULL, true);"
+        sql = f"INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_active, is_current) VALUES ({USER_ID}, '{escape_sql(code)}', '{escape_sql(name)}', '{article_type}', NULL, true, true);"
         sql_lines.append(sql)
 
     sql_lines.append(f"\n-- Total: {len(parent_articles)} parent articles")
@@ -271,7 +271,7 @@ def generate_article_children_sql(child_articles: Dict[Tuple[str, str], str], pa
         else:
             parent_ref = 'NULL'
 
-        sql = f"INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES ({USER_ID}, '{escape_sql(code)}', '{escape_sql(child_name)}', '{article_type}', {parent_ref}, true);"
+        sql = f"INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_active, is_current) VALUES ({USER_ID}, '{escape_sql(code)}', '{escape_sql(child_name)}', '{article_type}', {parent_ref}, true, true);"
         sql_lines.append(sql)
 
     sql_lines.append(f"\n-- Total: {len(child_articles)} child articles")
