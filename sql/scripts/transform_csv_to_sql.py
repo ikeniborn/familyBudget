@@ -78,22 +78,23 @@ def parse_csv(csv_path: Path) -> Tuple[List[Dict], Dict]:
             stats['total_rows'] += 1
 
             # Validate required fields
-            period_dt = row.get('period_dt', '').strip()
             operation_dttm = row.get('operation_dttm', '').strip()
 
-            # Skip rows with invalid period_dt
-            if not is_valid_date(period_dt):
+            # Extract date from operation_dttm (format: "2023-03-09 13:25:49.000")
+            # NOTE: CSV has 'period_ru_name' (e.g., "ноя 2025"), but we use operation_dttm for actual date
+            if not operation_dttm:
                 stats['invalid_rows'] += 1
-                stats['skipped_rows'].append(f"Row {idx}: Invalid period_dt '{period_dt}'")
+                stats['skipped_rows'].append(f"Row {idx}: Missing operation_dttm")
                 continue
 
             # Clean and validate
             try:
-                # Extract date from operation_dttm (format: "2023-03-09 13:25:49.000")
-                operation_date = operation_dttm.split()[0] if operation_dttm else period_dt
+                operation_date = operation_dttm.split()[0]
 
                 if not is_valid_date(operation_date):
-                    operation_date = period_dt
+                    stats['invalid_rows'] += 1
+                    stats['skipped_rows'].append(f"Row {idx}: Invalid operation_date '{operation_date}'")
+                    continue
 
                 # Parse amount
                 amount_str = row['cost_sum'].replace(',', '.')
@@ -119,7 +120,6 @@ def parse_csv(csv_path: Path) -> Tuple[List[Dict], Dict]:
 
                 record = {
                     'operation_date': operation_date,
-                    'period_dt': period_dt,
                     'financial_center': financial_center,
                     'cost_center': cost_center,
                     'nomenclature': nomenclature,
@@ -182,7 +182,7 @@ def generate_financial_center_sql(financial_centers: Set[str], output_path: Path
     ]
 
     for idx, name in enumerate(sorted(financial_centers), start=1):
-        code = f"FC_{name.upper()}"
+        code = f"CFO-{idx}"  # New pattern: CFO-1, CFO-2, ...
         sql = f"INSERT INTO t_d_financial_center (user_id, code, name, is_current) VALUES ({USER_ID}, '{escape_sql(code)}', '{escape_sql(name)}', true);"
         sql_lines.append(sql)
 
@@ -206,7 +206,7 @@ def generate_cost_center_sql(cost_centers: Set[str], output_path: Path):
     ]
 
     for idx, name in enumerate(sorted(cost_centers), start=1):
-        code = f"CC_{name.upper()}"
+        code = f"MVZ-{idx}"  # New pattern: MVZ-1, MVZ-2, ...
         sql = f"INSERT INTO t_d_cost_center (user_id, code, name, is_current) VALUES ({USER_ID}, '{escape_sql(code)}', '{escape_sql(name)}', true);"
         sql_lines.append(sql)
 
@@ -230,8 +230,8 @@ def generate_article_parents_sql(parent_articles: Dict[str, str], output_path: P
     ]
 
     for idx, (name, article_type) in enumerate(sorted(parent_articles.items()), start=1):
-        code = f"ART_PARENT_{idx:03d}"
-        sql = f"INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES ({USER_ID}, '{escape_sql(code)}', '{escape_sql(name)}', '{article_type}', NULL, true);"
+        code = f"ART-{idx}"  # New pattern: ART-1, ART-2, ...
+        sql = f"INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_active, is_current) VALUES ({USER_ID}, '{escape_sql(code)}', '{escape_sql(name)}', '{article_type}', NULL, true, true);"
         sql_lines.append(sql)
 
     sql_lines.append(f"\n-- Total: {len(parent_articles)} parent articles")
@@ -257,10 +257,12 @@ def generate_article_children_sql(child_articles: Dict[Tuple[str, str], str], pa
     # Create parent_name -> code mapping
     parent_code_map = {}
     for idx, name in enumerate(sorted(parent_articles.keys()), start=1):
-        parent_code_map[name] = f"ART_PARENT_{idx:03d}"
+        parent_code_map[name] = f"ART-{idx}"  # New pattern: ART-1, ART-2, ...
 
-    for idx, ((child_name, parent_name), article_type) in enumerate(sorted(child_articles.items()), start=1):
-        code = f"ART_CHILD_{idx:04d}"
+    # Child articles continue sequence after parents
+    start_idx = len(parent_articles) + 1  # If 32 parents, start from 33
+    for idx, ((child_name, parent_name), article_type) in enumerate(sorted(child_articles.items()), start=start_idx):
+        code = f"ART-{idx}"  # New pattern: ART-33, ART-34, ...
         parent_code = parent_code_map.get(parent_name, 'NULL')
 
         if parent_code != 'NULL':
@@ -269,7 +271,7 @@ def generate_article_children_sql(child_articles: Dict[Tuple[str, str], str], pa
         else:
             parent_ref = 'NULL'
 
-        sql = f"INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES ({USER_ID}, '{escape_sql(code)}', '{escape_sql(child_name)}', '{article_type}', {parent_ref}, true);"
+        sql = f"INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_active, is_current) VALUES ({USER_ID}, '{escape_sql(code)}', '{escape_sql(child_name)}', '{article_type}', {parent_ref}, true, true);"
         sql_lines.append(sql)
 
     sql_lines.append(f"\n-- Total: {len(child_articles)} child articles")
@@ -506,18 +508,16 @@ def main():
     # Hierarchy is maintained automatically by triggers (007_create_article_hierarchy_triggers.sql)
     # See CLAUDE.md - Closure Table section for details
 
-    # Generate partitions SQL (BEFORE fact inserts!)
-    # Renumbered from 06 to 05 after removing hierarchy file
-    generate_partitions_sql(
-        records,
-        OUTPUT_DIR / "05_create_partitions_t_f_budget_fact.sql"
-    )
+    # NOTE: Partitions are NO LONGER GENERATED by this script
+    # Partitions are created by Alembic baseline migration (backend/db/migrations/)
+    # 96 MONTHLY partitions (2023-01 to 2030-12) created automatically via:
+    #   backend/db/migrations/versions/20251109_001_baseline_schema_v5_0_0.py
 
     # Generate fact SQL
-    # Renumbered from 07 to 06 after removing hierarchy file
+    # Renumbered from 06 to 05 after removing partition generation
     generate_budget_fact_sql(
         records,
-        OUTPUT_DIR / "06_insert_t_f_budget_fact.sql"
+        OUTPUT_DIR / "05_insert_t_f_budget_fact.sql"
     )
 
     print("\n" + "=" * 80)
@@ -528,11 +528,11 @@ def main():
     print("  02_insert_t_d_cost_center.sql")
     print("  03_insert_t_d_article_parents.sql")
     print("  04_insert_t_d_article_children.sql")
-    print("  05_create_partitions_t_f_budget_fact.sql  ⚠️ Run BEFORE 06!")
-    print("  06_insert_t_f_budget_fact.sql")
-    print("\n⚠️  IMPORTANT:")
-    print("  - Execute in order! Partitions (05) must be created before inserting facts (06).")
-    print("  - t_d_article_hierarchy is populated AUTOMATICALLY by database triggers (NO file needed)")
+    print("  05_insert_t_f_budget_fact.sql")
+    print("\n📝 NOTES:")
+    print("  - Partitions: Created by Alembic migration (NOT by SQL script)")
+    print("  - Hierarchy: Populated AUTOMATICALLY by database triggers")
+    print("  - Execute files in order: 01 → 02 → 03 → 04 → 05")
 
 
 if __name__ == "__main__":

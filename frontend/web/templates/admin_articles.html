@@ -608,6 +608,28 @@ function toggleArchivedFilter() {
     loadArticles();
 }
 
+// Helper: Format FastAPI error detail (handles both string and array)
+function formatErrorDetail(detail) {
+    if (!detail) return 'Неизвестная ошибка';
+
+    // If detail is a string, return it directly
+    if (typeof detail === 'string') {
+        return detail;
+    }
+
+    // If detail is an array (FastAPI validation errors)
+    if (Array.isArray(detail)) {
+        return detail.map(err => {
+            const location = err.loc ? err.loc.join(' → ') : '';
+            const message = err.msg || '';
+            return location ? `${location}: ${message}` : message;
+        }).join('; ');
+    }
+
+    // Fallback: stringify object
+    return JSON.stringify(detail);
+}
+
 // Archive article and all descendants
 async function archiveArticle(articleId) {
     if (!confirm('📦 Архивировать эту категорию?\n\nВсе подкатегории будут также архивированы рекурсивно.\nИсторические данные сохранятся.')) {
@@ -624,14 +646,15 @@ async function archiveArticle(articleId) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || 'Failed to archive');
+            const errorMessage = formatErrorDetail(error.detail);
+            throw new Error(errorMessage);
         }
 
         await loadArticles();
         showNotification('✅ Категория и все подкатегории архивированы!', 'success');
     } catch (error) {
         console.error('Error archiving article:', error);
-        showNotification(`❌ Ошибка: ${error.message}`, 'error');
+        showNotification(`❌ Ошибка архивирования: ${error.message}`, 'error');
     }
 }
 
@@ -651,29 +674,104 @@ async function restoreArticle(articleId) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || 'Failed to restore');
+            const errorMessage = formatErrorDetail(error.detail);
+            throw new Error(errorMessage);
         }
 
         await loadArticles();
         showNotification('✅ Категория и все подкатегории восстановлены!', 'success');
     } catch (error) {
         console.error('Error restoring article:', error);
-        showNotification(`❌ Ошибка: ${error.message}`, 'error');
+        showNotification(`❌ Ошибка восстановления: ${error.message}`, 'error');
     }
 }
 
-// Utility: Show notification
+// Utility: Show notification (toast instead of alert)
 function showNotification(message, type) {
     // Handle error objects properly
     if (typeof message === 'object' && message !== null) {
         message = message.detail || message.message || JSON.stringify(message);
     }
 
-    if (type === 'error') {
-        alert('❌ ' + message);
-    } else {
-        alert(message);
+    // Create toast container if it doesn't exist
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        `;
+        document.body.appendChild(toastContainer);
     }
+
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.style.cssText = `
+        background: ${type === 'error' ? '#ef4444' : '#10b981'};
+        color: white;
+        padding: 16px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        min-width: 300px;
+        max-width: 500px;
+        font-size: 14px;
+        line-height: 1.5;
+        animation: slideIn 0.3s ease-out;
+        cursor: pointer;
+    `;
+    toast.textContent = message;
+
+    // Add animation keyframes if not exists
+    if (!document.getElementById('toast-animations')) {
+        const style = document.createElement('style');
+        style.id = 'toast-animations';
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            @keyframes slideOut {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // Add to container
+    toastContainer.appendChild(toast);
+
+    // Auto-dismiss after 5 seconds
+    const dismissTimeout = setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, 5000);
+
+    // Click to dismiss
+    toast.addEventListener('click', () => {
+        clearTimeout(dismissTimeout);
+        toast.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    });
 }
 </script>
 {% endblock %}

@@ -127,6 +127,7 @@ SYNC_MODE=""  # mirror|update|clean|skip (empty = interactive)
 REPO_DIR_OVERRIDE=""  # User-specified repository directory
 REAPPLY_MIGRATION=false  # Force reapply specific migration
 REAPPLY_MIGRATION_FILE=""  # Migration file to reapply (e.g., "009_create_additional_indexes.sql")
+MIGRATIONS_ONLY=false  # Run only migrations without rebuilding containers
 # Note: BUILD_IMAGES removed - now always enabled via 'docker compose up --build'
 
 # PostgreSQL state tracking (prevent race conditions)
@@ -242,6 +243,11 @@ parse_args() {
                 RUN_MIGRATIONS=false
                 shift
                 ;;
+            --migrations-only)
+                MIGRATIONS_ONLY=true
+                RUN_MIGRATIONS=true  # Ensure migrations are enabled
+                shift
+                ;;
             --clean)
                 CLEAN_DEPLOY=true
                 shift
@@ -283,6 +289,34 @@ main() {
     print_message "$BLUE" "       Family Budget - Deployment Script"
     echo "========================================================================"
     echo ""
+
+    # Handle migrations-only mode (fast path)
+    if [[ "$MIGRATIONS_ONLY" == "true" ]]; then
+        info "Running in migrations-only mode (skipping build/restart)"
+        echo ""
+
+        # Check if postgres service is healthy
+        if ! compose_cmd ps | grep -q "familybudget-postgres.*healthy"; then
+            error "PostgreSQL service is not healthy"
+            error "Cannot run migrations-only mode without running PostgreSQL"
+            error "Please start services first: ./deploy.sh --profile full"
+            exit 1
+        fi
+
+        # Run migrations only
+        run_alembic_migrations
+        echo ""
+
+        success "Migrations completed successfully"
+        echo ""
+
+        # Show current database status
+        info "Current database revision:"
+        compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini current"
+        echo ""
+
+        exit 0
+    fi
 
     # Load .env to check deployment profile
     if [[ -f "$DEPLOY_DIR/.env" ]]; then

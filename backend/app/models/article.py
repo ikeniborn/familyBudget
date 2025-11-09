@@ -53,6 +53,7 @@ class Article(SQLModel, table=True):
         parent_id: Parent article ID for hierarchy (NULL for root articles)
         name: Article display name (required, max 255 chars)
         type: Article type - 'income' or 'expense' (required, max 20 chars)
+        code: Business code for external integrations (optional, auto-generated as ART-1, ART-2, ...)
         is_active: Active flag (True = visible in UI, False = archived)
         valid_from: Start of validity period for this record
         valid_to: End of validity period (9999-12-31 for current records)
@@ -126,6 +127,13 @@ class Article(SQLModel, table=True):
         max_length=20,
         index=True,
         description="Article type: 'income' or 'expense' (enforced by CHECK constraint)"
+    )
+    code: Optional[str] = Field(
+        default=None,
+        max_length=50,
+        nullable=True,
+        index=True,
+        description="Business code for external integrations (e.g., ART-1, ART-2). Auto-generated if not provided."
     )
 
     # Active status flag (archived categories functionality)

@@ -541,18 +541,20 @@ async def get_all_articles(
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session),
     is_current: bool = Query(True, description="Filter by current articles only"),
+    include_inactive: bool = Query(True, description="Include archived categories (is_active=false)"),
     type: str | None = Query(None, description="Filter by article type (income or expense)")
 ):
     """
     Get all articles (admin only).
 
     Returns list of all articles.
-    Can filter by is_current flag and article type.
+    Can filter by is_current flag, is_active flag, and article type.
 
     Args:
         current_admin: Current admin user (from dependency)
         session: Database session
         is_current: Whether to show only current (active) articles
+        include_inactive: Whether to include archived categories (default: True for admin)
         type: Optional filter by article type (income or expense)
 
     Returns:
@@ -562,6 +564,10 @@ async def get_all_articles(
 
     if is_current:
         query = query.where(Article.is_current == True)  # noqa: E712
+
+    # Filter archived categories unless explicitly included
+    if not include_inactive:
+        query = query.where(Article.is_active == True)  # noqa: E712
 
     if type:
         query = query.where(Article.type == type)
@@ -578,6 +584,7 @@ async def get_all_articles(
             parent_id=article.parent_id,
             name=article.name,
             type=article.type,
+            is_active=article.is_active,
             is_current=article.is_current,
             valid_from=article.valid_from.isoformat(),
             valid_to=article.valid_to.isoformat() if article.valid_to else None,

@@ -75,12 +75,12 @@ SELECT COUNT(*) FROM t_d_article_hierarchy;  -- Expected: 152
 02_insert_t_d_cost_center.sql          (30 записей)
 03_insert_t_d_article_parents.sql      (32 записи)
 04_insert_t_d_article_children.sql     (60 записей) ← Триггеры создают hierarchy!
-05_create_partitions_t_f_budget_fact.sql (96 партиций)
-06_insert_t_f_budget_fact.sql          (6662 транзакции, 7 батчей)
+05_insert_t_f_budget_fact.sql          (6662 транзакции, 7 батчей)
 ```
 
-**⚠️ Файл `05_insert_t_d_article_hierarchy.sql` НЕ СУЩЕСТВУЕТ!**
-Иерархия создается автоматически триггерами при выполнении файла 04.
+**⚠️ ВАЖНЫЕ ЗАМЕЧАНИЯ:**
+- Партиции для `t_f_budget_fact` создаются через Alembic baseline migration (96 месячных партиций: 2023-01 до 2030-12)
+- Иерархия категорий создается автоматически триггерами при выполнении файла 04
 
 ---
 
@@ -95,9 +95,8 @@ for f in 01 02 03 04; do
   ./run.sh --file ../queries/${f}_*.sql
 done
 
-# Только partitions + facts (05-06)
-./run.sh --file ../queries/05_create_partitions_t_f_budget_fact.sql
-./run.sh --file ../queries/06_insert_t_f_budget_fact.sql --max-connections 30
+# Только facts (05) - партиции создаются через Alembic!
+./run.sh --file ../queries/05_insert_t_f_budget_fact.sql --max-connections 30
 
 # Проверка иерархии после файлов 03-04
 psql -h 205.172.58.179 -U familybudget -d familybudget -f ../queries/verify_hierarchy.sql
@@ -128,10 +127,9 @@ POSTGRES_PASSWORD=XgmJvnvPlPPQSOvO3s3NVOOzHmecydjP
 | 02 | 30 | 1 | ~0.2s | ~150 stmt/sec |
 | 03 | 32 | 1 | ~0.2s | ~160 stmt/sec |
 | 04 | 60 | 1 | ~0.3s | ~200 stmt/sec |
-| 05 | 96 | 1 | ~1.5s | ~64 stmt/sec |
-| 06 | 6662 | 7 | ~20-30s | ~250 stmt/sec |
+| 05 | 6662 | 7 | ~20-30s | ~250 stmt/sec |
 
-**Общее время:** ~25-35 секунд для всех файлов
+**Общее время:** ~21-31 секунд для всех файлов (партиции создаются через Alembic - не учитываются)
 
 ---
 

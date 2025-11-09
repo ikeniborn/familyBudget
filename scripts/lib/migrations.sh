@@ -8,8 +8,73 @@
 #
 
 # =============================================================================
-# MIGRATION VERSION CHECK
+# ALEMBIC MIGRATIONS (NEW - v5.0.0+)
 # =============================================================================
+
+# Run Alembic database migrations
+# Uses Alembic for versioned migrations (replaces old schema/*.sql system)
+# This is the PRIMARY migration method for all deployments
+run_alembic_migrations() {
+    step "Running Alembic migrations..."
+
+    # Check if postgres service is healthy
+    if ! compose_cmd ps | grep -q "familybudget-postgres.*healthy"; then
+        error "PostgreSQL service is not healthy, cannot run migrations"
+        return 1
+    fi
+
+    # Check current Alembic revision
+    info "Checking current migration status..."
+    local current_revision
+    current_revision=$(compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini current 2>/dev/null | head -1 | grep -oP '^[a-f0-9]{12}'" || echo "none")
+
+    if [[ "$current_revision" == "none" ]]; then
+        info "No migrations applied yet - fresh database detected"
+    else
+        info "Current revision: $current_revision"
+    fi
+
+    # Check available head revision
+    local head_revision
+    head_revision=$(compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini heads 2>&1" | grep -oP '^[a-f0-9]{12}' || echo "unknown")
+
+    if [[ "$head_revision" == "unknown" ]]; then
+        warning "Cannot determine head revision"
+    else
+        info "Latest available revision: $head_revision"
+    fi
+
+    # Apply migrations
+    info "Applying pending migrations (alembic upgrade head)..."
+    echo ""
+
+    if compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini upgrade head" 2>&1 | tee -a "$LOG_FILE"; then
+        echo ""
+        success "Alembic migrations completed successfully"
+
+        # Show new current revision
+        local new_revision
+        new_revision=$(compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini current 2>/dev/null | head -1 | grep -oP '^[a-f0-9]{12}'" || echo "unknown")
+        if [[ "$new_revision" != "unknown" && "$new_revision" != "$current_revision" ]]; then
+            info "Database updated: $current_revision → $new_revision"
+        elif [[ "$new_revision" == "$current_revision" ]]; then
+            info "Database already up to date (revision: $new_revision)"
+        fi
+
+        return 0
+    else
+        echo ""
+        error "Alembic migrations failed. Check output above for details."
+        error "Log file: $LOG_FILE"
+        return 1
+    fi
+}
+
+# =============================================================================
+# MIGRATION VERSION CHECK (LEGACY - for old schema/*.sql system)
+# =============================================================================
+# NOTE: This is DEPRECATED and kept only for backward compatibility
+# Use run_alembic_migrations() instead for new deployments
 
 # Check if migrations need to be applied (smart detection)
 check_migration_version() {
@@ -64,11 +129,35 @@ check_migration_version() {
 }
 
 # =============================================================================
-# SQL MIGRATIONS
+# DATABASE MIGRATIONS (Primary Entrypoint)
 # =============================================================================
 
-# Run database migrations
+# Run database migrations (uses Alembic for v5.0.0+)
+# This is the PRIMARY entrypoint called by deploy.sh
 run_migrations() {
+    if [[ "$RUN_MIGRATIONS" == "true" ]]; then
+        # Use Alembic migrations (v5.0.0+)
+        # This is the PRIMARY migration method for all deployments
+        if run_alembic_migrations; then
+            return 0
+        else
+            error "Alembic migrations failed"
+            return 1
+        fi
+    else
+        info "Database migrations skipped (--no-migrate flag)"
+        return 0
+    fi
+}
+
+# =============================================================================
+# LEGACY SQL MIGRATIONS (DEPRECATED - schema/*.sql system)
+# =============================================================================
+# NOTE: These functions are kept for backward compatibility only
+# DO NOT USE for new deployments - use run_alembic_migrations() instead
+
+# Run legacy SQL migrations (DEPRECATED)
+run_migrations_legacy() {
     if [[ "$RUN_MIGRATIONS" == "true" ]]; then
         # Smart check: Do we need to run migrations?
         local needs_migration=$(check_migration_version)
@@ -422,6 +511,28 @@ handle_changed_migrations_interactive() {
 verify_database_schema() {
     step "Verifying database schema..."
 
+    # Check Alembic migration status
+    info "Checking Alembic migration status..."
+    local current_revision
+    current_revision=$(compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini current 2>/dev/null | head -1 | grep -oP '^[a-f0-9]{12}'" || echo "none")
+
+    if [[ "$current_revision" == "none" ]]; then
+        warning "No Alembic migrations applied - database may be empty"
+    else
+        success "Alembic revision: $current_revision"
+    fi
+
+    # Check if alembic_version table exists
+    local alembic_table_exists=$(compose_cmd exec -T postgres psql -U familybudget familybudget -t -c \
+        "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'alembic_version');" 2>/dev/null | tr -d ' ')
+
+    if [[ "$alembic_table_exists" == "t" ]]; then
+        info "✓ Alembic version tracking enabled"
+    else
+        warning "⚠ alembic_version table not found - migrations not initialized"
+    fi
+
+    # Verify critical tables exist
     local critical_tables=(
         "t_d_user"
         "t_d_article"
@@ -446,7 +557,7 @@ verify_database_schema() {
     else
         error "Missing critical tables: ${missing_tables[*]}"
         warning "Some migrations may not have been applied correctly"
-        info "Check schema files in: $DEPLOY_DIR/backend/db/schema/"
+        info "Run migrations: ./deploy.sh --migrations-only"
         return 1
     fi
 }

@@ -1,4 +1,4 @@
-"""Baseline schema v5.0.0 - Full database schema migration
+"""Baseline schema v5.0.0 - Full database schema migration with MONTHLY partitions
 
 Revision ID: 001_baseline
 Revises: None
@@ -7,16 +7,21 @@ Create Date: 2025-11-09
 This migration consolidates all schema/*.sql files into a single baseline migration.
 It creates the complete Family Budget database schema including:
 - Core dimension tables (Users, Articles, Financial Centers, Cost Centers)
-- Fact table (Budget Facts)
+- Fact table (Budget Facts) with MONTHLY partitions (96 partitions: 2023-01 to 2030-12)
 - Article hierarchy (Closure Table)
 - Triggers (Hierarchy + SCD Type 2)
 - Authentication tables (Refresh Tokens, Article Usage Stats)
 - Notification tables
 - Recommendation tables (K-means clustering)
 
+Partitioning Strategy:
+- MONTHLY partitions for better query performance (partition pruning)
+- 96 partitions covering 2023-01-01 to 2030-12-31
+- More flexible than yearly partitions for attach/detach operations
+
 Source files consolidated:
 - 001_core_dimensions.sql
-- 002_core_facts.sql
+- 002_core_facts.sql (modified: monthly partitions instead of yearly)
 - 003_core_hierarchy.sql
 - 004_core_triggers.sql
 - 005_auth_tokens.sql
@@ -178,7 +183,7 @@ def upgrade() -> None:
     # PART 2: Core Fact Table (002_core_facts.sql)
     # =========================================================================
 
-    # TABLE: t_f_budget_fact (PARTITIONED by fact_date by YEAR)
+    # TABLE: t_f_budget_fact (PARTITIONED by fact_date by MONTH)
     op.execute("""
         CREATE TABLE t_f_budget_fact (
             id SERIAL,
@@ -189,6 +194,7 @@ def upgrade() -> None:
             amount DECIMAL(15, 2) NOT NULL,
             fact_date DATE NOT NULL,
             description TEXT,
+            record_type VARCHAR(10) NOT NULL DEFAULT 'fact',
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             CONSTRAINT check_fact_amount_not_zero CHECK (amount != 0),
@@ -196,61 +202,121 @@ def upgrade() -> None:
         ) PARTITION BY RANGE (fact_date)
     """)
 
-    # Create partitions for years 2020-2030
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2020 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2020-01-01') TO ('2021-01-01')
-    """)
+    # Create monthly partitions for 2023-2030 (96 partitions)
+    # Data range: 2023-01-01 to 2030-12-31
+    # Better performance with monthly partition pruning
 
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2021 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2021-01-01') TO ('2022-01-01')
-    """)
+    # 2023 (12 months)
+    op.execute("CREATE TABLE t_f_budget_fact_2023_01 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-01-01') TO ('2023-02-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_02 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-02-01') TO ('2023-03-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_03 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-03-01') TO ('2023-04-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_04 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-04-01') TO ('2023-05-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_05 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-05-01') TO ('2023-06-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_06 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-06-01') TO ('2023-07-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_07 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-07-01') TO ('2023-08-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_08 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-08-01') TO ('2023-09-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_09 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-09-01') TO ('2023-10-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_10 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-10-01') TO ('2023-11-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_11 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-11-01') TO ('2023-12-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_12 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-12-01') TO ('2024-01-01')")
 
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2022 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2022-01-01') TO ('2023-01-01')
-    """)
+    # 2024 (12 months)
+    op.execute("CREATE TABLE t_f_budget_fact_2024_01 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-01-01') TO ('2024-02-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_02 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-02-01') TO ('2024-03-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_03 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-03-01') TO ('2024-04-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_04 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-04-01') TO ('2024-05-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_05 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-05-01') TO ('2024-06-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_06 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-06-01') TO ('2024-07-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_07 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-07-01') TO ('2024-08-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_08 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-08-01') TO ('2024-09-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_09 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-09-01') TO ('2024-10-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_10 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-10-01') TO ('2024-11-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_11 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-11-01') TO ('2024-12-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_12 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-12-01') TO ('2025-01-01')")
 
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2023 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2023-01-01') TO ('2024-01-01')
-    """)
+    # 2025 (12 months)
+    op.execute("CREATE TABLE t_f_budget_fact_2025_01 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-01-01') TO ('2025-02-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_02 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-02-01') TO ('2025-03-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_03 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-03-01') TO ('2025-04-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_04 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-04-01') TO ('2025-05-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_05 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-05-01') TO ('2025-06-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_06 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-06-01') TO ('2025-07-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_07 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-07-01') TO ('2025-08-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_08 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-08-01') TO ('2025-09-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_09 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-09-01') TO ('2025-10-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_10 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-10-01') TO ('2025-11-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_11 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-11-01') TO ('2025-12-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_12 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-12-01') TO ('2026-01-01')")
 
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2024 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2024-01-01') TO ('2025-01-01')
-    """)
+    # 2026 (12 months)
+    op.execute("CREATE TABLE t_f_budget_fact_2026_01 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-01-01') TO ('2026-02-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_02 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-02-01') TO ('2026-03-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_03 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-03-01') TO ('2026-04-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_04 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-04-01') TO ('2026-05-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_05 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-05-01') TO ('2026-06-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_06 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-06-01') TO ('2026-07-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_07 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-07-01') TO ('2026-08-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_08 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-08-01') TO ('2026-09-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_09 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-09-01') TO ('2026-10-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_10 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-10-01') TO ('2026-11-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_11 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-11-01') TO ('2026-12-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_12 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-12-01') TO ('2027-01-01')")
 
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2025 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
-    """)
+    # 2027 (12 months)
+    op.execute("CREATE TABLE t_f_budget_fact_2027_01 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-01-01') TO ('2027-02-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_02 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-02-01') TO ('2027-03-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_03 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-03-01') TO ('2027-04-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_04 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-04-01') TO ('2027-05-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_05 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-05-01') TO ('2027-06-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_06 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-06-01') TO ('2027-07-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_07 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-07-01') TO ('2027-08-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_08 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-08-01') TO ('2027-09-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_09 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-09-01') TO ('2027-10-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_10 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-10-01') TO ('2027-11-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_11 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-11-01') TO ('2027-12-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_12 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-12-01') TO ('2028-01-01')")
 
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2026 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
-    """)
+    # 2028 (12 months)
+    op.execute("CREATE TABLE t_f_budget_fact_2028_01 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-01-01') TO ('2028-02-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_02 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-02-01') TO ('2028-03-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_03 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-03-01') TO ('2028-04-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_04 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-04-01') TO ('2028-05-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_05 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-05-01') TO ('2028-06-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_06 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-06-01') TO ('2028-07-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_07 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-07-01') TO ('2028-08-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_08 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-08-01') TO ('2028-09-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_09 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-09-01') TO ('2028-10-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_10 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-10-01') TO ('2028-11-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_11 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-11-01') TO ('2028-12-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_12 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-12-01') TO ('2029-01-01')")
 
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2027 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2027-01-01') TO ('2028-01-01')
-    """)
+    # 2029 (12 months)
+    op.execute("CREATE TABLE t_f_budget_fact_2029_01 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-01-01') TO ('2029-02-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_02 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-02-01') TO ('2029-03-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_03 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-03-01') TO ('2029-04-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_04 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-04-01') TO ('2029-05-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_05 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-05-01') TO ('2029-06-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_06 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-06-01') TO ('2029-07-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_07 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-07-01') TO ('2029-08-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_08 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-08-01') TO ('2029-09-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_09 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-09-01') TO ('2029-10-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_10 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-10-01') TO ('2029-11-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_11 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-11-01') TO ('2029-12-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_12 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-12-01') TO ('2030-01-01')")
 
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2028 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2028-01-01') TO ('2029-01-01')
-    """)
-
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2029 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2029-01-01') TO ('2030-01-01')
-    """)
-
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2030 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2030-01-01') TO ('2031-01-01')
-    """)
+    # 2030 (12 months)
+    op.execute("CREATE TABLE t_f_budget_fact_2030_01 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-01-01') TO ('2030-02-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_02 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-02-01') TO ('2030-03-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_03 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-03-01') TO ('2030-04-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_04 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-04-01') TO ('2030-05-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_05 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-05-01') TO ('2030-06-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_06 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-06-01') TO ('2030-07-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_07 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-07-01') TO ('2030-08-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_08 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-08-01') TO ('2030-09-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_09 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-09-01') TO ('2030-10-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_10 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-10-01') TO ('2030-11-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_11 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-11-01') TO ('2030-12-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_12 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-12-01') TO ('2031-01-01')")
 
     # Budget fact indexes
     op.execute("CREATE INDEX idx_budget_fact_user_id ON t_f_budget_fact(user_id)")
@@ -842,9 +908,283 @@ def upgrade() -> None:
         ON CONFLICT (article_id, type, record_type, period) DO NOTHING
     """)
 
+    # =========================================================================
+    # PART 9: Version Link Tables for SCD Type 2 Tracking
+    # =========================================================================
+
+    # 1. Create t_d_article_version_link
+    op.execute("""
+        CREATE TABLE t_d_article_version_link (
+            id SERIAL PRIMARY KEY,
+            old_article_id INT NOT NULL REFERENCES t_d_article(id) ON DELETE CASCADE,
+            new_article_id INT NOT NULL REFERENCES t_d_article(id) ON DELETE CASCADE,
+            created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+            changed_by_user_id INT REFERENCES t_d_user(id) ON DELETE SET NULL,
+            changed_fields JSONB,
+            CONSTRAINT uq_article_version_link UNIQUE (old_article_id, new_article_id)
+        );
+
+        CREATE INDEX idx_article_version_link_old ON t_d_article_version_link(old_article_id);
+        CREATE INDEX idx_article_version_link_new ON t_d_article_version_link(new_article_id);
+        CREATE INDEX idx_article_version_link_created ON t_d_article_version_link(created_at DESC);
+
+        COMMENT ON TABLE t_d_article_version_link IS 'Tracks SCD Type 2 version relationships for Article dimension';
+        COMMENT ON COLUMN t_d_article_version_link.old_article_id IS 'Previous version ID (is_current=false)';
+        COMMENT ON COLUMN t_d_article_version_link.new_article_id IS 'New version ID (is_current=true)';
+        COMMENT ON COLUMN t_d_article_version_link.changed_fields IS 'JSON array of field names that changed, e.g. ["name", "type"]';
+    """)
+
+    # 2. Create t_d_financial_center_version_link
+    op.execute("""
+        CREATE TABLE t_d_financial_center_version_link (
+            id SERIAL PRIMARY KEY,
+            old_fc_id INT NOT NULL REFERENCES t_d_financial_center(id) ON DELETE CASCADE,
+            new_fc_id INT NOT NULL REFERENCES t_d_financial_center(id) ON DELETE CASCADE,
+            created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+            changed_by_user_id INT REFERENCES t_d_user(id) ON DELETE SET NULL,
+            changed_fields JSONB,
+            CONSTRAINT uq_fc_version_link UNIQUE (old_fc_id, new_fc_id)
+        );
+
+        CREATE INDEX idx_fc_version_link_old ON t_d_financial_center_version_link(old_fc_id);
+        CREATE INDEX idx_fc_version_link_new ON t_d_financial_center_version_link(new_fc_id);
+        CREATE INDEX idx_fc_version_link_created ON t_d_financial_center_version_link(created_at DESC);
+
+        COMMENT ON TABLE t_d_financial_center_version_link IS 'Tracks SCD Type 2 version relationships for FinancialCenter dimension';
+    """)
+
+    # 3. Create t_d_cost_center_version_link
+    op.execute("""
+        CREATE TABLE t_d_cost_center_version_link (
+            id SERIAL PRIMARY KEY,
+            old_cc_id INT NOT NULL REFERENCES t_d_cost_center(id) ON DELETE CASCADE,
+            new_cc_id INT NOT NULL REFERENCES t_d_cost_center(id) ON DELETE CASCADE,
+            created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+            changed_by_user_id INT REFERENCES t_d_user(id) ON DELETE SET NULL,
+            changed_fields JSONB,
+            CONSTRAINT uq_cc_version_link UNIQUE (old_cc_id, new_cc_id)
+        );
+
+        CREATE INDEX idx_cc_version_link_old ON t_d_cost_center_version_link(old_cc_id);
+        CREATE INDEX idx_cc_version_link_new ON t_d_cost_center_version_link(new_cc_id);
+        CREATE INDEX idx_cc_version_link_created ON t_d_cost_center_version_link(created_at DESC);
+
+        COMMENT ON TABLE t_d_cost_center_version_link IS 'Tracks SCD Type 2 version relationships for CostCenter dimension';
+    """)
+
+    # 4. Update SCD2 triggers to include version_link tracking
+
+    # 4a. Update Article trigger
+    op.execute("""
+        CREATE OR REPLACE FUNCTION trg_scd2_article()
+        RETURNS TRIGGER AS $$
+        DECLARE
+            new_article_id INT;
+            children_updated INT;
+            changed_fields_arr TEXT[];
+        BEGIN
+            IF OLD.is_current = FALSE THEN
+                RAISE EXCEPTION 'Cannot update non-current record (id=%). Update the current version instead.', OLD.id;
+            END IF;
+
+            IF (OLD.name IS DISTINCT FROM NEW.name)
+               OR (OLD.type IS DISTINCT FROM NEW.type)
+               OR (OLD.code IS DISTINCT FROM NEW.code)
+            THEN
+                -- Track which fields changed
+                changed_fields_arr := ARRAY[]::TEXT[];
+                IF OLD.name IS DISTINCT FROM NEW.name THEN
+                    changed_fields_arr := array_append(changed_fields_arr, 'name');
+                END IF;
+                IF OLD.type IS DISTINCT FROM NEW.type THEN
+                    changed_fields_arr := array_append(changed_fields_arr, 'type');
+                END IF;
+                IF OLD.code IS DISTINCT FROM NEW.code THEN
+                    changed_fields_arr := array_append(changed_fields_arr, 'code');
+                END IF;
+
+                -- Close old version
+                UPDATE t_d_article
+                SET is_current = FALSE,
+                    valid_to = clock_timestamp(),
+                    updated_at = clock_timestamp()
+                WHERE id = OLD.id;
+
+                -- Create new version with code field
+                INSERT INTO t_d_article (
+                    user_id, parent_id, code, name, type, is_active,
+                    valid_from, valid_to, is_current, created_at, updated_at
+                ) VALUES (
+                    NEW.user_id, NEW.parent_id, NEW.code, NEW.name, NEW.type, NEW.is_active,
+                    clock_timestamp(), '9999-12-31 23:59:59'::TIMESTAMP, TRUE, OLD.created_at, clock_timestamp()
+                )
+                RETURNING id INTO new_article_id;
+
+                -- Record version link
+                INSERT INTO t_d_article_version_link (
+                    old_article_id, new_article_id, created_at, changed_fields
+                ) VALUES (
+                    OLD.id, new_article_id, clock_timestamp(), to_jsonb(changed_fields_arr)
+                );
+
+                -- Redirect children to new parent version
+                UPDATE t_d_article
+                SET parent_id = new_article_id,
+                    updated_at = clock_timestamp()
+                WHERE parent_id = OLD.id
+                  AND is_current = TRUE;
+
+                GET DIAGNOSTICS children_updated = ROW_COUNT;
+
+                RAISE NOTICE 'Created new article version: old_id=%, new_id=%, changed_fields=%, updated % children',
+                    OLD.id, new_article_id, changed_fields_arr, children_updated;
+
+                RETURN NULL;
+            ELSE
+                -- Non-versioned fields (e.g., is_active)
+                NEW.updated_at := clock_timestamp();
+                RETURN NEW;
+            END IF;
+        END;
+        $$ LANGUAGE plpgsql;
+    """)
+
+    # 4b. Update FinancialCenter trigger
+    op.execute("""
+        CREATE OR REPLACE FUNCTION trg_scd2_financial_center()
+        RETURNS TRIGGER AS $$
+        DECLARE
+            new_fc_id INT;
+            changed_fields_arr TEXT[];
+        BEGIN
+            IF OLD.is_current = FALSE THEN
+                RAISE EXCEPTION 'Cannot update non-current record (id=%). Update the current version instead.', OLD.id;
+            END IF;
+
+            IF (OLD.name IS DISTINCT FROM NEW.name)
+               OR (OLD.description IS DISTINCT FROM NEW.description)
+               OR (OLD.code IS DISTINCT FROM NEW.code)
+            THEN
+                -- Track which fields changed
+                changed_fields_arr := ARRAY[]::TEXT[];
+                IF OLD.name IS DISTINCT FROM NEW.name THEN
+                    changed_fields_arr := array_append(changed_fields_arr, 'name');
+                END IF;
+                IF OLD.description IS DISTINCT FROM NEW.description THEN
+                    changed_fields_arr := array_append(changed_fields_arr, 'description');
+                END IF;
+                IF OLD.code IS DISTINCT FROM NEW.code THEN
+                    changed_fields_arr := array_append(changed_fields_arr, 'code');
+                END IF;
+
+                -- Close old version
+                UPDATE t_d_financial_center
+                SET is_current = FALSE,
+                    valid_to = NOW(),
+                    updated_at = NOW()
+                WHERE id = OLD.id;
+
+                -- Create new version
+                INSERT INTO t_d_financial_center (
+                    user_id, code, name, description,
+                    valid_from, valid_to, is_current, created_at, updated_at
+                ) VALUES (
+                    NEW.user_id, NEW.code, NEW.name, NEW.description,
+                    NOW(), '9999-12-31 23:59:59'::TIMESTAMP, TRUE, OLD.created_at, NOW()
+                )
+                RETURNING id INTO new_fc_id;
+
+                -- Record version link
+                INSERT INTO t_d_financial_center_version_link (
+                    old_fc_id, new_fc_id, created_at, changed_fields
+                ) VALUES (
+                    OLD.id, new_fc_id, NOW(), to_jsonb(changed_fields_arr)
+                );
+
+                RAISE NOTICE 'Created new FC version: old_id=%, new_id=%, changed_fields=%',
+                    OLD.id, new_fc_id, changed_fields_arr;
+
+                RETURN NULL;
+            ELSE
+                NEW.updated_at := NOW();
+                RETURN NEW;
+            END IF;
+        END;
+        $$ LANGUAGE plpgsql;
+    """)
+
+    # 4c. Update CostCenter trigger
+    op.execute("""
+        CREATE OR REPLACE FUNCTION trg_scd2_cost_center()
+        RETURNS TRIGGER AS $$
+        DECLARE
+            new_cc_id INT;
+            changed_fields_arr TEXT[];
+        BEGIN
+            IF OLD.is_current = FALSE THEN
+                RAISE EXCEPTION 'Cannot update non-current record (id=%). Update the current version instead.', OLD.id;
+            END IF;
+
+            IF (OLD.name IS DISTINCT FROM NEW.name)
+               OR (OLD.description IS DISTINCT FROM NEW.description)
+               OR (OLD.code IS DISTINCT FROM NEW.code)
+            THEN
+                -- Track which fields changed
+                changed_fields_arr := ARRAY[]::TEXT[];
+                IF OLD.name IS DISTINCT FROM NEW.name THEN
+                    changed_fields_arr := array_append(changed_fields_arr, 'name');
+                END IF;
+                IF OLD.description IS DISTINCT FROM NEW.description THEN
+                    changed_fields_arr := array_append(changed_fields_arr, 'description');
+                END IF;
+                IF OLD.code IS DISTINCT FROM NEW.code THEN
+                    changed_fields_arr := array_append(changed_fields_arr, 'code');
+                END IF;
+
+                -- Close old version
+                UPDATE t_d_cost_center
+                SET is_current = FALSE,
+                    valid_to = NOW(),
+                    updated_at = NOW()
+                WHERE id = OLD.id;
+
+                -- Create new version
+                INSERT INTO t_d_cost_center (
+                    user_id, code, name, description,
+                    valid_from, valid_to, is_current, created_at, updated_at
+                ) VALUES (
+                    NEW.user_id, NEW.code, NEW.name, NEW.description,
+                    NOW(), '9999-12-31 23:59:59'::TIMESTAMP, TRUE, OLD.created_at, NOW()
+                )
+                RETURNING id INTO new_cc_id;
+
+                -- Record version link
+                INSERT INTO t_d_cost_center_version_link (
+                    old_cc_id, new_cc_id, created_at, changed_fields
+                ) VALUES (
+                    OLD.id, new_cc_id, NOW(), to_jsonb(changed_fields_arr)
+                );
+
+                RAISE NOTICE 'Created new CC version: old_id=%, new_id=%, changed_fields=%',
+                    OLD.id, new_cc_id, changed_fields_arr;
+
+                RETURN NULL;
+            ELSE
+                NEW.updated_at := NOW();
+                RETURN NEW;
+            END IF;
+        END;
+        $$ LANGUAGE plpgsql;
+    """)
+
 
 def downgrade() -> None:
     """Drop all tables and functions in reverse order."""
+
+    # Drop version link tables first
+    op.execute("DROP TABLE IF EXISTS t_d_cost_center_version_link CASCADE")
+    op.execute("DROP TABLE IF EXISTS t_d_financial_center_version_link CASCADE")
+    op.execute("DROP TABLE IF EXISTS t_d_article_version_link CASCADE")
 
     # Drop tables (reverse order of creation)
     op.execute("DROP TABLE IF EXISTS t_recommended_amounts CASCADE")

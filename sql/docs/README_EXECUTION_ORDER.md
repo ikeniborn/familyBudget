@@ -18,11 +18,10 @@ psql -U budget_user -d family_budget -f 03_insert_t_d_article_parents.sql
 # NOTE: Triggers will automatically populate t_d_article_hierarchy!
 psql -U budget_user -d family_budget -f 04_insert_t_d_article_children.sql
 
-# 4. Create partitions for t_f_budget_fact (2023-01 to 2030-12)
-psql -U budget_user -d family_budget -f 05_create_partitions_t_f_budget_fact.sql
-
-# 5. Insert budget facts (plan and actual transactions)
-psql -U budget_user -d family_budget -f 06_insert_t_f_budget_fact.sql
+# 4. Insert budget facts (plan and actual transactions)
+# NOTE: Partitions are created via Alembic baseline migration (backend/db/migrations/)
+# 96 monthly partitions (2023-01 to 2030-12) are created automatically
+psql -U budget_user -d family_budget -f 05_insert_t_f_budget_fact.sql
 ```
 
 ## Important Notes
@@ -39,13 +38,23 @@ The hierarchy is **automatically maintained** by database triggers:
 
 **No script 05_insert_t_d_article_hierarchy.sql needed!**
 
+### Partitions (via Alembic)
+
+**⚠️ ВАЖНО:** Файл `05_create_partitions_t_f_budget_fact.sql` был **УДАЛЕН**.
+
+Партиции для `t_f_budget_fact` теперь создаются через Alembic baseline migration:
+- **Location**: `backend/db/migrations/versions/20251109_001_baseline_schema_v5_0_0.py`
+- **Type**: MONTHLY partitions (better performance than yearly)
+- **Count**: 96 partitions (2023-01 to 2030-12)
+- **Benefit**: Eliminates overlap conflict between yearly and monthly partitions
+
 ### Statistics
 
 - **Financial Centers**: 4 (Илья, Оксана, Радомир, Семья)
 - **Cost Centers**: 30
 - **Articles (Parents)**: 32 root categories
 - **Articles (Children)**: 60 subcategories
-- **Partitions**: 96 monthly partitions (2023-01 to 2030-12)
+- **Partitions**: 96 monthly partitions (via Alembic, not SQL script)
 - **Budget Facts**: 6,662 transactions (plan + fact)
 
 ### Data Range

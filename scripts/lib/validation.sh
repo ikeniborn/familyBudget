@@ -33,6 +33,7 @@ Options:
   -f, --foreground                Run in foreground (show logs)
   -p, --profile PROFILE           Docker Compose profile (default: auto-detect from .env)
   --no-migrate                    Skip database migrations
+  --migrations-only               Run ONLY migrations (skip build/restart containers)
   --clean                         Clean deployment (remove volumes) - WARNING: DELETES DATA!
   --sync-mode MODE                Code sync mode: mirror|update|clean|skip (default: interactive)
   --repo-dir PATH                 Repository directory path (default: auto-detect)

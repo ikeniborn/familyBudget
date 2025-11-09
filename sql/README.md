@@ -54,6 +54,7 @@ sql/
 - ✅ **Параллельное выполнение** - до 50 одновременных подключений
 - ✅ **Comprehensive testing** - 7 тестов, 100% coverage
 - ✅ **Автоматическая генерация** из CSV
+- ✅ **Code field support** - унифицированные бизнес-коды (CFO-{seq}, MVZ-{seq}, ART-{seq})
 - ✅ **Изолированная среда** - Python venv
 - ✅ **SCD Type 2 support** - историческое отслеживание
 - ✅ **Performance** - 5-10x быстрее чем psql
@@ -115,7 +116,7 @@ deactivate
 ```bash
 cd scripts
 ./execute_all.sh                # Все файлы последовательно
-./run.sh --file ../queries/06_insert_t_f_budget_fact.sql  # Один файл
+./run.sh --file ../queries/05_insert_t_f_budget_fact.sql  # Один файл
 ```
 
 ---
