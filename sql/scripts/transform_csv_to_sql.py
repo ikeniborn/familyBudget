@@ -78,22 +78,23 @@ def parse_csv(csv_path: Path) -> Tuple[List[Dict], Dict]:
             stats['total_rows'] += 1
 
             # Validate required fields
-            period_dt = row.get('period_dt', '').strip()
             operation_dttm = row.get('operation_dttm', '').strip()
 
-            # Skip rows with invalid period_dt
-            if not is_valid_date(period_dt):
+            # Extract date from operation_dttm (format: "2023-03-09 13:25:49.000")
+            # NOTE: CSV has 'period_ru_name' (e.g., "ноя 2025"), but we use operation_dttm for actual date
+            if not operation_dttm:
                 stats['invalid_rows'] += 1
-                stats['skipped_rows'].append(f"Row {idx}: Invalid period_dt '{period_dt}'")
+                stats['skipped_rows'].append(f"Row {idx}: Missing operation_dttm")
                 continue
 
             # Clean and validate
             try:
-                # Extract date from operation_dttm (format: "2023-03-09 13:25:49.000")
-                operation_date = operation_dttm.split()[0] if operation_dttm else period_dt
+                operation_date = operation_dttm.split()[0]
 
                 if not is_valid_date(operation_date):
-                    operation_date = period_dt
+                    stats['invalid_rows'] += 1
+                    stats['skipped_rows'].append(f"Row {idx}: Invalid operation_date '{operation_date}'")
+                    continue
 
                 # Parse amount
                 amount_str = row['cost_sum'].replace(',', '.')
@@ -119,7 +120,6 @@ def parse_csv(csv_path: Path) -> Tuple[List[Dict], Dict]:
 
                 record = {
                     'operation_date': operation_date,
-                    'period_dt': period_dt,
                     'financial_center': financial_center,
                     'cost_center': cost_center,
                     'nomenclature': nomenclature,
