@@ -182,7 +182,7 @@ def generate_financial_center_sql(financial_centers: Set[str], output_path: Path
     ]
 
     for idx, name in enumerate(sorted(financial_centers), start=1):
-        code = f"FC_{name.upper()}"
+        code = f"CFO-{idx}"  # New pattern: CFO-1, CFO-2, ...
         sql = f"INSERT INTO t_d_financial_center (user_id, code, name, is_current) VALUES ({USER_ID}, '{escape_sql(code)}', '{escape_sql(name)}', true);"
         sql_lines.append(sql)
 
@@ -206,7 +206,7 @@ def generate_cost_center_sql(cost_centers: Set[str], output_path: Path):
     ]
 
     for idx, name in enumerate(sorted(cost_centers), start=1):
-        code = f"CC_{name.upper()}"
+        code = f"MVZ-{idx}"  # New pattern: MVZ-1, MVZ-2, ...
         sql = f"INSERT INTO t_d_cost_center (user_id, code, name, is_current) VALUES ({USER_ID}, '{escape_sql(code)}', '{escape_sql(name)}', true);"
         sql_lines.append(sql)
 
@@ -230,7 +230,7 @@ def generate_article_parents_sql(parent_articles: Dict[str, str], output_path: P
     ]
 
     for idx, (name, article_type) in enumerate(sorted(parent_articles.items()), start=1):
-        code = f"ART_PARENT_{idx:03d}"
+        code = f"ART-{idx}"  # New pattern: ART-1, ART-2, ...
         sql = f"INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_current) VALUES ({USER_ID}, '{escape_sql(code)}', '{escape_sql(name)}', '{article_type}', NULL, true);"
         sql_lines.append(sql)
 
@@ -257,10 +257,12 @@ def generate_article_children_sql(child_articles: Dict[Tuple[str, str], str], pa
     # Create parent_name -> code mapping
     parent_code_map = {}
     for idx, name in enumerate(sorted(parent_articles.keys()), start=1):
-        parent_code_map[name] = f"ART_PARENT_{idx:03d}"
+        parent_code_map[name] = f"ART-{idx}"  # New pattern: ART-1, ART-2, ...
 
-    for idx, ((child_name, parent_name), article_type) in enumerate(sorted(child_articles.items()), start=1):
-        code = f"ART_CHILD_{idx:04d}"
+    # Child articles continue sequence after parents
+    start_idx = len(parent_articles) + 1  # If 32 parents, start from 33
+    for idx, ((child_name, parent_name), article_type) in enumerate(sorted(child_articles.items()), start=start_idx):
+        code = f"ART-{idx}"  # New pattern: ART-33, ART-34, ...
         parent_code = parent_code_map.get(parent_name, 'NULL')
 
         if parent_code != 'NULL':

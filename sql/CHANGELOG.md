@@ -1,5 +1,47 @@
 # Changelog - SQL проект
 
+## [3.1.0] - 2025-11-09
+
+### 🔑 Code Field Support - Unified Sequential Pattern
+
+**Добавлено:**
+- ✅ **Code field поддержка** для всех dimension tables (ЦФО, МВЗ, категории)
+- ✅ **Унифицированный паттерн**: CFO-{seq}, MVZ-{seq}, ART-{seq}
+- ✅ **Новый скрипт**: `scripts/update_code_patterns.py` - автоматическая конвертация паттернов
+
+**Изменено:**
+- ✅ `scripts/transform_csv_to_sql.py` - генерация code field с новым паттерном
+  - FinancialCenter: FC_{name} → CFO-1, CFO-2, ...
+  - CostCenter: CC_{name} → MVZ-1, MVZ-2, ...
+  - Article parents: ART_PARENT_{num} → ART-1...ART-32
+  - Article children: ART_CHILD_{num} → ART-33...ART-92 (unified sequence)
+
+**Обновлено:**
+- ✅ `queries/*.sql` - все dimension INSERT statements теперь с code field
+  - 01_insert_t_d_financial_center.sql (4 codes: CFO-1...CFO-4)
+  - 02_insert_t_d_cost_center.sql (30 codes: MVZ-1...MVZ-30)
+  - 03_insert_t_d_article_parents.sql (32 codes: ART-1...ART-32)
+  - 04_insert_t_d_article_children.sql (60 codes: ART-33...ART-92)
+
+**Проверено:**
+- ✅ Тестовые скрипты (scripts/tests/*) - все используют code field корректно
+- ✅ Скрипты запуска (execute_all.sh, run.sh, setup_and_test.sh) - работают без изменений
+
+**Совместимость:**
+- ⚠️ Backward compatible: старые версии dimension records без code field продолжают работать (code nullable)
+- ✅ Forward compatible: новые записи с code field для внешних интеграций
+
+**Migration Path:**
+```bash
+# Обновить паттерны code в существующих SQL
+cd sql/scripts
+python3 update_code_patterns.py
+
+# Результат: queries/ обновлены с новыми паттернами
+```
+
+---
+
 ## [3.0.0] - 2025-11-02
 
 ### 🧪 Comprehensive Test Suite

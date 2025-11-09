@@ -51,3 +51,4 @@ data/*.csv
 # Temporary files
 *.tmp
 .DS_Store
+queries_backup/
