@@ -1,5 +1,53 @@
 # Changelog - SQL проект
 
+## [3.2.0] - 2025-11-09
+
+### 🔄 Partition Management via Alembic (MONTHLY Partitions)
+
+**КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ:** Партиционирование перенесено из SQL скриптов в Alembic миграции.
+
+**Удалено:**
+- ❌ **`queries/05_create_partitions_t_f_budget_fact.sql`** - файл удален
+
+**Причина удаления:**
+- Конфликт overlapping partitions: ГОДОВЫЕ партиции (Alembic baseline) vs МЕСЯЧНЫЕ партиции (SQL script)
+- Duplicate источник правды для DDL операций
+- PostgreSQL ошибка: `partition "t_f_budget_fact_2023_01" would overlap partition "t_f_budget_fact_2023"`
+
+**Новая архитектура:**
+- ✅ **Партиции создаются через Alembic baseline migration**
+- ✅ Локация: `backend/db/migrations/versions/20251109_001_baseline_schema_v5_0_0.py`
+- ✅ Тип: **MONTHLY partitions** (96 партиций: 2023-01 до 2030-12)
+- ✅ Преимущества: Лучшая производительность (partition pruning), более гибкое управление
+
+**Изменено:**
+- ✅ `scripts/execute_all.sh` - удалена ссылка на файл 05 (partition creation пропущен)
+- ✅ `docs/README.md` - обновлена таблица SQL queries (файл 05 помечен как удаленный)
+- ✅ `docs/QUICKSTART.md` - обновлен порядок выполнения (без шага 05)
+- ✅ `docs/README_EXECUTION_ORDER.md` - добавлена секция "Partitions (via Alembic)"
+
+**Правило разделения (DDL vs DML):**
+- **Alembic**: DDL операции (CREATE TABLE, ALTER TABLE, CREATE INDEX, **CREATE PARTITION**)
+- **sql/**: DML операции (INSERT данных из CSV)
+
+**Migration Path:**
+```bash
+# Старые БД с ГОДОВЫМИ партициями:
+# - Партиции остаются как есть (backward compatible)
+# - При необходимости: создать Alembic миграцию для конвертации YEARLY → MONTHLY
+
+# Новые БД:
+cd backend/db/migrations
+alembic upgrade head  # Создает 96 МЕСЯЧНЫХ партиций автоматически
+```
+
+**Совместимость:**
+- ✅ Backward compatible: Существующие ГОДОВЫЕ партиции продолжают работать
+- ✅ Forward compatible: Новые установки получают МЕСЯЧНЫЕ партиции
+- ⚠️ НЕ запускайте `sql/queries/05_*.sql` если уже есть партиции (конфликт!)
+
+---
+
 ## [3.1.0] - 2025-11-09
 
 ### 🔑 Code Field Support - Unified Sequential Pattern

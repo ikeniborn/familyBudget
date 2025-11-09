@@ -945,6 +945,37 @@ backend/db/
 
 ---
 
+### ⚠️ ВАЖНО: sql/ vs Alembic (Avoid Conflicts!)
+
+**КРИТИЧНО:** sql/ директория предназначена **ТОЛЬКО для миграции данных** (DML - INSERT), НЕ для DDL!
+
+**Правило разделения:**
+- **Alembic (backend/db/migrations/)**: DDL операции (CREATE TABLE, ALTER TABLE, CREATE INDEX, CREATE PARTITION)
+- **sql/ (sql/queries/)**: DML операции (INSERT данных из CSV)
+
+**Пример конфликта (ИСПРАВЛЕНО в v5.0.0):**
+```
+ПРОБЛЕМА:
+- backend/db/migrations/20251109_001_baseline_schema_v5_0_0.py создает ГОДОВЫЕ партиции (2020-2030)
+- sql/queries/05_create_partitions_t_f_budget_fact.sql пытается создать МЕСЯЧНЫЕ партиции (2023-01 до 2030-12)
+- ОШИБКА: partition "t_f_budget_fact_2023_01" would overlap partition "t_f_budget_fact_2023"
+
+РЕШЕНИЕ:
+- Партиции переведены в МЕСЯЧНЫЕ в baseline migration (96 партиций)
+- sql/queries/05_create_partitions_t_f_budget_fact.sql УДАЛЕН
+- sql/ теперь содержит ТОЛЬКО DML (INSERT данных)
+```
+
+**Если нужно добавить DDL:**
+1. ✅ **ПРАВИЛЬНО**: Создай Alembic миграцию `alembic revision -m "add_new_partitions"`
+2. ❌ **НЕПРАВИЛЬНО**: НЕ добавляй DDL в sql/queries/
+
+**Если нужно добавить данные:**
+1. ✅ **ПРАВИЛЬНО**: Добавь INSERT скрипт в sql/queries/
+2. ❌ **НЕПРАВИЛЬНО**: НЕ добавляй DML в Alembic миграции (только для системных данных!)
+
+---
+
 ### ⚠️ КРИТИЧНО: Процесс изменения БД
 
 #### Все окружения (Development + Production)

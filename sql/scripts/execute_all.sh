@@ -17,12 +17,14 @@ MAX_CONNECTIONS=50
 ENV_FILE="$SCRIPT_DIR/postgresql.env"
 
 # SQL files in execution order
+# NOTE: 05_create_partitions_t_f_budget_fact.sql REMOVED
+#       Partitions are now created via Alembic baseline migration (backend/db/migrations/)
+#       This eliminates the overlap conflict between yearly and monthly partitions
 SQL_FILES=(
     "$QUERIES_DIR/01_insert_t_d_financial_center.sql"
     "$QUERIES_DIR/02_insert_t_d_cost_center.sql"
     "$QUERIES_DIR/03_insert_t_d_article_parents.sql"
     "$QUERIES_DIR/04_insert_t_d_article_children.sql"
-    "$QUERIES_DIR/05_create_partitions_t_f_budget_fact.sql"
     "$QUERIES_DIR/06_insert_t_f_budget_fact.sql"
 )
 

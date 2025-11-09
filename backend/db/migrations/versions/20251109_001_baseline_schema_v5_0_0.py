@@ -1,4 +1,4 @@
-"""Baseline schema v5.0.0 - Full database schema migration
+"""Baseline schema v5.0.0 - Full database schema migration with MONTHLY partitions
 
 Revision ID: 001_baseline
 Revises: None
@@ -7,16 +7,21 @@ Create Date: 2025-11-09
 This migration consolidates all schema/*.sql files into a single baseline migration.
 It creates the complete Family Budget database schema including:
 - Core dimension tables (Users, Articles, Financial Centers, Cost Centers)
-- Fact table (Budget Facts)
+- Fact table (Budget Facts) with MONTHLY partitions (96 partitions: 2023-01 to 2030-12)
 - Article hierarchy (Closure Table)
 - Triggers (Hierarchy + SCD Type 2)
 - Authentication tables (Refresh Tokens, Article Usage Stats)
 - Notification tables
 - Recommendation tables (K-means clustering)
 
+Partitioning Strategy:
+- MONTHLY partitions for better query performance (partition pruning)
+- 96 partitions covering 2023-01-01 to 2030-12-31
+- More flexible than yearly partitions for attach/detach operations
+
 Source files consolidated:
 - 001_core_dimensions.sql
-- 002_core_facts.sql
+- 002_core_facts.sql (modified: monthly partitions instead of yearly)
 - 003_core_hierarchy.sql
 - 004_core_triggers.sql
 - 005_auth_tokens.sql
@@ -178,7 +183,7 @@ def upgrade() -> None:
     # PART 2: Core Fact Table (002_core_facts.sql)
     # =========================================================================
 
-    # TABLE: t_f_budget_fact (PARTITIONED by fact_date by YEAR)
+    # TABLE: t_f_budget_fact (PARTITIONED by fact_date by MONTH)
     op.execute("""
         CREATE TABLE t_f_budget_fact (
             id SERIAL,
@@ -196,61 +201,121 @@ def upgrade() -> None:
         ) PARTITION BY RANGE (fact_date)
     """)
 
-    # Create partitions for years 2020-2030
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2020 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2020-01-01') TO ('2021-01-01')
-    """)
+    # Create monthly partitions for 2023-2030 (96 partitions)
+    # Data range: 2023-01-01 to 2030-12-31
+    # Better performance with monthly partition pruning
 
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2021 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2021-01-01') TO ('2022-01-01')
-    """)
+    # 2023 (12 months)
+    op.execute("CREATE TABLE t_f_budget_fact_2023_01 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-01-01') TO ('2023-02-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_02 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-02-01') TO ('2023-03-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_03 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-03-01') TO ('2023-04-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_04 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-04-01') TO ('2023-05-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_05 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-05-01') TO ('2023-06-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_06 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-06-01') TO ('2023-07-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_07 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-07-01') TO ('2023-08-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_08 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-08-01') TO ('2023-09-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_09 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-09-01') TO ('2023-10-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_10 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-10-01') TO ('2023-11-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_11 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-11-01') TO ('2023-12-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2023_12 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2023-12-01') TO ('2024-01-01')")
 
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2022 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2022-01-01') TO ('2023-01-01')
-    """)
+    # 2024 (12 months)
+    op.execute("CREATE TABLE t_f_budget_fact_2024_01 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-01-01') TO ('2024-02-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_02 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-02-01') TO ('2024-03-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_03 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-03-01') TO ('2024-04-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_04 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-04-01') TO ('2024-05-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_05 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-05-01') TO ('2024-06-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_06 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-06-01') TO ('2024-07-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_07 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-07-01') TO ('2024-08-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_08 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-08-01') TO ('2024-09-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_09 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-09-01') TO ('2024-10-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_10 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-10-01') TO ('2024-11-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_11 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-11-01') TO ('2024-12-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2024_12 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2024-12-01') TO ('2025-01-01')")
 
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2023 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2023-01-01') TO ('2024-01-01')
-    """)
+    # 2025 (12 months)
+    op.execute("CREATE TABLE t_f_budget_fact_2025_01 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-01-01') TO ('2025-02-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_02 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-02-01') TO ('2025-03-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_03 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-03-01') TO ('2025-04-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_04 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-04-01') TO ('2025-05-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_05 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-05-01') TO ('2025-06-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_06 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-06-01') TO ('2025-07-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_07 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-07-01') TO ('2025-08-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_08 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-08-01') TO ('2025-09-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_09 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-09-01') TO ('2025-10-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_10 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-10-01') TO ('2025-11-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_11 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-11-01') TO ('2025-12-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2025_12 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2025-12-01') TO ('2026-01-01')")
 
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2024 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2024-01-01') TO ('2025-01-01')
-    """)
+    # 2026 (12 months)
+    op.execute("CREATE TABLE t_f_budget_fact_2026_01 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-01-01') TO ('2026-02-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_02 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-02-01') TO ('2026-03-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_03 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-03-01') TO ('2026-04-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_04 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-04-01') TO ('2026-05-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_05 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-05-01') TO ('2026-06-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_06 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-06-01') TO ('2026-07-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_07 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-07-01') TO ('2026-08-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_08 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-08-01') TO ('2026-09-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_09 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-09-01') TO ('2026-10-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_10 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-10-01') TO ('2026-11-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_11 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-11-01') TO ('2026-12-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2026_12 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2026-12-01') TO ('2027-01-01')")
 
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2025 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
-    """)
+    # 2027 (12 months)
+    op.execute("CREATE TABLE t_f_budget_fact_2027_01 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-01-01') TO ('2027-02-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_02 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-02-01') TO ('2027-03-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_03 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-03-01') TO ('2027-04-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_04 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-04-01') TO ('2027-05-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_05 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-05-01') TO ('2027-06-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_06 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-06-01') TO ('2027-07-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_07 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-07-01') TO ('2027-08-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_08 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-08-01') TO ('2027-09-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_09 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-09-01') TO ('2027-10-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_10 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-10-01') TO ('2027-11-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_11 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-11-01') TO ('2027-12-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2027_12 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2027-12-01') TO ('2028-01-01')")
 
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2026 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
-    """)
+    # 2028 (12 months)
+    op.execute("CREATE TABLE t_f_budget_fact_2028_01 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-01-01') TO ('2028-02-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_02 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-02-01') TO ('2028-03-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_03 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-03-01') TO ('2028-04-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_04 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-04-01') TO ('2028-05-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_05 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-05-01') TO ('2028-06-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_06 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-06-01') TO ('2028-07-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_07 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-07-01') TO ('2028-08-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_08 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-08-01') TO ('2028-09-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_09 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-09-01') TO ('2028-10-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_10 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-10-01') TO ('2028-11-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_11 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-11-01') TO ('2028-12-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2028_12 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2028-12-01') TO ('2029-01-01')")
 
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2027 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2027-01-01') TO ('2028-01-01')
-    """)
+    # 2029 (12 months)
+    op.execute("CREATE TABLE t_f_budget_fact_2029_01 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-01-01') TO ('2029-02-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_02 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-02-01') TO ('2029-03-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_03 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-03-01') TO ('2029-04-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_04 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-04-01') TO ('2029-05-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_05 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-05-01') TO ('2029-06-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_06 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-06-01') TO ('2029-07-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_07 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-07-01') TO ('2029-08-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_08 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-08-01') TO ('2029-09-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_09 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-09-01') TO ('2029-10-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_10 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-10-01') TO ('2029-11-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_11 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-11-01') TO ('2029-12-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2029_12 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2029-12-01') TO ('2030-01-01')")
 
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2028 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2028-01-01') TO ('2029-01-01')
-    """)
-
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2029 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2029-01-01') TO ('2030-01-01')
-    """)
-
-    op.execute("""
-        CREATE TABLE t_f_budget_fact_2030 PARTITION OF t_f_budget_fact
-            FOR VALUES FROM ('2030-01-01') TO ('2031-01-01')
-    """)
+    # 2030 (12 months)
+    op.execute("CREATE TABLE t_f_budget_fact_2030_01 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-01-01') TO ('2030-02-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_02 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-02-01') TO ('2030-03-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_03 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-03-01') TO ('2030-04-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_04 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-04-01') TO ('2030-05-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_05 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-05-01') TO ('2030-06-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_06 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-06-01') TO ('2030-07-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_07 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-07-01') TO ('2030-08-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_08 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-08-01') TO ('2030-09-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_09 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-09-01') TO ('2030-10-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_10 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-10-01') TO ('2030-11-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_11 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-11-01') TO ('2030-12-01')")
+    op.execute("CREATE TABLE t_f_budget_fact_2030_12 PARTITION OF t_f_budget_fact FOR VALUES FROM ('2030-12-01') TO ('2031-01-01')")
 
     # Budget fact indexes
     op.execute("CREATE INDEX idx_budget_fact_user_id ON t_f_budget_fact(user_id)")
