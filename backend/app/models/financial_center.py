@@ -43,6 +43,7 @@ class FinancialCenter(SQLModel, table=True):
         user_id: Owner user ID (required - tracks creator for audit)
         name: Financial center display name (required, max 255 chars)
         description: Optional description or notes (text field)
+        code: Business code for external integrations (optional, auto-generated as CFO-1, CFO-2, ...)
         valid_from: Start of validity period for this record
         valid_to: End of validity period (9999-12-31 for current records)
         is_current: Flag indicating if this is the current version
@@ -96,6 +97,13 @@ class FinancialCenter(SQLModel, table=True):
     description: Optional[str] = Field(
         default=None,
         description="Optional description or notes about the financial center"
+    )
+    code: Optional[str] = Field(
+        default=None,
+        max_length=50,
+        nullable=True,
+        index=True,
+        description="Business code for external integrations (e.g., CFO-1, CFO-2). Auto-generated if not provided."
     )
 
     # SCD Type 2 fields
