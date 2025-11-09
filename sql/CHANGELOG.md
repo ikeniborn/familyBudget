@@ -1,5 +1,37 @@
 # Changelog - SQL проект
 
+## [3.2.1] - 2025-11-09
+
+### 🐛 Исправление: Добавлена колонка record_type в t_f_budget_fact
+
+**КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ:** Устранено несоответствие между SQLModel моделью и Alembic migration.
+
+**Проблема:**
+- ❌ **Alembic baseline migration** - НЕ создавал колонку `record_type`
+- ✅ **SQLModel модель** (`backend/app/models/fact.py`) - содержит поле `record_type`
+- ✅ **SQL скрипт** (`sql/queries/05_insert_t_f_budget_fact.sql`) - использует `record_type`
+- 🔴 **Ошибка:** `column "record_type" of relation "t_f_budget_fact" does not exist`
+
+**Исправлено:**
+- ✅ **Добавлена колонка** `record_type VARCHAR(10) NOT NULL DEFAULT 'fact'` в Alembic baseline migration
+- ✅ Локация: `backend/db/migrations/versions/20251109_001_baseline_schema_v5_0_0.py:197`
+- ✅ Соответствие SQLModel модели: полное
+
+**Определение колонки:**
+```sql
+record_type VARCHAR(10) NOT NULL DEFAULT 'fact'
+```
+
+**Назначение:**
+- `'fact'` - фактические транзакции (доходы/расходы)
+- `'plan'` - плановые значения бюджета
+
+**Совместимость:**
+- ✅ Backward compatible: существующие записи получат DEFAULT значение `'fact'`
+- ✅ Forward compatible: SQL скрипт теперь работает корректно
+
+---
+
 ## [3.2.0] - 2025-11-09
 
 ### 🔄 Partition Management via Alembic (MONTHLY Partitions)
@@ -250,4 +282,4 @@ cd /home/ikeniborn/Documents/Project/familyBudget/sql/scripts
 - **MINOR**: Новые features (backward compatible)
 - **PATCH**: Bug fixes и улучшения
 
-**Current version:** 3.2.0
+**Current version:** 3.2.1

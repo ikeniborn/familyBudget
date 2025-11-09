@@ -194,6 +194,7 @@ def upgrade() -> None:
             amount DECIMAL(15, 2) NOT NULL,
             fact_date DATE NOT NULL,
             description TEXT,
+            record_type VARCHAR(10) NOT NULL DEFAULT 'fact',
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             CONSTRAINT check_fact_amount_not_zero CHECK (amount != 0),
