@@ -61,10 +61,10 @@ python3 execute_sql_parallel.py
 
 ```bash
 # Execute specific file
-python3 execute_sql_parallel.py --file 06_insert_t_f_budget_fact.sql
+python3 execute_sql_parallel.py --file 05_insert_t_f_budget_fact.sql
 
 # Custom max connections (1-50)
-python3 execute_sql_parallel.py --file 06_insert_t_f_budget_fact.sql --max-connections 30
+python3 execute_sql_parallel.py --file 05_insert_t_f_budget_fact.sql --max-connections 30
 
 # Custom env file location
 python3 execute_sql_parallel.py --env /path/to/.env --file 01_insert_t_d_financial_center.sql
@@ -111,12 +111,12 @@ python3 execute_sql_parallel.py --file 01_insert_t_d_financial_center.sql
 ### Example 2: Large file with batches (fact table)
 
 ```bash
-python3 execute_sql_parallel.py --file 06_insert_t_f_budget_fact.sql --max-connections 50
+python3 execute_sql_parallel.py --file 05_insert_t_f_budget_fact.sql --max-connections 50
 ```
 
 **Output:**
 ```
-📄 Parsing file: 06_insert_t_f_budget_fact.sql
+📄 Parsing file: 05_insert_t_f_budget_fact.sql
 ✓ Found 7 batches, 6662 statements
 🔗 Creating connection pool: 50 connections
 
@@ -148,9 +148,9 @@ FILES=(
     "02_insert_t_d_cost_center.sql"
     "03_insert_t_d_article_parents.sql"
     "04_insert_t_d_article_children.sql"
-    "05_create_partitions_t_f_budget_fact.sql"
-    "06_insert_t_f_budget_fact.sql"
+    "05_insert_t_f_budget_fact.sql"
 )
+# NOTE: Partitions are created via Alembic baseline migration (backend/db/migrations/)
 
 for file in "${FILES[@]}"; do
     echo "====================================="
@@ -265,7 +265,7 @@ INSERT INTO table1 VALUES (2, 'b');
 
 ### File Not Found
 
-**Error:** `File not found: 06_insert_t_f_budget_fact.sql`
+**Error:** `File not found: 05_insert_t_f_budget_fact.sql`
 
 **Solution:**
 ```bash
@@ -274,7 +274,7 @@ python3 execute_sql_parallel.py --file /absolute/path/to/file.sql
 
 # Or cd to directory first
 cd /home/ikeniborn/Documents/Project/familyBudget/sql
-python3 execute_sql_parallel.py --file 06_insert_t_f_budget_fact.sql
+python3 execute_sql_parallel.py --file 05_insert_t_f_budget_fact.sql
 ```
 
 ## Advanced Usage

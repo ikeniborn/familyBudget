@@ -21,10 +21,13 @@
 - ✅ Преимущества: Лучшая производительность (partition pruning), более гибкое управление
 
 **Изменено:**
-- ✅ `scripts/execute_all.sh` - удалена ссылка на файл 05 (partition creation пропущен)
-- ✅ `docs/README.md` - обновлена таблица SQL queries (файл 05 помечен как удаленный)
-- ✅ `docs/QUICKSTART.md` - обновлен порядок выполнения (без шага 05)
-- ✅ `docs/README_EXECUTION_ORDER.md` - добавлена секция "Partitions (via Alembic)"
+- ✅ `queries/06_insert_t_f_budget_fact.sql` → `queries/05_insert_t_f_budget_fact.sql` - переименован для последовательной нумерации
+- ✅ `scripts/execute_all.sh` - обновлена ссылка 06→05, удалена ссылка на создание партиций
+- ✅ `docs/README.md` - обновлена таблица SQL queries (06→05, файл 05 помечен как удаленный)
+- ✅ `docs/QUICKSTART.md` - обновлен порядок выполнения и таблица производительности (06→05)
+- ✅ `docs/README_EXECUTION_ORDER.md` - обновлен порядок выполнения (06→05), добавлена секция "Partitions (via Alembic)"
+- ✅ `docs/USAGE_PARALLEL_EXECUTOR.md` - обновлены все примеры команд (06→05)
+- ✅ `README.md` - обновлена ссылка на файл 06→05
 
 **Правило разделения (DDL vs DML):**
 - **Alembic**: DDL операции (CREATE TABLE, ALTER TABLE, CREATE INDEX, **CREATE PARTITION**)
@@ -247,4 +250,4 @@ cd /home/ikeniborn/Documents/Project/familyBudget/sql/scripts
 - **MINOR**: Новые features (backward compatible)
 - **PATCH**: Bug fixes и улучшения
 
-**Current version:** 2.0.0
+**Current version:** 3.2.0

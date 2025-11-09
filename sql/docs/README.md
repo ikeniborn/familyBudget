@@ -44,10 +44,9 @@ sql/
 | 02 | `insert_t_d_cost_center.sql` | Центры затрат (МВЗ) | 30 |
 | 03 | `insert_t_d_article_parents.sql` | Родительские категории | 32 |
 | 04 | `insert_t_d_article_children.sql` | Подкатегории (триггеры → иерархия) | 60 |
-| ~~05~~ | ~~`create_partitions_t_f_budget_fact.sql`~~ | **УДАЛЕН**: Партиции создаются через Alembic | ~~96~~ |
-| 06 | `insert_t_f_budget_fact.sql` | Транзакции (plan + fact) | 6,662 |
+| 05 | `insert_t_f_budget_fact.sql` | Транзакции (plan + fact) | 6,662 |
 
-> **⚠️ ВАЖНО:** Файл 05 был удален. Партиции для `t_f_budget_fact` (96 месячных партиций: 2023-01 до 2030-12) теперь создаются автоматически через Alembic baseline migration (`backend/db/migrations/`). Это устраняет конфликт overlapping partitions между годовыми и месячными партициями.
+> **⚠️ ВАЖНО:** Партиции для `t_f_budget_fact` (96 месячных партиций: 2023-01 до 2030-12) создаются автоматически через Alembic baseline migration (`backend/db/migrations/`), НЕ через SQL скрипты.
 
 ### Python Scripts (scripts/)
 

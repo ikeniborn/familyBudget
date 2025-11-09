@@ -21,7 +21,7 @@ psql -U budget_user -d family_budget -f 04_insert_t_d_article_children.sql
 # 4. Insert budget facts (plan and actual transactions)
 # NOTE: Partitions are created via Alembic baseline migration (backend/db/migrations/)
 # 96 monthly partitions (2023-01 to 2030-12) are created automatically
-psql -U budget_user -d family_budget -f 06_insert_t_f_budget_fact.sql
+psql -U budget_user -d family_budget -f 05_insert_t_f_budget_fact.sql
 ```
 
 ## Important Notes

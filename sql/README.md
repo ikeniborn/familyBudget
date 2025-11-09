@@ -116,7 +116,7 @@ deactivate
 ```bash
 cd scripts
 ./execute_all.sh                # Все файлы последовательно
-./run.sh --file ../queries/06_insert_t_f_budget_fact.sql  # Один файл
+./run.sh --file ../queries/05_insert_t_f_budget_fact.sql  # Один файл
 ```
 
 ---
