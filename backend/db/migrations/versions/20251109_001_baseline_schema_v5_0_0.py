@@ -178,10 +178,10 @@ def upgrade() -> None:
     # PART 2: Core Fact Table (002_core_facts.sql)
     # =========================================================================
 
-    # TABLE: t_f_budget_fact
+    # TABLE: t_f_budget_fact (PARTITIONED by fact_date by YEAR)
     op.execute("""
         CREATE TABLE t_f_budget_fact (
-            id SERIAL PRIMARY KEY,
+            id SERIAL,
             user_id INT NOT NULL REFERENCES t_d_user(id) ON DELETE CASCADE,
             article_id INT NOT NULL REFERENCES t_d_article(id) ON DELETE RESTRICT,
             financial_center_id INT REFERENCES t_d_financial_center(id) ON DELETE SET NULL,
@@ -191,8 +191,65 @@ def upgrade() -> None:
             description TEXT,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            CONSTRAINT check_fact_amount_not_zero CHECK (amount != 0)
-        )
+            CONSTRAINT check_fact_amount_not_zero CHECK (amount != 0),
+            PRIMARY KEY (id, fact_date)
+        ) PARTITION BY RANGE (fact_date)
+    """)
+
+    # Create partitions for years 2020-2030
+    op.execute("""
+        CREATE TABLE t_f_budget_fact_2020 PARTITION OF t_f_budget_fact
+            FOR VALUES FROM ('2020-01-01') TO ('2021-01-01')
+    """)
+
+    op.execute("""
+        CREATE TABLE t_f_budget_fact_2021 PARTITION OF t_f_budget_fact
+            FOR VALUES FROM ('2021-01-01') TO ('2022-01-01')
+    """)
+
+    op.execute("""
+        CREATE TABLE t_f_budget_fact_2022 PARTITION OF t_f_budget_fact
+            FOR VALUES FROM ('2022-01-01') TO ('2023-01-01')
+    """)
+
+    op.execute("""
+        CREATE TABLE t_f_budget_fact_2023 PARTITION OF t_f_budget_fact
+            FOR VALUES FROM ('2023-01-01') TO ('2024-01-01')
+    """)
+
+    op.execute("""
+        CREATE TABLE t_f_budget_fact_2024 PARTITION OF t_f_budget_fact
+            FOR VALUES FROM ('2024-01-01') TO ('2025-01-01')
+    """)
+
+    op.execute("""
+        CREATE TABLE t_f_budget_fact_2025 PARTITION OF t_f_budget_fact
+            FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
+    """)
+
+    op.execute("""
+        CREATE TABLE t_f_budget_fact_2026 PARTITION OF t_f_budget_fact
+            FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
+    """)
+
+    op.execute("""
+        CREATE TABLE t_f_budget_fact_2027 PARTITION OF t_f_budget_fact
+            FOR VALUES FROM ('2027-01-01') TO ('2028-01-01')
+    """)
+
+    op.execute("""
+        CREATE TABLE t_f_budget_fact_2028 PARTITION OF t_f_budget_fact
+            FOR VALUES FROM ('2028-01-01') TO ('2029-01-01')
+    """)
+
+    op.execute("""
+        CREATE TABLE t_f_budget_fact_2029 PARTITION OF t_f_budget_fact
+            FOR VALUES FROM ('2029-01-01') TO ('2030-01-01')
+    """)
+
+    op.execute("""
+        CREATE TABLE t_f_budget_fact_2030 PARTITION OF t_f_budget_fact
+            FOR VALUES FROM ('2030-01-01') TO ('2031-01-01')
     """)
 
     # Budget fact indexes
